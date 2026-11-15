@@ -74,44 +74,11 @@ Message an overlapping session first, settle it between sessions, bring Preston 
 
 ---
 
-## Docs (load when needed)
+## Docs and Rules
 
-Full index: **`docs/devel/CLAUDE.md`** (auto-loaded when working in docs/devel/)
+Doc index: `docs/devel/CLAUDE.md` (loads in `docs/devel/`). Start with `docs/devel/ARCHITECTURE.md`; UI work `docs/devel/UI_CONTRIBUTOR_GUIDE.md`; reviews `docs/devel/REVIEW_RUBRIC.md`; env vars `docs/devel/ENVIRONMENT_VARIABLES.md` / `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`. Before a feature or refactor, read that subsystem's `docs/devel/` doc.
 
-| Doc | When |
-|-----|------|
-| `docs/devel/ARCHITECTURE.md` | Whole-app 15-minute model, routes into the architecture chapters |
-| `docs/devel/UI_CONTRIBUTOR_GUIDE.md` | UI/layout: breakpoints, tokens, colors, widgets |
-| `docs/devel/LVGL9_XML_GUIDE.md` | XML layouts, widgets, bindings, observer cleanup |
-| `docs/devel/MODAL_SYSTEM.md` | Modal architecture: ui_dialog, modal_button_row, Modal pattern |
-| `docs/devel/FILAMENT_MANAGEMENT.md` | AMS, AFC, Happy Hare, ACE, AD5X IFS, CFS, Tool Changer |
-| `docs/devel/CHAMBER_HEATER.md` | Chamber heaters: backends, discovery, diagnostics, ceiling rules |
-| `docs/devel/REVIEW_RUBRIC.md` | Reviewing a change: crash families, silent-failure traps |
-| `docs/devel/ENVIRONMENT_VARIABLES.md` | Runtime env vars |
-| `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` | Mock printer config for `--test` runs (`HELIX_MOCK_*`, replay) |
-| `docs/devel/LOGGING.md` | spdlog levels: info vs debug vs trace |
-| `docs/devel/BUILD_SYSTEM.md` | Makefile, cross-compilation, jobpool, worktrees, the test host |
-| `docs/devel/SHARED_TREE.md` | Working beside other sessions: helix-claim, hooks, colliding builds |
-| `tests/CLAUDE.md` | Test cadence table, land-gate stages, proving a test can fail |
-| `scripts/CLAUDE.md` | One line per script; full notes in `docs/devel/SCRIPTS_REFERENCE.md` |
-
-## Path-Scoped Rules (`.claude/rules/`)
-
-They load automatically for matching files, and every one is lint-gated.
-
-| Rule | Loads for | Covers |
-|------|-----------|--------|
-| `.claude/rules/declarative-ui.md` | `src/ui/`, `ui_xml/`, `include/ui_*.h` | DATA in C++, APPEARANCE in XML; design tokens |
-| `.claude/rules/vendor-abstraction.md` | `src/`, `include/` | A vendor name lives in ONE module per capability |
-| `.claude/rules/threading.md` | `src/`, `include/`, `tests/unit/` | The five lifecycle invariants; `docs/devel/THREADING.md` is the full text |
-| `.claude/rules/submodules.md` | `lib/`, `patches/`, `mk/patches.mk` | `lib/helix-xml/` edited directly; the rest via `patches/` |
-| `.claude/rules/filament-backends.md` | `src/printer/ams_*`, `include/ams_*`, `*filament_*` | Which doc to read before touching a filament backend |
-
----
-
-## Above a Bugfix: Investigate, Then Scope
-
-Features, refactors, new panels/widgets/managers: **scope AFTER investigating.** Map call sites, subjects and tests, read that subsystem's `docs/devel/` doc, find the canonical implementation of each piece, extend the near-fit helper (never fork a twin), and say what you searched and what you are reusing.
+`.claude/rules/*.md` load by path and are lint-gated: declarative UI, vendor abstraction, threading, submodules, filament backends.
 
 ---
 
@@ -129,7 +96,6 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating.**
 | **Doc citations** | A line number (`src/printer/printer_state.cpp:638`) | `` `src/printer/printer_state.cpp#update_from_status` ``: path + `#` scopes (`scripts/doc_anchors.py`); fix by hand only on a rename |
 | **No auto-mock** | `if(!start()) return Mock()` | Check `RuntimeConfig::should_mock_*()` |
 | **JSON include** | `#include <nlohmann/json.hpp>` | `#include "hv/json.hpp"`; `json_fwd.h` in a header naming `json` only by reference, pointer or return. Escape hatch `// JSON_HPP_OK: <reason>` |
-| **Build system** | `cmake`, `ninja` | `make` (pure Makefile) |
 | **No RTTI** | `dynamic_cast`, `typeid`, `std::type_index`, `any.type()` | `helix::type_tag<T>()` keys, virtual kind queries, pointer-form `any_cast`. Escape hatch `// RTTI_OK: <reason>` |
 | **No exceptions (firmware)** | `try`/`catch`/`throw`, `j.value("k", d)`, `j.at("k")`, one-arg `json::parse`, `std::stoi`, value-form `any_cast` | `json_util::safe_*`/`as_*`, `json::parse(s, nullptr, false)`, `text_io::parse_leading`, `any_cast<T>(&a)`; `exception_policy.h`. ESP32 builds `-fno-exceptions`: a throw is an abort |
 | **Constant names** | `constexpr int MAX_RETRY_COUNT = 3;` | `constexpr int kMaxRetryCount = 3;` (UPPER_SNAKE is for macros). Escape hatch `// CONST_NAME_OK: <reason>` |
@@ -139,8 +105,6 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating.**
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph |
 | **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed` | Present-tense constraint (global CLAUDE.md); `scripts/check_comment_archaeology.py`, escape hatch `ARCHAEOLOGY_OK: <reason>` |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly |
-
-**ALWAYS:** Search the SAME FILE you're editing for similar patterns before implementing.
 
 ---
 
@@ -168,22 +132,9 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating.**
 
 **Moonraker layer:** consumers depend ONLY on `helix::IMoonrakerAPI` (`include/i_moonraker_api.h`), `helix::IMoonrakerClient` and the sub-API interfaces in `include/i_moonraker_sub_apis.h`. The concretes live behind `MoonrakerManager`; naming one outside the network layer fails lint. `docs/devel/ARCHITECTURE.md`.
 
-**Test isolation:** every fixture derives from `HelixTestFixture` (`tests/helix_test_fixture.h`), which drains `UpdateQueue`, resets language and clears `ModalStack` on both ends. `docs/devel/UI_TESTING.md`.
-
 **Entry flow**: `main.cpp` → `Application` → `DisplayManager` → panels via `NavigationManager`
 
-| Path | Contents |
-|------|----------|
-| `src/ui/` | The UI framework at the top level; everything else in ONE level of group dirs (`settings/`, `print/`, `home/`, `components/`, `panel_widgets/`, ...). The Makefile globs no deeper |
-| `src/printer/` | PrinterState, macro/filament managers |
-| `src/api/` | The Moonraker client and API facade |
-| `src/network/`, `src/platform/` | WiFi, Ethernet, mDNS; display, input, usb |
-| `src/mock/` | The mock Moonraker behind `--test` |
-| `src/core/` | Update queue, observer factory, static registries, text and HTTP plumbing |
-| `src/system/` | Config, settings, update checker, sound, telemetry |
-| `src/application/` | App lifecycle, display, input, runtime config |
-| `ui_xml/`, `ui_xml/components/` | XML layouts and reusable components (runtime-loaded) |
-| `assets/`, `config/` | Fonts, images, sounds, printer DB; default configs |
+`src/ui/` holds the UI framework at its top level and everything else in ONE level of group dirs (`settings/`, `print/`, ...): the Makefile globs no deeper.
 
 **Runtime config on device**: `~/helixscreen/config/` (settings.json, printer_database.json, helixscreen.env)
 
@@ -191,7 +142,7 @@ Features, refactors, new panels/widgets/managers: **scope AFTER investigating.**
 
 ## Debugging
 
-**NEVER debug without flags!** Use `-vv` minimum. Trust debug output: impossible values mean the bug is UPSTREAM. Ask "what ELSE?", not "did the first fix work?"
+Debug with `-vv` minimum; impossible values in the log mean the bug is upstream.
 
 **A plain `> file` redirect drops the console log, except under `--test`.** A non-`--test` background run needs `2>&1 | tee /tmp/x.log` or `HELIX_LOG_DEST=console`. `docs/devel/LOGGING.md` § "Console sink".
 
@@ -222,7 +173,7 @@ On top of the `brainstorming` skill:
 - **Measure before suggesting.** `ctl geom` every surface an option will occupy at 800x480 and the smallest breakpoint, and draw options inside those numbers.
 - **Every header a plan defines** gets a `scripts/syntax_check.py` pass first.
 
-Worktrees: the `helix-ops` skill § Worktrees. Execution follows § Verification Cadence: no per-task review, one review at the finish, "verify" means the tags, and a new test goes red first.
+Execution follows § Verification Cadence: no per-task review, one review at the finish, "verify" means the tags, and a new test goes red first.
 
 ---
 

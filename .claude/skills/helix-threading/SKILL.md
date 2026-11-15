@@ -21,17 +21,8 @@ code under `src/ui/`.
 
 ## The invariants
 
-The five core invariants live in `.claude/rules/threading.md`, which loads automatically for
-`src/`, `include/` and `tests/unit/`. In short:
-
-1. No LVGL from a background thread, `lv_subject_set_*` included: `helix::ui::queue_update()` (§1).
-2. No bare `if (tok.expired()) return;` before touching `this` on a background thread:
-   `lifetime_.bg_cb(tag, fn)` or `tok.defer(tag, fn)` (§2).
-3. No synchronous deletion inside a queued callback: `safe_delete_deferred`,
-   `lv_obj_delete_async`, `safe_clean_children` (§3).
-4. Hand `observe<V>` the `SubjectLifetime` the accessor filled, never a default-constructed one (§5).
-5. A raw `lv_timer_t*` cancelled in `cleanup()` is cancelled in the destructor too, via a shared
-   `cancel_*_timer()` and `lv_timer_cancel_safe()` (§10).
+The five invariants are in `.claude/rules/threading.md`, which loads automatically for `src/`,
+`include/` and `tests/unit/`; read it if this file is not where you are working.
 
 Three more that the rule file covers in one line or not at all:
 
@@ -45,16 +36,6 @@ Every `init_subjects()` self-registers its `deinit_subjects()` with `StaticSubje
 
 Commit-time gates (`scripts/quality-checks.sh`): `scripts/check_l081_anti_pattern.py` (#2),
 `scripts/check_timer_destructor_cancel.py` (#5), `scripts/check_subscription_null_safety.py`.
-
-## Two things that surprise people
-
-**`lifetime_.defer` does not escape the UpdateQueue batch.** It wraps `queue_update`, so the
-callback fires in the next `process_pending` tick, which is still a batch that may hold other
-sync deletions. The generation guard protects `this` from use-after-free, not the event list
-from corruption. (§3)
-
-**From a background thread, use `tok.defer()`, never `lifetime_.defer()`.** The latter reads
-`this->lifetime_`, which is the TOCTOU race (#707). `lifetime_.defer()` is main-thread only. (§2)
 
 ## Section map: `docs/devel/THREADING.md`
 

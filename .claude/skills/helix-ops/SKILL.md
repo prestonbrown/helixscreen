@@ -62,9 +62,7 @@ and CI's shard layout.
 never `EnterWorktree`. `scripts/teardown-worktree.sh my-branch` removes one, since
 `git worktree remove` refuses here; `-n` prints the plan. Setup refuses an existing
 `.worktrees/<last-segment>`: check that it is not a peer's tree. `docs/devel/BUILD_SYSTEM.md`
-§ "Git Worktrees" covers what each script does and refuses. These replace the create step in
-`superpowers:using-git-worktrees` and the `git worktree remove` step in
-`superpowers:finishing-a-development-branch`.
+§ "Git Worktrees" covers what each script does and refuses.
 
 `build/bin/helix-tests` and `helix-screen` can be one inode across worktrees. Compare `stat`
 inodes before trusting a control run against a sibling tree.
@@ -82,15 +80,10 @@ step: `make land-gate STAGES=<step>` reruns just it on the same clean HEAD. Stag
 The manual behind these rules (helix-claim, the hooks, reading a tree mid-merge):
 `docs/devel/SHARED_TREE.md`.
 
-**Message the other session first.** Overlapping work gets a message BEFORE you read their diff,
-pick a winner, plan a rebase, or file or comment publicly. The ask first, then branch names and
-SHAs. A claim says a resource is taken, never what the holder is doing: ask. A successful send is
-not a delivery and silence is not agreement: never merge, rebase or delete on an unanswered
-message.
-
 **Settle it between sessions; bring Preston outcomes, not questions.** Who builds, who holds a
 tree, merge order, conflicts, release timing are yours to resolve. Ask him only for a product call
-nobody has made, or for judging pixels. When a peer's work affects yours, tell them first.
+nobody has made, or for judging pixels. A claim says a resource is taken, never what the holder is
+doing: ask, and never merge, rebase or delete on an unanswered message.
 
 - **Claim before you take a shared resource: `scripts/helix-claim`.** `check` before concluding
   anything about someone else's work; hold `worktree:<name>` from your FIRST edit until the commit
