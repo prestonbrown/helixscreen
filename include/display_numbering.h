@@ -71,6 +71,10 @@ std::string tool_name_label(LaneNoun noun, std::string_view name, int index);
 /// configured name). The G-code name is tool_label().
 std::string active_tool_name_label(std::string_view name, int index);
 
+/// A toolhead's number as the screen counts it ("1", or "0" when lanes count
+/// from 0), or the name its owner gave it: the short form beside a nozzle.
+std::string tool_number_or_name(std::string_view name, int index);
+
 /**
  * @brief How much of a tool's identity a label spells.
  *

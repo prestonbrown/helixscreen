@@ -721,9 +721,7 @@ void ControlsPanel::sync_nozzle_tool() {
         // nozzle picker does the same), or its configured name; the open list
         // spells out "Tool 1 (T0)".
         const auto& tool = tools[static_cast<size_t>(nozzle_tool())];
-        const std::string closed = helix::ui::is_generated_tool_name(tool.name)
-                                       ? helix::ui::lane_number_text(tool.index)
-                                       : tool.name;
+        const std::string closed = helix::ui::tool_number_or_name(tool.name, tool.index);
         lv_dropdown_set_text(nozzle_tool_dropdown_, closed.c_str());
         helix::ui::fit_dropdown_to_text(nozzle_tool_dropdown_);
     }

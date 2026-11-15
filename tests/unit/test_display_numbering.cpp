@@ -313,3 +313,12 @@ TEST_CASE("active_tool_name_label names a tool the way the screen numbers lanes"
     ScopedZeroLaneNumbering zero;
     CHECK(active_tool_name_label("T0", 0) == "Tool 0");
 }
+
+TEST_CASE("tool_number_or_name is the number as the screen counts it, or the tool's own name",
+          "[numbering][target_tool]") {
+    CHECK(tool_number_or_name("T0", 0) == "1");
+    CHECK(tool_number_or_name("T2", 2) == "3");
+    CHECK(tool_number_or_name("Left", 0) == "Left");
+    ScopedZeroLaneNumbering zero;
+    CHECK(tool_number_or_name("T0", 0) == "0");
+}

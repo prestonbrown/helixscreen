@@ -884,9 +884,7 @@ std::string ToolState::nozzle_label(int tool_index) const {
         // status widget) all spell this nozzle with lane_number_text(), and two
         // names for one physical nozzle is the confusion. A tool its owner
         // named keeps that name.
-        const std::string suffix = helix::ui::is_generated_tool_name(tool->name)
-                                       ? helix::ui::lane_number_text(tool->index)
-                                       : tool->name;
+        const std::string suffix = helix::ui::tool_number_or_name(tool->name, tool->index);
         if (!suffix.empty()) {
             return std::string(lv_tr("Nozzle")) + " " + suffix;
         }
