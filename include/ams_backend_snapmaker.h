@@ -118,8 +118,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                                                        const std::vector<int>& extruder_map);
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
-    /// Re-words a standing channel fault ("Lane 2: Load failed") in the new
-    /// language.
+    /// Re-words a standing channel fault ("Lane 2: Load failed") in the new language.
     void refresh_translated_texts() override;
 
     // Operation step bar. The U1 firmware reports a granular channel_state that

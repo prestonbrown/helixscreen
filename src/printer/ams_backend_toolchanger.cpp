@@ -44,8 +44,7 @@ namespace helix {
 
 namespace {
 
-/// Shown while the dock sensors cannot name the mounted tool; an untranslated
-/// catalog key, translated by AmsState at display time.
+/// Shown while the dock sensors cannot name the mounted tool (a catalog key).
 constexpr const char* kSensorErrorDetail = TR_NOOP("Sensor Error");
 
 /// The status line for a toolchanger status or operation word: a catalog key
