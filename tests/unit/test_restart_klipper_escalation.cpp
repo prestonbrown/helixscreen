@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_emergency_stop.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "../test_helpers/mock_printer.h"
+#include "core/update_queue.h"
 #include "moonraker_error.h"
 
 #include "../catch_amalgamated.hpp"

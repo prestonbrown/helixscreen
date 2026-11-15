@@ -4915,8 +4915,7 @@ TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it"
 }
 
 TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs][clear_fault]") {
-    CfsRemapHelper backend;
-    CfsTestAccess::mark_running(backend);
+    helix::test::StartedBackend<CfsRemapHelper> backend;
     CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
     CfsTestAccess::set_filament_sensor(backend, true, false);
     CfsTestAccess::complete_action(backend);
@@ -4930,9 +4929,9 @@ TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs]
     CHECK(backend.captured.empty());
 
     // The cleared verdict does not come back on the next status frame.
-    CfsTestAccess::handle_status(
-        backend, {{"params", nlohmann::json::array({{{"filament_switch_sensor filament_sensor",
-                                                      {{"filament_detected", false}}}}})}});
+    backend.fire_status(
+        {{"params", nlohmann::json::array({{{"filament_switch_sensor filament_sensor",
+                                             {{"filament_detected", false}}}}})}});
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
     CHECK_FALSE(backend.current_error().has_value());
 }
