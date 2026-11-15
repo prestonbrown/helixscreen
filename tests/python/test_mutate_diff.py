@@ -1707,6 +1707,32 @@ def test_an_unclaimed_asset_stays_visible():
     assert md.classify("assets/sounds/beep.wav", False)[0] == "uncovered"
 
 
+@pytest.mark.parametrize("path", ["moonraker-plugin/install.sh", "config/helix_launcher.bash",
+                                  "assets/config/platform/hooks.sh"])
+def test_a_shell_script_outside_scripts_is_mutated_as_tooling(path):
+    assert md.classify(path, False) == ("mutate", "tooling")
+
+
+def test_an_extensionless_script_is_mutated_when_its_shebang_names_a_shell(tmp_path):
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin" / "claim").write_text("#!/usr/bin/env bash\necho hi\n")
+    (tmp_path / "bin" / "tool").write_text("#!/usr/bin/env python3\nprint(1)\n")
+    (tmp_path / "bin" / "notes").write_text("plain text\n")
+    assert md.classify("bin/claim", False, tmp_path) == ("mutate", "tooling")
+    assert md.classify("bin/tool", False, tmp_path)[0] == "uncovered"
+    assert md.classify("bin/notes", False, tmp_path)[0] == "uncovered"
+    assert md.classify("bin/missing", False, tmp_path)[0] == "uncovered"
+
+
+@pytest.mark.parametrize("path", ["tests/shell/helpers.bash", "lib/libhv/configure.sh",
+                                  "android/gradlew"])
+def test_a_shell_script_the_tests_or_vendors_own_is_not_mutated(path, tmp_path):
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\nexit 0\n")
+    assert md.classify(path, False, tmp_path)[0] == "uncovered"
+
+
 @pytest.mark.parametrize("codes, worst", [
     ([0, 0], 0), ([0, 3], 3), ([3, 1, 0], 1), ([0, 4, 3], 4), ([143, 3], 143), ([], 0)])
 def test_the_worst_child_exit_is_the_run_exit(codes, worst):

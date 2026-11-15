@@ -367,7 +367,30 @@ UNMUTATABLE = (
     ('tests/*',        'a test is proven by mutating the code it pins, not by reverting itself'),
     ('lib/*',          'vendored or submodule code; a superproject diff carries no hunks for it'),
     ('patches/*',      'a patch against vendored code; the build applies the stack as a whole'),
+    ('android/gradlew', 'the Gradle wrapper, which Gradle generates'),
 )
+
+# A shell script outside scripts/ (the plugin's installers, platform hooks, git
+# hooks, scripts/helix-claim) takes the tooling strategy: a `.sh` or `.bash` file,
+# or an extensionless one whose first line runs a shell. Checked after the rules
+# above, so tests/, lib/ and patches/ keep their own verdicts.
+SHELL_SUFFIXES = ('.sh', '.bash')
+SHELL_SHEBANG = re.compile(rb'#!\s*\S*/(?:env\s+)?(?:ba|da|k|z)?sh\b')
+
+
+def is_shell_script(path, root):
+    """A shell script by name, or, with @p root, by the shebang of an extensionless file."""
+    name = path.rsplit('/', 1)[-1]
+    if name.endswith(SHELL_SUFFIXES):
+        return True
+    if root is None or '.' in name:
+        return False
+    try:
+        with open(Path(root) / path, 'rb') as f:
+            first = f.readline(128)
+    except OSError:
+        return False
+    return SHELL_SHEBANG.match(first) is not None
 DEFAULT_REASON = 'no mutation strategy covers this path'
 # A run on the merge path. A longer run is a release check (--release).
 MERGE_MAX_MINUTES = 45
@@ -390,11 +413,12 @@ def load_untestable(root):
     return out
 
 
-def classify(path, is_gitlink):
+def classify(path, is_gitlink, root=None):
     """('mutate', strategy) | ('inert', reason) | ('uncovered', reason).
 
     The default is 'uncovered'. Every other outcome has to be claimed by a rule,
     which is what keeps a path nobody thought about out of a clean result.
+    @p root, when given, lets an extensionless file be read for its shebang.
     """
     if is_gitlink:
         return 'uncovered', GITLINK_REASON
@@ -410,6 +434,8 @@ def classify(path, is_gitlink):
     for pattern, reason in UNMUTATABLE:
         if fnmatch(path, pattern):
             return 'uncovered', reason
+    if is_shell_script(path, root):
+        return 'mutate', 'tooling'
     return 'uncovered', DEFAULT_REASON
 
 
@@ -4075,9 +4101,9 @@ def main():
     # ---- classify the whole change -------------------------------------
     verdict_of = {}       # path -> ('mutate', strategy) | ('inert'|'uncovered', reason)
     for path, is_gitlink in files:
-        verdict_of[path] = classify(path, is_gitlink)
+        verdict_of[path] = classify(path, is_gitlink, root)
     for h in hunks:                       # a hunk git names but --raw did not
-        verdict_of.setdefault(h['file'], classify(h['file'], False))
+        verdict_of.setdefault(h['file'], classify(h['file'], False, root))
 
     hunks_of = {}
     for h in hunks:

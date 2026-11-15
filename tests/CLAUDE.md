@@ -420,7 +420,7 @@ What it mutates, and what pays for what:
 |------|--------------------|-------|
 | `src/`, `include/` | `make test-build` | `helix-tests` |
 | `ui_xml/*.xml`, `assets/config/*.json` | none — the binary reads these off the tree at run time | `helix-tests` |
-| `scripts/*.py`, `scripts/*.sh` | none | `bats tests/shell` + `pytest tests/python` |
+| `scripts/*.py`, and shell scripts anywhere outside `tests/` and `lib/` (`.sh`, `.bash`, or no extension with a shell shebang) | none | `bats tests/shell` + `pytest tests/python` |
 
 Everything else is `NOT COVERED`, with the reason printed. Two are worth knowing:
 `tests/` itself, because a test is proven by mutating the code it pins rather
