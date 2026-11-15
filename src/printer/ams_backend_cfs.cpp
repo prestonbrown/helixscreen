@@ -1812,6 +1812,13 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
         }
     }
 
+    if (const auto* flag = helix::json_util::find_member(state, "unload_after_print_enabled")) {
+        const int unload = helix::json_util::as_bool(*flag, true) ? 1 : 0;
+        if (unload_after_print_.exchange(unload) != unload) {
+            spdlog::info("[AMS CFS] Firmware unload after print: {}", unload ? "on" : "off");
+        }
+    }
+
     // Partial updates (measuring_wheel, etc.): skip — don't touch state.
     // A flat session has nothing to parse until the box has stated its slots.
     if (!is_full_update || (is_flat && detect_schema(state) != CfsSchema::Flat)) {
