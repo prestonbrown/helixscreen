@@ -151,7 +151,7 @@ Key the choice on the question you actually have, not on a phase of work:
 | Did I break something elsewhere in C++? | `make unit-sweep` | ~50s idle, minutes loaded |
 | Will CI's unit job pass? | `make unit-sweep NPROCS=8`: CI runs 8 shards, split four apiece across two 4-core runners, so tests share a process with different neighbours than the local 96 | ~100s |
 | Am I finished - did I break anything, anywhere? | `make full-test-run` | ~2m, **once, at the end** |
-| **May this land on main?** - will CI go green on it | `make land-gate`: THE pre-landing gate (below) | prints its measured ETA at start (17-36m on 2026-10-21), **once per landing** |
+| **May this land on main?** - will CI go green on it | `make land-gate`: THE pre-landing gate (below) | prints its measured ETA at start, **once per landing** |
 | What does any of this actually cost? | `make dev-timing` | 5s, measured medians |
 
 The rule the table encodes: **a full run cannot tell you your feature works.** It can only
@@ -163,25 +163,12 @@ every way of naming what you want. With no `F` it refuses rather than running ev
 `make test-run` runs nothing: it prints this choice and exits non-zero, because the
 shortest target name is the one people type, so it must not start a full run.
 
-`make land-gate` is the gate a branch passes before it reaches main, and it is the one a
-batch landing runs on the combined result. It runs the C++ suite once, in CI's 8-shard
-layout rather than the local sweep's 96 (a use-after-free can crash only next to the
-neighbours CI's layout gives it, and CI never runs the 96), the `[slow]` tier, the bats suite, CI's exact
-`tests/ui` pytest slice, the moonraker plugin tests and `tests/python` (`make test-ui-ci`, `make test-plugin`, `make test-python`), and the
-generated-artefact checks
-(`check-theme-tokens`, `check-xml-schema`, `lint-xml`, `check-lvgl-event-codes`), the
-packaged no-mocks scan of the branch's units (`scripts/check_no_mocks.py`), and the
-`quality-checks.sh` sweep pre-push would otherwise repeat on the same commit. The C++
-run goes to the test host when `full-test-run`'s would (`TEST_HOST`); everything else runs
-here in parallel, and it ends with a PASS/FAIL/TIMEOUT table with durations, naming the
-commit it judged (`+dirty` when uncommitted changes were in the tree). It holds
-`build:<tree>` while it runs and refuses a missing bats rather than skipping it
-(`scripts/land-gate.sh`, logs in `build/land-gate/`). A gate red on one flaky or environment
-step is finished with `make land-gate STAGES=<step>[,<step>]` on the same clean HEAD: it
-reruns only those steps (app-build, bats, ui and quality as one group, since three of them
-test the binary app-build links), merges them into that commit's table, and stamps the
-commit for pre-push once every step has passed. `full-test-run` alone misses
-`tests/ui` and CI's shard layout, which is how a branch goes green here and red on CI.
+`make land-gate` is the gate a batch landing runs on the combined result. Over `full-test-run`
+it adds CI's 8-shard C++ layout (a use-after-free can crash only next to CI's neighbours),
+`tests/ui`, the plugin and python suites, the generated-artefact checks and the quality sweep,
+which is how a branch goes green here and red on CI otherwise. It ends with a PASS/FAIL/TIMEOUT
+table naming the commit it judged; `make land-gate STAGES=<step>[,<step>]` reruns failed steps on
+the same clean HEAD. Stages, logs and stamps: `scripts/land-gate.sh`, `build/land-gate/`.
 
 Rows four through seven are the evidence ladder below. "Proving a test can fail" is where
 each one's cost and blind spot is set out; read it there rather than picking from this
@@ -189,29 +176,10 @@ table.
 
 ### The wrapper costs more than the test
 
-Measured on the build host at load average 37, with five other sessions compiling:
-
-| | |
-|---|---|
-| `make test`, nothing to rebuild | 11.2s |
-| `make t F='[lane]'`, nothing changed | 5.3 to 6.7s over four runs |
-| `./build/bin/helix-tests '[lane]'`, 223 cases | **0.58s**, four runs, no variance |
-| `./build/bin/helix-tests '<one case>'` | **0.05s**, four runs, no variance |
-
-`make`'s dependency scan over this tree is the entire cost, and it is the part that moves
-with load: the same warm `make t` measures about 4s on an idle box and 18s on a busy one.
-The tests do not move at all. Read these as ratios rather than absolutes.
-
-So `make t` buys exactly one thing, the guarantee that the binary matches your source, and
-that guarantee is what the seconds are for.
-
-**When you have edited code it is not optional.** `make -j` builds only the app binary, so
-running `./build/bin/helix-tests` after an edit silently tests the previous build and
-reports the previous run's numbers. That is a green that means nothing.
-
-**When you have not edited code, skip it.** Re-running a failure, trying a different
-filter, checking a neighbouring tag, reading what an assertion actually said: the binary
-already matches your source, and those are 0.05s questions.
+`make t`'s cost is make's dependency scan (about 5-18s, moving with load); the binary runs one
+case in 0.05s. Edited code: `make t`, because `make -j` builds only the app and the test binary
+would silently report the previous build. Nothing edited (re-running a failure, another filter,
+a neighbouring tag): run `./build/bin/helix-tests` directly.
 
 ### Reading a mutation verdict
 
@@ -281,95 +249,22 @@ base d9f1c0a4e7b2  <- merge-base with origin/release/1.0 (nearest of 4 candidate
 diff 3 hunk(s) across 2 file(s)
 ```
 
-The base is the nearest fork point among the refs this branch could have been cut
-from - its configured upstream, then the release branches, then main - because
-`main` alone is wrong on anything growing out of a maintenance branch. A branch
-cut from `release/1.0` shares with main only where those two parted, so measured
-against main it inherits everything `release/1.0` has done since as its own
-change: dozens of foreign hunks, a build apiece, and verdicts about other
-people's code. Those mostly come back `uncompilable`, which is correctly not a
-kill, so a mis-scoped run has no symptom of its own - it just looks slow and
-stubborn.
-
-A hunk count well above the size of your change is therefore the thing to
-notice, and the run stops and says so rather than spending the builds
+The base is the nearest fork point among the branch's upstream, the release branches and
+main. A hunk count well above the size of your change means it picked the wrong one (a
+branch off `release/1.0` measured against main inherits that branch's hunks), and the run
+stops and says so rather than spending the builds
 (`--max-hunks`, default 25; exit 4). Settle it with
 `MUTATE_ARGS="--base origin/release/1.0"`, which is taken as given and never
 second-guessed.
 
-**Where a hunk's time goes, and how a run spends less of it.** A compiled hunk costs
-one translation unit and a relink of `helix-tests` (seconds), then the scoped suite,
-which is as slow as its slowest shard: a single heavy case decides it. So the filter
-is cut into 4 Catch2 shards per process `--shards` allows at once (default 8),
-started longest first by their baseline time as slots free up, and a detection in
-any shard stops the rest. `--workers N` mutates N hunks at once, each in a reflink
-copy of the tree beside it (`.<tree>.mutate-w<i>`, removed at the end) with its own
-`build/` and binary, so no two mutants share a file and the tree you ran it in is
-never mutated. It needs a standalone clone on btrfs, XFS or ZFS and says why when
-it falls back to serial; `scripts/test-host-run.sh mutate` passes `--workers auto`.
-Every make the run starts, and every shard or worker beside the first, draws from
-the jobserver it inherits (the jobpool on the test host), so the workers never run
-on top of the machine's budget. Verdicts are the same either way; only the order
-they arrive in changes.
-
-**A run is bounded, and any stop leaves the tree as it found it.**
-
-- `--max-minutes N` (default and maximum 45; `--release` lifts the cap, and
-  only then does `0` mean none) caps the whole run, baseline included. At the
-  cap the in-flight hunk is stopped and restored, and it and
-  every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
-  `CLEAN`. Each filter's baseline time is kept in the
-  checkout's build directory, as mutate-baseline-secs.json (a baseline the cap
-  cut off as a lower bound), keyed on suite, filter and for catch2 `--shards`, and a baseline whose
-  kept time exceeds what is left is not started: its hunks read `UNEXAMINED`
-  (unjudged in a pool) at once. A refusal marks the entry and the next run
-  measures it again, so one time taken under load costs one run. A large batch's
-  whole-suite fallback therefore cannot spend the cap before any mutant runs.
-- SIGINT, SIGTERM and SIGHUP all stop it the same way: every child (make and
-  its compilers, `git apply`, the suites) runs in its own process group and is
-  stopped and reaped first, then every mutated file is written back from the
-  bytes captured at the start, then it exits `128+signo`. Ctrl-C and a plain
-  `kill` are equally safe; only `kill -9` can strand a mutant. An inherited
-  SIGHUP ignore (`nohup`) is kept.
-- A run whose parent process exits stops before its next hunk instead of
-  mutating a tree nobody is watching. `--allow-orphan` for a deliberate detach.
-
-**Landing a fix mutates the fix, not the branch again.** A run that leaves
-nothing unexamined (every mutatable hunk killed or declaration-only) records HEAD
-as proven in `refs/notes/mutate-proven`, but only when all of these hold: its
-base is the fork point or itself a proven commit, HEAD did not move during the
-run, the tracked tree matches HEAD, and nothing untracked sits under `tests/`,
-`src/` or `include/`. Commit before the run if you want it recorded. The next
-run with no `--base` starts from the newest proven commit on the branch, and its
-first line says so (`<- last commit proven by mutate-diff on this branch`). The
-note carries the run's `NOT COVERED` paths and the next run reports them again,
-so a delta run is as INCOMPLETE as the branch it continues. A delta that removes
-or edits a line under `tests/` can undo the kills the proof rests on, so it falls
-back to the fork point and prints why.
-
-| Flag | Scope |
-|------|-------|
-| (none) | since the last proven commit, else the fork point |
-| `--since <sha>` | since a commit you name; must be an ancestor of HEAD, and records nothing unless it is proven |
-| `--whole-branch` | everything since the fork point, ignoring the record |
-| `--base <ref>` | exactly `<ref>`, taken as given; records only if it is the fork point or proven |
-| `--no-record` | run as usual, record nothing |
-
-The record lives in the repo that ran the gate, so a run on the test host
-(`scripts/test-host-run.sh mutate`) records there; pass `--since` explicitly to
-carry a proof between machines.
-
-The verdicts are not interchangeable:
-
 | Verdict | Means |
 |---------|-------|
-| `killed` | a test detects the change — the outcome you want |
-| `killed (timeout)` | the mutant hung the suite at a limit derived from the baseline (`max(60s, 5x baseline)` of the same Catch2 shard, or `--timeout`) AND hung again when re-run at twice that limit. One stall alone is a machine under load, not a detection. The whole process group dies with each timeout |
-| `SURVIVED` | the mutant ran and the suite stayed green: NO test detects it |
-| `uncompilable` / `unreversible` | a mutant was attempted but no test ever judged it. Never a kill: a compiler error proves the code is load-bearing for the build, not that anything tests its behaviour |
-| `skipped (declaration-only)` | every changed line of a C/C++ hunk is one of: a forward declaration (`class X;`, `enum class E : int;`), an access specifier or `friend class`, a `static_assert`, `#pragma once`, a class head with no `alignas` or base that is not changed between `class` and `struct`, or a member function or destructor declaration that is not `virtual` or `explicit` (changes to its signature, `const`, `noexcept` or `= delete` included, as long as `static`/`constexpr`/`inline` match the other side). Its revert can only fail to compile, so it is not built and never counts as a kill. Everything else is mutated: every `#include`, every data member, namespace-scope prototypes, aliases and externs, friend functions and operators, explicit specialisations and instantiations, initialisers, default arguments, inline bodies, enumerators, `#define`. `--no-skip-declarations` mutates them all |
-| `UNEXAMINED` | the run stopped (`--max-minutes`, or its parent exited) before reaching this hunk, or its baseline was known not to fit in what was left |
-| `NOT COVERED` | nothing here can mutate that file, so the gate did not look at it |
+| `killed` / `killed (timeout)` | a test detects the change (a timeout counts only when it hangs twice) |
+| `SURVIVED` | NO test detects it: a follow-up fix pins it |
+| `uncompilable` / `unreversible` | never judged by a test; never a kill |
+| `skipped (declaration-only)` | a revert that can only fail to compile; not built, unexamined |
+| `UNEXAMINED` | the run stopped first (`--max-minutes`, default 45, or its parent exited) |
+| `NOT COVERED` | nothing mutates that path (`tests/`, `lib/`, anything outside `src/`, `include/`, `ui_xml/`, `assets/config/`, scripts) |
 
 The run answers `CLEAN` only when every hunk it built was mutated and every
 mutant died. Declaration-only skips do not stop a run being `CLEAN`, but they are
@@ -378,26 +273,13 @@ unexamined)`. Anything short of that is `INCOMPLETE` (exit 3) and names what it
 did not examine, because a clean answer about a file the tool never opened is
 precisely what a commit body would go on to cite as proof.
 
-What it mutates, and what pays for what:
-
-| Path | Refresh per mutant | Suite |
-|------|--------------------|-------|
-| `src/`, `include/` | `make test-build` | `helix-tests` |
-| `ui_xml/*.xml`, `assets/config/*.json` | none — the binary reads these off the tree at run time | `helix-tests` |
-| `scripts/*.py`, and shell scripts anywhere outside `tests/` and `lib/` (`.sh`, `.bash`, or no extension with a shell shebang) | none | `bats tests/shell` + `pytest tests/python` |
-
-Everything else is `NOT COVERED`, with the reason printed. Two are worth knowing:
-`tests/` itself, because a test is proven by mutating the code it pins rather
-than by reverting itself; and anything under `lib/`, because a superproject diff
-carries only a submodule's pointer and never its content. Clear one by mutating
-it by hand and naming the result in the commit body, or accept it with
-`--allow-incomplete`.
-
 `make cov-diff` is the cheap screen: a changed line the suite never runs cannot
 be tested, and finding that costs one run instead of one build per hunk. The
 converse does not hold, so a clean coverage report is not a substitute. It heads
 its report with the same `base ... <- ...` line, resolved by the same module, so
 the two tools cannot disagree about what the change under test is.
+
+The full manual (base selection, workers and reflink copies, time caps and signals, proven-commit notes and their flags, per-file test selection, release runs): `docs/devel/TESTING.md` § "mutate-diff".
 
 ### A test must pass on its own
 
@@ -420,38 +302,7 @@ skipped at the end: a survivor becomes a follow-up fix (a test that pins the hun
 other. Never run it per task, per commit, per agent or per landing while the work is still moving:
 hunks a later commit rewrites get mutated twice for nothing, and the verdict on them is thrown away.
 
-**Each changed file runs against its own tests.** A run prints `tests per file:` first. A
-file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
-that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; a stem more
-than 12 files name counts as none), plus the cases in other files carrying a tag those
-files own (two thirds of its cases, at most 3 other files), else `--tests`. A script under `scripts/` runs the
-`.bats` and pytest files that name it (its file name, or a Python script's import stem):
-with only one of the two, that one judges it; with neither, both whole suites do, which is
-slow. A bats or pytest case red at baseline (inside the test container some fail on
-the environment alone: root, no jobpool) is set aside by name, printed, and every other
-case judges; a red Catch2 baseline still stops the run. Files sharing what judges
-them run as one group, each group a child run with its own baseline, inside the one
-45-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
-`--tests`, `--shell-tests` and `--python-tests`.
-Generated output (`src/generated/`, `ui_xml/translations/`) is not mutated: its source is,
-and the regeneration gates pin the two together.
-
-`make mutate-diff` passes `--pool`, so a landing run shares one build and one set of worker copies across every file.
-
-**A whole-branch run is a release-class job, on an idle test host:** `--release --max-minutes
-0 --pool --auto-tests-max 100 --confirm-survivors --inside 2 --first <path>`. `--pool` keeps
-every hunk in one queue instead of a child run per filter. A hunk whose revert does not build
-stays `uncompilable` and the run stays incomplete; `--inside N` adds up to N small mutants of
-its added lines (negate an `if`, drop a call, flip an operator), each with its own verdict, and
-a survivor fails the run. A Catch2 baseline red once is asked again; green the second time, the
-assertions it named are printed and judge no mutant.
-
-**`make mutate-diff` runs where workers can run** (`scripts/mutate-diff.sh`). Parallel
-workers need reflink copies; a host without them (a Mac, an ext4 home) hands the run to the
-test host, which mutates the PUSHED HEAD, so it refuses with uncommitted code or an
-unpushed HEAD instead of judging another tree. `MUTATE_LOCAL=1` runs it here, serially. On
-the test host the run first makes its checkout's venv from `requirements.txt`, since script
-hunks are judged by pytest as well as bats and the image has no pytest.
+`make mutate-diff` needs reflink copies for its workers; on a host without them (a Mac, an ext4 home) it hands the run to the test host, which mutates the PUSHED HEAD and refuses uncommitted code or an unpushed HEAD. `MUTATE_LOCAL=1` runs it here, serially.
 
 Record each mutation as a `mutation:` line in the body of the branch's last commit (or its
 merge commit), as `writing-tests` § "Record it" describes.
@@ -486,41 +337,20 @@ machine's build pool. A test of pool handling names a fake through `HELIX_JOBPOO
 unsets `JOBPOOL` (`test_helix_claim_jobs.bats`).
 
 **No test runs make in the tree under test.** A gate runs this suite while its own lanes
-build there, and a second make in that tree deletes the test binary they are about to run
-(`prune-orphan-test-objs`). `make -n` is no safer: it still runs every recipe line that
-names `$(MAKE)`, and parsing the Makefile writes stamps under `build/`. The sandbox puts a
-guard in front of `make` and `gmake` (shim plus exported function, deferring to a test's
-own make mock) that blocks and records any make whose directory is the tree or inside it,
-reading `-C` alone or in a cluster (`-sC`), `--directory` and its prefixes (`--dir=`). A
-make that never meets either layer passes no guard: one called by absolute path
-(`/usr/bin/make`), and one a non-bash callee runs under a replaced PATH (`env
-PATH=/usr/bin:/bin make -C ...`, or `env PATH=... sh -c 'make ...'`), since neither
-the shim nor the exported function reaches it. Those shapes are left to review, and
-`lint_bats_real_tree_make` (`scripts/code_lint.sh`, `qc_test_lint`) lints the source for a make pointed at a repo-root
-variable or `$BATS_TEST_DIRNAME/../..` (exception: `# REAL_TREE_MAKE_OK: <reason>` inside
-the @test). A test that needs the real Makefile runs it in `scratch_tree` (helpers.bash):
-every top-level entry symlinked, with a `build/` of its own, safe for parsing, print-style
-targets and recipes that write only under `build/` or to paths the test overrides.
-`scratch_make` runs make there, `make_db [vars]` prints the database parsed there, and
-`run_mk_fragment` runs one target's fragment of an `mk/` file as a scratch Makefile.
-`path_without_jobpool` drops the host's jobpool from PATH and keeps the guard. The suite also unsets what an enclosing make hands down (`MAKEFLAGS`,
-`MAKELEVEL`, `BATS_REQUIRED`, the Makefile's exports), so a test behaves the same under
-`make test-shell` as under bare `bats`.
-
-On a host whose bare `make` is older than the Makefile's GNU make 4.2 floor (Apple's
-/usr/bin/make is 3.81; Homebrew's 4.x installs as `gmake`), that guard hands make calls to
-`gmake`. A Linux make, and the jobpool shim, parse as 4.2+ and are used as found
-(`test_sandbox_gate.bats`).
+build there, and a second make in that tree deletes the test binary they are about to run.
+`make -n` is no safer: it still runs recipe lines that name `$(MAKE)` and writes stamps under
+`build/`. A guard in front of `make`/`gmake` blocks any make aimed at the tree; a make called
+by absolute path, or under a callee's replaced PATH, gets past it, and
+`lint_bats_real_tree_make` (`scripts/code_lint.sh`) catches those in source (exception:
+`# REAL_TREE_MAKE_OK: <reason>`). A test that needs the real Makefile uses `scratch_tree`,
+`scratch_make`, `make_db` or `run_mk_fragment` (helpers.bash). The suite unsets what an
+enclosing make hands down, so `make test-shell` and bare `bats` behave the same.
 
 To use one of those commands, mock it: `mock_command_script "killall" 'exit 0'` in
 `setup()`. A mock is found first, so the sandbox never sees the call.
 
-The sandbox installs itself as both a PATH shim and an exported bash function, because
-neither survives every boundary: PATH is lost when a callee **replaces** PATH instead of
-prepending (`env PATH="$bin" ...`, or a script that hardens PATH the way
-`install.sh` does), and a bash function is lost at a non-bash callee - which
-installer scripts are, since they are `#!/bin/sh`. `test_sandbox_gate.bats` proves each
-boundary and fails any test that lands in the gap between the two.
+The sandbox is both a PATH shim and an exported bash function, since each is lost at a
+different boundary; `test_sandbox_gate.bats` proves both.
 
 `load helpers` additionally shadows `systemctl` with an inert exit-0 shim
 (`tests/shell/helpers.bash`).
@@ -556,21 +386,14 @@ internals). Each test refreshes them with `init_subjects(true)`.
 Gates live in `scripts/check_*.py` and run from `scripts/quality-checks.sh`, each through its own
 `scripts/qc/<gate>.sh` named in the driver's `QC_ALL`. A test that drives a gate sources
 `scripts/qc/_lib.sh` and then that file; `qc_trigger <gate>` (helpers.bash) reads its trigger. Every gate gets a
-**meta-test** in `tests/shell/test_*_gate.bats` pinning both halves of its contract: the shape
-it must catch, and the idioms it must stay quiet about. A gate that fires on legitimate code
-gets switched off, so the silent cases matter as much as the loud ones.
+**meta-test** in `tests/shell/test_*_gate.bats` pinning what it catches and what it stays quiet
+about (`writing-tests` § "Lint gates and checkers").
 
 A gate that must not match inside comments or string literals blanks them with
 `scripts/source_strip.py` (`blank_cxx`, `blank_xml_comments`), never a private copy.
 
-Verify a new gate by running it against known-good and known-bad fixtures before wiring it in.
-
-**The verdict over the real tree belongs to the gate, never the meta-test.** quality-checks.sh
-runs every gate over the tree at pre-push, in land-gate and in CI (the fast ones at commit
-too), so a bats case that
-runs the gate on the repo and expects it clean repeats that verdict at a cost of seconds to
-tens of seconds. The meta-test pins the script's behaviour on fixtures, plus its wiring into
-`scripts/qc/`. Lints too small for a script of their own are functions in
+quality-checks.sh runs every gate over the real tree (pre-push, land-gate, CI), so a
+meta-test pins behaviour on fixtures and the `scripts/qc/` wiring, never the repo verdict. Lints too small for a script of their own are functions in
 `scripts/code_lint.sh`, run as `qc_code_lint`, `qc_test_lint` and `qc_ui_lint`, with
 their fixture tests in `test_code_lint.bats`.
 

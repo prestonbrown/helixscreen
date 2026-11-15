@@ -46,9 +46,5 @@ severity and recovery), and the `register_builtin_guided_device_flows()` registr
 Follow those.
 
 Genuinely unavoidable vendor branch in generic code? Annotate it: `// VENDOR_OK: <reason>`.
-`scripts/check_vendor_branches.py` (commit hook, `scripts/qc/vendor_branches.sh`) counts the
-mechanical shapes - `HELIX_PLATFORM_<vendor>` conditionals, non-`NONE` `AmsType` compares,
-board probes, identifiers containing a vendor or firmware name, and vendor strings the code
-compares or sends as gcode (comments and text a user reads never count; a file named for a
-vendor and the modules above are exempt) - against the per-file ratchet in `scripts/vendor_branch_baseline.txt`: counts may
-fall, never rise. `--list` shows every site.
+`scripts/check_vendor_branches.py` ratchets the count per file against
+`scripts/vendor_branch_baseline.txt` (counts may fall, never rise); `--list` shows every site.

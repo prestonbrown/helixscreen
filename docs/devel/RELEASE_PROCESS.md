@@ -281,6 +281,7 @@ The workflow auto-generates basic release notes if no annotation is provided.
 - [ ] Release notes accurate
 - [ ] Installation tested via curl|sh
 - [ ] Update any external references (Discord, documentation sites)
+- [ ] After every release: Review all user docs for accuracy
 
 ---
 
