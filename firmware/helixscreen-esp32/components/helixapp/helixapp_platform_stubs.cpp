@@ -85,8 +85,10 @@ void UsbManager::set_drive_callback(DriveCallback) {}
 #include "ui_modal.h"
 
 #include "config.h"
+#include "detection_manager.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
+#include "settings_manager.h"
 #include "src/xml/lv_xml.h"
 #include "static_subject_registry.h"
 
@@ -202,3 +204,11 @@ TemperatureHistoryManager* get_temperature_history_manager() {
 // outside helixcore's 11 medium-tier faces, plus the mdi/noto_sans/
 // source_code_pro tiers this component no longer compiles for real) live in
 // font_aliases.cpp, not here — single source of truth, see that file's header.
+
+// detection_manager.cpp is excluded from the firmware cut: the Safety & Alerts
+// switch only stores its setting, since no printer-side detector is followed.
+namespace helix::detection {
+void apply_detection_switch(bool enabled) {
+    SettingsManager::instance().set_detection_enabled(enabled);
+}
+} // namespace helix::detection

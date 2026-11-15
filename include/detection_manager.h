@@ -187,4 +187,10 @@ class DetectionManager {
     bool connect_observer_registered_ = false;
 };
 
+/// The Spaghetti Detection switch on the settings screen: stores the setting
+/// and tells any printer whose own detector follows it
+/// (DetectionManager::set_detection_enabled). A free function so the screen
+/// links on builds that leave detection out, where it only stores the setting.
+void apply_detection_switch(bool enabled);
+
 } // namespace helix::detection

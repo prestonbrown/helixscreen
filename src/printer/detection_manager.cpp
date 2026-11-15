@@ -407,4 +407,8 @@ void DetectionManager::reset_for_test() {
     }
 }
 
+void apply_detection_switch(bool enabled) {
+    DetectionManager::instance().set_detection_enabled(enabled);
+}
+
 } // namespace helix::detection
