@@ -1329,7 +1329,8 @@ void AmsPanel::show_loading_error_modal() {
 
     // Get error details from backend
     AmsSystemInfo info = backend->get_system_info();
-    std::string error_message = info.operation_detail;
+    // A fixed phrase is stored as its catalog key; firmware text passes through.
+    std::string error_message = lv_tr(info.operation_detail.c_str());
     if (error_message.empty()) {
         error_message = lv_tr("An error occurred during filament loading.");
     }
