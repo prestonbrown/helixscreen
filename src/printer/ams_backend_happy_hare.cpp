@@ -514,11 +514,11 @@ void AmsBackendHappyHare::apply_mmu_selector_locked(const happy_hare::MmuCoreDel
         spdlog::trace("[AMS HappyHare] Reason for pause: {}", reason_for_pause_);
     }
 
-    // printer.mmu.action: "Idle", "Loading", "Unloading", "Forming Tip",
-    // "Heating", "Checking", etc.
+    // printer.mmu.action: a known word leaves the detail empty so AmsState shows it translated.
     if (core.action) {
-        system_info_.action = ams_action_from_string(*core.action);
-        system_info_.operation_detail = *core.action;
+        bool recognized = true;
+        system_info_.action = ams_action_from_string(*core.action, &recognized);
+        system_info_.operation_detail = recognized ? std::string() : *core.action;
         spdlog::trace("[AMS HappyHare] Action: {} ({})", ams_action_to_string(system_info_.action),
                       *core.action);
 

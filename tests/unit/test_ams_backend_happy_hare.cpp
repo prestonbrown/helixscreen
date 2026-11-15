@@ -2859,13 +2859,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     feed_action("Heating");
     CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 0); // "heat" = index 0
-
     feed_action("Loading");
-    // "feed" is index 5 in the LOAD_SWAP template.
-    CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 5);
-
+    CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 5); // "feed" = index 5
     feed_action("Purging");
     CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 6); // "purge" = index 6
+
+    feed_action("Spinning up"); // no translation key for an unknown word: shown as sent
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_action_detail_subject())) == "Spinning up");
 
     ams.set_backend(nullptr);
 }
@@ -4035,7 +4035,7 @@ nlohmann::json golden_hh_full_frame() {
 
 namespace {
 const std::string kHappyHareGolden = R"GOLD(full frame
-slot=1 tool=1 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=true action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=8 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4046,7 +4046,7 @@ slot=1 tool=1 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 load: loading
-slot=1 tool=1 loaded=true action=Loading detail='Loading' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=true action=Loading detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=3 bowden=40 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4057,7 +4057,7 @@ slot=1 tool=1 loaded=true action=Loading detail='Loading' bypass=true units=1 hu
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts='Same spool in Gate 3? Tap Clear if it is a new one.'
 load: loaded
-slot=2 tool=2 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=2 tool=2 loaded=true action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=8 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4068,7 +4068,7 @@ slot=2 tool=2 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 unload: unloading
-slot=2 tool=2 loaded=true action=Unloading detail='Unloading' bypass=true units=1 hub=true slot_sensors=true
+slot=2 tool=2 loaded=true action=Unloading detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=4 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4079,7 +4079,7 @@ slot=2 tool=2 loaded=true action=Unloading detail='Unloading' bypass=true units=
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 unload: unloaded
-slot=-1 tool=-1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=false slot_sensors=true
+slot=-1 tool=-1 loaded=false action=Idle detail='' bypass=true units=1 hub=false slot_sensors=true
   pos=0 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4090,7 +4090,7 @@ slot=-1 tool=-1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=f
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 fault: paused
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=Output Tube fault='Filament is stuck in the extruder' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4101,7 +4101,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 fault: resumed
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4112,7 +4112,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 insert: gate 3 fills
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4123,7 +4123,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 insert: gate 2 fills
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4134,7 +4134,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 hex colours only
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4145,7 +4145,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 temperature + name deltas
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4156,7 +4156,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 per-gate drying array
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4167,7 +4167,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 aggregate sensors
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4178,7 +4178,7 @@ slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=true/true
   events=1 toasts=''
 topology string
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=2 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=1 counts=6,4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4189,7 +4189,7 @@ slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=true/true
   events=1 toasts=''
 idle sparse frame
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=2 hub=true slot_sensors=true
   pos=7 bowden=-1 unit=1 counts=6,4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
