@@ -532,6 +532,31 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
     bool reject = false;
 };
 
+TEST_CASE("CFS reports an unload after print only where the firmware does one",
+          "[ams][cfs][unload_after_print]") {
+    CfsRemapHelper backend;
+    auto frame =
+        [](const char* extra) {
+            return make_cfs_notification(json::parse(std::string(R"({"state":"connect","filament":0,
+            "auto_refill":0,"enable":1)") + extra + R"(,"map":{"T1A":"T1A"},
+            "T1":{"state":"connect","filament":"None","vender":["none"],"remain_len":["-1"],
+                  "color_value":["-1"],"material_type":["-1"]}})"));
+        };
+
+    SECTION("stock firmware states no option and always unloads") {
+        CfsTestAccess::handle_status(backend, frame(""));
+        CHECK(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option off leaves the filament in") {
+        CfsTestAccess::handle_status(backend, frame(R"(,"unload_after_print_enabled":false)"));
+        CHECK_FALSE(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option on unloads") {
+        CfsTestAccess::handle_status(backend, frame(R"(,"unload_after_print_enabled":true)"));
+        CHECK(backend.auto_unloads_after_print());
+    }
+}
+
 TEST_CASE("CFS Endless Spool switch sends an explicit ENABLE", "[ams][cfs]") {
     // BOX_ENABLE_AUTO_REFILL is a setter, not a toggle: the handler reads
     // ENABLE via gcmd.get_int, and Creality's own master-server sends
