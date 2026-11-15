@@ -284,7 +284,12 @@ const RippleBand* band_containing(const std::vector<RippleBand>& bands, float sp
 std::optional<int> nearest_clear_speed(const std::vector<RippleBand>& bands, float speed_mm_s,
                                        bool below) {
     float x = speed_mm_s;
-    while (const RippleBand* b = band_containing(bands, x)) {
+    // Each step leaves one band, so more steps than bands means an edge too
+    // large for a float step to move past.
+    for (size_t steps = 0; const RippleBand* b = band_containing(bands, x); ++steps) {
+        if (steps > bands.size()) {
+            return std::nullopt;
+        }
         x = below ? std::floor(b->lo_mm_s - 1e-3f) : std::ceil(b->hi_mm_s + 1e-3f);
     }
     if (x < kSweepMinMmS || x > kSweepMaxMmS) {

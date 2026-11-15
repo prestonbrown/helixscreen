@@ -118,4 +118,9 @@ TEST_CASE("bands from both motors merge, and advice steps just outside them", "[
     top.lo_mm_s = 290.0f;
     top.hi_mm_s = 300.0f;
     CHECK_FALSE(nearest_clear_speed({top}, 295.0f, false).has_value());
+    // A band edge too large for a float step to move past still ends the search.
+    RippleBand huge;
+    huge.lo_mm_s = 10.0f;
+    huge.hi_mm_s = 1.0e9f;
+    CHECK_FALSE(nearest_clear_speed({huge}, 50.0f, false).has_value());
 }

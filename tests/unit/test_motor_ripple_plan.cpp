@@ -157,6 +157,10 @@ TEST_CASE("begin and restore bracket the run with the printer's own limits", "[r
     in.max_accel_to_decel = 15000.0f;
     CHECK(begin_gcode(in).find("ACCEL_TO_DECEL=10000") != std::string::npos);
     CHECK(restore_gcode(in).find("ACCEL_TO_DECEL=15000") != std::string::npos);
+    // A firmware reporting neither field gets no decel setting it would refuse.
+    in.max_accel_to_decel = 0.0f;
+    CHECK(begin_gcode(in).find("ACCEL_TO_DECEL") == std::string::npos);
+    CHECK(restore_gcode(in).find("ACCEL_TO_DECEL") == std::string::npos);
 
     in = voron();
     const auto lines = helix::test::script_lines(restore_gcode(in));

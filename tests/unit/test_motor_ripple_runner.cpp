@@ -351,3 +351,17 @@ TEST_CASE_METHOD(RunnerFixture, "a refused final restore still delivers the meas
     CHECK(result->sweeps.size() == 2);
     CHECK(runner->phase() == MotorRippleRunner::Phase::Done);
 }
+
+TEST_CASE_METHOD(RunnerFixture, "a print that takes the printer mid-run gets nothing more sent",
+                 "[ripple][runner]") {
+    auto req = request(MotorRippleRunner::Mode::CompensationCompare);
+    req.motion_blocked = [this]() { return api->speed_scripts >= 2; };
+    REQUIRE(runner->start(req, callbacks()));
+    drain();
+    CHECK(api->speed_scripts == 2);
+    CHECK(failure.has_value());
+    CHECK_FALSE(result.has_value());
+    // No restore, no compensation toggle, no limits: a print owns the machine now.
+    CHECK(api->scripts.back().find("G4 P250") != std::string::npos);
+    CHECK(runner->phase() == MotorRippleRunner::Phase::Failed);
+}

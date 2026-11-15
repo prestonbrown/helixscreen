@@ -166,6 +166,10 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
     }
 
     void next_capture() {
+        if (req.motion_blocked && req.motion_blocked()) {
+            abandon_to_print();
+            return;
+        }
         if (pass_i >= passes.size()) {
             finish();
             return;
@@ -349,6 +353,21 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
             },
             0, /*silent=*/true, /*on_queued=*/nullptr,
             /*caller_surfaces_errors=*/false);
+    }
+
+    /// A print took the printer between two steps. It now owns the motion,
+    /// the limits and the gcode state, so nothing more is sent: no restore,
+    /// no compensation toggle.
+    void abandon_to_print() {
+        spdlog::warn("[MotorRipple] A print took the printer mid-run; stopping without sending "
+                     "anything more");
+        stop_source();
+        ++generation;
+        set_phase(Phase::Failed);
+        if (cb.on_failed) {
+            cb.on_failed("A print started on the printer, so the check stopped. The printer's "
+                         "speed limits may still be the test's until Klipper restarts.");
+        }
     }
 
     void fail(const std::string& reason) {

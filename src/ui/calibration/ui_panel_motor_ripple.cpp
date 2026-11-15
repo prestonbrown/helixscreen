@@ -232,6 +232,11 @@ void MotorRipplePanel::begin_with_facts(const calibration::LiveSweepFacts& facts
                              : ripple::MotorRippleRunner::Mode::Sweep;
     req.toggle = stepper_resonance_cal::compensation_toggle(hw);
     req.klippy_socket = facts.socket_path;
+    // A print started from another client between two steps owns the printer.
+    req.motion_blocked = []() {
+        return lv_subject_get_int(
+                   get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+    };
     req.plan.kinematics = ripple::ripple_kinematics(hw.kinematics());
     req.plan.probe_point = facts.cfg.probe_point;
     skipped_.clear();

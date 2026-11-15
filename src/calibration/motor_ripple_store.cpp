@@ -7,6 +7,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cmath>
+
 #include "hv/json.hpp"
 
 namespace helix::calibration::ripple {
@@ -148,7 +150,8 @@ std::optional<SweepResult> ripple_result_from_json(const json& j) {
         const auto motor = motor_from(b);
         const auto lo = motor ? json_util::read_field<float>(b, "lo") : std::nullopt;
         const auto hi = motor ? json_util::read_field<float>(b, "hi") : std::nullopt;
-        if (!motor || !lo || !hi) {
+        if (!motor || !lo || !hi || !std::isfinite(*lo) || !std::isfinite(*hi) || *lo < 0.0f ||
+            *hi > kSweepMaxMmS || *lo > *hi) {
             return std::nullopt;
         }
         RippleBand band;

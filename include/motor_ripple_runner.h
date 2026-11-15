@@ -38,7 +38,10 @@ class MotorRippleRunner {
         std::map<MotorId, std::string> accel_chip; ///< [resonance_tester] chip per motor
         std::string klippy_socket;
         stepper_resonance_cal::CompensationToggle toggle; ///< used only in CompensationCompare
-        std::string tool_select_gcode;                    ///< empty: none
+        /// True when something else (a print) has taken the printer; asked
+        /// before every step. Empty: never.
+        std::function<bool()> motion_blocked;
+        std::string tool_select_gcode; ///< empty: none
         std::string tool_return_gcode;
     };
 

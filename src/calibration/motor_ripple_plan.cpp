@@ -165,9 +165,12 @@ std::string begin_gcode(const SweepPlanInputs& in) {
     lines.push_back(fmt::format("G1 Z{:.1f} F600", z - in.origin_z));
     if (in.minimum_cruise_ratio) {
         lines.push_back(fmt::format("SET_VELOCITY_LIMIT ACCEL={:g} MINIMUM_CRUISE_RATIO=0", accel));
-    } else {
+    } else if (in.max_accel_to_decel > 0.0f) {
         lines.push_back(
             fmt::format("SET_VELOCITY_LIMIT ACCEL={:g} ACCEL_TO_DECEL={:g}", accel, accel));
+    } else {
+        // Reports neither field: Klipper refuses an ACCEL_TO_DECEL of 0.
+        lines.push_back(fmt::format("SET_VELOCITY_LIMIT ACCEL={:g}", accel));
     }
     return join_lines(lines);
 }
@@ -177,9 +180,11 @@ std::string restore_gcode(const SweepPlanInputs& in) {
     if (in.minimum_cruise_ratio) {
         lines.push_back(fmt::format("SET_VELOCITY_LIMIT ACCEL={:g} MINIMUM_CRUISE_RATIO={:g}",
                                     in.max_accel_mm_s2, *in.minimum_cruise_ratio));
-    } else {
+    } else if (in.max_accel_to_decel > 0.0f) {
         lines.push_back(fmt::format("SET_VELOCITY_LIMIT ACCEL={:g} ACCEL_TO_DECEL={:g}",
                                     in.max_accel_mm_s2, in.max_accel_to_decel));
+    } else {
+        lines.push_back(fmt::format("SET_VELOCITY_LIMIT ACCEL={:g}", in.max_accel_mm_s2));
     }
     lines.push_back(fmt::format("RESTORE_GCODE_STATE NAME={}", kSweepStateName));
     return join_lines(lines);

@@ -6,7 +6,10 @@
 #include "motor_ripple_store.h"
 #include "printer_state.h"
 
+#include <limits>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -96,6 +99,15 @@ TEST_CASE("a damaged or foreign saved result reads as no result", "[ripple][stor
     j = ripple_result_to_json(sample_result());
     j["bands"][0]["motor"] = "stepper_z";
     CHECK_FALSE(ripple_result_from_json(j).has_value());
+    // Any client can write the database: edges outside 0-300 mm/s or reversed are refused.
+    const double inf = std::numeric_limits<double>::infinity();
+    for (const auto& [lo, hi] : std::vector<std::pair<double, double>>{
+             {77.0, inf}, {77.0, 9000.0}, {97.0, 77.0}, {-5.0, 77.0}}) {
+        j = ripple_result_to_json(sample_result());
+        j["bands"][0]["lo"] = lo;
+        j["bands"][0]["hi"] = hi;
+        CHECK_FALSE(ripple_result_from_json(j).has_value());
+    }
     CHECK_FALSE(ripple_result_from_json(json::parse("[1, 2", nullptr, false)).has_value());
     CHECK_FALSE(ripple_result_from_json(json()).has_value());
 }
