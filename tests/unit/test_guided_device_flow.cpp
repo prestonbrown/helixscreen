@@ -102,6 +102,9 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     CountingMock* backend = nullptr;
 
     GuidedFlowFixture() {
+        // Startup's built-in registrations are process-wide, so a case run after one
+        // that registered them would inherit flows it asserts are absent.
+        unregister_test_flows();
         helix::ui::destroy_static_panels();
         helix::ui::UpdateQueue::instance().drain();
         auto& ams = AmsState::instance();
@@ -117,9 +120,7 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     ~GuidedFlowFixture() override {
-        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"}) {
-            helix::ui::unregister_guided_device_flow(id);
-        }
+        unregister_test_flows();
         NavigationManager::instance().go_back();
         settle();
         helix::ui::destroy_static_panels();
@@ -147,6 +148,11 @@ class GuidedFlowFixture : public LVGLUITestFixture {
     }
 
     /// Build the overlay for a "prefs" section holding @p actions; returns its root.
+    static void unregister_test_flows() {
+        for (const char* id : {"t", "cfs_cutter", "cfs_purge_chute", "cfs_belt_tension"})
+            helix::ui::unregister_guided_device_flow(id);
+    }
+
     lv_obj_t* open_prefs(std::vector<DeviceAction> actions) {
         backend->set_device_sections({DeviceSection{"prefs", "Preferences", 0, ""}});
         backend->set_device_actions(std::move(actions));

@@ -512,6 +512,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_subject_t* theme = theme_manager_get_changed_subject();
     lv_subject_t* lane_state = AmsState::instance().get_slot_lane_state_subject(0);
     REQUIRE(theme != nullptr);
+    // An earlier case's spool can still be queued for deletion; its observers must
+    // leave before the counts are taken, or they leave mid-measurement.
+    process_lvgl(20);
     const uint32_t theme_before = lv_ll_get_len(&theme->subs_ll);
     const uint32_t lane_before = lv_ll_get_len(&lane_state->subs_ll);
 
