@@ -1422,8 +1422,8 @@ and applies its preset; no printer type is saved for it. Its default `HELIX_MOCK
 `snapmaker`, the mock Snapmaker simulation. It does not publish `filament_detect`, which
 would make discovery stand up the production Snapmaker backend. It does publish
 `defect_detection`, answering `printer.objects.query` with the module's stored config, whose
-`main_enable` and `clean_bed.enable` follow `DEFECT_DETECTION_CONFIG MAIN_ENABLE=0|1` and
-`CLEAN_BED_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
+`main_enable`, `clean_bed.enable` and `noodle.enable` follow `DEFECT_DETECTION_CONFIG
+MAIN_ENABLE=0|1`, `CLEAN_BED_ENABLE=0|1` and `NOODLE_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
 fitted, so the home panel shows the U1's with-top picture; `HELIX_MOCK_ENCLOSURE_TOP=0`
 reports it removed. The purifier behaves like firmware 2.x: `SET_PURIFIER_MODE MODE=0-3
 [FAN_SPEED=] [DESIRE_TEMP=] [ALARM_TEMP=]` sets the mode and the fan it drives, `SET_PURIFIER

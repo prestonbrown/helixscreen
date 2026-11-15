@@ -456,14 +456,20 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_u1_feeding(const std
         } else if (has_token(gcode, "CLEAN_BED_ENABLE=1")) {
             u1_clean_bed_enable_ = true;
         }
+        if (has_token(gcode, "NOODLE_ENABLE=0")) {
+            u1_noodle_enable_ = false;
+        } else if (has_token(gcode, "NOODLE_ENABLE=1")) {
+            u1_noodle_enable_ = true;
+        }
         if (has_token(gcode, "MAIN_ENABLE=0")) {
             u1_defect_main_enable_ = false;
         } else if (has_token(gcode, "MAIN_ENABLE=1")) {
             u1_defect_main_enable_ = true;
         }
         spdlog::info("[MoonrakerClientMock] U1 DEFECT_DETECTION_CONFIG: main_enable={} "
-                     "clean_bed.enable={}",
-                     u1_defect_main_enable_.load(), u1_clean_bed_enable_.load());
+                     "clean_bed.enable={} noodle.enable={}",
+                     u1_defect_main_enable_.load(), u1_clean_bed_enable_.load(),
+                     u1_noodle_enable_.load());
         return 0;
     }
     // "Detach Toolhead": the head goes back to its dock and nothing is
