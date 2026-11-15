@@ -742,26 +742,6 @@ images:
     markers:
       - {n: 1, widget: row_scroll_limit, at: top_right}
       - {n: 2, widget: row_long_press_time, at: top_right}
-  - path: docs/images/user/settings-sound-top.png
-    kind: app
-    recipe: sound
-    markers:
-      - {n: 1, widget: row_sounds, at: top_right}
-      - {n: 2, widget: row_volume, at: top_right}
-      - {n: 3, widget: row_ui_sounds, at: top_right}
-      - {n: 4, widget: row_sound_theme, at: top_right}
-  - path: docs/images/user/safety-u1-detection.png
-    kind: app
-    env:
-      HELIX_MOCK_PRINTER: snapmaker_u1
-    steps:
-      - navigate settings
-      - click row_safety
-      - wait_idle
-      - scroll overlay_content 0 -150
-    markers:
-      - {n: 1, widget: row_detection_enabled, at: top_right}
-      - {n: 2, widget: row_bed_check, at: top_right}
   - path: docs/images/user/printing-material-edit.png
     kind: app
     steps:
@@ -781,14 +761,10 @@ images:
       - {n: 5, widget: btn_save_material, at: top_right}
   - path: docs/images/user/printing-filament-rows.png
     kind: app
-    env:
-      HELIX_MOCK_PRINTER: snapmaker_u1
     recipe: printing-2
     markers:
       - {n: 1, widget: row_material_temps, at: top_right}
       - {n: 2, widget: row_filament_auto_open_editor, at: top_right}
-      - {n: 3, widget: row_number_lanes_from_zero, at: top_right}
-      - {n: 4, widget: row_tool_change_confirm, at: top_right}
   - path: docs/images/user/led-settings-startup.png
     kind: app
     steps:
@@ -840,7 +816,6 @@ images:
       - {n: 3, widget: row_discord, at: top_right}
       - {n: 4, widget: row_getting_started, at: top_right}
       - {n: 5, widget: row_user_guide, at: top_right}
-      - {n: 6, widget: row_about, at: top_right}
   - path: docs/images/user/debug-bundle-dialog.png
     kind: app
     steps:

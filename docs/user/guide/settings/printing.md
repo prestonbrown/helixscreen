@@ -217,8 +217,8 @@ The editor opens when the printer reports a slot that was empty now holds filame
 
 1. Material Temperatures opens the preset editor.
 2. Edit filament on insert opens the editor when a spool is detected.
-3. Number slots from 0 changes how slots are labelled.
-4. Confirm tool changes asks before a tool change, on multi-tool printers only.
+
+Below them, Number slots from 0 changes how slots are labelled, and Confirm tool changes asks before a tool change, on multi-tool printers only.
 
 Only the display changes. Tool names such as T0 and T1 stay as they are. See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
 
