@@ -48,3 +48,25 @@ run_gate() {
     [[ "docs/devel/THREADING.md" =~ $output ]] || fail "docs not in the trigger"
     [[ "src/printer/printer_state.cpp" =~ $output ]]
 }
+
+@test "strict by default: a broken citation fails with no setting" {
+    unset QC_DOC_ANCHORS_STRICT
+    export QC_DOC_ANCHORS_PATHS="$DOCS/bad.md"
+    run_gate
+    [ "$status" -eq 1 ] || fail "the default must be strict"
+    [[ "$output" == *"current name"* ]]
+}
+
+@test "commit: a commit that stages no markdown checks nothing and passes" {
+    unset QC_DOC_ANCHORS_PATHS QC_DOC_ANCHORS_STRICT
+    run bash -c 'cd "$1" && QC_TMP="$2" STAGED_ONLY=true QC_STAGED_ALL="src/main.cpp" && . scripts/qc/_lib.sh && . scripts/qc/doc_anchors.sh && qc_doc_anchors' _ "$ROOT" "$BATS_TEST_TMPDIR"
+    [ "$status" -eq 0 ] || fail "no staged docs must pass"
+    [[ "$output" == *"no changed docs"* ]]
+}
+
+@test "commit: only the staged docs are checked" {
+    unset QC_DOC_ANCHORS_PATHS QC_DOC_ANCHORS_STRICT
+    run bash -c 'cd "$1" && QC_TMP="$2" STAGED_ONLY=true QC_STAGED_ALL="$3" && . scripts/qc/_lib.sh && . scripts/qc/doc_anchors.sh && qc_doc_anchors' _ "$ROOT" "$BATS_TEST_TMPDIR" "$DOCS/bad.md"
+    [ "$status" -eq 1 ] || fail "a staged broken doc must fail"
+    [[ "$output" == *"zz_missing_fixture.cpp"* ]]
+}

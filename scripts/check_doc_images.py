@@ -9,8 +9,7 @@ the screen changes. Three findings, one line each:
   missing: <image> (manifest entry, file absent)
   unreferenced: <image>                         in the manifest, shown by no doc
 
-User-facing pages are docs/user/**, README.md, docs/README.md and
-docs/devel/GALLERY.md. An image counts as referenced when any markdown file
+User-facing pages are docs/user/**, README.md and docs/README.md. An image counts as referenced when any markdown file
 outside .worktrees/, docs/superpowers/, lib/ and build/ shows it, as
 `![...](path)` or `<img src="path">`, resolved against that page.
 """
@@ -35,7 +34,6 @@ def _user_facing(rel: str) -> bool:
     return rel.startswith("docs/user/") or rel in (
         "README.md",
         "docs/README.md",
-        "docs/devel/GALLERY.md",
     )
 
 
@@ -58,10 +56,16 @@ def _markdown_files(root: Path):
             yield rel, path
 
 
+# Generated from the manifest itself, so a listing there proves nothing about use.
+GENERATED_PAGES = ("docs/devel/GALLERY.md",)
+
+
 def _references(root: Path) -> dict:
     """image path (repo-relative) -> pages that show it."""
     refs: dict = {}
     for rel, path in _markdown_files(root):
+        if rel in GENERATED_PAGES:
+            continue
         for m in IMAGE_RE.finditer(path.read_text(errors="replace")):
             target = (m.group(1) or m.group(2)).split("#")[0]
             if "://" in target or not target.lower().endswith(IMAGE_EXT):

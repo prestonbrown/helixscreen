@@ -1798,8 +1798,8 @@ which reads an analog filament pressure sensor over ADC.
 
 An FPS buffer adds exactly three keys to `get_status`: `fps_value`,
 `smoothed_fps` and `set_point`. **`low_point`, `high_point` and `deadband` are
-config-only and never published**, so the tuning range cannot be read at runtime
-- `BufferHealth::fps_to_bias()` normalizes each side against the sensor's own
+config-only and never published**, so the tuning range cannot be read at runtime:
+`BufferHealth::fps_to_bias()` normalizes each side against the sensor's own
 0..1 rail instead. Read `smoothed_fps`, not `fps_value`: AFC's own
 advance/trailing triggers compare the smoothed one.
 

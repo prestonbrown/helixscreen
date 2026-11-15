@@ -1379,6 +1379,7 @@ DOC_SCREENSHOTS_PY := $(if $(wildcard .venv/bin/python3),.venv/bin/python3,pytho
 doc-screenshots: $(BIN)
 	$(Q)$(ECHO) "$(CYAN)Regenerating doc screenshots$(if $(ONLY), matching $(ONLY))...$(RESET)"
 	$(Q)$(DOC_SCREENSHOTS_PY) scripts/doc_screenshots.py $(if $(ONLY),--only '$(ONLY)')
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/gen_gallery.py
 screenshots: doc-screenshots
 
 # =============================================================================

@@ -315,8 +315,8 @@ Behaviour is pinned by `tests/unit/test_rpc_error_policy.cpp` (the matrix),
 ## What was measured on hardware
 
 The policy above is enforced by unit tests, and flipping `caller_surfaces_errors` back to
-`true` in any of the fixed sites makes the dedup record appear and `GcodeErrorRouter` go quiet
-- the mechanism is real and mutation-proven at that level.
+`true` in any of the fixed sites makes the dedup record appear and `GcodeErrorRouter` go quiet;
+the mechanism is real and mutation-proven at that level.
 
 It has **not** been shown to change what a user sees. On a CB1 / BoxTurtle, `LANE_UNLOAD` and
 `SET_LED` were each shadowed by a macro calling `action_raise_error` (so the failure is raised

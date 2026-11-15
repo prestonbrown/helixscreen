@@ -9,7 +9,7 @@ How many of each, with the command that counts it so you can re-run it:
 | Nav-root panels | 6 | `helix::PanelId` ([`include/ui_nav.h#PanelId`](../../../include/ui_nav.h)) - matches the six panel children of [`ui_xml/app_layout.xml#panel_container`](../../../ui_xml/app_layout.xml) |
 | `PanelBase` subclasses | 11 | `rg -l '^class \w+ : public PanelBase' include src -g '*.h'` - 6 roots + 5 pushed as overlays or dev-only (AMS, AMS Overview, notification history, power, glyphs) |
 | `OverlayBase` subclasses | 81 | `rg -l '^class \w+ : public OverlayBase' include src -g '*.h'` |
-| `Modal` subclasses | 45 | `rg 'class \w+ : public Modal \{' include src -g '*.{h,cpp}'` minus the doc comment in [`include/ui_modal.h`](../../../include/ui_modal.h) |
+| `Modal` subclasses | 46 | `rg 'class \w+ : public Modal \{' include src -g '*.{h,cpp}'` minus the doc comment in [`include/ui_modal.h`](../../../include/ui_modal.h) |
 | XML overlay/modal/panel files | 68 / 51 / 34 | `ls ui_xml | grep -c overlay` (and `modal`, `_panel`) out of ~280 top-level XML files plus ~195 in `ui_xml/components/` |
 | `src/ui` file prefixes | 30 / 15 / 35 | `find src/ui -name 'ui_panel_*.cpp'`, `ui_overlay_*.cpp`, `*_modal.cpp` - the prefix spread is itself evidence of the naming trap |
 

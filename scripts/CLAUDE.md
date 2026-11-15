@@ -111,7 +111,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_doc_refs.py` | Doc-reference gate: dead paths, links, `make` targets, docs/devel index, shipped counts |
 | `check_doc_images.py` | Fail if a user-facing page shows an image with no `docs/images/doc-screenshots.yml` entry, an entry's file is missing, or no doc shows an entry. Gated as `qc_doc_images` |
 | `gen_gallery.py` | Regenerates `docs/devel/GALLERY.md` from the doc-image manifest; `--check` exits 1 when stale |
-| `doc_anchors.py` | Resolves `path#scope` doc citations to today's line; `--check` is advisory. Gated as `qc_doc_anchors`: report-only until the tree reports 0 findings, `QC_DOC_ANCHORS_STRICT=1` fails on any |
+| `doc_anchors.py` | Resolves `path#scope` doc citations to today's line; `--check` itself always exits 0. Gated as `qc_doc_anchors`: strict, over the docs a change touches (staged at commit, changed since the fork point otherwise); `make check-doc-anchors` sweeps the whole tree |
 | `check_translation_format_specifiers.py` | Fail on translated format strings whose placeholders differ from English |
 | `check_cjk_font_staleness.sh` + `check_cjk_font_coverage.py` | Fail if the runtime CJK fonts miss a codepoint translations or filenames need |
 | `check_update_queue_leaks.py` | Ratchet on cross-test UpdateQueue leaks vs a baseline |

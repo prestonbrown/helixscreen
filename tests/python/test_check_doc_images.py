@@ -95,3 +95,15 @@ def test_in_a_git_tree_only_tracked_pages_count(tmp_path):
     subprocess.run(["git", "-C", str(root), "add", "docs"], check=True)
     # notes/scratch.md is untracked, so a.png's only reference does not count.
     assert find_problems(root) == ["unreferenced: docs/images/user/a.png"]
+
+
+def test_an_image_only_the_generated_gallery_lists_is_unreferenced(tmp_path):
+    root = tree(
+        tmp_path,
+        {
+            "docs/devel/GALLERY.md": "![a](../images/user/a.png)\n",
+            "docs/images/user/a.png": "",
+            "docs/images/doc-screenshots.yml": MANIFEST_HEAD + entry("docs/images/user/a.png"),
+        },
+    )
+    assert find_problems(root) == ["unreferenced: docs/images/user/a.png"]
