@@ -2653,3 +2653,31 @@ def test_a_mutant_breaking_another_files_setup_is_killed_past_a_baseline_red_one
                 "--python-tests", "")
     assert "setup_file failed in test_env.bats" in r.stdout
     assert "killed" in r.stdout and "SURVIVED" not in r.stdout, r.stdout
+
+
+def test_auto_filter_adds_the_cases_elsewhere_of_a_tag_its_files_own():
+    tu = '#include "gizmo.h"\nvoid Gizmo::run() {}\n'
+    own = 'TEST_CASE("a", "[gizmo][restart]") {}\nTEST_CASE("b", "[gizmo][restart][json]") {}\n'
+    sources = {"test_gizmo": '#include "gizmo.h"\n' + own,
+               "test_wiring": 'TEST_CASE_METHOD(F, "w", "[wiring][restart]") {}\n',
+               "test_json_a": 'TEST_CASE("j1", "[json]") {}\nTEST_CASE("j2", "[json]") {}\n',
+               "test_json_b": 'TEST_CASE("j3", "[json][.]") {}\n'}
+    # [restart]: 2 of its 3 cases are the gizmo tests'; [json] is mostly elsewhere.
+    assert md.auto_tests_filter("src/gizmo.cpp", sources, source_text=tu) \
+        == "[#test_gizmo]~[.]~[slow],[restart]~[.]~[slow]"
+    # A tag in more other files than the cap is a theme, not the file's behaviour.
+    for i in range(md.OWNED_TAG_MAX_OTHER_FILES):
+        sources[f"test_more_{i}"] = 'TEST_CASE("m", "[restart]") {}\n'
+    for i in range(10):
+        sources["test_gizmo"] += f'TEST_CASE("x{i}", "[restart]") {{}}\n'
+    assert md.auto_tests_filter("src/gizmo.cpp", sources, source_text=tu) \
+        == "[#test_gizmo]~[.]~[slow]"
+
+
+def test_printer_print_state_reaches_every_remap_restart_case():
+    # The session-wiring and retarget cases reach printer_print_state.cpp only
+    # through the PrinterState facade every test includes.
+    path = "src/printer/printer_print_state.cpp"
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT),
+                                source_text=(REPO_ROOT / path).read_text())
+    assert "[remap-restart]~[.]~[slow]" in filt, filt

@@ -491,7 +491,8 @@ hunks a later commit rewrites get mutated twice for nothing, and the verdict on 
 **Each changed file runs against its own tests.** A run prints `tests per file:` first. A
 file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
 that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; a stem more
-than 12 files name counts as none), else `--tests`. A script under `scripts/` runs the
+than 12 files name counts as none), plus the cases in other files carrying a tag those
+files own (two thirds of its cases, at most 3 other files), else `--tests`. A script under `scripts/` runs the
 `.bats` and pytest files that name it (its file name, or a Python script's import stem):
 with only one of the two, that one judges it; with neither, both whole suites do, which is
 slow. A bats or pytest case red at baseline (inside the test container some fail on
