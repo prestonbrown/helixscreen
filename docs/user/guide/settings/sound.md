@@ -14,25 +14,25 @@ On the Settings screen, the **Sound** row shows your volume, for example *Volume
 
 The master switch. Turns every sound on or off. **Off** on a fresh install, so turn it on to hear anything. When it's off, the rest of the rows on this page are hidden.
 
-> The Sound options are there as soon as HelixScreen starts, before the printer connects. If no speaker is found once the printer connects, they're hidden.
+> On a screen with its own sound hardware, the Sound options are there as soon as HelixScreen starts. On a printer that beeps through Klipper, they appear once the printer connects and HelixScreen finds the beeper.
 
 ---
 
 ## Volume
 
-Sets the volume for every sound, from 0% to 100%. Starts at 80%.
+Sets the volume for every sound, from 0% to 100%. Starts at 80%. A test beep plays when you let go of the slider. At 0% the Settings screen shows *Muted*.
 
 ---
 
 ## UI Sounds
 
-Button taps, switch clicks and the sounds for opening and closing screens. **On** by default. Turn it off to keep only the sounds that matter: print finished, errors and alarms.
+Button taps, switch clicks, menu opening and the sounds for opening and closing screens. **On** by default. Turn it off to keep only the sounds that matter: print finished, errors and alarms.
 
 ---
 
 ## Sound Theme
 
-Picks the style of every sound. A test sound plays when you switch. The five built-in themes:
+Picks the style of every sound. A test sound plays when you switch. The menu lists each theme by its file name, such as *default*, *miami_vice* or *crocketts_theme*. The five built-in themes:
 
 | Theme | Sound |
 |-------|-------|
@@ -73,15 +73,16 @@ Plays, or stops, the Crockett's Theme music track. Use it to check that music pl
 | Switch off | Falling chirp | You turn a switch off |
 | Navigate forward | Rising tone | A screen opens |
 | Navigate back | Falling tone | You go back or close a screen |
+| Dropdown open | Soft pop | You open a dropdown menu |
 | Print complete | Victory melody | A print finishes |
 | Print canceled | Falling tone | A print is canceled |
 | Error alert | Pulsing alarm | Something went seriously wrong |
 | Error notification | Short buzz | An error message pops up |
 | Critical alarm | Urgent siren | A critical failure needs your attention |
-| Test sound | Short beep | You tap a button in Preview Sounds |
+| Test sound | Short beep | You turn Sounds on, let go of the Volume slider, switch themes, or tap a button in Preview Sounds |
 | Startup | Theme jingle | HelixScreen starts |
 
-The first five are **UI sounds** and follow the UI Sounds switch. The rest play whenever the master Sounds switch is on.
+The first six are **UI sounds** and follow the UI Sounds switch. The rest play whenever the master Sounds switch is on.
 
 ---
 
@@ -92,8 +93,8 @@ You can add your own theme without touching the HelixScreen install:
 1. SSH into your printer.
 2. Create the sounds folder if it isn't there yet: `mkdir -p ~/helixscreen/config/sounds`
 3. Copy a built-in theme to start from: `cp ~/helixscreen/assets/config/sounds/default.json ~/helixscreen/config/sounds/mytheme.json`
-4. Edit the file. Change the `"name"` field, then change the sounds.
-5. Your theme appears in the Sound Theme menu right away.
+4. Edit the file and change the sounds.
+5. Open **Settings > Sound** again. Your theme appears in the Sound Theme menu under its file name, here *mytheme*.
 
 Custom themes can use everything the built-in ones do: four wave shapes (square, saw, triangle, sine), envelopes, pitch sweeps, filters with sweeps, LFO modulation, chords of up to 4 notes, note names (C4, F#5, Bb3) and note lengths (8n, 4n., 16t) with a tempo.
 
@@ -109,9 +110,9 @@ The full file format is in the [Sound System developer docs](../../../devel/SOUN
 |----------|--------------|
 | **Desktop (SDL)** | Full sound through your computer's speakers. The best quality |
 | **Linux sound card (ALSA)** | Full sound with 4 notes at once, plus music tracks for richer themes |
-| **FlashForge AD5X** | The printer's speaker. Chords, full themes and music (including the startup jingle) played as tone sequences |
+| **FlashForge AD5X, Creator 5 and Creator 5 Pro** | The printer's speaker. Chords, full themes and music (including the startup jingle) played as tone sequences |
 | **FlashForge AD5M / AD5M Pro** | The printer's buzzer. Tones only: no startup music and no music themes |
-| **Other Klipper printers** | Beeps sent through Moonraker. Needs `[output_pin beeper]` in your Klipper config. Simple beeps only |
+| **Other Klipper printers** | Beeps sent through Moonraker. Needs an output pin in your Klipper config whose name contains `beeper`, `buzzer` or `speaker` (for example `[output_pin beeper]`), or an `M300` macro. Simple beeps only |
 | **Buzzer on a board's PWM pin** | A buzzer wired to a Raspberry Pi, BTT CB1 or other board. UI sounds and alerts on the buzzer, or on a Pi 4 or earlier, full sound including music through its audio. See [Buzzer on a PWM Pin](#buzzer-on-a-pwm-pin) |
 
 If no sound hardware is found, the Sound row and page are hidden.
@@ -161,7 +162,7 @@ HelixScreen finds the sound card by itself. Turn the volume up all the way with 
 ## Sound Troubleshooting
 
 **There's no Sound row in Settings.**
-HelixScreen didn't find a speaker or buzzer. On a Klipper printer, check that `printer.cfg` has an `[output_pin beeper]` section, then restart HelixScreen.
+HelixScreen didn't find a speaker or buzzer. On a Klipper printer, check that `printer.cfg` has an output pin named `beeper`, `buzzer` or `speaker`, or an `M300` macro, then restart HelixScreen.
 
 **Sounds are too quiet or too loud.**
 Move the Volume slider. Themes differ in loudness too, so try another theme.
@@ -176,7 +177,7 @@ Turn off UI Sounds. Buttons, switches and screen changes go quiet, and important
 Check which pin it is really on. On a Pi, Klipper's `gpio12` means GPIO 12 (header pin 32), not header pin 12, which is GPIO 18. Make sure Klipper no longer uses the pin, and follow [Buzzer on a PWM Pin](#buzzer-on-a-pwm-pin).
 
 **Sounds work on my computer but not on the printer.**
-Check that the printer has sound hardware. On a Klipper printer, check that `[output_pin beeper]` is set up, and test it by sending `M300` from the Klipper console.
+Check that the printer has sound hardware. On a Klipper printer, check that the beeper is set up as above, and test it by sending `M300` from the Klipper console.
 
 ---
 
