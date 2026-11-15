@@ -146,14 +146,16 @@ Contract, each line pinned by a case in § 5.1:
 
 | Event | Behaviour |
 |---|---|
-| Construction, LVGL up, main thread | `lv_subject_create(LV_SUBJECT_TYPE_INT)` as a placeholder, `user_data = this`, `deinitialized` set, not live. `&member` taken from here on (every panel, widget and modal constructor) is the address every later `init_*()` keeps. Observers are refused until init, as after `reset()`. |
-| Construction before `lv_init()` (namespace-scope statics) | No node; `&member` is `nullptr` until the first `init_*()`. LVGL's patched null guards turn a get/set/observe on it into a no-op plus the `observer_null_subject` anomaly. |
+| Construction | Creates a node only when `lv_is_initialized()` and on the main thread: `lv_subject_create(LV_SUBJECT_TYPE_INT)` as a placeholder, `user_data = this`, `deinitialized` set, not live. `&member` taken from then on (every panel, widget and modal constructor) is the address every later `init_*()` keeps; observers are refused until init, as after `reset()`. Otherwise `handle_` stays null and the first `init_*()` creates the node. |
+| `&` of a `Subject` constructed before `lv_init()`, taken before its first `init_*()` | `nullptr` (namespace-scope statics, function-local statics first reached before `lv_init()`). LVGL's patched null guards turn a get/set/observe on it into a no-op plus the `observer_null_subject` anomaly, which is how that case surfaces. |
 | `init_*()` | Creates the node if there is none, otherwise reuses it **whatever its previous type**: the type, value, previous value and range are written in place exactly as `lv_subject_init_<type>()` leaves them, so nothing is notified or clamped. Clears `deinitialized`, `user_data = this`, `live_ = true`. Refuses (anomaly `subject_init_before_lvgl`, no allocation) when `!lv_is_initialized()`. Off the main thread it reports `subject_init_off_main_thread`. |
 | `init_*()` while live | Removes the observers first and reports `subject_reinit_while_live`. Today this zeroes `subs_ll` and orphans them. |
+| Retype in place | Legal only while `subs_ll` is empty. A node that is not live refuses observers, so a non-empty list there is a breach: `init_*()` reports `subject_retype_with_observers` and removes them before rewriting the type. |
 | `init_string()` | Points `value`/`prev_value` at the caller's buffers and copies the initial value with `memmove`, so a value that aliases or points into `buf` survives. `lv_subject_set_string_buffer_static()` is not used: it clears `buf[0]` before the copy, and `UI_MANAGED_SUBJECT_STRING_N` and `UI_SUBJECT_INIT_AND_REGISTER_STRING` both pass the buffer as the value. |
 | `reset()` | Deletes every observer the way `deinit()` does (next pointer first, `lv_observer_delete()`, then `lv_ll_clear()`), sets `deinitialized`, `live_ = false`. Keeps `handle_`. No-op when not live or `!lv_is_initialized()`. |
 | `~Subject()` | `lv_subject_delete(handle_)` when `handle_` and `lv_is_initialized()`; otherwise drops the handle (LVGL already freed it in `lv_deinit()`). Never logs. |
 | Move | Transfers `handle_` and `live_`, re-points `user_data` at the destination; the source is empty. `vector<Subject>` relocation keeps every subject's address, which `vector<lv_subject_t>` did not. |
+| Never initialized | A node made by the constructor and never initialized, or moved into a `Subject` that never initializes it, is freed by the destructor like any other; a moved-from `Subject` holds none. |
 | Group subjects | Not supported by `Subject`. No `src/` code uses one; the two test uses call `lv_subject_create(LV_SUBJECT_TYPE_GROUP)` directly. |
 
 Why the constructor and not `operator&` allocates: a lazy create inside `operator&`
@@ -319,7 +321,7 @@ helixscreen (memory: rebasing helix-xml commits orphans pins).
 
 Each case went red under the hand break in its last column (`src/core/subject.cpp` edited,
 one case run, file restored). The three cases that need LVGL down re-run the test binary
-on one hidden `[.subject_child]` case each: every case in this binary starts with LVGL up,
+on one hidden `[.subject_child]` case each (skipped unless `HELIX_SUBJECT_CHILD_CASE` is set): every case in this binary starts with LVGL up,
 and a forked child cannot call `lv_deinit()` (it joins draw threads the child lacks).
 
 | Case | Pins | Hand break that turned it red |
@@ -329,12 +331,12 @@ and a forked child cannot call `lv_deinit()` (it joins draw threads the child la
 | `Subject::reset unbinds a widget-bound observer from its widget` | the widget's event count returns to its pre-bind value | observers cleared from the list without `lv_observer_delete()` (also crashes on widget delete) |
 | `SubjectManager deinit_all resets a registered Subject through its owner pointer` | `subject_reset()` finds the owner through `user_data` | `subject_reset()` ignores the owner |
 | `Moving a Subject keeps its handle and re-points the owner` | `owner_of()` follows a move and `vector` relocation | move constructor leaves `user_data` on the source |
-| `Subject destructor frees its LVGL node` | LVGL's subject list is back to its starting length | destructor skips `lv_subject_delete()` |
+| `Subject destructor frees its LVGL node` | LVGL's subject list is back to its starting length, for an initialized node and for a never-initialized one moved into another `Subject` | destructor skips `lv_subject_delete()`; separately, destructor frees only live nodes |
 | `Subject init_string keeps a value that aliases its buffer` | value equal to `buf`, and pointing inside it | `buf[0]` cleared before the copy |
 | `Subject init_string with a previous buffer tracks the previous string` | `prev_buf` wiring (`src/plugin/lua_bind_ui.cpp` uses it) | `prev_value` left null |
 | `Subject re-init while live removes the old observers` | no observer survives a re-init | the live branch of `prepare()` skips the removal |
-| `Subject address taken after lv_init before init_* is the one init_* keeps` | constructor allocation; observers refused until init | constructor allocates nothing |
-| `Subject address taken before lv_init is null` | no node before `lv_init()` | constructor ignores `lv_is_initialized()` |
+| `Subject constructed after lv_init has a stable handle that init_* keeps` | constructor allocation; observers refused until init | constructor allocates nothing |
+| `Subject constructed before lv_init yields null until init_*` | no node before `lv_init()`, still none after it until `init_*()`, then a live one | constructor ignores `lv_is_initialized()` |
 | `Subject init before lv_init allocates nothing` | refusal path | `prepare()` ignores `lv_is_initialized()` |
 | `Subject destructor after lv_deinit leaves the freed node alone` | the skip after `lv_deinit()` | destructor ignores `lv_is_initialized()` (double free) |
 | `Managed macros accept both lv_subject_t and helix::Subject` | overload routing, owner pointer, `deinit_all()` on both storages | the `Subject&` overload calls the deprecated init on `&subject` |

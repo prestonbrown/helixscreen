@@ -205,6 +205,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "Subject destructor frees its LVGL node", "[su
         REQUIRE(live_subject_nodes() == before + 1);
     }
     CHECK(live_subject_nodes() == before);
+    {
+        Subject never_initialized;
+        REQUIRE(live_subject_nodes() == before + 1);
+        Subject taker(std::move(never_initialized));
+    }
+    CHECK(live_subject_nodes() == before);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Subject init_string keeps a value that aliases its buffer",
@@ -247,7 +253,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Subject re-init while live removes the old ob
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "Subject address taken after lv_init before init_* is the one init_* keeps",
+                 "Subject constructed after lv_init has a stable handle that init_* keeps",
                  "[subject][raii]") {
     Subject s;
     lv_subject_t* const early = &s;
@@ -263,8 +269,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 // The three cases below run their bodies in a fresh process: see run_case_in_fresh_process.
-TEST_CASE("Subject address taken before lv_init is null", "[subject][raii]") {
-    CHECK(run_case_in_fresh_process("subject child: address before lv_init") == 0);
+TEST_CASE("Subject constructed before lv_init yields null until init_*", "[subject][raii]") {
+    CHECK(run_case_in_fresh_process("subject child: constructed before lv_init") == 0);
 }
 
 TEST_CASE("Subject init before lv_init allocates nothing", "[subject][raii]") {
@@ -277,14 +283,24 @@ TEST_CASE("Subject destructor after lv_deinit leaves the freed node alone", "[su
 
 // Every case starts with LVGL up (test_main.cpp's listener), so each child case takes it
 // down first. Each runs alone in a fresh process started by its [subject][raii] case.
-TEST_CASE("subject child: address before lv_init", "[.subject_child]") {
+TEST_CASE("subject child: constructed before lv_init", "[.subject_child]") {
     if (std::getenv(kChildEnv) == nullptr) {
         SKIP("runs only in the process its [subject][raii] case starts");
     }
     lv_deinit();
     REQUIRE_FALSE(lv_is_initialized());
     Subject s;
-    CHECK(&s == nullptr);
+    REQUIRE(&s == nullptr);
+
+    lv_init();
+    REQUIRE(&s == nullptr);
+    s.init_int(3);
+    REQUIRE(&s != nullptr);
+    REQUIRE(s.is_live());
+    REQUIRE(lv_subject_get_int(&s) == 3);
+    // Every assertion held. Exit here: the test process's statics still hold objects of the
+    // LVGL generation lv_deinit() freed, and their destructors free them a second time.
+    std::_Exit(0);
 }
 
 TEST_CASE("subject child: init before lv_init", "[.subject_child]") {

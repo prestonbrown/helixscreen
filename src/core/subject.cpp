@@ -114,6 +114,12 @@ lv_subject_t* Subject::prepare(lv_subject_type_t type) {
         helix_lvgl_anomaly("subject_reinit_while_live",
                            "helix::Subject::init_* on a live subject; observers removed");
         remove_all_observers(handle_);
+    } else if (lv_ll_get_head(&handle_->subs_ll) != nullptr) {
+        // seed() rewrites the type in place, which is sound only with no observer holding
+        // the old one. A node that is not live refuses observers, so this is a breach.
+        helix_lvgl_anomaly("subject_retype_with_observers",
+                           "helix::Subject::init_* on a node that kept observers");
+        remove_all_observers(handle_);
     }
     handle_->deinitialized = 0;
     live_ = true;
