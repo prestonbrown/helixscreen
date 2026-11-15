@@ -27,7 +27,8 @@ static helix::WidgetSubjects s_subjects{"NetworkWidgetSubjects"};
 
 static void network_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet
+        // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet,
+        // 6=wifi joined without an address yet
         lv_subject_init_int(&s_network_icon_state, 0);
         s_subjects.publish("home_network_icon_state", &s_network_icon_state);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_network_icon_state, "home_network_icon_state",
@@ -257,6 +258,7 @@ void NetworkWidget::apply_wifi_status(const WifiBackend::ConnectionStatus& statu
         return;
     }
     last_wifi_signal_ = status.signal_strength;
+    last_wifi_phase_ = helix::ui::wifi::link_phase(status);
     if (status.connected) {
         spdlog::info("[NetworkWidget] Detected WiFi connection ({})",
                      helix::redact::ssid(status.ssid));
@@ -278,6 +280,7 @@ void NetworkWidget::poll_wifi_signal() {
                                             return;
                                         }
                                         last_wifi_signal_ = status.signal_strength;
+                                        last_wifi_phase_ = helix::ui::wifi::link_phase(status);
                                         update_network_icon_state();
                                     });
 }
@@ -300,6 +303,7 @@ int NetworkWidget::compute_network_icon_state() const {
     // 3 = WiFi strength 3 (51-75%, accent variant)
     // 4 = WiFi strength 4 (>75%, accent variant)
     // 5 = Ethernet connected (accent variant)
+    // 6 = WiFi joined, IPv4 address still pending (wifi_alert, warning variant)
 
     if (current_network_ == NetworkType::Disconnected) {
         spdlog::trace("[NetworkWidget] Network disconnected -> state 0");
@@ -309,6 +313,11 @@ int NetworkWidget::compute_network_icon_state() const {
     if (current_network_ == NetworkType::Ethernet) {
         spdlog::trace("[NetworkWidget] Network ethernet -> state 5");
         return 5;
+    }
+
+    if (last_wifi_phase_ == helix::ui::wifi::LinkPhase::GettingAddress) {
+        spdlog::trace("[NetworkWidget] WiFi joined, awaiting address -> state 6");
+        return 6;
     }
 
     // WiFi - the signal strength the last status read returned
