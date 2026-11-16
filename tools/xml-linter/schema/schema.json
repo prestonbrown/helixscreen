@@ -2369,6 +2369,7 @@
       "stretch",
       "tile",
       "contain",
+      "contain_downscale",
       "cover"
     ],
     "bar_orientation": [
@@ -2772,6 +2773,9 @@
     "text_decor": {
       "type": "enum",
       "enum": "text_decor"
+    },
+    "text_leading_trim": {
+      "type": "string"
     },
     "image_opa": {
       "type": "opa"
