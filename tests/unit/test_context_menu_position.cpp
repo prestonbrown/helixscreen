@@ -305,6 +305,14 @@ TEST_CASE("compute_card_pos: a click-anchored card covers its point and has no c
     ContextMenu::compute_card_pos({353, 307}, {235, 200, 235, 200}, {800, 480}, kMargin, kGap,
                                   AnchorMode::ClickPoint, AnchorAlign::Center, &side);
     CHECK(side == AnchorSide::Over);
+    // A tap inside the bottom margin: the clamp slides the card up off the
+    // point, which still gives no caret.
+    side = AnchorSide::Below;
+    const lv_point_t pos =
+        ContextMenu::compute_card_pos({80, 60}, {100, 476, 100, 476}, {800, 480}, kMargin, kGap,
+                                      AnchorMode::ClickPoint, AnchorAlign::Center, &side);
+    REQUIRE(pos.y + 60 - 1 < 476);
+    CHECK(side == AnchorSide::Over);
 }
 
 TEST_CASE("compute_caret: centred on the anchor below and above it", "[context-menu][caret]") {

@@ -212,6 +212,7 @@ class ContextMenu {
     /**
      * @brief Set the click point for positioning (call before show)
      * Captures the display-coordinate click point from the triggering event.
+     * It serves the next show only: hide() clears it.
      */
     void set_click_point(lv_point_t point) {
         click_point_ = point;
@@ -486,7 +487,8 @@ class ContextMenu {
      * @param side    Optional; receives the side of the anchor the placed card
      *                ended up on, read off the final rectangle (side_of_anchor(),
      *                preferring the side it was placed on) so a clamp that pushes
-     *                the card over its anchor reports Over
+     *                the card over its anchor reports Over. ClickPoint always
+     *                reports Over: its card has no caret
      */
     static lv_point_t compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                        int32_t margin, int32_t gap, AnchorMode mode,
