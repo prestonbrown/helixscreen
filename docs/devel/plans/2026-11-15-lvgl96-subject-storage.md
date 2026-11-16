@@ -443,18 +443,15 @@ its tip, from the worktree root, and compare the image size `check_esp32_size.py
 make apply-patches
 python3 scripts/esp32_printer_images.py && python3 scripts/esp32_stage_assets.py && python3 scripts/esp32_pack_assets.py
 PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-scripts/helix-claim hold -n 16 -- docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+scripts/pool-docker.sh docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
     -v "$PWD:$PWD" -v "$PRIMARY:$PRIMARY:ro" -w "$PWD/firmware/helixscreen-esp32" espressif/idf:v5.5.5 \
     bash -c "git config --global --add safe.directory '*' && . /opt/esp/idf/export.sh >/dev/null && idf.py build"
 python3 scripts/check_esp32_size.py firmware/helixscreen-esp32/build/helixscreen_esp32.bin \
     firmware/helixscreen-esp32/size_budget.json firmware/helixscreen-esp32/build/helixscreen_esp32.map
 ```
 
-Not `scripts/pool-docker.sh`: its jobserver FIFO reaches the LTO link, whose `make`
-rejects `--jobserver-auth=fifo:` and fails the link. The hold reserves pool slots; the
-container's ninja does not read it, so size `-n` to what the pool has free. Base and tip
-can share one detached scratch worktree: build the base, check out the tip, and the second
-build is incremental.
+Base and tip can share one detached scratch worktree: build the base, check out the tip,
+and the second build is incremental.
 
 The batch's commit body records base size, tip size and the difference. CI's esp32-build
 runs the same size check on every push and stays the gate.
