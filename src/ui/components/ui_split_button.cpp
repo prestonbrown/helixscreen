@@ -463,12 +463,12 @@ void* ui_split_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     }
 
     // Label — width=1 so flex doesn't expand main_btn to content size.
-    // Held to one line so DOTS truncates instead of wrapping.
+    // Capped at one line so DOTS truncates instead of wrapping.
     // Correct width is set by async callback after layout resolves.
     data->label = lv_label_create(data->main_btn);
     lv_obj_set_width(data->label, 1);
     lv_label_set_long_mode(data->label, LV_LABEL_LONG_MODE_DOTS);
-    helix::ui::label_hold_one_line(data->label);
+    lv_label_set_max_lines(data->label, 1);
     lv_label_set_text(data->label, text);
 
     // Main button click handler
