@@ -11,7 +11,9 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "core/observer_guard.h"
 #include "core/subject.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl_private.h"
 #include "subject_managed_panel.h"
 
@@ -19,6 +21,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <signal.h>
 #include <string>
@@ -51,11 +55,16 @@ uint32_t live_subject_nodes() {
 /// neighbours.
 constexpr const char* kChildEnv = "HELIX_SUBJECT_CHILD_CASE";
 
-/// Runs the hidden case `name` in a fresh helix-tests process and returns its exit code
-/// (0 when every assertion passed, 128 + signal number on a signal, -1 on a hang). A fresh
-/// process is the only place LVGL can be down: this one never calls lv_deinit(), and a
-/// forked child cannot either, because lv_deinit() joins draw threads the child lacks.
-int run_case_in_fresh_process(const char* name) {
+struct ChildRun {
+    int rc = -1;        ///< 0 when every assertion passed, 128 + signal, -1 on a hang
+    std::string output; ///< the child's stdout and stderr
+};
+
+/// Runs the hidden case `name` in a fresh helix-tests process. A fresh process is the only
+/// place LVGL can be down: this one never calls lv_deinit(), and a forked child cannot
+/// either, because lv_deinit() joins draw threads the child lacks.
+ChildRun run_case_in_fresh_process(const char* name) {
+    ChildRun run;
     // Built before fork: the child only redirects and execs.
     std::vector<std::string> env_strings;
     for (char** e = environ; *e != nullptr; ++e) {
@@ -71,31 +80,41 @@ int run_case_in_fresh_process(const char* name) {
     char argv0[] = "helix-tests";
     std::string filter(name);
     char* argv[] = {argv0, filter.data(), nullptr};
+    char out_path[] = "/tmp/helix-subject-child-XXXXXX";
+    const int out_fd = mkstemp(out_path);
+    if (out_fd < 0) {
+        run.output = "mkstemp failed";
+        return run;
+    }
 
     const pid_t pid = fork();
     if (pid == 0) {
-        const int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0) {
-            dup2(devnull, STDOUT_FILENO);
-            dup2(devnull, STDERR_FILENO);
-        }
+        dup2(out_fd, STDOUT_FILENO);
+        dup2(out_fd, STDERR_FILENO);
         execve(exe, argv, envp.data());
         _exit(127);
     }
-    if (pid < 0) {
-        return -1;
-    }
-    int status = 0;
-    for (int waited_ms = 0; waited_ms < 30000; waited_ms += 10) {
-        const pid_t done = waitpid(pid, &status, WNOHANG);
-        if (done == pid) {
-            return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+    if (pid > 0) {
+        int status = 0;
+        bool done = false;
+        for (int waited_ms = 0; waited_ms < 30000 && !done; waited_ms += 10) {
+            if (waitpid(pid, &status, WNOHANG) == pid) {
+                done = true;
+                run.rc = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (!done) {
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+        }
     }
-    kill(pid, SIGKILL);
-    waitpid(pid, &status, 0);
-    return -1;
+    std::ifstream in(out_path);
+    run.output.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    close(out_fd);
+    unlink(out_path);
+    return run;
 }
 
 } // namespace
@@ -196,7 +215,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Moving a Subject keeps its handle and re-poin
     }
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Subject destructor frees its LVGL node", "[subject][raii]") {
+TEST_CASE_METHOD(LVGLTestFixture, "Subject destructor frees its node once the update queue drains",
+                 "[subject][raii]") {
+    auto& queue = helix::ui::UpdateQueue::instance();
+    queue.drain();
     const uint32_t before = live_subject_nodes();
     {
         Subject s;
@@ -204,12 +226,65 @@ TEST_CASE_METHOD(LVGLTestFixture, "Subject destructor frees its LVGL node", "[su
         REQUIRE(lv_subject_add_observer(&s, count_cb, nullptr) != nullptr);
         REQUIRE(live_subject_nodes() == before + 1);
     }
+    CHECK(live_subject_nodes() == before + 1);
+    queue.drain();
     CHECK(live_subject_nodes() == before);
     {
         Subject never_initialized;
         REQUIRE(live_subject_nodes() == before + 1);
         Subject taker(std::move(never_initialized));
     }
+    queue.drain();
+    CHECK(live_subject_nodes() == before);
+}
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "SubjectManager declared before its subjects resets them safely during destruction",
+    "[subject][raii]") {
+    struct Owner {
+        SubjectManager subjects; // declared first, so it is destroyed last
+        Subject count;
+    };
+    auto& queue = helix::ui::UpdateQueue::instance();
+    queue.drain();
+    const uint32_t before = live_subject_nodes();
+    lv_subject_t* node = nullptr;
+    {
+        Owner owner;
+        owner.count.init_int(2);
+        owner.subjects.register_subject(&owner.count);
+        node = &owner.count;
+        REQUIRE(lv_subject_add_observer(node, count_cb, nullptr) != nullptr);
+    }
+    // deinit_all() reached the node after ~Subject had run; it must still be there.
+    REQUIRE(live_subject_nodes() == before + 1);
+    CHECK(observer_count(node) == 0);
+    CHECK(node->deinitialized == 1);
+    queue.drain();
+    CHECK(live_subject_nodes() == before);
+}
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "An ObserverGuard destroyed after its Subject deletes its observer without a double free",
+    "[subject][raii]") {
+    auto& queue = helix::ui::UpdateQueue::instance();
+    queue.drain();
+    const uint32_t before = live_subject_nodes();
+    ObserverGuard guard; // outlives the subject, and carries no lifetime token
+    lv_subject_t* node = nullptr;
+    {
+        Subject s;
+        s.init_int(0);
+        node = &s;
+        guard = ObserverGuard(node, count_cb, nullptr);
+        REQUIRE(observer_count(node) == 1);
+    }
+    REQUIRE(live_subject_nodes() == before + 1);
+    guard.reset();
+    CHECK(observer_count(node) == 0);
+    queue.drain();
     CHECK(live_subject_nodes() == before);
 }
 
@@ -240,16 +315,54 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(std::strcmp(lv_subject_get_previous_string(&s), "first") == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Subject re-init while live removes the old observers",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Subject re-init while live orphans the old observers and reports it",
                  "[subject][raii]") {
     Subject s;
     s.init_int(1);
-    REQUIRE(lv_subject_add_observer(&s, count_cb, nullptr) != nullptr);
+    ObserverGuard guard(&s, count_cb, nullptr);
+    REQUIRE(observer_count(&s) == 1);
+    const uint32_t reported = Subject::anomalies_reported();
 
     s.init_int(9);
+    CHECK(Subject::anomalies_reported() == reported + 1);
     CHECK(observer_count(&s) == 0);
     CHECK(s.is_live());
     CHECK(lv_subject_get_int(&s) == 9);
+    // The orphan was not freed, so the guard's delete is its only free.
+    guard.reset();
+    CHECK(observer_count(&s) == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Subject re-init after reset drops a min clamp and resets the previous value",
+                 "[subject][raii]") {
+    Subject s;
+    s.init_int(20);
+    lv_subject_set_min_value_int(&s, 10);
+    lv_subject_set_int(&s, 15);
+    s.reset();
+
+    s.init_int(3);
+    CHECK(lv_subject_get_int(&s) == 3);
+    CHECK(lv_subject_get_previous_int(&s) == 3);
+    lv_subject_set_int(&s, 1);
+    CHECK(lv_subject_get_int(&s) == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "subject_reset deinitializes an unowned lv_subject_t and owner_of ignores it",
+                 "[subject][raii]") {
+    lv_subject_t zeroed{}; // SUBJECT_API_OK: the unowned storage owner_of() must not claim
+    CHECK(Subject::owner_of(&zeroed) == nullptr);
+
+    lv_subject_t plain{}; // SUBJECT_API_OK: the unconverted storage subject_reset() still serves
+    helix::subject_init_int(plain, 4);
+    CHECK(Subject::owner_of(&plain) == nullptr);
+    REQUIRE(lv_subject_add_observer(&plain, count_cb, nullptr) != nullptr);
+    helix::subject_reset(&plain);
+    CHECK(observer_count(&plain) == 0);
+    CHECK(lv_subject_add_observer(&plain, count_cb, nullptr) == nullptr);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -270,15 +383,21 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 // The three cases below run their bodies in a fresh process: see run_case_in_fresh_process.
 TEST_CASE("Subject constructed before lv_init yields null until init_*", "[subject][raii]") {
-    CHECK(run_case_in_fresh_process("subject child: constructed before lv_init") == 0);
+    const ChildRun child = run_case_in_fresh_process("subject child: constructed before lv_init");
+    INFO(child.output);
+    CHECK(child.rc == 0);
 }
 
 TEST_CASE("Subject init before lv_init allocates nothing", "[subject][raii]") {
-    CHECK(run_case_in_fresh_process("subject child: init before lv_init") == 0);
+    const ChildRun child = run_case_in_fresh_process("subject child: init before lv_init");
+    INFO(child.output);
+    CHECK(child.rc == 0);
 }
 
 TEST_CASE("Subject destructor after lv_deinit leaves the freed node alone", "[subject][raii]") {
-    CHECK(run_case_in_fresh_process("subject child: destructor after lv_deinit") == 0);
+    const ChildRun child = run_case_in_fresh_process("subject child: destructor after lv_deinit");
+    INFO(child.output);
+    CHECK(child.rc == 0);
 }
 
 // Every case starts with LVGL up (test_main.cpp's listener), so each child case takes it
@@ -287,6 +406,7 @@ TEST_CASE("subject child: constructed before lv_init", "[.subject_child]") {
     if (std::getenv(kChildEnv) == nullptr) {
         SKIP("runs only in the process its [subject][raii] case starts");
     }
+    REQUIRE(lv_is_initialized()); // test_main.cpp's listener ran lv_init_safe()
     lv_deinit();
     REQUIRE_FALSE(lv_is_initialized());
     Subject s;
@@ -307,6 +427,7 @@ TEST_CASE("subject child: init before lv_init", "[.subject_child]") {
     if (std::getenv(kChildEnv) == nullptr) {
         SKIP("runs only in the process its [subject][raii] case starts");
     }
+    REQUIRE(lv_is_initialized()); // test_main.cpp's listener ran lv_init_safe()
     lv_deinit();
     REQUIRE_FALSE(lv_is_initialized());
     Subject s;

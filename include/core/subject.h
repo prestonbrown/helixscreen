@@ -6,7 +6,9 @@
  * @brief helix::Subject, the one owner of an LVGL subject allocated by lv_subject_create()
  *
  * @pattern RAII. The LVGL node is allocated once and keeps its address for the whole life
- *          of the owning Subject: reset() and every later init_*() reuse it. Cached
+ *          of the owning Subject: reset() and every later init_*() reuse it. The destructor
+ *          queues the free on the update queue, so members declared above a Subject (a
+ *          SubjectManager, an ObserverGuard) still reach a valid node while they die. Cached
  *          getters, the XML subject registry, SubjectDebugRegistry and ObserverGuard all
  *          key on that address across a printer switch's teardown and re-init.
  * @threading Main thread only, like every LVGL subject call.
@@ -63,8 +65,13 @@ class Subject {
         return handle_;
     }
 
-    /// The Subject that owns `subject`, or nullptr for one no Subject owns.
+    /// The Subject that owns `subject`, or nullptr for one no Subject owns (including a
+    /// node whose Subject is gone and whose free is still queued).
     [[nodiscard]] static Subject* owner_of(const lv_subject_t* subject) noexcept;
+
+    /// How many misuse anomalies Subject has reported in this process (re-init while live,
+    /// init before lv_init, init off the main thread, retype with observers).
+    [[nodiscard]] static uint32_t anomalies_reported() noexcept;
 
   private:
     lv_subject_t* prepare(lv_subject_type_t type);

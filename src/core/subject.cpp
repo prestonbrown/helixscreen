@@ -7,6 +7,7 @@
 #include "helix_lvgl_anomaly.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cfloat>
 #include <cstring>
 #include <memory>
@@ -15,6 +16,17 @@
 namespace helix {
 
 namespace {
+
+/// user_data of a node whose Subject has been destroyed while its free is still queued.
+/// subject_reset() on such a node resets it in place; nothing else reads it.
+char g_orphan_tag;
+
+std::atomic<uint32_t> g_anomalies{0};
+
+void report(const char* code, const char* context) {
+    g_anomalies.fetch_add(1, std::memory_order_relaxed);
+    helix_lvgl_anomaly(code, context);
+}
 
 /// Frees every observer on `subject` the way lv_subject_deinit() does: walk with the next
 /// pointer taken first, delete each, then clear whatever the list still holds.
@@ -47,8 +59,38 @@ void seed(lv_subject_t* subject, lv_subject_type_t type, lv_subject_value_t valu
     }
 }
 
+/// Drops every observer from the list without freeing it, as lv_subject_init_*() on a live
+/// subject always did. A guard still holding one of them deletes it later on its own; had
+/// the observer been freed here, that delete would free it twice.
+void orphan_all_observers(lv_subject_t* subject) {
+    lv_ll_init(&subject->subs_ll, subject->subs_ll.n_size);
+}
+
+/// What reset() does to the node: observers freed, new ones refused until the next init.
+void reset_node(lv_subject_t* subject) {
+    remove_all_observers(subject);
+    subject->deinitialized = 1;
+}
+
 bool on_main_thread() {
     return helix::ui::is_main_thread();
+}
+
+/// Frees `node` once the update queue drains, never inline. An owner's members die in
+/// reverse declaration order, so a SubjectManager or an ObserverGuard declared above a
+/// Subject still reaches the node after ~Subject has run; today's by-value lv_subject_t
+/// keeps its bytes until the whole owner is gone, and the queue keeps that true. The queue
+/// also moves a free that starts on a worker thread onto the main thread.
+void release_node(lv_subject_t* node) {
+    node->user_data = &g_orphan_tag;
+    if (helix::ui::UpdateQueue::destroyed()) {
+        return; // atexit chain: the process is ending and LVGL keeps the node in its list
+    }
+    helix::ui::queue_update("helix::Subject::release_node", [node]() {
+        if (lv_is_initialized()) {
+            lv_subject_delete(node);
+        }
+    });
 }
 
 } // namespace
@@ -65,8 +107,7 @@ Subject::Subject() noexcept {
 
 Subject::~Subject() {
     if (handle_ && lv_is_initialized()) {
-        handle_->user_data = nullptr;
-        lv_subject_delete(handle_);
+        release_node(handle_);
     }
 }
 
@@ -80,8 +121,7 @@ Subject::Subject(Subject&& other) noexcept
 Subject& Subject::operator=(Subject&& other) noexcept {
     if (this != std::addressof(other)) {
         if (handle_ && lv_is_initialized()) {
-            handle_->user_data = nullptr;
-            lv_subject_delete(handle_);
+            release_node(handle_);
         }
         handle_ = std::exchange(other.handle_, nullptr);
         live_ = std::exchange(other.live_, false);
@@ -94,14 +134,13 @@ Subject& Subject::operator=(Subject&& other) noexcept {
 
 lv_subject_t* Subject::prepare(lv_subject_type_t type) {
     if (!lv_is_initialized()) {
-        helix_lvgl_anomaly("subject_init_before_lvgl", "helix::Subject::init_* before lv_init()");
+        report("subject_init_before_lvgl", "helix::Subject::init_* before lv_init()");
         handle_ = nullptr;
         live_ = false;
         return nullptr;
     }
     if (!on_main_thread()) {
-        helix_lvgl_anomaly("subject_init_off_main_thread",
-                           "helix::Subject::init_* off the LVGL thread");
+        report("subject_init_off_main_thread", "helix::Subject::init_* off the LVGL thread");
     }
     if (!handle_) {
         handle_ = lv_subject_create(type);
@@ -111,15 +150,15 @@ lv_subject_t* Subject::prepare(lv_subject_type_t type) {
         }
         handle_->user_data = this;
     } else if (live_) {
-        helix_lvgl_anomaly("subject_reinit_while_live",
-                           "helix::Subject::init_* on a live subject; observers removed");
-        remove_all_observers(handle_);
+        report("subject_reinit_while_live",
+               "helix::Subject::init_* on a live subject; observers orphaned");
+        orphan_all_observers(handle_);
     } else if (lv_ll_get_head(&handle_->subs_ll) != nullptr) {
-        // seed() rewrites the type in place, which is sound only with no observer holding
-        // the old one. A node that is not live refuses observers, so this is a breach.
-        helix_lvgl_anomaly("subject_retype_with_observers",
-                           "helix::Subject::init_* on a node that kept observers");
-        remove_all_observers(handle_);
+        // seed() rewrites the type in place, which is sound only with no observer on the
+        // list. A node that is not live refuses observers, so this is a breach.
+        report("subject_retype_with_observers",
+               "helix::Subject::init_* on a node that kept observers; observers orphaned");
+        orphan_all_observers(handle_);
     }
     handle_->deinitialized = 0;
     live_ = true;
@@ -188,12 +227,18 @@ void Subject::reset() {
     if (!handle_ || !lv_is_initialized()) {
         return;
     }
-    remove_all_observers(handle_);
-    handle_->deinitialized = 1;
+    reset_node(handle_);
+}
+
+uint32_t Subject::anomalies_reported() noexcept {
+    return g_anomalies.load(std::memory_order_relaxed);
 }
 
 Subject* Subject::owner_of(const lv_subject_t* subject) noexcept {
-    return subject ? static_cast<Subject*>(subject->user_data) : nullptr;
+    if (!subject || subject->user_data == &g_orphan_tag) {
+        return nullptr;
+    }
+    return static_cast<Subject*>(subject->user_data);
 }
 
 // The lv_subject_t overloads below serve storage not yet converted to helix::Subject and
@@ -203,6 +248,10 @@ Subject* Subject::owner_of(const lv_subject_t* subject) noexcept {
 
 void subject_reset(lv_subject_t* subject) {
     if (!subject) {
+        return;
+    }
+    if (subject->user_data == &g_orphan_tag) {
+        reset_node(subject); // its Subject is gone and the free is queued
         return;
     }
     if (Subject* owner = Subject::owner_of(subject)) {

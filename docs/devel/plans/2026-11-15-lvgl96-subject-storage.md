@@ -149,11 +149,12 @@ Contract, each line pinned by a case in § 5.1:
 | Construction | Creates a node only when `lv_is_initialized()` and on the main thread: `lv_subject_create(LV_SUBJECT_TYPE_INT)` as a placeholder, `user_data = this`, `deinitialized` set, not live. `&member` taken from then on (every panel, widget and modal constructor) is the address every later `init_*()` keeps; observers are refused until init, as after `reset()`. Otherwise `handle_` stays null and the first `init_*()` creates the node. |
 | `&` of a `Subject` constructed before `lv_init()`, taken before its first `init_*()` | `nullptr` (namespace-scope statics, function-local statics first reached before `lv_init()`). LVGL's patched null guards turn a get/set/observe on it into a no-op plus the `observer_null_subject` anomaly, which is how that case surfaces. |
 | `init_*()` | Creates the node if there is none, otherwise reuses it **whatever its previous type**: the type, value, previous value and range are written in place exactly as `lv_subject_init_<type>()` leaves them, so nothing is notified or clamped. Clears `deinitialized`, `user_data = this`, `live_ = true`. Refuses (anomaly `subject_init_before_lvgl`, no allocation) when `!lv_is_initialized()`. Off the main thread it reports `subject_init_off_main_thread`. |
-| `init_*()` while live | Removes the observers first and reports `subject_reinit_while_live`. Today this zeroes `subs_ll` and orphans them. |
-| Retype in place | Legal only while `subs_ll` is empty. A node that is not live refuses observers, so a non-empty list there is a breach: `init_*()` reports `subject_retype_with_observers` and removes them before rewriting the type. |
+| `init_*()` while live | Orphans the observers, as `lv_subject_init_*()` always did: the list is emptied without freeing them, and `subject_reinit_while_live` is reported. A guard still holding one deletes it later; freeing it here would make that delete a double free. |
+| Retype in place | Legal only while `subs_ll` is empty. A node that is not live refuses observers, so a non-empty list there is a breach: `init_*()` reports `subject_retype_with_observers` and orphans them, as above, before rewriting the type. |
 | `init_string()` | Points `value`/`prev_value` at the caller's buffers and copies the initial value with `memmove`, so a value that aliases or points into `buf` survives. `lv_subject_set_string_buffer_static()` is not used: it clears `buf[0]` before the copy, and `UI_MANAGED_SUBJECT_STRING_N` and `UI_SUBJECT_INIT_AND_REGISTER_STRING` both pass the buffer as the value. |
 | `reset()` | Deletes every observer the way `deinit()` does (next pointer first, `lv_observer_delete()`, then `lv_ll_clear()`), sets `deinitialized`, `live_ = false`. Keeps `handle_`. No-op when not live or `!lv_is_initialized()`. |
-| `~Subject()` | `lv_subject_delete(handle_)` when `handle_` and `lv_is_initialized()`; otherwise drops the handle (LVGL already freed it in `lv_deinit()`). Never logs. |
+| `~Subject()` | Never frees inline. Sets the node's `user_data` to a file-static orphan sentinel and queues `lv_subject_delete(node)` on the update queue, which checks `lv_is_initialized()` when it runs. When LVGL is already down it drops the handle (`lv_deinit()` freed it); once the update queue itself is destroyed (the atexit chain) it leaves the node to LVGL's list. Never logs. |
+| `subject_reset()` on an orphaned node | Resets it in place (observers freed, `deinitialized` set) and returns quietly: no deprecated call, no anomaly. Permanent: phase 5 keeps this path. `owner_of()` returns `nullptr` for such a node. |
 | Move | Transfers `handle_` and `live_`, re-points `user_data` at the destination; the source is empty. `vector<Subject>` relocation keeps every subject's address, which `vector<lv_subject_t>` did not. |
 | Never initialized | A node made by the constructor and never initialized, or moved into a `Subject` that never initializes it, is freed by the destructor like any other; a moved-from `Subject` holds none. |
 | Group subjects | Not supported by `Subject`. No `src/` code uses one; the two test uses call `lv_subject_create(LV_SUBJECT_TYPE_GROUP)` directly. |
@@ -165,8 +166,20 @@ an out-of-line constructor (§ 6). The cost of the constructor route: a `Subject
 never initialized still holds a node (~52 B of PSRAM), and an object built before
 `lv_init()` gets its node only at `init_*()`.
 
-**Ownership summary.** LVGL allocates; the `Subject` frees, exactly once, when it dies with
-LVGL up. `reset()` never frees. Between `lv_deinit()` and process exit, `lv_deinit()` has
+**Ownership summary.** LVGL allocates; the `Subject` frees, exactly once, on the update
+queue's next drain after it dies with LVGL up. `reset()` never frees.
+
+The free is deferred because members die in reverse declaration order. A `SubjectManager`
+declared above the subjects it registers (about 20 headers do this, among them
+`include/printer_network_state.h`, `include/bed_mesh_state.h` and
+`include/ui_panel_filament.h`) runs `deinit_all()` after every `~Subject` in the same
+object, and an `ObserverGuard` that outlives its subject (a `subject_never_freed()` guard,
+or one with no token) deletes its observer after the subject is gone. A by-value
+`lv_subject_t` keeps its bytes until the whole owner is gone, so neither case hurts today;
+the queued free keeps that true, and also moves a free that starts on a worker thread onto
+the main thread.
+
+ Between `lv_deinit()` and process exit, `lv_deinit()` has
 freed every node and each `Subject` destructor skips. This holds because no first-party
 code calls `lv_init()` again after `lv_deinit()`: the three `lv_deinit()` calls in
 `src/application/display_manager.cpp#DisplayManager::init` are failure exits and
@@ -270,6 +283,12 @@ Hazards each agent checks in its own files and lists in its commit body:
   stores their address before init; build it after init instead.
 - **Pointer arithmetic on converted arrays** (§ 3.1). Compiles, yields garbage. Use the
   container index; the codemod lists every candidate.
+- **Owners whose `init_subjects()` can run twice without a `reset()`.** A second
+  `init_*()` on a live `Subject` orphans its observers and reports
+  `subject_reinit_while_live`, the same leak the old API had. A grep for `init_subjects()`
+  bodies that initialize subjects with no `init_subjects_guarded()`, `ensure_init()` or
+  initialized-flag guard lists 29 candidates (in the phase 1 review-fix commit body); each
+  batch checks the ones in its paths and adds the guard where the second call is real.
 - **Copies.** `Subject` is not copyable. A class that copied subject-holding structs fails
   to compile; that copy was already a bug (two owners of one `subs_ll`). Move or restructure.
 - **`memset`/`memcpy` over a struct holding subjects.** Replace with value-init.
@@ -319,6 +338,11 @@ helixscreen (memory: rebasing helix-xml commits orphans pins).
 
 ### 5.1 Phase 1: `tests/unit/test_subject_owner.cpp`, tags `[subject][raii]`
 
+A failing fresh-process case prints the child's stdout and stderr in its message. LVGL is
+up when each child case starts: `tests/test_main.cpp`'s listener runs
+`HelixTestFixture::reset_all()`, hence `lv_init_safe()`, before every case, and each child
+`REQUIRE(lv_is_initialized())` before it does anything else.
+
 Each case went red under the hand break in its last column (`src/core/subject.cpp` edited,
 one case run, file restored). The three cases that need LVGL down re-run the test binary
 on one hidden `[.subject_child]` case each (skipped unless `HELIX_SUBJECT_CHILD_CASE` is set): every case in this binary starts with LVGL up,
@@ -331,10 +355,14 @@ and a forked child cannot call `lv_deinit()` (it joins draw threads the child la
 | `Subject::reset unbinds a widget-bound observer from its widget` | the widget's event count returns to its pre-bind value | observers cleared from the list without `lv_observer_delete()` (also crashes on widget delete) |
 | `SubjectManager deinit_all resets a registered Subject through its owner pointer` | `subject_reset()` finds the owner through `user_data` | `subject_reset()` ignores the owner |
 | `Moving a Subject keeps its handle and re-points the owner` | `owner_of()` follows a move and `vector` relocation | move constructor leaves `user_data` on the source |
-| `Subject destructor frees its LVGL node` | LVGL's subject list is back to its starting length, for an initialized node and for a never-initialized one moved into another `Subject` | destructor skips `lv_subject_delete()`; separately, destructor frees only live nodes |
+| `Subject destructor frees its node once the update queue drains` | the node is still listed right after destruction and gone after a drain, for an initialized node and for a never-initialized one moved into another `Subject` | the free made immediate again |
+| `SubjectManager declared before its subjects resets them safely during destruction` | `deinit_all()` reaches a live node after `~Subject` and resets it | the free made immediate again (crashes in `deinit_all()`) |
+| `An ObserverGuard destroyed after its Subject deletes its observer without a double free` | a token-less guard that outlives the subject deletes its observer from a node still listed | the free made immediate again (crashes) |
 | `Subject init_string keeps a value that aliases its buffer` | value equal to `buf`, and pointing inside it | `buf[0]` cleared before the copy |
 | `Subject init_string with a previous buffer tracks the previous string` | `prev_buf` wiring (`src/plugin/lua_bind_ui.cpp` uses it) | `prev_value` left null |
-| `Subject re-init while live removes the old observers` | no observer survives a re-init | the live branch of `prepare()` skips the removal |
+| `Subject re-init while live orphans the old observers and reports it` | the anomaly count rises by one, the list is empty, and a guard on an orphan deletes it safely | observers freed instead of orphaned (double free); separately, the report removed |
+| `Subject re-init after reset drops a min clamp and resets the previous value` | `seed()` restores range and previous value | `seed()` stops resetting min/max |
+| `subject_reset deinitializes an unowned lv_subject_t and owner_of ignores it` | a zeroed `lv_subject_t` has no owner; `subject_reset()` on an initialized unowned one frees its observers and refuses new ones | the unowned branch does nothing; separately, `owner_of()` claims any node |
 | `Subject constructed after lv_init has a stable handle that init_* keeps` | constructor allocation; observers refused until init | constructor allocates nothing |
 | `Subject constructed before lv_init yields null until init_*` | no node before `lv_init()`, still none after it until `init_*()`, then a live one | constructor ignores `lv_is_initialized()` |
 | `Subject init before lv_init allocates nothing` | refusal path | `prepare()` ignores `lv_is_initialized()` |
@@ -415,12 +443,18 @@ its tip, from the worktree root, and compare the image size `check_esp32_size.py
 make apply-patches
 python3 scripts/esp32_printer_images.py && python3 scripts/esp32_stage_assets.py && python3 scripts/esp32_pack_assets.py
 PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-scripts/pool-docker.sh docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+scripts/helix-claim hold -n 16 -- docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
     -v "$PWD:$PWD" -v "$PRIMARY:$PRIMARY:ro" -w "$PWD/firmware/helixscreen-esp32" espressif/idf:v5.5.5 \
     bash -c "git config --global --add safe.directory '*' && . /opt/esp/idf/export.sh >/dev/null && idf.py build"
 python3 scripts/check_esp32_size.py firmware/helixscreen-esp32/build/helixscreen_esp32.bin \
     firmware/helixscreen-esp32/size_budget.json firmware/helixscreen-esp32/build/helixscreen_esp32.map
 ```
+
+Not `scripts/pool-docker.sh`: its jobserver FIFO reaches the LTO link, whose `make`
+rejects `--jobserver-auth=fifo:` and fails the link. The hold reserves pool slots; the
+container's ninja does not read it, so size `-n` to what the pool has free. Base and tip
+can share one detached scratch worktree: build the base, check out the tip, and the second
+build is incremental.
 
 The batch's commit body records base size, tip size and the difference. CI's esp32-build
 runs the same size check on every push and stays the gate.
