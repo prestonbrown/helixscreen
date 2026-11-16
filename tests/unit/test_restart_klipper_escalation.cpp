@@ -31,7 +31,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     MockPrinter printer;
     auto& estop = EmergencyStopOverlay::instance();
     estop.init(printer.state, &printer.api);
-    EmergencyStopOverlayTestAccess::reset_suppression(estop);
 
     SECTION("Moonraker's Klippy-disconnected answer starts the recovery chain") {
         printer.client.fail_next("printer.restart", restart_error(503, "Klippy Disconnected"));
@@ -48,6 +47,4 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(printer.client.call_count("printer.restart") == 1);
         CHECK(printer.client.call_count("printer.firmware_restart") == 0);
     }
-
-    EmergencyStopOverlayTestAccess::reset_suppression(estop);
 }

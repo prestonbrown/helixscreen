@@ -4927,13 +4927,11 @@ TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it"
           "[ams][cfs][clear_fault]") {
     // The same backend state sends CANCEL_PRINT through cancel(), so a
     // clear_fault() that fell back to it would be caught here.
-    CfsRemapHelper canceller;
-    CfsTestAccess::mark_running(canceller);
+    helix::test::StartedBackend<CfsRemapHelper> canceller;
     REQUIRE(canceller.cancel().success());
     REQUIRE(canceller.captured == std::vector<std::string>{"CANCEL_PRINT"});
 
-    CfsRemapHelper backend;
-    CfsTestAccess::mark_running(backend);
+    helix::test::StartedBackend<CfsRemapHelper> backend;
     CHECK(backend.clear_fault(0).success());
     CHECK(backend.clear_fault(-1).success());
     CHECK(backend.captured.empty());

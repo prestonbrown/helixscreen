@@ -765,14 +765,14 @@ TEST_CASE("AD5X IFS module eject of its loaded lane names a temperature when the
 TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     backend.fire_status(module_ifs_frame(0, {}, "ready"));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == helix::AmsAction::IDLE);
 
     backend.fire_status(json{{"ifs",
                               {{"activity", "driver_error"},
                                {"error", "stepper driver fault: overcurrent"},
                                {"active_channel", 0},
                                {"loaded_channels", json::array()}}}});
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
     CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
 }
 
@@ -785,12 +785,12 @@ TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends 
                                {"error", "stepper driver fault: overcurrent"},
                                {"active_channel", 0},
                                {"loaded_channels", json::array()}}}});
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == helix::AmsAction::ERROR);
 
     // The board reports driver_error once, so a cleared mirror would never come
     // back while the hardware stays faulted.
     CHECK(backend.clear_fault(0).result == helix::AmsResult::NOT_SUPPORTED);
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
     CHECK(backend.captured_gcodes.empty());
 }
 
@@ -800,10 +800,10 @@ TEST_CASE("AD5X IFS module clear_fault retires its own fault without IFS_UNLOCK"
     backend.fire_status(module_ifs_frame(0, {}, "ready"));
     Ad5xIfsTestAccess::set_action(backend, helix::AmsAction::LOADING);
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == helix::AmsAction::ERROR);
 
     REQUIRE(backend.clear_fault(0).success());
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
     CHECK(backend.captured_gcodes.empty());
 }
 
@@ -814,13 +814,13 @@ TEST_CASE("AD5X IFS module activity tracks an externally-started op",
     // A slicer's T1 or a console IFS_LOAD sets no tracker and installs no ack
     // callback here — the board's activity is the only signal it produces.
     backend.fire_status(module_ifs_frame(0, {}, "loading"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::LOADING);
+    CHECK(backend.get_current_action() == helix::AmsAction::LOADING);
 
     backend.fire_status(module_ifs_frame(0, {}, "ready"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
 
     backend.fire_status(module_ifs_frame(0, {}, "unloading"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::UNLOADING);
+    CHECK(backend.get_current_action() == helix::AmsAction::UNLOADING);
 }
 
 TEST_CASE("AD5X IFS module slotless unload names a lane the module can retract",
@@ -850,7 +850,7 @@ TEST_CASE("AD5X IFS module slotless unload names a lane the module can retract",
         const helix::AmsError err = backend.unload_filament(-1);
         CHECK_FALSE(err.success());
         CHECK(backend.captured_gcodes.empty());
-        CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+        CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
     }
     SECTION("a remembered lane that has since emptied is not trusted") {
         Ad5xIfsTestAccess::set_persisted_seated_slot(backend, 3);
@@ -1015,7 +1015,7 @@ TEST_CASE("AD5X IFS module clears the extruder alone when no lane can be named",
         seat_unrecorded_module(backend, {1, 2}, /*at_hub=*/0);
         REQUIRE(backend.unload_filament(helix::kClearToolheadSlot).success());
         CHECK(backend.captured_gcodes == std::vector<std::string>{clear220});
-        CHECK(Ad5xIfsTestAccess::action(backend) != helix::AmsAction::IDLE);
+        CHECK(backend.get_current_action() != helix::AmsAction::IDLE);
     }
     SECTION("no lane holding filament asks to confirm the clear, and never clears unasked") {
         helix::test::StartedBackend<TestableModuleBackend> backend;

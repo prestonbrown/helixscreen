@@ -1149,14 +1149,13 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
 
 TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
           "[ams][ad5x_ifs][clear_fault]") {
-    GcodeCapturingBackend backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::set_running(backend, true);
+    helix::test::StartedBackend<GcodeCapturingBackend> backend;
     Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
 
     REQUIRE(backend.clear_fault(0).success());
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
 }
 
