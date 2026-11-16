@@ -9,6 +9,7 @@
 #include "touch_calibration.h"
 
 #include <cstdint>
+#include <ctime>
 #include <functional>
 #include <string>
 #include <vector>
@@ -252,6 +253,11 @@ class DebugBundleCollector {
     /// platform layout returns empty rather than a guess.
     static std::string collect_local_log_tail(const std::string& log_name, int num_lines,
                                               int condense_max_repeats = 0);
+    /// The line a local log fallback opens with: which file it read and how
+    /// long before @p now it was last written, so a stale copy that covers some
+    /// other session cannot pass for the incident's log.
+    static std::string local_log_source_line(const std::string& path, std::time_t modified,
+                                             std::time_t now);
     /// Line cap for moonraker.log. Deliberately far above what the byte budget
     /// yields (a 2 MiB condensed window measured 4319 lines) so kMoonrakerTailBytes
     /// is what binds, not an arbitrary line count.

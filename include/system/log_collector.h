@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <ctime>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -29,11 +30,19 @@ namespace helix::logs {
 /// a fake layout.
 std::vector<std::string> default_file_paths(const std::string& probe_root = "/");
 
+/// The file tail_file() read: its path and last-modified time.
+struct TailSource {
+    std::string path;
+    std::time_t modified = 0;
+};
+
 /// Read the last `num_lines` lines from the most-recently-modified readable,
 /// non-empty path in `paths` (NOT first-in-list). The list is priority-ordered,
 /// but freshness wins so a stale leftover at a higher-priority path can't shadow
 /// the log being written now (#981). Returns empty if none exist/are readable.
-std::string tail_file(const std::vector<std::string>& paths, int num_lines);
+/// @p source, when given, receives the file that was read.
+std::string tail_file(const std::vector<std::string>& paths, int num_lines,
+                      TailSource* source = nullptr);
 
 /// Read the last `num_lines` helix-screen entries from /var/log/messages or
 /// /var/log/syslog. Filters for "helix-screen", "helix-watchdog", and
