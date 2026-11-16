@@ -1,0 +1,61 @@
+diff --git a/include/lvgl/drivers/display/lv_linux_fbdev.h b/include/lvgl/drivers/display/lv_linux_fbdev.h
+index b2622ba0b..bf3925810 100644
+--- a/include/lvgl/drivers/display/lv_linux_fbdev.h
++++ b/include/lvgl/drivers/display/lv_linux_fbdev.h
+@@ -47,6 +47,13 @@ void lv_linux_fbdev_set_skip_unblank(lv_display_t * disp, bool skip);
+  */
+ void lv_linux_fbdev_set_force_refresh(lv_display_t * disp, bool enabled);
+ 
++/**
++ * Wait for vertical blank (FBIO_WAITFORVSYNC) once per frame, before its first flush.
++ * Starts at LV_LINUX_FBDEV_VSYNC. A framebuffer that rejects the ioctl turns the wait
++ * off for good on the first try, whatever this is set to.
++ */
++void lv_linux_fbdev_set_vsync(lv_display_t * disp, bool enabled);
++
+ /**
+  * Enable red/blue channel swap in the flush callback.
+  * Use for framebuffers with BGR pixel order (e.g., some Allwinner SoCs).
+diff --git a/src/drivers/display/fb/lv_linux_fbdev.c b/src/drivers/display/fb/lv_linux_fbdev.c
+index a983e43b0..ccfe9723f 100644
+--- a/src/drivers/display/fb/lv_linux_fbdev.c
++++ b/src/drivers/display/fb/lv_linux_fbdev.c
+@@ -76,6 +76,7 @@ typedef struct {
+     bool force_refresh;
+     bool wait_vsync_next;
+     bool vsync_supported;
++    bool vsync_enabled;
+     bool skip_unblank;
+     bool swap_rb;
+ } lv_linux_fb_t;
+@@ -129,6 +130,7 @@ lv_display_t * lv_linux_fbdev_create(void)
+     dsc->vsync_supported = true;
+     /* sync on first flush*/
+     dsc->wait_vsync_next = true;
++    dsc->vsync_enabled = LV_LINUX_FBDEV_VSYNC;
+     lv_display_set_driver_data(disp, dsc);
+     lv_display_set_flush_cb(disp, flush_cb);
+     lv_display_add_event_cb(disp, del_event_cb, LV_EVENT_DELETE, NULL);
+@@ -361,6 +363,13 @@ void lv_linux_fbdev_set_force_refresh(lv_display_t * disp, bool enabled)
+     dsc->force_refresh = enabled;
+ }
+ 
++void lv_linux_fbdev_set_vsync(lv_display_t * disp, bool enabled)
++{
++    LV_CHECK_ARG(disp != NULL, return);
++    lv_linux_fb_t * dsc = lv_display_get_driver_data(disp);
++    dsc->vsync_enabled = enabled;
++}
++
+ void lv_linux_fbdev_set_swap_rb(lv_display_t * disp, bool enabled)
+ {
+     LV_CHECK_ARG(disp != NULL, return);
+@@ -431,7 +440,7 @@ static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * colo
+ #endif
+ 
+     /* Wait once per frame before drawing the next frame */
+-    if(LV_LINUX_FBDEV_VSYNC && dsc->vsync_supported && dsc->wait_vsync_next) {
++    if(dsc->vsync_enabled && dsc->vsync_supported && dsc->wait_vsync_next) {
+         uint32_t dummy = 0;
+         if(ioctl(dsc->fbfd, FBIO_WAITFORVSYNC, &dummy) == -1) {
+             /* Disable the optional wait if the framebuffer does not support FBIO_WAITFORVSYNC*/

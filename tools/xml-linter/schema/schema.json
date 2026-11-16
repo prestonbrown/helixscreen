@@ -2173,6 +2173,13 @@
       "underline",
       "strikethrough"
     ],
+    "text_leading_trim": [
+      "none",
+      "capital_baseline",
+      "lower_baseline",
+      "capital",
+      "lower"
+    ],
     "scroll_snap": [
       "none",
       "start",
@@ -2369,6 +2376,7 @@
       "stretch",
       "tile",
       "contain",
+      "contain_downscale",
       "cover"
     ],
     "bar_orientation": [
@@ -2772,6 +2780,10 @@
     "text_decor": {
       "type": "enum",
       "enum": "text_decor"
+    },
+    "text_leading_trim": {
+      "type": "enum",
+      "enum": "text_leading_trim"
     },
     "image_opa": {
       "type": "opa"
