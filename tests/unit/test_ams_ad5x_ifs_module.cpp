@@ -778,14 +778,13 @@ TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs
 
 TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends nothing",
           "[ams][ad5x_ifs][ifs_module][clear_fault]") {
-    TestableModuleBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
-    Ad5xIfsTestAccess::handle_status(backend, json{{"ifs",
-                                                    {{"activity", "driver_error"},
-                                                     {"error", "stepper driver fault: overcurrent"},
-                                                     {"active_channel", 0},
-                                                     {"loaded_channels", json::array()}}}});
+    helix::test::StartedBackend<TestableModuleBackend> backend;
+    backend.fire_status(module_ifs_frame(0, {}, "ready"));
+    backend.fire_status(json{{"ifs",
+                              {{"activity", "driver_error"},
+                               {"error", "stepper driver fault: overcurrent"},
+                               {"active_channel", 0},
+                               {"loaded_channels", json::array()}}}});
     REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
 
     // The board reports driver_error once, so a cleared mirror would never come
@@ -797,9 +796,8 @@ TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends 
 
 TEST_CASE("AD5X IFS module clear_fault retires its own fault without IFS_UNLOCK",
           "[ams][ad5x_ifs][ifs_module][clear_fault]") {
-    TestableModuleBackend backend;
-    Ad5xIfsTestAccess::set_running(backend, true);
-    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
+    helix::test::StartedBackend<TestableModuleBackend> backend;
+    backend.fire_status(module_ifs_frame(0, {}, "ready"));
     Ad5xIfsTestAccess::set_action(backend, helix::AmsAction::LOADING);
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
     REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
