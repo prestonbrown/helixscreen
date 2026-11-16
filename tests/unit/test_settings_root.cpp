@@ -15,6 +15,7 @@
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "ethernet_backend_mock.h"
@@ -56,9 +57,9 @@ struct RootFixture : LVGLUITestFixture {
         // Nothing in this fixture runs PrinterCapabilitiesState::init_subjects(),
         // so printer_has_speaker is otherwise absent and the Sound row's gate
         // resolves to nothing.
-        static lv_subject_t speaker_subject;
+        static helix::Subject speaker_subject;
         if (!lv_xml_get_subject(nullptr, "printer_has_speaker")) {
-            lv_subject_init_int(&speaker_subject, 1);
+            speaker_subject.init_int(1);
             lv_xml_register_subject(nullptr, "printer_has_speaker", &speaker_subject);
         }
         SettingsManager::instance().init_subjects();

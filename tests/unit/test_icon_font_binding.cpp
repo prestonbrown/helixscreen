@@ -20,6 +20,7 @@
 #include "ui_fonts.h"
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"
@@ -88,11 +89,11 @@ constexpr const char* kIconFixtureXml = R"(<component>
   </view>
 </component>)";
 
-lv_subject_t& icon_mode_subject() {
-    static lv_subject_t subject;
+helix::Subject& icon_mode_subject() {
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
-        lv_subject_init_int(&subject, 0);
+        subject.init_int(0);
         lv_xml_register_subject(nullptr, kIconModeSubject, &subject);
         registered = true;
     }
@@ -220,10 +221,10 @@ void ensure_empty_name_subject() {
     // Mirrors the app's global "" noop subject: int 0, registered under the
     // empty name. Without this the binding would resolve NULL and skip, and
     // the test could not tell a guarded skip from a failed lookup.
-    static lv_subject_t subject;
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
-        lv_subject_init_int(&subject, 0);
+        subject.init_int(0);
         lv_xml_register_subject(nullptr, "", &subject);
         registered = true;
     }

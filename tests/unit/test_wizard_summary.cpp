@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/subject.h"
 
 #include <cstring>
 #include <string>
@@ -29,10 +30,11 @@
 // Subject Macro Tests
 // ============================================================================
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the buffer",
-          "[wizard][summary][subjects]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the buffer",
+                 "[wizard][summary][subjects]") {
     // Config values arrive as std::string::c_str(), never the buffer itself.
-    static lv_subject_t test_subject;
+    static helix::Subject test_subject;
     static char buffer[128];
     for (const std::string value : {"FlashForge Adventurer 5M Pro", "", "Unnamed Printer",
                                     "Heater: extruder, Sensor: heater_bed"}) {
@@ -43,8 +45,9 @@ TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the
     }
 }
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT works correctly", "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
+TEST_CASE_METHOD(LVGLTestFixture, "UI_SUBJECT_INIT_AND_REGISTER_INT works correctly",
+                 "[wizard][summary][subjects]") {
+    static helix::Subject test_subject;
 
     UI_SUBJECT_INIT_AND_REGISTER_INT(test_subject, 42, "test_int_subject");
 

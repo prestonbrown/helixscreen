@@ -3,6 +3,7 @@
 
 #include "../test_helpers/widget_in_tree.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "lvgl_test_fixture.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/update_queue_test_access.h"
@@ -130,8 +131,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback is buffered dur
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 42);
+    helix::Subject subject;
+    subject.init_int(42);
 
     // Guard must outlive the freeze. In real code the guard is a member of
     // the widget that registered it; destroying it before the buffered initial
@@ -157,7 +158,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback is buffered dur
     REQUIRE(panel.observed_value == 42);
 
     guard.reset();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without ScopedFreeze",
@@ -165,8 +165,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without S
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 42);
+    helix::Subject subject;
+    subject.init_int(42);
 
     {
         // Create observer without freeze — initial fire should be delivered.
@@ -177,8 +177,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without S
         q.drain();
         REQUIRE(panel.observed_value == 42);
     }
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered after thaw",
@@ -186,8 +184,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     ObserverGuard guard;
     {
@@ -210,7 +208,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered
     REQUIRE(panel.observed_value == 99);
 
     guard.reset();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "tagged queue_update sets current_callback_tag during execution",

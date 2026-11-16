@@ -9,6 +9,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "settings_manager.h"
 #include "ui/animated_value.h"
@@ -39,8 +40,8 @@ class AnimatedValueTestFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(AnimatedValueTestFixture,
                  "AnimatedValue: bind invokes callback with initial value", "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 100);
+    helix::Subject subject;
+    subject.init_int(100);
 
     int received_value = -1;
     AnimatedValue<int> animated;
@@ -54,13 +55,12 @@ TEST_CASE_METHOD(AnimatedValueTestFixture,
     REQUIRE(animated.is_bound());
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: unbind clears state",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     int callback_count = 0;
     AnimatedValue<int> animated;
@@ -79,8 +79,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: unbind clears state",
     lv_subject_set_int(&subject, 50);
 
     REQUIRE(callback_count == 0);
-
-    lv_subject_deinit(&subject);
 }
 
 // ============================================================================
@@ -89,10 +87,10 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: unbind clears state",
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: starts animation on value change",
                  "[animated_value]") {
-    lv_subject_t subject;
+    helix::Subject subject;
     // Use non-zero initial value - AnimatedValue skips animation when display_value_ is 0
     // (by design, to handle startup where values arrive rapidly)
-    lv_subject_init_int(&subject, 50);
+    subject.init_int(50);
 
     int last_value = -1;
     AnimatedValue<int> animated;
@@ -111,13 +109,12 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: starts animation on v
     REQUIRE(animated.display_value() <= 100);
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: retargets on new value",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     int last_value = -1;
     AnimatedValue<int> animated;
@@ -136,7 +133,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: retargets on new valu
     REQUIRE(animated.is_animating());
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 // ============================================================================
@@ -145,8 +141,8 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: retargets on new valu
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: skips animation below threshold",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 100);
+    helix::Subject subject;
+    subject.init_int(100);
 
     int callback_count = 0;
     AnimatedValue<int> animated;
@@ -166,13 +162,12 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: skips animation below
     REQUIRE(animated.target_value() == 105);
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: animates at or above threshold",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 100);
+    helix::Subject subject;
+    subject.init_int(100);
 
     int callback_count = 0;
     AnimatedValue<int> animated;
@@ -190,7 +185,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: animates at or above 
     REQUIRE(animated.target_value() == 110);
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 // ============================================================================
@@ -199,8 +193,8 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: animates at or above 
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: instant update when animations disabled",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     // Disable animations
     DisplaySettingsManager::instance().set_animations_enabled(false);
@@ -222,7 +216,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: instant update when a
     DisplaySettingsManager::instance().set_animations_enabled(true);
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 // ============================================================================
@@ -231,9 +224,9 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: instant update when a
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: destructor cleans up",
                  "[animated_value]") {
-    lv_subject_t subject;
+    helix::Subject subject;
     // Use non-zero initial value to trigger animation
-    lv_subject_init_int(&subject, 50);
+    subject.init_int(50);
 
     bool callback_invoked = false;
 
@@ -254,14 +247,12 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: destructor cleans up"
 
     // After destruction, callback should not be invoked
     REQUIRE(!callback_invoked);
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: move construction transfers ownership",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 50);
+    helix::Subject subject;
+    subject.init_int(50);
 
     AnimatedValue<int> original;
     original.bind(&subject, [&](int) {});
@@ -285,7 +276,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: move construction tra
     // For proper move semantics, re-bind after move.
 
     moved.unbind();
-    lv_subject_deinit(&subject);
 }
 
 // ============================================================================
@@ -302,22 +292,20 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: null subject bind is 
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: null callback bind is no-op",
                  "[animated_value][edge]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     AnimatedValue<int> animated;
     animated.bind(&subject, nullptr);
 
     REQUIRE(!animated.is_bound());
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: rebind cleans up previous binding",
                  "[animated_value]") {
-    lv_subject_t subject1, subject2;
-    lv_subject_init_int(&subject1, 10);
-    lv_subject_init_int(&subject2, 20);
+    helix::Subject subject1, subject2;
+    subject1.init_int(10);
+    subject2.init_int(20);
 
     int value = -1;
     AnimatedValue<int> animated;
@@ -335,8 +323,6 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: rebind cleans up prev
     REQUIRE(animated.is_animating());
 
     animated.unbind();
-    lv_subject_deinit(&subject1);
-    lv_subject_deinit(&subject2);
 }
 
 // ============================================================================
@@ -365,8 +351,8 @@ TEST_CASE_METHOD(AnimatedValueTestFixture, "AnimatedValue: rebind cleans up prev
 TEST_CASE_METHOD(AnimatedValueTestFixture,
                  "AnimatedValue: bind does not start a no-op animation for the initial value",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 50);
+    helix::Subject subject;
+    subject.init_int(50);
 
     const uint16_t anims_before = lv_anim_count_running();
 
@@ -378,14 +364,13 @@ TEST_CASE_METHOD(AnimatedValueTestFixture,
     REQUIRE(lv_anim_count_running() == anims_before); // No animation registered
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture,
                  "AnimatedValue: bind does not start a no-op animation with explicit threshold 0",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 100);
+    helix::Subject subject;
+    subject.init_int(100);
 
     const uint16_t anims_before = lv_anim_count_running();
 
@@ -401,14 +386,13 @@ TEST_CASE_METHOD(AnimatedValueTestFixture,
     REQUIRE(animated.is_animating());
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(AnimatedValueTestFixture,
                  "AnimatedValue: notification of the current value does not start an animation",
                  "[animated_value]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 50);
+    helix::Subject subject;
+    subject.init_int(50);
 
     AnimatedValue<int> animated;
     animated.bind(&subject, [](int) {});
@@ -423,5 +407,4 @@ TEST_CASE_METHOD(AnimatedValueTestFixture,
     REQUIRE(lv_anim_count_running() == anims_before);
 
     animated.unbind();
-    lv_subject_deinit(&subject);
 }

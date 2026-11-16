@@ -12,6 +12,7 @@
 
 #include "ui_temp_display.h"
 
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl_test_fixture.h"
 
@@ -38,8 +39,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "external subject has no observers after temp_
     ui_temp_display_init();
 
     // Create an external integer subject simulating a temperature value
-    lv_subject_t current_temp_subject;
-    lv_subject_init_int(&current_temp_subject, 0);
+    helix::Subject current_temp_subject;
+    current_temp_subject.init_int(0);
 
     // Register it as a global XML subject so temp_display can find it via bind_current
     lv_xml_register_subject(nullptr, "test_current_temp", &current_temp_subject);
@@ -62,5 +63,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "external subject has no observers after temp_
     CHECK(count_subject_observers(&current_temp_subject) == 0);
 
     // Clean up the external subject
-    lv_subject_deinit(&current_temp_subject);
 }

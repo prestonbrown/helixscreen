@@ -15,6 +15,7 @@
 #include "../../src/ui/theme/theme_manager_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "theme_loader.h"
@@ -255,22 +256,15 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "ThemeSubjects::deinit drops every observer and resets the generation",
                  "[theme_pins][theme]") {
     helix::theme_detail::ThemeSubjects subs;
-    lv_subject_init_int(&subs.changed, 0);
-    subs.changed_ready = true;
+    subs.changed.init_int(0);
     subs.generation = 7;
-    lv_subject_init_int(&subs.breakpoint, 2);
-    subs.breakpoint_ready = true;
-    lv_subject_init_int(&subs.breakpoint_v, 3);
-    subs.breakpoint_v_ready = true;
-    lv_subject_init_int(&subs.is_portrait, 0);
-    subs.is_portrait_ready = true;
-    lv_subject_init_int(&subs.is_ultrawide, 0);
-    subs.is_ultrawide_ready = true;
+    subs.breakpoint.init_int(2);
+    subs.breakpoint_v.init_int(3);
+    subs.is_portrait.init_int(0);
+    subs.is_ultrawide.init_int(0);
     for (size_t i = 0; i < subs.kSwatchCount; ++i) {
-        lv_subject_init_string(&subs.swatch_desc[i], subs.swatch_bufs[i], nullptr,
-                               subs.kSwatchBufSize, "x");
+        subs.swatch_desc[i].init_string(subs.swatch_bufs[i], nullptr, subs.kSwatchBufSize, "x");
     }
-    subs.swatch_ready = true;
 
     std::vector<lv_subject_t*> all = {&subs.changed, &subs.breakpoint, &subs.breakpoint_v,
                                       &subs.is_portrait, &subs.is_ultrawide};
@@ -286,12 +280,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     for (lv_subject_t* s : all) {
         CHECK(lv_ll_get_len(&s->subs_ll) == 0);
     }
-    CHECK_FALSE(subs.changed_ready);
-    CHECK_FALSE(subs.breakpoint_ready);
-    CHECK_FALSE(subs.breakpoint_v_ready);
-    CHECK_FALSE(subs.is_portrait_ready);
-    CHECK_FALSE(subs.is_ultrawide_ready);
-    CHECK_FALSE(subs.swatch_ready);
+    CHECK_FALSE(subs.changed.is_live());
+    CHECK_FALSE(subs.breakpoint.is_live());
+    CHECK_FALSE(subs.breakpoint_v.is_live());
+    CHECK_FALSE(subs.is_portrait.is_live());
+    CHECK_FALSE(subs.is_ultrawide.is_live());
+    CHECK_FALSE(subs.swatches_live());
     CHECK(subs.generation == 0);
 
     // A second deinit is a no-op rather than a double free.

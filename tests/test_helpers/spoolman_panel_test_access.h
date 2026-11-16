@@ -59,7 +59,7 @@ class SpoolmanPanelTestAccess {
     /// freed the previous one) carries when a queued callback drives it
     /// before init_subjects().
     static void poison_state_subject_as_uninitialized(SpoolmanPanel& panel) {
-        lv_subject_t& s = panel.panel_state_subject_;
+        lv_subject_t& s = state_subject(panel);
         std::memset(&s, 0xA5, sizeof(s));
         s.type = LV_SUBJECT_TYPE_INT;
         // Non-degenerate bounds so the write passes lv_subject_set_int's
@@ -71,7 +71,9 @@ class SpoolmanPanelTestAccess {
         s.subs_ll.tail = reinterpret_cast<lv_ll_node_t*>(0x1);
     }
 
-    static const lv_subject_t& state_subject(const SpoolmanPanel& panel) {
-        return panel.panel_state_subject_;
+    /// The panel-state subject's LVGL node. The panel's Subject frees it, so a
+    /// test that poisons it restores the original bytes first.
+    static lv_subject_t& state_subject(SpoolmanPanel& panel) {
+        return *&panel.panel_state_subject_;
     }
 };

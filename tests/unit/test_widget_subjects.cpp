@@ -12,6 +12,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "widget_subjects.h"
 
 #include <algorithm>
@@ -35,12 +36,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects inits once, and again after it
     helix::WidgetSubjects subjects{kName};
     auto& registry = StaticSubjectRegistry::instance();
     const size_t before = registry.count();
-    lv_subject_t subject{};
+    helix::Subject subject{};
     int init_runs = 0;
     int teardown_runs = 0;
     auto init = [&] {
         ++init_runs;
-        lv_subject_init_int(&subject, init_runs);
+        subject.init_int(init_runs);
         subjects.publish("widget_subjects_test_reinit", &subject);
     };
     auto teardown = [&] { ++teardown_runs; };
@@ -77,13 +78,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetSubjects teardown runs before its subje
                  "[core][subjects][1802]") {
     static constexpr const char* kName = "WidgetSubjectsTestTeardown";
     helix::WidgetSubjects subjects{kName};
-    lv_subject_t subject{};
+    helix::Subject subject{};
     int teardown_runs = 0;
     bool subject_live_in_teardown = false;
 
     REQUIRE(subjects.ensure_init(
         [&] {
-            lv_subject_init_int(&subject, 0);
+            subject.init_int(0);
             subjects.publish("widget_subjects_test_teardown", &subject);
         },
         [&] {

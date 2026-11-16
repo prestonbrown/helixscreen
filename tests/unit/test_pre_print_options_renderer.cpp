@@ -5,6 +5,7 @@
 #include "ui_print_preparation_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "macro_param_cache.h"
 #include "pre_print_option.h"
 #include "printer_detector.h"
@@ -178,8 +179,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     opt.strategy = PrePrintStrategyMacroParam{"SKIP_LEVELING", "0", "1", "0"};
     set.options.push_back(opt);
 
-    lv_subject_t can_show{};
-    lv_subject_init_int(&can_show, 1); // start visible
+    helix::Subject can_show{};
+    can_show.init_int(1); // start visible
 
     auto vis_lookup = [&](const std::string& id) -> lv_subject_t* {
         return id == "bed_mesh" ? &can_show : nullptr;
@@ -206,7 +207,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // before we deinit the local visibility subject (avoids dangling
     // observer pointers).
     renderer.clear();
-    lv_subject_deinit(&can_show);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -477,8 +477,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     opt.strategy = PrePrintStrategyMacroParam{"SKIP_LEVELING", "0", "1", "0"};
     set.options.push_back(opt);
 
-    lv_subject_t plugin_installed{};
-    lv_subject_init_int(&plugin_installed, -1); // unknown / still checking
+    helix::Subject plugin_installed{};
+    plugin_installed.init_int(-1); // unknown / still checking
 
     auto vis_lookup = [&](const std::string& id) -> lv_subject_t* {
         return id == "bed_mesh" ? &plugin_installed : nullptr;
@@ -500,7 +500,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE_FALSE(lv_obj_is_hidden(row));
 
     renderer.clear();
-    lv_subject_deinit(&plugin_installed);
 }
 
 // ============================================================================

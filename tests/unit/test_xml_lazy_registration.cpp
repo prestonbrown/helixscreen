@@ -23,6 +23,7 @@
 #include "../catch_amalgamated.hpp"
 
 extern "C" {
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 }
@@ -272,15 +273,15 @@ TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component holding a C+
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_cpp_subject", nullptr)));
     lv_xml_component_scope_t* scope = lv_xml_component_find_scope("lazy_probe_cpp_subject");
     REQUIRE(scope != nullptr);
-    static lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    static helix::Subject subject;
+    subject.init_int(0);
     REQUIRE(lv_xml_register_subject(scope, "lazy_probe_cpp_value", &subject) == LV_RESULT_OK);
 
     helix::unregister_idle_xml_components();
 
     CHECK(lv_xml_component_find_scope("lazy_probe_cpp_subject") == scope);
     lv_xml_component_unregister("lazy_probe_cpp_subject");
-    lv_subject_deinit(&subject);
+    subject.reset();
 }
 
 TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component whose style was borrowed",

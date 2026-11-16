@@ -4,6 +4,7 @@
 #include "ui_text_input.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
@@ -239,12 +240,12 @@ class TextInputBindingFixture : public LVGLUITestFixture {
   public:
     TextInputBindingFixture() {
         std::memset(text_buf_, 0, sizeof(text_buf_));
-        lv_subject_init_string(&text_subject_, text_buf_, nullptr, sizeof(text_buf_), "initial");
+        text_subject_.init_string(text_buf_, nullptr, sizeof(text_buf_), "initial");
         lv_xml_register_subject(nullptr, "ti_text_subject", &text_subject_);
 
         // A deliberately wrong type: bind_text must refuse it rather than
         // reinterpret an int subject's value as a char*.
-        lv_subject_init_int(&int_subject_, 7);
+        int_subject_.init_int(7);
         lv_xml_register_subject(nullptr, "ti_int_subject", &int_subject_);
 
         g_clear_cb_calls = 0;
@@ -252,8 +253,8 @@ class TextInputBindingFixture : public LVGLUITestFixture {
     }
 
     ~TextInputBindingFixture() override {
-        lv_subject_deinit(&text_subject_);
-        lv_subject_deinit(&int_subject_);
+        text_subject_.reset();
+        int_subject_.reset();
     }
 
     lv_subject_t* text_subject() {
@@ -262,8 +263,8 @@ class TextInputBindingFixture : public LVGLUITestFixture {
 
   private:
     char text_buf_[64]{};
-    lv_subject_t text_subject_{};
-    lv_subject_t int_subject_{};
+    helix::Subject text_subject_{};
+    helix::Subject int_subject_{};
 };
 
 TEST_CASE_METHOD(TextInputBindingFixture,

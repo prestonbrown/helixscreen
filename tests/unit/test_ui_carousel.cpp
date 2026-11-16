@@ -18,6 +18,7 @@
 #include "../catch_amalgamated.hpp"
 
 // Needed to access lv_timer_t internals for direct callback invocation in tests
+#include "core/subject.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 
 // ============================================================================
@@ -608,8 +609,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item updates page_subject", "[carousel
     CarouselState* state = ui_carousel_get_state(carousel);
     state->wrap = false;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     state->page_subject = &subject;
 
     for (int i = 0; i < 3; i++) {
@@ -623,7 +624,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item updates page_subject", "[carousel
     ui_carousel_remove_item(carousel, 2);
     REQUIRE(lv_subject_get_int(&subject) == 1);
 
-    lv_subject_deinit(&subject);
+    subject.reset();
     state->page_subject = nullptr;
 }
 
@@ -886,7 +887,7 @@ void record_published(lv_observer_t* observer, lv_subject_t* subject) {
 struct RecordedCarousel {
     lv_obj_t* carousel = nullptr;
     CarouselState* state = nullptr;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     std::vector<int> published;
     int32_t page_w = 0;
 
@@ -902,7 +903,7 @@ struct RecordedCarousel {
         page_w = lv_obj_get_content_width(state->scroll_container);
         REQUIRE(page_w > 0);
 
-        lv_subject_init_int(&subject, 0);
+        subject.init_int(0);
         state->page_subject = &subject;
         lv_subject_add_observer(&subject, record_published, &published);
         published.clear(); // adding the observer reports the current value once
@@ -910,7 +911,7 @@ struct RecordedCarousel {
 
     ~RecordedCarousel() {
         state->page_subject = nullptr;
-        lv_subject_deinit(&subject);
+        subject.reset();
     }
 
     RecordedCarousel(const RecordedCarousel&) = delete;

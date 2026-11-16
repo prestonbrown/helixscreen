@@ -5,6 +5,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "humidity_drop_geometry.h"
@@ -414,8 +415,8 @@ lv_obj_t* make_drop(lv_obj_t* parent, const char* subject, const char* size = "m
 TEST_CASE_METHOD(XMLTestFixture, "humidity_drop: bind_value tracks the subject",
                  "[humidity_drop][widget]") {
     helix::ui::register_humidity_drop_widget();
-    lv_subject_t subj;
-    lv_subject_init_int(&subj, 425);
+    helix::Subject subj;
+    subj.init_int(425);
     lv_xml_register_subject(nullptr, "test_drop_humidity", &subj);
 
     lv_obj_t* drop = make_drop(test_screen(), "test_drop_humidity");
@@ -432,7 +433,6 @@ TEST_CASE_METHOD(XMLTestFixture, "humidity_drop: bind_value tracks the subject",
     CHECK(helix::ui::humidity_drop_value(drop) == kUnknown);
 
     lv_obj_delete(drop);
-    lv_subject_deinit(&subj);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "humidity_drop: without a binding it shows no reading",

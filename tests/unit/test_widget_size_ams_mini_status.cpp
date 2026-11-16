@@ -17,6 +17,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
@@ -263,8 +264,8 @@ class BreakpointGuard {
     explicit BreakpointGuard(UiBreakpoint bp) {
         subj_ = theme_manager_get_breakpoint_subject();
         if (subj_) {
-            if (subj_->type != LV_SUBJECT_TYPE_INT) {
-                lv_subject_init_int(subj_, 0);
+            if (auto* owner = helix::Subject::owner_of(subj_); owner && !owner->is_live()) {
+                owner->init_int(0);
             }
             original_ = lv_subject_get_int(subj_);
             lv_subject_set_int(subj_, static_cast<int>(bp));

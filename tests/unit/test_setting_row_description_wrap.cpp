@@ -28,6 +28,7 @@
  */
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "lvgl.h"
 
 #include "../catch_amalgamated.hpp"
@@ -56,20 +57,20 @@ constexpr int32_t kColumnW = 380;
 
 class SettingRowWrapFixture : public LVGLUITestFixture {
   public:
-    lv_subject_t val_subject;
-    lv_subject_t dis_subject;
+    helix::Subject val_subject;
+    helix::Subject dis_subject;
 
     SettingRowWrapFixture() {
         lv_xml_register_event_cb(nullptr, "test_row_wrap_noop", no_op_cb);
-        lv_subject_init_int(&val_subject, 0);
+        val_subject.init_int(0);
         lv_xml_register_subject(nullptr, "test_row_wrap_val", &val_subject);
-        lv_subject_init_int(&dis_subject, 0);
+        dis_subject.init_int(0);
         lv_xml_register_subject(nullptr, "test_row_wrap_dis", &dis_subject);
     }
 
     ~SettingRowWrapFixture() override {
-        lv_subject_deinit(&val_subject);
-        lv_subject_deinit(&dis_subject);
+        val_subject.reset();
+        dis_subject.reset();
     }
 
     /// A fixed-width, content-height column standing in for a settings list.

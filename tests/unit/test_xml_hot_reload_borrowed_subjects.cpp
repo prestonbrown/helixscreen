@@ -30,6 +30,7 @@
 // resolves to nothing.
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "xml_hot_reloader.h"
 
 #include "../catch_amalgamated.hpp"
@@ -66,8 +67,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     REQUIRE(lv_xml_register_component_from_data("t_reload_rt", v1) == LV_RESULT_OK);
 
-    lv_subject_t cpp_flag; // C++-owned storage, as a modal's static member would be
-    lv_subject_init_int(&cpp_flag, 0);
+    helix::Subject cpp_flag; // C++-owned storage, as a modal's static member would be
+    cpp_flag.init_int(0);
     REQUIRE(lv_xml_register_subject(lv_xml_component_get_scope("t_reload_rt"), "cpp_flag",
                                     &cpp_flag) == LV_RESULT_OK);
 
@@ -118,5 +119,4 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     lv_obj_delete(inst);
     REQUIRE(lv_xml_component_unregister("t_reload_rt") == LV_RESULT_OK);
-    lv_subject_deinit(&cpp_flag);
 }

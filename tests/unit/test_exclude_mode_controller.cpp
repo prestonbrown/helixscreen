@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "printer_excluded_objects_state.h"
 
@@ -28,7 +29,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
     ExcludeModeFixture() {
         objects.init_subjects(false);
         objects.set_defined_objects({"A", "B", "C"});
-        lv_subject_init_int(&map_active, 0);
+        map_active.init_int(0);
 
         columns = lv_obj_create(test_screen());
         lv_obj_set_size(columns, 800, 400);
@@ -51,7 +52,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
         controller.hide();
         settle();
         objects.deinit_subjects();
-        lv_subject_deinit(&map_active);
+        map_active.reset();
     }
 
     void settle() {
@@ -78,7 +79,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
     }
 
     PrinterExcludedObjectsState objects;
-    lv_subject_t map_active{};
+    helix::Subject map_active{};
     lv_obj_t* columns = nullptr;
     lv_obj_t* card = nullptr;
     lv_obj_t* controls = nullptr;

@@ -12,6 +12,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
 
@@ -85,8 +86,8 @@ TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the
     // the subject outlives every test; ProbeOverlay registers the real one.
     lv_subject_t* known = lv_xml_get_subject(nullptr, "probe_z_offset_known");
     if (known == nullptr) {
-        static lv_subject_t subject;
-        lv_subject_init_int(&subject, 0);
+        static helix::Subject subject;
+        subject.init_int(0);
         lv_xml_register_subject(nullptr, "probe_z_offset_known", &subject);
         known = &subject;
     }

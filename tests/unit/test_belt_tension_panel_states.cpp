@@ -43,6 +43,7 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
 #include "belt_tension_types.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "mock_persona.h"
@@ -370,8 +371,8 @@ class BeltPanelFixture : public XMLTestFixture {
     /// printer_has_accelerometer lives on PrinterCapabilitiesState, which unit
     /// tests never register; provide the name the panel looks up.
     static void set_accel_subject(int value) {
-        static lv_subject_t s;
-        lv_subject_init_int(&s, value);
+        static helix::Subject s;
+        s.init_int(value);
         lv_xml_register_subject(nullptr, "printer_has_accelerometer", &s);
     }
 

@@ -46,6 +46,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "gcode_ops_detector.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -1365,9 +1366,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
         }
     } closer{view};
 
-    lv_subject_t material{};
+    helix::Subject material{};
     char material_buf[64] = "ABS";
-    lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf), "ABS");
+    material.init_string(material_buf, nullptr, sizeof(material_buf), "ABS");
     view.set_material_text_subject(&material);
     const auto text = [&material] { return std::string(lv_subject_get_string(&material)); };
 
@@ -1387,7 +1388,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
     CHECK(text() == "ABS-GF");
 
     view.set_material_text_subject(nullptr);
-    lv_subject_deinit(&material);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -1503,18 +1503,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // bindings resolve these production names in whatever test builds that
     // view next. A stack subject here dangles for that test (SIGSEGV adding
     // an observer to the dead subject).
-    static lv_subject_t can_print;
-    lv_subject_init_int(&can_print, 0);
+    static helix::Subject can_print;
+    can_print.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_can_print", &can_print);
 
-    static lv_subject_t button_mode;
-    lv_subject_init_int(&button_mode, 0);
+    static helix::Subject button_mode;
+    button_mode.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &button_mode);
 
     static char reason_buf[96];
-    static lv_subject_t reason;
-    lv_subject_init_string(&reason, reason_buf, nullptr, sizeof(reason_buf),
-                           "Printing: start after this job");
+    static helix::Subject reason;
+    reason.init_string(reason_buf, nullptr, sizeof(reason_buf), "Printing: start after this job");
     lv_xml_register_subject(nullptr, "print_select_blocked_reason", &reason);
 
     lv_obj_t* const root = make_detail_root(test_screen());

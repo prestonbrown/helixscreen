@@ -7,6 +7,7 @@
 // walker leaves every authored color alone while still theming the rest.
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"
@@ -188,13 +189,13 @@ namespace {
 
 /// An int subject registered under `name` for the life of one test.
 struct ScopedIntSubject {
-    lv_subject_t subject{};
+    helix::Subject subject{};
     explicit ScopedIntSubject(const char* name, int32_t value) {
-        lv_subject_init_int(&subject, value);
+        subject.init_int(value);
         lv_xml_register_subject(nullptr, name, &subject);
     }
     ~ScopedIntSubject() {
-        lv_subject_deinit(&subject);
+        subject.reset();
     }
 };
 
@@ -289,9 +290,9 @@ TEST_CASE_METHOD(XMLTestFixture, "a bound text style off at a switch shows when 
     const auto theme = helix::get_builtin_fallback_theme();
     theme_manager_apply_theme(theme, true);
     ScopedIntSubject active("lr_late_active", 1);
-    lv_subject_t label_subject{};
+    helix::Subject label_subject{};
     static char label_buf[32];
-    lv_subject_init_string(&label_subject, label_buf, nullptr, sizeof(label_buf), "Move");
+    label_subject.init_string(label_buf, nullptr, sizeof(label_buf), "Move");
     lv_xml_register_subject(nullptr, "lr_late_label", &label_subject);
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/zone_tab.xml") ==
             LV_RESULT_OK);
@@ -312,7 +313,7 @@ TEST_CASE_METHOD(XMLTestFixture, "a bound text style off at a switch shows when 
     lv_subject_set_int(&active.subject, 0);
     CHECK(text_rgb(label) == hex(theme.light.text_muted));
 
-    lv_subject_deinit(&label_subject);
+    label_subject.reset();
 }
 
 // A status color handed down through a component prop (history_list_row's
@@ -356,9 +357,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     theme_manager_apply_theme(theme, true);
     ScopedIntSubject active("lr_tab_active", 1);
     ScopedIntSubject idle("lr_tab_idle", 0);
-    lv_subject_t label_subject{};
+    helix::Subject label_subject{};
     static char label_buf[32];
-    lv_subject_init_string(&label_subject, label_buf, nullptr, sizeof(label_buf), "Move");
+    label_subject.init_string(label_buf, nullptr, sizeof(label_buf), "Move");
     lv_xml_register_subject(nullptr, "lr_tab_label", &label_subject);
 
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/zone_tab.xml") ==
@@ -404,7 +405,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         "fresh light contrast label/pill = " << contrast(text_rgb(fresh_label), bg_rgb(fresh_tab)));
     CHECK(contrast(text_rgb(fresh_label), bg_rgb(fresh_tab)) >= 4.0);
 
-    lv_subject_deinit(&label_subject);
+    label_subject.reset();
 }
 
 TEST_CASE_METHOD(XMLTestFixture,
@@ -414,9 +415,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     const auto theme = helix::get_builtin_fallback_theme();
     theme_manager_apply_theme(theme, true);
     ScopedIntSubject idle("lr_pill_idle", 0);
-    lv_subject_t label_subject{};
+    helix::Subject label_subject{};
     static char label_buf[32];
-    lv_subject_init_string(&label_subject, label_buf, nullptr, sizeof(label_buf), "Bed");
+    label_subject.init_string(label_buf, nullptr, sizeof(label_buf), "Bed");
     lv_xml_register_subject(nullptr, "lr_pill_label", &label_subject);
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/zone_tab.xml") ==
             LV_RESULT_OK);
@@ -439,7 +440,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     theme_manager_apply_theme(theme, false);
     CHECK(bg_rgb(tab) == hex(theme.light.card_bg));
 
-    lv_subject_deinit(&label_subject);
+    label_subject.reset();
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "the palette walker still themes a neutral button's fill",

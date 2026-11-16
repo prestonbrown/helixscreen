@@ -18,6 +18,7 @@
  */
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "lvgl.h"
 
 #include "../catch_amalgamated.hpp"
@@ -30,22 +31,22 @@ namespace {
 
 class ToggleRowDisabledFixture : public LVGLUITestFixture {
   public:
-    lv_subject_t val_subject;
-    lv_subject_t dis_subject;
+    helix::Subject val_subject;
+    helix::Subject dis_subject;
 
     ToggleRowDisabledFixture() {
         lv_xml_register_event_cb(nullptr, "test_toggle_row_noop", no_op_toggle_cb);
 
-        lv_subject_init_int(&val_subject, 1);
+        val_subject.init_int(1);
         lv_xml_register_subject(nullptr, "test_toggle_row_val", &val_subject);
 
-        lv_subject_init_int(&dis_subject, 0);
+        dis_subject.init_int(0);
         lv_xml_register_subject(nullptr, "test_toggle_row_dis", &dis_subject);
     }
 
     ~ToggleRowDisabledFixture() override {
-        lv_subject_deinit(&val_subject);
-        lv_subject_deinit(&dis_subject);
+        val_subject.reset();
+        dis_subject.reset();
     }
 };
 

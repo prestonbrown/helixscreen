@@ -15,6 +15,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_error.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -446,9 +447,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[temp_units][temp_display]") {
     FahrenheitScope f;
     // Registered once for the process: the XML scope keeps the name.
-    static lv_subject_t raw;
+    static helix::Subject raw;
     if (!lv_xml_get_subject(nullptr, "test_temp_units_raw")) {
-        lv_subject_init_int(&raw, 0);
+        raw.init_int(0);
         lv_xml_register_subject(nullptr, "test_temp_units_raw", &raw);
     }
     lv_subject_set_int(&raw, 0);

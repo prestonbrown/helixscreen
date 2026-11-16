@@ -20,6 +20,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
@@ -170,11 +171,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "queue mode hides the cards the queue cannot
     // the header_bar subject tests do and drive the real XML. Static storage:
     // the global registry keeps the pointer after the test ends, and a later
     // test resolving these production names must never land on a dead stack.
-    static lv_subject_t mode_subj;
-    static lv_subject_t transition_subj;
-    lv_subject_init_int(&mode_subj, 0);
+    static helix::Subject mode_subj;
+    static helix::Subject transition_subj;
+    mode_subj.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &mode_subj);
-    lv_subject_init_int(&transition_subj, 0);
+    transition_subj.init_int(0);
     lv_xml_register_subject(nullptr, "job_queue_automatic_transition", &transition_subj);
 
     // Without preprint options the options card is hidden for an unrelated
