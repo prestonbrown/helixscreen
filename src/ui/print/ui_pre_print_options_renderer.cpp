@@ -5,6 +5,7 @@
 
 #include "ui_utils.h"
 
+#include "core/subject.h"
 #include "lvgl.h"
 #include "print_start_phase_label.h"
 
@@ -77,11 +78,9 @@ std::string humanize_id(const std::string& id) {
 } // namespace
 
 PrePrintOptionsRenderer::~PrePrintOptionsRenderer() {
-    // clear() walks each row and explicitly deinits its subject. Even when
-    // the container has already been deleted (its observers gone), calling
-    // lv_subject_deinit on a subject with no observers is a no-op cleanup
-    // that frees its internal lists. Skipping this would leak the
-    // subject->subs_ll backing on every detail-view destroy cycle.
+    // clear() walks each row and resets its subject, removing any observer
+    // still attached. With the container already deleted (its observers
+    // gone), the reset finds an empty list and does nothing more.
     clear();
 }
 
@@ -179,16 +178,14 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
 }
 
 void PrePrintOptionsRenderer::clear() {
-    // Each OptionRow owns its lv_subject_t via unique_ptr; we must call
-    // lv_subject_deinit explicitly before the unique_ptr drops the
-    // allocation, otherwise the subject's observer linked-list backing
-    // leaks. Observers themselves are owned by the row widgets that were
-    // already deleted (or are being deleted by safe_clean_children); LVGL
-    // auto-removes observers on widget delete, so by the time we get here
-    // the subject's observer list is already empty.
+    // Each OptionRow owns its helix::Subject via unique_ptr. Resetting it
+    // removes any observer still attached before the row drops it. Observers
+    // are normally owned by the row widgets that were already deleted (or are
+    // being deleted by safe_clean_children); LVGL auto-removes observers on
+    // widget delete, so the list is usually already empty here.
     for (auto& row : rows_) {
         if (row.state_subject) {
-            lv_subject_deinit(row.state_subject.get());
+            row.state_subject->reset();
         }
     }
     rows_.clear();
@@ -201,7 +198,7 @@ int PrePrintOptionsRenderer::get_state(const std::string& id, int default_if_mis
     if (it == rows_.end() || !it->state_subject) {
         return default_if_missing;
     }
-    return lv_subject_get_int(it->state_subject.get());
+    return lv_subject_get_int(&*it->state_subject);
 }
 
 void PrePrintOptionsRenderer::set_state(const std::string& id, int new_state) {
@@ -210,7 +207,7 @@ void PrePrintOptionsRenderer::set_state(const std::string& id, int new_state) {
     if (it == rows_.end() || !it->state_subject) {
         return;
     }
-    lv_subject_set_int(it->state_subject.get(), new_state);
+    lv_subject_set_int(&*it->state_subject, new_state);
 }
 
 std::vector<std::string> PrePrintOptionsRenderer::rendered_ids() const {
@@ -241,8 +238,8 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
 
     // Heap-allocate the state subject so it survives container rebuilds where
     // OptionRow values may be moved around.
-    row.state_subject = std::make_unique<lv_subject_t>();
-    lv_subject_init_int(row.state_subject.get(), opt.default_enabled ? 1 : 0);
+    row.state_subject = std::make_unique<helix::Subject>();
+    row.state_subject->init_int(opt.default_enabled ? 1 : 0);
 
     // The tile itself, built from the option_tile XML component
     // (ui_xml/components/option_tile.xml) rather than hand-assembled here, so
@@ -270,9 +267,9 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
         spdlog::error("[PrePrintOptionsRenderer] lv_xml_create('option_tile') returned "
                       "NULL for '{}'",
                       opt.id);
-        // Subject was init'd above but never handed to a tile; deinit
-        // now or its observer-list backing leaks (see ~PrePrintOptionsRenderer).
-        lv_subject_deinit(row.state_subject.get());
+        // Subject was init'd above but never handed to a tile; reset it
+        // before the row (and its Subject) goes out of scope.
+        row.state_subject->reset();
         return;
     }
     lv_obj_set_name(row_obj, ("option_tile_" + opt.id).c_str());
@@ -287,7 +284,7 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
     // imperatively rather than via the XML <bind_state_if_eq> path because
     // the tile is created dynamically.
     lv_subject_add_observer_obj(
-        row.state_subject.get(),
+        row.state_subject->get(),
         [](lv_observer_t* observer, lv_subject_t* subject) {
             auto* widget = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
             if (lv_subject_get_int(subject) == 1) {

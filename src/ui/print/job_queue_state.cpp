@@ -6,6 +6,7 @@
 #include "connection_staleness.h"
 #include "core/gcode_filename.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -84,38 +85,37 @@ void JobQueueState::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&job_queue_count_subject_, 0);
+    job_queue_count_subject_.init_int(0);
     subjects_.publish("job_queue_count", &job_queue_count_subject_);
-    lv_subject_init_int(&job_queue_loaded_subject_, is_loaded_ ? 1 : 0);
+    job_queue_loaded_subject_.init_int(is_loaded_ ? 1 : 0);
     subjects_.publish("job_queue_loaded", &job_queue_loaded_subject_);
 
-    lv_subject_init_int(&job_queue_run_state_subject_,
-                        static_cast<int>(helix::QueueRunState::Paused));
+    job_queue_run_state_subject_.init_int(static_cast<int>(helix::QueueRunState::Paused));
     subjects_.publish("job_queue_run_state", &job_queue_run_state_subject_);
 
-    lv_subject_init_int(&job_queue_revision_subject_, 0);
+    job_queue_revision_subject_.init_int(0);
     subjects_.publish("job_queue_revision", &job_queue_revision_subject_);
 
-    lv_subject_init_int(&job_queue_start_in_flight_subject_, start_in_flight_ ? 1 : 0);
+    job_queue_start_in_flight_subject_.init_int(start_in_flight_ ? 1 : 0);
     subjects_.publish("job_queue_start_in_flight", &job_queue_start_in_flight_subject_);
 
-    lv_subject_init_string(&job_queue_up_next_text_subject_, up_next_text_buffer_, nullptr,
-                           sizeof(up_next_text_buffer_), "");
+    job_queue_up_next_text_subject_.init_string(up_next_text_buffer_, nullptr,
+                                                sizeof(up_next_text_buffer_), "");
     subjects_.publish("job_queue_up_next_text", &job_queue_up_next_text_subject_);
 
-    lv_subject_init_string(&job_queue_start_next_text_subject_, start_next_text_buffer_, nullptr,
-                           sizeof(start_next_text_buffer_), "");
+    job_queue_start_next_text_subject_.init_string(start_next_text_buffer_, nullptr,
+                                                   sizeof(start_next_text_buffer_), "");
     subjects_.publish("job_queue_start_next_text", &job_queue_start_next_text_subject_);
 
-    lv_subject_init_int(&job_queue_next_estimate_subject_, 0);
+    job_queue_next_estimate_subject_.init_int(0);
     subjects_.publish("job_queue_next_estimate", &job_queue_next_estimate_subject_);
 
-    lv_subject_init_string(&job_queue_next_thumbnail_subject_, next_thumbnail_buf_, nullptr,
-                           sizeof(next_thumbnail_buf_),
-                           helix::PrinterPrintState::no_thumbnail_placeholder());
+    job_queue_next_thumbnail_subject_.init_string(
+        next_thumbnail_buf_, nullptr, sizeof(next_thumbnail_buf_),
+        helix::PrinterPrintState::no_thumbnail_placeholder());
     subjects_.publish("job_queue_next_thumbnail", &job_queue_next_thumbnail_subject_);
 
-    lv_subject_init_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
+    job_queue_automatic_transition_subject_.init_int(automatic_transition_ ? 1 : 0);
     subjects_.publish("job_queue_automatic_transition", &job_queue_automatic_transition_subject_);
 
     HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_count_subject_, "job_queue_count", LV_SUBJECT_TYPE_INT);

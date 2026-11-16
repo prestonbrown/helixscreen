@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "filament_sensor_types.h"
 #include "json_fwd.h"
 #include "sensor_manager.h"
@@ -530,14 +531,14 @@ class FilamentSensorManager : public sensors::SensorManager {
     std::chrono::steady_clock::time_point startup_time_;
 
     // LVGL subjects (main thread)
-    lv_subject_t runout_detected_{};
-    lv_subject_t scoped_runout_{}; ///< Print-scoped runout; driven by PrintStatusPanel
-    lv_subject_t toolhead_detected_{};
-    lv_subject_t entry_detected_{};
-    lv_subject_t any_runout_{};
-    lv_subject_t motion_signature_{};
-    lv_subject_t master_enabled_subject_{};
-    lv_subject_t config_revision_{};
+    helix::Subject runout_detected_{};
+    helix::Subject scoped_runout_{}; ///< Print-scoped runout; driven by PrintStatusPanel
+    helix::Subject toolhead_detected_{};
+    helix::Subject entry_detected_{};
+    helix::Subject any_runout_{};
+    helix::Subject motion_signature_{};
+    helix::Subject master_enabled_subject_{};
+    helix::Subject config_revision_{};
     /// config_signature() at the last refresh. Main thread only.
     std::optional<uint32_t> published_config_signature_;
 };

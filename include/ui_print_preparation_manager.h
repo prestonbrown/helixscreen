@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "capability_matrix.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "file_version.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
@@ -702,7 +703,7 @@ class PrintPreparationManager {
     /// Read by the detail view through its getter, never bound by name: every
     /// manager has its own, and the XML engine's one scope could publish only one.
     SubjectManager subjects_;
-    lv_subject_t preprint_estimate_subject_{};
+    helix::Subject preprint_estimate_subject_{};
     bool estimate_subject_initialized_ = false;
 
     // === Predictor Cache ===

@@ -5,6 +5,8 @@
 
 #include "ui_container_delete_net.h"
 
+#include "core/subject.h"
+
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -33,16 +35,16 @@ namespace helix::ui {
  * @brief Per-row widget data for declarative text binding
  */
 struct ListRowWidgetData {
-    lv_subject_t filename_subject{};
+    helix::Subject filename_subject{};
     char filename_buf[128] = {0};
 
-    lv_subject_t size_subject{};
+    helix::Subject size_subject{};
     char size_buf[16] = {0};
 
-    lv_subject_t modified_subject{};
+    helix::Subject modified_subject{};
     char modified_buf[32] = {0};
 
-    lv_subject_t time_subject{};
+    helix::Subject time_subject{};
     char time_buf[32] = {0};
 
     // Observer handles (saved for cleanup before DELETE)

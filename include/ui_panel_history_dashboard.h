@@ -7,6 +7,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "print_history_data.h"
 #include "print_history_manager.h"
@@ -176,24 +177,24 @@ class HistoryDashboardPanel : public OverlayBase {
     SubjectManager subjects_;
 
     // Subject for empty state binding (must persist for LVGL binding lifetime)
-    lv_subject_t history_has_jobs_subject_{};
+    helix::Subject history_has_jobs_subject_{};
 
     // Boolean subjects for filter button state binding (L040: two bind_styles pattern)
-    lv_subject_t history_filter_day_active_{};
-    lv_subject_t history_filter_week_active_{};
-    lv_subject_t history_filter_month_active_{};
-    lv_subject_t history_filter_year_active_{};
-    lv_subject_t history_filter_all_active_{};
+    helix::Subject history_filter_day_active_{};
+    helix::Subject history_filter_week_active_{};
+    helix::Subject history_filter_month_active_{};
+    helix::Subject history_filter_year_active_{};
+    helix::Subject history_filter_all_active_{};
 
     // String subjects for stat labels
-    lv_subject_t stat_total_prints_subject_{};
-    lv_subject_t stat_print_time_subject_{};
-    lv_subject_t stat_filament_subject_{};
-    lv_subject_t stat_success_rate_subject_{};
-    lv_subject_t trend_period_subject_{};
+    helix::Subject stat_total_prints_subject_{};
+    helix::Subject stat_print_time_subject_{};
+    helix::Subject stat_filament_subject_{};
+    helix::Subject stat_success_rate_subject_{};
+    helix::Subject trend_period_subject_{};
     // Set while the shown stats come from fewer jobs than the period holds.
-    lv_subject_t history_coverage_partial_subject_{};
-    lv_subject_t history_coverage_subject_{};
+    helix::Subject history_coverage_partial_subject_{};
+    helix::Subject history_coverage_subject_{};
 
     // Static buffers for string subjects (required for lv_subject_init_string)
     char stat_total_prints_buf_[32];

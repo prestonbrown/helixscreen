@@ -31,6 +31,7 @@
  */
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 #include "system/process_runner.h"
 
@@ -108,8 +109,8 @@ class TimelapseMacroCard {
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
     bool callbacks_registered_ = false;
-    lv_subject_t card_subject_{};
-    lv_subject_t include_line_subject_{};
+    helix::Subject card_subject_{};
+    helix::Subject include_line_subject_{};
     char include_line_buf_[64] = {};
 
     std::unique_ptr<MacroManager> macro_manager_;

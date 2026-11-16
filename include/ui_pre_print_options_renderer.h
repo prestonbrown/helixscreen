@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "pre_print_option.h"
 
 #include <functional>
@@ -19,7 +20,7 @@ namespace helix::ui {
  * @file ui_pre_print_options_renderer.h
  * @brief Renders the per-print toggle list on the print-detail panel.
  *
- * Owns the per-option `lv_subject_t` state (one int subject per option in the
+ * Owns the per-option `helix::Subject` state (one int subject per option in the
  * active printer's `PrePrintOptionSet`). Builds a 2-column grid of checkable
  * `option_tile` pills: one per option, icon + 2-line label, filled with the
  * primary tint and showing a check in place of the icon when checked. Categories are used
@@ -36,11 +37,11 @@ namespace helix::ui {
  *
  * ## Subject lifecycle
  *
- * Per-option state subjects are heap-allocated `lv_subject_t` instances owned
+ * Per-option state subjects are heap-allocated `helix::Subject` instances owned
  * by `OptionRow::state_subject`. They are paired one-to-one with their row
  * widget. The pairing means subject and observers always die together inside
  * `clear()` / the destructor, so no `SubjectLifetime` token is needed: when a
- * row's owning subject is deinited, all of that subject's observers are
+ * row's owning subject is reset, all of that subject's observers are
  * uninstalled atomically. There is no scenario where the subject can outlive
  * its observers (or vice-versa) since both are stored in the same `OptionRow`
  * struct.
@@ -182,7 +183,7 @@ class PrePrintOptionsRenderer {
         std::string id;
         lv_obj_t* row = nullptr;
         lv_obj_t* toggle_widget = nullptr;
-        std::unique_ptr<lv_subject_t> state_subject;
+        std::unique_ptr<helix::Subject> state_subject;
     };
 
     /// Resolve the untranslated i18n key for an option's label — either the

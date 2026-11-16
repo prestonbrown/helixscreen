@@ -14,6 +14,7 @@
 #include "audio_settings_manager.h"
 #include "core/error_reporting.h"
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -49,41 +50,37 @@ static helix::WidgetSubjects s_subjects{"PrintCompletion"};
 
 // String subjects with backing buffers
 static char s_title_buf[64];
-static lv_subject_t s_title_subject;
+static helix::Subject s_title_subject;
 
 static char s_filename_buf[256];
-static lv_subject_t s_filename_subject;
+static helix::Subject s_filename_subject;
 
 static char s_duration_buf[64];
-static lv_subject_t s_duration_subject;
+static helix::Subject s_duration_subject;
 
 static char s_estimate_buf[64];
-static lv_subject_t s_estimate_subject;
+static helix::Subject s_estimate_subject;
 
 static char s_layers_buf[64];
-static lv_subject_t s_layers_subject;
+static helix::Subject s_layers_subject;
 
 static char s_filament_buf[64];
-static lv_subject_t s_filament_subject;
+static helix::Subject s_filament_subject;
 
 // Int subjects for visibility flags (1=visible, 0=hidden)
-static lv_subject_t s_has_estimate_subject;
-static lv_subject_t s_has_filament_subject;
+static helix::Subject s_has_estimate_subject;
+static helix::Subject s_has_filament_subject;
 
 static void init_completion_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_string(&s_title_subject, s_title_buf, nullptr, sizeof(s_title_buf), "");
-        lv_subject_init_string(&s_filename_subject, s_filename_buf, nullptr, sizeof(s_filename_buf),
-                               "");
-        lv_subject_init_string(&s_duration_subject, s_duration_buf, nullptr, sizeof(s_duration_buf),
-                               "");
-        lv_subject_init_string(&s_estimate_subject, s_estimate_buf, nullptr, sizeof(s_estimate_buf),
-                               "");
-        lv_subject_init_string(&s_layers_subject, s_layers_buf, nullptr, sizeof(s_layers_buf), "");
-        lv_subject_init_string(&s_filament_subject, s_filament_buf, nullptr, sizeof(s_filament_buf),
-                               "");
-        lv_subject_init_int(&s_has_estimate_subject, 1);
-        lv_subject_init_int(&s_has_filament_subject, 1);
+        s_title_subject.init_string(s_title_buf, nullptr, sizeof(s_title_buf), "");
+        s_filename_subject.init_string(s_filename_buf, nullptr, sizeof(s_filename_buf), "");
+        s_duration_subject.init_string(s_duration_buf, nullptr, sizeof(s_duration_buf), "");
+        s_estimate_subject.init_string(s_estimate_buf, nullptr, sizeof(s_estimate_buf), "");
+        s_layers_subject.init_string(s_layers_buf, nullptr, sizeof(s_layers_buf), "");
+        s_filament_subject.init_string(s_filament_buf, nullptr, sizeof(s_filament_buf), "");
+        s_has_estimate_subject.init_int(1);
+        s_has_filament_subject.init_int(1);
 
         s_subjects.publish("print_completion_title", &s_title_subject);
         s_subjects.publish("print_completion_filename", &s_filename_subject);

@@ -7,6 +7,7 @@
 #include "bed_dimensions.h"
 #include "bed_grid.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "exclude_map_hatch.h"
 #include "lv_draw_buf_guard.h"
 #include "printer_excluded_objects_state.h"
@@ -262,9 +263,9 @@ void ExcludeObjectMapView::resize() {
 
 void ExcludeObjectMapView::publish_view_subjects() {
     view_subjects_.reset();
-    lv_subject_init_string(&dims_text_, dims_buf_, nullptr, sizeof(dims_buf_), "");
+    dims_text_.init_string(dims_buf_, nullptr, sizeof(dims_buf_), "");
     view_subjects_.publish(&dims_text_, "dims_subject", "dims");
-    lv_subject_init_int(&has_objects_, 1);
+    has_objects_.init_int(1);
     view_subjects_.publish(&has_objects_, "has_objects_subject", "has_objects");
 }
 

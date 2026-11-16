@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/timer_guard.h"
 #include "display_numbering.h"
@@ -158,27 +159,26 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         names[4] = "ps_chip_" + key + "_progress";
         names[5] = "ps_line_" + key;
         names[6] = "ps_chip_" + key + "_state";
-        lv_subject_init_int(&c.shown, 0);
-        lv_subject_init_string(&c.text, c.text_buf, nullptr, sizeof(c.text_buf), "");
-        lv_subject_init_int(&c.tone, static_cast<int>(ChipTone::Normal));
-        lv_subject_init_int(&c.glow, 0);
-        lv_subject_init_int(&c.progress, -1);
-        lv_subject_init_int(&c.line, 0);
-        lv_subject_init_int(&c.state, 0);
+        c.shown.init_int(0);
+        c.text.init_string(c.text_buf, nullptr, sizeof(c.text_buf), "");
+        c.tone.init_int(static_cast<int>(ChipTone::Normal));
+        c.glow.init_int(0);
+        c.progress.init_int(-1);
+        c.line.init_int(0);
+        c.state.init_int(0);
         lv_subject_t* each[] = {&c.shown,    &c.text, &c.tone, &c.glow,
                                 &c.progress, &c.line, &c.state};
         for (size_t n = 0; n < kChipSubjectCount; ++n) {
             subjects.publish(names[n].c_str(), each[n]);
         }
     }
-    lv_subject_init_string(&image_src_, image_src_buf_, nullptr, sizeof(image_src_buf_), "");
+    image_src_.init_string(image_src_buf_, nullptr, sizeof(image_src_buf_), "");
     subjects.publish("ps_printer_image_src", &image_src_);
-    lv_subject_init_int(&callout_mode_, static_cast<int>(CalloutMode::ImageOnly));
+    callout_mode_.init_int(static_cast<int>(CalloutMode::ImageOnly));
     subjects.publish("ps_callout_mode", &callout_mode_);
-    lv_subject_init_int(&toolhead_merged_, 0);
+    toolhead_merged_.init_int(0);
     subjects.publish("ps_toolhead_merged", &toolhead_merged_);
-    lv_subject_init_string(&toolhead_text_, toolhead_text_buf_, nullptr, sizeof(toolhead_text_buf_),
-                           "");
+    toolhead_text_.init_string(toolhead_text_buf_, nullptr, sizeof(toolhead_text_buf_), "");
     subjects.publish("ps_chip_toolhead_text", &toolhead_text_);
 
     for (size_t i = 0; i < kPreprintChecklistMaxRows; ++i) {
@@ -187,23 +187,22 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         names[0] = "ps_step_" + std::to_string(i) + "_name";
         names[1] = "ps_step_" + std::to_string(i) + "_time";
         names[2] = "ps_step_" + std::to_string(i) + "_status";
-        lv_subject_init_string(&s.name, s.name_buf, nullptr, sizeof(s.name_buf), "");
-        lv_subject_init_string(&s.time, s.time_buf, nullptr, sizeof(s.time_buf), "");
-        lv_subject_init_int(&s.status, static_cast<int>(PreprintStepStatus::Upcoming));
+        s.name.init_string(s.name_buf, nullptr, sizeof(s.name_buf), "");
+        s.time.init_string(s.time_buf, nullptr, sizeof(s.time_buf), "");
+        s.status.init_int(static_cast<int>(PreprintStepStatus::Upcoming));
         subjects.publish(names[0].c_str(), &s.name);
         subjects.publish(names[1].c_str(), &s.time);
         subjects.publish(names[2].c_str(), &s.status);
     }
-    lv_subject_init_int(&step_count_, 0);
+    step_count_.init_int(0);
     subjects.publish("ps_step_count", &step_count_);
-    lv_subject_init_string(&step_position_text_, step_position_buf_, nullptr,
-                           sizeof(step_position_buf_), "");
+    step_position_text_.init_string(step_position_buf_, nullptr, sizeof(step_position_buf_), "");
     subjects.publish("ps_step_position_text", &step_position_text_);
-    lv_subject_init_string(&step_current_name_, step_current_name_buf_, nullptr,
-                           sizeof(step_current_name_buf_), "");
+    step_current_name_.init_string(step_current_name_buf_, nullptr, sizeof(step_current_name_buf_),
+                                   "");
     subjects.publish("ps_step_current_name", &step_current_name_);
-    lv_subject_init_string(&step_current_time_, step_current_time_buf_, nullptr,
-                           sizeof(step_current_time_buf_), "");
+    step_current_time_.init_string(step_current_time_buf_, nullptr, sizeof(step_current_time_buf_),
+                                   "");
     subjects.publish("ps_step_current_time", &step_current_time_);
     subjects_ready_ = true;
 

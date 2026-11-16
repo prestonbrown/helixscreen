@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 #include "timelapse_local_installer.h"
@@ -153,13 +154,13 @@ class TimelapseInstallOverlay : public OverlayBase {
     lv_obj_t* step_progress_ = nullptr;
 
     SubjectManager subjects_;
-    lv_subject_t status_subject_{};
+    helix::Subject status_subject_{};
     char status_buf_[384] = {};
-    lv_subject_t action_text_subject_{};
+    helix::Subject action_text_subject_{};
     char action_text_buf_[64] = {};
-    lv_subject_t action_visible_subject_{};
-    lv_subject_t card_subject_{};
-    lv_subject_t ffmpeg_command_subject_{};
+    helix::Subject action_visible_subject_{};
+    helix::Subject card_subject_{};
+    helix::Subject ffmpeg_command_subject_{};
     char ffmpeg_command_buf_[64] = {};
 
     /// The local install left ffmpeg missing; the last screen says how to add it

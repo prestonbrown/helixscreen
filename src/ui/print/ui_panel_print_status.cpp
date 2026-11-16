@@ -34,6 +34,7 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -260,7 +261,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
     camera_view_.on_preempted([this]() { stop_preview_camera(); });
 #endif
     // Pre-init local subject used by observer callback below (fires immediately on subscribe)
-    lv_subject_init_int(&exclude_objects_available_subject_, 0);
+    exclude_objects_available_subject_.init_int(0);
 
     // Death signal for every PrinterState-owned subject observed below. This panel
     // is a process-lifetime singleton (get_global_print_status_panel()), so it
