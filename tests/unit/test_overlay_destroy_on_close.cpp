@@ -80,6 +80,7 @@
 #include "ui_touch_calibration_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -91,6 +92,7 @@
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -110,7 +112,15 @@ void count_delete(lv_event_t* e) {
 
 class DestroyOnCloseFixture : public LVGLUITestFixture {
   protected:
+    // The Network case opens the overlay that creates the process-lifetime WiFiManager
+    // (get_wifi_manager()). Outside test_mode that singleton gets the platform backend
+    // and keeps it for every later test, which then finds no WifiBackendMock.
+    ScopedRuntimeConfig scoped_config_;
+
     DestroyOnCloseFixture() {
+        get_runtime_config()->test_mode = true;
+        get_runtime_config()->use_real_wifi = false;
+        get_runtime_config()->use_real_ethernet = false;
         for (auto& p : panels_)
             p = lv_obj_create(lv_screen_active());
         NavigationManager::instance().set_panels(panels_.data());
