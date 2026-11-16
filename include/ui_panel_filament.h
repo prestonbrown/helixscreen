@@ -12,6 +12,7 @@
 #include "async_lifetime_guard.h"
 #include "config.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "filament_motion.h"
 #include "filament_op_dispatch.h"
@@ -370,19 +371,19 @@ class FilamentPanel : public PanelBase {
     //
 
     SubjectManager subjects_;
-    lv_subject_t temp_display_subject_{};
-    lv_subject_t status_subject_{};
-    lv_subject_t material_selected_subject_{};
-    lv_subject_t extrusion_allowed_subject_{};
-    lv_subject_t safety_warning_visible_subject_{};
-    lv_subject_t warning_temps_subject_{};
-    lv_subject_t
+    helix::Subject temp_display_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject material_selected_subject_{};
+    helix::Subject extrusion_allowed_subject_{};
+    helix::Subject safety_warning_visible_subject_{};
+    helix::Subject warning_temps_subject_{};
+    helix::Subject
         safety_warning_text_subject_{}; ///< "Heat to at least X°C to load/unload" with dynamic temp
-    lv_subject_t material_nozzle_temp_subject_{};
-    lv_subject_t material_bed_temp_subject_{};
+    helix::Subject material_nozzle_temp_subject_{};
+    helix::Subject material_bed_temp_subject_{};
 
     // Nozzle label (dynamic: "Nozzle" or "Nozzle N" for multi-tool)
-    lv_subject_t nozzle_label_subject_{};
+    helix::Subject nozzle_label_subject_{};
     char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
     ObserverGuard language_observer_;
@@ -391,22 +392,22 @@ class FilamentPanel : public PanelBase {
 
     // Tool selector caption (the active backend's noun: "Tool", "Toolhead").
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
-    lv_subject_t tool_noun_subject_{};
+    helix::Subject tool_noun_subject_{};
     char tool_noun_buf_[32] = {};
-    lv_subject_t target_tool_action_subject_{};
-    lv_subject_t target_tool_action_text_subject_{};
+    helix::Subject target_tool_action_subject_{};
+    helix::Subject target_tool_action_text_subject_{};
     char target_tool_action_text_buf_[32] = {};
     helix::ui::ToolArrivalWait tool_arrival_;
     void update_tool_noun();
     void sync_tool_dropdown_text();
 
     // Left card temperature subjects (current and target for nozzle/bed)
-    lv_subject_t nozzle_current_subject_{};
-    lv_subject_t nozzle_target_subject_{};
-    lv_subject_t bed_current_subject_{};
-    lv_subject_t bed_target_subject_{};
-    lv_subject_t chamber_current_subject_{};
-    lv_subject_t chamber_target_subject_{};
+    helix::Subject nozzle_current_subject_{};
+    helix::Subject nozzle_target_subject_{};
+    helix::Subject bed_current_subject_{};
+    helix::Subject bed_target_subject_{};
+    helix::Subject chamber_current_subject_{};
+    helix::Subject chamber_target_subject_{};
 
     // Operation state
     OperationTimeoutGuard operation_guard_;
@@ -415,11 +416,11 @@ class FilamentPanel : public PanelBase {
     // tool: Load disabled when that tool is already loaded; Unload + Purge
     // disabled when it is NOT loaded. Re-evaluated on tool-selector change and
     // when live AMS state changes (observers below).
-    lv_subject_t load_disabled_subject_{};    ///< 1 = Load button disabled
-    lv_subject_t unload_disabled_subject_{};  ///< 1 = Unload/Purge buttons disabled
-    ObserverGuard ams_loaded_observer_;       ///< Re-eval gating on live load change
-    ObserverGuard ams_current_slot_observer_; ///< Re-eval gating on active-slot change
-    ObserverGuard print_active_observer_;     ///< Re-eval gating on print start/pause/end
+    helix::Subject load_disabled_subject_{};   ///< 1 = Load button disabled
+    helix::Subject unload_disabled_subject_{}; ///< 1 = Unload/Purge buttons disabled
+    ObserverGuard ams_loaded_observer_;        ///< Re-eval gating on live load change
+    ObserverGuard ams_current_slot_observer_;  ///< Re-eval gating on active-slot change
+    ObserverGuard print_active_observer_;      ///< Re-eval gating on print start/pause/end
     void update_filament_op_buttons(); ///< Recompute Load/Unload/Purge gating from live state
 
     // Single source of truth for which global AMS slot the Load/Unload/gating
@@ -455,20 +456,20 @@ class FilamentPanel : public PanelBase {
     void update_target_tool_action();
 
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
-    lv_subject_t nozzle_heating_subject_{};
+    helix::Subject nozzle_heating_subject_{};
 
     // Portrait spacer state (1 = the graph card is an invisible spacer and the
     // strip button stands in for it). C++ decides via fit_portrait_graph();
     // the XML bindings on the card, its container and btn_temp_graph draw it.
-    lv_subject_t graph_spacer_subject_{};
+    helix::Subject graph_spacer_subject_{};
     /// 1 while the tree is lent to a home full page (on_lent_to_page()).
-    lv_subject_t on_page_subject_{};
+    helix::Subject on_page_subject_{};
 
     // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values
-    lv_subject_t extrude_length_5mm_active_subject_{};
-    lv_subject_t extrude_length_10mm_active_subject_{};
-    lv_subject_t extrude_length_25mm_active_subject_{};
+    helix::Subject extrude_length_5mm_active_subject_{};
+    helix::Subject extrude_length_10mm_active_subject_{};
+    helix::Subject extrude_length_25mm_active_subject_{};
 
     // Per-op button feedback state (int: 0=idle, 1=busy/spinner, 2=done/check).
     // Drives ui_button bind_op_state so the triggering button shows on-button
@@ -476,11 +477,11 @@ class FilamentPanel : public PanelBase {
     // a time. A pending revert timer resets the active op back to idle after the
     // brief "done" checkmark.
     enum class FilamentOp { Load, Unload, Purge, Extrude, Retract };
-    lv_subject_t op_load_state_subject_{};
-    lv_subject_t op_unload_state_subject_{};
-    lv_subject_t op_purge_state_subject_{};
-    lv_subject_t op_extrude_state_subject_{};
-    lv_subject_t op_retract_state_subject_{};
+    helix::Subject op_load_state_subject_{};
+    helix::Subject op_unload_state_subject_{};
+    helix::Subject op_purge_state_subject_{};
+    helix::Subject op_extrude_state_subject_{};
+    helix::Subject op_retract_state_subject_{};
     lv_timer_t* op_revert_timer_ = nullptr; ///< shared one-shot timer (min-spinner delay / revert)
     FilamentOp op_revert_target_ = FilamentOp::Load; ///< which op the timer resets
     std::optional<FilamentOp> op_in_flight_; ///< op driven by run_filament_macro (one at a time)
@@ -499,7 +500,7 @@ class FilamentPanel : public PanelBase {
 
     /// The manual move running (helix::FilamentMotion), published as
     /// "filament_manual_motion" for the motion glyph and the AMS path canvas.
-    lv_subject_t manual_motion_subject_{};
+    helix::Subject manual_motion_subject_{};
     /// One-shot timer for the move's own duration (Klipper answers a G1 once
     /// queued). The guard neuters it on reset and on destruction.
     helix::ui::LvglTimerGuard motion_timer_;
@@ -593,17 +594,17 @@ class FilamentPanel : public PanelBase {
     std::optional<helix::ActiveMaterial> cached_active_material_;
     // 1 while the spool's material is novel enough to earn its own preset
     // button; the button's two lines bind the name and the temperatures.
-    lv_subject_t spool_preset_shown_subject_{};
-    lv_subject_t spool_preset_name_subject_{};
+    helix::Subject spool_preset_shown_subject_{};
+    helix::Subject spool_preset_name_subject_{};
     char spool_preset_name_buf_[64] = {};
-    lv_subject_t spool_preset_temps_subject_{};
+    helix::Subject spool_preset_temps_subject_{};
     char spool_preset_temps_buf_[32] = {};
 
     // HeatState of each current-temperature readout; the XML colors the label
     // from it (gray off, red heating, green at temp, blue cooling).
-    lv_subject_t nozzle_heat_state_subject_{};
-    lv_subject_t bed_heat_state_subject_{};
-    lv_subject_t chamber_heat_state_subject_{};
+    helix::Subject nozzle_heat_state_subject_{};
+    helix::Subject bed_heat_state_subject_{};
+    helix::Subject chamber_heat_state_subject_{};
 
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
@@ -637,7 +638,7 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* btn_manage_slots_ = nullptr;
     // 1 with no AMS and one tool: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
-    lv_subject_t external_spool_mode_subject_{};
+    helix::Subject external_spool_mode_subject_{};
     ObserverGuard tools_version_observer_;
     ObserverGuard extruder_version_observer_;
     ObserverGuard klippy_observer_;
@@ -657,13 +658,13 @@ class FilamentPanel : public PanelBase {
     helix::ui::WidgetRef external_spool_container_wired_;
     // 1 while a spool is assigned; with none the row shows its own
     // translated "No spool assigned" / "Tap to assign" lines instead.
-    lv_subject_t external_spool_assigned_subject_{};
-    lv_subject_t external_spool_material_subject_{};
+    helix::Subject external_spool_assigned_subject_{};
+    helix::Subject external_spool_material_subject_{};
     char external_spool_material_buf_[96] = {};
-    lv_subject_t external_spool_detail_subject_{};
+    helix::Subject external_spool_detail_subject_{};
     char external_spool_detail_buf_[64] = {};
     ObserverGuard external_spool_observer_;
-    lv_subject_t card_title_subject_{};
+    helix::Subject card_title_subject_{};
     char card_title_buf_[32] = {};
 
     void setup_external_spool_display();

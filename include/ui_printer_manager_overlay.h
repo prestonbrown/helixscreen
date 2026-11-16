@@ -19,6 +19,7 @@
 #include "capability_chip_text.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -150,21 +151,21 @@ class PrinterManagerOverlay : public OverlayBase {
 
     SubjectManager subjects_;
 
-    lv_subject_t printer_manager_name_{};
-    lv_subject_t printer_manager_model_{};
-    lv_subject_t helix_version_{};
+    helix::Subject printer_manager_name_{};
+    helix::Subject printer_manager_model_{};
+    helix::Subject helix_version_{};
 
     /// One string subject per capability chip, in CapChip order.
     static constexpr size_t kChipTextLen = 96;
-    std::array<lv_subject_t, helix::kCapChipCount> chip_text_{};
+    std::array<helix::Subject, helix::kCapChipCount> chip_text_{};
     std::array<std::array<char, kChipTextLen>, helix::kCapChipCount> chip_text_bufs_{};
 
     /// Visibility for chips whose fact has no app-wide subject.
-    lv_subject_t has_kinematics_{};
-    lv_subject_t has_build_volume_{};
-    lv_subject_t has_filament_system_{};
-    lv_subject_t has_tool_changer_{};
-    lv_subject_t has_mcus_{};
+    helix::Subject has_kinematics_{};
+    helix::Subject has_build_volume_{};
+    helix::Subject has_filament_system_{};
+    helix::Subject has_tool_changer_{};
+    helix::Subject has_mcus_{};
 
     /// Everything a chip's text or visibility reads that can change while open.
     std::vector<ObserverGuard> chip_input_observers_;
@@ -183,7 +184,7 @@ class PrinterManagerOverlay : public OverlayBase {
     lv_obj_t* printer_image_obj_ = nullptr;
 
     // Name editing state (subject-driven visibility via bind_flag_if_eq in XML)
-    lv_subject_t name_editing_{};
+    helix::Subject name_editing_{};
     lv_obj_t* name_input_ = nullptr;
 
     void start_name_edit();

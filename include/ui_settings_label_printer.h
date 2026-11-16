@@ -6,6 +6,7 @@
 #include "bluetooth_plugin.h"
 #include "bt_discovery_run.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
 #include "overlay_base.h"
@@ -98,8 +99,8 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     std::vector<DiscoveredPrinter> raw_printers_;        ///< temp buffer for raw TCP results
     std::vector<DiscoveredPrinter> ipp_printers_;        ///< temp buffer for IPP results
     std::vector<DiscoveredNetworkPrinter> discovered_network_printers_; ///< merged list
-    SubjectManager subjects_;             // declared ahead: tears down after the subjects it owns
-    lv_subject_t ipp_selected_subject_{}; ///< 0=not IPP, 1=IPP protocol selected
+    SubjectManager subjects_;               // declared ahead: tears down after the subjects it owns
+    helix::Subject ipp_selected_subject_{}; ///< 0=not IPP, 1=IPP protocol selected
 
     // USB printer detection
     std::unique_ptr<helix::UsbPrinterDetector> usb_detector_;
@@ -121,8 +122,8 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     helix::bluetooth::DiscoveryRun bt_discovery_;
     std::vector<BtDeviceInfo> bt_devices_;
     bool bt_discovering_ = false;
-    lv_subject_t bt_scanning_subject_{};   ///< 0=idle, 1=scanning
-    lv_subject_t test_printing_subject_{}; ///< 0=idle, 1=printing
+    helix::Subject bt_scanning_subject_{};   ///< 0=idle, 1=scanning
+    helix::Subject test_printing_subject_{}; ///< 0=idle, 1=printing
 
   public:
     void test_printing_subject_set(int val) {

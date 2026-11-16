@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "buffer_reading.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 
 #include <memory>
 
@@ -68,35 +69,35 @@ class BufferStatusModal : public Modal {
     helix::ui::UiClogBar* clog_bar_ = nullptr;
 
     // Static subjects + backing buffers (persist across modal instances)
-    static lv_subject_t type_subject_;
-    static lv_subject_t show_meter_subject_;
-    static lv_subject_t show_espooler_subject_;
-    static lv_subject_t show_flow_subject_;
-    static lv_subject_t show_distance_subject_;
+    static helix::Subject type_subject_;
+    static helix::Subject show_meter_subject_;
+    static helix::Subject show_espooler_subject_;
+    static helix::Subject show_flow_subject_;
+    static helix::Subject show_distance_subject_;
 
-    static lv_subject_t description_subject_;
+    static helix::Subject description_subject_;
     static char description_buf_[128];
-    static lv_subject_t show_reading_subject_;
-    static lv_subject_t status_subject_; ///< ClogMeterStatus of the reading, for its colour
-    static lv_subject_t value_subject_;
+    static helix::Subject show_reading_subject_;
+    static helix::Subject status_subject_; ///< ClogMeterStatus of the reading, for its colour
+    static helix::Subject value_subject_;
     static char value_buf_[64];
-    static lv_subject_t target_subject_;
+    static helix::Subject target_subject_;
     static char target_buf_[48];
-    static lv_subject_t trace_caption_subject_;
+    static helix::Subject trace_caption_subject_;
     static char trace_caption_buf_[64];
     /// Shown when the filament system reports no buffer/flow data at all, so
     /// the dialog says why instead of rendering an empty box.
-    static lv_subject_t unsupported_subject_;
+    static helix::Subject unsupported_subject_;
     static char unsupported_buf_[128];
-    static lv_subject_t espooler_value_subject_;
+    static helix::Subject espooler_value_subject_;
     static char espooler_buf_[128];
-    static lv_subject_t gear_sync_value_subject_;
+    static helix::Subject gear_sync_value_subject_;
     static char gear_sync_buf_[32];
-    static lv_subject_t flow_value_subject_;
+    static helix::Subject flow_value_subject_;
     static char flow_buf_[32];
-    static lv_subject_t state_subject_;
+    static helix::Subject state_subject_;
     static char state_buf_[128];
-    static lv_subject_t fault_distance_subject_;
+    static helix::Subject fault_distance_subject_;
     static char fault_distance_buf_[128];
 
     int effective_unit_ = 0;

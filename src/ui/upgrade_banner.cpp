@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"
@@ -50,7 +51,7 @@ void UpgradeBanner::init() {
     // Create + register the text subject before the XML is instantiated so
     // the `bind_text="upgrade_banner_text"` binding resolves to our buffer.
     if (!message_subject_initialized_) {
-        lv_subject_init_string(&message_subject_, g_message_buf, nullptr, kMessageBufSize, "");
+        message_subject_.init_string(g_message_buf, nullptr, kMessageBufSize, "");
         subjects_.publish("upgrade_banner_text", &message_subject_);
         message_subject_initialized_ = true;
     }

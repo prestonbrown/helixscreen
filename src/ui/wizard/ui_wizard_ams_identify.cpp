@@ -59,6 +59,12 @@ WizardAmsIdentifyStep::~WizardAmsIdentifyStep() {
 void WizardAmsIdentifyStep::init_subjects() {
     spdlog::debug("[{}] Initializing subjects", get_name());
 
+    // Each visit re-initializes; drop the previous visit's subjects and names first.
+    if (subjects_initialized_) {
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
+    }
+
     // Initialize string subjects with buffers and register with XML system and SubjectManager
     UI_MANAGED_SUBJECT_STRING(wizard_ams_type_, ams_type_buffer_, "Unknown", "wizard_ams_type",
                               subjects_);

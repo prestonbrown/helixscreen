@@ -25,6 +25,7 @@
 #include "ui_modal.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "ipv4_config.h"
@@ -142,17 +143,17 @@ class Ipv4SettingsOverlay : public OverlayBase {
     void stop_countdown();
 
     SubjectManager subjects_;
-    lv_subject_t title_{};
-    lv_subject_t current_{};
-    lv_subject_t address_{};
-    lv_subject_t netmask_{};
-    lv_subject_t gateway_{};
-    lv_subject_t dns_{};
-    lv_subject_t error_{};
-    lv_subject_t busy_{};     ///< 1 while a read or apply runs, or the form has nothing loaded
-    lv_subject_t job_held_{}; ///< 1 while a job holds the machine (ipv4_job_holds_machine())
-    lv_subject_t keep_title_{};
-    lv_subject_t keep_message_{};
+    helix::Subject title_{};
+    helix::Subject current_{};
+    helix::Subject address_{};
+    helix::Subject netmask_{};
+    helix::Subject gateway_{};
+    helix::Subject dns_{};
+    helix::Subject error_{};
+    helix::Subject busy_{};     ///< 1 while a read or apply runs, or the form has nothing loaded
+    helix::Subject job_held_{}; ///< 1 while a job holds the machine (ipv4_job_holds_machine())
+    helix::Subject keep_title_{};
+    helix::Subject keep_message_{};
 
     char title_buf_[64] = {};
     char current_buf_[96] = {};

@@ -18,6 +18,7 @@
 #include "cleanup_hold.h"
 #include "cold_pull_flow.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "display_awake_hold.h"
 #include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
@@ -169,27 +170,27 @@ class ColdPullRunner {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t stage_{};
-    lv_subject_t feed_stage_{};
-    lv_subject_t pass_{};
-    lv_subject_t end_reason_{};
-    lv_subject_t has_fan_{};
-    lv_subject_t can_home_park_{};
-    lv_subject_t busy_{};
-    lv_subject_t toolhead_loaded_{};
-    lv_subject_t feed_mode_{};
-    lv_subject_t lane_needs_reseat_{};
-    lv_subject_t material_subject_{};
-    lv_subject_t hold_pressure_{};
-    lv_subject_t refusal_{};
-    lv_subject_t progress_{};
-    lv_subject_t soak_text_{};
+    helix::Subject stage_{};
+    helix::Subject feed_stage_{};
+    helix::Subject pass_{};
+    helix::Subject end_reason_{};
+    helix::Subject has_fan_{};
+    helix::Subject can_home_park_{};
+    helix::Subject busy_{};
+    helix::Subject toolhead_loaded_{};
+    helix::Subject feed_mode_{};
+    helix::Subject lane_needs_reseat_{};
+    helix::Subject material_subject_{};
+    helix::Subject hold_pressure_{};
+    helix::Subject refusal_{};
+    helix::Subject progress_{};
+    helix::Subject soak_text_{};
     char soak_text_buf_[16] = {};
-    lv_subject_t pull_text_{};
+    helix::Subject pull_text_{};
     char pull_text_buf_[16] = {};
-    lv_subject_t temp_text_{};
+    helix::Subject temp_text_{};
     char temp_text_buf_[32] = {};
-    lv_subject_t pass_text_{};
+    helix::Subject pass_text_{};
     char pass_text_buf_[32] = {};
     int ring_from_c_ = 0; ///< Where the ring's stage started, for its fill
 };

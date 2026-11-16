@@ -5,6 +5,7 @@
 
 #include "ui_keyboard_manager.h"
 
+#include "core/subject.h"
 #include "system/debug_bundle_collector.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -93,12 +94,11 @@ void DebugBundleModal::init_subjects() {
         return;
     }
 
-    lv_subject_init_int(&state_subject_, 0);
-    lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_), "");
-    lv_subject_init_string(&share_code_subject_, share_code_buf_, nullptr, sizeof(share_code_buf_),
-                           "");
-    lv_subject_init_string(&error_subject_, error_buf_, nullptr, sizeof(error_buf_), "");
-    lv_subject_init_int(&include_logs_subject_, 0);
+    state_subject_.init_int(0);
+    status_subject_.init_string(status_buf_, nullptr, sizeof(status_buf_), "");
+    share_code_subject_.init_string(share_code_buf_, nullptr, sizeof(share_code_buf_), "");
+    error_subject_.init_string(error_buf_, nullptr, sizeof(error_buf_), "");
+    include_logs_subject_.init_int(0);
 
     subjects_.publish("debug_bundle_state", &state_subject_);
     subjects_.publish("debug_bundle_status", &status_subject_);

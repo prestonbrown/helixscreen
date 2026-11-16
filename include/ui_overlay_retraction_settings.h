@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -136,10 +137,10 @@ class RetractionSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Display label subjects
-    lv_subject_t retract_length_display_{};
-    lv_subject_t retract_speed_display_{};
-    lv_subject_t unretract_extra_display_{};
-    lv_subject_t unretract_speed_display_{};
+    helix::Subject retract_length_display_{};
+    helix::Subject retract_speed_display_{};
+    helix::Subject unretract_extra_display_{};
+    helix::Subject unretract_speed_display_{};
 
     // Static buffers for subject strings
     char retract_length_buf_[16];

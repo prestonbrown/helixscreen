@@ -5,6 +5,7 @@
 #include "async_lifetime_guard.h"
 #include "bt_discovery_run.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "input_device_scanner.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -65,10 +66,10 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
 
     // Subjects (global scope — single-instance overlay)
     SubjectManager subjects_; // declared ahead: tears down after the subjects it owns
-    lv_subject_t bt_available_subject_{};
-    lv_subject_t bt_discovering_subject_{};
-    lv_subject_t keymap_index_subject_{};
-    lv_subject_t current_device_label_subject_{};
+    helix::Subject bt_available_subject_{};
+    helix::Subject bt_discovering_subject_{};
+    helix::Subject keymap_index_subject_{};
+    helix::Subject current_device_label_subject_{};
     char current_device_label_buf_[128]{};
 
     // Widget references (set in on_activate)

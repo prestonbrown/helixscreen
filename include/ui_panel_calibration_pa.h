@@ -6,6 +6,7 @@
 #include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
@@ -305,65 +306,65 @@ class PACalibrationPanel : public OverlayBase {
     // Subjects
     SubjectManager subjects_;
 
-    lv_subject_t state_subject_{};
-    lv_subject_t multi_tool_{};
-    lv_subject_t tool_count_{};
-    lv_subject_t inputs_live_{};
-    lv_subject_t progress_{};
-    lv_subject_t result_plausible_{};
-    lv_subject_t action_is_stop_{};
-    lv_subject_t has_last_{};
+    helix::Subject state_subject_{};
+    helix::Subject multi_tool_{};
+    helix::Subject tool_count_{};
+    helix::Subject inputs_live_{};
+    helix::Subject progress_{};
+    helix::Subject result_plausible_{};
+    helix::Subject action_is_stop_{};
+    helix::Subject has_last_{};
 
-    lv_subject_t tool_selected_[kMaxTools]{};
-    lv_subject_t tool_sub_[kMaxTools]{};
+    helix::Subject tool_selected_[kMaxTools]{};
+    helix::Subject tool_sub_[kMaxTools]{};
     char tool_sub_buf_[kMaxTools][32] = {};
 
-    lv_subject_t preset_selected_[kPresetSlots]{};
-    lv_subject_t preset_temp_[kPresetSlots]{};
+    helix::Subject preset_selected_[kPresetSlots]{};
+    helix::Subject preset_temp_[kPresetSlots]{};
     char preset_temp_buf_[kPresetSlots][16] = {};
 
-    lv_subject_t phase_state_[kPhaseCount]{};
-    lv_subject_t phase_name_[kPhaseCount]{};
-    lv_subject_t phase_meta_[kPhaseCount]{};
+    helix::Subject phase_state_[kPhaseCount]{};
+    helix::Subject phase_name_[kPhaseCount]{};
+    helix::Subject phase_meta_[kPhaseCount]{};
     char phase_name_buf_[kPhaseCount][32] = {};
     char phase_meta_buf_[kPhaseCount][32] = {};
 
-    lv_subject_t temp_display_{};
+    helix::Subject temp_display_{};
     char temp_display_buf_[16] = {};
-    lv_subject_t temp_note_{};
+    helix::Subject temp_note_{};
     char temp_note_buf_[48] = {};
 
-    lv_subject_t phase_label_{};
+    helix::Subject phase_label_{};
     char phase_label_buf_[32] = {};
-    lv_subject_t big_{};
+    helix::Subject big_{};
     char big_buf_[16] = {};
-    lv_subject_t big_sub_{};
+    helix::Subject big_sub_{};
     char big_sub_buf_[24] = {};
-    lv_subject_t remaining_{};
+    helix::Subject remaining_{};
     char remaining_buf_[16] = {};
-    lv_subject_t prog_foot_{};
+    helix::Subject prog_foot_{};
     char prog_foot_buf_[192] = {};
 
-    lv_subject_t result_{};
+    helix::Subject result_{};
     char result_buf_[16] = {};
-    lv_subject_t result_sanity_{};
+    helix::Subject result_sanity_{};
     char result_sanity_buf_[256] = {};
-    lv_subject_t keep_note_{};
+    helix::Subject keep_note_{};
     char keep_note_buf_[384] = {};
 
-    lv_subject_t error_title_{};
+    helix::Subject error_title_{};
     char error_title_buf_[64] = {};
-    lv_subject_t error_detail_{};
+    helix::Subject error_detail_{};
     char error_detail_buf_[320] = {};
-    lv_subject_t error_hint_{};
+    helix::Subject error_hint_{};
     char error_hint_buf_[160] = {};
 
-    lv_subject_t action_text_{};
+    helix::Subject action_text_{};
     char action_text_buf_[24] = {};
 
-    lv_subject_t last_value_{};
+    helix::Subject last_value_{};
     char last_value_buf_[16] = {};
-    lv_subject_t last_context_{};
+    helix::Subject last_context_{};
     char last_context_buf_[64] = {};
 
     /// Follows the printer's own active tool, so the chips show what is

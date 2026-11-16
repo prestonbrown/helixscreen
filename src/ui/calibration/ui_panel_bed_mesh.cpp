@@ -33,6 +33,7 @@
 #include "bed_mesh_stats.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -149,19 +150,19 @@ void BedMeshPanel::init_subjects() {
             char* range_buf = profile_range_bufs_[idx].data();
 
             // Initialize with 5-arg form: (subject, buf, prev_buf, size, initial_value)
-            lv_subject_init_string(&profile_name_subjects_[idx], name_buf, nullptr,
-                                   profile_name_bufs_[idx].size(), "");
+            profile_name_subjects_[idx].init_string(name_buf, nullptr,
+                                                    profile_name_bufs_[idx].size(), "");
             helix::xml::register_subject_in_current_scope(name_key.c_str(),
                                                           &profile_name_subjects_[idx]);
             subjects_.register_subject(&profile_name_subjects_[idx], name_key.c_str());
 
-            lv_subject_init_string(&profile_range_subjects_[idx], range_buf, nullptr,
-                                   profile_range_bufs_[idx].size(), "");
+            profile_range_subjects_[idx].init_string(range_buf, nullptr,
+                                                     profile_range_bufs_[idx].size(), "");
             helix::xml::register_subject_in_current_scope(range_key.c_str(),
                                                           &profile_range_subjects_[idx]);
             subjects_.register_subject(&profile_range_subjects_[idx], range_key.c_str());
 
-            lv_subject_init_int(&profile_active_subjects_[idx], 0);
+            profile_active_subjects_[idx].init_int(0);
             helix::xml::register_subject_in_current_scope(active_key.c_str(),
                                                           &profile_active_subjects_[idx]);
             subjects_.register_subject(&profile_active_subjects_[idx], active_key.c_str());

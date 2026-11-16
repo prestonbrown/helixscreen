@@ -4,6 +4,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "led/led_backend.h"
 #include "led/led_device_page.h"
@@ -138,9 +139,9 @@ class LedControlOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Tab row
-    lv_subject_t tab_count_{};
-    lv_subject_t focused_tab_{};
-    lv_subject_t tabs_fade_{};
+    helix::Subject tab_count_{};
+    helix::Subject focused_tab_{};
+    helix::Subject tabs_fade_{};
     helix::xml::IndexedSubjectPool tab_name_pool_{"led_tab_name",
                                                   helix::xml::IndexedSubjectPool::Type::String};
     /// PowerState per tab.
@@ -150,31 +151,31 @@ class LedControlOverlay : public OverlayBase {
                                                        helix::xml::IndexedSubjectPool::Type::Color};
 
     // Page sections: the DevicePage enums as ints
-    lv_subject_t page_lamp_{};
-    lv_subject_t page_white_{};
-    lv_subject_t page_color_vis_{};
-    lv_subject_t page_list_{};
+    helix::Subject page_lamp_{};
+    helix::Subject page_white_{};
+    helix::Subject page_color_vis_{};
+    helix::Subject page_list_{};
 
     // Page state
-    lv_subject_t page_on_{}; ///< PowerState of the focused device
-    lv_subject_t page_color_{};
-    lv_subject_t page_fill_text_{};
-    lv_subject_t page_brightness_{};
-    lv_subject_t page_brightness_text_{};
+    helix::Subject page_on_{}; ///< PowerState of the focused device
+    helix::Subject page_color_{};
+    helix::Subject page_fill_text_{};
+    helix::Subject page_brightness_{};
+    helix::Subject page_brightness_text_{};
     char page_brightness_text_buf_[16] = {0};
-    lv_subject_t page_white_sel_{};
-    lv_subject_t swatch_count_{};
+    helix::Subject page_white_sel_{};
+    helix::Subject swatch_count_{};
     helix::xml::IndexedSubjectPool swatch_color_pool_{"led_swatch_color",
                                                       helix::xml::IndexedSubjectPool::Type::Color};
-    lv_subject_t selected_swatch_{};
-    lv_subject_t page_list_title_{};
+    helix::Subject selected_swatch_{};
+    helix::Subject page_list_title_{};
     char page_list_title_buf_[64] = {0};
-    lv_subject_t chip_count_{};
+    helix::Subject chip_count_{};
     helix::xml::IndexedSubjectPool chip_label_pool_{"led_chip_label",
                                                     helix::xml::IndexedSubjectPool::Type::String};
-    lv_subject_t active_chip_{}; ///< chip index, -1 the None chip, -2 nothing
-    lv_subject_t page_level_{};  ///< the LEVEL_CHIPS value shown, 0 none
-    lv_subject_t page_note_{};
+    helix::Subject active_chip_{}; ///< chip index, -1 the None chip, -2 nothing
+    helix::Subject page_level_{};  ///< the LEVEL_CHIPS value shown, 0 none
+    helix::Subject page_note_{};
     char page_note_buf_[128] = {0};
 
     ObserverGuard state_observer_;

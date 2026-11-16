@@ -8,6 +8,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "klipper_config_editor.h"
 #include "moonraker_advanced_api.h"
 #include "overlay_base.h"
@@ -354,75 +355,75 @@ class PIDCalibrationPanel : public OverlayBase {
     SubjectManager subjects_;
 
     // String subjects and buffers for reactive text updates
-    lv_subject_t subj_temp_display_{};
+    helix::Subject subj_temp_display_{};
     char buf_temp_display_[16];
 
-    lv_subject_t subj_temp_hint_{};
+    helix::Subject subj_temp_hint_{};
     char buf_temp_hint_[64];
 
-    lv_subject_t subj_calibrating_heater_{};
+    helix::Subject subj_calibrating_heater_{};
     char buf_calibrating_heater_[32];
 
-    lv_subject_t subj_migration_notice_{};
+    helix::Subject subj_migration_notice_{};
     char buf_migration_notice_[128];
 
-    lv_subject_t subj_pid_kp_{};
+    helix::Subject subj_pid_kp_{};
     char buf_pid_kp_[32];
 
-    lv_subject_t subj_pid_ki_{};
+    helix::Subject subj_pid_ki_{};
     char buf_pid_ki_[32];
 
-    lv_subject_t subj_pid_kd_{};
+    helix::Subject subj_pid_kd_{};
     char buf_pid_kd_[32];
 
-    lv_subject_t subj_result_summary_{};
+    helix::Subject subj_result_summary_{};
     char buf_result_summary_[128];
 
-    lv_subject_t subj_error_message_{};
+    helix::Subject subj_error_message_{};
     char buf_error_message_[256];
 
     // Int subject for showing/hiding extruder-only sections
-    lv_subject_t subj_heater_is_extruder_{};
+    helix::Subject subj_heater_is_extruder_{};
 
     // MPC result string subjects and buffers
-    lv_subject_t subj_mpc_heat_capacity_{};
+    helix::Subject subj_mpc_heat_capacity_{};
     char buf_mpc_heat_capacity_[32];
-    lv_subject_t subj_mpc_sensor_resp_{};
+    helix::Subject subj_mpc_sensor_resp_{};
     char buf_mpc_sensor_resp_[32];
-    lv_subject_t subj_mpc_ambient_transfer_{};
+    helix::Subject subj_mpc_ambient_transfer_{};
     char buf_mpc_ambient_transfer_[32];
-    lv_subject_t subj_mpc_fan_transfer_{};
+    helix::Subject subj_mpc_fan_transfer_{};
     char buf_mpc_fan_transfer_[64];
 
     // Fan speed display subject and buffer
-    lv_subject_t subj_fan_speed_text_{};
+    helix::Subject subj_fan_speed_text_{};
     char buf_fan_speed_text_[8];
 
     // Wattage display subject and buffer
-    lv_subject_t subj_wattage_display_{};
+    helix::Subject subj_wattage_display_{};
     char buf_wattage_display_[16];
 
     // MPC-related int subjects
-    lv_subject_t subj_supports_mpc_{};      // int 0/1
-    lv_subject_t subj_method_is_mpc_{};     // int 0/1
-    lv_subject_t subj_show_wattage_{};      // int 0/1
-    lv_subject_t subj_needs_migration_{};   // int 0/1
-    lv_subject_t subj_show_fan_config_{};   // int 0/1
-    lv_subject_t subj_offer_cooling_fan_{}; // int 0/1
-    lv_subject_t subj_add_cooling_fan_{};   // int 0/1
-    lv_subject_t subj_fan_is_quick_{};      // int 0/1
-    lv_subject_t subj_fan_is_detailed_{};   // int 0/1
-    lv_subject_t subj_fan_is_thorough_{};   // int 0/1
-    lv_subject_t subj_show_pid_fan_{};      // 1 when extruder + PID method
+    helix::Subject subj_supports_mpc_{};      // int 0/1
+    helix::Subject subj_method_is_mpc_{};     // int 0/1
+    helix::Subject subj_show_wattage_{};      // int 0/1
+    helix::Subject subj_needs_migration_{};   // int 0/1
+    helix::Subject subj_show_fan_config_{};   // int 0/1
+    helix::Subject subj_offer_cooling_fan_{}; // int 0/1
+    helix::Subject subj_add_cooling_fan_{};   // int 0/1
+    helix::Subject subj_fan_is_quick_{};      // int 0/1
+    helix::Subject subj_fan_is_detailed_{};   // int 0/1
+    helix::Subject subj_fan_is_thorough_{};   // int 0/1
+    helix::Subject subj_show_pid_fan_{};      // 1 when extruder + PID method
 
     // Int subject: 1 when not idle (disables Start button in header)
-    lv_subject_t subj_cal_not_idle_{};
+    helix::Subject subj_cal_not_idle_{};
 
     // Progress tracking for calibration
-    lv_subject_t subj_pid_progress_{}; // int 0-100
-    lv_subject_t subj_pid_progress_text_{};
+    helix::Subject subj_pid_progress_{}; // int 0-100
+    helix::Subject subj_pid_progress_text_{};
     char buf_pid_progress_text_[64];
-    lv_subject_t subj_pid_eta_{};
+    helix::Subject subj_pid_eta_{};
     char buf_pid_eta_[32];
     int pid_estimated_total_ = 3;      // Dynamic estimate, starts at 3
     bool has_sample_progress_ = false; // True once first sample callback arrives

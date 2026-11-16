@@ -110,6 +110,19 @@ std::string WizardSummaryStep::format_hotend_summary() {
 void WizardSummaryStep::init_subjects() {
     spdlog::debug("[{}] Initializing subjects", get_name());
 
+    // Every screen load re-seeds these from the config, and create() seeds them again:
+    // drop the previous seed's observers first so the re-init never lands on a live subject.
+    if (subjects_initialized_) {
+        for (lv_subject_t* subject :
+             {&printer_name_, &printer_type_, &wifi_ssid_, &moonraker_connection_, &bed_, &hotend_,
+              &part_fan_, &part_fan_visible_, &hotend_fan_, &hotend_fan_visible_, &led_strip_,
+              &led_strip_visible_, &filament_sensor_, &filament_sensor_visible_, &ams_type_,
+              &ams_visible_, &input_shaper_, &input_shaper_visible_, &telemetry_visible_}) {
+            helix::subject_reset(subject);
+        }
+        subjects_initialized_ = false;
+    }
+
     // Load all values from config
     Config* config = Config::get_instance();
 

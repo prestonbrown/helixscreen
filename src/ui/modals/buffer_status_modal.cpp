@@ -27,32 +27,32 @@ helix::WidgetSubjects s_subjects{"BufferStatusModalSubjects",
 } // namespace
 
 // Static member definitions
-lv_subject_t BufferStatusModal::type_subject_;
-lv_subject_t BufferStatusModal::show_meter_subject_;
-lv_subject_t BufferStatusModal::show_espooler_subject_;
-lv_subject_t BufferStatusModal::show_flow_subject_;
-lv_subject_t BufferStatusModal::show_distance_subject_;
-lv_subject_t BufferStatusModal::description_subject_;
-lv_subject_t BufferStatusModal::unsupported_subject_;
+helix::Subject BufferStatusModal::type_subject_;
+helix::Subject BufferStatusModal::show_meter_subject_;
+helix::Subject BufferStatusModal::show_espooler_subject_;
+helix::Subject BufferStatusModal::show_flow_subject_;
+helix::Subject BufferStatusModal::show_distance_subject_;
+helix::Subject BufferStatusModal::description_subject_;
+helix::Subject BufferStatusModal::unsupported_subject_;
 char BufferStatusModal::unsupported_buf_[128];
 char BufferStatusModal::description_buf_[128]{};
-lv_subject_t BufferStatusModal::show_reading_subject_;
-lv_subject_t BufferStatusModal::status_subject_;
-lv_subject_t BufferStatusModal::value_subject_;
+helix::Subject BufferStatusModal::show_reading_subject_;
+helix::Subject BufferStatusModal::status_subject_;
+helix::Subject BufferStatusModal::value_subject_;
 char BufferStatusModal::value_buf_[64]{};
-lv_subject_t BufferStatusModal::target_subject_;
+helix::Subject BufferStatusModal::target_subject_;
 char BufferStatusModal::target_buf_[48]{};
-lv_subject_t BufferStatusModal::trace_caption_subject_;
+helix::Subject BufferStatusModal::trace_caption_subject_;
 char BufferStatusModal::trace_caption_buf_[64]{};
-lv_subject_t BufferStatusModal::espooler_value_subject_;
+helix::Subject BufferStatusModal::espooler_value_subject_;
 char BufferStatusModal::espooler_buf_[128]{};
-lv_subject_t BufferStatusModal::gear_sync_value_subject_;
+helix::Subject BufferStatusModal::gear_sync_value_subject_;
 char BufferStatusModal::gear_sync_buf_[32]{};
-lv_subject_t BufferStatusModal::flow_value_subject_;
+helix::Subject BufferStatusModal::flow_value_subject_;
 char BufferStatusModal::flow_buf_[32]{};
-lv_subject_t BufferStatusModal::state_subject_;
+helix::Subject BufferStatusModal::state_subject_;
 char BufferStatusModal::state_buf_[128]{};
-lv_subject_t BufferStatusModal::fault_distance_subject_;
+helix::Subject BufferStatusModal::fault_distance_subject_;
 char BufferStatusModal::fault_distance_buf_[128]{};
 
 BufferStatusModal::BufferStatusModal() {

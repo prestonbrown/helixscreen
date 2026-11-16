@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 #include "tour_steps.h"
 
@@ -54,10 +55,10 @@ class TourOverlay {
     // The card's texts: tour_title, tour_body, tour_counter and tour_next_text.
     // One tour runs at a time, so the names are global.
     SubjectManager subjects_;
-    lv_subject_t title_subject_{};
-    lv_subject_t body_subject_{};
-    lv_subject_t counter_subject_{};
-    lv_subject_t next_text_subject_{};
+    helix::Subject title_subject_{};
+    helix::Subject body_subject_{};
+    helix::Subject counter_subject_{};
+    helix::Subject next_text_subject_{};
     char title_buf_[128] = {0};
     char body_buf_[512] = {0};
     char counter_buf_[16] = {0};

@@ -8,6 +8,7 @@
 
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "heater_type.h"
 #include "overlay_base.h"
 #include "temp_graph_controller.h"
@@ -206,7 +207,7 @@ class TempGraphOverlay : public OverlayBase {
     // Drives strip visibility and graph_outer width from XML — see
     // temp_graph_overlay.xml's <subjects> block. Seeded with mode_ by
     // init_subjects(); synced on every open() call.
-    lv_subject_t mode_subject_{};
+    helix::Subject mode_subject_{};
     std::unique_ptr<helix::TempGraphController> controller_;
     lv_obj_t* chip_row_ = nullptr;
     lv_obj_t* graph_container_ = nullptr;
@@ -235,7 +236,7 @@ class TempGraphOverlay : public OverlayBase {
     // machine's active tool otherwise. Bound in on_activate() to ToolState's
     // active_tool/tools_version pair (the same two subjects ui_ams_tool_text
     // observes for the badge), unbound in on_deactivating().
-    lv_subject_t nozzle_badge_subject_{};
+    helix::Subject nozzle_badge_subject_{};
     char nozzle_badge_buffer_[16]{};
     ObserverGuard nozzle_badge_tool_observer_;
     ObserverGuard nozzle_badge_version_observer_;
@@ -254,22 +255,22 @@ class TempGraphOverlay : public OverlayBase {
     // repoint_nozzle_card() aims the observers at the picked extruder's own
     // subjects or, with no pick, at the active-extruder subjects, which
     // already re-target on every machine toolchange.
-    lv_subject_t nozzle_card_temp_subject_{};
-    lv_subject_t nozzle_card_target_subject_{};
+    helix::Subject nozzle_card_temp_subject_{};
+    helix::Subject nozzle_card_target_subject_{};
     // The card's status area (glyph + duty), classified from the mirrors
     // above plus the displayed extruder's own power. TemperatureService's
     // nozzle status tracks the MACHINE's tool on purpose, so a card showing a
     // picked tool computes its own.
-    lv_subject_t nozzle_card_status_state_subject_{};
-    lv_subject_t nozzle_card_status_subject_{};
+    helix::Subject nozzle_card_status_state_subject_{};
+    helix::Subject nozzle_card_status_subject_{};
     char nozzle_card_status_buffer_[16]{};
 
     /// 1 when the nozzle strip shows its extruder selector (several extruders).
-    lv_subject_t multi_extruder_subject_{};
+    helix::Subject multi_extruder_subject_{};
     /// Per chamber preset (Off, 1-3): 1 while the configured ceiling allows it.
-    lv_subject_t chamber_preset_visible_subjects_[4]{};
+    helix::Subject chamber_preset_visible_subjects_[4]{};
     /// Per chamber preset 1-3: its temperature as the user reads it ("40°C").
-    lv_subject_t chamber_preset_text_subjects_[3]{};
+    helix::Subject chamber_preset_text_subjects_[3]{};
     char chamber_preset_text_bufs_[3][16]{};
     /// Last power reading (whole percent, -1 unknown) from the displayed
     /// extruder's power subject.

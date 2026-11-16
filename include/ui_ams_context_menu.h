@@ -6,6 +6,7 @@
 #include "ui_context_menu.h"
 
 #include "ams_types.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
 
@@ -176,60 +177,60 @@ class AmsContextMenu : public ContextMenu {
     // Sharing the values across the three owners is correct rather than merely
     // tolerable: only one context menu is on screen at a time, and both values
     // are set in on_created() immediately before the menu is shown.
-    static lv_subject_t slot_is_loaded_subject_; ///< 1 = loaded (Unload enabled), 0 = not loaded
-    static lv_subject_t slot_can_load_subject_;  ///< 1 = has filament (Load enabled), 0 = empty
+    static helix::Subject slot_is_loaded_subject_; ///< 1 = loaded (Unload enabled), 0 = not loaded
+    static helix::Subject slot_can_load_subject_;  ///< 1 = has filament (Load enabled), 0 = empty
     /// 1 = Purge enabled. External-spool menu only; the lane menu has no Purge
     /// entry, so nothing binds this there.
-    static lv_subject_t slot_can_purge_subject_;
+    static helix::Subject slot_can_purge_subject_;
     /// One-line reason the unload is unavailable, and whether to show it.
     /// Text and visibility are separate because bind_flag needs an int.
-    static lv_subject_t slot_unload_hint_subject_;
-    static lv_subject_t slot_unload_hint_visible_subject_;
+    static helix::Subject slot_unload_hint_subject_;
+    static helix::Subject slot_unload_hint_visible_subject_;
     static char slot_unload_hint_buf_[128];
     /// One-line reason Eject is unavailable (AmsBackend::eject_unavailable_reason), and
     /// whether to show it.
-    static lv_subject_t slot_eject_hint_subject_;
-    static lv_subject_t slot_eject_hint_visible_subject_;
+    static helix::Subject slot_eject_hint_subject_;
+    static helix::Subject slot_eject_hint_visible_subject_;
     static char slot_eject_hint_buf_[128];
     /// 1 = Clear Spool enabled, 0 = the lane feeds the active print, so the
     /// clear must wait (clear_spool_blocked_by_print()). The reason rides the
     /// hint pair below, same shape as the unload hint.
-    static lv_subject_t slot_can_clear_subject_;
-    static lv_subject_t slot_clear_hint_subject_;
-    static lv_subject_t slot_clear_hint_visible_subject_;
+    static helix::Subject slot_can_clear_subject_;
+    static helix::Subject slot_clear_hint_subject_;
+    static helix::Subject slot_clear_hint_visible_subject_;
     static char slot_clear_hint_buf_[192];
     /// Preload row: 0 = hidden (backend has no lane preload), 1 = shown but
     /// disabled (busy, filament loaded, or a print blocks filament ops),
     /// 2 = enabled.
-    static lv_subject_t slot_preload_subject_;
+    static helix::Subject slot_preload_subject_;
     // Why this head's Load is unavailable, from decide_slot_actions().
-    static lv_subject_t slot_load_hint_subject_;
-    static lv_subject_t slot_load_hint_visible_subject_;
+    static helix::Subject slot_load_hint_subject_;
+    static helix::Subject slot_load_hint_visible_subject_;
     static char slot_load_hint_buf_[192];
     // Mount and Park for a head whose filament is all by hand: 0 hidden,
     // 1 disabled, 2 enabled.
-    static lv_subject_t slot_mount_subject_;
-    static lv_subject_t slot_park_subject_;
+    static helix::Subject slot_mount_subject_;
+    static helix::Subject slot_park_subject_;
     // Clear error for a fault that outlived its dialog
     // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
-    static lv_subject_t slot_clear_error_subject_;
+    static helix::Subject slot_clear_error_subject_;
     // Card header: the lane's own name, or "External Spool".
-    static lv_subject_t slot_header_subject_;
+    static helix::Subject slot_header_subject_;
     static char slot_header_buf_[64];
     // External-spool-only rows, 1 = shown: Purge, and the bypass toggle whose
     // label names the action ("Enable Bypass" / "Disable Bypass").
-    static lv_subject_t slot_purge_shown_subject_;
-    static lv_subject_t slot_bypass_shown_subject_;
-    static lv_subject_t slot_bypass_text_subject_;
+    static helix::Subject slot_purge_shown_subject_;
+    static helix::Subject slot_bypass_shown_subject_;
+    static helix::Subject slot_bypass_text_subject_;
     static char slot_bypass_text_buf_[64];
     // Check Slot (AmsBackend::supports_gate_check()): 0 hidden, 1 disabled, 2 enabled.
-    static lv_subject_t slot_gate_check_subject_;
+    static helix::Subject slot_gate_check_subject_;
     // 1 = the slot carries an assignment, so Clear Spool is offered.
-    static lv_subject_t slot_clear_shown_subject_;
+    static helix::Subject slot_clear_shown_subject_;
     // Spoolman rows, 1 = shown. Snapshotted per show so the card is measured
     // against the rows it will keep; Scan QR is also 0 on a build with no scanner.
-    static lv_subject_t slot_spoolman_shown_subject_;
-    static lv_subject_t slot_scan_qr_shown_subject_;
+    static helix::Subject slot_spoolman_shown_subject_;
+    static helix::Subject slot_scan_qr_shown_subject_;
 
     /// Sets the Spoolman row subjects from printer_has_spoolman.
     static void publish_spoolman_rows();

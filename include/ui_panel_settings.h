@@ -7,6 +7,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h" // For SubjectManager
 #include "wifi_ui_utils.h"
 
@@ -125,28 +126,28 @@ class SettingsPanel : public PanelBase {
     SubjectManager subjects_;
 
     // Platform visibility subjects (Android hides these)
-    lv_subject_t show_network_settings_subject_{};
-    lv_subject_t show_update_settings_subject_{};
+    helix::Subject show_network_settings_subject_{};
+    helix::Subject show_update_settings_subject_{};
     // 1 when updates are managed by the device firmware (HELIX_DISABLE_AUTO_UPDATES):
     // hides the in-app check/install controls and shows a static notice instead.
-    lv_subject_t updates_firmware_managed_subject_{};
+    helix::Subject updates_firmware_managed_subject_{};
     // 1 when in-app updates are suppressed for a NON-firmware reason (self-update is
     // physically impossible because the install tree isn't writable). Drives a
     // neutral "updates aren't available" notice, mutually exclusive with the
     // firmware-managed notice above.
-    lv_subject_t updates_unavailable_subject_{};
+    helix::Subject updates_unavailable_subject_{};
     // 1 once a plugin host exists: unhides the Plugins row (settings_panel.xml)
-    lv_subject_t plugins_available_subject_{};
+    helix::Subject plugins_available_subject_{};
 
     // Live status line shown under each stateful root row (settings_panel.xml),
     // refreshed by refresh_status_lines().
-    lv_subject_t settings_status_display_subject_{};
-    lv_subject_t settings_status_appearance_subject_{};
-    lv_subject_t settings_status_sound_subject_{};
-    lv_subject_t settings_status_devices_subject_{};
-    lv_subject_t settings_status_connection_subject_{};
-    lv_subject_t settings_status_language_time_subject_{};
-    lv_subject_t settings_status_updates_subject_{};
+    helix::Subject settings_status_display_subject_{};
+    helix::Subject settings_status_appearance_subject_{};
+    helix::Subject settings_status_sound_subject_{};
+    helix::Subject settings_status_devices_subject_{};
+    helix::Subject settings_status_connection_subject_{};
+    helix::Subject settings_status_language_time_subject_{};
+    helix::Subject settings_status_updates_subject_{};
     char settings_status_display_buf_[64];
     char settings_status_appearance_buf_[64];
     char settings_status_sound_buf_[64];

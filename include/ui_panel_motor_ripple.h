@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "motor_ripple_runner.h"
 #include "overlay_base.h"
@@ -68,21 +69,21 @@ class MotorRipplePanel : public OverlayBase {
     void show_motor(int motor);
 
     SubjectManager subjects_;
-    lv_subject_t view_{};
-    lv_subject_t bed_clear_{};
-    lv_subject_t compare_{};
-    lv_subject_t motor_{};
-    lv_subject_t has_y_{};
-    lv_subject_t progress_{};
-    lv_subject_t intro_text_{};
+    helix::Subject view_{};
+    helix::Subject bed_clear_{};
+    helix::Subject compare_{};
+    helix::Subject motor_{};
+    helix::Subject has_y_{};
+    helix::Subject progress_{};
+    helix::Subject intro_text_{};
     char intro_buf_[512] = {};
-    lv_subject_t progress_text_{};
+    helix::Subject progress_text_{};
     char progress_buf_[160] = {};
-    lv_subject_t summary_text_{};
+    helix::Subject summary_text_{};
     char summary_buf_[768] = {};
-    lv_subject_t reduction_text_{};
+    helix::Subject reduction_text_{};
     char reduction_buf_[512] = {};
-    lv_subject_t error_text_{};
+    helix::Subject error_text_{};
     char error_buf_[256] = {};
 
     std::unique_ptr<calibration::ripple::MotorRippleRunner> runner_;

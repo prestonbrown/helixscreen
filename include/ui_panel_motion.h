@@ -9,6 +9,7 @@
 #include "bed_plate_gesture.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "hold_repeat_timer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
@@ -316,46 +317,46 @@ class MotionPanel : public OverlayBase {
     // RAII subject manager - auto-deinits all registered subjects on destruction
     SubjectManager subjects_;
 
-    lv_subject_t pos_x_subject_{};
-    lv_subject_t pos_y_subject_{};
-    lv_subject_t pos_z_subject_{};           // Commanded Z position
-    lv_subject_t z_axis_label_subject_{};    // "Bed" or "Print Head"
-    lv_subject_t z_up_icon_subject_{};       // "arrow_expand_up" or "arrow_up"
-    lv_subject_t z_down_icon_subject_{};     // "arrow_expand_down" or "arrow_down"
-    lv_subject_t jog_outer_label_subject_{}; // jog mode's outer distance, "10mm"
-    lv_subject_t jog_inner_label_subject_{}; // jog mode's inner distance, "1mm"
+    helix::Subject pos_x_subject_{};
+    helix::Subject pos_y_subject_{};
+    helix::Subject pos_z_subject_{};           // Commanded Z position
+    helix::Subject z_axis_label_subject_{};    // "Bed" or "Print Head"
+    helix::Subject z_up_icon_subject_{};       // "arrow_expand_up" or "arrow_up"
+    helix::Subject z_down_icon_subject_{};     // "arrow_expand_down" or "arrow_down"
+    helix::Subject jog_outer_label_subject_{}; // jog mode's outer distance, "10mm"
+    helix::Subject jog_inner_label_subject_{}; // jog mode's inner distance, "1mm"
     // Z keys' labels, [up, down][inner, outer]: the distance plus a Z+/Z-
     // tag from the same inversion the jog applies, "10mm · Z+".
-    lv_subject_t z_key_label_subject_[2][2]{};
+    helix::Subject z_key_label_subject_[2][2]{};
     // The arrow layouts' Z keys move the selected step, so they carry the tag
     // alone, [up, down]: "Z+".
-    lv_subject_t z_tag_subject_[2]{};
-    lv_subject_t jog_mode_fine_active_{};   // 1 when Fine mode active
-    lv_subject_t jog_mode_coarse_active_{}; // 1 when Coarse mode active
-    lv_subject_t jog_mode_turbo_active_{};  // 1 when Turbo mode active
+    helix::Subject z_tag_subject_[2]{};
+    helix::Subject jog_mode_fine_active_{};   // 1 when Fine mode active
+    helix::Subject jog_mode_coarse_active_{}; // 1 when Coarse mode active
+    helix::Subject jog_mode_turbo_active_{};  // 1 when Turbo mode active
     // Per-axis homing state (0=unhomed, 1=homed) for declarative bind_style:
     // the coordinate readouts mute an axis whose position is not trustworthy.
-    lv_subject_t motion_x_homed_{};
-    lv_subject_t motion_y_homed_{};
-    lv_subject_t motion_z_homed_{};
-    lv_subject_t motion_all_homed_{};   ///< the home bar's All segment
-    lv_subject_t motion_home_bar_xy_{}; ///< 0: the bar is too narrow for XY
+    helix::Subject motion_x_homed_{};
+    helix::Subject motion_y_homed_{};
+    helix::Subject motion_z_homed_{};
+    helix::Subject motion_all_homed_{};   ///< the home bar's All segment
+    helix::Subject motion_home_bar_xy_{}; ///< 0: the bar is too narrow for XY
     // Z button limit state (1=render disabled): a further move in that
     // button's G-code direction is impossible. up/down are screen directions,
     // the bed_moves inversion inside update_z_button_blocked() maps them.
-    lv_subject_t motion_z_up_blocked_{};
-    lv_subject_t motion_z_down_blocked_{};
+    helix::Subject motion_z_up_blocked_{};
+    helix::Subject motion_z_down_blocked_{};
     // Content tab selection (0=Jog, 1=Move, 2=Bed). zone_tab instances bind
     // one active subject each and their labels are subject-bound, matching the
     // AMS environment strip that shares the component.
-    lv_subject_t motion_tab_subject_{};
-    lv_subject_t motion_tab_active_[3]{};
-    lv_subject_t motion_tab_label_[3]{};
+    helix::Subject motion_tab_subject_{};
+    helix::Subject motion_tab_active_[3]{};
+    helix::Subject motion_tab_label_[3]{};
     char motion_tab_label_buf_[3][32];
     // Bed tab: readout text under the plate, and 1 when the plate is round.
-    lv_subject_t motion_bed_readout_{};
+    helix::Subject motion_bed_readout_{};
     char motion_bed_readout_buf_[128];
-    lv_subject_t motion_bed_circular_{};
+    helix::Subject motion_bed_circular_{};
     /// Fill the tab label buffers (and subjects, once they exist) in the
     /// current language.
     void refresh_tab_labels();
@@ -374,9 +375,9 @@ class MotionPanel : public OverlayBase {
     void refresh_z_key_labels();
     // Arrow layouts' step selector: how many steps show, each one's label and
     // whether it is the selected one.
-    lv_subject_t step_count_subject_{};
-    lv_subject_t step_label_subject_[helix::kJogStepMax]{};
-    lv_subject_t step_active_subject_[helix::kJogStepMax]{};
+    helix::Subject step_count_subject_{};
+    helix::Subject step_label_subject_[helix::kJogStepMax]{};
+    helix::Subject step_active_subject_[helix::kJogStepMax]{};
     char step_label_buf_[helix::kJogStepMax][16];
     std::vector<float> steps_;
     size_t step_index_ = 0;

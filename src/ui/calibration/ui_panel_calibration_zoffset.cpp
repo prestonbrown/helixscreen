@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
@@ -46,9 +47,9 @@ using helix::ui::observe;
 // ============================================================================
 
 // State subject (0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR)
-static lv_subject_t s_zoffset_cal_state;
+static helix::Subject s_zoffset_cal_state;
 // Warm bed toggle subject (0=off, 1=on)
-static lv_subject_t s_zoffset_warm_bed;
+static helix::Subject s_zoffset_warm_bed;
 static bool s_callbacks_registered = false;
 
 /// Default bed temperature for calibration warm-up (°C)
@@ -223,7 +224,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 // LIFECYCLE HOOKS
 // ============================================================================
 
-void ZOffsetCalibrationPanel::set_readout(lv_subject_t& subject, const char* text) {
+void ZOffsetCalibrationPanel::set_readout(helix::Subject& subject, const char* text) {
     if (subjects_initialized_) {
         lv_subject_set_string(&subject, text);
     }

@@ -21,6 +21,7 @@
 #include "ui_coalesced_timer.h"
 #include "ui_panel_motion.h"
 
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -162,11 +163,11 @@ class MotionSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// One string display subject per Field, named in kSubjectNames.
-    lv_subject_t display_subjects_[static_cast<size_t>(Field::Count)]{};
+    helix::Subject display_subjects_[static_cast<size_t>(Field::Count)]{};
     char display_buffers_[static_cast<size_t>(Field::Count)][24]{};
 
     /// Slider ceiling text, bound to both speed sliders' max end labels.
-    lv_subject_t jog_speed_max_subject_{};
+    helix::Subject jog_speed_max_subject_{};
     char jog_speed_max_buf_[16]{};
 
     //

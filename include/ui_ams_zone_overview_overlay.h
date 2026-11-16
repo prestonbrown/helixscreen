@@ -17,6 +17,7 @@
 
 #include "ams_environment_zone.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -75,8 +76,8 @@ class AmsZoneOverviewOverlay : public OverlayBase {
 
     SubjectManager subjects_;
 
-    lv_subject_t count_subject_{};
-    lv_subject_t subtitle_subject_{};
+    helix::Subject count_subject_{};
+    helix::Subject subtitle_subject_{};
     char subtitle_buf_[96] = {};
 
     helix::xml::IndexedSubjectPool label_pool_{"zone_ov_label",

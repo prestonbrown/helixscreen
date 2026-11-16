@@ -9,6 +9,7 @@
 #include "border_radius_sizes.h"
 #include "config.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_psram_attr.h"
 #include "layout_manager.h"
@@ -72,25 +73,16 @@ ThemeSubjects& subjects() {
 }
 
 void ThemeSubjects::deinit() {
-    auto drop = [](lv_subject_t& subject, bool& ready) {
-        if (ready) {
-            lv_subject_deinit(&subject);
-            ready = false;
-        }
-    };
-    if (changed_ready) {
+    if (changed.is_live()) {
         generation = 0;
     }
-    drop(changed, changed_ready);
-    drop(breakpoint, breakpoint_ready);
-    drop(breakpoint_v, breakpoint_v_ready);
-    drop(is_portrait, is_portrait_ready);
-    drop(is_ultrawide, is_ultrawide_ready);
-    if (swatch_ready) {
-        for (auto& subject : swatch_desc) {
-            lv_subject_deinit(&subject);
-        }
-        swatch_ready = false;
+    changed.reset();
+    breakpoint.reset();
+    breakpoint_v.reset();
+    is_portrait.reset();
+    is_ultrawide.reset();
+    for (auto& subject : swatch_desc) {
+        subject.reset();
     }
 }
 
@@ -154,11 +146,9 @@ static helix::ThemeData theme_manager_load_active_theme() {
 /// not pass through theme_manager_deinit() just moves its value. The subject
 /// outlives widget teardown, so observer guards on it are exempt; a non-null
 /// `xml_name` makes it bindable from XML.
-static void publish_int_subject(lv_subject_t& subject, bool& ready, int32_t value,
-                                const char* xml_name) {
-    if (!ready) {
-        lv_subject_init_int(&subject, value);
-        ready = true;
+static void publish_int_subject(helix::Subject& subject, int32_t value, const char* xml_name) {
+    if (!subject.is_live()) {
+        subject.init_int(value);
     } else {
         lv_subject_set_int(&subject, value);
     }
@@ -243,7 +233,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     const int32_t v_res = display ? lv_display_get_vertical_resolution(display) : 0;
     if (runtime().fully_initialized && runtime().display == display &&
         use_dark_mode_param == runtime().dark && h_res == runtime().init_h_res &&
-        v_res == runtime().init_v_res && subjects().changed_ready) {
+        v_res == runtime().init_v_res && subjects().changed.is_live()) {
         // The registration pass can stay skipped, but two pieces of mutable
         // state still have to come back in line, because this call is the
         // boundary that restores them.
@@ -273,8 +263,8 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().full_init_count++;
 
     // Initialize theme change notification subject
-    if (!subjects().changed_ready) {
-        publish_int_subject(subjects().changed, subjects().changed_ready, 0, nullptr);
+    if (!subjects().changed.is_live()) {
+        publish_int_subject(subjects().changed, 0, nullptr);
     }
 
     // Override runtime theme constants based on light/dark mode preference
@@ -316,8 +306,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int32_t resp_res = responsive_dimension(display);
         UiBreakpoint bp = breakpoint_for(resp_res);
 
-        publish_int_subject(subjects().breakpoint, subjects().breakpoint_ready, to_int(bp),
-                            "ui_breakpoint");
+        publish_int_subject(subjects().breakpoint, to_int(bp), "ui_breakpoint");
         spdlog::debug("[Theme] Registered ui_breakpoint subject: {} (min_dim={})", to_int(bp),
                       resp_res);
     }
@@ -329,8 +318,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int32_t vert_res = responsive_vertical_dimension(display);
         UiBreakpoint vbp = breakpoint_for(vert_res);
 
-        publish_int_subject(subjects().breakpoint_v, subjects().breakpoint_v_ready, to_int(vbp),
-                            "ui_breakpoint_v");
+        publish_int_subject(subjects().breakpoint_v, to_int(vbp), "ui_breakpoint_v");
         spdlog::debug("[Theme] Registered ui_breakpoint_v subject: {} (vert_dim={})", to_int(vbp),
                       vert_res);
     }
@@ -348,10 +336,8 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int is_portrait = is_portrait_layout(type) ? 1 : 0;
         int is_ultrawide = type == LayoutType::ULTRAWIDE ? 1 : 0;
 
-        publish_int_subject(subjects().is_portrait, subjects().is_portrait_ready, is_portrait,
-                            "ui_is_portrait");
-        publish_int_subject(subjects().is_ultrawide, subjects().is_ultrawide_ready, is_ultrawide,
-                            "ui_is_ultrawide");
+        publish_int_subject(subjects().is_portrait, is_portrait, "ui_is_portrait");
+        publish_int_subject(subjects().is_ultrawide, is_ultrawide, "ui_is_ultrawide");
         spdlog::debug("[Theme] Registered ui_is_portrait/ui_is_ultrawide subjects: {}/{} ({}x{})",
                       is_portrait, is_ultrawide, hor_res, ver_res);
     }
@@ -558,7 +544,7 @@ lv_subject_t* theme_manager_get_breakpoint_subject() {
 }
 
 void theme_manager_notify_change() {
-    if (!subjects().changed_ready)
+    if (!subjects().changed.is_live())
         return;
     subjects().generation++;
     lv_subject_set_int(&subjects().changed, subjects().generation);

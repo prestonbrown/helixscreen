@@ -7,6 +7,7 @@
 
 #include "calibration_types.h" // For ScrewTiltResult
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -219,9 +220,9 @@ class ScrewsTiltPanel : public OverlayBase {
     static constexpr size_t kScrewNameBufSize = 32;
     static constexpr size_t kScrewAdjBufSize = 24; // "Tighten ¼ turn" etc.
 
-    std::array<lv_subject_t, kMaxScrews> screw_visible_subjects_{};
-    std::array<lv_subject_t, kMaxScrews> screw_name_subjects_{};
-    std::array<lv_subject_t, kMaxScrews> screw_adjustment_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_visible_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_name_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_adjustment_subjects_{};
 
     // Fixed char arrays for string subjects (LVGL requires stable buffers)
     char screw_name_bufs_[kMaxScrews][kScrewNameBufSize] = {};
@@ -230,12 +231,12 @@ class ScrewsTiltPanel : public OverlayBase {
     // Subjects for status labels
     static constexpr size_t kProbeCountBufSize = 64;
     static constexpr size_t kErrorMsgBufSize = 256;
-    lv_subject_t probe_count_subject_{};
-    lv_subject_t error_message_subject_{};
-    lv_subject_t recenter_hint_subject_{};   ///< Alternative that turns fewer screws
-    lv_subject_t recenter_hint_available_{}; ///< 1 when the hint is worth showing
-    lv_subject_t results_is_leveled_subject_{};
-    lv_subject_t tilt_spread_subject_{}; ///< "Corners differ by 0.23 mm"
+    helix::Subject probe_count_subject_{};
+    helix::Subject error_message_subject_{};
+    helix::Subject recenter_hint_subject_{};   ///< Alternative that turns fewer screws
+    helix::Subject recenter_hint_available_{}; ///< 1 when the hint is worth showing
+    helix::Subject results_is_leveled_subject_{};
+    helix::Subject tilt_spread_subject_{}; ///< "Corners differ by 0.23 mm"
     static constexpr size_t kTiltSpreadBufSize = 64;
     char tilt_spread_buf_[kTiltSpreadBufSize] = {};
     char probe_count_buf_[kProbeCountBufSize] = {};

@@ -7,6 +7,7 @@
 
 #include "border_radius_sizes.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
@@ -221,16 +222,16 @@ void register_semantic_colors(lv_xml_component_scope_t* scope, const helix::Them
         "Focus ring",
     };
 
-    if (!subjects().swatch_ready) {
+    if (!subjects().swatches_live()) {
         for (size_t i = 0; i < ThemeSubjects::kSwatchCount; ++i) {
-            lv_subject_init_string(&subjects().swatch_desc[i], subjects().swatch_bufs[i], nullptr,
-                                   ThemeSubjects::kSwatchBufSize, swatch_descriptions[i]);
+            subjects().swatch_desc[i].init_string(subjects().swatch_bufs[i], nullptr,
+                                                  ThemeSubjects::kSwatchBufSize,
+                                                  swatch_descriptions[i]);
             char key[24];
             snprintf(key, sizeof(key), "swatch_%zu_desc", i);
             ObserverGuard::mark_subject_teardown_exempt(&subjects().swatch_desc[i]);
             lv_xml_register_subject(nullptr, key, &subjects().swatch_desc[i]);
         }
-        subjects().swatch_ready = true;
     }
 
     spdlog::debug("[Theme] Registered 16 semantic colors + legacy aliases (dark={}, light={})",

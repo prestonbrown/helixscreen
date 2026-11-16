@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "filament_sensor_types.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -182,7 +183,7 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
 
     // Subject (dropdown selection index)
     SubjectManager subjects_;
-    lv_subject_t runout_sensor_selected_{};
+    helix::Subject runout_sensor_selected_{};
 
     // Dynamic options storage
     std::vector<std::string> sensor_items_;                       // Klipper names for dropdown

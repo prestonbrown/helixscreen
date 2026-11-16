@@ -20,6 +20,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "moonraker_config_manager.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -234,10 +235,10 @@ class SpoolmanOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// Subject for sync enabled state (0=disabled, 1=enabled)
-    lv_subject_t sync_enabled_subject_{};
+    helix::Subject sync_enabled_subject_{};
 
     /// Subject for refresh interval in seconds
-    lv_subject_t refresh_interval_subject_{};
+    helix::Subject refresh_interval_subject_{};
 
     /// IMoonrakerAPI for database access (not owned)
     IMoonrakerAPI* api_ = nullptr;
@@ -279,18 +280,18 @@ class SpoolmanOverlay : public OverlayBase {
     static constexpr int kDefaultRefreshIntervalSeconds = 30;
 
     // === Barcode Scanner Picker ===
-    lv_subject_t scanner_device_status_subject_{};
+    helix::Subject scanner_device_status_subject_{};
 
     // Server setup: the status line under the address fields (red when it
     // reports a failure), the "Connected to" line, and 1 while the user is
     // changing a configured server, which shows the setup card in place of the
     // status card until setup ends.
-    lv_subject_t setup_status_subject_{};
+    helix::Subject setup_status_subject_{};
     char setup_status_buf_[160] = {};
-    lv_subject_t setup_status_error_subject_{};
-    lv_subject_t server_url_subject_{};
+    helix::Subject setup_status_error_subject_{};
+    helix::Subject server_url_subject_{};
     char server_url_buf_[192] = {};
-    lv_subject_t setup_editing_subject_{};
+    helix::Subject setup_editing_subject_{};
     char scanner_status_buf_[64] = {0};
 
     void handle_barcode_scanner_clicked();

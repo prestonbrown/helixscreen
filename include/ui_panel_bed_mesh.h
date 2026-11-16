@@ -11,6 +11,7 @@
 #include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
@@ -188,9 +189,9 @@ class BedMeshPanel : public OverlayBase {
     // helix::BedMeshState, which exists from connect; the panel's XML binds them there.
 
     // ========== Profile List Subjects (5 profiles max) ==========
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_name_subjects_{};
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_range_subjects_{};
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_active_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_name_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_range_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_active_subjects_{};
 
     std::array<std::array<char, 64>, BED_MESH_MAX_PROFILES> profile_name_bufs_;
     std::array<std::array<char, 32>, BED_MESH_MAX_PROFILES> profile_range_bufs_;
@@ -199,17 +200,18 @@ class BedMeshPanel : public OverlayBase {
     std::array<std::string, BED_MESH_MAX_PROFILES> profile_names_;
 
     // ========== Modal State Subjects (NOT visibility - internal state) ==========
-    lv_subject_t bed_mesh_rename_old_name_{}; // Display the old name in rename modal
+    helix::Subject bed_mesh_rename_old_name_{}; // Display the old name in rename modal
 
     char rename_old_name_buf_[64];
 
     // ========== Calibration Progress Subjects ==========
-    lv_subject_t bed_mesh_calibrate_state_{};     ///< CalibrationState enum value
-    lv_subject_t bed_mesh_probe_progress_{};      ///< 0-100 percentage
-    lv_subject_t bed_mesh_probe_text_{};          ///< "Probing point 5 of 25"
-    lv_subject_t bed_mesh_probe_indeterminate_{}; ///< 1 = spinner (total unknown), 0 = progress bar
-    lv_subject_t bed_mesh_error_message_{};       ///< Error message if failed
-    lv_subject_t bed_mesh_calibrate_name_{};      ///< Profile name field of the calibrate dialog
+    helix::Subject bed_mesh_calibrate_state_{}; ///< CalibrationState enum value
+    helix::Subject bed_mesh_probe_progress_{};  ///< 0-100 percentage
+    helix::Subject bed_mesh_probe_text_{};      ///< "Probing point 5 of 25"
+    helix::Subject
+        bed_mesh_probe_indeterminate_{};       ///< 1 = spinner (total unknown), 0 = progress bar
+    helix::Subject bed_mesh_error_message_{};  ///< Error message if failed
+    helix::Subject bed_mesh_calibrate_name_{}; ///< Profile name field of the calibrate dialog
 
     char probe_text_buf_[64];     ///< Buffer for probe_text_ subject
     char error_message_buf_[256]; ///< Buffer for error_message_ subject

@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -64,7 +65,7 @@ static constexpr size_t kNumShaperColors =
 // ============================================================================
 
 // State subject (0=IDLE, 1=MEASURING, 2=RESULTS, 3=ERROR)
-static lv_subject_t s_input_shaper_state;
+static helix::Subject s_input_shaper_state;
 
 static void on_input_shaper_row_clicked(lv_event_t* e);
 IMoonrakerClient* get_moonraker_client();

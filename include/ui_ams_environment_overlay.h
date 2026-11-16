@@ -18,6 +18,7 @@
 #include "ams_environment_zone.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
@@ -225,79 +226,79 @@ class AmsEnvironmentOverlay : public OverlayBase {
 
     SubjectManager subjects_;
 
-    lv_subject_t temp_text_subject_{};
+    helix::Subject temp_text_subject_{};
     char temp_text_buf_[64] = {};
 
-    lv_subject_t target_temp_text_subject_{};
+    helix::Subject target_temp_text_subject_{};
     char target_temp_text_buf_[32] = {};
 
-    lv_subject_t humidity_text_subject_{};
+    helix::Subject humidity_text_subject_{};
     char humidity_text_buf_[32] = {};
 
     /// 1 when the shown unit has a humidity sensor. Gates the humidity readout
     /// and the Material Comfort strip, both of which need a real reading to say
     /// anything true. Per-overlay rather than the shown unit's
     /// ams_env_ind_<i>_humidity_visible so it cannot answer for the wrong unit.
-    lv_subject_t humidity_subject_{}; ///< tenths of %RH for the drop; -1 = no reading
-    lv_subject_t humidity_visible_subject_{};
+    helix::Subject humidity_subject_{}; ///< tenths of %RH for the drop; -1 = no reading
+    helix::Subject humidity_visible_subject_{};
 
-    lv_subject_t title_text_subject_{};
+    helix::Subject title_text_subject_{};
     char title_text_buf_[96] = {};
 
-    lv_subject_t dryer_visible_subject_{};
+    helix::Subject dryer_visible_subject_{};
     /// 1 when the shown zone's dryer takes a humidity target
-    lv_subject_t humidity_target_visible_subject_{};
-    lv_subject_t no_dryer_visible_subject_{};
-    lv_subject_t drying_active_subject_{};
+    helix::Subject humidity_target_visible_subject_{};
+    helix::Subject no_dryer_visible_subject_{};
+    helix::Subject drying_active_subject_{};
 
-    lv_subject_t drying_text_subject_{};
+    helix::Subject drying_text_subject_{};
     char drying_text_buf_[64] = {};
 
-    lv_subject_t drying_progress_subject_{};
+    helix::Subject drying_progress_subject_{};
 
     /// The shown unit's picture: its logo art, whether it is full colour (drawn as
     /// is) or a mono mark (tinted), and whether there is one at all.
-    lv_subject_t unit_logo_subject_{};
+    helix::Subject unit_logo_subject_{};
     char unit_logo_buf_[128] = {};
-    lv_subject_t unit_logo_color_subject_{};
-    lv_subject_t unit_logo_visible_subject_{};
-    lv_subject_t unit_art_visible_subject_{};
+    helix::Subject unit_logo_color_subject_{};
+    helix::Subject unit_logo_visible_subject_{};
+    helix::Subject unit_art_visible_subject_{};
 
     static constexpr int kMaxComfortRows = 4;
-    lv_subject_t comfort_visible_[kMaxComfortRows] = {};
-    lv_subject_t comfort_status_[kMaxComfortRows] = {}; ///< 0=OK, 1=Marginal, 2=Too humid
-    lv_subject_t comfort_text_[kMaxComfortRows] = {};
+    helix::Subject comfort_visible_[kMaxComfortRows] = {};
+    helix::Subject comfort_status_[kMaxComfortRows] = {}; ///< 0=OK, 1=Marginal, 2=Too humid
+    helix::Subject comfort_text_[kMaxComfortRows] = {};
     char comfort_text_buf_[kMaxComfortRows][96] = {};
 
-    lv_subject_t start_stop_text_subject_{};
+    helix::Subject start_stop_text_subject_{};
     char start_stop_text_buf_[32] = {};
 
-    lv_subject_t preset_text_subject_{};
+    helix::Subject preset_text_subject_{};
     char preset_text_buf_[64] = {};
 
     /// Zone selector + per-zone ceiling. "env_zone_" prefix; the pools are
     /// distinct from AmsZoneOverviewOverlay's, which use "zone_ov_".
-    lv_subject_t zone_count_subject_{};
-    lv_subject_t zone_state_subject_{};
-    lv_subject_t temp_range_subject_{};
+    helix::Subject zone_count_subject_{};
+    helix::Subject zone_state_subject_{};
+    helix::Subject temp_range_subject_{};
     char temp_range_buf_[32] = {};
 
     /// Which lanes the shown zone covers. The header names the box; this says how
     /// much of the printer is inside it, which a single-zone view cannot infer.
     /// Sized for a translated plural noun plus a range: a ToolChanger reports
     /// LaneNoun::Tool, whose Russian plural makes "Инструменты 10-13" 28 bytes.
-    lv_subject_t slots_text_subject_{};
+    helix::Subject slots_text_subject_{};
     char slots_text_buf_[64] = {};
 
     /// Cross-unit affordance: offered only when the printer has more zones than this
     /// view is showing and no overview already sits beneath this overlay.
-    lv_subject_t all_zones_visible_subject_{};
-    lv_subject_t all_zones_text_subject_{};
+    helix::Subject all_zones_visible_subject_{};
+    helix::Subject all_zones_text_subject_{};
     char all_zones_text_buf_[64] = {};
 
     /// Names the zone actually running, for the banner shown while
     /// zone_state_subject_ reads Queued. Empty otherwise.
-    lv_subject_t queued_banner_subject_{};
+    helix::Subject queued_banner_subject_{};
     char queued_banner_buf_[128] = {};
 
     helix::xml::IndexedSubjectPool tab_label_pool_{"env_zone_tab_label",
@@ -313,10 +314,10 @@ class AmsEnvironmentOverlay : public OverlayBase {
     std::vector<int> dry_gates_;
     std::vector<int> deselected_dry_gates_;
     bool dry_rotate_ = false;
-    lv_subject_t dry_gate_count_subject_{};
-    lv_subject_t dry_rotate_visible_subject_{};
-    lv_subject_t dry_rotate_on_subject_{};
-    lv_subject_t dry_rotate_label_subject_{};
+    helix::Subject dry_gate_count_subject_{};
+    helix::Subject dry_rotate_visible_subject_{};
+    helix::Subject dry_rotate_on_subject_{};
+    helix::Subject dry_rotate_label_subject_{};
     char dry_rotate_label_buf_[32] = {};
     helix::xml::IndexedSubjectPool dry_gate_label_pool_{
         "env_dry_gate_label", helix::xml::IndexedSubjectPool::Type::String};

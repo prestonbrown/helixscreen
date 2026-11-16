@@ -23,6 +23,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
@@ -99,9 +100,9 @@ class TelemetryDataOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// Status text subjects
-    lv_subject_t status_subject_{};
-    lv_subject_t detail_subject_{};
-    lv_subject_t count_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject detail_subject_{};
+    helix::Subject count_subject_{};
 
     char status_buf_[64];
     char detail_buf_[128];

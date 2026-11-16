@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "filament_sensor_manager.h"
 #include "input_sensor_manager.h"
 #include "printer_discovery.h"
@@ -88,7 +89,7 @@ constexpr uint8_t kRowFillOrder[kRowFieldCount] = {
 
 struct SensorRowSection::Row {
     std::string ids[kRowFieldCount];
-    lv_subject_t subjects[kRowFieldCount]{};
+    helix::Subject subjects[kRowFieldCount]{};
     char bufs[2 * kNameLen + 2 * kStateLen]{};
 };
 
@@ -99,13 +100,13 @@ std::vector<SensorRowSection*>& live_sections() {
     return sections;
 }
 
-void set_if_changed(lv_subject_t& subject, int value) {
+void set_if_changed(helix::Subject& subject, int value) {
     if (lv_subject_get_int(&subject) != value) {
         lv_subject_set_int(&subject, value);
     }
 }
 
-void set_if_changed(lv_subject_t& subject, const char* value) {
+void set_if_changed(helix::Subject& subject, const char* value) {
     if (std::strcmp(lv_subject_get_string(&subject), value) != 0) {
         lv_subject_set_string(&subject, value);
     }
@@ -159,14 +160,13 @@ void SensorRowSection::grow(size_t rows) {
             std::string& id = row->ids[f];
             id.reserve(prefix.size() + std::strlen(spec.name) + suffix.size());
             id.append(prefix).append(spec.name).append(suffix);
-            lv_subject_t& subject = row->subjects[f];
+            helix::Subject& subject = row->subjects[f];
             // UI_MANAGED_SUBJECT_INT/STRING, written once for every field.
             const bool is_string = spec.buf_len != 0;
             if (is_string) {
-                lv_subject_init_string(&subject, row->bufs + spec.buf_offset, nullptr, spec.buf_len,
-                                       "");
+                subject.init_string(row->bufs + spec.buf_offset, nullptr, spec.buf_len, "");
             } else {
-                lv_subject_init_int(&subject, spec.initial);
+                subject.init_int(spec.initial);
             }
             helix::xml::register_subject_in_current_scope(id.c_str(), &subject);
             subjects_.register_subject(&subject, id.c_str());

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 
 #include <cstdint>
@@ -96,7 +97,7 @@ class OperationTimeoutGuard {
   private:
     bool active_ = false;
     bool has_subject_ = false;
-    lv_subject_t subject_{};
+    helix::Subject subject_{};
     lv_timer_t* timer_ = nullptr;
     std::function<void()> on_timeout_;
 

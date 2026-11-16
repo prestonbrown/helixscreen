@@ -60,7 +60,7 @@ float array_at(const json* j, size_t i) {
     return j && j->is_array() && j->size() > i ? json_util::as_float((*j)[i]) : 0.0f;
 }
 
-void set_text(lv_subject_t& s, const std::string& text) {
+void set_text(helix::Subject& s, const std::string& text) {
     lv_subject_set_string(&s, text.c_str());
 }
 

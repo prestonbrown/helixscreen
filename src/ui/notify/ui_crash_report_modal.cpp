@@ -5,6 +5,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/subject.h"
 #include "display_manager.h"
 #include "system/crash_reporter.h"
 #include "system/debug_bundle_collector.h"
@@ -125,9 +126,9 @@ void CrashReportModal::init_subjects() {
         return;
     }
 
-    lv_subject_init_string(&details_subject_, details_buf_, nullptr, sizeof(details_buf_), "");
-    lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_), "");
-    lv_subject_init_int(&show_qr_subject_, 0);
+    details_subject_.init_string(details_buf_, nullptr, sizeof(details_buf_), "");
+    status_subject_.init_string(status_buf_, nullptr, sizeof(status_buf_), "");
+    show_qr_subject_.init_int(0);
 
     subjects_.publish("crash_report_details", &details_subject_);
     subjects_.publish("crash_report_status", &status_subject_);

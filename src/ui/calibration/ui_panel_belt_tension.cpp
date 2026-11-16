@@ -15,6 +15,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
@@ -110,7 +111,7 @@ std::string format_turn_amount(float turns) {
 // ============================================================================
 
 // State subject (0=START, 1=RUNNING, 2=RESULTS, 3=ERROR, 4=TUNING)
-static lv_subject_t s_belt_tension_state;
+static helix::Subject s_belt_tension_state;
 
 BeltTensionPanel::~BeltTensionPanel() {
     // lifetime_'s destructor auto-invalidates all outstanding tokens.

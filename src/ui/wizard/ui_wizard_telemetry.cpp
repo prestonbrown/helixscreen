@@ -42,6 +42,12 @@ void WizardTelemetryStep::init_subjects() {
 }
 
 void WizardTelemetryStep::init_info_text_subject() {
+    // The text never changes, and both this step and the summary step ask for it on every
+    // visit: re-initializing a live subject would orphan its observers, so only re-publish it.
+    if (telemetry_info_text_.is_live()) {
+        helix::xml::register_subject_in_current_scope("telemetry_info_text", &telemetry_info_text_);
+        return;
+    }
     static const char* telemetry_info_md =
         "**HelixScreen is a free, open-source project** built by a tiny team. "
         "Anonymous telemetry helps us understand how the app is actually used "

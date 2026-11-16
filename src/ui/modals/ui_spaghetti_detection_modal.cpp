@@ -20,9 +20,9 @@
 #include <cstdio>
 #include <memory>
 
-lv_subject_t SpaghettiDetectionModal::tune_available_subject_;
+helix::Subject SpaghettiDetectionModal::tune_available_subject_;
 char SpaghettiDetectionModal::message_buf_[256];
-lv_subject_t SpaghettiDetectionModal::message_subject_;
+helix::Subject SpaghettiDetectionModal::message_subject_;
 SubjectManager SpaghettiDetectionModal::subjects_;
 bool SpaghettiDetectionModal::subjects_initialized_ = false;
 

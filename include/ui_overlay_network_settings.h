@@ -56,6 +56,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "ipv4_config.h"
 #include "lvgl/lvgl.h"
 #include "network_tester.h"
@@ -191,47 +192,47 @@ class NetworkSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // WiFi subjects
-    lv_subject_t wifi_hardware_available_{}; // 0=unavailable, 1=available
-    lv_subject_t wifi_enabled_{};
-    lv_subject_t wifi_connected_{};
-    lv_subject_t wifi_only_24ghz_{};       // 1 if hardware only supports 2.4GHz
-    lv_subject_t wifi_can_forget_{};       // 1 if the backend can forget a saved network
-    lv_subject_t wifi_can_toggle_radio_{}; // 1 if the backend can move the radio
-    lv_subject_t wifi_toggle_locked_{};    // 1 while the switch must not take a tap
-    lv_subject_t wifi_can_set_country_{};  // 1 if the backend can set the regulatory country
-    lv_subject_t wifi_country_index_{};    // country dropdown selection (0 = not set)
-    lv_subject_t wifi_unresponsive_{};     // 1 while WiFi control stops answering (rows show
-                                           // the last known state)
-    lv_subject_t connected_ssid_{};
-    lv_subject_t ip_display_{}; // the IP row: the address, or that one is on its way
-    lv_subject_t mac_address_{};
-    lv_subject_t network_count_{};
-    lv_subject_t wifi_scanning_{};
+    helix::Subject wifi_hardware_available_{}; // 0=unavailable, 1=available
+    helix::Subject wifi_enabled_{};
+    helix::Subject wifi_connected_{};
+    helix::Subject wifi_only_24ghz_{};       // 1 if hardware only supports 2.4GHz
+    helix::Subject wifi_can_forget_{};       // 1 if the backend can forget a saved network
+    helix::Subject wifi_can_toggle_radio_{}; // 1 if the backend can move the radio
+    helix::Subject wifi_toggle_locked_{};    // 1 while the switch must not take a tap
+    helix::Subject wifi_can_set_country_{};  // 1 if the backend can set the regulatory country
+    helix::Subject wifi_country_index_{};    // country dropdown selection (0 = not set)
+    helix::Subject wifi_unresponsive_{};     // 1 while WiFi control stops answering (rows show
+                                             // the last known state)
+    helix::Subject connected_ssid_{};
+    helix::Subject ip_display_{}; // the IP row: the address, or that one is on its way
+    helix::Subject mac_address_{};
+    helix::Subject network_count_{};
+    helix::Subject wifi_scanning_{};
 
     // Ethernet subjects
-    lv_subject_t eth_connected_{};
-    lv_subject_t eth_ip_address_{};
-    lv_subject_t eth_mac_address_{};
+    helix::Subject eth_connected_{};
+    helix::Subject eth_ip_address_{};
+    helix::Subject eth_mac_address_{};
 
     // IPv4 rows: shown where the backend can persist a static address
-    lv_subject_t wifi_ipv4_row_visible_{}; // 1 while connected on a backend that supports it
-    lv_subject_t wifi_ipv4_summary_{};     // "DHCP" / "Static <address>"
-    lv_subject_t eth_ipv4_row_visible_{};
-    lv_subject_t eth_ipv4_summary_{};
+    helix::Subject wifi_ipv4_row_visible_{}; // 1 while connected on a backend that supports it
+    helix::Subject wifi_ipv4_summary_{};     // "DHCP" / "Static <address>"
+    helix::Subject eth_ipv4_row_visible_{};
+    helix::Subject eth_ipv4_summary_{};
     char wifi_ipv4_summary_buffer_[48];
     char eth_ipv4_summary_buffer_[48];
 
     // Network test subjects
-    lv_subject_t any_network_connected_{}; // 1 if wifi OR ethernet connected
-    lv_subject_t test_running_{};
-    lv_subject_t test_gateway_status_{};
-    lv_subject_t test_internet_status_{};
+    helix::Subject any_network_connected_{}; // 1 if wifi OR ethernet connected
+    helix::Subject test_running_{};
+    helix::Subject test_gateway_status_{};
+    helix::Subject test_internet_status_{};
 
     // Password modal subjects
-    lv_subject_t wifi_connecting_{};          // 0=idle, 1=connecting (toggles modal form)
-    lv_subject_t wifi_password_modal_ssid_{}; // SSID displayed in password modal
-    lv_subject_t password_status_{};          // password modal's error line
-    lv_subject_t password_status_shown_{};    // 1 while that line has something to say
+    helix::Subject wifi_connecting_{};          // 0=idle, 1=connecting (toggles modal form)
+    helix::Subject wifi_password_modal_ssid_{}; // SSID displayed in password modal
+    helix::Subject password_status_{};          // password modal's error line
+    helix::Subject password_status_shown_{};    // 1 while that line has something to say
 
     // String buffers (subjects need stable char* pointers)
     char ssid_buffer_[64];
@@ -255,7 +256,7 @@ class NetworkSettingsOverlay : public OverlayBase {
     // Network test modal
     helix::ui::WidgetRef test_modal_;
     helix::ui::WidgetRef step_widget_;
-    lv_subject_t test_complete_{}; // Controls close button enabled state
+    helix::Subject test_complete_{}; // Controls close button enabled state
 
     // Password modal for secured networks
     helix::ui::WidgetRef password_modal_;

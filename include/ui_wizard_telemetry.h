@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
@@ -55,7 +56,7 @@ class WizardTelemetryStep : public helix::wizard::Step {
     lv_obj_t* root_ = nullptr;
 
     // Telemetry info modal text subject
-    lv_subject_t telemetry_info_text_{};
+    helix::Subject telemetry_info_text_{};
     char telemetry_info_text_buffer_[2048];
     bool subjects_initialized_ = false;
 

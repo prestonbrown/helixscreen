@@ -10,6 +10,7 @@
 #include "ui_spoolman_list_view.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "spoolman_types.h" // For SpoolInfo
 #include "subject_managed_panel.h"
@@ -102,11 +103,11 @@ class SpoolmanPanel : public OverlayBase {
     bool preserve_scroll_ = false; ///< Preserve scroll position on next populate
 
     // ========== Subjects ==========
-    SubjectManager subjects_;            ///< RAII subject manager
-    lv_subject_t panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
-    lv_subject_t header_title_subject_{};
+    SubjectManager subjects_;              ///< RAII subject manager
+    helix::Subject panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
+    helix::Subject header_title_subject_{};
     /// 1 = the location filter is offered: at least one spool names a location.
-    lv_subject_t location_filter_shown_subject_{};
+    helix::Subject location_filter_shown_subject_{};
     char header_title_buf_[64];
 
     // ========== Private Methods ==========

@@ -4,6 +4,7 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "moonraker_error.h"
 #include "operation_timeout_guard.h"
@@ -158,14 +159,14 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     char status_buffer_[160] = "";
     char hint_buffer_[320] = "";
-    lv_subject_t status_{};
-    lv_subject_t hint_{};
-    lv_subject_t active_{};
+    helix::Subject status_{};
+    helix::Subject hint_{};
+    helix::Subject active_{};
     /// Drives the XML <repeat>: one row per tool, however many the printer
     /// has. Published LAST by refresh_rows(), after the pools below hold every
     /// row's values, so a rebuild binds to populated subjects (the macros
     /// panel's rule for its own list).
-    lv_subject_t tool_count_{};
+    helix::Subject tool_count_{};
 
     // === Per-row subject pools (grow-only; reclaimed when the UI goes) ===
     helix::xml::IndexedSubjectPool row_x_{"tool_cal_x",

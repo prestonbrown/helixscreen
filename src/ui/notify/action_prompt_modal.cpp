@@ -10,6 +10,7 @@
 
 #include "color_utils.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_size.h"
@@ -31,12 +32,12 @@ namespace {
 // screen at a time, and each show sets them afresh. The title is the printer's
 // own text, so it rides a subject rather than a prop.
 struct PromptSubjects {
-    lv_subject_t title{};
+    helix::Subject title{};
     char title_buf[512] = {};
-    lv_subject_t error{};       ///< 1 for severity "error": shows the red icon
-    lv_subject_t has_text{};    ///< 0 hides the text area
-    lv_subject_t has_buttons{}; ///< 0 hides the regular button area
-    lv_subject_t has_footer{};  ///< 0 hides the footer and its divider
+    helix::Subject error{};       ///< 1 for severity "error": shows the red icon
+    helix::Subject has_text{};    ///< 0 hides the text area
+    helix::Subject has_buttons{}; ///< 0 hides the regular button area
+    helix::Subject has_footer{};  ///< 0 hides the footer and its divider
     SubjectManager manager;
     bool initialized = false;
 };

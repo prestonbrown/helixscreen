@@ -10,6 +10,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix_plugin_features.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -68,11 +69,11 @@ class PluginOverviewOverlay : public OverlayBase {
     }
 
     SubjectManager subjects_;
-    lv_subject_t version_subject_{};
+    helix::Subject version_subject_{};
     char version_buf_[32] = {};
-    lv_subject_t running_count_subject_{};
-    lv_subject_t off_count_subject_{};
-    lv_subject_t unavailable_count_subject_{};
+    helix::Subject running_count_subject_{};
+    helix::Subject off_count_subject_{};
+    helix::Subject unavailable_count_subject_{};
 };
 
 /// How the overview shows one feature: the group it sits in (its status) and,

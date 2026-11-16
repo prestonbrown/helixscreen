@@ -10,6 +10,7 @@
 #include "config.h"
 #include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "gcode_help.h"
 #include "i_moonraker_api.h"
 #include "save_config_restart.h"
@@ -493,8 +494,8 @@ void republish_save_available(lv_observer_t*, lv_subject_t*);
 /// from a StaticSubjectRegistry deinit, while LVGL is still up.
 struct SaveAvailabilityPublisher {
     SubjectManager subjects;
-    lv_subject_t z_offset_save_available_{};
-    lv_subject_t z_offset_save_enabled_{};
+    helix::Subject z_offset_save_available_{};
+    helix::Subject z_offset_save_enabled_{};
     ObserverGuard global_offset_obs;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;

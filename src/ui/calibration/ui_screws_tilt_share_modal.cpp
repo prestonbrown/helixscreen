@@ -4,6 +4,7 @@
 #include "ui_screws_tilt_share_modal.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "screws_tilt_share_text.h"
 #include "subject_managed_panel.h"
 
@@ -33,10 +34,10 @@ constexpr size_t kAdjBufSize = 24;
  * before lv_deinit()) removes that ordering hazard entirely.
  */
 struct ShareSubjects {
-    lv_subject_t count{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> name{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> z{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> adj{};
+    helix::Subject count{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> name{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> z{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> adj{};
 
     char name_bufs[ScrewsTiltShareModal::kMaxRows][kNameBufSize] = {};
     char z_bufs[ScrewsTiltShareModal::kMaxRows][kZBufSize] = {};

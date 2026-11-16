@@ -8,6 +8,7 @@
 #include "ui_toast_manager.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
@@ -85,9 +86,9 @@ enum class CopyResult : int { Hidden = 0, Copied = 1, Failed = 2, NoClipboard = 
 // One set for the class: a single plugin dialog is on screen at a time, and
 // each show() sets them afresh.
 struct InstallSubjects {
-    lv_subject_t phase{};
-    lv_subject_t copy_result{};
-    lv_subject_t result_message{};
+    helix::Subject phase{};
+    helix::Subject copy_result{};
+    helix::Subject result_message{};
     char result_message_buf[256] = {};
     SubjectManager manager;
     bool initialized = false;
