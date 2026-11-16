@@ -161,34 +161,15 @@ static void set_full_volume() {
     AudioSettingsManager::instance().set_volume(100);
 }
 
-static bool wait_until_done(SoundSequencer& seq, int timeout_ms = 5000) {
-    auto start = std::chrono::steady_clock::now();
-
-    // Phase 1: wait for playback to begin (sequencer thread needs to pick up the request)
-    while (!seq.is_playing()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                           std::chrono::steady_clock::now() - start)
-                           .count();
-        if (elapsed > timeout_ms)
+/// Waits until the sequencer has played everything queued. The deadline only
+/// bounds a hang; a loaded machine can take seconds to schedule the thread.
+static bool wait_until_done(SoundSequencer& seq, int timeout_ms = 30000) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (!seq.is_idle()) {
+        if (std::chrono::steady_clock::now() > deadline)
             return false;
-        // If it started and stopped in a flash (e.g. empty sequence), don't wait forever
-        if (elapsed > 50)
-            break;
-    }
-
-    // Phase 2: wait for playback to end
-    while (seq.is_playing()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                           std::chrono::steady_clock::now() - start)
-                           .count();
-        if (elapsed > timeout_ms)
-            return false;
     }
-
-    // Give sequencer thread time to finish any final operations
-    std::this_thread::sleep_for(std::chrono::milliseconds(15));
     return true;
 }
 
@@ -371,7 +352,7 @@ TEST_CASE("SoundSequencer: sub-floor steps are stretched to the min_tick_ms inte
         def.steps.push_back(rest);
 
         seq.play(def);
-        REQUIRE(wait_until_done(seq, 10000));
+        REQUIRE(wait_until_done(seq));
         seq.shutdown();
 
         auto tones = backend->get_tones();
