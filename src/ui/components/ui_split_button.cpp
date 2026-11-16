@@ -242,7 +242,7 @@ void arrow_btn_clicked_cb(lv_event_t* e) {
         }
         int32_t sb_h = lv_obj_get_height(sb);
         int32_t list_h = lv_obj_get_height(list);
-        int32_t screen_h = lv_display_get_vertical_resolution(nullptr);
+        int32_t screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
         if (sb_y + sb_h + list_h > screen_h) {
             lv_obj_align_to(list, sb, LV_ALIGN_OUT_TOP_RIGHT, 0, 0);

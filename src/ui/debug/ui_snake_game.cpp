@@ -1360,8 +1360,8 @@ void create_overlay() {
     lv_obj_set_scrollable(g_game_area, false);
 
     // Calculate grid dimensions from available space
-    int32_t screen_w = lv_display_get_horizontal_resolution(nullptr);
-    int32_t screen_h = lv_display_get_vertical_resolution(nullptr);
+    int32_t screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    int32_t screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
     int32_t avail_w = screen_w - 24;
     int32_t avail_h = screen_h - 64;

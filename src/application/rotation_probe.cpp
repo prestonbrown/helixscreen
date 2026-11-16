@@ -213,8 +213,8 @@ int RotationProbe::run() {
             }
 
             spdlog::info("[RotationProbe] testing {}° ({}x{})", kRotationDegrees[i],
-                         lv_display_get_horizontal_resolution(nullptr),
-                         lv_display_get_vertical_resolution(nullptr));
+                         lv_display_get_horizontal_resolution(lv_display_get_default()),
+                         lv_display_get_vertical_resolution(lv_display_get_default()));
 
             show_screen(Phase::Scan, kRotationDegrees[i], i, kNumRotations, m_host.scan_timeout_ms);
             if (!wait_for_tap(Phase::Scan, m_host.scan_timeout_ms, kRotationDegrees[i], i,

@@ -156,7 +156,7 @@ void init_belt_tension_row_handler() {
         {"on_belt_tension_row_clicked",
          [](lv_event_t*) {
              spdlog::debug("[BeltTension] Belt Tension row clicked");
-             helix::ui::open_belt_tension_panel(lv_display_get_screen_active(nullptr));
+             helix::ui::open_belt_tension_panel(lv_screen_active());
          }},
     });
     spdlog::trace("[BeltTension] Row click callback registered");

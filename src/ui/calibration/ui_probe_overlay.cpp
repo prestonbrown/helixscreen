@@ -62,7 +62,7 @@ void init_probe_row_handler() {
              spdlog::debug("[Probe] Probe row clicked");
              auto& overlay = get_global_probe_overlay();
              overlay.set_api(get_moonraker_api());
-             overlay.show(lv_display_get_screen_active(nullptr));
+             overlay.show(lv_screen_active());
          }},
     });
     spdlog::trace("[Probe] Row click callback registered");
@@ -796,7 +796,7 @@ void ProbeOverlay::handle_zoffset_cal() {
 
     auto& overlay = get_global_zoffset_cal_panel();
     overlay.set_api(api_);
-    overlay.show(lv_display_get_screen_active(nullptr));
+    overlay.show(lv_screen_active());
 }
 
 void ProbeOverlay::handle_bed_mesh() {
@@ -806,7 +806,7 @@ void ProbeOverlay::handle_bed_mesh() {
     // Secondary entry to bed-mesh calibration (excluded, null-vtable stub on v1).
     helix::ui::show_feature_unavailable_toast();
 #else
-    helix::ui::open_bed_mesh_panel(lv_display_get_screen_active(nullptr));
+    helix::ui::open_bed_mesh_panel(lv_screen_active());
 #endif
 }
 

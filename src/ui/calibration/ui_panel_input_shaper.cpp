@@ -102,7 +102,7 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
     if (!panel.get_root()) {
         panel.set_api(get_moonraker_client(), get_moonraker_api());
     }
-    panel.show(lv_display_get_screen_active(nullptr));
+    panel.show(lv_screen_active());
 }
 
 // ============================================================================

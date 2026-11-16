@@ -645,7 +645,7 @@ void PaTuningOverlay::raise(int attempts_left) {
         }
         return;
     }
-    show(lv_display_get_screen_active(nullptr));
+    show(lv_screen_active());
 }
 
 void PaTuningOverlay::on_layer(int layer) {

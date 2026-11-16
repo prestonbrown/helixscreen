@@ -72,7 +72,7 @@ std::string with_name(const char* translated_fmt, const char* name, const char* 
 }
 
 lv_obj_t* screen() {
-    return lv_display_get_screen_active(nullptr);
+    return lv_screen_active();
 }
 
 void offer_shaper_recalibration(const chamber_air::AccessoryCopy& copy) {

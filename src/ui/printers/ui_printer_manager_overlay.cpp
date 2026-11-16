@@ -143,19 +143,17 @@ void PrinterManagerOverlay::register_callbacks() {
         {"on_change_printer_image_clicked",
          [](lv_event_t*) {
              spdlog::debug("[Printer Manager] Printer image clicked, opening image picker");
-             helix::settings::get_printer_image_overlay().show(
-                 lv_display_get_screen_active(nullptr));
+             helix::settings::get_printer_image_overlay().show(lv_screen_active());
          }},
         {"on_change_printer_model_clicked",
          [](lv_event_t*) {
              spdlog::debug("[Printer Manager] Printer model clicked, opening model picker");
-             helix::settings::get_printer_type_overlay().show(
-                 lv_display_get_screen_active(nullptr));
+             helix::settings::get_printer_type_overlay().show(lv_screen_active());
          }},
         {"pm_manage_printers_clicked",
          [](lv_event_t*) {
              spdlog::info("[Printer Manager] Manage Printers clicked, opening printer list");
-             helix::ui::get_printer_list_overlay().show(lv_display_get_screen_active(nullptr));
+             helix::ui::get_printer_list_overlay().show(lv_screen_active());
          }},
     });
 }

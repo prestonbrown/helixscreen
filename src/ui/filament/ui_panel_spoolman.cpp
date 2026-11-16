@@ -116,7 +116,7 @@ void SpoolmanPanel::register_callbacks() {
              auto& wizard = get_global_spool_wizard();
              wizard.set_completion_callback([]() { get_global_spoolman_panel().refresh_spools(); });
 
-             wizard.show(lv_display_get_screen_active(nullptr));
+             wizard.show(lv_screen_active());
          }},
         {"on_spoolman_search_changed",
          [](lv_event_t* e) {

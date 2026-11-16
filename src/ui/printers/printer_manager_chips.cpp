@@ -54,7 +54,7 @@ namespace helix {
 namespace {
 
 lv_obj_t* screen() {
-    return lv_display_get_screen_active(nullptr);
+    return lv_screen_active();
 }
 
 void open_probe() {
