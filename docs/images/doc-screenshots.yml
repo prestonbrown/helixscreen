@@ -250,9 +250,14 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/home-edit-mode.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    steps:
+      - navigate home
+      - long_press 617 63
+      - wait_idle
+      - tap 617 63
+      - wait_idle
+      - tap 617 63
   - path: docs/images/user/home-fan-carousel.png
     kind: manual
     source: captured by hand before the manifest existed
@@ -320,9 +325,14 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/home-widget-trash.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    steps:
+      - navigate home
+      - long_press 670 300
+      - wait_idle
+      - tap 670 300
+      - wait_idle
+      - tap 670 300
   - path: docs/images/user/home-widget-z-offset.png
     kind: manual
     source: captured by hand before the manifest existed
