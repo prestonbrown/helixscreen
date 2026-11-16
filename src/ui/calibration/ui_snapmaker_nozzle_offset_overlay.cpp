@@ -15,6 +15,7 @@
 #include "ui_nav.h"
 
 #include "app_globals.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -36,16 +37,16 @@ using Phase = nozzle_offset::Runner::Phase;
 
 // Static like the chute calibration's: XML binds them by name from the global
 // scope, and SubjectManager deinit on the singleton keeps observers clean.
-static lv_subject_t s_state;
-static lv_subject_t s_title;
+static helix::Subject s_state;
+static helix::Subject s_title;
 static char s_title_buf[128];
-static lv_subject_t s_progress;
+static helix::Subject s_progress;
 static char s_progress_buf[64];
-static lv_subject_t s_prompt;
+static helix::Subject s_prompt;
 static char s_prompt_buf[256];
-static lv_subject_t s_error;
+static helix::Subject s_error;
 static char s_error_buf[256];
-static lv_subject_t s_results;
+static helix::Subject s_results;
 static char s_results_buf[384];
 
 namespace {

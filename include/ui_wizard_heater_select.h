@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -115,8 +116,8 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
 
     // Subjects
     SubjectManager subjects_;
-    lv_subject_t bed_heater_selected_{};
-    lv_subject_t hotend_heater_selected_{};
+    helix::Subject bed_heater_selected_{};
+    helix::Subject hotend_heater_selected_{};
 
     // Dynamic options storage (for event callback mapping)
     std::vector<std::string> bed_heater_items_;

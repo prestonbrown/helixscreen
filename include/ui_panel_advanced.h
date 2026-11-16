@@ -10,6 +10,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix_plugin_installer.h"
 #include "macro_manager.h"
 
@@ -242,7 +243,7 @@ class AdvancedPanel : public PanelBase {
 
     /// 1 while no notifications widget holds a cell on the home screen, which
     /// leaves this row as the only way into notification history.
-    lv_subject_t show_notification_history_subject_{};
+    helix::Subject show_notification_history_subject_{};
     SubjectManager subjects_;
     void refresh_notification_history_row();
 

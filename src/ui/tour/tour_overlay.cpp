@@ -3,6 +3,7 @@
 
 #include "tour_overlay.h"
 
+#include "core/subject.h"
 #include "printer_image_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -48,11 +49,10 @@ TourOverlay* overlay_of(lv_event_t* e) {
 
 TourOverlay::TourOverlay(std::vector<TourStep> steps, AdvanceCb on_next, SkipCb on_skip)
     : steps_(std::move(steps)), on_next_cb_(std::move(on_next)), on_skip_cb_(std::move(on_skip)) {
-    lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "");
-    lv_subject_init_string(&body_subject_, body_buf_, nullptr, sizeof(body_buf_), "");
-    lv_subject_init_string(&counter_subject_, counter_buf_, nullptr, sizeof(counter_buf_), "");
-    lv_subject_init_string(&next_text_subject_, next_text_buf_, nullptr, sizeof(next_text_buf_),
-                           "");
+    title_subject_.init_string(title_buf_, nullptr, sizeof(title_buf_), "");
+    body_subject_.init_string(body_buf_, nullptr, sizeof(body_buf_), "");
+    counter_subject_.init_string(counter_buf_, nullptr, sizeof(counter_buf_), "");
+    next_text_subject_.init_string(next_text_buf_, nullptr, sizeof(next_text_buf_), "");
     subjects_.publish("tour_title", &title_subject_);
     subjects_.publish("tour_body", &body_subject_);
     subjects_.publish("tour_counter", &counter_subject_);

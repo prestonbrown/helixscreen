@@ -6,6 +6,7 @@
 #include "console_filter_engine.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "in_flight_guard.h"
 #include "json_fwd.h"
 #include "lvgl.h"
@@ -219,9 +220,9 @@ class ConsolePanel : public OverlayBase {
     // Subjects
     SubjectManager subjects_;
     char status_buf_[128] = {};
-    lv_subject_t status_subject_{};
-    lv_subject_t status_visible_subject_{}; ///< 1 = status text visible, 0 = hidden
-    lv_subject_t has_entries_subject_{};    ///< 1 = has console entries, 0 = empty
+    helix::Subject status_subject_{};
+    helix::Subject status_visible_subject_{}; ///< 1 = status text visible, 0 = hidden
+    helix::Subject has_entries_subject_{};    ///< 1 = has console entries, 0 = empty
 };
 
 /**

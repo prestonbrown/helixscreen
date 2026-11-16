@@ -17,6 +17,7 @@
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "filament_database.h"
@@ -46,7 +47,7 @@
 // ============================================================================
 
 // State subject (0=IDLE, 1=CALIBRATING, 2=SAVING, 3=COMPLETE, 4=ERROR, 5=MIGRATING)
-static lv_subject_t s_pid_cal_state;
+static helix::Subject s_pid_cal_state;
 static bool s_callbacks_registered = false;
 
 // "Taking longer than expected" backstop thresholds (#988). Generous on purpose: a normal

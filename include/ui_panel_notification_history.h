@@ -7,6 +7,7 @@
 #include "ui_panel_base.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "subject_managed_panel.h"
 
@@ -117,10 +118,10 @@ class NotificationHistoryPanel : public PanelBase {
     SubjectManager subjects_;
 
     /// Has entries subject (1 = has entries, 0 = empty)
-    lv_subject_t has_entries_subject_{};
+    helix::Subject has_entries_subject_{};
 
     /// Rows the list's <repeat> builds, and each row's fields by index.
-    lv_subject_t row_count_subject_{};
+    helix::Subject row_count_subject_{};
     helix::xml::IndexedSubjectPool severity_pool_{"notification_row_severity",
                                                   helix::xml::IndexedSubjectPool::Type::Int};
     helix::xml::IndexedSubjectPool title_pool_{"notification_row_title",

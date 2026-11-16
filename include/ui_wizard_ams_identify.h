@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -107,10 +108,11 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     SubjectManager subjects_;
 
     // Subjects for reactive XML binding
-    lv_subject_t wizard_ams_type_{};
-    lv_subject_t wizard_ams_details_{};
-    lv_subject_t wizard_ams_logo_color_{}; ///< 1 for full-color logo art, 0 for a tinted mono mark
-    lv_subject_t wizard_ams_logo_visible_{}; ///< 1 when the system has logo art
+    helix::Subject wizard_ams_type_{};
+    helix::Subject wizard_ams_details_{};
+    helix::Subject
+        wizard_ams_logo_color_{}; ///< 1 for full-color logo art, 0 for a tinted mono mark
+    helix::Subject wizard_ams_logo_visible_{}; ///< 1 when the system has logo art
     static char ams_type_buffer_[64];
     static char ams_details_buffer_[128];
     bool subjects_initialized_{false};

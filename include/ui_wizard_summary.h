@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
@@ -127,26 +128,26 @@ class WizardSummaryStep : public helix::wizard::Step {
     lv_obj_t* screen_root_ = nullptr;
 
     // Subjects (14 total)
-    lv_subject_t printer_name_{};
-    lv_subject_t printer_type_{};
-    lv_subject_t wifi_ssid_{};
-    lv_subject_t moonraker_connection_{};
-    lv_subject_t bed_{};
-    lv_subject_t hotend_{};
-    lv_subject_t part_fan_{};
-    lv_subject_t part_fan_visible_{};
-    lv_subject_t hotend_fan_{};
-    lv_subject_t hotend_fan_visible_{};
-    lv_subject_t led_strip_{};
-    lv_subject_t led_strip_visible_{};
-    lv_subject_t filament_sensor_{};
-    lv_subject_t filament_sensor_visible_{};
-    lv_subject_t ams_type_{};
-    lv_subject_t ams_visible_{};
-    lv_subject_t input_shaper_{};
-    lv_subject_t input_shaper_visible_{};
+    helix::Subject printer_name_{};
+    helix::Subject printer_type_{};
+    helix::Subject wifi_ssid_{};
+    helix::Subject moonraker_connection_{};
+    helix::Subject bed_{};
+    helix::Subject hotend_{};
+    helix::Subject part_fan_{};
+    helix::Subject part_fan_visible_{};
+    helix::Subject hotend_fan_{};
+    helix::Subject hotend_fan_visible_{};
+    helix::Subject led_strip_{};
+    helix::Subject led_strip_visible_{};
+    helix::Subject filament_sensor_{};
+    helix::Subject filament_sensor_visible_{};
+    helix::Subject ams_type_{};
+    helix::Subject ams_visible_{};
+    helix::Subject input_shaper_{};
+    helix::Subject input_shaper_visible_{};
     /// 1 on the first printer's wizard: the telemetry opt-in shows
-    lv_subject_t telemetry_visible_{};
+    helix::Subject telemetry_visible_{};
 
     // String buffers (must be persistent for subject lifetimes)
     char printer_name_buffer_[128];

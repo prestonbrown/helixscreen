@@ -12,6 +12,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -176,14 +177,14 @@ class ThemeEditorOverlay : public OverlayBase {
 
     // theme_editor_overlay.xml and theme_save_as_modal.xml bind these
     SubjectManager subjects_;
-    lv_subject_t title_subject_{};       ///< header title, "(Modified)" while dirty
-    lv_subject_t dirty_subject_{};       ///< 1 while there are unsaved edits
-    lv_subject_t radius_name_subject_{}; ///< border radius size, by name
-    lv_subject_t border_width_subject_{};
-    lv_subject_t border_opacity_subject_{};
-    lv_subject_t shadow_subject_{};
-    lv_subject_t save_as_status_subject_{};       ///< Save As dialog's error line
-    lv_subject_t save_as_status_shown_subject_{}; ///< 1 while that line shows
+    helix::Subject title_subject_{};       ///< header title, "(Modified)" while dirty
+    helix::Subject dirty_subject_{};       ///< 1 while there are unsaved edits
+    helix::Subject radius_name_subject_{}; ///< border radius size, by name
+    helix::Subject border_width_subject_{};
+    helix::Subject border_opacity_subject_{};
+    helix::Subject shadow_subject_{};
+    helix::Subject save_as_status_subject_{};       ///< Save As dialog's error line
+    helix::Subject save_as_status_shown_subject_{}; ///< 1 while that line shows
     char title_buf_[96]{};
     char radius_name_buf_[32]{};
     char save_as_status_buf_[96]{};

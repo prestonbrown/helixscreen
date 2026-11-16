@@ -4,6 +4,7 @@
 
 #include "callout_layout.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "printer_image_regions.h"
 
@@ -81,15 +82,15 @@ class PrinterImageTaggerOverlay : public OverlayBase {
     ImageTagSession session_;
 
     SubjectManager subjects_;
-    lv_subject_t prompt_subject_{};
+    helix::Subject prompt_subject_{};
     char prompt_buf_[160] = {};
-    lv_subject_t image_src_subject_{};
+    helix::Subject image_src_subject_{};
     char image_src_buf_[512] = {};
-    lv_subject_t reviewing_subject_{};
-    lv_subject_t can_skip_subject_{};
-    lv_subject_t can_undo_subject_{};
+    helix::Subject reviewing_subject_{};
+    helix::Subject can_skip_subject_{};
+    helix::Subject can_undo_subject_{};
     /// One per review chip, indexed by CalloutKind: 1 while the layout places it.
-    lv_subject_t chip_shown_[6] = {};
+    helix::Subject chip_shown_[6] = {};
 };
 
 inline PrinterImageTaggerOverlay& get_printer_image_tagger_overlay() {

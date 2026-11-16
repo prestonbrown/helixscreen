@@ -19,6 +19,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "qr_decoder.h"
 #include "snapshot_qr_scanner.h"
@@ -143,8 +144,8 @@ class QrScannerOverlay : public OverlayBase {
 
     // LVGL subjects for XML binding
     SubjectManager subjects_;
-    lv_subject_t status_subject_{};
-    lv_subject_t success_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject success_subject_{};
     char status_buf_[128]{};
 
     // Cached widget pointers

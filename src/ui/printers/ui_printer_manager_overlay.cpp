@@ -334,7 +334,7 @@ void PrinterManagerOverlay::refresh_capability_chips() {
         }
     }
 
-    auto set_if_changed = [](lv_subject_t& subject, bool value) {
+    auto set_if_changed = [](helix::Subject& subject, bool value) {
         if (lv_subject_get_int(&subject) != (value ? 1 : 0)) {
             lv_subject_set_int(&subject, value ? 1 : 0);
         }

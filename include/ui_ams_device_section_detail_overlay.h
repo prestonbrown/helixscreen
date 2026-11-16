@@ -20,6 +20,7 @@
 #include "ams_types.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 
 #include <lvgl/lvgl.h>
@@ -228,9 +229,9 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     std::string keypad_action_id_;
     std::string keypad_title_;
 
-    lv_subject_t action_disabled_subject_{};
+    helix::Subject action_disabled_subject_{};
     /// Header title: the section's own name, set before each show.
-    lv_subject_t title_subject_{};
+    helix::Subject title_subject_{};
     char title_buf_[96] = {};
     /// Declared after the subject it deinits, so it is destroyed first.
     SubjectManager subjects_;

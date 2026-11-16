@@ -7,6 +7,7 @@
 // theme_manager.h. Nothing here is public API: callers outside those files go
 // through include/theme_manager.h.
 
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "theme_loader.h"
@@ -136,33 +137,32 @@ struct ThemeSubjects {
     static constexpr size_t kSwatchBufSize = 32;
 
     /// Monotonic generation counter; observers re-read colours when it moves.
-    lv_subject_t changed{};
+    helix::Subject changed{};
     int32_t generation = 0;
-    bool changed_ready = false;
 
     /// Cramped-axis tier (0=MICRO..6=XXLARGE) for reactive responsive visibility.
-    lv_subject_t breakpoint{};
-    bool breakpoint_ready = false;
+    helix::Subject breakpoint{};
 
     /// Vertical-axis tier, for height-aware layout that ui_breakpoint cannot
     /// express because its tier follows the cramped axis.
-    lv_subject_t breakpoint_v{};
-    bool breakpoint_v_ready = false;
+    helix::Subject breakpoint_v{};
 
     /// 1 for any portrait class, 0 otherwise. A tier cannot answer "is this
     /// portrait": 480x800 and 800x480 can land on the same one.
-    lv_subject_t is_portrait{};
-    bool is_portrait_ready = false;
+    helix::Subject is_portrait{};
 
     /// 1 for the ultrawide class (wider than 2.5:1), 0 otherwise. Its tier
     /// follows the short axis, so ui_breakpoint calls a 1920x440 panel small.
-    lv_subject_t is_ultrawide{};
-    bool is_ultrawide_ready = false;
+    helix::Subject is_ultrawide{};
 
     /// Theme-editor swatch descriptions, bound by name from XML.
-    lv_subject_t swatch_desc[kSwatchCount]{};
+    helix::Subject swatch_desc[kSwatchCount]{};
     char swatch_bufs[kSwatchCount][kSwatchBufSize]{};
-    bool swatch_ready = false;
+
+    /// The swatches are initialized and reset together, so the first one speaks for all.
+    [[nodiscard]] bool swatches_live() const noexcept {
+        return swatch_desc[0].is_live();
+    }
 
     void deinit();
 };

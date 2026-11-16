@@ -25,6 +25,7 @@
 
 #include "calibration_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -292,13 +293,13 @@ class MachineLimitsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Display subjects for XML binding
-    lv_subject_t max_velocity_display_subject_{};
-    lv_subject_t max_accel_display_subject_{};
-    lv_subject_t accel_to_decel_display_subject_{};
-    lv_subject_t square_corner_velocity_display_subject_{};
-    lv_subject_t extrude_speed_display_subject_{};
-    lv_subject_t max_z_velocity_display_subject_{}; ///< read-only, reported by the printer
-    lv_subject_t max_z_accel_display_subject_{};    ///< read-only, reported by the printer
+    helix::Subject max_velocity_display_subject_{};
+    helix::Subject max_accel_display_subject_{};
+    helix::Subject accel_to_decel_display_subject_{};
+    helix::Subject square_corner_velocity_display_subject_{};
+    helix::Subject extrude_speed_display_subject_{};
+    helix::Subject max_z_velocity_display_subject_{}; ///< read-only, reported by the printer
+    helix::Subject max_z_accel_display_subject_{};    ///< read-only, reported by the printer
 
     // String buffers for subject values
     char velocity_buf_[16]{};

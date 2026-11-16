@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "single_flight_walk.h"
 
@@ -93,17 +94,17 @@ class PrinterImageOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Subjects for declarative USB section bindings
-    lv_subject_t usb_visible_subject_{}; // int: 0=hidden, 1=visible
-    lv_subject_t usb_status_subject_{};  // string: status text
+    helix::Subject usb_visible_subject_{}; // int: 0=hidden, 1=visible
+    helix::Subject usb_status_subject_{};  // string: status text
     char usb_status_buf_[256] = {};
 
     // Preview subjects for right-side panel
-    lv_subject_t preview_src_subject_{};  // pointer: image path for bind_src
-    char preview_src_buf_[512] = {};      // buffer for preview path string
-    lv_subject_t preview_name_subject_{}; // string: display name
+    helix::Subject preview_src_subject_{};  // pointer: image path for bind_src
+    char preview_src_buf_[512] = {};        // buffer for preview path string
+    helix::Subject preview_name_subject_{}; // string: display name
     char preview_name_buf_[128] = {};
-    lv_subject_t has_preview_subject_{}; // int: 0=no preview, 1=has preview
-    lv_subject_t tag_state_subject_{};   // int: 0=untaggable, 1=untagged by user, 2=user tags
+    helix::Subject has_preview_subject_{}; // int: 0=no preview, 1=has preview
+    helix::Subject tag_state_subject_{};   // int: 0=untaggable, 1=untagged by user, 2=user tags
 };
 
 inline PrinterImageOverlay& get_printer_image_overlay() {

@@ -4,6 +4,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -143,10 +144,10 @@ class NotificationManager {
     SubjectManager subjects_;
 
     // Notification badge: count (0 = hidden), text for display, severity for badge color
-    lv_subject_t notification_count_subject_{};
-    lv_subject_t notification_count_text_subject_{};
-    lv_subject_t notification_severity_subject_{}; // 0=info, 1=warning, 2=error
-    lv_subject_t notification_history_version_subject_{};
+    helix::Subject notification_count_subject_{};
+    helix::Subject notification_count_text_subject_{};
+    helix::Subject notification_severity_subject_{}; // 0=info, 1=warning, 2=error
+    helix::Subject notification_history_version_subject_{};
 
     // Notification count text buffer (for string subject)
     char notification_count_text_buf_[8] = "0";

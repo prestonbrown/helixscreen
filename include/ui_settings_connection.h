@@ -16,6 +16,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -52,9 +53,9 @@ class ConnectionSettingsOverlay : public OverlayBase {
     void refresh_printer_host();
 
     SubjectManager subjects_;
-    lv_subject_t printer_host_value_subject_{};
+    helix::Subject printer_host_value_subject_{};
     char printer_host_value_buf_[96] = {};
-    lv_subject_t printer_api_key_value_subject_{};
+    helix::Subject printer_api_key_value_subject_{};
     char printer_api_key_value_buf_[48] = {};
 };
 

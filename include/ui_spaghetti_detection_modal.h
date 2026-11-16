@@ -7,6 +7,7 @@
 
 #include "camera_frame.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "detection_manager.h"
 #include "subject_managed_panel.h"
 
@@ -140,9 +141,9 @@ class SpaghettiDetectionModal : public Modal {
     // Shared across instances because the XML registry keeps the first
     // registration for a name; a per-instance subject would dangle once its
     // modal is freed. Torn down through StaticSubjectRegistry.
-    static lv_subject_t tune_available_subject_;
+    static helix::Subject tune_available_subject_;
     static char message_buf_[256];
-    static lv_subject_t message_subject_;
+    static helix::Subject message_subject_;
     static SubjectManager subjects_;
     static bool subjects_initialized_;
 

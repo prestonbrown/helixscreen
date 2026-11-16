@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -97,7 +98,7 @@ class PrinterStatusIcon {
     SubjectManager subjects_;
 
     // Printer icon state: 0=ready(green), 1=warning(orange), 2=error(red), 3=disconnected(gray)
-    lv_subject_t printer_icon_state_subject_{};
+    helix::Subject printer_icon_state_subject_{};
 
     // RAII observer guards for automatic cleanup
     ObserverGuard connection_observer_;

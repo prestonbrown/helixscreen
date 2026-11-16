@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 #include "tool_state.h"
 
@@ -50,10 +51,10 @@ class HeadPicker {
   private:
     int selected_ = 0;
 
-    lv_subject_t multi_tool_{};
-    lv_subject_t tool_count_{};
-    lv_subject_t tool_selected_[kMaxHeads]{};
-    lv_subject_t tool_label_[kMaxHeads]{};
+    helix::Subject multi_tool_{};
+    helix::Subject tool_count_{};
+    helix::Subject tool_selected_[kMaxHeads]{};
+    helix::Subject tool_label_[kMaxHeads]{};
     char tool_label_buf_[kMaxHeads][8] = {};
 };
 

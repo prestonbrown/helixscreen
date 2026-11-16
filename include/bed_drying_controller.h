@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "bed_drying.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "subject_managed_panel.h"
@@ -206,13 +207,13 @@ class BedDryingController {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t bed_drying_state_{};
-    lv_subject_t bed_drying_text_{};
-    lv_subject_t bed_drying_remaining_min_{};
-    lv_subject_t bed_drying_progress_pct_{};
-    lv_subject_t bed_drying_ack_{};
-    lv_subject_t bed_drying_chamber_assist_{};
-    lv_subject_t bed_drying_chamber_text_{};
+    helix::Subject bed_drying_state_{};
+    helix::Subject bed_drying_text_{};
+    helix::Subject bed_drying_remaining_min_{};
+    helix::Subject bed_drying_progress_pct_{};
+    helix::Subject bed_drying_ack_{};
+    helix::Subject bed_drying_chamber_assist_{};
+    helix::Subject bed_drying_chamber_text_{};
     char text_buf_[96]{};
     char chamber_text_buf_[96]{};
 

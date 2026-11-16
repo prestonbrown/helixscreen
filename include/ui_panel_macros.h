@@ -5,6 +5,7 @@
 
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lvgl.h"
 #include "macro_edit_logic.h"
@@ -191,11 +192,11 @@ class MacrosPanel : public OverlayBase {
     // === Scalar subjects (registered in init_subjects; NOT reclaimed) ===
     SubjectManager subjects_;
     char status_buf_[64] = {};
-    lv_subject_t status_subject_{};          ///< "macros_status" (registered; no XML binds it)
-    lv_subject_t macro_row_count_{};         ///< "macro_row_count" (macros listed)
-    lv_subject_t macro_slot_count_{};        ///< "macro_slot_count" (drives the repeat)
-    lv_subject_t macro_edit_mode_{};         ///< "macro_edit_mode" (0/1)
-    lv_subject_t macros_edit_save_hidden_{}; ///< "macros_edit_save_hidden" (1 = Save hidden)
+    helix::Subject status_subject_{};          ///< "macros_status" (registered; no XML binds it)
+    helix::Subject macro_row_count_{};         ///< "macro_row_count" (macros listed)
+    helix::Subject macro_slot_count_{};        ///< "macro_slot_count" (drives the repeat)
+    helix::Subject macro_edit_mode_{};         ///< "macro_edit_mode" (0/1)
+    helix::Subject macros_edit_save_hidden_{}; ///< "macros_edit_save_hidden" (1 = Save hidden)
 
     /// Re-runs rebuild_rows() once macros become available (late discovery /
     /// reconnect / printer switch). nav_buttons_enabled flips to 1 only after

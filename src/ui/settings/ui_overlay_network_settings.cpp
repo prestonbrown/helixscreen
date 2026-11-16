@@ -17,6 +17,7 @@
 #include "core/data_root_resolver.h"
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "network_tester.h"
@@ -60,23 +61,23 @@ struct NetworkSettingsItemData {
     char band_buffer[16];
     /// String subject bound to ssid_label. An SSID may begin with '#', which a
     /// component prop would resolve as a constant, so it rides a subject.
-    lv_subject_t ssid_text{};
-    lv_subject_t band_text{};    ///< String subject bound to band_label's text
-    lv_subject_t band_visible{}; ///< 1 when the badge should be shown, else 0
+    helix::Subject ssid_text{};
+    helix::Subject band_text{};    ///< String subject bound to band_label's text
+    helix::Subject band_visible{}; ///< 1 when the badge should be shown, else 0
 
     NetworkSettingsItemData(const std::string& ssid_, bool secured, const std::string& band)
         : ssid(ssid_), is_secured(secured) {
         std::snprintf(ssid_buffer, sizeof(ssid_buffer), "%s", ssid_.c_str());
-        lv_subject_init_string(&ssid_text, ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
+        ssid_text.init_string(ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
         std::snprintf(band_buffer, sizeof(band_buffer), "%s", band.c_str());
-        lv_subject_init_string(&band_text, band_buffer, nullptr, sizeof(band_buffer), band_buffer);
-        lv_subject_init_int(&band_visible, band.empty() ? 0 : 1);
+        band_text.init_string(band_buffer, nullptr, sizeof(band_buffer), band_buffer);
+        band_visible.init_int(band.empty() ? 0 : 1);
     }
 
     ~NetworkSettingsItemData() {
-        lv_subject_deinit(&ssid_text);
-        lv_subject_deinit(&band_text);
-        lv_subject_deinit(&band_visible);
+        ssid_text.reset();
+        band_text.reset();
+        band_visible.reset();
     }
 };
 
@@ -474,7 +475,7 @@ void NetworkSettingsOverlay::refresh_transport_status() {
 
 void NetworkSettingsOverlay::refresh_ipv4_rows() {
     auto token = lifetime_.token();
-    const auto summary_into = [](lv_subject_t& subject) {
+    const auto summary_into = [](helix::Subject& subject) {
         return [&subject](bool ok, const helix::net::Ipv4Config& config) {
             lv_subject_set_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
                                                : lv_tr("Unknown"));

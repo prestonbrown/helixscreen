@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "bed_mesh_gradient.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -41,7 +42,7 @@ using namespace helix;
 // ============================================================================
 
 // State subject (0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR)
-static lv_subject_t s_screws_tilt_state;
+static helix::Subject s_screws_tilt_state;
 
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();

@@ -75,7 +75,7 @@ const char* ipv4_problem_text(helix::net::Ipv4Problem problem, helix::net::Ipv4F
     return "";
 }
 
-void copy_to(lv_subject_t& subject, const std::string& text) {
+void copy_to(helix::Subject& subject, const std::string& text) {
     lv_subject_set_string(&subject, text.c_str());
 }
 

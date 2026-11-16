@@ -4,6 +4,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -62,13 +63,13 @@ class MemoryStatsOverlay {
     lv_timer_t* update_timer_ = nullptr;
 
     SubjectManager subjects_;
-    lv_subject_t rss_text_{};
-    lv_subject_t hwm_text_{};
-    lv_subject_t private_text_{};
-    lv_subject_t delta_text_{};
-    lv_subject_t pressure_text_{};
-    lv_subject_t delta_tone_{};
-    lv_subject_t pressure_tone_{};
+    helix::Subject rss_text_{};
+    helix::Subject hwm_text_{};
+    helix::Subject private_text_{};
+    helix::Subject delta_text_{};
+    helix::Subject pressure_text_{};
+    helix::Subject delta_tone_{};
+    helix::Subject pressure_tone_{};
     char rss_buf_[16] = {};
     char hwm_buf_[16] = {};
     char private_buf_[16] = {};

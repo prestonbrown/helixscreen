@@ -181,7 +181,7 @@ void MemoryStatsOverlay::update() {
     char buf[16];
 
     // Format as MB with one decimal place
-    auto set_mb = [&buf](lv_subject_t& subject, const char* sign, int64_t kb) {
+    auto set_mb = [&buf](helix::Subject& subject, const char* sign, int64_t kb) {
         int mb = static_cast<int>(kb / 1024);
         int decimal = static_cast<int>((kb % 1024) * 10 / 1024);
         snprintf(buf, sizeof(buf), "%s%d.%d", sign, mb, decimal);

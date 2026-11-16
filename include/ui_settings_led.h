@@ -20,6 +20,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "led/led_auto_state.h"
 #include "lvgl/lvgl.h"
@@ -115,13 +116,13 @@ class LedSettingsOverlay : public OverlayBase {
 
     // Auto-state editor state
     SubjectManager subjects_;
-    lv_subject_t auto_state_enabled_subject_{};
-    lv_subject_t led_on_at_start_subject_{};
-    lv_subject_t startup_brightness_subject_{}; ///< percent, the slider row's readout
-    lv_subject_t print_macros_drive_leds_subject_{};
+    helix::Subject auto_state_enabled_subject_{};
+    helix::Subject led_on_at_start_subject_{};
+    helix::Subject startup_brightness_subject_{}; ///< percent, the slider row's readout
+    helix::Subject print_macros_drive_leds_subject_{};
     /// The colour presets every auto-state row's swatches show
     /// (led_auto_color_swatches.xml), and which one each row has picked.
-    lv_subject_t auto_preset_count_{};
+    helix::Subject auto_preset_count_{};
     helix::xml::IndexedSubjectPool auto_preset_color_pool_{
         "led_auto_preset_color", helix::xml::IndexedSubjectPool::Type::Color};
     /// One per kStateRows entry: the preset index ringed, or -1.

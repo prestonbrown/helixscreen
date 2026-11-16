@@ -12,6 +12,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"
@@ -801,7 +802,7 @@ class NavigationManager {
     static void nav_button_clicked_cb(lv_event_t* event);
 
     // Active panel tracking
-    lv_subject_t active_panel_subject_{};
+    helix::Subject active_panel_subject_{};
     helix::PanelId active_panel_ = helix::PanelId::Home;
     bool suspended_ = false; // True when screensaver has suspended lifecycle
     bool layout_rebuild_pending_ = false;
@@ -906,7 +907,7 @@ class NavigationManager {
     bool subjects_initialized_ = false;
 
     // Overlay backdrop visibility subject (for modal dimming)
-    lv_subject_t overlay_backdrop_visible_subject_{};
+    helix::Subject overlay_backdrop_visible_subject_{};
 
     // Shutdown flag — overlays should skip destructive actions (e.g. ABORT)
     bool shutting_down_ = false;

@@ -25,6 +25,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -99,7 +100,7 @@ class FanSettingsOverlay : public OverlayBase {
     std::string pending_rename_object_;
     SubjectManager subjects_; // declared ahead: tears down after the subject it owns
     char rename_old_name_buf_[64] = {};
-    lv_subject_t fan_rename_old_name_{}; ///< Subject for bind_text in modal
+    helix::Subject fan_rename_old_name_{}; ///< Subject for bind_text in modal
     bool rename_subject_initialized_ = false;
 };
 

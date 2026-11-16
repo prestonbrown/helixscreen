@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "display_settings_manager.h" // helix::TimeFormat
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -62,7 +63,7 @@ class WizardAppearanceStep : public Step {
   private:
     lv_obj_t* root_ = nullptr;
     SubjectManager subjects_;
-    lv_subject_t tz_attention_{};
+    helix::Subject tz_attention_{};
     bool temp_unit_follows_region_ = false;
     bool date_format_follows_region_ = false;
 };

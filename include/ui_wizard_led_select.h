@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -102,7 +103,7 @@ class WizardLedSelectStep : public helix::wizard::Step {
 
     // Subjects
     SubjectManager subjects_;
-    lv_subject_t led_strip_selected_{};
+    helix::Subject led_strip_selected_{};
 
     // Dynamic options storage
     std::vector<std::string> led_strip_items_;

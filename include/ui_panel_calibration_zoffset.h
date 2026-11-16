@@ -6,6 +6,7 @@
 #include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
@@ -228,14 +229,14 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     /// The readouts' texts: zoffset_saved_text, zoffset_z_text, zoffset_final_text and
     /// zoffset_error_text. A no-op until init_subjects().
-    void set_readout(lv_subject_t& subject, const char* text);
+    void set_readout(helix::Subject& subject, const char* text);
     /// The result texts a freshly built overlay shows
     void reset_result_texts();
 
-    lv_subject_t saved_text_subject_{};
-    lv_subject_t z_text_subject_{};
-    lv_subject_t final_text_subject_{};
-    lv_subject_t error_text_subject_{};
+    helix::Subject saved_text_subject_{};
+    helix::Subject z_text_subject_{};
+    helix::Subject final_text_subject_{};
+    helix::Subject error_text_subject_{};
     char saved_text_buf_[32] = {0};
     char z_text_buf_[32] = {0};
     char final_text_buf_[96] = {0};
