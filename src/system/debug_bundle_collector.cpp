@@ -591,6 +591,7 @@ PrinterSnapshot DebugBundleCollector::snapshot_printer_state() {
             snap.connection_state = lv_subject_get_int(conn_subj);
         if (auto* klippy_subj = ps.network_state().get_klippy_state_subject())
             snap.klippy_state = lv_subject_get_int(klippy_subj);
+        snap.klippy_state_reported = ps.network_state().klippy_state_reported();
 
         // Discovery is read here with the subjects, on the main thread, so the
         // worker never races a re-discovery reassigning it.
@@ -660,7 +661,9 @@ json DebugBundleCollector::collect_printer_info(const PrinterSnapshot& snap) {
 
         // Klippy state
         const char* klippy_names[] = {"ready", "startup", "shutdown", "error"};
-        if (snap.klippy_state >= 0 && snap.klippy_state < 4) {
+        if (!snap.klippy_state_reported) {
+            printer["klippy_state"] = "unreported";
+        } else if (snap.klippy_state >= 0 && snap.klippy_state < 4) {
             printer["klippy_state"] = klippy_names[snap.klippy_state];
         }
     } catch (const std::exception& e) {

@@ -930,6 +930,19 @@ void EmergencyStopOverlay::restart_klipper() {
             // Toast will update when klippy_state changes to READY
         },
         [](const MoonrakerError& err) {
+            if (err.is_klippy_disconnect()) {
+                // printer.restart travels through Klippy, so it cannot start a
+                // Klippy host that is not running. The recovery chain can: its
+                // platform script restarts the Klipper service itself.
+                spdlog::warn("[KlipperRecovery] Klippy host not connected ({}); escalating to "
+                             "the recovery chain",
+                             err.message);
+                helix::ui::run_on_main("restart_klipper_escalate", []() {
+                    EmergencyStopOverlay::instance().end_restart_window();
+                    EmergencyStopOverlay::instance().firmware_restart();
+                });
+                return;
+            }
             spdlog::error("[KlipperRecovery] Klipper restart failed: {}", err.message);
             if (!restart_may_be_running(err)) {
                 EmergencyStopOverlay::instance().end_restart_window();
