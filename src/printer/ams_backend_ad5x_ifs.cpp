@@ -2454,8 +2454,7 @@ AmsError AmsBackendAd5xIfs::reset() {
         std::lock_guard<std::mutex> lock(mutex_);
         if (system_info_.action == AmsAction::ERROR) {
             spdlog::info("{} Reset: clearing ERROR state", backend_log_tag());
-            system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
+            retire_fault_locked("reset()");
         }
         clear_runout_locked("reset()");
     }
@@ -2530,6 +2529,15 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
     }
 }
 
+void AmsBackendAd5xIfs::retire_fault_locked(const char* why) {
+    system_info_.action = AmsAction::IDLE;
+    clear_runout_locked(why);
+    if (phase_tracker_.active) {
+        end_phase_tracking_locked();
+    }
+    set_operation_detail_locked("");
+}
+
 AmsError AmsBackendAd5xIfs::clear_fault(int /*slot_index*/) {
     auto err = check_preconditions();
     if (!err.success())
@@ -2545,12 +2553,7 @@ AmsError AmsBackendAd5xIfs::clear_fault(int /*slot_index*/) {
         if (module_driver_fault_) {
             return AmsErrorHelper::not_supported("Clearing a module driver fault");
         }
-        system_info_.action = AmsAction::IDLE;
-        clear_runout_locked("clear_fault()");
-        if (phase_tracker_.active) {
-            end_phase_tracking_locked();
-        }
-        set_operation_detail_locked("");
+        retire_fault_locked("clear_fault()");
     }
     emit_event(EVENT_STATE_CHANGED);
     // The module firmware has no operation lock and no IFS_UNLOCK.
@@ -2614,8 +2617,12 @@ AmsBackendAd5xIfs::runout_recovery_actions(const RunoutRecoveryInputs& in) {
     actions.push_back(
         {lv_tr("Purge"), in.purge_gcode, "ifs::purge", "", /*needs_hot_nozzle=*/true});
 
-    // Last resort: release the firmware's clamps if the IFS wedged. State only.
-    actions.push_back({lv_tr("Recover"), in.unlock_gcode, "ifs::unlock", "danger"});
+    // Last resort: release the IFS if it wedged. The stock IFS_UNLOCK only
+    // unclamps, moves no filament and is what a plain dismiss sends; the
+    // module's IFS_RESET_DRIVER resets its stepper driver, so it reads as danger.
+    const bool resets_driver = in.unlock_gcode == "IFS_RESET_DRIVER";
+    actions.push_back(
+        {lv_tr("Recover"), in.unlock_gcode, "ifs::unlock", resets_driver ? "danger" : ""});
     return actions;
 }
 

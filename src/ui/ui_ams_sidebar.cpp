@@ -1853,11 +1853,16 @@ void AmsOperationSidebar::handle_reset() {
     }
 
     // Clear any latched fault before re-prepping. AFC_RESET alone leaves
-    // printer.AFC.message populated, so the sidebar kept showing an error the
-    // user had just asked to reset away.
-    AmsError cleared = backend->clear_fault(backend->get_system_info().current_slot);
-    if (!cleared.success()) {
-        spdlog::warn("[AmsSidebar] Fault clear during reset failed: {}", cleared.user_msg);
+    // printer.AFC.message populated, so the sidebar would keep showing an error
+    // the user had just asked to reset away.
+    if (!backend->reset_retires_fault()) {
+        AmsError cleared = backend->clear_fault(backend->get_system_info().current_slot);
+        if (cleared.result == AmsResult::NOT_SUPPORTED) {
+            // A fault the firmware itself reports; reset() below is what addresses it.
+            spdlog::debug("[AmsSidebar] Fault clear before reset: {}", cleared.technical_msg);
+        } else if (!cleared.success()) {
+            spdlog::warn("[AmsSidebar] Fault clear during reset failed: {}", cleared.user_msg);
+        }
     }
 
     AmsError error = backend->reset();
