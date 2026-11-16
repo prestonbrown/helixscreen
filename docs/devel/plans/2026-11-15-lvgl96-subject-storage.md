@@ -60,7 +60,7 @@ The owners and the machinery around them:
 - **`StaticSubjectRegistry`** (`include/core/static_subject_registry.h`) runs every owner's
   `deinit_subjects()`: `Scope::PrinterSwitch` on a printer switch (LVGL stays up and the
   owners **re-init the same storage**), `Scope::ProcessExit` before `lv_deinit()`.
-- **`ObserverGuard`** (`include/core/observer_guard.h`, `src/core/observer_guard.cpp#ObserverGuard::reset`)
+- **`ObserverGuard`** (`include/core/observer_guard.h`, `src/core/observer_guard.cpp#reset`)
   skips `lv_observer_delete()` when the owner's `SubjectLifetime` token reads dead, or when an
   invalidation epoch says a registry teardown may have freed the observer. Teardown-exempt
   subjects are kept in a set keyed by `lv_subject_t*`.
@@ -182,8 +182,8 @@ the main thread.
  Between `lv_deinit()` and process exit, `lv_deinit()` has
 freed every node and each `Subject` destructor skips. This holds because no first-party
 code calls `lv_init()` again after `lv_deinit()`: the three `lv_deinit()` calls in
-`src/application/display_manager.cpp#DisplayManager::init` are failure exits and
-`#DisplayManager::shutdown` is process exit, and no test calls `lv_deinit()`. Phase 1
+`src/application/display_manager.cpp#init` are failure exits and
+`src/application/display_manager.cpp#shutdown` is process exit, and no test calls `lv_deinit()`. Phase 1
 adds a test that pins the skip; a future in-process re-init would need a generation
 counter, which this plan deliberately does not add.
 
@@ -495,7 +495,7 @@ two gates do not overlap.
 Subjects are main-thread only (`.claude/rules/threading.md` rule 1), and nothing here
 changes who touches them. `lv_subject_create()` has no thread assert, so `Subject::init_*`
 asserts `helix::ui::is_main_thread()` once the main thread is known
-(`include/core/update_queue.h#is_main_thread`). Validity of a captured `lv_subject_t*` is
+(`include/core/update_queue.h#UpdateQueue/is_main_thread`). Validity of a captured `lv_subject_t*` is
 unchanged: before, the storage lived as long as the owner; now the allocation does,
 because `reset()` never frees. The one new window is after `lv_deinit()`, where a pointer
 into a freed node replaces a pointer into dead but mapped storage; § 5.3's ASan app run is
