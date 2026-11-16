@@ -351,7 +351,8 @@ static int32_t max_lines_attr(const char** attrs) {
  * (re-measured on every font, spacing or text change; padding sits outside
  * it), which is what DOTS cuts against. The cap applies in every long mode, so
  * only a DOTS label gets it here. An explicit height or a max_height means the
- * owner sizes the label, so either leaves it alone.
+ * owner sizes the label, so either leaves it alone. Code that later switches a
+ * capped label out of DOTS clears the cap with lv_label_set_max_lines(label, 0).
  */
 static void cap_lines_if_dotted(lv_obj_t* label, int32_t lines) {
     if (!label || lv_label_get_long_mode(label) != LV_LABEL_LONG_MODE_DOTS) {

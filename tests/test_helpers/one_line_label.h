@@ -7,11 +7,13 @@
 
 namespace helix::test {
 
-/// Whether @p label is capped at one line with lv_label_set_max_lines(). Reads
-/// the cap, not the laid-out size, so a short string at content height does not
-/// pass.
+/// Whether @p label is capped at one line with lv_label_set_max_lines() and
+/// sized by its content, so the cap decides its height. An explicit height or a
+/// max_height would make the cap do nothing, so either fails the check.
 inline bool held_to_one_line(lv_obj_t* label) {
-    return label && lv_label_get_max_lines(label) == 1;
+    return label && lv_label_get_max_lines(label) == 1 &&
+           lv_obj_get_style_height(label, LV_PART_MAIN) == LV_SIZE_CONTENT &&
+           lv_obj_get_style_max_height(label, LV_PART_MAIN) == LV_COORD_MAX;
 }
 
 /// First child of @p parent that is a label in DOTS mode, or nullptr.
