@@ -67,6 +67,8 @@ struct BindGroup {
     bool orders_testable;
 };
 
+#include "core/subject.h"
+
 #include "double_bind_widgets.inc"
 
 lv_state_t state_from_name(const std::string& name) {
@@ -132,8 +134,8 @@ struct InventoryFixture : public XMLTestFixture {
         }
     };
 
-    static std::map<std::string, lv_subject_t>& owned() {
-        static std::map<std::string, lv_subject_t> subjects;
+    static std::map<std::string, helix::Subject>& owned() {
+        static std::map<std::string, helix::Subject> subjects;
         return subjects;
     }
 
@@ -142,8 +144,8 @@ struct InventoryFixture : public XMLTestFixture {
     static lv_subject_t* resolve(const char* name) {
         if (lv_subject_t* existing = lv_xml_get_subject(nullptr, name))
             return existing;
-        lv_subject_t& mine = owned()[name];
-        lv_subject_init_int(&mine, 0);
+        helix::Subject& mine = owned()[name];
+        mine.init_int(0);
         lv_xml_register_subject(nullptr, name, &mine);
         return &mine;
     }
@@ -313,11 +315,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
                  "[xml][1983]") {
     // The shape of motion_panel.xml: one subject dies with its panel, the other is a
     // setting that outlives it, and the widget is still there when the setting fires.
-    auto panel_tab = std::make_unique<lv_subject_t>();
-    lv_subject_init_int(panel_tab.get(), 0);
-    lv_subject_t setting;
-    lv_subject_init_int(&setting, 0);
-    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_tab", panel_tab.get()) == LV_RESULT_OK);
+    auto panel_tab = std::make_unique<helix::Subject>();
+    panel_tab->init_int(0);
+    helix::Subject setting;
+    setting.init_int(0);
+    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_tab", panel_tab->get()) ==
+            LV_RESULT_OK);
     REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_setting", &setting) == LV_RESULT_OK);
     REQUIRE(lv_xml_register_component_from_data(
                 "cond_lifetime_view",
@@ -331,24 +334,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
     lv_subject_set_int(&setting, 1);
     REQUIRE(lv_obj_is_hidden(view));
 
-    lv_subject_deinit(panel_tab.get());
     panel_tab.reset();
+    helix::ui::UpdateQueue::instance().drain(); // runs the queued free of its node
     lv_subject_set_int(&setting, 0); // reads freed storage if the binding still evaluates
 
     CHECK(lv_obj_is_hidden(view));
     lv_obj_delete(view);
-    lv_subject_deinit(&setting);
+    setting.reset();
     lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");
     lv_xml_unregister_subject(nullptr, "cond_lifetime_setting");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a binding made on a deinitialised subject never reads it",
                  "[xml][1983]") {
-    lv_subject_t gone;
-    lv_subject_init_int(&gone, 0);
-    lv_subject_deinit(&gone);
-    lv_subject_t live;
-    lv_subject_init_int(&live, 0);
+    helix::Subject gone;
+    gone.init_int(0);
+    gone.reset();
+    helix::Subject live;
+    live.init_int(0);
     REQUIRE(lv_xml_register_subject(nullptr, "bind_gone_subject", &gone) == LV_RESULT_OK);
     REQUIRE(lv_xml_register_subject(nullptr, "bind_live_subject", &live) == LV_RESULT_OK);
     lv_xml_expr_t* expr = lv_xml_expr_compile(
@@ -364,7 +367,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a binding made on a deinitialised subject nev
 
     CHECK(fires == 0);
     lv_obj_delete(owner);
-    lv_subject_deinit(&live);
+    live.reset();
     lv_xml_unregister_subject(nullptr, "bind_gone_subject");
     lv_xml_unregister_subject(nullptr, "bind_live_subject");
 }

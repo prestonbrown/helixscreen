@@ -233,8 +233,10 @@ TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolm
     // The recycled-heap bytes its uninitialized subject carries in the crash:
     // the type field reads as INT (ASCII '2' landed on it) while the
     // observer-list head is a pointer made of name-string bytes.
+    lv_subject_t& node = SpoolmanPanelTestAccess::state_subject(shell);
+    const lv_subject_t pristine = node; // SUBJECT_API_OK: a byte snapshot, not storage
     SpoolmanPanelTestAccess::poison_state_subject_as_uninitialized(shell);
-    const lv_subject_t before = SpoolmanPanelTestAccess::state_subject(shell);
+    const lv_subject_t before = node; // SUBJECT_API_OK: a byte snapshot, not storage
 
     // The queued archive callback's refetch path: refresh_spools() on the
     // shell. Before the guard this wrote the uninitialized subject and
@@ -242,6 +244,6 @@ TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolm
     // it must refuse the work instead.
     SpoolmanPanelTestAccess::refresh_spools(shell);
 
-    REQUIRE(0 == std::memcmp(&before, &SpoolmanPanelTestAccess::state_subject(shell),
-                             sizeof(lv_subject_t)));
+    REQUIRE(0 == std::memcmp(&before, &node, sizeof(lv_subject_t)));
+    node = pristine; // ~Subject frees this node
 }

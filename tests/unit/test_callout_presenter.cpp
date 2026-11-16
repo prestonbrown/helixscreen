@@ -3,6 +3,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "callout_presenter.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
@@ -17,15 +18,15 @@ constexpr int kAreaW = 342;
 constexpr int kAreaH = 270;
 
 struct PresenterFixture : public LVGLUITestFixture {
-    lv_subject_t text_subj, shown_subj, compact_subj;
+    helix::Subject text_subj, shown_subj, compact_subj;
     char text_buf[16] = "210";
     lv_obj_t* area = nullptr;
     lv_obj_t* image = nullptr;
 
     PresenterFixture() {
-        lv_subject_init_string(&text_subj, text_buf, nullptr, sizeof(text_buf), "210");
-        lv_subject_init_int(&shown_subj, 1);
-        lv_subject_init_int(&compact_subj, 0);
+        text_subj.init_string(text_buf, nullptr, sizeof(text_buf), "210");
+        shown_subj.init_int(1);
+        compact_subj.init_int(0);
         lv_xml_register_subject(nullptr, "cp_text", &text_subj);
         lv_xml_register_subject(nullptr, "cp_shown", &shown_subj);
         lv_xml_register_subject(nullptr, "cp_compact", &compact_subj);

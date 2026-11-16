@@ -10,6 +10,7 @@
 
 #include "../test_fixtures.h"
 #include "ams_types.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "filament_motion.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -67,8 +68,8 @@ ColumnShot shoot_column(lv_obj_t* glyph, uint32_t expected) {
 
 TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph draws the loaded filament's color",
                  "[filament-chevrons][widget]") {
-    lv_subject_t color;
-    lv_subject_init_int(&color, static_cast<int>(helix::kNoFilamentPaint));
+    helix::Subject color;
+    color.init_int(static_cast<int>(helix::kNoFilamentPaint));
     lv_xml_register_subject(nullptr, "test_filament_color", &color);
     const char* attrs[] = {"bind_color", "test_filament_color", nullptr};
     auto* obj =
@@ -82,7 +83,6 @@ TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph draws the loaded filamen
     CHECK(helix::ui::filament_motion_glyph_color(obj) == helix::kNoFilamentPaint);
 
     lv_obj_delete(obj);
-    lv_subject_deinit(&color);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph paints the column in the known color",
@@ -118,8 +118,8 @@ TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph paints the column in the
 
 TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph follows bind_motion",
                  "[filament-chevrons][widget]") {
-    lv_subject_t subj;
-    lv_subject_init_int(&subj, 0);
+    helix::Subject subj;
+    subj.init_int(0);
     lv_xml_register_subject(nullptr, kSubject, &subj);
     const char* attrs[] = {"bind_motion", kSubject, "width", "40", "height", "80", nullptr};
     auto* glyph =
@@ -151,14 +151,13 @@ TEST_CASE_METHOD(XMLTestFixture, "filament_motion_glyph follows bind_motion",
     }
 
     lv_obj_delete(glyph);
-    lv_subject_deinit(&subj);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "filament_path_canvas streams chevrons for a manual move",
                  "[filament-chevrons][widget]") {
     ui_filament_path_canvas_register();
-    lv_subject_t subj;
-    lv_subject_init_int(&subj, 0);
+    helix::Subject subj;
+    subj.init_int(0);
     lv_xml_register_subject(nullptr, kSubject, &subj);
     const char* attrs[] = {"bind_motion", kSubject, nullptr};
     auto* canvas =
@@ -186,5 +185,4 @@ TEST_CASE_METHOD(XMLTestFixture, "filament_path_canvas streams chevrons for a ma
     lv_subject_set_int(&subj, static_cast<int>(FilamentMotion::Idle));
     process_lvgl(20);
     lv_obj_delete(canvas);
-    lv_subject_deinit(&subj);
 }

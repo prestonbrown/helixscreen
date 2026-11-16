@@ -18,6 +18,7 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_widget_labels.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -650,8 +651,8 @@ TEST_CASE("the xxl rung scales the largest linked face up to its size, at most 2
     // The binding draws it: the transform carries the scale, and the layout box
     // the parent spaces is the scaled size.
     ScopedXxlSize size(160);
-    lv_subject_t rung;
-    lv_subject_init_int(&rung, 0);
+    helix::Subject rung;
+    rung.init_int(0);
     lv_obj_t* icon = lv_label_create(fixture.test_screen());
     lv_label_set_text(icon, "\xF3\xB0\x90\xA5");
     helix::ui::bind_tile_rung(icon, &rung, helix::ui::TileLadder::Icon);
@@ -665,7 +666,6 @@ TEST_CASE("the xxl rung scales the largest linked face up to its size, at most 2
     CHECK(lv_obj_get_height(icon) >= face_h * 160 / 128 - 1);
 
     lv_obj_delete(icon);
-    lv_subject_deinit(&rung);
 }
 
 TEST_CASE("an unconfigured power tile reserves no state line", "[widget_size][tile][badge]") {
@@ -938,8 +938,8 @@ TEST_CASE("a scaled glyph's layout box is the box TileSizing measures",
     REQUIRE(face.scale == 2 * LV_SCALE_NONE);
     const auto box = helix::ui::tile_glyph_box(face);
 
-    lv_subject_t rung;
-    lv_subject_init_int(&rung, 5);
+    helix::Subject rung;
+    rung.init_int(5);
     lv_obj_t* icon = lv_label_create(fixture.test_screen());
     lv_label_set_text(icon, "\xF3\xB0\x90\xA5");
     helix::ui::bind_tile_rung(icon, &rung, helix::ui::TileLadder::Icon);
@@ -947,7 +947,6 @@ TEST_CASE("a scaled glyph's layout box is the box TileSizing measures",
     CHECK(lv_obj_get_width(icon) == box.w);
     CHECK(lv_obj_get_height(icon) == box.h);
     lv_obj_delete(icon);
-    lv_subject_deinit(&rung);
 }
 
 TEST_CASE("a tile forgets its content root when the root is deleted", "[widget_size][tile]") {

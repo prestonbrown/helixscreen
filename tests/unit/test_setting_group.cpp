@@ -3,6 +3,7 @@
 #include "ui_status_pill.h"
 
 #include "../ui_test_utils.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
@@ -250,10 +251,10 @@ TEST_CASE_METHOD(SettingGroupFixture, "setting_group_header: badge_subject binds
                  "[setting_group]") {
     REQUIRE(register_component("setting_group_header"));
     // The XML subject registry never forgets a name, so the storage outlives the test.
-    static lv_subject_t count;
+    static helix::Subject count;
     static bool registered = false;
     if (!registered) {
-        lv_subject_init_int(&count, 0);
+        count.init_int(0);
         lv_xml_register_subject(nullptr, "setting_group_test_badge_count", &count);
         registered = true;
     }

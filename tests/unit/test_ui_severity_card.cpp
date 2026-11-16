@@ -17,6 +17,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "hardware_validator.h"
 #include "printer_state.h"
@@ -355,8 +356,8 @@ struct BoundHistoryRow {
         const std::string suffix = std::to_string(next_id++);
         severity_name = "severity_test_row_severity_" + suffix;
         title_name = "severity_test_row_title_" + suffix;
-        lv_subject_init_int(&severity, severity_value);
-        lv_subject_init_string(&title, title_buf, nullptr, sizeof(title_buf), "Row");
+        severity.init_int(severity_value);
+        title.init_string(title_buf, nullptr, sizeof(title_buf), "Row");
         lv_xml_register_subject(nullptr, severity_name.c_str(), &severity);
         lv_xml_register_subject(nullptr, title_name.c_str(), &title);
         const char* attrs[] = {"severity_subject", severity_name.c_str(), "title_subject",
@@ -369,16 +370,16 @@ struct BoundHistoryRow {
         }
         lv_xml_unregister_subject(nullptr, severity_name.c_str());
         lv_xml_unregister_subject(nullptr, title_name.c_str());
-        lv_subject_deinit(&severity);
-        lv_subject_deinit(&title);
+        severity.reset();
+        title.reset();
     }
     BoundHistoryRow(const BoundHistoryRow&) = delete;
     BoundHistoryRow& operator=(const BoundHistoryRow&) = delete;
 
     std::string severity_name;
     std::string title_name;
-    lv_subject_t severity{};
-    lv_subject_t title{};
+    helix::Subject severity{};
+    helix::Subject title{};
     char title_buf[16]{};
     lv_obj_t* row = nullptr;
 };

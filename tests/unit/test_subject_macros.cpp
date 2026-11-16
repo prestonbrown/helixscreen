@@ -6,12 +6,13 @@
  * @brief Unit tests for INIT_SUBJECT_INT/STRING macros
  *
  * These macros consolidate the 3-line subject initialization pattern:
- * 1. lv_subject_init_*(subject, value)
+ * 1. helix::subject_init_*(subject, value)
  * 2. subjects.register_subject(subject)
  * 3. if (register_xml) lv_xml_register_subject(NULL, "name", subject)
  */
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "state/subject_macros.h"
 #include "subject_managed_panel.h"
 
@@ -26,7 +27,7 @@ TEST_CASE("INIT_SUBJECT_INT macro", "[state][subject][macro]") {
     LVGLTestFixture fixture;
 
     SECTION("skips XML registration when flag is false") {
-        lv_subject_t no_xml_subject_;
+        helix::Subject no_xml_subject_;
         SubjectManager subjects;
 
         INIT_SUBJECT_INT(no_xml_subject, 456, subjects, false);
@@ -49,7 +50,7 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
     LVGLTestFixture fixture;
 
     SECTION("skips XML registration when flag is false") {
-        lv_subject_t no_xml_str_;
+        helix::Subject no_xml_str_;
         SubjectManager subjects;
         char no_xml_str_buf_[64];
 
@@ -76,7 +77,7 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
 // The INIT_SUBJECT_* macros register the name in the XML scope, so they must
 // pass it to register_subject() too. The parameter is defaulted, so omitting it
 // is silent, and every managed subject would keep resolving by name after
-// lv_subject_deinit().
+// helix::subject_reset().
 //
 // The consequence is a live crash, not a leak: an owner that does not outlive
 // the process (a PrinterState held by a stack-allocated XMLTestFixture) leaves
@@ -89,8 +90,8 @@ TEST_CASE("INIT_SUBJECT macros withdraw their XML names when the owner dies",
 
     // Storage outlives the SubjectManager so deinit_all() has something valid
     // to deinit; only the manager's lifetime is under test.
-    lv_subject_t doomed_int_{};
-    lv_subject_t doomed_text_{};
+    helix::Subject doomed_int_{};
+    helix::Subject doomed_text_{};
     char doomed_text_buf_[32];
 
     {
@@ -103,7 +104,7 @@ TEST_CASE("INIT_SUBJECT macros withdraw their XML names when the owner dies",
     } // ~SubjectManager -> deinit_all()
 
     // A non-null answer here IS the bug: the name resolves to a subject that
-    // lv_subject_deinit() has already torn down, and every caller that guards
+    // helix::subject_reset() has already torn down, and every caller that guards
     // with `if (!subject) continue;` sails straight past into freed memory.
     CHECK(lv_xml_get_subject(NULL, "doomed_int") == nullptr);
     CHECK(lv_xml_get_subject(NULL, "doomed_text") == nullptr);
@@ -117,12 +118,12 @@ TEST_CASE("INIT_SUBJECT macros withdraw nothing when XML registration was skippe
           "[state][subject][macro][regression]") {
     LVGLTestFixture fixture;
 
-    lv_subject_t shared_name_{};
-    lv_subject_init_int(&shared_name_, 99);
+    helix::Subject shared_name_{};
+    shared_name_.init_int(99);
     lv_xml_register_subject(NULL, "unmanaged_name", &shared_name_);
 
     {
-        lv_subject_t unmanaged_name_{};
+        helix::Subject unmanaged_name_{};
         SubjectManager subjects;
         INIT_SUBJECT_INT(unmanaged_name, 1, subjects, false);
         REQUIRE(lv_xml_get_subject(NULL, "unmanaged_name") == &shared_name_);
@@ -132,5 +133,4 @@ TEST_CASE("INIT_SUBJECT macros withdraw nothing when XML registration was skippe
     CHECK(lv_xml_get_subject(NULL, "unmanaged_name") == &shared_name_);
 
     lv_xml_unregister_subject(NULL, "unmanaged_name");
-    lv_subject_deinit(&shared_name_);
 }

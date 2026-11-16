@@ -11,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 
 #include <string>
@@ -28,40 +29,40 @@ constexpr const char* kIndex = "0";
 /// subject registry keeps a name until its owner withdraws it, so the storage
 /// must outlive the test.
 struct RowSubjects {
-    lv_subject_t name;
-    lv_subject_t detail;
-    lv_subject_t state;
-    lv_subject_t has_state;
-    lv_subject_t alert;
-    lv_subject_t role;
-    lv_subject_t has_role;
-    lv_subject_t toggle_kind;
-    lv_subject_t toggle;
-    lv_subject_t held_role;
-    lv_subject_t has_detail;
-    lv_subject_t has_held_role;
-    lv_subject_t role_set;
-    lv_subject_t has_next;
+    helix::Subject name;
+    helix::Subject detail;
+    helix::Subject state;
+    helix::Subject has_state;
+    helix::Subject alert;
+    helix::Subject role;
+    helix::Subject has_role;
+    helix::Subject toggle_kind;
+    helix::Subject toggle;
+    helix::Subject held_role;
+    helix::Subject has_detail;
+    helix::Subject has_held_role;
+    helix::Subject role_set;
+    helix::Subject has_next;
     char name_buf[64] = "Front Door";
     char held_role_buf[32] = "";
     char detail_buf[64] = "detail";
     char state_buf[32] = "Open";
 
     RowSubjects() {
-        lv_subject_init_string(&name, name_buf, nullptr, sizeof(name_buf), name_buf);
-        lv_subject_init_string(&detail, detail_buf, nullptr, sizeof(detail_buf), detail_buf);
-        lv_subject_init_string(&state, state_buf, nullptr, sizeof(state_buf), state_buf);
-        lv_subject_init_int(&has_state, 1);
-        lv_subject_init_int(&alert, 0);
-        lv_subject_init_int(&role, 0);
-        lv_subject_init_int(&has_role, 1);
-        lv_subject_init_int(&toggle_kind, 0);
-        lv_subject_init_int(&toggle, 0);
-        lv_subject_init_string(&held_role, held_role_buf, nullptr, sizeof(held_role_buf), "");
-        lv_subject_init_int(&has_held_role, 0);
-        lv_subject_init_int(&has_detail, 1);
-        lv_subject_init_int(&role_set, 1);
-        lv_subject_init_int(&has_next, 1);
+        name.init_string(name_buf, nullptr, sizeof(name_buf), name_buf);
+        detail.init_string(detail_buf, nullptr, sizeof(detail_buf), detail_buf);
+        state.init_string(state_buf, nullptr, sizeof(state_buf), state_buf);
+        has_state.init_int(1);
+        alert.init_int(0);
+        role.init_int(0);
+        has_role.init_int(1);
+        toggle_kind.init_int(0);
+        toggle.init_int(0);
+        held_role.init_string(held_role_buf, nullptr, sizeof(held_role_buf), "");
+        has_held_role.init_int(0);
+        has_detail.init_int(1);
+        role_set.init_int(1);
+        has_next.init_int(1);
         reg("name", &name);
         reg("detail", &detail);
         reg("state", &state);

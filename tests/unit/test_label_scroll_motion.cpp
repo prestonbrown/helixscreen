@@ -23,6 +23,7 @@
 #include "ui_text.h"
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/misc/lv_text_private.h"
@@ -102,24 +103,21 @@ class ScrollMotionFixture : public XMLTestFixture {
         // name makes that element vanish from the built tree.
         ui_spinner_init();
 
-        lv_subject_init_int(&animations_, 1);
+        animations_.init_int(1);
         lv_xml_register_subject(nullptr, "settings_animations_enabled", &animations_);
 
-        lv_subject_init_string(&message_, message_buf_, nullptr, sizeof(message_buf_),
-                               kLongMessage);
+        message_.init_string(message_buf_, nullptr, sizeof(message_buf_), kLongMessage);
         lv_xml_register_subject(nullptr, "display_message", &message_);
 
         // The card keeps this label hidden until Klipper reports an M117, so a
         // print in progress is the condition under test.
-        lv_subject_init_int(&message_visible_, 1);
+        message_visible_.init_int(1);
         lv_xml_register_subject(nullptr, "display_message_visible", &message_visible_);
 
-        lv_subject_init_string(&filename_, filename_buf_, nullptr, sizeof(filename_buf_),
-                               kLongFilename);
+        filename_.init_string(filename_buf_, nullptr, sizeof(filename_buf_), kLongFilename);
         lv_xml_register_subject(nullptr, "print_display_filename", &filename_);
 
-        lv_subject_init_string(&filament_, filament_buf_, nullptr, sizeof(filament_buf_),
-                               kLongFilament);
+        filament_.init_string(filament_buf_, nullptr, sizeof(filament_buf_), kLongFilament);
         lv_xml_register_subject(nullptr, "print_status_filament_text", &filament_);
 
         REQUIRE(lv_xml_register_component_from_data("scroll_motion_probe", kScrollProbeXml) ==
@@ -133,11 +131,11 @@ class ScrollMotionFixture : public XMLTestFixture {
         lv_xml_unregister_subject(nullptr, "print_display_filename");
         lv_xml_unregister_subject(nullptr, "print_status_filament_text");
         lv_xml_unregister_subject(nullptr, "settings_animations_enabled");
-        lv_subject_deinit(&filament_);
-        lv_subject_deinit(&filename_);
-        lv_subject_deinit(&message_visible_);
-        lv_subject_deinit(&message_);
-        lv_subject_deinit(&animations_);
+        filament_.reset();
+        filename_.reset();
+        message_visible_.reset();
+        message_.reset();
+        animations_.reset();
     }
 
     /// Flip the preference, then let LVGL settle.
@@ -195,11 +193,11 @@ class ScrollMotionFixture : public XMLTestFixture {
     }
 
   private:
-    lv_subject_t animations_{};
-    lv_subject_t message_{};
-    lv_subject_t message_visible_{};
-    lv_subject_t filename_{};
-    lv_subject_t filament_{};
+    helix::Subject animations_{};
+    helix::Subject message_{};
+    helix::Subject message_visible_{};
+    helix::Subject filename_{};
+    helix::Subject filament_{};
     char message_buf_[256]{};
     char filename_buf_[256]{};
     char filament_buf_[256]{};

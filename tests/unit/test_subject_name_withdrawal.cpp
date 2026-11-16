@@ -26,6 +26,7 @@
 
 #include "../test_fixtures.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 #include "subject_debug_registry.h"
@@ -60,8 +61,8 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "[subject-scope][1538]") {
     constexpr const char* kName = "nameless_trap_probe";
 
-    lv_subject_t subject{};
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject{};
+    subject.init_int(0);
 
     // The silent variant: published under a name, handed to the manager
     // without it. The raw register plus the debug record model what a
@@ -90,8 +91,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     // The conservative inventory also names subjects that were never
     // published (direct bindings, no scope entry). Teardown must keep
     // deinitializing those quietly.
-    lv_subject_t subject{};
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject{};
+    subject.init_int(0);
 
     SubjectManager manager;
     manager.register_subject(&subject);

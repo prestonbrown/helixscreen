@@ -10,6 +10,7 @@
 #include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
@@ -125,7 +126,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
 // and no way into the app's own Klipper error surface. Only --skip-wizard or
 // hand-editing settings.json got the user out.
 
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 class WizardConnectionGateFixture : public LVGLTestFixture {
   public:

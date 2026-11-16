@@ -16,6 +16,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
@@ -88,13 +89,13 @@ std::string subject_string(const char* name) {
 /// show_beta_features, registered once: the XML subject registry is process-global and
 /// never forgets an entry, so the subject has to outlive every test.
 lv_subject_t* beta_subject() {
-    static lv_subject_t subject;
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
         if (lv_subject_t* existing = lv_xml_get_subject(nullptr, "show_beta_features")) {
             return existing;
         }
-        lv_subject_init_int(&subject, 1);
+        subject.init_int(1);
         lv_xml_register_subject(nullptr, "show_beta_features", &subject);
         registered = true;
     }

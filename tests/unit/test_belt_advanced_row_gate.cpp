@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
 
@@ -101,10 +102,10 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
     /// untouched.
     static void ensure_subject(const char* name, int value) {
         if (!lv_xml_get_subject(nullptr, name)) {
-            static lv_subject_t subjects[8];
+            static helix::Subject subjects[8];
             static size_t next = 0;
             REQUIRE(next < 8);
-            lv_subject_init_int(&subjects[next], value);
+            subjects[next].init_int(value);
             lv_xml_register_subject(nullptr, name, &subjects[next]);
             next++;
         }

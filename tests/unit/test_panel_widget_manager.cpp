@@ -7,6 +7,7 @@
 #include "../test_helpers/scoped_xml_component_stub.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -155,9 +156,9 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
     // the hardware_gate_subject for every registered widget def. Any subject
     // that doesn't already exist gets created here so the observer chain has
     // something to attach to. nullptr scope = global.
-    static lv_subject_t klippy_state_subj;
+    static helix::Subject klippy_state_subj;
     if (!lv_xml_get_subject(nullptr, "klippy_state")) {
-        lv_subject_init_int(&klippy_state_subj, 0);
+        klippy_state_subj.init_int(0);
         lv_xml_register_subject(nullptr, "klippy_state", &klippy_state_subj);
     }
 
@@ -185,10 +186,10 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
             if (auto* existing = lv_xml_get_subject(nullptr, name)) {
                 out.emplace_back(name, existing);
             } else {
-                auto* subj = new lv_subject_t;
-                lv_subject_init_int(subj, 0);
-                lv_xml_register_subject(nullptr, name, subj);
-                out.emplace_back(name, subj);
+                auto* subj = new helix::Subject;
+                subj->init_int(0);
+                lv_xml_register_subject(nullptr, name, subj->get());
+                out.emplace_back(name, subj->get());
             }
         }
         return out;
@@ -1263,9 +1264,9 @@ TEST_CASE_METHOD(XMLTestFixture,
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
 
     lv_subject_t* gate = lv_xml_get_subject(nullptr, "led_controllable");
-    static lv_subject_t s_fallback_gate;
+    static helix::Subject s_fallback_gate;
     if (!gate) {
-        lv_subject_init_int(&s_fallback_gate, 0);
+        s_fallback_gate.init_int(0);
         lv_xml_register_subject(nullptr, "led_controllable", &s_fallback_gate);
         gate = &s_fallback_gate;
     }

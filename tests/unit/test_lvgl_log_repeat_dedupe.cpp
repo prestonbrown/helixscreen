@@ -25,6 +25,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
 #include "subject_debug_registry.h"
@@ -270,13 +271,15 @@ TEST_CASE("LVGL log handler: English having no translation pack stays out of the
     CHECK(logs.in_ring(de_tag) == 1);
 }
 
-TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
-          "[logging][lvgl][subject]") {
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
+    "[logging][lvgl][subject]") {
     helix::logging::register_lvgl_log_handler();
     LevelCapture logs;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     SubjectDebugRegistry::instance().register_subject(&subject, "helix_type_probe",
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
@@ -293,7 +296,6 @@ TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps 
     CHECK(logs.total("Subject: \"helix_type_probe\"") == 1);
 
     SubjectDebugRegistry::instance().unregister_subject(&subject);
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE("LVGL log handler: a deprecation notice stays out of the ring", "[logging][lvgl]") {

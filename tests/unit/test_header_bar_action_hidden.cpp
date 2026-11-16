@@ -11,6 +11,7 @@
  */
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 
 #include <lvgl.h>
@@ -23,8 +24,8 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar action button hides via subject",
                  "[header_bar][xml]") {
     REQUIRE(register_component("header_bar"));
 
-    static lv_subject_t hide_subj;
-    lv_subject_init_int(&hide_subj, 0);
+    static helix::Subject hide_subj;
+    hide_subj.init_int(0);
     lv_xml_register_subject(nullptr, "test_hdr_hidden", &hide_subj);
 
     const char* attrs[] = {"action_button_text", "Save", "action_button_hidden_subject",
@@ -43,5 +44,5 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar action button hides via subject",
     UpdateQueue::instance().drain();
     REQUIRE_FALSE(lv_obj_is_hidden(btn));
 
-    lv_subject_deinit(&hide_subj);
+    hide_subj.reset();
 }

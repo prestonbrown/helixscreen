@@ -13,6 +13,7 @@
 // TEST_MIRROR_OK: the shipped code under test is ui_xml/components/preview_icon_button.xml
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 
 #include <cstring>
 #include <string>
@@ -43,12 +44,12 @@ TEST_CASE_METHOD(XMLTestFixture, "preview_icon_button: one shell for fixed and b
     lv_xml_register_event_cb(nullptr, "on_test_preview_icon_click", count_click);
     s_clicks = 0;
 
-    static lv_subject_t hide;
-    lv_subject_init_int(&hide, 0);
+    static helix::Subject hide;
+    hide.init_int(0);
     lv_xml_register_subject(nullptr, "test_preview_icon_hide", &hide);
     static char glyph_buf[16];
-    static lv_subject_t glyph;
-    lv_subject_init_string(&glyph, glyph_buf, nullptr, sizeof(glyph_buf), "A");
+    static helix::Subject glyph;
+    glyph.init_string(glyph_buf, nullptr, sizeof(glyph_buf), "A");
     lv_xml_register_subject(nullptr, "test_preview_icon_glyph", &glyph);
 
     const char* fixed_attrs[] = {"name",        "fixed_btn",
@@ -103,6 +104,6 @@ TEST_CASE_METHOD(XMLTestFixture, "preview_icon_button: one shell for fixed and b
 
     lv_obj_delete(fixed);
     lv_obj_delete(bound);
-    lv_subject_deinit(&hide);
-    lv_subject_deinit(&glyph);
+    hide.reset();
+    glyph.reset();
 }

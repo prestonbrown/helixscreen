@@ -23,6 +23,7 @@
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "platform_capabilities.h"
 #include "printer_cache_registry.h"
@@ -664,9 +665,9 @@ TEST_CASE_METHOD(SwitchFlowFixture,
                  "Switch flow: the switch card spinner moves only on full render tiers",
                  "[multi-printer][switch_flow][switch_interstitial]") {
     lv_subject_t* tier = lv_xml_get_subject(nullptr, "platform_tier");
-    static lv_subject_t s_tier;
+    static helix::Subject s_tier;
     if (!tier) {
-        lv_subject_init_int(&s_tier, static_cast<int>(helix::PlatformTier::STANDARD));
+        s_tier.init_int(static_cast<int>(helix::PlatformTier::STANDARD));
         lv_xml_register_subject(nullptr, "platform_tier", &s_tier);
         tier = &s_tier;
     }

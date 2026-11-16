@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "system/lvgl_thread_check.h"
 
 #include <csignal>
@@ -61,8 +62,8 @@ TEST_CASE("lvgl_thread_check parses HELIX_LVGL_THREAD_CHECK values", "[lvgl_thre
 TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check reports an off-thread subject write once",
                  "[lvgl_thread_check]") {
     ModeScope scope(Mode::Report);
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     lv_subject_set_int(&subject, 1);
     lv_subject_notify(&subject);
@@ -78,8 +79,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check reports an off-thread subje
     // A different entry point from another thread is a site of its own.
     std::thread([&subject] { lv_subject_notify(&subject); }).join();
     CHECK(reported_site_count() == 2);
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check reports off-thread timer and delete calls",
@@ -99,19 +98,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check reports off-thread timer an
 
 TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check is silent when off", "[lvgl_thread_check]") {
     ModeScope scope(Mode::Off);
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     set_int_off_thread(&subject, 5);
     CHECK(reported_site_count() == 0);
-    lv_subject_deinit(&subject);
 }
 
 // TSan kills a forked child that starts a thread, before the check can abort.
 #if !defined(__SANITIZE_THREAD__) && !(defined(__has_feature) && __has_feature(thread_sanitizer))
 TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check aborts on an off-thread call in abort mode",
                  "[lvgl_thread_check][subprocess]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     std::fflush(nullptr);
     pid_t pid = fork();
@@ -127,7 +125,5 @@ TEST_CASE_METHOD(LVGLTestFixture, "lvgl_thread_check aborts on an off-thread cal
     REQUIRE(waitpid(pid, &status, 0) == pid);
     CHECK(WIFSIGNALED(status));
     CHECK(WTERMSIG(status) == SIGABRT);
-
-    lv_subject_deinit(&subject);
 }
 #endif

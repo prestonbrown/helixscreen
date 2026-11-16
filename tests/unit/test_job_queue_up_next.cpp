@@ -23,6 +23,7 @@
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
@@ -294,9 +295,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home print status widget shows the up next 
 
     // The up next line belongs to the active views, which the card builds only during a print.
     lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
-    static lv_subject_t local_view; // outlives its registration
+    static helix::Subject local_view; // outlives its registration
     if (!view) {
-        lv_subject_init_int(&local_view, 0);
+        local_view.init_int(0);
         lv_xml_register_subject(nullptr, "print_status_view", &local_view);
         view = &local_view;
     }

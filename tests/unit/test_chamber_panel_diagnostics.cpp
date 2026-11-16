@@ -28,6 +28,7 @@
 #include "../test_helpers/scoped_geometry.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "lvgl/src/widgets/label/lv_label_private.h" // lv_label_t::dot_begin: the ellipsization signal
 #include "moonraker_api.h"
@@ -210,8 +211,8 @@ class ChamberOverlayFixture : public XMLTestFixture {
         // branch is structural, evaluated at view creation.
         mode_subject_ = lv_xml_get_subject(nullptr, "temp_graph_mode");
         if (!mode_subject_) {
-            static lv_subject_t mode_subject;
-            lv_subject_init_int(&mode_subject, 3); // TempGraphOverlay::Mode::Chamber
+            static helix::Subject mode_subject;
+            mode_subject.init_int(3); // TempGraphOverlay::Mode::Chamber
             lv_xml_register_subject(nullptr, "temp_graph_mode", &mode_subject);
             mode_subject_ = &mode_subject;
         }
@@ -224,15 +225,14 @@ class ChamberOverlayFixture : public XMLTestFixture {
         // bindings need static stand-ins (registered BEFORE the overlay is
         // built, the same stand-in discipline as temp_graph_mode above).
         if (!lv_xml_get_subject(nullptr, "chamber_status")) {
-            static lv_subject_t chamber_status;
+            static helix::Subject chamber_status;
             static char chamber_status_buf[32];
-            lv_subject_init_string(&chamber_status, chamber_status_buf, nullptr,
-                                   sizeof(chamber_status_buf), "");
+            chamber_status.init_string(chamber_status_buf, nullptr, sizeof(chamber_status_buf), "");
             lv_xml_register_subject(nullptr, "chamber_status", &chamber_status);
         }
         if (!lv_xml_get_subject(nullptr, "chamber_status_state")) {
-            static lv_subject_t chamber_status_state;
-            lv_subject_init_int(&chamber_status_state, 0);
+            static helix::Subject chamber_status_state;
+            chamber_status_state.init_int(0);
             lv_xml_register_subject(nullptr, "chamber_status_state", &chamber_status_state);
         }
 
