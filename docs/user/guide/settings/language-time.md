@@ -17,8 +17,11 @@ The language for everything on screen. The list shows each language in its own n
 1. Language.
 2. Timezone.
 3. Time Format.
+4. Date Format.
 
 The BTT K-Touch has no Chinese or Japanese, because its firmware has no room for those fonts.
+
+Print filenames written in Chinese or Japanese characters show correctly whatever language you pick. HelixScreen loads the extra characters only when it first has to show such a filename.
 
 ---
 
@@ -33,6 +36,12 @@ The BTT K-Touch has no System entry, because it has no timezone of its own. The 
 ## Time Format
 
 **12 Hour** (such as 3:45 PM, the default) or **24 Hour** (such as 15:45). Applies to every time shown in HelixScreen.
+
+---
+
+## Date Format
+
+The order of day, month and year: **Day Month Year**, **Month Day Year** or **Year Month Day**. Applies to every date HelixScreen writes out. Until you pick one, the order follows your language and timezone: English reads month first in a United States timezone and day first in another known timezone, Chinese and Japanese read year first, and the other languages read day first.
 
 ---
 

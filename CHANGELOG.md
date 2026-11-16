@@ -21,16 +21,74 @@ is out.
 
 ### Added
 
-- **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
+**Filament and AMS**
+
 - **Guided cold pull** - Advanced has a Cold Pull walkthrough that heats the nozzle for your material, has you push filament through, cools it to the pull temperature and tells you when to pull, repeating until the filament comes out clean. When the printer reports a nozzle clog, its alert now offers Cold Pull alongside a plain OK.
 - **Happy Hare v4 sync feedback and fan controls** - on Happy Hare v4, Device settings > Accessories can turn sync feedback on and off, save the autotuned rotation distance, reset sync feedback and neutralize the filament tension, and from Happy Hare 4.1 set each unit's fan on, off or automatic.
+- **Drawn filament units** (#2068) - the AMS overview, path screen, dryer page and Device Operations now show your filament system as a drawing of the real unit instead of a generic card: AMS HT and AMS 2 Pro, the Creality CFS, QIDI Box, Box Turtle (open and enclosed), BTT ViViD and KMS, BMCU, Night Owl, Quattro Box, 3MS, MMX, EMU and DW-TAS, ERCF, Tradrack and the Canvas. Spools are drawn at a real spool shape, empty lanes show a faint reel, tubes meet each unit's fittings and join at hubs, the loaded lane's spool turns while it feeds, and a selector carriage on ERCF and Tradrack shows the lane it sits at. Units without art keep a compact tile.
+- **Toolheads that look like yours** (#2068) - the filament path draws eleven baked toolhead pictures plus printer-specific heads, sized against each other, with the filament entering at each head's fitting.
+- **Dryer page shows what the dryer is doing** (#2068) - warm air rises over the unit's drawing, a soft glow pulses inside the chamber while drying, the page says whether it is heating or holding, the duration is entered in hours, and Stop is quiet while Start stays the main button.
+- **Manual load as one guided flow** (#2000) - Load on a printer with no filament system, and on a Snapmaker U1 head without an automatic feeder, heats the nozzle, has you push the filament in, primes it and cools down again. Cancel, a failed extrude or closing the screen turns the heater off.
+- **Snapmaker U1 Auto loading per toolhead** (#1982) - Print Behavior has an Auto loading toggle for each head whose feeder supports it. A load refused because the setting is off now says so.
+- **Pick the tool you are aiming at** - the Filament panel's tool selector aims the panel at a tool without changing tools, can pick up and park a tool, and picks up first when you extrude. The Controls nozzle row edits the tool you choose, the temperature screen remembers the nozzle you picked, and the mini graph follows the tool the panel aims at. One rule decides which tool each of these screens targets.
+- **All row in the load and unload picker, and AMS settings in the header** - the picker can act on every lane at once, and the AMS panel's settings sit in its header. Multi-head printers show the mounted tool there.
+- **Tap the loaded card to open its spool** (#2094) - on the AMS panel, tapping the loaded card opens the spool in the loaded lane.
+- **Tool Numbers** (#2014) - Settings > Appearance can number tools the way your printer does, 1, 2, 3 or T0, T1, T2. Auto uses T0 style on a klipper-toolchanger printer whose tools are named T plus a number, and every screen that names a tool follows the choice at once.
+- **AD5X with Z-Mod: more than four IFS ports** (#2039) - an AD5X with Z-Mod follows Z-Mod's color limit past four IFS ports and keeps a lane seated past four across restarts.
+
+**Home screen and display**
+
 - **Your own unit on a sensor tile** - a temperature sensor tile on the home screen can show your own unit text, such as % or PSI, or none at all, set from the tile's configure card.
 - **Chinese and Japanese file names on every screen** - print file names in Chinese and Japanese show their characters in any interface language, not only when the interface is set to Chinese or Japanese.
+- **Full-page widgets** (#1931) - the Motion, heater and Filament operations widgets can take a whole home page, with the controls laid out for that space.
+- **Temperature in Fahrenheit and a date format** (#2099) - Settings > Appearance has a Temperature Unit row, and Settings > Language & Time has a Date Format row (day-month-year, month-day-year or year-month-day). Every temperature on screen, in the keypad, on the graph axis and in notices follows the unit as soon as you change it. Both follow your region until you pick one.
+- **Appearance & Region in the setup wizard** (#2022) - the first-run wizard has a step after Language for timezone, 12 or 24-hour clock, theme, dark mode, speed and flow units, temperature unit and date order. Settings > Appearance gained the speed and flow units row.
+- **Cut, Copy and Paste in text fields** (#1227) - holding a text field opens a menu with Cut, Copy and Paste. Password fields offer nothing. On the desktop build the clipboard is shared with the system clipboard.
+- **Screensavers show the print** - every screensaver can show the print's progress, and the flip clock spells the state of the print (printing, paused, done, failed or cancelled). Aqua's tank fills with the print, High Fly counts down under a sky that warms with the print, fireflies spell the percentage, and the bouncing sprites show it too. An ended print stays on the saver until someone touches the screen instead of waking it, and a saver that is too heavy during a print gives way to the flip clock.
+- **Hold a home tile to open its menu** (#2025) - in home edit mode, a tap on the selected tile or a hold opens a menu with Configure and Remove next to the tile, replacing the floating buttons.
+- **Alerts wake a sleeping screen** (#2037) - a macro's prompt and the Klipper error dialog wake the display instead of waiting unseen.
+- **Printer pictures glow where the heat is** - a heated bed fills its plate with a warm haze on the home printer widget and the Print Status screen, and chamber heat and the light stay inside the printer's windows. The pictures of printers with an enclosure are tagged with window regions for this.
+- **Stepper driver, MCU and host temperatures on the graph** (#2080) - the temperature graph can chart TMC driver, MCU and host temperatures, remembered per printer, and a rising driver over-temperature flag raises a warning.
+
+**Printing and calibration**
+
+- **Macros can declare how long each pre-print phase will take** - a `PRINT_START` can call `_HELIX_PLAN SOAKING=600 BED_MESH=90` and the pre-print countdown uses those durations from the start, and the time label says when a phase runs over. New `_HELIX_PHASE_SOAKING` and `_HELIX_PHASE_HEATING_CHAMBER` signals come with it. Update the HelixScreen macros from Settings to get them.
+- **Vertical Artifact Check** - Advanced has a sweep that finds the speeds at which your motors ripple the walls of a print, shows them as bands of speed to avoid with a nearest clear speed, and, on printers with motor compensation, turns the compensation on and off with the reduction per ripple. The row needs an accelerometer and a CoreXY or Cartesian printer.
+- **Warning for shaky outer wall speeds** - when a sweep has saved bands, starting a print warns if the file's outer walls land in one and names the nearest clear speeds.
+- **Maintenance reminders** (#1901) - up to seven meters (XY axis, Z axis, nozzle, extruder, air filter, electronics fans and, on Voron printers, belt tension), shown according to the printer's hardware, with optional calendar limits, a notice at print end when one is due, a page per task and a screen for the intervals.
+- **Heat soak as a print option** (#1972) - a printer with a heat soak macro gets a Heat soak toggle on the pre-print screen.
+- **Toolpath under the preparing checklist** (#2057) - a file without a thumbnail shows its toolpath behind the checklist while the print prepares.
+- **Motor sync step in the pre-print list** (#1880) - motors-sync's SYNC_MOTORS shows as its own step after homing.
+- **Static IPv4** (#1900) - Network Settings shows DHCP or the static address for each connection and opens a screen with a numeric keypad for the four fields, Use DHCP and Apply. A change keeps itself only if you confirm it on a keep-or-revert screen, and an unconfirmed change goes back by itself.
+- **Wi-Fi joined, address pending** (#2101) - while DHCP has not given an address yet, the home network tile shows a warning instead of a connected icon.
+- **Cooling fan for MPC extruders** (#2052) - an extruder already on MPC without a cooling fan can add one from the calibration screen, which measures the fan's effect.
+- **Pressure advance on the stock Creator 5** - HelixScreen runs the stock eBoard pressure advance sweep itself, since the firmware has no command for it.
+- **Home single axes from Motion** - the Motion panel can home X, Y or Z alone. The Z buttons' setting moved to Printing > Motion as Z Buttons Move (#1997).
+- **Saved default parameters for plugin macros** - macros from AFC, Happy Hare and other Klipper extras can keep default parameters like any other macro, typed as KEY=VALUE.
+
+**Printers and plugin**
+
+- **Elegoo Centauri Carbon 2** - recognised by hostname, with its own picture.
+- **Creality CFS on the K2** (#2059) - Calibration offers Tension Belts and Calibrate Cutter on K2 printers that define those macros.
+- **Creator 5 Reforge** (#2027) - Reforge's own AFC and print start sequence are followed, and the bundled printer entries win over Reforge's own database ids.
+- **HelixPrint plugin installs from releases.helixscreen.org** (#1967) - the install command downloads the plugin that matches your HelixScreen release. Closing the install prompt snoozes it for seven days, and it shows without beta features turned on (#1232).
+- **Chute calibration D-pad on the K1 CFS** (#2007) - the purge chute calibration has an XY D-pad with a step size, and the head stops short of a known wiper.
+- **Runs on Android 7** - the Android app supports Android 7.0 and Fire OS 6 tablets.
+- **K1 series SSH log** - the state of SSH is written to the install log and a launch log that Mainsail, Fluidd and debug bundles can reach.
 
 ### Fixed
 
-- **Saving tool offsets on Reforge** - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
+- **Saving tool offsets on Reforge** (#2030) - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
 - **Toolhead pictures fit the filament path at every screen size** - the Stealthburner and other tall heads are no longer cut off at the bottom on 480x272 screens.
+- **Filament status follows the language** - AMS status text, Happy Hare action text, AD5X phase text and filament error messages change language as soon as you switch it, instead of staying in the old one until restart.
+- **Tool choosers fit their text** - the tool choosers name a toolhead the way the rest of the screen numbers it, and the Controls nozzle row opens the temperature graph on the tool it shows.
+- **Snapmaker U1 spaghetti detection switch** - the switch in Safety & Alerts turns the printer's own detection on and off, and a connect changes the printer's setting only when it differs.
+- **Calibrations leave the heaters alone after they end** - cancelling a calibration, closing its screen, stopping HelixScreen or losing the printer link turns its heat off, and a print that takes the printer mid-check gets no cleanup commands.
+- **Screen stays off after a quick double wake** (#2037) - a second wake before the first frame is drawn no longer leaves the panel dark.
+- **Spool picker pins the slot's own spool** (#2095) - the spool linked to the slot sits at the top of the picker.
+- **Job queue and Spoolman screens** (#1140, #1141) - the job queue says it is empty while the printer is disconnected, and Spoolman settings always open on the configured state.
+- **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
+- **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
 
 ## [1.1.0-rc.2] - UNRELEASED
 

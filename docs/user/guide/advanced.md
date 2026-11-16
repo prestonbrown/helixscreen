@@ -302,8 +302,9 @@ Record timelapse videos of your prints automatically using the [moonraker-timela
 If the timelapse plugin is not installed, HelixScreen detects this and offers a guided **Install Wizard**:
 
 1. Navigate to **Advanced > Timelapse Setup**
-2. Follow the on-screen instructions to install the plugin via SSH
+2. When HelixScreen runs on the same computer as Moonraker, it downloads and links the plugin itself, with no SSH needed. When Moonraker runs on another machine, or HelixScreen cannot tell yet, the screen shows the commands to run over SSH, and you tap **Check Again** afterwards
 3. HelixScreen will configure your `moonraker.conf` automatically
+   Videos need `ffmpeg` on the printer. If it is missing, the screen tells you the command to install it, and recording still works without it.
 4. After installation, the setup row is replaced by timelapse settings and video browser
 
 ### Settings
