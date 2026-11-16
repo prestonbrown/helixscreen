@@ -1,0 +1,21 @@
+lv_obj_report_style_change() rebuilds a widget's style cache masks for both
+the MAIN part and the other parts. The walk stops at the first style that
+matches, and refreshing only that style's part leaves the other mask stale
+when the style also sits on another part, or when every style changed
+(`style == NULL`). With LV_OBJ_STYLE_CACHE on, a property a theme rebuild
+adds to an indicator or knob style then reads as its default.
+
+diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
+--- a/src/core/lv_obj_style.c
++++ b/src/core/lv_obj_style.c
+@@ -1184,7 +1184,9 @@
+     uint32_t i;
+     for(i = 0; i < obj->style_cnt; i++) {
+         if(style == NULL || obj->styles[i].style == style) {
+-            full_cache_refresh(obj, lv_obj_style_get_selector_part(obj->styles[i].selector));
++            /*The loop stops at the first match, but the style can sit on several parts
++             *(and with `style == NULL` every part changed), so rebuild both masks.*/
++            full_cache_refresh(obj, LV_PART_ANY);
+             lv_obj_refresh_style(obj, LV_PART_ANY, LV_STYLE_PROP_ANY);
+             break;
+         }

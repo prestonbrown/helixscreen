@@ -461,6 +461,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// failed leaves the IFS locked, and the next load would hang on it. A
     /// module driver fault is left standing: only recover() clears it.
     AmsError clear_fault(int slot_index) override;
+    /// reset() retires the ERROR and sends IFS_UNLOCK (IFS_RESET_DRIVER on the
+    /// module), which covers everything clear_fault() would send.
+    [[nodiscard]] bool reset_retires_fault() const override {
+        return true;
+    }
     /// Also ends the phase tracking, so a later head-sensor edge cannot drive
     /// the steps of an operation the restart already ended.
     void on_klipper_restarted() override;
@@ -1103,6 +1108,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
 
     /// Drop the latched runout back to IDLE. Caller must hold mutex_.
     void clear_runout_locked(const char* why);
+    /// ERROR -> IDLE with the runout latch, phase tracking and detail cleared.
+    void retire_fault_locked(const char* why);
     /// The module's last activity was driver_error. Guarded by mutex_.
     bool module_driver_fault_ = false;
 

@@ -115,10 +115,10 @@ void rung_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     if (ladder == TileLadder::Icon) {
         apply_face_scale(obj, face);
     }
-    // At content height a dotted label wraps instead of ellipsizing; held to one
-    // line, its height follows the face it now draws in.
+    // At content height a dotted label wraps instead of ellipsizing; capped at
+    // one line, it is measured in the face it now draws in.
     if (packed & kOneLineBit) {
-        helix::ui::label_hold_one_line(obj);
+        lv_label_set_max_lines(obj, 1);
     }
 }
 

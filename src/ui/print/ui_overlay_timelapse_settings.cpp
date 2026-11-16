@@ -250,5 +250,5 @@ void TimelapseSettingsOverlay::update_mode_info(int mode_index) {
 
 void open_timelapse_settings() {
     spdlog::debug("[Timelapse Settings] Timelapse row clicked");
-    get_global_timelapse_settings().show(lv_display_get_screen_active(nullptr));
+    get_global_timelapse_settings().show(lv_screen_active());
 }

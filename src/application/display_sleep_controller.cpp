@@ -363,13 +363,13 @@ void DisplaySleepController::tick() {
         const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
         if (job_holds_machine(lifecycle)) {
             // Reset LVGL activity timer so we don't immediately sleep when print ends
-            lv_display_trigger_activity(nullptr);
+            lv_display_trigger_activity(lv_display_get_default());
             inhibit_sleep_entry = true;
         }
     }
     // A view waiting on the user mid-operation holds the screen up regardless.
     if (helix::display_awake_hold().is_held()) {
-        lv_display_trigger_activity(nullptr);
+        lv_display_trigger_activity(lv_display_get_default());
         inhibit_sleep_entry = true;
     }
 
@@ -599,7 +599,7 @@ void DisplaySleepController::wake() {
 
     // A swallowed wake touch never reaches LVGL's activity clock, so without this the
     // display would wake and dim or sleep again on the next tick.
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 
     if (was_sleeping && helix::ui::UpdateQueue::instance().is_draining()) {
         // The rest of this batch and status are not applied in here, so the first frame

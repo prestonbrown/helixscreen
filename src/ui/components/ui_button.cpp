@@ -80,21 +80,17 @@ void part_resized_cb(lv_event_t* e);
 
 /// Bound the label of a long_mode button. Always full width; beside an icon it
 /// is a flex grow item that takes what the icon leaves, the width the row
-/// decides. Beside an icon, or under one in dots mode, it holds one line of its
-/// font, so a label too long for that ellipsizes inside the button instead of
-/// pushing past its edge: a label's dots mode only cuts text that overruns its
-/// height. Under an icon in any other mode it takes its text's own height.
+/// decides. Beside an icon in any long mode, or under one in dots mode, it is
+/// capped at one line of its font, so a label too long for that ellipsizes (or
+/// clips) inside the button instead of pushing past its edge: a label's dots
+/// mode only cuts text that overruns its height. Under an icon in any other
+/// mode it takes its text's own height.
 void apply_label_bound(UiButtonData* data, bool beside_icon) {
     lv_obj_set_flex_grow(data->label, beside_icon ? 1 : 0);
     lv_obj_set_width(data->label, lv_pct(100));
-    if (beside_icon) {
-        helix::ui::label_hold_one_line(data->label, helix::ui::LineHold::AnyMode);
-    } else if (lv_label_get_long_mode(data->label) == LV_LABEL_LONG_MODE_DOTS) {
-        helix::ui::label_hold_one_line(data->label);
-    } else {
-        helix::ui::label_release_lines(data->label);
-        lv_obj_set_height(data->label, LV_SIZE_CONTENT);
-    }
+    const bool one_line =
+        beside_icon || lv_label_get_long_mode(data->label) == LV_LABEL_LONG_MODE_DOTS;
+    lv_label_set_max_lines(data->label, one_line ? 1 : 0);
 }
 
 /// Hide one part of @p btn while @p subject_name equals @p ref: the observer

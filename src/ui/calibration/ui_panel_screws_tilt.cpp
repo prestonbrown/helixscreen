@@ -54,7 +54,7 @@ void init_screws_tilt_row_handler() {
              spdlog::debug("[ScrewsTilt] Bed leveling row clicked");
              auto& panel = get_global_screws_tilt_panel();
              panel.set_client(get_moonraker_client(), get_moonraker_api());
-             panel.show(lv_display_get_screen_active(nullptr));
+             panel.show(lv_screen_active());
          }},
     });
     spdlog::trace("[ScrewsTilt] Row click callback registered");

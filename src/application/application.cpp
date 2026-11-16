@@ -2390,7 +2390,7 @@ void Application::on_enter_background() {
     SoundManager::instance().shutdown();
 
     // 4. Suppress rendering — save CPU/GPU
-    lv_display_enable_invalidation(nullptr, false);
+    lv_display_enable_invalidation(lv_display_get_default(), false);
 
     spdlog::info("[Application] Background pause complete");
 }
@@ -2402,7 +2402,7 @@ void Application::on_enter_foreground() {
     spdlog::info("[Application] Resuming from background");
 
     // 1. Re-enable rendering
-    lv_display_enable_invalidation(nullptr, true);
+    lv_display_enable_invalidation(lv_display_get_default(), true);
 
     // 2. Re-initialize sound
     SoundManager::instance().initialize();
@@ -2429,7 +2429,7 @@ void Application::on_enter_foreground() {
     //    check_display_sleep() after resume would otherwise see the whole
     //    backgrounded interval as idle and drop straight back into sleep or the
     //    screensaver. Same idiom as DisplayManager::wake_display().
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 
     // 6. Force full display redraw — EGL surface may have been destroyed and
     //    recreated by Android while backgrounded.  Use invalidate_all_recursive

@@ -865,5 +865,5 @@ void TimelapseInstallOverlay::step_verify() {
 // ============================================================================
 
 void open_timelapse_install() {
-    get_global_timelapse_install().show(lv_display_get_screen_active(nullptr));
+    get_global_timelapse_install().show(lv_screen_active());
 }

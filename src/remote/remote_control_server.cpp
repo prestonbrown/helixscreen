@@ -107,7 +107,7 @@ static std::optional<helix::PanelId> name_to_panel_id(const std::string& name) {
 // mid-drive. Calling this on every interaction both prevents that and makes
 // DisplayManager close an already-active screensaver on its next tick. UI thread.
 static void wake_display() {
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 }
 
 RemoteControlServer::~RemoteControlServer() {

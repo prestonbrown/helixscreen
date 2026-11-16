@@ -1136,7 +1136,7 @@ void init_zoffset_row_handler() {
              spdlog::debug("[ZOffsetCal] Z-Offset row clicked");
              auto& overlay = get_global_zoffset_cal_panel();
              overlay.set_api(get_moonraker_api());
-             overlay.show(lv_display_get_screen_active(nullptr));
+             overlay.show(lv_screen_active());
          }},
     });
     spdlog::trace("[ZOffsetCal] Row click callback registered");
