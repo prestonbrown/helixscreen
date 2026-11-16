@@ -4,6 +4,7 @@
 #pragma once
 
 #include "completion_alert_mode.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
@@ -158,8 +159,8 @@ class AudioSettingsManager {
 
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
-    lv_subject_t audio_device_available_subject_{};
-    lv_subject_t music_available_subject_{};
+    helix::Subject audio_device_available_subject_{};
+    helix::Subject music_available_subject_{};
 
     bool subjects_initialized_ = false;
 };

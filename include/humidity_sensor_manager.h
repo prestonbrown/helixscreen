@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "humidity_sensor_types.h"
 #include "sensor_manager.h"
 
@@ -48,7 +49,7 @@ class HumiditySensorManager : public SensorManager {
     static Options make_options();
 
     std::map<std::string, float> humidity_; ///< percent, by klipper_name
-    lv_subject_t chamber_humidity_{};
+    helix::Subject chamber_humidity_{};
 };
 
 } // namespace helix::sensors

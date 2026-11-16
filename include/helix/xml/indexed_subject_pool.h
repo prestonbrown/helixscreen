@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -71,7 +73,7 @@ class IndexedSubjectPool {
     const char* suffix_;
     Type type_;
     size_t string_cap_;
-    std::vector<std::unique_ptr<lv_subject_t>> subjects_;
+    std::vector<std::unique_ptr<helix::Subject>> subjects_;
     std::vector<std::unique_ptr<char[]>> string_bufs_; // empty unless type_ == String
 
     std::string slot_name(size_t i) const;

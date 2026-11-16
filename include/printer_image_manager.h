@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h" // SubjectManager
 
 #include <lvgl/lvgl.h>
@@ -154,8 +155,8 @@ class PrinterImageManager {
     PrinterImageManager() = default;
     ~PrinterImageManager() = default;
 
-    std::string custom_dir_;               // e.g., "config/custom_images/"
-    lv_subject_t image_changed_subject_{}; // Version counter bumped on set_active_image()
+    std::string custom_dir_;                 // e.g., "config/custom_images/"
+    helix::Subject image_changed_subject_{}; // Version counter bumped on set_active_image()
     bool subjects_initialized_ = false;
     /// Owns image_changed_subject_ and the death signal
     /// get_subjects_lifetime() hands out.

@@ -7,6 +7,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
@@ -86,11 +87,11 @@ void LedController::init(IMoonrakerAPI* api, IMoonrakerClient* client) {
     // Initialize subjects for UI binding (idempotent).
     // led_controllable is registered globally so XML can bind it by name.
     if (!version_subject_initialized_) {
-        lv_subject_init_int(&led_config_version_, 0);
-        lv_subject_init_int(&led_controllable_, 0);
-        lv_subject_init_int(&led_has_devices_, 0);
-        lv_subject_init_int(&led_command_in_flight_, 0);
-        lv_subject_init_int(&led_state_version_, 0);
+        led_config_version_.init_int(0);
+        led_controllable_.init_int(0);
+        led_has_devices_.init_int(0);
+        led_command_in_flight_.init_int(0);
+        led_state_version_.init_int(0);
         helix::xml::register_subject_in_current_scope("led_controllable", &led_controllable_);
         helix::xml::register_subject_in_current_scope("led_has_devices", &led_has_devices_);
         helix::xml::register_subject_in_current_scope("led_command_in_flight",

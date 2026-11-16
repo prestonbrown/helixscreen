@@ -3,6 +3,7 @@
 #include "performance_state.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "subject_managed_panel.h"
 
@@ -144,7 +145,7 @@ std::vector<float> PerformanceState::read_history(const std::string& name) const
 }
 
 void PerformanceState::apply_sample(const PerfSample& s) {
-    auto set_present = [](lv_subject_t& subj, bool present) {
+    auto set_present = [](helix::Subject& subj, bool present) {
         lv_subject_set_int(&subj, present ? 1 : 0);
     };
 
@@ -252,11 +253,10 @@ void PerformanceState::update_mcu_subjects(const std::vector<McuStat>& mcus) {
             const std::string retr_name = "perf_mcu_" + safe + "_retrans";
             const std::string pres_name = "perf_mcu_" + safe + "_present";
             const std::string text_name = "perf_mcu_" + safe + "_text";
-            lv_subject_init_int(&subs->load_pct, 0);
-            lv_subject_init_int(&subs->retrans, 0);
-            lv_subject_init_int(&subs->present, 0);
-            lv_subject_init_string(&subs->text, subs->buf_text, nullptr, sizeof(subs->buf_text),
-                                   "\xe2\x80\x94");
+            subs->load_pct.init_int(0);
+            subs->retrans.init_int(0);
+            subs->present.init_int(0);
+            subs->text.init_string(subs->buf_text, nullptr, sizeof(subs->buf_text), "\xe2\x80\x94");
             helix::xml::register_subject_in_current_scope(load_name.c_str(), &subs->load_pct);
             helix::xml::register_subject_in_current_scope(retr_name.c_str(), &subs->retrans);
             helix::xml::register_subject_in_current_scope(pres_name.c_str(), &subs->present);

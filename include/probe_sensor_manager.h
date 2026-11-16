@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "probe_sensor_types.h"
 #include "sensor_manager.h"
 
@@ -86,7 +87,7 @@ class ProbeSensorManager : public SensorManager {
     /// configured z_offset of each of those sections, by section name.
     std::string folded_probe_;
     std::map<std::string, float> folded_z_offsets_;
-    lv_subject_t z_offset_{};
+    helix::Subject z_offset_{};
     /// From the printer database; STANDARD = none.
     ProbeSensorType type_override_ = ProbeSensorType::STANDARD;
 };

@@ -4,6 +4,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "performance_source.h"
 #include "subject_managed_panel.h"
@@ -76,24 +77,24 @@ class PerformanceState {
 
     // ---- Subjects (static set) ----
     SubjectManager subjects_;
-    lv_subject_t s_host_cpu_pct_{};
-    lv_subject_t s_host_cpu_pct_present_{};
-    lv_subject_t s_host_cpu_temp_c10_{};
-    lv_subject_t s_host_cpu_temp_present_{};
-    lv_subject_t s_host_mem_free_mb_{};
-    lv_subject_t s_host_mem_pct_used_{};
-    lv_subject_t s_host_mem_present_{};
-    lv_subject_t s_host_disk_free_mb_{};
-    lv_subject_t s_host_disk_present_{};
-    lv_subject_t s_host_disk_free_text_{};
-    lv_subject_t s_host_throttle_state_{};
-    lv_subject_t s_host_throttle_text_{};
-    lv_subject_t s_mcu_names_{};
-    lv_subject_t s_about_summary_{};
-    lv_subject_t s_available_{};
-    lv_subject_t s_history_tick_{};
-    lv_subject_t s_host_cpu_pct_text_{};
-    lv_subject_t s_host_mem_free_text_{};
+    helix::Subject s_host_cpu_pct_{};
+    helix::Subject s_host_cpu_pct_present_{};
+    helix::Subject s_host_cpu_temp_c10_{};
+    helix::Subject s_host_cpu_temp_present_{};
+    helix::Subject s_host_mem_free_mb_{};
+    helix::Subject s_host_mem_pct_used_{};
+    helix::Subject s_host_mem_present_{};
+    helix::Subject s_host_disk_free_mb_{};
+    helix::Subject s_host_disk_present_{};
+    helix::Subject s_host_disk_free_text_{};
+    helix::Subject s_host_throttle_state_{};
+    helix::Subject s_host_throttle_text_{};
+    helix::Subject s_mcu_names_{};
+    helix::Subject s_about_summary_{};
+    helix::Subject s_available_{};
+    helix::Subject s_history_tick_{};
+    helix::Subject s_host_cpu_pct_text_{};
+    helix::Subject s_host_mem_free_text_{};
 
     char buf_throttle_text_[96]{};
     char buf_mcu_names_[256]{};
@@ -104,17 +105,17 @@ class PerformanceState {
 
     // ---- Dynamic per-MCU subjects ----
     struct McuSubjects {
-        lv_subject_t load_pct{};
-        lv_subject_t retrans{};
-        lv_subject_t present{};
-        lv_subject_t text{};
+        helix::Subject load_pct{};
+        helix::Subject retrans{};
+        helix::Subject present{};
+        helix::Subject text{};
         char buf_text[64]{};
 
         ~McuSubjects() {
-            lv_subject_deinit(&load_pct);
-            lv_subject_deinit(&retrans);
-            lv_subject_deinit(&present);
-            lv_subject_deinit(&text);
+            load_pct.reset();
+            retrans.reset();
+            present.reset();
+            text.reset();
         }
     };
     std::unordered_map<std::string, std::unique_ptr<McuSubjects>> mcu_subjects_;

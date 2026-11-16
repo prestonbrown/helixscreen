@@ -33,6 +33,7 @@
 #include "stb_image_resize.h"
 
 // LVGL for color format constant
+#include "core/subject.h"
 #include "lvgl.h"
 
 namespace hfs = helix::fs;
@@ -66,7 +67,7 @@ void PrinterImageManager::init_subjects() {
     if (subjects_initialized_)
         return;
     // Version counter for observers
-    lv_subject_init_int(&image_changed_subject_, 0);
+    image_changed_subject_.init_int(0);
     subjects_.register_subject(&image_changed_subject_);
     subjects_initialized_ = true;
     StaticSubjectRegistry::instance().register_deinit(

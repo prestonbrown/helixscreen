@@ -1,43 +1,12 @@
 # Deprecated LVGL subject calls and by-value lv_subject_t storage, per file.
 # Ratchet: may fall, never rise. Lower one by moving the site onto helix::Subject
 # (include/core/subject.h), then re-run scripts/check_lvgl_subject_api.py --write-baseline.
-22 firmware/helixscreen-esp32/components/helixapp/helixapp_platform_stubs.cpp
-2 include/abort_manager.h
-2 include/audio_settings_manager.h
-17 include/display_settings_manager.h
-1 include/dynamic_subject_map.h
 3 include/favorite_macro_widget.h
-1 include/helix/xml/indexed_subject_pool.h
-1 include/humidity_sensor_manager.h
-1 include/input_sensor_manager.h
-4 include/label_printer_settings.h
-5 include/led/led_controller.h
-1 include/moonraker_api.h
-26 include/performance_state.h
-1 include/persisted_setting.h
 8 include/power_device_widget.h
 1 include/preheat_widget.h
-1 include/printer_image_manager.h
-1 include/probe_sensor_manager.h
 5 include/quick_action_buttons.h
-4 include/remote_screen_settings_manager.h
-3 include/rotation_probe.h
-2 include/safety_settings_manager.h
-2 include/sensor_manager.h
-8 include/system/update_checker.h
-2 include/system_settings_manager.h
 3 include/ui_panel_home.h
 3 include/ui_shutdown_modal.h
-2 include/width_sensor_manager.h
-2 src/api/moonraker_api.cpp
-2 src/core/temp_unit_subject.cpp
-5 src/led/led_controller.cpp
-5 src/plugin/lua_bind_ui.cpp
-2 src/sensors/dynamic_subject_map.cpp
-2 src/system/lock_manager.cpp
-4 src/system/performance_state.cpp
-6 src/system/preset_materials.cpp
-1 src/system/printer_image_manager.cpp
 1 src/ui/home/ui_panel_home.cpp
 4 src/ui/home/ui_tile_edit_callout.cpp
 2 src/ui/home/ui_widget_catalog_overlay.cpp
@@ -88,8 +57,6 @@
 8 src/ui/widgets/power_device_widget.cpp
 2 src/ui/widgets/tile_color.cpp
 1 src/ui/wizard/ui_wizard_helpers.cpp
-5 src/util/indexed_subject_pool.cpp
-3 src/xml_registration.cpp
 1 tests/test_helpers/scoped_breakpoint.h
 3 tests/test_helpers/scoped_int_subject.h
 6 tests/unit/application/test_subject_initializer.cpp

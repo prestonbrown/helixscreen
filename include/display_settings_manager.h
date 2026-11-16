@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "region_defaults.h"
@@ -683,26 +684,26 @@ class DisplaySettingsManager {
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t dark_mode_subject_{};
-    lv_subject_t dark_mode_available_subject_{};
-    lv_subject_t theme_preset_subject_{};
-    lv_subject_t display_dim_subject_{};
-    lv_subject_t display_sleep_subject_{};
-    lv_subject_t has_backlight_subject_{};
-    lv_subject_t has_dimming_subject_{};
-    lv_subject_t dim_row_kind_subject_{};
-    lv_subject_t animations_enabled_subject_{};
-    lv_subject_t hardware_keyboard_present_subject_{};
-    lv_subject_t is_android_subject_{};
-    lv_subject_t rotation_available_subject_{};
-    lv_subject_t timezone_subject_{};
-    lv_subject_t glass_available_subject_{};
+    helix::Subject dark_mode_subject_{};
+    helix::Subject dark_mode_available_subject_{};
+    helix::Subject theme_preset_subject_{};
+    helix::Subject display_dim_subject_{};
+    helix::Subject display_sleep_subject_{};
+    helix::Subject has_backlight_subject_{};
+    helix::Subject has_dimming_subject_{};
+    helix::Subject dim_row_kind_subject_{};
+    helix::Subject animations_enabled_subject_{};
+    helix::Subject hardware_keyboard_present_subject_{};
+    helix::Subject is_android_subject_{};
+    helix::Subject rotation_available_subject_{};
+    helix::Subject timezone_subject_{};
+    helix::Subject glass_available_subject_{};
 
-    lv_subject_t screensaver_type_subject_{};
+    helix::Subject screensaver_type_subject_{};
     /// "°C" or "°F", for XML labels that name the unit.
-    lv_subject_t temp_unit_symbol_subject_{};
+    helix::Subject temp_unit_symbol_subject_{};
     char temp_unit_symbol_buf_[8] = {};
-    lv_subject_t has_screensaver_subject_{};
+    helix::Subject has_screensaver_subject_{};
 
     bool subjects_initialized_ = false;
     bool hardware_keyboard_present_ = false;
