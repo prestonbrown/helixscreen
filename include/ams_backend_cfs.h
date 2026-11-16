@@ -423,12 +423,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }
-    // CFS unloads filament from the toolhead at end-of-print and reloads it as
-    // part of the next print-start sequence, so the toolhead is expected to be
-    // empty at print-start. The runout sensor reading "no filament" then is by
-    // design, not a fault — suppress the pre-print runout warning modal.
+    // Stock CFS firmware unloads filament from the toolhead at end-of-print and
+    // reloads it as part of the next print-start sequence, so the toolhead is
+    // expected to be empty at print-start and the pre-print runout warning is
+    // suppressed. Fork firmware makes that unload an option and reports it as
+    // box.unload_after_print_enabled; with it off, filament stays in the
+    // toolhead and an empty one is worth the warning.
     [[nodiscard]] bool auto_unloads_after_print() const override {
-        return true;
+        return unload_after_print_.load() != 0;
     }
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
@@ -943,6 +945,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     /// Fork firmware registers BOX_PRINT_MAP (fork_has_print_map() of the
     /// merged flat state). Same writer and lifetime as fork_select_slot_.
     std::atomic<bool> fork_print_map_{false};
+    /// box.unload_after_print_enabled as last reported: -1 when the firmware
+    /// reports no such option (stock, which always unloads), else 0 or 1.
+    std::atomic<int> unload_after_print_{-1};
 
     /// Stock dialect only: a client has declared bypass intent (sidebar toggle
     /// ON after the chained unload). Held in Moonraker as kBypassDeclaredKey in
