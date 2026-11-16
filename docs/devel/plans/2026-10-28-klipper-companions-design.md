@@ -32,7 +32,7 @@ install button, version pinning, updater and uninstall it already has.
    `install.sh` changes only one thing: it adds `[include helix_companions/*.cfg]` to
    printer.cfg (backup first, like `helix_skips.cfg`), and uninstall removes it plus the dir.
 3. **A glob include, never a direct one.** Klipper accepts an empty glob ("Empty set is OK if
-   wildcard but not for direct file reference", `klippy/configfile.py#_resolve_include`,
+   wildcard but not for direct file reference", `_resolve_include` in Klipper's `klippy/configfile.py`,
    checked on stock K2 firmware). With no companions the include is inert, so the printer
    always boots. The one failure left: a firmware update that rewrites `/usr/share/klipper`
    while keeping printer.cfg leaves a `.cfg` naming a module that is gone, and Klipper stops
@@ -128,8 +128,8 @@ leaves its stream running until the kernel OOM-kills klippy, so it is not used.
   its quality verdict. Storage and apply are the Pressure Advance Tuning feature's, not new
   ones (`docs/devel/PRESSURE_ADVANCE_TUNING.md`): the measured K goes through Save to Spool
   (Spoolman filament extra `pressure_advance`, plus the `helix-screen`/`pressure_advance`
-  Moonraker key), is sent through `tune_controller.cpp#set_pressure_advance`, and comes back
-  at spool activation through `spoolman_active_spool_sync.cpp#apply_saved_pressure_advance`.
+  Moonraker key), is sent through `src/ui/print/tune_controller.cpp#set_pressure_advance`, and comes back
+  at spool activation through `src/printer/spoolman_active_spool_sync.cpp#apply_saved_pressure_advance`.
   A measured result and a by-eye result are the same record, with a `source` field telling
   them apart.
 
