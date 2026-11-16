@@ -53,6 +53,12 @@ feature() {
     contains "ENABLE_FEATURE=maybe is not a yes/no value" "$output"
 }
 
+@test "a quote inside a value is part of the value, not shell syntax" {
+    feature "ENABLE_FEATURE=o''n"
+    [ "$status" -ne 0 ] || fail "$output"
+    contains "ENABLE_FEATURE=o''n is not a yes/no value" "$output"
+}
+
 @test "an unset flag keeps the makefile's default" {
     feature
     [ "$output" = on ] || fail "$output"
