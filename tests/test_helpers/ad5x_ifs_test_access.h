@@ -594,10 +594,6 @@ class Ad5xIfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.evaluate_runout_locked();
     }
-    static bool runout_active(const AmsBackendAd5xIfs& b) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        return b.runout_active_;
-    }
     static int runout_slot(const AmsBackendAd5xIfs& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         return b.runout_slot_;
