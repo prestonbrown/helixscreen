@@ -105,6 +105,8 @@ class BedMeshPanel : public OverlayBase {
     void delete_profile(int index);
     void rename_profile(int index);
     void start_calibration();
+    /// start_calibration() once the bed is known clear: the profile name dialog.
+    void ask_calibration_name();
 
     // Modal actions
     void show_rename_modal(const std::string& profile_name);

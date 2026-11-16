@@ -4333,7 +4333,6 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "Piano e ugello si riscaldano insieme prima di qualsiasi movimento, così la stampa torna ad aderire e l'ugello si stacca."
   The bed has cooled. Take the spools off the plate, then confirm.: Il piano si è raffreddato. Togli le bobine dal piano, poi conferma.
 
-  The bed is clear and the toolhead can move freely: 'Il piano è libero e la testina può muoversi liberamente'
   The bed is too small for settling laps.: 'Il piano è troppo piccolo per i giri di assestamento.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Il riscaldatore del piano. Imposta la temperatura e guarda il grafico nella schermata della temperatura del piano.'
   The bed is too small for the test tower, or its size is unknown.: Il piano è troppo piccolo per la torre di prova, oppure la sua dimensione è sconosciuta.
@@ -4384,6 +4383,7 @@ translations:
   The heater will cycle on and off several times.: Il riscaldatore si accenderà e
     spegnerà diverse volte.
   The helper macros are installed and activate after Klipper restarts.: 'Le macro di ausilio sono installate e si attivano dopo il riavvio di Klipper.'
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "L'ultima stampa potrebbe essere ancora sul piano. Toglila prima che la testina si muova, poi tocca Liberato."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock.
   The left RFID reader in this CFS unit may need service: Il lettore RFID sinistro di questa unità CFS potrebbe richiedere assistenza
   'The linked spool says {}.': 'La bobina collegata indica {}.'

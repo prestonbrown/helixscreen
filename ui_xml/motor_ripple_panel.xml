@@ -13,12 +13,8 @@
               width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
         <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="0"/>
         <text_body width="100%" long_mode="wrap" bind_text="ripple_intro_text"/>
-        <lv_checkbox name="ripple_bed_clear"
-                     width="100%" text="The bed is clear and the toolhead can move freely"
-                     bind_checked="ripple_bed_clear"/>
         <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
         <ui_button name="btn_ripple_start" width="100%" text="Start" moves_machine="true">
-          <bind_state_if_eq subject="ripple_bed_clear" state="disabled" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_ripple_start"/>
         </ui_button>
       </lv_obj>

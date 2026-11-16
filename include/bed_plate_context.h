@@ -7,9 +7,11 @@
 // may move the head now, and the lift for the next XY move. The Bed tab, the Move tab's
 // presets and the home Toolhead widget all read these, so they agree.
 
+#include "async_lifetime_guard.h"
 #include "motion_presets.h"
 #include "printer_motion_state.h"
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -96,5 +98,13 @@ bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, c
 /// mark it cleared, which drops the lift over it. The answer is read from the state live at
 /// that moment, so a printer switch while the dialog is up clears nothing stale.
 void confirm_bed_cleared();
+
+/// Every calibration that moves the toolhead starts through this: @p start runs straight
+/// away when no print may be on the bed, and otherwise only once the user answers the
+/// same "Is the bed clear?" question with Cleared, which also marks the bed cleared.
+/// Cancel or dismissing the question starts nothing and runs @p on_declined instead. @p owner
+/// gates both, so a screen closed while the question is up hears nothing back.
+void ensure_bed_clear_then(LifetimeToken owner, std::function<void()> start,
+                           std::function<void()> on_declined = {});
 
 } // namespace helix

@@ -4,6 +4,8 @@ HelixScreen provides built-in tools for the most common Klipper calibration task
 
 > **Looking for touchscreen calibration?** See the [Touch Calibration Guide](touch-calibration.md).
 
+Every calibration here that moves the toolhead (Bed Mesh, Screws Tilt, Input Shaper, Belt Tension, Tool Offsets, Vertical Artifact Compensation and Check, and the home step of Cold Pull) first checks whether your last print may still be on the bed. If it may, HelixScreen asks **Is the bed clear?** before anything moves. Remove the print and tap **Cleared**, which also tells the home screen the bed is clear. When the bed is already known clear, the calibration starts straight away.
+
 ---
 
 ## Bed Mesh
@@ -279,7 +281,7 @@ The **Vertical Artifact Check** row appears when the printer has an acceleromete
 
 1. Make sure no print is running and the bed is clear.
 2. Navigate to **Advanced > Vertical Artifact Check**.
-3. Tick **The bed is clear and the toolhead can move freely**, then tap **Start**.
+3. Tap **Start**. If the last print may still be on the bed, remove it and tap **Cleared** when asked.
 4. The printer homes if it needs to, lifts the nozzle and runs the toolhead back and forth at speeds from 20 to 300 mm/s, one motor at a time. It is loud, and takes about five minutes. The chart fills in as each speed is measured.
 
 ### Reading the Results

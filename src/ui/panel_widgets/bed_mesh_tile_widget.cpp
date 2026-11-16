@@ -17,6 +17,7 @@
 #include "bed_mesh_probe_temp.h"
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "helix_psram_attr.h"
 #include "i18n_plural.h"
@@ -573,6 +574,12 @@ void BedMeshTileWidget::open_panel() {
 }
 
 void BedMeshTileWidget::calibrate() {
+    if (!verdict_.show_calibrate || !s_tile.is_owner(this) || calibrating_)
+        return;
+    ensure_bed_clear_then(lifetime_.token(), [this]() { calibrate_once_bed_clear(); });
+}
+
+void BedMeshTileWidget::calibrate_once_bed_clear() {
     if (!verdict_.show_calibrate || !s_tile.is_owner(this) || calibrating_)
         return;
     const bool blocked =

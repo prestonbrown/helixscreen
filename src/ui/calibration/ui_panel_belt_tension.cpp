@@ -11,6 +11,7 @@
 #include "ui_nav.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "belt_stream_client.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -890,6 +891,15 @@ bool BeltTensionPanel::gate_allows_sweep(const char* action) {
 }
 
 void BeltTensionPanel::run_after_ram_check(std::function<void()> go) {
+    // The gate can close while the bed question is up, so Cleared re-checks it.
+    ensure_bed_clear_then(lifetime_.token(), [this, go = std::move(go)]() mutable {
+        if (gate_allows_sweep("Cleared")) {
+            run_ram_checked(std::move(go));
+        }
+    });
+}
+
+void BeltTensionPanel::run_ram_checked(std::function<void()> go) {
     const helix::MemoryInfo mem = mem_override_.value_or(helix::get_system_memory_info());
     const auto verdict = helix::resonance_memory_check(mem);
     if (verdict == helix::ResonanceMemory::OK) {

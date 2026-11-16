@@ -379,6 +379,8 @@ class BeltTensionPanel : public OverlayBase {
     /// path's own series again.
     void clear_previews();
     void run_after_ram_check(std::function<void()> go);
+    /// run_after_ram_check() once the bed is known clear.
+    void run_ram_checked(std::function<void()> go);
     /// Re-check the gate before any sweep starts; false (logged) when it is
     /// shut. `action` names the button in the log.
     [[nodiscard]] bool gate_allows_sweep(const char* action);

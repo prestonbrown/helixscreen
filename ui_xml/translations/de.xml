@@ -3990,7 +3990,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." de="Bett und Düse heizen gemeinsam auf, bevor sich etwas bewegt, damit der Druck wieder haftet und die Düse sich von ihm löst."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." de="Das Heizbett ist abgekühlt. Nimm die Spulen vom Heizbett und bestätige dann."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." de="Die Heizbettheizung. Stelle die Temperatur ein und beobachte den Verlauf im Heizbett-Temperatur-Bildschirm."/>
-  <translation tag="The bed is clear and the toolhead can move freely" de="Das Heizbett ist frei und der Werkzeugkopf kann sich ungehindert bewegen"/>
   <translation tag="The bed is too small for settling laps." de="Das Bett ist zu klein für Setzrunden."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." de="Das Bett ist zu klein für den Testturm oder seine Größe ist unbekannt."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." de="Das Heizbett schaltet ab. Die Spulen bleiben als auf dem Heizbett liegend gesperrt, bis du bestätigst, dass sie entnommen sind."/>
@@ -4034,6 +4033,7 @@
   <translation tag="The heater was turned off at the heater." de="Die Heizung wurde am Gerät ausgeschaltet."/>
   <translation tag="The heater will cycle on and off several times." de="Die Heizung wird mehrmals ein- und ausschalten."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." de="Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." de="Der letzte Druck liegt möglicherweise noch auf dem Heizbett. Entfernen Sie ihn, bevor sich der Werkzeugkopf bewegt, und tippen Sie dann auf Geräumt."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." de="Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" de="Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The linked spool says {}." de="Die verknüpfte Spule gibt {} an."/>

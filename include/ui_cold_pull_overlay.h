@@ -30,6 +30,8 @@ class ColdPullOverlay : public OverlayBase {
     }
 
     void register_callbacks() override;
+    /// Home and park, once the bed is known clear.
+    void home_and_park_clicked();
     lv_obj_t* create(lv_obj_t* parent) override;
     void on_deactivating(DeactivateReason reason) override;
     void on_dismissed() override;

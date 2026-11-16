@@ -173,18 +173,52 @@ const char* part_too_tall_text() {
     return lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared.");
 }
 
+namespace {
+
+/// "Is the bed clear?" with @p message; Cleared marks the bed cleared, then runs @p then.
+/// Cancel and a dismissal both run @p declined.
+void ask_bed_cleared(const char* message, std::function<void()> then,
+                     std::optional<LifetimeToken> owner, std::function<void()> declined = {}) {
+    ui::ConfirmOptions opts;
+    opts.owner_token = std::move(owner);
+    if (declined) {
+        opts.on_cancel = declined;
+        opts.on_dismiss = declined;
+    }
+    ui::modal_confirm(
+        lv_tr("Is the bed clear?"), message, ModalSeverity::Warning, lv_tr("Cleared"),
+        [then = std::move(then)]() {
+            if (BedOccupancyState* state = get_bed_occupancy_state()) {
+                state->mark_cleared();
+            }
+            if (then) {
+                then();
+            }
+        },
+        opts);
+}
+
+} // namespace
+
 void confirm_bed_cleared() {
     if (!get_bed_occupancy_state()) {
         return;
     }
-    ui::modal_confirm(
-        lv_tr("Is the bed clear?"),
+    ask_bed_cleared(
         lv_tr("Confirm only once the last print is off the bed. Moves then stop lifting above it."),
-        ModalSeverity::Warning, lv_tr("Cleared"), []() {
-            if (BedOccupancyState* state = get_bed_occupancy_state()) {
-                state->mark_cleared();
-            }
-        });
+        {}, std::nullopt);
+}
+
+void ensure_bed_clear_then(LifetimeToken owner, std::function<void()> start,
+                           std::function<void()> on_declined) {
+    const BedOccupancyState* state = get_bed_occupancy_state();
+    if (!state || !state->current().occupied) {
+        start();
+        return;
+    }
+    ask_bed_cleared(lv_tr("The last print may still be on the bed. Remove it before the toolhead "
+                          "moves, then tap Cleared."),
+                    std::move(start), std::move(owner), std::move(on_declined));
 }
 
 } // namespace helix

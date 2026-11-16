@@ -224,6 +224,8 @@ class InputShaperPanel : public OverlayBase {
 
     // Pre-flight noise check + calibration chain
     void start_with_preflight(char axis);
+    /// start_with_preflight() once the bed is known clear.
+    void start_once_bed_clear(char axis);
     void proceed_with_preflight(char axis);
     void calibrate_all();
     void on_preflight_complete(float noise_level);

@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "bed_mesh_gradient.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "i18n_plural.h"
@@ -281,6 +282,10 @@ void ScrewsTiltPanel::set_state(State new_state) {
 // ============================================================================
 
 void ScrewsTiltPanel::start_probing() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { probe_once_bed_clear(); });
+}
+
+void ScrewsTiltPanel::probe_once_bed_clear() {
     if (!api_) {
         spdlog::error("[ScrewsTilt] No API - cannot probe");
         on_screws_tilt_error(lv_tr("Internal error: API not available"));

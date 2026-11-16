@@ -3990,7 +3990,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." pt="A mesa e o bico aquecem juntos antes de qualquer movimento, para que a impressão volte a aderir e o bico se solte dela."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." pt="A mesa esfriou. Tire os carretéis da mesa e depois confirme."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." pt="O aquecedor da mesa. Defina a temperatura e acompanhe o gráfico na tela de temperatura da mesa."/>
-  <translation tag="The bed is clear and the toolhead can move freely" pt="A mesa está livre e o cabeçote pode se mover livremente"/>
   <translation tag="The bed is too small for settling laps." pt="A mesa é pequena demais para as voltas de assentamento."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." pt="A mesa é pequena demais para a torre de teste, ou seu tamanho é desconhecido."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." pt="A mesa desliga. Os carretéis continuam registrados na mesa até você confirmar que foram retirados."/>
@@ -4034,6 +4033,7 @@
   <translation tag="The heater was turned off at the heater." pt="O aquecedor foi desligado no próprio aquecedor."/>
   <translation tag="The heater will cycle on and off several times." pt="O aquecedor ligará e desligará várias vezes."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." pt="As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." pt="A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>
   <translation tag="The left RFID reader in this CFS unit may need service" pt="O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção"/>
   <translation tag="The linked spool says {}." pt="O carretel vinculado indica {}."/>
