@@ -36,6 +36,23 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
 }
 
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "subject_get_bool_or reports the fallback for a helix::Subject not yet initialized",
+    "[subject][settings][defaults]") {
+    helix::Subject subject; // its node is an INT placeholder from construction
+    REQUIRE(subject.get() != nullptr);
+    REQUIRE(subject.get()->type == LV_SUBJECT_TYPE_INT);
+
+    CHECK(subject_get_bool_or(subject, true));
+    CHECK_FALSE(subject_get_bool_or(subject, false));
+
+    subject.init_int(0);
+    CHECK_FALSE(subject_get_bool_or(subject, true));
+    subject.reset();
+    CHECK(subject_get_bool_or(subject, true));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "subject_get_bool_or reads the subject once it is initialized",
                  "[subject][settings][defaults]") {
     SECTION("an initialized false subject overrides a true fallback") {

@@ -189,6 +189,15 @@ inline bool subject_get_bool_or(const lv_subject_t& subject, bool fallback) {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&subject)) != 0;
 }
 
+/// The same guard for a helix::Subject. Its node exists from construction as an INT
+/// placeholder, so the type check above cannot tell "not yet initialized"; is_live() can.
+inline bool subject_get_bool_or(const helix::Subject& subject, bool fallback) {
+    if (!subject.is_live()) {
+        return fallback;
+    }
+    return subject_get_bool_or(*subject.get(), fallback);
+}
+
 namespace helix::ui {
 
 /**
