@@ -181,6 +181,7 @@ translations:
   A print is running. Apply the result after it ends.: A print is running. Apply the result after it ends.
   A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
+  A print started, so the calibration did not start.: A print started, so the calibration did not start.
   A print took the printer.: A print took the printer.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left

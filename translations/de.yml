@@ -189,6 +189,7 @@ translations:
   A print is running. Apply the result after it ends.: Ein Druck läuft. Übernimm das Ergebnis, wenn er fertig ist.
   A print started: 'Ein Druck wurde gestartet'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."
+  A print started, so the calibration did not start.: "Ein Druck wurde gestartet, daher wurde die Kalibrierung nicht gestartet."
   A print took the printer.: "Ein Druck hat den Drucker übernommen."
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"

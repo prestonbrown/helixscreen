@@ -5,6 +5,7 @@
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
 
+#include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "bed_occupancy_state.h"
 #include "i_moonraker_api.h"
@@ -193,13 +194,23 @@ void ask_bed_cleared(const char* message, std::function<void()> then,
     }
     ui::modal_confirm(
         lv_tr("Is the bed clear?"), message, ModalSeverity::Warning, lv_tr("Cleared"),
-        [then = std::move(then), owner_alive]() {
+        [then = std::move(then), declined, owner_alive]() {
             if (BedOccupancyState* state = get_bed_occupancy_state()) {
                 state->mark_cleared();
             }
-            if (then && owner_alive()) {
-                then();
+            if (!then || !owner_alive()) {
+                return;
             }
+            // A print can take the printer from another client while the question is up.
+            if (lv_subject_get_int(
+                    get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+                NOTIFY_WARNING(lv_tr("A print started, so the calibration did not start."));
+                if (declined) {
+                    declined();
+                }
+                return;
+            }
+            then();
         },
         opts);
 }

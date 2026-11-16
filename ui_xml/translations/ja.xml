@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." ja="印刷中です。終了後に結果を適用してください。"/>
   <translation tag="A print started" ja="印刷が開始されました"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ja="スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"/>
+  <translation tag="A print started, so the calibration did not start." ja="印刷が開始されたため、キャリブレーションは開始されませんでした。"/>
   <translation tag="A print took the printer." ja="印刷がプリンターを使用し始めました。"/>
   <translation tag="A restart is already in progress" ja="再起動はすでに進行中です"/>
   <translation tag="A right, B left" ja="A右・B左"/>

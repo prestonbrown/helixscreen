@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." zh="正在打印。请在打印结束后应用结果。"/>
   <translation tag="A print started" zh="打印已开始"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." zh="在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"/>
+  <translation tag="A print started, so the calibration did not start." zh="打印已开始，因此未启动校准。"/>
   <translation tag="A print took the printer." zh="打印任务接管了打印机。"/>
   <translation tag="A restart is already in progress" zh="重启正在进行中"/>
   <translation tag="A right, B left" zh="A 右,B 左"/>

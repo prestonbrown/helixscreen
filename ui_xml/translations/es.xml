@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." es="Hay una impresión en curso. Aplica el resultado cuando termine."/>
   <translation tag="A print started" es="Se inició una impresión"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." es="Se inició una impresión con bobinas marcadas como en la cama. Si siguen ahí, detén la impresora ahora con la Parada de Emergencia."/>
+  <translation tag="A print started, so the calibration did not start." es="Se inició una impresión, así que la calibración no se inició."/>
   <translation tag="A print took the printer." es="Una impresión ha tomado la impresora."/>
   <translation tag="A restart is already in progress" es="Ya hay un reinicio en curso"/>
   <translation tag="A right, B left" es="A derecha, B izquierda"/>

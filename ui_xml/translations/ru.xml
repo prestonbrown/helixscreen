@@ -214,6 +214,7 @@
   <translation tag="A print is running. Apply the result after it ends." ru="Идёт печать. Примените результат после её завершения."/>
   <translation tag="A print started" ru="Началась печать"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ru="Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."/>
+  <translation tag="A print started, so the calibration did not start." ru="Началась печать, поэтому калибровка не запущена."/>
   <translation tag="A print took the printer." ru="Печать заняла принтер."/>
   <translation tag="A restart is already in progress" ru="Перезапуск уже выполняется"/>
   <translation tag="A right, B left" ru="A справа, B слева"/>

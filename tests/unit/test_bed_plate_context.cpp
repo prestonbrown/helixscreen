@@ -122,6 +122,16 @@ TEST_CASE_METHOD(PlateContextFixture,
     CHECK(declines == 1);
     CHECK_FALSE(occupancy_.current().occupied);
 
+    // A print that takes the printer while the question is up gets no calibration moves.
+    put_part(true, std::nullopt);
+    ensure_bed_clear_then(owner.token(), start, declined);
+    lv_subject_set_int(state().print_state().get_machine_motion_blocked_subject(), 1);
+    answer("btn_primary");
+    lv_subject_set_int(state().print_state().get_machine_motion_blocked_subject(), 0);
+    CHECK(starts == 2);
+    CHECK(declines == 2);
+    CHECK_FALSE(occupancy_.current().occupied);
+
     // A screen closed while the question is up starts nothing, but the answer still
     // clears the bed.
     put_part(true, std::nullopt);
