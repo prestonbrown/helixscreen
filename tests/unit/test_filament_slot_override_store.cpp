@@ -3,6 +3,7 @@
 //
 // The lane record store: RFC 0001 §5 records in Moonraker's database, read
 // whole and written through, with no local copy.
+#include "../helix_test_fixture.h"
 #include "../test_helpers/mock_printer.h"
 #include "ams_types.h"
 #include "filament_slot_override.h"
@@ -402,8 +403,8 @@ TEST_CASE("persist_staged_override saves only a slot that holds a record",
     CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
 }
 
-TEST_CASE("a failed write withdraws the lane's pending edit",
-          "[filament_slot_override][lane][pending]") {
+TEST_CASE_METHOD(HelixTestFixture, "a failed write withdraws the lane's pending edit",
+                 "[filament_slot_override][lane][pending]") {
     helix::ams::reset_lane_sources();
     MockPrinter printer;
     FilamentSlotOverrideStore store(&printer.api, "ifs");
