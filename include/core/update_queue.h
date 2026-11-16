@@ -117,6 +117,12 @@ class UpdateQueue {
         return instance;
     }
 
+    /// True once the singleton has been destroyed in the atexit chain. A destructor that
+    /// may run after it (a static's member) checks this before calling instance().
+    static bool destroyed() {
+        return s_destroyed_.load(std::memory_order_acquire);
+    }
+
     /**
      * @brief Initialize the update queue (call once at startup)
      *
@@ -426,7 +432,9 @@ class UpdateQueue {
 
     friend class UpdateQueueTestAccess;
     UpdateQueue() = default;
+    static inline std::atomic<bool> s_destroyed_{false};
     ~UpdateQueue() {
+        s_destroyed_.store(true, std::memory_order_release);
         // Discard without draining. This runs from __run_exit_handlers, and the
         // singleton is constructed during static initialization — earlier than
         // PrinterState and spdlog's registry, so it is destroyed after them.
