@@ -5,6 +5,7 @@
 #include "core/update_queue.h"
 #include "lvgl/src/misc/lv_timer_private.h"
 
+#include <cstring>
 #include <utility>
 #include <vector>
 
@@ -32,7 +33,11 @@ class UpdateQueueTestAccess {
         int line = 0;
     };
 
-    static std::vector<DroppedCallback> discard_pending(UpdateQueue& q) {
+    /// A callback tagged @p run_tag is run instead: the caller vouches that it touches
+    /// no per-test state (a destroyed helix::Subject's queued free, which reaches only
+    /// its orphaned node). It is neither dropped nor reported.
+    static std::vector<DroppedCallback> discard_pending(UpdateQueue& q,
+                                                        const char* run_tag = nullptr) {
         std::queue<TaggedCallback> dropped;
         {
             std::lock_guard<std::mutex> lock(q.mutex_);
@@ -43,9 +48,15 @@ class UpdateQueueTestAccess {
         std::vector<DroppedCallback> out;
         out.reserve(dropped.size());
         while (!dropped.empty()) {
-            const TaggedCallback& e = dropped.front();
-            out.push_back({e.tag != nullptr ? e.tag : "<untagged>",
-                           e.tag != nullptr ? nullptr : e.file, e.line});
+            TaggedCallback& e = dropped.front();
+            if (run_tag != nullptr && e.tag != nullptr && std::strcmp(e.tag, run_tag) == 0) {
+                if (e.callback) {
+                    e.callback();
+                }
+            } else {
+                out.push_back({e.tag != nullptr ? e.tag : "<untagged>",
+                               e.tag != nullptr ? nullptr : e.file, e.line});
+            }
             dropped.pop();
         }
         return out;

@@ -80,6 +80,10 @@ class Subject {
     bool live_ = false;
 };
 
+/// The update-queue tag of a destroyed Subject's queued free. The callback touches only the
+/// orphaned node, never its former owner, so it is safe to run at any later point.
+constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
+
 /// lv_subject_deinit() for code holding only the pointer (SubjectManager, registries):
 /// resets the owning Subject.
 void subject_reset(lv_subject_t* subject);

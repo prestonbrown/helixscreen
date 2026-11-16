@@ -2541,7 +2541,7 @@ Set these in `helixscreen.env`, which the launcher sources before it builds the 
 | `HELIX_DEBUG` | Legacy debug switch; `1` adds `-vv` (debug-level logging). Launcher-only — the binary does not read it. Superseded by `HELIX_LOG_LEVEL`. | `0` |
 | `HELIX_LOG_DEST` | Log destination — same as `--log-dest`: `auto`, `journal`, `syslog`, `file`, `console`. | `auto` |
 | `HELIX_LOG_FILE` | Log file path — same as `--log-file`. Only meaningful once the destination resolves to `file`. | Unset |
-| `HELIX_LOG_ANOMALIES` | `1` also writes every LVGL-layer anomaly (`helix_lvgl_anomaly()`: null subjects, refused observers, `helix::Subject` misuse) to the log as `[LvglAnomaly] <code>: <context>`. Telemetry rate-limits them, so this is the way to count them in a run. | Unset |
+| `HELIX_LOG_ANOMALIES` | `1` also writes every LVGL-layer anomaly (`helix_lvgl_anomaly()`: null subjects, refused observers, `helix::Subject` misuse) to stderr as `[LvglAnomaly] <code>: <context>`, through its own logger, so it shows even where the default logger is silenced (the test binary). Telemetry rate-limits them, so this is the way to count them in a run. | Unset |
 
 **Usage Notes:**
 - `HELIX_LOG_DEST` / `HELIX_LOG_FILE` / `HELIX_LOG_LEVEL` are read **twice, independently**: the launcher turns them into `--log-dest=` / `--log-file=` / `--log-level=`, and `Application::init_logging()` reads them directly. The direct read is what makes them work under a systemd unit's `Environment=`, a hand-run binary, or a third-party init script that execs `helix-screen` without our launcher. `HELIX_DEBUG` is the exception: launcher-only.

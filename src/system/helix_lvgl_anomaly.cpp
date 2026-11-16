@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "helix_lvgl_anomaly.h"
 
+#include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include <cstdio>
@@ -51,9 +52,12 @@ extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
         return v != nullptr && v[0] == '1';
     }();
     if (log_anomalies) {
-        // Held for good: an anomaly can be reported from the atexit chain, after spdlog's
-        // registry (and with it spdlog::warn) is gone.
-        static const auto* logger = new std::shared_ptr<spdlog::logger>(spdlog::default_logger());
+        // Its own stderr logger, not the default one: the default can be a null sink (the
+        // test binary installs one). Held for good: an anomaly can be reported from the
+        // atexit chain, after spdlog's registry is gone.
+        static const auto* logger =
+            new std::shared_ptr<spdlog::logger>(std::make_shared<spdlog::logger>(
+                "lvgl_anomaly", std::make_shared<spdlog::sinks::stderr_sink_mt>()));
         (*logger)->warn("[LvglAnomaly] {}: {}", code ? code : "unknown_anomaly",
                         context ? context : "");
     }

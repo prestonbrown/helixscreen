@@ -26,6 +26,7 @@
 #include "../ui_test_utils.h"
 #include "core/http_executor.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "system/lvgl_thread_check.h"
@@ -352,7 +353,7 @@ class IsolationListener : public Catch::EventListenerBase {
         // one closing over a per-test object is a real UAF awaiting the next drain.
         if (std::vector<helix::ui::UpdateQueueTestAccess::DroppedCallback> dropped =
                 helix::ui::UpdateQueueTestAccess::discard_pending(
-                    helix::ui::UpdateQueue::instance());
+                    helix::ui::UpdateQueue::instance(), helix::kSubjectReleaseTag);
             !dropped.empty()) {
             // Collapse repeats — a loop-driven test queues the same tag N times —
             // but match tags EXACTLY. A substring test would hide any producer

@@ -43,12 +43,12 @@ class NetworkSettingsOverlayTestAccess {
         return !o.eth_probe_outstanding() && !o.eth_refresh_trailing_;
     }
     /// The eth_connected subject (0/1) the Ethernet row binds to.
-    static lv_subject_t& eth_connected(NetworkSettingsOverlay& o) {
+    static helix::Subject& eth_connected(NetworkSettingsOverlay& o) {
         return o.eth_connected_;
     }
     /// The wifi_connected subject (0/1) — the observable a transport refresh
     /// must move.
-    static lv_subject_t& wifi_connected(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_connected(NetworkSettingsOverlay& o) {
         return o.wifi_connected_;
     }
     /// Apply a status read's answer the way the async read does.
@@ -61,7 +61,7 @@ class NetworkSettingsOverlayTestAccess {
         return o.country_dropdown_;
     }
     /// The country dropdown's selection subject (0 = not set).
-    static lv_subject_t& wifi_country_index(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_country_index(NetworkSettingsOverlay& o) {
         return o.wifi_country_index_;
     }
     /// The SSID the password modal is about. The handlers read it rather than
@@ -76,15 +76,15 @@ class NetworkSettingsOverlayTestAccess {
         o.finish_wlan_toggle(requested, success, actual);
     }
     /// The wifi_hardware_available subject (0/1).
-    static lv_subject_t& wifi_hardware_available(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_hardware_available(NetworkSettingsOverlay& o) {
         return o.wifi_hardware_available_;
     }
     /// The wifi_toggle_locked subject (0/1) the switch's disabled state binds to.
-    static lv_subject_t& wifi_toggle_locked(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_toggle_locked(NetworkSettingsOverlay& o) {
         return o.wifi_toggle_locked_;
     }
     /// The wifi_enabled subject (0/1) the switch's checked state binds to.
-    static lv_subject_t& wifi_enabled(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_enabled(NetworkSettingsOverlay& o) {
         return o.wifi_enabled_;
     }
     /// The production handler behind the WiFi switch's value_changed.
@@ -139,7 +139,7 @@ class NetworkSettingsOverlayTestAccess {
         return o.networks_list_;
     }
     /// The wifi_only_24ghz subject (1 = the 2.4 GHz-only indicator shows).
-    static lv_subject_t& wifi_only_24ghz(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_only_24ghz(NetworkSettingsOverlay& o) {
         return o.wifi_only_24ghz_;
     }
     /// Whether the radio's country has been read since the overlay opened.
