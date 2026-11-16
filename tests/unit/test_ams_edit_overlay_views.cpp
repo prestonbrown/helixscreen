@@ -2331,63 +2331,56 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick thr
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "unknown material shows as its own selected family option",
-                 "[ams_edit_overlay][dropdown]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    SlotInfo info = untracked_slot();
-    info.material = "MysteryBlend";
-    info.brand = "NoName Co";
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    // The catalog does not know the family, so it is the dropdown's selected
-    // entry and
-    // an untouched open+save changes nothing (selection not moved).
-    CHECK(access.dropdown_selected("dropdown_material") == "MysteryBlend");
-    CHECK(access.sel().family == "MysteryBlend");
-    CHECK(access.sel().brand == "NoName Co");
-    CHECK_FALSE(access.is_dirty());
-    access.call_handle_save();
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    // Round-tripped: the commit carried the unknown values verbatim.
-    CHECK(access.working_info().material == "MysteryBlend");
-    CHECK(access.working_info().brand == "NoName Co");
-}
-
-// Firmware that reports a product by name and carries no catalog id (the CFS
-// fork's NAME) opens on that product, not the brand's first line.
-TEST_CASE_METHOD(LVGLUITestFixture, "a product named without a catalog id opens selected",
+// A value the catalog cannot place still opens selected, so an untouched
+// open+save keeps it: an unknown family, or a product named without a catalog
+// id (the CFS fork's NAME), which opens on that product rather than the
+// brand's first line.
+TEST_CASE_METHOD(LVGLUITestFixture, "values the catalog cannot place open selected",
                  "[ams_edit_overlay][dropdown][product]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
-
     SlotInfo info = untracked_slot();
-    info.material = "PLA";
-    info.brand = "Creality";
-    REQUIRE(info.catalog_id.empty());
-
-    SECTION("a catalog product") {
-        info.product_name = "Hyper PLA";
+    auto open = [&] {
         REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
         UpdateQueue::instance().drain();
         process_lvgl(10);
+    };
+
+    SECTION("an unknown material is its own family option") {
+        info.material = "MysteryBlend";
+        info.brand = "NoName Co";
+        open();
+        CHECK(access.dropdown_selected("dropdown_material") == "MysteryBlend");
+        CHECK(access.sel().family == "MysteryBlend");
+        CHECK(access.sel().brand == "NoName Co");
+        CHECK_FALSE(access.is_dirty());
+        access.call_handle_save();
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        // Round-tripped: the commit carried the unknown values verbatim.
+        CHECK(access.working_info().material == "MysteryBlend");
+        CHECK(access.working_info().brand == "NoName Co");
+    }
+    SECTION("a product named without a catalog id selects that catalog line") {
+        info.material = "PLA";
+        info.brand = "Creality";
+        info.product_name = "Hyper PLA";
+        REQUIRE(info.catalog_id.empty());
+        open();
         CHECK(access.dropdown_selected("dropdown_product") == "Hyper PLA");
         CHECK(access.sel().product_id == "creality-hyper-pla");
         CHECK_FALSE(access.is_dirty());
+        close_editor_overlay();
     }
-    SECTION("a name the catalog does not carry") {
+    SECTION("a product name the catalog does not carry shows as itself") {
+        info.material = "PLA";
+        info.brand = "Creality";
         info.product_name = "Shop Special";
-        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
-        UpdateQueue::instance().drain();
-        process_lvgl(10);
+        open();
         CHECK(access.dropdown_selected("dropdown_product") == "Shop Special");
         CHECK(access.sel().product_id.empty());
+        close_editor_overlay();
     }
-    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
