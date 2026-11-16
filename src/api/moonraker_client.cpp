@@ -193,6 +193,7 @@ void MoonrakerClient::poll_klippy_state() {
                      "no longer polling printer.info",
                      elapsed);
         stop_klippy_state_poll("unsettled");
+        emit_event(moonraker_event::klippy_never_ready());
         return;
     }
     if (poll->in_flight.exchange(true)) {

@@ -2072,14 +2072,37 @@ std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_
         return {};
     }
 
-    std::string body = collect_log_tail_from_paths(paths, num_lines);
+    helix::logs::TailSource source;
+    std::string body = helix::logs::tail_file(paths, num_lines, &source);
     if (body.empty())
         return {};
     spdlog::info("[DebugBundle] Read {} from local disk ({} candidate path(s))", log_name,
                  paths.size());
     // Defaults, as at the HTTP call site: the second parameter is stats_context,
     // not a line count.
-    return condense_max_repeats > 0 ? condense_klipper_log(body, condense_max_repeats) : body;
+    if (condense_max_repeats > 0)
+        body = condense_klipper_log(body, condense_max_repeats);
+    return local_log_source_line(source.path, source.modified, std::time(nullptr)) + "\n" + body;
+}
+
+std::string DebugBundleCollector::local_log_source_line(const std::string& path,
+                                                        std::time_t modified, std::time_t now) {
+    std::tm utc{};
+    gmtime_r(&modified, &utc);
+    char when[32];
+    std::strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    const long long age = static_cast<long long>(now) - static_cast<long long>(modified);
+    std::string age_text;
+    if (age < 0) {
+        age_text = "after this bundle's clock";
+    } else if (age < 3600) {
+        age_text = fmt::format("{} min before this bundle", age / 60);
+    } else if (age < 172800) {
+        age_text = fmt::format("{} h before this bundle", age / 3600);
+    } else {
+        age_text = fmt::format("{} days before this bundle", age / 86400);
+    }
+    return fmt::format("[read from local disk: {}, last written {} ({})]", path, when, age_text);
 }
 
 std::string DebugBundleCollector::pick_rotated_sibling(const std::vector<LogFileEntry>& listing,

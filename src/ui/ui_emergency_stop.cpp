@@ -144,7 +144,6 @@ void EmergencyStopOverlay::init_subjects() {
                               "recovery_title", subjects_);
     UI_MANAGED_SUBJECT_STRING(recovery_message_subject_, recovery_message_buf_, "",
                               "recovery_message", subjects_);
-    UI_MANAGED_SUBJECT_INT(recovery_can_restart_, 1, "recovery_can_restart", subjects_);
     UI_MANAGED_SUBJECT_STRING(recovery_code_subject_, recovery_code_buf_, "", "recovery_code",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(recovery_has_code_, 0, "recovery_has_code", subjects_);
@@ -649,13 +648,13 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
         return true;
     }
 
-    // If dialog is still showing, update reason if it's worse (SHUTDOWN -> DISCONNECTED means
-    // can't restart)
+    // If the dialog is still showing, a SHUTDOWN that loses Klippy altogether
+    // becomes DISCONNECTED: the title and message change.
     if (recovery_dialog_) {
         if (reason == RecoveryReason::DISCONNECTED &&
             recovery_reason_ == RecoveryReason::SHUTDOWN) {
             spdlog::info("[KlipperRecovery] Connection dropped while SHUTDOWN dialog showing, "
-                         "updating buttons");
+                         "updating its text");
             recovery_reason_ = RecoveryReason::DISCONNECTED;
             helix::ui::queue_update("KlipperRecovery::update_dialog", []() {
                 EmergencyStopOverlay::instance().update_recovery_dialog_content();
@@ -841,11 +840,8 @@ bool EmergencyStopOverlay::is_expected_restart() const {
 void EmergencyStopOverlay::update_recovery_dialog_content() {
     auto content = get_recovery_content(recovery_reason_);
     lv_subject_copy_string(&recovery_title_subject_, lv_tr(content.title));
-    lv_subject_set_int(&recovery_can_restart_,
-                       recovery_reason_ != RecoveryReason::DISCONNECTED ? 1 : 0);
-    spdlog::debug("[KlipperRecovery] Updated dialog content: reason={}, can_restart={}",
-                  recovery_reason_str(recovery_reason_),
-                  recovery_reason_ != RecoveryReason::DISCONNECTED);
+    spdlog::debug("[KlipperRecovery] Updated dialog content: reason={}",
+                  recovery_reason_str(recovery_reason_));
 
     // A dialog already showing klippy's reason that then loses the connection
     // keeps that reason; only the title and buttons change. The retired fault

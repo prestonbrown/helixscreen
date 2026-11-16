@@ -11,6 +11,7 @@
 // deferred-discovery must be suppressed before the connection-failed check.
 
 #include "moonraker_event_routing.h"
+#include "moonraker_events.h"
 
 #include <string>
 
@@ -35,6 +36,14 @@ TEST_CASE("Recovery events route to the unified dialog", "[moonraker][routing][1
 
     d = decide_moonraker_event(MoonrakerEventType::KLIPPY_SHUTDOWN, kIsError, kNoWizard);
     REQUIRE(d.route == MoonrakerEventRoute::RecoveryShutdown);
+}
+
+// Klippy that never comes up sends no notify_klippy_* transition, so the client
+// raises this itself when its settle window runs out; it must reach the same dialog.
+TEST_CASE("A Klippy that never came up routes to the recovery dialog", "[moonraker][routing]") {
+    const MoonrakerEvent evt = helix::moonraker_event::klippy_never_ready();
+    const auto d = decide_moonraker_event(evt.type, evt.is_error, kNoWizard);
+    CHECK(d.route == MoonrakerEventRoute::RecoveryDisconnected);
 }
 
 TEST_CASE("Recovery events survive the wizard", "[moonraker][routing][1219]") {
