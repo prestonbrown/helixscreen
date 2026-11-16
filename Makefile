@@ -21,6 +21,9 @@
 # Use bash for all shell commands (needed for [[ ]] and read -n)
 SHELL := /bin/bash
 
+# ENABLE_* flags given on the command line accept 1/0, true/false, on/off and empty.
+include mk/enable-flags.mk
+
 # GNU make >= 4.2 (the $(file ...) function). An older make parses this file
 # without complaint and silently skips every $(file) call: the test-link
 # response file is never written, so a link either dies on a missing @-file or
