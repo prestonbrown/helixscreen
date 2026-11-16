@@ -1019,6 +1019,7 @@ translations:
   "Every screen and setting explained": "Every screen and setting explained"
   "Getting Started": "Getting Started"
   "Here's a quick look at what changed since your last version.": "Here's a quick look at what changed since your last version."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper has not come up. It may not be running on the printer.'
   'Klipper: {}': 'Klipper: {}'
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Learn the basics: the setup wizard, moving around the screens, and touch gestures."
   Load all stopped: Load all stopped

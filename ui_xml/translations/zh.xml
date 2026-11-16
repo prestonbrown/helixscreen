@@ -2056,6 +2056,7 @@
   <translation tag="Klipper has entered shutdown state." zh="Klipper 已进入关闭状态。"/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." zh="Klipper 已进入关机状态。这可能是由于紧急停止、热失控或配置错误引起的。"/>
   <translation tag="Klipper has no [virtual_sdcard] section." zh="Klipper 没有 [virtual_sdcard] 部分。"/>
+  <translation tag="Klipper has not come up. It may not be running on the printer." zh="Klipper 尚未启动。它可能没有在打印机上运行。"/>
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" zh="Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper："/>
   <translation tag="Klipper is halted — restart firmware to continue" zh="Klipper 已停止 — 请重启固件以继续"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." zh="Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。"/>

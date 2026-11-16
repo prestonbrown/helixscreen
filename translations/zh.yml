@@ -977,6 +977,7 @@ translations:
   "Every screen and setting explained": "每个界面和设置的说明"
   "Getting Started": "入门"
   "Here's a quick look at what changed since your last version.": "快速了解自您上个版本以来的变化。"
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper 尚未启动。它可能没有在打印机上运行。'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "了解基本操作：设置向导、在界面间切换以及触摸手势。"
   Load all stopped: '全部装载已停止'
