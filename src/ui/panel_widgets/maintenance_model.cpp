@@ -15,6 +15,7 @@
 #include "chamber_air_modes.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -33,7 +34,6 @@
 #include "widget_subjects.h"
 
 #if HELIX_HAS_PLUGINS
-#include "core/subject.h"
 #include "lua_bindings.h"
 #endif
 
