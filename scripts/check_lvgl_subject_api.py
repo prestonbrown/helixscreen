@@ -12,9 +12,10 @@
 #
 #   call      lv_subject_init_{int,float,string,pointer,color,group}, lv_subject_deinit,
 #             lv_subject_copy_string
-#   storage   an lv_subject_t held by value: a variable, member or array declaration,
-#             std::array / std::vector / std::deque / std::unique_ptr of lv_subject_t,
-#             make_unique<lv_subject_t>, new lv_subject_t. lv_subject_t* and
+#   storage   an lv_subject_t held by value: each declarator of a variable, member or
+#             array declaration (`lv_subject_t a, b;` is two), lv_subject_t or lv_subject_t[]
+#             as any template argument (array, vector, map, optional, pair, shared_ptr,
+#             unique_ptr, make_unique, ...), new lv_subject_t. lv_subject_t* and
 #             lv_subject_t& are not storage.
 #
 # src/core/subject.cpp is exempt: it holds the transitional overloads. A line carrying
@@ -52,13 +53,35 @@ OPT_OUT = "SUBJECT_API_OK:"
 CALL = re.compile(
     r"\b(lv_subject_init_(?:int|float|string|pointer|color|group)|lv_subject_deinit|"
     r"lv_subject_copy_string)\s*\(")
-STORAGE = re.compile(
-    r"(?:\b(?:std::)?(?:array|vector|deque|unique_ptr)\s*<\s*(?:const\s+)?lv_subject_t\s*[,>]"
-    r"|\bmake_unique\s*<\s*lv_subject_t\s*>"
-    r"|\bnew\s+lv_subject_t\b"
-    r"|\blv_subject_t\s+(?!\*|&)[A-Za-z_]\w*\s*(?:\[[^\]]*\]\s*)*(?:\{[^}]*\}\s*)?[;,=)])")
-# `lv_subject_t name)` is a by-value parameter; a function returning one by value is not
-# matched, which is fine: none exists and LVGL never hands one out.
+# lv_subject_t by value as a template argument: std::array/vector/deque/list/map/optional/
+# pair/shared_ptr/unique_ptr/make_unique and the like, including the T[] forms.
+TEMPLATE_ARG = re.compile(r"[<,]\s*(?:const\s+)?lv_subject_t\s*(?:\[\s*\])?\s*(?=[,>])")
+NEW_SUBJECT = re.compile(r"\bnew\s+lv_subject_t\b")
+# One declarator after the type; the declarator list continues with `, name` entries.
+DECLARATOR = r"[A-Za-z_]\w*\s*(?:\[[^\]]*\]\s*)*(?:\{[^}]*\}\s*)?(?:=\s*\{[^}]*\}\s*)?"
+DECL = re.compile(r"\blv_subject_t\s+(?!\*|&)(" + DECLARATOR + r"(?:,\s*(?![A-Za-z_]\w*\s+[A-Za-z_*&])" + DECLARATOR + r")*)(?=[;,=)])")
+
+
+def storage_sites(code: str) -> int:
+    """By-value lv_subject_t sites on one line: each declarator, template argument and new."""
+    n = len(TEMPLATE_ARG.findall(code)) + len(NEW_SUBJECT.findall(code))
+    for m in DECL.finditer(code):
+        n += m.group(1).count(",") + 1 - _commas_inside(m.group(1))
+    return n
+
+
+def _commas_inside(declarators: str) -> int:
+    """Commas inside [] or {} of a declarator list, which separate no declarators."""
+    depth = 0
+    inner = 0
+    for c in declarators:
+        if c in "[{":
+            depth += 1
+        elif c in "]}":
+            depth -= 1
+        elif c == "," and depth > 0:
+            inner += 1
+    return inner
 
 
 def exempt(rel: str) -> bool:
@@ -78,8 +101,7 @@ def count_file(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
         prev_ok = stripped.startswith(("//", "*", "/*")) and OPT_OUT in raw
         if opt_out:
             continue
-        for shape, pattern in (("call", CALL), ("storage", STORAGE)):
-            n = len(pattern.findall(code))
+        for shape, n in (("call", len(CALL.findall(code))), ("storage", storage_sites(code))):
             if n:
                 counts[rel] = counts.get(rel, 0) + n
                 detail.append(f"{rel}:{i + 1}: {shape}\n      {stripped[:110]}")

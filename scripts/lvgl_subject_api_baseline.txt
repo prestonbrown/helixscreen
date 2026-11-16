@@ -324,10 +324,10 @@
 3 tests/test_helpers/scoped_int_subject.h
 6 tests/unit/application/test_subject_initializer.cpp
 2 tests/unit/test_ams_env_overlay_dry_gates.cpp
-44 tests/unit/test_animated_value.cpp
+45 tests/unit/test_animated_value.cpp
 2 tests/unit/test_belt_advanced_row_gate.cpp
 2 tests/unit/test_belt_tension_panel_states.cpp
-4 tests/unit/test_callout_presenter.cpp
+6 tests/unit/test_callout_presenter.cpp
 6 tests/unit/test_chamber_panel_diagnostics.cpp
 3 tests/unit/test_default_layout.cpp
 3 tests/unit/test_exclude_mode_controller.cpp
@@ -387,8 +387,8 @@
 4 tests/unit/test_widget_subjects.cpp
 1 tests/unit/test_wizard_connection_ui.cpp
 2 tests/unit/test_wizard_summary.cpp
-13 tests/unit/test_xml_bind_compose.cpp
-8 tests/unit/test_xml_card_hittest_sweep.cpp
+15 tests/unit/test_xml_bind_compose.cpp
+13 tests/unit/test_xml_card_hittest_sweep.cpp
 3 tests/unit/test_xml_hot_reload_borrowed_subjects.cpp
 3 tests/unit/test_xml_lazy_registration.cpp
 6 tests/unit/test_xml_name_index.cpp

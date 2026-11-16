@@ -55,6 +55,26 @@ CPP
     contains "tests/unit/test_x.cpp: 2 site(s)" "$output"
 }
 
+@test "counts each declarator of a comma declaration" {
+    printf 'struct X {\n    lv_subject_t a, b;\n    lv_subject_t rows_[2] = {}, c;\n};\n' > "$ROOT/include/x.h"
+    run_gate
+    [ "$status" -eq 1 ] || fail "comma declarations passed: $output"
+    contains "include/x.h: 4 site(s)" "$output"
+}
+
+@test "catches the array form and lv_subject_t in any template argument" {
+    cat > "$ROOT/src/x.cpp" <<'CPP'
+std::unique_ptr<lv_subject_t[]> rows;
+auto more = std::make_unique<lv_subject_t[]>(4);
+std::map<std::string, lv_subject_t> by_name;
+std::optional<lv_subject_t> maybe;
+std::pair<lv_subject_t, int> paired;
+CPP
+    run_gate
+    [ "$status" -eq 1 ] || fail "template-argument storage passed: $output"
+    contains "src/x.cpp: 5 site(s)" "$output"
+}
+
 # ------------------------------------------------------------- the quiet half
 
 @test "pointers, references and helix::Subject are quiet" {
@@ -64,6 +84,9 @@ void bind(lv_subject_t* subject, const lv_subject_t& ref, lv_subject_t *spaced);
 helix::Subject count_;
 std::vector<lv_subject_t*> table;
 lv_subject_set_int(&count_, 1);
+std::map<std::string, lv_subject_t*> index;
+std::pair<int, const lv_subject_t*> found;
+void param(lv_subject_t* a, lv_subject_t* b);
 CPP
     run_gate
     [ "$status" -eq 0 ] || fail "pointer and reference uses were counted: $output"

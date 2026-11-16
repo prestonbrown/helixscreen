@@ -7,7 +7,7 @@ Mechanical rewrites only, in code (comments and string literals are never touche
 
   lv_subject_t name_;                     -> helix::Subject name_;
   lv_subject_t rows_[N];                  -> helix::Subject rows_[N];
-  std::array/vector/deque/unique_ptr<lv_subject_t ...>  -> <helix::Subject ...>
+  lv_subject_t (or lv_subject_t[]) as any template argument -> helix::Subject (or [])
   std::make_unique<lv_subject_t>()        -> std::make_unique<helix::Subject>()
   lv_subject_init_T(&EXPR, ARGS)          -> EXPR.init_T(ARGS)
   lv_subject_init_T(PTR.get(), ARGS)      -> PTR->init_T(ARGS)
@@ -48,7 +48,7 @@ INCLUDE_LINE = '#include "core/subject.h"'
 INIT_TYPES = ("int", "float", "string", "pointer", "color")
 
 DECL = re.compile(r"\blv_subject_t(?=\s+(?!\*|&)[A-Za-z_]\w*\s*(?:\[[^\]]*\]\s*)*(?:\{[^}]*\}\s*)?[;,=)])")
-CONTAINER = re.compile(r"\b((?:std::)?(?:array|vector|deque|unique_ptr|make_unique)\s*<\s*)lv_subject_t(?=\s*[,>])")
+CONTAINER = re.compile(r"([<,]\s*(?:const\s+)?)lv_subject_t(?=\s*(?:\[\s*\])?\s*[,>])")
 INIT = re.compile(r"\blv_subject_init_(\w+)\s*\(")
 DEINIT = re.compile(r"\blv_subject_deinit\s*\(")
 COPY_STRING = re.compile(r"\blv_subject_copy_string\b")

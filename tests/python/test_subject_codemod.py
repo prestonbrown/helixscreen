@@ -31,6 +31,9 @@ def test_storage_declarations_become_helix_subject():
         "    std::unique_ptr<lv_subject_t> dyn;\n"
         "};\n"
         "auto p = std::make_unique<lv_subject_t>();\n"
+        "std::map<std::string, lv_subject_t> by_name;\n"
+        "auto rows = std::make_unique<lv_subject_t[]>(4);\n"
+        "lv_subject_t a, b;\n"
     )
     out, manual = rw(src)
     assert body(out) == (
@@ -43,6 +46,9 @@ def test_storage_declarations_become_helix_subject():
         "    std::unique_ptr<helix::Subject> dyn;\n"
         "};\n"
         "auto p = std::make_unique<helix::Subject>();\n"
+        "std::map<std::string, helix::Subject> by_name;\n"
+        "auto rows = std::make_unique<helix::Subject[]>(4);\n"
+        "helix::Subject a, b;\n"
     )
     assert manual == []
 
