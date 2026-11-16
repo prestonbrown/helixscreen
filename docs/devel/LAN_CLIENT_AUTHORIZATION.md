@@ -12,7 +12,7 @@ the firmware waits on a screen that no longer answers, and the client sits on
 "requesting connection" until it times out, with nothing on the printer to say
 why.
 
-Today exactly one firmware family does this — Snapmaker's, via a Moonraker
+Today exactly one firmware family does this - Snapmaker's, via a Moonraker
 component called `client_manager`, which is what admits Snapmaker Orca and the
 Snapmaker App on a U1.
 
@@ -20,13 +20,13 @@ Snapmaker App on a U1.
 
 | File | Role |
 |------|------|
-| `include/lan_client_authorization.h` / `src/printer/lan_client_authorization.cpp` | **The only place a vendor is named.** Provider table: which notification, how to parse it, what the answer looks like. Pure — no LVGL, no client, fully unit-tested |
+| `include/lan_client_authorization.h` / `src/printer/lan_client_authorization.cpp` | **The only place a vendor is named.** Provider table: which notification, how to parse it, what the answer looks like. Pure - no LVGL, no client, fully unit-tested |
 | `include/lan_client_auth_router.h` / `src/application/lan_client_auth_router.cpp` | Generic: subscribes, prompts, sends the answer. Names no firmware |
 | `tests/unit/test_lan_client_authorization.cpp` | `[lanauth]` |
 
 Owned by `GcodeResponseRouting` (`include/gcode_response_routing.h`), alongside
 `GcodeErrorRouter` and `GcodeNarrationRouter`, and torn down with them **before**
-`MoonrakerClient` — its destructor unregisters callbacks that touch the client.
+`MoonrakerClient` - its destructor unregisters callbacks that touch the client.
 
 ## No capability gate, by design
 
@@ -36,7 +36,7 @@ broker never sends one, so the subscription is inert and costs a map entry.
 That keeps discovery, `PrinterState` and the subscription builder free of any
 knowledge that this feature exists.
 
-The answer is inherently matched to the asker, too — the decision RPC is only
+The answer is inherently matched to the asker, too - the decision RPC is only
 ever sent in reply to a request that arrived, so it can only reach the firmware
 that defined it.
 
@@ -59,7 +59,7 @@ client                      moonraker/client_manager               HelixScreen
   |-- reconnects to the broker over mTLS -->  paired.                   |
 ```
 
-`notify_client_access` on the wire — Moonraker derives the notify name from the
+`notify_client_access` on the wire - Moonraker derives the notify name from the
 component's event as `notify_` + `event_name.split(':')[-1]`, and wraps the
 payload in the params array:
 
@@ -84,13 +84,13 @@ that says who is asking, which is why the prompt names the product from it.
 - **Answering late is safe and useful.** The firmware stores the minted
   credentials, so a client that already gave up picks them up on its next
   attempt. Nothing expires a pending request.
-- **Re-approving an existing client is idempotent** — the component
+- **Re-approving an existing client is idempotent** - the component
   short-circuits and re-publishes the stored credentials.
 - **The prompt can vanish without a button.** `Modal::rebuild_top` hides a
   non-rebuildable dialog on a breakpoint or theme change, so the router tracks
   `LV_EVENT_DELETE` rather than assuming a button caused the teardown. Without
   that, one dismissal would wedge the gate shut against every later request.
-- **A Deny suppresses re-prompting for one minute — deliberately.** A denied
+- **A Deny suppresses re-prompting for one minute - deliberately.** A denied
   client never enters the firmware's registry, so every reconnect of the
   running slicer files a fresh request and the screen would re-prompt forever.
   `decide(false)` records the client for
@@ -103,13 +103,13 @@ that says who is asking, which is why the prompt names the product from it.
 
 The notification arrives on the **WebSocket thread**. Registration wraps the
 handler in `lifetime_.bg_cb(...)`, which hops to the main thread and re-checks a
-generation snapshot on the way in — building a modal straight from the
+generation snapshot on the way in - building a modal straight from the
 WebSocket thread would be the invariant-1 crash. See `THREADING.md`.
 
 The modal's button callbacks take a raw `void*`, and `Application` *replaces*
 the router on a printer switch. Each callback re-checks its `user_data` against
-the active instance, so a click — or the `DELETE` that arrives after the exit
-animation — landing on a prompt whose owner is gone does nothing.
+the active instance, so a click - or the `DELETE` that arrives after the exit
+animation - landing on a prompt whose owner is gone does nothing.
 
 ## Not covered: the cloud account path
 
@@ -120,7 +120,7 @@ MQTT agent being connected, plus region checks and account login, and is a much
 larger job than the LAN approval.
 
 It is not needed to pair Orca or the phone app: while the printer is in LAN mode
-(`link_mode: 1`) **both** come in over the LAN path — a request from the phone
+(`link_mode: 1`) **both** come in over the LAN path - a request from the phone
 app arrives as `request_lan_auth` with an `app-` client id, not as a cloud user.
 
 The stock screen also shows the LAN **access code** under "Desktop Login", which
@@ -136,7 +136,7 @@ No call site changes.
 
 ## Testing it against a real printer
 
-Only an **unbound** client triggers the prompt — a previously-paired slicer
+Only an **unbound** client triggers the prompt - a previously-paired slicer
 reconnects silently. On a Snapmaker U1, the bound-client registry is
 `<printer>:/home/lava/printer_data/mqtt/client.json`; back it up and clear the `clients`
 object to re-trigger pairing, or pair from a fresh client.
@@ -147,7 +147,7 @@ Watch the firmware side while you do it:
 ssh root@<printer-ip> 'tail -f /home/lava/printer_data/logs/moonraker.log | grep client_manager'
 ```
 
-Unanswered looks like this — the request arrives and nothing follows:
+Unanswered looks like this - the request arrives and nothing follows:
 
 ```
 LAN auth request from clientid: app-<uuid>, app_id: app-<n>

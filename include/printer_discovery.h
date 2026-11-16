@@ -21,6 +21,7 @@
 #include "hardware_object_table.h"
 #include "json_fwd.h"
 #include "leveling_probe_points.h"
+#include "motor_ripple_types.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_detector.h" // For BuildVolume struct
 #include "signal_macro_names.h"
@@ -711,6 +712,23 @@ class PrinterDiscovery {
      */
     void parse_extruder_dimensions(const nlohmann::json& settings);
 
+    /**
+     * @brief Read [stepper_x] / [stepper_y] rotation_distance, gear_ratio and
+     * full_steps_per_rotation, the geometry behind a motor's ripple frequencies
+     *
+     * Replaces both: a section without a numeric rotation_distance leaves that
+     * motor unknown.
+     *
+     * @param settings JSON object from a configfile.settings response
+     */
+    void parse_stepper_geometry(const nlohmann::json& settings);
+
+    [[nodiscard]] std::optional<calibration::ripple::MotorGeometry>
+    motor_geometry(calibration::ripple::MotorId m) const {
+        return m == calibration::ripple::MotorId::StepperX ? stepper_x_geometry_
+                                                           : stepper_y_geometry_;
+    }
+
     /// Nozzle diameter in mm, [extruder] nozzle_diameter.
     [[nodiscard]] float nozzle_diameter_mm() const {
         return nozzle_diameter_mm_;
@@ -1218,7 +1236,9 @@ class PrinterDiscovery {
                                              ///< target, not the heater's.
     float filament_diameter_mm_ = filament::kDefaultDiameterMm; ///< [extruder] filament_diameter
     static constexpr float kDefaultNozzleDiameterMm = 0.4f;
-    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;   ///< [extruder] nozzle_diameter
+    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm; ///< [extruder] nozzle_diameter
+    std::optional<calibration::ripple::MotorGeometry> stepper_x_geometry_;
+    std::optional<calibration::ripple::MotorGeometry> stepper_y_geometry_;
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset

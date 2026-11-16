@@ -52,9 +52,7 @@ A Z-Mod AD5M Pro is saved as "FlashForge Adventurer 5M Pro", and the installer a
 `ad5m_pro_zmod` uses Z-Mod's own names (`heater_fan heat_fan`, `fan_generic fanM106`,
 `fan_generic chamber_fan`). The post-wizard preset migration that runs at every boot
 (`src/system/config.cpp#apply_preset_file`) seeds a fan role only when its key is absent, so a
-role the user declined in the Fans wizard, which is stored as an empty value, stays declined.
-Before that rule, the migration refilled the declined roles with the stock names on every
-start, and the Fans wizard reopened at each launch
+role the user declined in the Fans wizard, which is stored as an empty value, stays declined
 ([#2040](https://github.com/prestonbrown/helixscreen/issues/2040)).
 
 The boot migration reads the preset the printer was installed with when that preset belongs
@@ -161,7 +159,7 @@ Forge-X runs Moonraker (v0.9.3, Python 3.11) and HelixScreen inside its chroot a
 Moonraker's argv names paths inside the chroot (`<chroot>/root/moonraker-env/moonraker/moonraker.py`
 is its script), so every lookup goes through `/proc/<pid>/root`: `running_moonraker_package_dir` in
 `scripts/lib/installer/moonraker.sh` and `running_moonraker_root` in
-`moonraker-plugin/install.sh`. The chroot binds `/opt/config` at the same path, so the
+`moonraker-plugin/helix_print_conf.sh` (sourced by the plugin's `install.sh`). The chroot binds `/opt/config` at the same path, so the
 plugin under `/opt/config/mod_data/helixscreen/moonraker-plugin` is linked by that path.
 
 - `moonraker.conf` is a symlink to the mod's git-tracked `/opt/config/mod/moonraker.conf`, which

@@ -250,7 +250,7 @@ the next session's stale error. (Verified against the add-on source on a live Bo
 
 *The stale head must not re-toast on every HelixScreen start.* Because the latch survives our
 restarts and a fresh process has no prior text to dedup against, the backend seeds its error
-dedup from `AfcMessageDedup` (`system/afc_message_dedup.h`): the last error text a previous
+dedup from `AfcMessageDedup` (`include/system/afc_message_dedup.h`): the last error text a previous
 session surfaced, persisted in the config dir. An unchanged text raises no toast and no
 `kEventError`; a text the store has never seen — including a live, non-pausing fault enqueued
 by `AFC_logger.error()` with `error_state` still false — toasts normally. The seed clears with
@@ -698,7 +698,7 @@ The bowden tube length from hub to toolhead is read from `AFC_hub.afc_bowden_len
 
 #### Per-Lane Stepper Fields
 
-Each `AFC_stepper` object provides sensor states (`prep`, `load`, `loaded_to_hub`), buffer state (`buffer_status`), filament readiness (`filament_status`), and distance to hub (`dist_hub`). These are cached in the `LaneSensors` struct per lane (up to 16 lanes).
+Each `AFC_stepper` object provides sensor states (`prep`, `load`, `loaded_to_hub`), buffer state (`buffer_status`), filament readiness (`filament_status`), and distance to hub (`dist_hub`). These are cached in an `AfcLaneSensors` per lane, keyed by lane name (`include/ams_backend_afc.h#AfcLaneSensors`).
 
 #### Buffer Objects
 
@@ -778,8 +778,7 @@ Quiet mode reduces motor noise at the cost of speed. Toggled via `AFC_QUIET_MODE
 
 #### Fault Clear vs Lane-Position Recovery
 
-AFC does not have a genuine per-lane reset. What used to be called `reset_lane()` was
-actually two unrelated operations that happened to share one name:
+AFC does not have a genuine per-lane reset. The backend offers two unrelated operations instead:
 
 - **Fault clear** (`clear_fault(slot_index)`) is bookkeeping only — it never moves
   filament. AFC has no per-lane fault clear, so `slot_index` is ignored: it sends

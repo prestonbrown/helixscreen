@@ -110,6 +110,7 @@
 5 include/ui_panel_macros.h
 7 include/ui_panel_memory_stats.h
 28 include/ui_panel_motion.h
+11 include/ui_panel_motor_ripple.h
 2 include/ui_panel_notification_history.h
 2 include/ui_panel_power.h
 23 include/ui_panel_print_select.h

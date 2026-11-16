@@ -171,7 +171,7 @@ alone, as before.
 toolhead. The backend copies it to `AmsUnit::hub_id`, and `compute_system_tool_layout()`
 folds units with the same non-empty `hub_id` onto one nozzle, so the overview draws the
 overview model: unit columns merging into one **Hub**, the lane's **FPS** box
-(`ui_system_path_canvas_set_buffer()` / `set_unit_hub()`) and one toolhead per lane. Groups
+(`ui_system_path_canvas_set_buffer()` / `ui_system_path_canvas_set_unit_hub()`) and one toolhead per lane. Groups
 `T<n>` are filament groups and never toolheads. Units on different lanes are different hubs on
 different toolheads, so two lanes draw two chains. The openams plugin's `lanes_by_fps[<lane>].extruder`
 becomes each slot's `extruder_name`, so the toolhead is badged by its extruder; without it
@@ -239,7 +239,7 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
 | Per-slot loaded authority | Yes, from `slots[].loaded` |
 | Tool mapping | Read-only `T<n>` groups; `owns_tool_mapping_table()` is true, edits are NOT_SUPPORTED |
 | Bypass | No |
-| Endless spool | Not exposed |
+| Endless spool | Read-only once the manager is ready: each group of two or more slots is a runout-backup group (`FirmwareManaged`, `src/printer/ams_backend_openams.cpp#get_endless_spool_capabilities`) |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
 | Environment sensors | Per unit from `devices.<unit>.environment` (`temp_c`, `rh_pct`), into `AmsUnit::environment`; openams only |
 | Dryer | Per unit, see below; openams only |

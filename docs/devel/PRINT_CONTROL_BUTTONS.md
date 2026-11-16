@@ -1,11 +1,5 @@
 # Print Control Buttons
 
-**Version:** 1.0
-**Last Updated:** 2026-06-13
-**Status:** Shipped (controller extraction, 2026-06-11)
-
----
-
 ## Overview
 
 `PrintControlButtons` is a singleton controller that centralizes the
@@ -14,16 +8,15 @@ subjects those buttons bind to, drives them from a pure view function, observes
 print state to keep them in sync, and runs an optimistic "pending action" state
 machine so a tap is acknowledged instantly while the RPC is in flight.
 
-The print-status panel used to own this logic inline. The extraction lets the
-same buttons appear in two places — the full print-status panel and a 2×1 home
-widget — both binding to the same global subjects with no duplicated state.
+The same buttons appear in two places - the full print-status panel and a 2×1 home
+widget - both binding to the same global subjects with no duplicated state.
 
 ### Key files
 
 | File | Contents |
 |------|----------|
 | `include/print_control_buttons.h`, `src/ui/print/print_control_buttons.cpp` | The controller: owned subjects, dispatch, observer, pending-action machine |
-| `include/print_control_view.h`, `src/ui/print/print_control_view.cpp` | `compute_control_button_view()` — the pure, LVGL-free view function |
+| `include/print_control_view.h`, `src/ui/print/print_control_view.cpp` | `compute_control_button_view()` - the pure, LVGL-free view function |
 | `src/ui/panel_widgets/control_buttons_widget.{h,cpp}` | The 2×1 home widget (declarative, no state) |
 | `ui_xml/components/panel_widget_control_buttons.xml` | The widget's XML layout + bindings |
 | `src/ui/print/ui_panel_print_status.cpp` | Delegates paused-overlay visibility to the controller |
@@ -46,24 +39,17 @@ so any layout can bind to them by name:
 ### Ownership & lifecycle
 
 The subjects are created in `init_subjects()`, which runs during global subject
-initialization (idempotent; guarded by `subjects_initialized_`). They are
-static — printer state is an app-lifetime singleton — so the observer on
-`print_state_enum` uses a bare `ObserverGuard` with **no** `SubjectLifetime`
-token (`print_state_enum` is a global static subject, not a dynamic one).
+initialization (idempotent; guarded by `subjects_initialized_`). The controller
+observes four `PrinterState` subjects (`print_state_enum`, `print_lifecycle`,
+`preparing_start`, `preparing_epoch`), each through `observe<int>()` carrying
+PrinterState's subjects lifetime token (`get_subjects_lifetime()`), so a
+`deinit_subjects()` cycle on PrinterState cannot leave a dangling observer.
 
 Cleanup self-registers with `StaticSubjectRegistry` inside `init_subjects()`,
-co-locating init and teardown:
-
-```cpp
-StaticSubjectRegistry::instance().register_deinit("PrintControlButtons", []() {
-    auto& self = PrintControlButtons::instance();
-    self.print_state_observer_.release();   // last pre-deinit cleanup → release(), not reset()
-    if (self.pending_action_timeout_)
-        lv_timer_delete(self.pending_action_timeout_);
-    self.subjects_.deinit_all();
-    self.subjects_initialized_ = false;
-});
-```
+co-locating init and teardown: the deinit lambda `release()`s all four observers
+(not `reset()`: it runs before `lv_deinit()`, while the observed subjects are
+already being torn down by their owner) and calls `teardown_subjects()`
+(`src/ui/print/print_control_buttons.cpp#init_subjects`).
 
 The two click callbacks (`on_print_control_primary`, `on_print_control_stop`)
 are registered as XML event callbacks in the same init.
@@ -73,7 +59,7 @@ are registered as XML event callbacks in the same init.
 ## The Pure View Function
 
 All of the "what should the buttons look like" logic lives in a stateless
-function with **no LVGL dependency** — which makes it trivially unit-testable
+function with **no LVGL dependency** - which makes it trivially unit-testable
 (`print_control_view.cpp`):
 
 ```cpp
@@ -97,6 +83,7 @@ struct ControlButtonInputs {
     bool cancel_available = false;
     bool start_sent = false;        // the preparing job's start went to the printer
     bool cancel_requested = false;  // a cancel is in flight, unanswered
+    bool printer_announced_start = false;  // printer_side_pre_start() with no preparing job of ours
 };
 
 ControlButtonView compute_control_button_view(const ControlButtonInputs& in);
@@ -110,15 +97,18 @@ one call site.
 Logic:
 
 ```cpp
-const bool printer_has_the_job = (in.job_state == PrintJobState::PRINTING ||
-                                  in.job_state == PrintJobState::PAUSED);
+const bool printer_has_the_job = helix::printer_has_job(in.job_state);
 const bool preparing = (in.lifecycle == PrintState::Preparing);
 
 const bool unclaimed = in.has_preparing_job && !printer_has_the_job;
 if (unclaimed)
     v.stop_route = in.start_sent ? StopRoute::CancelSentStart : StopRoute::RetirePreparing;
+const bool printer_started =
+    in.printer_announced_start && !in.has_preparing_job && !printer_has_the_job;
+if (printer_started)
+    v.stop_route = StopRoute::CancelSentStart;
 v.stop_enabled = !in.cancel_requested &&
-                 (unclaimed || (printer_has_the_job && in.cancel_available));
+                 (unclaimed || printer_started || (printer_has_the_job && in.cancel_available));
 
 const bool slot_ok = (in.job_state == PrintJobState::PAUSED) ? in.resume_available
                                                              : in.pause_available;
@@ -143,16 +133,14 @@ pre-print work runs **in front of** the job (a host-side forced bed mesh, where
 Klipper's `PRINT_START` (where the job state already reads `printing`). The user
 gets the same controls either way; only the mechanism differs, and that is hidden.
 
-Keying on `job_state` alone could not express this, and the two architectures
-diverged in opposite directions:
+Keying on `job_state` alone cannot express this, because the two architectures
+report different job states for the same user-visible moment:
 
 | | Host-side pre-print | Firmware-side pre-print |
 |---|---|---|
 | Job state | STANDBY / COMPLETE | PRINTING |
-| **Pause, before** | disabled (incidentally) | **enabled - sent PAUSE mid-macro** |
-| **Cancel, before** | **disabled - the retire path was unreachable** | enabled |
-| Pause, now | disabled | disabled |
-| Cancel, now | enabled, retires the preparing job (or cancels a sent start, below) | enabled, routes to `AbortManager` |
+| Pause | disabled | disabled (PAUSE mid-macro lands at the next print move) |
+| Cancel | enabled, retires the preparing job (or cancels a sent start, below) | enabled, routes to `AbortManager` |
 
 `stop_route` is computed here rather than at the call site so the button's
 enablement and the handler's routing cannot disagree about which mechanism
@@ -235,7 +223,7 @@ Inputs → outputs at a glance:
 - **Macro availability** (pause/resume/cancel configured?) gates the enable
   flags. A missing macro disables the relevant button.
 - **A pending action disables the primary button** even when the macro is
-  available — this prevents re-triggering while an RPC is in flight, and shows
+  available - this prevents re-triggering while an RPC is in flight, and shows
   the hourglass + transitional label.
 
 Icon constants: `kControlIconPause`, `kControlIconPlay`, `kControlIconHourglass`
@@ -251,12 +239,20 @@ Icon constants: `kControlIconPause`, `kControlIconPlay`, `kControlIconHourglass`
 print_state_observer_ = observe<int>(
     get_printer_state().print_state().get_print_state_enum_subject(), this,
     [](PrintControlButtons* self, int) {
+        self->settle_cancel_from_job_state(
+            get_printer_state().print_state().get_print_job_state());
         if (self->pending_action_ != PendingAction::None)
             self->clear_pending_action();  // a real transition supersedes the optimistic state
         else
             self->recompute();             // macro availability may have changed
-    });
+    },
+    get_printer_state().get_subjects_lifetime());
 ```
+
+The `print_lifecycle`, `preparing_start` and `preparing_epoch` observers
+recompute too, after advancing the cancel state below: during a host-side
+pre-start block the printer keeps reporting the previous job, so
+`print_state_enum` alone would not re-evaluate for the whole window.
 
 `recompute()` reads the current print state and the `StandardMacros`
 availability, calls `compute_control_button_view()`, and copies the result into
@@ -271,17 +267,16 @@ for the flags). It is the single place subjects are written.
   failure. If PAUSED, calls `request_resume()`, which runs the shared
   `dispatch_prepared_resume()` (prepare-for-resume → Resume chain) and clears
   pending on failure.
-- **Stop button** (`handle_stop_button()`): shows a cancel-confirmation modal,
-  then hands off to `AbortManager::start_abort()` on confirm. AbortManager owns
-  its own progress UI.
+- **Stop button** (`handle_stop_button()`): shows a cancel-confirmation modal;
+  on confirm, `confirm_stop()` switches on the view's `stop_route` (above), and
+  the `Abort` route hands off to `AbortManager::start_abort()`, which owns its
+  own progress UI.
 
 **Every cancel affordance confirms.** The Stop button is not the only way to end a
 print: the runout guidance dialog and the home "Filament Sensor" tile both offer
 **Cancel Print** while paused. Both route through the shared
 `dispatch_cancel_print()` (`src/ui/print/ui_resume_dispatch.cpp`), which raises its own
-confirmation before running the `Cancel` standard macro. This was not always true -
-the runout dialog cancelled unconfirmed while the Stop button asked, so one printer
-had a confirmed cancel and an unconfirmed one side by side. Keep any new cancel
+confirmation before running the `Cancel` standard macro. Keep any new cancel
 entry point on `dispatch_cancel_print()` rather than calling the macro directly, and
 the confirmation comes with it.
 
@@ -360,7 +355,7 @@ UI (the print-status panel's paused overlay) can react to the optimistic state.
 ## The 2×1 Home Widget
 
 `ControlButtonsWidget` (`control_buttons_widget.{h,cpp}`) is a `PanelWidget`
-subclass that hosts the XML component `panel_widget_control_buttons` — two
+subclass that hosts the XML component `panel_widget_control_buttons` - two
 buttons side by side. It is **pure declarative**: no instance subjects, no click
 routing, no view logic. Everything binds to the controller's global subjects.
 
@@ -377,7 +372,7 @@ class ControlButtonsWidget : public PanelWidget {
 void register_control_buttons_widget() {
     register_widget_factory("control_buttons",
         [](const std::string&) { return std::make_unique<ControlButtonsWidget>(); });
-    // No init_subjects here — the print_control_* subjects are owned by PrintControlButtons.
+    // No init_subjects here - the print_control_* subjects are owned by PrintControlButtons.
 }
 ```
 
@@ -395,8 +390,8 @@ XML bindings (`panel_widget_control_buttons.xml`):
 
 ## Print-Status Panel Delegation
 
-`PrintStatusPanel` no longer manages the pause/resume icon, label, or enable
-state — those are owned by the controller. The panel observes the controller's
+`PrintStatusPanel` does not manage the pause/resume icon, label, or enable
+state - those are owned by the controller. The panel observes the controller's
 `print_pending_action` subject to drive its paused-overlay visibility
 optimistically:
 
@@ -417,17 +412,15 @@ still PAUSED), so the tap feels instantly acknowledged.
 
 | Test file | Tags | Covers |
 |-----------|------|--------|
-| `tests/unit/test_print_control_view.cpp` | `[print_control_view]` | The pure view function — printing→Pause, paused→Resume(play), idle→both disabled, pending→hourglass+disabled, missing-macro→disabled. No LVGL fixture. |
-| `tests/unit/test_print_control_buttons.cpp` | `[print_control][slow]` | Controller integration — subject registration, label tracks state, macro-gated enable, pending publishes hourglass, pending cleared on state arrival, Klipper `!!` release rules. |
-| `tests/unit/test_resume_refusal_report.cpp` | `[resume][resume_timeout]` | Real dispatch through the mock: refusal reporting, RPC timeout and socket loss keeping the action pending, `!!` before and after RESUME answers, a late answer to an earlier RESUME. |
+| `tests/unit/test_print_control_view.cpp` | `[print_control_view]` | The pure view function - printing→Pause, paused→Resume(play), idle→both disabled, pending→hourglass+disabled, missing-macro→disabled. No LVGL fixture. |
+| `tests/unit/test_print_control_buttons.cpp` | `[print_control][slow]` | Controller integration - subject registration, label tracks state, macro-gated enable, pending publishes hourglass, pending cleared on state arrival, Klipper `!!` release rules. |
+| `tests/unit/test_resume_refusal_report.cpp` | `[resume]` | Real dispatch through the mock: refusal reporting, RPC timeout and socket loss keeping the action pending, `!!` before and after RESUME answers, a late answer to an earlier RESUME. |
 | `tests/unit/test_z_offset_utils.cpp` | `[zoffset]` | Tune/Z-offset: `build_z_adjust_gcode` (incl. the `MOVE=1` suffix and the `Z=` vs `Z_ADJUST=` branch), `format_delta`, displayed-offset resolution. |
 | `tests/unit/test_timelapse_state.cpp` | `[timelapse_state]` | Timelapse control state. |
 
 > The print-status **light** button's `on_led_state_changed` handler
-> (`src/ui/print/ui_panel_print_status.cpp`) has no direct test. It was previously
-> listed as covered by a characterization file that reimplemented the handler
-> in the test and asserted against that copy, so the coverage was nominal. LED
-> backends themselves are covered — see `docs/devel/LED_CONTROL.md`.
+> (`src/ui/print/ui_panel_print_status.cpp`) has no direct test. LED
+> backends themselves are covered - see `docs/devel/LED_CONTROL.md`.
 
 ```bash
 ./build/bin/helix-tests "[print_control_view]"   # fast, no LVGL
@@ -442,5 +435,5 @@ asserted without a display.
 
 ## References
 
-- `docs/devel/PRINT_STATE_MACHINE.md` — print lifecycle states the controller observes
-- `docs/devel/MACROS_PANEL.md`, `docs/devel/STANDARD_MACROS_SPEC.md` — `StandardMacros` slots that gate the buttons
+- `docs/devel/PRINT_STATE_MACHINE.md` - print lifecycle states the controller observes
+- `docs/devel/MACROS_PANEL.md`, `docs/devel/STANDARD_MACROS_SPEC.md` - `StandardMacros` slots that gate the buttons

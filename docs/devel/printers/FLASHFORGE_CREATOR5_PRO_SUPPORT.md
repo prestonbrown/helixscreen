@@ -56,7 +56,7 @@ large partition), `/usr/data/config/` (Klipper/Moonraker config), `/usr/data/fir
 
 ### Platform key and self-update
 
-The unified build defines only `HELIX_PLATFORM_MIPS`, so `UpdateChecker::get_platform_key()`
+The unified build defines only `HELIX_PLATFORM_MIPS`, so `helix::platform::current_key()`
 returns `"mips"` and self-update fetches the unified `mips` asset, the same bytes this
 board runs. No creator5-specific asset exists or is needed.
 
@@ -152,8 +152,8 @@ excludes on `gcode_button extruder_grab1` and `zmod_afclite`. The directional pa
 `tests/unit/test_printer_detector.cpp` (`[creator5]`).
 
 Preset macro buttons for macros a firmware does not ship (e.g. `TOOLCHANGE_PARK` on Z-Mod)
-render greyed out, not dead: `ControlsPanel::update_macro_button` keeps the button visible
-and disabled when the macro is absent.
+render greyed out, not dead: `QuickActionButtons::update_button` keeps the button visible
+and sets its `macro_N_available` subject to 0 when the macro is absent.
 
 ## Z-Mod tool changer support
 

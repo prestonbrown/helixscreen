@@ -1,8 +1,18 @@
 # Settings: Help & About
 
-**Settings > Help & About** is where to go when you need help: replay the welcome tour, send a debug bundle to support, or find the community and the docs. **About** at the bottom shows which versions you're running. Updates have their own page: see [Updates](updates.md).
+**Settings > Help & About** is where to go when you need help: replay the welcome tour, send a debug bundle to support, or find the community and the guides. **About** at the bottom shows which versions you're running. Updates have their own page: see [Updates](updates.md).
 
 ![Help & About settings](../../../images/user/settings-help-about.png)
+
+![The Help & About page](../../../images/user/help-rows.png)
+
+1. Replay Welcome Tour.
+2. Upload Debug Bundle.
+3. Discord Community.
+4. Getting Started.
+5. User Guide.
+
+About, at the bottom of the page, shows the version and system details.
 
 ---
 
@@ -10,20 +20,24 @@
 
 Plays the short guided tour again. HelixScreen goes to the Home screen and starts the tour from the beginning.
 
-The tour first appears after you finish the setup wizard. It highlights one part of the screen at a time, in eight steps, with **Skip** to leave early and **Next** to move on (it reads **Done** on the last step). A counter shows how far along you are.
+The tour first appears once, after you finish the setup wizard and HelixScreen has found your printer's hardware. It highlights one part of the screen at a time, with **Skip** to leave early and **Next** to move on (it reads **Done** on the last step). A counter such as *3 / 9* shows how far along you are. Replaying it shows every step.
 
-It covers:
+The steps are:
 
 1. **Welcome to HelixScreen**: a quick hello.
-2. **Your printer at a glance**: tap any home tile to open its full controls or switch it on or off.
-3. **Customize your home screen**: long-press any tile to enter edit mode, then move, resize, remove or add widgets.
-4. **Print status**: watch a print and pause, resume or cancel it.
-5. **Controls**: move the toolhead, home axes, level the bed, and adjust temperatures and fans.
-6. **Filament**: load, unload and swap spools, and keep an eye on your filament system.
-7. **Advanced**: macros, the G-code console, calibration tools and firmware updates.
-8. **Settings**: network, display, sound, printer setup and more.
+2. **Your printer at a glance**: tap any tile to open its full controls or toggle its state.
+3. **Customize your home screen**: long-press any tile to enter edit mode, then rearrange, resize, remove or add widgets, and drag them between pages.
+4. **A new Print Status screen**: a sample of the print screen, with a chip for each heater, fan and light, a checklist of the start sequence, and progress with controls in one strip.
+5. **Controls**: move the toolhead, home axes, level the bed, and fine-tune temperatures, fans and other motion settings.
+6. **Filament**: load, unload and swap spools, set temperatures, and monitor runout sensors.
+7. **Load and unload**: the tour opens the Filament screen and points out the load, unload and purge buttons.
+8. **Your filament system**: only on printers with a filament system such as an AMS. Tap a slot to load or unload it, pick a spool, or edit its details.
+9. **Advanced**: macros, the G-code console, calibration tools (PID, input shaper, z-offset), firmware updates and developer utilities.
+10. **Settings**: network, display, sound, printer setup and more, and a reminder that you can replay the tour here.
 
-Leaving the Home screen ends the tour. It also comes back by itself after an update that adds new tour steps.
+Without a filament system the tour has nine steps; with one it has ten. Opening another screen yourself while a step is showing ends the tour. The tour does not start while a dialog, an open screen or home-screen edit mode covers Home; it is offered again the next time you open Home.
+
+After an update that adds tour steps, the tour starts again by itself and shows only what is new: a **New in 1.1** card, then the steps about customizing the home screen, the Print Status screen, load and unload, and your filament system.
 
 ---
 
@@ -31,20 +45,27 @@ Leaving the Home screen ends the tour. It also comes back by itself after an upd
 
 Sends the HelixScreen team what they need to look into a problem you're having.
 
+![The Upload Debug Bundle dialog](../../../images/user/debug-bundle-dialog.png)
+
+1. Include logs adds the recent log files.
+2. The note box is where you describe the problem.
+3. Upload sends the bundle and shows a share code.
+
 1. Tap **Upload Debug Bundle**.
-2. HelixScreen gathers your logs, system details and settings. Personal data is removed.
-3. Tap **Upload**.
-4. You get a share code. Give that code to the HelixScreen team on Discord or GitHub.
+2. Optionally switch on **Include Klipper/Moonraker logs** (off by default) and describe the problem in the note box.
+3. Tap **Upload**. HelixScreen gathers your logs, system details and settings, removes personal data and uploads the bundle.
+4. When it says **Bundle Uploaded**, give the share code it shows to the HelixScreen team on Discord or GitHub, then tap **Done**. If the upload fails, the dialog says **Upload Failed** and why.
 
 > **Tip:** For a bug report, set **Settings > System > [Log Level](system.md#log-level)** to **Debug**, reproduce the problem, then send the bundle.
 
 ### What a debug bundle contains
 
-- **Logs**: recent HelixScreen log output, from the very start of startup. That includes problems that happen while your settings are still loading, such as a settings file that couldn't be read or had to be restored from backup.
+- **Logs**: recent HelixScreen log output, from the very start of startup. The Klipper and Moonraker logs are added only when you switch on **Include Klipper/Moonraker logs**. That includes problems that happen while your settings are still loading, such as a settings file that couldn't be read or had to be restored from backup.
 - **Settings**: your HelixScreen settings, without passwords or API keys.
 - **Printer configuration**: your Klipper `printer.cfg` and the files it includes, so support can see how your printer is set up (cleaned as described below).
 - **Macro names**: the names of your G-code macros, not what they do.
-- **System details**: operating system, hardware and screen size.
+- **System details**: operating system, hardware, screen size, touch-screen details, Wi-Fi signal history, your update channel, and which filament system you have.
+- **Your note**: the text you typed in the note box, if any.
 - **Crash data**: the crash report, if HelixScreen crashed.
 - **Crash history**: earlier crash reports and their GitHub issue numbers, so support can spot repeat problems.
 - **Printer events**: the same list as **Printer Events** in the notification history (shutdowns and their reasons, printer errors, pauses, how prints ended), so support sees what led up to the problem.
@@ -64,9 +85,15 @@ Shows a QR code for the HelixScreen Discord, **discord.gg/RZCT2StKhr**. Scan it 
 
 ---
 
-## Documentation
+## Getting Started
 
-Shows a QR code for these guides at **helixscreen.org/docs**.
+Shows a QR code for the Getting Started guide: the setup wizard, moving around the screens and touch gestures.
+
+---
+
+## User Guide
+
+Shows a QR code for these guides, which explain every screen and setting. Both QR codes open the pages for the HelixScreen version you are running, at **helixscreen.org**.
 
 ---
 
@@ -97,7 +124,7 @@ The install, config, log and cache locations are useful when support asks where 
 ### Easter Eggs
 
 - Tap **Printer Name** seven times for a hidden Snake game.
-- Tap **Current Version** seven times to turn beta features on or off, like Android's "tap build number" trick.
+- Tap **Current Version** seven times to turn beta features on or off, like Android's "tap build number" trick. Each tap has to come within two seconds of the one before, and the screen counts down the last three taps.
 
 ### Enabling Beta Features
 

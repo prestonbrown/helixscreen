@@ -185,7 +185,7 @@ body:
       description: >-
         Desktop or SSH users only. Run `helix-screen -vv | tee helix.log` and
         paste the relevant output. On a printer, prefer the share code above —
-        see docs/user/TROUBLESHOOTING.md for the per-platform log paths.
+        see docs/user/troubleshooting/diagnostics.md (Collecting logs) for the per-platform log paths.
       render: shell
     validations:
       required: false

@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-Quick answers to common questions about HelixScreen.
+Quick answers to common questions about HelixScreen 1.1.
 
 ---
 
@@ -8,123 +8,119 @@ Quick answers to common questions about HelixScreen.
 
 ### What is HelixScreen?
 
-HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to your Moonraker instance and provides a modern, touch-friendly UI for controlling your printer.
+HelixScreen is a touchscreen interface for Klipper 3D printers. It connects to your printer's Moonraker and gives you a touch-friendly screen for printing, heating, moving, calibrating and managing filament.
 
-**Key features:**
-- 30+ panels, 20+ overlays, and a customizable multi-page widget dashboard
-- 3D G-code preview, bed mesh visualization, frequency response charts
-- 11 filament systems (AFC, Happy Hare, ACE, AD5X IFS, CFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX in early support, any Lane Status producer, and tool changers) with Spoolman integration
-- First-run wizard with auto-detection of over 100 printer models
-- Theme editor with 18 presets (dark and light), 9 languages
-- Sound system, timelapse integration, label printing, exclude objects
-- Auto-detecting layout system for displays from 480x320 to 1024x600, including ultrawide and portrait
-- ~15MB RAM on embedded targets — designed for the modest hardware most people already own, no desktop required
+Highlights:
+
+- A home dashboard of widgets that you arrange yourself, across several pages
+- A 3D G-code preview and a 3D bed mesh view
+- Multi-filament support for AFC, Happy Hare, OpenAMS, Anycubic ACE, the FlashForge AD5X IFS, Creality CFS, the Snapmaker U1, QIDI Box, Bondtech INDX (early support), any system that publishes Lane Status, and tool changers, with Spoolman integration
+- A first-run wizard that recognizes more than 100 printer models
+- 18 color themes in dark and light, and 9 languages
+- Sound, timelapse, label printing, exclude objects and input shaper calibration
+- A layout that adapts to screens from 480x320 up to ultrawide and portrait panels
+- A small memory footprint: about 15MB of RAM on printers like the Creality K1 and FlashForge AD5M, so the hardware you already own is enough
 
 ### Which printers are supported?
 
-HelixScreen works with any Klipper-based printer running Moonraker. Tested and supported platforms:
+HelixScreen works with any Klipper printer that runs Moonraker. This table gives the status for each platform. [Supported Printers](guide/supported-printers.md) has the feature-by-feature detail.
 
 | Platform | Status | Notes |
 |----------|--------|-------|
 | Voron 0.1, 2.4, Trident | **Tested** | Primary development platforms |
 | Doron Velta / RatRig V-Core | **Tested** | |
-| FlashForge AD5M / 5M Pro | **Tested** | Requires Forge-X or Klipper Mod firmware |
-| QIDI Q2, Max 4 | **Supported** | Stock firmware works (runs standard Moonraker); community firmware like FreeDi or FreeQIDI also supported. Plus 4 uses a TJC serial display and is not supported for on-device install — only remote control via Moonraker. |
-| Creality K1 / K1C / K1 Max / K1 SE | **Supported** | Requires rooting or Guilouz firmware |
-| Creality K2 Pro / K2 Plus | **Tested** | Runs natively with CFS support, on stock firmware and on community builds with a rewritten CFS module — see [Filament → CFS](guide/filament.md#creality-filament-system-cfs) |
-| Creality Sonic Pad | **Supported** | 32-bit ARM, dedicated build. Tested only on [SonicPad-Debian](https://github.com/Jpe230/SonicPad-Debian); stock Creality firmware untested |
-| Creality Hi | **Preliminary** | Auto-detected; Cartesian bedslinger with optional CFS. Untested on our hardware. |
-| Anycubic Kobra 2 Pro / Kobra 3 / 3 V2 / 3 Max / S1 / S1 Max | **Community** | Auto-detected on [Rinkhals](https://github.com/jbatonnet/Rinkhals) firmware; native ACE (`filament_hub`) supported. Untested on our hardware. |
-| FlashForge AD5X | **Tested** | IFS filament system integrated |
-| FlashForge Creator 5 / Creator 5 Pro | **Preliminary** | Four-head tool changer, auto-detected on either replacement firmware: [Z-Mod](https://wiki.zmod.link/C5PRO/) or [Reforge](https://github.com/Klipper4FlashForge/firmware). Mounting and parking a head is driven from the screen. On Z-Mod 1.7.4 and newer, each head's material and color are read from the printer itself. Untested on our hardware. |
-| SOVOL SV06 / SV08 | **Tested** | Community reports welcome |
-| Elegoo Centauri Carbon 1 | **Tested** | Requires [OpenCentauri COSMOS](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/) firmware 26.07.0 or newer; ships with factory white-balance calibration |
-| Snapmaker U1 (SnapSwap toolchanger) | **Tested** | Native four-head support with RFID spool recognition. Needs SSH — stock firmware (1.2+) via its **Root access** option, or PAXX Extended Firmware (SSH on by default). Tested on PAXX 1.2.x–1.4.x; the stock-firmware path is unverified on a real stock device. Reinstall after a firmware update. On PAXX firmware you can also view/control the screen remotely in Mainsail/Fluidd (the "gui" webcam) via the firmware's `web remote_screen` toggle; physical cameras work normally. |
+| FlashForge Adventurer 5M / 5M Pro | **Tested** | Needs the Forge-X, ZMOD or Klipper Mod firmware |
+| FlashForge Adventurer 5X | **Tested** | IFS filament system integrated. Needs ZMOD 1.7.0 or newer |
+| FlashForge Creator 5 / Creator 5 Pro | **Tested** | Four-head tool changer. Needs [Z-Mod](https://wiki.zmod.link/C5PRO/) or [Reforge](https://github.com/Klipper4FlashForge/firmware) firmware. On Z-Mod 1.7.4 and newer, each head's material and color are read from the printer itself |
+| Creality K1 / K1C / K1 Max / K1 SE | **Supported** | Needs community firmware with Moonraker (Guilouz, Simple AF or Guppy Mod) and root access |
+| Creality K2 / K2 Plus / K2 Pro | **Tested** | Works on stock firmware, with full CFS support. Community firmware with its own CFS module is recognized too |
+| Creality Sonic Pad | **Supported** | Dedicated 32-bit build. Tested only on [SonicPad-Debian](https://github.com/Jpe230/SonicPad-Debian); stock Creality firmware is untested |
+| Creality Hi | **Preliminary** | Recognized automatically as a bed-slinger with an optional CFS. Not yet checked on hardware |
+| Elegoo Centauri Carbon | **Tested** | Needs [OpenCentauri COSMOS](https://docs.opencentauri.cc/klipper-conversion/cosmos/cosmos/) firmware 26.07.0 or newer |
+| Snapmaker U1 (SnapSwap) | **Tested** | Needs SSH: stock firmware 1.2 or newer with its **Root access** option, or PAXX Extended Firmware. Tested on PAXX 1.2.x to 1.4.x; the stock-firmware path has not been checked on a real stock printer. Reinstall after a firmware update |
+| QIDI Q2 / Plus 5 / Max 4 | **Supported** | Stock firmware works, as do FreeDi and FreeQIDI. The Plus 4 and the 3-series models (X-Smart 3, X-Plus 3, X-Max 3, Q1 Pro) have a serial display, so on those HelixScreen can only run as a remote screen |
+| Anycubic Kobra 2 Pro / Kobra 3 / 3 V2 / 3 Max / S1 / S1 Max, Sovol SV06 ACE | **Community** | Needs community firmware such as [Rinkhals](https://github.com/jbatonnet/Rinkhals). The ACE Pro is supported. Not yet tested on the team's hardware |
+| Sovol SV06 / SV08 | **Tested** | |
 | Artillery M1 Pro | **Tested** | |
-| Zero G Mercury / Nebula / Hydra | **Tested** | Multiple variants supported |
-| Other Klipper printers | **Should work** | Any printer with Moonraker API access |
+| Zero G Mercury / Nebula / Hydra | **Tested** | Several variants supported |
+| Other Klipper printers | **Should work** | Any printer HelixScreen can reach through Moonraker |
 
-> **Note:** "Tested" means the HelixScreen team has verified the platform on real hardware. "Community" means a community user has confirmed it working but we haven't tested it ourselves. "Preliminary" means support exists from the printer's published config but has not been verified on hardware. See the [Installation Guide](INSTALL.md) for platform-specific instructions, and [Supported Printers](guide/supported-printers.md) for a feature-by-feature breakdown of what works on each specially-integrated model.
+**Tested** means the HelixScreen team checked it on real hardware. **Supported** means it works with the firmware named. **Community** means a user confirmed it but the team has not tested it. **Preliminary** means support was built from the printer's published configuration and has not been checked on hardware. See the [Installation Guide](INSTALL.md) for setup on each platform.
+
+HelixScreen also runs on a few things that are not printers:
+
+- **BigTreeTech K-Touch** (ESP32 screen): alpha firmware that you flash from the [easy installer](guide/install-esp32.md#with-the-easy-installer) or from your browser. See [K-Touch Install](guide/install-esp32.md).
+- **Android phones and tablets**: available on [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app). See [Can I use HelixScreen on my phone or tablet?](#can-i-use-helixscreen-on-my-phone-or-tablet).
+- **A Linux desktop**: runs in a window. See [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md).
 
 ### Can I run HelixScreen on a separate device instead of on my printer?
 
-Yes. HelixScreen is a Moonraker client — it only needs network access to your printer's Moonraker instance, so it doesn't have to run on the printer itself. Install it on any supported Linux device (a spare Raspberry Pi with a touchscreen, a mini PC with an HDMI touchscreen, even [a window on your Linux desktop](guide/install-linux-desktop.md)) and enter your **printer's IP address** in the wizard's Moonraker step instead of `localhost`. This is ideal when the printer is on the floor and you want the screen at your desk.
+Yes. HelixScreen only needs network access to your printer's Moonraker, so it does not have to run on the printer. Install it on a spare Raspberry Pi with a touchscreen, a mini PC, a K-Touch, an Android tablet, or [a window on your Linux desktop](guide/install-linux-desktop.md). Then enter your **printer's IP address** in the wizard's Moonraker step instead of `localhost`. This suits a printer on the floor with the screen at your desk.
 
-Point it at Moonraker (port `7125`), not the Mainsail/Fluidd web interface — you don't need Mainsail or Fluidd on the screen device at all. See [Remote Screen Setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device) for step-by-step instructions.
+Point it at Moonraker (port `7125`), not at the Mainsail or Fluidd web page. The screen device does not need Mainsail or Fluidd at all. See [Remote Screen Setup](INSTALL.md#remote-screen-setup-run-on-a-separate-device).
+
+### Can I use HelixScreen on my phone or tablet?
+
+Yes. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app), and you can also install the APK from the [releases page](https://github.com/prestonbrown/helixscreen/releases/latest). It needs Android 9.0 or newer and runs in landscape. It is a remote screen: it controls a printer over your network and installs nothing on the printer. An install from Google Play is signed differently from the APKs on the releases page, so moving from one to the other means uninstalling first and setting the app up again. See [Android App](INSTALL.md#android-app-experimental).
 
 ### Can I use HelixScreen on a Klipper machine that isn't a printer?
 
-Yes. If your `[printer]` section sets `kinematics: none`, HelixScreen knows the machine has no motion system and won't warn that the nozzle heater is missing. On any other machine without a nozzle heater, open the warning's **View** button (or **Settings → Devices → Hardware Health**) and tap **Ignore** on the extruder entry. It won't be reported again. See [Hardware Health](guide/settings/devices.md#hardware-health).
+Yes. If your `[printer]` section sets `kinematics: none`, HelixScreen knows the machine has no motion system and does not warn about a missing nozzle heater. On any other machine without a nozzle heater, open **Settings > Devices > Hardware Health** (or the warning's **View** button) and tap **Ignore** on the extruder entry. It is not reported again. See [Hardware Health](guide/settings/devices.md#hardware-health).
 
 ### Which displays are supported?
 
 **Tested and confirmed working:**
-- BTT 5" HDMI/DSI touchscreen
-- BTT 7" HDMI/DSI touchscreen
-- FlashForge AD5M built-in 4.3" display (800x480)
+
+- BTT 5" and 7" HDMI/DSI touchscreens
+- The FlashForge AD5M's built-in 4.3" display (800x480)
 
 **Active testing underway:**
-- FlashForge AD5X built-in 4.3" display (800x480)
+
+- The FlashForge AD5X's built-in 4.3" display (800x480)
 
 **Should work but not yet tested:**
-- Official Raspberry Pi 7" DSI touchscreen
-- Creality K2 built-in 4.3" display (480x800 — the panel is software-rotated to landscape; running it in portrait works too, though landscape is more polished)
-- Other HDMI displays
-- SPI displays (with proper configuration)
 
-**Display sizes:** HelixScreen auto-detects the best layout for your display. 800x480 and 1024x600 are fully supported. 480x320 displays will run but may have layout overlap issues — improved small-screen support is ongoing.
+- The official Raspberry Pi 7" DSI touchscreen
+- The Creality K2's built-in 4.3" display (480x800). The panel is rotated to landscape in software, which is the supported setup. Running it in portrait works too, but landscape is more polished.
+- Other HDMI displays, and SPI displays that are set up correctly
 
-**Ultrawide and portrait screens both work.** The layout engine detects an ultrawide screen (wider than about 2.5:1, e.g. 1920x440) or a portrait screen (narrower than about 0.8:1, e.g. 480x800) and adapts the navigation bar and grid sizing to it. Portrait additionally has dedicated layouts for the app shell, navigation bar, Print Status, Print Tune, Motion, Bed Mesh and the temperature graph; ultrawide has the home dashboard and nothing else. Panels without a dedicated layout use the adaptive fallback, so landscape remains the most polished of the three.
+**Screen sizes.** HelixScreen picks the best layout for your display on its own. 800x480 and 1024x600 are fully supported. 480x320 runs, but a few screens are tight there.
 
-The part that adapts furthest is the **home dashboard**. Its grid is sized from the actual screen with square cells, so a 480x800 portrait panel gets 4 columns by 6 rows, a tall 320x1480 one gets 4x17, and a 1920x440 ultrawide gets 23x5. Portrait and ultrawide each have their own default layout rather than a stretched landscape one, and on a portrait panel buttons, inputs, and headers are sized from the screen's height, so you get taller controls instead of cramped ones.
+**Ultrawide and portrait screens work.** HelixScreen detects an ultrawide screen (wider than about 2.5:1, such as 1920x440) or a portrait screen (narrower than about 0.8:1, such as 480x800) and adapts the navigation bar and the home dashboard. The home dashboard grid is sized from the screen with square cells, so a portrait 480x800 panel gets 4 columns by 6 rows. Portrait also has its own layouts for several panels, and panels without one use an adaptive fallback, so landscape is still the most polished. See the [Home Panel guide](guide/home-panel.md#ultrawide-and-portrait-screens) and [Display](guide/settings/display.md).
 
-Both keep gaining per-panel work. If you want to help, they need only XML, not C++ — see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
+**Rotation.** If your display is upside down or sideways, go to **Settings > Display > Screen Rotation**, pick Normal, 90° Clockwise, 180° Upside Down or 270° Clockwise, then restart HelixScreen. Touch follows the rotation by itself.
 
-You can force either mode to try it: `helix-screen --layout ultrawide` or `--layout portrait`, or set `"layout": "ultrawide"` in the `display` section of `settings.json`.
-
-**Display rotation:** All three binaries (main, splash, watchdog) support 0°, 90°, 180°, and 270° rotation via config or command line. Rotating a portrait panel to landscape (what the Creality K2 does) is well-trodden; leaving it in portrait and using the portrait layout also works, with the caveats above.
-
-If you test on hardware not listed above, please let us know your results!
+If you test on hardware not listed here, please tell us how it went.
 
 ### Which slicer should I use?
 
-HelixScreen reads standard G-code, so most slicers work. But support is tiered:
+HelixScreen reads standard G-code, so most slicers work, with these tiers:
 
 | Slicer | Status | Notes |
 |--------|--------|-------|
-| **OrcaSlicer 2.3.2+** | **Primary** | The slicer we develop and test against. Best experience — including one-way (HelixScreen → OrcaSlicer) filament preset sync with HelixScreen's filament slots. Recommended for everyone. G-code from the 2.5 alpha has been checked and needs nothing new from HelixScreen. |
-| Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio, etc.) | **Supported** | Most are OrcaSlicer/PrusaSlicer forks and work well. We aim to support them. This is about G-code and profiles, not the vendor's own network path: on the Creality K1 series the stock backend keeps running beside HelixScreen, so Creality Print can still reach the printer. If it cannot, see [Troubleshooting](TROUBLESHOOTING.md#creality-print-can-no-longer-find-or-connect-to-the-printer). |
-| PrusaSlicer / SuperSlicer | **Supported** | Fully usable, including exclude-objects and pre-print options. |
-| Cura | **Not targeted** | We don't test against Cura and don't build features for it, but we don't go out of our way to break it. Output generally works; some features (exclude objects, filament sync) need extra setup or aren't available. |
+| **OrcaSlicer 2.3.2 or newer** | **Primary** | The slicer we develop and test against. Best experience, including one-way filament preset sync from HelixScreen's filament slots to OrcaSlicer |
+| Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio and similar) | **Supported** | Most are OrcaSlicer or PrusaSlicer forks and work well. This is about G-code and profiles, not the vendor's own network path. On the Creality K1 series the stock backend keeps running beside HelixScreen, so Creality Print can still reach the printer |
+| PrusaSlicer / SuperSlicer | **Supported** | Fully usable, including exclude objects and pre-print options |
+| Cura | **Not targeted** | We do not test against it. Output generally works, but some features (exclude objects, filament sync) need extra setup or are not available |
 
-For the best results — accurate metadata, thumbnails, exclude-object support, and filament syncing — use **OrcaSlicer 2.3.2 or later**.
+For accurate metadata, thumbnails, exclude-object support and filament syncing, use **OrcaSlicer 2.3.2 or newer**.
 
 ### Why is my layer count or time remaining inaccurate?
 
-For an exact layer count and a reliable time-remaining estimate, HelixScreen needs your slicer to report layer info to Klipper via the `SET_PRINT_STATS_INFO` command in the printed G-code. Many stock slicer profiles don't emit it, so HelixScreen falls back to estimating from progress and Z-height — close, but not exact. Adding two short lines to your slicer's custom G-code fixes it. See [Troubleshooting → Layer count is wrong, stuck at 0, or total layers missing](TROUBLESHOOTING.md#layer-count-is-wrong-stuck-at-0-or-total-layers-missing) for the exact snippets per slicer.
+For an exact layer count and a steady time-remaining estimate, your slicer has to report layer information to Klipper with the `SET_PRINT_STATS_INFO` command in the printed G-code. Many stock slicer profiles do not, so HelixScreen estimates from progress and height instead. That is close but not exact. Two short lines in your slicer's custom G-code fix it. See [Troubleshooting](TROUBLESHOOTING.md) for the snippet for each slicer.
 
 ### How is this different from KlipperScreen and GuppyScreen?
 
-| Feature | HelixScreen | KlipperScreen | GuppyScreen |
-|---------|-------------|---------------|-------------|
-| **UI Framework** | LVGL 9 XML | GTK 3 (Python) | LVGL 8 (C) |
-| **Declarative UI** | Full XML | Python only | C only |
-| **Disk Size** | ~75-115MB | ~50MB | ~60-80MB |
-| **RAM Usage** | ~15MB (32-bit) | ~50MB | ~15-20MB |
-| **Reactive Binding** | Built-in | Manual | Manual |
+| | HelixScreen | KlipperScreen | GuppyScreen |
+|---|---|---|---|
+| **Toolkit** | LVGL 9, with layouts in XML | GTK 3 (Python) | LVGL 8 (C) |
+| **Memory** | About 15MB on 32-bit embedded targets | About 50MB | About 15-20MB |
 | **3D G-code preview** | Yes | 2D layers | No |
 | **3D bed mesh** | Yes | 2D heatmap | 2D heatmap |
-| **Status** | Actively developed | Mature (maintenance) | Unmaintained |
 
 GrumpyScreen is an actively developed fork of GuppyScreen, built specifically for Simple AF and OpenCentauri COSMOS. Like its parent it uses LVGL 8, and it supports Spoolman and the AFC and Happy Hare multi-material systems. We have not measured its memory or disk use, so it does not have a column in the table above.
 
-**HelixScreen advantages:**
-- Low memory footprint (~15MB on embedded targets vs ~50MB for KlipperScreen on the same hardware)
-- Declarative XML layouts (change UI without recompiling)
-- Modern reactive architecture with 11 filament systems
-- 3D visualizations (G-code preview, bed mesh)
-- Auto-detection database of over 100 printers
-- 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, Chinese)
+HelixScreen's layouts are XML files, so the look of the interface can change without recompiling. It also has a home screen you design yourself, a database of more than 100 printers for automatic setup, support for the filament systems listed above, and 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese).
 
 ---
 
@@ -132,278 +128,214 @@ GrumpyScreen is an actively developed fork of GuppyScreen, built specifically fo
 
 ### What Raspberry Pi do I need?
 
-HelixScreen is light enough that whatever Pi you already own is almost certainly fine. The Pi you've had in a drawer for years works.
+Whatever Pi you already own is almost certainly fine.
 
-| Pi Model | Supported | Notes |
+| Pi model | Supported | Notes |
 |----------|-----------|-------|
-| Pi 5 | ✅ | Best performance, overkill for HelixScreen alone |
-| Pi 4 | ✅ | Plenty for the touchscreen UI plus Klipper/Moonraker |
-| Pi 3B+ | ✅ | Works well — no need to upgrade for HelixScreen's sake |
-| Pi 3B | ✅ | Usable; may feel slow on heavy 3D mesh interactions |
-| Pi Zero 2 W | ✅ | Great for space-constrained setups |
-| Pi Zero (original) | ❌ | Too slow |
+| Pi 5 | Yes | Best performance, more than HelixScreen alone needs |
+| Pi 4 | Yes | Plenty for the touchscreen UI plus Klipper and Moonraker |
+| Pi 3B+ | Yes | Works well |
+| Pi 3B | Yes | Usable; heavy 3D mesh interaction may feel slow |
+| Pi Zero 2 W | Yes | Good for space-constrained setups |
+| Pi Zero (original) | No | Too slow |
 
-**Memory:** 1GB is enough. HelixScreen itself uses ~15MB on 32-bit and a few times more on 64-bit Pi — the rest is for Klipper, Moonraker, and the OS.
+1GB of memory is enough. Both 32-bit and 64-bit Raspberry Pi OS work: the installer checks which one you run and downloads the matching build. You need Debian 11 (Bullseye) or newer. See [Generic Linux Install](INSTALL.md#generic-linux-install-raspberry-pi-btt-x86).
 
-**32-bit and 64-bit:** Both are supported. The installer automatically detects your architecture (`uname -m`) and downloads the correct binary — `aarch64` gets the 64-bit build, `armv7l` gets the 32-bit build. No manual selection needed.
+<a id="can-i-run-helixscreen-alongside-klipperscreenguppyscreen"></a>
+### Can I run HelixScreen alongside KlipperScreen or GuppyScreen?
 
-### Can I run HelixScreen alongside KlipperScreen/GuppyScreen?
+Not on the same display, because both want the screen. The installer turns off any screen program it finds. To switch back and forth by hand on a Raspberry Pi or other systemd machine:
 
-**Not on the same display.** Both compete for the framebuffer. The HelixScreen installer automatically disables any existing screen UI.
-
-**MainsailOS (systemd):**
 ```bash
-# Disable KlipperScreen
+# Turn KlipperScreen off and HelixScreen on
 sudo systemctl stop KlipperScreen
 sudo systemctl disable KlipperScreen
-
-# Enable HelixScreen
 sudo systemctl enable helixscreen
 sudo systemctl start helixscreen
 ```
 
-**AD5M Klipper Mod (SysV init):**
-```bash
-# Disable KlipperScreen
-/etc/init.d/S80klipperscreen stop
-chmod -x /etc/init.d/S80klipperscreen
+On FlashForge, Creality and other printers with their own firmware, follow the install guide for your printer: it names the service to start, stop or restart. See the [Installation Guide](INSTALL.md).
 
-# Enable HelixScreen
-chmod +x /etc/init.d/S80helixscreen
-/etc/init.d/S80helixscreen start
-```
+<a id="do-i-need-to-install-x11-or-a-desktop-environment"></a>
+### Do I need X11 or a desktop environment?
 
-**AD5M Forge-X (SysV init):**
-```bash
-# Disable GuppyScreen
-/etc/init.d/S60guppyscreen stop
-chmod -x /etc/init.d/S60guppyscreen
+No. HelixScreen draws straight to the display through DRM or the framebuffer, so it needs no X11, Wayland, desktop environment or display manager. That is part of why it uses so little memory. The one exception is by choice: the [Linux desktop package](guide/install-linux-desktop.md) runs HelixScreen in a window on a desktop PC.
 
-# Enable HelixScreen
-chmod +x /etc/init.d/S90helixscreen
-/etc/init.d/S90helixscreen start
-```
+<a id="does-this-work-with-mainsailos-fluiddpi-or-other-klipper-distros"></a>
+### Does this work with MainsailOS, FluiddPi or other Klipper distributions?
 
-If you have two displays, you could theoretically run both (advanced configuration, not tested).
+Yes. It works with any Klipper setup that includes Moonraker: MainsailOS, FluiddPi, KIAUH installs and custom installs. Which web interface you use does not matter, because HelixScreen talks to Moonraker.
 
-### Do I need to install X11 or a desktop environment?
+<a id="what-gets-preserved-during-upgrades"></a>
+### What is kept when I update?
 
-**No.** HelixScreen renders directly to the framebuffer (fbdev) or DRM. It doesn't need:
-- X11 / Xorg
-- Wayland
-- Desktop environment (GNOME, KDE, etc.)
-- Display manager (LightDM, GDM, etc.)
-
-This is why it uses less memory than alternatives.
-
-The one exception is by choice: if you *want* HelixScreen in a window on a Linux desktop PC, there is a separate desktop package that runs under X11 or Wayland. See [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md).
-
-### Does this work with MainsailOS, FluiddPi, or other Klipper distros?
-
-Yes! HelixScreen works with any Klipper distribution that includes Moonraker:
-- MainsailOS ✅
-- FluiddPi ✅
-- Custom Klipper installs ✅
-- KIAUH installs ✅
-
-The web frontend you use (Mainsail, Fluidd, etc.) doesn't matter - HelixScreen talks to Moonraker.
-
-### What gets preserved during upgrades?
-
-Your configuration is safe. The installer preserves:
-- `settings.json` — all your settings
-- `helixscreen.env` — environment variable overrides
-- Custom printer images in `config/custom_images/`
-- Custom theme files in `config/themes/`
-
-Your Klipper configuration is never touched. See the [Upgrade Guide](UPGRADING.md) for instructions.
-
-### My display is upside down or rotated wrong
-
-Set the rotation in your config file:
-
-```bash
-# Edit settings.json and add/change in the "display" section:
-"rotation": 180
-```
-
-Valid values: `0`, `90`, `180`, `270`. Restart HelixScreen after changing.
+The installer keeps your settings, your `helixscreen.env` overrides, your custom printer images and your custom themes. Your Klipper configuration is never touched. The first start of 1.1 also saves your 1.0 settings beside the new ones as `settings.json.pre-migration`. See the [Upgrade Guide](UPGRADING.md).
 
 ---
 
 ## Features
 
-### Does it support multiple extruders / toolchangers?
+<a id="does-it-support-multiple-extruders--toolchangers"></a>
+### Does it support multiple extruders and tool changers?
 
-**Yes.** Full multi-extruder and toolchanger support:
-- ✅ Per-extruder temperature control with extruder selector in the Temperature panel
-- ✅ Toolchanger support via [klipper-toolchanger](https://github.com/viesturz/klipper-toolchanger) — active tool badge on Home panel (T0, T1, etc.)
-- ✅ Tool-prefixed temperatures on the print status overlay
-- ✅ Dynamic discovery of all extruders from Klipper (extruder, extruder1, extruder2, etc.)
-- ✅ Multiple filament systems can run simultaneously (e.g. toolchanger + Happy Hare)
+Yes. HelixScreen discovers every extruder Klipper reports and gives each its own temperature control, with a selector in the temperature screen. Tool changers work with [klipper-toolchanger](https://github.com/viesturz/klipper-toolchanger) and with the Snapmaker U1, FlashForge Creator 5 and MedusaHC. The Home screen shows which tool is active, and the print status screen shows temperatures per tool. A tool changer and a filament system such as Happy Hare can run side by side. See [Tool Changers](guide/filament-tool-changers.md).
 
 ### Can I use my webcam?
 
-**Yes.** HelixScreen shows your webcam feed on the home dashboard and during printing. It automatically detects webcams configured in Moonraker (crowsnest, camera-streamer, etc.) and displays the MJPEG stream.
+Yes. HelixScreen shows a webcam on the home dashboard and while printing. It finds webcams configured in Moonraker (crowsnest, camera-streamer and similar) and shows their stream. See the [Camera guide](guide/camera.md).
 
-For the best camera performance on Raspberry Pi, install `libturbojpeg0`:
+On a Raspberry Pi, installing `libturbojpeg0` makes JPEG decoding several times faster. HelixScreen uses it automatically when it is present:
 
 ```bash
 sudo apt install libturbojpeg0
 ```
 
-This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x faster than the built-in software decoder. HelixScreen automatically uses it if available — no configuration needed. Without it, everything still works, just with slightly higher CPU usage during camera streaming.
-
 ### Can I see or use the printer's screen from my browser?
 
-**Yes.** Turn on **Settings > Connection > Screen Sharing > Share Screen** and the screen shows up live in your browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd. Turn on **Allow Remote Control** as well to tap and drag on it from the browser. Both are off until you turn them on at the printer. Some printers ask for a pairing code before a browser can take control; on a Raspberry Pi running MainsailOS or KIAUH, Moonraker's trusted clients decide instead. See [Screen Sharing and Remote Control](guide/screen-sharing.md).
+Yes. Turn on **Settings > Connection > Screen Sharing > Share Screen** and the screen shows up live in your browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd. Turn on **Allow Remote Control** as well to tap and drag it from the browser. Both are off until you turn them on at the printer. Some printers ask for a pairing code before a browser can take control; on a Raspberry Pi running MainsailOS or KIAUH, Moonraker's trusted clients decide instead. See [Screen Sharing and Remote Control](guide/screen-sharing.md).
 
 ### Does it work with Spoolman?
 
-**Yes.** Spoolman integration is supported:
-- **Advanced panel** → **Spoolman** to browse your spool inventory
-- **Settings** → **Devices** → **Spoolman** for weight sync settings
-- Assign spools to AMS slots and track filament usage
+Yes. Open **Advanced > Spoolman** to browse your spool inventory, and **Settings > Devices > Spoolman** to connect a server and set up weight syncing. You can assign spools to filament slots and track how much filament each print uses. See [Filament Tracking & Spoolman](guide/filament-tracking.md).
 
 ### Where are my lanes' spool details stored?
 
-On the printer, not on the screen. Your filament system keeps what it can (color and material at
-least), and the rest goes into a lane record on the printer that OrcaSlicer, Mainsail and any
-other screen read too, so every screen shows the same thing. When you save an edit, HelixScreen
-writes it there and waits for the printer to take it; if it can't, the editor stays open and says
-why. See [Where a lane's details come from](guide/filament-tracking.md#where-a-lanes-details-come-from).
+On the printer, not on the screen. Your filament system keeps what it can (color and material at least), and the rest goes into a lane record on the printer that OrcaSlicer, Mainsail and any other screen read too, so every screen shows the same thing. When you save an edit, HelixScreen writes it there and waits for the printer to take it. If the printer does not take it, the editor stays open and says why. A detail that lived only on a 1.0 screen and was never sent to the printer does not carry over to 1.1, so set it again. See [Where a lane's details come from](guide/filament-tracking.md#where-a-lanes-details-come-from).
 
 ### Why didn't Spoolman deduct my print from the spool?
 
-Spoolman only records usage against its **active spool**. On a multi-filament system (CFS, AFC, Happy Hare and others), HelixScreen makes a slot's linked spool active when that slot loads, so the slot has to be linked to the spool *before* the print starts. Matching is by the linked spool only, never by material name. See [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
+Spoolman records usage only against its **active spool**. On a multi-filament system (CFS, AFC, Happy Hare and others), HelixScreen makes a slot's linked spool active when that slot loads, so the slot has to be linked to the spool before the print starts. Matching uses the linked spool only, never the material name. See [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
 ### Why is a spool grayed out when I pick one?
 
-It is already linked to another slot or tool. On the External Spool editor, every spool linked to a slot is grayed out: to link a spool to a CFS or AMS slot, edit that slot instead. See [Editing Filament Properties](guide/filament.md#editing-filament-properties).
+It is already linked to another slot or tool. On the External Spool editor, every spool linked to a slot is grayed out. To link a spool to a CFS or AMS slot, edit that slot instead. See [Editing Filament Properties](guide/filament.md#editing-filament-properties).
 
 ### Does my K2 run its bed mesh twice?
 
-Not normally. With **Auto Bed Mesh** on, HelixScreen sends the K2's `BED_MESH_CALIBRATE_START_PRINT` before the print, unless the file's start G-code already calls that same command. Other bed mesh commands in the file don't count. Details and limits: [Pre-Print Options](guide/printing.md#pre-print-options).
+Not normally. With **Auto Bed Mesh** on, HelixScreen sends the K2's `BED_MESH_CALIBRATE_START_PRINT` before the print, unless the file's start G-code already calls that same command. Other bed mesh commands in the file do not count. Details and limits: [Pre-Print Options](guide/printing.md#pre-print-options).
 
 ### Can I print spool labels?
 
-**Yes.** HelixScreen supports printing physical spool labels to thermal label printers:
-- **Brother QL** — via Network or Bluetooth
-- **Phomemo** — via USB or Bluetooth
-- **Niimbot** — via Bluetooth (B21, D11, D110)
-- **MakeID** — via Bluetooth (E1, L1, M1 — 9/12/16mm continuous tape)
+Yes. HelixScreen prints spool labels to thermal label printers:
 
-Labels include spool name, material, color swatch, temperatures, and a QR code. See the [Label Printing Guide](guide/label-printing.md) for setup.
+- **Brother QL**, over the network or Bluetooth
+- **Phomemo**, over USB or Bluetooth
+- **Niimbot**, over Bluetooth
+- **MakeID**, over Bluetooth
 
-### Does it support Happy Hare or AFC-Klipper?
+Labels carry the spool name, material, color swatch, temperatures and a QR code. See the [Label Printing Guide](guide/label-printing.md).
 
-**Yes.** Full multi-material support is available for:
-- **Happy Hare** — MMU2, ERCF, 3MS, Tradrack
-- **AFC-Klipper** — Box Turtle, OpenAMS and ViViD, with full lane data, a live step bar during tool changes, and more than 25 device settings and actions grouped into their own sections
-- **OpenAMS** without AFC — supported through klipper_openams' own UI API. Status appears as soon as that API is installed. Load and Unload work once its updated `OPENAMS_LOAD` / `OPENAMS_UNLOAD` macros are merged into your macro file; until then Unload is hidden and Load says the macro is missing
-- **ACE** (Anycubic ACE Pro) — supported on native Anycubic firmware (the `filament_hub` Klipper object, e.g. Kobra on Rinkhals) and on the community ValgACE/BunnyACE/DuckACE Klipper drivers
-- **Tool changers** — supported
+<a id="does-it-support-happy-hare-or-afc-klipper"></a>
+### Does it support Happy Hare, AFC and other filament systems?
 
-Features include visual slot configuration with tool badges, Endless Spool arrows, Filament Mapping, tap-to-edit popup, Spoolman integration, and material compatibility validation.
+Yes:
+
+- **Happy Hare**: MMU2, ERCF, 3MS, Tradrack and others
+- **AFC-Klipper**: Box Turtle, OpenAMS and ViViD, with full lane data, a live step bar during tool changes, and device settings and actions
+- **OpenAMS** without AFC, through klipper_openams' own interface. Load and Unload work once its updated `OPENAMS_LOAD` and `OPENAMS_UNLOAD` macros are in your macro file. Until then Unload is hidden and Load says the macro is missing
+- **Anycubic ACE Pro**, on native Anycubic firmware (such as a Kobra on Rinkhals) and on the community ValgACE, BunnyACE and DuckACE drivers
+- **FlashForge AD5X IFS**, **Creality CFS**, **Snapmaker U1** and **QIDI Box**, with model-specific integration
+- **Tool changers**
+
+The multi-filament panel shows each slot with its color and material, Endless Spool arrows, Filament Mapping, a tap-to-edit popup, and checks that a material suits its slot. See [Filament](guide/filament.md) and [Supported Printers](guide/supported-printers.md#multi-material-systems-on-any-printer).
 
 ### Can I customize the home screen widgets?
 
-**Yes!** The Home Panel is a grid of widgets you arrange yourself — temperatures, LED control, network status, AMS, camera, macro buttons, and more, spread across up to 8 pages.
+Yes. The Home screen is a grid of widgets that you arrange yourself, such as temperatures, LED control, network status, filament, camera and macro buttons, spread across up to 8 pages.
 
-To customize:
-1. **Long-press the widget grid** to enter Edit Mode
-2. **Tap** a widget to select it, then press it again and **drag** it to move it, or drag its edges to resize it. Drag a widget across the page border to move it to another page
-3. **Long-press an empty area** — or tap **+** on the navigation bar — to open the Widget Catalog and add something
-4. Tap a selected widget again, or long-press a widget and lift without moving, to open its menu. Choose **Remove** to take it off the grid, or **Configure** to change its settings
-5. Tap **Done** when you are finished
+1. **Long-press the widget grid** to enter Edit Mode.
+2. **Tap** a widget to select it, then press it again and **drag** it to move it, or drag its edges to resize it. Drag a widget across the page border to move it to another page.
+3. **Long-press an empty area**, or tap **+** on the navigation bar, to open the Widget Catalog and add something.
+4. Tap a selected widget again, or long-press a widget and lift without moving, to open its menu. Choose **Remove** to take it off the grid, or **Configure** to change its settings.
+5. Tap **Done** when you are finished.
 
-How many widgets fit depends on your screen - the grid is sized from it, so a bigger screen gives you more cells rather than bigger ones. Widgets that need hardware you don't have still show up in the Widget Catalog, but they are dimmed, can't be tapped, and carry the reason in parentheses - for example "Humidity (No humidity sensor detected)" or "Chamber Temperature (No chamber temperature sensor detected)". They become available on their own once the hardware is detected. See the [Home Panel guide](guide/home-panel.md#available-widgets) for the full widget list.
+How many widgets fit depends on your screen. The grid is sized from it, so a bigger screen gives you more cells rather than bigger ones. Widgets that need hardware you do not have appear in their own section of the Widget Catalog, dimmed, with the reason. They become available when the hardware is detected. See [Home Panel](guide/home-panel.md) and [Edit Mode](guide/home-edit-mode.md).
 
 ### Is there a quicker way to shut down the printer?
 
-Yes. Besides the settings menu, you can put a dedicated **Shutdown/Reboot widget** right on your home screen:
-
-1. Enter **Edit Mode** on the Home Panel (long-press an empty area)
-2. Add the **Shutdown/Reboot** widget from the Widget Catalog
-3. Tap it any time — a confirmation dialog appears first, so you can't shut down by accident
-
-See the [Shutdown/Reboot Widget](guide/home-panel.md#shutdownreboot-widget) section of the Home Panel guide for details, or the **Power** widget if you'd rather toggle a PSU or smart plug.
+Yes. Besides the Advanced screen's **Shutdown** and **Reboot** rows, you can put a **Shutdown/Reboot** widget on your home screen. Enter Edit Mode, add the widget from the Widget Catalog, and tap it any time. A confirmation appears first, so you cannot shut down by accident. If you would rather switch a power supply or smart plug, use the **Power** widget. On Android the Shutdown and Reboot controls do not appear. See the [Home Panel guide](guide/home-panel.md).
 
 ### Can I customize the colors or layout?
 
-**Yes!** HelixScreen includes a built-in theme editor with 18 preset themes:
+Yes. HelixScreen has a theme editor with 18 presets:
 
-1. Go to **Settings** → **Appearance**
-2. Tap **Theme Colors** to open the theme editor
-3. Choose from presets: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen (default), Kanagawa, Material Design, Midnight, Nord, One Dark, Rose Pine, Solarized, Tokyo Night, or Yami
-4. Toggle dark/light mode
-5. Customize individual colors if desired - changes are saved to `config/themes/`
+1. Go to **Settings > Appearance**.
+2. Tap **Theme Colors** to open the theme editor.
+3. Pick a preset: Ayu, Catppuccin, ChatGPT, Cupertino, Dracula, Everforest, Gruvbox, Hazard, HelixScreen (the default), Kanagawa, Material Design, Midnight, Nord, One Dark, Rose Pine, Solarized, Tokyo Night or Yami.
+4. Switch between dark and light mode, and change individual colors if you like.
 
-For layout customization, use Edit Mode on the Home panel — long-press the dashboard to rearrange and resize widgets.
+For layout, use Edit Mode on the Home screen. **Settings > Display** also has a **UI Scale** choice, and each scale keeps its own home layout. See [Appearance](guide/settings/appearance.md).
 
 ### Does it support multiple printers?
 
-**Yes!** You can configure multiple Klipper printers and switch between them from the navigation bar or Settings. You view one printer at a time, but switching is instant. Add printers via **Settings** → **Connection** → **Printers**.
+Yes. Add printers in **Settings > Connection > Printers** and switch between them there. Turn on **Show Printer Switcher** on the same page to put a printer icon in the navigation bar. You view one printer at a time. See [Connection settings](guide/settings/connection.md#printers).
 
 ### Can I view print history?
 
-**Yes.** The History panel shows past prints with statistics, thumbnails, and details. Access via the navbar or home screen.
+Yes. Open **Advanced > Print History** for statistics, trend charts, a searchable job list, and per-job details such as spools used and camera photos. See [Print History](guide/print-history.md).
 
 ### Can I send G-code commands directly?
 
-**Yes.** The Console panel lets you send G-code commands and view responses. Access via **Advanced** → **Console**.
+Yes. **Advanced > G-code Console** lets you send G-code and shows Klipper's replies. See [Advanced Features](guide/advanced.md#g-code-console).
 
 ### Does it support power device control?
 
-**Yes.** If you have Moonraker power devices configured, the Power panel lets you control them. Access via **Settings** → **System** → **Power Devices**, or **Advanced** → **Power**, or long-press the home panel power button.
+Yes, for the power devices configured in Moonraker. Open **Settings > Devices > Power Devices** to switch each device, or add a **Power** widget to your home screen to switch a device with one tap. See [Power Device Control](guide/advanced.md#power-device-control).
 
-### Can I view and run bed mesh?
+<a id="can-i-view-and-run-bed-mesh"></a>
+### Can I view the bed mesh and run a bed mesh calibration?
 
-**Yes.** The Bed Mesh panel shows a 3D visualization of your bed mesh and lets you run calibration. Access via **Controls** → **Bed Mesh**.
+Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. **Advanced > Bed Leveling** also opens it. See [Calibration & Tuning](guide/calibration.md).
 
 ### Does it support input shaper?
 
-**Yes.** The Input Shaper panel provides a full calibration workflow with frequency response charts, per-axis results, shaper comparison tables, and Save Config. Access via **Advanced** → **Input Shaper**. Requires an accelerometer configured in Klipper.
+Yes, if an accelerometer is configured in Klipper. **Advanced > Input Shaping** runs the whole calibration, with frequency response charts, per-axis results, a shaper comparison and a Save Config step. See [Calibration & Tuning](guide/calibration.md).
+
+### Does it support pressure advance tuning?
+
+Yes. **Advanced > Pressure Advance Tuning** prints a small test tower that raises pressure advance with height. You pick the height band that looked best, and HelixScreen applies the result. See [Calibration & Tuning](guide/calibration.md#pressure-advance-tuning-test-tower).
 
 ### Does it support exclude objects?
 
-**Yes.** During a print, you can exclude objects that failed. Tap the print status area to access exclude object controls.
+Yes. If the print contains several objects, an objects button appears on the print status screen. Open the Objects list, or tap an object in the viewer, to exclude one that failed. See [Exclude Object](guide/printing.md#exclude-object).
 
 ### Can I run macros?
 
-**Yes.** The Macro panel shows your Klipper macros. Access via **Advanced** → **Macros**. You can also configure quick macro buttons in **Settings** → **Printing** → **Macro Buttons**.
+Yes. **Advanced > Macro Browser** lists your Klipper macros. You can also set up quick macro buttons in **Settings > Printing > Macro Buttons**.
 
-### Can I change which macro the Load / Unload / Purge buttons run?
+<a id="can-i-change-which-macro-the-load--unload--purge-buttons-run"></a>
+### Can I change which macro the Load, Unload and Purge buttons run?
 
-**Yes.** Go to **Settings > Printing > Macro Buttons** and scroll to the **Standard Macros** section. Each button has a dropdown where you can select any macro from your Klipper config, or choose **(Auto)** to let HelixScreen detect it automatically. This works with or without an AMS system — see the [Filament guide](guide/filament.md#customizing-which-macro-runs) for details.
+Yes. Go to **Settings > Printing > Macro Buttons** and scroll to **Standard Macros**. Each button has a dropdown where you can pick any macro from your Klipper config, or **(Auto)** to let HelixScreen choose. This works with or without a filament system. See the [Filament guide](guide/filament.md#customizing-which-macro-runs).
 
 ### Why does my nozzle cool down after a filament change?
 
-**That's deliberate.** A load or unload heats the nozzle to material temperature, and HelixScreen turns the heater back off two minutes later so it doesn't sit hot indefinitely. The delay lets you run several operations back to back, and a running print is never interfered with.
+That is deliberate. A load or unload heats the nozzle to the material's temperature, and HelixScreen turns the heater back off two minutes later so it does not stay hot. The delay lets you run several operations back to back, and a running print is never touched.
 
-If your filament system already does its own post-operation cooldown — AFC does — turn ours off at **Settings > Printing > Cool nozzle after filament ops** so the two aren't both driving the heater. It's a per-printer setting, so your other machines keep the built-in behavior. See [Printing settings](guide/settings/printing.md#cool-nozzle-after-filament-ops).
+If your filament system does its own cooldown (AFC does), turn ours off at **Settings > Printing > Cool nozzle after filament ops** so the two do not both drive the heater. It is a per-printer setting. See [Printing settings](guide/settings/printing.md#cool-nozzle-after-filament-ops).
 
-### Can I customize the printer image on the home screen?
+<a id="can-i-customize-the-printer-image-on-the-home-screen"></a>
+### Can I change the printer picture on the home screen?
 
-**Yes.** Tap the printer image on the Home Panel to open the Printer Manager, then tap the image again to open the Printer Image picker. You have three options:
+Yes. Tap the printer picture on the Home screen to open the Printer Manager, then tap the picture again to open the picker. You can choose:
 
-- **Auto-Detect** (default) — HelixScreen picks an image based on your printer type from Klipper
-- **Shipped Images** — Choose from 25+ pre-rendered images (Voron, Creality, FlashForge, Anycubic, RatRig, etc.)
-- **Custom Images** — Drop a PNG or JPEG file into `config/custom_images/` and it appears automatically the next time you open the picker. You can also import images directly from a USB drive. Files must be under 5MB and 2048x2048 pixels max.
+- **Auto-Detect** (the default): HelixScreen picks a picture from your printer type.
+- **Shipped images**: more than 80 pictures covering Voron, Creality, FlashForge, Anycubic, RatRig, FLSUN and more.
+- **Custom images**: copy a PNG or JPEG into the `custom_images` folder in HelixScreen's config folder and it shows up the next time you open the picker. You can also import from a USB drive. Files must be under 5MB and no larger than 2048x2048 pixels.
 
-Your selection is saved to the `display.printer_image` config key and persists across restarts. See the [Printer Manager guide](guide/home-panel.md#changing-the-printer-image) for step-by-step instructions.
+The picker can also tag where your printer's nozzle, fan, bed and light are on the picture, so the heater and fan chips on the Home screen point at the right part. See [Printer Manager](guide/printer-manager.md).
 
 ### Can I rename my printer?
 
-**Yes.** Tap the printer image on the Home Panel to open the Printer Manager. Then tap the printer name (shown with a pencil icon) to enable inline editing. Type the new name and press **Enter** to save, or **Escape** to cancel. The name syncs automatically with Mainsail and Fluidd. See the [Printer Manager guide](guide/home-panel.md#changing-the-printer-name) for details.
+Yes. Tap the printer picture on the Home screen to open the Printer Manager, then tap the printer name (shown with a pencil icon). Type the new name and press **Enter** to save, or **Escape** to cancel. The name syncs with Mainsail and Fluidd. See [Printer Manager](guide/printer-manager.md).
 
 ### What languages are supported?
 
-HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Change the language in **Settings** → **Language & Time** → **Language**.
+Nine: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese. Change it in **Settings > Language & Time > Language**.
 
 ### Does HelixScreen collect any data?
 
-**Only if you opt in.** Telemetry is off by default. When enabled, it collects anonymous usage data (display resolution, platform, print outcomes) to help improve the software. No filenames, G-code, IP addresses, or personal information is ever collected. You can view, disable, and delete your data at any time in **Settings** → **System** → **Share Usage Data**. See the [Telemetry page](TELEMETRY.md) for full details.
+Only if you opt in. **Share Usage Data** is off until you turn it on at **Settings > System > Share Usage Data**. When it is on, HelixScreen sends anonymous usage data such as screen resolution, platform and print outcomes. It never collects file names, G-code, IP addresses or personal information. **View Telemetry Data**, on the same page, shows exactly what would be sent. See [Telemetry & Privacy](TELEMETRY.md).
 
 ---
 
@@ -411,134 +343,81 @@ HelixScreen ships with 9 languages: English, German, Spanish, French, Italian, J
 
 ### Can I use a USB mouse or keyboard?
 
-**Yes.** HelixScreen automatically detects USB mice and keyboards connected at startup. Both work alongside the touchscreen — you don't have to choose one or the other. A small white cursor appears when a mouse is detected. Combo devices like the Logitech K400 (keyboard + trackpad) also work.
-
-Devices must be plugged in before HelixScreen starts. If auto-detection doesn't find your device, set `HELIX_MOUSE_DEVICE` or `HELIX_KEYBOARD_DEVICE` in `helixscreen.env` to the device path (run `cat /proc/bus/input/devices` to find it).
+Yes. HelixScreen detects USB mice and keyboards connected at startup, and they work alongside the touchscreen. A small cursor appears when a mouse is found. Plug the device in before HelixScreen starts. If it is not found, set `HELIX_MOUSE_DEVICE` or `HELIX_KEYBOARD_DEVICE` in `helixscreen.env` to the device path. `cat /proc/bus/input/devices` lists the devices.
 
 ### How do I calibrate my touchscreen?
 
-If taps register in the wrong location:
-1. Go to **Settings** (gear icon)
-2. Tap **System**, then **Touch & Input**
-3. Tap **Touch Calibration**
-4. Tap the crosshairs that appear on screen
-5. Calibration saves automatically when complete
-
-Note: This option only appears on touchscreen displays, not in the desktop simulator.
+If taps land in the wrong place, go to **Settings > Touch & Input > Touch Calibration** and tap the crosshairs that appear. The calibration saves when it finishes. The row appears only on touchscreens. See [Touch Calibration](guide/touch-calibration.md).
 
 ### How do I change the theme or colors?
 
-1. Go to **Settings** → **Appearance**
-2. Tap **Theme Colors** to open the theme editor
-3. Browse available presets and see live preview
-4. Toggle dark/light mode
-5. Tap **Apply** to save (some changes require restart)
+Go to **Settings > Appearance > Theme Colors**, browse the presets with a live preview, switch between dark and light mode, and apply your choice. See [Appearance](guide/settings/appearance.md).
 
-### How do I adjust settings during a print?
+<a id="how-do-i-adjust-settings-during-a-print"></a>
+### How do I adjust speed, flow and Z-offset during a print?
 
-Tap the **Tune** button on the print status screen to access:
-- **Print Speed** (50-200%) - Adjust movement speed
-- **Flow Rate** (75-125%) - Adjust extrusion rate
-- **Z-Offset** - Baby stepping for first layer adjustment
+Tap **Tune** on the print status screen. It has:
 
-Fan control is available from the home screen fan widget or controls panel.
+- **Print Speed**, from 50 to 200%
+- **Flow Rate**, from 75 to 125%
+- **Z-Offset**, with baby-step buttons for the first layer
+- **PA**, a live pressure advance row
+
+Fan speed is not on the Tune screen: tap a fan chip on the print status screen for the fan controls. See [Print Tune Overlay](guide/printing.md#print-tune-overlay).
 
 ### Does HelixScreen support firmware retraction?
 
-**Yes**, if your printer has `[firmware_retraction]` configured in Klipper. Go to **Settings** → **Printing** → **Retraction Settings** to adjust:
-- Retract length and speed
-- Unretract extra length and speed
-- Enable/disable firmware retraction
+Yes, if your printer has `[firmware_retraction]` set up in Klipper. Go to **Settings > Printing > Retraction Settings** to adjust the retract length and speed and the unretract extra length and speed, and to turn firmware retraction on or off. The row appears only when Klipper reports the capability.
 
-This option only appears if Klipper reports firmware retraction capability.
+<a id="how-do-i-check-why-the-ui-is-slow"></a>
+### Why is the UI slow?
 
-### How do I check why the UI is slow?
-
-1. **Check your display connection:** SPI displays are significantly slower than HDMI or DSI. If possible, use an HDMI or DSI-connected display for best performance.
-2. **Disable animations:** Go to **Settings** → **Appearance** → toggle **Animations** off
-3. **Check CPU/memory via SSH:** Run `top` or `htop` to see if something else is using resources
-4. **Reduce logging:** If you added `-vv` or `-vvv` to the service, remove it
-5. **Heavy 3D interactions feel slow?** Bed mesh rotation and gcode preview lean on the CPU/GPU; a Pi 4 or Pi 5 is smoother than a Pi 3 or Zero, but everything else in HelixScreen works fine on the older Pi tier.
+1. **Check the display connection.** SPI displays are much slower than HDMI or DSI. Use HDMI or DSI if you can.
+2. **Turn off animations** at **Settings > Appearance > Animations**.
+3. **Check what else is using the processor.** **Settings > System > Performance** shows live processor and memory use, and the load on your printer's controller boards.
+4. **Lower the log level.** If you raised it to Debug or Trace, set it back to **Info** at **Settings > System > Log Level**.
+5. **Heavy 3D views** such as bed mesh rotation and the G-code preview lean on the processor. A Pi 4 or Pi 5 is smoother than a Pi 3 or Zero, but everything else works fine on the older boards.
 
 ### Why does the setup wizard keep appearing?
 
-The wizard runs when no valid configuration exists. Causes:
-1. Config file missing or deleted
-2. Config file has invalid JSON
-3. Permissions prevent reading config
-
-**Fix:** Check `~/helixscreen/config/settings.json` exists and is valid JSON (on installs without a Klipper ecosystem the fallback path is `/opt/helixscreen/config/settings.json`).
+The wizard runs when HelixScreen finds no valid configuration: the settings file is missing, holds invalid data, or cannot be read because of permissions. Check that `settings.json` exists in HelixScreen's config folder and is valid. On a Raspberry Pi with Klipper that folder is `~/helixscreen/config/`. See [Troubleshooting](TROUBLESHOOTING.md).
 
 ### How do I change the Moonraker address?
 
-Go to **Settings > Connection > Host** and enter the new address. HelixScreen disconnects from the current printer and connects to the new one right away.
+Go to **Settings > Connection > Host** and enter the new address, or pick a printer from the **Discovered Printers** list. Tap **Test Connection**, then **Save**. HelixScreen disconnects from the current printer and connects to the new one right away.
 
-To re-run the whole setup wizard instead, use **Settings > System > Factory Reset** (wipes all HelixScreen settings and their backup copies), or stop the service and start the app once with the wizard flag:
-
-```bash
-sudo systemctl stop helixscreen
-helix-screen --wizard
-```
-
-Deleting `settings.json` by hand does not re-run the wizard on its own: HelixScreen restores it from a rolling backup on the next start. See [Reset HelixScreen or re-run the setup wizard](TROUBLESHOOTING.md#reset-helixscreen-or-re-run-the-setup-wizard) for the full manual procedure.
+To run the whole setup wizard again, use **Settings > System > Factory Reset**. It wipes all HelixScreen settings, after asking you to confirm. Deleting `settings.json` by hand does not work, because HelixScreen restores it from a backup on the next start. See [Troubleshooting](TROUBLESHOOTING.md) for the manual procedure.
 
 ---
 
+<a id="touch-doesnt-work"></a>
+<a id="screen-is-black"></a>
+<a id="cant-connect-to-moonraker"></a>
+<a id="my-display-is-upside-down-or-rotated-wrong"></a>
 ## Troubleshooting
 
-### Touch doesn't work
+[Troubleshooting](TROUBLESHOOTING.md) has the full guide. Three quick checks:
 
-1. **Check input device:** `ls /dev/input/event*`
-2. **Test manually:** `sudo evtest /dev/input/event0`
-3. **Specify device:** Add `"touch_device": "/dev/input/event1"` to `input` section in config
-
-### Screen is black
-
-1. **Check service:** `sudo systemctl status helixscreen`
-2. **Check logs:** `sudo journalctl -u helixscreen -n 50`
-3. **Check framebuffer:** `ls /dev/fb*` or `ls /dev/dri/*`
-4. **Try specifying device:** Add `"drm_device": "/dev/dri/card1"` to `display` section in config
-
-### Can't connect to Moonraker
-
-1. **Check Moonraker:** `sudo systemctl status moonraker`
-2. **Test manually:** `curl http://localhost:7125/printer/info`
-3. **Check firewall:** `sudo ufw status`
-4. **Verify IP:** `hostname -I`
-
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more solutions.
+- **Touch does not work or is off:** see [Touch Calibration](guide/touch-calibration.md). A wrong-place touch is fixed at **Settings > Touch & Input > Touch Calibration**.
+- **The screen is black:** check that the service is running with `sudo systemctl status helixscreen` and read the log with `sudo journalctl -u helixscreen -n 50`.
+- **It cannot connect to Moonraker:** from the screen's device, run `curl http://PRINTER_IP:7125/printer/info` (use `localhost` when HelixScreen runs on the printer). If that fails, Moonraker is not reachable from there.
 
 ---
 
 ## Development & Contributing
 
+<a id="what-programming-language-is-helixscreen"></a>
 ### Is HelixScreen open source?
 
-Yes! HelixScreen is licensed under **GPL v3**. Source code is on GitHub.
+Yes. It is licensed under GPL v3, and the source is on [GitHub](https://github.com/prestonbrown/helixscreen).
 
 ### How can I contribute?
 
-See the [Contributing Guide](../devel/DEVELOPMENT.md#contributing) for:
-- Code standards
-- Development setup
-- Pull request process
-
-We welcome:
-- Bug reports
-- Feature suggestions
-- Code contributions
-- Documentation improvements
+Bug reports, feature suggestions, code and documentation are all welcome. See the [Contributing Guide](../devel/DEVELOPMENT.md#contributing). Layout work needs only XML, not C++: see the [UI Contributor Guide](../devel/UI_CONTRIBUTOR_GUIDE.md).
 
 ### How do I build from source?
 
-See the [Development Guide](../devel/DEVELOPMENT.md) for build instructions, dependencies, and development setup.
-
-### What programming language is HelixScreen?
-
-- **C++17** for application logic
-- **XML** for UI layouts (LVGL 9 declarative system)
-- **Makefile** for build system
-- **Bash** for scripts
+See the [Development Guide](../devel/DEVELOPMENT.md).
 
 ---
 
@@ -546,69 +425,38 @@ See the [Development Guide](../devel/DEVELOPMENT.md) for build instructions, dep
 
 ### Where can I get help?
 
-- **[HelixScreen Discord](https://discord.gg/RZCT2StKhr)** — community support, setup help, feature discussions, and development updates
-- **[GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)** — bug reports and feature requests
+- **[HelixScreen Discord](https://discord.gg/RZCT2StKhr)**: community support, setup help and development updates
+- **[GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)**: bug reports and feature requests
 
-### Where can I report bugs?
+<a id="where-can-i-report-bugs"></a>
+### How do I report a bug?
 
-Open an issue on [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues) with:
-- HelixScreen version
-- Hardware info (Pi model, display)
-- Steps to reproduce
-- Relevant log output
+Open a [GitHub issue](https://github.com/prestonbrown/helixscreen/issues) with your HelixScreen version, your hardware (printer, Pi model, display), the steps to reproduce it, and a debug bundle. To make a bundle, set **Settings > System > Log Level** to **Debug**, reproduce the problem, then tap **Settings > Help & About > Upload Debug Bundle**. It gives you a short share code to paste into the issue. Set the log level back to **Info** afterwards. See [Help & About](guide/settings/help-about.md#upload-debug-bundle).
 
-### Where can I request features?
+<a id="where-can-i-request-features"></a>
+### How do I request a feature?
 
-Open a GitHub issue with the "enhancement" label, or suggest it in the [Discord](https://discord.gg/RZCT2StKhr).
+Open a GitHub issue with the "enhancement" label, or suggest it on [Discord](https://discord.gg/RZCT2StKhr).
 
-### How do I enable debug logging?
-
-**Easiest method:** Go to **Settings > System > Log Level** and select **Debug** from the dropdown. The change takes effect immediately, with no restart needed. Set it back to **Info** when you're done.
-
-**Alternative (via config file):** Add `HELIX_LOG_LEVEL=debug` to your `helixscreen.env` file and restart. On Klipper-based printers the canonical path is in your `printer_data` config dir (the same place where you edit `printer.cfg` from Mainsail/Fluidd):
-
-```bash
-# MainsailOS / Pi (Klipper convention)
-echo 'HELIX_LOG_LEVEL=debug' >> ~/printer_data/config/helixscreen/helixscreen.env
-sudo systemctl restart helixscreen
-
-# AD5M (Forge-X) — install dir is symlinked to printer_data convention
-echo 'HELIX_LOG_LEVEL=debug' >> /opt/helixscreen/config/helixscreen.env
-/etc/init.d/S90helixscreen restart
-```
-
-Available levels: `warn`, `info` (default), `debug`, `trace`. **Set back to Info after debugging**: debug and trace logging cost CPU and log space.
-
+<a id="how-do-i-enable-debug-logging"></a>
 ### Where are the logs?
 
-The app produces **two log streams**: a structured app log (recommended starting point), and a smaller launcher/crash capture file. Where they live depends on the platform.
+The easiest way is a debug bundle (see above). To read the log by hand:
 
-```bash
-# Structured app log
-sudo journalctl -u helixscreen -f                          # MainsailOS / x86 / any systemd Pi-like setup
-grep helix-screen /var/log/messages                        # Snapmaker U1 (persistent syslog)
-tail -100 /usr/data/helixscreen-state/logs/helix.log       # K1 / K1C
-tail -100 /mnt/UDISK/helixscreen-state/logs/helix.log      # K2
-tail -100 /data/.helixscreen/logs/helix.log                # AD5M
-tail -100 /user-resource/helixscreen-state/logs/helix.log # CC1
-tail -100 /opt/config/mod_data/log/helix.log               # AD5X
+| Platform | Where the app log goes |
+|----------|------------------------|
+| Raspberry Pi, x86 and other systemd machines | `sudo journalctl -u helixscreen -f` |
+| Snapmaker U1 (PAXX) | `grep helix-screen /home/lava/printer_data/logs/syslog` |
+| FlashForge AD5M (Forge-X, Klipper Mod) | `/data/.helixscreen/logs/helix.log` |
+| FlashForge AD5M (ZMOD), AD5X | `/opt/config/mod_data/log/helix.log` |
+| FlashForge Creator 5 and Creator 5 Pro (Z-Mod) | `/opt/config/mod_data/log/helixscreen.log` |
+| Creality K1 / K1C | `/usr/data/helixscreen-state/logs/helix.log` |
+| Creality K2 | `/mnt/UDISK/helixscreen-state/logs/helix.log` |
+| Elegoo Centauri Carbon | `/user-resource/helixscreen-state/logs/helix.log` |
+| Android | `adb logcat -s HelixScreen` |
 
-# Launcher / crash capture (SysV platforms only; systemd platforms put this in the journal)
-tail -100 /opt/helixscreen/logs/launcher.log               # AD5M (Forge-X)
-tail -100 /root/printer_software/helixscreen/logs/launcher.log  # AD5M (Klipper Mod)
-tail -100 /usr/data/helixscreen/logs/launcher.log          # K1 / K1C
-tail -100 /mnt/UDISK/helixscreen/logs/launcher.log         # K2
-tail -100 /opt/config/mod_data/log/helixscreen.log         # AD5X
-tail -100 /var/log/helixscreen/launcher.log                # Snapmaker U1
-tail -100 /user-resource/helixscreen/logs/launcher.log     # CC1
-```
-
-For a complete map of log locations and how they're wired up, see the [Logging](../devel/LOGGING.md#log-destinations--retrieval) developer doc.
+Printers that use a log file also keep a short launcher log with startup and crash output. Your printer's install guide names it, for example [Snapmaker U1](guide/install-u1.md) and [Creality K2](guide/install-k2.md).
 
 ---
 
-*For more details, see:*
-- *[Installation Guide](INSTALL.md)*
-- *[User Guide](USER_GUIDE.md)*
-- *[Configuration Reference](CONFIGURATION.md)*
-- *[Troubleshooting](TROUBLESHOOTING.md)*
+*For more details, see the [Installation Guide](INSTALL.md), the [User Guide](USER_GUIDE.md), the [Configuration Reference](CONFIGURATION.md) and [Troubleshooting](TROUBLESHOOTING.md).*

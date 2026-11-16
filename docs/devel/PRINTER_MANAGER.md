@@ -179,7 +179,7 @@ The heading/textarea swap pattern is currently inline in `PrinterManagerOverlay`
 1. Add a `text_heading` + `text_input` pair in XML (same parent, input hidden)
 2. Register a click callback on the heading container
 3. Use `lv_obj_add_event_cb()` for READY/CANCEL on the textarea
-4. Implement the three-method pattern: `start_edit()`, `finish_edit()`, `cancel_edit()`
+4. Implement the three-method pattern: `start_name_edit()`, `finish_name_edit()`, `cancel_name_edit()`
 
 The pattern could be extracted into a reusable component if more inline edit fields are needed.
 
@@ -312,10 +312,7 @@ The printer database (`assets/config/printer_database.json`) is the source of tr
       "reason": "Definitive ForgeX signature"
     }
   ],
-  "print_start_capabilities": {
-    "macro_name": "START_PRINT",
-    "params": { ... }
-  }
+  "pre_print_options": [ ... ]
 }
 ```
 
@@ -329,12 +326,12 @@ The printer database (`assets/config/printer_database.json`) is the source of tr
 | `image` | PNG filename in `assets/images/printers/` |
 | `image_variants` | Optional ordered list of alternate images chosen by detected hardware, e.g. `[{"when": {"filament_system": "cfs"}, "image": "creality-k2-cfs.png"}]`. See [Image Lookup](#image-lookup) |
 | `print_start_profile` | Profile for print start phase detection |
-| `z_offset_calibration_strategy` | Z-offset calibration approach: `probe_calibrate`, `endstop`, or `firmware_managed` (HelixScreen offers no Save step of its own). Omit to derive from probe presence. Separate from *where the value is stored* — see `include/z_offset_persistence.h` |
+| `z_offset_calibration_strategy` | Z-offset calibration approach: `probe_calibrate`, `endstop`, or `firmware_managed` (HelixScreen offers no Save step of its own). Omit to derive from probe presence. Separate from *where the value is stored* - see `include/z_offset_persistence.h` |
 | `z_offset_persists` | `false` on a `firmware_managed` printer whose firmware does not persist a `SET_GCODE_OFFSET` adjustment, so Print Tune calls the adjustment temporary instead of auto-saved. Omit (default `true`) when the firmware persists it. An installed persistence provider (`include/z_offset_persistence.h`) counts as persisting whatever this says. |
 | `tool_change_resets_z_offset` | `true` when activating a tool re-applies that head's stored gcode offset absolutely, replacing any adjustment; Print Tune then says a tool change resets it. Omit (default `false`) otherwise, including klipper-toolchanger, whose tool offsets leave the babystep alone. |
 | `hide_manual_z_calibration` | `true` when the printer's `CALIBRATE_TOOL_OFFSETS` routine sets every tool's Z, the reference tool included, so the manual Z calibration (paper test) entries step aside. Omit (default `false`) for a stock klipper-toolchanger, whose example macro measures the other tools against T0 and writes nothing for T0. Independent of `z_offset_calibration_strategy`: the result may still need `SAVE_CONFIG`. |
 | `heuristics` | Array of detection rules with confidence scores |
-| `print_start_capabilities` | PRINT_START macro parameters |
+| `pre_print_options` | Controllable pre-print operations (bed mesh, QGL, ...) and how each is skipped; see `PRINT_START_INTEGRATION.md` |
 
 The bundled `assets/config/printer_database.json` is schema-checked by the `[printer_database][schema]` test (`tests/unit/test_printer_database_evidence.cpp`): every entry needs non-empty string `id`, `name`, `manufacturer` and `image` fields and a `heuristics` array, ids are unique lowercase slugs (`a-z`, `0-9`, `_`, `-`), and names are unique ignoring case.
 
@@ -460,7 +457,7 @@ The `[printer_manager]` tests fail if a chip has no spec or a spec no chip.
 
 1. Place a PNG file in `assets/images/printers/` (e.g., `my-printer.png`)
 2. Run `make gen-printer-images` to create pre-rendered `.bin` variants
-3. Add a printer entry in `config/printer_database.json` with `"image": "my-printer.png"`
+3. Add a printer entry in `assets/config/printer_database.json` with `"image": "my-printer.png"`
 4. The image will appear in both the auto-detect lookup and the shipped images list
 
 An image for optional hardware (a printer with its filament unit attached) is a variant, not a new entry:

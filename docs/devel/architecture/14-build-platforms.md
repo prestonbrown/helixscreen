@@ -73,7 +73,7 @@ actually trips on.
 ### One Makefile, three build verbs
 
 `make -j` and `make test` build disjoint artifacts. `make -j` (the default `all`
-target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) $(FBDEV_TARGET) verify-fbdev strip-both $(EGL_RUNG_GOALS) bluetooth-plugin"`](../../../mk/rules.mk)) builds **only** `helix-screen`: patches, generated fonts, translations,
+target, [`mk/rules.mk#"all: apply-patches generate-fonts $(TRANS_XML) splash watchdog $(TARGET) strip"`](../../../mk/rules.mk)) builds **only** `helix-screen`: patches, generated fonts, translations,
 splash, watchdog, the binary, stripping, and the optional Bluetooth plugin. `make test`
 ([`mk/tests.mk#test`](../../../mk/tests.mk)) builds **only** `helix-tests`; `make unit-sweep` builds it and
 runs it as Catch2 shards, three per slot of `helix-claim jobs`, with the `~[.] ~[slow]` filter, and `make full-test-run`
@@ -333,7 +333,7 @@ end-user installer - modular POSIX shell with KIAUH and Moonraker-updater integr
 - **Generated assets regenerate; don't hand-edit them.** New icons mean [`include/ui_icon_codepoints.h`](../../../include/ui_icon_codepoints.h) plus `make regen-fonts` plus a rebuild; user-facing strings flow through `make translation-sync` / `make translations`. If a font or translation "won't update", you are probably editing the generated file.
 - **There is no `sonicpad` target.** The Sonic Pad runs the `pi32` binary on SonicPad-Debian; QIDI runs the `pi` binary. Device support is often a release-artifact question, not a new-platform question - check what the installer auto-detects before adding a target.
 - **Feature availability differs per target by design.** Before debugging "missing" sound, label printing, or a dev panel on a device build, check the target's gates in [`mk/cross.mk`](../../../mk/cross.mk) and the top-level `Makefile` (sound, dev panels, remote control); `HELIX_HAS_SOUND`, `HELIX_HAS_LABEL_PRINTER`, `ENABLE_DEV_PANELS` and friends are compile-time, not runtime settings.
-- **Embedded-only code paths are invisible on the desktop build.** `LV_USE_EVDEV` is 1 only when the display backend is fbdev or DRM (`lv_conf.h#"#define LV_USE_EVDEV    1"`), so an evdev (or other embedded-driver) change is never exercised by `native` - a non-SDL build such as `PLATFORM_TARGET=x86-fbdev` is the cheapest way to exercise it on a dev box.
+- **Embedded-only code paths are invisible on the desktop build.** `LV_USE_EVDEV` is 1 only when the display backend is fbdev or DRM (`lv_conf.h#"#define LV_USE_EVDEV 1"`), so an evdev (or other embedded-driver) change is never exercised by `native` - a non-SDL build such as `PLATFORM_TARGET=x86-fbdev` is the cheapest way to exercise it on a dev box.
 
 ## Going deeper
 

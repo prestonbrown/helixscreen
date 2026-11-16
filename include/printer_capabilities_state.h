@@ -56,6 +56,7 @@ enum class Capability : uint8_t {
     HideManualZCalibration,      ///< tool offset calibration also sets the reference tool's Z
     HasPaCal,                    ///< firmware measures pressure advance
     HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
+    SupportsRippleCheck,         ///< accelerometer + kinematics for the motor ripple speed sweep
     HasWebcam,                   ///< an enabled webcam is configured
     WebcamCount,                 ///< named webcams (what a picker can offer)
     HasExtraFans,                ///< controllable fans beyond part cooling

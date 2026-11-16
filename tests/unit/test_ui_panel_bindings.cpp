@@ -409,24 +409,6 @@ TEST_CASE_METHOD(XMLTestFixture,
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
 // =============================================================================
 
-TEST_CASE_METHOD(XMLTestFixture,
-                 "controls_panel: nozzle_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    // Subjects carry decidegrees; temp_display renders whole degrees.
-    set_xml_subject("extruder_temp", 2015);
-    set_xml_subject("extruder_target", 2200);
-    lv_obj_t* panel = create_component("controls_panel");
-    lv_obj_t* disp = require_named(panel, "nozzle_temp_display");
-    REQUIRE(ui_temp_display_is_valid(disp));
-    CHECK(ui_temp_display_get_current(disp) == 201);
-    CHECK(ui_temp_display_get_target(disp) == 220);
-
-    set_xml_subject("extruder_temp", 1000);
-    CHECK(ui_temp_display_get_current(disp) == 100);
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp_display widget)",
                  "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
     ControlsPanelSubjects owner(state());

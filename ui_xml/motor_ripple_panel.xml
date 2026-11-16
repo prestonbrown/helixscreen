@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Vertical Artifact Check: a motor ripple speed sweep. One view per ripple_view:
+     0 Start, 1 Running, 2 Results, 3 Error. MotorRipplePanel owns every subject here
+     and draws the chart into ripple_chart. -->
+<component>
+  <view name="motor_ripple_panel" extends="overlay_panel" title="Vertical Artifact Check" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
+            style_pad_gap="#space_sm">
+      <!-- START (0) -->
+      <lv_obj name="ripple_start"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
+        <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="0"/>
+        <text_body width="100%" long_mode="wrap" bind_text="ripple_intro_text"/>
+        <lv_checkbox name="ripple_bed_clear"
+                     width="100%" text="The bed is clear and the toolhead can move freely"
+                     bind_checked="ripple_bed_clear"/>
+        <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
+        <ui_button name="btn_ripple_start" width="100%" text="Start" moves_machine="true">
+          <bind_state_if_eq subject="ripple_bed_clear" state="disabled" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_ripple_start"/>
+        </ui_button>
+      </lv_obj>
+
+      <!-- RUNNING (1) and RESULTS (2) share the chart -->
+      <lv_obj name="ripple_chart_view"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if cond="ripple_view ne 1 and ripple_view ne 2" flag="hidden"/>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
+          <ui_button name="btn_ripple_motor_x" flex_grow="1" text="X motor">
+            <bind_style name="styles.choice_selected" subject="ripple_motor" ref_value="0"/>
+            <bind_style_if name="styles.choice_idle" cond="ripple_motor ne 0"/>
+            <event_cb trigger="clicked" callback="on_ripple_motor" user_data="0"/>
+          </ui_button>
+          <ui_button name="btn_ripple_motor_y" flex_grow="1" text="Y motor">
+            <bind_flag_if_eq subject="ripple_has_y" flag="hidden" ref_value="0"/>
+            <bind_style name="styles.choice_selected" subject="ripple_motor" ref_value="1"/>
+            <bind_style_if name="styles.choice_idle" cond="ripple_motor ne 1"/>
+            <event_cb trigger="clicked" callback="on_ripple_motor" user_data="1"/>
+          </ui_button>
+        </lv_obj>
+        <lv_obj name="ripple_chart" width="100%" flex_grow="3" style_pad_all="0" scrollable="false"/>
+        <text_small width="100%"
+                    long_mode="wrap" style_text_color="#text_muted"
+                    text="Faint lines: compensation off. Bright lines: compensation on.">
+          <bind_flag_if cond="ripple_compare eq 0 or ripple_view ne 2" flag="hidden"/>
+        </text_small>
+
+        <!-- RUNNING -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+          <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="1"/>
+          <text_body width="100%" long_mode="wrap" bind_text="ripple_progress_text"/>
+          <!-- SIZE_OK: a fixed hairline track, as the other progress bars. -->
+          <lv_bar name="ripple_progress_bar"
+                  width="100%" height="6" bind_value="ripple_progress" min_value="0" max_value="100"
+                  style_radius="#border_radius" style_radius-indicator="#border_radius"/>
+          <ui_button name="btn_ripple_cancel" width="100%" text="Cancel" variant="secondary">
+            <event_cb trigger="clicked" callback="on_ripple_close"/>
+          </ui_button>
+        </lv_obj>
+
+        <!-- RESULTS: the text scrolls so the chart keeps its share of the height -->
+        <lv_obj name="ripple_results_text"
+                width="100%" flex_grow="2" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                scroll_dir="ver">
+          <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="2"/>
+          <text_body name="ripple_summary" width="100%" long_mode="wrap" bind_text="ripple_summary_text"/>
+          <text_small name="ripple_reduction" width="100%" long_mode="wrap" bind_text="ripple_reduction_text">
+            <bind_flag_if_eq subject="ripple_compare" flag="hidden" ref_value="0"/>
+          </text_small>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+          <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="2"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+            <ui_button name="btn_ripple_again" flex_grow="1" text="Run Again" variant="secondary">
+              <event_cb trigger="clicked" callback="on_ripple_again"/>
+            </ui_button>
+            <ui_button name="btn_ripple_done" flex_grow="1" text="Done">
+              <event_cb trigger="clicked" callback="on_ripple_close"/>
+            </ui_button>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- ERROR (3) -->
+      <lv_obj name="ripple_error"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="ripple_view" flag="hidden" ref_value="3"/>
+        <text_body width="100%" long_mode="wrap" style_text_color="#danger" bind_text="ripple_error_text"/>
+        <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false"/>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
+          <ui_button name="btn_ripple_error_again" flex_grow="1" text="Try Again" variant="secondary">
+            <event_cb trigger="clicked" callback="on_ripple_again"/>
+          </ui_button>
+          <ui_button name="btn_ripple_error_close" flex_grow="1" text="Close">
+            <event_cb trigger="clicked" callback="on_ripple_close"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

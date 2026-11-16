@@ -74,9 +74,8 @@ Minimum matrix, agreed with the maintainer:
 - Does the shape gate reject a real frame bump, or only synthetic ones?
 - Does tone rejection survive a fan whose blade-pass frequency lands near f0?
 - Is the 5-pluck median enough when failures are **correlated** (the same belt reading
-  the same wrong octave five times)? The independent-Bernoulli estimate that once
-  justified this was removed as unsound; correlated failure is the mode this feature
-  actually hits.
+  the same wrong octave five times)? An independent-Bernoulli estimate cannot
+  justify it, because correlated failure is the mode this feature actually hits.
 - Does any of it hold on a printer that is not a 300mm Voron 2.4?
 
 ---

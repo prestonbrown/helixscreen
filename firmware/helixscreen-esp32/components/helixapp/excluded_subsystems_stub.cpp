@@ -47,6 +47,7 @@
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_screws_tilt.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
@@ -241,6 +242,12 @@ void init_zoffset_event_callbacks() {}
 // hardware where it would show, the tap must still give feedback rather than
 // silently doing nothing.
 namespace helix::ui {
+// src/ui/calibration/ui_panel_motor_ripple.cpp — staged row: it tracks
+// printer_supports_ripple_check, written by the KEPT motor_ripple_view.
+void init_motor_ripple_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
+}
+
 void init_tool_offset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
 }

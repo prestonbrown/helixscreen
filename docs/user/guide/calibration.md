@@ -263,6 +263,46 @@ The printer measures with its own built-in accelerometer; you do not need to add
 
 There is nothing to turn off: on printers without the calibration, the row never appears.
 
+Afterwards, run the **Vertical Artifact Check** below to see how much the compensation helped.
+
+---
+
+## Vertical Artifact Check
+
+The check finds the print speeds at which your printer's X and Y motors shake it hardest. Each motor's pull wobbles slightly as it turns. At the speed where that wobble matches a natural shake of the frame or toolhead, walls printed at that speed show fine, evenly spaced vertical lines. The cure on most printers is simple: keep your outer walls away from those speeds.
+
+### Requirements
+
+The **Vertical Artifact Check** row appears when the printer has an accelerometer (the same one Input Shaper uses), is a CoreXY or Cartesian (bed-slinger) printer, and HelixScreen runs on the printer's own screen. On a bed-slinger the Y motor is measured only if an accelerometer is configured for the bed (`accel_chip_y` in `[resonance_tester]`).
+
+### Running It
+
+1. Make sure no print is running and the bed is clear.
+2. Navigate to **Advanced > Vertical Artifact Check**.
+3. Tick **The bed is clear and the toolhead can move freely**, then tap **Start**.
+4. The printer homes if it needs to, lifts the nozzle and runs the toolhead back and forth at speeds from 20 to 300 mm/s, one motor at a time. It is loud, and takes about five minutes. The chart fills in as each speed is measured.
+
+### Reading the Results
+
+The chart shows how hard each motor shakes at each speed, for its three kinds of wobble (1x, 2x and 4x). Shaded stretches are the speeds to avoid, and the list under the chart names each one, for example "77-97 mm/s: the 2x ripple meets a 216 Hz resonance". Switch between **X motor** and **Y motor** at the top.
+
+Set your slicer's outer wall speed outside those stretches:
+
+| Slicer | Setting |
+|--------|---------|
+| OrcaSlicer, Bambu Studio | Speed > **Outer wall** |
+| PrusaSlicer, SuperSlicer | Speed > **External perimeters** |
+
+Walls along X or Y print at the speed you set. Angled walls turn one motor faster and the other slower, so they can still meet a shaky speed.
+
+HelixScreen remembers the last result. When you start a print whose outer walls land in a shaky stretch, it warns you before the print starts and suggests a speed just below and just above. You can start the print anyway.
+
+Some accelerometers sample slowly. If yours does, the results say how high it can measure, and faster wobbles are not shown.
+
+### Printers with Motor Compensation
+
+On FlashForge printers whose motors have **Vertical Artifact Compensation**, the check runs twice: once with the compensation off and once with it on. Faint lines on the chart are without it, bright lines with it, and the results say how much each wobble dropped. On stock FlashForge firmware the compensation uses the printer's factory settings, and the results say so.
+
 ---
 
 ## Belt Tension

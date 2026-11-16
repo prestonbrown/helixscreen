@@ -111,33 +111,14 @@ config dir needs an exclude line in both files. `tests/unit/test_android_asset_e
 (`[android][asset][backup]`) checks both files against `android_storage_layout()` and
 against each other.
 
-## Why the tree still causes trouble
+## Why the tree needs a gate
 
-`android/.gitignore` ignores `app/src/main/assets/` wholesale, so the output of
-your last local Android build sits in the working directory indefinitely — and to
-anything walking the repo it looks exactly like source.
-
-That has cost real time:
-
-- A snapshot went four months stale: **248 of 287** common XML files differed, 65
-  source files were missing from it, and 14 files it still held had been deleted
-  from source. Whole directories had diverged (`portrait/` missing, `ultrawide/`
-  long gone, `translations/` still the pre-split single file).
-- Four separate lint gates each grew a hand-written exclusion for the path —
-  `check_overlay_width.py`, `check_hardcoded_pixels.py`,
-  `check_modal_chrome_budget.py`, `check_responsive_token_scope.py`. Four authors
-  independently debugged the same false positives.
-- `mk/filaments.mk` copied `assets/filaments.json` into the staged tree after
-  every `make regen-filaments`, refreshing exactly one file out of 592 and making
-  a dead directory look maintained. Removed.
-- The 1.0 release checklist told developers the Android tree "carries its own
-  copy", i.e. mirror your edit there. It was followed at least once; the edit was
-  erased by the next build. Fixed.
+`android/.gitignore` ignores `app/src/main/assets/` wholesale, so the output of your last local Android build sits in the working directory indefinitely, and to anything walking the repo it looks exactly like source. A stale copy misleads greps, trips lint gates with false positives, and invites edits that the next build erases. Lint gates that walk the repo exclude the path; nothing may write into it.
 
 ## The gate
 
 `scripts/check_android_asset_staging.py` runs from `scripts/quality-checks.sh`
-(so both the pre-commit hook and CI's `quality.yml`). It **fails** on:
+(`scripts/qc/design_pixels.sh`, so both the pre-commit hook and CI's `quality.yml`). It **fails** on:
 
 - any tracked file under `android/app/src/main/assets/`;
 - any `Makefile` / `mk/*.mk` / `scripts/*` line that *writes* into that path —
@@ -145,7 +126,7 @@ That has cost real time:
 
 Naming the path in order to *exclude* it (what the four lint gates do) and
 reading from it are both fine — only writes are flagged. A genuinely necessary
-write can be annotated `# ANDROID_STAGING_OK: <reason>`; there are none today.
+write can be annotated `# ANDROID_STAGING_OK: <reason>`.
 
 It **warns without failing** when the staged tree is older than the newest file
 in `ui_xml/`, `assets/` or `config/`. That is the normal state right after any

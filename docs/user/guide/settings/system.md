@@ -20,9 +20,9 @@ Locks the screen with a PIN, so nobody can use your printer's controls without i
 
 - **Change PIN**: enter your current PIN, then the new one twice.
 - **Remove PIN**: turn the lock off. You'll need to enter your current PIN.
-- **Auto-lock**: lock the screen automatically when it goes to sleep (see [Display Sleep](display.md#display-sleep)).
+- **Auto-lock**: off until you turn it on. When on, the keypad comes up as soon as the screen wakes from sleep or from dimming (see [Display Sleep](display.md#display-sleep)). There is no separate timer. Previewing a screensaver from settings never locks the screen.
 
-When the screen is locked, a keypad covers it. Enter your PIN and tap the check mark. A wrong PIN shows a short error. While a print is running, an **Emergency Stop** button stays in the top-right corner of the lock screen, so you can always stop the printer without unlocking.
+When the screen is locked, a keypad covers it. Enter your PIN and tap the check mark. A wrong PIN shows a short error (*Wrong PIN*). While a print is running, an **Emergency Stop** button stays in the top-right corner of the lock screen, so you can always stop the printer without unlocking.
 
 HelixScreen never saves your PIN itself, only a scrambled version of it that can't be turned back into the digits. A factory reset removes the PIN. See [Security](../security.md) for more.
 
@@ -68,7 +68,7 @@ The same readings can sit on the home screen as the [Host Health widget](../home
 
 ## Share Usage Data
 
-Sends anonymous usage data that helps improve HelixScreen. **Off** until you turn it on. Nothing personal is sent: no names, printer names or file names. See [Telemetry & Privacy](../../TELEMETRY.md) for exactly what is and isn't collected.
+Sends anonymous usage data that helps improve HelixScreen. **Off** until you turn it on; turning it on shows a thank-you message. Nothing personal is sent: no names, printer names or file names. See [Telemetry & Privacy](../../TELEMETRY.md) for exactly what is and isn't collected.
 
 ### View Telemetry Data
 
@@ -85,7 +85,7 @@ How much detail HelixScreen writes to its log. Raise it when you're chasing a pr
 | Level | What it records |
 |-------|-----------------|
 | **Warn** | Only errors and warnings |
-| **Info** (default) | Connections, screen changes and other milestones |
+| **Info** (default on a normal install) | Connections, screen changes and other milestones |
 | **Debug** | Changes of state and messages to and from the printer. Use this for bug reports |
 | **Trace** | Everything, including screen drawing. Very long and rarely needed |
 
@@ -97,13 +97,13 @@ The change takes effect straight away. Set **Debug**, reproduce the problem, sen
 
 ## Restart HelixScreen
 
-Restarts the screen app (not the printer). A short "Restarting HelixScreen..." message appears first. Use it after changing a setting that needs a restart, such as [UI Scale](display.md#ui-scale), or if the screen stops responding properly.
+Restarts the screen app (not the printer). A short "Restarting HelixScreen..." message appears first, with no confirmation question. Use it after changing a setting that needs a restart, such as [UI Scale](display.md#ui-scale), or if the screen stops responding properly.
 
 ---
 
 ## Factory Reset
 
-Erases **all** HelixScreen settings and starts the setup wizard again. HelixScreen asks you to confirm first. A factory reset clears:
+Erases **all** HelixScreen settings and starts the setup wizard again. HelixScreen asks you to confirm first ("This will reset all settings to defaults. This action cannot be undone.", with **Reset** and **Cancel**). After **Reset**, a message reads "Settings reset to defaults. Restarting..." and HelixScreen restarts into the setup wizard. A factory reset clears:
 
 - Display, appearance, sound and all other preferences
 - LED setup
@@ -111,7 +111,7 @@ Erases **all** HelixScreen settings and starts the setup wizard again. HelixScre
 - Sensor roles and the Hardware Health expected list
 - The screen lock PIN
 
-It **doesn't touch** your Klipper config, Moonraker or any files on the printer.
+It also deletes the backup copies of those settings, so they cannot come back by themselves. It **doesn't touch** your Klipper config, Moonraker or any files on the printer.
 
 ---
 

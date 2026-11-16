@@ -121,3 +121,26 @@ TEST_CASE("stepper resonance cal: the stock macro alone is not the routine",
     CHECK(std::string(none.name).empty());
     CHECK(cal::calibrate_gcode(bare, 0).empty());
 }
+
+TEST_CASE("stepper resonance cal: the compensation toggle needs both damp macros",
+          "[stepper_resonance_cal]") {
+    constexpr const char* kEnable = "gcode_macro STEPPER_RESONANCE_DAMP_ENABLE";
+    constexpr const char* kDisable = "gcode_macro STEPPER_RESONANCE_DAMP_DISABLE";
+
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kTester})).present());
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kTester, kEnable})).present());
+
+    const auto stock = cal::compensation_toggle(printer_with({kTester, kEnable, kDisable}));
+    REQUIRE(stock.present());
+    CHECK(stock.enable_gcode == "STEPPER_RESONANCE_DAMP_ENABLE");
+    CHECK(stock.disable_gcode == "STEPPER_RESONANCE_DAMP_DISABLE");
+    CHECK(stock.applies_factory_values);
+
+    // A firmware that saves its own calibration restores it on enable.
+    const auto calibrated =
+        cal::compensation_toggle(printer_with({kTester, kCompensationMacro, kEnable, kDisable}));
+    REQUIRE(calibrated.present());
+    CHECK_FALSE(calibrated.applies_factory_values);
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kWrapperMacro, kEnable, kDisable}))
+                    .applies_factory_values);
+}

@@ -1,36 +1,18 @@
 # Bed Mesh Rendering Internals
 
-**Version:** 1.0
-**Last Updated:** 2025-11-22
-**Status:** Phase 1 optimizations complete, Phase 2 in progress
-
----
-
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
 2. [Architecture Overview](#architecture-overview)
 3. [Rendering Pipeline](#rendering-pipeline)
-4. [Performance Analysis](#performance-analysis)
-5. [Optimization History](#optimization-history)
-6. [Future Optimizations](#future-optimizations)
-7. [Debugging & Profiling](#debugging--profiling)
+4. [Debugging & Profiling](#debugging--profiling)
+5. [Constants & Magic Numbers](#constants--magic-numbers)
 
 ---
 
 ## Executive Summary
 
-The bed mesh rendering system is a **complete 3D graphics pipeline** implemented in pure C++ with no GPU acceleration. It renders interactive 3D bed mesh visualizations at 30+ FPS on embedded hardware through careful optimization and modern rendering techniques.
-
-### Key Statistics
-
-| Metric | Value |
-|--------|-------|
-| **Code Size** | 1,927 lines (1,639 implementation + 288 header) |
-| **Performance Target** | 20×20 mesh at 30+ FPS |
-| **Current Performance** | Gradient: 46-76ms, Solid: 7-13ms |
-| **Memory Footprint** | ~90 KB total (52 KB quads + 3.2 KB projected points + overhead) |
-| **Architecture** | Three-layer separation (UI/Widget/Renderer) |
+The bed mesh rendering system is a **complete 3D graphics pipeline** implemented in pure C++ with no GPU acceleration. It renders interactive 3D bed mesh visualizations into an off-screen pixel buffer on a render thread, so the main thread only blits finished frames.
 
 ### Design Philosophy
 
@@ -349,10 +331,10 @@ std::sort(quads.begin(), quads.end(), [](const quad& a, const quad& b) {
 
 **Performance:** ~0.02ms for 361 quads (negligible overhead)
 
-#### Stage 4: Rasterization (Every Frame) **[BOTTLENECK]**
+#### Stage 4: Rasterization (Every Frame)
 
-**Function:** `render_quad_to_buffer()` → `PixelBuffer::fill_triangle_gradient()`
-**Frequency:** Every frame, for each quad (722 triangles for 20×20 mesh)
+**Function:** `helix::mesh::fill_triangle_gradient()` (`src/rendering/bed_mesh_rasterizer.cpp`) → `PixelBuffer::fill_triangle_gradient()` (`src/rendering/bed_mesh_buffer.cpp`)
+**Frequency:** Every frame, for each quad (two triangles per quad)
 **Complexity:** O(triangles × scanlines × gradient_segments)
 
 **Triangle Scanline Fill Algorithm:**
@@ -368,35 +350,16 @@ std::sort(quads.begin(), quads.end(), [](const quad& a, const quad& b) {
   v[2] (bottom, y3) - v[1]→v[2] (lower)
 
 For each scanline Y from y1 to y3:
-  1. Interpolate X along long edge (v[0] → v[2])
-  2. Interpolate X along short edge:
-     - If Y < v[1].y: interpolate v[0]→v[1]
-     - Else:          interpolate v[1]→v[2]
-  3. Fill horizontal span:
-     a) Gradient mode: subdivide into 6 segments, draw each
-     b) Solid mode: draw entire span as single rectangle
+  1. Interpolate X and color along the long edge (v[0] → v[2])
+  2. Interpolate X and color along the short edge
+  3. Fill the horizontal span straight into the PixelBuffer:
+     a) narrower than kGradientMinLineWidth (3 px): one average color
+     b) otherwise: an adaptive number of segments (thin / medium / wide
+        thresholds), each filled with the color sampled at its center
 ```
 
-**Gradient Mode (6 segments per scanline):**
-```cpp
-for (int seg = 0; seg < 6; seg++) {
-    int seg_x_start = x_left + (seg * line_width) / 6;
-    int seg_x_end = x_left + ((seg + 1) * line_width) / 6;
-
-    // Sample color at segment center
-    double t = (seg + 0.5) / 6.0;
-    lv_color_t seg_color = lerp_color(c_left, c_right, t);
-
-    lv_draw_rect(layer, &dsc, &rect_area);  // ← BOTTLENECK!
-}
-```
-
-**Performance Impact:**
-- Gradient: **~30,000 lv_draw_rect() calls** per frame (6 segments × 5,000 scanlines)
-- Solid: **~5,000 lv_draw_rect() calls** per frame (1 segment × 5,000 scanlines)
-- **Result: Gradient 4-6× slower than solid** (46ms vs 10ms)
-
-**Why this matters:** Each LVGL draw call has overhead (clip checking, blending, pixel writes)
+The fill writes pixels directly (`fill_hline`); there are no LVGL draw calls on
+this path, which is what lets it run off the main thread.
 
 #### Stage 5: Overlay Rendering (Every Frame)
 
@@ -426,285 +389,11 @@ for (int row = 0; row < rows; row++) {
 
 ---
 
-## Performance Analysis
-
-### Measured Performance (Phase 1 Complete)
-
-**Test Configuration:** 20×20 mesh, SDL2 backend, macOS
-
-```
-[PERF] Render: 46.35ms total | Proj: 0.00ms (0%) | Sort: 0.00ms (0%) |
-       Raster: 45.48ms (98%) | Overlays: 0.87ms (2%) | Mode: gradient
-
-[PERF] Render: 10.84ms total | Proj: 0.01ms (0%) | Sort: 0.00ms (0%) |
-       Raster: 10.37ms (96%) | Overlays: 0.45ms (4%) | Mode: solid
-```
-
-### Performance Breakdown by Stage
-
-| Stage | Gradient Mode | Solid Mode | Percentage | Optimized? |
-|-------|--------------|------------|------------|------------|
-| **Projection** | 0.00-0.03ms | 0.00-0.03ms | <1% | ✅ Phase 1 |
-| **Depth Sorting** | 0.00-0.02ms | 0.00-0.02ms | <1% | ✅ Phase 1 |
-| **Rasterization** | 45-75ms | 6-12ms | 94-99% | ⏳ Phase 2 target |
-| **Overlays** | 0.4-0.9ms | 0.4-0.9ms | 1-7% | ✅ Well-optimized |
-| **Total** | 46-76ms | 7-13ms | 100% | Phase 1: ✅ Phase 2: ⏳ |
-
-### Frame Rate Analysis
-
-| Mode | Average Frame Time | FPS | Target | Status |
-|------|-------------------|-----|--------|--------|
-| **Gradient (static)** | 46-76ms | 13-22 FPS | 30+ FPS | ⏳ Phase 2 needed |
-| **Solid (dragging)** | 7-13ms | 77-143 FPS | 30+ FPS | ✅ Exceeds target |
-
-### Bottleneck Analysis
-
-**Primary Bottleneck: Gradient Rasterization**
-
-```
-Total frame time:       46.35ms (100%)
-├─ Projection:           0.00ms (  0%)  ✅ Optimized
-├─ Sorting:              0.00ms (  0%)  ✅ Optimized
-├─ Rasterization:       45.48ms ( 98%)  ⚠️ BOTTLENECK
-│  ├─ Triangle fill:    ~45ms   (97%)
-│  │  └─ LVGL calls:    ~30,000 calls/frame
-│  └─ Color interp:     ~0.5ms  ( 1%)
-└─ Overlays:             0.87ms (  2%)  ✅ Optimized
-```
-
-**Root Cause:** Each gradient scanline = 6 LVGL draw calls
-- 20×20 mesh ≈ 5,000 scanlines × 6 segments = **30,000 draw calls**
-- Each call: clip check + blend + pixel write ≈ **1.5μs overhead**
-- Total overhead: 30,000 × 1.5μs ≈ **45ms**
-
----
-
-## Optimization History
-
-### Phase 1: Quick Wins (COMPLETED 2025-11-22)
-
-#### 1. Eliminated Per-Frame Quad Regeneration ⚡
-
-**Problem:** Regenerating 361 quads every frame
-```cpp
-// OLD (wasteful):
-void render() {
-    generate_mesh_quads(renderer);  // ← 361 allocations + computations
-    project_and_cache_quads(...);
-}
-```
-
-**Solution:** Generate once, update projections only
-```cpp
-// NEW (efficient):
-void set_mesh_data(...) {
-    generate_mesh_quads(renderer);  // ← Once per mesh load
-}
-
-void render() {
-    project_and_cache_quads(...);   // ← Only update screen coords
-}
-```
-
-**Results:**
-- Projection + sorting overhead: **15-20% → <1%**
-- Eliminated ~9 vector reallocations per frame
-- Added `reserve()` to pre-allocate capacity
-
-**Code:** `bed_mesh_renderer.cpp:358-360, 395-410, 504-506, 1148-1151`
-
-#### 2. SOA (Structure of Arrays) for Projected Points 💾
-
-**Problem:** Wasted memory on unused fields
-```cpp
-// OLD (AOS - 40 bytes per point):
-struct bed_mesh_point_3d_t {
-    double x, y, z;         // 24 bytes (unused after projection!)
-    int screen_x, screen_y; // 8 bytes (what we need)
-    double depth;           // 8 bytes (only for debugging)
-};
-```
-
-**Solution:** Store only what's used
-```cpp
-// NEW (SOA - 8 bytes per point):
-std::vector<std::vector<int>> projected_screen_x;
-std::vector<std::vector<int>> projected_screen_y;
-```
-
-**Results:**
-- **Memory reduction: 80%** (16 KB → 3.2 KB for 20×20 mesh)
-- **Better cache locality:** No unused fields in cache lines
-- **Sequential access:** Grid rendering scans arrays linearly
-
-**Code:** `bed_mesh_renderer.cpp:114-119, 720-750, 818-827, 1276-1335`
-
-#### 3. Modern C++ RAII Pattern 🛡️
-
-**Problem:** Manual memory management (malloc/free)
-
-**Solution:** Use `std::unique_ptr` for automatic cleanup
-```cpp
-auto data_ptr = std::make_unique<bed_mesh_widget_data_t>();
-// ... use data_ptr ...
-lv_obj_set_user_data(obj, data_ptr.release());  // Transfer ownership
-```
-
-**Benefits:**
-- Exception-safe (no leaks if constructor throws)
-- Automatic cleanup before `release()`
-- Clear ownership semantics
-
-**Code:** `ui_bed_mesh.cpp:35, 290-311, 260-261`
-
-#### 4. Performance Instrumentation 📊
-
-**Added:** Comprehensive timing breakdown
-```cpp
-[PERF] Render: {total}ms | Proj: {X}ms ({%}) | Sort: {X}ms ({%}) |
-       Raster: {X}ms ({%}) | Overlays: {X}ms ({%}) | Mode: {gradient|solid}
-```
-
-**Purpose:** Identify bottlenecks empirically
-
-**Code:** `src/rendering/bed_mesh_renderer.cpp#bed_mesh_renderer_render_to_buffer`
-
----
-
-### Phase 2: Rasterization Optimization (IN PROGRESS)
-
-#### 1. Custom Gradient Scanline Buffer ⚡ **[HIGHEST PRIORITY]**
-
-**Goal:** Reduce 30,000 LVGL draw calls → 5,000 calls
-
-**Current Implementation:**
-```cpp
-// 6 LVGL calls per scanline
-for (int seg = 0; seg < 6; seg++) {
-    lv_draw_rect(layer, &dsc, &rect_area);  // ← 30,000 calls total
-}
-```
-
-**Proposed Optimization:**
-```cpp
-// Allocate scanline buffer once
-static lv_color_t scanline_buffer[MAX_SCANLINE_WIDTH];
-
-// Fill buffer with gradient (CPU computation)
-for (int x = x_left; x <= x_right; x++) {
-    double t = (x - x_left) / (double)(x_right - x_left);
-    scanline_buffer[x - x_left] = compute_gradient_color(c_left, c_right, t);
-}
-
-// Single LVGL call per scanline
-lv_draw_buffer(layer, x_left, y, scanline_buffer, width);  // ← 5,000 calls total
-```
-
-**Expected Impact:**
-- **6× reduction in draw calls** (30,000 → 5,000)
-- **30-40% faster gradient rendering** (46ms → ~30ms)
-- **Better cache locality** (sequential buffer writes)
-
-**Status:** Planned for Phase 2
-
----
-
-### Phase 3: Architectural Improvements (PLANNED)
-
-#### 1. Coordinate Math Consolidation 🏗️
-
-**Goal:** Single source of truth for transformations
-
-**Current Problem:** Coordinate math duplicated across functions
-- `generate_mesh_quads()` - quad vertex positions
-- `render_grid_lines()` - grid line endpoints
-- `render_axis_labels()` - axis positioning
-
-**Proposed Solution:**
-```cpp
-class CoordinateTransform {
-public:
-    static Vector3d mesh_to_world(int row, int col, double z, ...);
-    Vector3d world_to_camera(const Vector3d& world, ...);
-    Vector2i camera_to_screen(const Vector3d& camera, ...);
-    Vector2i mesh_to_screen(int row, int col, double z, ...);
-};
-```
-
-**Benefits:**
-- Single source of truth
-- Easier testing (unit tests per transform)
-- Fewer bugs when updating projection logic
-
-**Status:** Planned for Phase 3
-
-#### 2. Renderer State Machine 📊
-
-**Goal:** Explicit state tracking
-
-**Proposed States:**
-```cpp
-enum RenderState {
-    EMPTY,           // No mesh data
-    MESH_LOADED,     // Mesh data present, quads not generated
-    QUADS_READY,     // Quads generated, projections stale
-    PROJECTED,       // Ready to render
-};
-```
-
-**Benefits:**
-- Explicit state transitions
-- Lazy computation (only when needed)
-- Clearer dependencies
-
-**Status:** Planned for Phase 3
-
----
-
-## Future Optimizations
-
-### High Priority
-
-1. **Custom gradient scanline buffer** (Phase 2 - in progress)
-   - Expected: 30-40% faster gradients
-   - Implementation: Medium-High complexity
-
-2. **Coordinate math consolidation** (Phase 3 - planned)
-   - Expected: Better maintainability, fewer bugs
-   - Implementation: Medium complexity
-
-### Medium Priority
-
-3. **Indexed vertex array** (Profile first)
-   - Expected: 39% memory reduction (may not improve speed)
-   - Implementation: Medium complexity
-   - **CAUTION:** Profile before implementing
-
-4. **Renderer state machine** (Phase 3)
-   - Expected: Clearer state management
-   - Implementation: Medium complexity
-
-### Low Priority (Skip)
-
-5. **Incremental depth sorting**
-   - Expected: <1% speedup
-   - **SKIP:** Not worth complexity
-
-6. **SIMD vectorization**
-   - Expected: 2-4× faster projection (already <1%)
-   - **SKIP:** Diminishing returns
-
-7. **Multi-threading**
-   - Expected: Depends on core count, LVGL constraints
-   - **FUTURE:** After other optimizations
-
----
-
 ## Debugging & Profiling
 
 ### Enable Performance Logging
 
-Run with `-vvv` (trace level) to see detailed performance metrics:
+Run with `-vvv` (trace level) to see per-frame timings:
 
 ```bash
 # Boot mock, then bring up the bed-mesh overlay (see docs/devel/HELIXCTL.md)
@@ -712,57 +401,31 @@ Run with `-vvv` (trace level) to see detailed performance metrics:
 ./build/bin/helix-screen ctl navigate controls; ./build/bin/helix-screen ctl click btn_bed_mesh
 ```
 
-**Output:**
+**Output** (`src/rendering/bed_mesh_renderer.cpp#bed_mesh_renderer_render_to_buffer`):
 ```
-[PERF] Render: 46.35ms total | Proj: 0.00ms (0%) | Sort: 0.00ms (0%) |
-       Raster: 45.48ms (98%) | Overlays: 0.87ms (2%) | Mode: gradient
+[Bed Mesh Renderer] [PERF] Buffer render: {total}ms | Prepare: {X}ms | Surface: {X}ms | Decorations: {X}ms | FPS: {avg}
 ```
 
-### Key Metrics to Monitor
+### Common Issues
 
-| Metric | Good | Warning | Critical |
-|--------|------|---------|----------|
-| **Total frame time** | <33ms (30 FPS) | 33-50ms | >50ms (20 FPS) |
-| **Projection** | <1ms | 1-5ms | >5ms |
-| **Sorting** | <0.1ms | 0.1-1ms | >1ms |
-| **Rasterization** | <30ms | 30-45ms | >45ms |
-| **Overlays** | <1ms | 1-2ms | >2ms |
-
-### Common Issues & Solutions
-
-**Issue:** High projection time (>1ms)
-- **Cause:** Quad regeneration every frame
-- **Solution:** Check that quads are generated only on data change
-- **Debug:** Add logging to `generate_mesh_quads()`
-
-**Issue:** High rasterization time (>50ms)
-- **Cause:** Too many gradient segments or large mesh
-- **Solution:** Reduce `BED_MESH_GRADIENT_SEGMENTS` or use solid mode
-- **Debug:** Compare gradient vs solid times
-
-**Issue:** Frame drops during rotation
-- **Cause:** Unnecessary recomputation (z_scale, color_range)
-- **Solution:** Check change detection in setters
-- **Debug:** Look for "Regenerated quads" log messages
+**Frame drops during rotation**
+- **Cause:** Unnecessary recomputation (z_scale, color_range) or quads regenerated every frame
+- **Check:** quads come from `helix::mesh::generate_mesh_quads()` (`src/rendering/bed_mesh_geometry.cpp`), which should run only on a data or scale change
 
 ### Profiling Tools
 
-**1. Built-in Performance Instrumentation**
-```cpp
-// Enabled at trace level (-vvv)
-spdlog::trace("[PERF] Render: ...");
-```
+**1. Built-in instrumentation:** the trace line above.
 
 **2. macOS Instruments**
 ```bash
-# Profile CPU usage — bring up the bed-mesh overlay via helix-screen ctl after launch
+# Profile CPU usage - bring up the bed-mesh overlay via helix-screen ctl after launch
 instruments -t "Time Profiler" ./build/bin/helix-screen --test &
 ./build/bin/helix-screen ctl navigate controls; ./build/bin/helix-screen ctl click btn_bed_mesh
 ```
 
 **3. Valgrind (Linux)**
 ```bash
-# Check for memory leaks — bring up the bed-mesh overlay via helix-screen ctl after launch
+# Check for memory leaks - bring up the bed-mesh overlay via helix-screen ctl after launch
 valgrind --leak-check=full ./build/bin/helix-screen --test &
 ./build/bin/helix-screen ctl navigate controls; ./build/bin/helix-screen ctl click btn_bed_mesh
 ```
@@ -788,15 +451,9 @@ gprof build/bin/helix-screen gmon.out > profile.txt
 // Distance between mesh points in world units
 // Larger = more spacing between points in 3D scene
 
-// Camera positioning
-#define BED_MESH_CAMERA_DISTANCE 450.0
-// Distance from camera to mesh in world units
-// Tested empirically for ~33% perspective depth
-// Larger = less perspective distortion
-
-#define BED_MESH_CAMERA_ZOOM_LEVEL 1.176
-// kFov scale factor (1/0.85 from previous constant)
-// Controls field of view (larger = wider angle)
+// Two-finger magnify range; 1.0 is the fitted view
+#define BED_MESH_ZOOM_MIN 1.0
+#define BED_MESH_ZOOM_MAX 8.0
 
 // Z-axis scaling
 #define BED_MESH_DEFAULT_Z_SCALE 60.0
@@ -807,22 +464,16 @@ gprof build/bin/helix-screen gmon.out > profile.txt
 #define BED_MESH_MAX_Z_SCALE 120.0
 // Limits for Z-scale to prevent extreme flatness or spikiness
 
-#define BED_MESH_DEFAULT_Z_TARGET_HEIGHT 50.0
+#define BED_MESH_DEFAULT_Z_TARGET_HEIGHT 80.0
 // Target height for mesh in world units (used in dynamic scaling)
 
 // Color mapping
 #define BED_MESH_COLOR_COMPRESSION 0.8
 // Use 80% of data range for color mapping (avoids extreme colors)
 
-// Rendering quality
-#define BED_MESH_GRADIENT_SEGMENTS 6
-// Number of segments per scanline for gradient interpolation
-// 6 segments = smooth gradient, but 6× draw calls vs solid
-// Reduced to 1 during drag for performance
-
-#define BED_MESH_GRADIENT_MIN_LINE_WIDTH 3
-// Use solid color for lines narrower than this (pixels)
-// Avoids excessive draw calls for thin triangles
+// Rendering quality: the span fill uses kGradientMinLineWidth (3 px) and the
+// thin/medium/wide segment counts in src/rendering/bed_mesh_buffer.cpp. The
+// BED_MESH_GRADIENT_* macros in bed_mesh_renderer.h are not read by it.
 
 // Positioning
 #define BED_MESH_Z_ORIGIN_VERTICAL_POS 0.5
@@ -837,7 +488,7 @@ gprof build/bin/helix-screen gmon.out > profile.txt
 ### Default Rotation Angles
 
 The renderer owns the camera orientation (`bed_mesh_view_state_t::angle_x` /
-`angle_z`). The `<bed_mesh>` widget does not keep its own copy — the drag
+`angle_z`). The `<bed_mesh>` widget does not keep its own copy - the drag
 handler reads the current angles through `bed_mesh_renderer_get_view_state()`,
 adds the pixel delta, and writes back via `bed_mesh_renderer_set_rotation()`,
 which clamps the tilt and wraps the spin.
@@ -876,9 +527,3 @@ which clamps the tilt and wraps the spin.
 - Painter's Algorithm: https://en.wikipedia.org/wiki/Painter%27s_algorithm
 - Scanline Rendering: https://en.wikipedia.org/wiki/Scanline_rendering
 
----
-
-**Document Version:** 1.0
-**Last Updated:** 2025-11-22
-**Author:** Claude Code (based on deep dive analysis)
-**Status:** Living document - update as optimizations are implemented

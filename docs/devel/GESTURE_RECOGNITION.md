@@ -1,6 +1,6 @@
 # Gesture Recognition: Pinch Zoom and Two-Finger Pan
 
-How the app turns LVGL 9.5's multi-touch gesture recognizers into pinch zoom and two-finger pan on the 3D G-code preview and the 3D bed mesh. The shared math lives in `include/view_gestures.h` + `src/ui/gcode/view_gestures.cpp`; each view maps a `TwoFingerStep` onto its own camera or projection.
+How the app turns LVGL 9's multi-touch gesture recognizers into pinch zoom and two-finger pan on the 3D G-code preview and the 3D bed mesh. The shared math lives in `include/view_gestures.h` + `src/ui/gcode/view_gestures.cpp`; each view maps a `TwoFingerStep` onto its own camera or projection.
 
 ## Architecture
 
@@ -118,7 +118,7 @@ Desktop SDL is mouse-only, so gesture behaviour cannot be exercised in the simul
 
 ## Sources
 
-- [LVGL 9.5 Gestures Documentation](https://docs.lvgl.io/master/main-modules/indev/gestures.html)
+- [LVGL Gestures Documentation](https://docs.lvgl.io/master/main-modules/indev/gestures.html)
 - [LVGL GitHub Issue #6640 - GESTURE bug](https://github.com/lvgl/lvgl/issues/6640)
 - [LVGL Forum - How does LVGL support multi touch](https://forum.lvgl.io/t/how-does-lvgl-support-multi-touch/13078)
 - Official example: `examples/others/gestures/lv_example_gestures.c`

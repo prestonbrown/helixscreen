@@ -55,10 +55,9 @@ which is why it is spelled out per row rather than folded into either column.
   It is **not** the print routing, and nothing may read it as such. Which head prints
   logical tool N is a separate question answered by `print_task_config.extruder_map_table`
   and published by `get_tool_mapping()`. The two coincide only when nothing is remapped.
-  (The identity seed was originally added so the gcode viewer would stop falling back to
-  a single palette color; the viewer read it as routing, which painted a whole
-  4-tool model in one head's filament. The viewer now resolves through
-  `get_tool_mapping()` instead, so this map has no display job.)
+  The gcode viewer resolves colours through `get_tool_mapping()`, so this map has no
+  display job (read as routing, it would paint a whole 4-tool model in one head's
+  filament).
 - A slot select IS a physical tool change: `do_select_slot()` forwards to
   `do_change_tool()`, which emits `T{n}` and moves the carriage
   (`select_slot_moves_toolhead() = true`, `src/printer/ams_backend_snapmaker.cpp#do_select_slot`).
@@ -67,10 +66,10 @@ which is why it is spelled out per row rather than folded into either column.
 
 **Wired to one object.** `PrinterDiscovery::parse_objects()` sets `has_snapmaker_` when
 the Klipper object list contains `filament_detect` — unique to U1 firmware
-(`include/printer_discovery.h#parse_objects`). Registration order matters: a real aftermarket
+(`src/printer/printer_discovery_parse.cpp#parse_objects`). Registration order matters: a real aftermarket
 MMU (AFC, Happy Hare, …) wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
-and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h#parse_objects`).
+and a bare `toolchanger` object alone is not enough (`src/printer/printer_discovery_parse.cpp#parse_objects`).
 
 `AmsType::ACE` is the one exception to that precedence. An `ace` object beside
 `filament_detect` is [multiACE](FILAMENT_BACKEND_ACE.md), whose slots are nested per unit
@@ -406,7 +405,7 @@ conservative prefix/suffix fallback for unknown future states
   read as the first half of a swap and draw the 6-step load list. A single-head
   `AUTO_FEEDING` blocks until the feed is over, so its answer ends the held action: OK
   raises `kEventLoadComplete` / `kEventUnloadComplete`, an error raises `kEventError`,
-  and a timeout raises nothing (`src/printer/ams_backend_snapmaker.cpp#dispatch_feed`).
+  and a timeout raises nothing (`src/printer/ams_backend_snapmaker.cpp#"dispatch_feed(std::string gcode, const char* complete_event"`).
   That covers the loads `FEED_AUTO` declines with an OK and no frame; the ones visible in
   the channel snapshot (already loaded, feeder not in automatic mode, motion sensor
   disabled) are refused before sending
@@ -636,7 +635,7 @@ later drops to `NONE` is written back from it while the spool stays in the lane.
 
 | Feature | Supported | Notes |
 |---------|-----------|-------|
-| Endless Spool | `Unsupported` | No `get_endless_spool_capabilities()` override — base default |
+| Endless Spool | Once `print_task_config.auto_replenish_filament` is reported | The firmware's auto-replenish picks the backup head itself: `FirmwareManaged`, no per-slot backup, but switchable on/off (written with the print preferences' `AUTO_REPLENISH_FILAMENT=<0/1>`, `src/printer/ams_backend_snapmaker.cpp#get_endless_spool_capabilities`) |
 | Tool Mapping | Per-print only | Physical attachment fixed 1:1 and non-editable (`set_tool_mapping()` = `not_supported`); per-print ROUTING is set via `PrePrintSend` pre-print gcode and read back from `extruder_map_table` by `get_tool_mapping()` |
 | Bypass | No | `supports_bypass = false`; both entry points `not_supported` — no external spool on a toolchanger (`src/printer/ams_backend_snapmaker.cpp#AmsSubscriptionBackend`, `src/printer/ams_backend_snapmaker.cpp#enable_bypass`) |
 | Dryer | No | Not supported |
@@ -749,7 +748,7 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
 |------|---------|
 | `include/ams_backend_snapmaker.h` | Backend class, `ExtruderToolState` / `SnapmakerRfidInfo`, capability overrides, per-slot state arrays |
 | `src/printer/ams_backend_snapmaker.cpp` | Full implementation: status parse, channel_state table, gcode, overrides, pre-print builder |
-| `include/printer_discovery.h` | `filament_detect` detection + registration order (MMU wins over stock U1) |
+| `src/printer/printer_discovery_parse.cpp` | `filament_detect` detection + registration order (MMU wins over stock U1) |
 | `include/snapmaker_resume.h` + `src/printer/snapmaker_resume.cpp` | Terminal-pause matchers (dirty bed vs runout) and coded-error `msg` extraction |
 | `include/snapmaker_nozzle_offset.h` + `src/printer/snapmaker_nozzle_offset.cpp` | Toolhead offset calibration: capability check, step plan, `Runner` |
 | `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/calibration/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/filament/ui_snapmaker_device_flows.cpp` |
@@ -758,9 +757,9 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
 | `include/snapmaker_nozzle_properties.h` + `src/printer/snapmaker_nozzle_properties.cpp` | The Nozzle rows' options, the `nozzle_properties` params a pick sends, and the reading of its reply |
 | `include/filament_temperature_source.h` + `src/printer/filament_temperature_source.cpp` | Per-filament load/unload temperature capture (see above) |
 | [Firmware API: `print_task_config`](#firmware-api-print_task_config) | The firmware-native remap/feed-gate API this backend's pre-print path emits, in this file |
-| `tests/unit/test_ams_backend_snapmaker.cpp` | 54 cases: parsers, status handling, latch, overrides |
-| `tests/unit/test_snapmaker_preprint_gcode.cpp` | 8 cases: the pure `build_preprint_gcode` builder |
-| `tests/unit/test_snapmaker_resume.cpp` | 4 cases: pause classification / resume prep |
+| `tests/unit/test_ams_backend_snapmaker.cpp` | Parsers, status handling, latch, overrides |
+| `tests/unit/test_snapmaker_preprint_gcode.cpp` | The pure `build_preprint_gcode` builder |
+| `tests/unit/test_snapmaker_resume.cpp` | Pause classification / resume prep |
 
 ### Follow-up Work
 
@@ -797,16 +796,13 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
    the baked `PRINT_START` block runs — flagged in
    [Firmware API: `print_task_config`](#firmware-api-print_task_config) § "Still
    UNCERTAIN".
-4. The `prepare_for_resume` doc comment in `include/ams_backend_snapmaker.h#AmsBackendSnapmaker`
-   still describes the retired sensor-disable chain; the implementation drives
-   `AUTO_FEEDING` (see Runout and Resume above). Comment is stale, code is right.
-5. Batch load/unload (both script shapes, the dispatch-id END recovery, and
+4. Batch load/unload (both script shapes, the dispatch-id END recovery, and
    `batch_feed_reconcile`) and the per-filament temperature capture are source-derived only -
    none of it has run on the rig yet.
-6. The Nozzle rows are source-derived and mock-tested only: the reply shape through
+5. The Nozzle rows are source-derived and mock-tested only: the reply shape through
    Moonraker's proxy, the refusal while printing, and the extruder status update after a
    change have not been checked on the rig.
-7. The extruder toolchanger fields (`state`, `park_pin`, `active_pin`, `activating_move`)
+6. The extruder toolchanger fields (`state`, `park_pin`, `active_pin`, `activating_move`)
    are subscribed from source and mock tests only: no frame sequence across a real tool
    change or park has been captured on the rig.
 
