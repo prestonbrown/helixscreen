@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lan_sweep.h"
 #include "mdns_discovery.h"
 #include "utils/network_validation.h"
@@ -146,20 +147,20 @@ class ChangeHostModal : public Modal {
   private:
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t host_ip_subject_{};
-    lv_subject_t host_port_subject_{};
+    helix::Subject host_ip_subject_{};
+    helix::Subject host_port_subject_{};
     /// The active printer's Moonraker API key; the field is masked until revealed.
-    lv_subject_t api_key_subject_{};
-    lv_subject_t testing_subject_{};
-    lv_subject_t validated_subject_{};
-    lv_subject_t adding_subject_{};
+    helix::Subject api_key_subject_{};
+    helix::Subject testing_subject_{};
+    helix::Subject validated_subject_{};
+    helix::Subject adding_subject_{};
     /// Save is held disabled: changing a host needs a passed test, adding one does not.
-    lv_subject_t save_locked_subject_{};
+    helix::Subject save_locked_subject_{};
     /// 1 while printer discovery runs: shows the discovered-printers dropdown.
-    lv_subject_t discovery_active_subject_{};
+    helix::Subject discovery_active_subject_{};
     /// StatusKind: which icon the status line shows (change_host_modal.xml)
-    lv_subject_t status_kind_subject_{};
-    lv_subject_t status_text_subject_{};
+    helix::Subject status_kind_subject_{};
+    helix::Subject status_text_subject_{};
 
     char host_ip_buf_[256] = {0};
     char host_port_buf_[8] = {0};

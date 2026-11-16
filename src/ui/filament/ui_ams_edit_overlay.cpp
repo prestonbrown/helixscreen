@@ -43,6 +43,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_toast_manager.h"
 
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
@@ -462,7 +463,7 @@ void AmsEditOverlay::on_deactivating(DeactivateReason reason) {
 
 void AmsEditOverlay::init_subjects() {
     init_subjects_guarded([this]() {
-        lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "--");
+        title_subject_.init_string(title_buf_, nullptr, sizeof(title_buf_), "--");
         subjects_.register_subject(&title_subject_);
 
         // View state (kViewEditor..kViewColor) - registered globally

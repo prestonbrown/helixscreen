@@ -15,6 +15,7 @@
 #include "label_printer_utils.h"
 #endif
 #include "color_utils.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "spoolman_slot_saver.h"
@@ -27,6 +28,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <tuple>
 
 #include "hv/json.hpp"
@@ -110,18 +112,20 @@ void SpoolEditModal::init_subjects() {
         return;
     }
 
-    lv_subject_init_string(&save_button_text_subject_, save_button_text_buf_, nullptr,
-                           sizeof(save_button_text_buf_), lv_tr("Close"));
+    save_button_text_subject_.init_string(save_button_text_buf_, nullptr,
+                                          sizeof(save_button_text_buf_), lv_tr("Close"));
     subjects_.publish("spoolman_edit_save_text", &save_button_text_subject_);
     for (auto [subject, buf, size, name] :
-         {std::make_tuple(&title_subject_, title_buf_, sizeof(title_buf_), "spoolman_edit_title"),
-          std::make_tuple(&material_subject_, material_buf_, sizeof(material_buf_),
+         {std::make_tuple(std::addressof(title_subject_), title_buf_, sizeof(title_buf_),
+                          "spoolman_edit_title"),
+          std::make_tuple(std::addressof(material_subject_), material_buf_, sizeof(material_buf_),
                           "spoolman_edit_material"),
-          std::make_tuple(&color_subject_, color_buf_, sizeof(color_buf_), "spoolman_edit_color"),
-          std::make_tuple(&vendor_subject_, vendor_buf_, sizeof(vendor_buf_),
+          std::make_tuple(std::addressof(color_subject_), color_buf_, sizeof(color_buf_),
+                          "spoolman_edit_color"),
+          std::make_tuple(std::addressof(vendor_subject_), vendor_buf_, sizeof(vendor_buf_),
                           "spoolman_edit_vendor")}) {
-        lv_subject_init_string(subject, buf, nullptr, size, "");
-        subjects_.publish(name, subject);
+        subject->init_string(buf, nullptr, size, "");
+        subjects_.publish(name, subject->get());
     }
 
     lv_xml_register_subject(lv_xml_component_get_scope("spoolman_edit_modal"),

@@ -3,6 +3,8 @@
 
 #include "ui_ams_loading_error_modal.h"
 
+#include "core/subject.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -23,9 +25,9 @@ void AmsLoadingErrorModal::init_subjects() {
     if (!names_.empty()) {
         return;
     }
-    lv_subject_init_string(&message_subject_, message_buf_, nullptr, sizeof(message_buf_), "");
+    message_subject_.init_string(message_buf_, nullptr, sizeof(message_buf_), "");
     names_.publish(&message_subject_, "message_subject", "message");
-    lv_subject_init_string(&hint_subject_, hint_buf_, nullptr, sizeof(hint_buf_), "");
+    hint_subject_.init_string(hint_buf_, nullptr, sizeof(hint_buf_), "");
     names_.publish(&hint_subject_, "hint_subject", "hint");
 }
 

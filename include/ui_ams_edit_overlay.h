@@ -11,6 +11,7 @@
 #include "ams_tag_reading.h"
 #include "ams_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_source_store.h"
@@ -338,57 +339,57 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t title_subject_{};     ///< "Gate 3" (lane label)
-    lv_subject_t view_mode_subject_{}; ///< kView* ("ams_edit_view")
-    lv_subject_t
+    helix::Subject title_subject_{};     ///< "Gate 3" (lane label)
+    helix::Subject view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    helix::Subject
         picker_state_subject_{}; ///< 0=loading, 1=fetch error (retry), 2=content, 3=no match
-    lv_subject_t save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
-    lv_subject_t save_hidden_subject_{};     ///< 1=header Save hidden ("ams_edit_save_hidden")
-    lv_subject_t is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
-    lv_subject_t scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
-    lv_subject_t product_hidden_subject_{};  ///< 1 while Generic selected
-    lv_subject_t color_selected_subject_{};  ///< ringed preset index (-1 none)
-    lv_subject_t color_col_count_subject_{}; ///< split-column presets (size_color_grids)
-    lv_subject_t color_row_count_subject_{}; ///< stacked-grid presets (size_color_grids)
-    lv_subject_t color_fits_subject_{};      ///< 1=presets and picker shown together
-    lv_subject_t color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
-    int color_fit_room_w_ = -1;              ///< room update_color_fit last measured
+    helix::Subject save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
+    helix::Subject save_hidden_subject_{};     ///< 1=header Save hidden ("ams_edit_save_hidden")
+    helix::Subject is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
+    helix::Subject scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
+    helix::Subject product_hidden_subject_{};  ///< 1 while Generic selected
+    helix::Subject color_selected_subject_{};  ///< ringed preset index (-1 none)
+    helix::Subject color_col_count_subject_{}; ///< split-column presets (size_color_grids)
+    helix::Subject color_row_count_subject_{}; ///< stacked-grid presets (size_color_grids)
+    helix::Subject color_fits_subject_{};      ///< 1=presets and picker shown together
+    helix::Subject color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
+    int color_fit_room_w_ = -1;                ///< room update_color_fit last measured
     int color_fit_room_h_ = -1;
     bool color_fit_ = true; ///< that room's verdict
-    lv_subject_t summary_text_subject_{};
-    lv_subject_t tag_badge_visible_subject_{}; ///< any shown field is the tag's
-    lv_subject_t tag_material_subject_{};
-    lv_subject_t tag_brand_subject_{};
-    lv_subject_t tag_product_subject_{};
-    lv_subject_t tag_color_subject_{};
-    lv_subject_t tag_temps_subject_{};
+    helix::Subject summary_text_subject_{};
+    helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's
+    helix::Subject tag_material_subject_{};
+    helix::Subject tag_brand_subject_{};
+    helix::Subject tag_product_subject_{};
+    helix::Subject tag_color_subject_{};
+    helix::Subject tag_temps_subject_{};
     /// The temperatures the temp line shows, for the temps badge.
     int shown_nozzle_min_ = 0;
     int shown_nozzle_max_ = 0;
     int shown_bed_temp_ = 0;
-    lv_subject_t temp_text_subject_{};
-    lv_subject_t weight_text_subject_{};
-    lv_subject_t weight_hint_subject_{};
-    lv_subject_t reset_tag_visible_subject_{};
-    lv_subject_t add_spoolman_visible_subject_{};
-    lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
-    lv_subject_t more_open_subject_{};
-    lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
-    lv_subject_t lane_visible_subject_{};       ///< 1 = the slot is a backend lane
-    lv_subject_t tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
-    lv_subject_t backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
-    lv_subject_t backup_editable_subject_{};    ///< 0 = backup shown read-only
-    lv_subject_t backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
+    helix::Subject temp_text_subject_{};
+    helix::Subject weight_text_subject_{};
+    helix::Subject weight_hint_subject_{};
+    helix::Subject reset_tag_visible_subject_{};
+    helix::Subject add_spoolman_visible_subject_{};
+    helix::Subject clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
+    helix::Subject more_open_subject_{};
+    helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
+    helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
+    helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
+    helix::Subject backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
+    helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
+    helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
     char summary_buf_[96] = {0};
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
     /// kSaveFailed with save_error_subject_ saying why.
-    lv_subject_t save_state_subject_{};
-    lv_subject_t save_error_subject_{}; ///< "ams_edit_save_error"
+    helix::Subject save_state_subject_{};
+    helix::Subject save_error_subject_{}; ///< "ams_edit_save_error"
     /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
-    lv_subject_t spool_disagrees_subject_{};
-    lv_subject_t spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
+    helix::Subject spool_disagrees_subject_{};
+    helix::Subject spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
     char spool_disagreement_buf_[128] = {0};
     struct FormSnapshot {
         SlotInfo working;

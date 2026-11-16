@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
@@ -33,14 +34,14 @@ namespace {
 /// begin with '#', which a component prop would resolve as a constant.
 struct PrinterRowName {
     char buf[128];
-    lv_subject_t subject{};
+    helix::Subject subject{};
 
     explicit PrinterRowName(const std::string& name) {
         std::snprintf(buf, sizeof(buf), "%s", name.c_str());
-        lv_subject_init_string(&subject, buf, nullptr, sizeof(buf), buf);
+        subject.init_string(buf, nullptr, sizeof(buf), buf);
     }
     ~PrinterRowName() {
-        lv_subject_deinit(&subject);
+        subject.reset();
     }
     PrinterRowName(const PrinterRowName&) = delete;
     PrinterRowName& operator=(const PrinterRowName&) = delete;

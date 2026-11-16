@@ -15,6 +15,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -49,7 +50,7 @@ using namespace helix;
 // ============================================================================
 
 // Controls wizard Next button globally - shared across wizard steps
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance
@@ -150,6 +151,19 @@ void WizardConnectionStep::init_subjects() {
     } else {
         spdlog::debug("[{}] Re-init: preserving buffer (IP='{}', Port='{}')", get_name(),
                       connection_ip_buffer_, connection_port_buffer_);
+    }
+
+    // Every visit re-seeds the subjects below, so a revisit drops the previous visit's
+    // observers first: init on a live subject would orphan them.
+    if (subjects_initialized_) {
+        for (helix::Subject* subject :
+             {std::addressof(connection_ip_), std::addressof(connection_port_),
+              std::addressof(connection_status_kind_), std::addressof(connection_status_text_),
+              std::addressof(connection_testing_), std::addressof(connection_discovering_),
+              std::addressof(connection_api_key_), std::addressof(connection_login_required_),
+              std::addressof(mdns_status_), std::addressof(discovery_active_)}) {
+            subject->reset();
+        }
     }
 
     // The macro snprintf()s initial_value INTO buffer; passing the buffer as

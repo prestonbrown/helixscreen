@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "filament_macro_profiles.h"
 #include "guided_load_flow.h"
 #include "guided_load_session.h"
@@ -73,8 +74,8 @@ class GuidedLoadModal : public Modal {
 
     std::unique_ptr<GuidedLoadSession> session_;
     SubjectManager subjects_;
-    lv_subject_t view_subject_{};
-    lv_subject_t heat_text_subject_{};
+    helix::Subject view_subject_{};
+    helix::Subject heat_text_subject_{};
     char heat_text_buf_[48] = {};
     bool subjects_initialized_ = false;
     ObserverGuard runout_observer_;

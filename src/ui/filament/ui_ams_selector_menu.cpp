@@ -12,6 +12,7 @@
 #include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "ui/ui_widget_helpers.h"
 #include "widget_subjects.h"
@@ -25,7 +26,7 @@ namespace {
 helix::WidgetSubjects s_subjects{"AmsSelectorMenuSubjects",
                                  StaticSubjectRegistry::Lifetime::Process};
 // 1 = the selector has a physical servo to position (LINEAR topology only).
-HELIX_PSRAM_BSS lv_subject_t s_has_servo_subject;
+HELIX_PSRAM_BSS helix::Subject s_has_servo_subject;
 
 void init_menu_subjects() {
     s_subjects.ensure_init([] {

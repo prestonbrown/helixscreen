@@ -5,6 +5,7 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "filament_product_form.h"
 #include "instance_subjects.h"
 
@@ -78,10 +79,10 @@ class FilamentProductEditModal : public Modal {
 
     // Secondary (destructive) button label: "Delete" (user entry) or
     // "Restore Defaults" (built-in with an override). Hidden in Add mode.
-    lv_subject_t secondary_text_subject_{};
+    helix::Subject secondary_text_subject_{};
     char secondary_text_buf_[40]{};
-    lv_subject_t show_secondary_subject_{}; ///< 1 when the secondary button applies
-    lv_subject_t title_subject_{};          ///< "Add Filament" / "Edit Filament"
+    helix::Subject show_secondary_subject_{}; ///< 1 when the secondary button applies
+    helix::Subject title_subject_{};          ///< "Add Filament" / "Edit Filament"
     char title_buf_[64]{};
     // Published under names this instance alone holds: the Filament panel and
     // the AMS editor each keep a catalog picker, and with it one of these, alive.

@@ -6,6 +6,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "input_shaper_calibrator.h"
 #include "live_sweep_preview.h"
@@ -314,16 +315,16 @@ class WizardInputShaperStep : public helix::wizard::Step {
     SubjectManager subjects_;
 
     // Subjects
-    lv_subject_t calibration_status_{};
-    lv_subject_t calibration_progress_{};
-    lv_subject_t calibration_started_{}; ///< 0=not started, 1=started (hides Start button)
-    lv_subject_t calibration_active_{};  ///< 1 iff calibration is running (controls Cancel
-                                         ///< button visibility). Cleared on complete / cancel /
-                                         ///< error. Distinct from `started_` which stays at 1
-                                         ///< post-completion to keep the Start button hidden.
-    lv_subject_t calibration_indeterminate_{}; ///< 1 during the offline analysis phase (no
-                                               ///< percent): hides the bar, shows the spinner
-    lv_subject_t has_chart_{};                 ///< 1 while the live chart holds a curve
+    helix::Subject calibration_status_{};
+    helix::Subject calibration_progress_{};
+    helix::Subject calibration_started_{}; ///< 0=not started, 1=started (hides Start button)
+    helix::Subject calibration_active_{};  ///< 1 iff calibration is running (controls Cancel
+                                           ///< button visibility). Cleared on complete / cancel /
+                                           ///< error. Distinct from `started_` which stays at 1
+                                           ///< post-completion to keep the Start button hidden.
+    helix::Subject calibration_indeterminate_{}; ///< 1 during the offline analysis phase (no
+                                                 ///< percent): hides the bar, shows the spinner
+    helix::Subject has_chart_{};                 ///< 1 while the live chart holds a curve
 
     // String buffers for subjects
     char status_buffer_[128] = "Ready to calibrate";

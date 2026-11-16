@@ -7,6 +7,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "platform_info.h"
 #include "subject_managed_panel.h"
@@ -162,19 +163,19 @@ class WizardWifiStep : public helix::wizard::Step {
     lv_obj_t* network_list_container_ = nullptr;
 
     // Subjects (visibility controlled by Modal system)
-    lv_subject_t wifi_enabled_{};
-    lv_subject_t wifi_status_{};
-    lv_subject_t wifi_ip_{};
-    lv_subject_t wifi_mac_{};
-    lv_subject_t ethernet_status_{};
-    lv_subject_t ethernet_mac_{};
-    lv_subject_t wifi_scanning_{};
-    lv_subject_t wifi_password_modal_ssid_{};
-    lv_subject_t password_status_{};
-    lv_subject_t password_status_shown_{};
-    lv_subject_t wifi_connecting_{};
-    lv_subject_t wifi_hardware_available_{};
-    lv_subject_t wifi_can_toggle_radio_{}; ///< 1 if the backend can move the radio
+    helix::Subject wifi_enabled_{};
+    helix::Subject wifi_status_{};
+    helix::Subject wifi_ip_{};
+    helix::Subject wifi_mac_{};
+    helix::Subject ethernet_status_{};
+    helix::Subject ethernet_mac_{};
+    helix::Subject wifi_scanning_{};
+    helix::Subject wifi_password_modal_ssid_{};
+    helix::Subject password_status_{};
+    helix::Subject password_status_shown_{};
+    helix::Subject wifi_connecting_{};
+    helix::Subject wifi_hardware_available_{};
+    helix::Subject wifi_can_toggle_radio_{}; ///< 1 if the backend can move the radio
 
     // String buffers (must be persistent)
     char wifi_status_buffer_[64];

@@ -15,6 +15,7 @@
 #include "core/data_root_resolver.h"
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "ethernet_manager.h"
 #include "lvgl/lvgl.h"
 #include "system/crash_handler.h"
@@ -54,11 +55,11 @@ WizardWifiStep* get_wizard_wifi_step() {
  */
 struct WifiWizardNetworkItemData {
     WiFiNetwork network;
-    lv_subject_t ssid{};            // Stack-allocated subject
-    lv_subject_t signal_strength{}; // Stack-allocated subject
-    lv_subject_t is_secured{};      // Stack-allocated subject
-    lv_subject_t band_text{};       // Band badge text ("2.4G" / "5G" / "2.4/5G")
-    lv_subject_t band_visible{};    // 1 when the badge should be shown, else 0
+    helix::Subject ssid{};            // Stack-allocated subject
+    helix::Subject signal_strength{}; // Stack-allocated subject
+    helix::Subject is_secured{};      // Stack-allocated subject
+    helix::Subject band_text{};       // Band badge text ("2.4G" / "5G" / "2.4/5G")
+    helix::Subject band_visible{};    // 1 when the badge should be shown, else 0
     char ssid_buffer[64];
     char band_buffer[16];
     WizardWifiStep* parent; // Back-reference for callbacks
@@ -68,22 +69,22 @@ struct WifiWizardNetworkItemData {
         : network(net), parent(p) {
         strncpy(ssid_buffer, network.ssid.c_str(), sizeof(ssid_buffer) - 1);
         ssid_buffer[sizeof(ssid_buffer) - 1] = '\0';
-        lv_subject_init_string(&ssid, ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
-        lv_subject_init_int(&signal_strength, network.signal_strength);
-        lv_subject_init_int(&is_secured, network.is_secured ? 1 : 0);
+        ssid.init_string(ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
+        signal_strength.init_int(network.signal_strength);
+        is_secured.init_int(network.is_secured ? 1 : 0);
 
         snprintf(band_buffer, sizeof(band_buffer), "%s", band_label.c_str());
-        lv_subject_init_string(&band_text, band_buffer, nullptr, sizeof(band_buffer), band_buffer);
-        lv_subject_init_int(&band_visible, band_label.empty() ? 0 : 1);
+        band_text.init_string(band_buffer, nullptr, sizeof(band_buffer), band_buffer);
+        band_visible.init_int(band_label.empty() ? 0 : 1);
     }
 
     ~WifiWizardNetworkItemData() {
         // Deinit subjects before memory is freed
-        lv_subject_deinit(&ssid);
-        lv_subject_deinit(&signal_strength);
-        lv_subject_deinit(&is_secured);
-        lv_subject_deinit(&band_text);
-        lv_subject_deinit(&band_visible);
+        ssid.reset();
+        signal_strength.reset();
+        is_secured.reset();
+        band_text.reset();
+        band_visible.reset();
     }
 };
 

@@ -6,6 +6,7 @@
 #include "ui_color_picker.h"
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "spoolman_types.h"
 #include "subject_managed_panel.h"
 
@@ -89,17 +90,17 @@ class SpoolEditModal : public Modal {
     void deinit_subjects();
 
     // === Subjects ===
-    lv_subject_t save_button_text_subject_{};
+    helix::Subject save_button_text_subject_{};
     char save_button_text_buf_[16]{};
     char save_button_text_prev_buf_[16]{};
     // The title and the read-only info lines (data, so bound, never props)
-    lv_subject_t title_subject_{};
+    helix::Subject title_subject_{};
     char title_buf_[48]{};
-    lv_subject_t material_subject_{};
+    helix::Subject material_subject_{};
     char material_buf_[64]{};
-    lv_subject_t color_subject_{};
+    helix::Subject color_subject_{};
     char color_buf_[64]{};
-    lv_subject_t vendor_subject_{};
+    helix::Subject vendor_subject_{};
     char vendor_buf_[96]{};
 
     // === Internal Methods ===

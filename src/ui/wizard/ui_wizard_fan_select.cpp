@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
@@ -31,7 +32,7 @@
 using namespace helix;
 
 // Global wizard subject for Next button state (defined in ui_wizard.cpp)
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance

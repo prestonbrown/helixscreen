@@ -10,6 +10,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "settings_manager.h"
@@ -31,9 +32,9 @@ constexpr lv_opa_t kSwatchBorderOpa = 30;
 // modal's teardown, so instance-owned subjects would die under bound labels.
 // StaticSubjectRegistry tears them down before lv_deinit().
 struct NoteSubjects {
-    lv_subject_t text{};
-    lv_subject_t visible{};
-    lv_subject_t auto_mode{}; ///< 1 while rows follow the auto color map
+    helix::Subject text{};
+    helix::Subject visible{};
+    helix::Subject auto_mode{}; ///< 1 while rows follow the auto color map
 
     char text_buf[512] = {};
     SubjectManager manager;

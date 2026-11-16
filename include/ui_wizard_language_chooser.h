@@ -4,6 +4,7 @@
 
 #include "ui_breakpoint.h"
 
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -148,7 +149,7 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     // after it (the name withdraws before the storage dies).
     SubjectManager subjects_;
 
-    lv_subject_t welcome_text_{};
+    helix::Subject welcome_text_{};
 
     // String buffer for welcome text subject
     char welcome_buffer_[64] = "Welcome!";

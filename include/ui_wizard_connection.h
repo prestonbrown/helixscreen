@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
@@ -171,17 +172,17 @@ class WizardConnectionStep : public helix::wizard::Step {
     lv_obj_t* screen_root_ = nullptr;
 
     // Subjects
-    lv_subject_t connection_ip_{};
-    lv_subject_t connection_port_{};
+    helix::Subject connection_ip_{};
+    helix::Subject connection_port_{};
     /// StatusKind: which icon the status line shows (wizard_connection.xml)
-    lv_subject_t connection_status_kind_{};
-    lv_subject_t connection_status_text_{};
-    lv_subject_t connection_testing_{};
-    lv_subject_t connection_discovering_{};
+    helix::Subject connection_status_kind_{};
+    helix::Subject connection_status_text_{};
+    helix::Subject connection_testing_{};
+    helix::Subject connection_discovering_{};
     /// Moonraker API key, for a printer whose Moonraker requires a login.
-    lv_subject_t connection_api_key_{};
+    helix::Subject connection_api_key_{};
     /// 1 shows the API key field: the printer refused a test for want of one, or has one saved.
-    lv_subject_t connection_login_required_{};
+    helix::Subject connection_login_required_{};
 
     // String buffers (must be persistent)
     char connection_ip_buffer_[128];
@@ -367,8 +368,8 @@ class WizardConnectionStep : public helix::wizard::Step {
     std::vector<helix::DiscoveredPrinter> discovered_printers_;
 
     // Subjects for mDNS UI
-    lv_subject_t mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
-    lv_subject_t discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
+    helix::Subject mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
+    helix::Subject discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
     char mdns_status_buffer_[64];
 
     // mDNS callbacks
