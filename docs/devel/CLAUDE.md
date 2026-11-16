@@ -50,7 +50,7 @@ All developer documentation lives here. When working on features, look up the re
 | `PLUGIN_TUTORIAL.md` | Step-by-step build of the maintenance-meter widget plugin: annotated code, the why of each decision, the adaptive size ladder |
 | `HELIXPRINT_PLUGIN.md` | The HelixPrint Moonraker plugin and the app's feature gating; read before adding or gating a plugin feature. User guide: `../user/guide/helixprint-plugin.md` |
 | `PAGE_SCROLL_BUTTONS.md` | Chevron page-scroll gutter: where it auto-attaches and why it stops at a home widget tile. On by default on ESP32 only |
-| `TRANSLATION_SYSTEM.md` | i18n: YAML strings -> code generation -> runtime lookups |
+| `TRANSLATION_SYSTEM.md` | i18n: YAML strings -> code generation -> runtime lookups; temperature unit, date order, region defaults |
 | `TRANSLATION_CONTRIBUTOR_GUIDE.md` | For **translators** — how to improve existing translations or add a new language. No code needed. |
 | `UI_TESTING.md` | Headless LVGL testing, UITest utilities |
 | `architecture/16-gcode-pipeline.md` | G-code from file to screen: parse/scan paths, footer fast path, tools-used cache, render modes, object picking. Start here for viewer work |
@@ -59,6 +59,7 @@ All developer documentation lives here. When working on features, look up the re
 | `PERFORMANCE.md` | Measured CPU/RAM per board and what wakes the main loop. Read before claiming a CPU or RAM figure or touching timer periods |
 | `GPU_ACCELERATION.md` | Measured GPU vs software rendering per board. Read before proposing rendering-path work |
 | `FILAMENT_PATH_CANVAS.md` | Filament-path canvas: 3-layer model, pathgeo arc-fillet routing, shared tube stroker, RenderCtx phases, topology renderers (linear/hub/parallel/mixed) |
+| `UNIT_ART.md` | Drawn filament units and toolheads: the Python art kit, baked tintable layers, generated tray shapes and lid profiles, the `<unit_art>` widget, adding a unit |
 | `PRE_RENDERED_IMAGES.md` | Pre-rendered image pipeline |
 | `GESTURE_RECOGNITION.md` | Pinch zoom and two-finger pan: LVGL recognizers, view_gestures, per-view mapping |
 | `GALLERY.md` | Every app screenshot the docs show, grouped by area. Generated: `python3 scripts/gen_gallery.py` from `docs/images/doc-screenshots.yml` |
