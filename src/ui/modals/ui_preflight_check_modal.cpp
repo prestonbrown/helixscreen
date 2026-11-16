@@ -13,6 +13,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
@@ -79,13 +80,12 @@ std::string lane_text_for(const std::vector<helix::AvailableSlot>& slots, int sl
 } // namespace
 
 PreflightCheckModal::PreflightCheckModal() {
-    lv_subject_init_int(&fix_shown_subject_, 0);
-    lv_subject_init_string(&fix_text_subject_, fix_text_buf_, nullptr, sizeof(fix_text_buf_), "");
+    fix_shown_subject_.init_int(0);
+    fix_text_subject_.init_string(fix_text_buf_, nullptr, sizeof(fix_text_buf_), "");
     subjects_.publish("preflight_material_fix_shown", &fix_shown_subject_);
     subjects_.publish("preflight_material_fix_text", &fix_text_subject_);
-    lv_subject_init_int(&remap_shown_subject_, 0);
-    lv_subject_init_string(&explanation_subject_, explanation_buf_, nullptr,
-                           sizeof(explanation_buf_), "");
+    remap_shown_subject_.init_int(0);
+    explanation_subject_.init_string(explanation_buf_, nullptr, sizeof(explanation_buf_), "");
     subjects_.publish("preflight_remap_shown", &remap_shown_subject_);
     subjects_.publish("preflight_explanation", &explanation_subject_);
     static bool callback_registered = false;

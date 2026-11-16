@@ -22,6 +22,7 @@
 #include "ui_utils.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "keypad_input.h"
@@ -39,20 +40,20 @@
 // ============================================================================
 // Reactive State (Subject for XML binding)
 // ============================================================================
-static lv_subject_t keypad_display_subject;
+static helix::Subject keypad_display_subject;
 static char keypad_display_buf[16] = "";
 // The keypad is shared by every numeric field in the app, so it has to say which
 // one is being edited. Machine Limits alone opens it from five rows.
-static lv_subject_t keypad_title_subject;
+static helix::Subject keypad_title_subject;
 static char keypad_title_buf[48] = "";
 // Unit shown inside the display's right end ("°C", "mm/s").
-static lv_subject_t keypad_unit_subject;
+static helix::Subject keypad_unit_subject;
 static char keypad_unit_buf[16] = "";
 // Drives the dot key's disabled state, so an integer-only field never shows a
 // live "." that silently does nothing to the buffer.
-static lv_subject_t keypad_allow_decimal_subject;
+static helix::Subject keypad_allow_decimal_subject;
 // Shows the +/- key, only on fields whose range reaches below zero.
-static lv_subject_t keypad_allow_negative_subject;
+static helix::Subject keypad_allow_negative_subject;
 
 /// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
 /// overlay on the stack, and the keypad is almost never that - it opens over a temp

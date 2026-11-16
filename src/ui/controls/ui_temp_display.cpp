@@ -8,6 +8,7 @@
 #include "ui_temperature_utils.h"
 #include "ui_tile_rung.h"
 
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -91,8 +92,8 @@ struct TempDisplayData {
     lv_obj_t* unit_label = nullptr;
 
     // String subjects for reactive text binding
-    lv_subject_t current_text_subject{};
-    lv_subject_t target_text_subject{};
+    helix::Subject current_text_subject{};
+    helix::Subject target_text_subject{};
 
     // Observers from lv_label_bind_text (must be removed before freeing subjects)
     lv_observer_t* current_text_observer = nullptr;
@@ -370,9 +371,9 @@ static void on_delete(lv_event_t* e) {
         lv_obj_remove_from_subject(obj, nullptr);
 
         // Now safe to deinit owned subjects — all observers already removed
-        lv_subject_deinit(&data->current_text_subject);
+        data->current_text_subject.reset();
         if (data->target_subjects_initialized) {
-            lv_subject_deinit(&data->target_text_subject);
+            data->target_text_subject.reset();
         }
         // data automatically freed when unique_ptr goes out of scope
     }
@@ -561,8 +562,9 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
 
         // Initialize target text subject
         snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "—");
-        lv_subject_init_string(&data_ptr->target_text_subject, data_ptr->target_text_buf, nullptr,
-                               sizeof(data_ptr->target_text_buf), data_ptr->target_text_buf);
+        data_ptr->target_text_subject.init_string(data_ptr->target_text_buf, nullptr,
+                                                  sizeof(data_ptr->target_text_buf),
+                                                  data_ptr->target_text_buf);
         data_ptr->target_text_observer =
             lv_label_bind_text(data_ptr->target_label, &data_ptr->target_text_subject, nullptr);
         data_ptr->target_subjects_initialized = true;
@@ -575,8 +577,9 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
 
     // Initialize current text subject
     snprintf(data_ptr->current_text_buf, sizeof(data_ptr->current_text_buf), "—");
-    lv_subject_init_string(&data_ptr->current_text_subject, data_ptr->current_text_buf, nullptr,
-                           sizeof(data_ptr->current_text_buf), data_ptr->current_text_buf);
+    data_ptr->current_text_subject.init_string(data_ptr->current_text_buf, nullptr,
+                                               sizeof(data_ptr->current_text_buf),
+                                               data_ptr->current_text_buf);
 
     // Bind current label to subject for reactive updates
     data_ptr->current_text_observer =

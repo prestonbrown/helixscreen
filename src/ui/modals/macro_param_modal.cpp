@@ -8,6 +8,7 @@
 
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
@@ -38,13 +39,13 @@ namespace {
 
 /// Save mode (1) re-titles the dialog, swaps Run for Save and reveals the
 /// "Ask for parameters" toggle; run mode (0) hides all of that.
-lv_subject_t s_save_mode_subject{};
+helix::Subject s_save_mode_subject{};
 /// The "Ask for parameters" toggle: 1 = prompt with these values prefilled,
 /// 0 = run with them without asking.
-lv_subject_t s_ask_subject{};
+helix::Subject s_ask_subject{};
 /// Fields the modal shows (raw mode is one): two or more widen the card so the
 /// fields can share rows.
-lv_subject_t s_field_count_subject{};
+helix::Subject s_field_count_subject{};
 bool s_modal_subjects_registered = false;
 SubjectManager s_subjects;
 
@@ -53,9 +54,9 @@ SubjectManager s_subjects;
 void register_modal_subjects() {
     if (s_modal_subjects_registered)
         return;
-    lv_subject_init_int(&s_save_mode_subject, 0);
-    lv_subject_init_int(&s_ask_subject, 1);
-    lv_subject_init_int(&s_field_count_subject, 0);
+    s_save_mode_subject.init_int(0);
+    s_ask_subject.init_int(1);
+    s_field_count_subject.init_int(0);
     s_subjects.publish("macro_param_modal_save_mode", &s_save_mode_subject);
     s_subjects.publish("macro_param_modal_ask", &s_ask_subject);
     s_subjects.publish("macro_param_modal_field_count", &s_field_count_subject);

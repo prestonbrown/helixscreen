@@ -2,6 +2,8 @@
 
 #include "ui_pin_utils.h"
 
+#include "core/subject.h"
+
 #include <spdlog/spdlog.h>
 
 #include <cstring>
@@ -25,9 +27,9 @@ int key_digit(lv_event_t* e) {
 }
 
 PinDisplay::PinDisplay(const char* prefix) : names_(prefix) {
-    lv_subject_init_int(&digits_, 0);
+    digits_.init_int(0);
     names_.publish(&digits_, "digits_subject", "digits");
-    lv_subject_init_string(&error_, error_buf_, nullptr, sizeof(error_buf_), kBlankError);
+    error_.init_string(error_buf_, nullptr, sizeof(error_buf_), kBlankError);
     names_.publish(&error_, "error_subject", "error");
 }
 

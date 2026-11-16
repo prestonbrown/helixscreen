@@ -8,6 +8,7 @@
 
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "wifi_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -29,9 +30,9 @@ void HiddenNetworkModal::init_subjects() {
     if (subjects_initialized_) {
         return;
     }
-    lv_subject_init_int(&connecting_, 0);
-    lv_subject_init_string(&error_, error_buf_, nullptr, sizeof(error_buf_), "");
-    lv_subject_init_int(&has_error_, 0);
+    connecting_.init_int(0);
+    error_.init_string(error_buf_, nullptr, sizeof(error_buf_), "");
+    has_error_.init_int(0);
     subjects_.publish("hidden_connecting", &connecting_);
     subjects_.publish("hidden_network_error", &error_);
     subjects_.publish("hidden_network_has_error", &has_error_);

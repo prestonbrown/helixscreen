@@ -7,6 +7,7 @@
 #if HELIX_HAS_CAMERA
 
 #include "app_globals.h"
+#include "core/subject.h"
 #include "json_utils.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -34,12 +35,12 @@ void CameraConfigModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&rot_0_active_, 1);
-    lv_subject_init_int(&rot_90_active_, 0);
-    lv_subject_init_int(&rot_180_active_, 0);
-    lv_subject_init_int(&rot_270_active_, 0);
-    lv_subject_init_int(&flip_h_active_, 0);
-    lv_subject_init_int(&flip_v_active_, 0);
+    rot_0_active_.init_int(1);
+    rot_90_active_.init_int(0);
+    rot_180_active_.init_int(0);
+    rot_270_active_.init_int(0);
+    flip_h_active_.init_int(0);
+    flip_v_active_.init_int(0);
 
     subjects_.publish("cam_rot_0_active", &rot_0_active_);
     subjects_.publish("cam_rot_90_active", &rot_90_active_);
@@ -48,19 +49,17 @@ void CameraConfigModal::init_subjects() {
     subjects_.publish("cam_flip_h_active", &flip_h_active_);
     subjects_.publish("cam_flip_v_active", &flip_v_active_);
 
-    lv_subject_init_int(&source_count_, 0);
+    source_count_.init_int(0);
     subjects_.publish("cam_source_count", &source_count_);
     for (size_t i = 0; i < kMaxRows; ++i) {
         char key[40];
-        lv_subject_init_int(&source_active_[i], 0);
+        source_active_[i].init_int(0);
         std::snprintf(key, sizeof(key), "cam_source_%zu_active", i);
         subjects_.publish(key, &source_active_[i]);
-        lv_subject_init_string(&source_name_[i], source_name_buf_[i].data(), nullptr,
-                               kSourceTextLen, "");
+        source_name_[i].init_string(source_name_buf_[i].data(), nullptr, kSourceTextLen, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_name", i);
         subjects_.publish(key, &source_name_[i]);
-        lv_subject_init_string(&source_note_[i], source_note_buf_[i].data(), nullptr,
-                               kSourceTextLen, "");
+        source_note_[i].init_string(source_note_buf_[i].data(), nullptr, kSourceTextLen, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_note", i);
         subjects_.publish(key, &source_note_[i]);
     }

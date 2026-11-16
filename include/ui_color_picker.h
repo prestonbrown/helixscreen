@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "color_utils.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <cstdint>
@@ -115,7 +116,7 @@ class ColorPicker : public Modal {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char hex_buf_[16] = {0};
     char name_buf_[64] = {0};
     bool subjects_initialized_ = false;

@@ -17,6 +17,7 @@
 #include "chamber_air_modes.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -458,7 +459,7 @@ void FanControlOverlay::populate_fans() {
             auto speed = std::make_unique<AutoFanCard::SpeedText>();
             static unsigned next_card_id = 0;
             speed->name = "fan_status_card_" + std::to_string(next_card_id++) + "_speed";
-            lv_subject_init_string(&speed->subject, speed->buf, nullptr, sizeof(speed->buf), "");
+            speed->subject.init_string(speed->buf, nullptr, sizeof(speed->buf), "");
             speed->manager.publish(speed->name.c_str(), &speed->subject);
             set_auto_fan_speed_text(*speed, fan.speed_percent, fan.rpm);
 

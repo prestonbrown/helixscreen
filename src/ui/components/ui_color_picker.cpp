@@ -10,6 +10,7 @@
 
 #include "color_utils.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_translation.h"
 #include "theme_manager.h"
@@ -32,20 +33,20 @@ namespace {
 // does not parse. Process-wide rather than per-instance: only one picker is
 // visible at a time, and the XML names must outlive any individual ColorPicker
 // (the LED overlay holds a static one, the theme editor a unique_ptr).
-lv_subject_t s_palette_subject{};
-lv_subject_t s_custom_tab_subject{};
-lv_subject_t s_hex_invalid_subject{};
+helix::Subject s_palette_subject{};
+helix::Subject s_custom_tab_subject{};
+helix::Subject s_hex_invalid_subject{};
 bool s_view_subjects_ready = false;
 
 void ensure_view_subjects() {
     if (s_view_subjects_ready) {
         return;
     }
-    lv_subject_init_int(&s_palette_subject, static_cast<int>(ColorPicker::Palette::General));
+    s_palette_subject.init_int(static_cast<int>(ColorPicker::Palette::General));
     lv_xml_register_subject(nullptr, "color_picker_palette", &s_palette_subject);
-    lv_subject_init_int(&s_custom_tab_subject, 0);
+    s_custom_tab_subject.init_int(0);
     lv_xml_register_subject(nullptr, "color_picker_custom_tab", &s_custom_tab_subject);
-    lv_subject_init_int(&s_hex_invalid_subject, 0);
+    s_hex_invalid_subject.init_int(0);
     lv_xml_register_subject(nullptr, "color_picker_hex_invalid", &s_hex_invalid_subject);
     s_view_subjects_ready = true;
 
@@ -55,9 +56,9 @@ void ensure_view_subjects() {
             lv_xml_unregister_subject(nullptr, "color_picker_palette");
             lv_xml_unregister_subject(nullptr, "color_picker_custom_tab");
             lv_xml_unregister_subject(nullptr, "color_picker_hex_invalid");
-            lv_subject_deinit(&s_palette_subject);
-            lv_subject_deinit(&s_custom_tab_subject);
-            lv_subject_deinit(&s_hex_invalid_subject);
+            s_palette_subject.reset();
+            s_custom_tab_subject.reset();
+            s_hex_invalid_subject.reset();
             s_view_subjects_ready = false;
         }
     });
@@ -67,7 +68,7 @@ void set_hex_invalid(bool invalid) {
     lv_subject_set_int(&s_hex_invalid_subject, invalid ? 1 : 0);
 }
 
-lv_subject_t s_selected_swatch_subject{};
+helix::Subject s_selected_swatch_subject{};
 bool s_swatch_subjects_ready = false;
 helix::xml::IndexedSubjectPool s_general_colors{"general_swatch_color",
                                                 helix::xml::IndexedSubjectPool::Type::Color};
@@ -116,7 +117,7 @@ void ensure_swatch_grid_subjects() {
     if (s_swatch_subjects_ready) {
         return;
     }
-    lv_subject_init_int(&s_selected_swatch_subject, -1);
+    s_selected_swatch_subject.init_int(-1);
     lv_xml_register_subject(nullptr, "color_picker_selected_swatch", &s_selected_swatch_subject);
     fill_palette(s_general_colors, swatch_palette(ColorPicker::Palette::General));
     fill_palette(s_theme_colors, swatch_palette(ColorPicker::Palette::Theme));
@@ -129,7 +130,7 @@ void ensure_swatch_grid_subjects() {
         []() {
             if (s_swatch_subjects_ready) {
                 lv_xml_unregister_subject(nullptr, "color_picker_selected_swatch");
-                lv_subject_deinit(&s_selected_swatch_subject);
+                s_selected_swatch_subject.reset();
                 s_general_colors.reclaim();
                 s_theme_colors.reclaim();
                 s_swatch_subjects_ready = false;
@@ -320,7 +321,7 @@ void ColorPicker::init_subjects() {
     // Initialize string subjects with empty buffers (local binding only, not XML registered)
     name_buf_[0] = '\0';
 
-    lv_subject_init_string(&name_subject_, name_buf_, nullptr, sizeof(name_buf_), "");
+    name_subject_.init_string(name_buf_, nullptr, sizeof(name_buf_), "");
     subjects_.register_subject(&name_subject_);
 
     subjects_initialized_ = true;
