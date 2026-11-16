@@ -648,7 +648,7 @@ TEST_CASE("AD5X IFS set_tool_mapping emits IFS_MAP_TOOL", "[ams][ad5x_ifs]") {
     // The wire owns the table: no optimistic local write, so a firmware
     // refusal (a lane with no filament) leaves get_tool_mapping() reporting
     // what the printer actually has until an echo frame lands.
-    REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[2] == 3);
+    REQUIRE(backend.get_tool_mapping()[2] == 2);
 
     // The echo frame is what promotes the new mapping.
     backend.fire_status(make_ifs_frame(json{{"0", 1}, {"1", 2}, {"2", 4}, {"3", 4}}));
@@ -1146,6 +1146,18 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
 // ==========================================================================
 // 18. Action timeout safety net
 // ==========================================================================
+
+TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
+          "[ams][ad5x_ifs][clear_fault]") {
+    helix::test::StartedBackend<GcodeCapturingBackend> backend;
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
 
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS action timeout resets stuck operations",
                  "[ams][ad5x_ifs]") {

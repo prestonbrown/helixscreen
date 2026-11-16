@@ -10,7 +10,7 @@
 
 ---
 
-HelixScreen shows every temperature in degrees Celsius. There is no setting to switch the display to Fahrenheit.
+HelixScreen shows temperatures in degrees Celsius by default. To use Fahrenheit, open **Settings > Appearance** and set **Temperature Unit** to **Fahrenheit (°F)**. Every readout, keypad, graph axis and preset label switches at once, and the temperatures you type are read in the unit you picked. Your printer and its G-code stay in Celsius either way; only what you see and enter changes. The setup wizard's **Appearance & Region** step offers the same choice, and starts on Fahrenheit for a printer in a United States timezone.
 
 Temperatures appear in three places:
 
@@ -64,6 +64,12 @@ Above the graph, a row of **sensor chips** lets you choose which traces are visi
 - When you open the screen from a heater, that view starts with its own defaults, and your chip choices are remembered for that printer and that view the next time you open it.
 - Chips wrap across several lines when you have many sensors.
 - Every generic heater (`[heater_generic]`) other than your chamber heater gets its own chip with a target line, for example a filament dryer's heater.
+
+#### Driver, MCU and Host Temperatures
+
+Stepper drivers that report a temperature (TMC2240 drivers do), the printer's microcontrollers and the host computer each get a chip too, with a trace of their own. These traces are **off by default**. Tap one of the driver chips and every driver trace appears on every graph view. The MCU chips and the host chip work the same way for their own group. HelixScreen remembers your choice for each printer, so the graph opens the same way next time.
+
+Separately from the graph, HelixScreen watches every TMC stepper driver for overheating, whether or not the driver reports a temperature. When a driver passes its temperature pre-warning, a warning notice reads **Stepper driver {name} is overheating**. When it shuts down from heat, an error notice reads **Stepper driver {name} overheated and shut down**. Each notice appears once when the driver gets worse, and appears again if the driver cools and then overheats again.
 
 ### Graph Features
 

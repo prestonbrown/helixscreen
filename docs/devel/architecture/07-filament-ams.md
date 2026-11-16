@@ -59,6 +59,8 @@ flowchart TB
 | [`include/ams_backend_registry.h`](../../../include/ams_backend_registry.h) | `AmsBackendRegistry`: the backend list, consumption sinks, and the queries safe off the main thread |
 | [`include/ams_runout_grace.h`](../../../include/ams_runout_grace.h) | `RunoutGrace`: post-unload and per-slot windows during which an empty sensor is not a runout |
 | [`include/ams_remap.h`](../../../include/ams_remap.h) | `can_remap()` / `remap_is_persistent()`: the remap questions generic code asks |
+| [`include/target_tool_selection.h`](../../../include/target_tool_selection.h) | `TargetToolSelection`, `decide_target_tool_action()` and `ToolArrivalWait`: the tool a surface aims at |
+| [`include/ams_unit_shell.h`](../../../include/ams_unit_shell.h) / [`include/ui_unit_art.h`](../../../include/ui_unit_art.h) | `UnitShell` (a unit's tray shape and lookup) and the `<unit_art>` widget; see [`../UNIT_ART.md`](../UNIT_ART.md) |
 | [`include/tool_state.h`](../../../include/tool_state.h) | `ToolInfo` (topology, heaters, offsets; no spool), `SubjectLifetime` |
 | [`include/spoolman_manager.h`](../../../include/spoolman_manager.h) | `SpoolmanManager`: weight polling, circuit breaker, identity cache, lane filing - no AMS required |
 | [`include/ams_error.h`](../../../include/ams_error.h) | `AmsError`/`AmsResult`: the immediate refusal-or-accepted answer every backend op returns |
@@ -187,6 +189,16 @@ Every multi-filament overview is one or more chains `units -> hub -> buffer -> t
 ### A tool's spool is its lane's
 
 Which spool a tool holds is not stored anywhere for the tool. `AmsState::lane_feeding_tool()` (`src/printer/ams_state.cpp#lane_feeding_tool`) answers it: the backend lane the tool is wired to (`ToolInfo::backend_slot`), else the primary backend's first lane whose `mapped_tool` names the tool. Pressure-advance auto-apply, filament accounting's per-tool feed, PA tuning's result spool and the spool picker's "in use elsewhere" check all ask the lanes. Linking Moonraker's active spool to a tool writes the lane's link through the backend's own link path (firmware, macro variable or lane record).
+
+### Which tool a surface aims at
+
+On a multi-head printer a temperature or filament surface acts on one tool, and that tool is not always the mounted one. `helix::ui::TargetToolSelection` (`include/target_tool_selection.h#TargetToolSelection`) holds the answer, one instance per surface (the Filament panel and the Controls nozzle row each own one). A tool change anywhere moves every selection to the newly mounted tool through `on_active_tool_changed()`, an empty carriage (-1) keeps the user's pick, a pick with `pick()` sticks until the next tool change, and reopening a surface does not reset it. `current(tool_count)` clamps to the tools that exist and falls back to 0 when nothing was ever chosen.
+
+Aiming a surface never changes the mounted tool. The Pick up / Park button beside a tool selector comes from `decide_target_tool_action()`: Pick up when the aimed tool is not mounted, Park when it is mounted and the printer can park, nothing on a printer with one head. A step that must wait for the carriage (extruding after a pick up) runs through `ToolArrivalWait`, which fires once `ToolState` reports the tool on the carriage, or drops the step after `kToolArrivalTimeoutMs` or when a different tool settles instead. The Filament panel's mini graph charts the aimed tool, and the Controls nozzle row edits it (`src/ui/filament/target_tool_selection.cpp`, `src/ui/filament/ui_panel_filament.cpp#handle_target_tool_action`).
+
+### The overview draws units as art
+
+Where a unit has a drawing, the overview, the path screen, the dryer page and Device Operations draw it instead of a generic card. `unit_shell_for()` (`src/ui/filament/ams_unit_shell.cpp`) is the one lookup from backend and unit name to a drawing, so vendor names stay in that table and generic code asks only whether a shell exists. The `<unit_art>` widget (`src/ui/filament/ui_unit_art.cpp`) stacks baked layers and tints each filled lane from `SlotInfo`; a unit with art draws as a tile on the overview and a unit without it keeps the compact card. The live AMS detail tray draws the same unit's side profile around real spool widgets. The art kit, the baked layers, the generated shape table and how to add a unit are in [`../UNIT_ART.md`](../UNIT_ART.md).
 
 ### Lane identity by source: one record per observer, resolved on read
 

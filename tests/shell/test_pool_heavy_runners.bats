@@ -314,6 +314,8 @@ cached_ninja() {
     run "$POOL_DOCKER" docker run --rm -v /a:/b idf bash -c '. export.sh && idf.py -B b build'
     [ "$status" -eq 0 ]
     [ "$output" = "$(printf '%s\n' run --volume=/pool:/run/jobpool "--volume=$HELIX_NINJA_CACHE/ninja:/usr/bin/ninja:ro" \
+        "--volume=$REPO/scripts/container-make.sh:/usr/local/bin/helix-container-make:ro" \
+        -e MAKE=/usr/local/bin/helix-container-make \
         -e "MAKEFLAGS= -j --jobserver-auth=fifo:/run/jobpool/fifo" -e IDF_PY_BUILD_JOBS= \
         --rm -v /a:/b idf bash -c '. export.sh && idf.py -B b build' "ENV JOBPOOL_SLOTS=unset")" ]
     # Registered with the pool as a consumer, and no fixed hold.
@@ -322,6 +324,24 @@ cached_ninja() {
     # A bare ninja command line joins the same way.
     run "$POOL_DOCKER" docker run img ninja -C build
     contains "MAKEFLAGS= -j --jobserver-auth=fifo:/run/jobpool/fifo" "$output"
+}
+
+@test "container-make: the LTO link's make gets the pool FIFO as descriptors, or no jobserver" {
+    mkfifo "$BATS_TEST_TMPDIR/fifo"
+    printf '#!/bin/sh\necho "ARGS $* MAKEFLAGS=$MAKEFLAGS"\n[ -e /proc/self/fd/9 ] || [ -e /dev/fd/9 ] && echo fd9-open\n' \
+        > "$BATS_TEST_TMPDIR/realmake"
+    chmod +x "$BATS_TEST_TMPDIR/realmake"
+    export HELIX_CONTAINER_REAL_MAKE="$BATS_TEST_TMPDIR/realmake"
+    MAKEFLAGS=" -j --jobserver-auth=fifo:$BATS_TEST_TMPDIR/fifo" run "$REPO/scripts/container-make.sh" -f lto.mk all
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "ARGS -f lto.mk all MAKEFLAGS= -j --jobserver-auth=9,9" ]
+    [ "${lines[1]}" = "fd9-open" ]
+    # A FIFO the container cannot reach drops the jobserver rather than stopping make.
+    MAKEFLAGS=" -j --jobserver-auth=fifo:$BATS_TEST_TMPDIR/nowhere" run "$REPO/scripts/container-make.sh" all
+    [ "${lines[0]}" = "ARGS all MAKEFLAGS= -j " ]
+    # MAKEFLAGS without the fifo form passes through untouched.
+    MAKEFLAGS="-j4 --jobserver-auth=3,4" run "$REPO/scripts/container-make.sh" all
+    [ "${lines[0]}" = "ARGS all MAKEFLAGS=-j4 --jobserver-auth=3,4" ]
 }
 
 @test "pool-docker: idf.py with a ninja older than 1.13, or a pool that will not mount, holds slots" {
