@@ -33,6 +33,8 @@ LVGL_PATCHED_FILES := \
 	src/draw/lv_draw_private.h \
 	src/draw/sw/lv_draw_sw_letter.c \
 	include/lvgl/drivers/display/lv_linux_drm.h \
+	include/lvgl/drivers/display/lv_linux_fbdev.h \
+	src/drivers/display/fb/lv_linux_fbdev.c \
 	src/drivers/display/drm/lv_linux_drm.c \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
 	src/core/lv_refr.c \
@@ -601,6 +603,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_buf_oom_guard.patch "LVGL draw_buf OOM guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-evdev-protocol-a.patch "LVGL evdev Protocol-A touch release patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-vsync.patch "LVGL EGL vsync setter patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-vsync-runtime.patch "LVGL fbdev runtime vsync setter patch (#2111)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-partial-upload.patch "LVGL EGL partial upload patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-xrgb-shader.patch "LVGL EGL XRGB display shader patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-texture-align.patch "LVGL OpenGL ES texture buffer alignment patch"
