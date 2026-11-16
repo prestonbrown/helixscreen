@@ -38,12 +38,12 @@ WizardPreferencesStep* get_wizard_preferences_step() {
 void WizardPreferencesStep::init_subjects() {
     subjects_.deinit_all();
 
-    helix::ui::wizard::init_int_subject(subjects_, &show_global_, 0, "wizard_prefs_show_global");
-    helix::ui::wizard::init_int_subject(subjects_, &show_bypass_spool_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, show_global_, 0, "wizard_prefs_show_global");
+    helix::ui::wizard::init_int_subject(subjects_, show_bypass_spool_, 0,
                                         "wizard_prefs_show_bypass_spool");
-    helix::ui::wizard::init_int_subject(subjects_, &show_keep_spool_info_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, show_keep_spool_info_, 0,
                                         "wizard_prefs_show_keep_spool_info");
-    helix::ui::wizard::init_int_subject(subjects_, &show_sounds_, 0, "wizard_prefs_show_sounds");
+    helix::ui::wizard::init_int_subject(subjects_, show_sounds_, 0, "wizard_prefs_show_sounds");
     update_rows();
 }
 

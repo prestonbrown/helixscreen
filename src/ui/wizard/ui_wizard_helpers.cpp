@@ -158,10 +158,10 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
     return true;
 }
 
-void init_int_subject(SubjectManager& subjects, lv_subject_t* subject, int32_t initial_value,
+void init_int_subject(SubjectManager& subjects, helix::Subject& subject, int32_t initial_value,
                       const char* subject_name) {
-    lv_subject_init_int(subject, initial_value);
-    subjects.publish(subject_name, subject);
+    subject.init_int(initial_value);
+    subjects.publish(subject_name, subject.get());
 }
 
 } // namespace wizard

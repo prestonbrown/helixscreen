@@ -63,8 +63,8 @@ void WizardHeaterSelectStep::init_subjects() {
 
     // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    helix::ui::wizard::init_int_subject(subjects_, &bed_heater_selected_, 0, "bed_heater_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &hotend_heater_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, bed_heater_selected_, 0, "bed_heater_selected");
+    helix::ui::wizard::init_int_subject(subjects_, hotend_heater_selected_, 0,
                                         "hotend_heater_selected");
 
     subjects_initialized_ = true;

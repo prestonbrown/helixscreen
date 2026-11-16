@@ -71,14 +71,14 @@ void WizardFanSelectStep::init_subjects() {
 
     // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    helix::ui::wizard::init_int_subject(subjects_, &hotend_fan_selected_, 0, "hotend_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &part_fan_selected_, 0, "part_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &chamber_fan_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, hotend_fan_selected_, 0, "hotend_fan_selected");
+    helix::ui::wizard::init_int_subject(subjects_, part_fan_selected_, 0, "part_fan_selected");
+    helix::ui::wizard::init_int_subject(subjects_, chamber_fan_selected_, 0,
                                         "chamber_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &exhaust_fan_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, exhaust_fan_selected_, 0,
                                         "exhaust_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &duplicate_, 0, "fan_select_duplicate");
-    helix::ui::wizard::init_int_subject(subjects_, &optional_visible_, 1,
+    helix::ui::wizard::init_int_subject(subjects_, duplicate_, 0, "fan_select_duplicate");
+    helix::ui::wizard::init_int_subject(subjects_, optional_visible_, 1,
                                         "fan_select_optional_visible");
 
     subjects_initialized_ = true;

@@ -67,7 +67,7 @@ void WizardLedSelectStep::init_subjects() {
 
     // Initialize subject with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    helix::ui::wizard::init_int_subject(subjects_, &led_strip_selected_, 0, "led_strip_selected");
+    helix::ui::wizard::init_int_subject(subjects_, led_strip_selected_, 0, "led_strip_selected");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());

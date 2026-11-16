@@ -43,7 +43,7 @@ void WizardAppearanceStep::init_subjects() {
     const bool attention =
         timezone_needs_attention(DisplaySettingsManager::instance().get_timezone().empty(),
                                  helix::timezone_env::system_zone_known());
-    helix::ui::wizard::init_int_subject(subjects_, &tz_attention_, attention ? 1 : 0,
+    helix::ui::wizard::init_int_subject(subjects_, tz_attention_, attention ? 1 : 0,
                                         "wizard_appearance_tz_attention");
 }
 

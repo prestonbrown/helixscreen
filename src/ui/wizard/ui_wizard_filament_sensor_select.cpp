@@ -94,7 +94,7 @@ void WizardFilamentSensorSelectStep::init_subjects() {
 
     // Each visit re-initializes; drop the previous visit's subjects and names first.
     subjects_.deinit_all();
-    helix::ui::wizard::init_int_subject(subjects_, &runout_sensor_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, runout_sensor_selected_, 0,
                                         "runout_sensor_selected");
 
     subjects_initialized_ = true;
