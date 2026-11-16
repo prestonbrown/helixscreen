@@ -25,6 +25,7 @@
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
@@ -213,12 +214,9 @@ bool DisplayManager::init(const Config& config) {
         spdlog::error("[DisplayManager] No display backend available");
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "no display backend available");
-        // lv_deinit() first, then lv_xml_deinit() — the teardown order shutdown()
-        // documents. Nothing is registered yet on this path, so either order works
-        // today; keeping one order everywhere is what stops the shutdown ordering
-        // bug from being reintroduced by copying this block.
-        lv_deinit();
-        lv_xml_deinit();
+        // The one teardown order (teardown_lvgl()). Nothing is registered yet on
+        // this path; sharing the function is what keeps the order from drifting.
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -305,9 +303,7 @@ bool DisplayManager::init(const Config& config) {
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "all display backends exhausted");
         m_backend.reset();
-        // Same teardown order as above and as shutdown().
-        lv_deinit();
-        lv_xml_deinit();
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -383,13 +379,9 @@ bool DisplayManager::init(const Config& config) {
                                 suggestions, 30000);
 
             m_backend.reset();
-            // Order matters here, unlike the two paths above: ui_show_fatal_error()
-            // has just built and shown a widget tree. Freeing the component scopes
-            // first would free styles those widgets still point at, and lv_deinit()
-            // runs layout passes while tearing them down — the use-after-free
-            // shutdown() hit. Destroy the widgets first, then the scopes.
-            lv_deinit();
-            lv_xml_deinit();
+            // ui_show_fatal_error() has just built and shown a widget tree, which is
+            // what teardown_lvgl()'s order exists for.
+            helix::ui::teardown_lvgl();
             return false;
         }
 #else
@@ -599,34 +591,29 @@ void DisplayManager::shutdown() {
     lv_sdl_quit();
 #endif
 
-    // Deinitialize LVGL FIRST, then the helix-xml engine.
-    //
-    // A component scope owns the styles its instances use: component_scope_free()
-    // clears scope->style_ll, freeing every lv_style_t in it. Widgets keep raw
-    // pointers to those styles, so freeing the scopes while the widget tree is
-    // still standing leaves live objects pointing at reclaimed style memory —
-    // and lv_deinit()'s own teardown runs layouts as it goes, so a flex pass
-    // reads a freed style before the object is deleted (heap-use-after-free in
-    // get_prop_core, via lv_obj_get_style_flex_grow).
-    //
-    // The reverse order is safe: lv_deinit() only needs the widget tree and its
-    // own allocator, neither of which the XML engine owns, and lv_free() here is
-    // plain free() (LV_USE_STDLIB_MALLOC = clib), so releasing scopes afterwards
-    // needs nothing from LVGL. The <subject_expr> observers detached below are
-    // attached to app-owned subjects, not objects, so lv_deinit() leaves them
-    // alone for lv_xml_deinit() to remove — which is why theme_manager_deinit()
-    // must run after all of this (see Application::shutdown()).
-    if (lv_is_initialized()) {
-        lv_deinit();
-    }
-
-    // Frees component scopes, their styles, fonts and <subject_expr> observers.
-    lv_xml_deinit();
+    helix::ui::teardown_lvgl();
 
     m_width = 0;
     m_height = 0;
     m_initialized = false;
 }
+
+namespace helix::ui {
+void teardown_lvgl() {
+    // Every helix::Subject node belongs to the LVGL generation that ends here.
+    helix::subjects_note_lvgl_deinit();
+
+    // LVGL, then the XML engine. A component scope owns the styles its instances use
+    // (component_scope_free() frees every lv_style_t in it), and lv_deinit() runs layout
+    // passes while it deletes the widget tree, so freeing the scopes first would leave
+    // live widgets reading freed styles. lv_deinit() frees every subject node with its
+    // observers, so lv_xml_deinit() after it frees only the engine's own memory.
+    if (lv_is_initialized()) {
+        lv_deinit();
+    }
+    lv_xml_deinit();
+}
+} // namespace helix::ui
 
 void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
     if (!m_pointer) {

@@ -105,14 +105,14 @@ static bool g_subjects_initialized = false;
 
 // Namespace-scope Subjects get their node at app_globals_init_subjects(), which app_boot_ui()
 // runs before any UI that calls these getters.
-lv_subject_t& get_notification_subject() {
-    return *g_notification_subject.get();
+helix::Subject& get_notification_subject() {
+    return g_notification_subject;
 }
-lv_subject_t& get_home_edit_mode_subject() {
-    return *g_home_edit_mode_subject.get();
+helix::Subject& get_home_edit_mode_subject() {
+    return g_home_edit_mode_subject;
 }
-lv_subject_t& get_home_edit_page_deletable_subject() {
-    return *g_home_edit_page_deletable_subject.get();
+helix::Subject& get_home_edit_page_deletable_subject() {
+    return g_home_edit_page_deletable_subject;
 }
 // These subjects are plain statics with no SubjectManager death signal, so
 // observers get no lifetime, as for any subject panel_widget_manager can't name.
@@ -128,8 +128,8 @@ static helix::Subject g_wizard_active_subject;
 static helix::Subject g_detection_subjects[5];
 static void detection_bed_check_noop_cb(lv_event_t* /*e*/) {}
 static helix::Subject g_platform_tier_subject;
-lv_subject_t& get_wizard_active_subject() {
-    return *g_wizard_active_subject.get();
+helix::Subject& get_wizard_active_subject() {
+    return g_wizard_active_subject;
 }
 
 void app_globals_deinit_subjects();

@@ -62,6 +62,14 @@ struct SaverHost;
 }
 #endif
 
+/**
+ * The one LVGL teardown order: lv_deinit(), then the XML engine. Every path that ends LVGL
+ * goes through it, and helix::Subject learns here that its nodes are gone.
+ */
+namespace helix::ui {
+void teardown_lvgl();
+} // namespace helix::ui
+
 class DisplayManager : public helix::ICalibrationSink {
   public:
     /**
