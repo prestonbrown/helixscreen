@@ -323,7 +323,7 @@ TEST_CASE_METHOD(SwitchMenuFixture,
 
 TEST_CASE_METHOD(SwitchMenuFixture,
                  "Printer switch menu: a standard --layout override on a portrait screen keeps "
-                 "the half-screen cap beside the badge",
+                 "the half-screen cap clear of the badge",
                  "[context_menu][fit][printer_switch]") {
     ScopedResolution portrait(lv_display_get_default(), 480, 800);
     lv_obj_set_size(test_screen(), 480, 800);
@@ -335,12 +335,12 @@ TEST_CASE_METHOD(SwitchMenuFixture,
     lv_obj_t* card = show();
     CHECK(lv_obj_get_width(card) == 240);
 
-    // Beside: the card hangs off the badge's right edge rather than above it.
+    // The card goes around the badge and never covers it.
     lv_area_t c;
     lv_area_t b;
     lv_obj_get_coords(card, &c);
     lv_obj_get_coords(badge_, &b);
-    CHECK(c.x1 >= b.x2 - margin());
+    CHECK((c.y2 < b.y1 || c.y1 > b.y2 || c.x1 > b.x2 || c.x2 < b.x1));
 }
 
 TEST_CASE_METHOD(SwitchMenuFixture,

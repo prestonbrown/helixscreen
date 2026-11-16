@@ -66,7 +66,7 @@ class SpoolmanContextMenu : public ContextMenu {
      * @brief Show context menu near a spool row widget
      * @param parent Parent screen for the menu
      * @param spool Spool info for display and action context
-     * @param near_widget Widget to position menu near (typically spool row)
+     * @param near_widget The spool row, which the card goes around without covering
      * @param allow_archive Offer the Archive action. The panel passes false for
      *        the currently active spool — archiving it makes no sense while it
      *        feeds the printer.

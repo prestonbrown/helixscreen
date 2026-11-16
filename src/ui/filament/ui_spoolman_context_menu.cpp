@@ -97,7 +97,7 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
     // item_index = spool.id for action dispatch
-    return ContextMenu::show_near_widget(parent, spool.id, near_widget);
+    return show_around_widget(parent, spool.id, near_widget);
 }
 
 // ============================================================================

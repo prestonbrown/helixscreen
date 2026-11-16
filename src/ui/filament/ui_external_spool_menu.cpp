@@ -19,6 +19,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <optional>
+
 namespace helix::ui {
 
 namespace {
@@ -72,14 +74,16 @@ ExternalSpoolMenuHooks sidebar_external_spool_hooks(AmsOperationSidebar* sidebar
 
 void show_external_spool_menu(lv_obj_t* parent_screen, lv_obj_t* anchor_widget,
                               std::unique_ptr<AmsContextMenu>& context_menu,
-                              ExternalSpoolMenuHooks hooks) {
+                              ExternalSpoolMenuHooks hooks, bool at_tap) {
     if (!parent_screen || !anchor_widget) {
         return;
     }
 
-    lv_point_t click_pt = {0, 0};
-    if (auto* indev = lv_indev_active()) {
-        lv_indev_get_point(indev, &click_pt);
+    std::optional<lv_point_t> tap;
+    if (auto* indev = lv_indev_active(); indev && at_tap) {
+        lv_point_t point{};
+        lv_indev_get_point(indev, &point);
+        tap = point;
     }
 
     if (!context_menu) {
@@ -192,9 +196,8 @@ void show_external_spool_menu(lv_obj_t* parent_screen, lv_obj_t* anchor_widget,
         }
     });
 
-    context_menu->set_click_point(click_pt);
     context_menu->show_for_external_spool(parent_screen, anchor_widget,
-                                          /*offer_toggle=*/hooks_toggle != nullptr);
+                                          /*offer_toggle=*/hooks_toggle != nullptr, tap);
 }
 
 } // namespace helix::ui

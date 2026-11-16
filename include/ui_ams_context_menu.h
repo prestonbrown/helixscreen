@@ -46,7 +46,7 @@ namespace helix::ui {
  *         case MenuAction::SPOOLMAN: // show spoolman picker...
  *     }
  * });
- * menu.show_near_widget(parent, slot_index, slot_widget);
+ * menu.show_near_widget(parent, slot_index, slot_widget);  // around the slot
  * @endcode
  */
 class AmsContextMenu : public ContextMenu {
@@ -99,13 +99,18 @@ class AmsContextMenu : public ContextMenu {
      * @brief Show context menu near a slot widget
      * @param parent Parent screen for the menu
      * @param slot_index Slot this menu is for (0-based)
-     * @param near_widget Widget to position menu near (typically slot widget)
+     * @param near_widget The slot's own widget, which the card goes around
+     *        without covering; or, with @p tap, a canvas drawing many slots
      * @param is_loaded True if the slot is loaded/active (enables Unload, suppresses Load)
      * @param backend Optional backend the actions are gated on
+     * @param tap Display point of a tap on a canvas: the card hangs off it
+     *        (ContextMenu::AnchorMode::ClickPoint), since no widget stands for
+     *        the slot tapped
      * @return true if menu was shown successfully
      */
     bool show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t* near_widget,
-                          bool is_loaded = false, AmsBackend* backend = nullptr);
+                          bool is_loaded = false, AmsBackend* backend = nullptr,
+                          std::optional<lv_point_t> tap = std::nullopt);
 
     /**
      * @brief Show context menu for external spool (bypass/direct feed)
@@ -115,14 +120,17 @@ class AmsContextMenu : public ContextMenu {
      * lane ops do not apply and stay hidden.
      *
      * @param parent Parent screen for the menu
-     * @param anchor_widget Widget to position menu near (for click point)
+     * @param anchor_widget The spool's own widget, which the card goes around;
+     *        or, with @p tap, the canvas the spool is drawn on
      * @param offer_toggle Whether this surface can drive bypass. False hides the
      *        Enable/Disable Bypass entry — a visible entry the surface cannot
      *        act on would be a button that silently does nothing.
+     * @param tap Display point of a tap on a canvas, as for show_near_widget()
      * @return true if menu was shown successfully
      */
     bool show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_widget,
-                                 bool offer_toggle = true);
+                                 bool offer_toggle = true,
+                                 std::optional<lv_point_t> tap = std::nullopt);
 
     /**
      * @brief Get slot index the menu is currently shown for
@@ -155,6 +163,10 @@ class AmsContextMenu : public ContextMenu {
     void on_backdrop_clicked() override;
 
   private:
+    /// Around @p anchor, or hanging off @p tap when the anchor is a canvas.
+    bool show_anchored(lv_obj_t* parent, int item_index, lv_obj_t* anchor,
+                       std::optional<lv_point_t> tap);
+
     // === AMS-specific state ===
     ActionCallback action_callback_;
 
@@ -430,10 +442,11 @@ struct SlotMenuHost {
 };
 
 /// Wire @p menu's action callback to the shared slot actions (LOAD, UNLOAD, EDIT,
-/// SPOOLMAN, SCAN_QR plus the backend-only ones) and show it at @p near_widget.
-/// AmsPanel and AmsOverviewPanel both open slot menus through this.
+/// SPOOLMAN, SCAN_QR plus the backend-only ones) and show it at @p near_widget
+/// (AmsContextMenu::show_near_widget(): around a slot widget, or at @p tap on a
+/// canvas). AmsPanel and AmsOverviewPanel both open slot menus through this.
 void open_slot_context_menu(AmsContextMenu& menu, const SlotMenuHost& host, int slot_index,
-                            lv_obj_t* near_widget, lv_point_t click_pt);
+                            lv_obj_t* near_widget, std::optional<lv_point_t> tap = std::nullopt);
 
 /// Open the slot editor for @p slot_index and commit what the user saves.
 void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_index,

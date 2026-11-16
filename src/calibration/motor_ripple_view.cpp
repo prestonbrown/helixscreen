@@ -85,14 +85,17 @@ std::string ripple_reduction_summary(const SweepResult& result, bool factory_val
         if (!(before.first > 0.0f)) {
             continue;
         }
-        const int less = static_cast<int>(
-            std::lround(100.0f * (1.0f - std::min(after.first, before.first) / before.first)));
+        const int change =
+            static_cast<int>(std::lround(100.0f * (after.first / before.first - 1.0f)));
         if (!out.empty()) {
             out += '\n';
         }
-        out += fmt::format(fmt::runtime(lv_tr("{0}x ripple at {1:.0f} mm/s: {2:.0f} before, "
-                                              "{3:.0f} after ({4}% less)")),
-                           kHarmonics[k], before.second, before.first, after.first, less);
+        const char* fmt_str = change > 0 ? lv_tr("{0}x ripple at {1:.0f} mm/s: {2:.0f} before, "
+                                                 "{3:.0f} after ({4}% more)")
+                                         : lv_tr("{0}x ripple at {1:.0f} mm/s: {2:.0f} before, "
+                                                 "{3:.0f} after ({4}% less)");
+        out += fmt::format(fmt::runtime(fmt_str), kHarmonics[k], before.second, before.first,
+                           after.first, std::abs(change));
     }
     if (factory_values && !out.empty()) {
         out += '\n';

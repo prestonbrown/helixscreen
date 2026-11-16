@@ -4,6 +4,8 @@
 // The U1's per-head Auto loading: its Print Behavior rows and the FEED_AUTO
 // command a row sends (docs/devel/FILAMENT_BACKEND_SNAPMAKER_U1.md, Auto Loading).
 
+#if HELIX_HAS_SNAPMAKER
+
 #include "ams_backend_snapmaker.h"
 #include "ams_device_action_value.h"
 #include "json_utils.h"
@@ -73,3 +75,5 @@ void AmsBackendSnapmaker::update_feed_channels_locked(const nlohmann::json& stat
 }
 
 } // namespace helix
+
+#endif // HELIX_HAS_SNAPMAKER

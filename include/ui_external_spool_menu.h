@@ -59,8 +59,11 @@ struct ExternalSpoolMenuHooks {
 /// global API.
 void open_external_spool_editor(lv_obj_t* parent_screen, bool open_on_picker = false);
 
+/// Show the bypass spool's menu. @p anchor_widget is the spool's own widget,
+/// which the card goes around; with @p at_tap it is a canvas the spool is drawn
+/// on, and the card hangs off the tap that opened it instead.
 void show_external_spool_menu(lv_obj_t* parent_screen, lv_obj_t* anchor_widget,
                               std::unique_ptr<AmsContextMenu>& context_menu,
-                              ExternalSpoolMenuHooks hooks);
+                              ExternalSpoolMenuHooks hooks, bool at_tap = false);
 
 } // namespace helix::ui

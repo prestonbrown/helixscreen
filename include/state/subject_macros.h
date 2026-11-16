@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "lvgl/lvgl.h"
 #include "state/volatile_subjects.h"
@@ -65,7 +66,7 @@
 #define INIT_SUBJECT_INT(name, default_val, subjects, register_xml)                                \
     do {                                                                                           \
         const bool helix_reg_xml_ = (register_xml);                                                \
-        lv_subject_init_int(&name##_, (default_val));                                              \
+        helix::subject_init_int(name##_, (default_val));                                           \
         (subjects).register_subject(&name##_, helix_reg_xml_ ? #name : nullptr);                   \
         if (helix_reg_xml_) {                                                                      \
             helix::xml::register_subject_in_current_scope(#name, &name##_);                        \
@@ -100,8 +101,8 @@
 #define INIT_SUBJECT_STRING(name, default_val, subjects, register_xml)                             \
     do {                                                                                           \
         const bool helix_reg_xml_ = (register_xml);                                                \
-        lv_subject_init_string(&name##_, name##_buf_, nullptr, sizeof(name##_buf_),                \
-                               (default_val));                                                     \
+        helix::subject_init_string(name##_, name##_buf_, nullptr, sizeof(name##_buf_),             \
+                                   (default_val));                                                 \
         (subjects).register_subject(&name##_, helix_reg_xml_ ? #name : nullptr);                   \
         if (helix_reg_xml_) {                                                                      \
             helix::xml::register_subject_in_current_scope(#name, &name##_);                        \
