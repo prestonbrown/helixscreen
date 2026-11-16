@@ -2424,6 +2424,38 @@ void AmsBackendAd5xIfs::apply_zmod_change_macro(const json& status) {
     }
 }
 
+AmsError AmsBackendAd5xIfs::clear_fault(int /*slot_index*/) {
+    auto err = check_preconditions();
+    if (!err.success())
+        return err;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.action != AmsAction::ERROR) {
+            return AmsErrorHelper::success();
+        }
+        // The module reports its driver fault once, on the change into
+        // driver_error, so a retired mirror would never come back while the
+        // board stays faulted. Only IFS_RESET_DRIVER (recover()) clears it.
+        if (module_driver_fault_) {
+            return AmsErrorHelper::not_supported("Clearing a module driver fault");
+        }
+        system_info_.action = AmsAction::IDLE;
+        clear_runout_locked("clear_fault()");
+        if (phase_tracker_.active) {
+            end_phase_tracking_locked();
+        }
+        set_operation_detail_locked("");
+    }
+    emit_event(EVENT_STATE_CHANGED);
+    // The module firmware has no operation lock and no IFS_UNLOCK.
+    if (ifs_module_live_.load()) {
+        spdlog::info("{} Fault cleared: ERROR -> IDLE", backend_log_tag());
+        return AmsErrorHelper::success();
+    }
+    spdlog::info("{} Fault cleared: ERROR -> IDLE, IFS_UNLOCK", backend_log_tag());
+    return execute_gcode("IFS_UNLOCK");
+}
+
 AmsError AmsBackendAd5xIfs::cancel() {
     auto err = check_preconditions();
     if (!err.success())
@@ -4726,6 +4758,7 @@ bool AmsBackendAd5xIfs::apply_ifs_module_objects(const json& status) {
     if (!activity.empty()) {
         std::lock_guard<std::mutex> lock(mutex_);
         const AmsAction before = system_info_.action;
+        module_driver_fault_ = activity == "driver_error";
         if (activity == "loading") {
             if (!phase_tracker_.active && system_info_.action == AmsAction::IDLE) {
                 system_info_.action = AmsAction::LOADING;

@@ -532,6 +532,31 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
     bool reject = false;
 };
 
+TEST_CASE("CFS reports an unload after print only where the firmware does one",
+          "[ams][cfs][unload_after_print]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    auto frame =
+        [](const char* extra) {
+            return make_cfs_notification(json::parse(std::string(R"({"state":"connect","filament":0,
+            "auto_refill":0,"enable":1)") + extra + R"(,"map":{"T1A":"T1A"},
+            "T1":{"state":"connect","filament":"None","vender":["none"],"remain_len":["-1"],
+                  "color_value":["-1"],"material_type":["-1"]}})"));
+        };
+
+    SECTION("stock firmware states no option and always unloads") {
+        backend.fire_status(frame(""));
+        CHECK(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option off leaves the filament in") {
+        backend.fire_status(frame(R"(,"unload_after_print_enabled":false)"));
+        CHECK_FALSE(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option on unloads") {
+        backend.fire_status(frame(R"(,"unload_after_print_enabled":true)"));
+        CHECK(backend.auto_unloads_after_print());
+    }
+}
+
 TEST_CASE("CFS Endless Spool switch sends an explicit ENABLE", "[ams][cfs]") {
     // BOX_ENABLE_AUTO_REFILL is a setter, not a toggle: the handler reads
     // ENABLE via gcmd.get_int, and Creality's own master-server sends
@@ -4896,6 +4921,42 @@ TEST_CASE("CFS phase verify: a raised fault survives later status frames", "[ams
 
     CHECK(backend.get_system_info().action == AmsAction::ERROR);
     CHECK(backend.current_error().has_value());
+}
+
+TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it",
+          "[ams][cfs][clear_fault]") {
+    // The same backend state sends CANCEL_PRINT through cancel(), so a
+    // clear_fault() that fell back to it would be caught here.
+    helix::test::StartedBackend<CfsRemapHelper> canceller;
+    REQUIRE(canceller.cancel().success());
+    REQUIRE(canceller.captured == std::vector<std::string>{"CANCEL_PRINT"});
+
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs][clear_fault]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, true, false);
+    CfsTestAccess::complete_action(backend);
+    REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+    REQUIRE(backend.current_error().has_value());
+    backend.captured.clear();
+
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK_FALSE(backend.current_error().has_value());
+    CHECK(backend.captured.empty());
+
+    // The cleared verdict does not come back on the next status frame.
+    backend.fire_status(
+        {{"params", nlohmann::json::array({{{"filament_switch_sensor filament_sensor",
+                                             {{"filament_detected", false}}}}})}});
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK_FALSE(backend.current_error().has_value());
 }
 
 TEST_CASE("CFS phase verify: starting a new operation clears the fault", "[ams][cfs][968]") {

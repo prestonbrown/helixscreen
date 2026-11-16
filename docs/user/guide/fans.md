@@ -73,6 +73,10 @@ The first time HelixScreen sees the Top Cover fitted, it tells you "Top Cover de
 | **Exhaust fan speed** | 10 to 100% |
 | **Recirculation fan speed** | 10 to 100% |
 
+#### Resuming With a Hot Chamber (Snapmaker U1)
+
+While **Exhaust** is holding the chamber under its limit and the chamber sensor reads above the printer's own alarm temperature, tapping **Resume** on a paused print first asks **Chamber too hot**: "The chamber temperature is too high. This may cause extruder clogging. Continue printing?" Tap **Resume** to carry on, or dismiss the dialog to leave the print paused. The question does not appear in the other modes, or when the printer reports no chamber reading or no alarm temperature.
+
 ---
 
 ## The Fans Settings Screen

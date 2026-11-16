@@ -193,7 +193,7 @@ TEST_CASE_METHOD(KlipperRestartFixture,
 
     backend.on_klipper_restarted();
 
-    CHECK(helix::Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(helix::Ad5xIfsTestAccess::phase_active(backend));
 }
 

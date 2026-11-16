@@ -1614,6 +1614,22 @@ firmware's speeds through the mock's own `SET_FAN_SPEED`.
 
 Confirm what you got from the log line: `[MoonrakerManager] Creating MOCK client (<printer>, <n>x speed)`.
 
+### `HELIX_MOCK_PA_FAIL`
+
+Make the mock's `FLOW_CALIBRATE` run (the Snapmaker U1 pressure advance calibration) refuse instead of converging. The refusal path is otherwise unreachable in mock mode, and it is one of the states the calibration panel shows most visibly.
+
+| Property | Value |
+|----------|-------|
+| **Values** | any truthy flag value (`1`) |
+| **Default** | unset: the run probes five candidate K values and settles on 0.0412 |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
+
+After about 1.2 s the mock answers with the firmware's runout line (`!! [flow_calibrate] not edit filament info!`) and the run ends.
+
+```bash
+HELIX_MOCK_PA_FAIL=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_PROBE_TYPE`
 
 Choose which Z-probe the mock printer advertises. Controls both the Klipper object added to the mock object list and the probe status payload in the initial state dispatch.

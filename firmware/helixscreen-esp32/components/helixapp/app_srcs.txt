@@ -968,6 +968,7 @@ src/calibration/resonance_console.cpp
 src/calibration/shaper_csv_parser.cpp
 # The motor ripple sweep pieces the print-start check, discovery and the
 # capability rule read: bands, the saved result, the capability and texts.
+src/calibration/hann_windowed_signal.cpp
 src/calibration/motor_ripple_analysis.cpp
 src/calibration/motor_ripple_store.cpp
 src/calibration/motor_ripple_view.cpp

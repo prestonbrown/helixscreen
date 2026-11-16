@@ -91,6 +91,7 @@ These are the steps in the order they appear. Each one is shown only when its co
 |------------------------|-----------------|
 | **Printer Setup: Touch Calibration** | Your touchscreen needs calibrating (usually a resistive screen) and has not been calibrated yet. See the [Touch Calibration guide](touch-calibration.md). |
 | **Printer Setup: Language** | No language other than English has been chosen on this screen yet. |
+| **Appearance & Region** | The first printer only, right after Language. Sets the timezone, time format, date format, theme, dark mode, speed and flow units and temperature unit. Rows left alone follow your language and timezone, and you can change all of them later in Settings. |
 | **Printer Setup: Network** | Always on the first printer, except in the Android app. |
 | **Printer Setup: Connection** | Always. |
 | **Printer Setup: Identity** | Your printer has no ready-made profile (see [Preset Setup](#preset-setup)). |
@@ -182,7 +183,7 @@ This step offers a few on/off choices: opening the slot editor when you load a n
 1. **Show Printer Switcher**: adds a printer button to the navigation bar.
 2. **+ Add Printer**: runs the setup wizard for another printer.
 
-One screen can control several printers. Open **Settings > Connection > Printers** and tap **+ Add Printer**. The wizard runs again for the new printer, without the Network and Language steps, which belong to the screen and are already set.
+One screen can control several printers. Open **Settings > Connection > Printers** and tap **+ Add Printer**. The wizard runs again for the new printer, without the Network, Language and Appearance & Region steps, which belong to the screen and are already set.
 
 On the first step of an added printer the button reads **Cancel** instead of **Back**. Tapping it drops the new printer and takes you back to the one you were using.
 
@@ -228,6 +229,12 @@ For Klipper macros, the four worth remembering are **hold `f` for `_`**, **hold 
 While you hold a key, its characters pop up above it. Slide onto one and lift to type it, or lift where you are to type the first one. To cancel, slide well away from the key before you lift.
 
 On the comma and period keys, the character you pick becomes the new first choice. Hold `,`, slide to `<`, and from then on a plain hold of `,` types `<`, with the key's corner mark updated to match. This lasts until HelixScreen restarts.
+
+### Cut, Copy and Paste
+
+Hold your finger on a text field to open a small menu with **Cut**, **Copy** and **Paste**. Copy and Cut act on the whole field, and Cut also empties it. Paste inserts the copied text at the cursor. A row appears only when it applies: Cut and Copy need some text in the field, and Paste needs something copied. Pasting into a one-line field turns line breaks into spaces.
+
+Fields that hold a password or an API key show no menu, even after you tap the eye icon to reveal them. HelixScreen keeps the copied text in memory only, up to 4 KB, and forgets it when it restarts. In the desktop app and on Android, the copied text is shared with the operating system's clipboard as well.
 
 ---
 
