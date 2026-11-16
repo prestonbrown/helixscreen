@@ -1338,6 +1338,24 @@ AmsError AmsSubscriptionBackend::dispatch_payload(
     return AmsErrorHelper::success();
 }
 
+AmsError AmsSubscriptionBackend::clear_fault(int /*slot_index*/) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.action != AmsAction::ERROR) {
+            return AmsErrorHelper::success();
+        }
+        if (!fault_is_own_locked()) {
+            return AmsErrorHelper::not_supported("Clearing a fault the firmware reports");
+        }
+        system_info_.action = AmsAction::IDLE;
+        system_info_.operation_detail.clear();
+        on_fault_cleared_locked();
+    }
+    spdlog::info("{} Fault cleared: ERROR -> IDLE", backend_log_tag());
+    emit_event(EVENT_STATE_CHANGED);
+    return AmsErrorHelper::success();
+}
+
 AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
     if (!api_) {
         return AmsErrorHelper::not_connected("IMoonrakerAPI not available");
