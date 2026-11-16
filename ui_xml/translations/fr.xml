@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." fr="Une impression est en cours. Appliquez le résultat quand elle sera terminée."/>
   <translation tag="A print started" fr="Une impression a démarré"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." fr="Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l&apos;imprimante maintenant avec l&apos;arrêt d&apos;urgence."/>
+  <translation tag="A print started, so the calibration did not start." fr="Une impression a démarré, la calibration n&apos;a donc pas été lancée."/>
   <translation tag="A print took the printer." fr="Une impression a pris l&apos;imprimante."/>
   <translation tag="A restart is already in progress" fr="Un redémarrage est déjà en cours"/>
   <translation tag="A right, B left" fr="A droite, B gauche"/>
@@ -3991,7 +3992,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." fr="Le plateau et la buse chauffent ensemble avant tout mouvement, pour que l&apos;impression adhère de nouveau et que la buse s&apos;en détache."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." fr="Le plateau a refroidi. Retirez les bobines du plateau, puis confirmez."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." fr="Le chauffage du plateau. Réglez sa température et suivez son graphique sur l&apos;écran de température du plateau."/>
-  <translation tag="The bed is clear and the toolhead can move freely" fr="Le plateau est dégagé et la tête d&apos;outil peut se déplacer librement"/>
   <translation tag="The bed is too small for settling laps." fr="Le plateau est trop petit pour les tours de mise en place."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." fr="Le plateau est trop petit pour la tour de test, ou sa taille est inconnue."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." fr="Le plateau s&apos;éteint. Les bobines restent signalées sur le plateau jusqu&apos;à ce que vous confirmiez les avoir retirées."/>
@@ -4035,6 +4035,7 @@
   <translation tag="The heater was turned off at the heater." fr="Le chauffage a été éteint sur l&apos;appareil lui-même."/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." fr="La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." fr="Le verrou s&apos;ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" fr="Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention"/>
   <translation tag="The linked spool says {}." fr="La bobine liée indique {}."/>

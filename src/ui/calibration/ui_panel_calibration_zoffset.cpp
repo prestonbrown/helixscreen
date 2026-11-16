@@ -12,6 +12,7 @@
 #include "ui_z_offset_indicator.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -505,6 +506,10 @@ static std::string per_head_refusal() {
 }
 
 void ZOffsetCalibrationPanel::start_calibration() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
+}
+
+void ZOffsetCalibrationPanel::start_once_bed_clear() {
     if (!api_) {
         spdlog::error("[ZOffsetCal] No IMoonrakerAPI");
         on_calibration_result(false, lv_tr("No printer connection"));

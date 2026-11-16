@@ -50,6 +50,8 @@ class MotorRipplePanel : public OverlayBase {
     void on_ui_destroyed() override;
 
     void start_clicked();
+    /// Start, once the bed is known clear.
+    void begin_preparing();
     void again_clicked();
     void motor_clicked(int motor);
 
@@ -70,7 +72,6 @@ class MotorRipplePanel : public OverlayBase {
 
     SubjectManager subjects_;
     helix::Subject view_{};
-    helix::Subject bed_clear_{};
     helix::Subject compare_{};
     helix::Subject motor_{};
     helix::Subject has_y_{};

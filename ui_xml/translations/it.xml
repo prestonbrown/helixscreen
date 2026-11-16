@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." it="È in corso una stampa. Applica il risultato quando finisce."/>
   <translation tag="A print started" it="È iniziata una stampa"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." it="È partita una stampa mentre le bobine risultano sul piano. Se sono ancora lì, ferma subito la stampante con l&apos;arresto emergenza."/>
+  <translation tag="A print started, so the calibration did not start." it="È partita una stampa, quindi la calibrazione non è stata avviata."/>
   <translation tag="A print took the printer." it="Una stampa ha preso la stampante."/>
   <translation tag="A restart is already in progress" it="Un riavvio è già in corso"/>
   <translation tag="A right, B left" it="A destra, B sinistra"/>
@@ -3991,7 +3992,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." it="Piano e ugello si riscaldano insieme prima di qualsiasi movimento, così la stampa torna ad aderire e l&apos;ugello si stacca."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." it="Il piano si è raffreddato. Togli le bobine dal piano, poi conferma."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." it="Il riscaldatore del piano. Imposta la temperatura e guarda il grafico nella schermata della temperatura del piano."/>
-  <translation tag="The bed is clear and the toolhead can move freely" it="Il piano è libero e la testina può muoversi liberamente"/>
   <translation tag="The bed is too small for settling laps." it="Il piano è troppo piccolo per i giri di assestamento."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." it="Il piano è troppo piccolo per la torre di prova, oppure la sua dimensione è sconosciuta."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." it="Il piano si spegne. Le bobine restano registrate sul piano finché non confermi di averle tolte."/>
@@ -4035,6 +4035,7 @@
   <translation tag="The heater was turned off at the heater." it="Il riscaldatore è stato spento dal riscaldatore stesso."/>
   <translation tag="The heater will cycle on and off several times." it="Il riscaldatore si accenderà e spegnerà diverse volte."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." it="Le macro di ausilio sono installate e si attivano dopo il riavvio di Klipper."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." it="L&apos;ultima stampa potrebbe essere ancora sul piano. Toglila prima che la testina si muova, poi tocca Liberato."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." it="Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" it="Il lettore RFID sinistro di questa unità CFS potrebbe richiedere assistenza"/>
   <translation tag="The linked spool says {}." it="La bobina collegata indica {}."/>

@@ -166,6 +166,8 @@ class ScrewsTiltPanel : public OverlayBase {
 
     // Command helpers
     void start_probing();
+    /// start_probing() once the bed is known clear.
+    void probe_once_bed_clear();
     void start_screws_tilt_command();
     void cancel_probing();
 

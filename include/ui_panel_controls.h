@@ -372,7 +372,11 @@ class ControlsPanel : public PanelBase {
   public:
     // === Leveling Commands (shared with MotionPanel) ===
     void handle_qgl();
+    /// handle_qgl() once the bed is known clear.
+    void run_qgl();
     void handle_z_tilt();
+    /// handle_z_tilt() once the bed is known clear.
+    void run_z_tilt();
 
   private:
     //

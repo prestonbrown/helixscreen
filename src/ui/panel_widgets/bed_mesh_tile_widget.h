@@ -41,6 +41,8 @@ class BedMeshTileWidget : public PanelWidget {
     /// profile. Does nothing unless the Calibrate button is on screen and no job holds
     /// the machine.
     void calibrate();
+    /// calibrate() once the bed is known clear.
+    void calibrate_once_bed_clear();
     /// A calibration was sent and neither finished, failed nor produced a new mesh yet.
     [[nodiscard]] bool calibrating() const {
         return calibrating_;

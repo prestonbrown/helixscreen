@@ -234,6 +234,7 @@ translations:
   A print is running. Apply the result after it ends.: Идёт печать. Примените результат после её завершения.
   A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
+  A print started, so the calibration did not start.: "Началась печать, поэтому калибровка не запущена."
   A print took the printer.: "Печать заняла принтер."
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"
@@ -4390,7 +4391,6 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "Стол и сопло нагреваются вместе до любого движения, чтобы печать снова прилипла, а сопло отделилось от неё."
   The bed has cooled. Take the spools off the plate, then confirm.: Стол остыл. Снимите катушки со стола, затем подтвердите.
 
-  The bed is clear and the toolhead can move freely: 'Стол свободен, и печатающая головка может свободно двигаться'
   The bed is too small for settling laps.: 'Стол слишком мал для кругов приработки.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Нагреватель стола. Температура задается, а график виден на экране температуры стола.'
   The bed is too small for the test tower, or its size is unknown.: Стол слишком мал для тестовой башни, или его размер неизвестен.
@@ -4441,6 +4441,7 @@ translations:
   The heater will cycle on and off several times.: Нагреватель будет несколько раз
     включаться и выключаться.
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
   'The linked spool says {}.': 'Привязанная катушка указывает: {}.'

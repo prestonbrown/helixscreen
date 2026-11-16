@@ -178,6 +178,7 @@
   <translation tag="A print is running. Apply the result after it ends." es="Hay una impresión en curso. Aplica el resultado cuando termine."/>
   <translation tag="A print started" es="Se inició una impresión"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." es="Se inició una impresión con bobinas marcadas como en la cama. Si siguen ahí, detén la impresora ahora con la Parada de Emergencia."/>
+  <translation tag="A print started, so the calibration did not start." es="Se inició una impresión, así que la calibración no se inició."/>
   <translation tag="A print took the printer." es="Una impresión ha tomado la impresora."/>
   <translation tag="A restart is already in progress" es="Ya hay un reinicio en curso"/>
   <translation tag="A right, B left" es="A derecha, B izquierda"/>
@@ -3991,7 +3992,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." es="La cama y la boquilla se calientan juntas antes de que nada se mueva, para que la impresión vuelva a adherirse y la boquilla se suelte de ella."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." es="La cama se ha enfriado. Quita las bobinas de la cama y luego confirma."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." es="El calentador de la cama. Ajusta su temperatura y mira su gráfica en la pantalla de temperatura de la cama."/>
-  <translation tag="The bed is clear and the toolhead can move freely" es="La cama está despejada y el cabezal puede moverse libremente"/>
   <translation tag="The bed is too small for settling laps." es="La cama es demasiado pequeña para las vueltas de asentamiento."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." es="La cama es demasiado pequeña para la torre de prueba o se desconoce su tamaño."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." es="La cama se apaga. Las bobinas siguen registradas en la cama hasta que confirmes que las has quitado."/>
@@ -4035,6 +4035,7 @@
   <translation tag="The heater was turned off at the heater." es="El calentador se apagó desde el propio calentador."/>
   <translation tag="The heater will cycle on and off several times." es="El calentador se encenderá y apagará varias veces."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." es="Las macros de ayuda están instaladas y se activan tras reiniciar Klipper."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." es="Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." es="El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base."/>
   <translation tag="The left RFID reader in this CFS unit may need service" es="Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio"/>
   <translation tag="The linked spool says {}." es="La bobina vinculada indica {}."/>

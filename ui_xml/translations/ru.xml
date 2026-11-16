@@ -214,6 +214,7 @@
   <translation tag="A print is running. Apply the result after it ends." ru="Идёт печать. Примените результат после её завершения."/>
   <translation tag="A print started" ru="Началась печать"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." ru="Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."/>
+  <translation tag="A print started, so the calibration did not start." ru="Началась печать, поэтому калибровка не запущена."/>
   <translation tag="A print took the printer." ru="Печать заняла принтер."/>
   <translation tag="A restart is already in progress" ru="Перезапуск уже выполняется"/>
   <translation tag="A right, B left" ru="A справа, B слева"/>
@@ -4054,7 +4055,6 @@
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." ru="Стол и сопло нагреваются вместе до любого движения, чтобы печать снова прилипла, а сопло отделилось от неё."/>
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." ru="Стол остыл. Снимите катушки со стола, затем подтвердите."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." ru="Нагреватель стола. Температура задается, а график виден на экране температуры стола."/>
-  <translation tag="The bed is clear and the toolhead can move freely" ru="Стол свободен, и печатающая головка может свободно двигаться"/>
   <translation tag="The bed is too small for settling laps." ru="Стол слишком мал для кругов приработки."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." ru="Стол слишком мал для тестовой башни, или его размер неизвестен."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." ru="Стол выключится. Катушки считаются лежащими на столе, пока вы не подтвердите, что сняли их."/>
@@ -4098,6 +4098,7 @@
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
+  <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ru="Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The linked spool says {}." ru="Привязанная катушка указывает: {}."/>
