@@ -176,22 +176,28 @@ const char* part_too_tall_text() {
 namespace {
 
 /// "Is the bed clear?" with @p message; Cleared marks the bed cleared, then runs @p then.
-/// Cancel and a dismissal both run @p declined.
+/// Cancel and a dismissal both run @p declined. @p owner gates only @p then and
+/// @p declined: the user's answer about the bed holds even if the asking screen closed.
 void ask_bed_cleared(const char* message, std::function<void()> then,
                      std::optional<LifetimeToken> owner, std::function<void()> declined = {}) {
+    const auto owner_alive = [owner]() { return !owner || !owner->expired(); };
     ui::ConfirmOptions opts;
-    opts.owner_token = std::move(owner);
     if (declined) {
-        opts.on_cancel = declined;
-        opts.on_dismiss = declined;
+        auto on_declined = [owner_alive, declined]() {
+            if (owner_alive()) {
+                declined();
+            }
+        };
+        opts.on_cancel = on_declined;
+        opts.on_dismiss = on_declined;
     }
     ui::modal_confirm(
         lv_tr("Is the bed clear?"), message, ModalSeverity::Warning, lv_tr("Cleared"),
-        [then = std::move(then)]() {
+        [then = std::move(then), owner_alive]() {
             if (BedOccupancyState* state = get_bed_occupancy_state()) {
                 state->mark_cleared();
             }
-            if (then) {
+            if (then && owner_alive()) {
                 then();
             }
         },

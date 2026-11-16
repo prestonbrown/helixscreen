@@ -211,6 +211,13 @@ void MotorRipplePanel::begin_preparing() {
     if (!api || run_active()) {
         return;
     }
+    // A print can start from another client while the bed question is up.
+    if (lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+        fail(lv_tr("The printer is busy. Run the check when no print or other motion is in "
+                   "progress."));
+        return;
+    }
     set_text(progress_text_, lv_tr("Getting ready..."));
     lv_subject_set_int(&progress_, 0);
     set_view(View::Running);

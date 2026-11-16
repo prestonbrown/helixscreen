@@ -13,6 +13,7 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
@@ -430,6 +431,10 @@ ConfirmOptions PaTuningOverlay::owned_confirm() {
 }
 
 void PaTuningOverlay::confirm_and_start() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_once_bed_clear(); });
+}
+
+void PaTuningOverlay::confirm_once_bed_clear() {
     if (stage_ != SETUP) {
         return;
     }

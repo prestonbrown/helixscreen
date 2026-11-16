@@ -183,6 +183,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // Strategy-aware gcode command helpers
     void start_calibration();
+    /// start_calibration() once the bed is known clear.
+    void start_once_bed_clear();
     /// Warm-up or probing: the start once every check has passed.
     void begin_calibration();
     /// Ask before calibrating with a tool other than the probe's reference tool.

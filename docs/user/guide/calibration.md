@@ -4,7 +4,7 @@ HelixScreen provides built-in tools for the most common Klipper calibration task
 
 > **Looking for touchscreen calibration?** See the [Touch Calibration Guide](touch-calibration.md).
 
-Every calibration here that moves the toolhead (Bed Mesh, Screws Tilt, Input Shaper, Belt Tension, Tool Offsets, Vertical Artifact Compensation and Check, and the home step of Cold Pull) first checks whether your last print may still be on the bed. If it may, HelixScreen asks **Is the bed clear?** before anything moves. Remove the print and tap **Cleared**, which also tells the home screen the bed is clear. When the bed is already known clear, the calibration starts straight away.
+Every calibration here that moves the toolhead (Bed Mesh, Screws Tilt, Z Offset, Probe Accuracy, Quad Gantry Level and Z-Tilt, Pressure Advance, Input Shaper, Belt Tension, Tool and Nozzle Offsets, Vertical Artifact Compensation and Check, and Cold Pull) first checks whether your last print may still be on the bed. If it may, HelixScreen asks **Is the bed clear?** before anything moves. Remove the print and tap **Cleared**, which also tells the home screen the bed is clear. When the bed is already known clear, the calibration starts straight away.
 
 ---
 

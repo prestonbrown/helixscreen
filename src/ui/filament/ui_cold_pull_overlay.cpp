@@ -38,6 +38,13 @@ ColdPullOverlay& get_cold_pull_overlay() {
     return lazy_global<ColdPullOverlay>("ColdPullOverlay");
 }
 
+void ColdPullOverlay::start_clicked() {
+    // Start parks a homed printer straight away.
+    ensure_bed_clear_then(lifetime_.token(), []() {
+        with_runner([](ColdPullRunner& r) { (void)r.start_from_setup(); });
+    });
+}
+
 void ColdPullOverlay::home_and_park_clicked() {
     ensure_bed_clear_then(lifetime_.token(),
                           []() { with_runner([](ColdPullRunner& r) { r.home_and_park(); }); });
@@ -64,8 +71,7 @@ void ColdPullOverlay::register_callbacks() {
              const int d = user_int(e);
              with_runner([d](ColdPullRunner& r) { r.adjust_pull(d); });
          }},
-        {"on_cold_pull_start",
-         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { (void)r.start_from_setup(); }); }},
+        {"on_cold_pull_start", [](lv_event_t*) { get_cold_pull_overlay().start_clicked(); }},
         {"on_cold_pull_home_park",
          [](lv_event_t*) { get_cold_pull_overlay().home_and_park_clicked(); }},
         {"on_cold_pull_continue",

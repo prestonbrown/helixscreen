@@ -122,10 +122,12 @@ TEST_CASE_METHOD(PlateContextFixture,
     CHECK(declines == 1);
     CHECK_FALSE(occupancy_.current().occupied);
 
-    // A screen closed while the question is up starts nothing.
+    // A screen closed while the question is up starts nothing, but the answer still
+    // clears the bed.
     put_part(true, std::nullopt);
     ensure_bed_clear_then(owner.token(), start);
     owner.invalidate();
     answer("btn_primary");
     CHECK(starts == 2);
+    CHECK_FALSE(occupancy_.current().occupied);
 }

@@ -11,6 +11,7 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -527,6 +528,10 @@ void ProbeOverlay::load_type_panel() {
 // ============================================================================
 
 void ProbeOverlay::handle_probe_accuracy() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { run_probe_accuracy(); });
+}
+
+void ProbeOverlay::run_probe_accuracy() {
     spdlog::debug("[Probe] Probe accuracy test requested");
 
     if (!api_) {

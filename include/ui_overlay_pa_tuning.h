@@ -176,6 +176,8 @@ class PaTuningOverlay : public OverlayBase {
     void set_kind(helix::pa::ExtruderKind kind);
     void adjust_ramp_k(bool start, int direction);
     void confirm_and_start();
+    /// confirm_and_start() once the bed is known clear.
+    void confirm_once_bed_clear();
     /// Confirm-dialog options whose callbacks die with this object.
     ConfirmOptions owned_confirm();
     void begin_upload();

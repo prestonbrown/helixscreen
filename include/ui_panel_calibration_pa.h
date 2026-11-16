@@ -210,6 +210,8 @@ class PACalibrationPanel : public OverlayBase {
 
     // --- run control ---
     void confirm_and_start();
+    /// confirm_and_start() once the bed is known clear.
+    void confirm_once_bed_clear();
     void begin_run();
     void begin_measure();
     void stop_run(bool user_requested);
