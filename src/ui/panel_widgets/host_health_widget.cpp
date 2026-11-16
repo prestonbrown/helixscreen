@@ -13,6 +13,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
@@ -47,23 +48,23 @@ constexpr const char* kDotSep = " \xc2\xb7 ";
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_mcu_row_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_mcu_rows_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cause_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cpu_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_temp_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_throttle_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_disk_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_load_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_glance_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cpu_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_temp_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_mem_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_detail_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_mcu_row_subject{};
+HELIX_PSRAM_BSS helix::Subject s_mcu_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cause_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cpu_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_temp_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_throttle_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_disk_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_load_subject{};
+HELIX_PSRAM_BSS helix::Subject s_glance_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cpu_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_temp_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_mem_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_detail_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_text_subject{};
 HELIX_PSRAM_BSS char s_glance_text_buf[16];
 HELIX_PSRAM_BSS char s_cpu_text_buf[16];
 HELIX_PSRAM_BSS char s_temp_text_buf[24];

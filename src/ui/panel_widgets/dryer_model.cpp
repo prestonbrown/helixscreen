@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "bed_drying_controller.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix_psram_attr.h"
 #include "printer_state.h"
@@ -22,8 +23,8 @@
 namespace helix::dryer_model {
 namespace {
 
-HELIX_PSRAM_BSS lv_subject_t s_available_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_version_subject{};
+HELIX_PSRAM_BSS helix::Subject s_available_subject{};
+HELIX_PSRAM_BSS helix::Subject s_version_subject{};
 helix::WidgetSubjects s_subjects{"DryerModelSubjects"};
 
 DryerSummary s_summary;

@@ -7,6 +7,7 @@
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 
+#include "core/subject.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
 
 #include <spdlog/spdlog.h>
@@ -45,7 +46,7 @@ FullPageHost::FullPageHost(TileSizing& sizing, std::string function,
     : function_(std::move(function)), content_(std::move(content)), embed_(std::move(embed)) {
     // Published before the manager parses the tile's component, which drops a
     // binding whose subject is missing at parse time.
-    lv_subject_init_int(&full_page_subject_, 0);
+    full_page_subject_.init_int(0);
     sizing.publish_instance_subject(subjects_, &full_page_subject_, "full_page_subject",
                                     "full_page");
     live_hosts().push_back(this);

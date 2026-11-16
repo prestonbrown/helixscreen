@@ -6,6 +6,7 @@
 #include "ui_heater_icon_binder.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
 
@@ -62,7 +63,7 @@ class PreheatWidget : public PanelWidget {
     // The tool target button's caption, bound by the component. The button's
     // visibility binds ToolState's extruder_count. Preheat is single-instance
     // on the home grid, so the name is fixed.
-    lv_subject_t tool_target_text_{};
+    helix::Subject tool_target_text_{};
     char tool_target_text_buf_[64] = {};
     SubjectManager subjects_;
 

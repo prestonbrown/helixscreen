@@ -17,6 +17,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "filament_display_name.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
@@ -51,12 +52,12 @@ ActiveSpoolWidget::ActiveSpoolWidget(IMoonrakerAPI* api)
     // binding whose subject is missing at parse time.
     UI_MANAGED_SUBJECT_INT(wide_subject_, 0, "active_spool_wide", subjects_);
     UI_MANAGED_SUBJECT_INT(loaded_subject_, 0, "active_spool_loaded", subjects_);
-    lv_subject_init_string(&material_subject_, material_buf_, nullptr, sizeof(material_buf_), "");
+    material_subject_.init_string(material_buf_, nullptr, sizeof(material_buf_), "");
     subjects_.publish("active_spool_material", &material_subject_);
-    lv_subject_init_string(&brand_subject_, brand_buf_, nullptr, sizeof(brand_buf_), "");
+    brand_subject_.init_string(brand_buf_, nullptr, sizeof(brand_buf_), "");
     subjects_.publish("active_spool_brand", &brand_subject_);
     UI_MANAGED_SUBJECT_INT(has_brand_subject_, 0, "active_spool_has_brand", subjects_);
-    lv_subject_init_string(&weight_subject_, weight_buf_, nullptr, sizeof(weight_buf_), "");
+    weight_subject_.init_string(weight_buf_, nullptr, sizeof(weight_buf_), "");
     subjects_.publish("active_spool_weight", &weight_subject_);
     UI_MANAGED_SUBJECT_INT(has_weight_subject_, 0, "active_spool_has_weight", subjects_);
 }

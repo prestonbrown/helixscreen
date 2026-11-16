@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
@@ -96,12 +97,12 @@ class FanWidget : public TiledPanelWidget {
 
     // This instance's reading and name, bound by its component. Owned per
     // instance because two fan tiles can sit on the home grid at once.
-    lv_subject_t speed_subject_{};
+    helix::Subject speed_subject_{};
     char speed_buffer_[16] = {};
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char name_buffer_[64] = {};
     /// 1 while a fan is selected; 0 draws the "Select fan" prompt.
-    lv_subject_t named_subject_{};
+    helix::Subject named_subject_{};
     SubjectManager subjects_;
 
     // Fan picker context menu (edit-mode gear only)

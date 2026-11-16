@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
@@ -64,11 +65,11 @@ FanWidget::FanWidget(const std::string& instance_id)
 
     // Published before the manager parses the component, which drops a
     // binding whose subject is missing at parse time.
-    lv_subject_init_string(&speed_subject_, speed_buffer_, nullptr, sizeof(speed_buffer_), "--");
+    speed_subject_.init_string(speed_buffer_, nullptr, sizeof(speed_buffer_), "--");
     sizing_.publish_instance_subject(subjects_, &speed_subject_, "speed_subject", "speed");
-    lv_subject_init_string(&name_subject_, name_buffer_, nullptr, sizeof(name_buffer_), "");
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
     sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
-    lv_subject_init_int(&named_subject_, 0);
+    named_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
 }
 

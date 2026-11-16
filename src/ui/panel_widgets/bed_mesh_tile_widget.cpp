@@ -18,6 +18,7 @@
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
@@ -57,22 +58,22 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_map_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_range_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_empty_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_details_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_scale_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_footer_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_calibrate_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_load_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_calibrating_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_range_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_extent_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_scale_low_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_scale_high_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_count_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_map_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_range_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_empty_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_details_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_scale_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_footer_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_calibrate_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_load_subject{};
+HELIX_PSRAM_BSS helix::Subject s_calibrating_subject{};
+HELIX_PSRAM_BSS helix::Subject s_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_range_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_extent_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_scale_low_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_scale_high_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_count_text_subject{};
 HELIX_PSRAM_BSS char s_range_text_buf[16];
 HELIX_PSRAM_BSS char s_extent_text_buf[32];
 HELIX_PSRAM_BSS char s_scale_low_text_buf[16];

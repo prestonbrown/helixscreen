@@ -12,6 +12,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
@@ -41,15 +42,15 @@ constexpr int kResetPct = 100;
 // panel_widget_speed_flow.xml. Module-level because the widget is single-instance and
 // registration rides SubjectInitializer's panel-subject phase, so the subjects exist
 // before any XML that binds them is parsed.
-lv_subject_t s_rung_subject{};
-lv_subject_t s_show_measured_subject{};
-lv_subject_t s_show_steppers_subject{};
-lv_subject_t s_speed_status_subject{};
-lv_subject_t s_flow_status_subject{};
-lv_subject_t s_speed_text_subject{};
-lv_subject_t s_flow_text_subject{};
-lv_subject_t s_speed_measured_subject{};
-lv_subject_t s_flow_measured_subject{};
+helix::Subject s_rung_subject{};
+helix::Subject s_show_measured_subject{};
+helix::Subject s_show_steppers_subject{};
+helix::Subject s_speed_status_subject{};
+helix::Subject s_flow_status_subject{};
+helix::Subject s_speed_text_subject{};
+helix::Subject s_flow_text_subject{};
+helix::Subject s_speed_measured_subject{};
+helix::Subject s_flow_measured_subject{};
 char s_speed_text_buf[32];
 char s_flow_text_buf[32];
 char s_speed_measured_buf[32];

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "grid_layout.h"
 #include "helix/ui/text_metrics.h"
 #include "src/ui/panel_widgets/tile_layout.h"
@@ -184,11 +185,11 @@ class TileSizing {
     int last_width_px_ = -1;
     int last_height_px_ = -1;
 
-    lv_subject_t icon_rung_subject_{};
-    lv_subject_t label_subject_{};
-    lv_subject_t direction_subject_{};
-    lv_subject_t show_target_subject_{};
-    lv_subject_t drawn_rung_subject_{};
+    helix::Subject icon_rung_subject_{};
+    helix::Subject label_subject_{};
+    helix::Subject direction_subject_{};
+    helix::Subject show_target_subject_{};
+    helix::Subject drawn_rung_subject_{};
     SubjectManager subjects_;
     ObserverGuard label_setting_observer_;
 };

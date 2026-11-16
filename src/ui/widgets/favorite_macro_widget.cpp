@@ -10,6 +10,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/subject.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "favorite_macro_config_modal.h"
@@ -61,11 +62,11 @@ FavoriteMacroWidget::FavoriteMacroWidget(const std::string& widget_id)
       widget_id_(widget_id) {
     // Published before the manager parses the component, which drops a
     // binding whose subject is missing at parse time.
-    lv_subject_init_string(&name_subject_, name_buffer_, nullptr, sizeof(name_buffer_), "");
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
     sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
-    lv_subject_init_int(&named_subject_, 0);
+    named_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
-    lv_subject_init_color(&badge_color_subject_, theme_manager_get_color("secondary"));
+    badge_color_subject_.init_color(theme_manager_get_color("secondary"));
     sizing_.publish_instance_subject(subjects_, &badge_color_subject_, "badge_color_subject",
                                      "badge_color");
 }

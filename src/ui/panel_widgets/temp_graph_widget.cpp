@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -509,16 +510,16 @@ using helix::xml::IndexedSubjectPool;
 IndexedSubjectPool s_cfg_name{"temp_graph_cfg", IndexedSubjectPool::Type::String, 96, "_name"};
 IndexedSubjectPool s_cfg_color{"temp_graph_cfg", IndexedSubjectPool::Type::Color, 0, "_color"};
 IndexedSubjectPool s_cfg_on{"temp_graph_cfg", IndexedSubjectPool::Type::Int, 0, "_on"};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_count_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_follow_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_follow_subject{};
 helix::WidgetSubjects s_cfg_subjects{"TempGraphConfigSubjects"};
 
 void temp_graph_config_init_subjects() {
     s_cfg_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_cfg_count_subject, 0);
+            s_cfg_count_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_rows", &s_cfg_count_subject);
-            lv_subject_init_int(&s_cfg_follow_subject, 0);
+            s_cfg_follow_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_follow", &s_cfg_follow_subject);
         },
         [] {

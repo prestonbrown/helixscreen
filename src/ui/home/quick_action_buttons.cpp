@@ -112,21 +112,21 @@ void QuickActionButtons::load_config() {
 
 void QuickActionButtons::update_button(StandardMacros& macros,
                                        const std::optional<StandardMacroSlot>& slot, size_t index) {
-    lv_subject_t& visible = visible_[index];
-    lv_subject_t& available = available_[index];
+    lv_subject_t* visible = &visible_[index];
+    lv_subject_t* available = &available_[index];
     const int button_num = static_cast<int>(index + 1);
 
     if (!slot) {
-        lv_subject_set_int(&visible, 0);
-        lv_subject_set_int(&available, 0);
+        lv_subject_set_int(visible, 0);
+        lv_subject_set_int(available, 0);
         return;
     }
 
     const auto& info = macros.get(*slot);
 
     if (!info.is_empty()) {
-        lv_subject_set_int(&visible, 1);
-        lv_subject_set_int(&available, 1);
+        lv_subject_set_int(visible, 1);
+        lv_subject_set_int(available, 1);
         lv_subject_set_string(&name_[index], info.translated_name());
         spdlog::trace("[QuickActionButtons] Macro {}: '{}' → {}", button_num, info.display_name,
                       info.get_macro());
@@ -139,8 +139,8 @@ void QuickActionButtons::update_button(StandardMacros& macros,
         // config change can retire one). Keep the button where they left it and
         // grey it out: a button that disappears reads as a bug in the screen,
         // while a disabled one points at the assignment that needs fixing.
-        lv_subject_set_int(&visible, 1);
-        lv_subject_set_int(&available, 0);
+        lv_subject_set_int(visible, 1);
+        lv_subject_set_int(available, 0);
         lv_subject_set_string(&name_[index], info.translated_name());
         spdlog::debug("[QuickActionButtons] Macro {} slot '{}' disabled: '{}' is not defined on "
                       "this printer",
@@ -148,8 +148,8 @@ void QuickActionButtons::update_button(StandardMacros& macros,
         return;
     }
 
-    lv_subject_set_int(&visible, 0);
-    lv_subject_set_int(&available, 0);
+    lv_subject_set_int(visible, 0);
+    lv_subject_set_int(available, 0);
     spdlog::trace("[QuickActionButtons] Macro {} slot '{}' is empty, hiding button", button_num,
                   info.slot_name);
 }

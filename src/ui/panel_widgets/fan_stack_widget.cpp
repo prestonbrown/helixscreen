@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "grid_layout.h"
@@ -88,7 +89,7 @@ FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& pri
     publish_row(part_text_, "part", "P");
     publish_row(hotend_text_, "hotend", "H");
     publish_row(aux_text_, "aux", "A");
-    lv_subject_init_int(&has_aux_subject_, 0);
+    has_aux_subject_.init_int(0);
     const std::string has_aux = instance_id_ + "_has_aux";
     subjects_.publish(has_aux.c_str(), &has_aux_subject_);
     attr_storage_.insert(attr_storage_.end(), {"has_aux_subject", has_aux});
@@ -99,10 +100,10 @@ FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& pri
 }
 
 void FanStackWidget::publish_row(RowText& row, const char* role, const char* initial_name) {
-    lv_subject_init_string(&row.name, row.name_buf, nullptr, sizeof(row.name_buf), initial_name);
+    row.name.init_string(row.name_buf, nullptr, sizeof(row.name_buf), initial_name);
     const std::string name = instance_id_ + "_" + role + "_name";
     subjects_.publish(name.c_str(), &row.name);
-    lv_subject_init_string(&row.speed, row.speed_buf, nullptr, sizeof(row.speed_buf), "");
+    row.speed.init_string(row.speed_buf, nullptr, sizeof(row.speed_buf), "");
     const std::string speed = instance_id_ + "_" + role + "_speed";
     subjects_.publish(speed.c_str(), &row.speed);
     attr_storage_.insert(attr_storage_.end(), {std::string(role) + "_name_subject", name,

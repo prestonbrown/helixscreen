@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
@@ -59,8 +60,8 @@ void register_preheat_widget() {
 PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {
     // Published before the manager parses the component, which drops a binding
     // whose subject is missing at parse time.
-    lv_subject_init_string(&tool_target_text_, tool_target_text_buf_, nullptr,
-                           sizeof(tool_target_text_buf_), "");
+    tool_target_text_.init_string(tool_target_text_buf_, nullptr, sizeof(tool_target_text_buf_),
+                                  "");
     subjects_.publish("preheat_tool_target_text", &tool_target_text_);
 }
 

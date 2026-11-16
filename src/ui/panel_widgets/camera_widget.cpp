@@ -14,6 +14,7 @@
 
 #include "app_globals.h"
 #include "camera_config_modal.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "i_moonraker_api.h"
@@ -36,14 +37,14 @@
 
 // Module-level subjects the camera components bind. Static: the home grid
 // holds one camera tile, and one fullscreen view is open at a time.
-static lv_subject_t s_camera_status_subject;
+static helix::Subject s_camera_status_subject;
 static char s_camera_status_buffer[64];
 // 1 while the tile shows its icon-and-status overlay instead of a frame.
-static lv_subject_t s_camera_overlay_shown_subject;
+static helix::Subject s_camera_overlay_shown_subject;
 // 1 while the tile is too narrow to stream, which hides the status line.
-static lv_subject_t s_camera_compact_subject;
+static helix::Subject s_camera_compact_subject;
 // 1 until the open fullscreen view draws its first frame.
-static lv_subject_t s_camera_fullscreen_connecting_subject;
+static helix::Subject s_camera_fullscreen_connecting_subject;
 static helix::WidgetSubjects s_subjects{"CameraWidgetSubjects"};
 static const char* const kDefaultCameraStatusKey = TR_NOOP("No Camera");
 // The translation key the status text was produced from, so a language switch
@@ -55,16 +56,17 @@ static void camera_widget_init_subjects() {
         // The key belongs to the subject's lifetime: a printer switch re-inits
         // the subjects after a frame or stream status has left it nullptr.
         s_camera_status_key = kDefaultCameraStatusKey;
-        lv_subject_init_string(&s_camera_status_subject, s_camera_status_buffer, nullptr,
-                               sizeof(s_camera_status_buffer), lv_tr(s_camera_status_key));
+        s_camera_status_subject.init_string(s_camera_status_buffer, nullptr,
+                                            sizeof(s_camera_status_buffer),
+                                            lv_tr(s_camera_status_key));
         s_subjects.publish("camera_status_text", &s_camera_status_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_camera_status_subject, "camera_status_text",
                                      LV_SUBJECT_TYPE_STRING);
-        lv_subject_init_int(&s_camera_overlay_shown_subject, 1);
+        s_camera_overlay_shown_subject.init_int(1);
         s_subjects.publish("camera_overlay_shown", &s_camera_overlay_shown_subject);
-        lv_subject_init_int(&s_camera_compact_subject, 0);
+        s_camera_compact_subject.init_int(0);
         s_subjects.publish("camera_compact", &s_camera_compact_subject);
-        lv_subject_init_int(&s_camera_fullscreen_connecting_subject, 1);
+        s_camera_fullscreen_connecting_subject.init_int(1);
         s_subjects.publish("camera_fullscreen_connecting", &s_camera_fullscreen_connecting_subject);
 
         spdlog::debug("[CameraWidget] Subjects initialized");

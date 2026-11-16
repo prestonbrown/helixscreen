@@ -6,6 +6,7 @@
 #include "ui_panel_base.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "grid_edit_mode.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
@@ -165,7 +166,7 @@ class HomePanel : public PanelBase {
     /// One per config page, in page order.
     std::vector<CarouselPage> pages_;
     int active_page_index_ = 0;
-    lv_subject_t page_subject_{};
+    helix::Subject page_subject_{};
     ObserverGuard page_observer_;
 
     // Panel-lifetime subjects, construction-registered in the global XML scope
@@ -175,9 +176,9 @@ class HomePanel : public PanelBase {
     // rebuild_carousel() calls subjects_.deinit_all(), and these outlive
     // carousel rebuilds (the badge label sits outside carousel_host).
     SubjectManager panel_subjects_;
-    lv_subject_t page_badge_subject_{};
+    helix::Subject page_badge_subject_{};
     char page_badge_buf_[16]{};
-    lv_subject_t populated_pages_subject_{};
+    helix::Subject populated_pages_subject_{};
     void init_panel_subjects();
     void update_page_badge();
     void update_populated_pages_subject();

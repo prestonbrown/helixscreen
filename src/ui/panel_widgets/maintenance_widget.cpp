@@ -8,6 +8,7 @@
 #include "ui_subject_registry.h"
 
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
@@ -31,10 +32,10 @@ namespace {
 
 // The verdict panel_widget_maintenance.xml binds. Module-level because the widget is
 // single-instance and the subjects must exist before the XML that binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_total_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_ring_d_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_tile_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_total_subject{};
+HELIX_PSRAM_BSS helix::Subject s_ring_d_subject{};
+HELIX_PSRAM_BSS helix::Subject s_tile_rows_subject{};
 helix::WidgetSubjects s_subjects{"MaintenanceWidgetSubjects"};
 helix::LiveTileOwner<helix::MaintenanceWidget> s_tile;
 

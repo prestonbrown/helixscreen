@@ -10,6 +10,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -43,20 +44,19 @@ namespace {
 // XML that binds them is parsed. Values mirror decide_nozzle_layout()'s
 // output: label_mode is NozzleLabelMode's int (0=none 1=number 2=short
 // 3=long), columns is 1 or 2, compact is 0 or 1.
-lv_subject_t s_label_mode_subject{};
-lv_subject_t s_columns_subject{};
-lv_subject_t s_compact_font_subject{};
+helix::Subject s_label_mode_subject{};
+helix::Subject s_columns_subject{};
+helix::Subject s_compact_font_subject{};
 helix::WidgetSubjects s_subjects{"NozzleTempsWidgetSubjects"};
 
 void nozzle_temps_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_int(
-            &s_label_mode_subject,
+        s_label_mode_subject.init_int(
             static_cast<int>(helix::NozzleLabelMode::Long)); // the degenerate default
         s_subjects.publish("nozzle_row_label_mode", &s_label_mode_subject);
-        lv_subject_init_int(&s_columns_subject, 1);
+        s_columns_subject.init_int(1);
         s_subjects.publish("nozzle_row_columns", &s_columns_subject);
-        lv_subject_init_int(&s_compact_font_subject, 0);
+        s_compact_font_subject.init_int(0);
         s_subjects.publish("nozzle_row_compact", &s_compact_font_subject);
     });
 }

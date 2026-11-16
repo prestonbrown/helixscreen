@@ -24,6 +24,7 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -120,58 +121,57 @@ std::unordered_set<PrintStatusWidget*>& PrintStatusWidget::live_instances() {
 void PrintStatusWidget::init_static_subjects() {
     // Registered before XML parsing so bind_flag_if_eq / bind_style can find them.
     s_static_subjects.ensure_init([] {
-        lv_subject_init_int(&column_mode_subject_, 0);
+        column_mode_subject_.init_int(0);
         s_static_subjects.publish("print_status_column_mode", &column_mode_subject_);
-        lv_subject_init_int(&width_band_subject_,
-                            1); // 1 = normal, matches the old colspan=2 default
+        width_band_subject_.init_int(1); // 1 = normal, matches the old colspan=2 default
         s_static_subjects.publish("print_status_width_band", &width_band_subject_);
 
-        lv_subject_init_int(&title_hidden_subject_, 0);
+        title_hidden_subject_.init_int(0);
         s_static_subjects.publish("print_status_title_hidden", &title_hidden_subject_);
-        lv_subject_init_int(&files_hidden_subject_, 0);
+        files_hidden_subject_.init_int(0);
         s_static_subjects.publish("print_status_files_hidden", &files_hidden_subject_);
-        lv_subject_init_int(&last_hidden_subject_, 0);
+        last_hidden_subject_.init_int(0);
         s_static_subjects.publish("print_status_last_hidden", &last_hidden_subject_);
-        lv_subject_init_int(&recent_hidden_subject_, 0);
+        recent_hidden_subject_.init_int(0);
         s_static_subjects.publish("print_status_recent_hidden", &recent_hidden_subject_);
-        lv_subject_init_int(&queue_hidden_subject_, 1); // queue starts hidden until jobs arrive
+        queue_hidden_subject_.init_int(1); // queue starts hidden until jobs arrive
         s_static_subjects.publish("print_status_queue_hidden", &queue_hidden_subject_);
-        lv_subject_init_int(&actions_hidden_subject_, 0);
+        actions_hidden_subject_.init_int(0);
         s_static_subjects.publish("print_status_actions_hidden", &actions_hidden_subject_);
-        lv_subject_init_int(&library_icon_only_subject_, 0);
+        library_icon_only_subject_.init_int(0);
         s_static_subjects.publish("print_status_library_icon_only", &library_icon_only_subject_);
-        lv_subject_init_int(&library_grid_subject_, 0);
+        library_grid_subject_.init_int(0);
         s_static_subjects.publish("print_status_library_grid", &library_grid_subject_);
-        lv_subject_init_int(&library_wrap_at_subject_, -1);
+        library_wrap_at_subject_.init_int(-1);
         s_static_subjects.publish("print_status_library_wrap_at", &library_wrap_at_subject_);
 
         // Detailed-layout subjects
-        lv_subject_init_int(&layout_effective_subject_, 0);
+        layout_effective_subject_.init_int(0);
         // Observed through layout_effective_subject_for_test(), the width-gating guard.
         s_static_subjects.publish(
             "print_status_layout_effective",
             &layout_effective_subject_); // SUBJECT_OK: read by test_widget_size_print_status
-        lv_subject_init_int(&show_filament_active_subject_, 0);
+        show_filament_active_subject_.init_int(0);
         s_static_subjects.publish("print_status_show_filament_active",
                                   &show_filament_active_subject_);
-        lv_subject_init_int(&multi_tool_subject_, 0);
+        multi_tool_subject_.init_int(0);
         s_static_subjects.publish("print_status_multi_tool", &multi_tool_subject_);
-        lv_subject_init_int(&nozzle_pickable_subject_, 0);
+        nozzle_pickable_subject_.init_int(0);
         s_static_subjects.publish("print_status_nozzle_pickable", &nozzle_pickable_subject_);
-        lv_subject_init_int(&nozzle_picker_fits_subject_, 1);
+        nozzle_picker_fits_subject_.init_int(1);
         s_static_subjects.publish("print_status_nozzle_picker_fits", &nozzle_picker_fits_subject_);
-        lv_subject_init_int(&layer_z_fits_subject_, 1);
+        layer_z_fits_subject_.init_int(1);
         s_static_subjects.publish("print_status_layer_z_fits", &layer_z_fits_subject_);
-        lv_subject_init_int(&elapsed_fits_subject_, 1);
+        elapsed_fits_subject_.init_int(1);
         s_static_subjects.publish("print_status_elapsed_fits", &elapsed_fits_subject_);
-        lv_subject_init_int(&speed_fits_subject_, 1);
+        speed_fits_subject_.init_int(1);
         s_static_subjects.publish("print_status_speed_fits", &speed_fits_subject_);
-        lv_subject_init_int(&flow_fits_subject_, 1);
+        flow_fits_subject_.init_int(1);
         s_static_subjects.publish("print_status_flow_fits", &flow_fits_subject_);
         // Initial value 0 = idle_library_full — matches the default ref_value=0
         // on print_card_idle's bind_flag_if_not_eq so it shows by default
         // before any state events fire.
-        lv_subject_init_int(&view_subject_, 0);
+        view_subject_.init_int(0);
         s_static_subjects.publish("print_status_view", &view_subject_);
         // Default to benchy; reset_print_card_to_idle replaces with last-print
         // thumbnail when history loads.
@@ -179,16 +179,16 @@ void PrintStatusWidget::init_static_subjects() {
         // captures it (a raw "A:assets/images/..." literal misses the /assets mount
         // on firmware and lv_image_set_src can't open it).
         snprintf(idle_thumb_path_buf_, sizeof(idle_thumb_path_buf_), "%s", benchy_thumb_path());
-        lv_subject_init_string(&idle_thumb_path_subject_, idle_thumb_path_buf_, nullptr,
-                               sizeof(idle_thumb_path_buf_), idle_thumb_path_buf_);
+        idle_thumb_path_subject_.init_string(idle_thumb_path_buf_, nullptr,
+                                             sizeof(idle_thumb_path_buf_), idle_thumb_path_buf_);
         s_static_subjects.publish("print_status_idle_thumb_path", &idle_thumb_path_subject_);
         // Default to tier 2 (8px) — matches the previous hardcoded medium thickness
         // until the arc lays out and C++ publishes the diameter-derived tier.
-        lv_subject_init_int(&arc_thickness_tier_subject_, 2);
+        arc_thickness_tier_subject_.init_int(2);
         s_static_subjects.publish( // SUBJECT_OK: attach_progress_arc() publishes into this by
                                    // pointer and helix_progress_arc.xml bind_styles read it
             "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
-        lv_subject_init_int(&picker_detailed_subject_, 0);
+        picker_detailed_subject_.init_int(0);
         s_static_subjects.publish("print_status_picker_detailed", &picker_detailed_subject_);
     });
 }
