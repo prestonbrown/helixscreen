@@ -1815,6 +1815,13 @@ class AmsBackend {
         return AmsErrorHelper::success();
     }
 
+    /// True when reset() retires a latched fault itself and its command also
+    /// does what clear_fault()'s would, so a caller about to reset skips the
+    /// clear rather than sending the same release twice.
+    [[nodiscard]] virtual bool reset_retires_fault() const {
+        return false;
+    }
+
     /**
      * @brief Re-sync the firmware's tracked state to what the user says is true
      *

@@ -1190,6 +1190,20 @@ TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
     CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
 }
 
+TEST_CASE("AD5X IFS reset retires a fault with one release", "[ams][ad5x_ifs][clear_fault]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+
+    // The sidebar's Reset skips clear_fault() on this promise.
+    REQUIRE(backend.reset_retires_fault());
+    REQUIRE(backend.reset().success());
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
+
 TEST_CASE("AD5X IFS action timeout resets stuck operations", "[ams][ad5x_ifs]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
     AmsBackendAd5xIfs& backend = *backend_reg;
@@ -9800,6 +9814,27 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
 }
 
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS clear_fault retires a raised runout and its latch",
+                 "[ams][ad5x_ifs][runout][clear_fault]") {
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
+    AmsBackendAd5xIfs& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_running(backend, true);
+    set_print_state(helix::PrintJobState::PRINTING);
+    seat_then_drop_head(backend);
+    set_print_state(helix::PrintJobState::PAUSED);
+    Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
+    REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
+
+    backend.clear_fault(0);
+
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+    CHECK_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
+}
+
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-bearing",
                  "[ams][ad5x_ifs][runout][1250]") {
     helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(nullptr, nullptr);
@@ -10127,7 +10162,19 @@ TEST_CASE("AD5X IFS runout actions follow the toolhead switch", "[ams][ad5x_ifs]
         CHECK(actions[1].gcode == "RESUME");
         CHECK(actions[1].style.empty());
     }
-    SECTION("head empty with no safe load: nothing is primary but the danger Recover") {
+    SECTION("Recover reads as danger only where it resets the module's driver") {
+        in.head_has_filament = true;
+        auto recover = [&] {
+            const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+            REQUIRE_FALSE(actions.empty());
+            REQUIRE(actions.back().log_tag == "ifs::unlock");
+            return actions.back().style;
+        };
+        CHECK(recover().empty());
+        in.unlock_gcode = "IFS_RESET_DRIVER";
+        CHECK(recover() == "danger");
+    }
+    SECTION("head empty with no safe load: nothing is primary, Recover included") {
         in.head_has_filament = false;
         in.load_gcode.clear();
         const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
