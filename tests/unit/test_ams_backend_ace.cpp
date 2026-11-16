@@ -163,6 +163,22 @@ TEST_CASE("ACE returns correct type", "[ams][ace][type]") {
     REQUIRE(helper.get_type() == AmsType::ACE);
 }
 
+TEST_CASE("ACE clear_fault leaves a fault the unit still reports and sends nothing",
+          "[ams][ace][clear_fault]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_test_action(AmsAction::ERROR);
+
+    REQUIRE(helper.get_test_system_info().action == AmsAction::ERROR);
+    const AmsError result = helper.clear_fault(0);
+    INFO("clear_fault answered: " << result.technical_msg);
+
+    // ACE mirrors the unit's own status, so clearing only the mirror would
+    // hide the fault until the next frame raised it again.
+    CHECK(result.result == AmsResult::NOT_SUPPORTED);
+    CHECK(helper.get_test_system_info().action == AmsAction::ERROR);
+    CHECK(helper.captured_gcodes.empty());
+}
+
 TEST_CASE("ACE uses hub topology", "[ams][ace][topology]") {
     // ACE uses hub topology (4 slots merge to single output)
     AmsBackendAceTestHelper helper;

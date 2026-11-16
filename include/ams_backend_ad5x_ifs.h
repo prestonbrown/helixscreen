@@ -426,6 +426,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     AmsError recover() override;
     AmsError reset() override;
     AmsError cancel() override;
+    /// Retires the ERROR. On the stock IFS it also releases the operation lock
+    /// with IFS_UNLOCK, which moves no filament: an operation that timed out or
+    /// failed leaves the IFS locked, and the next load would hang on it. A
+    /// module driver fault is left standing: only recover() clears it.
+    AmsError clear_fault(int slot_index) override;
     /// Also ends the phase tracking, so a later head-sensor edge cannot drive
     /// the steps of an operation the restart already ended.
     void on_klipper_restarted() override;
@@ -1149,6 +1154,8 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
 
     /// Drop the latched runout back to IDLE. Caller must hold mutex_.
     void clear_runout_locked(const char* why);
+    /// The module's last activity was driver_error. Guarded by mutex_.
+    bool module_driver_fault_ = false;
 
     /// Compose the user-facing runout text, including the plugin sentence that
     /// answers "will the printer switch to a backup spool by itself?".
