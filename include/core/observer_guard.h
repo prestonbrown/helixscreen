@@ -146,7 +146,8 @@ class ObserverGuard {
      *
      * Registering a subject that IS in fact torn down while LVGL is
      * initialized converts its guards' skip into a use-after-free, so the
-     * claim "no deinit path frees this subject mid-process" must hold.
+     * claim "no deinit path frees this subject mid-process" must hold. A
+     * helix::Subject's node leaves the set when its memory is freed.
      *
      * @threading Main thread only, like the rest of this class's statics.
      */
@@ -154,6 +155,17 @@ class ObserverGuard {
         if (subject != nullptr) {
             teardown_exempt_subjects().insert(subject);
         }
+    }
+
+    /// Drops @p subject from the teardown exemption. Called when its node's memory is
+    /// freed, so a later subject allocated at the same address is not exempt.
+    static void forget_subject_teardown_exempt(const lv_subject_t* subject) {
+        teardown_exempt_subjects().erase(subject);
+    }
+
+    /// Drops every exemption. Called when lv_deinit() frees every subject node.
+    static void forget_all_teardown_exempt_subjects() {
+        teardown_exempt_subjects().clear();
     }
 
     /// Whether @p subject was registered by mark_subject_teardown_exempt().

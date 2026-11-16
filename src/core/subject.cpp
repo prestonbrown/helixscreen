@@ -3,6 +3,7 @@
 
 #include "core/subject.h"
 
+#include "core/observer_guard.h"
 #include "core/update_queue.h"
 #include "helix_lvgl_anomaly.h"
 
@@ -108,6 +109,7 @@ void release_node(lv_subject_t* node, uint32_t generation) {
                   "release tag literal and kSubjectReleaseTag differ");
     helix::ui::queue_update("helix::Subject::release_node", [node, generation]() {
         if (lv_is_initialized() && generation == current_generation()) {
+            ObserverGuard::forget_subject_teardown_exempt(node);
             lv_subject_delete(node);
         }
     });
@@ -117,6 +119,7 @@ void release_node(lv_subject_t* node, uint32_t generation) {
 
 void subjects_note_lvgl_deinit() noexcept {
     g_generation.fetch_add(1, std::memory_order_acq_rel);
+    ObserverGuard::forget_all_teardown_exempt_subjects();
 }
 
 Subject::Subject() noexcept {
