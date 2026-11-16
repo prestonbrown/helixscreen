@@ -20,7 +20,10 @@ helix_flag_value = $(strip $(if $(word 2,$($(1))),$(call helix_flag_bad,$(1)),$(
     $(strip $($(1))),$(call helix_flag_word,$(1),$(call helix_flag_lower,$(strip $($(1))))),no)))
 helix_flag_word = $(if $(filter $(2),$(HELIX_FLAG_YES)),yes,$(if \
     $(filter $(2),$(HELIX_FLAG_NO)),no,$(call helix_flag_bad,$(1))))
-helix_flag_lower = $(shell printf '%s' '$(1)' | tr '[:upper:]' '[:lower:]')
+helix_flag_lower = $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst \
+    G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst \
+    O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst \
+    W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(1)))))))))))))))))))))))))))
 helix_flag_bad = $(error $(1)=$($(1)) is not a yes/no value: use one of $(HELIX_FLAG_YES) $(HELIX_FLAG_NO))
 
 $(foreach flag,$(filter ENABLE_%,$(.VARIABLES)),$(if \
