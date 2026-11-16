@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "instance_subjects.h"
 
 #include <lvgl.h>
@@ -46,8 +47,8 @@ class PinDisplay {
     void hide_error();
 
   private:
-    lv_subject_t digits_{};
-    lv_subject_t error_{};
+    helix::Subject digits_{};
+    helix::Subject error_{};
     char error_buf_[128] = {};
     helix::InstanceSubjects names_; ///< After the subjects it publishes
 };

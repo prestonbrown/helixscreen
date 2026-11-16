@@ -6,6 +6,7 @@
 #include "ui_fan_arc_resize.h"
 #include "ui_utils.h"
 
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -32,10 +33,10 @@ constexpr const char* kRootName = "fan_dial_root";
 
 // NAMESPACE_OK: the definition of FanDial's own nested type
 struct FanDial::Subjects {
-    lv_subject_t speed{};
+    helix::Subject speed{};
     char speed_buf[16] = {};
-    lv_subject_t on{};
-    lv_subject_t rpm{};
+    helix::Subject on{};
+    helix::Subject rpm{};
     int reading = 0; ///< last tachometer reading, shown only while speed > 0
     std::string speed_name;
     std::string on_name;
@@ -48,11 +49,11 @@ struct FanDial::Subjects {
         const std::string base = "fan_dial_" + std::to_string(next_id++);
         speed_name = base + "_speed";
         on_name = base + "_on";
-        lv_subject_init_string(&speed, speed_buf, nullptr, sizeof(speed_buf), "");
+        speed.init_string(speed_buf, nullptr, sizeof(speed_buf), "");
         manager.publish(speed_name.c_str(), &speed);
-        lv_subject_init_int(&on, 0);
+        on.init_int(0);
         manager.publish(on_name.c_str(), &on);
-        lv_subject_init_int(&rpm, 0);
+        rpm.init_int(0);
         manager.register_subject(&rpm);
     }
     ~Subjects() {

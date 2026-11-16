@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <cstdint>
@@ -63,10 +64,10 @@ class HiddenNetworkModal : public Modal {
 
     SubjectManager subjects_;
     /// 1 while a join runs: the form and Connect give way to a spinner.
-    lv_subject_t connecting_{};
+    helix::Subject connecting_{};
     /// The form's error line; hidden while empty.
-    lv_subject_t error_{};
-    lv_subject_t has_error_{};
+    helix::Subject error_{};
+    helix::Subject has_error_{};
     char error_buf_[256] = {0};
     bool subjects_initialized_ = false;
 

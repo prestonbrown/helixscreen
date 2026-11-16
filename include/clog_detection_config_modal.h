@@ -5,6 +5,7 @@
 #include "ui_modal.h"
 
 #include "ams_types.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 
 #include <optional>
@@ -109,23 +110,23 @@ class ClogDetectionConfigModal : public Modal {
     // C++-owned subjects for XML bindings (lifetime = modal lifetime)
     bool subjects_initialized_ = false;
     SubjectManager subjects_;
-    lv_subject_t mode_subject_{};           // int: detection mode (1=manual, 2=auto)
-    lv_subject_t threshold_text_subject_{}; // string: "Default" or "75%"
+    helix::Subject mode_subject_{};           // int: detection mode (1=manual, 2=auto)
+    helix::Subject threshold_text_subject_{}; // string: "Default" or "75%"
     // "Default" renders translated; ru "По умолчанию" is 23 bytes.
     char threshold_text_buf_[24]{};
-    lv_subject_t det_length_text_subject_{}; // string: "10mm"
+    helix::Subject det_length_text_subject_{}; // string: "10mm"
     char det_length_text_buf_[16]{};
-    lv_subject_t mode_supported_subject_{}; // int: 1=backend takes detection-mode gcode
+    helix::Subject mode_supported_subject_{}; // int: 1=backend takes detection-mode gcode
 
     // Per-button boolean subjects for bind_style (selected/unselected)
-    lv_subject_t src_auto_active_{};
-    lv_subject_t src_encoder_active_{};
-    lv_subject_t src_flowguard_active_{};
-    lv_subject_t src_afc_active_{};
+    helix::Subject src_auto_active_{};
+    helix::Subject src_encoder_active_{};
+    helix::Subject src_flowguard_active_{};
+    helix::Subject src_afc_active_{};
     // 1 when the backend reports that source: its button shows
-    lv_subject_t src_encoder_available_{};
-    lv_subject_t src_flowguard_available_{};
-    lv_subject_t src_afc_available_{};
-    lv_subject_t mode_auto_active_{};
-    lv_subject_t mode_manual_active_{};
+    helix::Subject src_encoder_available_{};
+    helix::Subject src_flowguard_available_{};
+    helix::Subject src_afc_available_{};
+    helix::Subject mode_auto_active_{};
+    helix::Subject mode_manual_active_{};
 };

@@ -3,12 +3,14 @@
 
 #include "ui_progress_arc.h"
 
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
 
 #include <spdlog/spdlog.h>
 
+#include <memory>
 #include <unordered_map>
 
 namespace helix::ui {
@@ -22,7 +24,7 @@ constexpr int kTierCount = 5;
 struct AttachContext {
     lv_obj_t* arc;
     lv_subject_t* tier_subject;
-    bool owns_subject; // if true, free tier_subject on arc destruction
+    std::unique_ptr<helix::Subject> owned_subject; // set when the helper allocated tier_subject
 };
 
 // Per-arc context registry — avoids storing AttachContext* on lv_obj user_data
@@ -60,9 +62,8 @@ void on_arc_deleted(lv_event_t* e) {
     auto* ctx = static_cast<AttachContext*>(lv_event_get_user_data(e));
     if (ctx) {
         registry().erase(ctx->arc);
-        if (ctx->owns_subject && ctx->tier_subject) {
-            lv_subject_deinit(ctx->tier_subject);
-            delete ctx->tier_subject;
+        if (ctx->owned_subject) {
+            ctx->owned_subject->reset();
         }
         delete ctx;
     }
@@ -125,7 +126,7 @@ void attach_progress_arc(lv_obj_t* arc, lv_obj_t* parent, lv_subject_t* tier_sub
     }
 
     // Per-arc context survives until the arc is deleted.
-    auto* ctx = new AttachContext{arc, tier_subject, /*owns_subject=*/false};
+    auto* ctx = new AttachContext{arc, tier_subject, nullptr};
     registry()[arc] = ctx;
     lv_obj_add_event_cb(arc, on_arc_deleted, LV_EVENT_DELETE, ctx);
     lv_obj_add_event_cb(parent, on_parent_size_changed, LV_EVENT_SIZE_CHANGED, ctx);
@@ -147,15 +148,18 @@ void refresh_progress_arc(lv_obj_t* arc) {
 }
 
 lv_subject_t* attach_progress_arc_owned(lv_obj_t* arc, lv_obj_t* parent) {
-    auto* subject = new lv_subject_t{};
-    lv_subject_init_int(subject, 2); // tier 2 (medium / 8px) until first resize
-    attach_progress_arc(arc, parent, subject);
-    // Flip ownership flag on the now-registered context.
+    auto subject = std::make_unique<helix::Subject>();
+    subject->init_int(2); // tier 2 (medium / 8px) until first resize
+    lv_subject_t* handle = subject->get();
+    attach_progress_arc(arc, parent, handle);
+    // The context registered by a successful attach takes ownership; a failed attach
+    // registered nothing, so the subject dies here and the caller gets nullptr.
     auto it = registry().find(arc);
-    if (it != registry().end() && it->second) {
-        it->second->owns_subject = true;
+    if (it == registry().end() || !it->second || it->second->tier_subject != handle) {
+        return nullptr;
     }
-    return subject;
+    it->second->owned_subject = std::move(subject);
+    return handle;
 }
 
 } // namespace helix::ui

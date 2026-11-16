@@ -8,6 +8,7 @@
 #include "chamber_air_modes.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "printer_state.h"
 #include "subject_managed_panel.h"
@@ -198,7 +199,7 @@ class FanControlOverlay : public OverlayBase {
         /// The card's speed line, which its component binds. Heap-held so the
         /// binding's address survives the vector growing.
         struct SpeedText {
-            lv_subject_t subject{};
+            helix::Subject subject{};
             char buf[32] = {};
             std::string name;
             SubjectManager manager;

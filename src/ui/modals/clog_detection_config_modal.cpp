@@ -5,6 +5,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "panel_widget_config.h"
@@ -51,29 +52,29 @@ void ClogDetectionConfigModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&mode_subject_, 2); // default auto
+    mode_subject_.init_int(2); // default auto
 
-    lv_subject_init_string(&threshold_text_subject_, threshold_text_buf_, nullptr,
-                           sizeof(threshold_text_buf_), lv_tr("Default"));
+    threshold_text_subject_.init_string(threshold_text_buf_, nullptr, sizeof(threshold_text_buf_),
+                                        lv_tr("Default"));
 
-    lv_subject_init_string(&det_length_text_subject_, det_length_text_buf_, nullptr,
-                           sizeof(det_length_text_buf_), "---");
+    det_length_text_subject_.init_string(det_length_text_buf_, nullptr,
+                                         sizeof(det_length_text_buf_), "---");
 
     // Default 0 (hidden): on_show() raises it only once the active backend is
     // known to take the detection-mode gcode. Failing closed keeps the controls
     // out of the way when there is no backend at all.
-    lv_subject_init_int(&mode_supported_subject_, 0);
+    mode_supported_subject_.init_int(0);
 
     // Per-button boolean subjects for bind_style selected/unselected
-    lv_subject_init_int(&src_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&src_encoder_active_, 0);
-    lv_subject_init_int(&src_flowguard_active_, 0);
-    lv_subject_init_int(&src_afc_active_, 0);
-    lv_subject_init_int(&mode_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&mode_manual_active_, 0);
-    lv_subject_init_int(&src_encoder_available_, 0);
-    lv_subject_init_int(&src_flowguard_available_, 0);
-    lv_subject_init_int(&src_afc_available_, 0);
+    src_auto_active_.init_int(1); // auto selected by default
+    src_encoder_active_.init_int(0);
+    src_flowguard_active_.init_int(0);
+    src_afc_active_.init_int(0);
+    mode_auto_active_.init_int(1); // auto selected by default
+    mode_manual_active_.init_int(0);
+    src_encoder_available_.init_int(0);
+    src_flowguard_available_.init_int(0);
+    src_afc_available_.init_int(0);
 
     // Register globally so XML bindings find them
     subjects_.publish("clog_cfg_mode", &mode_subject_);

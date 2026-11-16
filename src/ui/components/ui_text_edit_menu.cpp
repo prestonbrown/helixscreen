@@ -8,6 +8,7 @@
 
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
@@ -23,18 +24,18 @@ constexpr const char* kCutSubject = "text_edit_can_cut";
 constexpr const char* kCopySubject = "text_edit_can_copy";
 constexpr const char* kPasteSubject = "text_edit_can_paste";
 
-lv_subject_t s_can_cut{};
-lv_subject_t s_can_copy{};
-lv_subject_t s_can_paste{};
+helix::Subject s_can_cut{};
+helix::Subject s_can_copy{};
+helix::Subject s_can_paste{};
 bool s_subjects_ready = false;
 
 void ensure_subjects() {
     if (s_subjects_ready) {
         return;
     }
-    lv_subject_init_int(&s_can_cut, 0);
-    lv_subject_init_int(&s_can_copy, 0);
-    lv_subject_init_int(&s_can_paste, 0);
+    s_can_cut.init_int(0);
+    s_can_copy.init_int(0);
+    s_can_paste.init_int(0);
     lv_xml_register_subject(nullptr, kCutSubject, &s_can_cut);
     lv_xml_register_subject(nullptr, kCopySubject, &s_can_copy);
     lv_xml_register_subject(nullptr, kPasteSubject, &s_can_paste);
@@ -48,9 +49,9 @@ void ensure_subjects() {
                 lv_xml_unregister_subject(nullptr, kCutSubject);
                 lv_xml_unregister_subject(nullptr, kCopySubject);
                 lv_xml_unregister_subject(nullptr, kPasteSubject);
-                lv_subject_deinit(&s_can_cut);
-                lv_subject_deinit(&s_can_copy);
-                lv_subject_deinit(&s_can_paste);
+                s_can_cut.reset();
+                s_can_copy.reset();
+                s_can_paste.reset();
                 s_subjects_ready = false;
             }
         },
