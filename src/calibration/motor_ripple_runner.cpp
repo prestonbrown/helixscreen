@@ -316,11 +316,12 @@ struct MotorRippleRunner::Impl : std::enable_shared_from_this<MotorRippleRunner:
         }
     }
 
-    /// Stop measuring and put the printer back, then report `terminal`.
+    /// True once a print has taken the printer from the sweep.
     [[nodiscard]] bool print_owns_printer() const {
         return req.motion_blocked && req.motion_blocked();
     }
 
+    /// Stop measuring and put the printer back, then report `terminal`.
     void wind_down(Phase terminal, const std::string& reason) {
         if (!active(phase) || phase == Phase::Restoring) {
             return;
