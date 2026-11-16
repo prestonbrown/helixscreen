@@ -642,7 +642,9 @@ TEST_CASE("CFS K1 calibration section carries the cutter and chute (#1282)", "[a
         for (bool fork : {false, true}) {
             CfsK2CalibHelper backend({}, fork);
             CHECK(backend.get_device_sections().size() == 1);
-            CHECK(backend.get_device_actions().size() == 3);
+            // Clean Nozzle and Communication Test; stock adds Refresh RFID, which
+            // the Fork has no command for.
+            CHECK(backend.get_device_actions().size() == (fork ? 2u : 3u));
             CHECK(backend.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
             CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::NOT_SUPPORTED);
             CHECK(backend.captured.empty());
