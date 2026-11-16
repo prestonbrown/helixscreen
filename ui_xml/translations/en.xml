@@ -1935,6 +1935,7 @@
   <translation tag="Klipper has entered shutdown state." en="Klipper has entered shutdown state."/>
   <translation tag="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error." en="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error."/>
   <translation tag="Klipper has no [virtual_sdcard] section." en="Klipper has no [virtual_sdcard] section."/>
+  <translation tag="Klipper has not come up. It may not be running on the printer." en="Klipper has not come up. It may not be running on the printer."/>
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" en="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" en="Klipper is halted — restart firmware to continue"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." en="Klipper is restarting. Timelapse frames are captured from the next print."/>

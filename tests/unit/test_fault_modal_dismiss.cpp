@@ -400,9 +400,10 @@ TEST_CASE_METHOD(KlippyRecoveryFixture,
     lv_obj_t* message = lv_obj_find_by_name(recovery, "recovery_message");
     REQUIRE(message != nullptr);
     CHECK(std::string(lv_label_get_text(message)).find("dragonbreath") != std::string::npos);
+    // The restarts stay on offer: with Klippy gone they run the recovery chain.
     lv_obj_t* restart_row = lv_obj_find_by_name(recovery, "recovery_restart_actions");
     REQUIRE(restart_row != nullptr);
-    CHECK(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
     CHECK(fault_carrier_showing());
 }
 

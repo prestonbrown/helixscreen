@@ -996,6 +996,7 @@ translations:
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
   "Here's a quick look at what changed since your last version.": "Un aperçu rapide de ce qui a changé depuis votre dernière version."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper n''a pas démarré. Il ne fonctionne peut-être pas sur l''imprimante.'
   'Klipper: {}': "Klipper : {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Les bases : l'assistant de configuration, la navigation entre les écrans et les gestes tactiles."
   Load all stopped: 'Chargement global arrêté'
