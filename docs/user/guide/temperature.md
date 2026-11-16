@@ -10,7 +10,7 @@
 
 ---
 
-HelixScreen shows every temperature in degrees Celsius. There is no setting to switch the display to Fahrenheit.
+HelixScreen shows temperatures in degrees Celsius by default. To use Fahrenheit, open **Settings > Appearance** and set **Temperature Unit** to **Fahrenheit (°F)**. Every readout, keypad, graph axis and preset label switches at once, and the temperatures you type are read in the unit you picked. Your printer and its G-code stay in Celsius either way; only what you see and enter changes. The setup wizard's **Appearance & Region** step offers the same choice, and starts on Fahrenheit for a printer in a United States timezone.
 
 Temperatures appear in three places:
 
