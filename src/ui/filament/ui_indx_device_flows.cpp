@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_action_set.h"
@@ -38,8 +39,8 @@ namespace {
 // it: running, then the result. ui_xml/components/indx_flow_status.xml renders
 // these subjects (phase: 0 nothing to report, 1 running, 2 result). Only one
 // INDX flow runs at a time, so the three share it.
-lv_subject_t s_indx_flow_phase{};
-lv_subject_t s_indx_flow_status{};
+helix::Subject s_indx_flow_phase{};
+helix::Subject s_indx_flow_status{};
 char s_indx_flow_status_buf[128] = {};
 helix::WidgetSubjects s_indx_flow_subjects{"IndxFlowSubjects",
                                            StaticSubjectRegistry::Lifetime::Process};

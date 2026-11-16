@@ -12,6 +12,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
@@ -51,7 +52,7 @@ constexpr int kNoSelection = -1;   // printer_type_selected when nothing is pick
 // ============================================================================
 
 // Controls wizard Next button globally - shared across wizard steps
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance
@@ -174,6 +175,13 @@ void WizardPrinterIdentifyStep::init_subjects() {
         spdlog::info("[{}] Printer URL changed from '{}' to '{}' - forcing re-detection",
                      get_name(), last_detected_url_, current_url);
         subjects_initialized_ = false; // Force re-initialization
+        // Re-initialization re-seeds live subjects; drop their observers first.
+        for (helix::Subject* subject :
+             {std::addressof(printer_name_), std::addressof(printer_type_selected_),
+              std::addressof(printer_detection_status_), std::addressof(printer_view_),
+              std::addressof(vendor_title_), std::addressof(match_count_)}) {
+            subject->reset();
+        }
 
         // Invalidate cached list — kinematics filter may differ for new printer
         if (list_cache_container_) {

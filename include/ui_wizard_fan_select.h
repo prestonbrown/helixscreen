@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -132,13 +133,13 @@ class WizardFanSelectStep : public helix::wizard::Step {
 
     // Subjects
     SubjectManager subjects_;
-    lv_subject_t hotend_fan_selected_{};
-    lv_subject_t part_fan_selected_{};
-    lv_subject_t chamber_fan_selected_{};
-    lv_subject_t exhaust_fan_selected_{};
-    lv_subject_t duplicate_{};
+    helix::Subject hotend_fan_selected_{};
+    helix::Subject part_fan_selected_{};
+    helix::Subject chamber_fan_selected_{};
+    helix::Subject exhaust_fan_selected_{};
+    helix::Subject duplicate_{};
     /// 1 when the printer has more than two fans: the chamber and exhaust row shows
-    lv_subject_t optional_visible_{};
+    helix::Subject optional_visible_{};
 
     // Dynamic options storage
     std::vector<std::string> hotend_fan_items_;

@@ -8,6 +8,7 @@
 
 #include "ams_state.h"
 #include "color_utils.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "filament_chip_model.h"
 #include "filament_mapper.h"
@@ -36,9 +37,9 @@ namespace {
 
 using helix::xml::IndexedSubjectPool;
 
-HELIX_PSRAM_BSS lv_subject_t s_chip_count{};
-HELIX_PSRAM_BSS lv_subject_t s_more_count{};
-HELIX_PSRAM_BSS lv_subject_t s_more_text{};
+HELIX_PSRAM_BSS helix::Subject s_chip_count{};
+HELIX_PSRAM_BSS helix::Subject s_more_count{};
+HELIX_PSRAM_BSS helix::Subject s_more_text{};
 HELIX_PSRAM_BSS char s_more_text_buf[16];
 helix::WidgetSubjects s_chip_subjects{"FilamentChipSubjects"};
 

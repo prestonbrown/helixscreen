@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_execute.h"
@@ -31,8 +32,8 @@ namespace {
 // subjects): the XML tree bound to these outlives each one-shot instance's
 // exit animation, and an instance-owned subject would be deinit'd out from
 // under a live binding.
-lv_subject_t s_title_text{};
-lv_subject_t s_action_text{};
+helix::Subject s_title_text{};
+helix::Subject s_action_text{};
 std::string s_title_owned;
 std::string s_action_owned;
 bool s_direction_subjects_initialized = false;
@@ -42,8 +43,8 @@ void init_direction_subjects() {
     if (s_direction_subjects_initialized) {
         return;
     }
-    lv_subject_init_pointer(&s_title_text, nullptr);
-    lv_subject_init_pointer(&s_action_text, nullptr);
+    s_title_text.init_pointer(nullptr);
+    s_action_text.init_pointer(nullptr);
     s_subjects.publish("batch_filament_title_text", &s_title_text);
     s_subjects.publish("batch_filament_action_text", &s_action_text);
     s_direction_subjects_initialized = true;

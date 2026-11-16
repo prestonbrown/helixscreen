@@ -4,6 +4,7 @@
 
 #include "ui_utils.h"
 
+#include "core/subject.h"
 #include "filament_chip_model.h"
 #include "filament_variants.h"
 #include "helix/xml/indexed_subject_pool.h"
@@ -29,20 +30,20 @@ constexpr lv_opa_t kSwatchBorderOpa = 30;
 
 using helix::xml::IndexedSubjectPool;
 
-HELIX_PSRAM_BSS lv_subject_t s_title{};
+HELIX_PSRAM_BSS helix::Subject s_title{};
 HELIX_PSRAM_BSS char s_title_buf[128];
-HELIX_PSRAM_BSS lv_subject_t s_has_title{};
-HELIX_PSRAM_BSS lv_subject_t s_row_count{};
-HELIX_PSRAM_BSS lv_subject_t s_has_reasons{};
-HELIX_PSRAM_BSS lv_subject_t s_offer_auto{};
-HELIX_PSRAM_BSS lv_subject_t s_auto_selected{};
-HELIX_PSRAM_BSS lv_subject_t s_auto_text{};
+HELIX_PSRAM_BSS helix::Subject s_has_title{};
+HELIX_PSRAM_BSS helix::Subject s_row_count{};
+HELIX_PSRAM_BSS helix::Subject s_has_reasons{};
+HELIX_PSRAM_BSS helix::Subject s_offer_auto{};
+HELIX_PSRAM_BSS helix::Subject s_auto_selected{};
+HELIX_PSRAM_BSS helix::Subject s_auto_text{};
 HELIX_PSRAM_BSS char s_auto_text_buf[48];
-HELIX_PSRAM_BSS lv_subject_t s_has_extra{};
-HELIX_PSRAM_BSS lv_subject_t s_extra_text{};
+HELIX_PSRAM_BSS helix::Subject s_has_extra{};
+HELIX_PSRAM_BSS helix::Subject s_extra_text{};
 HELIX_PSRAM_BSS char s_extra_text_buf[96];
-HELIX_PSRAM_BSS lv_subject_t s_has_cancel{};
-HELIX_PSRAM_BSS lv_subject_t s_cancel_text{};
+HELIX_PSRAM_BSS helix::Subject s_has_cancel{};
+HELIX_PSRAM_BSS helix::Subject s_cancel_text{};
 HELIX_PSRAM_BSS char s_cancel_text_buf[64];
 helix::WidgetSubjects s_subjects{"FilamentSlotPickerSubjects"};
 

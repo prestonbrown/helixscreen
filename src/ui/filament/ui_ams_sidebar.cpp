@@ -30,6 +30,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "filament_database.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
@@ -54,6 +55,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace helix::ui {
 
@@ -208,28 +210,28 @@ void dispatch_backend_unload(int slot_index, int target_slot, FilamentOpTicket t
  * live binding. Registered once, deinit'd via StaticSubjectRegistry (which runs
  * before lv_deinit()), same shape as ScrewsTiltShareModal's row subjects.
  */
-HELIX_PSRAM_BSS lv_subject_t s_unload_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_load_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_reset_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_check_gates_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_load_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_unload_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_unload_picks{};
-HELIX_PSRAM_BSS lv_subject_t s_mount_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_mount_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_park_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_park_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_action_reason{};
-HELIX_PSRAM_BSS lv_subject_t s_action_reason_shown{};
+HELIX_PSRAM_BSS helix::Subject s_unload_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_load_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_reset_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_check_gates_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_load_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_unload_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_unload_picks{};
+HELIX_PSRAM_BSS helix::Subject s_mount_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_mount_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_park_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_park_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_action_reason{};
+HELIX_PSRAM_BSS helix::Subject s_action_reason_shown{};
 HELIX_PSRAM_BSS char s_action_reason_buf[192];
-HELIX_PSRAM_BSS lv_subject_t s_supports_reset{};
-HELIX_PSRAM_BSS lv_subject_t s_cancel_shown{};
+HELIX_PSRAM_BSS helix::Subject s_supports_reset{};
+HELIX_PSRAM_BSS helix::Subject s_cancel_shown{};
 /// 1 where the backend can check its gates: Check Slots shows.
-HELIX_PSRAM_BSS lv_subject_t s_check_gates_shown{};
+HELIX_PSRAM_BSS helix::Subject s_check_gates_shown{};
 /// 1 while an operation's step bar is shown.
-HELIX_PSRAM_BSS lv_subject_t s_stepper_shown{};
-HELIX_PSRAM_BSS lv_subject_t s_mounted_shown{};
-HELIX_PSRAM_BSS lv_subject_t s_mounted_text{};
+HELIX_PSRAM_BSS helix::Subject s_stepper_shown{};
+HELIX_PSRAM_BSS helix::Subject s_mounted_shown{};
+HELIX_PSRAM_BSS helix::Subject s_mounted_text{};
 HELIX_PSRAM_BSS char s_mounted_text_buf[64];
 bool s_gating_subjects_initialized = false;
 SubjectManager s_subjects;
@@ -272,17 +274,21 @@ void init_button_gating_subjects() {
     if (s_gating_subjects_initialized) {
         return;
     }
-    for (lv_subject_t* subject :
-         {&s_unload_disabled, &s_load_disabled, &s_reset_disabled, &s_check_gates_disabled,
-          &s_load_hidden, &s_unload_hidden, &s_unload_picks, &s_mount_hidden, &s_mount_disabled,
-          &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset,
-          &s_cancel_shown, &s_check_gates_shown, &s_stepper_shown, &s_mounted_shown}) {
-        lv_subject_init_int(subject, 0);
+    // The statics are built before lv_init(), so `&` is null until init: take the Subjects.
+    for (helix::Subject* subject :
+         {std::addressof(s_unload_disabled), std::addressof(s_load_disabled),
+          std::addressof(s_reset_disabled), std::addressof(s_check_gates_disabled),
+          std::addressof(s_load_hidden), std::addressof(s_unload_hidden),
+          std::addressof(s_unload_picks), std::addressof(s_mount_hidden),
+          std::addressof(s_mount_disabled), std::addressof(s_park_hidden),
+          std::addressof(s_park_disabled), std::addressof(s_action_reason_shown),
+          std::addressof(s_supports_reset), std::addressof(s_cancel_shown),
+          std::addressof(s_check_gates_shown), std::addressof(s_stepper_shown),
+          std::addressof(s_mounted_shown)}) {
+        subject->init_int(0);
     }
-    lv_subject_init_string(&s_action_reason, s_action_reason_buf, nullptr,
-                           sizeof(s_action_reason_buf), "");
-    lv_subject_init_string(&s_mounted_text, s_mounted_text_buf, nullptr, sizeof(s_mounted_text_buf),
-                           "");
+    s_action_reason.init_string(s_action_reason_buf, nullptr, sizeof(s_action_reason_buf), "");
+    s_mounted_text.init_string(s_mounted_text_buf, nullptr, sizeof(s_mounted_text_buf), "");
     reset_button_gating_subjects();
     s_subjects.publish("ams_sidebar_unload_disabled", &s_unload_disabled);
     s_subjects.publish("ams_sidebar_load_disabled", &s_load_disabled);

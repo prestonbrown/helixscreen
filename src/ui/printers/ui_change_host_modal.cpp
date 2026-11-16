@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "host_identity.h"
@@ -170,18 +171,17 @@ void ChangeHostModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_string(&host_ip_subject_, host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
-    lv_subject_init_string(&host_port_subject_, host_port_buf_, nullptr, sizeof(host_port_buf_),
-                           std::to_string(kDefaultMoonrakerPort).c_str());
-    lv_subject_init_string(&api_key_subject_, api_key_buf_, nullptr, sizeof(api_key_buf_), "");
-    lv_subject_init_int(&testing_subject_, 0);
-    lv_subject_init_int(&validated_subject_, 0);
-    lv_subject_init_int(&adding_subject_, 0);
-    lv_subject_init_int(&save_locked_subject_, 1);
-    lv_subject_init_int(&discovery_active_subject_, 0);
-    lv_subject_init_int(&status_kind_subject_, static_cast<int>(StatusKind::None));
-    lv_subject_init_string(&status_text_subject_, status_text_buf_, nullptr,
-                           sizeof(status_text_buf_), "");
+    host_ip_subject_.init_string(host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
+    host_port_subject_.init_string(host_port_buf_, nullptr, sizeof(host_port_buf_),
+                                   std::to_string(kDefaultMoonrakerPort).c_str());
+    api_key_subject_.init_string(api_key_buf_, nullptr, sizeof(api_key_buf_), "");
+    testing_subject_.init_int(0);
+    validated_subject_.init_int(0);
+    adding_subject_.init_int(0);
+    save_locked_subject_.init_int(1);
+    discovery_active_subject_.init_int(0);
+    status_kind_subject_.init_int(static_cast<int>(StatusKind::None));
+    status_text_subject_.init_string(status_text_buf_, nullptr, sizeof(status_text_buf_), "");
 
     // Register subjects for XML binding
     subjects_.publish("change_host_ip", &host_ip_subject_);

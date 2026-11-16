@@ -21,6 +21,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "firmware_error_envelope.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
@@ -37,15 +38,15 @@ namespace helix::ui {
 // The step subject is static (like the z-offset calibration panel's): XML
 // bindings resolve it by name from the current scope, and SubjectManager
 // deinit on the singleton keeps observers disconnected across rebuilds.
-static lv_subject_t s_cfs_chute_state;
-static lv_subject_t s_cfs_chute_x_text;
+static helix::Subject s_cfs_chute_state;
+static helix::Subject s_cfs_chute_x_text;
 static char s_cfs_chute_x_buf[16];
-static lv_subject_t s_cfs_chute_y_text;
+static helix::Subject s_cfs_chute_y_text;
 static char s_cfs_chute_y_buf[16];
-static lv_subject_t s_cfs_chute_saved_text;
+static helix::Subject s_cfs_chute_saved_text;
 static char s_cfs_chute_saved_buf[256];
-static lv_subject_t s_cfs_chute_mode_fine_active;
-static lv_subject_t s_cfs_chute_mode_coarse_active;
+static helix::Subject s_cfs_chute_mode_fine_active;
+static helix::Subject s_cfs_chute_mode_coarse_active;
 
 namespace {
 

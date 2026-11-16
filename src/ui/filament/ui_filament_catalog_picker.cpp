@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_filament_catalog_picker.h"
 
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -15,7 +16,7 @@ namespace {
 helix::WidgetSubjects s_subjects{"FilamentCatalogPickerSubjects",
                                  StaticSubjectRegistry::Lifetime::Process};
 // 1 = "Reset to defaults" is offered: a preset-editing caller set a reset callback.
-HELIX_PSRAM_BSS lv_subject_t s_reset_shown_subject;
+HELIX_PSRAM_BSS helix::Subject s_reset_shown_subject;
 
 void init_picker_subjects() {
     s_subjects.ensure_init([] {

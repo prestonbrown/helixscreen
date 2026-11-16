@@ -5,6 +5,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_catalog.h"
@@ -144,12 +145,12 @@ void FilamentProductEditModal::on_show() {
 void FilamentProductEditModal::init_subjects() {
     if (!names_.empty())
         return;
-    lv_subject_init_string(&secondary_text_subject_, secondary_text_buf_, nullptr,
-                           sizeof(secondary_text_buf_), lv_tr("Delete"));
+    secondary_text_subject_.init_string(secondary_text_buf_, nullptr, sizeof(secondary_text_buf_),
+                                        lv_tr("Delete"));
     names_.publish(&secondary_text_subject_, "secondary_text_subject", "secondary_text");
-    lv_subject_init_int(&show_secondary_subject_, 0);
+    show_secondary_subject_.init_int(0);
     names_.publish(&show_secondary_subject_, "show_secondary_subject", "show_secondary");
-    lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "");
+    title_subject_.init_string(title_buf_, nullptr, sizeof(title_buf_), "");
     names_.publish(&title_subject_, "title_subject", "title");
 }
 

@@ -29,6 +29,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
@@ -61,19 +62,19 @@
 using namespace helix;
 
 // Subject declarations (static/global scope required)
-static lv_subject_t current_step;
-static lv_subject_t total_steps;
-static lv_subject_t wizard_title;
-static lv_subject_t wizard_step_current;  // String for display, e.g., "1"
-static lv_subject_t wizard_step_total;    // String for display, e.g., "7"
-static lv_subject_t wizard_total_visible; // Int: 0 until the denominator is settled
-static lv_subject_t wizard_is_final_step; // Int: 0=not final, 1=final (for button visibility)
-static lv_subject_t wizard_back_visible;
+static helix::Subject current_step;
+static helix::Subject total_steps;
+static helix::Subject wizard_title;
+static helix::Subject wizard_step_current;  // String for display, e.g., "1"
+static helix::Subject wizard_step_total;    // String for display, e.g., "7"
+static helix::Subject wizard_total_visible; // Int: 0 until the denominator is settled
+static helix::Subject wizard_is_final_step; // Int: 0=not final, 1=final (for button visibility)
+static helix::Subject wizard_back_visible;
 
 // Non-static: accessible from other wizard step files
-lv_subject_t connection_test_passed{}; // Global: 0=connection not validated, 1=validated or N/A
-lv_subject_t wizard_subtitle{};        // Global: accessible for dynamic subtitle updates
-lv_subject_t wizard_show_skip{};       // Global: 0=show Next, 1=show Skip (for touch calibration)
+helix::Subject connection_test_passed{}; // Global: 0=connection not validated, 1=validated or N/A
+helix::Subject wizard_subtitle{};        // Global: accessible for dynamic subtitle updates
+helix::Subject wizard_show_skip{};       // Global: 0=show Next, 1=show Skip (for touch calibration)
 
 // SubjectManager for RAII cleanup of wizard subjects
 static SubjectManager wizard_subjects_;

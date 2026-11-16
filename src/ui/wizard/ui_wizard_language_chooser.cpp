@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
@@ -25,7 +26,7 @@ using namespace helix;
 #endif
 
 // External subject for enabling/disabling Next button
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Welcome Translations

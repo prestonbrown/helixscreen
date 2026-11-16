@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
@@ -94,10 +95,9 @@ void GuidedLoadModal::init_subjects() {
     if (subjects_initialized_) {
         return;
     }
-    lv_subject_init_int(&view_subject_, static_cast<int>(View::Push));
+    view_subject_.init_int(static_cast<int>(View::Push));
     subjects_.publish("guided_load_view", &view_subject_);
-    lv_subject_init_string(&heat_text_subject_, heat_text_buf_, nullptr, sizeof(heat_text_buf_),
-                           "");
+    heat_text_subject_.init_string(heat_text_buf_, nullptr, sizeof(heat_text_buf_), "");
     subjects_.publish("guided_load_heat_text", &heat_text_subject_);
     subjects_initialized_ = true;
 }

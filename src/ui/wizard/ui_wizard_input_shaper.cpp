@@ -11,6 +11,7 @@
 #include "calibration_types.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
@@ -28,8 +29,8 @@
 using helix::calibration::InputShaperCalibrator;
 
 // External wizard subjects (defined in ui_wizard.cpp)
-extern lv_subject_t wizard_show_skip;
-extern lv_subject_t connection_test_passed;
+extern helix::Subject wizard_show_skip;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance

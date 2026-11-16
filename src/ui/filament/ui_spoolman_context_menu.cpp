@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_plugin_menu_rows.h"
 
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "plugin_menu_context.h"
 #include "ui/ui_widget_helpers.h"
@@ -23,15 +24,15 @@ namespace {
 // screen at a time, so every owner shares them.
 helix::WidgetSubjects s_subjects{"SpoolmanContextMenuSubjects",
                                  StaticSubjectRegistry::Lifetime::Process};
-HELIX_PSRAM_BSS lv_subject_t s_header_subject;
+HELIX_PSRAM_BSS helix::Subject s_header_subject;
 HELIX_PSRAM_BSS char s_header_buf[128];
 // Spoolman's filament.name, the subtitle under a header that already carries
 // vendor + material; hidden when the filament has no name.
-HELIX_PSRAM_BSS lv_subject_t s_filament_subject;
+HELIX_PSRAM_BSS helix::Subject s_filament_subject;
 HELIX_PSRAM_BSS char s_filament_buf[128];
-HELIX_PSRAM_BSS lv_subject_t s_filament_shown_subject;
+HELIX_PSRAM_BSS helix::Subject s_filament_shown_subject;
 // 0 for the active spool: it is feeding the printer.
-HELIX_PSRAM_BSS lv_subject_t s_archive_shown_subject;
+HELIX_PSRAM_BSS helix::Subject s_archive_shown_subject;
 
 void init_menu_subjects() {
     s_subjects.ensure_init([] {

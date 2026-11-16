@@ -5,6 +5,7 @@
 
 #include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "fault_path_position.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "subject_managed_panel.h"
@@ -16,7 +17,7 @@ namespace helix::ui {
 namespace {
 
 /// Where the filament stopped, as a PathSegment. 0 (NONE) hides the graphic.
-lv_subject_t g_fault_segment{};
+helix::Subject g_fault_segment{};
 SubjectManager g_subjects;
 bool g_initialized = false;
 

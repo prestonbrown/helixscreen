@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_manager.h"
 #include "lvgl.h"
 #include "settings_manager.h"
@@ -32,9 +33,9 @@ constexpr int kCrosshairSize = 50;
 constexpr int kCrosshairHalfSize = kCrosshairSize / 2;
 
 // External wizard subjects (defined in ui_wizard.cpp)
-extern lv_subject_t connection_test_passed;
-extern lv_subject_t wizard_show_skip;
-extern lv_subject_t wizard_subtitle;
+extern helix::Subject connection_test_passed;
+extern helix::Subject wizard_show_skip;
+extern helix::Subject wizard_subtitle;
 
 // ============================================================================
 // Global Instance
@@ -104,9 +105,9 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
 WizardTouchCalibrationStep::~WizardTouchCalibrationStep() {
     // Deinit subjects before memory is freed — removes observers from LVGL widgets
     if (subjects_initialized_ && lv_is_initialized()) {
-        lv_subject_deinit(&calibration_valid_);
-        lv_subject_deinit(&current_step_);
-        lv_subject_deinit(&cal_state_);
+        calibration_valid_.reset();
+        current_step_.reset();
+        cal_state_.reset();
         subjects_initialized_ = false;
     }
     screen_root_ = nullptr;
