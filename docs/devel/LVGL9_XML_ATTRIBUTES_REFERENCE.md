@@ -232,7 +232,7 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 | `src` | Image name or path |
 | `scale_x`, `scale_y` | 256=100% (⚠️ no `zoom`) |
 | `rotation` | 0.1° units |
-| `inner_align` | `center`, `top_left` ... `bottom_right`, `left_mid`, `right_mid`, `stretch`, `tile`, `contain`, `cover` |
+| `inner_align` | `center`, `top_left` ... `bottom_right`, `left_mid`, `right_mid`, `stretch`, `tile`, `contain`, `contain_downscale` (fits like `contain` but never scales up), `cover` |
 | `bind_src` | Subject (pointer or string) |
 
 ### lv_slider / lv_bar

@@ -1609,6 +1609,13 @@ class AmsBackend : public AmsCapabilityHost {
         return AmsErrorHelper::success();
     }
 
+    /// True when reset() retires a latched fault itself and its command also
+    /// does what clear_fault()'s would, so a caller about to reset skips the
+    /// clear rather than sending the same release twice.
+    [[nodiscard]] virtual bool reset_retires_fault() const {
+        return false;
+    }
+
     /// @return true if recover_with_state() is implemented
     [[nodiscard]] bool supports_recover_with_state() const {
         return traits().supports_recover_with_state;

@@ -168,7 +168,7 @@ static void log_tree_created(PrintState state, size_t available_mb) {
 // Returns whether a fullscreen view opened.
 static bool open_print_status_camera() {
 #if HELIX_HAS_CAMERA
-    return helix::open_standalone_camera_fullscreen(lv_display_get_screen_active(nullptr));
+    return helix::open_standalone_camera_fullscreen(lv_screen_active());
 #else
     spdlog::debug("[PrintStatusPanel] Camera support disabled in this build");
     return false;
@@ -226,7 +226,7 @@ const helix::UiRequestRegistration s_open_print_status_registration{
             spdlog::debug("[PrintStartNav] Print status already on stack — skip auto-nav");
             return;
         }
-        PrintStatusPanel::push_overlay(lv_display_get_screen_active(nullptr));
+        PrintStatusPanel::push_overlay(lv_screen_active());
     }};
 
 const bool s_print_status_shown_query_installed =

@@ -921,11 +921,6 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     if (data->material_label) {
         lv_label_set_text(data->material_label, "--");
     }
-    // At content height a dotted label wraps into the spool instead of
-    // ellipsizing, and the stagger rows below are laid out one line apart.
-    for (lv_obj_t* label : {data->name_label, data->material_label}) {
-        helix::ui::label_hold_one_line(label);
-    }
     if (data->slot_badge) {
         lv_label_set_text(data->slot_badge, "?");
     }

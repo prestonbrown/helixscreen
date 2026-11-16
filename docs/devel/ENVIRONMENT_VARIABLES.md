@@ -753,6 +753,21 @@ On aarch64, LVGL's NEON blends into an XRGB8888 destination write 0 into the fou
 
 A defect here is invisible to `ctl screenshot` for the same reason. Check the panel by eye: icons, borders and antialiased text must not turn black.
 
+### `HELIX_FBDEV_VSYNC`
+
+Vertical-blank wait on the framebuffer backend (`HELIX_DISPLAY_BACKEND=fbdev`). With `1`, each frame waits for the next vblank (`FBIO_WAITFORVSYNC`) before its first flush, so the panel is less likely to show half of one frame and half of the next. The cost is that the LVGL thread blocks for up to one refresh interval per frame. Off by default while hardware tests decide which panels gain from it. A framebuffer driver that rejects the ioctl logs one LVGL warning and the wait stays off for the rest of the run.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, `true`, `yes` or `on` (wait for vblank); anything else (no wait) |
+| **Default** | Off |
+| **Invalid** | Reads as off |
+| **File** | `src/platform/display/display_backend_fbdev.cpp`, `patches/lvgl-fbdev-vsync-runtime.patch` |
+
+```bash
+HELIX_FBDEV_VSYNC=1 ./bin/helix-screen -vv
+```
+
 ### `HELIX_HEADLESS`
 
 Make `scripts/screenshot.sh` run without a display server by forcing SDL's dummy

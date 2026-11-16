@@ -217,6 +217,14 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
         }
     }
 
+    // Off by default until hardware tests settle which panels gain from the wait: it blocks
+    // the LVGL thread up to one refresh interval per frame.
+    const bool fbdev_vsync = helix::env_flag("HELIX_FBDEV_VSYNC");
+    lv_linux_fbdev_set_vsync(display_, fbdev_vsync);
+    spdlog::info("[Fbdev Backend] {} (HELIX_FBDEV_VSYNC)",
+                 fbdev_vsync ? "Each frame waits for vertical blank"
+                             : "Frames do not wait for vertical blank");
+
     // Suppress kernel console output to framebuffer.
     // Prevents dmesg/undervoltage warnings from bleeding through LVGL's partial repaints.
     suppress_console();

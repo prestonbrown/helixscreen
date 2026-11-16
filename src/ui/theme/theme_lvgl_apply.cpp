@@ -547,6 +547,9 @@ void theme_update_colors(bool is_dark) {
     // Update handle/knob styles from new theme properties and palette
     update_handle_styles(&pair.raw_for(is_dark),
                          resolve_border_radius(runtime().active_theme.properties), is_dark);
+    // The handle styles change after the palette reports above, and sliders and switches
+    // wearing them can sit on lv_layer_top or a screen that is not active.
+    lv_obj_report_style_change(nullptr);
 
     spdlog::debug("[Theme] Updated colors, dark_mode={}", is_dark);
 }

@@ -569,7 +569,7 @@ void ui_step_progress_set_current_label_only(lv_obj_t* widget, bool on) {
         lv_obj_set_width(caption, LV_PCT(100));
         lv_label_set_long_mode(caption, LV_LABEL_LONG_MODE_DOTS);
         // The widget reserves one line of padding below for the caption.
-        helix::ui::label_hold_one_line(caption);
+        lv_label_set_max_lines(caption, 1);
         lv_obj_set_style_text_align(caption, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_font(caption, theme_manager_get_font("font_body"), 0);
         lv_obj_set_style_text_color(caption, color_label_active, 0);
