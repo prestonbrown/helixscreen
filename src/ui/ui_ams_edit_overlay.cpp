@@ -678,6 +678,25 @@ void AmsEditOverlay::rebuild_option_lists() {
         for (const auto* ef : catalog_->products_in_family(sel_.brand, sel_.family)) {
             products.push_back({ef->name, ef->id, false});
         }
+        // Firmware that names the product without a catalog id (the CFS fork's
+        // NAME) opens on the line of that name, or on the name itself when the
+        // catalog has none. Only the slot's own product: once the user moves
+        // the selection, the name describes what was there before.
+        const bool named_without_id =
+            !selection_moved_ && sel_.product_id.empty() && !working_info_.product_name.empty();
+        bool name_listed = false;
+        if (named_without_id) {
+            for (const auto& option : products) {
+                if (helix::text_io::equals_ignore_case(option.label, working_info_.product_name)) {
+                    sel_.product_id = option.payload;
+                    name_listed = true;
+                    break;
+                }
+            }
+            if (!name_listed) {
+                products.insert(products.begin(), {working_info_.product_name, {}, false});
+            }
+        }
         // An unresolved saved product still shows (selected) so an untouched
         // open+save keeps it.
         bool product_known = sel_.product_id.empty();
