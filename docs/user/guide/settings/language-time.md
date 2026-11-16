@@ -21,6 +21,8 @@ The language for everything on screen. The list shows each language in its own n
 
 The BTT K-Touch has no Chinese or Japanese, because its firmware has no room for those fonts.
 
+Print filenames written in Chinese or Japanese characters show correctly whatever language you pick. HelixScreen loads the extra characters only when it first has to show such a filename.
+
 ---
 
 ## Timezone
