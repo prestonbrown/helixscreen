@@ -49,9 +49,10 @@ class ContextMenu {
     /**
      * @brief Where the card is placed, and what it is placed relative to
      *
-     * `ClickPoint`: the card hangs off the captured
-     * pointer position and mirrors about it horizontally when it would overflow.
-     * It never flips vertically, which suits a menu raised by tapping a row.
+     * `ClickPoint`: the card hangs just below the captured pointer position,
+     * mirrors about it horizontally when it would overflow, and flips above it
+     * when the bottom would fall off screen. A card too tall for either goes
+     * beside the point, centred on it, so its caret can still point at the tap.
      *
      * `BelowAnchor` places the card under a widget's rectangle and flips it above
      * when the bottom would fall off screen — what a menu raised by a button
@@ -62,6 +63,9 @@ class ContextMenu {
      * fits inside the bounds less the margin. Below and above centre the card
      * on the anchor; right and left top-align it. When no side fits the card is
      * centred on the anchor, over it. Every mode is clamped to the bounds last.
+     *
+     * Whatever side the card lands on, a caret on the edge facing the anchor
+     * points at it (compute_caret()); a card over its anchor has none.
      */
     enum class AnchorMode {
         ClickPoint,
@@ -209,6 +213,7 @@ class ContextMenu {
      */
     void set_click_point(lv_point_t point) {
         click_point_ = point;
+        has_click_point_ = true;
     }
 
     /**
@@ -351,6 +356,7 @@ class ContextMenu {
     lv_obj_t* parent_ = nullptr;
     int item_index_ = -1;
     lv_point_t click_point_ = {0, 0};
+    bool has_click_point_ = false;
     AnchorMode anchor_mode_ = AnchorMode::ClickPoint;
     AnchorAlign anchor_align_ = AnchorAlign::Center;
     WidgetRef anchor_widget_;
@@ -475,12 +481,71 @@ class ContextMenu {
      * @param bounds  Backdrop size
      * @param margin  Smallest gap between card and backdrop edge
      * @param gap     Gap between card and anchor in BelowAnchor and AroundAnchor mode
-     * @param side    Optional; receives the side an AroundAnchor card went (Below
-     *                for the other modes)
+     * @param side    Optional; receives the side of the anchor the placed card
+     *                ended up on, read off the final rectangle (side_of_anchor(),
+     *                preferring the side it was placed on) so a clamp that pushes
+     *                the card over its anchor reports Over
      */
     static lv_point_t compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                        int32_t margin, int32_t gap, AnchorMode mode,
                                        AnchorAlign align, AnchorSide* side = nullptr);
+
+    /**
+     * @brief Which side of @p anchor the @p card rectangle lies on
+     *
+     * @p prefer when the card clears the anchor on that side: a card placed to
+     * the right of a point and clamped down past it clears it on two sides, and
+     * the one it was placed on is the edge its caret belongs on. Otherwise the
+     * first side it clears of Below, Above, Right, Left, else Over. Both
+     * rectangles are inclusive LVGL areas in one coordinate space; a click point
+     * is a zero-size area.
+     */
+    static AnchorSide side_of_anchor(lv_area_t card, lv_area_t anchor,
+                                     AnchorSide prefer = AnchorSide::Over);
+
+    /**
+     * @brief Where a card's caret sits, the small triangle pointing at its anchor
+     *
+     * `side` is the card's side of its anchor, which names the edge: Below puts
+     * the caret on the card's top edge, Above on its bottom, Right on its left,
+     * Left on its right. Over means no caret.
+     */
+    struct CaretPlacement {
+        AnchorSide side = AnchorSide::Over;
+        /// Caret centre along its edge, from the card's left (top/bottom edge)
+        /// or top (left/right edge), in card-local px
+        int32_t offset = 0;
+
+        [[nodiscard]] bool visible() const {
+            return side != AnchorSide::Over;
+        }
+    };
+
+    /**
+     * @brief Place the caret on @p card's edge facing @p anchor
+     *
+     * Centred on the anchor's midpoint along that edge, then clamped so the
+     * caret's base (2 x @p caret_h wide, its sides at 45 degrees) stays clear of
+     * the card's corner radius. An edge too short for that gets the caret at its
+     * middle. Pure arithmetic, so it is tested without rendering.
+     *
+     * @param card    The placed card, inclusive area
+     * @param anchor  The anchor rectangle, or a zero-size area at the click point
+     * @param side    The card's side of the anchor (side_of_anchor())
+     * @param radius  The card's corner radius
+     * @param caret_h How far the caret's tip stands off the card edge
+     */
+    static CaretPlacement compute_caret(lv_area_t card, lv_area_t anchor, AnchorSide side,
+                                        int32_t radius, int32_t caret_h);
+
+  private:
+    /**
+     * @brief Draw @p caret on @p menu_card from now on, in the card's own colours
+     *
+     * The geometry lives on the card (freed with it), so the caret redraws with
+     * the card and never reads a menu object that may have moved or gone.
+     */
+    static void attach_caret(lv_obj_t* menu_card, CaretPlacement caret, int32_t caret_h);
 };
 
 /**

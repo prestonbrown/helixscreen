@@ -14,6 +14,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <memory>
 
 namespace helix::ui {
 
@@ -38,6 +39,7 @@ void ContextMenu::adopt_from(ContextMenu& other) {
     parent_ = other.parent_;
     item_index_ = other.item_index_;
     click_point_ = other.click_point_;
+    has_click_point_ = other.has_click_point_;
     anchor_mode_ = other.anchor_mode_;
     anchor_align_ = other.anchor_align_;
     anchor_widget_ = other.anchor_widget_.get();
@@ -568,69 +570,85 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
                                          AnchorAlign align, AnchorSide* side) {
     int32_t x = 0;
     int32_t y = 0;
-    if (side) {
-        *side = AnchorSide::Below;
-    }
+    AnchorSide intended = AnchorSide::Over;
+
+    // Anchor coordinates are inclusive, so a card gap px clear of the anchor
+    // starts one past its far edge.
+    const int32_t below_y = anchor.y2 + 1 + gap;
+    const int32_t above_y = anchor.y1 - gap - card.y;
+    const int32_t right_x = anchor.x2 + 1 + gap;
+    const int32_t left_x = anchor.x1 - gap - card.x;
+    const bool fits_across = card.x <= bounds.x - 2 * margin;
+    const bool fits_down = card.y <= bounds.y - 2 * margin;
+    const auto fits_y = [&](int32_t top) {
+        return top >= margin && top + card.y <= bounds.y - margin;
+    };
+    const auto fits_x = [&](int32_t left) {
+        return left >= margin && left + card.x <= bounds.x - margin;
+    };
 
     if (mode == AnchorMode::AroundAnchor) {
-        // Anchor coordinates are inclusive, so a card gap px clear of the anchor
-        // starts one past its far edge.
         const int32_t anchor_w = anchor.x2 - anchor.x1 + 1;
         const int32_t anchor_h = anchor.y2 - anchor.y1 + 1;
         const int32_t centre_x = anchor.x1 + anchor_w / 2 - card.x / 2;
         const int32_t centre_y = anchor.y1 + anchor_h / 2 - card.y / 2;
-        const bool fits_across = card.x <= bounds.x - 2 * margin;
-        const bool fits_down = card.y <= bounds.y - 2 * margin;
-        const auto fits_y = [&](int32_t top) {
-            return fits_across && top >= margin && top + card.y <= bounds.y - margin;
-        };
-        const auto fits_x = [&](int32_t left) {
-            return fits_down && left >= margin && left + card.x <= bounds.x - margin;
-        };
-        const int32_t below_y = anchor.y2 + 1 + gap;
-        const int32_t above_y = anchor.y1 - gap - card.y;
-        const int32_t right_x = anchor.x2 + 1 + gap;
-        const int32_t left_x = anchor.x1 - gap - card.x;
-        AnchorSide chosen = AnchorSide::Over;
-        if (fits_y(below_y)) {
-            chosen = AnchorSide::Below;
+        if (fits_across && fits_y(below_y)) {
+            intended = AnchorSide::Below;
             x = centre_x;
             y = below_y;
-        } else if (fits_y(above_y)) {
-            chosen = AnchorSide::Above;
+        } else if (fits_across && fits_y(above_y)) {
+            intended = AnchorSide::Above;
             x = centre_x;
             y = above_y;
-        } else if (fits_x(right_x)) {
-            chosen = AnchorSide::Right;
+        } else if (fits_down && fits_x(right_x)) {
+            intended = AnchorSide::Right;
             x = right_x;
             y = anchor.y1;
-        } else if (fits_x(left_x)) {
-            chosen = AnchorSide::Left;
+        } else if (fits_down && fits_x(left_x)) {
+            intended = AnchorSide::Left;
             x = left_x;
             y = anchor.y1;
         } else {
             x = centre_x;
             y = centre_y;
         }
-        if (side) {
-            *side = chosen;
-        }
     } else if (mode == AnchorMode::BelowAnchor) {
+        intended = AnchorSide::Below;
         x = (align == AnchorAlign::Center) ? (anchor.x1 + anchor.x2) / 2 - card.x / 2 : anchor.x1;
         y = anchor.y2 + gap;
         // Flip above the anchor rather than covering it. Only worth doing if there is
         // actually more room up there — on a card taller than the screen both sides
         // overflow, and the clamp below is what saves it either way.
         if (y + card.y > bounds.y - margin) {
+            intended = AnchorSide::Above;
             y = anchor.y1 - card.y - gap;
         }
     } else {
-        // Hang off the click point and mirror about it, so the pointer stays at a
-        // corner of the card instead of the card jumping to the other side of the row.
+        // Hang just below the click point and mirror about it, so the pointer stays
+        // by a corner of the card instead of the card jumping across the row; above
+        // it when below does not fit. A card too tall for either goes beside the
+        // point, centred on it. The card never covers the point while any of those
+        // fit, which leaves its caret something to point at.
         x = anchor.x1 - margin;
-        y = anchor.y1 - margin;
         if (x + card.x > bounds.x - margin) {
             x = anchor.x1 - card.x + margin;
+        }
+        if (fits_y(below_y)) {
+            intended = AnchorSide::Below;
+            y = below_y;
+        } else if (fits_y(above_y)) {
+            intended = AnchorSide::Above;
+            y = above_y;
+        } else if (fits_down && fits_x(right_x)) {
+            intended = AnchorSide::Right;
+            x = right_x;
+            y = anchor.y1 - card.y / 2;
+        } else if (fits_down && fits_x(left_x)) {
+            intended = AnchorSide::Left;
+            x = left_x;
+            y = anchor.y1 - card.y / 2;
+        } else {
+            y = below_y;
         }
     }
 
@@ -652,7 +670,179 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
         y = margin;
     }
 
+    if (side) {
+        *side = side_of_anchor({x, y, x + card.x - 1, y + card.y - 1}, anchor, intended);
+    }
     return {x, y};
+}
+
+ContextMenu::AnchorSide ContextMenu::side_of_anchor(lv_area_t card, lv_area_t anchor,
+                                                    AnchorSide prefer) {
+    const auto clears = [&](AnchorSide s) {
+        switch (s) {
+        case AnchorSide::Below:
+            return card.y1 > anchor.y2;
+        case AnchorSide::Above:
+            return card.y2 < anchor.y1;
+        case AnchorSide::Right:
+            return card.x1 > anchor.x2;
+        case AnchorSide::Left:
+            return card.x2 < anchor.x1;
+        case AnchorSide::Over:
+            break;
+        }
+        return false;
+    };
+    if (clears(prefer)) {
+        return prefer;
+    }
+    for (AnchorSide s :
+         {AnchorSide::Below, AnchorSide::Above, AnchorSide::Right, AnchorSide::Left}) {
+        if (clears(s)) {
+            return s;
+        }
+    }
+    return AnchorSide::Over;
+}
+
+ContextMenu::CaretPlacement ContextMenu::compute_caret(lv_area_t card, lv_area_t anchor,
+                                                       AnchorSide side, int32_t radius,
+                                                       int32_t caret_h) {
+    if (side == AnchorSide::Over || caret_h <= 0) {
+        return {};
+    }
+    const bool horizontal_edge = side == AnchorSide::Below || side == AnchorSide::Above;
+    const int32_t edge_start = horizontal_edge ? card.x1 : card.y1;
+    const int32_t edge_len = horizontal_edge ? card.x2 - card.x1 + 1 : card.y2 - card.y1 + 1;
+    const int32_t target = horizontal_edge ? (anchor.x1 + anchor.x2) / 2 - edge_start
+                                           : (anchor.y1 + anchor.y2) / 2 - edge_start;
+
+    // The caret's base is 2 * caret_h wide; its half-width plus the corner radius
+    // is how close to either end of the edge its centre may come.
+    const int32_t inset = std::max(radius, static_cast<int32_t>(0)) + caret_h;
+    const int32_t lo = inset;
+    const int32_t hi = edge_len - 1 - inset;
+    const int32_t offset = lo <= hi ? std::clamp(target, lo, hi) : edge_len / 2;
+    return {side, offset};
+}
+
+namespace {
+
+/// A caret's geometry, owned by the card it is drawn on.
+struct CaretDraw {
+    ContextMenu::CaretPlacement caret;
+    int32_t caret_h = 0;
+};
+
+/// A point @p along the caret's edge from the card's start, @p out px outward
+/// from the card's outer boundary (negative goes into the card).
+lv_point_precise_t caret_point(const lv_area_t& card, ContextMenu::AnchorSide side, float along,
+                               float out) {
+    using AnchorSide = ContextMenu::AnchorSide;
+    float x = 0.0f;
+    float y = 0.0f;
+    switch (side) {
+    case AnchorSide::Below: // top edge, pointing up
+        x = static_cast<float>(card.x1) + along;
+        y = static_cast<float>(card.y1) - out;
+        break;
+    case AnchorSide::Above: // bottom edge, pointing down
+        x = static_cast<float>(card.x1) + along;
+        y = static_cast<float>(card.y2 + 1) + out;
+        break;
+    case AnchorSide::Right: // left edge, pointing left
+        x = static_cast<float>(card.x1) - out;
+        y = static_cast<float>(card.y1) + along;
+        break;
+    case AnchorSide::Left: // right edge, pointing right
+    case AnchorSide::Over:
+        x = static_cast<float>(card.x2 + 1) + out;
+        y = static_cast<float>(card.y1) + along;
+        break;
+    }
+    return {static_cast<lv_value_precise_t>(x), static_cast<lv_value_precise_t>(y)};
+}
+
+void draw_caret_triangle(lv_layer_t* layer, const lv_area_t& card, ContextMenu::AnchorSide side,
+                         float centre, float tip, float base, lv_color_t color, lv_opa_t opa) {
+    // The sides run at 45 degrees, so the half-width at the base is its
+    // distance from the tip.
+    const float half = tip - base;
+    lv_draw_triangle_dsc_t dsc;
+    lv_draw_triangle_dsc_init(&dsc);
+    dsc.color = color;
+    dsc.opa = opa;
+    dsc.p[0] = caret_point(card, side, centre, tip);
+    dsc.p[1] = caret_point(card, side, centre - half, base);
+    dsc.p[2] = caret_point(card, side, centre + half, base);
+    lv_draw_triangle(layer, &dsc);
+}
+
+void caret_ext_draw_size_cb(lv_event_t* e) {
+    auto* draw = static_cast<CaretDraw*>(lv_event_get_user_data(e));
+    auto* card = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    if (!draw || !card) {
+        return;
+    }
+    // One extra px for the anti-aliased tip.
+    lv_event_set_ext_draw_size(e, draw->caret_h + 1);
+}
+
+// The card's border, if it has one, runs on along the caret's two sides: a
+// border-coloured triangle, then a fill-coloured one inset by the border width
+// whose base reaches into the card past its border, so no border line crosses
+// the caret's mouth.
+void caret_draw_cb(lv_event_t* e) {
+    auto* draw = static_cast<CaretDraw*>(lv_event_get_user_data(e));
+    auto* card = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    lv_layer_t* layer = lv_event_get_layer(e);
+    if (!draw || !card || !layer || !draw->caret.visible()) {
+        return;
+    }
+    lv_area_t area;
+    lv_obj_get_coords(card, &area);
+    const auto side = draw->caret.side;
+    const float centre = static_cast<float>(draw->caret.offset) + 0.5f;
+    const float h = static_cast<float>(draw->caret_h);
+
+    const int32_t border_w = lv_obj_get_style_border_width(card, LV_PART_MAIN);
+    const lv_opa_t border_opa = lv_obj_get_style_border_opa(card, LV_PART_MAIN);
+    const lv_border_side_t border_side = lv_obj_get_style_border_side(card, LV_PART_MAIN);
+    const bool has_border =
+        border_w > 0 && border_opa > LV_OPA_MIN && border_side != LV_BORDER_SIDE_NONE;
+    float inner_tip = h;
+    if (has_border) {
+        draw_caret_triangle(layer, area, side, centre, h, 0.0f,
+                            lv_obj_get_style_border_color(card, LV_PART_MAIN), border_opa);
+        // A 45-degree side of perpendicular width w moves the tip in by w * sqrt(2).
+        inner_tip = h - static_cast<float>(border_w) * 1.41421356f;
+    }
+    if (inner_tip <= 0.0f) {
+        return;
+    }
+    draw_caret_triangle(layer, area, side, centre, inner_tip, -static_cast<float>(border_w) - 1.0f,
+                        lv_obj_get_style_bg_color(card, LV_PART_MAIN),
+                        lv_obj_get_style_bg_opa(card, LV_PART_MAIN));
+}
+
+void caret_delete_cb(lv_event_t* e) {
+    delete static_cast<CaretDraw*>(lv_event_get_user_data(e));
+}
+
+} // namespace
+
+void ContextMenu::attach_caret(lv_obj_t* menu_card, CaretPlacement caret, int32_t caret_h) {
+    if (!menu_card || !caret.visible() || caret_h <= 0) {
+        return;
+    }
+    auto draw = std::make_unique<CaretDraw>(CaretDraw{caret, caret_h});
+    CaretDraw* raw = draw.release();
+    // DECLARATIVE_OK: draw hook, the caret is painted from measured placement.
+    lv_obj_add_event_cb(menu_card, caret_ext_draw_size_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, raw);
+    lv_obj_add_event_cb(menu_card, caret_draw_cb, LV_EVENT_DRAW_MAIN_END, raw);
+    lv_obj_add_event_cb(menu_card, caret_delete_cb, LV_EVENT_DELETE, raw);
+    lv_obj_refresh_ext_draw_size(menu_card);
+    lv_obj_invalidate(menu_card);
 }
 
 void ContextMenu::position_card(lv_obj_t* menu_card) {
@@ -684,20 +874,31 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
 
     const lv_point_t card = {lv_obj_get_width(menu_card), lv_obj_get_height(menu_card)};
     const lv_point_t bounds = {lv_obj_get_width(backdrop), lv_obj_get_height(backdrop)};
+    // The gap leaves room for the caret, so its tip stops short of the anchor.
+    const int32_t caret_h = theme_manager_get_spacing("menu_caret");
     AnchorSide side = AnchorSide::Below;
-    const lv_point_t pos =
-        compute_card_pos(card, anchor, bounds, theme_manager_get_spacing("space_md"),
-                         theme_manager_get_spacing("space_xs"), mode, anchor_align_, &side);
+    const lv_point_t pos = compute_card_pos(
+        card, anchor, bounds, theme_manager_get_spacing("space_md"),
+        theme_manager_get_spacing("space_xs") + caret_h, mode, anchor_align_, &side);
 
     lv_obj_set_pos(menu_card, pos.x, pos.y);
 
+    // A click-point menu shown without a click point has nothing to point at.
+    if (mode != AnchorMode::ClickPoint || has_click_point_) {
+        const lv_area_t placed{pos.x, pos.y, pos.x + card.x - 1, pos.y + card.y - 1};
+        attach_caret(menu_card,
+                     compute_caret(placed, anchor, side,
+                                   lv_obj_get_style_radius(menu_card, LV_PART_MAIN), caret_h),
+                     caret_h);
+    }
+
     static constexpr const char* kSideNames[] = {"below", "above", "right", "left", "over"};
-    spdlog::debug("[ContextMenu] {} anchor({},{})-({},{}) card {}x{} in {}x{} -> ({},{})",
+    spdlog::debug("[ContextMenu] {} anchor({},{})-({},{}) card {}x{} in {}x{} -> ({},{}) {}",
                   mode == AnchorMode::ClickPoint    ? "click"
                   : mode == AnchorMode::BelowAnchor ? "below"
-                                                    : kSideNames[static_cast<int>(side)],
+                                                    : "around",
                   anchor.x1, anchor.y1, anchor.x2, anchor.y2, card.x, card.y, bounds.x, bounds.y,
-                  pos.x, pos.y);
+                  pos.x, pos.y, kSideNames[static_cast<int>(side)]);
 }
 
 } // namespace helix::ui
