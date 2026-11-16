@@ -181,6 +181,13 @@ void ThemeManager::apply_palette(const ThemePalette& palette) {
             entry.configure(&entry.style, current_palette_);
         }
     }
+    // A configure function can add a property the style did not hold before (glass, shadow).
+    // Widgets already wearing the style cache which properties their styles hold
+    // (LV_OBJ_STYLE_CACHE), so they read the new one as its default until told. Before the
+    // first init no widget wears these styles.
+    if (initialized_) {
+        lv_obj_report_style_change(nullptr);
+    }
 }
 
 void ThemeManager::set_glass(bool on) {
@@ -192,7 +199,6 @@ void ThemeManager::set_glass(bool on) {
         // A preview keeps showing the palette being previewed, now with glass.
         const ThemePalette palette = current_palette_;
         apply_palette(palette);
-        lv_obj_report_style_change(nullptr);
     }
 }
 
@@ -203,8 +209,6 @@ void ThemeManager::set_dark_mode(bool dark) {
 
     if (initialized_) {
         apply_palette(dark ? dark_palette_ : light_palette_);
-        // Trigger LVGL widget refresh
-        lv_obj_report_style_change(nullptr);
     }
 }
 
@@ -214,10 +218,6 @@ void ThemeManager::set_palettes(const ThemePalette& light, const ThemePalette& d
     // Update current palette if already initialized
     if (initialized_) {
         apply_palette(dark_mode_ ? dark_palette_ : light_palette_);
-        // Invalidate LVGL style caches so widgets re-read updated shared styles.
-        // Without this, cached radius from LVGL default theme's btn style can
-        // persist after our shared Button style is reset+reconfigured.
-        lv_obj_report_style_change(nullptr);
     }
 }
 
@@ -263,7 +263,6 @@ lv_color_t ThemeManager::get_color(std::string_view name) const {
 void ThemeManager::preview_palette(const ThemePalette& palette) {
     previewing_ = true;
     apply_palette(palette);
-    lv_obj_report_style_change(nullptr);
 }
 
 void ThemeManager::cancel_preview() {
@@ -271,5 +270,4 @@ void ThemeManager::cancel_preview() {
         return;
     previewing_ = false;
     apply_palette(dark_mode_ ? dark_palette_ : light_palette_);
-    lv_obj_report_style_change(nullptr);
 }
