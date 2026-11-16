@@ -33,6 +33,9 @@ struct PrinterSnapshot {
     std::string klipper_version; ///< klipper_version subject, "" if unset
     int connection_state = -1;   ///< printer_connection_state subject; -1 = unavailable
     int klippy_state = -1;       ///< klippy_state subject; -1 = unavailable
+    /// Whether Klippy ever reported a state. Until it does, klippy_state holds
+    /// the subject's SHUTDOWN placeholder, which must not read as a shutdown.
+    bool klippy_state_reported = true;
     /// Firmware mains-monitor objects this printer publishes
     /// (helix::power_loss::required_status_objects), for the printer-state
     /// query. Empty on a printer without one.

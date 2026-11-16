@@ -1223,6 +1223,13 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
         }
     }
 
+    if (const auto* flag = helix::json_util::find_member(state, "unload_after_print_enabled")) {
+        const int unload = helix::json_util::as_bool(*flag, true) ? 1 : 0;
+        if (unload_after_print_.exchange(unload) != unload) {
+            spdlog::info("[AMS CFS] Firmware unload after print: {}", unload ? "on" : "off");
+        }
+    }
+
     // Partial updates (measuring_wheel, etc.): skip — don't touch state.
     // A flat session has nothing to parse until the box has stated its slots.
     if (!is_full_update || (is_flat && detect_schema(state) != CfsSchema::Flat)) {
@@ -3760,6 +3767,10 @@ bool AmsBackendCfs::box_runout_needs_notice(int prev_useup, int useup, bool job_
     // filament_useup is a sticky latch that reads 1 on an idle machine, so only
     // a fresh 0 -> 1 edge is a runout; the first reading (-1) is not.
     return prev_useup == 0 && useup == 1 && job_running && toolhead_has_filament;
+}
+
+void AmsBackendCfs::on_fault_cleared_locked() {
+    phase_fault_ = PhaseVerdict::Ok;
 }
 
 void AmsBackendCfs::retire_resolved_phase_fault_locked(bool filament_detected) {
