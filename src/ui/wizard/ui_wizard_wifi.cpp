@@ -452,7 +452,7 @@ void WizardWifiStep::network_item_delete_cb(lv_event_t* e) {
         return;
 
     // Wrap raw pointer in unique_ptr for RAII cleanup
-    // (destructor calls lv_subject_deinit on all subjects)
+    // (destructor calls reset() on all subjects)
     std::unique_ptr<WifiWizardNetworkItemData> data(
         static_cast<WifiWizardNetworkItemData*>(lv_obj_get_user_data(obj)));
     lv_obj_set_user_data(obj, nullptr);

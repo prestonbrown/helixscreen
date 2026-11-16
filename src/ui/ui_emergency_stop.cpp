@@ -255,7 +255,7 @@ void EmergencyStopOverlay::create() {
 
     // This singleton outlives any given PrinterState — tests own one per fixture,
     // and a soft restart (Add Printer) tears the whole tree down and rebuilds it.
-    // deinit_subjects() flips this token before lv_subject_deinit() frees the
+    // deinit_subjects() flips this token before reset() frees the
     // observer nodes, which is the only thing that stops the guards below from
     // calling lv_observer_delete() on freed memory (THREADING.md §5).
     const SubjectLifetime ps_subjects = printer_state_->get_subjects_lifetime();

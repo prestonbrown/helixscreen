@@ -138,8 +138,8 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
       "preset_material_0_name", "preset_material_1_name", "preset_material_2_name",
       "preset_material_3_name"};
   // ...
-  lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
-                         s.name_bufs[i].size(), s.name_bufs[i].data());
+  s.name_subjects[i].init_string(s.name_bufs[i].data(), nullptr, s.name_bufs[i].size(),
+                                 s.name_bufs[i].data());
   s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
   ```
 

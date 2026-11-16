@@ -533,13 +533,58 @@ reason.
   `queue_update()`
 - **Cleanup:** each `init_subjects()` self-registers its `deinit_subjects()` (see §7)
 
+### Subject ownership: `helix::Subject`
+
+Every subject is a `helix::Subject` (`include/core/subject.h`), never an `lv_subject_t` held by
+value, and is set up through `init_*()`, never `lv_subject_init_*()` / `lv_subject_deinit()`, which
+LVGL 9.6 deprecates. `scripts/check_lvgl_subject_api.py` (`qc_lvgl_subject_api`) fails any site;
+a test pinning LVGL's own subject API takes `SUBJECT_API_OK: <reason>`.
+
+A `Subject` owns one `lv_subject_create()` node whose **address never changes** for the life of
+the `Subject`. Cached getters, the XML subject registry, `SubjectDebugRegistry`, the
+`ObserverGuard` teardown-exempt set and every guard's subject pointer all key on that address
+across a printer switch's teardown and re-init.
+
+| Event | Behaviour |
+|---|---|
+| Construction | Creates the node only when LVGL is up and on the main thread: an INT placeholder, `deinitialized` set, not live. `&member` taken in a constructor is already the final address. Constructed before `lv_init()` (namespace-scope statics), the handle stays null and the first `init_*()` creates it, so `&member` before that is `nullptr` (LVGL's null guards report `observer_null_subject`). |
+| `init_*()` | Reuses the node whatever its previous type: type, value, previous value and range are written in place as LVGL's init leaves them, nothing is notified or clamped. Refused (`subject_init_before_lvgl`) before `lv_init()`; off the main thread with no node yet it reports `subject_init_off_main_thread` and creates nothing. |
+| `init_*()` while live | Orphans the observers (the list is emptied, nothing freed) and reports `subject_reinit_while_live`. A guard still holding one deletes it later; freeing here would make that a double free. |
+| `init_string()` | Points at the caller's buffers and copies the initial value with `memmove`, so a value that aliases the buffer survives. The buffers must outlive the `Subject`. |
+| `reset()` | Frees every observer and refuses new ones until the next `init_*()`. Keeps the node. The replacement for `lv_subject_deinit()`. |
+| Destructor | Never frees inline: marks the node orphaned and queues `lv_subject_delete()` on the update queue (tag `kSubjectReleaseTag`), which checks `lv_is_initialized()` when it runs. Once the update queue itself is destroyed (the atexit chain) the node is left to LVGL's list, which `lv_deinit()` frees. |
+| Move | Transfers the node and re-points its owner back-pointer (`user_data`); a moved-from `Subject` holds none. `std::vector<Subject>` growth keeps every address. |
+
+**Why the free is deferred.** Members die in reverse declaration order. A `SubjectManager`
+declared above the subjects it registers runs `deinit_all()` after every `~Subject` in the same
+object, and an `ObserverGuard` that outlives its subject deletes its observer after the subject
+is gone. Both still reach a valid node because the free waits for the queue to drain; the queue
+also moves a free that starts on a worker thread onto the main thread. `subject_reset()` on an
+orphaned node resets it in place.
+
+**"Initialized" is `is_live()`, never the type.** A node exists from construction as an INT
+placeholder, so `type == LV_SUBJECT_TYPE_INT` reads a never-initialized subject as set. Holding the
+`Subject`, ask `is_live()`; holding only the pointer, ask `helix::subject_is_live(ptr)`.
+`subject_get_bool_or()` uses the same rule.
+
+**`&member` is the node, so pointer arithmetic is wrong.** `operator&` returns the
+`lv_subject_t*` every LVGL call takes, so `&arr[0] + i` and `p - &arr[0]` over an array of
+`Subject`s compile and yield garbage: the nodes are separate allocations. Index the container.
+`std::addressof()` gives the `Subject` itself.
+
+**`subject_reset(ptr)`** is the pointer form for code that holds only `lv_subject_t*`
+(`SubjectManager::deinit_all()`, registries). A pointer no `Subject` owns (helix-xml's own
+subjects) is reported as `subject_reset_unowned` and left alone.
+
+`HELIX_LOG_ANOMALIES=1` writes every one of these anomalies to stderr, test binary included.
+
 ### Static vs dynamic
 
 **Static subjects** exist for the whole app run and need no lifetime token - e.g. the
 primary-fan `get_fan_speed_subject()` (the genuinely no-argument overload). Teardown across a
 soft restart is covered by `ObserverGuard`'s invalidation epoch instead (§6).
 
-A subject between `lv_subject_deinit()` and its next `lv_subject_init_*()` refuses new
+A subject between `reset()` and its next `init_*()`, or never initialized, refuses new
 observers (`patches/lvgl_subject_deinit_refuses_observers.patch`): the attach returns NULL,
 the `observe<V>()` factory returns an empty guard, and LVGL logs `Subject is deinitialized;
 observer refused`. The refusal stops the next init from orphaning the observer, but the
@@ -548,7 +593,7 @@ owner re-initialized it, and the attach belongs after that init.
 
 **Dynamic subjects** are destroyed and recreated when hardware is rediscovered after a
 disconnect. Observing one without a `SubjectLifetime` is a use-after-free:
-`lv_subject_deinit()` frees the subject's observer list, but `ObserverGuard` still holds a
+`reset()` and the subject's destruction free its observer list, but `ObserverGuard` still holds a
 dangling pointer into it.
 
 | Source | Method |
@@ -606,7 +651,7 @@ The `lifetime` parameter of `observe<V>` has no default, so omitting it does not
 token, or `subject_never_freed()` for a subject that outlives the process. (`AnimatedValue::bind`
 still defaults it to `{}`, so a missing token there compiles silently.) Without a token the guard's
 `has_alive_token_` stays `false`, `subject_dead` can never become `true`, and `reset()` calls
-`lv_observer_delete()` on a subject `lv_subject_deinit()` already freed.
+`lv_observer_delete()` on an observer `reset()` already freed.
 
 ### Local or member? Not what decides correctness
 
@@ -838,9 +883,7 @@ void PrinterState::init_subjects() {
 void AmsState::deinit_subjects() {
     if (!initialized_) return;
     spdlog::debug("[AMS State] Deinitializing subjects");
-    lv_subject_deinit(&ams_type_);
-    lv_subject_deinit(&ams_action_);
-    // ... every subject ...
+    subjects_.deinit_all();   // SubjectManager: reset() on every registered subject
     initialized_ = false;
 }
 ```
@@ -1102,6 +1145,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 |------|----------|
 | `include/core/update_queue.h` | `UpdateQueue`, `queue_update()`, `scoped_freeze()` |
 | `include/async_lifetime_guard.h` | `AsyncLifetimeGuard`, `LifetimeToken`, `bg_cb()` |
+| `include/core/subject.h` | `helix::Subject`, `subject_is_live()`, `subject_reset()` |
 | `include/core/observer_guard.h` | `ObserverGuard`, `SubjectLifetime` |
 | `include/core/observer_factory.h` | `observe<V>` (`Dispatch::Deferred` / `Immediate`), `observe_print_state`, `observe_print_lifecycle` |
 | `include/ui_utils.h` | `safe_delete_deferred`, `safe_clean_children`, `safe_delete_subtree` |

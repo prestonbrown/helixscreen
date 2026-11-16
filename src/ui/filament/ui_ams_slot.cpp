@@ -1024,7 +1024,7 @@ void ui_ams_slot_register(void) {
     lv_xml_register_widget("ams_slot", ams_slot_xml_create, ams_slot_xml_apply);
 
     // Self-register cleanup — ensures slot data is released before lv_deinit()
-    // so that lv_subject_deinit() can safely remove observers from live widgets
+    // so that reset() can safely remove observers from live widgets
     // Registration is process-once; the slots observe printer subjects, so the cleanup
     // runs at every printer switch and stays registered for the next one.
     StaticSubjectRegistry::instance().register_deinit(

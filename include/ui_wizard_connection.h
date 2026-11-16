@@ -89,7 +89,7 @@ class WizardConnectionStep : public helix::wizard::Step {
     WizardConnectionStep();
     ~WizardConnectionStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardConnectionStep(const WizardConnectionStep&) = delete;
     WizardConnectionStep& operator=(const WizardConnectionStep&) = delete;

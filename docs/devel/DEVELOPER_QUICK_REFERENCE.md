@@ -24,8 +24,8 @@ class ExamplePanel : public PanelBase {
     const char* get_xml_component_name() const override { return "example_panel"; }
 
   private:
-    SubjectManager subjects_;      // owns the subjects, deinitializes them on destruction
-    lv_subject_t my_subject_{};
+    SubjectManager subjects_;      // registers the subjects, resets them on destruction
+    helix::Subject my_subject_;    // include/core/subject.h
     char buf_[128]{};              // backing storage for a string subject
     ObserverGuard temp_observer_;  // one guard per observed subject
 };
@@ -92,7 +92,7 @@ public:
     void set_active_extruder(const std::string& name); // Update via helix::ui::queue_update
 
 private:
-    lv_subject_t nozzle_temp_{};
+    helix::Subject nozzle_temp_;
     bool initialized_ = false;
 };
 ```
@@ -113,7 +113,7 @@ Singletons with LVGL subjects must register cleanup to avoid Static Destruction 
 // In init_subjects():
 void MySingleton::init_subjects() {
     if (initialized_) return;
-    lv_subject_init_int(&my_subject_, 0);
+    my_subject_.init_int(0);
     initialized_ = true;
 }
 
@@ -121,7 +121,7 @@ void MySingleton::init_subjects() {
 void MySingleton::deinit_subjects() {
     if (!initialized_) return;
     spdlog::debug("[MySingleton] Deinitializing subjects");
-    lv_subject_deinit(&my_subject_);  // Disconnects all observers
+    my_subject_.reset();  // frees its observers, keeps its address for the next init
     initialized_ = false;
 }
 
@@ -378,17 +378,23 @@ const lv_font_t* font = theme_manager_get_font("font_body");
 ### Initialization (BEFORE lv_xml_create!)
 
 ```cpp
-// String
+helix::Subject subj;   // a member; &subj is the lv_subject_t* LVGL calls take
+
+// String (the buffer must outlive the Subject)
 static char buf[128];
-lv_subject_init_string(&subj, buf, NULL, sizeof(buf), "init");
+subj.init_string(buf, "init");
 lv_xml_register_subject(nullptr, "my_text", &subj);
 
 // Integer
-lv_subject_init_int(&subj, 0);
+subj.init_int(0);
 
 // Color
-lv_subject_init_color(&subj, lv_color_hex(0xFF0000));
+subj.init_color(lv_color_hex(0xFF0000));
 ```
+
+In panel code use the managed macros instead (`UI_MANAGED_SUBJECT_INT` and friends,
+`include/subject_managed_panel.h`): they init, publish to XML and register for cleanup in one
+line. Ownership rules: `docs/devel/THREADING.md` § "Subject ownership".
 
 ### XML Bindings
 
@@ -408,7 +414,7 @@ Subjects must be initialized BEFORE creating XML to ensure bindings find initial
 lv_xml_register_font(...);                    // 1. Fonts
 lv_xml_register_image(...);                   // 2. Images
 lv_xml_register_component_from_file(...);     // 3. Components (globals first!)
-lv_subject_init_*(...);                       // 4. Init subjects
+subject.init_*(...);                          // 4. Init subjects (helix::Subject)
 lv_xml_register_subject(...);                 // 5. Register subjects
 lv_xml_create(...);                           // 6. Create UI
 ```

@@ -41,7 +41,7 @@ void ObserverGuard::reset() {
         // If we have a lifetime token and either (a) it expired (all shared_ptrs
         // gone), or (b) the pointed-to bool was set to false (source signaled
         // subject death), the subject's observers were already freed by
-        // lv_subject_deinit(). Calling lv_observer_delete() would crash.
+        // reset(). Calling lv_observer_delete() would crash.
         //
         // Check (b) is critical: multiple services may hold shared_ptr copies of
         // the same SubjectLifetime. When the source resets its copy and deinits

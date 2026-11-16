@@ -72,7 +72,7 @@ class HistoryDashboardPanel : public OverlayBase {
     /**
      * @brief Deinitialize all subjects
      *
-     * Calls lv_subject_deinit() on all subjects. Must be called
+     * Calls reset() on all subjects. Must be called
      * before destructor to avoid dangling observers.
      */
     void deinit_subjects();
@@ -196,7 +196,7 @@ class HistoryDashboardPanel : public OverlayBase {
     helix::Subject history_coverage_partial_subject_{};
     helix::Subject history_coverage_subject_{};
 
-    // Static buffers for string subjects (required for lv_subject_init_string)
+    // Static buffers for string subjects (required by init_string)
     char stat_total_prints_buf_[32];
     char stat_print_time_buf_[32];
     char stat_filament_buf_[32];

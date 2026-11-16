@@ -280,7 +280,7 @@ Discovery is unconditional: an empty hardware list is what clears the previous p
 
 All values are integers so XML can bind them. Fixed-name subjects register globally through `UI_MANAGED_SUBJECT_INT`. Every manager publishes `<x>_count` and `<x>_revision`; per-sensor subjects whose set follows discovery live in a `DynamicSubjectMap` and are never registered with XML.
 
-`DynamicSubjectMap` (`include/dynamic_subject_map.h#DynamicSubjectMap`) creates one integer subject per key with `get_or_create()`, each with its own `SubjectLifetime`. `remove_missing()` flips a removed subject's lifetime to false and then deinits it, so an `ObserverGuard` holding a copy of the token sees it dead before `lv_subject_deinit()` frees the observers it would otherwise remove. Consumers fetch a subject and its token together and observe with that token. Main thread only.
+`DynamicSubjectMap` (`include/dynamic_subject_map.h#DynamicSubjectMap`) creates one integer subject per key with `get_or_create()`, each with its own `SubjectLifetime`. `remove_missing()` flips a removed subject's lifetime to false and then deinits it, so an `ObserverGuard` holding a copy of the token sees it dead before `reset()` frees the observers it would otherwise remove. Consumers fetch a subject and its token together and observe with that token. Main thread only.
 
 
 | Subject | Owner | Encoding |

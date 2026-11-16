@@ -141,7 +141,7 @@ class RetractionSettingsOverlay : public OverlayBase {
     // ... etc
 
     SubjectManager subjects_;                // RAII cleanup for the subjects below
-    lv_subject_t retract_length_display_{};   // label text, written by C++
+    helix::Subject retract_length_display_;  // label text, written by C++
     char retract_length_buf_[16];            // backing buffer for the string subject
     // ... etc
 

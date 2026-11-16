@@ -66,7 +66,7 @@ class SettingsPanel : public PanelBase {
     /**
      * @brief Deinitialize subjects for clean shutdown
      *
-     * Calls lv_subject_deinit() on all local lv_subject_t members.
+     * Calls reset() on all local helix::Subject members.
      * Must be called before lv_deinit() to prevent dangling observers.
      * Follows [L041] pattern for subject init/deinit symmetry.
      */

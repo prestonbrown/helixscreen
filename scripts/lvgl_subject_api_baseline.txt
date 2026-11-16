@@ -1,3 +1,0 @@
-# Deprecated LVGL subject calls and by-value lv_subject_t storage, per file.
-# Ratchet: may fall, never rise. Lower one by moving the site onto helix::Subject
-# (include/core/subject.h), then re-run scripts/check_lvgl_subject_api.py --write-baseline.

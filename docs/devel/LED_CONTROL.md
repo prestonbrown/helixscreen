@@ -262,7 +262,7 @@ On any change, `compute_state_key()` determines the current state, and if it dif
 
 **Ordering constraints (both load-bearing):**
 
-1. `LedAutoState` observes PrinterState subjects, so it **must deinit before those subjects are destroyed** (`deinit_all()`). Otherwise the observers outlive their subjects and `lv_subject_deinit()` frees observers that `ObserverGuard` still references → use-after-free.
+1. `LedAutoState` observes PrinterState subjects, so it **must deinit before those subjects are destroyed** (`deinit_all()`). Otherwise the observers outlive their subjects and the subjects' `reset()` frees observers that `ObserverGuard` still references → use-after-free.
 2. `LedAutoState` drives `LedController` in `apply_action()`, so it **must deinit before `LedController`** to avoid a deferred auto-state callback touching a torn-down controller.
 
 **Per-printer reload on switch.** `load_config()` reads from the active-printer path `<Config::df()>leds/auto_state/...` (i.e. `/printers/<active>/leds/auto_state/enabled`, `.../strips` and `.../mappings`), with a one-time migration from the legacy global `/led/auto_state/` path. Because `switch_printer()` runs teardown → `init_printer_state` → `connect_moonraker` → discovery, the discovery-path `init()` call automatically reloads the new printer's auto-state config on every printer switch - no extra wiring needed.

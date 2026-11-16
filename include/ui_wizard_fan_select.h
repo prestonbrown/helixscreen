@@ -51,7 +51,7 @@ class WizardFanSelectStep : public helix::wizard::Step {
     WizardFanSelectStep();
     ~WizardFanSelectStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardFanSelectStep(const WizardFanSelectStep&) = delete;
     WizardFanSelectStep& operator=(const WizardFanSelectStep&) = delete;

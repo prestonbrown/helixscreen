@@ -8,13 +8,19 @@
  * styles can hold (one for MAIN, one for every other part), and a lookup skips a
  * property the mask lacks. Adding a property to a style that is already attached
  * leaves the mask stale until lv_obj_report_style_change() rebuilds it, so the
- * widget silently reads the default. Each case below adds a property in a mask
- * group nothing else on the widget sets, so only a rebuilt mask can find it.
+ * widget silently reads the default. Each mask case below adds a property in a
+ * mask group nothing else on the widget sets, so only a rebuilt mask can find it.
+ *
+ * A report also recomputes what a widget derives from its styles once (its extra
+ * draw area, its layout), which a plain property read never refreshes.
  */
 
+#include "../../src/ui/theme/theme_manager_internal.h"
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
+#include "lvgl/src/core/lv_obj_draw_private.h" // lv_obj_get_ext_draw_size
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -112,4 +118,44 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_obj_get_style_margin_right(obj, LV_PART_MAIN) == 5);
 
     lv_obj_delete(obj);
+}
+
+namespace {
+
+/// Puts the knob shadow depth back and reapplies it, so later cases see the fixture's theme.
+struct RestoreShadowIntensity {
+    int saved = helix::theme_detail::runtime().active_theme.properties.shadow_intensity;
+    ~RestoreShadowIntensity() {
+        helix::theme_detail::runtime().active_theme.properties.shadow_intensity = saved;
+        helix::theme_detail::theme_update_colors(helix::theme_detail::runtime().dark);
+    }
+};
+
+} // namespace
+
+// The palette reports inside theme_update_colors run before the handle styles change, and
+// lv_layer_top is not the active screen, so only the report after the handle update
+// recomputes the knob's draw area there.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "style cache: a theme color update refreshes a slider knob on the top layer",
+                 "[style_cache][theme-manager]") {
+    using helix::theme_detail::runtime;
+    RestoreShadowIntensity restore;
+
+    lv_obj_t* slider = lv_slider_create(lv_layer_top());
+    lv_obj_set_size(slider, 200, 20);
+    lv_obj_update_layout(slider);
+    const int32_t before = lv_obj_get_ext_draw_size(slider);
+
+    // The knob shadow counts toward the slider's extra draw area.
+    runtime().active_theme.properties.shadow_intensity = restore.saved + 40;
+    helix::theme_detail::theme_update_colors(runtime().dark);
+    const int32_t seen = lv_obj_get_ext_draw_size(slider);
+
+    lv_obj_refresh_ext_draw_size(slider);
+    const int32_t fresh = lv_obj_get_ext_draw_size(slider);
+    REQUIRE(fresh > before);
+    CHECK(seen == fresh);
+
+    lv_obj_delete(slider);
 }

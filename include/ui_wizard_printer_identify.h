@@ -70,7 +70,7 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     WizardPrinterIdentifyStep();
     ~WizardPrinterIdentifyStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardPrinterIdentifyStep(const WizardPrinterIdentifyStep&) = delete;
     WizardPrinterIdentifyStep& operator=(const WizardPrinterIdentifyStep&) = delete;

@@ -90,7 +90,7 @@ void PerformanceState::deinit_subjects() {
     // clear() frees them but there is no lv_xml_unregister_subject() primitive in
     // this helix-xml build, so the global scope keeps dangling perf_mcu_* nodes.
     // Benign TODAY: deinit_subjects() only runs at lv_deinit shutdown (no
-    // mid-session re-init path exists), lv_subject_deinit detaches observers from
+    // mid-session re-init path exists), reset() detaches observers from
     // both sides, and the next lazy recreate re-points the stale node in place.
     // It becomes a real UAF the moment a runtime re-init path (the "printer
     // switch" the header anticipates) is wired: a name lookup between this clear()

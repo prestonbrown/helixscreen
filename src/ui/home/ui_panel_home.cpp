@@ -171,7 +171,7 @@ void HomePanel::deinit_subjects() {
         page.visible_ids.reset();
     }
 
-    // SubjectManager handles all lv_subject_deinit() calls via RAII
+    // SubjectManager handles all reset() calls via RAII
     subjects_.deinit_all();
     subjects_initialized_ = false;
     spdlog::debug("[{}] Subjects deinitialized", get_name());

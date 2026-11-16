@@ -86,7 +86,7 @@ class WizardWifiStep : public helix::wizard::Step {
     WizardWifiStep();
     ~WizardWifiStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardWifiStep(const WizardWifiStep&) = delete;
     WizardWifiStep& operator=(const WizardWifiStep&) = delete;

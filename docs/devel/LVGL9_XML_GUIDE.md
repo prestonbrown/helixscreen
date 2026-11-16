@@ -227,22 +227,22 @@ follows is the C++ side: how HelixScreen creates and registers them.
 #### Subject Types (C++)
 
 ```cpp
-lv_subject_init_string()  // String data (text labels)
-lv_subject_init_int()     // Integer data (sliders, counters)
-lv_subject_init_pointer() // Pointer data (custom objects)
-lv_subject_init_color()   // Color data (dynamic theming)
+helix::Subject s;           // include/core/subject.h
+s.init_string(buf, "...");  // String data (text labels)
+s.init_int(0);              // Integer data (sliders, counters)
+s.init_pointer(nullptr);    // Pointer data (custom objects)
+s.init_color(color);        // Color data (dynamic theming)
 ```
 
 #### Subject Lifecycle
 
 ```cpp
-// 1. Create subject in C++
-static lv_subject_t status_subject;
+// 1. Create subject in C++ (a member in real code)
+helix::Subject status_subject;
 static char status_buffer[128];
 
 // 2. Initialize with default value
-lv_subject_init_string(&status_subject, status_buffer, NULL,
-                       sizeof(status_buffer), "Initial status");
+status_subject.init_string(status_buffer, "Initial status");
 
 // 3. Register globally (BEFORE creating XML)
 lv_xml_register_subject(NULL, "status_text", &status_subject);
@@ -256,14 +256,15 @@ lv_subject_set_string(&status_subject, "New status");
 
 **CRITICAL:** Register subjects BEFORE creating XML components that bind to them.
 
-The `lv_subject_init_*()` / `lv_subject_deinit()` calls above are deprecated in LVGL 9.6 (the pinned `lib/lvgl`) in favour of
-`lv_subject_create()` / `lv_subject_delete()`, which allocate the subject inside LVGL. HelixScreen keeps its subjects
-embedded in their owners and stays on the init API until that storage migration is done; it builds with a warning.
-Every other renamed LVGL name fails to compile (`LV_DISABLE_API_MAPPING`), and `scripts/lvgl96_rename.py` ports old code.
+Every subject is a `helix::Subject`, which owns an `lv_subject_create()` node with a stable address; `&subject` is the
+`lv_subject_t*` the LVGL calls take. LVGL 9.6 deprecates `lv_subject_init_*()` / `lv_subject_deinit()` and a by-value
+`lv_subject_t`; `scripts/check_lvgl_subject_api.py` fails any use. Ownership rules: [`THREADING.md` § *Subject
+ownership*](THREADING.md#subject-ownership-helixsubject). Every other renamed LVGL name fails to compile
+(`LV_DISABLE_API_MAPPING`), and `scripts/lvgl96_rename.py` ports old code.
 
 #### Static Buffers Required
 
-A string subject does not allocate: the buffer handed to `lv_subject_init_string()`
+A string subject does not allocate its text: the buffer handed to `init_string()`
 *is* the storage and must outlive every binding that reads it, so a stack buffer is a
 use-after-free waiting to happen. Use a `static` or heap buffer -
 [`BINDINGS.md` § *String subjects need a caller-owned buffer*](../../lib/helix-xml/docs/BINDINGS.md#string-subjects-need-a-caller-owned-buffer).
@@ -710,7 +711,7 @@ Nested `<if>` (an `<if>` inside another `<if>` or `<repeat>` body) is not suppor
 ```cpp
 // ✅ CORRECT - Track and remove observers
 struct MyWidgetData {
-    lv_subject_t text_subject;
+    helix::Subject text_subject;
     char text_buf[32];
     lv_observer_t* text_observer = nullptr;  // Track it!
 };
@@ -740,12 +741,12 @@ static void on_delete(lv_event_t* e) {
     if (data->target_label)
         lv_obj_remove_from_subject(data->target_label, nullptr);
 
-    // 2. Now safe to deinit owned subjects
-    lv_subject_deinit(&data->owned_subject);
+    // 2. Now safe to reset owned subjects
+    data->owned_subject.reset();
 }
 ```
 
-**Why:** `lv_subject_deinit()` frees observer memory. If child labels still have `unsubscribe_on_delete_cb` events referencing those observers, LVGL's cascading child deletion will walk freed memory. `lv_obj_remove_from_subject(label, nullptr)` removes ALL observer connections from a label, including the `unsubscribe_on_delete_cb` events.
+**Why:** `reset()` frees observer memory. If child labels still have `unsubscribe_on_delete_cb` events referencing those observers, LVGL's cascading child deletion will walk freed memory. `lv_obj_remove_from_subject(label, nullptr)` removes ALL observer connections from a label, including the `unsubscribe_on_delete_cb` events.
 
 ---
 
@@ -1826,15 +1827,14 @@ src/example_panel.cpp:
 #include "example_panel.h"
 #include <spdlog/spdlog.h>
 
-static lv_subject_t status_subject;
-static lv_subject_t state_subject;
+static helix::Subject status_subject;
+static helix::Subject state_subject;
 static char status_buffer[128];
 
 void ExamplePanel::init_subjects() {
     // Initialize subjects
-    lv_subject_init_string(&status_subject, status_buffer, NULL,
-                           sizeof(status_buffer), "Ready");
-    lv_subject_init_int(&state_subject, 0);
+    status_subject.init_string(status_buffer, "Ready");
+    state_subject.init_int(0);
 
     // Register subjects
     lv_xml_register_subject(NULL, "example_status", &status_subject);
