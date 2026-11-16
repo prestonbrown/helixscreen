@@ -3,6 +3,7 @@
 #include "core/temp_unit_subject.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
@@ -11,7 +12,7 @@ namespace helix::units {
 namespace {
 
 struct UnitSubjectState {
-    lv_subject_t subject{};
+    helix::Subject subject{};
     SubjectManager subjects;
     bool ready = false;
 };
@@ -40,7 +41,7 @@ lv_subject_t* temp_unit_subject() {
     if (!lv_is_initialized()) {
         return nullptr;
     }
-    lv_subject_init_int(&s.subject, static_cast<int>(display_temp_unit()));
+    s.subject.init_int(static_cast<int>(display_temp_unit()));
     s.subjects.register_subject(&s.subject, nullptr);
     s.ready = true;
     StaticSubjectRegistry::instance().register_deinit("TempUnitSubject", deinit_unit_subject,

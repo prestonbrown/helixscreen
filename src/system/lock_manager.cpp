@@ -2,6 +2,7 @@
 #include "lock_manager.h"
 
 #include "config.h"
+#include "core/subject.h"
 #include "system/sha256_util.h"
 #include "widget_subjects.h"
 
@@ -13,7 +14,7 @@
 
 // Module-level subject storage — kept out of the header so lock_manager.h
 // compiles cleanly in test contexts where LVGL is not fully available.
-static lv_subject_t s_pin_set_subject;
+static helix::Subject s_pin_set_subject;
 static helix::WidgetSubjects s_subjects{"LockManager"};
 
 namespace helix {
@@ -113,7 +114,7 @@ void LockManager::save_to_config() {
 
 void LockManager::init_subjects() {
     s_subjects.ensure_init([this] {
-        lv_subject_init_int(&s_pin_set_subject, has_pin() ? 1 : 0);
+        s_pin_set_subject.init_int(has_pin() ? 1 : 0);
         s_subjects.publish("lock_pin_set", &s_pin_set_subject);
         spdlog::debug("[LockManager] Subjects initialized (pin_set={})", has_pin() ? 1 : 0);
     });

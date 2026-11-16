@@ -2,6 +2,8 @@
 
 #include "dynamic_subject_map.h"
 
+#include "core/subject.h"
+
 #include <algorithm>
 
 namespace helix::sensors {
@@ -26,7 +28,7 @@ lv_subject_t* DynamicSubjectMap::get_or_create(const std::string& key, int initi
         slots_.push_back(std::make_unique<Slot>());
         slot = slots_.back().get();
         slot->key = key;
-        lv_subject_init_int(&slot->subject, initial);
+        slot->subject.init_int(initial);
         slot->lifetime = std::make_shared<bool>(true);
     }
     out_lifetime = slot->lifetime;
@@ -68,7 +70,7 @@ void DynamicSubjectMap::release(Slot& slot) {
     }
     slot.lifetime.reset();
     if (lv_is_initialized()) {
-        lv_subject_deinit(&slot.subject);
+        slot.subject.reset();
     }
 }
 

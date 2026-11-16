@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "helix/ui/text_metrics.h"
 #include "lua_bindings.h"
 #include "lvgl.h"
@@ -53,7 +54,7 @@ struct ObserverCtx {
 
 struct SubjectEntry {
     std::string full_name;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     std::vector<char> buf;
     std::vector<char> prev;
     bool is_string = false;
@@ -99,8 +100,8 @@ std::vector<std::unique_ptr<SubjectEntry>>& retired_subjects() {
     return *list;
 }
 
-bool unobserved(lv_subject_t& s) {
-    return lv_ll_get_head(&s.subs_ll) == nullptr;
+bool unobserved(const helix::Subject& s) {
+    return lv_ll_get_head(&s.get()->subs_ll) == nullptr;
 }
 
 void on_subject_change(lv_observer_t* obs, lv_subject_t* subject) {
@@ -192,12 +193,11 @@ int make_subject(lua_State* L, bool is_string) {
                               full.c_str());
         entry->buf.assign(kMaxString, 0);
         entry->prev.assign(kMaxString, 0);
-        lv_subject_init_string(&entry->subject, entry->buf.data(), entry->prev.data(), kMaxString,
-                               init);
+        entry->subject.init_string(entry->buf.data(), entry->prev.data(), kMaxString, init);
     } else {
         lua_Integer init = luaL_optinteger(L, 2, 0);
         luaL_argcheck(L, init >= INT32_MIN && init <= INT32_MAX, 2, "integer out of range");
-        lv_subject_init_int(&entry->subject, static_cast<int32_t>(init));
+        entry->subject.init_int(static_cast<int32_t>(init));
     }
     lv_xml_register_subject(nullptr, full.c_str(), &entry->subject);
 
@@ -853,7 +853,7 @@ void sweep_retired_subjects() {
     auto& list = retired_subjects();
     for (auto it = list.begin(); it != list.end();) {
         if (unobserved((*it)->subject)) {
-            lv_subject_deinit(&(*it)->subject);
+            (*it)->subject.reset();
             it = list.erase(it);
         } else {
             ++it;
@@ -893,7 +893,7 @@ void install_ui_bindings(PluginContext& ctx) {
             if (lv_xml_find_subject(nullptr, s->full_name.c_str()) == &s->subject)
                 lv_xml_unregister_subject(nullptr, s->full_name.c_str());
             if (unobserved(s->subject))
-                lv_subject_deinit(&s->subject);
+                s->subject.reset();
             else
                 retired_subjects().push_back(std::move(s));
         }

@@ -46,6 +46,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "helix_shared_callback.h"
 #include "http_request_epoch.h"
 #include "i_moonraker_api.h"
@@ -814,7 +815,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
     helix::PrinterDiscovery hardware_;
 
     /// Subject for notifying when build_volume changes (version counter)
-    lv_subject_t build_volume_version_{};
+    helix::Subject build_volume_version_{};
     std::atomic<int> build_volume_version_counter_{0};
 
     /// Generation guard for the subject writes this class defers to the main

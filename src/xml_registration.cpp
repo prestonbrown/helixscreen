@@ -51,6 +51,7 @@
 #include "boot_yield.h"
 #include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 #include "helix_fs.h"
 #include "page_scroll_auto_inject.h"
@@ -81,8 +82,7 @@ static void noop_event_callback(lv_event_t* /*e*/) {
  * LVGL tries to find a subject named "" which doesn't exist.
  * Registering this no-op subject silences those warnings.
  */
-static lv_subject_t s_noop_subject;
-static bool s_noop_subject_initialized = false;
+static helix::Subject s_noop_subject;
 
 /**
  * Register responsive constants for color picker sizing based on screen dimensions
@@ -453,9 +453,12 @@ void register_xml_components() {
     helix::ui::ContextMenu::register_shared_callbacks();
     // plugin_feature_toggle_row: any settings page may place one.
     helix::ui::register_plugin_feature_row_callbacks();
-    lv_subject_init_int(&s_noop_subject, 0);
+    // A second registration in one process (test fixtures) keeps the live subject and
+    // its observers; only the XML name is registered again.
+    if (!s_noop_subject.is_live()) {
+        s_noop_subject.init_int(0);
+    }
     lv_xml_register_subject(nullptr, "", &s_noop_subject);
-    s_noop_subject_initialized = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects,
@@ -523,9 +526,8 @@ void register_xml_components() {
 }
 
 void deinit_xml_subjects() {
-    if (s_noop_subject_initialized) {
-        lv_subject_deinit(&s_noop_subject);
-        s_noop_subject_initialized = false;
+    if (s_noop_subject.is_live()) {
+        s_noop_subject.reset();
         spdlog::debug("[XML Registration] No-op subject deinitialized");
     }
 }

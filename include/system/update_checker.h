@@ -20,6 +20,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -813,9 +814,9 @@ class UpdateChecker {
     ConfigSnapshot config_snapshot_;
 
     // LVGL subjects for UI binding (update check)
-    lv_subject_t status_subject_{};
-    lv_subject_t version_text_subject_{};
-    lv_subject_t new_version_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject version_text_subject_{};
+    helix::Subject new_version_subject_{};
 
     // String buffers for string subjects (must outlive subjects)
     char version_text_buf_[256]{};
@@ -859,9 +860,9 @@ class UpdateChecker {
     std::function<void()> restart_action_;
 
     // Download LVGL subjects
-    lv_subject_t download_status_subject_{};
-    lv_subject_t download_progress_subject_{};
-    lv_subject_t download_text_subject_{};
+    helix::Subject download_status_subject_{};
+    helix::Subject download_progress_subject_{};
+    helix::Subject download_text_subject_{};
     char download_text_buf_[256]{};
 
     // Download internals
@@ -909,8 +910,8 @@ class UpdateChecker {
     helix::ui::WidgetRef notify_modal_;
 
     // Notification subjects
-    lv_subject_t release_notes_subject_{};
-    lv_subject_t changelog_visible_subject_{};
+    helix::Subject release_notes_subject_{};
+    helix::Subject changelog_visible_subject_{};
     char release_notes_buf_[2048]{};
 
     SubjectManager subjects_;

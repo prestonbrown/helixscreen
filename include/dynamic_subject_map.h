@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "lvgl.h"
 
 #include <memory>
@@ -54,7 +55,7 @@ class DynamicSubjectMap {
   private:
     struct Slot {
         std::string key;
-        lv_subject_t subject{};
+        helix::Subject subject{};
         SubjectLifetime lifetime;
     };
     static void release(Slot& slot);

@@ -4,6 +4,7 @@
 #include "preset_materials.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_database.h"
@@ -28,11 +29,11 @@ constexpr size_t kLabelBufSize = 48;
 constexpr size_t kTempBufSize = 32;
 
 struct SubjectState {
-    std::array<lv_subject_t, kPresetCount> name_subjects{};
-    std::array<lv_subject_t, kPresetCount> temp_subjects{};
+    std::array<helix::Subject, kPresetCount> name_subjects{};
+    std::array<helix::Subject, kPresetCount> temp_subjects{};
     std::array<std::array<char, kLabelBufSize>, kPresetCount> name_bufs{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> temp_bufs{};
-    lv_subject_t count_subject{};
+    helix::Subject count_subject{};
     SubjectManager subjects;
     bool ready = false;
 };
@@ -138,18 +139,18 @@ void init_subjects() {
         s.name_bufs[i][0] = '\0';
         s.temp_bufs[i][0] = '\0';
 
-        lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
-                               s.name_bufs[i].size(), s.name_bufs[i].data());
+        s.name_subjects[i].init_string(s.name_bufs[i].data(), nullptr, s.name_bufs[i].size(),
+                                       s.name_bufs[i].data());
         s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING);
 
-        lv_subject_init_string(&s.temp_subjects[i], s.temp_bufs[i].data(), nullptr,
-                               s.temp_bufs[i].size(), s.temp_bufs[i].data());
+        s.temp_subjects[i].init_string(s.temp_bufs[i].data(), nullptr, s.temp_bufs[i].size(),
+                                       s.temp_bufs[i].data());
         s.subjects.publish(kTempSubjects[i], &s.temp_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING);
     }
 
-    lv_subject_init_int(&s.count_subject, kPresetCount);
+    s.count_subject.init_int(kPresetCount);
     s.subjects.publish("preset_material_count", &s.count_subject);
     HELIX_SUBJECT_DEBUG_REGISTER(&s.count_subject, "preset_material_count", LV_SUBJECT_TYPE_INT);
 

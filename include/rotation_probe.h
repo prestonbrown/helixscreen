@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 #include "tap_latch.h"
 
@@ -70,9 +71,9 @@ class RotationProbe {
 
     RotationProbeHost m_host;
     SubjectManager m_subjects;
-    lv_subject_t m_main_subject{};
-    lv_subject_t m_help_subject{};
-    lv_subject_t m_subtitle_subject{};
+    helix::Subject m_main_subject{};
+    helix::Subject m_help_subject{};
+    helix::Subject m_subtitle_subject{};
     char m_main_buf[160] = "";
     char m_help_buf[160] = "";
     char m_subtitle_buf[160] = "";

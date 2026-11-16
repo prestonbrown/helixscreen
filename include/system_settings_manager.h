@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
@@ -231,8 +232,8 @@ class SystemSettingsManager {
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t language_subject_{};
-    lv_subject_t log_level_subject_{};
+    helix::Subject language_subject_{};
+    helix::Subject log_level_subject_{};
 
     bool subjects_initialized_ = false;
 };
