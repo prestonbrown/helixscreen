@@ -3,11 +3,11 @@
 
 /**
  * @file subject_managed_panel.h
- * @brief RAII helper for automatic subject deinitialization in panels
+ * @brief RAII helper that resets a panel's subjects and withdraws their XML names
  *
- * SubjectManager provides automatic cleanup for LVGL subjects registered with panels.
- * Panels register their subjects during init_subjects(), and the manager automatically
- * calls lv_subject_deinit() on all registered subjects when destroyed.
+ * SubjectManager provides automatic cleanup for subjects registered with panels.
+ * Panels register their helix::Subject members during init_subjects(), and the manager
+ * calls helix::subject_reset() on every registered subject when destroyed.
  *
  * @pattern RAII (Resource Acquisition Is Initialization)
  * @threading Main thread only (LVGL is not thread-safe)
@@ -20,12 +20,9 @@
  *     void init_subjects() override {
  *         if (subjects_initialized_) return;
  *
- *         // Initialize and register subjects with the manager
- *         lv_subject_init_int(&my_count_, 0);
- *         subjects_.register_subject(&my_count_);
- *
- *         lv_subject_init_string(&my_label_, label_buf_, nullptr, sizeof(label_buf_), "");
- *         subjects_.register_subject(&my_label_);
+ *         // Initialize, publish and register in one line each
+ *         UI_MANAGED_SUBJECT_INT(my_count_, 0, "my_count", subjects_);
+ *         UI_MANAGED_SUBJECT_STRING(my_label_, label_buf_, "", "my_label", subjects_);
  *
  *         subjects_initialized_ = true;
  *     }
@@ -36,9 +33,9 @@
  *     }
  *
  * private:
- *     SubjectManager subjects_;  // RAII - auto-deinits on destruction
- *     lv_subject_t my_count_;
- *     lv_subject_t my_label_;
+ *     SubjectManager subjects_;  // RAII - resets the subjects on destruction
+ *     helix::Subject my_count_;
+ *     helix::Subject my_label_;
  *     char label_buf_[64];
  * };
  * @endcode
@@ -175,8 +172,8 @@ class SubjectManager {
     /**
      * @brief Register a subject for automatic cleanup
      *
-     * Call this after lv_subject_init_*() to ensure the subject is
-     * deinitialized when this SubjectManager is destroyed.
+     * Call this after the subject's init_*() so it is reset when this
+     * SubjectManager is destroyed.
      *
      * @param subject Pointer to initialized lv_subject_t (must not be null)
      *
@@ -269,7 +266,7 @@ class SubjectManager {
             }
             // Drop the XML-scope name BEFORE freeing the subject. The managed
             // macros publish every subject into the process-wide XML registry,
-            // which keeps resolving the name after lv_subject_deinit() — so an
+            // which keeps resolving the name after the subject is reset — so an
             // owner that does not outlive the process (a panel held by a
             // stack-allocated test fixture, a torn-down panel) leaves the name
             // pointing at dead memory, and the next lv_xml_create() that binds

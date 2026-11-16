@@ -7,7 +7,7 @@
 # shellcheck disable=SC2034,SC2154
 
 # ====================================================================
-# Deprecated LVGL subject API and by-value lv_subject_t (ratchet)
+# Deprecated LVGL subject API and by-value lv_subject_t (wall)
 # ====================================================================
 qc_lvgl_subject_api() {
   local EXIT_CODE=0
@@ -34,4 +34,4 @@ qc_lvgl_subject_api() {
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_lvgl_subject_api='^(src|include|tests|firmware)/.*\.(c|cc|cpp|h|hpp|inc)$|^scripts/(check_lvgl_subject_api\.py|lvgl_subject_api_baseline\.txt|qc/lvgl_subject_api\.sh)$'
+QC_TRIGGER_qc_lvgl_subject_api='^(src|include|tests|firmware)/.*\.(c|cc|cpp|h|hpp|inc)$|^scripts/(check_lvgl_subject_api\.py|qc/lvgl_subject_api\.sh)$'

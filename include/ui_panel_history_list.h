@@ -131,7 +131,7 @@ class HistoryListPanel : public OverlayBase {
     /**
      * @brief Deinitialize subjects for cleanup
      *
-     * Calls lv_subject_deinit() on all subjects. Must be called
+     * Calls reset() on all subjects. Must be called
      * before destructor to avoid dangling observers.
      */
     void deinit_subjects();

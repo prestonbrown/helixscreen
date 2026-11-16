@@ -19,10 +19,10 @@ namespace helix {
  * A home-panel widget keeps its subjects in file-scope statics that every
  * instance shares. They are created once, before any XML binds them, and torn
  * down by StaticSubjectRegistry before lv_deinit() or a printer switch; the
- * next init after that teardown creates them again.
+ * next init after that teardown re-initializes them in place, at the same address.
  *
  * ```cpp
- * HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
+ * HELIX_PSRAM_BSS helix::Subject s_rung_subject;
  * helix::WidgetSubjects s_subjects{"MyWidgetSubjects"};
  *
  * void my_widget_init_subjects() {

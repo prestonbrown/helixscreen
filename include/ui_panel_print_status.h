@@ -85,7 +85,7 @@ class PrintStatusPanel : public OverlayBase {
     /**
      * @brief Deinitialize subjects for clean shutdown
      *
-     * Calls lv_subject_deinit() on all local lv_subject_t members.
+     * Calls reset() on all local helix::Subject members.
      */
     void deinit_subjects();
 

@@ -12,7 +12,7 @@
  *
  * ```cpp
  * // In .cpp file (file scope):
- * static lv_subject_t temp_subject;
+ * static helix::Subject temp_subject;
  * static char temp_buf[32];
  *
  * void my_panel_init_subjects() {
@@ -20,7 +20,7 @@
  *     UI_SUBJECT_INIT_AND_REGISTER_STRING(temp_subject, temp_buf, "25°C", "my_temp");
  *
  *     // Or for int subjects:
- *     static lv_subject_t count_subject;
+ *     static helix::Subject count_subject;
  *     UI_SUBJECT_INIT_AND_REGISTER_INT(count_subject, 0, "my_count");
  * }
  * ```
@@ -42,14 +42,14 @@
  * This macro combines subject initialization and registration into a single call.
  * It automatically handles buffer sizing and copies the initial value.
  *
- * @param subject The lv_subject_t variable (no &)
+ * @param subject The helix::Subject variable (no &)
  * @param buffer The char[] buffer for string storage (no &)
  * @param initial_value C-string with initial value (will be copied to buffer)
  * @param name XML registration name (C-string)
  *
  * Example:
  * ```cpp
- * static lv_subject_t temp_subject;
+ * static helix::Subject temp_subject;
  * static char temp_buf[32];
  * UI_SUBJECT_INIT_AND_REGISTER_STRING(temp_subject, temp_buf, "25°C", "temperature");
  * ```
@@ -73,7 +73,7 @@
  * Use this variant when the buffer is passed via pointer (e.g., std::array::data())
  * where sizeof() would return pointer size instead of buffer size.
  *
- * @param subject The lv_subject_t variable (no &)
+ * @param subject The helix::Subject variable (no &)
  * @param buffer Pointer to char buffer
  * @param size Size of the buffer in bytes
  * @param initial_value C-string with initial value (will be copied to buffer)
@@ -82,7 +82,7 @@
  * Example:
  * ```cpp
  * std::array<char, 32> temp_buf;
- * lv_subject_t temp_subject;
+ * helix::Subject temp_subject;
  * UI_SUBJECT_INIT_AND_REGISTER_STRING_N(temp_subject, temp_buf.data(), temp_buf.size(), "25°C",
  *                                        "temperature");
  * ```
@@ -103,13 +103,13 @@
  *
  * This macro combines subject initialization and registration into a single call.
  *
- * @param subject The lv_subject_t variable (no &)
+ * @param subject The helix::Subject variable (no &)
  * @param initial_value Integer initial value
  * @param name XML registration name (C-string)
  *
  * Example:
  * ```cpp
- * static lv_subject_t count_subject;
+ * static helix::Subject count_subject;
  * UI_SUBJECT_INIT_AND_REGISTER_INT(count_subject, 0, "item_count");
  * ```
  */
@@ -125,13 +125,13 @@
  *
  * This macro combines subject initialization and registration into a single call.
  *
- * @param subject The lv_subject_t variable (no &)
+ * @param subject The helix::Subject variable (no &)
  * @param initial_value Pointer initial value (can be nullptr)
  * @param name XML registration name (C-string)
  *
  * Example:
  * ```cpp
- * static lv_subject_t widget_subject;
+ * static helix::Subject widget_subject;
  * UI_SUBJECT_INIT_AND_REGISTER_POINTER(widget_subject, nullptr, "active_widget");
  * ```
  */
@@ -147,13 +147,13 @@
  *
  * This macro combines subject initialization and registration into a single call.
  *
- * @param subject The lv_subject_t variable (no &)
+ * @param subject The helix::Subject variable (no &)
  * @param initial_value lv_color_t initial value
  * @param name XML registration name (C-string)
  *
  * Example:
  * ```cpp
- * static lv_subject_t color_subject;
+ * static helix::Subject color_subject;
  * UI_SUBJECT_INIT_AND_REGISTER_COLOR(color_subject, lv_color_hex(0xFF0000), "accent_color");
  * ```
  */
@@ -167,17 +167,14 @@
 /**
  * @brief Read a boolean-valued int subject, falling back until it is initialized.
  *
- * `lv_subject_get_int()` returns 0 for any subject whose type is not
- * `LV_SUBJECT_TYPE_INT`, and a subject that has never been through
- * `lv_subject_init_int()` is `LV_SUBJECT_TYPE_INVALID`. A getter that reads its
- * subject directly therefore reports **false** before `init_subjects()` runs, no
- * matter which default it documents. Only default-true settings can actually lie
- * this way — default-false ones are accidentally consistent, since 0 is both the
- * uninitialized read and their intended answer.
- *
- * Zero-initializing the subject member does not fix this on its own: it makes the
- * wrong answer deterministic rather than indeterminate. The fallback has to be
- * supplied at the read.
+ * A subject that has not been initialized reads 0: a helix::Subject's node is an
+ * INT placeholder holding 0 until its first init_*(), and lv_subject_get_int()
+ * returns 0 for any subject whose type is not `LV_SUBJECT_TYPE_INT`. A getter that
+ * reads its subject directly therefore reports **false** before `init_subjects()`
+ * runs, no matter which default it documents. Only default-true settings can
+ * actually lie this way — default-false ones are accidentally consistent, since 0
+ * is both the uninitialized read and their intended answer. The fallback has to be
+ * supplied at the read, and helix::subject_is_live() decides when it applies.
  *
  * @param subject  Subject to read
  * @param fallback Value to report while the subject is uninitialized

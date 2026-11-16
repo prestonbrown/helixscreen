@@ -65,7 +65,7 @@ class WizardSummaryStep : public helix::wizard::Step {
     WizardSummaryStep();
     ~WizardSummaryStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardSummaryStep(const WizardSummaryStep&) = delete;
     WizardSummaryStep& operator=(const WizardSummaryStep&) = delete;

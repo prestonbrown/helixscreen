@@ -80,7 +80,7 @@ tests/shell/test_grid_metrics_gate.bats	scripts/check_source_rules.py scripts/so
 tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh scripts/source_strip.py ui_xml/globals.xml
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/layering.sh
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/ratchet.py scripts/staged_content.py src/ui/components/ui_swatch.cpp ui_xml/components/color_swatch.xml
-tests/shell/test_lvgl_subject_api_gate.bats	scripts/check_lvgl_subject_api.py scripts/lvgl_subject_api_baseline.txt scripts/qc/lvgl_subject_api.sh scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py
+tests/shell/test_lvgl_subject_api_gate.bats	scripts/check_lvgl_subject_api.py scripts/qc/lvgl_subject_api.sh scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/notify/ui_fatal_error.cpp ui_xml/globals.xml
 tests/shell/test_helix_claim_date.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_helix_claim_jobs.bats	Makefile mk/rules.mk mk/tests.mk scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/qc/_lib.sh

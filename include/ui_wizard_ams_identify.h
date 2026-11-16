@@ -51,7 +51,7 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     WizardAmsIdentifyStep();
     ~WizardAmsIdentifyStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardAmsIdentifyStep(const WizardAmsIdentifyStep&) = delete;
     WizardAmsIdentifyStep& operator=(const WizardAmsIdentifyStep&) = delete;

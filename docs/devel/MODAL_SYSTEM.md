@@ -654,7 +654,7 @@ For modals that manage their own subjects and complex state:
 ```cpp
 class SpoolEditModal : public Modal {
     SubjectManager subjects_;       // RAII subject lifecycle
-    lv_subject_t color_subject_;    // Bound to XML elements
+    helix::Subject color_subject_;  // Bound to XML elements
     char color_buf_[32] = {0};      // String buffer for subject
 
     const char* get_name() const override { return "Spool Edit Modal"; }

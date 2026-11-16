@@ -64,7 +64,7 @@ inline SubjectLifetime subject_never_freed() {
  * For observers on dynamic subjects, set an alive token via set_alive_token()
  * or the factory functions. When the token expires (subject deinited), reset()
  * skips lv_observer_delete() because the observer was already freed by
- * lv_subject_deinit().
+ * reset().
  */
 class ObserverGuard {
   public:

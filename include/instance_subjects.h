@@ -19,7 +19,7 @@ namespace helix {
  * records the prop that carries the name; attrs() is the prop list for
  * lv_xml_create() or Modal::show(). Destroying this object (or reset())
  * withdraws the names and deinits the subjects, so declare it AFTER the
- * lv_subject_t members it publishes: members die in reverse order.
+ * helix::Subject members it publishes: members die in reverse order.
  */
 class InstanceSubjects {
   public:

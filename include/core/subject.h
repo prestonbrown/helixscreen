@@ -90,21 +90,17 @@ constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
 /// exists from construction as an INT placeholder, so its type alone says nothing.
 [[nodiscard]] bool subject_is_live(const lv_subject_t* subject) noexcept;
 
-/// lv_subject_deinit() for code holding only the pointer (SubjectManager, registries):
-/// resets the owning Subject.
+/// Resets the Subject that owns `subject`, for code holding only the pointer
+/// (SubjectManager, registries). A node whose Subject is gone is reset in place. A pointer no
+/// Subject owns is reported as the anomaly `subject_reset_unowned` and left alone: the only
+/// subjects without an owner are helix-xml's, which free themselves.
 void subject_reset(lv_subject_t* subject);
 
-/// The managed macros' entry points, overloaded on the storage so one macro serves an
-/// unconverted lv_subject_t and a helix::Subject while the migration runs.
+/// The managed macros' entry points.
 void subject_init_int(Subject& subject, int32_t value);
 void subject_init_pointer(Subject& subject, void* value);
 void subject_init_color(Subject& subject, lv_color_t value);
 void subject_init_string(Subject& subject, char* buf, char* prev_buf, size_t size,
-                         const char* value);
-void subject_init_int(lv_subject_t& subject, int32_t value);
-void subject_init_pointer(lv_subject_t& subject, void* value);
-void subject_init_color(lv_subject_t& subject, lv_color_t value);
-void subject_init_string(lv_subject_t& subject, char* buf, char* prev_buf, size_t size,
                          const char* value);
 
 } // namespace helix

@@ -23,7 +23,7 @@ namespace helix::sensors {
  *
  * Removing a subject flips its lifetime to false, then deinits it, so an
  * ObserverGuard holding a copy of the token sees it dead before
- * lv_subject_deinit() frees the observers it would otherwise remove.
+ * reset() frees the observers it would otherwise remove.
  *
  * Main thread only. Subject addresses are stable until the key is removed:
  * each slot is its own allocation, found by a linear scan (a few dozen keys).

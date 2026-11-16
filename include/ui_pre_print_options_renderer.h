@@ -54,7 +54,7 @@ namespace helix::ui {
  *
  *   1. From `populate()` rebuild path — `clear()` runs BEFORE
  *      `safe_clean_children`. Widgets are still alive at deinit time, so
- *      `lv_subject_deinit` walks each observer's widget and removes the
+ *      `reset()` walks each observer's widget and removes the
  *      `LV_EVENT_DELETE` cleanup callback cleanly.
  *
  *   2. From `OverlayBase::on_ui_destroyed()` (panel close) — widgets are
@@ -64,7 +64,7 @@ namespace helix::ui {
  *   3. From the renderer destructor at static teardown — widgets may already
  *      be gone (LVGL deleted them earlier). In that case, observers were
  *      auto-removed when the widgets were deleted, so the subject's observer
- *      list is already empty and `lv_subject_deinit` is a no-op cleanup that
+ *      list is already empty and `reset()` is a no-op cleanup that
  *      still frees the subject's internal lists.
  */
 class PrePrintOptionsRenderer {

@@ -59,8 +59,8 @@ void seed(lv_subject_t* subject, lv_subject_type_t type, lv_subject_value_t valu
     }
 }
 
-/// Drops every observer from the list without freeing it, as lv_subject_init_*() on a live
-/// subject always did. A guard still holding one of them deletes it later on its own; had
+/// Drops every observer from the list without freeing it, as LVGL's own init does on a
+/// live subject. A guard still holding one of them deletes it later on its own; had
 /// the observer been freed here, that delete would free it twice.
 void orphan_all_observers(lv_subject_t* subject) {
     lv_ll_init(&subject->subs_ll, subject->subs_ll.n_size);
@@ -265,11 +265,6 @@ Subject* Subject::owner_of(const lv_subject_t* subject) noexcept {
     return static_cast<Subject*>(subject->user_data);
 }
 
-// The lv_subject_t overloads below serve storage not yet converted to helix::Subject and
-// are the only deprecated subject calls left in first-party code.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 void subject_reset(lv_subject_t* subject) {
     if (!subject) {
         return;
@@ -282,28 +277,8 @@ void subject_reset(lv_subject_t* subject) {
         owner->reset();
         return;
     }
-    lv_subject_deinit(subject); // SUBJECT_API_OK: unconverted storage
+    report("subject_reset_unowned", "helix::subject_reset on a subject no helix::Subject owns");
 }
-
-void subject_init_int(lv_subject_t& subject, int32_t value) {
-    lv_subject_init_int(&subject, value); // SUBJECT_API_OK: unconverted storage
-}
-
-void subject_init_pointer(lv_subject_t& subject, void* value) {
-    lv_subject_init_pointer(&subject, value); // SUBJECT_API_OK: unconverted storage
-}
-
-void subject_init_color(lv_subject_t& subject, lv_color_t value) {
-    lv_subject_init_color(&subject, value); // SUBJECT_API_OK: unconverted storage
-}
-
-void subject_init_string(lv_subject_t& subject, char* buf, char* prev_buf, size_t size,
-                         const char* value) {
-    lv_subject_init_string(&subject, buf, prev_buf, size,
-                           value); // SUBJECT_API_OK: unconverted storage
-}
-
-#pragma GCC diagnostic pop
 
 void subject_init_int(Subject& subject, int32_t value) {
     subject.init_int(value);

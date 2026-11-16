@@ -5,27 +5,20 @@
  * @file subject_macros.h
  * @brief DRY macros for LVGL subject initialization
  *
- * These macros consolidate the repetitive 3-line subject initialization pattern:
- * 1. lv_subject_init_*(subject, value)
- * 2. subjects.register_subject(subject)
- * 3. if (register_xml) lv_xml_register_subject(nullptr, "name", subject)
+ * These macros consolidate the 3-line subject initialization pattern:
+ * 1. subject.init_*(value)
+ * 2. subjects.register_subject(&subject, "name")
+ * 3. if (register_xml) publish "name" in the current XML scope
  *
- * The macros use naming convention: name_ for subject, name_buf_ for string buffer.
- * This allows short, readable initialization code:
+ * The macros use naming convention: name_ for subject, name_buf_ for string buffer:
  *
  * @code
- * // Before: 3 lines per subject
- * lv_subject_init_int(&temperature_, 0);
- * subjects_.register_subject(&temperature_);
- * lv_xml_register_subject(nullptr, "temperature", &temperature_);
- *
- * // After: 1 line per subject
  * INIT_SUBJECT_INT(temperature, 0, subjects_, true);
  * @endcode
  *
  * @note These macros expect variable naming convention:
- *       - Integer subject: `name_` (lv_subject_t)
- *       - String subject: `name_` (lv_subject_t) and `name_buf_` (char array)
+ *       - Integer subject: `name_` (helix::Subject)
+ *       - String subject: `name_` (helix::Subject) and `name_buf_` (char array)
  */
 
 #pragma once
@@ -49,10 +42,10 @@
  * @param register_xml If true, register with lv_xml_register_subject()
  *
  * @example
- * lv_subject_t my_count_;
+ * helix::Subject my_count_;
  * INIT_SUBJECT_INT(my_count, 42, subjects, true);
  * // Equivalent to:
- * //   lv_subject_init_int(&my_count_, 42);
+ * //   my_count_.init_int(42);
  * //   subjects.register_subject(&my_count_, "my_count");
  * //   lv_xml_register_subject(nullptr, "my_count", &my_count_);
  *
@@ -87,12 +80,11 @@
  * @param register_xml If true, register with lv_xml_register_subject()
  *
  * @example
- * lv_subject_t status_text_;
+ * helix::Subject status_text_;
  * char status_text_buf_[64];
  * INIT_SUBJECT_STRING(status_text, "Ready", subjects, true);
  * // Equivalent to:
- * //   lv_subject_init_string(&status_text_, status_text_buf_, NULL,
- * //                          sizeof(status_text_buf_), "Ready");
+ * //   status_text_.init_string(status_text_buf_, "Ready");
  * //   subjects.register_subject(&status_text_, "status_text");
  * //   lv_xml_register_subject(nullptr, "status_text", &status_text_);
  *

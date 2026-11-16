@@ -71,7 +71,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     WizardTouchCalibrationStep();
     ~WizardTouchCalibrationStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardTouchCalibrationStep(const WizardTouchCalibrationStep&) = delete;
     WizardTouchCalibrationStep& operator=(const WizardTouchCalibrationStep&) = delete;

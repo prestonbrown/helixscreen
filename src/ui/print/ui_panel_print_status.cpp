@@ -267,7 +267,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
     // is a process-lifetime singleton (get_global_print_status_panel()), so it
     // routinely outlives a PrinterState::deinit_subjects() cycle — printer
     // switching in production, per-fixture teardown in tests. Without the token
-    // each guard keeps a pointer to an observer node that lv_subject_deinit()
+    // each guard keeps a pointer to an observer node that reset()
     // already freed, and the next reset() calls lv_observer_delete() on freed
     // memory: SIGSEGV at lv_observer.c:584 dereferencing observer->subject.
     // Subjects owned by this panel or by other singletons take no token here.
@@ -894,7 +894,7 @@ void PrintStatusPanel::deinit_subjects() {
     layer_pause_controls_.deinit_subjects();
 
     // Reset observers on local subjects BEFORE deinit frees them.
-    // subjects_.deinit_all() calls lv_subject_deinit which frees observer
+    // subjects_.deinit_all() calls reset() which frees observer
     // structs — any ObserverGuard still holding a pointer would crash
     // in its destructor trying to lv_observer_delete() on freed memory.
     end_overlay_dismissed_observer_.reset();

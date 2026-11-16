@@ -480,7 +480,8 @@ void MySingleton::init_subjects() {
 }
 ```
 
-2. **Implement `deinit_subjects()`** to call `lv_subject_deinit()` on each subject.
+2. **Implement `deinit_subjects()`** to `reset()` each `helix::Subject` (a `SubjectManager`'s
+   `deinit_all()` does it for every subject registered with it).
 
    Pick the entry's `StaticSubjectRegistry::Lifetime` by where its init runs. The default,
    `Printer`, is right when `init_subjects()` runs again on the rebuild path (SubjectInitializer,

@@ -71,7 +71,7 @@ class WizardInputShaperStep : public helix::wizard::Step {
     WizardInputShaperStep();
     ~WizardInputShaperStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardInputShaperStep(const WizardInputShaperStep&) = delete;
     WizardInputShaperStep& operator=(const WizardInputShaperStep&) = delete;

@@ -45,3 +45,7 @@ Also: no `std::thread(...).detach()` for one-shot work (`EAGAIN` becomes
 `std::terminate` on AD5M/CC1, #724); use `HttpExecutor::fast()/slow()` or `BusThread`.
 `ObserverGuard::reset()` for all normal cleanup, never `release()` (#579). Every
 `init_subjects()` self-registers its `deinit_subjects()` with `StaticSubjectRegistry`.
+A subject is a `helix::Subject` (`include/core/subject.h`), never a by-value `lv_subject_t`:
+its node keeps one address across `reset()` and re-init, its free is queued on the update
+queue, and `is_live()` (or `helix::subject_is_live()`) is the only "initialized" test, never
+the type. THREADING.md § "Subject ownership"; gate `scripts/check_lvgl_subject_api.py`.

@@ -350,19 +350,22 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_subject_get_int(&s) == 1);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "subject_reset deinitializes an unowned lv_subject_t and owner_of ignores it",
+TEST_CASE_METHOD(LVGLTestFixture, "subject_reset reports an unowned subject and leaves it alone",
                  "[subject][raii]") {
     lv_subject_t zeroed{}; // SUBJECT_API_OK: the unowned storage owner_of() must not claim
     CHECK(Subject::owner_of(&zeroed) == nullptr);
 
-    lv_subject_t plain{}; // SUBJECT_API_OK: the unconverted storage subject_reset() still serves
-    helix::subject_init_int(plain, 4);
-    CHECK(Subject::owner_of(&plain) == nullptr);
-    REQUIRE(lv_subject_add_observer(&plain, count_cb, nullptr) != nullptr);
-    helix::subject_reset(&plain);
-    CHECK(observer_count(&plain) == 0);
-    CHECK(lv_subject_add_observer(&plain, count_cb, nullptr) == nullptr);
+    // helix-xml's subjects are the unowned kind: created by LVGL, freed by helix-xml.
+    lv_subject_t* unowned = lv_subject_create(LV_SUBJECT_TYPE_INT);
+    REQUIRE(unowned != nullptr);
+    CHECK(Subject::owner_of(unowned) == nullptr);
+    REQUIRE(lv_subject_add_observer(unowned, count_cb, nullptr) != nullptr);
+    const uint32_t reported = Subject::anomalies_reported();
+
+    helix::subject_reset(unowned);
+    CHECK(Subject::anomalies_reported() == reported + 1);
+    CHECK(observer_count(unowned) == 1);
+    lv_subject_delete(unowned);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -450,21 +453,16 @@ TEST_CASE("subject child: destructor after lv_deinit", "[.subject_child]") {
     CHECK_FALSE(lv_is_initialized());
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Managed macros accept both lv_subject_t and helix::Subject",
+TEST_CASE_METHOD(LVGLTestFixture, "Managed macros initialize and register a helix::Subject",
                  "[subject][raii][macro]") {
     Subject owned;
-    // SUBJECT_API_OK: the unconverted storage the transitional overloads still serve
-    lv_subject_t plain{};
     SubjectManager manager;
     UI_MANAGED_SUBJECT_INT(owned, 5, "subject_owner_test_owned", manager);
-    UI_MANAGED_SUBJECT_INT(plain, 6, "subject_owner_test_plain", manager);
 
     CHECK(owned.is_live());
     CHECK(Subject::owner_of(&owned) == std::addressof(owned));
     CHECK(lv_subject_get_int(&owned) == 5);
-    CHECK(lv_subject_get_int(&plain) == 6);
 
     manager.deinit_all();
     CHECK_FALSE(owned.is_live());
-    CHECK(lv_subject_add_observer(&plain, count_cb, nullptr) == nullptr);
 }
