@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "motor_ripple_analysis.h"
 
+#include "hann_windowed_signal.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -39,18 +41,6 @@ float median(std::vector<float> v) {
     }
     const float lower = *std::max_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(mid));
     return (lower + upper) / 2.0f;
-}
-
-/// Goertzel power at one frequency over a windowed, mean-removed frame.
-float goertzel_power(const float* x, const float* w, int n, float mean, float coeff) {
-    float s1 = 0.0f;
-    float s2 = 0.0f;
-    for (int i = 0; i < n; ++i) {
-        const float s0 = (x[i] - mean) * w[i] + coeff * s1 - s2;
-        s2 = s1;
-        s1 = s0;
-    }
-    return s1 * s1 + s2 * s2 - coeff * s1 * s2;
 }
 
 } // namespace
@@ -115,21 +105,15 @@ SpeedResult analyze_capture(const std::vector<AccelSample>& samples, float sampl
         }
     }
 
-    std::vector<float> w(static_cast<size_t>(n));
-    float sum_w = 0.0f;
-    for (int i = 0; i < n; ++i) {
-        w[static_cast<size_t>(i)] =
-            0.5f - 0.5f * std::cos(2.0f * kPi * static_cast<float>(i) / static_cast<float>(n - 1));
-        sum_w += w[static_cast<size_t>(i)];
-    }
-
     const float ceiling = ceiling_hz(sample_rate_hz);
-    std::array<bool, 3> measurable{};
-    std::array<float, 3> coeff{};
+    std::array<double, 3> omegas{};
+    size_t measured = 0; ///< kHarmonics rises, so the measurable ones lead
     for (size_t k = 0; k < kHarmonics.size(); ++k) {
         const float fk = static_cast<float>(kHarmonics[k]) * f1;
-        measurable[k] = fk < ceiling;
-        coeff[k] = 2.0f * std::cos(2.0f * kPi * fk / sample_rate_hz);
+        if (fk < ceiling) {
+            omegas[measured++] = 2.0 * static_cast<double>(kPi) * static_cast<double>(fk) /
+                                 static_cast<double>(sample_rate_hz);
+        }
     }
 
     std::vector<float> broadband(static_cast<size_t>(frames));
@@ -137,31 +121,29 @@ SpeedResult analyze_capture(const std::vector<AccelSample>& samples, float sampl
     for (auto& v : amps) {
         v.resize(static_cast<size_t>(frames));
     }
+    std::array<std::array<double, 3>, 3> power{};
     for (int f = 0; f < frames; ++f) {
         const int start = f * hop;
         float energy = 0.0f;
-        std::array<float, 3> mean{};
         for (int a = 0; a < 3; ++a) {
-            const float* x = axis[a].data() + start;
             const float* h = hp[a].data() + start;
-            float sum = 0.0f;
             for (int i = 0; i < n; ++i) {
-                sum += x[i];
                 energy += h[i] * h[i];
             }
-            mean[static_cast<size_t>(a)] = sum / static_cast<float>(n);
         }
         broadband[static_cast<size_t>(f)] = std::sqrt(energy / static_cast<float>(n));
-        for (size_t k = 0; k < kHarmonics.size(); ++k) {
-            if (!measurable[k]) {
-                continue;
-            }
-            float power = 0.0f;
-            for (int a = 0; a < 3; ++a) {
-                power += goertzel_power(axis[a].data() + start, w.data(), n,
-                                        mean[static_cast<size_t>(a)], coeff[k]);
-            }
-            amps[k][static_cast<size_t>(f)] = 2.0f * std::sqrt(std::max(0.0f, power)) / sum_w;
+        if (measured == 0) {
+            continue;
+        }
+        const std::array<HannWindowedSignal, 3> frame{
+            HannWindowedSignal(axis[0].data() + start, static_cast<size_t>(n)),
+            HannWindowedSignal(axis[1].data() + start, static_cast<size_t>(n)),
+            HannWindowedSignal(axis[2].data() + start, static_cast<size_t>(n))};
+        HannWindowedSignal::power(frame, omegas.data(), measured, power.data());
+        for (size_t k = 0; k < measured; ++k) {
+            const double total_power = power[k][0] + power[k][1] + power[k][2];
+            amps[k][static_cast<size_t>(f)] =
+                static_cast<float>(2.0 * std::sqrt(total_power) / frame[0].sum_w());
         }
     }
 
@@ -173,7 +155,7 @@ SpeedResult analyze_capture(const std::vector<AccelSample>& samples, float sampl
             continue;
         }
         moving_bb.push_back(broadband[static_cast<size_t>(f)]);
-        for (size_t k = 0; k < kHarmonics.size(); ++k) {
+        for (size_t k = 0; k < measured; ++k) {
             moving_amps[k].push_back(amps[k][static_cast<size_t>(f)]);
         }
     }
@@ -182,10 +164,8 @@ SpeedResult analyze_capture(const std::vector<AccelSample>& samples, float sampl
         return out;
     }
     out.broadband = median(moving_bb);
-    for (size_t k = 0; k < kHarmonics.size(); ++k) {
-        if (measurable[k]) {
-            out.ripple[k] = median(moving_amps[k]);
-        }
+    for (size_t k = 0; k < measured; ++k) {
+        out.ripple[k] = median(moving_amps[k]);
     }
     return out;
 }
