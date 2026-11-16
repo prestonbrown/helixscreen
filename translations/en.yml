@@ -181,6 +181,7 @@ translations:
   A print is running. Apply the result after it ends.: A print is running. Apply the result after it ends.
   A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
+  A print started, so the calibration did not start.: A print started, so the calibration did not start.
   A print took the printer.: A print took the printer.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
@@ -1019,6 +1020,7 @@ translations:
   "Every screen and setting explained": "Every screen and setting explained"
   "Getting Started": "Getting Started"
   "Here's a quick look at what changed since your last version.": "Here's a quick look at what changed since your last version."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper has not come up. It may not be running on the printer.'
   'Klipper: {}': 'Klipper: {}'
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Learn the basics: the setup wizard, moving around the screens, and touch gestures."
   Load all stopped: Load all stopped
@@ -4248,7 +4250,6 @@ translations:
     interfering with prints. You can re-enable it in Settings > Display.
   The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.: The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.
   The bed has cooled. Take the spools off the plate, then confirm.: The bed has cooled. Take the spools off the plate, then confirm.
-  The bed is clear and the toolhead can move freely: The bed is clear and the toolhead can move freely
   The bed is too small for settling laps.: The bed is too small for settling laps.
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: The bed heater. Set its temperature and watch its graph on the bed temperature screen.
   The bed is too small for the test tower, or its size is unknown.: The bed is too small for the test tower, or its size is unknown.
@@ -4298,6 +4299,7 @@ translations:
   The heater will cycle on and off several times.: The heater will cycle on and off
     several times.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service
   The linked spool says {}.: The linked spool says {}.

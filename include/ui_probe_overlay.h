@@ -78,6 +78,10 @@ class ProbeOverlay : public OverlayBase {
     //
 
     void handle_probe_accuracy();
+
+    /// handle_probe_accuracy() once the bed is known clear.
+
+    void run_probe_accuracy();
     void handle_zoffset_cal();
     void handle_bed_mesh();
 

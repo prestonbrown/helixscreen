@@ -25,6 +25,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/temp_unit_subject.h"
@@ -1220,6 +1221,10 @@ std::string leveling_command(const char* builtin) {
 } // namespace
 
 void ControlsPanel::handle_qgl() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { run_qgl(); });
+}
+
+void ControlsPanel::run_qgl() {
     spdlog::debug("[{}] QGL clicked", get_name());
     run_quick_action(IAdvancedAPI::kLevelingTimeoutMs,
                      {lv_tr("Quad Gantry Level started..."), lv_tr("Quad Gantry Level complete"),
@@ -1233,6 +1238,10 @@ void ControlsPanel::handle_qgl() {
 }
 
 void ControlsPanel::handle_z_tilt() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { run_z_tilt(); });
+}
+
+void ControlsPanel::run_z_tilt() {
     spdlog::debug("[{}] Z-Tilt clicked", get_name());
     run_quick_action(IAdvancedAPI::kLevelingTimeoutMs,
                      {lv_tr("Z-Tilt Adjust started..."), lv_tr("Z-Tilt Adjust complete"),

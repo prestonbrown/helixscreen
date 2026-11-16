@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "bed_mesh_gradient.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
@@ -54,7 +55,7 @@ void init_screws_tilt_row_handler() {
              spdlog::debug("[ScrewsTilt] Bed leveling row clicked");
              auto& panel = get_global_screws_tilt_panel();
              panel.set_client(get_moonraker_client(), get_moonraker_api());
-             panel.show(lv_display_get_screen_active(nullptr));
+             panel.show(lv_screen_active());
          }},
     });
     spdlog::trace("[ScrewsTilt] Row click callback registered");
@@ -282,6 +283,10 @@ void ScrewsTiltPanel::set_state(State new_state) {
 // ============================================================================
 
 void ScrewsTiltPanel::start_probing() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { probe_once_bed_clear(); });
+}
+
+void ScrewsTiltPanel::probe_once_bed_clear() {
     if (!api_) {
         spdlog::error("[ScrewsTilt] No API - cannot probe");
         on_screws_tilt_error(lv_tr("Internal error: API not available"));

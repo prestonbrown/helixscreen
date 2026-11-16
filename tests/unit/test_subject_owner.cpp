@@ -14,6 +14,9 @@
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
+#include "display_manager.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl_private.h"
 #include "subject_managed_panel.h"
 
@@ -403,6 +406,13 @@ TEST_CASE("Subject destructor after lv_deinit leaves the freed node alone", "[su
     CHECK(child.rc == 0);
 }
 
+TEST_CASE("LVGL teardown leaves XML-owned and helix::Subject nodes alone once freed",
+          "[subject][raii]") {
+    const ChildRun child = run_case_in_fresh_process("subject child: teardown with XML subjects");
+    INFO(child.output);
+    CHECK(child.rc == 0);
+}
+
 // Every case starts with LVGL up (test_main.cpp's listener), so each child case takes it
 // down first. Each runs alone in a fresh process started by its [subject][raii] case.
 TEST_CASE("subject child: constructed before lv_init", "[.subject_child]") {
@@ -465,4 +475,47 @@ TEST_CASE_METHOD(LVGLTestFixture, "Managed macros initialize and register a heli
 
     manager.deinit_all();
     CHECK_FALSE(owned.is_live());
+}
+
+namespace {
+// An owned <subject>, and a <subject_expr> whose observer sits on an app-owned helix::Subject.
+constexpr const char* kTeardownProbeXml = R"(<component>
+  <subjects>
+    <subject name="teardown_probe_owned" type="string" value="x"/>
+    <subject_expr name="teardown_probe_expr" expr="teardown_probe_input ge 1"/>
+  </subjects>
+  <view extends="lv_obj">
+    <lv_label bind_text="teardown_probe_owned"/>
+  </view>
+</component>)";
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "subject child: teardown with XML subjects", "[.subject_child]") {
+    if (std::getenv(kChildEnv) == nullptr) {
+        SKIP("runs only in the process its [subject][raii] case starts");
+    }
+    REQUIRE(lv_is_initialized());
+    {
+        Subject input;
+        input.init_int(1);
+        lv_xml_register_subject(nullptr, "teardown_probe_input", &input);
+        REQUIRE(lv_xml_register_component_from_data("teardown_probe", kTeardownProbeXml) ==
+                LV_RESULT_OK);
+        REQUIRE(lv_xml_create(lv_screen_active(), "teardown_probe", nullptr) != nullptr);
+        lv_subject_set_int(&input, 2);
+
+        helix::ui::teardown_lvgl();
+        REQUIRE_FALSE(lv_is_initialized());
+        // LVGL up again: `input`'s node died with the old one and must stay untouched,
+        // so its next init creates a fresh node instead of writing into the freed one.
+        lv_init();
+        const uint32_t nodes = live_subject_nodes();
+        input.init_int(5);
+        REQUIRE(live_subject_nodes() == nodes + 1);
+        REQUIRE(lv_subject_get_int(&input) == 5);
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    // Every assertion held. Exit here: the test process's statics still hold objects of the
+    // LVGL generation lv_deinit() freed, and their destructors free them a second time.
+    std::_Exit(0);
 }

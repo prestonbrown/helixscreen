@@ -165,7 +165,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 **Cause:** LVGL ellipsizes only when the wrapped text is taller than the label. A bare `<lv_label>` at content height grows to fit and wraps instead. A label with no width bound (no `width`, or `width="content"` without `style_max_width`) never wraps at all, so it runs past its parent and is clipped.
 
-**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `helix::ui::label_hold_one_line(label)` after setting `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
+**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `lv_label_set_max_lines(label, 1)` with `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
 
 ---
 

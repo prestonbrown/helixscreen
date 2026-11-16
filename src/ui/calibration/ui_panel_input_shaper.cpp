@@ -13,6 +13,7 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
@@ -103,7 +104,7 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
     if (!panel.get_root()) {
         panel.set_api(get_moonraker_client(), get_moonraker_api());
     }
-    panel.show(lv_display_get_screen_active(nullptr));
+    panel.show(lv_screen_active());
 }
 
 // ============================================================================
@@ -583,6 +584,13 @@ void InputShaperPanel::set_state(State new_state) {
 // ============================================================================
 
 void InputShaperPanel::start_with_preflight(char axis) {
+    // Cancelled before anything moved: no Y sweep may chain after a later single-axis run.
+    ensure_bed_clear_then(
+        lifetime_.token(), [this, axis]() { start_once_bed_clear(axis); },
+        [this]() { calibrate_all_mode_ = false; });
+}
+
+void InputShaperPanel::start_once_bed_clear(char axis) {
     if (!calibrator_) {
         on_calibration_error("Internal error: calibrator not available");
         return;

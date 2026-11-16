@@ -12,6 +12,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
@@ -489,6 +490,10 @@ void PACalibrationPanel::publish_last_result() {
 // ============================================================================
 
 void PACalibrationPanel::confirm_and_start() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_once_bed_clear(); });
+}
+
+void PACalibrationPanel::confirm_once_bed_clear() {
     if (state_ == HEATING || state_ == MEASURING) {
         return;
     }

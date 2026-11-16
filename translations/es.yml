@@ -187,6 +187,7 @@ translations:
   A print is running. Apply the result after it ends.: Hay una impresión en curso. Aplica el resultado cuando termine.
   A print started: 'Se inició una impresión'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Se inició una impresión con bobinas marcadas como en la cama. Si siguen ahí, detén la impresora ahora con la Parada de Emergencia."
+  A print started, so the calibration did not start.: "Se inició una impresión, así que la calibración no se inició."
   A print took the printer.: "Una impresión ha tomado la impresora."
   A restart is already in progress: Ya hay un reinicio en curso
   A right, B left: "A derecha, B izquierda"
@@ -1046,6 +1047,7 @@ translations:
   "Every screen and setting explained": "Cada pantalla y ajuste explicados"
   "Getting Started": "Primeros pasos"
   "Here's a quick look at what changed since your last version.": "Un vistazo rápido a lo que ha cambiado desde tu última versión."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper no se ha iniciado. Es posible que no se esté ejecutando en la impresora.'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Lo básico: el asistente de configuración, cómo moverse entre pantallas y los gestos táctiles."
   Load all stopped: Carga de todo detenida
@@ -4334,7 +4336,6 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "La cama y la boquilla se calientan juntas antes de que nada se mueva, para que la impresión vuelva a adherirse y la boquilla se suelte de ella."
   The bed has cooled. Take the spools off the plate, then confirm.: La cama se ha enfriado. Quita las bobinas de la cama y luego confirma.
 
-  The bed is clear and the toolhead can move freely: 'La cama está despejada y el cabezal puede moverse libremente'
   The bed is too small for settling laps.: 'La cama es demasiado pequeña para las vueltas de asentamiento.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'El calentador de la cama. Ajusta su temperatura y mira su gráfica en la pantalla de temperatura de la cama.'
   The bed is too small for the test tower, or its size is unknown.: La cama es demasiado pequeña para la torre de prueba o se desconoce su tamaño.
@@ -4385,6 +4386,7 @@ translations:
   The heater will cycle on and off several times.: El calentador se encenderá y apagará
     varias veces.
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base.
   The left RFID reader in this CFS unit may need service: Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio
   'The linked spool says {}.': 'La bobina vinculada indica {}.'

@@ -15,6 +15,7 @@
 #include "ui_nav.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/subject.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
@@ -142,10 +143,14 @@ void SnapmakerNozzleOffsetOverlay::init_subjects() {
     });
 }
 
+void SnapmakerNozzleOffsetOverlay::start_clicked() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { runner().start(); });
+}
+
 void SnapmakerNozzleOffsetOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_nozzle_offset_start",
-         [](lv_event_t*) { get_snapmaker_nozzle_offset_overlay().runner().start(); }},
+         [](lv_event_t*) { get_snapmaker_nozzle_offset_overlay().start_clicked(); }},
         {"on_nozzle_offset_next",
          [](lv_event_t*) { get_snapmaker_nozzle_offset_overlay().runner().confirm(); }},
         // The exit gcode rides on_deactivating(), so leaving is all the buttons do.

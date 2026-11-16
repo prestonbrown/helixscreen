@@ -61,8 +61,8 @@
       </lv_obj>
     </lv_obj>
 
-    <!-- Brand over material. Both span the slot and hold one line (ams_slot pins the
-         height to the font's line). The brand line hides when there is no brand, the brand
+    <!-- Brand over material. Both span the slot and hold one line (a dotted text_small
+         at content height is capped at one line of its font). The brand line hides when there is no brand, the brand
          is too wide for the slot, the lane is Empty, or 5+ slots share the row; the
          material line then reads as it does alone. -->
     <text_small name="name_label"

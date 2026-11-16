@@ -188,17 +188,17 @@ PrinterState& get_printer_state() {
 
 // The subjects above are constructed before lv_init(), so their nodes exist only from
 // app_globals_init_subjects() on; these getters are valid from then.
-lv_subject_t& get_notification_subject() {
-    return *g_notification_subject.get();
+helix::Subject& get_notification_subject() {
+    return g_notification_subject;
 }
 
-lv_subject_t& get_home_edit_mode_subject() {
-    return *g_home_edit_mode_subject.get();
+helix::Subject& get_home_edit_mode_subject() {
+    return g_home_edit_mode_subject;
 }
 
 // NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
-lv_subject_t& get_home_edit_page_deletable_subject() {
-    return *g_home_edit_page_deletable_subject.get();
+helix::Subject& get_home_edit_page_deletable_subject() {
+    return g_home_edit_page_deletable_subject;
 }
 
 // NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
@@ -206,8 +206,8 @@ SubjectLifetime get_app_globals_subjects_lifetime() {
     return g_subjects.get_subjects_lifetime();
 }
 
-lv_subject_t& get_wizard_active_subject() {
-    return *g_wizard_active_subject.get();
+helix::Subject& get_wizard_active_subject() {
+    return g_wizard_active_subject;
 }
 
 // Track if subjects are initialized

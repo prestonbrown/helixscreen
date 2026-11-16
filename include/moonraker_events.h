@@ -89,6 +89,15 @@ struct MoonrakerEvent {
 /// ESP32 clients present identical, translatable text.
 namespace helix::moonraker_event {
 
+/// Klippy stayed disconnected or starting for the whole settle window: Moonraker
+/// is up, Klipper is not, and no notify_klippy_* transition will ever arrive to
+/// say so. Routed like Moonraker's own notify_klippy_disconnected.
+inline MoonrakerEvent klippy_never_ready() {
+    return MoonrakerEvent::translatable(
+        MoonrakerEventType::KLIPPY_DISCONNECTED,
+        TR_NOOP("Klipper has not come up. It may not be running on the printer."), {}, true);
+}
+
 inline MoonrakerEvent reconnected() {
     return MoonrakerEvent::translatable(MoonrakerEventType::RECONNECTED,
                                         TR_NOOP("Connection restored"), {}, false);

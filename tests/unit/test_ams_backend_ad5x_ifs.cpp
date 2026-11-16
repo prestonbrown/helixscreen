@@ -1159,6 +1159,19 @@ TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
     CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
 }
 
+TEST_CASE("AD5X IFS reset retires a fault with one release", "[ams][ad5x_ifs][clear_fault]") {
+    helix::test::StartedBackend<GcodeCapturingBackend> backend;
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+
+    // The sidebar's Reset skips clear_fault() on this promise.
+    REQUIRE(backend.reset_retires_fault());
+    REQUIRE(backend.reset().success());
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
+
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS action timeout resets stuck operations",
                  "[ams][ad5x_ifs]") {
     SECTION("LOADING surfaces ERROR after timeout") {
@@ -8767,7 +8780,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     // Klipper's runout handling pauses the job. Now it is a runout.
     set_print_state(helix::PrintJobState::PAUSED);
     REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE(backend.runout_active());
     REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
     // AmsState reads the flag from the snapshot, not from the backend's fields.
     REQUIRE(backend.get_system_info().filament_runout);
@@ -8779,6 +8792,25 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     // Idempotent: re-evaluating must not report a second state change (which
     // would re-emit EVENT_STATE_CHANGED on every status frame).
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
+}
+
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS clear_fault retires a raised runout and its latch",
+                 "[ams][ad5x_ifs][runout][clear_fault]") {
+    helix::test::RegisteredWired<AmsBackendAd5xIfs> backend_reg;
+    auto& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    set_print_state(helix::PrintJobState::PRINTING);
+    seat_then_drop_head(backend);
+    set_print_state(helix::PrintJobState::PAUSED);
+    REQUIRE(runs_out_after_dwell(backend));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+    REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
+
+    backend.clear_fault(0);
+
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(backend.runout_active());
+    CHECK_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-bearing",
@@ -8796,7 +8828,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-
     REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 
     REQUIRE(runs_out_after_dwell(backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE(backend.runout_active());
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: not raised while the print is not paused",
@@ -8811,7 +8843,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: not raised while the print
         seat_then_drop_head(backend);
         Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
         CHECK_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
-        CHECK_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        CHECK_FALSE(backend.runout_active());
         CHECK(backend.get_current_action() == AmsAction::IDLE);
     }
 }
@@ -8858,7 +8890,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     // The cut drops the head sensor. That is progress, not a runout.
     backend.fire_status(make_head_sensor(false));
     REQUIRE_FALSE(Ad5xIfsTestAccess::head_empty_armed(backend));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE_FALSE(backend.runout_active());
 
     // Existing phase behaviour is untouched: CUTTING -> UNLOADING on the drop.
     REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
@@ -8887,7 +8919,7 @@ TEST_CASE_METHOD(Ad5xRunoutOpFixture,
     // Nothing armed: the action is LOADING, so an operation is in flight.
     REQUIRE_FALSE(Ad5xIfsTestAccess::head_empty_armed(*backend));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(*backend));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(*backend));
+    REQUIRE_FALSE(backend->runout_active());
     REQUIRE(backend->get_current_action() == AmsAction::LOADING);
 
     // Even if the action snaps back to IDLE (the legacy head-rise finalize) the
@@ -8933,7 +8965,7 @@ TEST_CASE_METHOD(Ad5xRunoutOpFixture,
     // Once the window expires, the same state IS a runout.
     Ad5xIfsTestAccess::age_op_dispatch(op_backend, std::chrono::seconds(600));
     REQUIRE(Ad5xIfsTestAccess::evaluate_runout(op_backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(op_backend));
+    REQUIRE(op_backend.runout_active());
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume and recover",
@@ -8950,7 +8982,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         raise(backend);
         backend.fire_status(make_head_sensor(true));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
         REQUIRE_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
         REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
@@ -8961,7 +8993,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         raise(backend);
         set_print_state(helix::PrintJobState::PRINTING);
         REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
         REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
@@ -8970,7 +9002,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         raise(backend);
         REQUIRE(backend.recover().success());
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
         REQUIRE_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
         REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
@@ -9057,7 +9089,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(600));
         REQUIRE(backend.get_current_action() == AmsAction::ERROR);
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
 
         auto ev = backend.current_error();
         REQUIRE(ev.has_value());
@@ -9083,7 +9115,19 @@ TEST_CASE("AD5X IFS runout actions follow the toolhead switch", "[ams][ad5x_ifs]
         CHECK(actions[1].gcode == "RESUME");
         CHECK(actions[1].style.empty());
     }
-    SECTION("head empty with no safe load: nothing is primary but the danger Recover") {
+    SECTION("Recover reads as danger only where it resets the module's driver") {
+        in.head_has_filament = true;
+        auto recover = [&] {
+            const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+            REQUIRE_FALSE(actions.empty());
+            REQUIRE(actions.back().log_tag == "ifs::unlock");
+            return actions.back().style;
+        };
+        CHECK(recover().empty());
+        in.unlock_gcode = "IFS_RESET_DRIVER";
+        CHECK(recover() == "danger");
+    }
+    SECTION("head empty with no safe load: nothing is primary, Recover included") {
         in.head_has_filament = false;
         in.load_gcode.clear();
         const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
@@ -9220,7 +9264,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         // A too-short threshold raises here.
         Ad5xIfsTestAccess::age_head_empty(b, dwell - SLACK);
         REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(b));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(b));
+        REQUIRE_FALSE(b.runout_active());
         REQUIRE(b.get_current_action() == AmsAction::IDLE);
         // The failed probe must leave the candidate armed, or the second probe
         // would be testing nothing.
@@ -9229,7 +9273,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         // Just past it. A too-long threshold fails to raise here.
         Ad5xIfsTestAccess::age_head_empty(b, dwell + SLACK);
         REQUIRE(Ad5xIfsTestAccess::evaluate_runout(b));
-        REQUIRE(Ad5xIfsTestAccess::runout_active(b));
+        REQUIRE(b.runout_active());
         REQUIRE(b.get_current_action() == AmsAction::ERROR);
         return dwell;
     };
@@ -9943,7 +9987,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change that never
 
     // The runout prompt, the AD5X's only runout surface, can raise again.
     CHECK(Ad5xIfsTestAccess::evaluate_runout(backend));
-    CHECK(Ad5xIfsTestAccess::runout_active(backend));
+    CHECK(backend.runout_active());
 
     // The user resumes; the fault clears.
     set_print_state(helix::PrintJobState::PRINTING);

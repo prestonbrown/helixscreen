@@ -75,8 +75,12 @@ class Subject {
 
   private:
     lv_subject_t* prepare(lv_subject_type_t type);
+    /// The node exists and belongs to the running LVGL (not one lv_deinit() has freed).
+    [[nodiscard]] bool node_usable() const noexcept;
 
     lv_subject_t* handle_ = nullptr;
+    /// subjects_lvgl_generation() when the node was created.
+    uint32_t generation_ = 0;
     bool live_ = false;
 };
 
@@ -89,6 +93,11 @@ constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
 /// one (helix-xml's own, or by-value storage) needs a type and no deinit. A Subject's node
 /// exists from construction as an INT placeholder, so its type alone says nothing.
 [[nodiscard]] bool subject_is_live(const lv_subject_t* subject) noexcept;
+
+/// lv_deinit() frees every subject node. Called just before it (helix::ui::teardown_lvgl()),
+/// so a Subject whose node came from the ending LVGL never touches it again, even after a
+/// later lv_init().
+void subjects_note_lvgl_deinit() noexcept;
 
 /// Resets the Subject that owns `subject`, for code holding only the pointer
 /// (SubjectManager, registries). A node whose Subject is gone is reset in place. A pointer no

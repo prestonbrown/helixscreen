@@ -23,6 +23,14 @@ char g_orphan_tag;
 
 std::atomic<uint32_t> g_anomalies{0};
 
+/// Bumped by subjects_note_lvgl_deinit(): a node from an earlier generation was freed by
+/// lv_deinit() and must not be touched, even once LVGL is initialized again.
+std::atomic<uint32_t> g_generation{0};
+
+uint32_t current_generation() {
+    return g_generation.load(std::memory_order_acquire);
+}
+
 void report(const char* code, const char* context) {
     g_anomalies.fetch_add(1, std::memory_order_relaxed);
     helix_lvgl_anomaly(code, context);
@@ -87,16 +95,19 @@ bool on_main_thread() {
 /// Subject still reaches the node after ~Subject has run; today's by-value lv_subject_t
 /// keeps its bytes until the whole owner is gone, and the queue keeps that true. The queue
 /// also moves a free that starts on a worker thread onto the main thread.
-void release_node(lv_subject_t* node) {
+void release_node(lv_subject_t* node, uint32_t generation) {
     node->user_data = &g_orphan_tag;
-    if (helix::ui::UpdateQueue::destroyed()) {
-        return; // atexit chain: the process is ending and LVGL keeps the node in its list
+    // Once the queue is shut down (app shutdown) or destroyed (the atexit chain) it would
+    // only drop the free, and log that it did; LVGL keeps the node in its list and
+    // lv_deinit() frees it.
+    if (helix::ui::UpdateQueue::destroyed() || helix::ui::UpdateQueue::instance().is_shut_down()) {
+        return;
     }
     // queue_update tags are literals at the call; the assert ties this one to the constant.
     static_assert(same_text(kSubjectReleaseTag, "helix::Subject::release_node"),
                   "release tag literal and kSubjectReleaseTag differ");
-    helix::ui::queue_update("helix::Subject::release_node", [node]() {
-        if (lv_is_initialized()) {
+    helix::ui::queue_update("helix::Subject::release_node", [node, generation]() {
+        if (lv_is_initialized() && generation == current_generation()) {
             lv_subject_delete(node);
         }
     });
@@ -104,37 +115,48 @@ void release_node(lv_subject_t* node) {
 
 } // namespace
 
+void subjects_note_lvgl_deinit() noexcept {
+    g_generation.fetch_add(1, std::memory_order_acq_rel);
+}
+
 Subject::Subject() noexcept {
     if (lv_is_initialized() && on_main_thread()) {
         handle_ = lv_subject_create(LV_SUBJECT_TYPE_INT);
         if (handle_) {
+            generation_ = current_generation();
             handle_->user_data = this;
             handle_->deinitialized = 1;
         }
     }
 }
 
+bool Subject::node_usable() const noexcept {
+    return handle_ != nullptr && lv_is_initialized() && generation_ == current_generation();
+}
+
 Subject::~Subject() {
-    if (handle_ && lv_is_initialized()) {
-        release_node(handle_);
+    if (node_usable()) {
+        release_node(handle_, generation_);
     }
 }
 
 Subject::Subject(Subject&& other) noexcept
-    : handle_(std::exchange(other.handle_, nullptr)), live_(std::exchange(other.live_, false)) {
-    if (handle_ && lv_is_initialized()) {
+    : handle_(std::exchange(other.handle_, nullptr)),
+      generation_(std::exchange(other.generation_, 0)), live_(std::exchange(other.live_, false)) {
+    if (node_usable()) {
         handle_->user_data = this;
     }
 }
 
 Subject& Subject::operator=(Subject&& other) noexcept {
     if (this != std::addressof(other)) {
-        if (handle_ && lv_is_initialized()) {
-            release_node(handle_);
+        if (node_usable()) {
+            release_node(handle_, generation_);
         }
         handle_ = std::exchange(other.handle_, nullptr);
+        generation_ = std::exchange(other.generation_, 0);
         live_ = std::exchange(other.live_, false);
-        if (handle_ && lv_is_initialized()) {
+        if (node_usable()) {
             handle_->user_data = this;
         }
     }
@@ -147,6 +169,11 @@ lv_subject_t* Subject::prepare(lv_subject_type_t type) {
         handle_ = nullptr;
         live_ = false;
         return nullptr;
+    }
+    if (handle_ != nullptr && !node_usable()) {
+        // lv_deinit() freed this node; LVGL is up again, so start a new one.
+        handle_ = nullptr;
+        live_ = false;
     }
     if (!on_main_thread()) {
         report("subject_init_off_main_thread", "helix::Subject::init_* off the LVGL thread");
@@ -162,6 +189,7 @@ lv_subject_t* Subject::prepare(lv_subject_type_t type) {
             live_ = false;
             return nullptr;
         }
+        generation_ = current_generation();
         handle_->user_data = this;
     } else if (live_) {
         report("subject_reinit_while_live",
@@ -238,7 +266,7 @@ void Subject::reset() {
         return;
     }
     live_ = false;
-    if (!handle_ || !lv_is_initialized()) {
+    if (!node_usable()) {
         return;
     }
     reset_node(handle_);

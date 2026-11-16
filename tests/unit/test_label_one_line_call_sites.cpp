@@ -5,8 +5,8 @@
  * @file test_label_one_line_call_sites.cpp
  * @brief Dotted labels built in C++ hold one line (prestonbrown/helixscreen#1775).
  *
- * Each widget here creates its own lv_label in DOTS mode; without a pinned
- * height the label wraps instead of ellipsizing.
+ * Each widget here creates its own lv_label in DOTS mode; without a line cap
+ * the label wraps instead of ellipsizing.
  */
 
 #include "ui_context_menu.h"

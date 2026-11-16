@@ -75,7 +75,7 @@ void init_global_timelapse_videos(helix::IMoonrakerAPI* api) {
 /// True when the overlay was pushed.
 static bool show_timelapse_videos() {
     spdlog::debug("[Timelapse Videos] Opening timelapse videos overlay");
-    return get_global_timelapse_videos().show(lv_display_get_screen_active(nullptr));
+    return get_global_timelapse_videos().show(lv_screen_active());
 }
 
 void open_timelapse_videos() {

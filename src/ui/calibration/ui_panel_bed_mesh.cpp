@@ -31,6 +31,7 @@
 #include "bed_mesh_probe_temp.h"
 #include "bed_mesh_profile_name.h"
 #include "bed_mesh_stats.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
@@ -1060,6 +1061,10 @@ void BedMeshPanel::start_calibration() {
         return;
     }
 
+    ensure_bed_clear_then(lifetime_.token(), [this]() { ask_calibration_name(); });
+}
+
+void BedMeshPanel::ask_calibration_name() {
     // The mesh is named before anything is probed, so the calibration itself
     // stores it there. The field starts on the profile Klipper loads at startup.
     lv_subject_set_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);

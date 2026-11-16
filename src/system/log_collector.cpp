@@ -193,7 +193,7 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
     return paths;
 }
 
-std::string tail_file(const std::vector<std::string>& paths, int num_lines) {
+std::string tail_file(const std::vector<std::string>& paths, int num_lines, TailSource* source) {
     // Pick the most-recently-modified readable, non-empty file rather than the
     // first one that exists. The list is priority-ordered, but a stale leftover
     // at a higher-priority path (e.g. an old ZMOD stdout-redirect from a prior
@@ -214,10 +214,13 @@ std::string tail_file(const std::vector<std::string>& paths, int num_lines) {
     // Read newest-first; skip a file that stat()'d but reads empty (e.g. became
     // unreadable between stat and open) and try the next-freshest.
     for (const auto& [mtime, path] : candidates) {
-        (void)mtime;
         auto result = read_tail_lines(*path, num_lines, "file");
-        if (!result.empty())
+        if (!result.empty()) {
+            if (source != nullptr) {
+                *source = TailSource{*path, mtime};
+            }
             return result;
+        }
     }
     return {};
 }

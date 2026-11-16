@@ -189,6 +189,7 @@ translations:
   A print is running. Apply the result after it ends.: Une impression est en cours. Appliquez le résultat quand elle sera terminée.
   A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
+  A print started, so the calibration did not start.: "Une impression a démarré, la calibration n'a donc pas été lancée."
   A print took the printer.: "Une impression a pris l'imprimante."
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
@@ -1051,6 +1052,7 @@ translations:
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
   "Here's a quick look at what changed since your last version.": "Un aperçu rapide de ce qui a changé depuis votre dernière version."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper n''a pas démarré. Il ne fonctionne peut-être pas sur l''imprimante.'
   'Klipper: {}': "Klipper : {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Les bases : l'assistant de configuration, la navigation entre les écrans et les gestes tactiles."
   Load all stopped: 'Chargement global arrêté'
@@ -4359,7 +4361,6 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "Le plateau et la buse chauffent ensemble avant tout mouvement, pour que l'impression adhère de nouveau et que la buse s'en détache."
   The bed has cooled. Take the spools off the plate, then confirm.: Le plateau a refroidi. Retirez les bobines du plateau, puis confirmez.
 
-  The bed is clear and the toolhead can move freely: 'Le plateau est dégagé et la tête d''outil peut se déplacer librement'
   The bed is too small for settling laps.: 'Le plateau est trop petit pour les tours de mise en place.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Le chauffage du plateau. Réglez sa température et suivez son graphique sur l''écran de température du plateau.'
   The bed is too small for the test tower, or its size is unknown.: Le plateau est trop petit pour la tour de test, ou sa taille est inconnue.
@@ -4410,6 +4411,7 @@ translations:
   The heater will cycle on and off several times.: Le chauffage s'allumera et s'éteindra
     plusieurs fois.
   The helper macros are installed and activate after Klipper restarts.: 'Les macros d''aide sont installées et s''activent après un redémarrage de Klipper.'
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.
   The left RFID reader in this CFS unit may need service: Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention
   'The linked spool says {}.': 'La bobine liée indique {}.'

@@ -64,6 +64,24 @@ class DebugBundleTestFixture {
 // collect() tests [debug-bundle]
 // ============================================================================
 
+TEST_CASE("DebugBundleCollector: a local log fallback names its file and its age",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string path = "/home/pi/printer_data/logs/klippy.log";
+    CHECK(DebugBundleCollector::local_log_source_line(path, 0, 600) ==
+          "[read from local disk: /home/pi/printer_data/logs/klippy.log, last written "
+          "1970-01-01T00:00:00Z (10 min before this bundle)]");
+    CHECK(DebugBundleCollector::local_log_source_line(path, 0, 5 * 3600) ==
+          "[read from local disk: /home/pi/printer_data/logs/klippy.log, last written "
+          "1970-01-01T00:00:00Z (5 h before this bundle)]");
+    CHECK(DebugBundleCollector::local_log_source_line(path, 0, 9 * 86400) ==
+          "[read from local disk: /home/pi/printer_data/logs/klippy.log, last written "
+          "1970-01-01T00:00:00Z (9 days before this bundle)]");
+    CHECK(DebugBundleCollector::local_log_source_line(path, 600, 0) ==
+          "[read from local disk: /home/pi/printer_data/logs/klippy.log, last written "
+          "1970-01-01T00:10:00Z (after this bundle's clock)]");
+}
+
 TEST_CASE("DebugBundleCollector: collect() returns valid JSON with expected keys",
           "[debug-bundle]") {
     json bundle = helix::DebugBundleCollector::collect();

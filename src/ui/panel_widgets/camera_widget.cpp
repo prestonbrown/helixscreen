@@ -517,7 +517,7 @@ void CameraWidget::show_fullscreen_overlay() {
     }
 
     // Create overlay as child of active screen (standard overlay pattern)
-    lv_obj_t* screen = lv_display_get_screen_active(nullptr);
+    lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         return;
     }
@@ -671,7 +671,7 @@ bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
         return s_fullscreen_owner != nullptr;
     }
 
-    lv_obj_t* screen = lv_display_get_screen_active(nullptr);
+    lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         return false;
     }

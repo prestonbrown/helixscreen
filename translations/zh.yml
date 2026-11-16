@@ -182,6 +182,7 @@ translations:
   A print is running. Apply the result after it ends.: 正在打印。请在打印结束后应用结果。
   A print started: '打印已开始'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
+  A print started, so the calibration did not start.: "打印已开始，因此未启动校准。"
   A print took the printer.: "打印任务接管了打印机。"
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
@@ -977,6 +978,7 @@ translations:
   "Every screen and setting explained": "每个界面和设置的说明"
   "Getting Started": "入门"
   "Here's a quick look at what changed since your last version.": "快速了解自您上个版本以来的变化。"
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper 尚未启动。它可能没有在打印机上运行。'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "了解基本操作：设置向导、在界面间切换以及触摸手势。"
   Load all stopped: '全部装载已停止'
@@ -4119,7 +4121,6 @@ translations:
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "在任何移动之前，热床和喷嘴同时加热，使打印件重新附着，喷嘴脱离打印件。"
   The bed has cooled. Take the spools off the plate, then confirm.: 热床已冷却。请从热床上取下料盘,然后确认。
 
-  The bed is clear and the toolhead can move freely: '热床已清空，工具头可以自由移动'
   The bed is too small for settling laps.: '打印床太小，无法进行稳定绕圈。'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: '热床加热器。在热床温度界面设置温度并查看曲线。'
   The bed is too small for the test tower, or its size is unknown.: 热床太小放不下测试塔,或尺寸未知。
@@ -4169,6 +4170,7 @@ translations:
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
+  The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最后一次打印件可能仍在热床上。请在工具头移动前将其取下，然后点按“已清空”。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修
   'The linked spool says {}.': '关联的料盘显示为 {}。'

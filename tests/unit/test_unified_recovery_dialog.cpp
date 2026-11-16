@@ -544,7 +544,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN shows all button
     REQUIRE_FALSE(lv_obj_is_hidden(dismiss_btn));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED hides restart buttons",
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED offers both restarts",
                  "[recovery][buttons]") {
     auto& estop = EmergencyStopOverlay::instance();
 
@@ -560,12 +560,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - DISCONNECTED hides restar
     REQUIRE(restart_row != nullptr);
     REQUIRE(dismiss_btn != nullptr);
 
-    // Restart row hidden when disconnected (can't restart). Hiding the wrapper takes
-    // modal_button_row's leading divider with it, so no orphaned rule is left behind.
-    REQUIRE(lv_obj_is_hidden(restart_row));
+    // A Klippy host that is gone is restarted through the recovery chain, so the
+    // restarts stay on offer.
+    REQUIRE_FALSE(lv_obj_is_hidden(restart_row));
 
-    // The close X is always visible, and with the restart row hidden it is the
-    // only way out, so it must actually close the dialog.
+    // The close X is always visible and closes the dialog.
     REQUIRE_FALSE(lv_obj_is_hidden(dismiss_btn));
     lv_obj_send_event(dismiss_btn, LV_EVENT_CLICKED, nullptr);
     process_lvgl(50);
@@ -594,7 +593,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - close X sits in the heade
           static_cast<int32_t>(lv_obj_get_child_count(dialog)) - 1);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN then DISCONNECTED updates buttons",
+TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN then DISCONNECTED retitles it",
                  "[recovery][buttons]") {
     auto& estop = EmergencyStopOverlay::instance();
 
@@ -609,12 +608,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - SHUTDOWN then DISCONNECTE
     REQUIRE(restart_row != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(restart_row));
 
-    // Connection drops - DISCONNECTED fires, buttons should update
+    // Klippy drops off altogether: the same dialog says so and keeps its restarts.
     estop.show_recovery_for(RecoveryReason::DISCONNECTED);
     process_lvgl(50);
 
-    // Restart row should now be hidden
-    REQUIRE(lv_obj_is_hidden(restart_row));
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "recovery_title"))) ==
+          "Printer Firmware Disconnected");
+    CHECK_FALSE(lv_obj_is_hidden(restart_row));
 }
 
 // ============================================================================

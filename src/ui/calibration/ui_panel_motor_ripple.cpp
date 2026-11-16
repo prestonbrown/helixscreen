@@ -6,6 +6,7 @@
 #include "ui_nav.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -85,7 +86,6 @@ MotorRipplePanel::~MotorRipplePanel() {
 void MotorRipplePanel::init_subjects() {
     init_subjects_guarded([this]() {
         UI_MANAGED_SUBJECT_INT(view_, 0, "ripple_view", subjects_);
-        UI_MANAGED_SUBJECT_INT(bed_clear_, 0, "ripple_bed_clear", subjects_);
         UI_MANAGED_SUBJECT_INT(compare_, 0, "ripple_compare", subjects_);
         UI_MANAGED_SUBJECT_INT(motor_, 0, "ripple_motor", subjects_);
         UI_MANAGED_SUBJECT_INT(has_y_, 1, "ripple_has_y", subjects_);
@@ -166,7 +166,6 @@ void MotorRipplePanel::before_show() {
                        "the bed.");
     }
     set_text(intro_text_, intro);
-    lv_subject_set_int(&bed_clear_, 0);
     set_view(View::Start);
 }
 
@@ -191,7 +190,7 @@ void MotorRipplePanel::fail(const std::string& reason) {
 }
 
 void MotorRipplePanel::start_clicked() {
-    if (lv_subject_get_int(&bed_clear_) == 0 || run_active()) {
+    if (run_active()) {
         return;
     }
     if (lv_subject_get_int(
@@ -200,9 +199,23 @@ void MotorRipplePanel::start_clicked() {
                    "progress."));
         return;
     }
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
+    if (!get_moonraker_api()) {
         fail(lv_tr("The printer is not connected."));
+        return;
+    }
+    ensure_bed_clear_then(lifetime_.token(), [this] { begin_preparing(); });
+}
+
+void MotorRipplePanel::begin_preparing() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api || run_active()) {
+        return;
+    }
+    // A print can start from another client while the bed question is up.
+    if (lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+        fail(lv_tr("The printer is busy. Run the check when no print or other motion is in "
+                   "progress."));
         return;
     }
     set_text(progress_text_, lv_tr("Getting ready..."));
@@ -434,7 +447,6 @@ void MotorRipplePanel::on_done(const ripple::SweepResult& result) {
 }
 
 void MotorRipplePanel::again_clicked() {
-    lv_subject_set_int(&bed_clear_, 0);
     set_view(View::Start);
 }
 

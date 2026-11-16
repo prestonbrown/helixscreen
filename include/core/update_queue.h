@@ -405,6 +405,12 @@ class UpdateQueue {
      * itself queues further work) can read 0 while callbacks from that same
      * batch are still running.
      */
+    /// True after shutdown() until the next init(): queue() drops (and logs) every callback.
+    bool is_shut_down() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return shut_down_;
+    }
+
     size_t pending_count() const {
         std::lock_guard<std::mutex> lock(mutex_);
         return pending_.size() + frozen_buffer_.size();

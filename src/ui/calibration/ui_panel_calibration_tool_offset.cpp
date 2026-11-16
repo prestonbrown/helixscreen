@@ -10,6 +10,7 @@
 #include "ui_nav.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "calibration_abort.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -231,6 +232,13 @@ void ToolOffsetCalibrationPanel::start_calibration() {
     }
     if (!printer_supports_calibration()) {
         NOTIFY_ERROR("{}", lv_tr("This printer cannot calibrate tool offsets automatically"));
+        return;
+    }
+    ensure_bed_clear_then(lifetime_.token(), [this]() { confirm_calibration(); });
+}
+
+void ToolOffsetCalibrationPanel::confirm_calibration() {
+    if (run_active_) {
         return;
     }
     const std::string prompt = start_prompt();

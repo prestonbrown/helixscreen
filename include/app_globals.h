@@ -159,7 +159,7 @@ helix::PrinterState& get_printer_state();
  *
  * @return Reference to the global notification subject
  */
-lv_subject_t& get_notification_subject();
+helix::Subject& get_notification_subject();
 
 /**
  * @brief Get the global home edit mode subject
@@ -169,7 +169,7 @@ lv_subject_t& get_notification_subject();
  *
  * @return Reference to the home edit mode subject
  */
-lv_subject_t& get_home_edit_mode_subject();
+helix::Subject& get_home_edit_mode_subject();
 
 /**
  * @brief Get the global home edit page deletable subject
@@ -180,7 +180,7 @@ lv_subject_t& get_home_edit_mode_subject();
  * @return Reference to the home edit page deletable subject
  */
 // NAMESPACE_OK: sits with get_home_edit_mode_subject(), this header's file-scope API
-lv_subject_t& get_home_edit_page_deletable_subject();
+helix::Subject& get_home_edit_page_deletable_subject();
 
 /**
  * @brief Death signal for the file-static app_globals subjects
@@ -205,7 +205,7 @@ SubjectLifetime get_app_globals_subjects_lifetime(); // NAMESPACE_OK: sits with 
  *
  * @return Reference to the wizard-active subject
  */
-lv_subject_t& get_wizard_active_subject();
+helix::Subject& get_wizard_active_subject();
 
 /**
  * @brief Initialize all global subjects

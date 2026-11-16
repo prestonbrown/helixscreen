@@ -13,7 +13,7 @@ CMAKE="android/app/jni/CMakeLists.txt"
 setup() {
     load helpers
     command -v cmake >/dev/null || skip "cmake is not installed"
-    command -v c++ >/dev/null || skip "no C++ compiler"
+    command -v c++ >/dev/null && command -v cc >/dev/null || skip "no C and C++ compiler"
     P="$BATS_TEST_TMPDIR/p"
     mkdir -p "$P/root/include" "$P/inc/spdlog" "$P/inc/hv" "$P/b"
     printf '#pragma once\n#define PCH_MAIN 1\n' > "$P/root/include/lvgl_pch.h"
@@ -37,7 +37,9 @@ setup() {
 @test "the Android precompiled headers configure and compile" {
     grep -q 'spdlog/spdlog.h' "$P/CMakeLists.txt"
     grep -q 'hv/json.hpp' "$P/CMakeLists.txt"
-    run cmake -S "$P" -B "$P/b"
+    # The scratch project needs a working compiler, not the environment's: CI sets
+    # CC="ccache clang" on runners where this job has no ccache.
+    run env -u CC -u CXX cmake -S "$P" -B "$P/b" -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
     [ "$status" -eq 0 ] || { echo "$output"; false; }
     run cmake --build "$P/b"
     [ "$status" -eq 0 ] || { echo "$output"; false; }

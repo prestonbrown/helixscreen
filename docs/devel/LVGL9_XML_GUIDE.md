@@ -892,19 +892,19 @@ A content-height label grows to fit whatever it wraps to, so on a bare
 `lv_label` dots never fire: the text wraps onto two or three lines and pushes
 its siblings. HelixScreen closes that gap in one place:
 
-- **`text_*` and `ui_button` hold a dotted, content-height label to one line**
-  of its own font (plus its top/bottom padding and border). Leaving the height
-  unset or writing `height="content"` both qualify. The height follows a later
-  font or padding change (`helix::ui::label_hold_one_line`, `include/ui_text.h`).
+- **`text_*` and `ui_button` cap a dotted, content-height label at one line**
+  of its own font with `lv_label_set_max_lines()`; padding and border sit
+  outside the cap. Leaving the height unset or writing `height="content"` both
+  qualify. LVGL measures the cap whenever it measures the text, so it follows a
+  later font, spacing or padding change (`src/ui/components/ui_text.cpp#cap_lines_if_dotted`).
 - **An explicit height opts out.** A px or % `height`, or `style_max_height`,
   leaves the label alone, which is how a deliberately multi-line dotted label is
   written (`panel_widget_tips.xml`: `style_max_height="100%"` inside a fixed cell).
 - **`max_lines="N"` wraps first, then dots.** On a `text_*` widget with
   `long_mode="dots"`, the label wraps to at most N lines of its own font and
-  ellipsizes the last one; shorter text keeps its own height. The cap follows
-  font and padding changes like the one-line hold, a value below 1 counts as 1,
-  and an explicit `height` or `style_max_height` opts out the same way
-  (`helix::ui::label_hold_lines`; `printer_manager_overlay.xml`'s printer name).
+  ellipsizes the last one; shorter text keeps its own height. A value below 1
+  counts as 1, and an explicit `height` or `style_max_height` opts out the same
+  way (`printer_manager_overlay.xml`'s printer name).
   `text_button` honours it too, but only when given: without it a dotted
   `text_button` keeps its own sizing.
 - **The label still needs a width bound.** `width="100%"`, or `flex_grow="1"`
@@ -913,8 +913,10 @@ its siblings. HelixScreen closes that gap in one place:
   ellipsize: it runs past its parent and is clipped.
 - **A bare `<lv_label>` gets none of this.** Use a `text_*` widget for a dotted
   label in XML.
-- **C++ labels call the helper.** A label built with `lv_label_create()` and set
-  to `LV_LABEL_LONG_MODE_DOTS` calls `helix::ui::label_hold_one_line(label)`.
+- **C++ labels set the cap.** A label built with `lv_label_create()` and set to
+  `LV_LABEL_LONG_MODE_DOTS` calls `lv_label_set_max_lines(label, 1)`. The cap
+  holds in every long mode, so a label that later leaves DOTS to wrap clears it
+  with `lv_label_set_max_lines(label, 0)`.
 - **Text meant to wrap must not use dots.** A sentence (a note, a banner
   message) takes `long_mode="wrap"` or no long mode.
 - **DOTS writes the ellipsis into the label's text.** Once it fires,

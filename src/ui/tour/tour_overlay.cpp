@@ -74,8 +74,8 @@ void TourOverlay::build_tree() {
 
     // Absolute screen dimensions — avoids LV_PCT() sizing quirks when parent
     // is lv_layer_top() and layout hasn't resolved yet. See #<tour-overlay>.
-    const int screen_w = lv_display_get_horizontal_resolution(nullptr);
-    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    const int screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
     root_ = lv_obj_create(top);
     lv_obj_set_user_data(root_, this); // the card buttons find their overlay here
@@ -170,8 +170,8 @@ void TourOverlay::place_highlight(const lv_area_t& target_rect) {
 
 void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, TooltipAnchor hint) {
     lv_obj_update_layout(tooltip_);
-    const int screen_w = lv_display_get_horizontal_resolution(nullptr);
-    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    const int screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
     int width = tooltip_width_;
     if (has_target && hint == TooltipAnchor::LeftNarrowed) {
@@ -277,13 +277,13 @@ void TourOverlay::update_preview(const TourStep& step) {
     lv_obj_t* preview = helix::ui::find_required(tooltip_, "tour_preview", "TourOverlay");
     if (!preview)
         return;
-    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
     if (!step.shows_print_status_preview || screen_h < kMinScreenHeightForPreview) {
         lv_obj_set_hidden(preview, true); // DECLARATIVE_OK: per-step, C++-built card
         return;
     }
     const std::string image = helix::PrinterImageManager::instance().get_displayed_image_path(
-        lv_display_get_horizontal_resolution(nullptr));
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
     lv_obj_t* printer = helix::ui::find_required(tooltip_, "tour_preview_printer", "TourOverlay");
     if (printer && !image.empty()) {
         lv_image_set_src(printer, image.c_str());
