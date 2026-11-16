@@ -65,6 +65,12 @@ Above the graph, a row of **sensor chips** lets you choose which traces are visi
 - Chips wrap across several lines when you have many sensors.
 - Every generic heater (`[heater_generic]`) other than your chamber heater gets its own chip with a target line, for example a filament dryer's heater.
 
+#### Driver, MCU and Host Temperatures
+
+Stepper drivers that report a temperature (TMC2240 drivers do), the printer's microcontrollers and the host computer each get a chip too, with a trace of their own. These traces are **off by default**. Tap one of the driver chips and every driver trace appears on every graph view. The MCU chips and the host chip work the same way for their own group. HelixScreen remembers your choice for each printer, so the graph opens the same way next time.
+
+Separately from the graph, HelixScreen watches every TMC stepper driver for overheating, whether or not the driver reports a temperature. When a driver passes its temperature pre-warning, a warning notice reads **Stepper driver {name} is overheating**. When it shuts down from heat, an error notice reads **Stepper driver {name} overheated and shut down**. Each notice appears once when the driver gets worse, and appears again if the driver cools and then overheats again.
+
 ### Graph Features
 
 - **Solid line:** the current temperature.
