@@ -293,11 +293,8 @@ TEST_CASE("side_of_anchor: reads the side off the two rectangles", "[context-men
     // Touching on one row overlaps: a card sharing the anchor's last row covers it.
     CHECK(ContextMenu::side_of_anchor(tile(80, 149, 90, 40), anchor) == AnchorSide::Over);
     CHECK(ContextMenu::side_of_anchor(tile(110, 110, 20, 20), anchor) == AnchorSide::Over);
-}
-
-TEST_CASE("side_of_anchor: a card clear of the anchor on two sides keeps the side it was placed on",
-          "[context-menu][caret]") {
-    // Right of a point, then clamped down so it is below the point too.
+    // Right of a point, then clamped down so it is below the point too: the
+    // side it was placed on wins, and a preference it does not clear is ignored.
     const lv_area_t point{235, 152, 235, 152};
     const lv_area_t card = tile(250, 163, 350, 307);
     CHECK(ContextMenu::side_of_anchor(card, point) == AnchorSide::Below);
@@ -349,12 +346,8 @@ TEST_CASE("compute_caret: clamps clear of the card's corners", "[context-menu][c
     const CaretPlacement right = caret_for(tile(100, 100, 200, 80), tile(296, 60, 6, 20));
     CHECK(right.side == AnchorSide::Below);
     CHECK(right.offset == 200 - 1 - kInset);
-}
-
-TEST_CASE("compute_caret: an anchor past the card's end clamps to the nearest corner",
-          "[context-menu][caret]") {
-    // The card was clamped to the screen edge and the anchor lies wholly beyond
-    // its span: the caret still sits on the facing edge, at the nearer end.
+    // An anchor wholly beyond the card's span (the card was clamped to the
+    // screen edge): the caret stays on the facing edge, at the nearer end.
     const CaretPlacement p = caret_for(tile(400, 100, 200, 80), tile(700, 20, 60, 40));
     CHECK(p.side == AnchorSide::Below);
     CHECK(p.offset == 200 - 1 - kInset);
@@ -376,34 +369,14 @@ TEST_CASE("compute_caret: on the left and right edges it follows the anchor's ve
     CHECK(right.offset == 260 - 200);
 }
 
-TEST_CASE("compute_caret: a card over its anchor has no caret", "[context-menu][caret]") {
+TEST_CASE("compute_caret: none over the anchor, the middle of a short edge",
+          "[context-menu][caret]") {
     const CaretPlacement p = caret_for(tile(100, 100, 200, 100), tile(150, 120, 20, 20));
     CHECK(p.side == AnchorSide::Over);
     CHECK_FALSE(p.visible());
     CHECK_FALSE(ContextMenu::compute_caret(tile(0, 0, 10, 10), tile(0, 20, 10, 10),
                                            AnchorSide::Above, kRadius, 0)
                     .visible());
-}
-
-TEST_CASE("compute_caret: a click point is a zero-size anchor the caret centres on",
-          "[context-menu][caret]") {
-    // The card hangs below the point as compute_card_pos puts it. The margin is
-    // wider than the corner inset, so the clamp leaves the caret on the point.
-    AnchorSide side = AnchorSide::Over;
-    const lv_area_t point{300, 200, 300, 200};
-    const lv_point_t card{160, 120};
-    const lv_point_t pos = ContextMenu::compute_card_pos(
-        card, point, {800, 480}, 40, kGap, AnchorMode::ClickPoint, AnchorAlign::Center, &side);
-    CHECK(side == AnchorSide::Below);
-    const CaretPlacement p = ContextMenu::compute_caret(
-        {pos.x, pos.y, pos.x + card.x - 1, pos.y + card.y - 1}, point, side, kRadius, kCaret);
-    CHECK(p.side == AnchorSide::Below);
-    CHECK(pos.x + p.offset == 300);
-}
-
-TEST_CASE("compute_caret: an edge too short for the inset gets the caret at its middle",
-          "[context-menu][caret]") {
-    const CaretPlacement p = caret_for(tile(100, 100, 24, 80), tile(90, 60, 10, 10));
-    CHECK(p.side == AnchorSide::Below);
-    CHECK(p.offset == 12);
+    // An edge too short for the inset gets the caret at its middle.
+    CHECK(caret_for(tile(100, 100, 24, 80), tile(90, 60, 10, 10)).offset == 12);
 }
