@@ -49,7 +49,7 @@ The title names the box, and the line under it gives its slot range.
 
 - **Temperature** is always shown.
 - **Humidity** is shown only where that box has its own humidity sensor. A box without one reads `--`, and the **Material Comfort** strip is hidden rather than guessed at. That is deliberate: with no humidity reading, a comfort verdict would be a made-up all-clear.
-- **While a cycle runs**, the temperature reads current then target, a countdown gives the time left, and a progress bar fills.
+- **While a cycle runs**, the temperature reads current then target, a countdown gives the time left, and a progress bar fills. On a box whose firmware says what the cycle is doing (OpenAMS does), the status line reads "Heating to 55°C: 3:25 left" while the box climbs to its target and "Drying: 3:25 left" once it is holding.
 
 The same rule reaches the status column in the box list: a box with a heater but no humidity sensor reads `--` there instead of a status word, and a box with no heater at all reads **passive**.
 
