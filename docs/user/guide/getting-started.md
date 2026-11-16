@@ -91,6 +91,7 @@ These are the steps in the order they appear. Each one is shown only when its co
 |------------------------|-----------------|
 | **Printer Setup: Touch Calibration** | Your touchscreen needs calibrating (usually a resistive screen) and has not been calibrated yet. See the [Touch Calibration guide](touch-calibration.md). |
 | **Printer Setup: Language** | No language other than English has been chosen on this screen yet. |
+| **Appearance & Region** | The first printer only, right after Language. Sets the timezone, time format, date format, theme, dark mode, speed and flow units and temperature unit. Rows left alone follow your language and timezone, and you can change all of them later in Settings. |
 | **Printer Setup: Network** | Always on the first printer, except in the Android app. |
 | **Printer Setup: Connection** | Always. |
 | **Printer Setup: Identity** | Your printer has no ready-made profile (see [Preset Setup](#preset-setup)). |
@@ -182,7 +183,7 @@ This step offers a few on/off choices: opening the slot editor when you load a n
 1. **Show Printer Switcher**: adds a printer button to the navigation bar.
 2. **+ Add Printer**: runs the setup wizard for another printer.
 
-One screen can control several printers. Open **Settings > Connection > Printers** and tap **+ Add Printer**. The wizard runs again for the new printer, without the Network and Language steps, which belong to the screen and are already set.
+One screen can control several printers. Open **Settings > Connection > Printers** and tap **+ Add Printer**. The wizard runs again for the new printer, without the Network, Language and Appearance & Region steps, which belong to the screen and are already set.
 
 On the first step of an added printer the button reads **Cancel** instead of **Back**. Tapping it drops the new printer and takes you back to the one you were using.
 
