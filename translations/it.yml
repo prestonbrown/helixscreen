@@ -1041,6 +1041,7 @@ translations:
   "Every screen and setting explained": "Ogni schermata e impostazione spiegata"
   "Getting Started": "Primi passi"
   "Here's a quick look at what changed since your last version.": "Una rapida panoramica di ciò che è cambiato dalla tua ultima versione."
+  'Klipper has not come up. It may not be running on the printer.': 'Klipper non si è avviato. Potrebbe non essere in esecuzione sulla stampante.'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Le basi: la procedura guidata di configurazione, come spostarsi tra le schermate e i gesti touch."
   Load all stopped: Caricamento di tutti interrotto

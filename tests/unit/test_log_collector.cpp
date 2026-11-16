@@ -107,9 +107,13 @@ TEST_CASE("helix::logs::tail_file picks newest mtime, not list order", "[log_col
     fs::last_write_time(fresh, now);
 
     // `stale` is FIRST in the list but must lose to the fresher file.
-    auto result = helix::logs::tail_file({stale.string(), fresh.string()}, 10);
+    helix::logs::TailSource source;
+    auto result = helix::logs::tail_file({stale.string(), fresh.string()}, 10, &source);
     REQUIRE(result.find("fresh 5") != std::string::npos);
     REQUIRE(result.find("stale") == std::string::npos);
+    // The caller is told which file it got, to label a fallback log.
+    CHECK(source.path == fresh.string());
+    CHECK(source.modified > 0);
 }
 
 TEST_CASE("helix::logs::tail_file falls through unreadable newest to next freshest",

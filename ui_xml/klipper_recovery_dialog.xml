@@ -48,13 +48,12 @@
             scroll_snap_y="none">
       <text_muted name="recovery_message" width="100%" bind_text="recovery_message" long_mode="wrap"/>
     </lv_obj>
-    <!-- Restart actions, side by side rather than stacked. Wrapped so the whole row
-         (including modal_button_row's own leading divider) hides as a unit when
-         disconnected, leaving the header X as the only way out. -->
+    <!-- Restart actions, side by side rather than stacked. Shown for every reason:
+         with Klippy disconnected both buttons fall back to the recovery chain, whose
+         platform script restarts the Klipper service from outside. -->
     <lv_obj name="recovery_restart_actions"
             width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
             scrollable="false">
-      <bind_flag_if_eq subject="recovery_can_restart" flag="hidden" ref_value="0"/>
       <modal_button_row secondary_text="Firmware Restart"
                         secondary_variant="primary" secondary_icon="cog_refresh"
                         secondary_callback="recovery_firmware_restart_clicked" primary_text="Restart Klipper"
