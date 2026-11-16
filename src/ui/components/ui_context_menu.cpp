@@ -125,8 +125,11 @@ bool ContextMenu::show_around_widget(lv_obj_t* parent, int item_index, lv_obj_t*
 
 bool ContextMenu::show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
                             AnchorAlign align) {
-    // Hide any existing menu first
+    // Hide any existing menu first. A click point set for this show survives the
+    // hide, which clears it so a later show cannot inherit it.
+    const bool had_click_point = has_click_point_;
     hide();
+    has_click_point_ = had_click_point;
 
     // ...including one belonging to a different instance. Two widgets of the same
     // kind on one page would otherwise stack two backdrops, and only the newer one
@@ -205,6 +208,7 @@ void ContextMenu::hide() {
     helix::ui::safe_delete_deferred(menu_);
     item_index_ = -1;
     anchor_widget_ = nullptr;
+    has_click_point_ = false;
     spdlog::debug("[ContextMenu] hide()");
 }
 
@@ -652,8 +656,12 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
         y = margin;
     }
 
+    // A click-point card hangs off its point with no gap for a caret, so even one
+    // the clamp slid off the point reports Over.
     if (side) {
-        *side = side_of_anchor({x, y, x + card.x - 1, y + card.y - 1}, anchor, intended);
+        *side = mode == AnchorMode::ClickPoint
+                    ? AnchorSide::Over
+                    : side_of_anchor({x, y, x + card.x - 1, y + card.y - 1}, anchor, intended);
     }
     return {x, y};
 }
@@ -760,6 +768,24 @@ void draw_caret_triangle(lv_layer_t* layer, const lv_area_t& card, ContextMenu::
     lv_draw_triangle(layer, &dsc);
 }
 
+/// The card edge a caret on @p side sits on, as a border side.
+lv_border_side_t caret_edge_border_side(ContextMenu::AnchorSide side) {
+    using AnchorSide = ContextMenu::AnchorSide;
+    switch (side) {
+    case AnchorSide::Below:
+        return LV_BORDER_SIDE_TOP;
+    case AnchorSide::Above:
+        return LV_BORDER_SIDE_BOTTOM;
+    case AnchorSide::Right:
+        return LV_BORDER_SIDE_LEFT;
+    case AnchorSide::Left:
+        return LV_BORDER_SIDE_RIGHT;
+    case AnchorSide::Over:
+        break;
+    }
+    return LV_BORDER_SIDE_NONE;
+}
+
 void caret_ext_draw_size_cb(lv_event_t* e) {
     auto* draw = static_cast<CaretDraw*>(lv_event_get_user_data(e));
     auto* card = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
@@ -770,7 +796,7 @@ void caret_ext_draw_size_cb(lv_event_t* e) {
     lv_event_set_ext_draw_size(e, draw->caret_h + 1);
 }
 
-// The card's border, if it has one, runs on along the caret's two sides: a
+// A border on the edge the caret sits on runs on along the caret's two sides: a
 // border-coloured triangle, then a fill-coloured one inset by the border width
 // whose base reaches into the card past its border, so no border line crosses
 // the caret's mouth.
@@ -789,9 +815,9 @@ void caret_draw_cb(lv_event_t* e) {
 
     const int32_t border_w = lv_obj_get_style_border_width(card, LV_PART_MAIN);
     const lv_opa_t border_opa = lv_obj_get_style_border_opa(card, LV_PART_MAIN);
-    const lv_border_side_t border_side = lv_obj_get_style_border_side(card, LV_PART_MAIN);
     const bool has_border =
-        border_w > 0 && border_opa > LV_OPA_MIN && border_side != LV_BORDER_SIDE_NONE;
+        border_w > 0 && border_opa > LV_OPA_MIN &&
+        (lv_obj_get_style_border_side(card, LV_PART_MAIN) & caret_edge_border_side(side)) != 0;
     float inner_tip = h;
     if (has_border) {
         draw_caret_triangle(layer, area, side, centre, h, 0.0f,
@@ -802,9 +828,13 @@ void caret_draw_cb(lv_event_t* e) {
     if (inner_tip <= 0.0f) {
         return;
     }
-    draw_caret_triangle(layer, area, side, centre, inner_tip, -static_cast<float>(border_w) - 1.0f,
-                        lv_obj_get_style_bg_color(card, LV_PART_MAIN),
-                        lv_obj_get_style_bg_opa(card, LV_PART_MAIN));
+    // An opaque fill reaches past the edge's border into the card to cover it; a
+    // translucent one would blend twice where it overlaps, so it stops at the edge.
+    const lv_opa_t bg_opa = lv_obj_get_style_bg_opa(card, LV_PART_MAIN);
+    const float base =
+        bg_opa >= LV_OPA_COVER ? -static_cast<float>(has_border ? border_w : 0) - 1.0f : 0.0f;
+    draw_caret_triangle(layer, area, side, centre, inner_tip, base,
+                        lv_obj_get_style_bg_color(card, LV_PART_MAIN), bg_opa);
 }
 
 void caret_delete_cb(lv_event_t* e) {
@@ -845,9 +875,14 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
     if (mode != AnchorMode::ClickPoint && anchor_widget_) {
         lv_obj_get_coords(anchor_widget_, &anchor);
     } else {
-        // No live anchor rect to hang off — fall back to the click point.
+        // No live anchor rect to hang off: fall back to the click point, or to the
+        // middle of the screen when this show was given none.
         mode = AnchorMode::ClickPoint;
-        anchor = {click_point_.x, click_point_.y, click_point_.x, click_point_.y};
+        const lv_point_t at = has_click_point_
+                                  ? click_point_
+                                  : lv_point_t{(backdrop_area.x1 + backdrop_area.x2) / 2,
+                                               (backdrop_area.y1 + backdrop_area.y2) / 2};
+        anchor = {at.x, at.y, at.x, at.y};
     }
     anchor.x1 -= backdrop_area.x1;
     anchor.x2 -= backdrop_area.x1;
@@ -865,14 +900,12 @@ void ContextMenu::position_card(lv_obj_t* menu_card) {
 
     lv_obj_set_pos(menu_card, pos.x, pos.y);
 
-    // A click-point menu shown without a click point has nothing to point at.
-    if (mode != AnchorMode::ClickPoint || has_click_point_) {
-        const lv_area_t placed{pos.x, pos.y, pos.x + card.x - 1, pos.y + card.y - 1};
-        attach_caret(menu_card,
-                     compute_caret(placed, anchor, side,
-                                   lv_obj_get_style_radius(menu_card, LV_PART_MAIN), caret_h),
-                     caret_h);
-    }
+    // A click-point card reports Over, so it gets none.
+    const lv_area_t placed{pos.x, pos.y, pos.x + card.x - 1, pos.y + card.y - 1};
+    attach_caret(menu_card,
+                 compute_caret(placed, anchor, side,
+                               lv_obj_get_style_radius(menu_card, LV_PART_MAIN), caret_h),
+                 caret_h);
 
     static constexpr const char* kSideNames[] = {"below", "above", "right", "left", "over"};
     spdlog::debug("[ContextMenu] {} anchor({},{})-({},{}) card {}x{} in {}x{} -> ({},{}) {}",
