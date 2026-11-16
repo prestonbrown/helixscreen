@@ -776,6 +776,39 @@ TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs
     CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
 }
 
+TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends nothing",
+          "[ams][ad5x_ifs][ifs_module][clear_fault]") {
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
+    Ad5xIfsTestAccess::handle_status(backend, json{{"ifs",
+                                                    {{"activity", "driver_error"},
+                                                     {"error", "stepper driver fault: overcurrent"},
+                                                     {"active_channel", 0},
+                                                     {"loaded_channels", json::array()}}}});
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+
+    // The board reports driver_error once, so a cleared mirror would never come
+    // back while the hardware stays faulted.
+    CHECK(backend.clear_fault(0).result == helix::AmsResult::NOT_SUPPORTED);
+    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    CHECK(backend.captured_gcodes.empty());
+}
+
+TEST_CASE("AD5X IFS module clear_fault retires its own fault without IFS_UNLOCK",
+          "[ams][ad5x_ifs][ifs_module][clear_fault]") {
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));
+    Ad5xIfsTestAccess::set_action(backend, helix::AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    CHECK(backend.captured_gcodes.empty());
+}
+
 TEST_CASE("AD5X IFS module activity tracks an externally-started op",
           "[ams][ad5x_ifs][ifs_module]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
