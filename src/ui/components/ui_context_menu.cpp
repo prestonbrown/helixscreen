@@ -572,39 +572,38 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
     int32_t y = 0;
     AnchorSide intended = AnchorSide::Over;
 
-    // Anchor coordinates are inclusive, so a card gap px clear of the anchor
-    // starts one past its far edge.
-    const int32_t below_y = anchor.y2 + 1 + gap;
-    const int32_t above_y = anchor.y1 - gap - card.y;
-    const int32_t right_x = anchor.x2 + 1 + gap;
-    const int32_t left_x = anchor.x1 - gap - card.x;
-    const bool fits_across = card.x <= bounds.x - 2 * margin;
-    const bool fits_down = card.y <= bounds.y - 2 * margin;
-    const auto fits_y = [&](int32_t top) {
-        return top >= margin && top + card.y <= bounds.y - margin;
-    };
-    const auto fits_x = [&](int32_t left) {
-        return left >= margin && left + card.x <= bounds.x - margin;
-    };
-
     if (mode == AnchorMode::AroundAnchor) {
+        // Anchor coordinates are inclusive, so a card gap px clear of the anchor
+        // starts one past its far edge.
         const int32_t anchor_w = anchor.x2 - anchor.x1 + 1;
         const int32_t anchor_h = anchor.y2 - anchor.y1 + 1;
         const int32_t centre_x = anchor.x1 + anchor_w / 2 - card.x / 2;
         const int32_t centre_y = anchor.y1 + anchor_h / 2 - card.y / 2;
-        if (fits_across && fits_y(below_y)) {
+        const bool fits_across = card.x <= bounds.x - 2 * margin;
+        const bool fits_down = card.y <= bounds.y - 2 * margin;
+        const auto fits_y = [&](int32_t top) {
+            return fits_across && top >= margin && top + card.y <= bounds.y - margin;
+        };
+        const auto fits_x = [&](int32_t left) {
+            return fits_down && left >= margin && left + card.x <= bounds.x - margin;
+        };
+        const int32_t below_y = anchor.y2 + 1 + gap;
+        const int32_t above_y = anchor.y1 - gap - card.y;
+        const int32_t right_x = anchor.x2 + 1 + gap;
+        const int32_t left_x = anchor.x1 - gap - card.x;
+        if (fits_y(below_y)) {
             intended = AnchorSide::Below;
             x = centre_x;
             y = below_y;
-        } else if (fits_across && fits_y(above_y)) {
+        } else if (fits_y(above_y)) {
             intended = AnchorSide::Above;
             x = centre_x;
             y = above_y;
-        } else if (fits_down && fits_x(right_x)) {
+        } else if (fits_x(right_x)) {
             intended = AnchorSide::Right;
             x = right_x;
             y = anchor.y1;
-        } else if (fits_down && fits_x(left_x)) {
+        } else if (fits_x(left_x)) {
             intended = AnchorSide::Left;
             x = left_x;
             y = anchor.y1;
@@ -624,31 +623,14 @@ lv_point_t ContextMenu::compute_card_pos(lv_point_t card, lv_area_t anchor, lv_p
             y = anchor.y1 - card.y - gap;
         }
     } else {
-        // Hang just below the click point and mirror about it, so the pointer stays
-        // by a corner of the card instead of the card jumping across the row; above
-        // it when below does not fit. A card too tall for either goes beside the
-        // point, centred on it. The card never covers the point while any of those
-        // fit, which leaves its caret something to point at.
+        // Hang off the click point and mirror about it, so the pointer stays at a
+        // corner of the card instead of the card jumping to the other side of the row.
+        // The card covers the point, so it gets no caret: the point is on a canvas
+        // that draws many items, and no side of it is clear of the item tapped.
         x = anchor.x1 - margin;
+        y = anchor.y1 - margin;
         if (x + card.x > bounds.x - margin) {
             x = anchor.x1 - card.x + margin;
-        }
-        if (fits_y(below_y)) {
-            intended = AnchorSide::Below;
-            y = below_y;
-        } else if (fits_y(above_y)) {
-            intended = AnchorSide::Above;
-            y = above_y;
-        } else if (fits_down && fits_x(right_x)) {
-            intended = AnchorSide::Right;
-            x = right_x;
-            y = anchor.y1 - card.y / 2;
-        } else if (fits_down && fits_x(left_x)) {
-            intended = AnchorSide::Left;
-            x = left_x;
-            y = anchor.y1 - card.y / 2;
-        } else {
-            y = below_y;
         }
     }
 

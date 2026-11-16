@@ -85,13 +85,6 @@ void SpoolmanPanel::register_callbacks() {
          [](lv_event_t* e) {
              lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
 
-             // Capture click point from the input device while event is still active
-             lv_point_t click_pt = {0, 0};
-             lv_indev_t* indev = lv_indev_active();
-             if (indev) {
-                 lv_indev_get_point(indev, &click_pt);
-             }
-
              // The target might be a child of the row, walk up to find the row
              lv_obj_t* row = target;
              while (row && lv_obj_get_user_data(row) == nullptr) {
@@ -99,7 +92,7 @@ void SpoolmanPanel::register_callbacks() {
              }
 
              if (row) {
-                 get_global_spoolman_panel().handle_spool_clicked(row, click_pt);
+                 get_global_spoolman_panel().handle_spool_clicked(row);
              }
          }},
         {"on_spoolman_refresh_clicked",
@@ -504,7 +497,7 @@ void SpoolmanPanel::update_active_indicators() {
 // Spool Selection
 // ============================================================================
 
-void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
+void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
     if (!row)
         return;
 
@@ -524,9 +517,8 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 
-    // Show context menu near the click point. Archive is withheld for the
+    // Show the context menu around the row. Archive is withheld for the
     // active spool — it is feeding the printer.
-    context_menu_.set_click_point(click_pt);
     context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_);
 }
 

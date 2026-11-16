@@ -49,10 +49,12 @@ class ContextMenu {
     /**
      * @brief Where the card is placed, and what it is placed relative to
      *
-     * `ClickPoint`: the card hangs just below the captured pointer position,
-     * mirrors about it horizontally when it would overflow, and flips above it
-     * when the bottom would fall off screen. A card too tall for either goes
-     * beside the point, centred on it, so its caret can still point at the tap.
+     * `ClickPoint`: the card hangs off the captured
+     * pointer position and mirrors about it horizontally when it would overflow.
+     * It never flips vertically. It is for a tap on a canvas that draws many
+     * items, where no widget stands for the one tapped; the card covers the
+     * point and so has no caret. A tap on an item's own widget anchors to that
+     * widget instead (show_around_widget()).
      *
      * `BelowAnchor` places the card under a widget's rectangle and flips it above
      * when the bottom would fall off screen — what a menu raised by a button
@@ -494,8 +496,8 @@ class ContextMenu {
      * @brief Which side of @p anchor the @p card rectangle lies on
      *
      * @p prefer when the card clears the anchor on that side: a card placed to
-     * the right of a point and clamped down past it clears it on two sides, and
-     * the one it was placed on is the edge its caret belongs on. Otherwise the
+     * the right of a small anchor and clamped down past it clears it on two
+     * sides, and the one it was placed on is the edge its caret belongs on. Otherwise the
      * first side it clears of Below, Above, Right, Left, else Over. Both
      * rectangles are inclusive LVGL areas in one coordinate space; a click point
      * is a zero-size area.

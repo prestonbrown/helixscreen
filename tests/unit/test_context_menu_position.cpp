@@ -93,11 +93,11 @@ TEST_CASE("compute_card_pos: centring off the right edge clamps to the margin",
 // ClickPoint
 // ============================================================================
 
-TEST_CASE("compute_card_pos: click-anchored card hangs just below the pointer",
+TEST_CASE("compute_card_pos: click-anchored card hangs off the pointer",
           "[context-menu][position]") {
     const lv_point_t pos = at_click({80, 60}, 100, 100, {800, 480});
     CHECK(pos.x == 90);
-    CHECK(pos.y == 105); // one past the point, plus the gap
+    CHECK(pos.y == 90);
 }
 
 TEST_CASE("compute_card_pos: click-anchored card mirrors about a right-edge click",
@@ -108,15 +108,12 @@ TEST_CASE("compute_card_pos: click-anchored card mirrors about a right-edge clic
     CHECK(pos.x == 710);
 }
 
-TEST_CASE("compute_card_pos: click-anchored card flips above a pointer near the bottom",
+TEST_CASE("compute_card_pos: click-anchored card slides up rather than flipping",
           "[context-menu][position]") {
-    // Sliding up would cover the point the caret is meant to name.
-    ContextMenu::AnchorSide side = ContextMenu::AnchorSide::Over;
-    const lv_point_t pos =
-        ContextMenu::compute_card_pos({80, 60}, {100, 440, 100, 440}, {800, 480}, kMargin, kGap,
-                                      AnchorMode::ClickPoint, AnchorAlign::Center, &side);
-    CHECK(pos.y == 440 - kGap - 60);
-    CHECK(side == ContextMenu::AnchorSide::Above);
+    // Vertically it never flips - the pointer is on a row, and jumping the card to
+    // the far side of it would leave the row it describes uncovered but far away.
+    const lv_point_t pos = at_click({80, 60}, 100, 460, {800, 480});
+    CHECK(pos.y == 480 - 60 - kMargin);
 }
 
 // ============================================================================
@@ -293,38 +290,21 @@ TEST_CASE("side_of_anchor: reads the side off the two rectangles", "[context-men
     // Touching on one row overlaps: a card sharing the anchor's last row covers it.
     CHECK(ContextMenu::side_of_anchor(tile(80, 149, 90, 40), anchor) == AnchorSide::Over);
     CHECK(ContextMenu::side_of_anchor(tile(110, 110, 20, 20), anchor) == AnchorSide::Over);
-    // Right of a point, then clamped down so it is below the point too: the
+    // Right of a small anchor, then clamped down so it is below it too: the
     // side it was placed on wins, and a preference it does not clear is ignored.
-    const lv_area_t point{235, 152, 235, 152};
+    const lv_area_t small = tile(235, 140, 10, 10);
     const lv_area_t card = tile(250, 163, 350, 307);
-    CHECK(ContextMenu::side_of_anchor(card, point) == AnchorSide::Below);
-    CHECK(ContextMenu::side_of_anchor(card, point, AnchorSide::Right) == AnchorSide::Right);
-    // A preference the card does not clear falls back to the geometry.
-    CHECK(ContextMenu::side_of_anchor(card, point, AnchorSide::Left) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(card, small) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Right) == AnchorSide::Right);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Left) == AnchorSide::Below);
 }
 
-TEST_CASE("compute_card_pos: a click-anchored card too tall for above or below goes beside the "
-          "point",
+TEST_CASE("compute_card_pos: a click-anchored card covers its point and has no caret",
           "[context-menu][caret]") {
-    // The AMS slot menu's 353x307 card, raised from a tap at y 200.
-    const lv_area_t point{235, 200, 235, 200};
-    const lv_point_t card{353, 307};
-    AnchorSide side = AnchorSide::Over;
-    const lv_point_t pos = ContextMenu::compute_card_pos(
-        card, point, {800, 480}, kMargin, kGap, AnchorMode::ClickPoint, AnchorAlign::Center, &side);
-    CHECK(side == AnchorSide::Right);
-    CHECK(pos.x == 236 + kGap);
-    CHECK(pos.y == 200 - 307 / 2); // centred on the point
-    const CaretPlacement p = ContextMenu::compute_caret(
-        {pos.x, pos.y, pos.x + card.x - 1, pos.y + card.y - 1}, point, side, kRadius, kCaret);
-    CHECK(p.side == AnchorSide::Right);
-    CHECK(pos.y + p.offset == 200);
-    // Near the right edge it goes left of the point instead.
-    const lv_area_t far{700, 300, 700, 300};
-    const lv_point_t left = ContextMenu::compute_card_pos(
-        card, far, {800, 480}, kMargin, kGap, AnchorMode::ClickPoint, AnchorAlign::Center, &side);
-    CHECK(side == AnchorSide::Left);
-    CHECK(left.x + card.x - 1 == 700 - kGap - 1);
+    AnchorSide side = AnchorSide::Below;
+    ContextMenu::compute_card_pos({353, 307}, {235, 200, 235, 200}, {800, 480}, kMargin, kGap,
+                                  AnchorMode::ClickPoint, AnchorAlign::Center, &side);
+    CHECK(side == AnchorSide::Over);
 }
 
 TEST_CASE("compute_caret: centred on the anchor below and above it", "[context-menu][caret]") {

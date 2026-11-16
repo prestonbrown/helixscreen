@@ -373,17 +373,10 @@ void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
         return;
     }
 
-    // Capture click point from the input device while event is still active
-    lv_point_t click_pt = {0, 0};
-    lv_indev_t* indev = lv_indev_active();
-    if (indev) {
-        lv_indev_get_point(indev, &click_pt);
-    }
-
     // Use current_target (widget callback was registered on) not target (originally clicked child)
     lv_obj_t* slot = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     auto global_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)));
-    self->handle_detail_slot_tap(global_index, click_pt);
+    self->handle_detail_slot_tap(global_index);
 
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -1090,7 +1083,7 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
 // Slot Context Menu (unit view)
 // ============================================================================
 
-void AmsOverviewPanel::handle_detail_slot_tap(int global_slot_index, lv_point_t click_pt) {
+void AmsOverviewPanel::handle_detail_slot_tap(int global_slot_index) {
     spdlog::info("[{}] Detail slot {} tapped", get_name(), global_slot_index);
 
     // Find the local widget for positioning the menu
@@ -1115,11 +1108,10 @@ void AmsOverviewPanel::handle_detail_slot_tap(int global_slot_index, lv_point_t 
     if (!slot_widget)
         return;
 
-    show_detail_context_menu(global_slot_index, slot_widget, click_pt);
+    show_detail_context_menu(global_slot_index, slot_widget);
 }
 
-void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_widget,
-                                                lv_point_t click_pt) {
+void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_widget) {
     if (!parent_screen_ || !near_widget)
         return;
 
@@ -1133,7 +1125,7 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
     host.log_tag = "[AmsOverview]";
     host.path_canvas = [this]() -> lv_obj_t* { return detail_path_canvas_; };
     host.sidebar = [this] { return sidebar_.get(); };
-    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, click_pt);
+    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget);
 }
 
 // ============================================================================
@@ -1149,7 +1141,7 @@ void AmsOverviewPanel::on_bypass_spool_clicked(lv_event_t* e) {
 void AmsOverviewPanel::handle_bypass_click() {
     helix::ui::show_external_spool_menu(
         parent_screen_, unit_view_active_ ? detail_path_canvas_ : system_path_, context_menu_,
-        helix::ui::sidebar_external_spool_hooks(sidebar_.get()));
+        helix::ui::sidebar_external_spool_hooks(sidebar_.get()), /*at_tap=*/true);
 }
 
 void AmsOverviewPanel::refresh_bypass_display() {

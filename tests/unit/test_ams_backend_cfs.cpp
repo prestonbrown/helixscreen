@@ -6923,9 +6923,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CFS: an absent bay's tap opens no context m
     helix::ui::SlotMenuHost host;
     host.parent_screen = test_screen();
     helix::ui::AmsContextMenu menu;
-    helix::ui::open_slot_context_menu(menu, host, 5, test_screen(), {0, 0});
+    helix::ui::open_slot_context_menu(menu, host, 5, test_screen());
     CHECK_FALSE(menu.is_visible());
-    helix::ui::open_slot_context_menu(menu, host, 8, test_screen(), {0, 0});
+    helix::ui::open_slot_context_menu(menu, host, 8, test_screen());
     CHECK(menu.is_visible());
     menu.hide();
 }
