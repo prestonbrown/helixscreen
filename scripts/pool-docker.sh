@@ -19,7 +19,8 @@
 # is mounted, scripts/ninja-jobserver.sh's ninja (fetched once, then cached) is
 # mounted over the image's /usr/bin/ninja, MAKEFLAGS names the FIFO, and
 # IDF_PY_BUILD_JOBS is emptied, since idf.py passes it as -j and any -j turns
-# ninja's jobserver off. The container's root, or the -u uid, must be able to
+# ninja's jobserver off. MAKE names scripts/container-make.sh, mounted in, so the
+# firmware's LTO link (lto-wrapper runs $MAKE) joins the same pool. The container's root, or the -u uid, must be able to
 # open the FIFO; one that cannot leaves ninja at its own default parallelism.
 #
 # Any other command (a build script), or idf.py when no ninja 1.13 can be had,
@@ -45,12 +46,16 @@ while [ $# -gt 0 ] && [ "$1" != make ]; do
 done
 
 dir=/run/jobpool
+# The LTO link's make: gcc's lto-wrapper runs $MAKE, and the image's make cannot
+# read the fifo MAKEFLAGS ninja needs (scripts/container-make.sh).
+container_make=/usr/local/bin/helix-container-make
 if [ $# -eq 0 ]; then
     ninja_cmd='(^|[[:space:];&|(])(idf\.py|ninja)([[:space:]]|$)'
     if [[ " ${opts[*]} " =~ $ninja_cmd ]] && mount=$("$jp" docker-args "$dir" 2>/dev/null) &&
         ninja=$("$here/ninja-jobserver.sh"); then
         exec env -u MAKEFLAGS -u MFLAGS "$jp" exec -- "$docker" run "$mount" \
             "--volume=$ninja:/usr/bin/ninja:ro" \
+            "--volume=$here/container-make.sh:$container_make:ro" -e "MAKE=$container_make" \
             -e "MAKEFLAGS= -j --jobserver-auth=fifo:$dir/fifo" -e IDF_PY_BUILD_JOBS= "${opts[@]}"
     fi
     # shellcheck disable=SC2016  # expanded by the inner sh, under the hold

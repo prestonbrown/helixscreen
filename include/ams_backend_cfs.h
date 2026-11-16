@@ -409,12 +409,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }
-    // CFS unloads filament from the toolhead at end-of-print and reloads it as
-    // part of the next print-start sequence, so the toolhead is expected to be
-    // empty at print-start. The runout sensor reading "no filament" then is by
-    // design, not a fault — suppress the pre-print runout warning modal.
+    // Stock CFS firmware unloads filament from the toolhead at end-of-print and
+    // reloads it as part of the next print-start sequence, so the toolhead is
+    // expected to be empty at print-start and the pre-print runout warning is
+    // suppressed. Fork firmware makes that unload an option and reports it as
+    // box.unload_after_print_enabled; with it off, filament stays in the
+    // toolhead and an empty one is worth the warning.
     [[nodiscard]] bool auto_unloads_after_print() const override {
-        return true;
+        return unload_after_print_.load() != 0;
     }
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
@@ -961,6 +963,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// Fork firmware registers BOX_PRINT_MAP (fork_has_print_map() of the
     /// merged flat state). Same writer and lifetime as fork_select_slot_.
     std::atomic<bool> fork_print_map_{false};
+    /// box.unload_after_print_enabled as last reported: -1 when the firmware
+    /// reports no such option (stock, which always unloads), else 0 or 1.
+    std::atomic<int> unload_after_print_{-1};
 
     /// Stock dialect only: a client has declared bypass intent (sidebar toggle
     /// ON after the chained unload). Held in Moonraker as kBypassDeclaredKey in
@@ -1417,6 +1422,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     // The verdict behind a phase-verification ERROR, so a later sensor edge can
     // tell whether it resolves that fault. Ok when no such fault is raised.
     PhaseVerdict phase_fault_ = PhaseVerdict::Ok;
+    /// A phase-verification ERROR is CFS's own judgement, so it may be cleared.
+    [[nodiscard]] bool fault_is_own_locked() const override {
+        return phase_fault_ != PhaseVerdict::Ok;
+    }
+    /// clear_fault() retired the ERROR, so the verdict behind it goes too.
+    void on_fault_cleared_locked() override;
     /// Drop a phase-verification fault the toolhead switch shows is fixed.
     /// **Caller must hold mutex_.**
     void retire_resolved_phase_fault_locked(bool filament_detected);

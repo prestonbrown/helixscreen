@@ -201,6 +201,7 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `teardown-worktree.sh` | Remove a finished worktree and its branch, refusing unsafe cases |
 | `helix-claim` | Cross-session claim registry and the default make `-j` (`jobs`, `hold`) |
 | `pool-docker.sh` | Every docker cross build runs through it, inside the machine's job pool |
+| `container-make.sh` | Mounted by `pool-docker.sh` as an idf container's `$MAKE`: hands make 4.3 the pool FIFO as descriptors for the LTO link |
 | `resource-advisor.sh` | `PreToolUse` hook: suggests where a heavy command should run; never blocks |
 | `subagent-brief.sh` | `SubagentStart` hook: injects the shared-machine rules into every subagent |
 | `compile_command.py` | Which compile command describes a source today, for `-fsyntax-only` replays |
