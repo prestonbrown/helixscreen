@@ -10,6 +10,7 @@
 #include "printer_fan_state.h"
 
 #include "config.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "device_display_name.h"
 #include "fan_gcode.h"
@@ -141,10 +142,10 @@ void PrinterFanState::deinit_subjects() {
     }
     fan_speed_lifetimes_.clear();
 
-    // Safe to deinit subjects here (lv_subject_deinit frees attached observers)
+    // Safe to reset subjects here (reset() frees attached observers)
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
-            lv_subject_deinit(subject_ptr.get());
+            subject_ptr->reset();
         }
     }
     fan_speed_subjects_.clear();
@@ -475,7 +476,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
 
     // Build new subject map, reusing existing subjects for fans that persist
     // across reconnections. Only deinit subjects for fans that disappeared.
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> new_subjects;
+    std::unordered_map<std::string, std::unique_ptr<helix::Subject>> new_subjects;
     std::unordered_map<std::string, SubjectLifetime> new_lifetimes;
     new_subjects.reserve(fan_objects.size());
     new_lifetimes.reserve(fan_objects.size());
@@ -563,7 +564,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
             // to the same value the struct carried forward. Writing 0 here would
             // re-open the struct/subject split that update_fan_speed's
             // unconditional write exists to absorb (#1181).
-            lv_subject_set_int(existing->second.get(), carried_speed);
+            lv_subject_set_int(existing->second->get(), carried_speed);
             new_subjects.emplace(obj_name, std::move(existing->second));
             // Reuse existing lifetime token too (observers still hold valid weak_ptrs)
             auto lifetime_it = fan_speed_lifetimes_.find(obj_name);
@@ -574,8 +575,8 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
             }
             spdlog::trace("[PrinterFanState] Reused speed subject for fan: {}", obj_name);
         } else {
-            auto subject_ptr = std::make_unique<lv_subject_t>();
-            lv_subject_init_int(subject_ptr.get(), 0);
+            auto subject_ptr = std::make_unique<helix::Subject>();
+            subject_ptr->init_int(0);
             new_subjects.emplace(obj_name, std::move(subject_ptr));
             new_lifetimes.emplace(obj_name, std::make_shared<bool>(true));
             spdlog::trace("[PrinterFanState] Created speed subject for fan: {}", obj_name);
@@ -598,7 +599,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
             spdlog::trace("[PrinterFanState] Deiniting orphaned speed subject for fan: {}", name);
-            lv_subject_deinit(subject_ptr.get());
+            subject_ptr->reset();
         }
     }
     fan_speed_subjects_ = std::move(new_subjects);
@@ -643,7 +644,7 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
             // cheaply rather than by argument (#1181).
             auto it = fan_speed_subjects_.find(object_name);
             if (it != fan_speed_subjects_.end() && it->second) {
-                lv_subject_set_int(it->second.get(), speed_pct);
+                lv_subject_set_int(it->second->get(), speed_pct);
                 if (changed) {
                     spdlog::trace("[PrinterFanState] Fan {} speed updated to {}%", object_name,
                                   speed_pct);
@@ -686,7 +687,7 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
         if (lt != fan_speed_lifetimes_.end()) {
             lifetime = lt->second;
         }
-        return it->second.get();
+        return it->second->get();
     }
     lifetime.reset();
     return nullptr;
@@ -695,7 +696,7 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
 lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_name) {
     auto it = fan_speed_subjects_.find(object_name);
     if (it != fan_speed_subjects_.end() && it->second) {
-        return it->second.get();
+        return it->second->get();
     }
     return nullptr;
 }

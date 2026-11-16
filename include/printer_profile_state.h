@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "pre_print_option.h"
 #include "preprint_skip_wrappers.h"
 #include "subject_managed_panel.h"
@@ -245,11 +246,11 @@ class PrinterProfileState {
     /// Empty on printers whose firmware stores none.
     std::map<std::string, bool> firmware_option_defaults_;
 
-    lv_subject_t printer_type_subject_{};
+    helix::Subject printer_type_subject_{};
     char printer_type_subject_buf_[128];
-    lv_subject_t z_offset_can_save_{};
-    lv_subject_t z_offset_tune_hint_{};
-    lv_subject_t z_offset_reapplied_per_head_{};
+    helix::Subject z_offset_can_save_{};
+    helix::Subject z_offset_tune_hint_{};
+    helix::Subject z_offset_reapplied_per_head_{};
 };
 
 } // namespace helix

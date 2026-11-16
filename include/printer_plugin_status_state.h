@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "filament_accounting.h"
 #include "fit_check.h"
 #include "helix_plugin_features.h"
@@ -337,24 +338,24 @@ class PrinterPluginStatusState {
     PluginFeatureMap features_;
 
     // Plugin status subjects (tri-state: -1=unknown, 0=no, 1=yes)
-    lv_subject_t helix_plugin_installed_{}; // HelixPrint Klipper plugin
+    helix::Subject helix_plugin_installed_{}; // HelixPrint Klipper plugin
 
-    lv_subject_t plr_feature_state_{};
-    lv_subject_t helix_plugin_probe_seq_{};
-    lv_subject_t plr_saving_enabled_{};
-    lv_subject_t plr_mesh_include_{};
+    helix::Subject plr_feature_state_{};
+    helix::Subject helix_plugin_probe_seq_{};
+    helix::Subject plr_saving_enabled_{};
+    helix::Subject plr_mesh_include_{};
     std::function<bool()> is_local_;
     /// Never null. Held by pointer so printer_state.h, which holds this class by
     /// value, compiles against json_fwd.h instead of the whole json library.
     std::unique_ptr<nlohmann::json> stored_opt_ins_;
-    std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_mode_{};
-    std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_on_{};
+    std::array<helix::Subject, kPluginSwitchFeatures.size()> switch_mode_{};
+    std::array<helix::Subject, kPluginSwitchFeatures.size()> switch_on_{};
     /// Republish the feature subjects from the plugin state and features map.
     void publish_features();
 
     /// Composed HelixMacrosStatus; see publish_helix_macros_status()
-    lv_subject_t helix_macros_status_{};
-    lv_subject_t helix_macros_signal_names_{};
+    helix::Subject helix_macros_status_{};
+    helix::Subject helix_macros_signal_names_{};
     std::optional<signal_macros::SignalMacroScan> signal_macro_scan_;
     signal_macros::SignalMigrationReport signal_migration_report_ =
         signal_macros::SignalMigrationReport::Unknown;

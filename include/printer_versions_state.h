@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -169,11 +170,11 @@ class PrinterVersionsState {
     bool subjects_initialized_ = false;
 
     // Version subjects (string, 64-byte buffer each)
-    lv_subject_t klipper_version_{};
-    lv_subject_t moonraker_version_{};
-    lv_subject_t os_version_{};
-    lv_subject_t moonraker_history_degraded_{};
-    lv_subject_t klipper_firmware_name_{};
+    helix::Subject klipper_version_{};
+    helix::Subject moonraker_version_{};
+    helix::Subject os_version_{};
+    helix::Subject moonraker_history_degraded_{};
+    helix::Subject klipper_firmware_name_{};
 
     // String buffers for subject storage
     char klipper_version_buf_[64]{};

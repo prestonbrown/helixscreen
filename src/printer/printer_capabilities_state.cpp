@@ -10,6 +10,7 @@
 #include "printer_capabilities_state.h"
 
 #include "chamber_air_modes.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "layer_pause.h"
 #include "lvgl.h"
@@ -110,16 +111,16 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
                   register_xml);
 
     for (const auto& def : kCapabilityDefs) {
+        capability_subjects_[static_cast<size_t>(def.cap)].init_int(def.initial);
         lv_subject_t* s = subject(def.cap);
-        lv_subject_init_int(s, def.initial);
         subjects_.register_subject(s, register_xml ? def.name : nullptr);
         if (register_xml) {
             helix::xml::register_subject_in_current_scope(def.name, s);
         }
     }
 
-    lv_subject_init_string(&tool_offset_cal_description_, tool_offset_cal_description_buf_, nullptr,
-                           sizeof(tool_offset_cal_description_buf_), "");
+    tool_offset_cal_description_.init_string(tool_offset_cal_description_buf_, nullptr,
+                                             sizeof(tool_offset_cal_description_buf_), "");
     constexpr const char* kToolOffsetCalDescription = "printer_tool_offset_cal_description";
     subjects_.register_subject(&tool_offset_cal_description_,
                                register_xml ? kToolOffsetCalDescription : nullptr);

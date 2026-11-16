@@ -16,6 +16,7 @@
 #include "esp_psram_thumbnail.h"
 #endif
 
+#include "core/subject.h"
 #include "json_fwd.h"
 
 #include <atomic>
@@ -1306,9 +1307,9 @@ class PrinterPrintState {
     AsyncLifetimeGuard async_lifetime_;
 
     // Print progress subjects
-    lv_subject_t print_progress_{};         // Integer 0-100
-    lv_subject_t print_progress_display_{}; // Integer 0-100, frozen after completion
-    lv_subject_t print_progress_text_{};    // String: print_progress_display_ as "N%"
+    helix::Subject print_progress_{};         // Integer 0-100
+    helix::Subject print_progress_display_{}; // Integer 0-100, frozen after completion
+    helix::Subject print_progress_text_{};    // String: print_progress_display_ as "N%"
 
     // Scheduled-pause markers: pauses and layer marks collected from the
     // active print's gcode by whichever path parsed the file. All writes happen
@@ -1316,41 +1317,41 @@ class PrinterPrintState {
     // reset_for_new_print()), so the vectors need no lock.
     helix::gcode::PauseScanPtr pause_scan_; // shared with the viewer; null = no scan
     std::string pause_source_filename_;
-    lv_subject_t pause_markers_version_{}; // Integer: bumped on publish/clear/move
+    helix::Subject pause_markers_version_{}; // Integer: bumped on publish/clear/move
 
     // Layer pause: main thread only, like the status frames that feed it.
     helix::layer_pause::Tracker layer_pause_;
     std::string layer_pause_state_object_;
-    bool slicer_layers_reported_{false};      // per-print
-    int slicer_current_layer_{0};             // per-print, print_stats.info only
-    int slicer_total_layers_{0};              // per-print, print_stats.info only
-    bool layer_pause_seen_paused_{false};     // edge detector for Tracker::on_paused
-    lv_subject_t layer_pause_availability_{}; // Integer: layer_pause::Availability
-    lv_subject_t layer_pause_layer_{};        // Integer: pending layer, 0 = none
+    bool slicer_layers_reported_{false};        // per-print
+    int slicer_current_layer_{0};               // per-print, print_stats.info only
+    int slicer_total_layers_{0};                // per-print, print_stats.info only
+    bool layer_pause_seen_paused_{false};       // edge detector for Tracker::on_paused
+    helix::Subject layer_pause_availability_{}; // Integer: layer_pause::Availability
+    helix::Subject layer_pause_layer_{};        // Integer: pending layer, 0 = none
     void refresh_layer_pause();
     void bump_pause_markers_version();
-    lv_subject_t print_filename_{};         // String buffer
-    lv_subject_t print_state_{};            // String buffer (for UI display)
-    lv_subject_t print_state_enum_{};       // Integer: PrintJobState enum
-    lv_subject_t print_exception_{};        // Integer: print_stats.exception code, -1 = none
-    lv_subject_t print_active_{};           // Integer: 1 when PRINTING/PAUSED
-    lv_subject_t print_outcome_{};          // Integer: PrintOutcome enum
-    lv_subject_t print_show_progress_{};    // Integer: 1 when active AND not starting
-    lv_subject_t print_display_filename_{}; // String: clean filename
-    lv_subject_t print_thumbnail_path_{};   // String: LVGL thumbnail path
-    lv_subject_t print_has_thumbnail_{};    // Integer: 1 unless the path is the placeholder
+    helix::Subject print_filename_{};         // String buffer
+    helix::Subject print_state_{};            // String buffer (for UI display)
+    helix::Subject print_state_enum_{};       // Integer: PrintJobState enum
+    helix::Subject print_exception_{};        // Integer: print_stats.exception code, -1 = none
+    helix::Subject print_active_{};           // Integer: 1 when PRINTING/PAUSED
+    helix::Subject print_outcome_{};          // Integer: PrintOutcome enum
+    helix::Subject print_show_progress_{};    // Integer: 1 when active AND not starting
+    helix::Subject print_display_filename_{}; // String: clean filename
+    helix::Subject print_thumbnail_path_{};   // String: LVGL thumbnail path
+    helix::Subject print_has_thumbnail_{};    // Integer: 1 unless the path is the placeholder
 
 #if defined(HELIX_PLATFORM_ESP32)
     // ESP32 thumbnail route: no disk cache on this platform, so
     // the image lives in PSRAM behind a shared_ptr instead of at a path. The
     // counter subject is what UI code observes; the pointer is what it reads.
-    lv_subject_t print_psram_thumb_gen_{}; // Integer: bumped on every install
+    helix::Subject print_psram_thumb_gen_{}; // Integer: bumped on every install
     std::shared_ptr<helix::ui::EspPsramThumbnail> print_psram_thumbnail_;
 #endif
 
     // Layer tracking subjects
-    lv_subject_t print_layer_current_{}; // Current layer (0-based)
-    lv_subject_t print_layer_total_{};   // Total layers
+    helix::Subject print_layer_current_{}; // Current layer (0-based)
+    helix::Subject print_layer_total_{};   // Total layers
 
     // Slice geometry from file metadata, used for Z-height layer derivation when
     // the slicer never reports a layer number (no print_stats.info.current_layer,
@@ -1374,10 +1375,10 @@ class PrinterPrintState {
     HeightLayerPending height_layer_pending_;
 
     // Print time tracking subjects (in seconds)
-    lv_subject_t print_duration_{};      // Extrusion-only elapsed time (Moonraker print_duration)
-    lv_subject_t print_elapsed_{};       // Wall-clock elapsed time (Moonraker total_duration)
-    lv_subject_t print_time_left_{};     // Estimated remaining
-    lv_subject_t print_filament_used_{}; // Filament used in mm (from Moonraker print_stats)
+    helix::Subject print_duration_{};      // Extrusion-only elapsed time (Moonraker print_duration)
+    helix::Subject print_elapsed_{};       // Wall-clock elapsed time (Moonraker total_duration)
+    helix::Subject print_time_left_{};     // Estimated remaining
+    helix::Subject print_filament_used_{}; // Filament used in mm (from Moonraker print_stats)
 
     // Per-extruder filament_used (mm) — heap-allocated for stable pointers.
     // Map entries are pre-populated by init_subjects() for indices 0..kMaxExtruderScan-1,
@@ -1387,8 +1388,8 @@ class PrinterPrintState {
     // See [L077] for the lifetime-token discipline required when observing
     // these dynamic subjects.
     struct ExtruderFilamentInfo {
-        std::unique_ptr<lv_subject_t> subject; ///< int: mm consumed on this extruder
-        SubjectLifetime lifetime;              ///< shared_ptr<bool>: true while subject alive
+        std::unique_ptr<helix::Subject> subject; ///< int: mm consumed on this extruder
+        SubjectLifetime lifetime;                ///< shared_ptr<bool>: true while subject alive
     };
     std::unordered_map<int, ExtruderFilamentInfo> extruder_filament_used_;
 
@@ -1399,12 +1400,12 @@ class PrinterPrintState {
     void create_extruder_filament_entry(int extruder_idx);
 
     // Print start progress subjects
-    lv_subject_t print_start_phase_{};      // Integer: PrintStartPhase enum
-    lv_subject_t print_lifecycle_{};        // Integer: PrintState enum (derived)
-    lv_subject_t print_lifecycle_prev_{};   // Integer: PrintState enum, value before the current
-    lv_subject_t job_holds_machine_{};      // Integer 0/1: job_holds_machine(print_lifecycle)
-    lv_subject_t machine_motion_blocked_{}; // Integer 0/1: job_holds_machine_ || spool_latch_
-    lv_subject_t spool_latch_{};            // Integer 0/1: spools lie on the bed
+    helix::Subject print_start_phase_{};      // Integer: PrintStartPhase enum
+    helix::Subject print_lifecycle_{};        // Integer: PrintState enum (derived)
+    helix::Subject print_lifecycle_prev_{};   // Integer: PrintState enum, value before the current
+    helix::Subject job_holds_machine_{};      // Integer 0/1: job_holds_machine(print_lifecycle)
+    helix::Subject machine_motion_blocked_{}; // Integer 0/1: job_holds_machine_ || spool_latch_
+    helix::Subject spool_latch_{};            // Integer 0/1: spools lie on the bed
     std::atomic<bool> spool_latch_active_{false};
     mutable std::mutex spool_latch_mutex_;
     std::vector<std::string> spool_latch_tokens_;
@@ -1412,19 +1413,19 @@ class PrinterPrintState {
 
     /// The job we are preparing; empty when none. See begin_preparing().
     PrintJobRef preparing_job_{};
-    lv_subject_t preparing_start_{};          // Integer PreparingStart
+    helix::Subject preparing_start_{};        // Integer PreparingStart
     bool preparing_cancel_requested_ = false; // See note_preparing_cancel_requested()
     bool printer_side_pre_start_ = false;     // See set_printer_side_pre_start()
     void set_preparing_start(PreparingStart start);
-    lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
+    helix::Subject preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;
     PreparingExit last_preparing_exit_ = PreparingExit::Confirmed;
-    lv_subject_t print_start_chamber_wait_{}; // Integer 0/1: a heater wait on the chamber
-    lv_subject_t print_start_message_{};      // String: phase message
-    lv_subject_t print_start_progress_{};     // Integer: 0-100%
+    helix::Subject print_start_chamber_wait_{}; // Integer 0/1: a heater wait on the chamber
+    helix::Subject print_start_message_{};      // String: phase message
+    helix::Subject print_start_progress_{};     // Integer: 0-100%
 
     // Print workflow in-progress subject
-    lv_subject_t print_in_progress_{};
+    helix::Subject print_in_progress_{};
 
     /// Backstop for a preparing job the printer never acknowledges.
     ///
@@ -1444,9 +1445,9 @@ class PrinterPrintState {
     static void preparing_watchdog_cb(lv_timer_t* timer);
 
     // Pre-print duration prediction subjects
-    lv_subject_t print_start_time_left_{};
-    lv_subject_t preprint_remaining_{}; // int: seconds remaining for pre-print
-    lv_subject_t preprint_elapsed_{};   // int: seconds elapsed since pre-print started
+    helix::Subject print_start_time_left_{};
+    helix::Subject preprint_remaining_{}; // int: seconds remaining for pre-print
+    helix::Subject preprint_elapsed_{};   // int: seconds elapsed since pre-print started
 
     // Slicer estimated total print time (not a subject - no XML binding needed)
     int estimated_print_time_ = 0;
@@ -1507,7 +1508,7 @@ class PrinterPrintState {
     bool progress_frozen_ = false;
 
     // Power-loss recovery validated-snapshot flag (plr_parse_snapshot_valid).
-    lv_subject_t plr_snapshot_valid_{}; // Integer: 1 when a validated PLR snapshot exists
+    helix::Subject plr_snapshot_valid_{}; // Integer: 1 when a validated PLR snapshot exists
     // Recovery file (plr_parse_recovery_file). Not a subject:
     // no XML binding needed, read on the main thread by the resume dispatcher.
     std::string pl_recovery_file_;
@@ -1516,13 +1517,13 @@ class PrinterPrintState {
 
     // Active recovery probe capability marker (plr_parse_power_loss_signal).
     // Integer: 1 once the key has been seen (presence, not value).
-    lv_subject_t plr_power_loss_signal_{};
+    helix::Subject plr_power_loss_signal_{};
 
     // PLR passive backend. plr_resume_macro_: 1 once discovery found the
     // backend's resume macro. plr_interrupted_flag_: the live interrupted-flag
     // value (1/0, booleans only; plr_backend owns the wire key).
-    lv_subject_t plr_resume_macro_{};
-    lv_subject_t plr_interrupted_flag_{};
+    helix::Subject plr_resume_macro_{};
+    helix::Subject plr_interrupted_flag_{};
 
     // Slicer progress from display_status (M73 gcode command)
     // When active, preferred over virtual_sdcard file-position progress
@@ -1530,17 +1531,17 @@ class PrinterPrintState {
     bool slicer_progress_active_ = false; // True once non-zero value seen during print
 
     // Display message from Klipper (M117 gcode / display_status.message)
-    lv_subject_t display_message_{};         // String subject for UI binding
-    lv_subject_t display_message_visible_{}; // Integer: 1 when non-empty, 0 when empty
-    char display_message_buf_[128]{};        // Buffer for message storage
+    helix::Subject display_message_{};         // String subject for UI binding
+    helix::Subject display_message_visible_{}; // Integer: 1 when non-empty, 0 when empty
+    char display_message_buf_[128]{};          // Buffer for message storage
 
     // print_stats.message from Klipper (set by firmware on pause/error to describe reason)
-    lv_subject_t print_message_{};  // String: e.g. "Filament Sensor: Runout Detected"
-    char print_message_buf_[256]{}; // Buffer for print_stats.message storage
+    helix::Subject print_message_{}; // String: e.g. "Filament Sensor: Runout Detected"
+    char print_message_buf_[256]{};  // Buffer for print_stats.message storage
 
-    lv_subject_t print_stop_reason_{};
+    helix::Subject print_stop_reason_{};
     char print_stop_reason_buf_[256]{};
-    lv_subject_t print_stop_reason_visible_{};
+    helix::Subject print_stop_reason_visible_{};
     std::string last_gcode_error_;
     double last_gcode_error_time_ = 0.0;
 
@@ -1569,9 +1570,9 @@ class PrinterPrintState {
     std::string effective_print_filename_;
     /// Override installed at commit for a print we rewrote; empty when none.
     std::string print_identity_override_;
-    lv_subject_t print_identity_epoch_{}; // Integer: bumped when the identity changes
+    helix::Subject print_identity_epoch_{}; // Integer: bumped when the identity changes
     int print_identity_epoch_counter_ = 0;
-    lv_subject_t print_state_report_seq_{}; // Integer: bumped per print_stats state report
+    helix::Subject print_state_report_seq_{}; // Integer: bumped per print_stats state report
 
     /// Recompute effective_print_filename_ from @p raw and the current override.
     /// Call BEFORE publishing print_filename_.

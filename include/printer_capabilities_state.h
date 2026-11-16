@@ -3,6 +3,7 @@
 
 #include "async_lifetime_guard.h"
 #include "capability_overrides.h"
+#include "core/subject.h"
 #include "moonraker_types.h"
 #include "printer_discovery.h"
 #include "subject_managed_panel.h"
@@ -396,7 +397,7 @@ class PrinterCapabilitiesState {
     ///
     /// Discovery runs on the WebSocket thread and its answers reach here through
     /// AsyncLifetimeGuard::defer(), so on a fast printer they can land before
-    /// init_subjects() has run. Writing an uninitialised lv_subject_t is already
+    /// init_subjects() has run. Writing a subject before its first init is already
     /// wrong, and INIT_SUBJECT_INT would then reset it to the hardcoded default
     /// anyway - the answer is simply lost, and nothing re-runs discovery in a
     /// stable session. A lost HasSpoolman keeps a connected Spoolman dark for
@@ -425,8 +426,8 @@ class PrinterCapabilitiesState {
     /// stepper_z position_endstop from configfile.settings (microns)
     int stepper_z_endstop_microns_ = 0;
 
-    std::array<lv_subject_t, kCapabilityCount> capability_subjects_{};
-    lv_subject_t tool_offset_cal_description_{};
+    std::array<helix::Subject, kCapabilityCount> capability_subjects_{};
+    helix::Subject tool_offset_cal_description_{};
     char tool_offset_cal_description_buf_[160] = {};
     /// The untranslated description set_hardware() chose; rendered through
     /// lv_tr() at init, on set_hardware() and on a language change.

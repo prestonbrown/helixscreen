@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "notice.h"
@@ -62,7 +63,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
                 *it->second.lifetime = false;
             it->second.lifetime.reset();
             if (it->second.status_subject) {
-                lv_subject_deinit(it->second.status_subject.get());
+                it->second.status_subject->reset();
             }
             devices_.erase(it);
         }
@@ -87,8 +88,8 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         info.raw_status = status_string_to_int(dev.status);
         info.reported_off = dev.status == "off";
 
-        info.status_subject = std::make_unique<lv_subject_t>();
-        lv_subject_init_int(info.status_subject.get(), info.raw_status);
+        info.status_subject = std::make_unique<helix::Subject>();
+        info.status_subject->init_int(info.raw_status);
         info.lifetime = std::make_shared<bool>(true);
 
         spdlog::trace(
@@ -137,7 +138,7 @@ lv_subject_t* PowerDeviceState::get_status_subject(const std::string& device, Su
     auto it = devices_.find(device);
     if (it != devices_.end() && it->second.status_subject) {
         lt = it->second.lifetime;
-        return it->second.status_subject.get();
+        return it->second.status_subject->get();
     }
     lt.reset();
     return nullptr;
@@ -287,8 +288,8 @@ void PowerDeviceState::publish_effective_status(DeviceInfo& info) {
         effective = 2; // locked
     }
 
-    if (lv_subject_get_int(info.status_subject.get()) != effective) {
-        lv_subject_set_int(info.status_subject.get(), effective);
+    if (lv_subject_get_int(info.status_subject->get()) != effective) {
+        lv_subject_set_int(info.status_subject->get(), effective);
         spdlog::debug("[PowerDeviceState] '{}' effective status {}", info.name, effective);
     }
 }
@@ -321,7 +322,7 @@ void PowerDeviceState::deinit_subjects() {
     // Safe to deinit subjects here
     for (auto& [name, info] : devices_) {
         if (info.status_subject) {
-            lv_subject_deinit(info.status_subject.get());
+            info.status_subject->reset();
         }
     }
     devices_.clear();

@@ -19,7 +19,8 @@
 #pragma once
 
 #include "bed_mesh_probe_temp.h"
-#include "core/observer_guard.h"   // SubjectLifetime
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "subject_managed_panel.h" // SubjectManager
 
 #include <functional>
@@ -539,5 +540,5 @@ class StandardMacros {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t macros_version_{};
+    helix::Subject macros_version_{};
 };
