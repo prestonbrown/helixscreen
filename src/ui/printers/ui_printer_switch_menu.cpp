@@ -36,14 +36,11 @@ void PrinterSwitchMenu::show(lv_obj_t* parent, lv_obj_t* near_widget) {
     // Both paths below also claim the active-menu slot the static callbacks resolve
     // through. The navbar is a bottom strip in a portrait layout and a side strip
     // otherwise: above a bottom-strip badge the card covers no navbar, and beside a
-    // side-strip badge it hangs off the badge's right edge.
+    // side-strip badge it goes around the badge without covering it.
     if (helix::app_layout_is_portrait(lv_obj_get_width(parent), lv_obj_get_height(parent))) {
         show_below_widget(parent, 0, near_widget);
     } else {
-        lv_area_t badge;
-        lv_obj_get_coords(near_widget, &badge);
-        set_click_point({badge.x2, (badge.y1 + badge.y2) / 2});
-        show_near_widget(parent, 0, near_widget);
+        show_around_widget(parent, 0, near_widget);
     }
 
     spdlog::debug("[PrinterSwitchMenu] Shown");

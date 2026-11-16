@@ -96,6 +96,7 @@ src/application/home_layout_sync.cpp
 src/application/session_wiring.cpp
 src/core/static_panel_registry.cpp
 src/core/static_subject_registry.cpp
+src/core/subject.cpp
 src/application/subject_initializer.cpp
 src/color_utils.cpp
 src/device_display_name.cpp

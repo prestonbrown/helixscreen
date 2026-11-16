@@ -64,6 +64,7 @@
 #pragma once
 
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "helix_lvgl_anomaly.h"
 #include "lvgl/lvgl.h"
@@ -314,7 +315,7 @@ class SubjectManager {
             // singleton, so a late call is a no-op rather than a locked-destroyed-
             // mutex abort.
             SubjectDebugRegistry::instance().unregister_subject(subject);
-            lv_subject_deinit(subject);
+            helix::subject_reset(subject);
         }
 
         subjects_.clear();
@@ -368,7 +369,7 @@ inline std::string next_instance_prefix(const char* base) {
  */
 #define UI_MANAGED_SUBJECT_INT(subject, initial_value, xml_name, manager)                          \
     do {                                                                                           \
-        lv_subject_init_int(&(subject), (initial_value));                                          \
+        helix::subject_init_int((subject), (initial_value));                                       \
         helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
         (manager).register_subject(&(subject), (xml_name));                                        \
         HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_INT);                 \
@@ -387,7 +388,7 @@ inline std::string next_instance_prefix(const char* base) {
  */
 #define UI_MANAGED_SUBJECT_STRING(subject, buffer, initial_value, xml_name, manager)               \
     do {                                                                                           \
-        lv_subject_init_string(&(subject), (buffer), nullptr, sizeof(buffer), (initial_value));    \
+        helix::subject_init_string((subject), (buffer), nullptr, sizeof(buffer), (initial_value)); \
         helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
         (manager).register_subject(&(subject), (xml_name));                                        \
         HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_STRING);              \
@@ -409,7 +410,7 @@ inline std::string next_instance_prefix(const char* base) {
 #define UI_MANAGED_SUBJECT_STRING_N(subject, buffer, size, initial_value, xml_name, manager)       \
     do {                                                                                           \
         snprintf((buffer), (size), "%s", (initial_value));                                         \
-        lv_subject_init_string(&(subject), (buffer), nullptr, (size), (buffer));                   \
+        helix::subject_init_string((subject), (buffer), nullptr, (size), (buffer));                \
         helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
         (manager).register_subject(&(subject), (xml_name));                                        \
         HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_STRING);              \
@@ -427,7 +428,7 @@ inline std::string next_instance_prefix(const char* base) {
  */
 #define UI_MANAGED_SUBJECT_POINTER(subject, initial_value, xml_name, manager)                      \
     do {                                                                                           \
-        lv_subject_init_pointer(&(subject), (initial_value));                                      \
+        helix::subject_init_pointer((subject), (initial_value));                                   \
         helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
         (manager).register_subject(&(subject), (xml_name));                                        \
         HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_POINTER);             \
@@ -445,7 +446,7 @@ inline std::string next_instance_prefix(const char* base) {
  */
 #define UI_MANAGED_SUBJECT_COLOR(subject, initial_value, xml_name, manager)                        \
     do {                                                                                           \
-        lv_subject_init_color(&(subject), (initial_value));                                        \
+        helix::subject_init_color((subject), (initial_value));                                     \
         helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
         (manager).register_subject(&(subject), (xml_name));                                        \
         HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_COLOR);               \

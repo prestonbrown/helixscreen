@@ -1142,7 +1142,7 @@ DOCKER_REMOTE_CONTROL = ENABLE_REMOTE_CONTROL=$(if $(filter-out default file und
 
 # Forwards ENABLE_SCREENSAVER into a Docker build when it was given on the command line, for
 # measurement builds on boards that do not ship screensavers.
-DOCKER_SCREENSAVER = $(if $(filter command line,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
+DOCKER_SCREENSAVER = $(if $(filter command line override,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
 
 # Same forwarding for the diagnostic-upload gate (see the
 # ENABLE_DIAGNOSTIC_UPLOADS block in Makefile). Inside the container only the

@@ -53,6 +53,7 @@ The binary is the authority, so this document states no counts. These commands p
 | `[.memprobe]` | `test_gcode_memory_probe.cpp` | Memory measurement probe |
 | `[.integration]` | `test_moonraker_client_security.cpp` | Timeout-callback deadlock check |
 | `[.benchmark]` | `test_wizard_connection.cpp` | Performance measurement |
+| `[.subject_child]` | `test_subject_owner.cpp` | Bodies its `[subject][raii]` cases run in a fresh process with LVGL torn down; each skips unless that process set `HELIX_SUBJECT_CHILD_CASE` |
 
 ---
 
