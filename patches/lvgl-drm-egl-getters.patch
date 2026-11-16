@@ -1,8 +1,8 @@
 diff --git a/src/drivers/display/drm/lv_linux_drm_egl.c b/src/drivers/display/drm/lv_linux_drm_egl.c
-index 546256611..66e665d32 100644
+index 5de6201b1..4855b5b4f 100644
 --- a/src/drivers/display/drm/lv_linux_drm_egl.c
 +++ b/src/drivers/display/drm/lv_linux_drm_egl.c
-@@ -757,4 +757,12 @@ static void drm_destroy_window(void * driver_data, void * native_window)
+@@ -668,4 +668,12 @@ static void drm_destroy_window(void * driver_data, void * native_window)
  }
  
  

@@ -4,7 +4,7 @@
 /**
  * @file test_rotation_probe_tap_detection.cpp
  * @brief Tests for the two defects that made the first-boot rotation probe
- *        register zero taps on a working touchscreen (bundle AXSKJ3GH, K1C)
+ *        register zero taps on a working touchscreen (K1C)
  *
  * 1. The probe's poll loop calls lv_timer_handler() every iteration. The
  *    debounced resize fanout runs the theme layout refresh from there, which

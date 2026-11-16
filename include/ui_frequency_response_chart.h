@@ -46,18 +46,19 @@
  * drawing a partial curve passes the full grid with NaN where it has no value.
  *
  * @see platform_capabilities.h for tier definitions
- * @see docs/INPUT_SHAPING_IMPLEMENTATION.md for design rationale
+ * @see docs/devel/INPUT_SHAPER.md for design rationale
  */
 
 #include "lvgl/lvgl.h"
 #include "platform_capabilities.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-// Forward declaration
 struct ui_frequency_response_chart_t;
 
 // ============================================================================
@@ -68,8 +69,8 @@ struct ui_frequency_response_chart_t;
  * @brief Create a new frequency response chart widget
  *
  * Creates a chart configured for displaying frequency domain data from input
- * shaper calibration. Initially in EMBEDDED mode until configured with
- * configure_for_platform().
+ * shaper calibration. Until configure_for_platform() it is EMBEDDED in table
+ * mode (no lv_chart, every point kept).
  *
  * @param parent Parent LVGL object (must not be NULL)
  * @return Pointer to chart structure, or NULL on error
@@ -268,8 +269,8 @@ inline constexpr FrChartSeriesStyle kFrMeasuredCurveStyle{3, true, true};
 /**
  * @brief What a tier may draw (pure)
  *
- * EMBEDDED never reaches here (no chart); BASIC drops glow; STANDARD with
- * animations keeps everything.
+ * Glow needs STANDARD with animations; every other tier drops it. Fill is
+ * kept on every tier.
  */
 // NAMESPACE_OK: joins this header's global ui_frequency_response_chart_* API
 [[nodiscard]] FrChartSeriesStyle fr_chart_effective_style(const FrChartSeriesStyle& requested,
@@ -572,7 +573,7 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
  * platform tier. Data beyond this limit will be downsampled.
  *
  * @param chart Chart instance
- * @return Max points (200 for STANDARD, 50 for BASIC/EMBEDDED)
+ * @return Max points (200 for STANDARD, 50 for BASIC/EMBEDDED, 0 before configuring)
  */
 size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t* chart);
 
@@ -580,9 +581,45 @@ size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t*
  * @brief Check if chart mode is enabled
  *
  * Returns whether the chart is rendering as a graphical chart (true) or
- * as a data table (false). Table mode is used on EMBEDDED tier hardware.
+ * as a data table (false). Table mode lasts only until configure_for_platform(),
+ * which selects chart mode on every tier.
  *
  * @param chart Chart instance
  * @return true if chart mode, false if table mode or NULL chart
  */
 bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* chart);
+
+// ============================================================================
+// Axis unit and shaded x-bands
+// ============================================================================
+
+/// One shaded stretch of the x axis, in the axis' own unit.
+// NAMESPACE_OK: extends this header's file-scope C chart API
+struct FrChartBand {
+    float x_lo;
+    float x_hi;
+};
+
+/// The unit the first x tick carries ("Hz" by default, "mm/s" for a speed sweep).
+// NAMESPACE_OK: extends this header's file-scope C chart API
+void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart, const char* unit);
+// NAMESPACE_OK: extends this header's file-scope C chart API
+const char* ui_frequency_response_chart_get_x_unit(ui_frequency_response_chart_t* chart);
+
+/// Shade these stretches of the plot behind the series; nullptr or 0 clears them.
+// NAMESPACE_OK: extends this header's file-scope C chart API
+void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
+                                           const FrChartBand* bands, size_t count);
+// NAMESPACE_OK: extends this header's file-scope C chart API
+size_t ui_frequency_response_chart_get_band_count(ui_frequency_response_chart_t* chart);
+
+/// The text of one x tick: the value, and the unit on the first tick only.
+// NAMESPACE_OK: extends this header's file-scope C chart API
+std::string ui_frequency_response_chart_format_x_label(float value, bool first, const char* unit);
+
+/// The pixel columns a band covers on a plot spanning [x1, x2] for values
+/// [min, max], clipped to the plot; nullopt when it lies wholly outside.
+// NAMESPACE_OK: extends this header's file-scope C chart API
+std::optional<std::pair<int32_t, int32_t>>
+ui_frequency_response_chart_band_pixels(FrChartBand band, float min, float max, int32_t x1,
+                                        int32_t x2);

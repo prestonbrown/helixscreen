@@ -7,7 +7,7 @@
       "prefix": "[AM1P] State: ",
       "mappings": {
         "INIT_START":       { "phase": "INITIALIZING",    "message": "Initializing print...",      "progress": 3 },
-        "HEAT_CHAMBER":     { "phase": "HEATING_NOZZLE",  "message": "Heating chamber...",         "progress": 8 },
+        "HEAT_CHAMBER":     { "phase": "HEATING_CHAMBER", "message": "Heating chamber...",         "progress": 8 },
         "HEAT_BED":         { "phase": "HEATING_BED",     "message": "Heating bed...",             "progress": 15 },
         "HOMING":           { "phase": "HOMING",          "message": "Homing axes...",             "progress": 22 },
         "NOZZLE_CLEAN":     { "phase": "CLEANING",        "message": "Cleaning nozzle...",         "progress": 30 },

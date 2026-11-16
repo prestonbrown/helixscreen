@@ -14,8 +14,8 @@
 //
 // Mock stack follows test_ams_home_confirmation.cpp: MoonrakerClientMock +
 // MoonrakerAPIMock over a stack PrinterState, RPC callbacks drained through
-// UpdateQueueTestAccess. The api is published via set_moonraker_api() because
-// the helper and BedMeshPanel reach it through the global accessor.
+// UpdateQueue. The global api stays unset: each flow arms the disconnect
+// window on the api it sends through.
 
 #include "ui_emergency_stop.h"
 #include "ui_panel_bed_mesh.h"
@@ -29,10 +29,10 @@
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -64,7 +64,6 @@ class ExpectedRestartFixture : public LVGLTestFixture {
 
     ExpectedRestartFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
         helix::ui::set_test_toast_hook([this](ToastSeverity severity, const std::string& m,
                                               uint32_t) { toasts.push_back({severity, m}); });
         auto note = [this](const std::string& m) { notifications.push_back(m); };
@@ -81,7 +80,6 @@ class ExpectedRestartFixture : public LVGLTestFixture {
     }
 
     ~ExpectedRestartFixture() override {
-        set_moonraker_api(nullptr);
         helix::ui::set_test_toast_hook(nullptr);
         helix::ui::set_test_notification_info_hook(nullptr);
         helix::ui::set_test_notification_warning_hook(nullptr);
@@ -106,7 +104,7 @@ class ExpectedRestartFixture : public LVGLTestFixture {
     // Drains until the queue stops producing work: the helper queues its
     // toast, and RPC callbacks hop the queue again before side effects land.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -115,7 +113,7 @@ class ExpectedRestartFixture : public LVGLTestFixture {
 TEST_CASE_METHOD(ExpectedRestartFixture,
                  "begin_expected_klippy_restart arms both windows and shows one INFO toast",
                  "[recovery][expectedrestart]") {
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.", &api);
     settle();
 
     CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
@@ -138,7 +136,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "the recovery window outlasts a real co
     // lv_tick_inc() rather than process_lvgl(): is_recovery_suppressed() only
     // reads the tick, so no timer needs to come due and 17s of virtual time
     // costs nothing here.
-    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.");
+    helix::ui::begin_expected_klippy_restart("Saving config... Klipper will restart.", &api);
     settle();
     REQUIRE(EmergencyStopOverlay::instance().is_recovery_suppressed());
 
@@ -213,6 +211,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
                  "[expectedrestart][bedmesh][1359]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     helix::ui::BedMeshPanelTestAccess::save_config(panel);
     settle();
@@ -278,9 +277,9 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
     // SAVE_CONFIG's rpc is ALWAYS dropped by the restart it triggers, so the
     // mock fails it by design. That must not reach the user: reporting it cost
     // every successful save a red "Failed to save configuration"
-    // (prestonbrown/helixscreen#1359). This assertion is the regression -- it
-    // was previously a find_if that hunted for the initiation toast AMONG the
-    // failure toast, which tolerated exactly the bug.
+    // (prestonbrown/helixscreen#1359). Assert the absence of the failure
+    // directly: a find_if hunting for the initiation toast AMONG the failure
+    // toasts would tolerate exactly the bug.
     CHECK(no_failure_reported());
 
     // The initiation toast must be INFO - not the WARNING this flow used before

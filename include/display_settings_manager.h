@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
+#include "region_defaults.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>
@@ -30,10 +31,13 @@ enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
  * - brightness (0-100, clamped to 10-100)
  * - has_backlight (ephemeral, hardware detection)
  * - sleep_while_printing (allow sleep during prints)
+ * - screensaver_print_progress (progress card on savers without their own print display)
  * - animations_enabled (UI animation toggle)
  * - bed_mesh_render_mode (Auto/3D/2D)
  * - gcode_render_mode (Auto/3D/2D/Thumbnail Only)
  * - time_format (12H/24H)
+ * - temp_unit (°C/°F; display and entry only, state stays Celsius)
+ * - date_format (day/month/year order; unset follows the language)
  * - printer_image (config-only, no subject)
  * - bed_mesh_show_zero_plane (config-only, no subject)
  *
@@ -46,7 +50,6 @@ class DisplaySettingsManager {
     /// The static PersistedSetting table this manager is built from.
     static settings::TableView persisted_table();
 
-    // Non-copyable
     DisplaySettingsManager(const DisplaySettingsManager&) = delete;
     DisplaySettingsManager& operator=(const DisplaySettingsManager&) = delete;
 
@@ -60,7 +63,6 @@ class DisplaySettingsManager {
     // DARK MODE / THEME
     // =========================================================================
 
-    /** @brief Get dark mode state */
     bool get_dark_mode() const;
 
     /** @brief Set dark mode state (updates subject + persists) */
@@ -162,11 +164,19 @@ class DisplaySettingsManager {
         settings_.set(Key::SleepWhilePrinting, enabled);
     }
 
+    /// Whether savers with no print display of their own show the progress card for a running
+    /// print. Paused and ended prints show it regardless.
+    bool get_screensaver_print_progress() const {
+        return settings_.get_bool(Key::ScreensaverPrintProgress);
+    }
+    void set_screensaver_print_progress(bool enabled) {
+        settings_.set(Key::ScreensaverPrintProgress, enabled);
+    }
+
     // =========================================================================
     // UI PREFERENCES
     // =========================================================================
 
-    /** @brief Get animations enabled state */
     bool get_animations_enabled() const;
 
     /** @brief Set animations enabled state (updates subject + persists) */
@@ -295,6 +305,23 @@ class DisplaySettingsManager {
         settings_.set(Key::TimeFormat, static_cast<int>(format));
     }
 
+    /// The unit temperatures are shown and typed in.
+    units::TempUnit get_temp_unit() const {
+        return static_cast<units::TempUnit>(std::clamp(settings_.get(Key::TempUnit), 0, 1));
+    }
+    /// Persist the unit and make it the one every temperature readout uses.
+    void set_temp_unit(units::TempUnit unit);
+
+    /// The date order: the saved choice, or the active language's while none is saved.
+    DateFormat get_date_format() const;
+    void set_date_format(DateFormat format);
+
+    /// Whether the user (or the setup wizard) has saved a date order.
+    bool has_saved_date_format() const;
+
+    /// Re-read the language's date order into the subject while none is saved.
+    void on_language_changed();
+
     /// Whether the dropdown offers "System": the host's own zone. The ESP32 has
     /// none, so an unpicked zone there is UTC.
 #ifdef ESP_PLATFORM
@@ -418,7 +445,6 @@ class DisplaySettingsManager {
     /** @brief Set custom printer image ID and persist. Empty = auto-detect. */
     void set_printer_image(const std::string& id);
 
-    /** @brief Get bed mesh zero plane visibility */
     bool get_bed_mesh_show_zero_plane() const;
 
     // =========================================================================
@@ -495,6 +521,9 @@ class DisplaySettingsManager {
     /** @brief Sleep while printing subject (integer: 0=inhibit, 1=allow) */
     lv_subject_t* subject_sleep_while_printing() {
         return settings_.subject(Key::SleepWhilePrinting);
+    }
+    lv_subject_t* subject_screensaver_print_progress() {
+        return settings_.subject(Key::ScreensaverPrintProgress);
     }
 
     /** @brief Animations enabled subject (integer: 0=off, 1=on) */
@@ -600,6 +629,16 @@ class DisplaySettingsManager {
         return settings_.subject(Key::TimeFormat);
     }
 
+    /** @brief Temperature unit subject (integer: a units::TempUnit) */
+    lv_subject_t* subject_temp_unit() {
+        return settings_.subject(Key::TempUnit);
+    }
+
+    /** @brief Date format subject (integer: a DateFormat) */
+    lv_subject_t* subject_date_format() {
+        return settings_.subject(Key::DateFormat);
+    }
+
     /** @brief Timezone subject (integer: index into curated list) */
     lv_subject_t* subject_timezone() {
         return &timezone_subject_;
@@ -638,27 +677,33 @@ class DisplaySettingsManager {
         GcodeRenderMode,
         TimeFormat,
         GlassEffects,
+        ScreensaverPrintProgress,
+        TempUnit,
+        DateFormat,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t dark_mode_subject_{};
-    lv_subject_t dark_mode_available_subject_{};
-    lv_subject_t theme_preset_subject_{};
-    lv_subject_t display_dim_subject_{};
-    lv_subject_t display_sleep_subject_{};
-    lv_subject_t has_backlight_subject_{};
-    lv_subject_t has_dimming_subject_{};
-    lv_subject_t dim_row_kind_subject_{};
-    lv_subject_t animations_enabled_subject_{};
-    lv_subject_t hardware_keyboard_present_subject_{};
-    lv_subject_t is_android_subject_{};
-    lv_subject_t rotation_available_subject_{};
-    lv_subject_t timezone_subject_{};
-    lv_subject_t glass_available_subject_{};
+    helix::Subject dark_mode_subject_{};
+    helix::Subject dark_mode_available_subject_{};
+    helix::Subject theme_preset_subject_{};
+    helix::Subject display_dim_subject_{};
+    helix::Subject display_sleep_subject_{};
+    helix::Subject has_backlight_subject_{};
+    helix::Subject has_dimming_subject_{};
+    helix::Subject dim_row_kind_subject_{};
+    helix::Subject animations_enabled_subject_{};
+    helix::Subject hardware_keyboard_present_subject_{};
+    helix::Subject is_android_subject_{};
+    helix::Subject rotation_available_subject_{};
+    helix::Subject timezone_subject_{};
+    helix::Subject glass_available_subject_{};
 
-    lv_subject_t screensaver_type_subject_{};
-    lv_subject_t has_screensaver_subject_{};
+    helix::Subject screensaver_type_subject_{};
+    /// "°C" or "°F", for XML labels that name the unit.
+    helix::Subject temp_unit_symbol_subject_{};
+    char temp_unit_symbol_buf_[8] = {};
+    helix::Subject has_screensaver_subject_{};
 
     bool subjects_initialized_ = false;
     bool hardware_keyboard_present_ = false;

@@ -20,7 +20,7 @@
  * platform whose panel changes is covered without editing this file.
  */
 
-#include "../../include/data_root_resolver.h"
+#include "../../include/core/data_root_resolver.h"
 #include "../../include/prerender_size_class.h"
 #include "../../include/prerendered_images.h"
 #include "../../include/printer_image_manager.h"

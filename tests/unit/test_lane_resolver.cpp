@@ -55,11 +55,11 @@ TEST_CASE("LaneSources keeps one record per source", "[lane][resolver]") {
     // Applying a VendorCache observation touches only the vendor_cache slot:
     // there is no shared destination, so no writer can reach another
     // source's field.
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.color_rgb = 0x112233;
     lane.apply(cache);
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->color_rgb == 0x112233);
+    REQUIRE(lane.firmware.has_value());
+    CHECK(lane.firmware->color_rgb == 0x112233);
     CHECK(lane.spoolman->color_rgb == 0x00FF00);
 
     // Dropping one source leaves every other source's record standing: this
@@ -77,7 +77,7 @@ TEST_CASE("Presence comes from the sensor and nothing else", "[lane][resolver]")
     SECTION("identity metadata never implies presence") {
         // A cache that still remembers the last spool is not evidence a spool
         // is there. Vendor stores keep colour across an eject by design.
-        Observation cache(ObservationSource::VendorCache);
+        Observation cache(ObservationSource::Firmware);
         cache.color_rgb = 0x8000FF;
         cache.material = "PLA";
         lane.apply(cache);
@@ -126,143 +126,6 @@ TEST_CASE("A docked toolhead is a reading of its own, never a filament presence"
     CHECK(helix::ams::resolve(lane).tool_docked == false);
 }
 
-TEST_CASE("Identity ranks Spoolman over the user's own record over the vendor cache",
-          "[lane][resolver]") {
-    helix::ams::LaneSources lane;
-
-    Observation cache(ObservationSource::VendorCache);
-    cache.color_rgb = 0xFFFFFF;
-    cache.material = "PETG";
-    lane.apply(cache);
-
-    SECTION("the vendor cache is used when it is all there is") {
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.color_rgb == 0xFFFFFF);
-        CHECK(r.material == "PETG");
-    }
-
-    SECTION("a user record outranks the vendor cache") {
-        Observation user(ObservationSource::LocalUser);
-        user.color_rgb = 0xBCBCBC;
-        lane.apply(user);
-
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.color_rgb == 0xBCBCBC);
-        // Material was not observed by the user, so the cache still supplies it.
-        CHECK(r.material == "PETG");
-    }
-
-    SECTION("a linked spool supplies identity, but not a colour the user picked") {
-        Observation user(ObservationSource::LocalUser);
-        user.color_rgb = 0xBCBCBC;
-        lane.apply(user);
-
-        Observation spool(ObservationSource::Spoolman);
-        spool.spoolman_id = 4;
-        spool.color_rgb = 0xA4B2BC;
-        spool.brand = "Kingroon";
-        lane.apply(spool);
-
-        const auto r = helix::ams::resolve(lane);
-        // Brand and the spool link come from the spool: they describe the
-        // spool, not the lane.
-        CHECK(r.brand == "Kingroon");
-        CHECK(r.spoolman_id == 4);
-        // Material was observed by neither, so the cache still supplies it.
-        CHECK(r.material == "PETG");
-        // The colour is the user's, because they chose it for this lane.
-        CHECK(r.color_rgb == 0xBCBCBC);
-    }
-}
-
-TEST_CASE("The identity ladder applies sources weakest first", "[lane][resolver]") {
-    // Every ranked field is observed by all three sources, so reversing the
-    // ladder flips every assertion rather than only one that happens to
-    // collide. Colour is deliberately absent: the user-colour override runs
-    // after the ladder and would mask an ordering defect on that field alone.
-    helix::ams::LaneSources lane;
-
-    Observation cache(ObservationSource::VendorCache);
-    cache.color_name = "cache";
-    cache.material = "cache";
-    cache.brand = "cache";
-    cache.spool_name = "cache";
-    cache.catalog_id = "cache";
-    cache.product_name = "cache";
-    cache.spoolman_id = 1;
-    cache.spoolman_vendor_id = 1;
-    lane.apply(cache);
-
-    Observation user = cache;
-    user.source = ObservationSource::LocalUser;
-    user.color_name = "user";
-    user.material = "user";
-    user.brand = "user";
-    user.spool_name = "user";
-    user.catalog_id = "user";
-    user.product_name = "user";
-    user.spoolman_id = 2;
-    user.spoolman_vendor_id = 2;
-    lane.apply(user);
-
-    Observation spool = cache;
-    spool.source = ObservationSource::Spoolman;
-    spool.color_name = "spool";
-    spool.material = "spool";
-    spool.brand = "spool";
-    spool.spool_name = "spool";
-    spool.catalog_id = "spool";
-    spool.product_name = "spool";
-    spool.spoolman_id = 3;
-    spool.spoolman_vendor_id = 3;
-    lane.apply(spool);
-
-    const auto r = helix::ams::resolve(lane);
-    CHECK(r.color_name == "spool");
-    CHECK(r.material == "spool");
-    CHECK(r.brand == "spool");
-    CHECK(r.spool_name == "spool");
-    CHECK(r.catalog_id == "spool");
-    CHECK(r.product_name == "spool");
-    CHECK(r.spoolman_id == 3);
-    CHECK(r.spoolman_vendor_id == 3);
-}
-
-TEST_CASE("Weight comes from Spoolman when a spool is linked, the meter otherwise",
-          "[lane][resolver]") {
-    helix::ams::LaneSources lane;
-
-    Observation metered(ObservationSource::Metered);
-    metered.remaining_weight_g = 218.0F;
-    metered.total_weight_g = 750.0F;
-    lane.apply(metered);
-
-    SECTION("an unlinked lane uses the meter") {
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.remaining_weight_g == Catch::Approx(218.0F));
-    }
-
-    SECTION("a linked lane uses Spoolman, which owns consumption for it") {
-        Observation spool(ObservationSource::Spoolman);
-        spool.spoolman_id = 4;
-        spool.remaining_weight_g = 71.0F;
-        spool.total_weight_g = 1000.0F;
-        lane.apply(spool);
-
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.remaining_weight_g == Catch::Approx(71.0F));
-        CHECK(r.total_weight_g == Catch::Approx(1000.0F));
-    }
-
-    SECTION("a linked spool that reports no weight does not blank the meter's") {
-        Observation spool(ObservationSource::Spoolman);
-        spool.spoolman_id = 4;
-        lane.apply(spool);
-
-        CHECK(helix::ams::resolve(lane).remaining_weight_g == Catch::Approx(218.0F));
-    }
-}
-
 TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolver]") {
     // A Metered observation reaches only the weight fields of its own record,
     // so no number of weight writes can reach presence or identity. There is no
@@ -273,7 +136,7 @@ TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolv
     sensed.present = false;
     lane.apply(sensed);
 
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.material = "PETG";
     cache.color_rgb = 0xED2C2C;
     lane.apply(cache);
@@ -293,57 +156,6 @@ TEST_CASE("A weight refresh cannot disturb presence or identity", "[lane][resolv
         REQUIRE(after.present == false);
         REQUIRE(after.material == "PETG");
         REQUIRE(after.color_rgb == 0xED2C2C);
-    }
-}
-
-TEST_CASE("A colour the user picks outranks the one that came with the spool", "[lane][resolver]") {
-    // A colour the user picks is its own record, not an edit of the spool's.
-    // The binding is untouched, so the spool link and the brand survive a pick
-    // that changes only the colour.
-    helix::ams::LaneSources lane;
-
-    Observation spool(ObservationSource::Spoolman);
-    spool.spoolman_id = 7;
-    spool.brand = "Kingroon";
-    spool.material = "PLA";
-    spool.color_rgb = 0xFFFFFF;
-    spool.color_name = "Arctic White";
-    lane.apply(spool);
-
-    REQUIRE(helix::ams::resolve(lane).color_rgb == 0xFFFFFF);
-    REQUIRE(helix::ams::resolve(lane).color_name == "Arctic White");
-
-    SECTION("a pick with a name uses it") {
-        Observation picked(ObservationSource::LocalUser);
-        picked.color_rgb = 0xBCBCBC;
-        picked.color_name = "Concrete Gray";
-        lane.apply(picked);
-
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.spoolman_id == 7);
-        CHECK(r.brand == "Kingroon");
-        CHECK(r.color_rgb == 0xBCBCBC);
-        CHECK(r.color_name == "Concrete Gray");
-        // The pick is a colour, not an identity edit: material still comes
-        // from the spool.
-        CHECK(r.material == "PLA");
-    }
-
-    SECTION("a pick with no name clears the spool's rather than keeping it") {
-        // The swatch changed and the label named on it did not observe a
-        // name, so the spool's name would contradict the new swatch.
-        Observation picked(ObservationSource::LocalUser);
-        picked.color_rgb = 0xBCBCBC;
-        lane.apply(picked);
-
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.spoolman_id == 7);
-        CHECK(r.brand == "Kingroon");
-        CHECK(r.color_rgb == 0xBCBCBC);
-        // Engaged and empty. The clear has to reach the lane to displace the
-        // spool's name; an unobserved name would leave that name standing.
-        CHECK(r.color_name == "");
-        CHECK(r.material == "PLA");
     }
 }
 
@@ -368,68 +180,147 @@ TEST_CASE("A sensor that reports no presence reading is not a present lane", "[l
     CHECK_FALSE(r.color_rgb.has_value());
 }
 
-TEST_CASE("Every rung of the ladders decides something", "[lane][resolver]") {
+namespace {
+
+Observation from(ObservationSource source) {
+    return Observation(source);
+}
+
+} // namespace
+
+TEST_CASE("Identity ranks a pending edit over firmware over the record over Spoolman",
+          "[lane][resolver]") {
     helix::ams::LaneSources lane;
+    Observation spool = from(ObservationSource::Spoolman);
+    spool.spoolman_id = 7;
+    spool.material = "SPOOL";
+    spool.brand = "SpoolBrand";
+    spool.spool_name = "SpoolName";
+    spool.color_name = "SpoolColour";
+    lane.apply(spool);
+    Observation record = from(ObservationSource::Record);
+    record.spoolman_id = 7;
+    record.material = "RECORD";
+    record.brand = "RecordBrand";
+    record.spool_name = "RecordName";
+    lane.apply(record);
+    Observation firmware = from(ObservationSource::Firmware);
+    firmware.material = "FIRMWARE";
+    firmware.brand = "FirmwareBrand";
+    lane.apply(firmware);
+    Observation pending = from(ObservationSource::Pending);
+    pending.material = "PENDING";
+    lane.apply(pending);
 
-    SECTION("the user outranks the cache on a field the spool says nothing about") {
-        Observation cache(ObservationSource::VendorCache);
-        cache.material = "PLA";
-        cache.brand = "Anycubic";
-        lane.apply(cache);
+    const auto r = helix::ams::resolve(lane);
+    CHECK(r.material == "PENDING");
+    CHECK(r.brand == "FirmwareBrand");
+    CHECK(r.spool_name == "RecordName");
+    // Spoolman fills only what nobody else states.
+    CHECK(r.color_name == "SpoolColour");
 
-        Observation user(ObservationSource::LocalUser);
-        user.material = "PETG";
-        lane.apply(user);
+    lane.drop(ObservationSource::Pending);
+    CHECK(helix::ams::resolve(lane).material == "FIRMWARE");
+    lane.drop(ObservationSource::Firmware);
+    CHECK(helix::ams::resolve(lane).material == "RECORD");
+    lane.drop(ObservationSource::Record);
+    // With nothing linking spool 7, its details describe no spool on the lane.
+    CHECK_FALSE(helix::ams::resolve(lane).material.has_value());
+}
 
-        Observation spool(ObservationSource::Spoolman);
-        spool.spoolman_id = 4;
-        lane.apply(spool);
+TEST_CASE("The link is the strongest of pending, firmware and record", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+    CHECK(helix::ams::linked_spool_id(lane) == 0);
 
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.material == "PETG");
-        // Neither stronger source observed the brand, so the cache supplies it.
-        CHECK(r.brand == "Anycubic");
-        CHECK(r.spoolman_id == 4);
-    }
+    Observation record = from(ObservationSource::Record);
+    record.spoolman_id = 3;
+    lane.apply(record);
+    CHECK(helix::ams::linked_spool_id(lane) == 3);
 
-    SECTION("the user's own weight stands when nothing else reports one") {
-        Observation user(ObservationSource::LocalUser);
-        user.remaining_weight_g = 340.0F;
-        user.total_weight_g = 1000.0F;
-        lane.apply(user);
+    Observation firmware = from(ObservationSource::Firmware);
+    firmware.spoolman_id = 5;
+    lane.apply(firmware);
+    CHECK(helix::ams::linked_spool_id(lane) == 5);
 
-        const auto r = helix::ams::resolve(lane);
-        CHECK(r.remaining_weight_g == Catch::Approx(340.0F));
-        CHECK(r.total_weight_g == Catch::Approx(1000.0F));
+    // An unlink in flight is a link to nothing, whatever firmware still says.
+    Observation unlink = from(ObservationSource::Pending);
+    unlink.spoolman_id = 0;
+    lane.apply(unlink);
+    CHECK(helix::ams::linked_spool_id(lane) == 0);
+    CHECK(helix::ams::resolve(lane).spoolman_id == 0);
 
-        // A meter outranks the user's figure, but only on what it measured.
-        Observation metered(ObservationSource::Metered);
-        metered.remaining_weight_g = 218.0F;
-        lane.apply(metered);
+    // Spoolman's own record never makes a link.
+    helix::ams::LaneSources only_spoolman;
+    Observation spool = from(ObservationSource::Spoolman);
+    spool.spoolman_id = 9;
+    only_spoolman.apply(spool);
+    CHECK(helix::ams::linked_spool_id(only_spoolman) == 0);
+}
 
-        const auto r2 = helix::ams::resolve(lane);
-        CHECK(r2.remaining_weight_g == Catch::Approx(218.0F));
-        CHECK(r2.total_weight_g == Catch::Approx(1000.0F));
-    }
+TEST_CASE("Spoolman's details count only for the spool the lane links", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+    Observation firmware = from(ObservationSource::Firmware);
+    firmware.spoolman_id = 42;
+    lane.apply(firmware);
+    Observation spool = from(ObservationSource::Spoolman);
+    spool.spoolman_id = 42;
+    spool.brand = "Polymaker";
+    spool.remaining_weight_g = 500.0F;
+    lane.apply(spool);
+    CHECK(helix::ams::resolve(lane).brand == "Polymaker");
+    CHECK(helix::ams::resolve(lane).remaining_weight_g == Catch::Approx(500.0F));
 
-    SECTION("a value observed as empty blanks what a weaker source knows") {
-        Observation cache(ObservationSource::VendorCache);
-        cache.brand = "Kingroon";
-        cache.spool_name = "Kingroon Basic PETG";
-        lane.apply(cache);
+    // Firmware moves the lane to another spool: the old details stop filling it.
+    firmware.spoolman_id = 43;
+    lane.apply(firmware);
+    const auto r = helix::ams::resolve(lane);
+    CHECK_FALSE(r.brand.has_value());
+    CHECK_FALSE(r.remaining_weight_g.has_value());
+    CHECK(r.spoolman_id == 43);
+}
 
-        // The server observed the brand and found it blank. That is a reading,
-        // not a gap, so it replaces the cache's. The spool name it never looked
-        // at leaves the cache's standing.
-        Observation spool(ObservationSource::Spoolman);
-        spool.spoolman_id = 4;
-        spool.brand = "";
-        lane.apply(spool);
+TEST_CASE("Weight ranks pending, Spoolman, firmware, record, then the meter", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+    const auto weight = [&lane]() { return *helix::ams::resolve(lane).remaining_weight_g; };
 
-        const auto r = helix::ams::resolve(lane);
-        // Engaged and blank, which is what makes it a reading: an unobserved
-        // brand would have left the cache's standing.
-        CHECK(r.brand == "");
-        CHECK(r.spool_name == "Kingroon Basic PETG");
-    }
+    Observation metered = from(ObservationSource::Metered);
+    metered.remaining_weight_g = 100.0F;
+    lane.apply(metered);
+    CHECK(weight() == Catch::Approx(100.0F));
+
+    Observation record = from(ObservationSource::Record);
+    record.remaining_weight_g = 200.0F;
+    record.spoolman_id = 1;
+    lane.apply(record);
+    CHECK(weight() == Catch::Approx(200.0F));
+
+    Observation firmware = from(ObservationSource::Firmware);
+    firmware.remaining_weight_g = 300.0F;
+    lane.apply(firmware);
+    CHECK(weight() == Catch::Approx(300.0F));
+
+    Observation spool = from(ObservationSource::Spoolman);
+    spool.spoolman_id = 1;
+    spool.remaining_weight_g = 400.0F;
+    lane.apply(spool);
+    CHECK(weight() == Catch::Approx(400.0F));
+
+    Observation pending = from(ObservationSource::Pending);
+    pending.remaining_weight_g = 500.0F;
+    lane.apply(pending);
+    CHECK(weight() == Catch::Approx(500.0F));
+}
+
+TEST_CASE("A value observed as empty blanks what a weaker source knows", "[lane][resolver]") {
+    helix::ams::LaneSources lane;
+    Observation record = from(ObservationSource::Record);
+    record.brand = "Kingroon";
+    record.spool_name = "Kingroon Basic PETG";
+    lane.apply(record);
+    Observation pending = from(ObservationSource::Pending);
+    pending.brand = "";
+    lane.apply(pending);
+    const auto r = helix::ams::resolve(lane);
+    CHECK(r.brand == "");
+    CHECK(r.spool_name == "Kingroon Basic PETG");
 }

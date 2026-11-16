@@ -5,12 +5,11 @@
 // writers that must apply them: nothing the cache names `.png` may hold
 // anything but PNG bytes.
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "http_request_epoch.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"

@@ -16,8 +16,9 @@
         style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
 
     <!-- Full-screen touch capture overlay - captures touches anywhere during calibration -->
-    <!-- Hidden in IDLE/VERIFY/COMPLETE states, shown during POINT_1/2/3 -->
-    <lv_obj name="touch_capture_overlay" width="100%" height="100%" align="top_left" hidden="true" clickable="true">
+    <!-- Shown in IDLE ("tap anywhere to begin") and POINT_1/2/3 (touch_cal_wizard_state 0-3) -->
+    <lv_obj name="touch_capture_overlay" width="100%" height="100%" align="top_left" clickable="true">
+      <bind_flag_if_ge subject="touch_cal_wizard_state" flag="hidden" ref_value="4"/>
       <event_cb trigger="pressed" callback="on_touch_cal_screen_touched"/>
       <event_cb trigger="released" callback="on_touch_cal_screen_released"/>
     </lv_obj>
@@ -28,12 +29,16 @@
     <!-- floating=true takes it out of flex layout for absolute positioning -->
     <lv_label name="crosshair"
               width="50" height="50" text="#icon_target" style_text_font="mdi_icons_48" style_text_color="#primary"
-              style_text_align="center" align="top_left" floating="true" hidden="true"/>
+              style_text_align="center" align="top_left" floating="true">
+      <!-- One observer: shown in POINT_1/2/3 only -->
+      <bind_flag_if cond="touch_cal_wizard_state lt 1 or touch_cal_wizard_state gt 3" flag="hidden"/>
+    </lv_label>
 
     <!-- Test area container - shown in COMPLETE state for testing calibration -->
     <lv_obj name="test_area_container"
             width="100%" flex_grow="1" flex_flow="row" style_flex_main_place="start" style_pad_all="#space_md"
-            style_pad_gap="#space_md" scrollable="false" hidden="true">
+            style_pad_gap="#space_md" scrollable="false">
+      <bind_flag_if_not_eq subject="touch_cal_wizard_state" flag="hidden" ref_value="5"/>
 
       <!-- Large touch test area - user taps here to verify calibration -->
       <lv_obj name="test_touch_area"

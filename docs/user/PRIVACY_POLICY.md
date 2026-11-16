@@ -53,6 +53,8 @@ Recorded once per application launch.
 | `app.version` | string | HelixScreen software version (e.g., `"0.99.111"`) |
 | `app.platform` | string | Hardware platform (e.g., `"rpi4"`, `"rpi5"`, `"x86_64"`) |
 | `app.display` | string | Display resolution (e.g., `"800x480"`) |
+| `app.install_source` | string | Channel that installed HelixScreen, one word from a fixed list (e.g., `"kiauh"`, `"curl"`, `"unknown"`) |
+| `app.host_mod` | string | Firmware mod on the printer, one word from a fixed list (e.g., `"forge_x"`, `"none"`) |
 
 ### 4.2 Print Outcome Events
 

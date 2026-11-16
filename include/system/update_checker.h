@@ -16,9 +16,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -62,6 +64,13 @@ ChannelVersionRelation compare_channel_version(const std::string& installed,
 namespace helix {
 class IMoonrakerClient;
 class IMoonrakerAPI;
+
+/// Ask Moonraker's update manager to re-read one of its entries
+/// (machine.update.refresh), so a client like Mainsail sees the repository as
+/// it is now rather than as of Moonraker's last scheduled refresh. @p name is the
+/// update_manager section's name. Best effort: a missing section, or a print in
+/// progress, is only logged.
+void request_update_manager_refresh(IMoonrakerClient& client, const std::string& name);
 } // namespace helix
 
 /**
@@ -252,7 +261,7 @@ class UpdateChecker {
     ///
     /// shutdown() frees every observer node on them without bumping the
     /// ObserverGuard invalidation epoch, so outside observers must pass this to
-    /// observe_*(), or their guards call lv_observer_remove() on a freed node.
+    /// observe_*(), or their guards call lv_observer_delete() on a freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();
     }
@@ -805,9 +814,9 @@ class UpdateChecker {
     ConfigSnapshot config_snapshot_;
 
     // LVGL subjects for UI binding (update check)
-    lv_subject_t status_subject_{};
-    lv_subject_t version_text_subject_{};
-    lv_subject_t new_version_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject version_text_subject_{};
+    helix::Subject new_version_subject_{};
 
     // String buffers for string subjects (must outlive subjects)
     char version_text_buf_[256]{};
@@ -851,9 +860,9 @@ class UpdateChecker {
     std::function<void()> restart_action_;
 
     // Download LVGL subjects
-    lv_subject_t download_status_subject_{};
-    lv_subject_t download_progress_subject_{};
-    lv_subject_t download_text_subject_{};
+    helix::Subject download_status_subject_{};
+    helix::Subject download_progress_subject_{};
+    helix::Subject download_text_subject_{};
     char download_text_buf_[256]{};
 
     // Download internals
@@ -898,11 +907,11 @@ class UpdateChecker {
     lv_timer_t* auto_check_timer_{nullptr};
 
     // Notification modal
-    lv_obj_t* notify_modal_{nullptr};
+    helix::ui::WidgetRef notify_modal_;
 
     // Notification subjects
-    lv_subject_t release_notes_subject_{};
-    lv_subject_t changelog_visible_subject_{};
+    helix::Subject release_notes_subject_{};
+    helix::Subject changelog_visible_subject_{};
     char release_notes_buf_[2048]{};
 
     SubjectManager subjects_;

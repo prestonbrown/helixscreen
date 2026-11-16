@@ -19,8 +19,8 @@
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -209,6 +209,7 @@ const std::vector<Pinned>& pinned_values() {
 
         // Probes of the machine running the test.
         {"session", "app.zip_tool", "<host>", false},
+        {"session", "app.host_mod", "<host>", false},
         {"session", "host.arch", "<host>", true},
         {"session", "host.cpu_model", "<host>", true},
         {"session", "host.cpu_cores", 0, true},
@@ -333,7 +334,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Contract: every event matches its golden
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
     state.set_printer_type_sync("Voron 2.4");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     ContractClient client;
     ScopedMoonrakerClient installed_client(&client);

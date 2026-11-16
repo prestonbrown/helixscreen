@@ -30,8 +30,6 @@
  * the toast stack itself stays empty until ToastManager::init().
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -45,9 +43,11 @@
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 
 #include <chrono>
 #include <memory>
@@ -368,9 +368,10 @@ nlohmann::json zmod_change(int channel) {
 // reads the change from the macro's last_data.channel.
 TEST_CASE_METHOD(DwellFixture, "A Z-Mod runout auto-swap longer than the dwell announces nothing",
                  "[runout][dwell][sensors][1714]") {
-    auto owned = std::make_unique<helix::AmsBackendAd5xIfs>(nullptr, nullptr);
+    auto owned = std::make_unique<helix::test::WiredBackend<helix::AmsBackendAd5xIfs>>();
     auto* backend = owned.get();
     AmsState::instance().add_backend(std::move(owned));
+    REQUIRE(backend->start().success());
     helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
     helix::ui::UpdateQueue::instance().drain();
 
@@ -378,7 +379,7 @@ TEST_CASE_METHOD(DwellFixture, "A Z-Mod runout auto-swap longer than the dwell a
     sensor(false);
     REQUIRE(PostUnloadGraceTestAccess::removal_dwell_pending(FilamentSensorManager::instance()));
 
-    helix::Ad5xIfsTestAccess::handle_status(*backend, zmod_change(0));
+    backend->fire_status(zmod_change(0));
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(AmsState::instance().is_filament_operation_active());
 
@@ -390,7 +391,7 @@ TEST_CASE_METHOD(DwellFixture, "A Z-Mod runout auto-swap longer than the dwell a
 
     // The new spool reaches the head, then the change ends.
     sensor(true);
-    helix::Ad5xIfsTestAccess::handle_status(*backend, zmod_change(99));
+    backend->fire_status(zmod_change(99));
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(AmsState::instance().is_filament_operation_active());
     tick();
@@ -401,14 +402,15 @@ TEST_CASE_METHOD(DwellFixture, "A Z-Mod runout auto-swap longer than the dwell a
 
 TEST_CASE_METHOD(DwellFixture, "Z-Mod idle between changes: a runout past the dwell is announced",
                  "[runout][dwell][sensors][1714]") {
-    auto owned = std::make_unique<helix::AmsBackendAd5xIfs>(nullptr, nullptr);
+    auto owned = std::make_unique<helix::test::WiredBackend<helix::AmsBackendAd5xIfs>>();
     auto* backend = owned.get();
     AmsState::instance().add_backend(std::move(owned));
+    REQUIRE(backend->start().success());
     helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
     helix::ui::UpdateQueue::instance().drain();
 
     // The macro is present but idle: no spool matched, so no change started.
-    helix::Ad5xIfsTestAccess::handle_status(*backend, zmod_change(99));
+    backend->fire_status(zmod_change(99));
     helix::ui::UpdateQueue::instance().drain();
 
     ToastCapture toasts;

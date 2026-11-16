@@ -17,8 +17,8 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_types.h"
 #include "display_settings_manager.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "src/ui/ui_system_path_plan.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_system_path_plan.h"
 
 #include <vector>
 

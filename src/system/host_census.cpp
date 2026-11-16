@@ -3,10 +3,10 @@
 
 #include "system/host_census.h"
 
+#include "core/text_io.h"
 #include "system/log_collector.h"
 #include "system/moonraker_local_probe.h"
 #include "system_power.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

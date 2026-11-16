@@ -18,11 +18,9 @@
 // friend). Calling shutdown() on the process-wide ThumbnailProcessor would
 // permanently disable thumbnail processing for every later test in the binary.
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "thumbnail_processor.h"
 
 #include <atomic>
@@ -42,7 +40,7 @@ namespace {
 /// just retired, and the untagged ceiling now has zero headroom.
 struct ThumbnailRaceFixture : public HelixTestFixture {
     ~ThumbnailRaceFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -128,9 +126,9 @@ TEST_CASE_METHOD(ThumbnailRaceFixture,
 // ---------------------------------------------------------------------------
 // process_file_async: the read belongs to the worker, not the caller.
 //
-// ThumbnailCache::process_and_callback() used to slurp the whole PNG on the
-// MAIN thread and hand the bytes to process_async() — once per file while a
-// file listing populated, so scrolling a gcode folder put a synchronous
+// ThumbnailCache::process_and_callback() must not slurp the whole PNG on the
+// MAIN thread and hand the bytes to process_async(): once per file while a file
+// listing populates, scrolling a gcode folder would put a synchronous
 // whole-file read on the LVGL loop per card. process_file_async() takes the
 // path instead and opens it inside the pool task.
 // ---------------------------------------------------------------------------
@@ -156,7 +154,7 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_file_async opens the file on the
 
     // The worker runs, fails the open, and reports through the UpdateQueue.
     proc->wait_for_completion();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(errors.load() == 1);
     CHECK(successes.load() == 0);
@@ -227,8 +225,8 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
     // landing in that window is a use-after-free — and because commit()
     // restarts a stopped pool, it also leaks worker threads past teardown.
     //
-    // Repeated because it is a timing window: with the fix every iteration is
-    // clean; without it, ASAN/TSAN trip and even an uninstrumented build
+    // Repeated because it is a timing window: every iteration must be clean;
+    // unguarded, ASAN/TSAN trip and even an uninstrumented build
     // eventually faults.
     constexpr int kIterations = 40;
     constexpr int kSubmitters = 4;
@@ -273,7 +271,7 @@ TEST_CASE_METHOD(ThumbnailRaceFixture, "process_async racing shutdown never uses
         CHECK(proc->pending_tasks() == 0);
         // Drain per iteration, not just at teardown: 40 rounds of deferred
         // callbacks would otherwise accumulate in the queue.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     INFO("slowest shutdown(): " << slowest_ms.load() << " ms");

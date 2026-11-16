@@ -19,6 +19,7 @@
 #include <fstream>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 // ============================================================================
@@ -85,309 +86,9 @@ TEST_CASE("PrintStartProfile: forge_x profile loads with signal formats", "[prof
     }
 }
 
-// ============================================================================
-// Default Profile Response Pattern Matching Tests
-// (Same cases as test_print_start_collector.cpp to ensure parity)
-// ============================================================================
-
-TEST_CASE("PrintStartProfile: default patterns match homing commands", "[profile][print][homing]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("G28", result));
-    REQUIRE(result.phase == PrintStartPhase::HOMING);
-
-    REQUIRE(profile->try_match_pattern("G28 X Y Z", result));
-    REQUIRE(result.phase == PrintStartPhase::HOMING);
-
-    REQUIRE(profile->try_match_pattern("Homing axes", result));
-    REQUIRE(result.phase == PrintStartPhase::HOMING);
-
-    REQUIRE(profile->try_match_pattern("Home All Axes", result));
-    REQUIRE(result.phase == PrintStartPhase::HOMING);
-
-    REQUIRE(profile->try_match_pattern("// homing started", result));
-    REQUIRE(result.phase == PrintStartPhase::HOMING);
-
-    // Negative cases
-    REQUIRE_FALSE(profile->try_match_pattern("G29", result));
-    REQUIRE_FALSE(profile->try_match_pattern("M104", result));
-}
-
-TEST_CASE("PrintStartProfile: default patterns match heating bed commands",
-          "[profile][print][heating]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("M190 S60", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    REQUIRE(profile->try_match_pattern("M140 S60", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    REQUIRE(profile->try_match_pattern("Heating bed to 60", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    REQUIRE(profile->try_match_pattern("Heat Bed", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    REQUIRE(profile->try_match_pattern("BED_TEMP=60", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    REQUIRE(profile->try_match_pattern("bed heating", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    // Real Voron V2 macro: M190 S{BED_TEMP}
-    REQUIRE(profile->try_match_pattern("M190 S110", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-
-    // Negative: setting to 0 (cooling) should not match bed heating
-    REQUIRE_FALSE(profile->try_match_pattern("M140 S0", result));
-
-    // M104 S200 matches HEATING_NOZZLE, not HEATING_BED
-    REQUIRE(profile->try_match_pattern("M104 S200", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-}
-
-TEST_CASE("PrintStartProfile: default patterns match heating nozzle commands",
-          "[profile][print][heating]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("M109 S200", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("M104 S200", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("M104 S150", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("Heating nozzle to 200", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("Heating hotend", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("Heating extruder", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    REQUIRE(profile->try_match_pattern("EXTRUDER_TEMP=200", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
-
-    // Negative: cooling command should not match
-    REQUIRE_FALSE(profile->try_match_pattern("M104 S0", result));
-
-    // M190 S60 matches HEATING_BED, not HEATING_NOZZLE
-    REQUIRE(profile->try_match_pattern("M190 S60", result));
-    REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
-}
-
-TEST_CASE("PrintStartProfile: default patterns match QGL commands", "[profile][print][leveling]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("QUAD_GANTRY_LEVEL", result));
-    REQUIRE(result.phase == PrintStartPhase::QGL);
-
-    REQUIRE(profile->try_match_pattern("quad gantry level", result));
-    REQUIRE(result.phase == PrintStartPhase::QGL);
-
-    REQUIRE(profile->try_match_pattern("Running QGL", result));
-    REQUIRE(result.phase == PrintStartPhase::QGL);
-
-    // Z_TILT_ADJUST matches Z_TILT, not QGL
-    REQUIRE(profile->try_match_pattern("Z_TILT_ADJUST", result));
-    REQUIRE(result.phase == PrintStartPhase::Z_TILT);
-}
-
-TEST_CASE("PrintStartProfile: default patterns match Z_TILT commands",
-          "[profile][print][leveling]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("Z_TILT_ADJUST", result));
-    REQUIRE(result.phase == PrintStartPhase::Z_TILT);
-
-    REQUIRE(profile->try_match_pattern("z_tilt_adjust", result));
-    REQUIRE(result.phase == PrintStartPhase::Z_TILT);
-
-    REQUIRE(profile->try_match_pattern("z tilt adjust", result));
-    REQUIRE(result.phase == PrintStartPhase::Z_TILT);
-
-    // QUAD_GANTRY_LEVEL matches QGL, not Z_TILT
-    REQUIRE(profile->try_match_pattern("QUAD_GANTRY_LEVEL", result));
-    REQUIRE(result.phase == PrintStartPhase::QGL);
-}
-
-TEST_CASE("PrintStartProfile: default patterns match bed mesh commands", "[profile][print][mesh]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("BED_MESH_CALIBRATE", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-
-    REQUIRE(profile->try_match_pattern("BED_MESH_PROFILE LOAD=default", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-
-    REQUIRE(profile->try_match_pattern("Loading bed mesh", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-
-    REQUIRE(profile->try_match_pattern("mesh loading", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-
-    REQUIRE(profile->try_match_pattern("BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-
-    // Negative
-    REQUIRE_FALSE(profile->try_match_pattern("BED_MESH_CLEAR", result));
-}
-
-TEST_CASE("PrintStartProfile: default patterns match cleaning commands",
-          "[profile][print][cleaning]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("CLEAN_NOZZLE", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-
-    REQUIRE(profile->try_match_pattern("NOZZLE_CLEAN", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-
-    REQUIRE(profile->try_match_pattern("WIPE_NOZZLE", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-
-    REQUIRE(profile->try_match_pattern("nozzle wipe", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-
-    REQUIRE(profile->try_match_pattern("clean nozzle", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-
-    // PURGE_LINE matches PURGING, not CLEANING
-    REQUIRE(profile->try_match_pattern("PURGE_LINE", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-}
-
-TEST_CASE("PrintStartProfile: default patterns match purging commands",
-          "[profile][print][purging]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    REQUIRE(profile->try_match_pattern("VORON_PURGE", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("LINE_PURGE", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("PURGE_LINE", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("Prime Line", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("PrimeLine", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("Priming extruder", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("KAMP_ADAPTIVE_PURGE", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    REQUIRE(profile->try_match_pattern("purge line done", result));
-    REQUIRE(result.phase == PrintStartPhase::PURGING);
-
-    // CLEAN_NOZZLE matches CLEANING, not PURGING
-    REQUIRE(profile->try_match_pattern("CLEAN_NOZZLE", result));
-    REQUIRE(result.phase == PrintStartPhase::CLEANING);
-}
-
-// ============================================================================
-// Default Profile Real Voron V2 Macro Test
-// ============================================================================
-
-TEST_CASE("PrintStartProfile: default patterns match Voron V2 START_PRINT lines",
-          "[profile][print][voron]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    struct TestCase {
-        std::string line;
-        PrintStartPhase expected_phase;
-        const char* description;
-    };
-
-    std::vector<TestCase> voron_lines = {
-        {"M104 S150", PrintStartPhase::HEATING_NOZZLE, "mesh temp heating"},
-        {"M190 S110", PrintStartPhase::HEATING_BED, "bed temp wait"},
-        {"G28", PrintStartPhase::HOMING, "home all"},
-        {"clean_nozzle", PrintStartPhase::CLEANING, "nozzle clean macro"},
-        {"QUAD_GANTRY_LEVEL", PrintStartPhase::QGL, "quad gantry level"},
-        {"G28 Z", PrintStartPhase::HOMING, "home Z after QGL"},
-        {"BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1", PrintStartPhase::BED_MESH,
-         "adaptive bed mesh"},
-        {"M109 S250", PrintStartPhase::HEATING_NOZZLE, "extruder temp wait"},
-        {"VORON_PURGE", PrintStartPhase::PURGING, "voron purge"},
-    };
-
-    for (const auto& tc : voron_lines) {
-        CAPTURE(tc.description, tc.line);
-        REQUIRE(profile->try_match_pattern(tc.line, result));
-        REQUIRE(result.phase == tc.expected_phase);
-    }
-}
-
-// ============================================================================
-// Default Profile AD5M Macro Test
-// ============================================================================
-
-TEST_CASE("PrintStartProfile: default patterns match AD5M START_PRINT lines",
-          "[profile][print][ad5m]") {
-    auto profile = get_default_profile();
-    REQUIRE(profile != nullptr);
-
-    PrintStartProfile::MatchResult result;
-
-    struct TestCase {
-        std::string line;
-        PrintStartPhase expected_phase;
-        const char* description;
-    };
-
-    std::vector<TestCase> ad5m_lines = {
-        {"M140 S60", PrintStartPhase::HEATING_BED, "set bed temp"},
-        {"M104 S200", PrintStartPhase::HEATING_NOZZLE, "set nozzle temp"},
-        {"G28", PrintStartPhase::HOMING, "home all"},
-        {"BED_MESH_CALIBRATE mesh_min=-100,-100 mesh_max=100,100", PrintStartPhase::BED_MESH,
-         "KAMP mesh calibrate"},
-        {"BED_MESH_PROFILE LOAD=auto", PrintStartPhase::BED_MESH, "load auto mesh profile"},
-        {"LINE_PURGE", PrintStartPhase::PURGING, "KAMP line purge"},
-    };
-
-    for (const auto& tc : ad5m_lines) {
-        CAPTURE(tc.description, tc.line);
-        REQUIRE(profile->try_match_pattern(tc.line, result));
-        REQUIRE(result.phase == tc.expected_phase);
-    }
-}
+// The default profile's response patterns are pinned row by row in
+// test_print_start_collector.cpp ("default profile reads each phase from real
+// and generic lines"), through the same try_match_pattern() call.
 
 // ============================================================================
 // Forge-X Signal Format Matching Tests
@@ -535,17 +236,21 @@ TEST_CASE("PrintStartProfile: forge_x response patterns match temperature wait l
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
-    SECTION("Default profile uses weighted mode") {
-        auto profile = get_default_profile();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
-    }
+    CHECK(get_default_profile()->progress_mode() == PrintStartProfile::ProgressMode::WEIGHTED);
+    auto artillery = PrintStartProfile::load("artillery_m1");
+    REQUIRE(artillery->name() == "Artillery M1 Pro");
+    CHECK(artillery->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
+}
 
-    SECTION("Artillery M1 profile uses sequential mode") {
-        auto profile = PrintStartProfile::load("artillery_m1");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->name() == "Artillery M1 Pro");
-        REQUIRE(profile->progress_mode() == PrintStartProfile::ProgressMode::SEQUENTIAL);
+TEST_CASE("PrintStartProfile: a profile's chamber step is chamber heating, not a soak",
+          "[profile][print][chamber]") {
+    for (const auto& [name, line] :
+         {std::pair{"qidi", "M191 S45"}, std::pair{"artillery_m1", "[AM1P] State: HEAT_CHAMBER"}}) {
+        CAPTURE(name, line);
+        auto profile = PrintStartProfile::load(name);
+        PrintStartProfile::MatchResult r;
+        REQUIRE((profile->try_match_signal(line, r) || profile->try_match_pattern(line, r)));
+        CHECK(r.phase == PrintStartPhase::HEATING_CHAMBER);
     }
 }
 
@@ -554,22 +259,13 @@ TEST_CASE("PrintStartProfile: progress mode detection", "[profile][print]") {
 // ============================================================================
 
 TEST_CASE("PrintStartProfile: adaptive_meshing flag parses correctly", "[profile][print][mesh]") {
-    SECTION("Snapmaker U1 declares adaptive_meshing=true") {
-        auto profile = PrintStartProfile::load("snapmaker_u1");
+    for (const auto& [name, adaptive] :
+         {std::pair{"snapmaker_u1", true}, std::pair{"default", false},
+          std::pair{"forge_x", false}}) {
+        CAPTURE(name);
+        auto profile = PrintStartProfile::load(name);
         REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == true);
-    }
-
-    SECTION("Default profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load_default();
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
-    }
-
-    SECTION("Forge-X profile does not declare adaptive_meshing") {
-        auto profile = PrintStartProfile::load("forge_x");
-        REQUIRE(profile != nullptr);
-        REQUIRE(profile->adaptive_meshing() == false);
+        CHECK(profile->adaptive_meshing() == adaptive);
     }
 }
 
@@ -1151,6 +847,113 @@ TEST_CASE("PrintStartProfile: creality_k2 keeps the M109 latch that the heater c
     REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
 }
 
+// Every input line below is verbatim from a K2 Plus klippy.log capture
+// (2026-08-18, three prints; see PRINT_START_PROFILES.md for the source).
+// The K2 narrates through [GCODE]/[DEBUG] respond echoes when started from
+// a path that enables them, and stays fully silent otherwise - which is why
+// the profile also enables position_signals.
+TEST_CASE("PrintStartProfile: creality_k2 matches captured narration", "[profile][print][k2]") {
+    auto profile = get_creality_k2_profile();
+    REQUIRE(profile != nullptr);
+    REQUIRE(profile->name().find("K2") != std::string::npos);
+
+    PrintStartProfile::MatchResult result;
+
+    SECTION("Homing rails echo") {
+        REQUIRE(profile->try_match_pattern("[DEBUG]_handle_home_rails_begin", result));
+        REQUIRE(result.phase == PrintStartPhase::HOMING);
+    }
+
+    SECTION("Nozzle clear counter") {
+        REQUIRE(profile->try_match_pattern("[NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+    }
+
+    SECTION("Box nozzle clean") {
+        REQUIRE(profile->try_match_pattern("[GCODE]BOX_NOZZLE_CLEAN", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        // It runs right after the print-temperature purge position, so it
+        // owns nothing: the purge around it is the real one.
+        REQUIRE(result.owns.empty());
+    }
+
+    SECTION("The pre-mesh nozzle clear owns its own purge") {
+        // NOZZLE_CLEAR (prtouch_v3) parks at the CFS extrude position and
+        // pushes filament to check flow before it wipes, so the
+        // BOX_GO_TO_EXTRUDE_POS and the extrusion inside it are the clean's.
+        REQUIRE(profile->try_match_pattern("[NOZZLE_CLEAR] START NOZZLE_CLEAR COUNT:0", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        REQUIRE(result.owns == std::vector<PrintStartPhase>{PrintStartPhase::PURGING});
+    }
+
+    SECTION("The clear's finish line opens no step") {
+        REQUIRE(profile->try_match_pattern("[NOZZLE_CLEAR] FINISH NOZZLE_CLEAR", result));
+        REQUIRE(result.phase == PrintStartPhase::CLEANING);
+        REQUIRE(result.owns.empty());
+    }
+
+    SECTION("Pre-wipe nozzle heat uses TEMPERATURE_WAIT, not M109") {
+        // The K2 heats to its wipe temperature with M104 + TEMPERATURE_WAIT;
+        // the M109 echoes only appear after the wiper. Without this pattern
+        // the heating phase is invisible until late in the chain.
+        REQUIRE(profile->try_match_pattern(
+            "[GCODE]TEMPERATURE_WAIT SENSOR=extruder MINIMUM=175 MAXIMUM=185", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_NOZZLE);
+    }
+
+    SECTION("CFS flush position is the purge marker") {
+        // BOX_MATERIAL_FLUSH / flush_* never appear in any capture; the box's
+        // move to the extrude position is what marks the flush stretch.
+        REQUIRE(profile->try_match_pattern("[GCODE]BOX_GO_TO_EXTRUDE_POS", result));
+        REQUIRE(result.phase == PrintStartPhase::PURGING);
+    }
+
+    SECTION("BED_MESH_CLEAR must NOT announce the mesh phase") {
+        // The K2 emits BED_MESH_CLEAR three times per start (mesh validation,
+        // pre-nozzle-clean hygiene, pre-print) and again at end of print.
+        // Mapping it to BED_MESH would enter the phase on every hygiene clear.
+        // Mesh entry comes from the bed-mesh presence flap and position
+        // inference instead.
+        REQUIRE_FALSE(profile->try_match_pattern("[GCODE]BED_MESH_CLEAR", result));
+    }
+
+    SECTION("Our own pre-start command echo announces no phase") {
+        // The bed_mesh pre-print option sends BED_MESH_CALIBRATE_START_PRINT
+        // ahead of START_PRINT, and the K2 echoes it back. It carries
+        // BED_TEMP, EXTRUDER_TEMP and a BED_MESH_CALIBRATE prefix, so a
+        // pattern list keyed on those bare tokens enters three phases before
+        // the printer has done anything. apply_profile_match() only fires
+        // once per phase, so the premature entry also consumes the real one,
+        // pins phase_enter_times_ for the history, and sets real_signal_seen_.
+        REQUIRE_FALSE(profile->try_match_pattern(
+            "[GCODE]BED_MESH_CALIBRATE_START_PRINT GCODE_FILE='bench.gcode' "
+            "BED_TEMP=60 EXTRUDER_TEMP=220",
+            result));
+    }
+
+    SECTION("Real bed heat still announces HEATING_BED") {
+        REQUIRE(profile->try_match_pattern("[GCODE]M190 S60", result));
+        REQUIRE(result.phase == PrintStartPhase::HEATING_BED);
+    }
+
+    SECTION("Real mesh calibrate still announces BED_MESH") {
+        REQUIRE(profile->try_match_pattern("[GCODE]BED_MESH_CALIBRATE", result));
+        REQUIRE(result.phase == PrintStartPhase::BED_MESH);
+    }
+
+    SECTION("Adaptive mesh calibrate still announces BED_MESH") {
+        REQUIRE(profile->try_match_pattern("[GCODE]BED_MESH_CALIBRATE PROFILE=adaptive ADAPTIVE=1",
+                                           result));
+        REQUIRE(result.phase == PrintStartPhase::BED_MESH);
+    }
+
+    SECTION("Position inference enabled") {
+        // Captured starts with [GCODE] echo disabled narrate nothing at all;
+        // the silent window needs the position classifier.
+        REQUIRE(profile->position_signals());
+    }
+}
+
 TEST_CASE("PrintStartProfile: creality_k2 uses adaptive meshing", "[profile][print][k2][mesh]") {
     auto profile = get_creality_k2_profile();
     REQUIRE(profile != nullptr);
@@ -1322,8 +1125,8 @@ TEST_CASE("PrintStartProfile: default patterns match macro narration, not just c
         {"Cleaning nozzle...", PrintStartPhase::CLEANING},
         {"Bed mesh", PrintStartPhase::BED_MESH},
         {"Bed Mesh", PrintStartPhase::BED_MESH},
-        {"Heating chamber: 45c", PrintStartPhase::SOAKING},
-        {"Waiting for chamber temp", PrintStartPhase::SOAKING},
+        {"Heating chamber: 45c", PrintStartPhase::HEATING_CHAMBER},
+        {"Waiting for chamber temp", PrintStartPhase::HEATING_CHAMBER},
         {"Bed soak - 2 minutes remaining", PrintStartPhase::SOAKING},
         {"Bed soak finished", PrintStartPhase::SOAKING},
         {"Heat soak", PrintStartPhase::SOAKING},

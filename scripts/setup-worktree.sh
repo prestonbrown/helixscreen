@@ -306,9 +306,10 @@ if [[ ! "$WORKTREE_PATH" = /* ]]; then
     WORKTREE_PATH="$MAIN_TREE/$WORKTREE_PATH"
 fi
 
-# Guard: arg 2 is a PATH. Passing a base branch there is an easy slip, and it
-# used to succeed silently — mkdir -p created a real directory of that name in
-# the repo root and the branch was cut from HEAD instead of the intended base.
+# Guard: arg 2 is a PATH. Passing a base branch there is an easy slip, and
+# without this guard it succeeds silently — mkdir -p creates a real directory
+# of that name in the repo root and the branch is cut from HEAD instead of the
+# intended base.
 if [[ -n "$EXPLICIT_PATH" && ! -e "$WORKTREE_PATH" ]] \
    && git -C "$MAIN_TREE" rev-parse --verify --quiet "$EXPLICIT_PATH" >/dev/null; then
     echo -e "${RED}Error: '$EXPLICIT_PATH' is a git ref, but argument 2 is the worktree PATH.${RESET}"
@@ -666,7 +667,9 @@ unapply_main_tree_patches() {
             else
                 rm -f "$dst/$f"
             fi
-        done < <(sed -n 's#^\(---\|+++\) [ab]/##p' "${patches[@]}" | sort -u)
+        # -E, because `\|` in a basic regex is a GNU extension: BSD sed reads it
+        # literally, matches nothing, and the main tree's patches all survive.
+        done < <(sed -nE 's#^(---|\+\+\+) [ab]/##p' "${patches[@]}" | sort -u)
     done
 }
 
@@ -1441,10 +1444,18 @@ if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" != "true" && -f scripts/check_patch_mar
     PRIVATE_SUBMODULES_NEED_PATCHES=true
     echo -e "${YELLOW}the private submodules copied from the main tree are missing patches${RESET}"
 fi
+# Homebrew installs GNU make as gmake; Apple's /usr/bin/make is 3.81 and
+# the Makefile hard-errors below 4.2. On Linux plain `make` stays: there it
+# may be the jobpool shim, which `gmake` would bypass.
+if [[ "$(uname -s)" == Darwin ]] && command -v gmake >/dev/null 2>&1; then
+    MAKE_BIN="gmake"
+else
+    MAKE_BIN="make"
+fi
 if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" == "true" ]]; then
     echo -e "${CYAN}Applying this branch's patches to the private submodules...${RESET}"
     unapply_main_tree_patches
-    if make reapply-patches; then
+    if "$MAKE_BIN" reapply-patches; then
         echo -e "${GREEN}✓ Patches match this branch${RESET}"
     else
         echo -e "${RED}✗ make reapply-patches failed — this worktree's submodules do not match patches/${RESET}"
@@ -1461,9 +1472,6 @@ if [[ "$NO_BUILD" == "false" ]]; then
     echo ""
     echo -e "${BOLD}${CYAN}Running initial build...${RESET}"
     cd "$WORKTREE_PATH"
-    # Homebrew installs GNU make as gmake; Apple's /usr/bin/make is 3.81 and
-    # the Makefile hard-errors below 4.2.
-    MAKE_BIN="$(command -v gmake || command -v make)"
     if "$MAKE_BIN" -j; then
         echo ""
         echo -e "${GREEN}${BOLD}✓ Build successful!${RESET}"

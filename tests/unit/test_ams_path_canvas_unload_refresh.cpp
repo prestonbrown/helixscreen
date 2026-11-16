@@ -17,7 +17,8 @@
  * This test builds a REAL AmsPanel (the exact production wiring), draws an
  * idle-lane tube, forces that lane EMPTY in the backend, calls the same public
  * refresh_slots() the slots_version observer calls, and asserts the canvas tube
- * is cleared. With the fix line commented out, step 6 fails (tube stays PREP).
+ * is cleared. Without update_path_canvas_from_backend() in refresh_slots(),
+ * step 6 fails (tube stays PREP).
  */
 
 #include "ui_ams_sidebar.h"
@@ -65,8 +66,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     // 2. Build the real AmsPanel exactly as production does:
     //    register widgets/XML → create ams_panel XML → init_subjects → setup.
     // ------------------------------------------------------------------
-    // The production registration itself. A copy of its list used to live here
-    // and had drifted from it — see test_ams_error_modal_autodismiss.cpp.
+    // The production registration itself: a copy of its list here would drift
+    // from it (see test_ams_error_modal_autodismiss.cpp).
     ensure_ams_widgets_registered();
 
     AmsPanel panel(state(), &api());
@@ -115,8 +116,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     process_lvgl(20);
 
     // ------------------------------------------------------------------
-    // 6. THE REGRESSION ASSERTION. Pre-fix (without
-    //    update_path_canvas_from_backend() in refresh_slots()) the canvas
+    // 6. THE REGRESSION ASSERTION. Without
+    //    update_path_canvas_from_backend() in refresh_slots(), the canvas
     //    keeps the stale PREP tube and this fails.
     // ------------------------------------------------------------------
     REQUIRE(ui_filament_path_canvas_get_slot_filament(canvas, kIdleSlot) ==

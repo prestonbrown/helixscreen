@@ -176,7 +176,6 @@ TEST_CASE("tray projection: per-lane lids meet the box corners", "[ams][tray]") 
     TrayBox row = b;
     row.fl = slots[0] - h;
     row.fr = slots[3] + h;
-    CHECK(slots[0] - h == Approx(row.fl));
     const float lid_h = lid_height(row, kFlangeRy);
     const PointF last_cap_back = cap_point(row, lid_h, slots[3] + h, 0);
     const PointF br_t = tray_faces(row).back_wall[1];
@@ -188,8 +187,107 @@ TEST_CASE("tray projection: per-lane lids meet the box corners", "[ams][tray]") 
 }
 
 TEST_CASE("tray projection: slot pitch from the spool size", "[ams][tray]") {
-    // Footprint 21 + 2 * 11, half the 25.4 px cap tuck, 16 px clear.
-    CHECK(spool_pitch(61) == 72);
+    // Footprint 17 + 2 * 11, half the 25.4 px cap tuck, 16 px clear.
+    CHECK(spool_pitch(61) == 68);
+}
+
+TEST_CASE("tray projection: a cap clears only the outer flange", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    CHECK(cap_width(*shell, 110.0f, 200.0f) ==
+          Catch::Approx(110.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px));
+    CHECK(cap_width(*shell, 55.0f, 200.0f) ==
+          Catch::Approx(55.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px / 2.0f));
+}
+
+TEST_CASE("tray projection: a squeezed row keeps its caps inside half a pitch", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    CHECK(cap_width(*shell, 110.0f, 30.0f) == Approx(15.0f));
+}
+
+TEST_CASE("tray projection: a cheek climbs from the front wall to the back", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fl = 0;
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 10;
+    const PointF front = cheek_point(b, *shell, 110.0f, 100, 0);
+    const PointF back = cheek_point(b, *shell, 110.0f, 100, shell->cheek_n - 1);
+    CHECK(front.y == Catch::Approx(50.0f));
+    CHECK(back.y == Catch::Approx(50.0f - shell->back_extra_px - b.rise));
+    CHECK(back.x > front.x);
+}
+
+TEST_CASE("tray projection: a lid's end comes down to the body's contour", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 10;
+    // Ahead of the knee the body is level, so the glass reaches the front wall's height.
+    const PointF level = cheek_under(b, *shell, 110.0f, 100, proj(b, 100, 0, 20));
+    CHECK(level.y == Approx(proj(b, 100, 50, 20).y));
+    // Past it the glass stops on the climbing edge, well above a straight run to the floor.
+    const PointF back = cheek_under(b, *shell, 110.0f, 100, proj(b, 100, 0, 100));
+    CHECK(back.y == Approx(50.0f - shell->back_extra_px - b.rise));
+}
+
+TEST_CASE("tray projection: a unit's lid takes its real profile", "[ams][tray]") {
+    const UnitShell* shell = unit_shell_by_id("ace_pro");
+    REQUIRE(shell != nullptr);
+    TrayBox b{};
+    b.fr = 100;
+    b.ft = 50;
+    b.fb = 90;
+    b.depth = 100;
+    b.rise = 0;
+    PointF out[17];
+    shell_cap_polyline(b, *shell, 110.0f, 100, out, 17);
+    CHECK(out[0].y == Approx(50.0f));
+    CHECK(out[16].y == Approx(50.0f - shell->back_extra_px).margin(0.01));
+    // The middle of the lid sits on the flat top, at the profile's full height.
+    float crest = 0;
+    for (int i = 0; i < shell->dome_n; ++i)
+        crest = std::max(crest, shell->dome[i].height_px);
+    CHECK(out[8].y == Approx(50.0f - crest).margin(0.01));
+    CHECK(out[8].y < out[16].y);
+}
+
+TEST_CASE("tray projection: front parts anchor to the row, a lane or an end", "[ams][tray]") {
+    TrayBox b{};
+    b.fl = 100;
+    b.fr = 300;
+    b.ft = 50;
+    b.fb = 90;
+    float box[4];
+    // At half the reference spool, every length halves.
+    front_part_box(b, {FrontAnchor::Span, 4, 8, 2, 6, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(102.0f));
+    CHECK(box[2] == Approx(296.0f));
+    CHECK(box[1] == Approx(51.0f));
+    CHECK(box[3] == Approx(53.0f));
+    front_part_box(b, {FrontAnchor::Lane, -2, 2, -4, 0, 0, 0}, 55.0f, 150, box);
+    CHECK(box[0] == Approx(149.0f));
+    CHECK(box[2] == Approx(151.0f));
+    CHECK(box[1] == Approx(48.0f));
+    front_part_box(b, {FrontAnchor::Center, -2, 2, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(199.0f));
+    front_part_box(b, {FrontAnchor::Left, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(101.0f));
+    // A part wider than the row stops at the unit's end.
+    front_part_box(b, {FrontAnchor::Left, 2, 900, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[2] == Approx(300.0f));
+    front_part_box(b, {FrontAnchor::Right, 2, 6, 0, 1, 0, 0}, 55.0f, 0, box);
+    CHECK(box[0] == Approx(297.0f));
+    CHECK(box[2] == Approx(299.0f));
 }
 
 TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
@@ -212,6 +310,11 @@ TEST_CASE("tray projection: any climate data gets glass", "[ams][tray]") {
     }
     SECTION("no climate data") {
         CHECK(lid_mode(unit, true, false) == LidMode::None);
+    }
+    SECTION("a drawn unit: its own lids, or none without a dome") {
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("cfs")) == LidMode::Unit);
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("emu")) == LidMode::PerLane);
+        CHECK(lid_mode(*helix::ui::tray::unit_shell_by_id("night_owl")) == LidMode::None);
     }
 }
 
@@ -293,19 +396,19 @@ TEST_CASE("stagger labels: below medium a label keeps to its two-lane span",
     CHECK(ams_stagger_label_width(0, UiBreakpoint::Micro, 4) == 0);
 }
 
-TEST_CASE("lane badge: on the front face, inside the lane's lid edge", "[ams][tray][badge]") {
+TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][badge]") {
     const TrayBox b = reference_box(); // front face y 101..126
     SECTION("a wide pitch puts it at the lane's front bottom-right") {
         const PointF p = lane_badge_origin(b, 100, 40, 20, 20, 2);
         CHECK(p.x == Approx(118));
-        CHECK(p.y == Approx(104));
+        CHECK(p.y == Approx(102));
         CHECK(p.y + 20 <= b.fb);
         CHECK(p.y >= b.ft);
     }
     SECTION("a tight pitch centers it on the lane") {
         const PointF p = lane_badge_origin(b, 100, 6, 16, 16, 2);
         CHECK(p.x == Approx(92));
-        CHECK(p.y == Approx(108));
+        CHECK(p.y == Approx(106));
     }
     SECTION("a badge taller than the face keeps to its top, never below the box") {
         TrayBox low = b;

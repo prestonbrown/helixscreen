@@ -10,21 +10,23 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_batch_filament_modal.h"
-#include "ui_update_queue.h"
 
 #include "../busy_guard_fixture.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "cleanup_hold.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "filament_op_slot_resolver.h"
 #include "macro_param_cache.h"
 #include "mount_feed_sequence.h"
@@ -739,11 +741,10 @@ TEST_CASE("MedusaHC sequences a full selection itself even with all-macros defin
 TEST_CASE("MedusaHC's step bar tracks every filament-op action",
           "[toolchanger][mount_feed][medusahc]") {
     AckingChanger tc(4);
-    CHECK(tc.action_tracks_step_operation(AmsAction::SELECTING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::HEATING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::LOADING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::PURGING));
-    CHECK(tc.action_tracks_step_operation(AmsAction::UNLOADING));
+    for (AmsAction action : {AmsAction::SELECTING, AmsAction::HEATING, AmsAction::LOADING,
+                             AmsAction::PURGING, AmsAction::UNLOADING}) {
+        CHECK(tc.action_tracks_step_operation(action));
+    }
     CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::IDLE));
     CHECK_FALSE(tc.action_tracks_step_operation(AmsAction::ERROR));
 }
@@ -978,6 +979,35 @@ TEST_CASE("MedusaHC ends the run and says so when the cleanup itself cannot be s
     CHECK(std::count(tc.sent_.begin(), tc.sent_.end(), cleanup) == 1);
 }
 
+TEST_CASE("a mount-to-feed run holds its heaters once it has started",
+          "[toolchanger][mount_feed][sigterm]") {
+    using helix::CleanupHold;
+    auto tc = std::make_unique<AckingChanger>(4);
+    tc->feed_status("ready", 0);
+    REQUIRE_FALSE(CleanupHold::any_held_signal_safe());
+    REQUIRE(tc->load_filament(3).success());
+    tc->ack(); // the prompt is up: nothing has heated
+    CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
+    tc->ack(); // mounted; the heat stage is in flight
+    REQUIRE(CleanupHold::any_held_signal_safe());
+
+    SECTION("teardown sends the off, and moves nothing") {
+        tc->before_disconnect();
+        CHECK(tc->sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+        CHECK(tc->get_current_action() == AmsAction::IDLE);
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+    SECTION("the link drops: nothing can be sent") {
+        tc->lose();
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+    SECTION("destroyed") {
+        tc.reset();
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+}
+
 TEST_CASE("MedusaHC stops under a live run without deadlocking, and still sends the cleanup",
           "[toolchanger][mount_feed][medusahc]") {
     // Heap-allocated so a deadlocked stop() can be abandoned: the stuck thread
@@ -1176,7 +1206,7 @@ TEST_CASE("MedusaHC: the dock sensors losing the tool mid-run stop it without a 
     CHECK_FALSE(tc.can_cancel_operation());
     // The fault stays on show once the run is over.
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 }
 
@@ -1212,7 +1242,8 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Unload complete. Pull the filament out of Tool 2.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::SUCCESS);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::SUCCESS);
     }
     SECTION("several tools, one toast naming them all") {
         AckingChanger tc(4);
@@ -1225,7 +1256,8 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Unload complete. Pull the filament out of Tool 2, Tool 4.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::SUCCESS);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::SUCCESS);
     }
     SECTION("a stopped unload keeps its error toast") {
         AckingChanger tc(4);
@@ -1236,7 +1268,7 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         tc.ack();  // the cleanup landed
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Unload stopped.");
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == helix::NoticeSeverity::ERROR);
     }
 }
 
@@ -1344,7 +1376,7 @@ TEST_CASE("MedusaHC: a fault the controller reports during a swap still stops th
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     tc.ack();
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
 }
 
 TEST_CASE("MedusaHC: a cleanup that sends no swap is no cover for a -2",
@@ -1381,6 +1413,16 @@ TEST_CASE("mount-to-feed: an abort that cannot trust the carriage leaves it alon
     restoring.abort();
     REQUIRE(restoring.current_stage() != nullptr);
     CHECK(restoring.current_stage()->swaps); // its cleanup puts tool 0 back
+}
+
+TEST_CASE("A load prompt numbers tools as the screen does when slots count from 0",
+          "[toolchanger][mount_feed][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament_batch({0, 2}).success());
+    CHECK(tc.sent_.back().find("Insert filament into Tool 0 as far as it goes, and into the hot "
+                               "end of Tool 2 while it is docked") != std::string::npos);
 }
 
 TEST_CASE("MedusaHC words a mixed load's prompt for the mounted tool and the docked ones",
@@ -1431,7 +1473,8 @@ TEST_CASE("MedusaHC: a Cancel mid-swap waits for the swap, then stops without a 
         CHECK(std::find(tc.sent_.begin(), tc.sent_.end(), "SELECT_TOOL TOOL=\"tool T0\"") ==
               tc.sent_.end());
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) == toast);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
         tc.ack();
         CHECK(tc.get_current_action() == AmsAction::IDLE);
     }
@@ -1582,7 +1625,7 @@ TEST_CASE("MedusaHC: a frame silent about the carriage leaves a standing sensor 
     // sensors agreeing again.
     tc.feed(json{{"medusahc", {{"sensors", {{"t0", 1}, {"t2", 1}}}}}});
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 
     tc.feed(json{{"medusahc", {{"current_tool", 1}}}});
@@ -1967,7 +2010,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Every backend hears the connection drop, once
     AmsState::instance().init_subjects(true);
     const auto set_connection = [](ConnectionState state) {
         get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     set_connection(ConnectionState::CONNECTED);
     auto owned = std::make_unique<ConnectionRecordingBackend>();
@@ -1987,28 +2030,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "Every backend hears the connection drop, once
     set_connection(ConnectionState::CONNECTED);
 }
 
-namespace {
-
-class BusyBackend : public AmsBackendMock {
-  public:
-    BusyBackend() : AmsBackendMock(4) {}
-    AmsAction action = AmsAction::SELECTING;
-    std::optional<StepOperationType> running;
-    AmsAction get_current_action() const override {
-        return action;
-    }
-    std::optional<StepOperationType> running_step_operation() const override {
-        return running;
-    }
-};
-
-} // namespace
-
 TEST_CASE_METHOD(LVGLTestFixture,
                  "A print start waits only for a filament operation this screen runs",
                  "[toolchanger][mount_feed][ams]") {
     AmsState::instance().init_subjects(true);
-    auto owned = std::make_unique<BusyBackend>();
+    auto owned = std::make_unique<RunningOpBackend>();
     auto* backend = owned.get();
     AmsState::instance().set_backend(std::move(owned));
 
@@ -2039,7 +2065,7 @@ TEST_CASE("MedusaHC offers Cancel exactly while cancel() can act",
 
 TEST_CASE_METHOD(LVGLTestFixture, "Abort says Aborting before the backend reports its own result",
                  "[toolchanger][mount_feed][ams]") {
-    struct ReportingBackend : BusyBackend {
+    struct ReportingBackend : RunningOpBackend {
         std::vector<std::string>* infos = nullptr;
         size_t infos_at_cancel = 0;
         AmsError cancel() override {
@@ -2122,7 +2148,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     const auto set_connection = [](ConnectionState state) {
         get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     set_connection(ConnectionState::CONNECTED);
     auto owned = std::make_unique<ConnectionRecordingBackend>();
@@ -2133,4 +2159,165 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     AmsState::instance().set_backend(nullptr);
     set_connection(ConnectionState::CONNECTED);
+}
+
+TEST_CASE("mount-to-feed: a tool number that skips seats the tool Klipper numbers it",
+          "[toolchanger][mount_feed][tool-number]") {
+    // Tools T0, T2 and T3: Klipper's tool 2 is the second head, slot 1.
+    AckingChanger tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 2}}}});
+
+    REQUIRE(tc.get_system_info().current_slot == 1);
+
+    // Unloading the mounted head works T2's head, never T3's.
+    REQUIRE(tc.unload_filament(-1).success());
+    for (int i = 0; i < 4; ++i) {
+        const size_t sent = tc.sent_.size();
+        tc.ack();
+        if (tc.sent_.size() == sent)
+            break;
+    }
+    INFO("sent: " << [&] {
+        std::string all;
+        for (const auto& g : tc.sent_)
+            all += "[" + g + "] ";
+        return all;
+    }());
+    const auto names = [&](const std::string& needle) {
+        return std::any_of(tc.sent_.begin(), tc.sent_.end(), [&](const std::string& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+    CHECK(names("HEATER=extruder1 "));
+    CHECK_FALSE(names("extruder2"));
+    CHECK_FALSE(names("tool T3"));
+
+    SECTION("a number no tool carries seats none") {
+        tc.feed(json{{"toolchanger", {{"tool_number", 1}}}});
+        CHECK(tc.get_system_info().current_slot == -1);
+    }
+}
+
+TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carriage tool",
+          "[toolchanger][tool-number]") {
+    // Moonraker sends only changed fields: tool_numbers, tool_names each alone.
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 2}}}});
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 2, 3})}}}});
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T2", "tool T3"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+    CHECK(tc.get_system_info().current_tool == 2);
+
+    // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
+    tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+
+    // Swapping the two numbers back renames instead: the delta carries tool_names alone.
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T3", "tool T2"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+
+    // A remap's listing and tool_number in one frame: the listing answers first.
+    tc.feed(json{{"toolchanger",
+                  {{"tool_numbers", json::array({0, 1})},
+                   {"tool_names", json::array({"tool T3", "tool T0"})},
+                   {"tool_number", 0}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
+}
+
+TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    tc.feed(json{{"toolchanger",
+                  {{"status", "ready"},
+                   {"tool_numbers", json::array({0, 2, 3})},
+                   {"tool_names", json::array({"tool T0", "tool T2", "tool T3"})},
+                   {"tool_number", 0}}}});
+
+    REQUIRE(tc.change_tool(2).success());
+    REQUIRE_FALSE(tc.sent_.empty());
+    CHECK(tc.sent_.back() == "SELECT_TOOL TOOL=\"tool T3\"");
+}
+
+TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps and resets",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.set_discovered_tools({"T0", "T2", "T3"});
+    const auto listing = [&](json numbers, json names) {
+        tc.feed(json{{"toolchanger", {{"tool_numbers", numbers}, {"tool_names", names}}}});
+    };
+    const json in_order = {"tool T0", "tool T2", "tool T3"};
+    const json rotated = {"tool T3", "tool T0", "tool T2"};
+    const std::vector<std::string> homes{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                         "ASSIGN_TOOL TOOL=\"tool T2\" N=2",
+                                         "ASSIGN_TOOL TOOL=\"tool T3\" N=3"};
+
+    SECTION("each head is badged with its tool's number, and a remap moves it") {
+        listing({0, 2, 3}, in_order);
+        CHECK(tc.get_slot_info(1).mapped_tool == 2);
+        CHECK(tc.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
+        listing({0, 2, 3}, rotated);
+        CHECK(tc.get_slot_info(2).mapped_tool == 0);
+    }
+    SECTION("a listed number past the tool count can be remapped") {
+        listing({0, 2, 3}, in_order);
+        REQUIRE(tc.set_tool_mapping(3, 0).success());
+        CHECK(tc.sent_.back() == "ASSIGN_TOOL TOOL=\"tool T0\" N=3");
+        CHECK_FALSE(tc.can_set_tool_mapping(7, 0).success());
+    }
+    SECTION("a reset returns each tool to its own number, gaps included") {
+        listing({0, 2, 3}, in_order);
+        listing({0, 2, 3}, rotated);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == homes);
+    }
+    SECTION("set_discovery's configured numbers outrank a first listing already remapped") {
+        PrinterDiscovery hw;
+        hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T2", "tool T3"}));
+        hw.parse_configured_tool_numbers({{"tool t0", {{"tool_number", 0}}},
+                                          {"tool t2", {{"tool_number", 2}}},
+                                          {"tool t3", {{"tool_number", 3}}},
+                                          {"extruder", {{"tool_number", 7}}}});
+        CHECK(hw.configured_tool_numbers().size() == 3);
+        tc.set_discovery(hw);
+        listing({0, 2, 3}, rotated);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_ == homes);
+    }
+    SECTION("a Klipper restart forgets the old config's home numbers") {
+        listing({0, 2, 3}, in_order);
+        tc.on_klipper_restarted();
+        listing({0, 1, 2}, in_order);
+        REQUIRE(tc.reset_tool_mappings().success());
+        CHECK(tc.sent_.empty());
+    }
+    SECTION("a reset on a machine with no ASSIGN_TOOL fails and keeps the listed badges") {
+        tc.set_tool_commands(toolchanger_addon::ToolCommands{true, "test", "T", "", false});
+        listing({0, 2, 3}, in_order);
+        listing({0, 2}, json{"tool T2", "tool T0"});
+        REQUIRE(tc.get_slot_info(2).mapped_tool == -1);
+        CHECK_FALSE(tc.reset_tool_mappings().success());
+        CHECK(tc.get_slot_info(2).mapped_tool == -1);
+        CHECK(tc.sent_.empty());
+    }
+}
+
+TEST_CASE("toolchanger: a listed reset of a contiguous swap sends exactly two ASSIGN_TOOLs",
+          "[toolchanger][tool-number]") {
+    helix::test::ToolChangerHelper tc(3);
+    tc.feed(
+        json{{"toolchanger",
+              {{"tool_numbers", {0, 1, 2}}, {"tool_names", {"tool T0", "tool T1", "tool T2"}}}}});
+    tc.feed(json{{"toolchanger", {{"tool_names", {"tool T1", "tool T0", "tool T2"}}}}});
+    REQUIRE(tc.reset_tool_mappings().success());
+    CHECK(tc.sent_ == std::vector<std::string>{"ASSIGN_TOOL TOOL=\"tool T0\" N=0",
+                                               "ASSIGN_TOOL TOOL=\"tool T1\" N=1"});
 }

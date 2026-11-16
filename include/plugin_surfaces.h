@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "plugin_dialog.h"
 #include "plugin_overlay_host.h"
@@ -57,7 +59,7 @@ class PluginSurfaces {
         int ticket = 0;
         bool shown = false;
         int overlay_handle = 0;
-        lv_obj_t* dialog = nullptr;
+        helix::ui::WeakWidget dialog;
         bool closing_by_plugin = false;
     };
 

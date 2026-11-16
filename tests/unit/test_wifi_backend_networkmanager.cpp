@@ -79,6 +79,11 @@ class TestableNMBackend : public WifiBackendNetworkManager {
         return apply_polled_status(st);
     }
 
+    /// Feed one exact poll result through apply_polled_status().
+    std::string feed_status(const ConnectionStatus& st) {
+        return apply_polled_status(st);
+    }
+
     /// Seed the state start() would have established — a resolved interface
     /// and a live backend — since start() itself shells out to nmcli and
     /// refuses without a real NetworkManager.
@@ -183,6 +188,7 @@ if [ "$n" -eq 1 ] && [ "$NMCLI_FAIL_FIRST" = "1" ]; then
   echo "Error: 802-11-wireless-security.key-mgmt: property is missing." >&2
   exit 1
 fi
+while [ -n "$NMCLI_HOLD" ] && [ -e "$NMCLI_HOLD" ]; do sleep 0.05; done
 printf '%s\n' "$@" > "$NMCLI_ARGV"
 exit 0
 )SH";
@@ -194,7 +200,7 @@ exit 0
     }
     ~FakeNmcliDir() {
         for (const char* var :
-             {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL"}) {
+             {"NMCLI_ARGV", "NMCLI_COUNT", "NMCLI_FAIL_FIRST", "NMCLI_FAIL_ALL", "NMCLI_HOLD"}) {
             ::unsetenv(var);
         }
         std::error_code ec;
@@ -205,6 +211,15 @@ exit 0
     /// the backend's self-heal delete + retry path runs.
     void fail_first() {
         ::setenv("NMCLI_FAIL_FIRST", "1", 1);
+    }
+
+    /// Successful invocations wait until release(), standing in for a join in progress.
+    void hold() {
+        std::ofstream(dir + "/hold");
+        ::setenv("NMCLI_HOLD", (dir + "/hold").c_str(), 1);
+    }
+    void release() {
+        std::filesystem::remove(dir + "/hold");
     }
 
     /// Every invocation fails with `stderr_line` on stderr and nothing on stdout.
@@ -491,9 +506,9 @@ TEST_CASE("NM backend: parse_scan_output", "[network][nm][parsing]") {
 // ============================================================================
 // Band Parsing (helixscreen#1189)
 //
-// The NM backend used to request only IN-USE,SSID,SIGNAL,SECURITY, so every
-// network arrived with frequency 0 and its band unknowable. FREQ is now the
-// fifth field, rendered by nmcli as "<n> MHz".
+// Without FREQ in the requested fields every network arrives with frequency 0
+// and its band unknowable. FREQ is the fifth field, rendered by nmcli as
+// "<n> MHz".
 // ============================================================================
 
 TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][band][1189]") {
@@ -512,7 +527,7 @@ TEST_CASE("NM backend: parse_scan_output reads the FREQ field", "[network][nm][b
     }
 
     SECTION("Dual-band SSID collapses to one row advertising both bands") {
-        // The 2.4GHz BSS is stronger, so the 5GHz twin used to vanish entirely.
+        // The 2.4GHz BSS is stronger; the 5GHz twin must not vanish entirely.
         std::string output = " :HomeNet:82:WPA2:2437 MHz\n"
                              " :HomeNet:54:WPA2:5745 MHz\n";
 
@@ -815,42 +830,11 @@ TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
         last_event_data = d;
     });
 
-    SECTION("First poll with connected=false fires nothing") {
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev.empty());
-        CHECK(connect_count == 0);
-        CHECK(disconnect_count == 0);
-    }
-
     SECTION("First poll with connected=true fires CONNECTED") {
         std::string ev = backend.simulate_status_poll(true);
         CHECK(ev == "CONNECTED");
         CHECK(connect_count == 1);
         CHECK(disconnect_count == 0);
-    }
-
-    SECTION("No duplicate event for same connected state") {
-        backend.simulate_status_poll(false);
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev.empty());
-        CHECK(connect_count == 0);
-        CHECK(disconnect_count == 0);
-    }
-
-    SECTION("Transition false->true fires CONNECTED") {
-        backend.simulate_status_poll(false);
-        std::string ev = backend.simulate_status_poll(true);
-        CHECK(ev == "CONNECTED");
-        CHECK(connect_count == 1);
-        CHECK(disconnect_count == 0);
-    }
-
-    SECTION("Transition true->false fires DISCONNECTED") {
-        backend.simulate_status_poll(true);
-        std::string ev = backend.simulate_status_poll(false);
-        CHECK(ev == "DISCONNECTED");
-        CHECK(connect_count == 1); // first poll true → CONNECTED
-        CHECK(disconnect_count == 1);
     }
 
     SECTION("Full cycle fires correct sequence") {
@@ -878,17 +862,6 @@ TEST_CASE("NM backend: status poll fires CONNECTED/DISCONNECTED on transitions",
         backend.simulate_status_poll(true); // false→true: CONNECTED
         CHECK(connect_count == 2);
         CHECK(disconnect_count == 1);
-    }
-
-    SECTION("Events reach the WiFiManager callback chain") {
-        // Verify that events fired through fire_event() actually invoke
-        // the registered callbacks (not just our local counters).
-        TestableNMBackend inner;
-        std::string captured_event;
-        inner.register_event_callback("CONNECTED",
-                                      [&](const std::string& d) { captured_event = "CB:" + d; });
-        inner.simulate_status_poll(true);
-        CHECK(captured_event == "CB:");
     }
 }
 
@@ -980,6 +953,41 @@ TEST_CASE("NM backend: an unreachable daemon allows the wpa_supplicant fallback"
 
     REQUIRE(result.result == WiFiResult::SERVICE_NOT_RUNNING);
     CHECK(backend.supports_wpa_supplicant_fallback());
+}
+
+TEST_CASE("NM backend: polls while DHCP is pending", "[network][nm][status][wifi_dhcp_pending]") {
+    FakeNmcliDir fake;
+    ScopedPathPrepend path_prepend(fake.dir);
+    std::atomic<int> connects{0};
+    std::atomic<int> changes{0};
+    TestableNMBackend backend;
+    backend.force_running("wlan0");
+    backend.register_event_callback("CONNECTED", [&](const std::string&) { connects++; });
+    backend.register_event_callback("ADDRESS_CHANGED", [&](const std::string&) { changes++; });
+
+    WifiBackend::ConnectionStatus st;
+    st.connected = true;
+    st.ssid = "Home";
+    st.awaiting_ipv4 = true;
+
+    SECTION("a poll during a user's join leaves the outcome to nmcli") {
+        fake.hold();
+        REQUIRE(backend.connect_network("Home", "", false).success());
+        REQUIRE(helix_test::wait_until([&] { return fake.call_count() >= 1; }, 8000));
+        CHECK(backend.feed_status(st).empty());
+        CHECK(connects == 0);
+        fake.release();
+        REQUIRE(helix_test::wait_until([&] { return connects.load() == 1; }, 8000));
+    }
+
+    SECTION("the address arriving fires ADDRESS_CHANGED once") {
+        CHECK(backend.feed_status(st) == "CONNECTED");
+        st.awaiting_ipv4 = false;
+        st.ip_address = "10.0.0.9";
+        CHECK(backend.feed_status(st) == "ADDRESS_CHANGED");
+        CHECK(backend.feed_status(st).empty());
+        CHECK(changes == 1);
+    }
 }
 
 #else

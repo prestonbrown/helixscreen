@@ -6,6 +6,9 @@
 #include "ethernet_backend.h"
 
 #include <atomic>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
 #include <string>
 
 /**
@@ -34,13 +37,35 @@ class EthernetBackendMock : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
+    /// Fires after each set_connected_state() that changes the link.
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override;
+
+    /// In memory, one config for the process (helix::net::mock_ipv4_store).
+    /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
+    bool supports_ipv4_config() const override {
+        return true;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).get(out);
+    }
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config&,
+                                               helix::net::Ipv4Snapshot& out) override {
+        out = helix::net::mock_ipv4_snapshot(helix::net::Ipv4Link::Ethernet);
+        return helix::net::Ipv4Result::success();
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot&,
+                                             const helix::net::Ipv4Config& config) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Ethernet).apply(config);
+    }
 
     /// Test helper — drive connected state directly, mirroring
     /// WifiBackendMock::set_connected_state. The interface itself stays
     /// present (has_interface() is a hardware-presence question, not a link
     /// one); only get_info()'s connected/status reflect this.
     void set_connected_state(bool connected) {
-        connected_ = connected;
+        if (connected_.exchange(connected) != connected) {
+            ++*link_generation_;
+        }
     }
 
     /// Test helper — the link state mocks constructed from now on start with,
@@ -49,9 +74,21 @@ class EthernetBackendMock : public EthernetBackend {
         default_connected_ = connected;
     }
 
+    /// Test helpers: the next get_info() takes its answer, then waits for
+    /// release, so a probe can be kept outstanding on its worker.
+    void hold_next_info();
+    void release_held_info();
+
   private:
+    std::mutex hold_mutex_;
+    std::condition_variable hold_cv_;
+    bool hold_next_info_{false};
+    bool info_held_{false};
     std::string real_mac_; ///< Real MAC from system for realistic demo display
     static inline bool default_connected_ = true;
     /// Set by tests on the main thread, read by get_info() on executor threads.
     std::atomic<bool> connected_{default_connected_};
+    /// Bumped on each link change; shared so an event feed may outlive us.
+    std::shared_ptr<std::atomic<unsigned>> link_generation_ =
+        std::make_shared<std::atomic<unsigned>>(0);
 };

@@ -19,11 +19,11 @@
 // The test is tagged [.ui_integration] (hidden by default) because it needs
 // the XML component tree on disk. Run explicitly via the [stress] tag.
 
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "wizard_step.h"
 

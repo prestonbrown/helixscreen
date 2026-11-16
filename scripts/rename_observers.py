@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Rewrite the retired observer_factory.h names onto observe<V>(...).
+"""Rewrite the retired core/observer_factory.h names onto observe<V>(...).
 
     observe_int_sync<P>(a)          -> observe<int>(a)
     observe_string<P>(a)            -> observe<const char*>(a)
@@ -48,8 +48,8 @@ SKIP_PREFIXES = (
     "tests/shell/",
     "scripts/rename_observers.py",
     "scripts/CLAUDE.md",
-    "include/observer_factory.h",
-    "src/ui/observer_factory.cpp",
+    "include/core/observer_factory.h",
+    "src/core/observer_factory.cpp",
 )
 
 NAME_RE = re.compile(

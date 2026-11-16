@@ -21,13 +21,13 @@ on top of somebody's content.
 | Path | Role |
 |------|------|
 | `include/page_scroll_math.h` | Pure paging math. No LVGL state, trivially testable |
-| `include/page_scroll_controller.h` + `src/ui/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
-| `include/page_scroll_auto_inject.h` + `src/ui/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
+| `include/page_scroll_controller.h` + `src/ui/home/page_scroll_controller.cpp` | One controller per managed container. Owns the gutter, the reserved padding, and the scroll wiring |
+| `include/page_scroll_auto_inject.h` + `src/ui/home/page_scroll_auto_inject.cpp` | The policy. Walks a shown root and decides what gets a controller |
 | `ui_xml/components/page_scroll_gutter.xml` | The chevron column itself. Created by the controller, never placed in screen XML |
-| `src/system/display_settings_manager.cpp#init_subjects` | The setting and its per-platform default |
+| `src/system/display_settings_manager.cpp` (`kPageScrollDefault`) | The setting and its per-platform default |
 
-Both the component registration and the `PageScrollAutoInject::init()` call happen
-in `src/xml_registration.cpp#register_xml_components`. Teardown is
+The gutter component registers on first use, like every other component. The
+`PageScrollAutoInject::init()` call is in `src/xml_registration.cpp#register_xml_components`. Teardown is
 `src/application/printer_session.cpp#teardown_printer_scope`.
 
 ---
@@ -39,19 +39,20 @@ Config key `/display/page_scroll_buttons`, subject
 `DisplaySettingsManager::get_page_scroll_buttons()` / `set_page_scroll_buttons()`.
 
 ```cpp
-// src/system/display_settings_manager.cpp:234-248
+// src/system/display_settings_manager.cpp
 #if defined(ESP_PLATFORM)
-    constexpr bool page_scroll_default = true;
+static constexpr int kPageScrollDefault = 1;
 #else
-    constexpr bool page_scroll_default = false;
+static constexpr int kPageScrollDefault = 0;
 #endif
 ```
 
 That split is why an ESP32-only layout bug in this feature can sit unnoticed on
 every other platform. If you change anything here, reason about ESP32 first.
 
-The user toggle lives in Display settings and drives
-`PageScrollAutoInject::on_setting_toggled()` directly from its callback. It is
+The user toggle lives in Touch settings (`ui_xml/settings_touch_overlay.xml`,
+callback `on_page_scroll_buttons_changed` in `src/ui/settings/ui_settings_touch.cpp`) and drives
+`PageScrollAutoInject::on_setting_toggled()` directly from that callback. It is
 deliberately **not** a subject observer, and the rationale is in
 `PageScrollAutoInject::init()`: the settings subject is re-initialised lazily
 when the Settings panel is first built, which is after `init()` runs, and that
@@ -70,7 +71,7 @@ activate), `src/ui/ui_nav_manager.cpp#activate_initial_panel` (initial panel) an
 the setting live, prunes dead controllers, forces a layout pass so overflow is
 measurable, then walks.
 
-A container qualifies when all three hold (`src/ui/page_scroll_auto_inject.cpp#qualifies`):
+A container qualifies when all three hold (`src/ui/home/page_scroll_auto_inject.cpp#qualifies`):
 
 | Condition | Why |
 |---|---|
@@ -103,16 +104,16 @@ separated by a `#space_2xl` gap, in a `#button_height`-wide column:
 172px of chevrons inside a tile on a 480px-tall screen is most of the tile.
 
 The cut is a **subtree** cut, not a "is this tile scrollable" test, and that
-distinction is load-bearing. 38 of the 41 `panel_widget_*.xml` roots already set
-`scrollable="false"`, and two more (the camera and print-status tiles) inherit the clear from
-`ui_card` (`src/ui/ui_card.cpp#ui_card_xml_create`) - the nozzle-temps root alone sets
-`scrollable="true"`. So testing the tile root would find almost nothing -
-the walk was sailing straight through those innocent-looking roots and
-attaching to whatever was scrollable inside. Marking the root and returning
+distinction is load-bearing. 50 of the 52 `panel_widget_*.xml` roots set
+`scrollable="false"`, the camera tile inherits the clear from `ui_card`
+(`src/ui/components/ui_card.cpp#ui_card_xml_create`), and the nozzle-temps root alone sets
+`scrollable="true"`. So testing the tile root would find almost nothing, and
+the walk would go straight through those roots and attach to whatever is
+scrollable inside. Marking the root and returning
 there is what actually stops it.
 
 Tiles are marked at the single place one is created,
-`src/ui/panel_widget_manager.cpp`, right after `lv_obj_set_name()`. There is no
+`src/ui/home/panel_widget_manager.cpp`, right after `lv_obj_set_name()`. There is no
 second path: the widget pool recycles `PanelWidget` C++ instances, not LVGL
 objects, and the object tree is always cleaned and rebuilt.
 
@@ -126,24 +127,24 @@ needs paging, add a narrow opt-back-in rather than removing the cut.
 
 ## How a gutter behaves once attached
 
-The controller (`src/ui/page_scroll_controller.cpp`) creates the gutter as a
-child of the container it manages (`src/ui/page_scroll_controller.cpp#attach`) and positions it with
+The controller (`src/ui/home/page_scroll_controller.cpp`) creates the gutter as a
+child of the container it manages (`src/ui/home/page_scroll_controller.cpp#attach`) and positions it with
 `floating="true" align="right_mid"`, so it neither participates in the parent's
 flex or grid layout nor scrolls with the content.
 
 To keep the chevrons off the content,
-`apply_reserved_padding()` (`src/ui/page_scroll_controller.cpp#apply_reserved_padding`)
+`apply_reserved_padding()` (`src/ui/home/page_scroll_controller.cpp#apply_reserved_padding`)
 grows the container's `pad_right` by the gutter width and translates the gutter
 back out over the strip it just freed. The original `pad_right` and scrollbar
-mode are saved at attach (`src/ui/page_scroll_controller.cpp#attach`) and
-restored on detach (`src/ui/page_scroll_controller.cpp#detach`).
+mode are saved at attach (`src/ui/home/page_scroll_controller.cpp#attach`) and
+restored on detach (`src/ui/home/page_scroll_controller.cpp#detach`).
 
-`refresh_reach_state()` (`src/ui/page_scroll_controller.cpp#refresh_reach_state`)
+`refresh_reach_state()` (`src/ui/home/page_scroll_controller.cpp#refresh_reach_state`)
 runs on scroll and resize: it hides the
 gutter and drops the padding when content fits, and otherwise disables the up or
 down chevron at each end. Paging is
 `lv_obj_scroll_by_bounded(container_, 0, -direction * step, anim)`
-(`src/ui/page_scroll_controller.cpp#scroll_by_page`),
+(`src/ui/home/page_scroll_controller.cpp#scroll_by_page`),
 where `step` is `page_scroll_step()` - 90% of the viewport, so a row overlaps
 between pages - and `anim` follows the Animations setting.
 
@@ -154,8 +155,8 @@ between pages - and `anim` follows the Animations setting.
 > child is positioned before assuming the walk is at fault.
 
 Z-order is implicit from child index. The gutter is appended at attach time, so
-anything added to the container afterwards draws over it. Nothing calls
-`lv_obj_move_foreground()` anywhere in the feature.
+anything added to the container afterwards draws over it. Nothing reorders
+it with `lv_obj_move_to_index()` anywhere in the feature.
 
 ---
 
@@ -163,8 +164,8 @@ anything added to the container afterwards draws over it. Nothing calls
 
 The controller watches `LV_EVENT_DELETE` on both the container and the gutter.
 The gutter watch exists because `lv_obj_clean()` on a surviving container
-destroys the gutter without firing the container's own delete, which dangled
-`gutter_` into `refresh_reach_state()` (#1123).
+destroys the gutter without firing the container's own delete; without it
+`gutter_` would dangle into `refresh_reach_state()` (#1123).
 
 `walk_and_attach()` erases a controller from the map synchronously inside its
 own deleted-callback. That is safe only because the controller nulls
@@ -205,7 +206,6 @@ your time otherwise:
 |------|--------|
 | `tests/unit/test_page_scroll_math.cpp` | the pure paging step and reach computation |
 | `tests/unit/test_page_scroll_setting.cpp` | the setting round-trips |
-| `tests/unit/test_page_scroll_gutter_component.cpp` | the XML component builds with named up/down buttons |
 | `tests/unit/test_page_scroll_controller.cpp` | attach, padding restore, end-disabling, last-page clamp, container deletion |
 | `tests/unit/test_page_scroll_auto_inject.cpp` | the policy: what qualifies, nesting, the tile cut |
 
@@ -223,7 +223,7 @@ wanted gone.
 
 ## Related Documentation
 
-- [chapter 09 — Home panel widgets](architecture/09-home-widgets.md) - Panel Widget System, including the
+- [chapter 09 - Home panel widgets](architecture/09-home-widgets.md) - Panel Widget System, including the
   `LV_OBJ_FLAG_USER_*` ledger that `kPanelWidgetTileFlag` is part of
 - [LAYOUT_SYSTEM.md](LAYOUT_SYSTEM.md) - the home widget grid that sizes tiles
 - [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md) - `lv_obj` defaults, and why

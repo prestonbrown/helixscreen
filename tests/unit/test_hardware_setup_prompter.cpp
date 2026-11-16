@@ -16,20 +16,23 @@
 #include "ui_modal.h"
 #include "ui_panel_notification_history.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/hardware_setup_prompter_test_access.h"
 #include "../test_helpers/notification_history_panel_test_access.h"
 #include "../test_helpers/scoped_config_write_counter.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "hardware_setup_prompter.h"
+#include "printer_detector.h"
+#include "printer_discovery.h"
 #include "wizard_config_paths.h"
 
 #include <memory>
@@ -189,6 +192,7 @@ class TypeMismatchFixture : public LVGLUITestFixture {
         saved_data_ = helix::ConfigTestAccess::data(*cfg_);
         set_config(helix::wizard::PRINTER_TYPE, SAVED);
         set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "");
+        set_config(helix::wizard::kTypeMismatchShownForDetected, "");
 
         helix::ui::set_test_toast_hook([this](ToastSeverity sev, const std::string& msg,
                                               uint32_t ms) { toast_ = ToastSeen{sev, msg, ms}; });
@@ -219,6 +223,10 @@ class TypeMismatchFixture : public LVGLUITestFixture {
     std::string dismissed_for() const {
         return cfg_->get<std::string>(cfg_->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "");
     }
+    std::string dismissed_for_detected() const {
+        return cfg_->get<std::string>(cfg_->df() + helix::wizard::kTypeMismatchShownForDetected,
+                                      "");
+    }
 
     void warn() {
         HardwareSetupPrompterTestAccess::warn_type_mismatch(*prompter_, DETECTED, 92, SAVED);
@@ -240,19 +248,8 @@ class TypeMismatchFixture : public LVGLUITestFixture {
         drain();
     }
 
-    /// Timers holding @p owner that can still fire.
-    static int armed_timers_for(const void* owner) {
-        int armed = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (t->user_data == owner && t->timer_cb && t->repeat_count != 0) {
-                ++armed;
-            }
-        }
-        return armed;
-    }
-
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::Config* cfg_ = nullptr;
@@ -289,6 +286,40 @@ TEST_CASE_METHOD(TypeMismatchFixture,
 
     // Warning is not answering: nothing is settled yet.
     CHECK(dismissed_for().empty());
+}
+
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: an ambiguous detection warns about the saved machine's contender",
+                 "[type-mismatch][hardware_setup][mismatch_subject]") {
+    ScopedRuntimeConfig runtime_config;
+    get_runtime_config()->test_mode = false;
+    cfg_->set<bool>(cfg_->df() + "wizard_completed", true);
+    cfg_->set<bool>("/wizard_completed", true);
+
+    // A K2 on k2-improvements that declares no bed ties the Plus and Pro mod entries.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"extruder", "heater_bed", "motor_control", "fan_feedback", "load_ai",
+                               "gcode_macro _START_PRINT_VARS", "gcode_macro START_PRINT"}));
+    hw.set_hostname("k2plus");
+    hw.set_kinematics("corexy");
+    REQUIRE(PrinterDetector::auto_detect(hw).ambiguous());
+
+    // Whichever entry detection ranks first, one of these two saved models is the other one.
+    const bool saved_plus = GENERATE(false, true);
+    const std::string saved = saved_plus ? "Creality K2 Plus" : "Creality K2 Pro";
+    const std::string other_model = saved_plus ? "Creality K2 Pro" : "Creality K2 Plus";
+    set_config(helix::wizard::PRINTER_TYPE, saved);
+
+    REQUIRE(prompter_->run_discovery_prompts(hw, true, false, false) ==
+            helix::HardwarePrompt::TypeMismatch);
+    drain();
+
+    REQUIRE(toast_.has_value());
+    INFO(toast_->message);
+    CHECK(toast_->message.find("k2-improvements") != std::string::npos);
+    CHECK(toast_->message.find(saved) != std::string::npos);
+    CHECK(toast_->message.find(other_model) == std::string::npos);
 }
 
 TEST_CASE_METHOD(TypeMismatchFixture,
@@ -341,6 +372,8 @@ TEST_CASE_METHOD(TypeMismatchFixture,
 
     CHECK(Modal::get_top() == nullptr);
     CHECK(dismissed_for() == SAVED);
+    // The answer is for this pair only (prestonbrown/helixscreen#2075).
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(writes_.writes() > 0);
     // Answered, so the sticky toast goes too.
     CHECK(helix::ui::last_action_toast_dismissed());
@@ -359,6 +392,7 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     click(dialog, "btn_primary");
 
     CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(helix::ui::last_action_toast_dismissed());
 }
 
@@ -409,6 +443,7 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps th
     drain();
 
     CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
     CHECK(writes_.writes() > 0);
     CHECK(helix::ui::last_action_toast_dismissed());
 }
@@ -501,8 +536,9 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
         // The type was changed some other way since the warning.
         set_config(helix::wizard::PRINTER_TYPE, "Creality K1");
     } else if (stale == 1) {
-        // Already answered for this saved type.
+        // Already answered for this saved and detected pair.
         set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, SAVED);
+        set_config(helix::wizard::kTypeMismatchShownForDetected, DETECTED);
     } else {
         // Switched to another printer.
         prompter_->reset_for_new_connection();
@@ -513,6 +549,91 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale Review shows nothi
     REQUIRE(helix::ui::fire_last_toast_action());
     drain();
     CHECK(Modal::get_top() == nullptr);
+}
+
+// A type chosen in Settings or Printer Manager spends the warning: the sticky
+// toast must not stay up saying "set up as stock" over the type the user just
+// picked (prestonbrown/helixscreen#2087).
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: a type changed elsewhere takes the warning's toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    SECTION("re-applying the same type leaves it up") {
+        state().set_printer_type_sync(SAVED);
+        drain();
+        CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+    }
+    SECTION("a different saved type takes it down, and settles nothing") {
+        set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+        state().set_printer_type_sync(DETECTED);
+        drain();
+        CHECK(helix::ui::last_action_toast_dismissed());
+        CHECK(dismissed_for().empty());
+
+        // The Review that was armed with it is spent as well.
+        tap_history_entry();
+        CHECK(Modal::get_top() == nullptr);
+    }
+}
+
+// A printer switch rebuilds PrinterState's subjects. The warning raised on the
+// next printer must still come down when its type is fixed elsewhere.
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: after a printer switch a type change still takes the toast down",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    warn();
+    REQUIRE(toast_.has_value());
+
+    state().deinit_subjects();
+    state().init_subjects(true);
+    prompter_->reset_for_new_connection();
+    state().set_printer_type_sync(SAVED);
+    drain();
+
+    toast_.reset();
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE_FALSE(helix::ui::last_action_toast_dismissed());
+
+    set_config(helix::wizard::PRINTER_TYPE, DETECTED);
+    state().set_printer_type_sync(DETECTED);
+    drain();
+    CHECK(helix::ui::last_action_toast_dismissed());
+}
+
+// `ctl demo type-mismatch-*` names a saved type the config does not hold. Its
+// toast must stay up for the screenshot it exists to take.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: the demo keeps its own toast up",
+                 "[type-mismatch][hardware_setup][2087]") {
+    state().set_printer_type_sync(SAVED);
+    drain();
+    prompter_->show_type_mismatch_demo(DETECTED, 92, "Not The Configured Printer", false);
+    drain();
+    REQUIRE(toast_.has_value());
+    CHECK_FALSE(helix::ui::last_action_toast_dismissed());
+}
+
+// An answer for the saved type against an earlier detection does not spend a
+// warning about a different detected type (prestonbrown/helixscreen#2075).
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: an answer for another detection leaves the Review live",
+                 "[type-mismatch][hardware_setup][2075]") {
+    set_config(helix::wizard::TYPE_MISMATCH_SHOWN_FOR, SAVED);
+    set_config(helix::wizard::kTypeMismatchShownForDetected, "Prusa MK4");
+    warn();
+
+    tap_history_entry();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    click(dialog, "btn_secondary");
+    CHECK(dismissed_for() == SAVED);
+    CHECK(dismissed_for_detected() == DETECTED);
 }
 
 TEST_CASE_METHOD(TypeMismatchFixture,
@@ -567,7 +688,7 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     click(dialog, "btn_primary");
 
     const void* owner = prompter_.get();
-    REQUIRE(armed_timers_for(owner) == 1);
+    REQUIRE(helix::test::armed_timer_count(owner) == 1);
     prompter_.reset();
-    CHECK(armed_timers_for(owner) == 0);
+    CHECK(helix::test::armed_timer_count(owner) == 0);
 }

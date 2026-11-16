@@ -94,10 +94,8 @@ bed_mesh_renderer_t* bed_mesh_renderer_create(void) {
         return nullptr;
     }
 
-    // Initialize state machine
     renderer->state = RendererState::UNINITIALIZED;
 
-    // Initialize mesh data
     renderer->rows = 0;
     renderer->cols = 0;
     renderer->mesh_min_z = 0.0;
@@ -121,7 +119,6 @@ bed_mesh_renderer_t* bed_mesh_renderer_create(void) {
     renderer->mesh_area_max_y = 0.0;
     renderer->has_mesh_bounds = false;
 
-    // Initialize computed geometry parameters
     renderer->bed_center_x = 0.0;
     renderer->bed_center_y = 0.0;
     renderer->coord_scale = 1.0;
@@ -180,7 +177,6 @@ bool bed_mesh_renderer_set_mesh_data(bed_mesh_renderer_t* renderer, const float*
 
     spdlog::debug("[Bed Mesh Renderer] Setting mesh data: {}x{} points", rows, cols);
 
-    // Allocate storage
     renderer->mesh.clear();
     renderer->mesh.resize(static_cast<size_t>(rows));
     for (int row = 0; row < rows; row++) {
@@ -196,10 +192,8 @@ bool bed_mesh_renderer_set_mesh_data(bed_mesh_renderer_t* renderer, const float*
     renderer->has_mesh_data = true;
     helix::MemoryMonitor::log_now("bed_mesh_data_set");
 
-    // Compute bounds
     compute_mesh_bounds(renderer);
 
-    // If auto color range, update it
     if (renderer->auto_color_range) {
         renderer->color_min_z = renderer->mesh_min_z;
         renderer->color_max_z = renderer->mesh_max_z;
@@ -226,8 +220,8 @@ bool bed_mesh_renderer_set_mesh_data(bed_mesh_renderer_t* renderer, const float*
         "[Bed Mesh Renderer] Camera distance: {:.1f} (mesh_diagonal={:.1f}, perspective={:.2f})",
         renderer->view_state.camera_distance, mesh_diagonal, BED_MESH_PERSPECTIVE_STRENGTH);
 
-    // Pre-generate geometry quads (constant for this mesh data)
-    // Previously regenerated every frame (wasteful!) - now only on data change
+    // Pre-generate geometry quads: constant for this mesh data, so they are
+    // regenerated only on a data change, never per frame
     spdlog::debug("[MESH_DATA] Initial quad generation with z_scale={:.2f}",
                   renderer->view_state.z_scale);
     helix::mesh::generate_mesh_quads(renderer);
@@ -313,7 +307,7 @@ void bed_mesh_renderer_set_bounds(bed_mesh_renderer_t* renderer, double bed_x_mi
     renderer->bed_center_y = (bed_y_min + bed_y_max) / 2.0;
 
     // Compute scale factor: normalize larger bed dimension to target world size
-    // Target world size matches the old BED_MESH_SCALE-based sizing (~200 world units)
+    // Target world size matches the BED_MESH_SCALE-based index sizing (~200 world units)
     constexpr double kTargetWorldSize = 200.0;
     double bed_size_x = bed_x_max - bed_x_min;
     double bed_size_y = bed_y_max - bed_y_min;
@@ -374,7 +368,6 @@ bool bed_mesh_renderer_render_to_buffer(bed_mesh_renderer_t* renderer,
         return false;
     }
 
-    // State validation
     if (renderer->state == RendererState::UNINITIALIZED) {
         spdlog::debug("[Bed Mesh Renderer] render_to_buffer: no mesh data (UNINITIALIZED)");
         return false;
@@ -451,15 +444,12 @@ bool bed_mesh_renderer_render_to_buffer(bed_mesh_renderer_t* renderer,
                   ms_total, ms_prepare, ms_surface, ms_decorations,
                   calculate_average_fps(renderer));
 
-    // State transition
     if (renderer->state == RendererState::MESH_LOADED) {
         renderer->state = RendererState::READY_TO_RENDER;
     }
 
     return true;
 }
-
-// Helper function implementations
 
 static void compute_mesh_bounds(bed_mesh_renderer_t* renderer) {
     if (!renderer || !renderer->has_mesh_data) {
@@ -489,7 +479,6 @@ static double compute_dynamic_z_scale(double z_range) {
     // Compute scale to amplify Z range to target height
     double z_scale = BED_MESH_DEFAULT_Z_TARGET_HEIGHT / z_range;
 
-    // Clamp to valid range
     z_scale = std::max(BED_MESH_MIN_Z_SCALE, std::min(BED_MESH_MAX_Z_SCALE, z_scale));
 
     return z_scale;
@@ -573,7 +562,7 @@ static void project_and_cache_vertices(bed_mesh_renderer_t* renderer, int canvas
                 world_y = helix::mesh::printer_y_to_world_y(printer_y, renderer->bed_center_y,
                                                             renderer->coord_scale);
             } else {
-                // Legacy: Index-based coordinates
+                // Bed geometry not computed: index-based coordinates
                 world_x = helix::mesh::mesh_col_to_world_x(col, renderer->cols, BED_MESH_SCALE);
                 world_y = helix::mesh::mesh_row_to_world_y(row, renderer->rows, BED_MESH_SCALE);
             }
@@ -606,8 +595,8 @@ static void project_and_cache_vertices(bed_mesh_renderer_t* renderer, int canvas
  * @brief Project all quad vertices to screen space and cache results
  *
  * Computes screen coordinates and depths for all vertices of all quads in a single pass.
- * This eliminates redundant projections - previously each quad was projected 3 times:
- * once for depth sorting, once for bounds tracking, and once during rendering.
+ * Depth sorting, bounds tracking and rendering all read this cache, so each quad
+ * is projected once per view change instead of three times.
  *
  * Must be called whenever view state changes (rotation, FOV, centering offset).
  *
@@ -761,7 +750,6 @@ static void calibrate_fov_scale(bed_mesh_renderer_t* renderer, int canvas_width,
     // Project all mesh vertices with initial scale to get actual bounds
     project_and_cache_vertices(renderer, canvas_width, canvas_height);
 
-    // Compute actual projected bounds using helper function
     int min_x, max_x, min_y, max_y;
     compute_projected_mesh_bounds(renderer, &min_x, &max_x, &min_y, &max_y);
 
@@ -844,7 +832,6 @@ static void compute_initial_centering(bed_mesh_renderer_t* renderer, int canvas_
     int inner_min_x, inner_max_x, inner_min_y, inner_max_y;
     compute_projected_mesh_bounds(renderer, &inner_min_x, &inner_max_x, &inner_min_y, &inner_max_y);
 
-    // Calculate centering offset using helper function
     compute_centering_offset(inner_min_x, inner_max_x, inner_min_y, inner_max_y, layer_offset_x,
                              layer_offset_y, canvas_width, canvas_height,
                              &renderer->view_state.center_offset_x,
@@ -882,7 +869,6 @@ static void prepare_render_frame(bed_mesh_renderer_t* renderer, int canvas_width
         new_z_scale = compute_dynamic_z_scale(z_range);
     }
 
-    // Only regenerate quads if z_scale changed
     if (renderer->view_state.z_scale != new_z_scale) {
         spdlog::debug(
             "[Bed Mesh Renderer] [Z_SCALE] Changing z_scale from {:.2f} to {:.2f} (z_range={:.4f})",

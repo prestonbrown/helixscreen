@@ -6,13 +6,12 @@
 // plate position, Park, a Z step, or a macro. Stored in the widget's per-instance config;
 // the parse is non-throwing and falls back to the defaults.
 
+#include "json_fwd.h"
 #include "motion_presets.h"
 
 #include <array>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

@@ -3,12 +3,10 @@
 // Home widgets on nozzles that share one heater (Bondtech INDX): only the
 // mounted nozzle reads the heater, and the one nozzle row is named after it.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/nozzle_temps_test_access.h"
 #include "../test_helpers/tool_switcher_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -29,7 +27,7 @@ namespace {
 struct SharedHeaterWidgetFixture : LVGLUITestFixture {
     ~SharedHeaterWidgetFixture() override {
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
     }
 
     /// Four nozzles on the one `extruder`, @p active mounted (-1 none).
@@ -53,7 +51,7 @@ struct SharedHeaterWidgetFixture : LVGLUITestFixture {
         topo.tool_extruder = {"extruder", "extruder", "extruder", "extruder"};
         topo.heads_share_heater = true;
         ToolState::instance().set_ams_topology(topo);
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
     }
 
     lv_obj_t* make_tile(const char* component) {
@@ -72,7 +70,7 @@ TEST_CASE_METHOD(SharedHeaterWidgetFixture,
     ToolSwitcherWidget widget(state());
     widget.attach(make_tile("panel_widget_tool_switcher"), test_screen());
     state().update_from_status(nlohmann::json{{"extruder", {{"temperature", 215.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(ToolSwitcherTestAccess::head_temp_text(widget, 2).empty());
     CHECK(ToolSwitcherTestAccess::head_hot(widget, 2));
@@ -89,7 +87,7 @@ TEST_CASE_METHOD(SharedHeaterWidgetFixture, "Nozzle temps: the one row follows t
     seed(2);
     NozzleTempsWidget widget(state());
     widget.attach(make_tile("panel_widget_nozzle_temps"), test_screen());
-    helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     REQUIRE(NozzleTempsTestAccess::row_count(widget) == 1);
     CHECK(NozzleTempsTestAccess::row_long_name(widget, 0) == "Nozzle 3");
     CHECK(NozzleTempsTestAccess::row_short_name(widget, 0) == "Tool 3");

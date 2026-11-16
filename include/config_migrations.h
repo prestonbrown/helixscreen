@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /// Shared between config.cpp and config_migrations.cpp only. Everything else
 /// reaches config through Config.

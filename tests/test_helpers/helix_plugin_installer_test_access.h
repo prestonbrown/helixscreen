@@ -23,6 +23,7 @@ struct HelixPluginInstallerTestAccess {
     /// A new session: the install prompt may open again.
     static void reset_prompt_session() {
         HelixPluginInstaller::prompt_settled_for_session_ = false;
+        HelixPluginInstaller::snooze_checked_this_start_ = false;
     }
 };
 

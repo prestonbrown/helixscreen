@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "macro_params.h"
 
 #include <cstdint>
@@ -13,8 +14,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

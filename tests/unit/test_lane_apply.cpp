@@ -143,7 +143,7 @@ TEST_CASE_METHOD(HelixTestFixture, "resolved_lane reflects what was ingested for
     sensed.present = true;
     helix::ams::ingest(helix::ams::lane_id_for(0, 0), sensed);
 
-    Observation cache(ObservationSource::VendorCache);
+    Observation cache(ObservationSource::Firmware);
     cache.color_rgb = 0xED2C2C;
     cache.material = "PETG";
     helix::ams::ingest(helix::ams::lane_id_for(0, 0), cache);

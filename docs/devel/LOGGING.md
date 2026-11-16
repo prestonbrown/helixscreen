@@ -12,6 +12,10 @@ This document defines the logging standards for HelixScreen. All new code should
 | **DEBUG** | `-vv` | Troubleshooting info | Component init summaries, state changes |
 | **TRACE** | `-vvv` | Wire-level details | Per-item loops, JSON-RPC protocol, observer plumbing |
 
+## Print Health Line
+
+During a print the main loop logs one `[PrintHealth]` line a minute at INFO: process and main-thread CPU as percent of one core, frames drawn per second and their mean render time, the frames that rendered longer than the 33 ms refresh period (`slow`), flushed screens per second (the refreshed area, `PERFORMANCE.md` § "Reading the UI's own counters"), RSS and peak RSS, available memory and free swap. Read it first when a report describes a stalled print or heavy host load (`src/application/print_health_log.cpp#format_print_health`).
+
 ## When to Use Each Level
 
 ### ERROR
@@ -199,7 +203,7 @@ The runtime target is set by precedence (highest → lowest):
    - **Other Linux** → `Syslog` (`syslog_sink_mt` via `libc syslog()`)
    - **macOS/other** → `Console` (`stdout_color_sink_mt`)
 
-Valid `LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`.
+`LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`. Only the first five pass `is_valid_log_target()` (the flag and the env var); `android` is chosen by detection.
 
 ### Per-Sink Log Patterns
 
@@ -396,7 +400,7 @@ Older installs wrote to `/tmp/helixscreen.log` on every SysV target. Debug bundl
 | `-vv` | DEBUG and above |
 | `-vvv` | TRACE and above |
 | `--log-level=trace\|debug\|info\|warn\|error\|critical\|off` | Explicit level (overrides `-v`) |
-| `--log-dest=auto\|journal\|syslog\|file\|console\|android` | Override destination |
+| `--log-dest=auto\|journal\|syslog\|file\|console` | Override destination (Android always logs to logcat) |
 | `--log-file=<path>` | Override path when `--log-dest=file` |
 
 ### Env / config
@@ -470,7 +474,7 @@ credentials, emails, MACs.
 
 ### IP addresses: private kept, routable tokenised
 
-`sanitize_value()` finishes by running `helix::redact::ips_in_text()` (`include/log_redact.h`),
+`sanitize_value()` finishes by running `helix::redact::ips_in_text()` (`include/core/log_redact.h`),
 the same helper the WiFi log call sites use, so the log path and the bundle path share one
 implementation. It keeps RFC1918, loopback, link-local, CGNAT and IPv6 ULA addresses verbatim —
 `192.168.1.50` is identical in millions of houses and is the whole diagnostic value of a

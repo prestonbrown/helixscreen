@@ -27,8 +27,8 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "test_fixtures.h"
 
@@ -157,7 +157,7 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "rebuild_active_views swaps active panel 
 
     // Reset NavigationManager subjects so the singleton doesn't hold dangling
     // observers into the test's LVGL display after teardown. Without this,
-    // global destructors end up calling lv_observer_remove on freed subjects
+    // global destructors end up calling lv_observer_delete on freed subjects
     // and segfault at process exit. Mirrors NavigationTestFixture's ~dtor.
     nav.deinit_subjects();
 }

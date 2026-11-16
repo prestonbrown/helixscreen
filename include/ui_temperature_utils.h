@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_heater_config.h"
-
+#include "heater_type.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
 #include "printer_temperature_state.h"
@@ -28,6 +27,14 @@
  * Use these for consistent temperature display across the UI:
  * - `format_temperature()` - Single temp: "210°C"
  * - `format_temperature_pair()` - Current/target: "210 / 245°C"
+ *
+ * Every formatter takes Celsius and prints in the user's display unit
+ * (core/temperature_units.h): "210°C" reads "410°F" with Fahrenheit on. The
+ * examples below show Celsius.
+ *
+ * Every current/target pair on screen reads "210 / 245°C" (spaced slash) and
+ * every unset value reads "—°C" (no space, like "245°C"). Build them with these
+ * functions rather than a format string of your own.
  *
  * ## Color-Coding Function
  *
@@ -235,9 +242,9 @@ char* format_temperature_pair(int current, int target, char* buffer, size_t buff
                               bool with_unit = true);
 
 /**
- * @brief Format a target temperature or "— °C" when off
+ * @brief Format a target temperature or "—°C" when off
  *
- * Formats as "245°C" when target > 0, or "— °C" when target is 0 (heater off).
+ * Formats as "245°C" when target > 0, or "—°C" when target <= 0 (heater off).
  *
  * @param target Target temperature in degrees (0 = heater off)
  * @param buffer Output buffer
@@ -251,6 +258,7 @@ char* format_target_or_off(int target, char* buffer, size_t buffer_size);
  *
  * Formats the bare number (no unit suffix) with one decimal place, dropping the
  * decimal when the integer portion is 3 digits or more (>= 100): "60.5", "211".
+ * The rule applies to the value in the display unit.
  * This is the shared rule behind format_temperature_f / format_temperature_pair_f;
  * widgets that render their own unit/label structure (e.g. a separate "°C" label)
  * call this directly so the decimal-drop behaviour stays consistent everywhere.
@@ -261,6 +269,10 @@ char* format_target_or_off(int target, char* buffer, size_t buffer_size);
  * @return Pointer to buffer for chaining convenience
  */
 char* format_temp_number(float temp, char* buffer, size_t buffer_size);
+
+/// format_temp_number()'s decimal rule on @p value as given, with no unit
+/// conversion: for a reading the user labelled with a unit of their own.
+char* format_number_compact(double value, char* buffer, size_t buffer_size);
 
 /**
  * @brief Format a temperature value with one decimal place
@@ -496,7 +508,7 @@ HeaterDisplayResult heater_display(int current_deci, int target_deci);
  */
 enum class HeaterStatusState {
     None,    ///< heater off, or nothing to say
-    Heating, ///< below target: flame glyph, duty in warning color
+    Heating, ///< below target: flame glyph and duty in the Heating state color
     Ready,   ///< at target (or chamber holding at/below its ceiling): check glyph
     Cooling, ///< above target (or above the chamber ceiling): snowflake glyph
     Auto     ///< chamber at/below its standing (resting) setpoint: circled-A glyph, the
@@ -523,11 +535,22 @@ enum class HeaterStatusState {
  */
 struct HeaterStatus {
     HeaterStatusState state;
-    std::string duty; ///< "", or "NN%"
+    std::string duty;                ///< "", or "NN%"
+    HeatState heat = HeatState::Off; ///< The classification itself, for get_heating_state_color()
 };
 
 HeaterStatus classify_heater_status(int current_deci, int target_deci, int power_pct,
                                     helix::ChamberMode mode = helix::ChamberMode::Heating);
+
+/** Whether a heater lights its region of the printer picture: only while climbing to target. */
+inline bool heater_region_glows(HeatState state) {
+    return state == HeatState::Heating;
+}
+
+/** Whether a heater reads away from its target, so its chip outlines in the state color. */
+inline bool heater_off_target(HeatState state) {
+    return state == HeatState::Heating || state == HeatState::Cooling;
+}
 
 // ============================================================================
 // Heater GCode

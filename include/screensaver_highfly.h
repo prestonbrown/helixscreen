@@ -16,6 +16,11 @@
 
 namespace helix::ui {
 
+/// High Fly's text block and AM/PM: while the numerals count down (highfly_counts_down()), the
+/// print's first line and the time of day, with no AM/PM since the numerals are not a time;
+/// clock_lines() otherwise.
+ClockLines highfly_clock_lines(const ClockReading& reading);
+
 /**
  * @brief High Fly: over a sunlit cloud deck with a thin clock at the cloud line
  *
@@ -43,6 +48,7 @@ class HighFlyScreensaver : public ClockSaver<HighFlySim> {
     SaverLabel date_line_;
     SaverLabel day_line_;
     SaverLabel meridiem_;
+    ClockTextCache lines_{highfly_clock_lines, true};
 };
 
 } // namespace helix::ui

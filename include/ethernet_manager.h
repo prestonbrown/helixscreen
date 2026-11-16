@@ -3,11 +3,15 @@
 
 #pragma once
 
+#include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "ethernet_backend.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 /**
  * @brief Ethernet Manager - High-level interface for Ethernet status queries
@@ -47,6 +51,9 @@ class EthernetManager {
      * - Fallback: EthernetBackendMock (if no interface found)
      */
     EthernetManager();
+
+    /// Use @p backend instead of the platform's (a mock, in tests).
+    explicit EthernetManager(std::shared_ptr<EthernetBackend> backend);
 
     /**
      * @brief Destructor - ensures clean shutdown
@@ -107,9 +114,86 @@ class EthernetManager {
      */
     std::string get_ip_address();
 
+    /// Whether the backend can persist a static IPv4 config
+    /// (helix::net::Ipv4Configurable::supports_ipv4_config()).
+    bool supports_ipv4_config();
+
+    /**
+     * @brief Read the interface's IPv4 config on an HTTP fast-lane worker
+     *
+     * @p on_done(ok, config) runs on the LVGL thread while @p token lives. A
+     * backend without support answers at once with ok false.
+     */
+    void get_ipv4_config_async(
+        helix::LifetimeToken token,
+        helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
+
+    /**
+     * @brief On an HTTP fast-lane worker, apply @p next through helix::net::apply_ipv4_change()
+     *
+     * The revert record and its snapshot are written first. @p previous is
+     * what the record shows; @p abandoned, once set, makes the apply restore
+     * the snapshot itself. @p on_done(status) runs on the LVGL thread while
+     * @p token lives; the failure's detail is logged here.
+     */
+    void apply_ipv4_change_async(
+        const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+        std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+        helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done);
+
+    // ========================================================================
+    // Link Changes
+    // ========================================================================
+
+    /**
+     * @brief Be told when the Ethernet link or its address changes
+     *
+     * @p on_change runs on the UI thread through @p token, so an expired
+     * owner is never called. It carries no state: re-probe with
+     * get_info_async(). UI thread only.
+     *
+     * While any observer lives the manager watches the backend's link
+     * events (the kernel's, on Linux), or re-probes every
+     * kLinkProbeFallbackMs where the backend announces none. The watch
+     * stops once every observer has expired.
+     */
+    void add_link_observer(helix::LifetimeToken token, helix::SharedCallback<void()> on_change);
+
+    /// One watch pass, now: drop expired observers, then check for a change.
+    /// The watch timer runs it every kLinkWatchPeriodMs. UI thread only.
+    void check_link();
+
+    /// Whether the link watch is running (some observer still lives).
+    bool watching_link() const {
+        return static_cast<bool>(link_timer_);
+    }
+
+    /// How often the watch checks for link events, in milliseconds.
+    static constexpr uint32_t kLinkWatchPeriodMs = 500;
+    /// How often a backend without link events is re-probed, in milliseconds.
+    static constexpr uint32_t kLinkProbeFallbackMs = 3000;
+
     friend class EthernetManagerTestAccess;
 
   private:
+    struct LinkObserver {
+        helix::LifetimeToken token;
+        helix::SharedCallback<void()> callback;
+    };
+
+    void stop_link_watch();
+    void notify_link_observers();
+
+    std::vector<LinkObserver> link_observers_;
+    helix::ui::LvglTimerGuard link_timer_;
+    std::unique_ptr<helix::net::LinkEvents> link_events_;
+    /// Fallback probing: ticks since the last probe, one probe at a time, and
+    /// the state the last probe found ("" until the first one lands).
+    uint32_t ticks_since_probe_ = 0;
+    bool probe_in_flight_ = false;
+    std::string last_link_signature_;
+    helix::AsyncLifetimeGuard link_lifetime_;
+
     // Held as shared_ptr so that an in-flight async worker (see
     // get_info_async) can keep the backend alive past EthernetManager's
     // destruction. The worker captures a copy of this shared_ptr by value;

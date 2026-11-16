@@ -3,12 +3,11 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "filament_sensor_types.h"
+#include "json_fwd.h"
 #include "sensor_manager.h"
 
-#include "hv/json.hpp"
-
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -25,13 +24,13 @@ class IMoonrakerAPI;
 
 namespace helix {
 
-// Test-only friend (defined in tests/unit/test_runout_empty_lane_scope.cpp) used
-// to set per-sensor roles directly, the way a settings.json restore does, without
+// Test-only friend (defined in tests/unit/test_runout_empty_lane_scope.cpp) that
+// sets per-sensor roles directly, the way a settings.json restore does, without
 // going through set_role().
 class RunoutScopeTestAccess;
 class BypassArmingTestAccess;
 // Test-only friend (defined in tests/test_helpers/post_unload_grace_test_access.h)
-// used to put the singleton on a known sensor baseline with the startup grace
+// that puts the singleton on a known sensor baseline with the startup grace
 // already expired.
 class PostUnloadGraceTestAccess;
 
@@ -49,8 +48,8 @@ enum class PrintJobState;
  * would scope the badge to the wrong file instead of hiding it.
  *
  * A free function rather than an inline guard in PrintStatusPanel because the
- * badge's terminal-state behaviour is the whole of issue 9 and needs to be
- * assertable without building a laid-out panel and a parsed gcode viewer.
+ * badge's terminal-state behaviour needs to be assertable without building a
+ * laid-out panel and a parsed gcode viewer.
  */
 [[nodiscard]] bool print_scopes_runout_badge(PrintJobState state);
 
@@ -520,7 +519,6 @@ class FilamentSensorManager : public sensors::SensorManager {
     /// refill and when the job lets go of the machine. Keyed by klipper_name.
     std::set<std::string> observed_runouts_;
 
-    // State change callback
     StateChangeCallback state_change_callback_;
 
     // Tracks whether we've received the first status update from Moonraker.
@@ -533,14 +531,14 @@ class FilamentSensorManager : public sensors::SensorManager {
     std::chrono::steady_clock::time_point startup_time_;
 
     // LVGL subjects (main thread)
-    lv_subject_t runout_detected_{};
-    lv_subject_t scoped_runout_{}; ///< Print-scoped runout; driven by PrintStatusPanel
-    lv_subject_t toolhead_detected_{};
-    lv_subject_t entry_detected_{};
-    lv_subject_t any_runout_{};
-    lv_subject_t motion_signature_{};
-    lv_subject_t master_enabled_subject_{};
-    lv_subject_t config_revision_{};
+    helix::Subject runout_detected_{};
+    helix::Subject scoped_runout_{}; ///< Print-scoped runout; driven by PrintStatusPanel
+    helix::Subject toolhead_detected_{};
+    helix::Subject entry_detected_{};
+    helix::Subject any_runout_{};
+    helix::Subject motion_signature_{};
+    helix::Subject master_enabled_subject_{};
+    helix::Subject config_revision_{};
     /// config_signature() at the last refresh. Main thread only.
     std::optional<uint32_t> published_config_signature_;
 };

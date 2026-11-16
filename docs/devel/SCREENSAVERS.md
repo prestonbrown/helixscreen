@@ -12,7 +12,10 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/screensaver_setting.h` | Reading the persisted choice: a name in any case, or a legacy number |
 | `include/screensaver_base.h` | `SaverBase`: start, frame and stop sequence, levels, level requests; `ladder_period()` for a ladder table |
 | `include/screensaver_sim_contract.h`, `include/screensaver_sim_saver.h` | The calling shape of a sim (`init_sim`, `step_sim`, with or without an rng) and `SimSaver<Sim>`, which implements every `SaverBase` hook from it |
-| `include/screensaver_clock_saver.h` | `ClockSaver<Sim, State>`: a SimSaver whose sim draws a clock, with the input source (`ClockInputSink`, reached through `Screensaver::clock_input_sink()`), the clock state, the text cache and the redraw-over-what-changed step |
+| `include/screensaver_clock_saver.h` | `ClockSaver<Sim, State>`: a SimSaver whose sim draws a clock, with the clock state, the text cache and the redraw-over-what-changed step. The input source (`ClockInputSink`) is on `SaverBase`, so every saver reads the print |
+| `include/screensaver_print_latch.h` | `PrintEndLatch`: how long an ended print stays on the savers |
+| `include/screensaver_print_card.h`, `include/screensaver_print_colors.h` | The progress card savers without their own print display show, and the shared print state colours |
+| `include/print_completion_alert.h` | `plan_completion_alert`: wake, modal and toast at a print's end, none of the wake while a saver runs |
 | `include/screensaver_image.h` | Decoding a sprite or picture once into an owned draw buffer, reading an image header, and the printer picture a saver shows |
 | `include/screensaver_overlay.h` | `SaverOverlay`: the black, clickable overlay on `lv_layer_top()`, so nothing beneath it is ever the press target |
 | `include/screensaver_canvas.h` | `SaverCanvas`: stride-sized buffer, the two canvas formats (`kSaverBuildCanvasFormat`, `kLvDrawCanvasFormat`), hide-before-free, dirty areas reduced to `kSaverMaxDirtyAreas` or the whole canvas (`reduce_dirty`), the dirty-box layer session |
@@ -23,7 +26,7 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/screensaver_gate.h`, `include/screensaver_cpu_clock.h` | Budget, decision, idle baseline, windows, environment switches, the CPU clock seam |
 | `include/screensaver_level_store.h` | The stored level per saver |
 | `include/board_fingerprint.h` | `BoardFacts`, `board_fingerprint()` and `current_board_facts()`: the board identity the level store keys on, shared with the glass gate (`include/glass_gate.h`) so both measure again on the same boards |
-| `include/screensaver.h`, `src/ui/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
+| `include/screensaver.h`, `src/ui/screensaver/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
 | `include/screensaver_usage.h` | `SaverUsage`: seconds shown, starts, run endings and settled levels per saver, which the manager writes and telemetry reads (`screensaver_usage` in `docs/devel/TELEMETRY_ADMIN.md`). Always compiled |
 | `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h` | The savers |
 | `include/screensaver_pipes_sim.h` | 3D Pipes: the node grid and growth rules, one screen of pipes, the meshes, the z-buffered rasterizer and the dissolve. No LVGL |
@@ -210,17 +213,23 @@ samples `CLOCK_PROCESS_CPUTIME_ID` (every thread, LVGL's draw thread included) a
   up to 10 s, and 0 under 3 s of samples.
 - A run ignores its first second, then closes a 5 s window after another for as long as it runs:
   `(cpu delta - baseline * wall) / wall` as a share of one core.
-- The budget is `saver_budget_share`: 4 or more cores 50%, 3 cores 37%, 2 cores 25%, 1 core 10%,
-  halved while `SaverHost::is_printing` says a print holds the machine.
-- `decide_saver_level`: within budget the level stays (a run never steps up); over budget the
-  saver steps down one level at its next natural break; over budget at the bottom level the
-  saver is too heavy for the board, and its fallback takes over at once.
+- The budget is `saver_budget_share`, as a share of one core: 4 or more cores 100% (50% when
+  every core is an in-order efficiency design, `PlatformCapabilities::efficiency_cores_only`),
+  3 cores 75%, 2 cores 50%, 1 core 10%. While `SaverHost::is_printing` says a print holds the
+  machine: 25%, 18.5%, 12.5% and 5%.
+- `decide_saver_level`: over budget the saver steps down one level at its next natural break;
+  over budget at the bottom level the saver is too heavy for the board, and its fallback takes
+  over at once. Within budget the level stays, and a window at or under `kStepUpComfort` (60%)
+  of the budget counts toward a raise: after `kStepUpWindows` (3) such windows in a row
+  (`SaverComfortStreak`), `decide_saver_level_up` raises one level, never into a rung that
+  stepped down earlier in the same run. Only an idle raise is stored.
 
 Each step down and each too-heavy mark is stored at `/display/screensaver_levels/<name>` as
 `{"level", "too_heavy", "version", "board"}`, except one taken while printing: the halved
 budget says nothing about the idle board, so that step down lasts for the run only, and a saver
-too heavy at its bottom level while printing shows the black screen for the rest of the run,
-unmarked. The next run of that saver starts there, unless
+too heavy at its bottom level while printing gives way, unmarked, to the flip clock
+(`kDefaultScreensaverType`), which shows the print and costs least; the black screen only when
+the flip clock itself is the one too heavy. The next run of that saver starts there, unless
 `helix_version_full()` or the board fingerprint (display path, cores, bogomips to the nearest
 100, resolution, color depth) differs, which starts again at level 0.
 
@@ -314,12 +323,12 @@ disagree, and `set_screensaver_type()` republishes the row kind when the saver c
    compares it with the registry; the overlay builds the shown options from the registry, and
    this list is their translation source), run `make translation-sync`, translate the new key in every
    `translations/*.yml`, then `make translations` (and `make regen-text-fonts` for new CJK text).
-3. Derive from `SaverBase` in `include/screensaver_<name>.h` and `src/ui/screensaver_<name>.cpp`;
+3. Derive from `SaverBase` in `include/screensaver_<name>.h` and `src/ui/screensaver/screensaver_<name>.cpp`;
    keep the scene in a pure simulation class when it writes pixels, so it is testable without a
    display, and derive from `SimSaver<Sim>` (or `ClockSaver`) to run it. Register the factory in
    `ScreensaverManager::ScreensaverManager`.
 4. Add the new sources to `firmware/helixscreen-esp32/components/helixapp/app_srcs_excluded.txt`
-   (the Makefile screensaver filter picks up `src/ui/screensaver_*.cpp` by itself).
+   (the Makefile screensaver filter picks up `src/ui/screensaver/*.cpp` by itself).
 5. Add the saver and its sim to the contract tests (step 8), test what is particular to it with
    the sim kit (`tests/test_helpers/screensaver_sim_kit.h`: `TestFrame`, `SimRun`, `diff_against`,
    `check_replays`), and record the saver's pixel fingerprint in
@@ -329,16 +338,16 @@ disagree, and `set_screensaver_type()` republishes the row kind when the saver c
    static or global textures, frames, sprite sheets or lookup tables (small `constexpr` tables in
    `.rodata` are fine). Everything is allocated in `on_start()` and released, capacity included,
    in `on_stop()`; `clear()` on a vector keeps its capacity, so swap it with an empty one. Check
-   with `size build/obj/ui/screensaver_<name>*.o`.
+   with `size build/obj/ui/screensaver/screensaver_<name>*.o`.
 7. Size for the largest need of any rung from the start level down; never grow on a step down;
-   free what the still rung doesn't need after its paint. A run never steps up (the gate only
-   steps down), so init sizes for the start rung and every rung below it (a ladder whose still
+   free what the still rung doesn't need after its paint. Init sizes for the start rung and
+   every rung below it (a ladder whose still
    rung is finer than the rung above, as Aqua's and High Fly's are, counts that rung too), a step
    down allocates nothing, and a board that starts at a low rung never holds the top rung's
    memory. A buffer only some rungs use (maze's fogged floor and ceiling bands) is freed on a
    rung that drops it, and a still rung frees the scene behind its clock once it has painted it.
-   A request for a finer level mid-run (a test, or a forced level) reallocates then; that is the
-   rare path.
+   A request for a finer level mid-run (the gate's comfort raise, a test, or a forced level)
+   reallocates then; that is the rare path.
 8. Two test files check every saver and sim, so a new one only adds itself to their type lists:
    `tests/unit/test_screensaver_contract.cpp` (level 0's period and refresh, registration, the
    canvas format, the sim's ladder, a level request reaching the frame period, a stopped saver
@@ -380,27 +389,40 @@ The clock savers (the flip clock, Aqua Surface and High Fly) are the ones that r
 `SaverHost::print_status` hands them the print lifecycle, the remaining time the print status panel shows (`print_time_left`, smoothed
 by `PrintEtaEstimator`) and the displayed progress; `saver_clock_now()` adds the local time,
 the date and the Time Format setting. `ClockState` (shared with Aqua Surface and High Fly)
-decides what the clock reads, and `flip_face` turns that reading into cards:
+decides what the clock reads, and `flip_face` turns that reading into a row of cards and, while
+a print runs, a row of small cards under them (`kSubCardScale` of the main size):
 
-- Idle, cancelled, failed, or preparing with no estimate yet: the time of day, HH:MM, with
-  AM/PM on the first hour card in 12-hour mode, where that card is blank before 10.
-- A print with an estimate: H:MM:SS (as many hour cards as the hours need, up to
-  `kClockMaxCountdownS`) counting down at wall-clock rate, with "done at
-  <time> · <n>%" under the cards. An estimate within `kClockCountdownResyncS` of the running
-  count is ignored, so estimator jitter never flips the seconds backwards.
-- Paused: the count freezes under PAUSED.
-- A print the clock saw finish: 0:00:00 and DONE for `kClockDoneHoldMs`, then the clock.
+| Reading | Cards | Small cards |
+|---|---|---|
+| No print | HH:MM, AM/PM on the first hour card in 12-hour mode (blank before 10) | none |
+| Running, no estimate yet (PROGRESS) | the percent, `63%` | the time of day |
+| Counting down | H:MM:SS (as many hour cards as the hours need, up to `kClockMaxCountdownS`) | the finish time, then the percent |
+| Paused | `PAUSE` | the time left as H:MM when there is an estimate, then the percent |
+| Done, failed, cancelled | `DONE`, `FAIL`, `STOP` | the percent the print reached |
+
+The words are English. In any other UI language (`SaverHost::spell_states`, false when
+`locale_current_language()` is not `en`) the main row is one card with the state's symbol
+instead: two bars paused, a check mark done, a cross failed, a solid square cancelled
+(`kGlyphPause`, `kGlyphCheck`, `kGlyphCross`, `kGlyphSquare`). The small row is the same in
+every language.
+
+The cards draw in the state colour (`print_state_color`): white while running, amber paused,
+green done, red failed or cancelled. Letters, symbols and `%` are stroke glyphs like the digits
+(`stroke_glyph_distance`); `StrokeGlyphSet` rasterises each character the first time a face
+shows it. An estimate within `kClockCountdownResyncS` of the running count is ignored, so
+estimator jitter never flips the seconds backwards. An ended print holds for as long as the
+latch holds the end (Print progress, below).
 
 Every digit has its own card, grouped by a `FlipShape` (hours, minutes, seconds).
 `layout_flip_cards` puts every group in one row with a colon between groups, or, when that
 gives larger cards (portrait), one group per row. `FlipClockSim` draws the digits from
 strokes (lines and arcs, `build_stroke_digits` at a stroke of 0.2) into a coverage cache
-sized to the layout, so they scale to any screen and draw at both depths. Only the cards whose digit changes flip, each with its own
+sized to the layout, so they scale to any screen and draw at both depths. Only the cards (small ones too) whose character changes flip, each with its own
 fold and dirty box, all at once when several change (09:59 to 10:00 flips four, 10:59 to
 11:00 three); nothing is written between changes. A new shape (the clock becoming a
 countdown, the hours gaining a digit) and the drift every `kClockDriftStepMs` repaint the
-layout whole. The caption and AM/PM marker are `lv_draw_label` text on the canvas
-(`SaverLabel`), which is why its canvas uses `kLvDrawCanvasFormat`.
+layout whole. The AM/PM marker is `lv_draw_label` text on the canvas (`SaverLabel`), which is
+why its canvas uses `kLvDrawCanvasFormat`.
 
 
 ## Long runs
@@ -413,9 +435,9 @@ turn and the wrinkle scroll to one table turn. Tests start both sims thirty days
 ## The shared clock face
 
 `ClockState::step` takes the time, the date and the print each frame and keeps one reading:
-the time of day, or a countdown anchored to the print's remaining time (jitter under
-`kClockCountdownResyncS` ignored), frozen while paused, and DONE for `kClockDoneHoldMs`
-after a print it saw finish. The flip clock replaces the time with the countdown; Aqua
+the time of day, PROGRESS for a running print before it has an estimate, or a countdown
+anchored to the print's remaining time (jitter under `kClockCountdownResyncS` ignored), frozen
+while paused, and DONE, FAILED or CANCELLED for as long as the input reports the end. The flip clock replaces the time with the countdown; Aqua
 Surface and High Fly keep the time as the main readout and show the print as secondary text
 from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". With no print they show
 `clock_date_text`, the long date and weekday from `locale_formats`
@@ -425,6 +447,133 @@ from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". With no print they sho
 Text on a canvas that repaints beneath it is a `SaverLabel`: it redraws its line when the text
 or box changes, or when a box the frame repainted crosses it. The scene puts the pixels back
 first; the label never erases.
+
+## Print progress
+
+Every saver reads the print: `SaverBase` is the `ClockInputSink`, and the manager points each
+one at `ScreensaverManager::clock_input`, which fills it from `SaverHost::print_status`. The
+host reports an idle printer's last end from the persisted print outcome
+(`clock_print_phase`), so a printer that drops to standby right after a print still reads it.
+How long an ended print stays is `PrintEndLatch`'s decision
+(`src/ui/screensaver/screensaver_print_latch.cpp#step`), stepped every time a saver reads its
+input and on every sampled idle-check tick, so it sees the end whether or not a saver runs:
+
+- The step from PREPARING, PRINTING or PAUSED to COMPLETE, FAILED or CANCELLED latches that
+  end, with the progress the print last reported while running. An end never seen running
+  reads as no print, so an app that connects to a finished printer shows nothing stale.
+- It clears on user input after the end (`SaverHost::inactive_ms` against the `lv_tick` stamp
+  it latched at), a new print, and a change of `SaverHost::printer_epoch` (the active
+  printer's id with the client's connection generation). Display sleep is not input: a print
+  finished overnight is still on the saver when the screen next dims. Any wake the app asks
+  for counts as input, since it shows the UI.
+
+While a saver that shows the end runs (`ScreensaverManager::shows_print_end`, never the black
+screen), the end of a print does not wake the display: `plan_completion_alert`
+(`src/print/print_completion_alert.cpp`) drops the wake and the toast and keeps the modal,
+which waits behind the saver. Sounds and the heater shutdown on an error are unchanged. With no
+saver running, completion behaves as it always did.
+
+Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
+(the flip clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
+creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in
+the state colour beside stroke-drawn text, 1h05 or 23m left, or 63% before an estimate, with a
+mark in the ring when paused or ended (`PrintCardPainter`). Its home is centred at the bottom
+of the screen (`print_card_home`), its top edge in the bottom third at every drift offset, so
+the middle of the screen, where the planet, the tunnel's light and the fireflies' text tell the
+print, stays clear. It drifts like the clocks and
+repaints only when `PrintCardFace` changes, which the text's whole minutes bound to once a
+minute. `print_card_visible` shows it for paused and ended prints always and for a running
+print with Settings > Display > Show Print Progress on (`settings_screensaver_print_progress`,
+on by default, reaching savers as `ClockInput::show_print_progress`). The state colours,
+amber paused, green done and red failed or cancelled, live in `screensaver_print_colors.h`.
+
+### The scenes behind the card
+
+Pipes, fireworks, starfield, hyperspace, fireflies, the bouncing printer and logo, and the
+toasters also tell the print in their own scene. All eight keep the card (their registry rows
+stay `CARD`): the card carries the exact time, the scene the feel. The maze has the card only.
+Every effect is a function of the one `ClockReading` `SaverBase` steps before `on_frame`
+(`SaverBase::print_reading`, passed by `SimSaver` to any sim whose `init` or `step` takes it),
+eased from `dt_ms`. With no print each scene draws and reads the random sequence exactly as
+it does idle, which the plain fingerprint lines pin; each `<saver>_print` line pins a run at
+COUNTDOWN 40%. A saver started on a latched end opens in its end state rather than animating
+toward it.
+
+The DONE end scenes of pipes, starfield and hyperspace keep moving slowly until the display's
+sleep timeout, the only timeout a finished print has, with the card drifting over them.
+
+#### Pipes
+
+A print gets one screen that fills as it goes (`src/ui/screensaver/screensaver_pipes_sim.cpp#step_print`):
+there is no pipe limit and no dissolve, and growth runs, at most `kPipesMaxStepsPerTick` steps
+a call, only while the grid's taken share is below the progress (carried between whole percents
+at the countdown's rate). Paused stops the carry and grows only up to the reported progress.
+Done fills the rest of the grid, then sets one teapot in `kPipesDoneTeapotMaterial` (emerald) on
+the node reserved for it, nearest the camera in the middle of the view; the full screen holds
+for `kPipesDoneHoldMs` (30 s), then dissolves and regrows at the idle pace. Failed or cancelled
+stops growing and greys the frame once. A screen begun on a paused or ended print catches up at
+`kPipesFastForwardSteps` steps a call, then shows the end, so no single frame grows the whole
+grid. A new print, or no print after an end, dissolves the screen first. A level's raster scale
+waits for the next screen, so a print keeps one scale for its whole screen.
+
+#### Fireworks
+
+A running print shortens the longest launch gap from the pacing value toward
+`kFireworksPrintEndMaxGapMs` (900 ms) at 100% and grows each shell from half the level's sparks
+to all of them, with no periodic finale (`src/ui/screensaver/screensaver_fireworks_sim.cpp#follow_print`).
+Paused launches nothing and stops the show's clocks, so hours of pause queue nothing. Done
+runs the finale and re-arms it each time its shells burn out, until the reading changes. Failed
+or cancelled sends up one small red (`kPrintFailed`) willow, then nothing.
+
+#### Starfield
+
+A planet at the centre grows from `kStarfieldPlanetStartShare` to `kStarfieldPlanetEndShare` of
+the shorter side as the print goes, redrawn only when its centre or whole-pixel radius changes,
+with one dirty box over its old and new discs; a star never draws or erases a planet pixel. A
+disc larger than a running print's, during the arrival or a new print's shrink back, repaints
+at most every `kStarfieldLargePlanetRepaintMs` (100 ms).
+Paused stars fly at `kStarfieldPausedSpeed`. Done arrives at the planet over
+`kStarfieldArriveMs`, its radius ending at `kStarfieldDoneShare` of the shorter side with the
+stars drifting past at `kStarfieldDoneSpeed`; failed or cancelled shrinks it and drifts it off
+over `kStarfieldDepartMs`. With no print there is no planet.
+
+#### Hyperspace
+
+A light at the vanishing point, the end of the tunnel, grows from `kHyperspaceLightStartPx` to
+`kHyperspaceLightEndShare` of the shorter side (`kHyperspaceCheapLightEndShare` on the rung
+without a tunnel, which draws it per pixel). Paused flies at `kHyperspacePausedSpeed`. Done
+drops out over `kHyperspaceDropOutMs`: the camera eases to `kHyperspaceDoneDriftSpeed`, the
+tunnel fades and there are no starbursts. Failed or cancelled
+dims the light out and closes the tunnel.
+
+#### Fireflies
+
+During a running print the swarm gathers for `kFirefliesGatherMs` (6 s) every
+`kFirefliesGatherEveryMs` (60 s) into the percent, stroke glyphs at `kFirefliesTextStroke`
+spanning 70% of the width (`fireflies_text_layout`), the targets sampled from the glyph grid
+without the rng and handed to the drawn flies first so the cheapest rung's 48 flies still read
+(`src/ui/screensaver/screensaver_fireflies_sim.cpp#update_gather`). Done gathers
+and holds, glowing: "DONE" where the reading's `spell_states` is set, the shared `kGlyphCheck`
+otherwise, as the flip clock decides. Failed or cancelled turns the flies `kPrintFailed` and
+sends the baits to new waypoints once.
+
+#### Bouncing printer and logo
+
+While a print runs the sprite fills with colour from the bottom: an owned copy of the art has
+its top `grey_rows_for(src_h, pct)` rows rewritten to grey, only when that line moves
+(`src/ui/screensaver/screensaver_bounce.cpp#apply_fill`), and the
+wall tints pause. Done shows full colour and celebrates every bounce, the logo included: on
+every rung the backdrop flashes `kPrintDone` green, and above the cheapest rung, on boards that
+animate, a confetti burst flies too, at most one alive at a time and behind the card. With no
+print every corner hit still throws its own burst. Failed or cancelled holds a steady
+`kPrintFailed` recolor.
+
+#### Flying toasters
+
+Six tinted toast buffers, light to dark (`FlyingToasterScreensaver::kToastShadeCount`), and a
+burnt one are built at start; the toast switches buffer by progress band and turns burnt for a
+failed or cancelled print. Done has a visible toaster pop a toast every `kToastPopPeriodMs`
+(3 s), one reused image rising and falling over `kToastPopMs`.
 
 ## The heightfield renderer
 
@@ -478,6 +627,18 @@ and one octave of wrinkle; then a near-neutral cool tint.
   clock, from a copy of the pixels under it; a drift step puts back the old place and copies
   the new one, without rendering the water again.
 
+### Aqua Surface during a print
+
+The water stands higher as the print goes: `aqua_level_target` rises from today's rest level
+to `kAquaBrimRise` at 100% and at DONE, and falls back to rest for a failed or cancelled print,
+eased at `kAquaLevelRate`. The level lowers the camera (`AquaSim::cam_h`) rather than lifting
+the heights, so crest scoring and splashing are unchanged; with no print the level is 0 and the
+water is exactly the idle scene. Paused water calms: the waves, the slosh and the wrinkle
+texture scale toward `kAquaCalm`, and sim time and the bubbles slow by the same factor (flatter
+water alone only sharpens the reflections sliding across it); no crest throws spray. The step
+into DONE sends `kAquaDoneBurst` of the existing bubbles up from the bottom. The still rung
+paints the water again only when the level crosses a `kAquaStillLevelStep`.
+
 ## High Fly
 
 A flight just above sunlit cloud tops (`HighFlySim`). Back to front: a static sky with a sun
@@ -507,6 +668,15 @@ white haze over the bottom rows.
 - A frame repaints the band of rows from the far billows or the deck down, plus boxes above it
   for the clock, towers and the approaching cloud; a fly-through repaints the whole screen. The
   last rung keeps the scene still and redraws only the clock.
+- During a print (`highfly_numerals`, `highfly_palette`): the big numerals count the time left
+  (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the
+  finish time and the time of day, AM/PM blank, in the state colour. The sky, the deck's light
+  and the haze blend from the day palette toward golden hour with progress in
+  `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer (the cloud textures
+  are not recoloured). The step into DONE flies through a cloud and comes out into the sunset
+  palette; a failed or cancelled print turns overcast. A pause slows flight time to 25% and
+  sways the view sideways in a slow holding pattern. With no print every one of these is the
+  idle scene exactly.
 - Its per-pixel work is fixed point: the deck is stored as 16-bit heights and byte shades (half
   the floats' cache footprint), billboards sample with two channels per multiply and depth-test
   through a per-slice visibility table, and the renderer's span gradient and feather step in

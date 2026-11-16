@@ -25,7 +25,6 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/active_print_media_manager_test_access.h"
@@ -33,6 +32,7 @@
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "active_print_media_manager.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -193,7 +193,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
         panel_.reset();
         media_.reset();
         api_.reset();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void start_consumers() {
@@ -226,7 +226,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
     /// Async work (the panel's deferred filename observer, queued subject
     /// writes) only lands on a queue tick [L048].
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Settle every hop a self-serve thumbnail load takes: the prescale pool
@@ -243,7 +243,7 @@ struct ActivePrintThumbnailFixture : public LVGLTestFixture {
                 helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
                 break;
             }
-            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+            queue.drain_until_empty();
         }
     }
 

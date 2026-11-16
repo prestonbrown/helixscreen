@@ -186,6 +186,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Omitted defaults drop only the persona's own 
         CHECK(lists(objs, "htu21d dryer"));
         CHECK(lists(objs, "mcu EBBCan"));
         CHECK(lists(objs, "temperature_sensor chamber"));
+        CHECK(lists(objs, "temperature_sensor mcu_temp"));
+        CHECK(lists(objs, "temperature_sensor raspberry_pi"));
+        CHECK(lists(objs, "exclude_object"));
+        CHECK(mock.hardware().has_exclude_object());
         CHECK(lists(objs, "hall_filament_width_sensor"));
         CHECK(lists(objs, "filament_switch_sensor runout_sensor"));
         CHECK(lists(objs, "led_effect rainbow"));

@@ -16,10 +16,9 @@
  *    unrelated pause forever after. The indicator now needs a transition
  *    witnessed during a job.
  *
- * 2. `RuntimeConfig::should_show_runout_modal()`. It used to answer "is this a
- *    hub AMS?" and suppress the generic modal for every one of them. It now
- *    answers "does this backend raise its own runout fault?", so a hub backend
- *    with no error hook is no longer silenced with nothing put in its place.
+ * 2. `RuntimeConfig::should_show_runout_modal()`. It answers "does this backend
+ *    raise its own runout fault?", not "is this a hub AMS?", so a hub backend
+ *    with no error hook is never silenced with nothing put in its place.
  */
 
 #include "../lvgl_test_fixture.h"

@@ -42,11 +42,6 @@ EOF
     rm -rf "$tmp"
 }
 
-@test "plugin i18n shadow: the repository's example and fixture packs are clean" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 @test "plugin i18n shadow: fires on a catalog key written with a YAML '' escape" {
     tmp=$(mktemp -d)
     mkdir -p "$tmp/i18n"

@@ -188,7 +188,8 @@ load() {
 }
 
 # Run the REMOTE-mode command as pi over a login-like shell, the way a user
-# pastes it: curl piped into sh, on a PATH whose git fails loudly.
+# pastes it: curl piped into sh, on a PATH whose git fails loudly. The CDN
+# holds no release here, so the wrapper takes its GitHub path to the tree.
 remote_command() { # [--uninstall]
     load
     mkdir -p /var/tmp/cell-bin
@@ -198,6 +199,7 @@ remote_command() { # [--uninstall]
     # shellcheck disable=SC2016  # expands in the user's shell
     setpriv --reuid=pi --regid=pi --init-groups env HOME=/home/pi \
         PATH=/var/tmp/cell-bin:/usr/local/bin:/usr/bin:/bin HELIX_PLUGIN_BASE_URL="$RELEASE_URL" \
+        HELIX_PLUGIN_CDN_URL="$RELEASE_URL/no-cdn" \
         sh -c 'url=$1 ref=$2; shift 2; curl -fsSL "$url/$ref/moonraker-plugin/remote-install.sh" | sh -s -- "$ref" "$@"' \
         sh "$RELEASE_URL" "$RELEASE_REF" "$@"
 }

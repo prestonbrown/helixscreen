@@ -18,17 +18,19 @@ Tap it to see the list:
 
 ![Hardware Health](../../../images/user/settings-hardware-health.png)
 
-| Kind | Meaning |
-|------|---------|
-| **Critical** | Hardware the printer needs is missing, such as the nozzle heater |
-| **Warning** | Hardware that used to be there is gone, such as a bed sensor |
-| **Info** | New hardware HelixScreen hasn't seen before |
-| **Session** | Hardware changed since HelixScreen last ran |
+| Section | Meaning |
+|---------|---------|
+| **CRITICAL** | Hardware the printer needs is missing, such as the nozzle heater |
+| **MISSING CONFIGURED** | Hardware you saved as expected is no longer found |
+| **NEWLY DISCOVERED** | New hardware HelixScreen hasn't seen before |
+| **CHANGED FROM LAST SESSION** | Hardware that was there the last time HelixScreen ran is now missing |
 
-For anything that isn't critical you can:
+For each item you can:
 
-- **Ignore**: mark it as optional. HelixScreen won't warn about it again, even if it goes missing.
-- **Save**: add it to the expected list. HelixScreen will warn you if it disappears later.
+- **Ignore**: mark it as optional. HelixScreen won't warn about it again, even if it goes missing. This works on critical items too, so a machine built without a nozzle heater can stop the warning about it.
+- **Save** (new hardware only): add it to the expected list. HelixScreen will warn you if it disappears later.
+
+A Klipper machine that isn't a printer, one whose `[printer]` section sets `kinematics: none`, is never warned about a missing nozzle heater.
 
 Check this page after you add or remove hardware, so HelixScreen's list matches your printer.
 
@@ -44,13 +46,11 @@ Opens your printer's camera full screen. See [Camera](../camera.md) for rotation
 
 > Only shown when a webcam is set up in Moonraker.
 
-When this switch is on, HelixScreen saves two pictures from your camera for every print: one once the second layer is done, so you can check the first layers went down well, and one when the print ends (finished, canceled or failed). They appear on the print's page in [Print History](../print-history.md#print-details--reprinting). It is on by default.
+When this switch is on, HelixScreen saves two pictures from your camera for every print: one after layer 2 is done, so you can check the first layers went down well, and one when the print ends (finished, canceled or failed). They appear on the print's page in [Print History](../print-history.md#print-details--reprinting). It is on by default.
 
-With the [HelixPrint plugin](../helixprint-plugin.md) installed, the printer takes the photos itself, for every print, whichever app started it, and whether or not a screen is connected. Without the plugin, the screen takes them while it is connected to the printer, so a print that runs while this screen is off or away gets no photos. On a screen that is not attached to the printer (a tablet, a desktop), the row says so and offers to install the plugin.
+With the [HelixPrint plugin](../helixprint-plugin.md#print-photos) installed, the printer takes the photos itself, for every print, whichever app started it and whether or not a screen is connected. Without the plugin, the screen takes them while it is connected to the printer, so a print that runs while the screen is off or away gets no photos. On a screen that is not attached to the printer (a tablet, a desktop), the row says so and offers to install the plugin.
 
-The photos are kept on the printer. They are removed when you delete the print from the history, and the oldest go once there are photos of 500 prints.
-
-The K-Touch does not show the photos and cannot take them itself; with the plugin installed, the printer still takes them, and other screens show them.
+The photos are kept on the printer. They are removed when you delete the print from the history, and the oldest go once there are photos of 500 prints. The K-Touch cannot show or take photos itself; with the plugin installed, the printer still takes them and other screens show them.
 
 ---
 
@@ -64,7 +64,7 @@ Lists every fan and its current speed. Tap a fan to rename it, for example from 
 
 ## Sensors
 
-> Only shown when HelixScreen finds sensors.
+Always shown, even before HelixScreen finds any sensors.
 
 Lists your printer's sensors and lets you give each filament sensor a job:
 
@@ -93,6 +93,14 @@ Chooses which lights HelixScreen controls, what they do on their own during prin
 
 ---
 
+## Chamber light fitted
+
+> Only shown when Klipper reports an LED or light.
+
+Shows light controls for a light connected to this printer. Turn it off if your printer's firmware declares a light that you haven't wired up: the light buttons and the **LED Settings** row above disappear. Turn it on to bring them back. Some printer models start with it off for this reason.
+
+---
+
 ## Power Devices
 
 > Only shown when power devices are set up in Moonraker.
@@ -107,7 +115,7 @@ Connects HelixScreen to your [Spoolman](https://github.com/Donkie/Spoolman) serv
 
 ### Server Setup
 
-If Spoolman isn't set up yet, this is what you see. Enter your Spoolman server's IP address (or host name) and port (7912 by default), then tap **Connect**. HelixScreen checks the connection and sets up Moonraker for you. You don't need to edit `moonraker.conf`.
+If Spoolman isn't set up yet, this is what you see. Enter your Spoolman server's IP address (or host name) in **IP Address / Hostname** and its **Port** (7912 by default), then tap **Connect**, or **Cancel** to leave. HelixScreen checks the connection and sets up Moonraker for you. You don't need to edit `moonraker.conf`.
 
 ### Server Status
 
@@ -115,13 +123,15 @@ Once connected, the page shows your Spoolman server and two buttons: **Change** 
 
 ### Sync with Spoolman
 
-Turn this on to keep spool weights up to date. HelixScreen asks Spoolman for new weights regularly and shows the filament left on the Home and Filament screens. Weights are also updated when a print starts, pauses or finishes.
+Turn this on to keep spool weights up to date ("Auto-poll for weight updates"). HelixScreen asks Spoolman for new weights regularly and shows the filament left on the Home and Filament screens. Weights are also updated when a print starts, pauses or finishes.
 
 ### Refresh Interval
 
-How often HelixScreen asks Spoolman for new weights: **30 seconds**, **1 minute**, **2 minutes** or **5 minutes**. Shorter is more up to date but uses more network traffic.
+How often HelixScreen asks Spoolman for new weights: **30s**, **1 min**, **2 min** or **5 min**. Shorter is more up to date but uses more network traffic.
 
 ### Switch spools at each tool change
+
+> Only shown once Spoolman is connected.
 
 Spoolman takes filament off one spool at a time: whichever spool is active. On a printer with several tools or lanes, every tool change has to switch the active spool, or one spool gets charged for filament that came from another. Some printers do this themselves (AFC, Happy Hare with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and printers whose tool-change macros set the spool); for those this row does nothing.
 

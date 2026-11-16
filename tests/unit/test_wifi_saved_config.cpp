@@ -1,7 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "text_io.h"
+#include "core/text_io.h"
 #include "wifi_saved_config.h"
 
 #include <climits>

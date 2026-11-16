@@ -30,7 +30,6 @@ extern "C" int helix_bt_connect_rfcomm(helix_bt_context* ctx, const char* mac, i
 
     fprintf(stderr, "[bt] RFCOMM connecting to %s channel %d\n", mac, channel);
 
-    // Create RFCOMM socket
     int fd = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
     if (fd < 0) {
         int err = errno;
@@ -40,19 +39,16 @@ extern "C" int helix_bt_connect_rfcomm(helix_bt_context* ctx, const char* mac, i
         return -err;
     }
 
-    // Set send timeout to 10 seconds
     struct timeval tv = {};
     tv.tv_sec = 10;
     tv.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
-    // Build remote address
     struct sockaddr_rc addr = {};
     addr.rc_family = AF_BLUETOOTH;
     addr.rc_channel = static_cast<uint8_t>(channel);
     str2ba(mac, &addr.rc_bdaddr);
 
-    // Connect
     int r = connect(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     if (r < 0) {
         int err = errno;

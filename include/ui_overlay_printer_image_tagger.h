@@ -3,9 +3,10 @@
 #pragma once
 
 #include "callout_layout.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "printer_image_regions.h"
-#include "static_panel_registry.h"
 
 #include <optional>
 #include <string>
@@ -28,6 +29,9 @@ std::optional<ImageTagTarget> displayed_image_tag_target();
 /// `image_box` (screen coordinates), or nullopt for a tap in the letterbox.
 std::optional<NormPoint> tagger_tap_point(const lv_area_t& image_box, lv_point_t tap, int natural_w,
                                           int natural_h);
+
+/// What the tagger asks the user to tap for `p`; Done's text asks for the review.
+const char* tag_prompt_text(TagPrompt p);
 
 /// The review chip for `k`'s part in printer_image_tagger_overlay.xml, and the
 /// subject that shows it.
@@ -55,6 +59,9 @@ class PrinterImageTaggerOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_image_tagger_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
 
@@ -75,15 +82,15 @@ class PrinterImageTaggerOverlay : public OverlayBase {
     ImageTagSession session_;
 
     SubjectManager subjects_;
-    lv_subject_t prompt_subject_{};
+    helix::Subject prompt_subject_{};
     char prompt_buf_[160] = {};
-    lv_subject_t image_src_subject_{};
+    helix::Subject image_src_subject_{};
     char image_src_buf_[512] = {};
-    lv_subject_t reviewing_subject_{};
-    lv_subject_t can_skip_subject_{};
-    lv_subject_t can_undo_subject_{};
+    helix::Subject reviewing_subject_{};
+    helix::Subject can_skip_subject_{};
+    helix::Subject can_undo_subject_{};
     /// One per review chip, indexed by CalloutKind: 1 while the layout places it.
-    lv_subject_t chip_shown_[6] = {};
+    helix::Subject chip_shown_[6] = {};
 };
 
 inline PrinterImageTaggerOverlay& get_printer_image_tagger_overlay() {

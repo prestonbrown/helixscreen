@@ -57,7 +57,8 @@ most, because it is the one that is not always connected and cannot afford to re
 | `moonraker-plugin/helix_file_queue.py` | What a feature keeping one record per gcodes file shares: `file_event` / `FileTracker` (filelist_changed, directory events fanned out per record, hidden staging paths), `WorkQueue` (one at a time, `front`, a `ready` gate, an item's exception logged), `RecordStore` / `namespace_items` (a namespace keyed by path, with the `ns_items` fallback), `scan_files`, `IDLE_JOB_STATES`; and the upload-hook helpers `upload_hook_shape_ok`, `upload_print_request`, `store_without_print`, `print_result`, `already_started`, `start_or_queue` and the hold limit `UPLOAD_HOLD_S`. Used by analysis, .3mf conversion and the fit check |
 | `moonraker-plugin/helix_capabilities.py` | `print_extensions`: the extensions Moonraker prints, read from its own file manager |
 | `moonraker-plugin/helix_gcode_reader.py` | Shared pure helpers beyond the G-code reader: `WorkerProcess`, `worker_argv`, `worker_nice`, `worker_timeout`, `atomic_write_bytes`, `atomic_publish`, `fsync_dir` |
-| `moonraker-plugin/remote-install.sh` | Remote installer; `PLUGIN_FILES` names every file it downloads |
+| `moonraker-plugin/remote-install.sh` | Remote installer: a release's tarball from the release CDN, else that release's own copy from GitHub; `PLUGIN_FILES` names every file it ships. The CDN copy, https://releases.helixscreen.org/plugin/remote-install.sh, is overwritten by every release, so it keeps accepting `<ref> [--uninstall]` |
+| `scripts/package-helix-plugin.sh` | Packs `PLUGIN_FILES` into the `helix-print-plugin.tar.gz` the release workflow uploads to `releases/v<version>/` |
 | `moonraker-plugin/tests/test_helix_features.py` | Framework tests: status entries, a sibling that fails to import, opt-in defaults |
 | `include/helix_plugin_features.h`, `src/printer/helix_plugin_features.cpp` | `parse_plugin_features`, `plugin_feature_state`, `plugin_feature_opted_in`, `plugin_switch_mode`, `fallback_sender_role`, the `local_screen` presence record, `kKnownPluginFeatures`, `PluginFeatureHome`, `plugin_feature_lines` |
 | `include/fallback_sender.h`, `src/printer/fallback_sender.cpp` | `resolve_fallback_sender_role()`: reads the presence record and answers `fallback_sender_role` for every fallback that acts on the printer |
@@ -65,8 +66,8 @@ most, because it is the one that is not always connected and cannot afford to re
 | `src/application/discovery_steps_core.cpp#helix_plugin_check_step` | Calls `server.helix.status` during discovery |
 | `include/plugin_status_refresh.h`, `src/printer/plugin_status_refresh.cpp` | `PluginStatusRefresh`: reads `server.helix.status` again at each job start and on `notify_helix_features_changed`, announcing only a changed map (`FeatureAnnounce::IfChanged`, `include/helix_plugin_features.h`) |
 | `include/history_job_events.h` | `HistoryJobEvents`, `parse_history_job_event`: the one history `added` / `finished` subscription the app's fallbacks and the refresh share |
-| `ui_xml/plugin_feature_toggle_row.xml`, `src/ui/ui_plugin_feature_row.cpp` | The shared settings row for a plugin feature's switch |
-| `src/ui/ui_plugin_overview_overlay.cpp` | Advanced > HelixPrint Plugin, the read-only overview |
+| `ui_xml/plugin_feature_toggle_row.xml`, `src/ui/plugin/ui_plugin_feature_row.cpp` | The shared settings row for a plugin feature's switch |
+| `src/ui/plugin/ui_plugin_overview_overlay.cpp` | Advanced > HelixPrint Plugin, the read-only overview |
 | `src/plugin/plugin_permissions.cpp#is_readonly_moonraker_method` | The read-only method list, including the HelixPrint reads a Lua plugin may call |
 | `src/api/moonraker_gcode_guards.cpp#reject_plugin_rpc` | Refuses every other `server.helix.*` method from a Lua plugin |
 | `tests/unit/test_helix_plugin_features.cpp`, `tests/unit/test_plugin_feature_row.cpp` | `[plugin_feature]`: the decision functions and the row |
@@ -169,6 +170,22 @@ A plugin path that starts a job itself marks it, so start-of-job features can le
   `print_modified`, `print_edited`. A start through a link passes the original name as
   `history_name`, since the finished history entry is renamed to it; both names answer.
 - `unmark_helix_initiated(filename)` when that command fails.
+
+**The per-print tool map.** `print_modified` and `print_edited` take an optional `tools`:
+comma-separated 1-based slots indexed by G-code tool, an empty entry leaving that tool to the
+firmware (`"2,,1"`), the value the app sends as `printer.print.start`'s own `tools` (#2033).
+Anything but digits and commas, or over 512 characters, is a 400 before anything starts. When
+Moonraker's `klippy_apis.start_print` takes a `tools` parameter (Z-Mod's fork, which advertises
+it in `server.info` as `zmod.features: ["print_start_tools"]`), `start_linked_print` starts the
+link through `start_print(filename, tools=tools)`, so the firmware routes the print by the map
+the user confirmed instead of asking again (#2038). Elsewhere, and with no map, it runs
+`SDCARD_PRINT_FILE` as before. The test is the method's own signature
+(`HelixPrint#start_print_takes_tools`), so stock Moonraker never sees the argument. The status
+feature `print_start_tools` (v1, no switch) reports the same test: available where the map
+reaches Moonraker, else unavailable with `start_print_takes_no_tools`, a hidden reason. The app
+reads it before a plugin start that carries a map (`print_start::plugin_drops_tool_map`) and logs
+a warning when the map will not arrive: the plugin predates the feature, or Moonraker's start
+takes no map. The print still starts, and the printer routes it by its own prompt.
 - When history adds the job (`history:history_changed`, action `added`), the marker binds to
   the job id and persists in namespace `helix_jobs` (key = job id, value
   `{"kind", "filenames", "start_time", "bound_at"}`, kept 30 days). An unclaimed marker expires
@@ -320,15 +337,20 @@ history header.
 
 ### The overview
 
-Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one line per
-status-map feature, built by `plugin_feature_lines()`: Active, Off, or "Unavailable: <reason>".
-A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to that page; a
-feature with no setting, or one this app does not know (shown by its key), shows status only.
+Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one dense
+row per status-map feature, built by `plugin_feature_lines()`, under three headers: RUNNING,
+OFF and NOT AVAILABLE HERE. A header with no features is hidden. `plugin_overview_row()` decides
+each row's group and its reason: only an unavailable feature gets a second, muted line, its
+reason in words, or "The plugin didn't say why." when it gave none. Running rows, whose names
+are short, sit up to three to a row where the width allows (`responsive_grid`); off and
+unavailable rows take the full width for their longer names and reasons. A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to
+that page with a chevron; a feature with no setting, or one this app does not know (shown by its
+key), takes no tap.
 A feature that serves one kind of hardware lists, in its `kKnownPluginFeatures` row's
 `hidden_reasons`, the reasons that mean that hardware is absent. While it is unavailable for one
 of them it gets no line (`hidden_on_overview`), so a printer lists only the vendor transport it
 could use. Any other reason (a load failure, `plugin_disabled`) still shows as Unavailable with
-its reason, like every other feature. Only `vendor_ad5x` and `vendor_ace` carry such a list. The Advanced panel shows Install while the plugin
+its reason, like every other feature. Only `vendor_ad5x`, `vendor_ace` and `print_start_tools` carry such a list. The Advanced panel shows Install while the plugin
 is known absent, and the overview and Uninstall while it is installed.
 
 The reason is shown in words, not as the plugin's code: `plugin_reason_text()`
@@ -342,24 +364,33 @@ its row there.
 | `plugin_disabled` | every feature, `enabled: False` in `[helix_print]` | The plugin is turned off in moonraker.conf. |
 | `module_missing` | a feature whose module file is absent | Part of the plugin is missing. Reinstall the plugin. |
 | `load_failed` | a feature whose module raised on import | Part of the plugin failed to load. Reinstall the plugin. |
-| `start_failed` | a feature whose start raised | This feature failed to start. The Moonraker log says why. |
-| `stopped` | `convert_3mf`, its converter stopped | This feature stopped. Restart Moonraker to start it again. |
-| `needs_file_analysis` | `fit_check_blocks_autostart` | This needs the plugin's file analysis, which isn't running. |
-| `upload_hook_unsupported` | `fit_check_blocks_autostart` | This Moonraker version can't hold uploads. Update Moonraker. |
+| `start_failed` | a feature whose start raised | Failed to start. See the Moonraker log. |
+| `stopped` | `convert_3mf`, its converter stopped | Stopped. Restart Moonraker to start it again. |
+| `needs_file_analysis` | `fit_check_blocks_autostart` | Needs file analysis, which isn't running. |
+| `upload_hook_unsupported` | `fit_check_blocks_autostart` | Needs a newer Moonraker to hold uploads. |
 | `no_gcodes_dir` | `file_analysis` | Moonraker has no G-code folder. |
 | `python_too_old` | `plr` | Moonraker's Python is too old for this feature. |
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
-| `not_listed` | `plr` | Power-loss recovery isn't supported on this printer yet. |
+| `not_listed` | `plr` | Not set up for this printer model yet. |
+| `gantry_drops` | `plr` | This printer's gantry drops when the power is cut, so a print can't be resumed. |
+| `delta_kinematics` | `plr` | A delta printer can't home X and Y without moving Z, so a print can't be resumed. |
+| `firmware_recovery` | `plr` | This printer's firmware has its own power-loss recovery. |
+| `klipper_config_unread` | `plr` | Waiting to read the printer's configuration from Klipper. |
+| `override_homes_z` | `plr` | This printer's homing override homes Z along with X and Y, so a print can't be resumed. |
+| `override_sets_z` | `plr` | This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed. |
+| `override_unknown` | `plr` | This printer's homing override runs commands that may move Z, so a print can't be resumed. |
 | `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
+| `unsafe_staging_dir` | `storage`, `storage_auto_cleanup` | A folder name in moonraker.conf is unsafe. |
+| `unsafe_root` | `storage`, `storage_auto_cleanup` | Timelapse or logs folder overlaps a protected one. |
 | `no_adventurer_json` | `vendor_ad5x` (hidden) | This printer has no IFS. |
 | `adventurer_json_unreadable` | `vendor_ad5x` | The IFS state file can't be read. |
 | `no_ace_bridge` | `vendor_ace` (hidden) | No ACE unit was found. |
 | `ace_objects_carry_slots` | `vendor_ace` (hidden) | Klipper already reports the ACE slots. |
 | `bridge_unreadable` | `vendor_ace` | The ACE state can't be read. |
 
-`storage` and `storage_auto_cleanup` report a sentence (`root_problem` in `helix_storage.py`),
-not a code, so it shows as written.
+`storage` and `storage_auto_cleanup` report `root_problem()`'s code with the offending name or
+path after the colon (`helix_storage.py`).
 
 ### One fallback sender per printer
 
@@ -419,7 +450,7 @@ Observer: `always_on`, no switch.
 | `include/file_analysis.h`, `src/printer/file_analysis.cpp` | `file_analysis_source`, `parse_file_analysis_reply` (the record's `bounds` and `header` into `FileAnalysisRecord::fit`), `apply_file_analysis`, `request_file_analysis`, `with_layer_index_sidecar`; exception-free, compiled for the K-Touch |
 | `src/printer/print_start_inputs.cpp#load` | `FileStartFactsLoader::load`: metadata, record, footer, scan, in that order |
 | `src/rendering/gcode_layer_index.cpp` | `GCodeLayerIndex::build_from_sidecar`, `layer_index_file_hash` |
-| `src/ui/ui_print_select_detail_view.cpp`, `src/ui/print_preview_controller.cpp` | The two previews: fetch the sidecar, then load |
+| `src/ui/print/ui_print_select_detail_view.cpp`, `src/ui/print/print_preview_controller.cpp` | The two previews: fetch the sidecar, then load |
 
 **Endpoint.** `server.helix.analysis {"filename"}` answers `ready` with the record, `pending`
 (queued at the front; `notify_analysis_ready {"filename"}` follows), `failed` (this version
@@ -508,7 +539,7 @@ Safety & Alerts > Hold slicer prints that do not fit.
 | `tests/fixtures/fit_check/cases.json` | The one table both checkers are held to (limit cases and check cases) |
 | `src/printer/print_start_checks.cpp#gate_fit_check` | The gate, right after `printer_stopping_command` in `default_print_start_gates` |
 | `src/printer/print_start_inputs.cpp#current_fit_machine` | Limits from `PrinterDiscovery::fit_machine()` (parsed from `configfile.settings` at discovery), plus the database model, the filament-system rule and the nozzles the extruders report (`ExtruderInfo::nozzle_diameter` / `nozzle_volume_type`, subscribed in `src/api/moonraker_discovery_sequence.cpp`) |
-| `src/ui/ui_print_select_detail_view.cpp#refresh_fit_check` | The detail card, above the filament card: `detail_fit_check_severity` (0 no finding, then one past the worst: 1 note, 2 warn, 3 block) and `detail_fit_check_text` (every finding) |
+| `src/ui/print/ui_print_select_detail_view.cpp#refresh_fit_check` | The detail card, above the filament card: `detail_fit_check_severity` (0 no finding, then one past the worst: 1 note, 2 warn, 3 block) and `detail_fit_check_text` (every finding) |
 
 **Limits.** A delta reads `print_radius` (else `delta_radius`), Z from `minimum_z_position`
 (0) to the lowest tower `position_endstop`; any other kinematics reads `stepper_[xyz]`
@@ -611,7 +642,7 @@ Settings > Printing > Apply start options to prints from other apps.
 | File | Role |
 |------|------|
 | `moonraker-plugin/helix_print_hooks.py` | `standing_gcode()`, `hook_gcode()` (pure), `PrintHooks` (history handler, `screen_start` endpoint) |
-| `include/ams_backend.h#standing_print_gcode` | `AmsBackend::standing_print_gcode()`, the capability: per-print choices that still apply to a running print. Default empty |
+| `include/ams_print_routing.h#standing_print_gcode` | `IPrintRouting::standing_print_gcode()`, the capability: per-print choices that still apply to a running print. Default empty |
 | `src/printer/ams_backend_snapmaker.cpp#standing_print_gcode` | U1: the end-unload list, with `FORCE=1` because the print is already running |
 | `include/standing_print_options.h` | `render_standing_gcode`, `standing_options_record`, `standing_options_sender`, `announce_screen_start`, `ScreenStartLedger` |
 | `src/printer/standing_print_options_controller.cpp` | Keeps the record current, registers `notify_history_changed`, the app fallback send, the presence heartbeat |
@@ -675,13 +706,13 @@ and starts the result through the same linked-print path as `print_modified`. Tr
 | `moonraker-plugin/helix_edits.py` | `parse_edits` / `resolve_spans`, `apply_plan` / `apply_file` (pure), `HelixEdits` (endpoint); run as a script, the worker that rewrites one file |
 | `moonraker-plugin/helix_print.py` | `_start_edits`; `resolve_original`, `resolve_temp`, `start_linked_print(..., kind)` shared with `print_modified` |
 | `include/gcode_edit_list.h`, `src/rendering/gcode_edit_list.cpp` | `EditList`, `to_server_edits`, `from_server_edits`, `choose_edit_transport` |
-| `src/ui/ui_print_preparation_manager.cpp` | `modify_and_print`, `modify_and_print_with_remap` fill the server-edits route; `rewrite_and_print` picks it; `start_staged_print` starts either |
+| `src/ui/print/ui_print_preparation_manager.cpp` | `modify_and_print`, `modify_and_print_with_remap` fill the server-edits route; `rewrite_and_print` picks it; `start_staged_print` starts either |
 | `src/api/moonraker_job_api.cpp#start_edited_print` | JSON-RPC `server.helix.print_edited` |
 | `src/rendering/gcode_file_modifier.cpp`, `src/rendering/gcode_tool_remapper.cpp` | The app's half of the grammar |
 | `tests/fixtures/gcode_edits/` | Golden cases both suites apply |
 
 **Endpoint.** `server.helix.print_edited {original_filename, temp_file_path?, edits[],
-modifications[]}`. The reply is `print_modified`'s plus `lines_changed`. Errors: 400 for a
+modifications[], tools?}`. The reply is `print_modified`'s plus `lines_changed`. Errors: 400 for a
 malformed or out-of-bounds list (lines 1..2147483647, `end_line` at least `line_number`, at
 most `MAX_EDITS` = 10000 edits), a path outside gcodes, or a copy path that is not directly in
 `temp_dir` / `.helix_temp` / `helix_staging` or is the original (`resolve_temp`, shared with
@@ -745,9 +776,9 @@ Who already switches the active spool (source survey, 2026-10-20):
 | `include/filament_accounting.h`, `src/printer/filament_accounting.cpp` | The same rules in C++, `printer_switches_active_spool`, `app_sets_spool_on_edit`, `filament_spools_record`, `extruder_feed_signal`, `filament_accounting_sender`, `filament_usage_available`, `parse_filament_usage`, `describe_spool_usage`; exception-free, compiled for the K-Touch |
 | `include/filament_accounting_controller.h`, `src/printer/filament_accounting_controller.cpp` | `active_spool_owner_now`, `helix_sets_active_spool`, `helix_sets_active_spool_on_edit` (every app path that sets the active spool asks one of these); `FilamentAccountingController` keeps the map current and is the app fallback at a tool change |
 | `include/ams_backend.h#feed_slot_signals` | Capability: the status fields that say which slot feeds now. INDX: `save_variables.variables.active_tool` (one extruder with docked nozzles, so `toolhead.extruder` never changes) |
-| `include/ams_backend.h#sets_active_spool_on_link` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
+| `include/ams_backend.h#"bool sets_active_spool_on_link() const"` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
 | `src/printer/ams_state.cpp#commit_slot_edit`, `src/printer/ams_state_external_spool.cpp` | The explicit edits: a lane link or unlink, the external spool |
-| `src/ui/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
+| `src/ui/print/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
 
 **Records.** The app writes `helix-screen` / `filament_spools` = `{"version": 1,
 "manages_active_spool", "printer_switches_active_spool", "macros_set_active_spool", "signals":
@@ -867,7 +898,7 @@ it the screen keeps its own and backfills gaps on reconnect. Observer: `always_o
 | `tests/fixtures/journal/error_line_classes.json` | Pins the Python and C++ `!!` classifiers to one table |
 | `include/printer_event_journal.h`, `src/printer/printer_event_journal.cpp` | `JournalEntry`, `classify_journal_error`, `decide_journal_source`, wire and backfill parsers, `describe_journal_entry` (firmware-compiled) |
 | `include/event_journal_recorder.h`, `src/application/event_journal_recorder.cpp` | `EventJournalRecorder` (the fallback recorder and reconnect backfill) and `LocalEventJournal` |
-| `src/ui/ui_printer_events_overlay.cpp`, `ui_xml/printer_events_overlay.xml` | The Printer Events view, opened from the notification history header |
+| `src/ui/printers/ui_printer_events_overlay.cpp`, `ui_xml/printer_events_overlay.xml` | The Printer Events view, opened from the notification history header |
 | `src/system/debug_bundle_collector.cpp#build_event_journal` | The debug bundle's `event_journal` section |
 
 **Endpoint.** `server.helix.journal {since=0, limit=100}` (limit capped at 500) returns
@@ -916,7 +947,7 @@ switch: Settings > Devices > Print photos.
 | `moonraker-plugin/helix_photos.py` | Pure rules (`layer_two_done`, `pick_webcam`, `pick_snapshot_url`, `snapshot_candidates`, `redirect_allowed`, `photo_path`, `with_photo`, `newer_record`, `history_matches`, `prune_plan`, `orphan_files`) and `HelixPhotos` (history and status handlers, reachability, capture, record, aux link, prune, `delete_older_than`) |
 | `include/print_photos.h`, `src/printer/print_photos.cpp` | Constants (`kPhotosDir`), `photo_taker`, `layer_two_done`, `ends_with_photo`, `is_photo_path`, record and aux parsers, `photo_record_with`, `photo_record_is_newer`, `merge_photo_lists`, `photo_records_to_prune`; firmware-compiled |
 | `include/print_photos_controller.h`, `src/printer/print_photos_controller.cpp` | `PrintPhotosController`, the app fallback, owned by `SubjectInitializer` |
-| `include/ui_history_photos.h`, `src/ui/ui_history_photos.cpp` | `HistoryPhotoViewer`: the detail card's photos, `default_photo_view`, `photo_for_view`, `delete_photos` |
+| `include/ui_history_photos.h`, `src/ui/print/ui_history_photos.cpp` | `HistoryPhotoViewer`: the detail card's photos, `default_photo_view`, `photo_for_view`, `delete_photos` |
 | `include/webcam_selection.h#photo_pick`, `src/api/webcam_selection.cpp#view_config_for` | The camera both sides photograph; the flip and rotation a photo is shown with |
 | `include/camera_stream.h#camera_view_transform` | That transform as the camera widget applies it |
 
@@ -1018,7 +1049,7 @@ Storage > Automatic cleanup.
 | `moonraker-plugin/helix_plr.py` | `HelixPlr.protected_paths()`, `HelixPlr.resume_unaccounted()`: what a waiting snapshot resumes from |
 | `include/storage_report.h`, `src/printer/storage_report.cpp` | `kConsumers`, `report_source`, `parse_storage_result`, `classify_gcodes_path`, `parse_directory_result`, `fallback_cleanable`, `fallback_may_clean`, `timelapse_root_safe`, `timelapse_listing_is_own`, `fallback_removes`, `cleanup_message`, `upload_space`, `is_no_space_refusal`, `kFreeSpaceFloorBytes`; exception-free |
 | `include/storage_report_service.h`, `src/printer/storage_report_service.cpp` | `StorageReportService` (plugin fetch or file-API scan, cleanup either way), `check_upload_space` |
-| `src/ui/ui_settings_storage.cpp`, `ui_xml/settings_storage_overlay.xml`, `ui_xml/components/storage_consumer_row.xml` | Settings > System > Storage |
+| `src/ui/settings/ui_settings_storage.cpp`, `ui_xml/settings_storage_overlay.xml`, `ui_xml/components/storage_consumer_row.xml` | Settings > System > Storage |
 
 **Consumers.** In fixed order: `helix_temp` (print copies), `3mf_outputs`, `analysis_sidecars`,
 `photos`, `timelapse`, `logs`, `thumbnails`, `user_gcode`, `plr` (`helix-plr/`: the power-loss
@@ -1230,6 +1261,44 @@ Backend details: [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md),
 
 ---
 
+## Signal Macro Migration (`signal_macro_migration` v1)
+
+HelixScreen names its eleven signal macros with a leading underscore so Fluidd and Mainsail
+leave them out of their macro lists. Printers instrumented by HelixScreen before 1.1 call the
+visible names from marker blocks inside `PRINT_START`. At every `klippy_ready` the plugin
+renames each block's call line to the hidden name, so the printer keeps every phase and ready
+signal and the app's scan of `configfile.settings` stops counting those calls as reasons to keep
+a visible alias (#2006). Own switch: `[helix_print] migrate_signal_macros`, default on.
+
+| File | Role |
+|------|------|
+| `moonraker-plugin/strip_phase_tracking.py` | `compute_renamed_content`, `process_file(mode="rename", dry_run, allowed_names)`, `run_tree`, `TreeReport` (`names_needed`, `summary_line`, `exit_status`); the strip uninstall runs |
+| `moonraker-plugin/helix_signal_migration.py` | `missing_hidden_names` (the gate), `firmware_managed`, `HelixSignalMigration` (`run_once`, the report, the endpoint) |
+
+**Order of a run** (one `asyncio.Lock`, file work in a thread): a dry `run_tree` and its one log
+line; nothing planned ends it; switched off or firmware-managed ends it as `disabled` /
+`firmware_managed`; `configfile.settings` must define every name in `names_needed()`, else
+`waiting_for_pack`; then the real `run_tree`, restricted to those checked names
+(`allowed_names`), so a file that changed in between into calling another name is skipped
+rather than renamed past the gate. The edit rules, backups and concurrent-change check are the
+strip's (`safe_replace_file`). The report is stored in the `helix_print` namespace; a
+`nothing` run does not replace a stored `done`. A change of state sends
+`notify_helix_features_changed`.
+
+**Firmware-managed installs** (the markers of
+`scripts/lib/installer/main.sh#_refuse_if_firmware_managed`): report only. Whether the firmware's own config should
+be renamed there is open in #2006.
+
+**Endpoint.** `server.helix.signal_migration`: README § Signal Macro Migration has the shape.
+It is on the Lua read-only allowlist. The app names the feature in the overview
+(`kKnownPluginFeatures`, `PluginFeatureHome::None`: it has no switch on the screen); the mock
+reports it ready and answers `state: "nothing"`.
+
+**Testing.** `pytest moonraker-plugin/tests/test_strip_phase_tracking.py
+moonraker-plugin/tests/test_helix_signal_migration.py`.
+
+---
+
 ## Adding a Feature
 
 1. **Module.** `moonraker-plugin/helix_<feature>.py`, with its feature name and contract version
@@ -1251,9 +1320,9 @@ Backend details: [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md),
    plugin and a start that raises; a module checks `feature_enabled(name)` before it acts. A
    start-of-job feature acts from history `added` and checks `helix_initiated()`; a path that
    starts a job marks it.
-3. **Install list.** Add the file to `PLUGIN_FILES` in `moonraker-plugin/remote-install.sh`.
-   `tests/shell/test_plugin_remote_install.bats` fails for any shipped `.py` or `.sh` the
-   wrapper does not fetch.
+3. **Install list.** Add the file to `PLUGIN_FILES` in `moonraker-plugin/remote-install.sh`;
+   the release tarball is packed from the same list. `tests/shell/test_plugin_remote_install.bats`
+   fails for any shipped `.py` or `.sh` the wrapper does not fetch.
 4. **Allowlist.** A read endpoint joins `kReadonlyMethods` in
    `src/plugin/plugin_permissions.cpp` under its exact JSON-RPC name. A write endpoint stays out,
    and `reject_plugin_rpc` refuses it.

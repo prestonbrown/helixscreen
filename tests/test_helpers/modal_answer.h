@@ -3,8 +3,8 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 
 #include <string>

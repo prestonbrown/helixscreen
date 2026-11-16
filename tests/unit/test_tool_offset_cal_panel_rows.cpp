@@ -11,10 +11,10 @@
  */
 
 #include "ui_panel_calibration_tool_offset.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../toolchanger_panel_fixture.h"
+#include "core/update_queue.h"
 #include "tool_state.h"
 
 #include <string>

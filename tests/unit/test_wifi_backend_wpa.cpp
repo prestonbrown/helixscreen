@@ -138,6 +138,59 @@ TEST_CASE("wpa scan watchdog resolves a scan whose event never comes", "[network
     REQUIRE(events.wait_for(1, 10 * kWatchdogMs));
 }
 
+TEST_CASE("wpa ctrl request outcomes", "[network][wpa][2066]") {
+    using helix::wifi::detail::classify_ctrl_request;
+    using helix::wifi::detail::CtrlRequestOutcome;
+    CHECK(classify_ctrl_request(0) == CtrlRequestOutcome::Reply);
+    CHECK(classify_ctrl_request(-2) == CtrlRequestOutcome::TimedOut);
+    CHECK(classify_ctrl_request(-1) == CtrlRequestOutcome::Failed);
+}
+
+// A datagram already queued on the control connection was sent before the
+// next request and cannot be its reply. Read as one, SCAN "fails" with the
+// text of whatever command it belonged to (#2066).
+TEST_CASE("wpa a stale reply on the control socket is not the next command's answer",
+          "[network][wpa][2066]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    fx.fake->set_trailing_datagram("PING", "bssid=70:f8:2b:66:9c:60\nwpa_state=COMPLETED\n");
+    REQUIRE(backend.send_command("PING") == "PONG");
+    for (int i = 0; i < 200 && fx.fake->trailing_sent() == 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    REQUIRE(fx.fake->trailing_sent() == 1);
+    // Delivery is synchronous on AF_UNIX, but let the datagram settle in the queue.
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    WiFiError scan = backend.trigger_scan();
+    CHECK(scan.success());
+    CHECK(scan.technical_msg.find("wpa_state") == std::string::npos);
+    backend.stop();
+}
+
+// wpa_ctrl waits 10 s for a reply, so this case does too. The daemon answers
+// the timed-out request after the client gave up; that late answer must reach
+// no live connection, and the next command must read its own reply.
+TEST_CASE("wpa a reply that arrives after its request timed out does not poison the next",
+          "[network][wpa][2066][slow]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\n");
+    fx.fake->delay_next_reply("STATUS", 10500);
+    CHECK(backend.send_command("STATUS").empty());
+
+    for (int i = 0; i < 300 && fx.fake->late_replies_sent() == 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    REQUIRE(fx.fake->late_replies_sent() == 1);
+    CHECK(fx.fake->late_replies_delivered() == 0);
+
+    CHECK(backend.send_command("PING") == "PONG");
+    backend.stop();
+}
+
 TEST_CASE("wpa SCAN_RESULTS event disarms the watchdog", "[network][wpa][1407]") {
     WpaFakeFixture fx;
     WifiBackendWpaSupplicant backend(kWatchdogMs);
@@ -459,6 +512,100 @@ TEST_CASE("wpa teardown detaches the monitor connection while it is still open",
             REQUIRE(detaches() == 0);
         }
         CHECK(detaches() == 1);
+    }
+}
+
+namespace {
+
+std::string scan_results(const std::vector<std::string>& rows) {
+    std::string raw = "bssid / frequency / signal level / flags / ssid\n";
+    for (const auto& row : rows) {
+        raw += row + "\n";
+    }
+    return raw;
+}
+
+} // namespace
+
+TEST_CASE("wpa scan results skip a hidden network shown as zero bytes",
+          "[network][wpa][hidden_ssid]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("SCAN_RESULTS",
+                       scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[WPA2-PSK-CCMP][ESS]\tHome",
+                                     "aa:bb:cc:dd:ee:02\t2437\t-60\t[WPA2-PSK-CCMP][ESS]\t"
+                                     "\\x00\\x00\\x00\\x00\\x00\\x00"}));
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    std::vector<WiFiNetwork> networks;
+    REQUIRE(backend.get_scan_results(networks).success());
+    REQUIRE(networks.size() == 1);
+    CHECK(networks[0].ssid == "Home");
+}
+
+TEST_CASE("wpa learns 5 GHz support from a scan that sees a 5 GHz network",
+          "[network][wpa][wifi_band]") {
+    WpaFakeFixture fx;
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+    // The fake's frequency list names no 5 GHz channel and no iw is installed,
+    // so init leaves the radio at 2.4 GHz only.
+    REQUIRE_FALSE(backend.supports_5ghz());
+
+    std::vector<WiFiNetwork> networks;
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK_FALSE(backend.supports_5ghz());
+
+    fx.fake->set_reply("SCAN_RESULTS", scan_results({"aa:bb:cc:dd:ee:01\t2412\t-50\t[ESS]\tSlow",
+                                                     "aa:bb:cc:dd:ee:02\t5180\t-70\t[ESS]\tFast"}));
+    REQUIRE(backend.get_scan_results(networks).success());
+    CHECK(backend.supports_5ghz());
+}
+
+TEST_CASE("wpa status reads the kernel's address when STATUS carries none",
+          "[network][wpa][wifi_status_ip][wifi_dhcp_pending]") {
+    WpaFakeFixture fx;
+    fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nfreq=2412\n");
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    std::vector<std::string> asked;
+    backend.set_ipv4_lookup_for_test([&asked](const std::string& netdev) {
+        asked.push_back(netdev);
+        return std::string("192.168.1.77");
+    });
+    REQUIRE(backend.start().success());
+
+    WifiBackend::ConnectionStatus status = backend.get_status();
+    REQUIRE(status.connected);
+    CHECK(status.ip_address == "192.168.1.77");
+    CHECK_FALSE(status.awaiting_ipv4);
+    REQUIRE_FALSE(asked.empty());
+    CHECK(asked.back() == "wlan0");
+
+    SECTION("joined with no address anywhere is awaiting one") {
+        backend.set_ipv4_lookup_for_test([](const std::string&) { return std::string(); });
+        status = backend.get_status();
+        CHECK(status.connected);
+        CHECK(status.awaiting_ipv4);
+    }
+
+    SECTION("an address in STATUS is kept and the kernel is not asked") {
+        fx.fake->set_reply("STATUS", "wpa_state=COMPLETED\nssid=Home\nip_address=10.0.0.5\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK(status.ip_address == "10.0.0.5");
+        CHECK_FALSE(status.awaiting_ipv4);
+        CHECK(asked.empty());
+    }
+
+    SECTION("a link that is not associated reports no address") {
+        fx.fake->set_reply("STATUS", "wpa_state=SCANNING\n");
+        asked.clear();
+        status = backend.get_status();
+        CHECK_FALSE(status.connected);
+        CHECK_FALSE(status.awaiting_ipv4);
+        CHECK(status.ip_address.empty());
+        CHECK(asked.empty());
     }
 }
 

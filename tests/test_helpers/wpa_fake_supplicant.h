@@ -21,6 +21,7 @@
  */
 
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -69,6 +70,11 @@ class WpaFakeSupplicant {
         ::shutdown(fd_, SHUT_RDWR);
         if (thread_.joinable())
             thread_.join();
+        for (auto& t : late_threads_) {
+            if (t.joinable())
+                t.join();
+        }
+        late_threads_.clear();
         ::close(fd_);
         fd_ = -1;
         ::unlink((dir_ + "/wlan0").c_str());
@@ -88,6 +94,33 @@ class WpaFakeSupplicant {
     void set_reply(const std::string& cmd, const std::string& reply) {
         std::lock_guard<std::mutex> lock(mutex_);
         replies_[cmd] = reply;
+    }
+
+    /// After answering @p cmd, send @p extra as a second datagram to the same
+    /// client: the shape of a late reply to an earlier, timed-out request.
+    void set_trailing_datagram(const std::string& cmd, const std::string& extra) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        trailing_[cmd] = extra;
+    }
+
+    /// Datagrams sent through set_trailing_datagram() so far.
+    int trailing_sent() const {
+        return trailing_sent_.load();
+    }
+
+    /// Answer the next @p cmd only after @p delay_ms, past the client's
+    /// timeout, to the address that asked. Later @p cmd requests answer at once.
+    void delay_next_reply(const std::string& cmd, int delay_ms) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        delayed_[cmd] = delay_ms;
+    }
+
+    /// Delayed replies sent so far, and how many reached a live client address.
+    int late_replies_sent() const {
+        return late_sent_.load();
+    }
+    int late_replies_delivered() const {
+        return late_delivered_.load();
     }
 
     /// Commands received so far, in order (SCAN, ATTACH, PING, ...).
@@ -125,7 +158,41 @@ class WpaFakeSupplicant {
                     monitors_.push_back(p);
                 }
             }
+            int delay_ms = -1;
+            std::string trailing;
+            bool has_trailing = false;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                const auto d = delayed_.find(cmd);
+                if (d != delayed_.end()) {
+                    delay_ms = d->second;
+                    delayed_.erase(d);
+                }
+                const auto t = trailing_.find(cmd);
+                if (t != trailing_.end()) {
+                    trailing = t->second;
+                    has_trailing = true;
+                }
+            }
+            if (delay_ms >= 0) {
+                late_threads_.emplace_back(
+                    [this, peer, peer_len, delay_ms, msg = answer_to(cmd)]() {
+                        for (int waited = 0; waited < delay_ms && running_; waited += 10)
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        const ssize_t sent =
+                            ::sendto(fd_, msg.data(), msg.size(), 0,
+                                     reinterpret_cast<const sockaddr*>(&peer), peer_len);
+                        late_sent_.fetch_add(1);
+                        if (sent >= 0)
+                            late_delivered_.fetch_add(1);
+                    });
+                continue;
+            }
             reply(peer, peer_len, answer_to(cmd));
+            if (has_trailing) {
+                reply(peer, peer_len, trailing);
+                trailing_sent_.fetch_add(1);
+            }
         }
     }
 
@@ -163,6 +230,12 @@ class WpaFakeSupplicant {
     std::vector<Peer> monitors_;
     std::vector<std::string> commands_;
     std::map<std::string, std::string> replies_;
+    std::map<std::string, std::string> trailing_;
+    std::map<std::string, int> delayed_;
+    std::vector<std::thread> late_threads_;
+    std::atomic<int> trailing_sent_{0};
+    std::atomic<int> late_sent_{0};
+    std::atomic<int> late_delivered_{0};
 };
 
 /// RAII HELIX_WPA_SOCKET_DIR pin, so a failing assertion cannot leak the env

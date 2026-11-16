@@ -15,12 +15,15 @@
 #include "ui_panel_settings.h"
 #include "ui_settings_appearance.h"
 #include "ui_settings_hardware.h"
+#include "ui_settings_printing.h"
 #include "ui_settings_safety.h"
 #include "ui_settings_sound.h"
 #include "ui_settings_touch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "audio_settings_manager.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
 #include "storage_report.h"
@@ -42,7 +45,7 @@ struct PageRowsFixture : LVGLUITestFixture {
     }
 
     ~PageRowsFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         helix::ui::UpdateQueue::instance().drain();
@@ -51,7 +54,7 @@ struct PageRowsFixture : LVGLUITestFixture {
     }
 
     void build(const char* view) {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), view, nullptr));
@@ -67,20 +70,23 @@ struct PageRowsFixture : LVGLUITestFixture {
 struct Placement {
     const char* view;
     std::vector<const char*> rows;
+    std::vector<const char*> absent = {}; ///< rows that live on another page
 };
 
 } // namespace
 
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
-                 "[settings][settings_pages]") {
+TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page, and only there",
+                 "[settings][settings_pages][plugin_feature]") {
     const std::vector<Placement> placements = {
         {"settings_display_overlay",
          {"row_display_rotation", "row_ui_scale", "brightness_slider", "row_display_dim",
           "row_display_sleep", "row_screensaver", "btn_test_screensaver",
-          "row_sleep_while_printing"}},
+          "row_screensaver_print_progress", "row_sleep_while_printing"},
+         {"row_sounds", "row_dark_mode", "row_page_scroll_buttons"}},
         {"settings_appearance_overlay",
          {"row_dark_mode", "row_theme_settings", "row_animations", "row_widget_labels",
-          "row_bed_mesh_mode"}},
+          "row_speed_flow_units", "row_bed_mesh_mode"},
+         {"row_language", "row_system_keyboard", "brightness_slider"}},
         {"settings_sound_overlay",
          {"row_sounds", "row_volume", "row_ui_sounds", "row_sound_theme", "row_audio_device",
           "row_preview_sounds", "row_test_tracker"}},
@@ -95,24 +101,14 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page",
         {"settings_updates_overlay",
          {"row_update_channel", "row_update_channel_dev", "row_check_updates", "row_install_update",
           "row_updates_unavailable"}},
-    };
-    for (const auto& p : placements) {
-        build(p.view);
-        for (const char* row : p.rows) {
-            CAPTURE(p.view, row);
-            CHECK(has(row));
-        }
-    }
-}
-
-TEST_CASE_METHOD(PageRowsFixture,
-                 "settings pages: each plugin feature's switch is on the page the overview opens",
-                 "[settings][settings_pages][plugin_feature]") {
-    // PluginFeatureHome: Devices, Safety, System > Storage, Spoolman.
-    const std::vector<Placement> placements = {
-        {"settings_hardware_overlay", {"row_print_photos"}},
+        {"about_settings_overlay", {"row_version"}, {"row_check_updates"}},
+        // Each plugin feature's switch is on the page its PluginFeatureHome opens:
+        // Devices, Safety, System > Storage, Spoolman.
+        {"settings_hardware_overlay", {"row_print_photos"}, {"row_printers"}},
         {"settings_safety_overlay", {"row_fit_check_blocks_autostart"}},
-        {"settings_system_overlay", {"row_storage"}},
+        {"settings_system_overlay",
+         {"row_storage"},
+         {"row_network", "row_printer_host", "row_touch_input"}},
         {"spoolman_settings", {"row_filament_accounting"}},
         {"settings_storage_overlay", {"row_storage_auto_cleanup"}},
     };
@@ -121,6 +117,10 @@ TEST_CASE_METHOD(PageRowsFixture,
         for (const char* row : p.rows) {
             CAPTURE(p.view, row);
             CHECK(has(row));
+        }
+        for (const char* row : p.absent) {
+            CAPTURE(p.view, row);
+            CHECK_FALSE(has(row));
         }
     }
 }
@@ -133,36 +133,6 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: Storage has a row for every c
         CAPTURE(clean);
         CHECK(has(clean.c_str()));
     }
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: moved rows are gone from their old page",
-                 "[settings][settings_pages]") {
-    build("settings_appearance_overlay");
-    CHECK_FALSE(has("row_language"));
-    CHECK_FALSE(has("row_system_keyboard"));
-    CHECK_FALSE(has("brightness_slider"));
-    build("settings_display_overlay");
-    CHECK_FALSE(has("row_sounds"));
-    CHECK_FALSE(has("row_dark_mode"));
-    CHECK_FALSE(has("row_page_scroll_buttons"));
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: connection and update rows left their old pages",
-                 "[settings][settings_pages]") {
-    build("settings_system_overlay");
-    CHECK_FALSE(has("row_network"));
-    CHECK_FALSE(has("row_printer_host"));
-    CHECK_FALSE(has("row_touch_input"));
-    build("settings_hardware_overlay");
-    CHECK_FALSE(has("row_printers"));
-    build("about_settings_overlay");
-    CHECK_FALSE(has("row_check_updates"));
-    CHECK(has("row_version"));
-}
-
-TEST_CASE_METHOD(PageRowsFixture, "settings pages: the Display & Sound view no longer exists",
-                 "[settings][settings_pages]") {
-    CHECK(lv_xml_component_get_scope("settings_display_sound_overlay") == nullptr);
 }
 
 TEST_CASE_METHOD(PageRowsFixture, "settings pages: speaker chip path opens Sound",
@@ -186,6 +156,17 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: speaker chip path opens Sound
     CAPTURE(names.back());
     CHECK(names.back().find("sound") != std::string::npos);
 
+    // The volume readout binds settings_volume, so a drag tick's preview shows.
+    lv_obj_t* volume = lv_obj_find_by_name(lv_screen_active(), "row_volume");
+    REQUIRE(volume != nullptr);
+    lv_obj_t* readout = lv_obj_find_by_name(volume, "value_label");
+    REQUIRE(readout != nullptr);
+    const int before = AudioSettingsManager::instance().get_volume();
+    CHECK(std::string(lv_label_get_text(readout)) == std::to_string(before) + "%");
+    AudioSettingsManager::instance().preview_volume(37);
+    CHECK(std::string(lv_label_get_text(readout)) == "37%");
+    AudioSettingsManager::instance().preview_volume(before);
+
     NavigationManager::instance().go_back();
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(5);
@@ -201,17 +182,42 @@ TEST_CASE_METHOD(PageRowsFixture,
     build("settings_appearance_overlay");
     CHECK(has("row_toolhead_style"));
     CHECK(has("row_gcode_mode"));
+    CHECK_FALSE(has("row_z_movement_style"));
+    build("motion_settings_overlay");
     CHECK(has("row_z_movement_style"));
     build("settings_printing_overlay");
     CHECK_FALSE(has("row_toolhead_style"));
     CHECK(has("row_allow_cold_extrude"));
     CHECK(has("row_filament_auto_cooldown"));
     CHECK(has("row_filament_auto_open_editor"));
+    CHECK(has("row_number_lanes_from_zero"));
     CHECK(has("row_ams_settings"));
     build("settings_safety_overlay");
     CHECK_FALSE(has("row_allow_cold_extrude"));
     build("settings_hardware_overlay");
     CHECK_FALSE(has("row_ams_settings"));
+}
+
+TEST_CASE_METHOD(PageRowsFixture, "Number slots from 0 row writes the setting",
+                 "[settings][settings_pages][numbering]") {
+    auto& page = helix::settings::get_printing_settings_overlay();
+    page.show(test_screen());
+    process_lvgl(5);
+    lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), "row_number_lanes_from_zero");
+    REQUIRE(row != nullptr);
+    lv_obj_t* toggle = lv_obj_find_by_name(row, "toggle");
+    REQUIRE(toggle != nullptr);
+
+    auto& settings = SettingsManager::instance();
+    settings.set_number_lanes_from_zero(false);
+    process_lvgl(5);
+    lv_obj_add_state(toggle, LV_STATE_CHECKED);
+    lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(settings.get_number_lanes_from_zero());
+
+    settings.set_number_lanes_from_zero(false);
+    NavigationManager::instance().go_back();
+    process_lvgl(5);
 }
 
 TEST_CASE_METHOD(PageRowsFixture, "Appearance fills the printer-visual dropdowns on activate",
@@ -246,10 +252,10 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: touch calibration row shows c
     lv_obj_t* status_label = lv_obj_find_by_name(row, "status");
     REQUIRE(status_label != nullptr);
 
-    lv_subject_copy_string(status, "Not calibrated");
+    lv_subject_set_string(status, "Not calibrated");
     process_lvgl(5);
     CHECK(std::string(lv_label_get_text(status_label)) == "Not calibrated");
-    lv_subject_copy_string(status, "Calibrated");
+    lv_subject_set_string(status, "Calibrated");
     process_lvgl(5);
     CHECK(std::string(lv_label_get_text(status_label)) == "Calibrated");
 

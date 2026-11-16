@@ -262,11 +262,11 @@ TEST_CASE("Snapmaker build_preprint_gcode overwrites a previous print's remap",
 // ============================================================================
 //
 // A reprint has no detail view, no swatch card and no picker, so nothing on
-// that path can recompute a colour match. The reprint used to hand
-// build_preprint_gcode an EMPTY remap, and an absent tool resolves to its
-// firmware-default head — so "we do not know how this job was routed" was
-// emitted as "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n", which
-// actively erases the crossover the original print installed. Same shape as the
+// that path can recompute a colour match. Handing build_preprint_gcode an
+// EMPTY remap is wrong: an absent tool resolves to its firmware-default head,
+// so "we do not know how this job was routed" is emitted as
+// "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n", which actively
+// erases the crossover the original print installed. Same shape as the
 // attachment-map-as-routing bug in effective_routing(): an empty container
 // standing in for a confident identity answer.
 
@@ -298,8 +298,8 @@ TEST_CASE("reprint_remap: the recorded crossover survives into the reprint gcode
                      "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=0\n"
                      "SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,2");
 
-    // The bug, stated: the empty remap the reprint used to pass writes the
-    // crossover back to identity and names the wrong heads as used.
+    // Why the reprint must not pass an empty remap: it writes the crossover
+    // back to identity and names the wrong heads as used.
     REQUIRE(sm.build_preprint_gcode(tools_used, {}) ==
             "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=0\n"
             "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2\n"

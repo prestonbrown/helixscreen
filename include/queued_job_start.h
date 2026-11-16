@@ -11,10 +11,10 @@
  * bookkeeping, with the file view's inputs computed from FileStartFacts.
  */
 
-#include "ui_timer_guard.h"
-
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h" // JobQueueEntry
 #include "print_start_inputs.h"
 #include "queued_job_options.h"
@@ -64,7 +64,7 @@ class QueuedJobStarter {
         OpenedFileView, ///< a check needed the file view (a remap, or a file the
                         ///< tile cannot check); the job opened there
     };
-    using DoneCallback = std::function<void(Outcome outcome)>;
+    using DoneCallback = helix::SharedCallback<void(Outcome outcome)>;
 
     QueuedJobStarter(PrinterState& printer_state, IMoonrakerAPI* api);
     ~QueuedJobStarter();
@@ -156,7 +156,7 @@ class QueuedJobStarter {
     IMoonrakerAPI* api_ = nullptr;
     /// Where the app's one PrintPreparationManager is found: print-select's
     /// (PrintSelectPanel::print_preparation_manager()). Asked per start.
-    std::function<ui::PrintPreparationManager*()> prep_source_;
+    helix::SharedCallback<ui::PrintPreparationManager*()> prep_source_;
     /// The manager the start in flight drives; null when none is in flight.
     ui::PrintPreparationManager* prep_ = nullptr;
     std::unique_ptr<ui::PrintStartController> controller_;

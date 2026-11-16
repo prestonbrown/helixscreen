@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_busy_overlay.h"
-#include "ui_filename_utils.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 
@@ -18,10 +17,11 @@
 #include "../test_helpers/print_preparation_manager_test_access.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "capability_matrix.h"
+#include "core/gcode_filename.h"
+#include "core/update_queue.h"
 #include "gcode_edit_list.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
@@ -29,6 +29,7 @@
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
+#include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
@@ -39,6 +40,7 @@
 #include "print_start_analyzer.h"
 #include "print_start_checks.h"
 #include "print_start_collector.h"
+#include "print_start_phase_label.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -55,6 +57,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -251,7 +254,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     auto card = [&state]() {
         // The plugin lands through the queue and its observer queues the count.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         return lv_subject_get_int(
             state.composite_visibility_state().get_has_any_preprint_options_subject());
     };
@@ -293,14 +296,14 @@ TEST_CASE_METHOD(HelixTestFixture,
     state.set_helix_plugin_installed(true);
     helix::ui::UpdateQueue::instance().drain();
     device.reset();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(manager.gcode_rewrite_block() == helix::GcodeRewriteBlock::None);
 
     // Clearing the dependencies drops the observer, so a later change queues
     // nothing for this manager.
     manager.set_dependencies(nullptr, nullptr);
     state.set_helix_plugin_installed(false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE("PrintPreparationManager: get_temp_directory", "[print_preparation][safety]") {
@@ -361,143 +364,89 @@ struct MockOptionState {
     }
 };
 
-TEST_CASE("PrintPreparationManager: read_options_from_subjects via OptionStateProvider",
+namespace {
+
+/// The six option ids PrePrintOptions carries, with the field each one fills.
+struct OptionField {
+    const char* id;
+    bool PrePrintOptions::*field;
+};
+const OptionField kOptionFields[] = {
+    {"bed_mesh", &PrePrintOptions::bed_mesh},     {"qgl", &PrePrintOptions::qgl},
+    {"z_tilt", &PrePrintOptions::z_tilt},         {"nozzle_clean", &PrePrintOptions::nozzle_clean},
+    {"purge_line", &PrePrintOptions::purge_line}, {"timelapse", &PrePrintOptions::timelapse},
+};
+
+} // namespace
+
+TEST_CASE("PrintPreparationManager: the option-state provider decides each option's state",
           "[print_preparation][options]") {
+    // No printer DB is attached, so nothing falls back to a database default.
     lv_init_safe();
     PrintPreparationManager manager;
     MockOptionState state;
     manager.set_option_state_provider(state.provider());
 
-    SECTION("All options enabled - returns all true") {
+    SECTION("every id follows its provider value: 1 enabled, 0 disabled, -1 hidden") {
+        const std::pair<int, PrePrintOptionState> values[] = {
+            {1, PrePrintOptionState::ENABLED},
+            {0, PrePrintOptionState::DISABLED},
+            {-1, PrePrintOptionState::NOT_APPLICABLE},
+        };
+        for (const auto& [value, expected] : values) {
+            for (const auto& f : kOptionFields) {
+                state.values[f.id] = value;
+            }
+            const auto options = manager.read_options_from_subjects();
+            for (const auto& f : kOptionFields) {
+                INFO(f.id << " = " << value);
+                CHECK(options.*(f.field) == (value == 1));
+                CHECK(manager.get_option_state(f.id) == expected);
+            }
+        }
+    }
+
+    SECTION("ids are independent; hidden is never read as disabled") {
         state.enable("bed_mesh");
-        state.enable("qgl");
-        state.enable("z_tilt");
-        state.enable("nozzle_clean");
+        state.disable("qgl");
+        state.hide("z_tilt");
+        state.hide("nozzle_clean");
         state.enable("purge_line");
-        state.enable("timelapse");
-
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == true);
-        REQUIRE(options.qgl == true);
-        REQUIRE(options.z_tilt == true);
-        REQUIRE(options.nozzle_clean == true);
-        REQUIRE(options.purge_line == true);
-        REQUIRE(options.timelapse == true);
-    }
-
-    SECTION("Mixed enabled/disabled states") {
-        state.enable("bed_mesh");
-        state.disable("qgl");
-        state.enable("z_tilt");
-        state.disable("nozzle_clean");
-        state.enable("timelapse");
-
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == true);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == true);
-        REQUIRE(options.nozzle_clean == false);
-        REQUIRE(options.timelapse == true);
-    }
-
-    SECTION("All disabled - returns all false") {
-        state.disable("bed_mesh");
-        state.disable("qgl");
-        state.disable("z_tilt");
-        state.disable("nozzle_clean");
-        state.disable("purge_line");
         state.disable("timelapse");
 
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == false);
-        REQUIRE(options.nozzle_clean == false);
-        REQUIRE(options.purge_line == false);
-        REQUIRE(options.timelapse == false);
-    }
-}
-
-TEST_CASE("PrintPreparationManager: read_options_from_subjects treats hidden as false",
-          "[print_preparation][options]") {
-    // Hidden = NOT_APPLICABLE (provider returns -1) — must NOT be treated as enabled.
-    // Without an attached printer DB the cached fallback also yields NOT_APPLICABLE,
-    // so read_options_from_subjects() returns false for a hidden id.
-    lv_init_safe();
-    PrintPreparationManager manager;
-    MockOptionState state;
-    manager.set_option_state_provider(state.provider());
-
-    SECTION("Provider returning -1 yields options.bed_mesh = false") {
-        state.hide("bed_mesh");
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);
+        const auto options = manager.read_options_from_subjects();
+        CHECK(options.bed_mesh);
+        CHECK_FALSE(options.qgl);
+        CHECK_FALSE(options.z_tilt);
+        CHECK_FALSE(options.nozzle_clean);
+        CHECK(options.purge_line);
+        CHECK_FALSE(options.timelapse);
+        CHECK(manager.get_option_state("qgl") == PrePrintOptionState::DISABLED);
+        CHECK(manager.get_option_state("z_tilt") == PrePrintOptionState::NOT_APPLICABLE);
     }
 
-    SECTION("Multiple hidden ids: only enabled ones are true") {
-        state.hide("bed_mesh");
-        state.enable("qgl");
-        state.hide("z_tilt");
-        state.enable("nozzle_clean");
-        state.hide("timelapse");
-
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);    // hidden
-        REQUIRE(options.qgl == true);          // enabled
-        REQUIRE(options.z_tilt == false);      // hidden
-        REQUIRE(options.nozzle_clean == true); // enabled
-        REQUIRE(options.timelapse == false);   // hidden
+    SECTION("an id the provider does not know is not applicable") {
+        CHECK(manager.get_option_state("nonexistent_op") == PrePrintOptionState::NOT_APPLICABLE);
     }
-}
 
-TEST_CASE("PrintPreparationManager: read_options_from_subjects without provider",
-          "[print_preparation][options]") {
-    // No provider, no PrinterState — every id falls through to NOT_APPLICABLE
-    // and read_options_from_subjects() reports all options as false.
-    lv_init_safe();
-    PrintPreparationManager manager;
-
-    auto options = manager.read_options_from_subjects();
-    REQUIRE(options.bed_mesh == false);
-    REQUIRE(options.qgl == false);
-    REQUIRE(options.z_tilt == false);
-    REQUIRE(options.nozzle_clean == false);
-    REQUIRE(options.purge_line == false);
-    REQUIRE(options.timelapse == false);
-}
-
-TEST_CASE("PrintPreparationManager: provider state changes are reflected immediately",
-          "[print_preparation][options]") {
-    lv_init_safe();
-    PrintPreparationManager manager;
-    MockOptionState state;
-    manager.set_option_state_provider(state.provider());
-
-    SECTION("Provider value flips between reads") {
+    SECTION("each read sees the provider's current value") {
         state.disable("bed_mesh");
-        state.disable("qgl");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == false);
-        REQUIRE(manager.read_options_from_subjects().qgl == false);
-
+        REQUIRE_FALSE(manager.read_options_from_subjects().bed_mesh);
         state.enable("bed_mesh");
-        state.enable("qgl");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == true);
-        REQUIRE(manager.read_options_from_subjects().qgl == true);
-
-        state.disable("bed_mesh");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == false);
-        REQUIRE(manager.read_options_from_subjects().qgl == true);
+        CHECK(manager.read_options_from_subjects().bed_mesh);
+        state.hide("bed_mesh");
+        CHECK_FALSE(manager.read_options_from_subjects().bed_mesh);
+        state.enable("bed_mesh");
+        CHECK(manager.read_options_from_subjects().bed_mesh);
     }
 
-    SECTION("Hide/show transitions") {
-        state.enable("bed_mesh");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == true);
-
-        state.hide("bed_mesh");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == false);
-
-        state.enable("bed_mesh");
-        REQUIRE(manager.read_options_from_subjects().bed_mesh == true);
+    SECTION("without a provider every option reads false") {
+        PrintPreparationManager bare_manager;
+        const auto options = bare_manager.read_options_from_subjects();
+        for (const auto& f : kOptionFields) {
+            INFO(f.id);
+            CHECK_FALSE(options.*(f.field));
+        }
     }
 }
 
@@ -613,6 +562,11 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params uses correct optio
         const auto* macro = std::get_if<PrePrintStrategyMacroParam>(&bed_cap->strategy);
         REQUIRE(macro != nullptr);
         REQUIRE(macro->param_name == "SKIP_LEVELING");
+
+        // The AD5M Pro's START_PRINT takes no purge or skew parameter, so the card
+        // must offer no toggle that would send one.
+        CHECK(caps.find("purge_line") == nullptr);
+        CHECK(caps.find("skew_correct") == nullptr);
     }
 
     SECTION("All option ids match category_to_string output") {
@@ -1137,57 +1091,6 @@ TEST_CASE("PrintPreparationManager: option id keys are consistent",
  * to default_enabled, but that option is `macro_param` (not `pre_start_gcode`)
  * so it's filtered out here regardless.
  */
-TEST_CASE_METHOD(HelixTestFixture,
-                 "PrintPreparationManager: collect_pre_start_gcode_lines (K2 Plus ai_detect)",
-                 "[print_preparation][pre_print_options]") {
-    lv_init_safe();
-
-    PrinterState& printer_state = get_printer_state();
-    PrinterStateTestAccess::reset(printer_state);
-    printer_state.init_subjects(false);
-    printer_state.set_printer_type_sync("Creality K2 Plus");
-
-    // ai_detect is gated by requires_macro=LOAD_AI_RUN — only fires when the
-    // firmware registers that macro. Populate the cache so the option is
-    // applicable in this test (real K2 Plus firmware variants that ship AI
-    // detect declare LOAD_AI_RUN; stock variants don't, and the option is
-    // correctly skipped on those).
-    MacroParamCache::instance().clear();
-    nlohmann::json config = nlohmann::json::object();
-    config["gcode_macro LOAD_AI_RUN"] = {{"gcode", "{action_respond_info('ai run')}"}};
-    MacroParamCache::instance().populate_from_configfile(config, {"LOAD_AI_RUN"});
-
-    PrintPreparationManager manager;
-    manager.set_dependencies(nullptr, &printer_state);
-
-    bool ai_detect_on = false;
-    manager.set_option_state_provider([&](const std::string& id) -> int {
-        if (id == "ai_detect") {
-            return ai_detect_on ? 1 : 0;
-        }
-        return -1;
-    });
-
-    SECTION("ai_detect ON emits SWITCH=1") {
-        ai_detect_on = true;
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=1");
-    }
-
-    SECTION("ai_detect OFF still emits, with SWITCH=0") {
-        ai_detect_on = false;
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
-    }
-
-    SECTION("ai_detect skipped entirely when LOAD_AI_RUN macro is absent") {
-        MacroParamCache::instance().clear();
-        ai_detect_on = true;
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN").empty());
-    }
-}
-
 /**
  * Input shaping is not a pre-print step: a U1 start offers no shaper option
  * and sends no SHAPER_CALIBRATE preference.
@@ -1213,6 +1116,38 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: a U1 start sends no
     auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
     REQUIRE(line_containing(lines, "SHAPER").empty());
     REQUIRE(line_containing(lines, "BED_LEVEL") == "SET_PRINT_PREFERENCES BED_LEVEL=1");
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: U1 flow calibration needs every used slot's material",
+                 "[print_preparation][pre_print_options][snapmaker_u1][preflight]") {
+    lv_init_safe();
+
+    PrinterState& printer_state = get_printer_state();
+    PrinterStateTestAccess::reset(printer_state);
+    printer_state.init_subjects(false);
+    printer_state.set_printer_type_sync("Snapmaker U1");
+    const PrePrintOption* flow =
+        printer_state.profile_state().pre_print_option_set().find("flow_calibrate");
+    REQUIRE(flow != nullptr);
+    REQUIRE(flow->needs_material);
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(nullptr, &printer_state);
+    int flow_state = 1;
+    manager.set_option_state_provider(
+        [&flow_state](const std::string& id) { return id == "flow_calibrate" ? flow_state : 1; });
+    CHECK(manager.enabled_options_need_material());
+    flow_state = 0;
+    CHECK_FALSE(manager.enabled_options_need_material());
+
+    // A queued job's saved choice is asked first.
+    CHECK(manager.enabled_options_need_material([](const std::string&) { return 1; }));
+    flow_state = 1;
+    CHECK_FALSE(manager.enabled_options_need_material(
+        [](const std::string& id) { return id == "flow_calibrate" ? 0 : -1; }));
+    // A saved set that does not name the option falls through to the live state.
+    CHECK(manager.enabled_options_need_material([](const std::string&) { return -1; }));
 }
 
 // ============================================================================
@@ -1282,11 +1217,11 @@ TEST_CASE("PrintPreparationManager: build_pre_start_gcode_block (join contract)"
  * - Helper methods for waiting on async operations with queue draining
  *
  * The PrintStartAnalyzer flow:
- * 1. Calls api->list_files("config", ...) which sends server.files.list via WebSocket
+ * 1. Lists the config root with server.files.get_directory via WebSocket
  * 2. For each .cfg file found, calls api->download_file() via HTTP
  * 3. Scans each file for [gcode_macro PRINT_START] or similar
  *
- * We can test retry logic by controlling the server.files.list response:
+ * We can test retry logic by controlling the server.files.get_directory response:
  * - Return error to trigger retry
  * - Return empty list to complete with "not found"
  * - Return file list to proceed to download phase
@@ -1397,7 +1332,7 @@ class MacroAnalysisRetryFixture {
 
         // Drain pending callbacks (manager_ is still alive here, so any final
         // deferred success/error lambda runs against a valid manager).
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown queue
         helix::ui::update_queue_shutdown();
@@ -1415,7 +1350,7 @@ class MacroAnalysisRetryFixture {
      * @brief Drain pending UI updates (simulates main loop iteration)
      */
     void drain_queue() {
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         lv_timer_handler_safe(); // Process LVGL timers for retry scheduling
     }
 
@@ -1455,7 +1390,7 @@ class MacroAnalysisRetryFixture {
         server_->clear_handlers();
 
         // Handler that fails N times, then succeeds
-        server_->on_method("server.files.list", [this](const json& params) -> json {
+        server_->on_method("server.files.get_directory", [this](const json& params) -> json {
             (void)params;
             list_files_call_count_++;
             {
@@ -1469,11 +1404,11 @@ class MacroAnalysisRetryFixture {
             }
 
             // Success: return file list
-            json result = json::array();
+            json files = json::array();
             for (const auto& file : list_files_success_files_) {
-                result.push_back({{"path", file}, {"size", 1024}, {"modified", 1234567890.0}});
+                files.push_back({{"filename", file}, {"size", 1024}, {"modified", 1234567890.0}});
             }
-            return result;
+            return json{{"dirs", json::array()}, {"files", files}};
         });
     }
 
@@ -1484,7 +1419,7 @@ class MacroAnalysisRetryFixture {
         list_files_call_count_ = 0;
 
         server_->clear_handlers();
-        server_->on_method_error("server.files.list", [this](const json&) {
+        server_->on_method_error("server.files.get_directory", [this](const json&) {
             list_files_call_count_++;
             {
                 std::lock_guard<std::mutex> lock(call_times_mutex_);
@@ -1503,13 +1438,13 @@ class MacroAnalysisRetryFixture {
         list_files_call_count_ = 0;
 
         server_->clear_handlers();
-        server_->on_method("server.files.list", [this](const json&) -> json {
+        server_->on_method("server.files.get_directory", [this](const json&) -> json {
             list_files_call_count_++;
             {
                 std::lock_guard<std::mutex> lock(call_times_mutex_);
                 list_files_call_times_.push_back(std::chrono::steady_clock::now());
             }
-            return json::array(); // Empty file list
+            return json{{"dirs", json::array()}, {"files", json::array()}}; // Empty directory
         });
     }
 
@@ -1650,6 +1585,44 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         REQUIRE(callback_found == false); // All attempts failed
         REQUIRE(manager_.is_macro_analysis_in_progress() == false);
         REQUIRE(manager_.get_macro_analysis().has_value()); // Has result with found=false
+    }
+}
+
+TEST_CASE_METHOD(MacroAnalysisRetryFixture,
+                 "PrintPreparationManager: a failed analysis is reported unless the login was "
+                 "refused",
+                 "[print_preparation][retry][eventloop][slow][api-key]") {
+    const bool refused = GENERATE(false, true);
+    if (refused) {
+        helix::moonraker_auth::set_credential({"printer.lan", 7125, ""});
+        helix::moonraker_auth::mark_unauthorized();
+        REQUIRE(helix::moonraker_auth::unauthorized());
+    }
+    auto errors = std::make_shared<std::vector<std::string>>();
+    helix::ui::set_test_notification_event_hook([errors](const helix::ui::NotificationEvent& e) {
+        if (e.severity == ToastSeverity::ERROR) {
+            errors->push_back(e.message);
+        }
+    });
+
+    set_list_files_always_fail();
+    std::atomic<bool> landed{false};
+    manager_.set_macro_analysis_callback(
+        [&](const helix::PrintStartAnalysis& /*analysis*/) { landed = true; });
+    manager_.analyze_print_start_macro();
+    const bool finished = wait_for([&]() { return landed.load(); }, 8000);
+    helix::ui::set_test_notification_event_hook(nullptr);
+    helix::moonraker_auth::set_credential({});
+
+    INFO("refused login: " << refused);
+    REQUIRE(finished);
+    REQUIRE(get_list_files_call_count() == 3);
+    if (refused) {
+        CHECK(errors->empty());
+    } else {
+        CHECK(*errors == std::vector<std::string>{
+                             "Could not analyze PRINT_START macro. Some print options may be "
+                             "unavailable."});
     }
 }
 
@@ -1810,114 +1783,6 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
  *   reports as DISABLED — never for hidden ids.
  */
 
-TEST_CASE("PrintPreparationManager: read_options_from_subjects returns correct PrePrintOptions",
-          "[print_preparation][p1][subjects]") {
-    lv_init_safe();
-    PrintPreparationManager manager;
-    MockOptionState state;
-    manager.set_option_state_provider(state.provider());
-
-    SECTION("All options enabled - returns all true") {
-        for (const char* id :
-             {"bed_mesh", "qgl", "z_tilt", "nozzle_clean", "purge_line", "timelapse"}) {
-            state.enable(id);
-        }
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == true);
-        REQUIRE(options.qgl == true);
-        REQUIRE(options.z_tilt == true);
-        REQUIRE(options.nozzle_clean == true);
-        REQUIRE(options.purge_line == true);
-        REQUIRE(options.timelapse == true);
-    }
-
-    SECTION("All options disabled - returns all false") {
-        for (const char* id :
-             {"bed_mesh", "qgl", "z_tilt", "nozzle_clean", "purge_line", "timelapse"}) {
-            state.disable(id);
-        }
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == false);
-        REQUIRE(options.nozzle_clean == false);
-        REQUIRE(options.purge_line == false);
-        REQUIRE(options.timelapse == false);
-    }
-
-    SECTION("Hidden options return false (NOT_APPLICABLE)") {
-        for (const char* id :
-             {"bed_mesh", "qgl", "z_tilt", "nozzle_clean", "purge_line", "timelapse"}) {
-            state.hide(id);
-        }
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == false);
-        REQUIRE(options.nozzle_clean == false);
-        REQUIRE(options.purge_line == false);
-        REQUIRE(options.timelapse == false);
-    }
-
-    SECTION("Mixed enabled/disabled/hidden states") {
-        state.enable("bed_mesh");
-        state.disable("qgl");
-        state.hide("z_tilt");
-        state.hide("nozzle_clean");
-        state.enable("purge_line");
-        state.disable("timelapse");
-
-        auto options = manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == true);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == false);       // hidden
-        REQUIRE(options.nozzle_clean == false); // hidden
-        REQUIRE(options.purge_line == true);
-        REQUIRE(options.timelapse == false);
-    }
-
-    SECTION("Without provider - all options report as false") {
-        // No provider set; with no PrinterState DB attached, every id falls
-        // through to NOT_APPLICABLE -> false. (read_options_from_subjects
-        // doesn't itself differentiate "no panel attached" from "explicitly
-        // not applicable" — both result in the conservative false.)
-        PrintPreparationManager bare_manager;
-        auto options = bare_manager.read_options_from_subjects();
-        REQUIRE(options.bed_mesh == false);
-        REQUIRE(options.qgl == false);
-        REQUIRE(options.z_tilt == false);
-    }
-}
-
-TEST_CASE("PrintPreparationManager: get_option_state tri-state via provider",
-          "[print_preparation][p1][subjects]") {
-    lv_init_safe();
-    PrintPreparationManager manager;
-    MockOptionState state;
-    manager.set_option_state_provider(state.provider());
-
-    SECTION("Provider returns 1 -> ENABLED") {
-        state.enable("bed_mesh");
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::ENABLED);
-    }
-
-    SECTION("Provider returns 0 -> DISABLED (user explicitly skipped)") {
-        state.disable("bed_mesh");
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::DISABLED);
-    }
-
-    SECTION("Provider returns -1 (hidden) -> NOT_APPLICABLE") {
-        state.hide("bed_mesh");
-        // Without a printer DB attached the hidden state surfaces as NOT_APPLICABLE.
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::NOT_APPLICABLE);
-    }
-
-    SECTION("Unknown id -> NOT_APPLICABLE") {
-        // Provider returns -1 for unset ids; no DB fallback either.
-        REQUIRE(manager.get_option_state("nonexistent_op") == PrePrintOptionState::NOT_APPLICABLE);
-    }
-}
-
 TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip params",
           "[print_preparation][p1][subjects]") {
     // Bug regression: when an option is hidden (provider returns -1, NOT_APPLICABLE),
@@ -1960,48 +1825,6 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
         state.enable("bed_mesh");
         auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
         REQUIRE(skip_params.empty());
-    }
-}
-
-TEST_CASE("PrintPreparationManager: get_option_state in collection context",
-          "[print_preparation][p1][subjects]") {
-    // Sanity-check that the provider correctly drives get_option_state(id) for
-    // the six option ids the legacy subject path used to handle. This is the
-    // contract collect_ops_to_disable() and collect_macro_skip_params() rely on.
-    lv_init_safe();
-    PrintPreparationManager manager;
-    MockOptionState state;
-    manager.set_option_state_provider(state.provider());
-
-    SECTION("Disabled provider state surfaces as DISABLED for every id") {
-        state.disable("bed_mesh");
-        state.disable("qgl");
-        state.disable("z_tilt");
-        state.disable("nozzle_clean");
-
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::DISABLED);
-        REQUIRE(manager.get_option_state("qgl") == PrePrintOptionState::DISABLED);
-        REQUIRE(manager.get_option_state("z_tilt") == PrePrintOptionState::DISABLED);
-        REQUIRE(manager.get_option_state("nozzle_clean") == PrePrintOptionState::DISABLED);
-    }
-
-    SECTION("Hidden ids surface as NOT_APPLICABLE — not as DISABLED") {
-        state.hide("bed_mesh");
-        state.hide("qgl");
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::NOT_APPLICABLE);
-        REQUIRE(manager.get_option_state("qgl") == PrePrintOptionState::NOT_APPLICABLE);
-    }
-
-    SECTION("Mixed state: enabled / disabled / hidden distinguishable per id") {
-        state.disable("bed_mesh");
-        state.hide("qgl");
-        state.enable("z_tilt");
-        state.hide("nozzle_clean");
-
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::DISABLED);
-        REQUIRE(manager.get_option_state("qgl") == PrePrintOptionState::NOT_APPLICABLE);
-        REQUIRE(manager.get_option_state("z_tilt") == PrePrintOptionState::ENABLED);
-        REQUIRE(manager.get_option_state("nozzle_clean") == PrePrintOptionState::NOT_APPLICABLE);
     }
 }
 
@@ -2298,38 +2121,22 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintPreparationManager: collect_macro_skip_
  *   2. Legacy subject path (the six built-in toggles)
  *   3. Cached PrePrintOptionSet's default_enabled fallback
  */
-TEST_CASE("PrintPreparationManager: get_option_state(id) provider takes priority",
+TEST_CASE("PrintPreparationManager: get_option_state(id) asks the provider once, for that id",
           "[print_preparation][option_state][p3]") {
     lv_init_safe();
     PrintPreparationManager manager;
 
     int provider_calls = 0;
     std::string last_id;
-    int provider_returns = 1;
     manager.set_option_state_provider([&](const std::string& id) {
         ++provider_calls;
         last_id = id;
-        return provider_returns;
+        return 1;
     });
 
-    SECTION("Provider returning 1 yields ENABLED") {
-        provider_returns = 1;
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::ENABLED);
-        REQUIRE(provider_calls == 1);
-        REQUIRE(last_id == "bed_mesh");
-    }
-
-    SECTION("Provider returning 0 yields DISABLED") {
-        provider_returns = 0;
-        REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::DISABLED);
-    }
-
-    SECTION("Provider returning -1 falls through to default") {
-        // No legacy subjects set, no printer state — so falls all the way
-        // through to "unknown id" -> NOT_APPLICABLE.
-        provider_returns = -1;
-        REQUIRE(manager.get_option_state("ai_detect") == PrePrintOptionState::NOT_APPLICABLE);
-    }
+    REQUIRE(manager.get_option_state("bed_mesh") == PrePrintOptionState::ENABLED);
+    CHECK(provider_calls == 1);
+    CHECK(last_id == "bed_mesh");
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
@@ -2405,516 +2212,81 @@ TEST_CASE_METHOD(HelixTestFixture,
 }
 
 // ============================================================================
-// Tests: Extension Safety and Documentation (Phase 5)
+// The operation registry: the one list of controllable operations
 // ============================================================================
+//
+// Adding a controllable operation means an OperationCategory value, an
+// OperationRegistry entry, keyword patterns, skip/perform parameter variations,
+// category_key()/category_name(), and printer database entries. Source priority
+// and OPT_IN/OPT_OUT semantics are test_capability_matrix.cpp's.
 
-/**
- * Phase 5: Extension Safety Tests
- *
- * These tests document the expected behavior of the pre-print subsystem's
- * extension points. They serve as both tests and documentation for developers
- * who need to add new operations or capability sources.
- *
- * Key extension points:
- * 1. OperationRegistry - Single point for adding new controllable operations
- * 2. CapabilityMatrix - Unified capability lookup with priority ordering
- * 3. CapabilityOrigin - Priority system for source ordering
- * 4. ParameterSemantic - OPT_IN/OPT_OUT parameter interpretation
- */
+TEST_CASE("PrepManager: the operation registry lists every controllable operation once",
+          "[print_preparation][p5]") {
+    const OperationCategory controllable[] = {
+        OperationCategory::BED_MESH, OperationCategory::QGL, OperationCategory::Z_TILT,
+        OperationCategory::NOZZLE_CLEAN, OperationCategory::PURGE_LINE};
 
-TEST_CASE("PrepManager: Extension safety - registry completeness", "[print_preparation][p5]") {
-    SECTION("All controllable operations have registry entries") {
-        // The five controllable operations should all be in the registry.
-        // This test ensures that any controllable operation can be looked up.
-        for (auto cat :
-             {OperationCategory::BED_MESH, OperationCategory::QGL, OperationCategory::Z_TILT,
-              OperationCategory::NOZZLE_CLEAN, OperationCategory::PURGE_LINE}) {
+    SECTION("each controllable category has an entry keyed by category_key()") {
+        for (auto cat : controllable) {
             auto info = OperationRegistry::get(cat);
             INFO("Checking category: " << category_key(cat));
             REQUIRE(info.has_value());
-            REQUIRE_FALSE(info->capability_key.empty());
             REQUIRE_FALSE(info->friendly_name.empty());
-
-            // Verify capability_key matches category_key()
             REQUIRE(info->capability_key == std::string(category_key(cat)));
         }
+        CHECK(std::string(category_key(OperationCategory::BED_MESH)) == "bed_mesh");
+        CHECK(std::string(category_key(OperationCategory::QGL)) == "qgl");
+        CHECK(std::string(category_key(OperationCategory::Z_TILT)) == "z_tilt");
+        CHECK(std::string(category_key(OperationCategory::NOZZLE_CLEAN)) == "nozzle_clean");
+        CHECK(std::string(category_key(OperationCategory::PURGE_LINE)) == "purge_line");
     }
 
-    SECTION("Non-controllable operations return nullopt") {
-        // Operations that cannot be toggled in the UI should NOT be in the registry.
-        // This ensures the registry only contains operations that make sense to show
-        // in the pre-print options panel.
-
-        // HOMING: Always required, never skippable
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::HOMING).has_value());
-
-        // START_PRINT: The macro itself, not a toggleable option
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::START_PRINT).has_value());
-
-        // UNKNOWN: Invalid/unrecognized operation
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::UNKNOWN).has_value());
-
-        // CHAMBER_SOAK: Not currently controllable (complex timing semantics)
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::CHAMBER_SOAK).has_value());
-
-        // SKEW_CORRECT: Not currently controllable
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::SKEW_CORRECT).has_value());
-
-        // BED_LEVEL: Parent category, not directly controllable (QGL/Z_TILT are)
-        REQUIRE_FALSE(OperationRegistry::get(OperationCategory::BED_LEVEL).has_value());
+    SECTION("operations the options panel cannot toggle have no entry") {
+        // HOMING is always required, START_PRINT is the macro itself, BED_LEVEL is
+        // the parent of QGL/Z_TILT, and soak/skew have no toggle.
+        for (auto cat : {OperationCategory::HOMING, OperationCategory::START_PRINT,
+                         OperationCategory::UNKNOWN, OperationCategory::CHAMBER_SOAK,
+                         OperationCategory::SKEW_CORRECT, OperationCategory::BED_LEVEL}) {
+            INFO(static_cast<int>(cat));
+            CHECK_FALSE(OperationRegistry::get(cat).has_value());
+        }
     }
 
-    SECTION("Registry::all() returns complete set of controllable operations") {
-        // Verify that OperationRegistry::all() returns all controllable operations.
-        // This is the single extension point for adding new operations.
-        auto all = OperationRegistry::all();
-
-        // At least the 5 current controllable operations
-        REQUIRE(all.size() >= 5);
-
-        // Each entry should have complete metadata
+    SECTION("all() holds every controllable operation, each round-tripping its key and name") {
+        const auto all = OperationRegistry::all();
+        std::set<OperationCategory> listed;
         for (const auto& info : all) {
-            INFO("Validating operation: " << info.capability_key);
-            REQUIRE_FALSE(info.capability_key.empty());
-            REQUIRE_FALSE(info.friendly_name.empty());
-            REQUIRE(info.category != OperationCategory::UNKNOWN);
-        }
-
-        // Verify specific operations are present
-        bool has_bed_mesh = false;
-        bool has_qgl = false;
-        bool has_z_tilt = false;
-        bool has_nozzle_clean = false;
-        bool has_purge_line = false;
-
-        for (const auto& info : all) {
-            if (info.capability_key == "bed_mesh") {
-                has_bed_mesh = true;
-            }
-            if (info.capability_key == "qgl") {
-                has_qgl = true;
-            }
-            if (info.capability_key == "z_tilt") {
-                has_z_tilt = true;
-            }
-            if (info.capability_key == "nozzle_clean") {
-                has_nozzle_clean = true;
-            }
-            if (info.capability_key == "purge_line") {
-                has_purge_line = true;
-            }
-        }
-
-        REQUIRE(has_bed_mesh);
-        REQUIRE(has_qgl);
-        REQUIRE(has_z_tilt);
-        REQUIRE(has_nozzle_clean);
-        REQUIRE(has_purge_line);
-    }
-
-    SECTION("Reverse lookup by key works for all controllable operations") {
-        // OperationRegistry::get_by_key() should find operations by their capability key
-        auto bed_mesh = OperationRegistry::get_by_key("bed_mesh");
-        REQUIRE(bed_mesh.has_value());
-        REQUIRE(bed_mesh->category == OperationCategory::BED_MESH);
-
-        auto qgl = OperationRegistry::get_by_key("qgl");
-        REQUIRE(qgl.has_value());
-        REQUIRE(qgl->category == OperationCategory::QGL);
-
-        auto z_tilt = OperationRegistry::get_by_key("z_tilt");
-        REQUIRE(z_tilt.has_value());
-        REQUIRE(z_tilt->category == OperationCategory::Z_TILT);
-
-        auto nozzle_clean = OperationRegistry::get_by_key("nozzle_clean");
-        REQUIRE(nozzle_clean.has_value());
-        REQUIRE(nozzle_clean->category == OperationCategory::NOZZLE_CLEAN);
-
-        auto purge_line = OperationRegistry::get_by_key("purge_line");
-        REQUIRE(purge_line.has_value());
-        REQUIRE(purge_line->category == OperationCategory::PURGE_LINE);
-
-        // Non-existent key returns nullopt
-        REQUIRE_FALSE(OperationRegistry::get_by_key("nonexistent").has_value());
-        REQUIRE_FALSE(OperationRegistry::get_by_key("").has_value());
-    }
-}
-
-TEST_CASE("PrepManager: Extension safety - priority ordering", "[print_preparation][p5]") {
-    SECTION("Database priority = 0 (highest)") {
-        // DATABASE source is authoritative - curated and tested capabilities from
-        // printer_database.json. It should always take priority over dynamic detection.
-        // Priority 0 = highest (lower number = higher priority)
-
-        // Create a matrix with DATABASE source
-        CapabilityMatrix matrix;
-        PrePrintOptionSet db_caps;
-        db_caps.macro_name = "START_PRINT";
-        {
-            PrePrintOption opt;
-            opt.id = "bed_mesh";
-            opt.strategy_kind = PrePrintStrategyKind::MacroParam;
-            opt.strategy = PrePrintStrategyMacroParam{"FORCE_LEVELING", "true", "false", ""};
-            db_caps.options.push_back(opt);
-        }
-        matrix.add_from_database(db_caps);
-
-        auto source = matrix.get_best_source(OperationCategory::BED_MESH);
-        REQUIRE(source.has_value());
-        REQUIRE(source->origin == CapabilityOrigin::DATABASE);
-    }
-
-    SECTION("Macro analysis priority = 1 (medium)") {
-        // MACRO_ANALYSIS is dynamically detected from the printer's PRINT_START macro.
-        // It's trustworthy but may be incomplete or non-standard.
-
-        CapabilityMatrix matrix;
-        PrintStartAnalysis analysis;
-        analysis.found = true;
-
-        PrintStartOperation op;
-        op.name = "QUAD_GANTRY_LEVEL";
-        op.category = PrintStartOpCategory::QGL;
-        op.has_skip_param = true;
-        op.skip_param_name = "SKIP_QGL";
-        op.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis.operations.push_back(op);
-
-        matrix.add_from_macro_analysis(analysis);
-
-        auto source = matrix.get_best_source(OperationCategory::QGL);
-        REQUIRE(source.has_value());
-        REQUIRE(source->origin == CapabilityOrigin::MACRO_ANALYSIS);
-    }
-
-    SECTION("File scan priority = 2 (lowest)") {
-        // FILE_SCAN is detected from the G-code file itself. It's the least
-        // reliable because it's specific to one file and may not have parameter info.
-
-        CapabilityMatrix matrix;
-        gcode::ScanResult scan;
-        scan.lines_scanned = 100;
-
-        gcode::DetectedOperation op;
-        op.type = gcode::OperationType::NOZZLE_CLEAN;
-        op.embedding = gcode::OperationEmbedding::MACRO_PARAMETER;
-        op.param_name = "SKIP_NOZZLE_CLEAN";
-        op.line_number = 10;
-        scan.operations.push_back(op);
-
-        matrix.add_from_file_scan(scan);
-
-        auto source = matrix.get_best_source(OperationCategory::NOZZLE_CLEAN);
-        REQUIRE(source.has_value());
-        REQUIRE(source->origin == CapabilityOrigin::FILE_SCAN);
-    }
-
-    SECTION("Lower priority number wins in get_best_source") {
-        // When multiple sources exist for the same operation, DATABASE wins over
-        // MACRO_ANALYSIS, which wins over FILE_SCAN.
-
-        CapabilityMatrix matrix;
-
-        // Add FILE_SCAN source first (lowest priority)
-        gcode::ScanResult scan;
-        scan.lines_scanned = 100;
-        gcode::DetectedOperation file_op;
-        file_op.type = gcode::OperationType::BED_MESH;
-        file_op.embedding = gcode::OperationEmbedding::MACRO_PARAMETER;
-        file_op.param_name = "SKIP_BED_MESH_FILE";
-        file_op.line_number = 5;
-        scan.operations.push_back(file_op);
-        matrix.add_from_file_scan(scan);
-
-        // Add MACRO_ANALYSIS source (medium priority)
-        PrintStartAnalysis analysis;
-        analysis.found = true;
-        PrintStartOperation macro_op;
-        macro_op.name = "BED_MESH_CALIBRATE";
-        macro_op.category = PrintStartOpCategory::BED_MESH;
-        macro_op.has_skip_param = true;
-        macro_op.skip_param_name = "SKIP_BED_MESH_MACRO";
-        macro_op.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis.operations.push_back(macro_op);
-        matrix.add_from_macro_analysis(analysis);
-
-        // Add DATABASE source (highest priority)
-        PrePrintOptionSet db_caps;
-        db_caps.macro_name = "START_PRINT";
-        {
-            PrePrintOption opt;
-            opt.id = "bed_mesh";
-            opt.strategy_kind = PrePrintStrategyKind::MacroParam;
-            opt.strategy = PrePrintStrategyMacroParam{"FORCE_LEVELING_DB", "true", "false", ""};
-            db_caps.options.push_back(opt);
-        }
-        matrix.add_from_database(db_caps);
-
-        // DATABASE should win
-        auto best = matrix.get_best_source(OperationCategory::BED_MESH);
-        REQUIRE(best.has_value());
-        REQUIRE(best->origin == CapabilityOrigin::DATABASE);
-        REQUIRE(best->param_name == "FORCE_LEVELING_DB");
-
-        // All three sources should be available when requested
-        auto all_sources = matrix.get_all_sources(OperationCategory::BED_MESH);
-        REQUIRE(all_sources.size() == 3);
-
-        // Sources should be sorted by priority (DATABASE first, FILE_SCAN last)
-        REQUIRE(all_sources[0].origin == CapabilityOrigin::DATABASE);
-        REQUIRE(all_sources[1].origin == CapabilityOrigin::MACRO_ANALYSIS);
-        REQUIRE(all_sources[2].origin == CapabilityOrigin::FILE_SCAN);
-    }
-
-    SECTION("Macro analysis takes priority over file scan when both present") {
-        CapabilityMatrix matrix;
-
-        // Add FILE_SCAN source
-        gcode::ScanResult scan;
-        gcode::DetectedOperation file_op;
-        file_op.type = gcode::OperationType::Z_TILT;
-        file_op.embedding = gcode::OperationEmbedding::DIRECT_COMMAND;
-        file_op.macro_name = "Z_TILT_ADJUST";
-        scan.operations.push_back(file_op);
-        matrix.add_from_file_scan(scan);
-
-        // Add MACRO_ANALYSIS source
-        PrintStartAnalysis analysis;
-        analysis.found = true;
-        PrintStartOperation macro_op;
-        macro_op.name = "Z_TILT_ADJUST";
-        macro_op.category = PrintStartOpCategory::Z_TILT;
-        macro_op.has_skip_param = true;
-        macro_op.skip_param_name = "SKIP_Z_TILT";
-        macro_op.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis.operations.push_back(macro_op);
-        matrix.add_from_macro_analysis(analysis);
-
-        // MACRO_ANALYSIS should win over FILE_SCAN
-        auto best = matrix.get_best_source(OperationCategory::Z_TILT);
-        REQUIRE(best.has_value());
-        REQUIRE(best->origin == CapabilityOrigin::MACRO_ANALYSIS);
-    }
-}
-
-TEST_CASE("PrepManager: Extension safety - semantic handling", "[print_preparation][p5]") {
-    SECTION("OPT_OUT params: SKIP_* with value 1 means skip") {
-        // OPT_OUT semantic: The parameter indicates "skip this operation"
-        // - SKIP_BED_MESH=1 -> skip bed mesh
-        // - SKIP_BED_MESH=0 -> do bed mesh (default)
-
-        CapabilityMatrix matrix;
-        PrintStartAnalysis analysis;
-        analysis.found = true;
-
-        PrintStartOperation op;
-        op.name = "BED_MESH_CALIBRATE";
-        op.category = PrintStartOpCategory::BED_MESH;
-        op.has_skip_param = true;
-        op.skip_param_name = "SKIP_BED_MESH";
-        op.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis.operations.push_back(op);
-
-        matrix.add_from_macro_analysis(analysis);
-
-        auto source = matrix.get_best_source(OperationCategory::BED_MESH);
-        REQUIRE(source.has_value());
-        REQUIRE(source->semantic == ParameterSemantic::OPT_OUT);
-        REQUIRE(source->skip_value == "1");   // SKIP=1 means skip
-        REQUIRE(source->enable_value == "0"); // SKIP=0 means do
-    }
-
-    SECTION("OPT_IN params: FORCE_*/PERFORM_* with value 0 means skip") {
-        // OPT_IN semantic: The parameter indicates "do this operation"
-        // - FORCE_LEVELING=1 or "true" -> do leveling
-        // - FORCE_LEVELING=0 or "false" -> skip leveling
-
-        CapabilityMatrix matrix;
-        PrePrintOptionSet db_caps;
-        db_caps.macro_name = "START_PRINT";
-        // AD5M-style: FORCE_LEVELING with OPT_IN semantic
-        {
-            PrePrintOption opt;
-            opt.id = "bed_mesh";
-            opt.strategy_kind = PrePrintStrategyKind::MacroParam;
-            opt.strategy = PrePrintStrategyMacroParam{"FORCE_LEVELING", "true", "false", ""};
-            db_caps.options.push_back(opt);
-        }
-        matrix.add_from_database(db_caps);
-
-        auto source = matrix.get_best_source(OperationCategory::BED_MESH);
-        REQUIRE(source.has_value());
-        // The semantic is inferred from the param name starting with FORCE_
-        REQUIRE(source->semantic == ParameterSemantic::OPT_IN);
-        REQUIRE(source->skip_value == "false");  // FORCE=false means skip
-        REQUIRE(source->enable_value == "true"); // FORCE=true means do
-    }
-
-    SECTION("Semantic is correctly inferred from parameter name") {
-        // The CapabilityMatrix::infer_semantic() function determines OPT_IN vs OPT_OUT
-        // based on the parameter name prefix.
-
-        // OPT_IN patterns: FORCE_*, PERFORM_*, DO_*, ENABLE_*
-        CapabilityMatrix matrix1;
-        PrintStartAnalysis analysis1;
-        analysis1.found = true;
-        PrintStartOperation op1;
-        op1.category = PrintStartOpCategory::BED_MESH;
-        op1.has_skip_param = true;
-
-        // Test FORCE_* prefix
-        op1.skip_param_name = "FORCE_LEVELING";
-        op1.param_semantic = ParameterSemantic::OPT_IN;
-        analysis1.operations.push_back(op1);
-        matrix1.add_from_macro_analysis(analysis1);
-
-        auto source1 = matrix1.get_best_source(OperationCategory::BED_MESH);
-        REQUIRE(source1.has_value());
-        REQUIRE(source1->semantic == ParameterSemantic::OPT_IN);
-
-        // Test PERFORM_* prefix
-        CapabilityMatrix matrix2;
-        PrintStartAnalysis analysis2;
-        analysis2.found = true;
-        PrintStartOperation op2;
-        op2.category = PrintStartOpCategory::QGL;
-        op2.has_skip_param = true;
-        op2.skip_param_name = "PERFORM_QGL";
-        op2.param_semantic = ParameterSemantic::OPT_IN;
-        analysis2.operations.push_back(op2);
-        matrix2.add_from_macro_analysis(analysis2);
-
-        auto source2 = matrix2.get_best_source(OperationCategory::QGL);
-        REQUIRE(source2.has_value());
-        REQUIRE(source2->semantic == ParameterSemantic::OPT_IN);
-
-        // Test SKIP_* prefix (OPT_OUT)
-        CapabilityMatrix matrix3;
-        PrintStartAnalysis analysis3;
-        analysis3.found = true;
-        PrintStartOperation op3;
-        op3.category = PrintStartOpCategory::Z_TILT;
-        op3.has_skip_param = true;
-        op3.skip_param_name = "SKIP_Z_TILT";
-        op3.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis3.operations.push_back(op3);
-        matrix3.add_from_macro_analysis(analysis3);
-
-        auto source3 = matrix3.get_best_source(OperationCategory::Z_TILT);
-        REQUIRE(source3.has_value());
-        REQUIRE(source3->semantic == ParameterSemantic::OPT_OUT);
-    }
-
-    SECTION("get_skip_param returns correct values based on semantic") {
-        // get_skip_param() returns the (param_name, skip_value) pair for disabling
-        // an operation. The skip_value depends on the semantic.
-
-        CapabilityMatrix matrix;
-
-        // Add OPT_OUT operation (SKIP_QGL)
-        PrintStartAnalysis analysis;
-        analysis.found = true;
-        PrintStartOperation op;
-        op.name = "QUAD_GANTRY_LEVEL";
-        op.category = PrintStartOpCategory::QGL;
-        op.has_skip_param = true;
-        op.skip_param_name = "SKIP_QGL";
-        op.param_semantic = ParameterSemantic::OPT_OUT;
-        analysis.operations.push_back(op);
-        matrix.add_from_macro_analysis(analysis);
-
-        auto skip_param = matrix.get_skip_param(OperationCategory::QGL);
-        REQUIRE(skip_param.has_value());
-        REQUIRE(skip_param->first == "SKIP_QGL");
-        REQUIRE(skip_param->second == "1"); // OPT_OUT: skip_value = 1
-    }
-}
-
-TEST_CASE("PrepManager: Extension safety - adding new operations", "[print_preparation][p5]") {
-    /**
-     * DOCUMENTATION: How to add a new controllable operation
-     *
-     * 1. Add enum value to OperationCategory in operation_patterns.h
-     * 2. Add entry to OperationRegistry::build_all() in operation_registry.h
-     * 3. Add keyword patterns to kOperationKeywords in operation_patterns.h
-     * 4. Add skip/perform variations to kSkipParamVariations/kPerformParamVariations
-     * 5. Update category_key() and category_name() in operation_patterns.h
-     * 6. Add UI subject handling in PrintPreparationManager
-     * 7. Add printer database entries if needed
-     *
-     * This test verifies the extension infrastructure is working correctly.
-     */
-
-    SECTION("Registry is the single extension point for controllable operations") {
-        // OperationRegistry::all() is the single source of truth for what operations
-        // can be shown in the pre-print UI.
-
-        auto all = OperationRegistry::all();
-
-        // Verify we have the expected minimum operations
-        REQUIRE(all.size() >= 5);
-
-        // Every operation in the registry must be controllable
-        for (const auto& info : all) {
-            // Can look it up by category
-            auto by_cat = OperationRegistry::get(info.category);
-            REQUIRE(by_cat.has_value());
-            REQUIRE(by_cat->capability_key == info.capability_key);
-
-            // Can look it up by key
+            INFO("Checking: " << info.capability_key);
+            listed.insert(info.category);
+            CHECK(info.category != OperationCategory::UNKNOWN);
             auto by_key = OperationRegistry::get_by_key(info.capability_key);
             REQUIRE(by_key.has_value());
-            REQUIRE(by_key->category == info.category);
+            CHECK(by_key->category == info.category);
+            CHECK(info.friendly_name == category_name(info.category));
+            CHECK(info.capability_key == category_key(info.category));
+            // Detection in macros needs a skip or perform spelling for it.
+            CHECK((!get_skip_variations(info.category).empty() ||
+                   !get_perform_variations(info.category).empty()));
+        }
+        for (auto cat : controllable) {
+            CHECK(listed.count(cat) == 1);
         }
     }
 
-    SECTION("Each registry entry has complete and consistent metadata") {
-        auto all = OperationRegistry::all();
-
-        for (const auto& info : all) {
-            INFO("Checking operation: " << info.capability_key);
-
-            // capability_key must be non-empty and match category_key()
-            REQUIRE_FALSE(info.capability_key.empty());
-            REQUIRE(info.capability_key == std::string(category_key(info.category)));
-
-            // friendly_name must be non-empty and match category_name()
-            REQUIRE_FALSE(info.friendly_name.empty());
-            REQUIRE(info.friendly_name == std::string(category_name(info.category)));
-
-            // category must not be UNKNOWN
-            REQUIRE(info.category != OperationCategory::UNKNOWN);
-        }
+    SECTION("lookup by key takes only the lowercase capability keys") {
+        CHECK_FALSE(OperationRegistry::get_by_key("nonexistent").has_value());
+        CHECK_FALSE(OperationRegistry::get_by_key("").has_value());
+        CHECK_FALSE(OperationRegistry::get_by_key("BED_MESH").has_value());
+        CHECK_FALSE(OperationRegistry::get_by_key("homing").has_value());
     }
 
-    SECTION("Operation categories have skip and perform variations defined") {
-        // Each controllable operation should have parameter variations defined
-        // for detection in macros.
-
-        auto all = OperationRegistry::all();
-
-        for (const auto& info : all) {
-            INFO("Checking variations for: " << info.capability_key);
-
-            // Should have at least one skip variation OR one perform variation
-            const auto& skip_vars = get_skip_variations(info.category);
-            const auto& perform_vars = get_perform_variations(info.category);
-
-            bool has_variations = !skip_vars.empty() || !perform_vars.empty();
-            REQUIRE(has_variations);
-        }
-    }
-
-    SECTION("CapabilityMatrix supports all registry operations") {
-        // The CapabilityMatrix should be able to hold capabilities for all
-        // operations in the registry.
-
-        CapabilityMatrix matrix;
-
-        // Add a mock capability for each registry operation
+    SECTION("the capability matrix accepts every registry operation from either source") {
+        CapabilityMatrix from_macro;
         PrintStartAnalysis analysis;
         analysis.found = true;
-
+        CapabilityMatrix from_database;
+        PrePrintOptionSet db_caps;
+        db_caps.macro_name = "START_PRINT";
         for (const auto& info : OperationRegistry::all()) {
             PrintStartOperation op;
             op.name = info.capability_key;
@@ -2923,71 +2295,19 @@ TEST_CASE("PrepManager: Extension safety - adding new operations", "[print_prepa
             op.skip_param_name = "SKIP_" + std::string(category_key(info.category));
             op.param_semantic = ParameterSemantic::OPT_OUT;
             analysis.operations.push_back(op);
-        }
 
-        matrix.add_from_macro_analysis(analysis);
-
-        // Verify all operations are controllable
-        for (const auto& info : OperationRegistry::all()) {
-            INFO("Verifying matrix support for: " << info.capability_key);
-            REQUIRE(matrix.is_controllable(info.category));
-        }
-    }
-}
-
-TEST_CASE("PrepManager: Extension safety - database key consistency", "[print_preparation][p5]") {
-    SECTION("Database capability keys match category_key() output") {
-        // This ensures that database lookups use the correct keys.
-        // The printer_database.json uses these keys for capability definitions.
-
-        REQUIRE(std::string(category_key(OperationCategory::BED_MESH)) == "bed_mesh");
-        REQUIRE(std::string(category_key(OperationCategory::QGL)) == "qgl");
-        REQUIRE(std::string(category_key(OperationCategory::Z_TILT)) == "z_tilt");
-        REQUIRE(std::string(category_key(OperationCategory::NOZZLE_CLEAN)) == "nozzle_clean");
-        REQUIRE(std::string(category_key(OperationCategory::PURGE_LINE)) == "purge_line");
-    }
-
-    SECTION("Known printer has expected option ids") {
-        // Verify that the database returns options with the correct ids
-        auto caps = PrinterDetector::get_pre_print_option_set("FlashForge Adventurer 5M Pro");
-
-        if (!caps.empty()) {
-            // Database should use "bed_mesh" id, not alternatives like "bed_leveling"
-            if (const PrePrintOption* bed_cap = caps.find("bed_mesh")) {
-                REQUIRE(caps.find("bed_leveling") == nullptr); // Wrong id doesn't exist
-                const auto* macro = std::get_if<PrePrintStrategyMacroParam>(&bed_cap->strategy);
-                REQUIRE(macro != nullptr);
-                REQUIRE_FALSE(macro->param_name.empty());
-            }
-        }
-    }
-
-    SECTION("CapabilityMatrix::category_from_key recognizes all registry keys") {
-        // The CapabilityMatrix uses category_from_key() to map option ids to
-        // OperationCategory. This must recognize all registry keys.
-
-        // Note: category_from_key is private, so we test indirectly through add_from_database
-
-        CapabilityMatrix matrix;
-
-        // Create database options for all registry operations
-        PrePrintOptionSet db_caps;
-        db_caps.macro_name = "START_PRINT";
-
-        for (const auto& info : OperationRegistry::all()) {
             PrePrintOption opt;
             opt.id = info.capability_key;
             opt.strategy_kind = PrePrintStrategyKind::MacroParam;
             opt.strategy = PrePrintStrategyMacroParam{"PARAM_" + info.capability_key, "1", "0", ""};
             db_caps.options.push_back(opt);
         }
-
-        matrix.add_from_database(db_caps);
-
-        // Verify all operations were recognized and added
+        from_macro.add_from_macro_analysis(analysis);
+        from_database.add_from_database(db_caps);
         for (const auto& info : OperationRegistry::all()) {
-            INFO("Checking key recognition for: " << info.capability_key);
-            REQUIRE(matrix.is_controllable(info.category));
+            INFO("Verifying matrix support for: " << info.capability_key);
+            CHECK(from_macro.is_controllable(info.category));
+            CHECK(from_database.is_controllable(info.category));
         }
     }
 }
@@ -3086,6 +2406,10 @@ TEST_CASE_METHOD(
 
     PrintPreparationManager manager;
     manager.set_dependencies(nullptr, &printer_state);
+    const auto ai_line = [&]() {
+        return line_containing(
+            PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager), "LOAD_AI_RUN");
+    };
 
     SECTION("Provider says ENABLED -> SWITCH=1 emitted") {
         manager.set_option_state_provider([](const std::string& id) {
@@ -3094,8 +2418,7 @@ TEST_CASE_METHOD(
                 return 1;
             return -1;
         });
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=1");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=1");
     }
 
     SECTION("Provider says DISABLED -> SWITCH=0 emitted") {
@@ -3104,15 +2427,20 @@ TEST_CASE_METHOD(
                 return 0;
             return -1;
         });
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=0");
     }
 
     SECTION("No provider -> uses default_enabled (false) -> SWITCH=0") {
         // ai_detect default_enabled is false; with no UI binding it should still
         // emit SWITCH=0 because PreStartGcode emits regardless of state.
-        auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(manager);
-        REQUIRE(line_containing(lines, "LOAD_AI_RUN") == "LOAD_AI_RUN SWITCH=0");
+        REQUIRE(ai_line() == "LOAD_AI_RUN SWITCH=0");
+    }
+
+    SECTION("skipped entirely when the LOAD_AI_RUN macro is absent, even when enabled") {
+        MacroParamCache::instance().clear();
+        manager.set_option_state_provider(
+            [](const std::string& id) { return id == "ai_detect" ? 1 : -1; });
+        REQUIRE(ai_line().empty());
     }
 }
 
@@ -3848,7 +3176,7 @@ namespace {
 /// Run queued callbacks until nothing new is enqueued. Each drain() swaps out
 /// one batch, and these stages enqueue their successor from inside a batch.
 void drain_until_quiet() {
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+    UpdateQueue::instance().drain_until_empty(16);
 }
 
 /// Number of lines equal to @p want once any trailing CR is stripped.
@@ -3892,6 +3220,8 @@ TEST_CASE_METHOD(HelixTestFixture,
     auto& api = mock_printer.api;
 
     PrintPreparationManager manager;
+    // An earlier start, refused before it sent anything, leaves its parameters.
+    manager.start_print(kRemapFixture, "", nullptr, nullptr, {}, {{"plateindex", "3"}});
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
 
@@ -3923,6 +3253,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(starts[0].original_filename == kRemapFixture);
     CHECK(starts[0].temp_file_path == uploads[0].dest_path);
     CHECK(starts[0].modifications == std::vector<std::string>{"remap_T1_to_T2"});
+    CHECK(starts[0].extra_params.count("plateindex") == 0);
 
     // Neither local copy outlives the flow.
     const auto& downloads = api.transfers_mock().download_destinations();
@@ -4039,13 +3370,11 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK_FALSE(*completed);
 }
 
-TEST_CASE_METHOD(
-    HelixTestFixture,
-    "PrintPreparationManager: a staged start that loses its answer while Stop waits is "
-    "held",
-    "[print_preparation][remap][preparing_cancel]") {
-    // A timeout means Klipper is busy running the start: the job is held for
-    // the cancel, not failed, and the copy it is printing is not deleted.
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a staged start that loses its answer stays preparing",
+                 "[print_preparation][remap][preparing_cancel][1898]") {
+    // A timeout means Klipper is busy running the start: the job stays
+    // preparing, Stop or no Stop, and the copy it is printing is not deleted.
     lv_init_safe();
     PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
@@ -4070,10 +3399,15 @@ TEST_CASE_METHOD(
         api.job_mock().mock_modified_print_error(lost);
     }
 
+    const bool stop_waiting = GENERATE(true, false);
+    CAPTURE(stop_waiting);
+
     PrintPreparationManager manager;
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
-    state.print_state().note_preparing_cancel_requested();
+    if (stop_waiting) {
+        state.print_state().note_preparing_cancel_requested();
+    }
     manager.set_cached_file_size(123456);
     std::optional<bool> completed;
     manager.modify_and_print_with_remap(
@@ -4273,9 +3607,14 @@ TEST_CASE_METHOD(HelixTestFixture,
             CHECK(api.transfers_mock().download_destinations().size() == downloads_before);
             CHECK(api.job_mock().modified_prints().size() == modified_before);
             CHECK(api.job_mock().started_prints().empty());
-            CHECK_FALSE(state.print_state().has_preparing_job());
-            REQUIRE(completed.has_value());
-            CHECK_FALSE(*completed);
+            // A timeout leaves the job for the printer to settle; a dropped
+            // connection with no Stop waiting, like a refusal, fails it.
+            const bool lost_answer = c.error.command_may_still_run();
+            CHECK(state.print_state().has_preparing_job() == lost_answer);
+            CHECK(completed.has_value() == !lost_answer);
+            if (completed) {
+                CHECK_FALSE(*completed);
+            }
         }
         state.print_state().retire_preparing(helix::PreparingExit::Failed);
     }
@@ -4843,7 +4182,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         printer_state.set_printer_type_sync("Voron 2.4");
         printer_state.set_helix_plugin_installed(true);
         auto aggregate = [&] {
-            UpdateQueueTestAccess::drain(UpdateQueue::instance());
+            UpdateQueue::instance().drain();
             return lv_subject_get_int(
                 printer_state.composite_visibility_state().get_has_any_preprint_options_subject());
         };
@@ -4865,7 +4204,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         printer_state.set_printer_type_sync("Voron 2.4");
         printer_state.set_helix_plugin_installed(true);
         auto aggregate = [&] {
-            UpdateQueueTestAccess::drain(UpdateQueue::instance());
+            UpdateQueue::instance().drain();
             return lv_subject_get_int(
                 printer_state.composite_visibility_state().get_has_any_preprint_options_subject());
         };
@@ -4908,7 +4247,7 @@ struct ObjectScanFixture : public LVGLTestFixture {
         manager.set_dependencies(&mock_printer.api, &mock_printer.state);
     }
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 } // namespace
@@ -5122,4 +4461,192 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(collector->checklist_input().expected_order ==
           std::vector<helix::PrintStartPhase>{helix::PrintStartPhase::BED_MESH,
                                               helix::PrintStartPhase::PURGING});
+}
+
+TEST_CASE_METHOD(
+    HelixTestFixture,
+    "PrintPreparationManager: a start the plugin rewrites carries the print's tool map",
+    "[print_preparation][plugin_server_edits][2038]") {
+    lv_init_safe();
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+    state.set_helix_plugin_installed(true);
+
+    const std::string transport =
+        GENERATE(std::string("modified"), std::string("edited"), std::string("edit refused"));
+    CAPTURE(transport);
+    if (transport != "modified") {
+        PluginFeatureEntry entry;
+        entry.version = gcode::kServerEditsMinVersion;
+        entry.available = true;
+        entry.enabled = true;
+        state.plugin_status_state().set_features({{gcode::kServerEditsFeature, entry}});
+    }
+    if (transport == "edit refused") {
+        api.job_mock().mock_edited_print_error(MoonrakerError::from_json_rpc(
+            {{"code", 503}, {"message", "Feature unavailable"}}, "server.helix.print_edited"));
+    }
+    drain_until_quiet();
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    // The file meshes the bed itself; turning that off makes the start rewrite it.
+    const auto scan =
+        gcode::GCodeOpsDetector().scan_file(std::string("assets/test_gcodes/") + kRemapFixture);
+    REQUIRE(scan.has_operation(gcode::OperationType::BED_MESH));
+    manager.set_cached_scan_result(scan, kRemapFixture);
+    manager.set_option_state_provider(
+        [](const std::string& id) { return id == "bed_mesh" ? 0 : -1; });
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+
+    const helix::PrintStartParams tools{{"tools", "2,,1"}};
+    manager.start_print(kRemapFixture, "", []() {}, [](bool, const std::string&) {}, "", tools);
+    drain_until_quiet();
+
+    const auto& modified = api.job_mock().modified_prints();
+    const auto& edited = api.job_mock().edited_prints();
+    if (transport == "modified") {
+        REQUIRE(modified.size() == 1);
+        CHECK(edited.empty());
+        CHECK(modified[0].extra_params == tools);
+    } else if (transport == "edited") {
+        REQUIRE(edited.size() == 1);
+        CHECK(modified.empty());
+        CHECK(edited[0].extra_params == tools);
+    } else {
+        // Refused before anything ran: the screen's own rewrite starts it, map and all.
+        REQUIRE(edited.size() == 1);
+        CHECK(edited[0].extra_params == tools);
+        REQUIRE(modified.size() == 1);
+        CHECK(modified[0].extra_params == tools);
+    }
+    manager.set_dependencies(nullptr, nullptr);
+}
+
+// ============================================================================
+// Heat soak: the printer's soak macro, run ahead of the start when switched on
+// ============================================================================
+
+namespace {
+
+PrinterDiscovery hardware_with_objects(const std::vector<std::string>& names) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json(names));
+    return hw;
+}
+
+const std::vector<std::string> kSoakPrinter = {"gcode_macro PRINT_START", "gcode_macro HEAT_SOAK"};
+
+helix::PrintStartAnalysis start_macro_with(helix::OperationCategory category) {
+    helix::PrintStartAnalysis analysis;
+    analysis.found = true;
+    analysis.macro_name = "PRINT_START";
+    helix::PrintStartOperation op;
+    op.name = "STEP";
+    op.category = category;
+    analysis.operations = {op};
+    return analysis;
+}
+
+int card_shown(PrinterState& ps) {
+    helix::ui::UpdateQueue::instance().drain();
+    return lv_subject_get_int(
+        ps.composite_visibility_state().get_has_any_preprint_options_subject());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: offered only on a printer with a soak macro",
+                 "[print_preparation][preprint][heat_soak]") {
+    SECTION("no soak macro, no row") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro PRINT_START"}));
+        CHECK(fx.manager.get_option_state("heat_soak") == PrePrintOptionState::NOT_APPLICABLE);
+    }
+
+    SECTION("a detected soak macro gives a row that runs that macro") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro SOAK"}));
+        const PrePrintOptionSet displayed = fx.manager.displayed_options();
+        const PrePrintOption* soak = displayed.find("heat_soak");
+        REQUIRE(soak != nullptr);
+        CHECK(render_pre_start_gcode(*soak, true) == "SOAK");
+        CHECK(PrePrintOptionsRenderer::label_for(*soak) == "Heat soak");
+        CHECK(helix::print_start_phase_of_option("heat_soak") == helix::PrintStartPhase::SOAKING);
+    }
+
+    SECTION("a database option for the capability wins") {
+        PrePrintOptionSet db;
+        db.options.push_back(make_macro_param_opt("chamber_soak"));
+        db.options.back().capability = "heat_soak";
+        GateFixture fx(std::move(db));
+        fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+        CHECK(fx.ps.profile_state().pre_print_option_set().find("heat_soak") == nullptr);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "Heat soak option: what reaches the start for on and off",
+                 "[print_preparation][preprint][heat_soak]") {
+    GateFixture fx(PrePrintOptionSet{});
+    fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+    int state = -1;
+    fx.manager.set_option_state_provider(
+        [&](const std::string& id) { return id == "heat_soak" ? state : -1; });
+    const auto sends_soak = [&](const std::string& file_start = {}) {
+        const gcode::ScanResult scan = gcode::GCodeOpsDetector().scan_content(file_start);
+        const auto lines = PrintPreparationManagerTestAccess::get_pre_start_gcode_lines(
+            fx.manager, "part.gcode", &scan);
+        return std::find(lines.begin(), lines.end(), "HEAT_SOAK") != lines.end();
+    };
+
+    // Left at its default the macro is not run; switched on it is.
+    CHECK_FALSE(sends_soak());
+    state = 1;
+    CHECK(sends_soak());
+    // A file that soaks itself is not soaked twice.
+    CHECK_FALSE(sends_soak("HEAT_SOAK\nPRINT_START\n"));
+
+    SECTION("a queued job's saved choice reaches its start") {
+        state = -1;
+        fx.manager.set_start_option_override(
+            [](const std::string& id) { return id == "heat_soak" ? 1 : -1; });
+        CHECK(sends_soak());
+    }
+
+    SECTION("a PRINT_START that soaks on its own hides the row") {
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::CHAMBER_SOAK));
+        CHECK(fx.manager.get_option_state("heat_soak") == PrePrintOptionState::NOT_APPLICABLE);
+        CHECK(fx.manager.displayed_options().find("heat_soak") == nullptr);
+        CHECK_FALSE(sends_soak());
+    }
+
+    SECTION("a PRINT_START with other steps keeps the row") {
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::BED_MESH));
+        CHECK(fx.manager.displayed_options().find("heat_soak") != nullptr);
+        CHECK(sends_soak());
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "Print options card: hidden when none of the declared rows would render",
+                 "[print_preparation][preprint][heat_soak][composite_visibility]") {
+    SECTION("the soak row hidden by a PRINT_START that soaks leaves no row") {
+        GateFixture fx(PrePrintOptionSet{});
+        fx.ps.set_hardware(hardware_with_objects(kSoakPrinter));
+        REQUIRE(card_shown(fx.ps) == 1);
+        fx.manager.set_macro_analysis(start_macro_with(helix::OperationCategory::CHAMBER_SOAK));
+        CHECK(card_shown(fx.ps) == 0);
+    }
+
+    SECTION("a row whose required macro is missing is not a row") {
+        PrePrintOptionSet db;
+        db.options.push_back(make_pre_start_gcode_opt("ai_detect"));
+        db.options.back().requires_macro = "HELIX_TEST_NEVER_REGISTERED";
+        GateFixture fx(std::move(db));
+        fx.ps.set_hardware(hardware_with_objects({"gcode_macro PRINT_START"}));
+        CHECK(card_shown(fx.ps) == 0);
+    }
 }

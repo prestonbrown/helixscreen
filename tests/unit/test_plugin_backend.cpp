@@ -3,10 +3,9 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "plugin_backend.h"
 #include "printer_state.h"
@@ -211,8 +210,9 @@ TEST_CASE_METHOD(PluginCallFixture,
         CHECK(mock.last_send_method() != method);
     }
 
-    for (const char* method : {"server.helix.status", "server.helix.journal",
-                               "server.helix.plr.status", "server.helix.analysis"}) {
+    for (const char* method :
+         {"server.helix.status", "server.helix.journal", "server.helix.plr.status",
+          "server.helix.analysis", "server.helix.signal_migration"}) {
         INFO(method);
         call(method, json::object());
         CHECK(mock.last_send_method() == method);

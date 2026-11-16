@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "storage_report_service.h"
 #include "subject_managed_panel.h"
 
@@ -33,6 +34,9 @@ class StorageSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_storage_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void init_subjects() override;
     void register_callbacks() override;
@@ -52,17 +56,17 @@ class StorageSettingsOverlay : public OverlayBase {
     void run_cleanup(std::size_t index);
 
     SubjectManager subjects_;
-    lv_subject_t state_{};
-    lv_subject_t used_pct_{};
-    lv_subject_t volume_text_{};
+    helix::Subject state_{};
+    helix::Subject used_pct_{};
+    helix::Subject volume_text_{};
     char volume_buf_[96] = {};
-    lv_subject_t source_text_{};
+    helix::Subject source_text_{};
     char source_buf_[160] = {};
 
-    std::array<lv_subject_t, storage::kConsumerCount> value_{};
+    std::array<helix::Subject, storage::kConsumerCount> value_{};
     std::array<std::array<char, 32>, storage::kConsumerCount> value_buf_{};
-    std::array<lv_subject_t, storage::kConsumerCount> shown_{};
-    std::array<lv_subject_t, storage::kConsumerCount> clean_{};
+    std::array<helix::Subject, storage::kConsumerCount> shown_{};
+    std::array<helix::Subject, storage::kConsumerCount> clean_{};
     /// Subject names, kept for as long as the XML registry refers to them
     std::array<std::array<std::string, 3>, storage::kConsumerCount> names_{};
 

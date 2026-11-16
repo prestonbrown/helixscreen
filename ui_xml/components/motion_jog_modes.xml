@@ -5,12 +5,21 @@
   <!-- The Fine / Coarse / Turbo jog mode buttons, the selected one solid,
        centred in their row. `button_height` and `max_width` size each button
        (by default a near-square key, jog_mode_h by at most jog_mode_w);
-       `icon_position` places the icon and `text_font` sets the label face. -->
+       `icon_position` places the icon and `text_font` sets the label face. The
+       subject and callback props default to the Motion panel's own; another
+       owner names its own so its choice stays out of the Motion setting. -->
   <api>
     <prop name="icon_position" type="string" default="top"/>
     <prop name="button_height" type="string" default="#jog_mode_h"/>
     <prop name="max_width" type="string" default="#jog_mode_w"/>
     <prop name="text_font" type="string" default="#font_body"/>
+    <prop name="fine_active" type="string" default="motion_jog_mode_fine_active"/>
+    <prop name="coarse_active" type="string" default="motion_jog_mode_coarse_active"/>
+    <prop name="turbo_active" type="string" default="motion_jog_mode_turbo_active"/>
+    <prop name="fine_callback" type="string" default="on_jog_mode_fine"/>
+    <prop name="coarse_callback" type="string" default="on_jog_mode_coarse"/>
+    <prop name="turbo_callback" type="string" default="on_jog_mode_turbo"/>
+    <prop name="turbo_hidden" type="string" default="false"/>
   </api>
   <view name="motion_jog_modes"
         extends="lv_obj" width="100%" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
@@ -19,25 +28,25 @@
                width="0" height="$button_height" flex_grow="1" style_min_width="0" style_max_width="$max_width"
                style_pad_hor="#space_xxs" style_pad_ver="0" text="Fine" icon="tortoise" icon_position="$icon_position"
                style_text_font="$text_font">
-      <bind_style name="styles.choice_selected" subject="motion_jog_mode_fine_active" ref_value="1"/>
-      <bind_style name="styles.choice_idle" subject="motion_jog_mode_fine_active" ref_value="0"/>
-      <event_cb trigger="clicked" callback="on_jog_mode_fine"/>
+      <bind_style name="styles.choice_selected" subject="$fine_active" ref_value="1"/>
+      <bind_style name="styles.choice_idle" subject="$fine_active" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$fine_callback"/>
     </ui_button>
     <ui_button name="jog_mode_coarse"
                width="0" height="$button_height" flex_grow="1" style_min_width="0" style_max_width="$max_width"
                style_pad_hor="#space_xxs" style_pad_ver="0" text="Coarse" icon="rabbit" icon_position="$icon_position"
                style_text_font="$text_font">
-      <bind_style name="styles.choice_selected" subject="motion_jog_mode_coarse_active" ref_value="1"/>
-      <bind_style name="styles.choice_idle" subject="motion_jog_mode_coarse_active" ref_value="0"/>
-      <event_cb trigger="clicked" callback="on_jog_mode_coarse"/>
+      <bind_style name="styles.choice_selected" subject="$coarse_active" ref_value="1"/>
+      <bind_style name="styles.choice_idle" subject="$coarse_active" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$coarse_callback"/>
     </ui_button>
     <ui_button name="jog_mode_turbo"
-               width="0" height="$button_height" flex_grow="1" style_min_width="0" style_max_width="$max_width"
-               style_pad_hor="#space_xxs" style_pad_ver="0" text="Turbo" icon="flash" icon_position="$icon_position"
-               style_text_font="$text_font">
-      <bind_style name="styles.choice_selected" subject="motion_jog_mode_turbo_active" ref_value="1"/>
-      <bind_style name="styles.choice_idle" subject="motion_jog_mode_turbo_active" ref_value="0"/>
-      <event_cb trigger="clicked" callback="on_jog_mode_turbo"/>
+               width="0" height="$button_height" hidden="$turbo_hidden" flex_grow="1" style_min_width="0"
+               style_max_width="$max_width" style_pad_hor="#space_xxs" style_pad_ver="0" text="Turbo" icon="flash"
+               icon_position="$icon_position" style_text_font="$text_font">
+      <bind_style name="styles.choice_selected" subject="$turbo_active" ref_value="1"/>
+      <bind_style name="styles.choice_idle" subject="$turbo_active" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$turbo_callback"/>
     </ui_button>
   </view>
 </component>

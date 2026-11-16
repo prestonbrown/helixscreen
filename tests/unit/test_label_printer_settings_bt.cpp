@@ -9,37 +9,24 @@
 
 using namespace helix;
 
-TEST_CASE("Label printer settings - bluetooth type", "[label][settings]") {
+TEST_CASE("Label printer settings: the bluetooth fields persist", "[label][settings]") {
     LVGLTestFixture fixture;
-
     auto& settings = LabelPrinterSettingsManager::instance();
     settings.init_subjects();
 
     settings.set_printer_type("bluetooth");
-    REQUIRE(Config::get_instance()->get<std::string>("/label_printer/type", "") == "bluetooth");
-}
-
-TEST_CASE("Label printer settings - bt_address persistence", "[label][settings]") {
-    LVGLTestFixture fixture;
-
-    auto& settings = LabelPrinterSettingsManager::instance();
-    settings.init_subjects();
-
+    CHECK(Config::get_instance()->get<std::string>("/label_printer/type", "") == "bluetooth");
     settings.set_bt_address("AA:BB:CC:DD:EE:FF");
-    REQUIRE(settings.get_bt_address() == "AA:BB:CC:DD:EE:FF");
-}
-
-TEST_CASE("Label printer settings - bt_transport persistence", "[label][settings]") {
-    LVGLTestFixture fixture;
-
-    auto& settings = LabelPrinterSettingsManager::instance();
-    settings.init_subjects();
-
-    settings.set_bt_transport("spp");
-    REQUIRE(settings.get_bt_transport() == "spp");
-
-    settings.set_bt_transport("ble");
-    REQUIRE(settings.get_bt_transport() == "ble");
+    CHECK(settings.get_bt_address() == "AA:BB:CC:DD:EE:FF");
+    for (const char* transport : {"spp", "ble"}) {
+        settings.set_bt_transport(transport);
+        CHECK(settings.get_bt_transport() == transport);
+    }
+    for (int channel : {0, 7}) {
+        settings.set_bt_channel(channel);
+        CHECK(settings.get_bt_channel() == channel);
+    }
+    settings.set_bt_channel(0); // reset for subsequent tests
 }
 
 TEST_CASE("Label printer settings - BT configured check", "[label][settings]") {
@@ -55,19 +42,4 @@ TEST_CASE("Label printer settings - BT configured check", "[label][settings]") {
 
     settings.set_bt_address("AA:BB:CC:DD:EE:FF");
     REQUIRE(settings.is_configured());
-}
-
-TEST_CASE("LabelPrinterSettings bt_channel round-trips", "[label_printer][bt]") {
-    LVGLTestFixture fixture;
-
-    auto& s = LabelPrinterSettingsManager::instance();
-    s.init_subjects();
-
-    s.set_bt_channel(0);
-    REQUIRE(s.get_bt_channel() == 0);
-
-    s.set_bt_channel(7);
-    REQUIRE(s.get_bt_channel() == 7);
-
-    s.set_bt_channel(0); // reset for subsequent tests
 }

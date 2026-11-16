@@ -61,7 +61,6 @@ class UiMultiselect {
     UiMultiselect(const UiMultiselect&) = delete;
     UiMultiselect& operator=(const UiMultiselect&) = delete;
 
-    // Movable
     UiMultiselect(UiMultiselect&& other) noexcept;
     UiMultiselect& operator=(UiMultiselect&& other) noexcept;
 
@@ -95,10 +94,7 @@ class UiMultiselect {
     /// Get count of selected items
     size_t get_selected_count() const;
 
-    /// Select all items
     void select_all();
-
-    /// Deselect all items
     void deselect_all();
 
     /**
@@ -123,6 +119,18 @@ class UiMultiselect {
      */
     void set_max_selected(size_t max) {
         max_selected_ = max;
+    }
+
+    /**
+     * @brief Head the list with a row that toggles every enabled row
+     *
+     * Takes effect at the next set_items(). Empty (the default) means no such
+     * row. The row is named "item_all", is not an item (item_count() and the
+     * selected keys never include it), and reads checked while every enabled
+     * row is selected.
+     */
+    void set_select_all_label(std::string label) {
+        select_all_label_ = std::move(label);
     }
 
     /// Whether the widget is attached to a container
@@ -150,8 +158,13 @@ class UiMultiselect {
     std::vector<std::unique_ptr<RowData>> rows_;
     MultiSelectCallback on_change_;
     size_t max_selected_ = 0;
+    std::string select_all_label_;
+
+    std::unique_ptr<RowData> all_row_;
 
     lv_obj_t* create_row(const MultiSelectItem& item);
+    std::unique_ptr<RowData> build_row(const MultiSelectItem& item);
+    void sync_all_row();
     void clear_rows();
     void update_checkbox_visual(RowData* data);
 

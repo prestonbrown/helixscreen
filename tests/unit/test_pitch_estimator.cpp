@@ -231,8 +231,8 @@ TEST_CASE("estimate_pitch rejects degenerate input", "[belt_tension][pitch][edge
 TEST_CASE("estimate_pitch rejects an all-zero PSD instead of confidently returning bin 0",
           "[belt_tension][pitch][edge_case]") {
     // best_product starts at -1.0; every candidate here scores exactly 0.0,
-    // which used to beat that sentinel and return the first in-window bin as
-    // "valid". A silent all-zero PSD (dead sensor, gated-out capture) must
+    // which beats that sentinel, so a naive search returns the first in-window
+    // bin as "valid". A silent all-zero PSD (dead sensor, gated-out capture) must
     // come back invalid, not confidently wrong.
     std::vector<std::pair<float, float>> psd;
     const float resolution = 4.0f;

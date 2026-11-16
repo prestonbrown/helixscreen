@@ -3,7 +3,10 @@
 
 #include "../test_helpers/config_test_access.h"
 #include "config.h"
+#include "hardware_role_registry.h"
+#include "printer_discovery.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -230,9 +233,11 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(config.apply_preset_file("ad5m_pro_forgex") == true);
 
     auto& pd = printer_data();
-    REQUIRE(pd["fans"]["chamber"] == "fan_generic chamber_fan");
+    // chamber_fan is the side fan FlashForge's M106 P2 drives across the bed;
+    // internal_fan is the enclosure's circulation fan.
+    REQUIRE(pd["fans"]["chamber"] == "fan_generic internal_fan");
     REQUIRE(pd["fans"]["exhaust"] == "fan_generic external_fan");
-    REQUIRE(pd["fans"]["aux"] == "fan_generic internal_fan");
+    REQUIRE(pd["fans"]["aux"] == "fan_generic chamber_fan");
     // leds/strip is not seeded post-wizard: a preset LED name the machine does not
     // have would raise "Configured LED strip not found", which outranks the toast
     // this migration exists to silence.
@@ -260,6 +265,36 @@ TEST_CASE_METHOD(PresetConfigFixture,
     REQUIRE(printer_data()["fans"]["chamber"] == "fan_generic user_pick");
     // Seeding still reaches keys nobody holds.
     REQUIRE(printer_data()["fans"]["exhaust"] == "fan_generic external_fan");
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file post-wizard keeps a declined role declined",
+                 "[config][preset][hwrole]") {
+    SetUp();
+
+    // A Z-Mod AD5M Pro is typed as the stock 5M Pro, so every boot migrates from
+    // ad5m_pro, whose exhaust and aux fans Z-Mod does not have. Answering the Fans
+    // wizard stored both as "" (prestonbrown/helixscreen#2040).
+    printer_data()["wizard_completed"] = true;
+    printer_data()["fans"] = {{"hotend", "heater_fan heat_fan"},
+                              {"part", "fan_generic fanM106"},
+                              {"chamber", "fan_generic chamber_fan"},
+                              {"exhaust", ""},
+                              {"aux", ""}};
+    copy_shipped_preset("ad5m_pro");
+
+    config.apply_preset_file("ad5m_pro");
+
+    CHECK(printer_data()["fans"]["exhaust"] == "");
+    CHECK(printer_data()["fans"]["aux"] == "");
+
+    // The next boot's discovery must not route a Fans wizard again.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"heater_bed", "extruder", "heater_fan heat_fan",
+                                  "fan_generic fanM106", "fan_generic chamber_fan"}));
+    REQUIRE(unresolved_guided_steps(&config, hw).empty());
 
     TearDown();
 }
@@ -320,11 +355,15 @@ TEST_CASE_METHOD(PresetConfigFixture,
     TearDown();
 }
 
-TEST_CASE_METHOD(PresetConfigFixture, "Config::apply_preset_file returns false for missing file",
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file refuses a missing or unparsable preset untouched",
                  "[config][preset]") {
     SetUp();
 
     REQUIRE(config.apply_preset_file("nonexistent_preset") == false);
+    REQUIRE(printer_data()["fans"].size() == 2);
+    std::ofstream(temp_dir + "/presets/broken.json") << "{not json";
+    REQUIRE(config.apply_preset_file("broken") == false);
     REQUIRE(printer_data()["fans"].size() == 2);
 
     TearDown();
@@ -740,6 +779,58 @@ TEST_CASE_METHOD(PresetConfigFixture,
 }
 
 TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file takes a preset's sound default on the device only",
+                 "[config][preset][device-scope]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == false);
+
+    // A separate host plays through its own speaker, never the printer's beeper.
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = kRemoteTestHost;
+    REQUIRE(config.apply_preset_file("quiet_preset") == true);
+    CHECK(data()["sounds_enabled"] == true);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "The shipped KlipperMod AD5M Pro preset starts with sound off",
+                 "[config][preset][device-scope]") {
+    // Its only sound backend is M300, which pauses the toolhead mid-print.
+    SetUp();
+    copy_shipped_preset("ad5m_pro");
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+
+    REQUIRE(config.apply_preset_file("ad5m_pro") == true);
+    CHECK(data()["sounds_enabled"] == false);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file leaves sound alone once the wizard is done",
+                 "[config][preset]") {
+    SetUp();
+    json preset = {{"printer", {{"heaters", {{"bed", "heater_bed"}}}}}, {"sounds_enabled", false}};
+    write_preset("quiet_preset", preset);
+    data()["sounds_enabled"] = true;
+    printer_data()["moonraker_host"] = "127.0.0.1";
+    printer_data()["wizard_completed"] = true;
+
+    config.apply_preset_file("quiet_preset");
+    CHECK(data()["sounds_enabled"] == true);
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
                  "Config::apply_preset_file seeds device display/input when no host is set yet",
                  "[config][preset][device-scope]") {
     SetUp();
@@ -985,6 +1076,29 @@ TEST_CASE_METHOD(PresetConfigFixture, "snapmaker_u1 preset carries no home panel
     REQUIRE(config.apply_preset_file("snapmaker_u1") == true);
 
     CHECK_FALSE(printer_data().contains("panel_widgets"));
+
+    TearDown();
+}
+
+TEST_CASE_METHOD(PresetConfigFixture,
+                 "Config::apply_preset_file writes the AD5X led override on first setup only",
+                 "[config][preset]") {
+    SetUp();
+    copy_shipped_preset("ad5x");
+
+    SECTION("first setup takes the override") {
+        REQUIRE(config.apply_preset_file("ad5x") == true);
+        CHECK(printer_data()["capability_overrides"]["led"] == "disable");
+    }
+
+    SECTION("a set-up printer keeps its capabilities") {
+        printer_data()["wizard_completed"] = true;
+        // The expected-hardware union proves the post-wizard merge ran.
+        REQUIRE(config.apply_preset_file("ad5x") == true);
+        const json& expected = printer_data()["hardware"]["expected"];
+        REQUIRE(std::find(expected.begin(), expected.end(), "led chamber_light") != expected.end());
+        CHECK_FALSE(printer_data().contains("capability_overrides"));
+    }
 
     TearDown();
 }

@@ -18,12 +18,13 @@
 #include "ui_spool_canvas.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include <cmath>
@@ -195,7 +196,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS sidebar paints the loaded spool's colour a
         ext.material = "PETG";
         ext.remaining_weight_g = 600.0f;
         ext.total_weight_g = 1000.0f;
-        AmsState::instance().set_external_spool_info_in_memory(ext);
+        helix::AmsStateTestAccess::seed_external_spool(ext);
         AmsState::instance().sync_from_backend();
         process_lvgl(20);
         CHECK(lv_subject_get_int(fill) == ext.display_fill_pct());
@@ -263,20 +264,20 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
             lv_area_t screen;
             lv_obj_get_coords(fx.test_screen(), &screen);
             int checked = 0;
-            const std::string reset_key = AmsState::instance().get_backend()->reset_button_label();
+            const std::string reset_key =
+                AmsState::instance().get_backend()->as<IGateSelector>()->reset_button_label();
             const std::pair<const char*, std::string> buttons[] = {
                 {"btn_unload", "Unload"},
                 {"btn_batch_unload", "Unload..."},
                 {"btn_load", "Load..."},
                 {"btn_reset", reset_key},
                 {"btn_check_gates", "Check Slots"},
-                {"btn_settings", "Settings"},
             };
             for (const auto& [name, key] : buttons) {
                 CAPTURE(name);
                 lv_obj_t* btn = lv_obj_find_by_name(panel_obj, name);
                 REQUIRE(btn != nullptr);
-                if (lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN)) {
+                if (lv_obj_is_hidden(btn)) {
                     continue;
                 }
                 lv_area_t outer;
@@ -307,7 +308,7 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
                 }
                 ++checked;
             }
-            CHECK(checked >= 3);
+            CHECK(checked >= 2);
 
             panel.on_deactivate(DeactivateReason::NavigateAway);
             panel.clear_panel_reference();
@@ -323,6 +324,8 @@ void check_action_labels(XMLTestFixture& fx, std::initializer_list<const char*> 
 TEST_CASE_METHOD(XMLTestFixture,
                  "AMS sidebar action labels stay inside their buttons in every language",
                  "[ui_integration][ams][i18n]") {
+    // A component keeps the tokens of the screen it was registered on.
+    reregister_ams_components();
     check_action_labels(*this, {"en", "de", "fr", "es", "pt", "it", "ru", "ja", "zh"});
 }
 
@@ -334,4 +337,32 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS sidebar action labels fit at 480x320",
     helix::test::ScopedGeometry tiny(480, 320);
     reregister_ams_components();
     check_action_labels(*this, {"en"});
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "AMS panel header gear follows the device operations gate",
+                 "[ams][sidebar][mounted]") {
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->start().success());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+
+    register_ams_widgets_and_xml_once();
+    lv_obj_t* panel_obj =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
+    REQUIRE(panel_obj != nullptr);
+    lv_obj_t* header = lv_obj_find_by_name(panel_obj, "overlay_header");
+    REQUIRE(header != nullptr);
+    lv_obj_t* gear = lv_obj_find_by_name(header, "btn_ams_settings");
+    REQUIRE(gear != nullptr);
+    lv_subject_t* ops = lv_xml_get_subject(nullptr, "ams_has_device_ops");
+    REQUIRE(ops != nullptr);
+
+    lv_subject_set_int(ops, 1);
+    CHECK_FALSE(lv_obj_is_hidden(gear));
+    lv_subject_set_int(ops, 0);
+    CHECK(lv_obj_is_hidden(gear));
+
+    lv_obj_delete(panel_obj);
+    AmsState::instance().set_backend(nullptr);
 }

@@ -124,3 +124,150 @@ declared_libhv_files() {
     [ -n "$apply_at" ]
     [ "$reset_at" -lt "$apply_at" ]
 }
+
+# The paths a patch touches, created files included (`+++ b/` lines).
+patch_paths() { sed -n 's|^+++ b/||p' "$1" | sort -u; }
+
+# Every path every patch touches is in its submodule's *_PATCHED_FILES, so a
+# reset restores or deletes it. The submodule comes from the patch's name.
+@test "every file a patch touches is declared in its submodule's patched-files list" {
+    local p var f missing=""
+    for p in "$REPO_ROOT"/patches/*.patch; do
+        case "$(basename "$p")" in
+            lvgl*) var=LVGL_PATCHED_FILES ;;
+            libhv*) var=LIBHV_PATCHED_FILES ;;
+            lua*) var=LUA_PATCHED_FILES ;;
+            *) continue ;;
+        esac
+        declared=$(sed -n "/^$var[[:space:]]*:=/,/^\$/p" "$PATCHES_MK" | sed "s/^$var[[:space:]]*:=//" |
+            tr -d '\\' | tr ' \t' '\n' | grep -v '^#' | grep -v '^$')
+        while IFS= read -r f; do
+            printf '%s\n' "$declared" | grep -qxF -- "$f" || missing="$missing $(basename "$p"):$f"
+        done < <(patch_paths "$p")
+    done
+    [ -z "$missing" ] || fail "not in a *_PATCHED_FILES list, so a reset leaves it patched:$missing"
+}
+
+
+# A superproject at "commit A" applied alpha (edits one.txt) and gamma (creates
+# three.txt) into a fixture submodule and stamped it, then moved to "commit B",
+# whose patch set touches only two.txt. Runs the real reset-patches recipe
+# against that fixture; nothing under lib/ in this checkout is touched.
+switched_fixture() {
+    FIX="$BATS_TEST_TMPDIR/super"
+    SUB="$FIX/lib/fake"
+    mkdir -p "$FIX/patches" "$FIX/mk" "$SUB"
+    git -C "$SUB" init -q
+    git -C "$SUB" config user.email t@example.invalid
+    git -C "$SUB" config user.name Fixture
+    printf 'one\n' >"$SUB/one.txt"
+    printf 'two\n' >"$SUB/two.txt"
+    git -C "$SUB" add one.txt two.txt
+    git -C "$SUB" commit -qm pristine
+
+    printf 'one\nALPHA\n' >"$SUB/one.txt"
+    git -C "$SUB" diff -- one.txt >"$FIX/patches/alpha.patch"
+    git -C "$SUB" checkout -q -- one.txt
+    printf 'three\n' >"$SUB/three.txt"
+    git -C "$SUB" add -N three.txt
+    git -C "$SUB" diff -- three.txt >"$FIX/patches/gamma.patch"
+    git -C "$SUB" reset -q -- three.txt
+    rm -f "$SUB/three.txt"
+
+    printf 'FAKE_DIR := lib/fake\n' >"$FIX/Makefile"
+    printf '\t$(APPLY_PATCH) $(FAKE_DIR) $(PATCH_DIR)/%s.patch "x"\n' alpha gamma >"$FIX/mk/patches.mk"
+    git -C "$SUB" apply "$FIX/patches/alpha.patch"
+    git -C "$SUB" apply "$FIX/patches/gamma.patch"
+    python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX" --write-stamp >/dev/null
+}
+
+run_switched_reset() {
+    local none="$BATS_TEST_TMPDIR/none"
+    run run_mk_fragment "$PATCHES_MK" '^CHECK_PATCH_DRIFT :=' reset-patches \
+        CHECK_PATCH_DRIFT="python3 $REPO_ROOT/scripts/check_patch_drift.py --repo-root $FIX" \
+        OWN_GIT_DIR="bash $REPO_ROOT/scripts/own_git_dir.sh" \
+        LVGL_DIR="$SUB" LVGL_PATCHED_FILES=two.txt \
+        LIBHV_DIR="$none" LIBHV_PATCHED_FILES= LUA_DIR="$none" LUA_PATCHED_FILES=
+}
+
+@test "reset-patches undoes the applied patch set after the superproject moves to another" {
+    switched_fixture
+    [ -n "$(git -C "$SUB" status --porcelain)" ]
+    [ -f "$SUB/three.txt" ]
+    run_switched_reset
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    [ ! -e "$SUB/three.txt" ] || fail "patch-created three.txt left behind"
+    [ -z "$(git -C "$SUB" status --porcelain)" ] || fail "not pristine: $(git -C "$SUB" status --porcelain)"
+}
+
+@test "reset-patches deletes only the untracked files the stamp names" {
+    switched_fixture
+    printf 'mine\n' >"$SUB/other.txt"
+    run_switched_reset
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    [ -f "$SUB/other.txt" ]
+    [ ! -e "$SUB/three.txt" ]
+}
+
+@test "the stamp's file list drops paths outside the submodule" {
+    switched_fixture
+    local gd
+    gd="$(git -C "$SUB" rev-parse --absolute-git-dir)"
+    printf '{"files": {"one.txt": null, "../escape.txt": null, "/etc/passwd": null}}\n' \
+        >"$gd/helix-patches-applied.json"
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --stamped-files "$SUB"
+    [ "$status" -eq 0 ]
+    [ "$output" = "one.txt" ]
+}
+
+# The switched fixture as a source tarball inside a git superproject: the
+# submodule is a plain directory, its patches applied, and the nearest
+# repository is the superproject's.
+untarred_fixture() {
+    switched_fixture
+    rm -rf "$SUB/.git"
+    git -C "$FIX" init -q
+}
+
+@test "reset-patches leaves a submodule with no .git alone" {
+    # git would answer from the superproject, where these files are untracked,
+    # and the recipe would delete the upstream file it cannot restore.
+    untarred_fixture
+    run run_mk_fragment "$PATCHES_MK" '^CHECK_PATCH_DRIFT :=' reset-patches \
+        CHECK_PATCH_DRIFT="python3 $REPO_ROOT/scripts/check_patch_drift.py --repo-root $FIX" \
+        OWN_GIT_DIR="bash $REPO_ROOT/scripts/own_git_dir.sh" \
+        LVGL_DIR="$SUB" LVGL_PATCHED_FILES="one.txt two.txt" \
+        LIBHV_DIR="$BATS_TEST_TMPDIR/none" LIBHV_PATCHED_FILES= \
+        LUA_DIR="$BATS_TEST_TMPDIR/none" LUA_PATCHED_FILES=
+    [ "$status" -eq 0 ] || fail "reset failed: $output"
+    grep -q 'not a git checkout' <<<"$output" || fail "no skip notice: $output"
+    [ -f "$SUB/one.txt" ] || fail "upstream one.txt deleted"
+    [ -f "$SUB/two.txt" ] || fail "upstream two.txt deleted"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+}
+
+@test "the patch stamp is never filed in an enclosing repository's git dir" {
+    untarred_fixture
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX" --write-stamp
+    [ "$status" -eq 0 ] || fail "write-stamp failed: $output"
+    [ ! -e "$FIX/.git/helix-patches-applied.json" ] || fail "stamp filed in the superproject's git dir"
+    run python3 "$REPO_ROOT/scripts/check_patch_drift.py" --repo-root "$FIX"
+    [ "$status" -eq 0 ] || fail "drift check failed: $output"
+    grep -q 'not a git checkout' <<<"$output"
+}
+
+@test "make names no git dir for a submodule that has none" {
+    untarred_fixture
+    run bash "$REPO_ROOT/scripts/own_git_dir.sh" "$SUB"
+    [ "$status" -ne 0 ]
+    [ -z "$output" ]
+    # Every submodule git dir mk/patches.mk derives goes through that answer.
+    [ "$(grep -cE '^(LVGL|LIBHV|LUA)_GIT_DIR := \$\(shell \$\(OWN_GIT_DIR\) ' "$PATCHES_MK")" -eq 3 ]
+}
+
+@test "own_git_dir.sh names a real checkout's git dir" {
+    switched_fixture
+    run bash "$REPO_ROOT/scripts/own_git_dir.sh" "$SUB"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$(git -C "$SUB" rev-parse --absolute-git-dir)" ]
+}

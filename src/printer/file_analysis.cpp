@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "file_analysis.h"
 
-#include "ui_filename_utils.h"
-
 #include "async_lifetime_guard.h"
+#include "core/gcode_filename.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "moonraker_error.h"

@@ -10,7 +10,7 @@
  * switching apps and/or waking the screen from standby".
  *
  * Changing tabs fixes it because set_active() runs on_deactivate()/on_activate();
- * a resume used to repaint pixels and nothing else. on_activate() is what re-seeds
+ * a resume that only repaints pixels is not enough. on_activate() is what re-seeds
  * subjects, rebinds observers, reloads content and restarts per-panel timers
  * (PrintStatusPanel::on_activate does ensure_preview_current + update_button_states
  * + bind_fan_observers + temp graph resume), so without it the panel keeps whatever
@@ -30,10 +30,10 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "application_test_fixture.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h" // inv_en_cnt, restored after every test
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"

@@ -1,8 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "core/text_io.h"
 #include "gcode_tool_remapper.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <cctype>
 #include <filesystem>

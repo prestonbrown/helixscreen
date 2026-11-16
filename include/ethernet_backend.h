@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "ipv4_config.h"
+#include "link_events.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,7 +18,7 @@
  * network-daemon reader) call these — two hand-maintained copies of this
  * rule would silently disagree about the same machine.
  */
-namespace ethernet {
+namespace helix::ethernet {
 
 /**
  * @brief Classify one interface name as physical Ethernet
@@ -37,7 +40,20 @@ bool is_ethernet_interface(const std::string& name, const std::string& sysfs_roo
  */
 std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root = "/sys");
 
-} // namespace ethernet
+/**
+ * @brief Whether an interface's address and link state make it connected
+ *
+ * An address stays assigned after the cable is pulled, so an operstate of
+ * "down" is not connected even with one. Drivers that never report link
+ * state leave operstate at "unknown" (or "dormant") while the link works,
+ * so those count as connected when the interface has an address.
+ *
+ * @param has_ip True when the interface holds a usable IPv4 address
+ * @param operstate Contents of /sys/class/net/<iface>/operstate ("" if unreadable)
+ */
+bool is_link_connected(bool has_ip, const std::string& operstate);
+
+} // namespace helix::ethernet
 
 /**
  * @brief Ethernet connection information
@@ -53,6 +69,33 @@ struct EthernetInfo {
         : connected(false), interface(""), ip_address(""), mac_address(""), status("Unknown") {}
 };
 
+namespace helix::ethernet {
+
+/**
+ * @brief One Ethernet interface as the kernel reports it
+ */
+struct InterfaceState {
+    std::string name;      ///< Interface name (e.g. "eth0")
+    std::string ip;        ///< IPv4 address, "" when none
+    std::string mac;       ///< MAC address, "" when unknown
+    std::string operstate; ///< /sys/class/net/<name>/operstate, "" if unreadable
+};
+
+/**
+ * @brief Pick the interface to report and decide its connection status
+ *
+ * Preference: the first interface that is "up" with an address, then the
+ * first whose address and link make it connected (is_link_connected), then
+ * the first interface. A result that is not connected carries no address,
+ * since an address left on an unplugged port reaches nothing.
+ *
+ * @param interfaces Ethernet interfaces only, in kernel order
+ * @return status "No Ethernet interface" when @p interfaces is empty
+ */
+EthernetInfo select_interface(const std::vector<InterfaceState>& interfaces);
+
+} // namespace helix::ethernet
+
 /**
  * @brief Abstract Ethernet backend interface
  *
@@ -63,12 +106,13 @@ struct EthernetInfo {
  * - EthernetBackendMock: Simulator mode with fake data
  *
  * Design principles:
- * - Query-only API (no enable/disable, no configuration)
+ * - Status queries, plus the interface's IPv4 configuration through
+ *   helix::net::Ipv4Configurable (its get/apply BLOCK: worker threads only)
  * - Synchronous operations (no async complexity)
  * - Simple status checking for UI display
  * - Clean error handling with meaningful messages
  */
-class EthernetBackend {
+class EthernetBackend : public helix::net::Ipv4Configurable {
   public:
     virtual ~EthernetBackend() = default;
 
@@ -95,6 +139,16 @@ class EthernetBackend {
      * @return EthernetInfo struct with current state
      */
     virtual EthernetInfo get_info() = 0;
+
+    /**
+     * @brief Where this backend's link changes are announced
+     *
+     * @return nullptr when they are not; EthernetManager then re-probes
+     *         get_info() on a timer while anything observes the link
+     */
+    virtual std::unique_ptr<helix::net::LinkEvents> open_link_events() {
+        return nullptr;
+    }
 
     // ========================================================================
     // Factory Methods

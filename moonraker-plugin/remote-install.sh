@@ -6,14 +6,24 @@
 # HelixScreen does not run on. The app shows this command pinned to its own
 # release, so the plugin always matches the app talking to it:
 #
-#   curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/<REF>/moonraker-plugin/remote-install.sh | sh -s -- <REF>
+#   curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh | sh -s -- <REF>
 #   ... | sh -s -- <REF> --uninstall
 #
-# <REF> is a release tag (v1.2.0) or main. The plugin files of that ref go to
-# HELIX_PLUGIN_DIR (~/helix_print), and their own install.sh does the rest, the
-# same routine the app runs on a local install: Moonraker and config discovery,
-# [include] handling, backups and the [helix_print] section. Needs sh and one of
-# curl, wget or python3; no git, no bash.
+# <REF> is a release tag (v1.2.0) or main. Every release overwrites the copy
+# on the release CDN, so this script must keep accepting exactly these
+# arguments for every release that shows the command.
+#
+# A release comes from its tarball on the CDN
+# (releases/<REF>/helix-print-plugin.tar.gz). One the CDN no longer holds runs
+# that release's own copy of this script from GitHub, which fetches its files
+# one by one: an older release's file list is its own. main and
+# HELIX_PLUGIN_SOURCE=github fetch from GitHub directly.
+#
+# The plugin files go to HELIX_PLUGIN_DIR (~/helix_print), and their own
+# install.sh does the rest, the same routine the app runs on a local install:
+# Moonraker and config discovery, [include] handling, backups and the
+# [helix_print] section. Needs sh and one of curl, wget or python3; no git, no
+# bash.
 #
 # No [update_manager helix_print] is written: Moonraker's updater follows a git
 # branch or a release zip, neither of which is the plugin of the app's release.
@@ -22,11 +32,12 @@
 set -e
 
 PLUGIN_BASE_URL="${HELIX_PLUGIN_BASE_URL:-https://raw.githubusercontent.com/prestonbrown/helixscreen}"
+PLUGIN_CDN_URL="${HELIX_PLUGIN_CDN_URL:-https://releases.helixscreen.org}"
 PLUGIN_DIR="${HELIX_PLUGIN_DIR:-$HOME/helix_print}"
 
 # Everything install.sh and the plugin need from moonraker-plugin/. A bats test
 # fails when a shipped .py or .sh is missing here.
-PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_companions.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_printer_cfg.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py klippy/helix_pa_fit.py klippy/helix_pa_gauge.py"
+PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_companions.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_printer_cfg.py helix_signal_migration.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py klippy/helix_pa_fit.py klippy/helix_pa_gauge.py"
 
 info() { printf '[INFO] %s\n' "$1"; }
 error() {
@@ -35,8 +46,8 @@ error() {
 }
 
 # The fetch helpers below are the main installer's own
-# (scripts/lib/installer/release.sh, common.sh): this script runs piped from
-# GitHub and cannot source them. A bats test holds each copy equal.
+# (scripts/lib/installer/release.sh, common.sh): this script runs piped into
+# sh and cannot source them. A bats test holds each copy equal.
 
 # Detect whether `curl` is curl proper, with the flags we pass it. Creality K1
 # firmware ships libhv's example client as /usr/bin/curl: it answers to the name,
@@ -132,17 +143,50 @@ release_ref() {
     esac
 }
 
-# Fetch the plugin files of ref @1 into the empty directory @2.
+# Whether directory @1 holds the plugin: its module and its installer.
+is_plugin_download() {
+    grep -q '^PLUGIN_VERSION = ' "$1/helix_print.py" 2>/dev/null &&
+        [ "$(head -n 1 "$1/install.sh" 2>/dev/null)" = "#!/bin/sh" ]
+}
+
+# Fetch the plugin files of ref @1 from GitHub into the empty directory @2.
 fetch_plugin() {
     for _fp_file in $PLUGIN_FILES; do
         mkdir -p "$(dirname "$2/$_fp_file")" || error "Could not create the directory of $_fp_file"
         fetch_file "$PLUGIN_BASE_URL/$1/moonraker-plugin/$_fp_file" "$2/$_fp_file" ||
             error "Could not download $_fp_file of $1 from $PLUGIN_BASE_URL"
     done
-    grep -q '^PLUGIN_VERSION = ' "$2/helix_print.py" ||
-        error "The downloaded helix_print.py is not the HelixPrint plugin"
-    [ "$(head -n 1 "$2/install.sh")" = "#!/bin/sh" ] ||
-        error "The downloaded install.sh is not the plugin installer"
+    is_plugin_download "$2" || error "What $PLUGIN_BASE_URL serves for $1 is not the HelixPrint plugin"
+}
+
+# Unpack release @1's tarball from the CDN into the empty directory @2. Fails,
+# leaving @2 empty, when the CDN does not hold the release or what it serves is
+# not the plugin. Decompressed to a file first: in a pipe only tar's status
+# counts, and a cut-off stream would unpack part of the plugin.
+fetch_plugin_cdn() {
+    _fc_tgz="$2/.helix-print-plugin.tar.gz"
+    _fc_tar="$2/.helix-print-plugin.tar"
+    if fetch_file "$PLUGIN_CDN_URL/releases/$1/helix-print-plugin.tar.gz" "$_fc_tgz" &&
+        gzip -dc "$_fc_tgz" > "$_fc_tar" 2>/dev/null &&
+        (cd "$2" && tar -xf "$_fc_tar" 2>/dev/null) &&
+        is_plugin_download "$2"; then
+        rm -f "$_fc_tgz" "$_fc_tar"
+        return 0
+    fi
+    rm -rf "$2" && mkdir "$2"
+    return 1
+}
+
+# Run ref @1's own copy of this script from GitHub with the remaining
+# arguments, and exit with its status.
+run_release_wrapper() {
+    _rw_ref="$1"
+    shift
+    fetch_file "$PLUGIN_BASE_URL/$_rw_ref/moonraker-plugin/remote-install.sh" "$stage/remote-install.sh" ||
+        error "Could not download $_rw_ref from $PLUGIN_CDN_URL or $PLUGIN_BASE_URL"
+    _rw_status=0
+    HELIX_PLUGIN_SOURCE=github sh "$stage/remote-install.sh" "$_rw_ref" "$@" < /dev/null || _rw_status=$?
+    exit "$_rw_status"
 }
 
 # Whether @1 holds a plugin this script installed: the release files, or the
@@ -198,7 +242,15 @@ main() {
     trap 'exit 1' INT TERM HUP
 
     info "Downloading the HelixPrint plugin ($ref)"
-    fetch_plugin "$ref" "$stage"
+    if [ "$ref" = main ] || [ "${HELIX_PLUGIN_SOURCE:-}" = github ]; then
+        fetch_plugin "$ref" "$stage"
+    elif ! fetch_plugin_cdn "$ref" "$stage"; then
+        info "$PLUGIN_CDN_URL does not have $ref; using its files on GitHub"
+        if [ "$uninstall" = true ]; then
+            run_release_wrapper "$ref" --uninstall
+        fi
+        run_release_wrapper "$ref"
+    fi
 
     # install.sh reads nothing from stdin, which here is the rest of this script.
     if [ "$uninstall" = true ]; then

@@ -6,6 +6,7 @@
 // feature and the minimum contract version it needs, never on the plugin's
 // version string, so an older plugin loses only the features it lacks.
 
+#include "json_fwd.h"
 #include "moonraker_error.h"
 #include "translation_loader.h" // TR_NOOP
 
@@ -15,8 +16,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -172,6 +171,7 @@ inline constexpr const char* kIfsAbsentReasons[] = {"no_adventurer_json", nullpt
 inline constexpr const char* kAceAbsentReasons[] = {"no_ace_bridge", "ace_objects_carry_slots",
                                                     nullptr};
 inline constexpr const char* kForceSensorAbsentReasons[] = {"no_force_sensor", nullptr};
+inline constexpr const char* kStartToolsAbsentReasons[] = {"start_print_takes_no_tools", nullptr};
 
 /// Every feature this app can name. A feature the plugin reports that is not
 /// listed shows by its key, with no setting to lead to.
@@ -199,6 +199,10 @@ inline constexpr KnownPluginFeature kKnownPluginFeatures[] = {
     {"klipper_companions", TR_NOOP("Klipper modules"), "puzzle_outline", PluginFeatureHome::None},
     {"pa_gauge", TR_NOOP("Pressure advance from the nozzle sensor"), "gauge",
      PluginFeatureHome::Printing, kForceSensorAbsentReasons},
+    {"signal_macro_migration", TR_NOOP("Signal macro renaming"), "eye_off",
+     PluginFeatureHome::None},
+    {"print_start_tools", TR_NOOP("Filament Mapping at print start"), "swap_horizontal",
+     PluginFeatureHome::None, kStartToolsAbsentReasons},
 };
 
 /// What a reason code the plugin reports means, for the overview. Text is
@@ -213,22 +217,34 @@ inline constexpr PluginReasonText kPluginReasonTexts[] = {
     {"plugin_disabled", TR_NOOP("The plugin is turned off in moonraker.conf.")},
     {"module_missing", TR_NOOP("Part of the plugin is missing. Reinstall the plugin.")},
     {"load_failed", TR_NOOP("Part of the plugin failed to load. Reinstall the plugin.")},
-    {"start_failed", TR_NOOP("This feature failed to start. The Moonraker log says why.")},
-    {"stopped", TR_NOOP("This feature stopped. Restart Moonraker to start it again.")},
-    {"needs_file_analysis", TR_NOOP("This needs the plugin's file analysis, which isn't running.")},
-    {"upload_hook_unsupported",
-     TR_NOOP("This Moonraker version can't hold uploads. Update Moonraker.")},
+    {"start_failed", TR_NOOP("Failed to start. See the Moonraker log.")},
+    {"stopped", TR_NOOP("Stopped. Restart Moonraker to start it again.")},
+    {"needs_file_analysis", TR_NOOP("Needs file analysis, which isn't running.")},
+    {"upload_hook_unsupported", TR_NOOP("Needs a newer Moonraker to hold uploads.")},
     {"no_gcodes_dir", TR_NOOP("Moonraker has no G-code folder.")},
     {"python_too_old", TR_NOOP("Moonraker's Python is too old for this feature.")},
     {"no_virtual_sdcard", TR_NOOP("Klipper has no [virtual_sdcard] section.")},
     {"store_unwritable", TR_NOOP("The plugin can't save its recovery data to disk.")},
-    {"not_listed", TR_NOOP("Power-loss recovery isn't supported on this printer yet.")},
+    {"not_listed", TR_NOOP("Not set up for this printer model yet.")},
+    {"gantry_drops",
+     TR_NOOP("This printer's gantry drops when the power is cut, so a print can't be resumed.")},
+    {"delta_kinematics",
+     TR_NOOP("A delta printer can't home X and Y without moving Z, so a print can't be resumed.")},
+    {"firmware_recovery", TR_NOOP("This printer's firmware has its own power-loss recovery.")},
+    {"klipper_config_unread", TR_NOOP("Waiting to read the printer's configuration from Klipper.")},
+    {"override_homes_z",
+     TR_NOOP("This printer's homing override homes Z along with X and Y, so a print can't be "
+             "resumed.")},
+    {"override_sets_z",
+     TR_NOOP("This printer's homing override sets the Z position when it homes X and Y, so a "
+             "print can't be resumed.")},
+    {"override_unknown",
+     TR_NOOP("This printer's homing override runs commands that may move Z, so a print can't be "
+             "resumed.")},
     {"snapshot_unreachable",
      TR_NOOP("The plugin can't reach the camera, so this screen takes the photos.")},
-    {"unsafe_staging_dir",
-     TR_NOOP("A folder name in moonraker.conf is unsafe, so cleanup is off.")},
-    {"unsafe_root",
-     TR_NOOP("The timelapse or logs folder overlaps a protected folder, so cleanup is off.")},
+    {"unsafe_staging_dir", TR_NOOP("A folder name in moonraker.conf is unsafe.")},
+    {"unsafe_root", TR_NOOP("Timelapse or logs folder overlaps a protected one.")},
     {"no_adventurer_json", TR_NOOP("This printer has no IFS.")},
     {"adventurer_json_unreadable", TR_NOOP("The IFS state file can't be read.")},
     {"no_ace_bridge", TR_NOOP("No ACE unit was found.")},

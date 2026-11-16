@@ -33,7 +33,6 @@ using MacroParamSaveCallback = std::function<void(const MacroParamDefaultRecord&
 class MacroParamModal : public Modal {
   public:
     MacroParamModal() = default;
-    ~MacroParamModal() override = default;
 
     const char* get_name() const override {
         return "Macro Parameters";
@@ -41,6 +40,7 @@ class MacroParamModal : public Modal {
     const char* component_name() const override {
         return "macro_param_modal";
     }
+    HELIX_KIND_TAG(MacroParamModal)
 
     /// Show the modal for a specific macro with its detected parameters.
     /// @param parent Parent object (usually lv_screen_active())
@@ -57,14 +57,17 @@ class MacroParamModal : public Modal {
     /// @param parent Parent object (usually lv_screen_active())
     /// @param macro_name Display name for the subtitle
     /// @param on_execute Called when user clicks Run with parsed KEY=VALUE pairs
+    /// @param prefill KEY=VALUE pairs the text starts with
     void show_for_unknown_params(lv_obj_t* parent, const std::string& macro_name,
-                                 MacroExecuteCallback on_execute);
+                                 MacroExecuteCallback on_execute,
+                                 const std::map<std::string, std::string>& prefill = {});
 
     /// Show the modal in save mode: same field list as show_for_macro(),
     /// prefilled with @p record's values, titled "Default Parameters", primary
     /// button "Save", plus an "Ask for parameters" toggle below the fields.
     /// Saving hands the filled record to @p on_save; the macro is NOT run.
-    /// KNOWN_PARAMS macros only - there is no field list to save otherwise.
+    /// Empty @p params (an UNKNOWN macro) edits the free-form KEY=VALUE text
+    /// show_for_unknown_params() runs with instead of a field list.
     void show_for_defaults(lv_obj_t* parent, const std::string& macro_name,
                            const std::vector<MacroParam>& params,
                            const MacroParamDefaultRecord& record, MacroParamSaveCallback on_save);
@@ -79,8 +82,8 @@ class MacroParamModal : public Modal {
     void on_show() override;
     void on_ok() override;
     void on_cancel() override;
-    /// Every close, answered or not, drops the widget pointers and the static
-    /// instance pointer: the widgets are about to be deleted.
+    /// Every close, answered or not, drops the widget pointers: the widgets are
+    /// about to be deleted.
     void on_hide() override;
 
   private:
@@ -101,9 +104,24 @@ class MacroParamModal : public Modal {
     void dismiss();
     void populate_param_fields();
     MacroParamResult collect_values() const;
+    /// Raw mode: warns about the first token that is not KEY=VALUE and returns
+    /// true, so Run and Save refuse instead of dropping what the user typed.
+    bool refuse_unparsed_raw_text() const;
     void on_save_clicked();
-
-    static MacroParamModal* s_active_instance_;
 };
+
+/**
+ * @brief The one MacroParamModal every surface that prompts for parameters shares
+ *
+ * Home controls and the filament router raise this instance. A lazy_global, so
+ * it lives for the printer session and StaticPanelRegistry frees it with the
+ * panels.
+ *
+ * MacroParamModal keeps its on_execute_ callback until the next show_for_*()
+ * overwrites it, so a callback handed here can fire long after the object that
+ * built it is gone. A panel freed with this modal (FilamentPanel) may capture
+ * [this] directly; every other caller routes through an AsyncLifetimeGuard token.
+ */
+MacroParamModal& get_macro_param_modal();
 
 } // namespace helix

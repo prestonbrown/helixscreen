@@ -56,11 +56,11 @@ TEST_CASE("PrintStartProfile: cosmos_cc1 maps the PRINT_START narration",
         REQUIRE(result.hold_seconds == 0);
     }
 
-    SECTION("Chamber wait is a soak that holds nothing") {
+    SECTION("Chamber wait is chamber heating that holds nothing") {
         REQUIRE(profile->try_match_pattern("// Heatsoak: 10.0m", result));
         REQUIRE(profile->try_match_pattern("Chamber: 45c", result));
-        REQUIRE(result.phase == PrintStartPhase::SOAKING);
-        REQUIRE(result.message == "Heat Soaking...");
+        REQUIRE(result.phase == PrintStartPhase::HEATING_CHAMBER);
+        REQUIRE(result.message == "Heating Chamber...");
         // M191 waits on the chamber sensor for no known time.
         REQUIRE(result.hold_seconds == 0);
     }

@@ -3,6 +3,7 @@
 #include "klipper_error_table.h"
 
 #include "catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::printer::klipper_error_lookup;
 using helix::printer::KlipperErrorEntry;

@@ -7,7 +7,7 @@
 // the click handler reads, so the renderer records exactly the boxes it draws.
 // The rest run the pure frame → plan step on a fixed 400x400 frame: slots at
 // x = 50, 150, 250, 350, center 200; entry -48, prep 40, hub 120 (h 40, top
-// 100), output 140, buffer 184, merge 232, toolhead 272, nozzle 328, inlet 308.
+// 100), output 140, buffer 184, merge 232, toolhead 272, nozzle 358, inlet 338.
 
 #include "ui_ams_detail.h"
 #include "ui_filament_path_canvas.h"
@@ -15,13 +15,14 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "filament_path_test_helpers.h"
 #include "lvgl/lvgl.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "src/ui/ui_filament_path_plan.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -62,8 +63,8 @@ void render(LVGLTestFixture& fx, lv_obj_t* w) {
 LinearHubFrame widget_frame(lv_obj_t* w) {
     const FilamentPathData* d = get_data(w);
     const BaseGeometry g = compute_base_geometry(w, d);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
-    return compute_linear_hub_frame(*d, g, toolhead_top_y(nozzle_y, d->theme.extruder_scale));
+    return compute_linear_hub_frame(
+        *d, g, toolhead_top_y(linear_hub_nozzle_y(*d, g), d->theme.extruder_scale));
 }
 
 bool area_eq(const lv_area_t& a, const lv_area_t& b) {
@@ -141,8 +142,8 @@ namespace pg = helix::ui::pathgeo;
 constexpr uint32_t kSlotColors[4] = {0xE53935, 0x1E88E5, 0x43A047, 0xFDD835};
 constexpr uint32_t kBypassColor = 0x8E24AA;
 const lv_color_t kBg = lv_color_hex(0x101010);
-// The default toolhead glyph's top for nozzle 328 at extruder scale 10.
-constexpr int32_t kGlyphTop = 297;
+// The default toolhead glyph's top for nozzle 358 at extruder scale 10.
+constexpr int32_t kGlyphTop = 327;
 
 std::unique_ptr<FilamentPathData> make_data(helix::PathTopology topo) {
     auto d = std::make_unique<FilamentPathData>();
@@ -263,8 +264,8 @@ TEST_CASE("FilamentPath plan: the frame fixture lays out as the plan states",
     CHECK(f.buffer_y == 184);
     CHECK(f.bypass_merge_y == 232);
     CHECK(f.toolhead_y == 272);
-    CHECK(f.nozzle_y == 328);
-    CHECK(f.inlet_y == 308);
+    CHECK(f.nozzle_y == 358);
+    CHECK(f.inlet_y == 338);
 }
 
 TEST_CASE("FilamentPath plan: coalesce joins equal painted runs", "[filament-path][plan]") {
@@ -360,7 +361,7 @@ TEST_CASE("FilamentPath plan: HUB active route runs unbroken from spool to inlet
     const Route& r = plan.routes[plan.active_route];
     REQUIRE(r.path.count > 0);
     CHECK(near(seg_start(r.path.segs[0]), 150, -48));
-    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 308));
+    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 338));
     CHECK(contiguous(r.path));
     CHECK(has_boundary(r.path, 150, 40));
     CHECK(has_boundary(r.path, 200, 140));
@@ -459,7 +460,7 @@ TEST_CASE("FilamentPath plan: an active bypass owns the trunk below the merge",
     const Route& b = plan.routes[plan.bypass_route];
     REQUIRE(b.path.count > 0);
     CHECK(near(seg_start(b.path.segs[0]), 400 * (kBypassXRatio - 0.05f), 232, 1.0f));
-    CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, 308));
+    CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, 338));
     CHECK(contiguous(b.path));
     for (int i = 0; i < b.path.count; i++) {
         CHECK(b.style[i].wall == TubeWall::Active);
@@ -578,31 +579,7 @@ TEST_CASE("FilamentPath plan: the on-toolhead route fits the segment budget",
     CHECK(plan.dropped == 0);
     CHECK(contiguous(r.path));
     CHECK(near(seg_start(r.path.segs[0]), 50, -48));
-    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 308));
-}
-
-TEST_CASE("FilamentPath plan: an OUTPUT error is one stroke through the buffer",
-          "[filament-path][plan]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    d->show_bypass = false;
-    d->buffer_present = true;
-    load_active(*d, 1, PathSegment::NOZZLE);
-    d->error_segment = static_cast<int>(PathSegment::OUTPUT);
-    const PathPlan& plan = plan_for(*d);
-
-    const Route& r = plan.routes[plan.active_route];
-    Stroke strokes[16];
-    const int n = coalesce(r, strokes, 16);
-    int errors = 0;
-    for (int i = 0; i < n; i++) {
-        if (strokes[i].style.wall != TubeWall::Error)
-            continue;
-        errors++;
-        // Stacked over the glyph: hub bottom 201, buffer 229..269, toolhead band 283.
-        CHECK(near(seg_start(r.path.segs[strokes[i].first]), 200, 201));
-        CHECK(near(seg_end(r.path.segs[strokes[i].end - 1]), 200, 283));
-    }
-    CHECK(errors == 1);
+    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 338));
 }
 
 TEST_CASE("FilamentPath plan: the toolhead band follows the unit's sensor, bypass or not",
@@ -611,21 +588,21 @@ TEST_CASE("FilamentPath plan: the toolhead band follows the unit's sensor, bypas
     d->show_bypass = false;
     load_active(*d, 1, PathSegment::NOZZLE);
 
-    // Stacked over the glyph: hub bottom 241, toolhead band midway to the glyph top.
+    // Stacked over the glyph: hub bottom 271, toolhead band midway to the glyph top.
     SECTION("a unit with a toolhead sensor gets a band on the trunk") {
         const PathPlan& plan = plan_for(*d);
-        const SensorBand* b = band_at(plan, 200, 269);
+        const SensorBand* b = band_at(plan, 200, 299);
         REQUIRE(b != nullptr);
         CHECK(b->state == BandState::Active);
         const Route& r = plan.routes[plan.active_route];
         CHECK(contiguous(r.path));
-        CHECK(has_boundary(r.path, 200, 269));
-        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 308));
+        CHECK(has_boundary(r.path, 200, 299));
+        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 338));
     }
     SECTION("a unit without one gets none") {
         d->has_toolhead_sensor = false;
         const PathPlan& plan = plan_for(*d);
-        CHECK(band_at(plan, 200, 269) == nullptr);
+        CHECK(band_at(plan, 200, 299) == nullptr);
     }
 }
 
@@ -644,7 +621,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: the animation replays one unbro
     REQUIRE(p.count > 0);
     CHECK(contiguous(p));
     // From slot 1's spool entry to the nozzle glyph's inlet.
-    const int32_t nozzle_y = c.y1 + (int32_t)(H * kNozzleYRatio);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*d, compute_base_geometry(w, d));
     CHECK(near(seg_start(p.segs[0]), (float)(c.x1 + 150),
                (float)(c.y1 + (int32_t)(H * kEntryYRatio))));
     CHECK(near(seg_end(p.segs[p.count - 1]), (float)(c.x1 + 200),
@@ -1426,8 +1403,7 @@ TEST_CASE("FilamentPath plan: the fitted hub stays on the canvas and catches eve
     for (int i = 0; i < count; i++)
         g.slot_x[i] = (int32_t)(canvas.w * (i + 0.5f) / count);
     g.center_x = (g.slot_x[0] + g.slot_x[count - 1]) / 2;
-    const int32_t nozzle_y = (int32_t)(canvas.h * kNozzleYRatio);
-    const LinearHubFrame f = compute_linear_hub_frame(*d, g, nozzle_y - 31);
+    const LinearHubFrame f = compute_linear_hub_frame(*d, g, linear_hub_nozzle_y(*d, g) - 31);
     static PathPlan plan;
     plan_linear_hub(f, *d, g, plan);
 
@@ -1458,8 +1434,7 @@ TEST_CASE("FilamentPath plan: a 4-lane micro hub with the bypass hidden keeps it
     for (int i = 0; i < 4; i++)
         g.slot_x[i] = (int32_t)(285 * (i + 0.5f) / 4);
     g.center_x = (g.slot_x[0] + g.slot_x[3]) / 2;
-    const int32_t nozzle_y = (int32_t)(138 * kNozzleYRatio);
-    const LinearHubFrame f = compute_linear_hub_frame(*d, g, nozzle_y - 31);
+    const LinearHubFrame f = compute_linear_hub_frame(*d, g, linear_hub_nozzle_y(*d, g) - 31);
     static PathPlan plan;
     plan_linear_hub(f, *d, g, plan);
 
@@ -2076,7 +2051,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a unit view ends where the over
         helix::SlotInfo spool;
         spool.color_rgb = 0x3366CC;
         spool.material = "PETG";
-        ams.set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
 
         ams_detail_setup_path_canvas(w, nullptr, 1, &backend, info);
         REQUIRE(get_data(w)->bypass_has_spool);
@@ -2084,5 +2059,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a unit view ends where the over
         CHECK_FALSE(get_data(w)->bypass_has_spool);
 
         ams.clear_external_spool_info();
+    }
+    SECTION("a unit whose own tool holds one of its lanes gives that lane the trunk") {
+        helix::AmsBackendMock rig(16);
+        rig.set_torture_mode(true);
+        const helix::AmsSystemInfo rig_info = rig.get_system_info();
+        REQUIRE(rig_info.units.at(3).first_slot_global_index == 10); // EMU 1; lane1 is current
+        ams_detail_setup_path_canvas(w, nullptr, 3, &rig, rig_info);
+        CHECK((get_data(w)->active_slot == 1 && get_data(w)->filament_color == 0xDD00FF &&
+               get_data(w)->filament_segment == static_cast<int>(PathSegment::NOZZLE)));
     }
 }

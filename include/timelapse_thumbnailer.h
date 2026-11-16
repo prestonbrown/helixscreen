@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -10,7 +11,15 @@ namespace helix::timelapse {
 
 // --- Thumbnail utilities ---
 
-std::string companion_filename(const std::string& video_filename);
+/**
+ * @brief The preview image beside @p video_filename in a timelapse listing
+ *
+ * moonraker-timelapse renders its preview as <name>.jpg next to <name>.mp4;
+ * <name>.thumb.jpg is the older companion name. The plugin's wins when both are
+ * in @p listing (the file names of the same directory). Empty when neither is.
+ */
+std::string find_companion_thumbnail(const std::string& video_filename,
+                                     const std::set<std::string>& listing);
 
 /// Build an argument list for ffmpeg thumbnail extraction (safe from shell injection)
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,

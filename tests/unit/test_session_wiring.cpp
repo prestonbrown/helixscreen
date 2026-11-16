@@ -11,10 +11,15 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/config_dir_guard.h"
+#include "ams_state.h"
 #include "app_globals.h"
+#include "config.h"
+#include "core/data_root_resolver.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
+#include "first_run_tour.h"
 #include "http_request_epoch.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
@@ -25,6 +30,9 @@
 #include "standard_macros.h"
 #include "tool_state.h"
 #include "width_sensor_manager.h"
+
+#include <filesystem>
+#include <fstream>
 
 #include "../catch_amalgamated.hpp"
 
@@ -93,7 +101,7 @@ struct SessionWiringFixture : public LVGLTestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// One discovery as the WebSocket thread delivers it.
@@ -163,6 +171,20 @@ TEST_CASE_METHOD(SessionWiringFixture, "a reconnect with the same hardware is no
     CHECK(passes == std::vector<bool>{true, false, true});
 }
 
+TEST_CASE_METHOD(SessionWiringFixture, "a finished discovery tells the first-run tour",
+                 "[session_wiring][tour]") {
+    auto* cfg = helix::Config::get_instance();
+    cfg->set<bool>("/tour/completed", true);
+    cfg->set<int>("/tour/last_seen_version", helix::tour::kTourVersion);
+    auto& tour = helix::tour::FirstRunTour::instance();
+    tour.set_printer_ready(false);
+
+    fire(discovery_of({"extruder", "heater_bed"}));
+    drain();
+
+    CHECK(tour.is_printer_ready());
+}
+
 TEST_CASE_METHOD(SessionWiringFixture, "a pass queued for the previous printer is dropped",
                  "[session_wiring]") {
     fire(discovery_of({"extruder", "heater_bed"}));
@@ -186,4 +208,32 @@ TEST_CASE_METHOD(SessionWiringFixture, "a pass that arrives after the session cl
     CHECK(client.dispatches == 0);
     CHECK(cycles == 0);
     CHECK(passes.empty());
+}
+
+TEST_CASE_METHOD(SessionWiringFixture,
+                 "a pending remap replays against the backend discovery already built",
+                 "[session_wiring][remap-restart]") {
+    helix::ConfigDirGuard config_dir{"session_wiring_remap"};
+    auto& ams = helix::AmsState::instance();
+    ams.deinit_subjects();
+    ams.init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << R"({"backend_index":0,"backend_type":2,"tool_mapping":[1,0]})";
+    }
+    const auto afc = discovery_of({"extruder", "AFC", "AFC_stepper lane1", "AFC_stepper lane2"});
+    client.on_hardware_discovered(afc);
+    client.on_discovery_complete(afc, {{"print_stats", {{"state", "standby"}}}});
+    drain();
+
+    // Replayed before the backend existed, the record would be dropped as naming
+    // a backend that is gone. Its lanes are unreported yet, so it is held for them.
+    REQUIRE(ams.backend_count() == 1);
+    CHECK_FALSE(ams.pending_tool_map_restore().empty());
+
+    ams.clear_pending_tool_map_restore();
+    ams.deinit_subjects();
 }

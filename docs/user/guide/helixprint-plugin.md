@@ -25,10 +25,10 @@ when HelixScreen has checked your printer and found no plugin.
   installs the plugin version that matches your HelixScreen release.
 - **On a screen that is not attached** (K-Touch, tablet, desktop), the screen cannot reach the
   printer's files, so it shows a one-line command instead. Run that command on the printer over
-  SSH. It looks like this, with your HelixScreen version in both places:
+  SSH. It looks like this, with your HelixScreen version at the end:
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/v1.2.0/moonraker-plugin/remote-install.sh | sh -s -- v1.2.0
+  curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh | sh -s -- v1.2.0
   ```
 
   Copy the command the screen shows rather than this example, so the plugin matches your app.
@@ -38,8 +38,16 @@ The installer restarts Moonraker once, which disconnects every screen and web in
 few seconds. Once the plugin is installed, the Advanced screen shows **HelixPrint Plugin** and
 **Uninstall HelixPrint Plugin** in place of the Install row.
 
+HelixScreen also offers the plugin itself, after setup, when it connects and finds none. The
+offer waits for any print to finish and appears at most once each time HelixScreen starts.
+Closing it holds the offer off for seven days. A printer that cannot tell the time, with no
+clock and no network time, asks again after seven starts instead. Tick **Don't ask again** to
+stop it for good; uninstalling the plugin stops it too. The Advanced row still installs the
+plugin whenever you want it.
+
 The plugin needs the standard Moonraker. Replacements that do not run Python add-ons, such as
-Moonruster on the Centauri Carbon, cannot load it.
+Moonruster on the Centauri Carbon, cannot load it, and HelixScreen running on that printer does
+not offer it there.
 
 K-Touch owners: see also [Install the HelixPrint plugin on your printer](install-esp32.md#install-the-helixprint-plugin-on-your-printer).
 
@@ -358,6 +366,29 @@ turn on hidden files in Mainsail's or Fluidd's file manager and copy the file ou
 **Setting:** none. The plugin is used whenever it is installed, on attached and remote screens
 alike.
 
+### Tidier macro lists after an older HelixScreen
+
+HelixScreen tells the screen how a print's start is going through a few small macros
+(`_HELIX_READY`, `_HELIX_PHASE_HOMING` and the like). Their names start with an underscore, so
+Mainsail and Fluidd leave them out of their macro lists. HelixScreen versions before 1.1 could
+add calls to the same macros without the underscore to your `PRINT_START`, each one between two
+`# <<< HELIX_TRACKING v2 >>>` comment lines.
+
+**With the plugin**, each time Klipper starts the plugin adds the underscore to those calls and
+changes nothing else. It waits until Klipper has loaded the underscore names, which happens once
+you update the helper macros from the screen and restart. Before it changes a file it copies it
+beside the original as `printer.cfg.bak.<date>_<time>`, once: after the first change there is
+nothing left to rename. It never restarts Klipper for you; the change takes effect at your next
+restart. A file that looks hand-edited around those comment lines is left alone. On a Snapmaker
+U1 running the extended firmware, and on Z-Mod and Forge-X, it changes nothing and only reports
+what it would do.
+
+**Setting:** on by default. To turn it off, add `migrate_signal_macros: False` under
+`[helix_print]` in `moonraker.conf` and restart Moonraker.
+
+**Without the plugin**, the calls keep their old names, and HelixScreen keeps those names working
+by leaving them in your macro list.
+
 ### Faster filament updates on AD5X and ACE
 
 On an AD5X running ZMOD, and on printers with an Anycubic ACE Pro read through its Moonraker
@@ -408,11 +439,11 @@ applies it; tap the row again to take the line out. Uninstalling the plugin remo
 ## The Plugin Overview
 
 **Advanced > HelixPrint Plugin** shows the plugin's version and every feature it runs on your
-printer, each marked:
+printer, in three groups:
 
-- **Active**: running.
+- **Running**: on and working.
 - **Off**: available, but switched off in its setting.
-- **Unavailable**: cannot run on this printer, with the reason the plugin gave.
+- **Not available here**: cannot run on this printer, with a short line saying why.
 
 Tap a feature that has a setting to go to the page where its switch is: Settings > Printing,
 Safety & Alerts, Devices, Spoolman or System > Storage. The overview itself has no switches.

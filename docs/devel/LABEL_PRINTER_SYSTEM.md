@@ -30,10 +30,10 @@ HelixScreen supports printing spool labels to thermal label printers via three t
 | File | Purpose |
 |------|---------|
 | `include/label_printer.h` | `ILabelPrinter` interface, `LabelSize`, `LabelPreset`, `PrintCallback` |
-| `include/label_bitmap.h` | `LabelBitmap` — 1bpp monochrome bitmap (MSB first, black=1) |
-| `src/system/label_printer_utils.cpp` | `print_spool_label()` — transport routing and printer dispatch |
-| `src/system/label_renderer.cpp` | `LabelRenderer::render()` — renders spool info to LabelBitmap |
-| `include/label_printer_settings.h` | `LabelPrinterSettingsManager` — persisted config |
+| `include/label_bitmap.h` | `LabelBitmap` - 1bpp monochrome bitmap (MSB first, black=1) |
+| `src/system/label_printer_utils.cpp` | `print_spool_label()` - transport routing and printer dispatch |
+| `src/system/label_renderer.cpp` | `LabelRenderer::render()` - renders spool info to LabelBitmap |
+| `include/label_printer_settings.h` | `LabelPrinterSettingsManager` - persisted config |
 
 ### Protocol Implementations
 
@@ -71,7 +71,7 @@ HelixScreen supports printing spool labels to thermal label printers via three t
 | File | Purpose |
 |------|---------|
 | `include/bluetooth_plugin.h` | C ABI for runtime-loaded BT plugin |
-| `include/bluetooth_loader.h` | `BluetoothLoader` singleton — dlopen wrapper |
+| `include/bluetooth_loader.h` | `BluetoothLoader` singleton - dlopen wrapper |
 | `src/bluetooth/bt_plugin.cpp` | Plugin core, sd-bus event loop |
 | `src/bluetooth/bt_discovery.cpp` | BlueZ D-Bus device discovery |
 | `src/bluetooth/bt_pairing.cpp` | BlueZ pairing, trust |
@@ -107,20 +107,20 @@ HelixScreen supports printing spool labels to thermal label printers via three t
 - **DPI:** 203 (native)
 - **Connection initialization:**
   1. BLE GATT connect with 1-second settle delay (firmware may discard early writes)
-  2. `Connect` (0xC1) — printer-level session handshake that arms the thermal subsystem
+  2. `Connect` (0xC1) - printer-level session handshake that arms the thermal subsystem
   3. Read and log Connect response
 - **Print job sequence:**
-  1. `SetDensity` (0x21) — density 1-5
-  2. `SetLabelType` (0x23) — WithGaps/BlackMark/Continuous/Transparent
+  1. `SetDensity` (0x21) - density 1-5
+  2. `SetLabelType` (0x23) - WithGaps/BlackMark/Continuous/Transparent
   3. `PrintStart` (0x01)
-  4. `PrintClear` (0xF0) — required by D110 before PageStart
+  4. `PrintClear` (0xF0) - required by D110 before PageStart
   5. `PageStart` (0x03)
-  6. `SetPageSize` (0x13) — height + width as u16be
-  7. `SetQuantity` (0x15) — 1 copy (prevents D110 double-printing)
+  6. `SetPageSize` (0x13) - height + width as u16be
+  7. `SetQuantity` (0x15) - 1 copy (prevents D110 double-printing)
   8. Image rows: `PrintBitmapRow` (0x85) or `PrintEmptyRow` (0x84)
   9. `PageEnd` (0xE3)
   10. Poll `PrintStatus` (0xA3) until B3 response received
-  11. `PrintEnd` (0xF3) — sent at first B3 response to prevent auto-repeat
+  11. `PrintEnd` (0xF3) - sent at first B3 response to prevent auto-repeat
 - **Row encoding:** Per-row with 3-chunk or total black pixel count, repeat compression for identical consecutive rows
 - **Persistent connections:** BLE connection is kept alive across prints. Disconnect/reconnect causes blank output on the D110 unless the full initialization sequence (settle + Connect) is repeated.
 - **Models:** B21 (384px/48mm wide), D11/D110 (96px/12mm wide)
@@ -129,7 +129,7 @@ HelixScreen supports printing spool labels to thermal label printers via three t
 
 - **Transport:** BT Classic RFCOMM (channel 1). Despite being a dual-mode BLE device, the E1 uses RFCOMM for print data transfer. Advertises as "YichipFPGA-XXXX" over Bluetooth.
 - **Protocol:** Custom binary frames with LZO1X-compressed bitmap data
-- **Frame format:** `[0x66 LEN_LO LEN_HI CMD PAYLOAD... CHECKSUM]` — checksum is negated sum
+- **Frame format:** `[0x66 LEN_LO LEN_HI CMD PAYLOAD... CHECKSUM]` - checksum is negated sum
 - **DPI:** 203 (native for E1, varies by model)
 - **Connection initialization:**
   1. RFCOMM connect to channel 1 (reuses existing connection if keepalive succeeds)
@@ -146,7 +146,7 @@ HelixScreen supports printing spool labels to thermal label printers via three t
 - **Response parsing:** 36-byte responses. byte[4] bits 0-5=error code (0 or 23=success), bit 6=resend, bit 7=wait. byte[35] bit 7=isPrinting, bits 5-6: 1=pause, 3=cancel
 - **LZO compression:** miniLZO compiled into BT plugin (`bt_lzo.cpp`), accessed via `BluetoothLoader::lzo_compress`. Falls back to raw data when plugin unavailable.
 - **Persistent connections:** Static globals + mutex, heartbeat liveness check via handshake poll
-- **Models:** E1 (also branded MakeID 2AUMQ-E1), L1, M1 — support 9mm, 12mm, and 16mm continuous tape (no die-cut labels)
+- **Models:** E1 (also branded MakeID 2AUMQ-E1), L1, M1 - support 9mm, 12mm, and 16mm continuous tape (no die-cut labels)
 - **Printhead:** 203 DPI, 96px width
 
 ## Brand Detection
@@ -164,18 +164,18 @@ struct PrinterBrand {
 ```
 
 Key helpers:
-- `find_brand(name)` — table lookup by name prefix
-- `is_brother_printer(name)` — Brother QL family
-- `is_niimbot_printer(name)` — Niimbot family (B21, D11, D110)
-- `is_makeid_printer(name)` — MakeID/Wewin family (E1, L1, M1)
-- `name_suggests_ble(name)` — device needs BLE transport
-- `is_label_printer_uuid(uuid)` — matches SPP, Phomemo BLE, Niimbot BLE, or MakeID service UUIDs
+- `find_brand(name)` - table lookup by name prefix
+- `is_brother_printer(name)` - Brother QL family
+- `is_niimbot_printer(name)` - Niimbot family (B21, D11, D110)
+- `is_makeid_printer(name)` - MakeID/Wewin family (E1, L1, M1)
+- `name_suggests_ble(name)` - device needs BLE transport
+- `is_label_printer_uuid(uuid)` - matches SPP, Phomemo BLE, Niimbot BLE, or MakeID service UUIDs
 
 ## Bluetooth Transport
 
 ### Plugin Architecture
 
-Bluetooth support is a runtime-loadable shared library (`libhelix-bluetooth.so`). Zero impact when BT hardware is absent — no libraries loaded, no threads started.
+Bluetooth support is a runtime-loadable shared library (`libhelix-bluetooth.so`). Zero impact when BT hardware is absent - no libraries loaded, no threads started.
 
 ```
 BluetoothLoader (dlopen) → libhelix-bluetooth.so (sd-bus, BlueZ D-Bus)

@@ -45,7 +45,7 @@
  *
  * Override init_subjects() for owned subjects, register_callbacks() for XML
  * callbacks, before_show() for per-open work that needs the root, and
- * destroy_on_close() to free the widget tree whenever the overlay is popped.
+ * on_ui_destroyed() to drop cached widgets when the tree is freed on close.
  *
  * @see NetworkSettingsOverlay for reference implementation
  */
@@ -54,6 +54,8 @@
 
 #include "ui_widget_ref.h"
 
+#include "full_page_content.h"
+#include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 
@@ -61,7 +63,6 @@
 
 #include <functional>
 #include <optional>
-
 // Include for SubjectManager (needed for deinit_subjects_base)
 #include "subject_managed_panel.h"
 
@@ -77,7 +78,7 @@
  * @implements IPanelLifecycle for NavigationManager dispatch
  * @see ViewLifecycleBase for the two lifetime guards and which one to use
  */
-class OverlayBase : public ViewLifecycleBase {
+class OverlayBase : public ViewLifecycleBase, public helix::FullPageContent {
   public:
     /**
      * @brief Virtual destructor for proper cleanup
@@ -125,10 +126,11 @@ class OverlayBase : public ViewLifecycleBase {
      * @brief Free the widget tree every time show()'s overlay is popped
      *
      * The object (subjects, state) survives and the next show() re-creates the
-     * tree (#1329, #1246). Default: built once, retained for the session.
+     * tree (#1329, #1246). An overlay whose widgets must outlive the pop that
+     * takes it off the stack returns false and keeps its tree for the session.
      */
     virtual bool destroy_on_close() const {
-        return false;
+        return true;
     }
 
     /**
@@ -152,12 +154,86 @@ class OverlayBase : public ViewLifecycleBase {
     bool show(lv_obj_t* parent_screen);
 
     /**
+     * @brief Build this overlay's tree inside @p container, off the navigation stack
+     *
+     * The full-page form of a home widget (prestonbrown/helixscreen#1931) hosts the
+     * overlay it would otherwise open: the same create(), callbacks and subjects,
+     * parented to the page instead of the screen. The root fills the container, the
+     * header's back affordance is disarmed (there is nothing to go back to), and the
+     * overlay is activated. Nothing is pushed or registered with NavigationManager.
+     *
+     * @return false, building nothing, while the overlay's tree already exists (it is
+     *         open on the stack, or embedded elsewhere)
+     */
+    bool embed(lv_obj_t* container) override;
+
+    /**
+     * @brief Deactivate and free a tree embed() built; no-op when none is embedded
+     */
+    void release_embed() override;
+
+    /// The root embed() built, or nullptr.
+    lv_obj_t* embedded_root() const override {
+        return is_embedded() ? overlay_root_.get() : nullptr;
+    }
+
+    /// The tree dies with the page, so only the deactivate and the cleanup are
+    /// left: they run on the next tick, unless a page has embedded it again by then.
+    void host_deleting() override;
+
+    /// Whether embed() keeps the header bar. An overlay whose header carries
+    /// only its title returns false: on a home page the title repeats the tile,
+    /// and the page needs the height for the controls under it.
+    virtual bool embed_keeps_header() const {
+        return true;
+    }
+
+    /// Whether the current tree was built by embed().
+    bool is_embedded() const {
+        return embedded_ && overlay_root_;
+    }
+
+    /**
      * @brief Close this overlay through NavigationManager::close_overlay()
      *
      * Pops it when on top, drops it silently when buried, no-op when it is
      * already gone; safe to call whatever the stack looks like.
      */
     void close();
+
+    /**
+     * @brief The open overlay whose widget tree the event's widget sits in
+     *
+     * XML event callbacks are registered once per process and carry no `this`;
+     * this is how they find their overlay. An overlay is open from the create
+     * inside show() until its tree is destroyed or cleanup() runs, on top of
+     * the stack or buried under another. nullptr when the widget is in no open
+     * overlay's tree.
+     */
+    static OverlayBase* from_event(lv_event_t* e);
+
+    /**
+     * @brief from_event(), narrowed to a `T`
+     *
+     * Exact-type match through kind_tag(): a subclass declares
+     * HELIX_KIND_TAG(Self) in its body, or no typed lookup resolves it (the
+     * base's tag is helix::kUndeclaredKind, which matches no T, and the
+     * mismatch is logged).
+     */
+    template <typename T> static T* from_event(lv_event_t* e) {
+        return static_cast<T*>(from_event_of_kind(e, helix::type_tag<T>()));
+    }
+
+    /**
+     * @brief This overlay's concrete type as a helix::type_tag<T>() value
+     *
+     * The RTTI-free stand-in for typeid(*this) that from_event<T>() compares.
+     * Declared with HELIX_KIND_TAG(Self); a subclass without it keeps the
+     * base's helix::kUndeclaredKind.
+     */
+    [[nodiscard]] virtual std::size_t kind_tag() const {
+        return helix::kUndeclaredKind;
+    }
 
     /**
      * @brief Get human-readable overlay name
@@ -239,6 +315,11 @@ class OverlayBase : public ViewLifecycleBase {
         return overlay_root_;
     }
 
+    /// get_root() under the name OpenInstances<T>::owner_of() reads.
+    lv_obj_t* root() const {
+        return overlay_root_;
+    }
+
     /**
      * @brief Destroy overlay widget tree to free memory
      *
@@ -310,7 +391,7 @@ class OverlayBase : public ViewLifecycleBase {
     // === Protected State ===
     //
 
-    lv_obj_t* overlay_root_ = nullptr;  ///< Root widget of overlay UI
+    helix::ui::WidgetRef overlay_root_; ///< Root widget of overlay UI
     lv_obj_t* parent_screen_ = nullptr; ///< Parent screen (for overlay setup)
     bool subjects_initialized_ = false; ///< True after init_subjects() called
     bool visible_ = false;              ///< True when overlay is visible
@@ -409,10 +490,18 @@ class OverlayBase : public ViewLifecycleBase {
     void on_view_hidden() override;
     void report_foreign_close_callback() const;
 
+    /// from_event() when the overlay's kind_tag() is @p kind, else nullptr.
+    static OverlayBase* from_event_of_kind(lv_event_t* e, std::size_t kind);
+
     /// The root show() last pushed, and a handle LVGL nulls when it is deleted:
     /// a root freed with its screen still reads non-null in overlay_root_.
     lv_obj_t* shown_root_ = nullptr;
     helix::ui::WidgetRef shown_root_ref_;
+
+    /// The tree was built by embed(); show() releases it before building its own.
+    bool embedded_ = false;
+    /// parent_screen_ as it was before embed() pointed it at the host container.
+    helix::ui::WidgetRef screen_before_embed_;
 
     /// Expires only with this object: destroy_overlay_ui() hands it to
     /// teardown_overlay_ui() as the owner that must outlive its drain.
@@ -530,7 +619,7 @@ struct TeardownHooks {
  *         teardown the drain ran completed it first (no hooks run here in
  *         either case)
  */
-bool teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+bool teardown_overlay_ui(WidgetRef& root, const char* owner_name, TeardownDelete how,
                          lv_obj_t** cached_panel = nullptr, TeardownHooks hooks = {});
 
 } // namespace helix::ui

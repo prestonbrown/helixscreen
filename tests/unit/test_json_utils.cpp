@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -580,4 +582,24 @@ TEST_CASE("safe_* on a non-object returns the default", "[json_utils]") {
     CHECK(ju::safe_int(json::array({1, 2}), "k", 7) == 7);
     CHECK(ju::safe_string(json("text"), "k", "d") == "d");
     CHECK(ju::safe_double(json(nullptr), "k", 1.5) == 1.5);
+}
+
+// ============================================================================
+// read_field / read_integer_field: strict readers, nullopt on any mismatch
+// ============================================================================
+
+TEST_CASE("read_field reads only the asked type", "[json_utils]") {
+    json j = {{"s", ""}, {"b", true}, {"i", 7}, {"f", -2.75}, {"null", nullptr}};
+    CHECK(ju::read_field<std::string>(j, "s") == std::optional<std::string>(""));
+    CHECK(ju::read_field<bool>(j, "b") == std::optional<bool>(true));
+    CHECK(ju::read_field<int>(j, "f") == std::optional<int>(-2)); // truncates
+    CHECK(ju::read_field<double>(j, "i") == std::optional<double>(7.0));
+    CHECK_FALSE(ju::read_field<int>(json{{"s", "5"}}, "s").has_value());
+    CHECK_FALSE(ju::read_field<bool>(j, "i").has_value());
+    CHECK_FALSE(ju::read_field<std::string>(j, "null").has_value());
+    CHECK_FALSE(ju::read_field<int>(j, "missing").has_value());
+    CHECK_FALSE(ju::read_field<int>(json::array({1}), "i").has_value());
+    CHECK(ju::read_integer_field(j, "i") == std::optional<int>(7));
+    CHECK_FALSE(ju::read_integer_field(j, "f").has_value());
+    CHECK_FALSE(ju::read_integer_field(j, "b").has_value());
 }

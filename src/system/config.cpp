@@ -12,21 +12,20 @@
 #else
 #define CONFIG_RECORD_ERROR(...) ((void)0)
 #endif
-#include "ui_error_reporting.h"
-
 #include "ams_types.h"
 #include "app_constants.h"
 #include "config_backup.h"
 #include "config_migrations.h"
 #include "config_testing.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "host_identity.h"
 #include "input_defaults.h"
 #include "json_utils.h"
 #include "printer_detector.h"
 #include "runtime_config.h"
-#include "text_io.h"
 #include "wizard_config_paths.h"
 
 #include <algorithm>
@@ -530,6 +529,40 @@ static bool lift_root_preset(json& config, const std::string& active_printer_id)
     return true;
 }
 
+/// The input keys Config::init() tops up in a stored section that lacks them.
+json get_default_input_config() {
+    return {{"scroll_throw", helix::input_defaults::kScrollThrow},
+            {"scroll_limit", 10},
+            {"touch_device", ""},
+            {"calibration",
+             {{"valid", false},
+              {"a", 1.0},
+              {"b", 0.0},
+              {"c", 0.0},
+              {"d", 0.0},
+              {"e", 1.0},
+              {"f", 0.0}}}};
+}
+
+/// What an input section starts as when one is written whole.
+json get_new_input_section() {
+    json input = get_default_input_config();
+    input["long_press_time"] = 500;
+    return input;
+}
+
+/// Copy each of @p defaults' keys that @p target lacks. True if any was added.
+bool fill_missing_keys(json& target, const json& defaults) {
+    bool added = false;
+    for (const auto& [key, value] : defaults.items()) {
+        if (!target.contains(key)) {
+            target[key] = value;
+            added = true;
+        }
+    }
+    return added;
+}
+
 /// Default root-level config - shared between init() and reset_to_defaults()
 /// @param moonraker_host Host address for printer
 /// @param include_user_prefs Include user preference fields (brightness, sounds, etc.)
@@ -545,32 +578,14 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
                    {"theme", {{"preset", 0}}},
                    {"display", get_default_display_config()},
                    {"gcode_viewer", {{"tube_sides", 4}}},
-                   {"input",
-                    {{"scroll_throw", helix::input_defaults::kScrollThrow},
-                     {"scroll_limit", 10},
-                     {"long_press_time", 500},
-                     {"touch_device", ""},
-                     {"calibration",
-                      {{"valid", false},
-                       {"a", 1.0},
-                       {"b", 0.0},
-                       {"c", 0.0},
-                       {"d", 0.0},
-                       {"e", 1.0},
-                       {"f", 0.0}}},
-                     // The evdev ABS range and axis swap a three-point calibration
-                     // solved for (#1259, #1276). valid=false means "use whatever
-                     // range the kernel declared", which is what every install did
-                     // before this key existed - so no migration is needed and an
-                     // uncalibrated device behaves exactly as it always has.
-                     {"touch_range",
-                      {{"valid", false},
-                       {"swap_axes", false},
-                       {"min_x", 0},
-                       {"max_x", 0},
-                       {"min_y", 0},
-                       {"max_y", 0}}}}},
                    {"printers", {{"show_printer_switcher", false}, {printer_id, printer_data}}}};
+
+    // The evdev ABS range and axis swap a three-point calibration solved for (#1259,
+    // #1276). valid=false means "use whatever range the kernel declared", the same
+    // as a stored section without this key.
+    config["input"] = get_new_input_section();
+    config["input"]["touch_range"] = {{"valid", false}, {"swap_axes", false}, {"min_x", 0},
+                                      {"max_x", 0},     {"min_y", 0},         {"max_y", 0}};
 
     if (include_user_prefs) {
         config["brightness"] = 80;
@@ -1091,66 +1106,22 @@ void Config::init(const std::string& config_path) {
         config_modified = true;
     } else {
         // Ensure all display subsections exist with defaults
-        auto display_defaults = get_default_display_config();
-        auto& display = data["display"];
-
-        for (auto& [key, value] : display_defaults.items()) {
-            if (!display.contains(key)) {
-                display[key] = value;
-                config_modified = true;
-            }
-        }
+        config_modified |= fill_missing_keys(data["display"], get_default_display_config());
     }
 
     // Ensure input section exists with defaults (scroll settings + touch calibration)
     if (!data.contains("input") || !data["input"].is_object()) {
-        data["input"] = {{"scroll_throw", helix::input_defaults::kScrollThrow},
-                         {"scroll_limit", 10},
-                         {"long_press_time", 500},
-                         {"touch_device", ""},
-                         {"calibration",
-                          {{"valid", false},
-                           {"a", 1.0},
-                           {"b", 0.0},
-                           {"c", 0.0},
-                           {"d", 0.0},
-                           {"e", 1.0},
-                           {"f", 0.0}}}};
+        data["input"] = get_new_input_section();
         config_modified = true;
     } else {
-        // Ensure all input subsections exist with defaults
         auto& input = data["input"];
-
-        // Ensure scroll settings exist
-        if (!input.contains("scroll_throw")) {
-            input["scroll_throw"] = helix::input_defaults::kScrollThrow;
-            config_modified = true;
-        }
-        if (!input.contains("scroll_limit")) {
-            input["scroll_limit"] = 10;
-            config_modified = true;
-        }
-        if (!input.contains("touch_device")) {
-            input["touch_device"] = "";
-            config_modified = true;
-        }
-
-        // Ensure calibration subsection exists with all required fields
-        if (!input.contains("calibration") || !input["calibration"].is_object()) {
-            input["calibration"] = {{"valid", false}, {"a", 1.0}, {"b", 0.0}, {"c", 0.0},
-                                    {"d", 0.0},       {"e", 1.0}, {"f", 0.0}};
+        const json defaults = get_default_input_config();
+        config_modified |= fill_missing_keys(input, defaults);
+        if (!input["calibration"].is_object()) {
+            input["calibration"] = defaults["calibration"];
             config_modified = true;
         } else {
-            // Ensure all calibration fields exist
-            auto& cal = input["calibration"];
-            const json cal_defaults = {{"valid", false}, {"a", 1.0}, {"b", 0.0}, {"c", 0.0},
-                                       {"d", 0.0},       {"e", 1.0}, {"f", 0.0}};
-            for (auto& [key, value] : cal_defaults.items()) {
-                if (!cal.contains(key)) {
-                    cal[key] = value;
-                    config_modified = true;
-                }
-            }
+            config_modified |= fill_missing_keys(input["calibration"], defaults["calibration"]);
         }
     }
 
@@ -1319,9 +1290,6 @@ void Config::remove_printer(const std::string& printer_id) {
 
     data["printers"].erase(printer_id);
     spdlog::info("[Config] Removed printer '{}'", printer_id);
-    if (printer_removed_hook_) {
-        printer_removed_hook_(printer_id);
-    }
 
     // If we just removed the active printer, switch to the first remaining one.
     // find_active_printer_key() skips the non-printer keys; taking
@@ -1667,13 +1635,46 @@ bool preset_targets_this_device(const std::string& moonraker_host) {
 #endif
 }
 
+/// Where presets/<name>.json resolves. find_readable lets the writable user dir
+/// win, then falls back to the shipped read-only seed bundle at
+/// $HELIX_DATA_DIR/assets/config/presets/, which is where install tarballs land
+/// presets: the writable dir alone misses every preset on a fresh install.
+std::string preset_file_path(const std::string& preset_name) {
+    return helix::find_readable(std::string("presets/") + preset_name + ".json");
+}
+
+/// The parsed preset @p preset_name, or nullopt when it is missing or unreadable.
+std::optional<json> load_preset(const std::string& preset_name, bool report_failure) {
+    const std::string preset_path = preset_file_path(preset_name);
+    if (!hfs::exists(preset_path)) {
+        if (report_failure) {
+            spdlog::warn("[Config] Preset file not found: {} (looked in writable + seed bundle)",
+                         preset_path);
+        }
+        return std::nullopt;
+    }
+    json preset = json::parse(tio::read_file(preset_path).value_or(""), nullptr, false);
+    if (preset.is_discarded()) {
+        if (report_failure) {
+            spdlog::error("[Config] Failed to parse preset '{}': unreadable or not valid JSON",
+                          preset_path);
+        }
+        return std::nullopt;
+    }
+    return preset;
+}
+
 } // namespace
+
+bool Config::preset_file_exists(const std::string& preset_name) {
+    return !preset_name.empty() && hfs::exists(preset_file_path(preset_name));
+}
 
 bool Config::apply_preset_file(const std::string& preset_name) {
     // Guard: only full-apply if wizard hasn't been completed for this printer.
     // Post-wizard, still allow narrow migrations for an already-provisioned printer:
     // filament_sensors, default_macros, role keys the stored config never held
-    // (fans/*, heaters/*, temp_sensors/*, seeded only when absent or empty), and a
+    // (fans/*, heaters/*, temp_sensors/*, seeded only when absent), and a
     // hardware/expected union. Without this, fixing a preset only helps fresh
     // installs: existing users stay broken even after an update.
     const bool wizard_done = get<bool>(df() + "wizard_completed", false);
@@ -1685,22 +1686,13 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
         }
-        std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-        std::string preset_path = helix::find_readable(preset_relpath);
-        if (!hfs::exists(preset_path)) {
+        const std::optional<json> preset_json = load_preset(preset_name, false);
+        if (!preset_json || !preset_json->contains("printer") ||
+            !(*preset_json)["printer"].is_object()) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
         }
-        json preset_json = json::parse(tio::read_file(preset_path).value_or(""), nullptr, false);
-        if (preset_json.is_discarded()) {
-            spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
-            return false;
-        }
-        if (!preset_json.contains("printer") || !preset_json["printer"].is_object()) {
-            spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
-            return false;
-        }
-        const auto& preset_printer = preset_json["printer"];
+        const auto& preset_printer = (*preset_json)["printer"];
         bool changed = false;
 
         // Migration 1: filament_sensors. Two cases:
@@ -1806,9 +1798,9 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         }
 
         // Migration 3: role keys. Seed the hardware mappings the preset defines onto a
-        // machine provisioned before the preset landed, writing only absent-or-empty
-        // stored values: a present value is the user's (or the auto-heal path's) call,
-        // and a wrong-but-present one is the auto-heal path's job, not the preset's.
+        // machine provisioned before the preset landed, writing only absent keys. A present
+        // value is the user's or the auto-heal path's call; an empty one is a declined
+        // role, and reseeding it reopens the Fans wizard every boot (#2040).
         // leds/strip is deliberately excluded — a preset LED name the machine lacks
         // raises "Configured LED strip not found", which notify_user reports ahead of
         // the toast this migration exists to silence.
@@ -1828,8 +1820,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                     }
                     const std::string rel = std::string(group) + "/" + key;
                     const json* stored = try_get_json(df() + rel);
-                    const bool held = stored != nullptr && stored->is_string() &&
-                                      !stored->get<std::string>().empty();
+                    const bool held = stored != nullptr && stored->is_string();
                     if (!held) {
                         printer_node[group][key] = val;
                         changed = true;
@@ -1884,25 +1875,11 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         return false;
     }
 
-    // Resolve via find_readable so the writable user dir wins, then fall back
-    // to the shipped read-only seed bundle at $HELIX_DATA_DIR/assets/config/presets/.
-    // The seed location is where install tarballs land presets — looking only in
-    // the writable config dir would miss every preset on a fresh install.
-    std::string preset_relpath = std::string("presets/") + preset_name + ".json";
-    std::string preset_path = helix::find_readable(preset_relpath);
-    if (!hfs::exists(preset_path)) {
-        spdlog::warn("[Config] Preset file not found: {} (looked in writable + seed bundle)",
-                     preset_path);
+    const std::optional<json> loaded_preset = load_preset(preset_name, true);
+    if (!loaded_preset) {
         return false;
     }
-
-    // Load and parse preset JSON
-    json preset_json = json::parse(tio::read_file(preset_path).value_or(""), nullptr, false);
-    if (preset_json.is_discarded()) {
-        spdlog::error("[Config] Failed to parse preset '{}': unreadable or not valid JSON",
-                      preset_path);
-        return false;
-    }
+    const json& preset_json = *loaded_preset;
 
     // Deep-merge the "printer" section (hardware, fans, heaters, input, etc.) into
     // the active printer subtree. Guarded by wizard_completed above, so this only
@@ -1972,6 +1949,14 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             data["input"] = json::object();
         }
         data["input"].merge_patch(preset_json["input"]);
+    }
+
+    // A printer whose only speaker is its own beeper sounds through M300, which waits in
+    // the same G-code queue as the print, so its preset can ship sound off. The host case
+    // keeps its own audio. Pre-wizard only, like the blocks above: a user's choice stands.
+    if (on_this_device && preset_json.contains("sounds_enabled") &&
+        preset_json["sounds_enabled"].is_boolean()) {
+        data["sounds_enabled"] = preset_json["sounds_enabled"].get<bool>();
     }
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)

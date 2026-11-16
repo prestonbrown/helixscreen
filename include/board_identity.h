@@ -50,7 +50,8 @@ Board resolve(const std::string& platform_key, const std::string& probe_root = "
 Board current();
 
 /// The row for @p board. Every Board has one.
-const Info& info(Board board);
+// The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+const Info&(info)(Board board);
 
 inline const Info& current_info() {
     return info(current());

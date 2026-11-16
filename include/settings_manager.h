@@ -5,13 +5,16 @@
 
 #include "ams_types.h"
 #include "bed_drying.h"
+#include "core/tool_number_style.h"
 #include "lvgl/lvgl.h"
 #include "maintenance_meters.h"
 #include "mount_feed_sequence.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
+#include "toolhead_style.h"
 
 #include <algorithm>
+#include <atomic>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,18 +37,6 @@ enum class ZMovementStyle { AUTO = 0, BED_MOVES = 1, NOZZLE_MOVES = 2 };
 /// distances.
 enum class MotionLayout { Pad = 0, Arrows = 1, ArrowsHome = 2, AxisRows = 3 };
 inline constexpr int kMotionLayoutCount = 4;
-
-/** @brief Toolhead rendering style (Auto=detect from printer type, or force) */
-enum class ToolheadStyle {
-    AUTO = 0,
-    DEFAULT = 1,
-    A4T = 2,
-    ANTHEAD = 3,
-    JABBERWOCKY = 4,
-    STEALTHBURNER = 5,
-    CREALITY_K1 = 6,
-    CREALITY_K2 = 7
-};
 
 /**
  * @brief Storage layer for the user-supplied console filter lists.
@@ -233,7 +224,8 @@ class SettingsManager {
 
     /** @brief Get toolhead rendering style */
     ToolheadStyle get_toolhead_style() const {
-        return static_cast<ToolheadStyle>(std::clamp(settings_.get(Key::ToolheadStyle), 0, 7));
+        return static_cast<ToolheadStyle>(
+            std::clamp(settings_.get(Key::ToolheadStyle), 0, kLastToolheadStyle));
     }
 
     /** @brief Get effective toolhead style (resolves AUTO using printer detection) */
@@ -257,6 +249,38 @@ class SettingsManager {
      * 4=JabberWocky) */
     lv_subject_t* subject_toolhead_style() {
         return settings_.subject(Key::ToolheadStyle);
+    }
+
+    // =========================================================================
+    // TOOL NUMBER STYLE (per printer: "1, 2, 3" or "T0, T1, T2")
+    // =========================================================================
+
+    /** @brief The per-printer tool number override; Auto follows the backend */
+    helix::ui::ToolNumberStyleSetting get_tool_number_style_setting() const {
+        return static_cast<helix::ui::ToolNumberStyleSetting>(
+            std::clamp(settings_.get(Key::ToolNumberStyle), 0, 2));
+    }
+
+    /**
+     * @brief get_tool_number_style_setting() for any thread
+     *
+     * A copy of the setting kept beside its subject, so a backend's message
+     * builders never read the LVGL subject off the main thread.
+     */
+    helix::ui::ToolNumberStyleSetting get_tool_number_style_setting_any_thread() const {
+        return static_cast<helix::ui::ToolNumberStyleSetting>(
+            tool_number_style_mirror_.load(std::memory_order_relaxed));
+    }
+
+    /** @brief Set the per-printer tool number override and persist */
+    void set_tool_number_style_setting(helix::ui::ToolNumberStyleSetting setting) {
+        settings_.set(Key::ToolNumberStyle, static_cast<int>(setting));
+        sync_tool_number_style_mirror();
+    }
+
+    /** @brief Tool number style subject (integer: 0=Auto, 1=Physical, 2=Gcode) */
+    lv_subject_t* subject_tool_number_style() {
+        return settings_.subject(Key::ToolNumberStyle);
     }
 
     // =========================================================================
@@ -400,27 +424,6 @@ class SettingsManager {
     lv_subject_t* subject_ams_eject_velocity() {
         return settings_.subject(Key::AmsEjectVelocity);
     }
-
-    // =========================================================================
-    // FILAMENT SETTINGS (owned by SettingsManager — AMS types dependency)
-    // =========================================================================
-
-    /**
-     * @brief Get external spool info (bypass/direct spool)
-     * @return SlotInfo with external spool data, or nullopt if not set
-     */
-    std::optional<SlotInfo> get_external_spool_info() const;
-
-    /**
-     * @brief Set external spool info (bypass/direct spool)
-     * @param info SlotInfo with filament data (slot_index forced to -2)
-     */
-    void set_external_spool_info(const SlotInfo& info);
-
-    /**
-     * @brief Clear external spool info (back to unassigned)
-     */
-    void clear_external_spool_info();
 
     // =========================================================================
     // SUBJECT ACCESSORS (for XML binding) — owned subjects only
@@ -591,11 +594,9 @@ class SettingsManager {
     /**
      * @brief Keep Spoolman spool info on a slot the firmware reports as ejected.
      *
-     * classify_binding() arms its eject verdict only on backends whose
-     * firmware reports spool ids (AFC, Happy Hare): there, firmware id 0/null
-     * means the spool was ejected. This setting decides whether the lane keeps
-     * its declared identity anyway. Default true: retention is the designed
-     * behavior, and disabling it starts an ejected lane fresh.
+     * Decides whether a lane keeps its identity when its spool is ejected.
+     * Default true: retention is the designed behavior, and disabling it
+     * starts an ejected lane fresh.
      * Per-printer setting.
      */
     bool get_ams_keep_spool_info_on_eject() const {
@@ -653,20 +654,6 @@ class SettingsManager {
         settings_.set(Key::AmsForceBypassControls, enabled);
     }
 
-    /**
-     * @brief Whether bypass was declared on a system with no firmware bypass
-     *        command (per-printer, backend-owned).
-     *
-     * Persists the user's bypass toggle for backends whose firmware cannot
-     * hold that state itself — today only the stock CFS dialect (its
-     * BOX_ENABLE_CFS_PRINT stand-down persists in the box, but HelixScreen's
-     * declaration is ours to remember across restarts). Not a user setting;
-     * no subject — read once at backend start, written on the toggle.
-     */
-    bool get_bypass_declared() const;
-    /** @brief Persist the bypass declaration (see get_bypass_declared) */
-    void set_bypass_declared(bool declared);
-
     /** @brief Force-bypass-controls subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_ams_force_bypass_controls() {
         return settings_.subject(Key::AmsForceBypassControls);
@@ -716,6 +703,23 @@ class SettingsManager {
     /** @brief Auto-open-editor subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_filament_auto_open_editor() {
         return settings_.subject(Key::FilamentAutoOpenEditor);
+    }
+
+    /**
+     * @brief Show filament positions counted from 0 rather than 1.
+     *
+     * Default false. Per-printer setting. Display only; helix::ui::lane_number() reads it.
+     */
+    bool get_number_lanes_from_zero() const {
+        return settings_.get_bool(Key::NumberLanesFromZero);
+    }
+
+    /** @brief Set whether filament positions count from 0 */
+    void set_number_lanes_from_zero(bool enabled);
+
+    /** @brief Number-lanes-from-zero subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_number_lanes_from_zero() {
+        return settings_.subject(Key::NumberLanesFromZero);
     }
 
     // =========================================================================
@@ -847,6 +851,16 @@ class SettingsManager {
     void mark_detection_seeded();
 
     /**
+     * @brief Whether the printer's own detection switch has been read into the
+     *        setting once. Until then the first read adopts the printer's value
+     *        instead of overriding it; afterwards the setting drives the printer.
+     */
+    bool is_detection_switch_adopted() const;
+
+    /** @brief Mark the printer's detection switch as adopted (one-time) */
+    void mark_detection_switch_adopted();
+
+    /**
      * @brief Get per-source policy for the Snapmaker U1 built-in detector
      *        0=Off, 1=NotifyOnly, 2=DeferToSource (default)
      */
@@ -895,6 +909,40 @@ class SettingsManager {
     }
     lv_subject_t* subject_belt_layout() {
         return settings_.subject(Key::BeltLayout);
+    }
+
+    // =========================================================================
+    // TEMPERATURE GRAPH
+    // =========================================================================
+
+    /** @brief Whether the temperature graph shows MCU temperatures (default false) */
+    bool get_temp_graph_show_mcu() const {
+        return settings_.get_bool(Key::TempGraphShowMcu);
+    }
+
+    /** @brief Set whether the temperature graph shows MCU temperatures (persisted) */
+    void set_temp_graph_show_mcu(bool show) {
+        settings_.set(Key::TempGraphShowMcu, show);
+    }
+
+    /** @brief Whether the temperature graph shows host temperatures (default false) */
+    bool get_temp_graph_show_host() const {
+        return settings_.get_bool(Key::TempGraphShowHost);
+    }
+
+    /** @brief Set whether the temperature graph shows host temperatures (persisted) */
+    void set_temp_graph_show_host(bool show) {
+        settings_.set(Key::TempGraphShowHost, show);
+    }
+
+    /** @brief Whether the temperature graph shows stepper driver temperatures (default false) */
+    bool get_temp_graph_show_drivers() const {
+        return settings_.get_bool(Key::TempGraphShowDrivers);
+    }
+
+    /** @brief Set whether the temperature graph shows stepper driver temperatures (persisted) */
+    void set_temp_graph_show_drivers(bool show) {
+        settings_.set(Key::TempGraphShowDrivers, show);
     }
 
     // =========================================================================
@@ -954,6 +1002,7 @@ class SettingsManager {
         AmsEjectDistance,
         AmsEjectVelocity,
         ToolheadStyle,
+        ToolNumberStyle,
         ShowPrinterSwitcher,
         ShowWidgetLabels,
         AutoColorMap,
@@ -965,6 +1014,7 @@ class SettingsManager {
         AmsForceBypassControls,
         FilamentAutoCooldown,
         FilamentAutoOpenEditor,
+        NumberLanesFromZero,
         ConsoleFilterTemps,
         ConsoleFilterFirmwareNoise,
         DetectionEnabled,
@@ -972,6 +1022,9 @@ class SettingsManager {
         DetectionPolicyU1,
         ZOffsetSaveMode,
         BeltLayout,
+        TempGraphShowMcu,
+        TempGraphShowHost,
+        TempGraphShowDrivers,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
@@ -980,6 +1033,14 @@ class SettingsManager {
     // config values rather than subjects: read on every jog, not widget-bound.
     // Sized for the three JogMode values; static_assert in load_jog_distances().
     float jog_distances_[3][2]{};
+
+    /// get_tool_number_style_setting() as of its last set or load; read off the main thread.
+    std::atomic<int> tool_number_style_mirror_{0};
+    /// Copy the setting into tool_number_style_mirror_. Main thread, after every set or load.
+    void sync_tool_number_style_mirror() {
+        tool_number_style_mirror_.store(static_cast<int>(get_tool_number_style_setting()),
+                                        std::memory_order_relaxed);
+    }
     void load_jog_distances();
 
     // External references

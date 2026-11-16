@@ -2,21 +2,28 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # moonraker-plugin/remote-install.sh: the command the app's REMOTE-mode install
-# modal shows. It fetches one release's plugin files and runs their install.sh,
-# so these cases serve a release from a fixture tree through stub fetchers and
-# check what lands on a printer-shaped HOME.
+# modal shows. It fetches one release's plugin and runs its install.sh, so these
+# cases serve a release from fixture trees through stub fetchers and check what
+# lands on a printer-shaped HOME: the CDN's tarball from CDN_ROOT, GitHub's raw
+# files from RELEASE_ROOT.
 
 load helpers
 
 REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 WRAPPER="${HELIX_PLUGIN_REMOTE_SH:-$REPO_ROOT/moonraker-plugin/remote-install.sh}"
 BASE_URL="http://release.test"
+CDN_URL="http://cdn.test"
 
 setup() {
     RELEASE_ROOT="$BATS_TEST_TMPDIR/release"
+    CDN_ROOT="$BATS_TEST_TMPDIR/cdn"
     FETCH_LOG="$BATS_TEST_TMPDIR/fetch.log"
     GIT_LOG="$BATS_TEST_TMPDIR/git.log"
-    export RELEASE_ROOT FETCH_LOG GIT_LOG
+    export RELEASE_ROOT CDN_ROOT FETCH_LOG GIT_LOG
+    # Every case, piped and BusyBox ones included, reads the CDN from CDN_ROOT,
+    # which holds nothing until a case publishes there.
+    export HELIX_PLUGIN_CDN_URL="$CDN_URL"
+    mkdir -p "$CDN_ROOT"
     # The stub wget answers every Moonraker probe yet no plugin ever loads, so
     # the post-restart wait runs to its limit. Nothing here tests that wait.
     export HELIX_MOONRAKER_UP_SECS=1
@@ -36,7 +43,7 @@ plugin_files() {
 }
 
 # Lay out release $1's plugin files the way raw.githubusercontent.com serves a
-# tag: <ref>/moonraker-plugin/<file>.
+# tag: <ref>/moonraker-plugin/<file>, the wrapper itself included.
 publish_release() {
     local dir="$RELEASE_ROOT/$1/moonraker-plugin"
     mkdir -p "$dir"
@@ -44,6 +51,14 @@ publish_release() {
         mkdir -p "$(dirname "$dir/$f")"
         cp "$REPO_ROOT/moonraker-plugin/$f" "$dir/$f"
     done
+    cp "$WRAPPER" "$dir/remote-install.sh"
+}
+
+# Publish release $1's plugin tarball where the release workflow puts it on
+# the CDN.
+publish_cdn() {
+    mkdir -p "$CDN_ROOT/releases/$1"
+    "$REPO_ROOT/scripts/package-helix-plugin.sh" "$CDN_ROOT/releases/$1/helix-print-plugin.tar.gz"
 }
 
 stub() {
@@ -78,6 +93,11 @@ case "$url" in
     http://release.test/*)
         printf '%s %s\n' "$(basename "$0")" "$url" >> "$FETCH_LOG"
         src="$RELEASE_ROOT/${url#http://release.test/}"
+        [ -f "$src" ] || exit 22
+        cp "$src" "$out" ;;
+    http://cdn.test/*)
+        printf '%s %s\n' "$(basename "$0")" "$url" >> "$FETCH_LOG"
+        src="$CDN_ROOT/${url#http://cdn.test/}"
         [ -f "$src" ] || exit 22
         cp "$src" "$out" ;;
 esac
@@ -130,6 +150,93 @@ run_wrapper() {
     ! grep -v '/v1.2.3/' "$FETCH_LOG" || fail "fetched outside the pinned release"
 }
 
+@test "a release on the CDN installs from its tarball with no GitHub fetch" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    publish_cdn v1.2.3
+
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+
+    [ "$(readlink "$home/moonraker/moonraker/components/helix_print.py")" = "$home/helix_print/helix_print.py" ]
+    cmp -s "$REPO_ROOT/moonraker-plugin/helix_print.py" "$home/helix_print/helix_print.py"
+    grep -qx "curl $CDN_URL/releases/v1.2.3/helix-print-plugin.tar.gz" "$FETCH_LOG" ||
+        fail "fetched: $(cat "$FETCH_LOG")"
+    ! grep -q 'release.test' "$FETCH_LOG" || fail "fetched from GitHub: $(cat "$FETCH_LOG")"
+}
+
+@test "a release the CDN does not hold installs through that release's own wrapper on GitHub" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    # The release's wrapper differs from this one, so running it shows.
+    sed -i.orig 's/info "Downloading the HelixPrint plugin/info "release wrapper"; &/' \
+        "$RELEASE_ROOT/v1.2.3/moonraker-plugin/remote-install.sh"
+
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+
+    grep -q "cdn.test/releases/v1.2.3/helix-print-plugin.tar.gz" "$FETCH_LOG" || fail "never asked the CDN"
+    grep -q 'release.test/v1.2.3/moonraker-plugin/remote-install.sh' "$FETCH_LOG" ||
+        fail "fetched: $(cat "$FETCH_LOG")"
+    [ "$(printf '%s\n' "$output" | grep -c 'release wrapper')" -eq 1 ] || fail "output: $output"
+    cmp -s "$REPO_ROOT/moonraker-plugin/helix_print.py" "$home/helix_print/helix_print.py"
+}
+
+@test "a CDN tarball that is not the plugin is not installed" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    mkdir -p "$CDN_ROOT/releases/v1.2.3" "$BATS_TEST_TMPDIR/bogus"
+    printf 'not the plugin\n' > "$BATS_TEST_TMPDIR/bogus/helix_print.py"
+    tar -czf "$CDN_ROOT/releases/v1.2.3/helix-print-plugin.tar.gz" -C "$BATS_TEST_TMPDIR/bogus" helix_print.py
+
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+    grep -q 'release.test/v1.2.3/moonraker-plugin/helix_print.py' "$FETCH_LOG" ||
+        fail "did not fall back to GitHub: $(cat "$FETCH_LOG")"
+    cmp -s "$REPO_ROOT/moonraker-plugin/helix_print.py" "$home/helix_print/helix_print.py"
+}
+
+@test "a CDN tarball cut off mid-stream is not installed" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    mkdir -p "$CDN_ROOT/releases/v1.2.3"
+    # The gzip stream ends early, right after a whole member: tar alone sees a
+    # shorter archive that holds the files the content check reads, and only
+    # gzip can tell it was cut.
+    python3 - "$REPO_ROOT/moonraker-plugin" "$CDN_ROOT/releases/v1.2.3/helix-print-plugin.tar.gz" <<'PY'
+import gzip, io, sys, tarfile
+src, out = sys.argv[1], sys.argv[2]
+buf = io.BytesIO()
+t = tarfile.open(fileobj=buf, mode="w", format=tarfile.USTAR_FORMAT)
+for name in ("install.sh", "helix_print_conf.sh", "helix_print.py"):
+    t.add(f"{src}/{name}", arcname=name)
+data = buf.getvalue()
+open(out, "wb").write(gzip.compress(data)[:-8])
+PY
+
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+    grep -q 'release.test/v1.2.3/moonraker-plugin/helix_print.py' "$FETCH_LOG" ||
+        fail "did not fall back to GitHub: $(cat "$FETCH_LOG")"
+    for f in $(plugin_files); do
+        [ -f "$home/helix_print/$f" ] || fail "$f missing from the install"
+    done
+}
+
+@test "a release the CDN holds uninstalls from its tarball" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    publish_cdn v1.2.3
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+
+    run_wrapper "$home" v1.2.3 --uninstall
+    [ "$status" -eq 0 ] || fail "uninstall failed: $output"
+    [ ! -e "$home/helix_print" ] || fail "the plugin directory stayed"
+    [ ! -e "$home/moonraker/moonraker/components/helix_print.py" ]
+    ! grep -q 'release.test' "$FETCH_LOG" || fail "fetched from GitHub: $(cat "$FETCH_LOG")"
+}
+
 @test "a version without its v and with build metadata still fetches the release tag" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_home "$home"
@@ -147,6 +254,35 @@ run_wrapper() {
     run_wrapper "$home" dev
     [ "$status" -eq 0 ] || fail "install failed: $output"
     grep -q '/main/moonraker-plugin/helix_print.py' "$FETCH_LOG" || fail "fetched: $(cat "$FETCH_LOG")"
+    ! grep -q 'cdn.test' "$FETCH_LOG" || fail "asked the CDN for main: $(cat "$FETCH_LOG")"
+}
+
+@test "the plugin tarball holds every file the wrapper fetches, at its top level" {
+    local tgz="$BATS_TEST_TMPDIR/plugin.tar.gz"
+    run "$REPO_ROOT/scripts/package-helix-plugin.sh" "$tgz"
+    [ "$status" -eq 0 ] || fail "package failed: $output"
+    [ "$(tar -tzf "$tgz" | sort)" = "$(plugin_files | tr ' ' '\n' | sort)" ] ||
+        fail "tarball: $(tar -tzf "$tgz" | tr '\n' ' ')"
+}
+
+@test "the plugin tarball's files are owned by root, whoever packed it" {
+    local tgz="$BATS_TEST_TMPDIR/plugin.tar.gz"
+    "$REPO_ROOT/scripts/package-helix-plugin.sh" "$tgz"
+    run python3 -c 'import sys, tarfile; print(sorted({(m.uid, m.gid) for m in tarfile.open(sys.argv[1])}))' "$tgz"
+    [ "$output" = "[(0, 0)]" ] || fail "owners: $output"
+}
+
+@test "packaging refuses a plugin missing a file the wrapper fetches" {
+    local root="$BATS_TEST_TMPDIR/repo"
+    mkdir -p "$root/scripts" "$root/moonraker-plugin"
+    cp "$REPO_ROOT/scripts/package-helix-plugin.sh" "$root/scripts/"
+    cp -R "$REPO_ROOT/moonraker-plugin/." "$root/moonraker-plugin/"
+    rm "$root/moonraker-plugin/helix_plr.py"
+
+    run "$root/scripts/package-helix-plugin.sh" "$BATS_TEST_TMPDIR/plugin.tar.gz"
+    [ "$status" -ne 0 ] || fail "packaged an incomplete plugin"
+    [[ "$output" == *helix_plr.py* ]] || fail "output: $output"
+    [ ! -e "$BATS_TEST_TMPDIR/plugin.tar.gz" ] || fail "left a tarball behind"
 }
 
 @test "an uninstall that stops on an unexpected status keeps the plugin directory" {

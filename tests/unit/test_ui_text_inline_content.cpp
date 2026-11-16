@@ -12,7 +12,7 @@
 //
 // What CANNOT move is the half that is HelixScreen's own contract: `text_muted`
 // (and its siblings text_heading / text_body / text_small / text_xs) is a widget
-// registered by src/ui/ui_text.cpp with its own apply callback, ui_text_apply().
+// registered by src/ui/components/ui_text.cpp with its own apply callback, ui_text_apply().
 // The engine synthesizes {text, translation_tag} from the inline content and
 // hands that pair to whatever apply_cb the element's processor registered -- so
 // if ui_text_apply() ever stopped delegating to lv_xml_label_apply() (say, a

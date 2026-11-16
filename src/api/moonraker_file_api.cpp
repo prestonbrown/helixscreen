@@ -3,14 +3,13 @@
 
 #include "moonraker_file_api.h"
 
-#include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
-
+#include "core/error_reporting.h"
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "three_mf_conversions.h"
 #include "try_reserve.h"
 
@@ -149,8 +148,12 @@ void MoonrakerFileAPI::get_directory(const std::string& root, const std::string&
             on_success(*files);
         },
         [full_path, on_error](const MoonrakerError& error) {
-            spdlog::error("[FileAPI] get_directory FAILED for '{}': {} ({})", full_path,
-                          error.message, error.get_type_string());
+            if (moonraker_directory_missing(error)) {
+                spdlog::debug("[FileAPI] get_directory: '{}' does not exist", full_path);
+            } else {
+                spdlog::error("[FileAPI] get_directory FAILED for '{}': {} ({})", full_path,
+                              error.message, error.get_type_string());
+            }
             if (on_error) {
                 on_error(error);
             }
@@ -638,6 +641,19 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
 
     // UUID for history matching (slicer-generated unique identifier)
     metadata.uuid = get_string("uuid");
+
+    // A .3mf's plates, from a Moonraker that starts the plate it is given.
+    if (const json* plates = helix::json_util::find_member(result, "sliced_plates");
+        plates != nullptr && plates->is_array()) {
+        std::vector<int> listed;
+        for (const auto& p : *plates) {
+            if (const int n = helix::json_util::as_int(p, 0); n > 0) {
+                listed.push_back(n);
+            }
+        }
+        metadata.sliced_plates = std::move(listed);
+    }
+    metadata.plate_index = std::max(helix::json_util::safe_int(result, "plate_index"), 0);
 
     // Thumbnails - parse with dimensions for selecting largest
     if (result.contains("thumbnails") && result["thumbnails"].is_array()) {

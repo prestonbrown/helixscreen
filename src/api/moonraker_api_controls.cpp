@@ -1,11 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
 #include "ui_temperature_utils.h"
 
 #include "app_globals.h"
+#include "core/error_reporting.h"
+#include "core/temperature_units.h"
 #include "fan_gcode.h"
 #include "gcode_classify.h"
 #include "gcode_homing.h"
@@ -53,9 +53,10 @@ void MoonrakerAPI::set_temperature(const std::string& heater, double temperature
                 "°C exceeds safety limits (" +
                 std::to_string(static_cast<int>(safety_limits_.min_temperature_celsius)) + "-" +
                 std::to_string(static_cast<int>(safety_limits_.max_temp_for(heater))) + "°C)",
-            fmt::format("Temperature {:.0f}°C is out of range. Valid: {:.0f}°C to {:.0f}°C.",
-                        temperature, safety_limits_.min_temperature_celsius,
-                        safety_limits_.max_temp_for(heater)));
+            fmt::format("Temperature {} is out of range. Valid: {} to {}.",
+                        helix::units::format_display_temp(temperature),
+                        helix::units::format_display_temp(safety_limits_.min_temperature_celsius),
+                        helix::units::format_display_temp(safety_limits_.max_temp_for(heater))));
         return;
     }
 

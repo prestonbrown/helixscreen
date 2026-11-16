@@ -9,6 +9,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
+    skip_line_tracking
 
     # Source modules (reset source guards so each test gets a fresh load).
     # platform.sh provides helix_self_update_asset(), which write_release_info()

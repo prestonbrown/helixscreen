@@ -2,6 +2,7 @@
 #pragma once
 
 #include "board_identity.h"
+#include "json_fwd.h"
 #include "platform_table.h"
 #include "printer_event_journal.h"
 #include "system/diagnostics.h"
@@ -9,11 +10,10 @@
 #include "touch_calibration.h"
 
 #include <cstdint>
+#include <ctime>
 #include <functional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -34,6 +34,9 @@ struct PrinterSnapshot {
     std::string klipper_version; ///< klipper_version subject, "" if unset
     int connection_state = -1;   ///< printer_connection_state subject; -1 = unavailable
     int klippy_state = -1;       ///< klippy_state subject; -1 = unavailable
+    /// Whether Klippy ever reported a state. Until it does, klippy_state holds
+    /// the subject's SHUTDOWN placeholder, which must not read as a shutdown.
+    bool klippy_state_reported = true;
     /// Firmware mains-monitor objects this printer publishes
     /// (helix::power_loss::required_status_objects), for the printer-state
     /// query. Empty on a printer without one.
@@ -51,6 +54,9 @@ struct BundleOptions {
     /// PrinterState itself, so a caller that leaves this uncaptured gets empty
     /// printer and moonraker sections.
     PrinterSnapshot printer;
+    /// The `ui_perf` section as serialized JSON, filled by upload_async() on the main
+    /// thread from the registered provider. Empty leaves the section out.
+    std::string ui_perf_json;
 };
 
 struct BundleResult {
@@ -112,6 +118,11 @@ class DebugBundleCollector {
     /// upload_async captures the value at submit.
     using CollectFn = std::function<nlohmann::json(const BundleOptions&)>;
     static void set_collect_override_for_test(CollectFn fn);
+
+    /// The app's UI cost counters live above this layer, so the app registers a
+    /// provider that serializes them. Main thread only; upload_async calls it there.
+    using UiPerfProvider = std::function<std::string()>;
+    static void set_ui_perf_provider(UiPerfProvider provider);
 
     /// Read PrinterState and its LVGL subjects into plain data.
     ///
@@ -249,6 +260,11 @@ class DebugBundleCollector {
     /// platform layout returns empty rather than a guess.
     static std::string collect_local_log_tail(const std::string& log_name, int num_lines,
                                               int condense_max_repeats = 0);
+    /// The line a local log fallback opens with: which file it read and how
+    /// long before @p now it was last written, so a stale copy that covers some
+    /// other session cannot pass for the incident's log.
+    static std::string local_log_source_line(const std::string& path, std::time_t modified,
+                                             std::time_t now);
     /// Line cap for moonraker.log. Deliberately far above what the byte budget
     /// yields (a 2 MiB condensed window measured 4319 lines) so kMoonrakerTailBytes
     /// is what binds, not an arbitrary line count.
@@ -298,7 +314,7 @@ class DebugBundleCollector {
     static nlohmann::json collect_crash_history(const std::string& config_dir);
 
     /// Get double-hashed device ID from telemetry_device.json (for R2 cross-ref)
-    static std::string collect_device_id(const std::string& config_dir);
+    static std::string collect_device_id(const std::string& device_file);
 
     /// Read log tail from an explicit ordered list of paths (testable)
     static std::string collect_log_tail_from_paths(const std::vector<std::string>& paths,
@@ -523,7 +539,7 @@ class DebugBundleCollector {
      *
      * Catches MACs, tokens, credentials and emails. It cannot catch an SSID —
      * that is an arbitrary user-chosen string with no pattern — so SSIDs are
-     * kept out of the logs at the call site instead (include/log_redact.h).
+     * kept out of the logs at the call site instead (include/core/log_redact.h).
      */
     static std::string sanitize_text_block(const std::string& body);
 

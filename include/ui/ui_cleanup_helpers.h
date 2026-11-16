@@ -14,7 +14,7 @@
  * @code{.cpp}
  * // Before (repeated 7+ times per panel):
  * if (overlay_cache_) {
- *     lv_obj_del(overlay_cache_);
+ *     lv_obj_delete(overlay_cache_);
  *     overlay_cache_ = nullptr;
  * }
  *
@@ -23,8 +23,8 @@
  * @endcode
  */
 
+#include "core/static_panel_registry.h"
 #include "lvgl.h"
-#include "static_panel_registry.h"
 
 namespace helix::ui {
 
@@ -50,7 +50,7 @@ inline void safe_delete_obj(lv_obj_t*& obj) {
         obj = nullptr;
         return;
     }
-    lv_obj_del(obj);
+    lv_obj_delete(obj);
     obj = nullptr;
 }
 

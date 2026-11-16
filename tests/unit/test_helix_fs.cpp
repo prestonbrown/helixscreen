@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -218,6 +218,26 @@ TEST_CASE("helix::fs remove distinguishes absent from failed", "[helix_fs]") {
     CHECK_FALSE(hfs::remove(d.at("full")));
     CHECK(errno != ENOENT);
     CHECK(sfs::exists(d.at("full/x")));
+}
+
+TEST_CASE("helix::fs remove_all removes a tree and never follows a symlink out of it",
+          "[helix_fs]") {
+    ScratchDir d;
+    sfs::create_directories(d.at("outside"));
+    touch(d.at("outside/keep"));
+    sfs::create_directories(d.at("tree/a/b"));
+    touch(d.at("tree/top"));
+    touch(d.at("tree/a/b/deep"));
+    REQUIRE(::symlink(d.at("outside").c_str(), d.at("tree/a/link").c_str()) == 0);
+
+    CHECK(hfs::remove_all(d.at("tree")));
+    CHECK_FALSE(sfs::exists(d.at("tree")));
+    CHECK(sfs::exists(d.at("outside/keep")));
+
+    CHECK(hfs::remove_all(d.at("tree"))); // already gone
+    touch(d.at("file"));
+    CHECK(hfs::remove_all(d.at("file")));
+    CHECK_FALSE(sfs::exists(d.at("file")));
 }
 
 TEST_CASE("helix::fs rename replaces an existing target", "[helix_fs]") {

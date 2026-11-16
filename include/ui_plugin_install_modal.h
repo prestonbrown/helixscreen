@@ -48,8 +48,9 @@ bool refuse_plugin_change_during_job(PrinterState& printer_state);
  * - LOCAL: Connected to localhost - shows "Install Plugin" button for auto-install
  * - REMOTE: Connected to remote printer - shows curl command with "Copy" button
  *
- * The modal remembers user preference via "Don't ask again" checkbox, which
- * persists to config via HelixPluginInstaller::set_install_declined().
+ * Any close with "Don't ask again" ticked declines for good
+ * (HelixPluginInstaller::set_install_declined()), which outranks the snooze a
+ * user's close also leaves (HelixPluginInstaller::snooze_install_prompt()).
  *
  * Usage:
  * @code
@@ -76,6 +77,7 @@ class PluginInstallModal : public Modal {
     const char* component_name() const override {
         return "plugin_install_modal";
     }
+    HELIX_KIND_TAG(PluginInstallModal)
 
     /**
      * @brief Set the plugin installer instance
@@ -103,10 +105,10 @@ class PluginInstallModal : public Modal {
     void on_show() override;
     void on_hide() override;
     void on_cancel() override;
-    // ESC closes without recording the "don't ask again" choice.
     void on_escape() override {
         hide(ModalCloseReason::EscKey);
     }
+    void on_dismissed() override;
 
   private:
     helix::HelixPluginInstaller* installer_ = nullptr;
@@ -120,24 +122,14 @@ class PluginInstallModal : public Modal {
     bool is_local_mode_ = false;
 
     // Widget references (populated in on_show)
-    lv_obj_t* local_description_ = nullptr;
-    lv_obj_t* remote_description_ = nullptr;
     lv_obj_t* command_textarea_ = nullptr;
-    lv_obj_t* local_button_row_ = nullptr;
-    lv_obj_t* remote_button_row_ = nullptr;
-    lv_obj_t* result_button_row_ = nullptr;
-    lv_obj_t* installing_container_ = nullptr;
-    lv_obj_t* result_container_ = nullptr;
-    lv_obj_t* checkbox_container_ = nullptr;
     lv_obj_t* dont_ask_checkbox_ = nullptr;
-    lv_obj_t* copy_feedback_ = nullptr;
 
     // Internal handlers
     void on_install_clicked();
     void on_copy_clicked();
     void show_installing_state();
     void show_result_state(bool success, const std::string& message);
-    void check_dont_ask_preference();
 
     // Static event handlers for XML callbacks
     static void install_clicked_cb(lv_event_t* e);
@@ -148,7 +140,4 @@ class PluginInstallModal : public Modal {
     // Register XML event callbacks (called once in constructor)
     static void register_callbacks();
     static bool callbacks_registered_;
-
-    // Active instance pointer for static XML callbacks (only one modal visible at a time)
-    static PluginInstallModal* s_active_instance_;
 };

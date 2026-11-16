@@ -32,6 +32,15 @@ PageSetChange page_set_change_of(int page_count, bool page_added, bool page_prep
     return change;
 }
 
+/// A change of @p page_count pages that puts a page back at @p inserted_page.
+PageSetChange inserted_page_change(int page_count, int inserted_page) {
+    PageSetChange change;
+    change.page_count = page_count;
+    change.inserted_page = inserted_page;
+    change.focus_page = inserted_page;
+    return change;
+}
+
 struct LandingRow {
     const char* path;
     PageSetChange change;
@@ -74,6 +83,12 @@ TEST_CASE("a page-set rebuild comes up on the page on screen and slides once to 
          page_set_change_of(4, false, false, 1, 3), 1, 2, 2},
         {"the next-page slot on screen with no page added there",
          page_set_change_of(2, false, false, -1, 1), 2, 1, 1},
+        {"an undo that puts a middle page back, from the page that took its place",
+         inserted_page_change(2, 1), 1, 2, 1},
+        {"an undo that puts a middle page back, from the page before it",
+         inserted_page_change(2, 1), 0, 0, 1},
+        {"an undo that puts the last page back, from the page before it",
+         inserted_page_change(2, 2), 1, 1, 2},
     };
     for (const LandingRow& row : rows) {
         INFO(row.path);

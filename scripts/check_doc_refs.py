@@ -7,19 +7,22 @@
 # CLAUDE.md files and skills work by progressive disclosure — they are mostly
 # pointers, and a pointer to a renamed or deleted file is worse than no pointer.
 # It sends the reader (human or agent) looking for something that isn't there, and
-# it silently teaches a wrong name. Several rounds of this have been cleaned up by
-# hand:
+# it silently teaches a wrong name. The shapes this catches:
 #
-#   - .claude/checklist.md cited six docs that had moved to docs/devel/
-#   - CLAUDE.md taught ui_nav_push_overlay(), a function with zero call sites
-#   - scripts/CLAUDE.md documented package.sh, deleted in 1ddbbbdba
-#   - a lesson taught lv_xml_component_register_from_file(), a transposed name
-#     that exists nowhere
+#   - a doc citing docs that have moved (e.g. into docs/devel/)
+#   - a doc teaching a function with zero call sites
+#   - a doc documenting a script that has been deleted
+#   - a doc teaching a transposed name that exists nowhere
 #
-# Four checks:
+# Five checks:
 #   refs   — every backticked path in an agent-facing doc resolves
 #   links  — every markdown [text](target) link in a scanned doc resolves
+#   make   — every `make <target>` command in a scanned doc names a target that
+#            Makefile or mk/*.mk defines (README.md and CONTRIBUTING.md too)
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
+#   counts — README.md, docs/user/ and the Play Store listing state the
+#            shipped filament systems, theme presets and printer database
+#            size truthfully
 #   stale  — report-only: cites whose file changed after the doc last did
 #
 # A citation names a place — `src/printer/printer_state.cpp#update_from_status` —
@@ -48,6 +51,7 @@
 #                                # refs+links, plus the index check
 #   check_doc_refs.py --refs     # broken references only
 #   check_doc_refs.py --index    # index completeness only
+#   check_doc_refs.py --counts   # shipped-count claims in README, docs/user/, store listing
 #   check_doc_refs.py --list     # show what was scanned
 #   check_doc_refs.py --stale    # report-only: cites older than the code they
 #                                # describe (release-time re-verify list)
@@ -58,6 +62,7 @@
 #                                # (plans/, printer-research/) are exempt.
 
 import argparse
+import glob
 import os
 import re
 import sys
@@ -375,8 +380,8 @@ def patch_created_files(targets):
 def check_refs(targets, allpaths, devel=False, created=()):
     problems = []
     # Basename index so a bare `THREADING.md` resolves without scanning all
-    # ~70k repo paths per citation — the suffix fallback used to dominate the
-    # whole run (8s of the gate's cost). Refs containing '/' keep the exact
+    # ~70k repo paths per citation — a suffix scan for every citation would
+    # dominate the whole run (about 8s). Refs containing '/' keep the exact
     # suffix scan (p.endswith('/'+path)); those are rare.
     by_basename = {}
     for p in allpaths:
@@ -428,6 +433,108 @@ def check_refs(targets, allpaths, devel=False, created=()):
     return problems
 
 
+# Docs outside the refs scan whose `make` commands are still checked: the root
+# README and CONTRIBUTING are where a new contributor learns the commands.
+MAKE_EXTRA_DOCS = ('README.md', 'CONTRIBUTING.md')
+
+MAKEFILES = ('Makefile', 'mk/*.mk')
+
+# A rule line: targets, then ':' or '::', not an assignment (`:=`, `::=`).
+# Recipe lines start with a tab and are skipped before this runs.
+_RULE_RE = re.compile(r'^([^\s#=:][^#=:]*?)\s*::?(?!=)')
+
+_FENCE_RE = re.compile(r'^\s*(```|~~~)')
+_SPAN_RE = re.compile(r'`([^`\n]+)`')
+
+# `make` where a shell command starts (line start, after `&&`, `||`, `;`, `|`,
+# `(` or `$(`, past any VAR=value prefixes), then its options and VAR=value
+# arguments, then the first target. `brew install make` and prose such as
+# "to make it stick" are not commands.
+_MAKE_CMD_RE = re.compile(
+    r'(?:^|&&|\|\||[;|(])\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:\'[^\']*\'|"[^"]*"|\S*)\s+)*'
+    r'g?make((?:\s+(?:--?[A-Za-z][\w-]*(?:=\S+)?|[A-Za-z_][A-Za-z0-9_]*='
+    r'(?:\'[^\']*\'|"[^"]*"|\S*)))*)\s+([^\s;&|)`\'"]+)')
+_MAKE_TARGET_RE = re.compile(r'^[a-z][a-z0-9_.+-]*$')
+
+
+def make_targets(root='.'):
+    """(names, patterns): every target Makefile and mk/*.mk spell out literally.
+
+    A target built from a variable (`$(TEST_BIN):`) cannot be named in a doc
+    as a literal anyway, so it is skipped. `%` rules come back as fnmatch
+    patterns: `print-var-%` admits `make print-var-CXX`.
+    """
+    import glob
+    names, patterns = set(), []
+    for pat in MAKEFILES:
+        for path in sorted(glob.glob(os.path.join(root, pat))):
+            try:
+                lines = open(path, encoding='utf-8', errors='ignore').read().split('\n')
+            except OSError:
+                continue
+            for line in lines:
+                if line.startswith('\t'):
+                    continue
+                m = _RULE_RE.match(line)
+                if not m:
+                    continue
+                for t in m.group(1).split():
+                    if '$' in t or t.startswith('.'):
+                        continue
+                    if '%' in t:
+                        patterns.append(t.replace('%', '*'))
+                    else:
+                        names.add(t)
+    return names, patterns
+
+
+def doc_make_commands(text):
+    """(line, target) for each `make <target>` in a fenced block or code span."""
+    out = []
+    in_fence = False
+    for lineno, line in enumerate(text.split('\n'), 1):
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            if line.lstrip().startswith('#'):
+                continue
+            chunks = [line.split(' #', 1)[0]]
+        else:
+            chunks = _SPAN_RE.findall(line)
+        for chunk in chunks:
+            for m in _MAKE_CMD_RE.finditer(chunk):
+                opts, target = m.group(1), m.group(2)
+                # -C / -f run some other project's makefile.
+                if re.search(r'(?:^|\s)-(?:C|f)\b|--(?:directory|file|makefile)\b', opts):
+                    continue
+                if any(c in target for c in PLACEHOLDER_CHARS) or '...' in target:
+                    continue
+                if not _MAKE_TARGET_RE.match(target):
+                    continue
+                out.append((lineno, target))
+    return out
+
+
+def check_make_targets(targets, root='.'):
+    """Every `make <target>` a doc tells the reader to run must exist."""
+    import fnmatch
+    names, patterns = make_targets(root)
+    if not names:
+        return []
+    problems = []
+    for target in targets:
+        try:
+            text = open(target, errors='ignore').read()
+        except OSError:
+            continue
+        for line, name in doc_make_commands(text):
+            if name in names or any(fnmatch.fnmatchcase(name, p) for p in patterns):
+                continue
+            problems.append((target, line, 'make ' + name))
+    return problems
+
+
 def check_links(targets):
     """Markdown links must resolve relative to the doc's own directory.
 
@@ -466,6 +573,129 @@ def check_index():
     unindexed = sorted(f for f in present - INDEX_EXEMPT
                        if '`%s`' % f not in index_text)
     return unindexed, sorted(present)
+
+
+# The public pages that state what HelixScreen ships, and where the truth lives.
+# The README is required: a counts check that finds nothing to check there has
+# been reworded out of existence, not satisfied.
+COUNTS_README = 'README.md'
+COUNTS_USER_DIR = 'docs/user'
+# Store listings repeat the same claims to people deciding whether to install.
+COUNTS_STORE_GLOB = 'android/fastlane/metadata/android/*/full_description.txt'
+AMS_TYPES_HEADER = 'include/ams_types.h'
+PRINTER_DATABASE = 'assets/config/printer_database.json'
+THEME_PRESET_DIR = 'assets/config/themes/defaults'
+
+_AMS_TRAITS_RE = re.compile(r'kAmsTypeTraits\[\]\s*=\s*\{(.*?)\n\};', re.S)
+_AMS_ROW_RE = re.compile(r'\{AmsType::(\w+),\s*"([^"]+)"')
+
+# "10 filament systems", "10 multi-material backends". A count followed by a
+# list (`:` or `(`) claims to be the whole list, so every system must be named.
+_BACKEND_COUNT_RE = re.compile(
+    r'\b(\d+)\s+(?:filament systems|filament system backends|'
+    r'multi-material (?:backends|systems))\b(\s*[:(])?', re.I)
+# "18 presets" / "18 theme presets" / "18 themes", on a line about themes.
+_THEME_COUNT_RE = re.compile(r'\b(\d+)\s+(?:(?:theme\s+)?presets|themes)\b', re.I)
+# A floor claim: "over 100 printers", "100+ models".
+_PRINTER_FLOOR_RE = re.compile(
+    r'\b(?:(over)\s+(\d+)|(\d+)\+)\s+(?:printer models|printers|models)\b', re.I)
+
+# Printer floors are claimed in steps of this size, so a phrase like "over 100"
+# stays true across many database additions and goes stale only at the next step.
+PRINTER_FLOOR_STEP = 50
+
+
+def shipped_backends():
+    """Display names of the filament systems kAmsTypeTraits registers, NONE excluded."""
+    text = open(AMS_TYPES_HEADER, encoding='utf-8').read()
+    m = _AMS_TRAITS_RE.search(text)
+    if not m:
+        return []
+    return [name for kind, name in _AMS_ROW_RE.findall(m.group(1)) if kind != 'NONE']
+
+
+def listed_printer_count():
+    """Printers the wizard can offer: database entries not hidden from the list."""
+    import json
+    with open(PRINTER_DATABASE, encoding='utf-8') as fh:
+        printers = json.load(fh).get('printers', [])
+    return sum(1 for p in printers if p.get('show_in_list', True) is not False)
+
+
+def theme_preset_count():
+    return sum(1 for f in os.listdir(THEME_PRESET_DIR) if f.endswith('.json'))
+
+
+def names_backend(line, name):
+    """True when @p line names the system, singular or plural, in any case."""
+    return re.search(r'\b%ss?\b' % re.escape(name), line, re.I) is not None
+
+
+def count_targets():
+    targets = [COUNTS_README]
+    for root, dirs, files in os.walk(COUNTS_USER_DIR):
+        prune_dirs(root, dirs)
+        targets.extend(os.path.join(root, f) for f in files if f.endswith('.md'))
+    targets.extend(glob.glob(COUNTS_STORE_GLOB))
+    return sorted(set(t for t in targets if os.path.isfile(t)))
+
+
+def check_counts():
+    """Problems as (doc, line, message), plus how many claims were checked.
+
+    A tree with neither the README nor the filament system header is not this
+    repo (a meta-test fixture) and has nothing to check. Any other missing
+    source of truth is a failure, so moving one cannot switch the check off.
+    """
+    sources = (COUNTS_README, AMS_TYPES_HEADER, PRINTER_DATABASE, THEME_PRESET_DIR)
+    if not os.path.exists(COUNTS_README) and not os.path.exists(AMS_TYPES_HEADER):
+        return [], 0
+    missing = [(src, 0, 'missing') for src in sources if not os.path.exists(src)]
+    if missing:
+        return missing, 0
+    backends = shipped_backends()
+    printers = listed_printer_count()
+    themes = theme_preset_count()
+    printer_floor = printers - printers % PRINTER_FLOOR_STEP
+    problems = []
+    readme_backend_lists = 0
+    checked = 0
+    if not backends:
+        problems.append((AMS_TYPES_HEADER, 0, 'no kAmsTypeTraits rows found'))
+    for doc in count_targets():
+        with open(doc, encoding='utf-8', errors='ignore') as fh:
+            lines = fh.read().splitlines()
+        for n, line in enumerate(lines, 1):
+            for m in _BACKEND_COUNT_RE.finditer(line):
+                checked += 1
+                if int(m.group(1)) != len(backends):
+                    problems.append((doc, n, 'says %s filament systems; the registry has %d'
+                                     % (m.group(1), len(backends))))
+                if m.group(2):
+                    if doc == COUNTS_README:
+                        readme_backend_lists += 1
+                    listed = line[m.end():]
+                    missing = [b for b in backends if not names_backend(listed, b)]
+                    if missing:
+                        problems.append((doc, n, 'filament system list omits %s'
+                                         % ', '.join(missing)))
+            if 'theme' in line.lower():
+                for m in _THEME_COUNT_RE.finditer(line):
+                    checked += 1
+                    if int(m.group(1)) != themes:
+                        problems.append((doc, n, 'says %s theme presets; %s holds %d'
+                                         % (m.group(1), THEME_PRESET_DIR, themes)))
+            for m in _PRINTER_FLOOR_RE.finditer(line):
+                checked += 1
+                over = m.group(1) is not None
+                claim = int(m.group(2) or m.group(3))
+                too_high = claim >= printers if over else claim > printers
+                if too_high or claim < printer_floor:
+                    problems.append((doc, n, 'says "%s"; the database lists %d printers, '
+                                     'so write "over %d"' % (m.group(0), printers, printer_floor)))
+    if not readme_backend_lists:
+        problems.append((COUNTS_README, 0, 'no "<N> filament systems: <list>" line to check'))
+    return problems, checked
 
 
 def last_commit_dates(paths):
@@ -564,6 +794,8 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--refs', action='store_true', help='Only check references resolve')
     ap.add_argument('--index', action='store_true', help='Only check index completeness')
+    ap.add_argument('--counts', action='store_true',
+                    help='Only check shipped-count claims in README.md, docs/user/ and the Play Store listing')
     ap.add_argument('--devel', nargs='*', dest='devel_paths', metavar='PATH',
                     help='Check docs/devel/**/*.md (or only the given .md files '
                          'and directories): path refs and markdown links')
@@ -578,17 +810,18 @@ def main():
         targets = scan_devel_targets(args.devel_paths)
         do_refs = True
         do_index = False
+        do_counts = False
     else:
-        # Default scope = agent-facing docs + the docs/devel target set. The
-        # docs/devel half used to be opt-in via --devel; it flipped to default
-        # enforcement once the surviving docs were swept clean, so CI catches
-        # future citation rot in feature docs instead of accumulating it.
+        # Default scope = agent-facing docs + the docs/devel target set, so CI
+        # catches citation rot in feature docs instead of accumulating it.
         targets = sorted(set(scan_targets()) | set(scan_devel_targets([])))
         # devel=True enables the parent-dir resolution fallback for docs/devel
         # citations; for repo-root CLAUDE.md files it is a harmless no-op.
         devel = True
-        do_refs = args.refs or not args.index
-        do_index = args.index or not args.refs
+        selected = args.refs or args.index or args.counts
+        do_refs = args.refs or not selected
+        do_index = args.index or not selected
+        do_counts = args.counts or not selected
 
     if args.list:
         for t in targets:
@@ -612,6 +845,9 @@ def main():
         problems = check_refs(targets, repo_files(), devel=devel,
                               created=patch_created_files(targets))
         link_problems = check_links(targets)
+        make_docs = targets if args.devel_paths else sorted(
+            set(targets) | {d for d in MAKE_EXTRA_DOCS if os.path.isfile(d)})
+        make_problems = check_make_targets(make_docs)
         skipped = uninitialized_submodules()
 
         def under_missing_submodule(ref):
@@ -671,6 +907,14 @@ def main():
             exit_code = 1
         else:
             print('✅ Doc links: all resolve (%d files scanned)' % len(targets))
+        if make_problems:
+            print('❌ Doc `make` commands naming no target in Makefile or mk/*.mk:')
+            for target, line, ref in make_problems:
+                print('   %s:%d: `%s`' % (target, line, ref))
+            print('   Name the target that exists, or a <placeholder> if it is illustrative.')
+            exit_code = 1
+        else:
+            print('✅ Doc make targets: all exist (%d files scanned)' % len(make_docs))
 
     if do_index:
         unindexed, present = check_index()
@@ -682,6 +926,18 @@ def main():
             exit_code = 1
         else:
             print('✅ Doc index: all %d docs routed' % len(present))
+
+    if do_counts:
+        count_problems, checked = check_counts()
+        if count_problems:
+            print('❌ Shipped counts the docs get wrong:')
+            for doc, line, msg in count_problems:
+                print('   %s:%d: %s' % (doc, line, msg))
+            print('   The registry, %s and %s are the truth; fix the doc.'
+                  % (PRINTER_DATABASE, THEME_PRESET_DIR))
+            exit_code = 1
+        else:
+            print('✅ Doc counts: %d claims match what ships' % checked)
 
     return exit_code
 

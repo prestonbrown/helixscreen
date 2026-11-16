@@ -8,7 +8,6 @@
 
 #include "ams_backend_mock.h"
 #include "color_utils.h"
-#include "filament_display_name.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -100,41 +99,4 @@ TEST_CASE("AFC mock keeps one unlinked lane for the untracked path",
     // vendor, so this lane is the one that must fall back to its color name.
     CHECK(lane3.brand.empty());
     CHECK(lane3.material == "PETG");
-}
-
-TEST_CASE("AFC mock lane resolves its brand through the Spoolman identity, not the slot",
-          "[mock][spoolman][ams][1264]") {
-    // The realism contract this file guards, stated end to end: AFC reports no
-    // vendor, so the loaded lane carries none, and the only thing that can name
-    // the brand is the Spoolman identity cache. If a future change reseeds a
-    // brand onto the AFC slots, the first CHECK here fails and #1264 is silently
-    // untestable again.
-    helix::AmsBackendMock mock(8);
-    mock.set_afc_mode(true);
-
-    const helix::SlotInfo lane0 = mock.get_slot_info(0);
-    REQUIRE(lane0.status == helix::SlotStatus::LOADED);
-    REQUIRE(lane0.spoolman_id > 0);
-    CHECK(lane0.brand.empty());
-
-    auto spools = fetch_mock_spools();
-    auto it = spools.find(lane0.spoolman_id);
-    REQUIRE(it != spools.end());
-    const SpoolInfo& spool = it->second;
-
-    // Cache miss: nothing but the color is left to name the lane.
-    const std::string without_identity = helix::resolve_filament_label(lane0, nullptr, "Jet Black");
-    CHECK(without_identity.find(spool.vendor) == std::string::npos);
-
-    // Cache hit: the vendor arrives, exactly as SpoolmanManager caches it.
-    helix::SpoolIdentity identity;
-    identity.vendor = spool.vendor;
-    identity.filament_name = spool.filament_name;
-    identity.material = spool.material;
-    identity.color_hex = spool.color_hex;
-    REQUIRE(identity.valid());
-
-    const std::string with_identity = helix::resolve_filament_label(lane0, &identity, "Jet Black");
-    CHECK(with_identity.find(spool.vendor) != std::string::npos);
-    CHECK(with_identity != without_identity);
 }

@@ -4,11 +4,9 @@
 // LVGL re-translates a label: it has to be re-rendered from the last check's
 // result when the language changes (prestonbrown/helixscreen#1023).
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_checker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 #include "version.h"
@@ -32,7 +30,7 @@ void land(UpdateChecker& c, UpdateChecker::Status status,
           std::optional<UpdateChecker::ReleaseInfo> info = std::nullopt,
           const std::string& error = "") {
     UpdateCheckerTestAccess::report_result(c, status, std::move(info), error);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 UpdateChecker::ReleaseInfo release(const std::string& version, bool downgrade = false) {

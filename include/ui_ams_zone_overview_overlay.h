@@ -16,9 +16,10 @@
 #pragma once
 
 #include "ams_environment_zone.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
@@ -49,6 +50,9 @@ class AmsZoneOverviewOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_zone_overview_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Show the list for @p zones. The caller decides the set: one unit's zones from the
     /// environment indicator, every zone on the printer from the detail overlay's header.
@@ -62,7 +66,7 @@ class AmsZoneOverviewOverlay : public OverlayBase {
     /// repeat from binding to unset subjects and flashing on its first frame.
     void rebuild_rows();
 
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     std::vector<helix::printer::EnvironmentZone> zones_;
 
@@ -72,8 +76,8 @@ class AmsZoneOverviewOverlay : public OverlayBase {
 
     SubjectManager subjects_;
 
-    lv_subject_t count_subject_{};
-    lv_subject_t subtitle_subject_{};
+    helix::Subject count_subject_{};
+    helix::Subject subtitle_subject_{};
     char subtitle_buf_[96] = {};
 
     helix::xml::IndexedSubjectPool label_pool_{"zone_ov_label",

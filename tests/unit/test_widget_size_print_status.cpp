@@ -13,10 +13,9 @@
  *
  * `:450` publishes the band itself as `print_status_width_band` — a renamed,
  * *derived* subject. The XML consumer (`panel_widget_print_status.xml`'s two
- * `library_body_gap_*` `bind_style` entries) used to compare the raw colspan
- * against `ref_value="2"`/`"3"`; both the C++ publisher and the XML
- * `ref_value`s were updated together (now `1`=normal/`2`=wide) so producer
- * and consumer never disagree about what the subject means. The test below
+ * `library_body_gap_*` `bind_style` entries) compare against the band
+ * (`1`=normal/`2`=wide), not the raw colspan, so producer and consumer never
+ * disagree about what the subject means. The test below
  * asserts the subject transitions directly rather than the resulting
  * `pad_row` pixel value on `library_body`: at this binary's active theme
  * tier, `#space_md` (the wide gap) happens to equal the tier's *other*
@@ -29,16 +28,9 @@
  * coincidence — the same shape as the other `[widget_size]` files in this
  * migration (see test_widget_size_job_queue.cpp, test_widget_size_camera.cpp).
  *
- * `print_status_layout_effective` (the `:455` predicate) is migrated and
- * tested here like the other four, but has no XML consumer today —
- * `update_view_subject()` re-derives its own `use_detailed` independently
- * rather than reading this subject back, and `grep -rl
- * print_status_layout_effective ui_xml/` returns nothing. That's a
- * pre-existing condition (not introduced by this migration) matching the
- * `print_stats_show_title` class found in a sibling task; left in place
- * because four existing tests in test_print_status_widget_layout_gate.cpp
- * already assert it and the task brief requires migrating (not removing) it.
- * Flagged here for whoever picks it up next.
+ * `print_status_layout_effective` is tested here like the other four, but no
+ * XML reads it: `update_view_subject()` derives its own `use_detailed`
+ * instead of reading this subject back.
  *
  * Every harness instance is scoped in its own block so `~PanelWidgetHarness`
  * (which detaches and destroys the widget) runs BEFORE
@@ -78,7 +70,6 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
@@ -87,9 +78,9 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_animations_enabled.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_size.h"
 #include "print_lifecycle_state.h"
@@ -228,8 +219,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         h.resize(1, 5, w_wide(), 300);
         process_lvgl(30);
         CHECK(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) == 2); // idle_detailed
-        CHECK_FALSE(lv_obj_has_flag(idle_detailed, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(idle_compact, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(idle_detailed));
+        CHECK(lv_obj_is_hidden(idle_compact));
 
         // Compact band. Contradicting span (colspan=5 — old predicate
         // colspan<=1 would NOT have gone compact here).
@@ -237,18 +228,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(lv_subject_get_int(PrintStatusWidget::view_subject_for_test()) ==
               1); // idle_library_compact
-        CHECK_FALSE(lv_obj_has_flag(idle_compact, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(idle_detailed, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(idle_compact));
+        CHECK(lv_obj_is_hidden(idle_detailed));
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
 
 // --- Idle detailed hero: the filename spans the card, not the data column ---
 //
-// The active card got this in e779c972d; the idle twin kept its filename inside
-// idle_data_col, beside a 45%-wide thumbnail, so a long name scrolled through
-// roughly half the width it had available. Both cards now hoist it to a
-// full-width header above the thumb/data row.
+// Both the active and idle cards hoist the filename to a full-width header above
+// the thumb/data row. Inside idle_data_col, beside a 45%-wide thumbnail, a long
+// name scrolls through roughly half the width available.
 
 TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans the whole card",
                  "[widget_size][print_status]") {
@@ -298,7 +288,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print_status idle detailed filename spans t
         lv_obj_update_layout(test_screen());
 
         // Long names must still scroll rather than ellipsize or clip.
-        CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_SCROLL_CIRCULAR);
+        CHECK(lv_label_get_long_mode(filename) == LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
@@ -383,7 +373,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // LVGL fires a freshly-subscribed observer immediately on subscribe;
         // drain once before driving anything else so that initial fire
         // doesn't mask a broken predicate later.
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
 
         // The detailed active view exists only while a print holds the machine.
         helix::test::set_wire_state(ps, PrintJobState::PRINTING);
@@ -400,23 +390,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // — old predicate colspan>=3 would not have shown it here).
         h.resize(1, 1, w_wide(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         // Wide band, filament now used: visible. Isolates on_size_changed's
         // half of the gate (:461) — re-run on_size_changed at the SAME
         // pixels so its own recomputation also agrees with the new used_mm.
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(), 1500);
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         h.resize(1, 1, w_wide(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
-        CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(filament_row));
 
         // Normal (not wide) band, filament still used: hidden again.
         // Contradicting span (colspan=5 — old predicate colspan>=3 would
         // have kept it shown).
         h.resize(5, 1, w_normal(), 400);
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         // --- Mirror (:1712): back to wide band via one resize call...
         h.resize(1, 1, w_wide(), 400);
@@ -428,15 +418,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // transitions.
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(),
                            0); // e.g. print re-sliced
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 0);
-        CHECK(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(filament_row));
 
         lv_subject_set_int(ps.print_state().get_print_filament_used_subject(),
                            2000); // extrusion resumes
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         CHECK(lv_subject_get_int(PrintStatusWidget::show_filament_active_subject_for_test()) == 1);
-        CHECK_FALSE(lv_obj_has_flag(filament_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(filament_row));
     }
     PrintStatusWidget::destroy_formatter_for_test();
 }
@@ -482,7 +472,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_obj_t* row = h.child("up_next_row");
             REQUIRE(card != nullptr);
             REQUIRE(row != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(row));
             lv_obj_update_layout(card);
             const int content_bottom = lv_obj_get_height(card) -
                                        lv_obj_get_style_pad_top(card, LV_PART_MAIN) -
@@ -541,7 +531,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(library_subject("print_status_library_grid") == 0);
         CHECK(library_subject("print_status_library_icon_only") == 0);
-        CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(label));
         const lv_font_t* column_icon_font = lv_obj_get_style_text_font(icon, LV_PART_MAIN);
 
         // A 4x2 home cell: the stacked buttons would be shorter than one line.
@@ -549,8 +539,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(30);
         CHECK(library_subject("print_status_library_grid") == 1);
         CHECK(library_subject("print_status_library_icon_only") == 1);
-        CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(label));
+        CHECK_FALSE(lv_obj_is_hidden(icon));
         lv_obj_t* actions = h.child("library_actions");
         REQUIRE(actions != nullptr);
         CHECK(lv_obj_get_style_flex_flow(actions, LV_PART_MAIN) == LV_FLEX_FLOW_ROW_WRAP);
@@ -666,7 +656,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     {
         PanelWidgetHarness<PrintStatusWidget> h(test_screen(),
                                                 HarnessConfig{{{"layout_style", "detailed"}}});
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
         h.resize(4, 2, 700, 400);
         process_lvgl(30);
 
@@ -679,12 +669,48 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_subject_set_int(lv_xml_get_subject(nullptr, name), 0);
         }
 
-        helix::test::set_wire_state(ps, PrintJobState::PRINTING);
-        process_lvgl(30);
-        REQUIRE(h.child("detailed_time_row") != nullptr);
-        for (const char* name : fits) {
-            INFO(name);
-            CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, name)) == 1);
+        auto check_fits = [&](int expected) {
+            for (const char* name : fits) {
+                INFO(name);
+                CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, name)) == expected);
+            }
+        };
+
+        SECTION("on the dashboard") {
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            check_fits(1);
+        }
+
+        SECTION("a view change while the dashboard is hidden keeps the shown verdict") {
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            check_fits(1);
+
+            // A hidden flex column lays out at 0px; measuring it would publish 0.
+            lv_obj_set_hidden(h.root(), true);
+            lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
+            REQUIRE(lv_subject_get_int(view) == 4);
+            lv_subject_set_int(view, 3);
+            lv_subject_set_int(view, 4);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            check_fits(1);
+        }
+
+        SECTION("started while the dashboard is hidden") {
+            lv_obj_set_hidden(h.root(), true);
+            helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+            process_lvgl(30);
+            REQUIRE(h.child("detailed_time_row") != nullptr);
+            lv_obj_set_hidden(h.root(), false);
+            process_lvgl(30);
+            check_fits(0);
+
+            h.widget().on_activate();
+            process_lvgl(30);
+            check_fits(1);
         }
     }
     PrintStatusWidget::destroy_formatter_for_test();

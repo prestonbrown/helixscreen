@@ -14,6 +14,7 @@ LAUNCHER="$WORKTREE_ROOT/scripts/helix-launcher.sh"
 
 setup() {
     load helpers
+    skip_line_tracking
     # helix-launcher.sh runs `killall helix-watchdog helix-screen ...`, which is
     # not scoped to this test. bats runs FILES in parallel, so an unmocked run
     # reaches across and kills the long-lived instance test_headless_display.bats
@@ -534,6 +535,22 @@ run_launcher_as_root() {
     run_launcher_as_root
     [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
     grep -q "owned by uid 1000" "$BATS_TEST_TMPDIR/gate.log"
+    # The owner is right and only the write bit is wrong: chowning the file to
+    # root would be undone by the next web-UI save.
+    local real_dir
+    real_dir=$(readlink -f "$MOCK_INSTALL/config/helixscreen.env")
+    grep -qF "fix: chmod g-w,o-w ${real_dir%/*})" "$BATS_TEST_TMPDIR/gate.log"
+    lacks "chown" "$(cat "$BATS_TEST_TMPDIR/gate.log")"
+}
+
+@test "a link directory with a write bit is named in the fix, not the file's owner" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    make_fake_stat_map
+    make_u1_layout 0 755 1000
+    sed -i.bak "s|^$MOCK_INSTALL/config 0 755\$|$MOCK_INSTALL/config 0 775|" "$BATS_TEST_TMPDIR/statmap"
+    run_launcher_as_root
+    [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
+    grep -qF "fix: chmod g-w,o-w $MOCK_INSTALL/config)" "$BATS_TEST_TMPDIR/gate.log"
 }
 
 @test "printer_data user trust needs the link itself placed by root or this user" {
@@ -554,6 +571,23 @@ run_launcher_as_root() {
     grep -q "owned by uid 12345" "$BATS_TEST_TMPDIR/gate.log"
     # The advice names the directory's owner, which keeps web editing working.
     grep -qF "chown 1000 " "$BATS_TEST_TMPDIR/gate.log"
+}
+
+@test "a writable directory inherited from the environment does not shape the refusal" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    make_fake_stat_map
+    printf 'MOONRAKER_HOST=planted.local\n' > "$MOCK_INSTALL/config/helixscreen.env"
+    local real
+    real=$(readlink -f "$MOCK_INSTALL/config/helixscreen.env")
+    {
+        echo "$MOCK_INSTALL/config/helixscreen.env 1000 644"
+        echo "$real 1000 644"
+        echo "$MOCK_INSTALL/config 0 755"
+    } > "$BATS_TEST_TMPDIR/statmap"
+    _hef_wdir="1000 /inherited" run_launcher_as_root
+    [ "$(cat "$BATS_TEST_TMPDIR/value.out")" = "" ]
+    grep -qF "chown root:root" "$BATS_TEST_TMPDIR/gate.log"
+    lacks "/inherited" "$(cat "$BATS_TEST_TMPDIR/gate.log")"
 }
 
 @test "env file owned by the launcher's own user at 0644 loads" {
@@ -975,6 +1009,34 @@ print_env_from_file() {
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/run/helix.sock')" = "/run/helix.sock" ]
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/etc/x.sock')" = "" ]
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/tmp/../etc/x')" = "" ]
+}
+
+@test "HELIX_SCREENSAVER_NOW from the env file reaches the app" {
+    [ "$(print_env_from_file HELIX_SCREENSAVER_NOW 'HELIX_SCREENSAVER_NOW=starfield')" = "starfield" ]
+}
+
+@test "HELIX_EGL_PARTIAL_UPLOAD from the env file reaches the app" {
+    [ "$(print_env_from_file HELIX_EGL_PARTIAL_UPLOAD 'HELIX_EGL_PARTIAL_UPLOAD=0')" = "0" ]
+}
+
+@test "the display, screensaver and sound tunables the env-var reference documents pass through" {
+    local kv k
+    for kv in HELIX_EGL_VSYNC=0 HELIX_EGL_XRGB=0 HELIX_REFR_PERIOD_MS=16 \
+        HELIX_REFR_PERIOD_SCOPE=all HELIX_LOOP_MIN_SLEEP_MS=1 HELIX_IMAGE_CACHE_KB=2048 \
+        HELIX_KEY_DEPTH=flat HELIX_GLASS=0 HELIX_BED_MESH_2D=1 HELIX_HANG_THRESHOLD_SEC=120 \
+        HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_BUDGET_PCT=5 \
+        HELIX_SCREENSAVER_REFR_PERIOD_MS=0 HELIX_PWM_MIN_NOTE_MS=30 HELIX_ALSA_KEEPALIVE=1; do
+        k="${kv%%=*}"
+        [ "$(print_env_from_file "$k" "$kv")" = "${kv#*=}" ] || fail "$k was dropped"
+    done
+}
+
+@test "HELIX_IMAGE_CACHE_KB takes 0-65536 KB" {
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=65536')" = "65536" ]
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=65537')" = "" ]
+    grep -q "HELIX_IMAGE_CACHE_KB must be 0-65536" "$BATS_TEST_TMPDIR/parse.log"
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=4194304')" = "" ]
+    [ "$(print_env_from_file HELIX_IMAGE_CACHE_KB 'HELIX_IMAGE_CACHE_KB=2M')" = "" ]
 }
 
 @test "directory keys that steer where the app loads code from are refused" {

@@ -12,7 +12,7 @@ HelixScreen stores user configuration in a JSON file (`config/settings.json`). A
 
 There are two migration layers:
 
-1. **Structural migrations** (legacy) -- Key-path moves like `display_rotate` to `/display/rotate` or `/display/calibration` to `/input/calibration`. These run unconditionally based on key presence.
+1. **Structural migrations** -- Key-path moves like `display_rotate` to `/display/rotate` or `/display/calibration` to `/input/calibration`. These run unconditionally based on key presence.
 
 2. **Versioned migrations** -- Numbered `v9->v10`, `v10->v11`, etc. Each bumps the integer `config_version` field. These run in sequence and only on configs older than the target version.
 
@@ -35,8 +35,8 @@ Every config file has an integer `config_version` at the root level:
 The current version is defined in `config.h`:
 
 ```cpp
-static constexpr int CURRENT_CONFIG_VERSION = 28;
-static constexpr int MIN_MIGRATABLE_CONFIG_VERSION = 9;
+static constexpr int kCurrentConfigVersion = 34;
+static constexpr int kMinMigratableConfigVersion = 9;
 ```
 
 The full migration ladder lives in `config_migrations.cpp`: one function per step and one ordered table, `kMigrations`, that `run_versioned_migrations()` walks.
@@ -47,17 +47,18 @@ Two properties of the ladder worth knowing before you add to it:
   `config_version` back down, and the next upgrade re-runs the chain over a document
   already in the new shape. Each migration guards against re-doing its own work.
 - **A config written by a newer build is left alone.** `run_versioned_migrations()`
-  detects a `config_version` above `CURRENT_CONFIG_VERSION` and returns without
+  detects a `config_version` above `kCurrentConfigVersion` and returns without
   stamping, so an older binary never rewrites data it does not understand.
 
-The current head of the ladder:
+Recent steps of the ladder (the doc comment on each `migrate_vN_to_vM` in
+`src/system/config_migrations.cpp` describes every step):
 
 - **v23 -> v24** tags every saved home layout with `layout_units: "cells_v21"` and a
   `legacy_rows` floor harvested from the old `/ui/cached_grid` node, then lifts legacy
   flat widget arrays into the page shape. The tag is all this migration writes: it runs
   at config load, before the screen size is known, so the actual coordinate conversion
   happens later, at the first square-cell grid build, in
-  `port_legacy_layout()` (`include/layout_port.h` + `src/ui/layout_port.cpp`), which
+  `port_legacy_layout()` (`include/layout_port.h` + `src/ui/home/layout_port.cpp`), which
   drops the tag when done. Three guards keep a replay from converting twice: a panel
   that already carries `grid`/`parked_grids` (per-grid storage postdates the
   migration), one already tagged, and one with no coordinates at all.
@@ -68,10 +69,12 @@ The current head of the ladder:
   Off/Notification/Alert int `AudioSettingsManager` has always read and written.
   A pre-migration fresh install wrote the boolean `true`, and `Config::get<int>()`
   converts that via nlohmann's bool-to-arithmetic rule (`true` -> 1, `false` -> 0)
-  rather than the intended `CompletionAlertMode::ALERT` (2) — so every install
+  rather than the intended `CompletionAlertMode::ALERT` (2) - so every install
   that never touched Print Completion Alert silently fell back to Notification.
   `true` -> Alert, `false` -> Off; an explicit stored int is a real user choice
   and is left untouched.
+- **v26 -> v27** moves a stored `scroll_throw` that is still the old shipped default onto
+  the platform default (only ESP32's differs).
 
 - **v27 -> v28** rewrites an integer `/display/screensaver_type` as the stable saver
   name it stood for (`7` -> `"maze"`), through the frozen
@@ -81,7 +84,8 @@ The current head of the ladder:
   The reader (`include/screensaver_setting.h#screensaver_from_setting`) stays
   lenient on its own, so a hand edit or an old backup restored at the current
   version still reads correctly.
-
+- **v28 -> v29** moves each printer's `ams/afc_unload_after_print` to the backend-neutral
+  `ams/unload_after_print`.
 - **v29 -> v30** moves each printer's `ams/qidi_eject_distance` and `ams/qidi_eject_velocity`
   to the backend-neutral `ams/eject_distance` and `ams/eject_velocity`. The new keys default to
   0, which the ejecting backend reads as "use my own default", so a printer that never chose a
@@ -92,19 +96,22 @@ The current head of the ladder:
   with sharing off, so turning it on for one printer never lists the screen among another
   printer's webcams. The pairing code, paired browsers and port stay global: they belong to
   the screen, not to a printer.
+- **v31 -> v32** drops an AD5X's `filament_switch_sensor runout_sensor` entry (zMod's client
+  variable, not a Klipper object), renaming it to `head_switch_sensor` when that has no entry.
+- **v32 -> v33** corrects the AD5M Pro fan roles the Forge-X and Z-Mod presets swapped; only a
+  role still holding the old preset's exact value changes.
+- **v33 -> v34** retires the bypass spool settings: a printer's block is parked under
+  `filament/legacy_external_spool`, which `AmsState` writes into an empty `bypass` lane record
+  in Moonraker's database at the next connect.
 
-Each has a dedicated test: `tests/unit/test_config_migration_v24.cpp`,
-`tests/unit/test_config_migration_v25.cpp`,
-`tests/unit/test_config_migration_v26.cpp`,
-`tests/unit/test_config_migration_v28.cpp`,
-`tests/unit/test_config_migration_v30.cpp` and
-`tests/unit/test_config_migration_v31.cpp`.
+Steps from v21 on have a dedicated test each, `tests/unit/test_config_migration_v<N>.cpp`
+(v23 is covered in `tests/unit/test_config.cpp`).
 
 ### Fresh Install vs. Upgrade
 
 | Scenario | What happens |
 |----------|-------------|
-| **No config file** | `get_default_config()` creates one with `config_version = CURRENT_CONFIG_VERSION`. No migrations run. |
+| **No config file** | `get_default_config()` creates one with `config_version = kCurrentConfigVersion`. No migrations run. |
 | **Existing config, no `config_version` and no printer** | Installer-seeded keys only: no `/printer`, and no printer object under `/printers` (e.g. `{"update":{"channel":1}}`, or the per-printer seed's `input`/`display` blocks). Treated as a fresh install: `get_default_config()` with the seeded keys laid over it by `merge_patch`, stamped CURRENT, so no migration runs over the seeded values. |
 | **Existing config, no `config_version`** | Treated as version 0: a shipped preset (`assets/config/presets/*.json`), a tarball default, an installer seed holding a printer, or a user config from before v0.9.11 (the first release to stamp `config_version`). A rolling backup with a real version replaces it if one exists; otherwise `normalize_versionless_document()` moves the single `/printer` into the `/printers` map and the chain runs from v9. |
 | **Existing config, `config_version` 1-8** | Below the floor. Copied to `settings.json.pre-migration`, one warning logged, and replaced by `get_default_config()`, the same defaults a missing config gets. |
@@ -124,10 +131,10 @@ Each has a dedicated test: `tests/unit/test_config_migration_v24.cpp`,
    a. Read config_version (default 0 if absent)
       If 0 < version < CURRENT and the document came from disk, copy
       settings.json to settings.json.pre-migration first
-   b. If 0 < version < MIN_MIGRATABLE_CONFIG_VERSION: replace with defaults, stop
+   b. If 0 < version < kMinMigratableConfigVersion: replace with defaults, stop
    c. If version == 0: normalize_versionless_document() (/printer -> /printers)
    d. Run each kMigrations row whose to_version > version, in order
-   e. Set config_version = CURRENT_CONFIG_VERSION
+   e. Set config_version = kCurrentConfigVersion
 4. Ensure required sections exist with defaults (printer, display, input, etc.).
    A /printers map with no printer object gets the default printer, except in
    a config from a newer build, which is left as written
@@ -136,13 +143,13 @@ Each has a dedicated test: `tests/unit/test_config_migration_v24.cpp`,
 
 The `.pre-migration` copy is the only record of the pre-upgrade document: the save in step 5 also refreshes the rolling backup (`src/system/config_backup.cpp#write_rolling_backup`) with the migrated one. It holds one generation, overwritten by the next migrating boot from a different version. A copy already at the starting version is kept, since a migration that threw can leave settings.json partly migrated under its old stamp. No restore path reads it; recovering from it is a manual copy. Small-footprint storage (the K-Touch firmware, `ConfigFootprint::Small` in `include/config_storage.h`) keeps no such copy, since its 128 KB partition cannot spare one, and deletes any it finds at boot; a below-floor document is the exception, because it has no other copy.
 
-Versioned migrations only run on **existing** configs. A fresh install skips straight to step 4 because `get_default_config()` already sets `config_version = CURRENT_CONFIG_VERSION`.
+Versioned migrations only run on **existing** configs. A fresh install skips straight to step 4 because `get_default_config()` already sets `config_version = kCurrentConfigVersion`.
 
 ---
 
 ## The Migration Floor
 
-`MIN_MIGRATABLE_CONFIG_VERSION` (9, first shipped in v0.99.4) is the oldest stamp the chain still migrates. A config stamped 1-8 is not migrated: `init()` keeps it as `settings.json.pre-migration`, logs `config_version N is older than this build migrates`, and starts from defaults. Raising the floor means deleting the steps below it, except any a version-0 preset still needs.
+`kMinMigratableConfigVersion` (9, `include/config.h`) is the oldest stamp the chain still migrates. A config stamped 1-8 is not migrated: `init()` keeps it as `settings.json.pre-migration`, logs `config_version N is older than this build migrates`, and starts from defaults. Raising the floor means deleting the steps below it, except any a version-0 preset still needs.
 
 Version 0 is not below the floor. The shipped presets and pre-v0.9.11 user configs carry no `config_version` and use the single `/printer` shape, so `normalize_versionless_document()` moves that into the `/printers` map, gives a printer with no `leds` block an empty selection, and hides the printer switcher on a single-printer install, before the numbered chain runs. `tests/unit/test_config.cpp` loads every shipped preset through `Config::init()` to keep that path honest.
 
@@ -157,7 +164,7 @@ v17->v18 skips a version-0 document whose active printer has not completed the s
 In `include/config.h`:
 
 ```cpp
-static constexpr int CURRENT_CONFIG_VERSION = 29;  // was 28
+static constexpr int kCurrentConfigVersion = 35;  // one above the current head
 ```
 
 ### Step 2: Write the migration function
@@ -165,8 +172,8 @@ static constexpr int CURRENT_CONFIG_VERSION = 29;  // was 28
 In `src/system/config_migrations.cpp`, add a static function in the anonymous namespace alongside the existing migrations:
 
 ```cpp
-/// Migration v28->v29: <description of what and why>
-static void migrate_v28_to_v29(json& config, const std::string& /*config_path*/) {
+/// Migration v34->v35: <description of what and why>
+static void migrate_v34_to_v35(json& config, const std::string& /*config_path*/) {
     // Modify config in place; spdlog::info() what changed.
 }
 ```
@@ -176,11 +183,11 @@ static void migrate_v28_to_v29(json& config, const std::string& /*config_path*/)
 ### Step 3: Add a row to `kMigrations`
 
 ```cpp
-    {28, migrate_v27_to_v28},
-    {29, migrate_v28_to_v29},  // <-- ADD THIS
+    {34, migrate_v33_to_v34},
+    {35, migrate_v34_to_v35},  // <-- ADD THIS
 ```
 
-A `static_assert` fails the build if the last row does not reach `CURRENT_CONFIG_VERSION`.
+A `static_assert` fails the build if the last row does not reach `kCurrentConfigVersion`.
 
 ### Step 4: Update `get_default_config()` if needed
 
@@ -194,7 +201,7 @@ See the testing section below.
 
 ## Migration Rules
 
-1. **Migrations are append-only above the floor.** Never modify an existing migration function; old configs in the wild may still need it. Steps below `MIN_MIGRATABLE_CONFIG_VERSION` are removed when the floor rises.
+1. **Migrations are append-only above the floor.** Never modify an existing migration function; old configs in the wild may still need it. Steps below `kMinMigratableConfigVersion` are removed when the floor rises.
 
 2. **Migrations must be idempotent.** Check if the target state already exists before making changes. Use `config.contains()` guards.
 
@@ -224,17 +231,17 @@ The standard pattern creates a temp config file with pre-migration data, runs `C
 |-----------|-----------------|
 | Oldest stamp triggers migration | A config at the version before yours gets migrated |
 | Already-migrated config is left alone | Config at version N does not re-run migration N |
-| Fresh config skips migrations | New install gets `CURRENT_CONFIG_VERSION` without running migration logic |
+| Fresh config skips migrations | New install gets `kCurrentConfigVersion` without running migration logic |
 | Edge case: key absent | Migration handles configs that never had the key being migrated |
-| Version stamp is set | After all migrations, `config_version == CURRENT_CONFIG_VERSION` |
+| Version stamp is set | After all migrations, `config_version == kCurrentConfigVersion` |
 
 ### Running migration tests
 
 ```bash
-# Build and run all migration tests
-make test-run
+# Build and run the migration tests
+make t F='[migration]'
 
-# Run only versioning/migration tests
+# Run only versioning/migration tests, without a rebuild
 ./build/bin/helix-tests "[migration][versioning]"
 
 # Run all config tests
@@ -243,9 +250,9 @@ make test-run
 
 ---
 
-## Structural Migrations (Legacy)
+## Structural Migrations
 
-Before the versioned system existed, two key-path migration helpers were used:
+Two key-path migration helpers run before the versioned chain:
 
 ### `migrate_display_config()`
 
@@ -272,10 +279,9 @@ If a config file is corrupt (unparseable JSON), `init()` backs it up as `setting
 
 ---
 
-## Config File Rename
+## The Old File Name
 
-The config file was renamed from helixconfig.json to `settings.json`:
+The config file is `settings.json`; older installs named it helixconfig.json:
 - The installer renames it, in the install dir and in printer_data
 - `Config::init()` follows a helixconfig.json symlink into printer_data when no `settings.json` exists
-- Rolling backups fall back to old names if new-named backups don't exist
-- Template renamed from `helixconfig.json.template` to `settings.json.template`
+- Rolling backups fall back to the old names when no new-named backup exists

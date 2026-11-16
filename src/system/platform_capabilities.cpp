@@ -11,13 +11,16 @@
 
 #include "platform_capabilities.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <iterator>
+#include <optional>
 
 #ifdef __APPLE__
 #include <sys/sysctl.h>
@@ -186,6 +189,36 @@ CpuInfo parse_cpuinfo(const std::string& content) {
             static_cast<int>(helix::text_io::parse_leading<float>(match[1].str()).value_or(0.0f));
     }
 
+    // Each core's design. A block per core carries its implementer and part; only
+    // Arm's own (implementer 0x41) part numbers are known here.
+    static constexpr int kEfficiencyParts[] = {0xc05, 0xc07, 0xd04, 0xd03, 0xd05, 0xd46, 0xd80};
+    int named_cores = 0;
+    bool all_efficiency = true;
+    int implementer = -1;
+    auto field = [](std::string_view l, std::string_view key) -> std::optional<int> {
+        if (l.substr(0, key.size()) != key) {
+            return std::nullopt;
+        }
+        const auto colon = l.find(':');
+        if (colon == std::string_view::npos) {
+            return std::nullopt;
+        }
+        const std::string value(l.substr(colon + 1));
+        return static_cast<int>(std::strtol(value.c_str(), nullptr, 0));
+    };
+    for (std::string_view line : helix::text_io::lines(content)) {
+        if (auto v = field(line, "CPU implementer")) {
+            implementer = *v;
+        } else if (auto part = field(line, "CPU part")) {
+            named_cores++;
+            all_efficiency = all_efficiency && implementer == 0x41 &&
+                             std::find(std::begin(kEfficiencyParts), std::end(kEfficiencyParts),
+                                       *part) != std::end(kEfficiencyParts);
+            implementer = -1;
+        }
+    }
+    info.efficiency_cores_only = named_cores > 0 && all_efficiency;
+
     // CPU name. No architecture publishes it under the same key: x86 has
     // "model name", ARM has "Hardware", MIPS has "cpu model", and some boards
     // only carry "Processor". First hit wins; a kernel with none of them leaves
@@ -213,39 +246,29 @@ CpuInfo parse_cpuinfo(const std::string& content) {
 // ============================================================================
 
 PlatformCapabilities PlatformCapabilities::detect() {
-    PlatformCapabilities caps;
-
 #ifdef __APPLE__
-    // macOS: use sysctl for detection
-    caps.total_ram_mb = get_macos_ram_mb();
-    caps.cpu_cores = get_macos_cpu_cores();
-    // bogomips not available on macOS
+    // macOS: sysctl, no bogomips
+    auto caps = from_metrics(get_macos_ram_mb(), get_macos_cpu_cores(), 0.0f);
+    spdlog::debug("Platform detected: RAM={}MB, cores={}, tier={}", caps.total_ram_mb,
+                  caps.cpu_cores, platform_tier_to_string(caps.tier));
+    return caps;
 #else
 #ifdef __ANDROID__
     spdlog::debug("Android platform: using /proc for hardware detection");
 #endif
-    // Linux: read /proc/meminfo
-    std::string meminfo_content = read_file_content("/proc/meminfo");
-    if (!meminfo_content.empty()) {
-        caps.total_ram_mb = parse_meminfo_total_mb(meminfo_content);
-    }
-
-    // Read /proc/cpuinfo
-    std::string cpuinfo_content = read_file_content("/proc/cpuinfo");
-    if (!cpuinfo_content.empty()) {
-        CpuInfo cpu_info = parse_cpuinfo(cpuinfo_content);
-        caps.cpu_cores = cpu_info.core_count;
-        caps.bogomips = cpu_info.bogomips;
-    }
+    return detect_from(read_file_content("/proc/meminfo"), read_file_content("/proc/cpuinfo"));
 #endif
+}
 
-    // Classify tier and set derived capabilities
-    caps.tier = classify_tier(caps.total_ram_mb, caps.cpu_cores);
-    set_derived_capabilities(caps);
+PlatformCapabilities PlatformCapabilities::detect_from(const std::string& meminfo,
+                                                       const std::string& cpuinfo) {
+    const CpuInfo cpu_info = parse_cpuinfo(cpuinfo);
+    auto caps =
+        from_metrics(parse_meminfo_total_mb(meminfo), cpu_info.core_count, cpu_info.bogomips);
+    caps.efficiency_cores_only = cpu_info.efficiency_cores_only;
 
     spdlog::debug("Platform detected: RAM={}MB, cores={}, tier={}", caps.total_ram_mb,
                   caps.cpu_cores, platform_tier_to_string(caps.tier));
-
     return caps;
 }
 

@@ -70,6 +70,8 @@ Sources 3 and 4 exist because Creality K1-class firmware forwards nothing to the
 
 `should_start_print_collector()` arms on a STANDBY→PRINTING transition with zero progress AND zero `print_duration` (joining a print mid-job must not raise the pre-print overlay). `PrintStartCollector::note_host_side_pre_start()` declares that the dispatch came from our own pre-start gcode block; the prediction history then re-filters to the host-pre-start bucket so its minutes of extra work never average into printer-edge prints (and vice versa). The user-visible side of the two arming paths - what each covers and when each opens - is in [PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md).
 
+A third path arms an idle collector from the console. The collector registers its `notify_gcode_response` handler when it is created, and while inactive it checks each line against the profile's `announces_start` tag patterns (`PrintStartCollector::arm_if_printer_announces_start`). A match, with no preparing job and no job on the printer, arms the run on the main thread, sets `PrinterPrintState::set_printer_side_pre_start()` so its phases pass the print-inactive guard, and applies the line. Fallbacks stay off until print_stats reports PRINTING, when `MoonrakerManager` enables them; the STANDBY hop at the file opening does not stop such a run (`should_stop_print_collector`), and such a run with no job yet ends on a `!! ` console line, on any Klippy state but READY (`should_stop_collector_on_klippy_state`), or after `kPrinterStartQuietLimit` of console silence (`check_printer_start_retirement()`). A profile set during a run applies when the run stops; `detach()` keeps a queued arm from reviving a replaced collector. The profile follows the printer type subject, so a type settled after the collector exists still reaches it (#2054).
+
 ### The Three Kinds of Evidence
 
 A print start is narrated by somebody. Which of the three evidence kinds a printer offers decides how its profile is written - this is the *why* behind the priority chain below:
@@ -160,17 +162,19 @@ These are the `PrintStartPhase` enum values from `include/print_start_phase.h`. 
 | `IDLE` | 0 | `IDLE` | Not in PRINT_START | - |
 | `INITIALIZING` | 1 | `INITIALIZING` | PRINT_START detected | - |
 | `HOMING` | 2 | `HOMING` | G28, Home All Axes | 10 |
-| `HEATING_BED` | 3 | `HEATING_BED` | M190, M140 S>0 | 20 |
-| `SOAKING` | 4 | `SOAKING` | Heat-soak dwell, chamber temperature wait | - |
-| `HEATING_NOZZLE` | 5 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
-| `QGL` | 6 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
-| `Z_TILT` | 7 | `Z_TILT` | Z_TILT_ADJUST | 15 |
-| `BED_MESH` | 8 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
-| `CLEANING` | 9 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
-| `PURGING` | 10 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
-| `COMPLETE` | 11 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
+| `MOTOR_SYNC` | 3 | `MOTOR_SYNC` | motors-sync's "Motors synchronization started" (SYNC_MOTORS, not `RESTORE_SYNC=1`) | 10 |
+| `HEATING_BED` | 4 | `HEATING_BED` | M190, M140 S>0 | 20 |
+| `SOAKING` | 5 | `SOAKING` | Heat-soak dwell: holding a temperature already reached | - |
+| `HEATING_CHAMBER` | 6 | `HEATING_CHAMBER` | M191, a TEMPERATURE_WAIT on the chamber heater, chamber-wait narration | - |
+| `HEATING_NOZZLE` | 7 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
+| `QGL` | 8 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
+| `Z_TILT` | 9 | `Z_TILT` | Z_TILT_ADJUST | 15 |
+| `BED_MESH` | 10 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
+| `CLEANING` | 11 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
+| `PURGING` | 12 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
+| `COMPLETE` | 13 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
 
-Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
+Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `SYNC_MOTORS` (MOTOR_SYNC), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `CHAMBER_HEATING`/`HEAT_CHAMBER` (HEATING_CHAMBER), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
 
 Notes:
 - `IDLE` and `COMPLETE` are lifecycle states, not matchable phases in profiles.
@@ -330,6 +334,8 @@ Malformed entries warn in the log and are skipped - one bad rule never takes dow
 
 **`owns`** - A list of phase names on a `response_patterns` or `state_patterns` entry whose step emits another phase's signals on its own, such as the K2's `[NOZZLE_CLEAR] START`: its nozzle clear parks at the CFS extrude position and pushes filament to check flow, which reads as PURGING through the profile's own `BOX_GO_TO_EXTRUDE_POS` pattern, its purge-percent tag and the stationary-purge motion check. From that line until the step ends, a signal for an owned phase from any of those sources is the step's and changes nothing on display (`helix::OwningStep` in `include/print_start_collector.h`). The step's own phase, INITIALIZING and the heating phases leave it running, since a clean heats for itself; a signal for any other phase (the G28 after it, a mesh) ends it, and so does entering such a phase from any source. Unknown names, non-strings, the entry's own phase, IDLE and COMPLETE are ignored with a warning, and a non-array is ignored whole. Default: owns nothing.
 
+**`announces_start`** - `true` on a `tag_patterns` entry whose line the firmware prints only once it has committed to a print, before print_stats reports one, such as the per-tool table Z-Mod's `PRINT_ZCOLOR` prints on the Creator 5. While nothing else has armed the collector and the printer holds no job, that line arms it, so a print started from another app shows Preparing from its first step instead of the previous job's result (#2054). Such a start has no preparing job behind it: the collector retires it after `kPrinterStartQuietLimit` without a console line while print_stats still reports no job (`src/print/print_start_collector.cpp#check_printer_start_retirement`). Mark only a line no manual command prints. The run arms one main-loop tick after the line, so lines in the same burst as it are not read as phases: a step the firmware narrates in that burst needs its own later line. Default `false`.
+
 **`counts_probes`** - `false` on a BED_MESH `response_patterns` or `state_patterns` entry whose probing only checks a stored mesh, such as Forge-X's `mesh_validation/CHECKING MESH` (five probes against a 25-point mesh). Its probe lines still count as the printer working, but the label carries no "(N/M)" and no point total is fetched, so it never reads "(5/25)". Default `true`.
 
 **`narrates`** - `false` on a `response_patterns` or `state_patterns` entry whose text names a target rather than a step, such as a macro's `SET_DISPLAY_TEXT MSG="Bed: 90c"`. The match still sets the phase, but like a `status_signals` match it does not count as the printer narrating, so the collector's own homing and heating inference stays on. Default `true`.
@@ -379,6 +385,7 @@ Format: `HELIX:PHASE:{PHASE_NAME}`
 |--------|---------------|
 | `HELIX:PHASE:STARTING` or `HELIX:PHASE:START` | INITIALIZING |
 | `HELIX:PHASE:HOMING` | HOMING |
+| `HELIX:PHASE:MOTOR_SYNC` or `HELIX:PHASE:SYNC_MOTORS` | MOTOR_SYNC |
 | `HELIX:PHASE:HEATING_BED` or `HELIX:PHASE:BED_HEATING` | HEATING_BED |
 | `HELIX:PHASE:HEATING_NOZZLE` or `HELIX:PHASE:NOZZLE_HEATING` or `HELIX:PHASE:HEATING_HOTEND` | HEATING_NOZZLE |
 | `HELIX:PHASE:QGL` or `HELIX:PHASE:QUAD_GANTRY_LEVEL` | QGL |
@@ -453,7 +460,7 @@ Two more fields give a printer's first print a measured estimate instead of a ge
 }
 ```
 
-`print_start_default_phases` is seconds per phase the prediction history keeps a duration for (HOMING, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING, PURGING); any other name is ignored with a warning. Its HOMING value is also the homing time the print details estimate shows, never below 20s. The printer's own phase timings replace these from the next completed print on. `thermal_rates` is seconds per degree C per heater (`extruder` or `heater_bed`; any other name is ignored with a warning), used by `ThermalRateManager::apply_archetype_defaults()` in place of its guess from the bed size. The rate a print saves is its whole measured climb, seconds over degrees, with a hold between two climbs (a probing temperature, then the print temperature) left out, blended 70/30 with the saved rate loaded at startup. A completed pre-print, a timeout completion included, saves the rates it measured, but the app loads saved rates only at startup (`Application` calls `ThermalRateManager::load_from_config()`), so until the next restart the database rates stay in use.
+`print_start_default_phases` is seconds per phase the prediction history keeps a duration for (HOMING, SOAKING, HEATING_CHAMBER, QGL, Z_TILT, BED_MESH, CLEANING, PURGING); any other name is ignored with a warning. Its HOMING value is also the homing time the print details estimate shows, never below 20s. The printer's own phase timings replace these from the next completed print on. `thermal_rates` is seconds per degree C per heater (`extruder` or `heater_bed`; any other name is ignored with a warning), used by `ThermalRateManager::apply_archetype_defaults()` in place of its guess from the bed size. The rate a print saves is its whole measured climb, seconds over degrees, with a hold between two climbs (a probing temperature, then the print temperature) left out, blended 70/30 with the saved rate loaded at startup. A completed pre-print, a timeout completion included, saves the rates it measured, but the app loads saved rates only at startup (`Application` calls `ThermalRateManager::load_from_config()`), so until the next restart the database rates stay in use.
 
 If a printer has no `print_start_profile` field, or the profile fails to load, the system falls back to `default.json`. If that is unreadable too (a broken install), `load_default()` returns an empty profile: no text matching, but HELIX:PHASE, RESPOND, the macro ready-flags, heater inference and the timeouts still run. The ESP32 image ships `default.json` alone (`scripts/esp32_stage_assets.py#stage_config`), so every named profile falls back to it there.
 
@@ -477,7 +484,7 @@ Write tests in `tests/unit/test_print_start_profile.cpp` that:
 3. Test response patterns with realistic console output - the captured lines, the honest ones
 4. Test noise rejection (lines that should NOT match, including captured lines that must not announce a phase)
 
-For a profile authored from a capture, also add a regression file like `tests/unit/test_print_start_profile_k2.cpp` - the whole captured narration, pinned line by line. And for object/signal rules, add collector-level cases in `tests/unit/test_print_start_collector.cpp`: feed a status frame, assert the phase, and assert the frame is IGNORED for a profile without the declaration - that is the fallback guarantee.
+For a profile authored from a capture, also add a captured-lines case beside the profile's others, like "creality_k2 matches captured narration" in `tests/unit/test_print_start_profile.cpp` - the whole captured narration, pinned line by line. And for object/signal rules, add collector-level cases in `tests/unit/test_print_start_collector.cpp`: feed a status frame, assert the phase, and assert the frame is IGNORED for a profile without the declaration - that is the fallback guarantee.
 
 Then prove the tests can fail: break a mapping, watch the suite go red, restore (see `tests/CLAUDE.md` - a green suite is not evidence). Commit profile + database entry + tests together.
 
@@ -565,6 +572,7 @@ Run the app with `-vv`: `PrintStartProfile` logs every signal-format match (`Sig
 | **Anycubic Kobra** | `anycubic_kobra.json`, `anycubic_kobra_s1.json` | weighted | Kobra 2 Pro / 3 family, Kobra S1 (+ Max) | 6 regex patterns each |
 | **Artillery M1** | `artillery_m1.json` | sequential | Artillery M1 Pro | 1 signal format + 4 regex patterns |
 | **Snapmaker U1** | `snapmaker_u1.json` | weighted | Snapmaker U1 | 2 signal formats (action codes, including the bed soak and mesh codes) + 2 response patterns (homing, the per-tool Z touch) + `adaptive_meshing` + `scripted_start` for the silent cleans and prime line; patterns captured live, none invented for silent steps |
+| **Creator 5** | `creator5.json` | weighted | FlashForge Creator 5, Creator 5 Pro | 9 `tag_patterns` for Z-Mod's START_PRINT narration (tool pickup and docking, heater normalization waits, the bed waiting in its print window before the purge, the purge, the `START_PRINT has finished its work.` end marker), tags because Z-Mod runs backwards through the phase enum; the generic response patterns minus the alternatives Z-Mod's settings banner trips (`BED_TEMP`, `EXTRUDER_TEMP`, `LINE_PURGE`, `Priming`, mesh loading, `bed mesh`) and the generic heating `status_signals` without the purging one, each named with its reason in the profile's description, for the C5's other firmwares |
 | **COSMOS** | `cosmos_cc1.json` | weighted | Elegoo Centauri Carbon on OpenCentauri COSMOS | 7 response patterns read on the console and through `phase_object` (display_status); the heat soak declares `hold_minutes_group`; the skew check completes the pre-print |
 
 ---
@@ -582,6 +590,7 @@ For printers that don't emit any G-code layer markers (like Forge-X), the system
 | Ceiling | Elapsed past `max(predicted x2.5, 1800s)` AND 90s without a matched line or probe line, no temp gate | Always - stuck detection for a heater that never settles |
 | Backstop | Twice the ceiling, regardless of chatter or temperature | Always - the one timeout with no quiet requirement |
 | Macro variables | `_START_PRINT.print_started`, `START_PRINT.preparation_done`, `_HELIX_STATE.print_started` | Subscribed via Moonraker |
+| Start macro returned | `virtual_sdcard.file_position` past 0 after this run showed 0 (read once at `start()`, then followed in frames) | Firmware that runs its own start macro before streaming the file, named in `include/start_macro_injection.h` (OpenCreator on the Creator 5). The collector starts before the new file loads, so a first reading at the last job's end arms nothing until the position shows 0; a resume never shows 0 and is left to the other signals |
 
 Timeouts are deliberately reluctant: active mesh probing suppresses every one but the backstop, and a pre-print that is still narrating itself is never timed out on the clock alone (only the backstop ignores that). Activity for the two deadline timeouts is a matched line (a signal format, a pattern or a phase-object state), a probe line, a `status_signals` rule firing, or a heater reading a degree above its highest yet under its current target; a heater swinging back up to an earlier reading is not a climb. A silent cool-down (M109 to a probing temperature) outlasts the 90s quiet gate, which is why a heater above its target does not count as at target, and a context-qualified step holds the deadline timeouts outright. The ceiling counts only matched lines and probe lines: a rule or a heater reads the same frames a stuck heater produces, so neither holds it open.
 
@@ -607,7 +616,6 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 | `assets/config/print_start_profiles/*.json` | Profile definitions |
 | `assets/config/printer_database.json` | Maps printer IDs to profile names |
 | `tests/unit/test_print_start_profile.cpp` | Profile loading + matching tests (table tests, `[profile][print]`) |
-| `tests/unit/test_print_start_profile_k2.cpp` | Captured-lines regression: the K2 narration pinned line by line |
 | `tests/unit/test_print_start_collector.cpp` | Integration tests with collector |
 | `tests/unit/test_preprint_predictor.cpp` | Predictor unit tests (weighting, FIFO, edge cases) |
 | `docs/devel/PRINT_START_INTEGRATION.md` | User-facing setup guide |
@@ -650,10 +658,11 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 | K1C first-print ETA defaults from measured durations | `test_printer_detector.cpp` - `print_start_default_phases` |
 | A real Forge-X 1.4.2 pre-print completes at `print/PRINTING`, not at the clean's FINISHING or a timeout through the silent cool-down; the mesh starts at `kamp/LEVELING`, not the print's LEVELING, its denominator is 25 and the two cleaning probes are not its points | `test_print_start_collector.cpp` - "real Forge-X 1.4.2 pre-print completes at PRINTING" (replay of `tests/fixtures/forgex_142_console.txt` and `forgex_142_heaters.txt` with reconstructed `operation_context` frames) |
 | Context-qualified phase object: delta frames re-match the cached pair, a null state is not the outer step's, the cache is per run, the start-up query fills only unseen fields, a live state may step back, a live step holds the deadline timeouts and a bare state does not; a heater cooling toward its target is not at target; a signal-format line is activity | `test_print_start_collector.cpp` - `[forge_x]`, "A bare phase-object state does not hold the timeouts", "A heater cooling toward its target is not at target", "A signal-format line counts as activity for the timeouts"; `test_print_start_profile.cpp` - "a context field qualifies the state the patterns match", "a malformed context field drops the phase object", "forge_x state patterns map the mod's state strings" |
-| K2 patterns match the real narration; `BED_MESH_CLEAR` deliberately NOT a mesh pattern | `test_print_start_profile_k2.cpp` (captures: 2026-08-18 K2 Plus klippy.log) |
+| K2 patterns match the real narration; `BED_MESH_CLEAR` deliberately NOT a mesh pattern | `test_print_start_profile.cpp` "creality_k2 matches captured narration" (captures: 2026-08-18 K2 Plus klippy.log) |
 | A Klipper shutdown or error stops the collector even while print_stats still reports a job (the U1 reports `paused` after a verify_heater shutdown) | `test_moonraker_manager.cpp` - "should_stop_collector_on_klippy_state stops on shutdown and error" (the decision; the observer wiring in `MoonrakerManager::init_print_start_collector` is not constructible in a unit test) |
 | While a heater wait reports (the once-a-second `B:.. /.. T0:.. /..` lines of M109/M190/TEMPERATURE_WAIT) after a real signal, the label shows the heater the waiting command names: the line at `virtual_sdcard.file_position`, queried each fallback tick (and on a wait's first report) and read again whenever the position moves, never asked when the transfers API has no ranged reads or after a failed read in the same wait, since one wait can hand to the next with no gap in the reports. M109 is the nozzle, cool-downs included, M190 the bed, M191 or a `TEMPERATURE_WAIT` on the chamber heater SOAKING (only with a chamber heater configured), a `TEMPERATURE_WAIT` on `heater_bed` or an extruder that heater (`PrintStartCollector::heater_waited_on`). Any other command, a failed read, or no answer yet falls back to the heater short of its target, nozzle first, then the bed, then a chamber heater once both are at target (SOAKING, "Heating chamber..."). A phase signal ends the wait; otherwise the first tick after the reports stop restores the displaced phase, message and sequential progress. Stray lines, a heater merely warming behind a phase, and firmware HEATING_* phases are left alone; reports count as activity for the timeouts | `test_print_start_collector.cpp` - `[heater_wait]` tests, including "a bed wait after plate detect shows Heating Bed until it ends", "a wait shows the nozzle while it is short, then the bed", "a long chamber wait holds the pre-print past its deadline", "A phase signal right after a wait's last report keeps its phase", "A chamber wait does not relabel a heating phase the firmware announced", "A heater wait gives a sequential profile's phase, message and progress back", "real heater waits show the bed heating between firmware phases" (replay of `tests/fixtures/u1_heater_wait_console.txt`, the 2026-09-23 U1 gcode_store), "each real wait shows the heater its command waits on" (replay of `tests/fixtures/u1_tool_probe_clean_console.txt` against `u1_tool_probe_clean_start.gcode`) and "a heater wait shows the heater its command names, else the guess" |
 | On a `scripted_start` profile, the first `virtual_sdcard.file_position` frame reads the file's head once; each step of its start block shows from the frame that reaches its line (a homing, leveling or mesh line only while the position stands on it, a clean or purge once passed), at most once, with the step's label; a step within 1 s of a console line that changed the display is left to it; a profile without the flag reads nothing; each phase's history entry is its time summed over every visit | `test_start_block_steps.cpp` (`[start_block]`: the real U1 block's steps at their bytes, what a line runs, the follower) and `test_print_start_collector.cpp` - "the print position shows the cleans, Z probes and prime line" (replay of `tests/fixtures/u1_bmcu_console.txt` with `u1_bmcu_positions.txt` against `u1_bmcu_start.gcode`, the 2026-10-17 U1 print, durations included), "a firmware code on a step's line is not overwritten by the step", "A profile without a scripted start does not read the print's head" |
+| A Creator 5 Z-Mod start: the bed wait before the purge is its own label, the purge shows only when it starts (not at the `Priming algorithm:` banner line), a full mesh counts its 100 points, and the pre-print completes at `START_PRINT has finished its work.` | `test_print_start_collector.cpp` - "a Creator 5 Z-Mod start with a saved mesh", "a Creator 5 Z-Mod start that builds a full mesh" (replays of `tests/fixtures/c5_zmod_saved_mesh_start.txt` and `c5_zmod_full_mesh_start.txt`, 2026-11-06); `test_print_start_profile_creator5.cpp` |
 | Whole chain (wiring, observers, collector) against a real capture, no printer | `HELIX_MOCK_REPLAY=<script> --test` (see MOCK_ENVIRONMENT_VARIABLES.md; script from `scripts/extract_mock_replay.py`) |
 
 ---
@@ -661,12 +670,3 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 ## Pre-Print ETA Prediction
 
 The ETA during preparation - `PreprintPredictor` history buckets, the thermal model, weighted averaging, and the live countdown - is documented in full in [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
-
----
-
-## Future Extensions
-
-- **User-editable profiles**: `config/print_start_profiles.d/` for user overrides (same pattern as `printer_database.d/`)
-- **Temporal predicates**: windowed conditions for `status_signals` (Z oscillation -> BED_MESH probing, sustained zero velocity with hot heaters -> soak) - needs an `over_ms` condition type
-- **Voron profile**: Map Voron `status_*` LED macro calls to phases
-- **Bambu/Prusa profiles**: For future printer support

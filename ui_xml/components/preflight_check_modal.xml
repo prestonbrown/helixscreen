@@ -25,17 +25,28 @@
       <!-- Rows populated dynamically in C++ -->
     </lv_obj>
 
-    <!-- Explanation line. Text set from C++ on_show(). -->
+    <!-- Explanation line: the first blocking check, from C++ on_show(). -->
     <text_body name="preflight_explanation"
-               width="100%" long_mode="wrap" style_pad_left="#space_lg" style_pad_right="#space_lg"
-               style_pad_top="#space_xs" style_pad_bottom="#space_md" style_text_color="#text_muted"/>
+               width="100%" bind_text="preflight_explanation" long_mode="wrap" style_pad_left="#space_lg"
+               style_pad_right="#space_lg" style_pad_top="#space_xs" style_pad_bottom="#space_md"
+               style_text_color="#text_muted"/>
+
+    <!-- Writes the material the file names to a slot that has none set. -->
+    <lv_obj name="preflight_material_fix_row"
+            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_md" style_border_width="0" style_bg_opa="0" scrollable="false" flex_flow="row"
+            style_flex_main_place="center">
+      <bind_flag_if_eq subject="preflight_material_fix_shown" flag="hidden" ref_value="0"/>
+      <ui_button name="btn_set_material" variant="secondary" bind_text="preflight_material_fix_text">
+        <event_cb trigger="clicked" callback="on_preflight_set_material"/>
+      </ui_button>
+    </lv_obj>
 
     <!-- Button row: Map Filament… (tertiary, optional), Cancel (secondary),
          Print Anyway (primary). Wired programmatically; no XML callbacks to
-         avoid double-wiring. The tertiary button is hidden from C++ when the
-         active backend's remap strategy is None. -->
+         avoid double-wiring. Map Filament shows while a remap can be carried out. -->
     <modal_button_row hide_tertiary="false"
-                      tertiary_variant="primary" tertiary_text="Map Filament…" secondary_text="Cancel"
-                      primary_text="Print Anyway"/>
+                      tertiary_show_subject="preflight_remap_shown" tertiary_variant="primary"
+                      tertiary_text="Map Filament…" secondary_text="Cancel" primary_text="Print Anyway"/>
   </view>
 </component>

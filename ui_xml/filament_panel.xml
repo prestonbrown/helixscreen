@@ -44,6 +44,12 @@
          an inline style_bg_opa would outrank any bound style. -->
     <style name="temp_graph_card_shown" bg_opa="255"/>
     <style name="temp_graph_card_spacer" bg_opa="0"/>
+    <!-- On a home full page (filament_on_page, NavigationManager::lend_panel())
+         the home grid already keeps the page margin, and every pixel of height
+         goes to the controls above the swipe strip. The padding is a style, not
+         an inline attr, so the bound page style can outrank it. -->
+    <style name="filament_panel_pad" pad_all="#space_md"/>
+    <style name="filament_panel_on_page" pad_all="0"/>
   </styles>
   <!-- Filament Management Panel -->
   <!-- Landscape: two columns, left (temp status + AMS) and right (material +
@@ -56,8 +62,10 @@
        rebuilds this <if> in place — FilamentPanel::bind_widgets() re-finds
        the widgets afterwards (see that function for the ordering constraint). -->
   <view name="filament_panel"
-        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+        extends="lv_obj" width="100%" height="100%" style_border_width="0" scrollable="false" flex_flow="row"
+        style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+    <style name="filament_panel_pad"/>
+    <bind_style name="filament_panel_on_page" subject="filament_on_page" ref_value="1"/>
     <!-- Disable all controls when printer not connected or klippy not ready -->
     <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
@@ -88,7 +96,12 @@
                     style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
               <text_body name="nozzle_current_temp"
-                         bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
+                         bind_text="filament_nozzle_current" clickable="false" event_bubble="true">
+                <bind_style name="styles.text_tone_muted" subject="filament_nozzle_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_nozzle_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_nozzle_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_nozzle_heat_state" ref_value="3"/>
+              </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="nozzle_target_temp"
                          bind_text="filament_nozzle_target" clickable="false" event_bubble="true">
@@ -106,7 +119,12 @@
             <lv_obj height="content"
                     style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
-              <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
+              <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true">
+                <bind_style name="styles.text_tone_muted" subject="filament_bed_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_bed_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_bed_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_bed_heat_state" ref_value="3"/>
+              </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="bed_target_temp" bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
             </lv_obj>
@@ -124,7 +142,12 @@
                     style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
                     style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
               <text_body name="chamber_current_temp"
-                         bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
+                         bind_text="filament_chamber_current" clickable="false" event_bubble="true">
+                <bind_style name="styles.text_tone_muted" subject="filament_chamber_heat_state" ref_value="0"/>
+                <bind_style name="styles.text_tone_danger" subject="filament_chamber_heat_state" ref_value="1"/>
+                <bind_style name="styles.text_tone_success" subject="filament_chamber_heat_state" ref_value="2"/>
+                <bind_style name="styles.text_tone_info" subject="filament_chamber_heat_state" ref_value="3"/>
+              </text_body>
               <text_body text="/" clickable="false" event_bubble="true"/>
               <text_body name="chamber_target_temp"
                          bind_text="filament_chamber_target" clickable="false" event_bubble="true"/>
@@ -145,6 +168,7 @@
           <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
           <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
           <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
+          <event_cb trigger="clicked" callback="filament_temp_graph_cb"/>
           <!-- Graph container - populated by C++ via TempControlPanel -->
           <lv_obj name="temp_graph_container"
                   width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
@@ -154,8 +178,9 @@
 
         <!-- Divider, OPERATIONS and the action rows (shared component), at
              fixed heights: the graph above takes the column's slack. -->
-        <filament_operations_group height="content"
-                                   flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0" row_min_height="0"/>
+        <filament_operations_group name="filament_operations_group"
+                                   height="content" flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0"
+                                   row_min_height="0"/>
 
         <!-- Multi-filament strip (shared component; C++ hides its header row
              in portrait so it reads as a strip, not a card) -->
@@ -200,7 +225,12 @@
                       flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="nozzle_current_temp"
-                           bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
+                           bind_text="filament_nozzle_current" clickable="false" event_bubble="true">
+                  <bind_style name="styles.text_tone_muted" subject="filament_nozzle_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_nozzle_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_nozzle_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_nozzle_heat_state" ref_value="3"/>
+                </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="nozzle_target_tap"
                         width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
@@ -225,7 +255,12 @@
                       flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="bed_current_temp"
-                           bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
+                           bind_text="filament_bed_current" clickable="false" event_bubble="true">
+                  <bind_style name="styles.text_tone_muted" subject="filament_bed_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_bed_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_bed_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_bed_heat_state" ref_value="3"/>
+                </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="bed_target_tap"
                         width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
@@ -249,7 +284,12 @@
                       flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
                       style_pad_gap="#space_xs" clickable="false" event_bubble="true">
                 <text_body name="chamber_current_temp"
-                           bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
+                           bind_text="filament_chamber_current" clickable="false" event_bubble="true">
+                  <bind_style name="styles.text_tone_muted" subject="filament_chamber_heat_state" ref_value="0"/>
+                  <bind_style name="styles.text_tone_danger" subject="filament_chamber_heat_state" ref_value="1"/>
+                  <bind_style name="styles.text_tone_success" subject="filament_chamber_heat_state" ref_value="2"/>
+                  <bind_style name="styles.text_tone_info" subject="filament_chamber_heat_state" ref_value="3"/>
+                </text_body>
                 <text_body text="/" clickable="false" event_bubble="true"/>
                 <lv_obj name="chamber_target_tap"
                         width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
@@ -283,6 +323,7 @@
             <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
             <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
             <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
+            <event_cb trigger="clicked" callback="filament_temp_graph_cb"/>
             <!-- Graph container - populated by C++ via TempControlPanel -->
             <lv_obj name="temp_graph_container"
                     width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
@@ -303,7 +344,7 @@
           <filament_material_group/>
           <!-- BOTTOM GROUP: Operations (shared component; fills the column
                below the material grid) -->
-          <filament_operations_group/>
+          <filament_operations_group name="filament_operations_group"/>
         </lv_obj>
       </lv_obj>
     </if>

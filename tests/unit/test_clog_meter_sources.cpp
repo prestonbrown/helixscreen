@@ -9,8 +9,6 @@
  *        (#1823).
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -19,6 +17,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "clog_meter_geometry.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_discovery.h"
@@ -209,6 +208,10 @@ struct MotionSensorFixture : LVGLTestFixture {
     int status() {
         return lv_subject_get_int(ams.get_clog_meter_status_subject());
     }
+
+    int safe() {
+        return lv_subject_get_int(ams.clog_meter_subjects().safe);
+    }
 };
 
 } // namespace
@@ -225,6 +228,7 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: a motion sensor is a state, n
               helix::ui::kMotionMovingValue);
         CHECK(lv_subject_get_int(ams.get_clog_meter_warning_subject()) == 0);
         CHECK(status() == static_cast<int>(ClogMeterStatus::Ok));
+        CHECK(safe() == 1); // nothing to report: the check stands in for the arc
         CHECK(text(ams.get_clog_meter_mode_text_subject()) == "encoder");
         CHECK(text(ams.get_clog_meter_center_text_subject()).empty());
     }
@@ -236,6 +240,7 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: a motion sensor is a state, n
               helix::ui::kMotionJammedValue);
         CHECK(lv_subject_get_int(ams.get_clog_meter_warning_subject()) == 1);
         CHECK(status() == static_cast<int>(ClogMeterStatus::Fault));
+        CHECK(safe() == 0);
         CHECK(text(ams.get_clog_meter_center_text_subject()) == "Jammed");
     }
 

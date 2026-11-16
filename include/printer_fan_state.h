@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
+#include "fan_tachometers.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -11,8 +13,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;
@@ -124,14 +124,13 @@ struct PrimaryFanSlots {
  *
  * Handles both static fan subjects (main fan speed, version) and
  * dynamic per-fan subjects created during printer discovery.
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  */
 class PrinterFanState {
   public:
     PrinterFanState() = default;
     ~PrinterFanState() = default;
 
-    // Non-copyable
     PrinterFanState(const PrinterFanState&) = delete;
     PrinterFanState& operator=(const PrinterFanState&) = delete;
 
@@ -168,11 +167,10 @@ class PrinterFanState {
      * @brief Re-apply a role mapping to the fans already discovered.
      *
      * For the targeted-roles wizard, where the hardware did not change — only
-     * which discovered fan plays which role. Callers used to reach for
-     * init_fans() because it was the only entry point that accepted a
-     * FanRoleConfig, which meant re-passing a fan list on a config change and
-     * hoping it matched what was discovered. This re-uses the retained list, so
-     * the two cannot drift apart.
+     * which discovered fan plays which role. Calling init_fans() instead would
+     * mean re-passing a fan list on a config change and hoping it matched what
+     * was discovered. This re-uses the retained list, so the two cannot drift
+     * apart.
      *
      * Note this is NOT list-preserving: roles decide whether the bare [fan]
      * object is shadowed by a named part fan, so a role change can legitimately
@@ -188,8 +186,15 @@ class PrinterFanState {
      */
     void update_fan_speed(const std::string& object_name, double speed);
 
-    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field)
-    void update_fan_rpm(const std::string& object_name, int rpm);
+    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field);
+    /// nullopt means the fan has no tachometer
+    void update_fan_rpm(const std::string& object_name, std::optional<int> rpm);
+
+    /// Which fan each separate tachometer reading measures (fan_tach::map_from_config).
+    /// An empty map leaves only the rpm a fan object reports itself.
+    void set_tachometers(fan_tach::TachMap map) {
+        tachometers_ = std::move(map);
+    }
 
     /// Rename a fan: saves custom name to Config, updates display_name, bumps fans_version
     void rename_fan(const std::string& object_name, const std::string& new_name);
@@ -204,6 +209,12 @@ class PrinterFanState {
     }
     lv_subject_t* get_fans_version_subject() {
         return &fans_version_;
+    }
+
+    /// Increments whenever any fan's tachometer reading changes. RPM moves at a
+    /// steady speed (spin-up), so a speed subject alone never redraws it.
+    lv_subject_t* get_fan_rpm_version_subject() {
+        return &fan_rpm_version_;
     }
 
     /// Increments whenever the runtime-resolved primary fan roles change (e.g. a
@@ -222,7 +233,7 @@ class PrinterFanState {
      *
      * IMPORTANT: These are dynamic subjects that may be destroyed during reconnection.
      * Always pass the returned lifetime token to your observer factory function
-     * to prevent use-after-free crashes. See ui_observer_guard.h for details.
+     * to prevent use-after-free crashes. See core/observer_guard.h for details.
      *
      * @param object_name Moonraker object name (e.g., "fan", "heater_fan hotend_fan")
      * @param[out] lifetime Receives the subject's lifetime token (empty if not found)
@@ -302,6 +313,9 @@ class PrinterFanState {
     /// scaling). Result is clamped to [0.0, 1.0].
     double normalize_speed(const std::string& object_name, double raw_speed) const;
 
+    /// Apply the Klipper "rpm" field of one fan object's status, if present
+    void update_klipper_rpm(const std::string& object_name, const nlohmann::json& fan_status);
+
     /// Disambiguate fans sharing the "chamber_fan" suffix by role: a HEATER_FAN
     /// becomes "Chamber Heater Fan" and a TEMPERATURE_FAN "Chamber Cooling Fan".
     /// Returns base_name unchanged for any other object or type.
@@ -316,9 +330,10 @@ class PrinterFanState {
     bool subjects_initialized_ = false;
 
     // Static fan subjects
-    lv_subject_t fan_speed_{};            ///< Main part-cooling fan, 0-100%
-    lv_subject_t fans_version_{};         ///< Increments on fan list (structural) changes
-    lv_subject_t primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    helix::Subject fan_speed_{};            ///< Main part-cooling fan, 0-100%
+    helix::Subject fans_version_{};         ///< Increments on fan list (structural) changes
+    helix::Subject primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    helix::Subject fan_rpm_version_{};      ///< Increments on any fan's rpm change (#2071)
 
     /// Object names exactly as discovery handed them over — before the bare-[fan]
     /// shadowing rule filters them into fans_. apply_roles() re-runs that filter,
@@ -331,7 +346,7 @@ class PrinterFanState {
     PrimaryFans primary_fans_cache_;
 
     // Dynamic per-fan subjects (unique_ptr prevents invalidation on rehash)
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> fan_speed_subjects_;
+    std::unordered_map<std::string, std::unique_ptr<helix::Subject>> fan_speed_subjects_;
     // Lifetime tokens for dynamic fan subjects — destroyed when subject is deinited,
     // expiring weak_ptrs in ObserverGuards to prevent use-after-free.
     std::unordered_map<std::string, SubjectLifetime> fan_speed_lifetimes_;
@@ -342,6 +357,9 @@ class PrinterFanState {
     // Per-fan `max_power` from configfile.settings, keyed by lowercased object
     // name. Used to normalize reported speeds (see normalize_speed()).
     std::unordered_map<std::string, double> fan_max_power_;
+
+    // Tachometer readings published outside the fan objects, by field.
+    fan_tach::TachMap tachometers_;
 
     // Configured fan roles from wizard config
     FanRoleConfig roles_;

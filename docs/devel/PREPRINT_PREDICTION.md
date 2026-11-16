@@ -72,8 +72,10 @@ number then names a different one.
 | IDLE | `IDLE` | Not in PRINT_START |
 | INITIALIZING | `INITIALIZING` | PRINT_START detected |
 | HOMING | `HOMING` | G28 / Home All Axes |
+| MOTOR_SYNC | `MOTOR_SYNC` | motors-sync SYNC_MOTORS (AWD) |
 | HEATING_BED | `HEATING_BED` | M140/M190 |
-| SOAKING | `SOAKING` | Holding at temperature: heat-soak dwell or chamber wait |
+| SOAKING | `SOAKING` | Holding at temperature: the heat-soak dwell |
+| HEATING_CHAMBER | `HEATING_CHAMBER` | Waiting for the chamber to reach temperature (M191, chamber wait) |
 | HEATING_NOZZLE | `HEATING_NOZZLE` | M104/M109 |
 | QGL | `QGL` | QUAD_GANTRY_LEVEL |
 | Z_TILT | `Z_TILT` | Z_TILT_ADJUST |
@@ -83,7 +85,7 @@ number then names a different one.
 | COMPLETE | `COMPLETE` | Transition to printing |
 
 `print_start_phase_stores_duration()` is the single answer to which of these the
-history keeps a duration for: HOMING, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING
+history keeps a duration for: HOMING, MOTOR_SYNC, SOAKING, HEATING_CHAMBER, QGL, Z_TILT, BED_MESH, CLEANING
 and PURGING. IDLE, INITIALIZING and COMPLETE are lifecycle markers with no dwell
 of their own, and the two heating phases are owned by `ThermalRateModel`, which
 predicts them from measured heat rates.
@@ -167,6 +169,22 @@ Redistribute: total_weight = 0.2 + 0.5 = 0.7
   Entry 2: 100 * (0.5/0.7) = 71.4s
   Predicted BED_MESH = round(22.9 + 71.4) = 94s
 ```
+
+### Declared Durations
+
+A macro can state a phase's duration with `_HELIX_PLAN` (`docs/devel/PRINT_START_INTEGRATION.md`).
+Per phase, a declared value beats the overrides, then history and the thermal model, then the defaults.
+A declared 0 removes the phase, and a declared heater replaces the thermal price and is what the
+entry records as priced heating.
+
+A wall clock from an unplanned run already holds a soak nobody signalled, so adding declared
+seconds on top would count it twice. Planned runs are therefore their own population, as
+`PreprintWindow` separates host pre-start runs. With a plan the total is the weighted mean, over the
+entries that declared one, of wall clock less priced heating less each declared phase's recorded
+duration (its declared value when the phase was never signalled), plus this start's heating and
+declared seconds. With no such entry it is the sum of the durations. Without a plan the estimate
+is unchanged and planned entries are ordinary runs. Plans exist only once `PRINT_START` runs, so
+the print details estimate never sees one.
 
 ### The Predicted Total Is Not the Sum of the Phases
 
@@ -363,11 +381,11 @@ line (`preprint_estimate_visible`, `ui_xml/print_file_detail.xml`, which also hi
 micro and tiny breakpoints). The detail view re-runs it when the file opens (reloading the
 cached history first), when the metadata arrives and on every option toggle. Metadata that
 arrives for a file the view no longer shows is dropped
-(`src/ui/ui_print_select_detail_view.cpp#apply_file_metadata`), so a
+(`src/ui/print/ui_print_select_detail_view.cpp#apply_file_metadata`), so a
 slow fetch never prices the next file with the previous file's temperatures. The label reads
 "~4:30 prep time", "~5 min prep time" or "~50 sec prep time", rounded to 30 seconds above two
 minutes and to 10 seconds at or below. A chamber target is in neither the metadata nor the thermal model; a
-chamber wait reaches the estimate as the SOAKING phase the history or the database defaults
+chamber wait reaches the estimate as the HEATING_CHAMBER phase the history or the database defaults
 carry.
 
 ## Real-Time Remaining Calculation
@@ -461,7 +479,8 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
         },
         "temp_bucket": 1,
         "window": 2,
-        "skipped": ["QGL"]
+        "skipped": ["QGL"],
+        "declared": {"SOAKING": 90}
       }
     ]
   }
@@ -477,6 +496,8 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
 - `temp_bucket`: Optional. 1 = cold start (bed below 40°C at start), 2 = warm start (40°C or above); omitted means unknown. `PreprintPredictor::temp_bucket_for()` is the one rule: the collector's history load, the entry it saves and the print details estimate all call it. Older versions stored the raw nozzle target temperature here; those values are dropped at load time as a one-shot migration.
 - `window`: Optional. `PreprintWindow` enum int - 1 = `PrinterEdge`, 2 = `HostPreStart`; omitted means legacy (read back as `Unknown`, treated as `PrinterEdge` when filtering). See "Measurement windows" above.
 - `skipped`: Optional. `PrintStartPhase` names of the phases this start's option toggles turned off (bed_mesh, qgl, z_tilt, nozzle_clean, purge_line), the phases the overrides `PrintPreparationManager::start_print()` handed to `PrintStartCollector::note_phase_overrides()` turn off (`PreprintPredictor::phases_skipped_by()`). `[]` means the start skipped nothing; omitted means unknown - a legacy entry, or a start this screen did not send. `estimate()` reads it to tell a phase no start ran from one the matcher missed.
+
+- `declared`: Optional. `PrintStartPhase` NAME to the seconds this start's `_HELIX_PLAN` declared, 0 meaning the phase will not run; omitted for a start without a plan.
 
 ### Save Flow
 
@@ -537,7 +558,7 @@ pure function from that struct to rows:
 - The expected order is the file's own start block when it has one, else the `PRINT_START` macro analysis the collector was handed through `set_macro_analysis()`, else empty. Upcoming rows come only from it, so with no prediction the list is the done rows plus the current one. A future step is never invented.
 - At most `kPreprintChecklistMaxRows` (8) rows show, the oldest done rows dropping first; the current row never drops. IDLE, INITIALIZING and COMPLETE never appear.
 
-`PrintStatusTiles::refresh_checklist()` (`src/ui/ui_print_status_tiles.cpp#refresh_checklist`) copies the rows into the `ps_step_<i>_name` / `_time` / `_status` subjects, and the compact form's `ps_step_position_text`, `ps_step_current_name` and `ps_step_current_time`. The collector fires no subject for elapsed time, a start block loading or a macro analysis arriving, so the panel re-reads on its own tick and on activation.
+`PrintStatusTiles::refresh_checklist()` (`src/ui/print/ui_print_status_tiles.cpp#refresh_checklist`) copies the rows into the `ps_step_<i>_name` / `_time` / `_status` subjects, and the compact form's `ps_step_position_text`, `ps_step_current_name` and `ps_step_current_time`. The collector fires no subject for elapsed time, a start block loading or a macro analysis arriving, so the panel re-reads on its own tick and on activation.
 
 ### PrintStatusPanel Observer Integration
 
@@ -679,12 +700,12 @@ The predictor has no LVGL or Config dependencies, making tests fast and determin
 | `src/print/print_start_collector.cpp` | Phase timing, history persistence, ETA display updates |
 | `include/printer_print_state.h` | Subject declarations (preprint_remaining, preprint_elapsed, etc.) |
 | `src/printer/printer_print_state.cpp` | Subject initialization and setters |
-| `src/ui/ui_panel_print_status.cpp` | Observer integration for elapsed/remaining display |
+| `src/ui/print/ui_panel_print_status.cpp` | Observer integration for elapsed/remaining display |
 | `include/preprint_checklist.h` | Pure checklist rows built from `checklist_input()` |
-| `src/ui/ui_print_status_tiles.cpp` | Publishes the checklist rows as subjects |
-| `src/ui/ui_panel_print_select.cpp` | Augments slicer time estimates with preprint prediction |
-| `src/ui/ui_print_preparation_manager.cpp` | The print details estimate (`recalculate_estimate()`) and the skipped phases a start hands the collector |
-| `src/ui/ui_print_select_detail_view.cpp` | Formats the details estimate line and decides when it is recomputed |
+| `src/ui/print/ui_print_status_tiles.cpp` | Publishes the checklist rows as subjects |
+| `src/ui/print/ui_panel_print_select.cpp` | Augments slicer time estimates with preprint prediction |
+| `src/ui/print/ui_print_preparation_manager.cpp` | The print details estimate (`recalculate_estimate()`) and the skipped phases a start hands the collector |
+| `src/ui/print/ui_print_select_detail_view.cpp` | Formats the details estimate line and decides when it is recomputed |
 | `include/thermal_rate_model.h` | Heating-time model - owns the two phases the predictor never records |
 | `assets/config/print_start_profiles/default.json` | Generic profile: the patterns and phase object that decide which phases get detected at all |
 | `tests/unit/test_preprint_predictor.cpp` | Unit tests for prediction logic |

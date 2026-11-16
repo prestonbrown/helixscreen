@@ -21,22 +21,27 @@ set(SHIM ${CMAKE_CURRENT_LIST_DIR}/shim)
 # EspMoonrakerClient calls PrinterDiscovery::parse_objects(), defined out of line
 # in printer_discovery_parse.cpp; helixapp links before helixnet, so its copy
 # of that TU cannot satisfy a reference from here.
-# MoonrakerError::from_json_rpc() (inline) decodes firmware error envelopes via
-# src/printer/firmware_error_envelope.cpp, which needs only hv/json.hpp; it
-# compiles here for the same link-order reason.
+# MoonrakerError::from_json_rpc() (src/api/moonraker_error_rpc.cpp) decodes
+# firmware error envelopes via src/printer/firmware_error_envelope.cpp; each needs
+# only hv/json.hpp, and both compile here for the same link-order reason.
 # EspMoonrakerClient asks src/api/moonraker_auth.cpp for the printer's API key,
 # also for the link-order reason.
 set(REPO_SRCS ${REPO_ROOT}/src/format_utils.cpp
               ${REPO_ROOT}/src/api/moonraker_auth.cpp
+              ${REPO_ROOT}/src/api/moonraker_error_rpc.cpp
               ${REPO_ROOT}/src/printer/firmware_error_envelope.cpp
               ${REPO_ROOT}/src/printer/printer_discovery_parse.cpp)
 
 idf_component_register(
     SRCS esp_moonraker_client.cpp esp_http_lane.cpp esp_rest_api.cpp coverage_assert.cpp
-         shim/platform_stubs.cpp ${REPO_SRCS}
+         shim/platform_stubs.cpp shim/log_token.cpp shim/log_token_esp.cpp ${REPO_SRCS}
     INCLUDE_DIRS "."
     REQUIRES esp_websocket_client esp_http_client esp_timer esp_event
-    PRIV_REQUIRES pthread)
+    PRIV_REQUIRES pthread esp_app_format)
+
+# The tokenized-log format strings' non-loaded output section (shim/log_token.h).
+# INTERFACE: the final link is the app's, not this component's.
+target_linker_script(${COMPONENT_LIB} INTERFACE "${CMAKE_CURRENT_LIST_DIR}/helix_logfmt.ld")
 
 # Repo headers + shim aliases are PRIVATE: only helixnet's own TUs compile
 # against i_moonraker_client.h / the sub-API headers. The C-linkage

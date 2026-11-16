@@ -4,6 +4,7 @@
 #include "ui_subject_registry.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 
 #include "../catch_amalgamated.hpp"
@@ -16,7 +17,7 @@
 // discarded, which also suppressed the localhost auto-probe that keys off it.
 TEST_CASE_METHOD(LVGLTestFixture, "string subject keeps a pre-seeded buffer",
                  "[subjects][registry]") {
-    lv_subject_t subject;
+    helix::Subject subject;
     char buffer[32];
 
     snprintf(buffer, sizeof(buffer), "127.0.0.1");
@@ -24,15 +25,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "string subject keeps a pre-seeded buffer",
 
     CHECK(std::string(buffer) == "127.0.0.1");
     CHECK(std::string(lv_subject_get_string(&subject)) == "127.0.0.1");
-
-    lv_subject_deinit(&subject);
 }
 
 // The ordinary case must keep working: a distinct initial value overwrites whatever
 // the buffer happened to hold.
 TEST_CASE_METHOD(LVGLTestFixture, "string subject adopts a distinct initial value",
                  "[subjects][registry]") {
-    lv_subject_t subject;
+    helix::Subject subject;
     char buffer[32];
 
     snprintf(buffer, sizeof(buffer), "stale");
@@ -40,14 +39,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "string subject adopts a distinct initial valu
 
     CHECK(std::string(buffer) == "fresh");
     CHECK(std::string(lv_subject_get_string(&subject)) == "fresh");
-
-    lv_subject_deinit(&subject);
 }
 
 // Same two cases for the explicit-size variant used with std::array-backed buffers.
 TEST_CASE_METHOD(LVGLTestFixture, "sized string subject keeps a pre-seeded buffer",
                  "[subjects][registry]") {
-    lv_subject_t subject;
+    helix::Subject subject;
     std::array<char, 32> buffer{};
 
     snprintf(buffer.data(), buffer.size(), "7125");
@@ -56,6 +53,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "sized string subject keeps a pre-seeded buffe
 
     CHECK(std::string(buffer.data()) == "7125");
     CHECK(std::string(lv_subject_get_string(&subject)) == "7125");
-
-    lv_subject_deinit(&subject);
 }

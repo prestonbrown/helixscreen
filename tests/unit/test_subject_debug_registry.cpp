@@ -9,21 +9,32 @@
  * mapping subject pointers to metadata (name, type, file, line).
  */
 
+#include "ui_subject_registry.h"
+
+#include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "subject_debug_registry.h"
+#include "subject_managed_panel.h"
 
 #include "../catch_amalgamated.hpp"
+
+// The subject macros feed desktop debug tooling (LVGL subject warnings, the
+// name lookups below); only the ESP32 firmware may compile the registry out.
+static_assert(HELIX_SUBJECT_DEBUG_REGISTRY_ENABLED,
+              "the subject debug registry is compiled out of a non-ESP32 build");
 
 // ============================================================================
 // Register and Lookup Tests
 // ============================================================================
 
-TEST_CASE("SubjectDebugRegistry: register subject and look it up by pointer",
-          "[subject_debug][registry][basic]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "SubjectDebugRegistry: register subject and look it up by pointer",
+                 "[subject_debug][registry][basic]") {
     SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
     registry.clear();
 
     // Create a dummy subject pointer (we just need an address, not a real subject)
-    lv_subject_t dummy_subject = {};
+    helix::Subject dummy_subject = {};
 
     registry.register_subject(&dummy_subject, "test_subject", LV_SUBJECT_TYPE_INT, __FILE__,
                               __LINE__);
@@ -35,13 +46,14 @@ TEST_CASE("SubjectDebugRegistry: register subject and look it up by pointer",
     REQUIRE(info->file == __FILE__);
 }
 
-TEST_CASE("SubjectDebugRegistry: lookup non-existent subject returns nullptr",
-          "[subject_debug][registry][basic]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "SubjectDebugRegistry: lookup non-existent subject returns nullptr",
+                 "[subject_debug][registry][basic]") {
     SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
     registry.clear();
 
     // Create a dummy subject pointer that was never registered
-    lv_subject_t unregistered_subject = {};
+    helix::Subject unregistered_subject = {};
 
     const SubjectDebugInfo* info = registry.lookup(&unregistered_subject);
     REQUIRE(info == nullptr);
@@ -96,15 +108,15 @@ TEST_CASE("SubjectDebugRegistry: type_name returns correct strings for each type
 // Multiple Subject Registration Tests
 // ============================================================================
 
-TEST_CASE("SubjectDebugRegistry: multiple subjects can be registered",
-          "[subject_debug][registry][multiple]") {
+TEST_CASE_METHOD(LVGLTestFixture, "SubjectDebugRegistry: multiple subjects can be registered",
+                 "[subject_debug][registry][multiple]") {
     SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
     registry.clear();
 
     // Create multiple dummy subjects
-    lv_subject_t subject1 = {};
-    lv_subject_t subject2 = {};
-    lv_subject_t subject3 = {};
+    helix::Subject subject1 = {};
+    helix::Subject subject2 = {};
+    helix::Subject subject3 = {};
 
     registry.register_subject(&subject1, "subject_int", LV_SUBJECT_TYPE_INT, "file1.cpp", 10);
     registry.register_subject(&subject2, "subject_string", LV_SUBJECT_TYPE_STRING, "file2.cpp", 20);
@@ -138,8 +150,8 @@ TEST_CASE("SubjectDebugRegistry: multiple subjects can be registered",
 // dump_all_subjects() Smoke Test
 // ============================================================================
 
-TEST_CASE("SubjectDebugRegistry: dump_all_subjects does not crash",
-          "[subject_debug][registry][dump]") {
+TEST_CASE_METHOD(LVGLTestFixture, "SubjectDebugRegistry: dump_all_subjects does not crash",
+                 "[subject_debug][registry][dump]") {
     SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
     registry.clear();
 
@@ -147,8 +159,8 @@ TEST_CASE("SubjectDebugRegistry: dump_all_subjects does not crash",
     REQUIRE_NOTHROW(registry.dump_all_subjects());
 
     // Add some subjects
-    lv_subject_t subject1 = {};
-    lv_subject_t subject2 = {};
+    helix::Subject subject1 = {};
+    helix::Subject subject2 = {};
 
     registry.register_subject(&subject1, "dump_test_1", LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
     registry.register_subject(&subject2, "dump_test_2", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
@@ -173,12 +185,12 @@ TEST_CASE("SubjectDebugRegistry: singleton returns same instance",
 // Edge Cases
 // ============================================================================
 
-TEST_CASE("SubjectDebugRegistry: re-registering same pointer updates info",
-          "[subject_debug][registry][edge]") {
+TEST_CASE_METHOD(LVGLTestFixture, "SubjectDebugRegistry: re-registering same pointer updates info",
+                 "[subject_debug][registry][edge]") {
     SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
     registry.clear();
 
-    lv_subject_t subject = {};
+    helix::Subject subject = {};
 
     // First registration
     registry.register_subject(&subject, "original_name", LV_SUBJECT_TYPE_INT, "original.cpp", 100);
@@ -204,4 +216,43 @@ TEST_CASE("SubjectDebugRegistry: lookup with nullptr returns nullptr",
 
     const SubjectDebugInfo* info = registry.lookup(nullptr);
     REQUIRE(info == nullptr);
+}
+
+// ============================================================================
+// Registration Macros
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "SubjectDebugRegistry: the subject macros record their subjects",
+                 "[subject_debug][registry][macros]") {
+    SubjectDebugRegistry& registry = SubjectDebugRegistry::instance();
+    registry.clear();
+
+    SECTION("UI_MANAGED_SUBJECT_INT") {
+        helix::Subject subject{};
+        SubjectManager manager;
+        UI_MANAGED_SUBJECT_INT(subject, 7, "registry_probe_managed_int", manager);
+
+        REQUIRE(registry.lookup_by_name("registry_probe_managed_int") == &subject);
+        const SubjectDebugInfo* info = registry.lookup(&subject);
+        REQUIRE(info != nullptr);
+        REQUIRE(info->type == LV_SUBJECT_TYPE_INT);
+        REQUIRE(info->file == __FILE__);
+        manager.deinit_all();
+    }
+
+    SECTION("UI_SUBJECT_INIT_AND_REGISTER_STRING") {
+        helix::Subject subject{};
+        char buf[16];
+        SubjectManager manager;
+        UI_SUBJECT_INIT_AND_REGISTER_STRING(subject, buf, "x", "registry_probe_string");
+        manager.register_subject(&subject, "registry_probe_string");
+
+        REQUIRE(registry.lookup_by_name("registry_probe_string") == &subject);
+        const SubjectDebugInfo* info = registry.lookup(&subject);
+        REQUIRE(info != nullptr);
+        REQUIRE(info->type == LV_SUBJECT_TYPE_STRING);
+        manager.deinit_all();
+    }
+
+    registry.clear();
 }

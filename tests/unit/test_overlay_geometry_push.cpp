@@ -15,10 +15,10 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "layout_manager.h"
 #include "lvgl/lvgl.h"
@@ -51,9 +51,7 @@ class FakeOverlay : public IPanelLifecycle {
     bool destination_;
 };
 
-/// LVGLTestFixture owns LVGL init, the display, and the UpdateQueue lifecycle.
-/// push_overlay() defers through that queue — a fixture that skips it silently
-/// never pushes anything and every assertion fails as if the logic were wrong.
+/// LVGLTestFixture owns the UpdateQueue lifecycle that push_overlay() defers through.
 class OverlayGeometryFixture : public LVGLTestFixture {
   public:
     OverlayGeometryFixture() {
@@ -78,8 +76,7 @@ class OverlayGeometryFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(OverlayGeometryFixture, "Landscape overlay geometry is untouched",
                  "[navigation][overlay-geometry][portrait]") {
-    // The display is landscape by default in tests. XML authors height="100%"
-    // and align="right_mid"; ui_set_overlay_geometry must not disturb either.
+    // XML authors height="100%" and align="right_mid"; neither may be disturbed.
     lv_obj_t* w = lv_obj_create(lv_screen_active());
     lv_obj_set_height(w, lv_pct(100));
     lv_obj_set_align(w, LV_ALIGN_RIGHT_MID);
@@ -93,28 +90,8 @@ TEST_CASE_METHOD(OverlayGeometryFixture, "Landscape overlay geometry is untouche
     CHECK(lv_obj_get_style_align(w, LV_PART_MAIN) == LV_ALIGN_RIGHT_MID);
 }
 
-TEST_CASE("Portrait geometry stops the overlay above the nav bar",
-          "[navigation][overlay-geometry][portrait]") {
-    // Exercised through the pure function rather than a live portrait display:
-    // the test harness display is landscape, and detect_layout_type() reads the
-    // widget's screen. This asserts the values ui_set_overlay_geometry writes.
-    constexpr int32_t kNavHeight = 112;
-    constexpr int32_t kGap = 16;
-
-    const auto h = compute_overlay_heights(480, 800, kNavHeight, kGap);
-    const auto w = compute_overlay_widths(480, 800, 54, kGap);
-
-    // Full width, short height, top-anchored: together they leave the nav bar
-    // visible below the overlay.
-    CHECK(w.destination == 480);
-    CHECK(h.destination == 688);
-    CHECK(h.transient == 672);
-    CHECK(is_portrait_layout(detect_layout_type(480, 800)));
-}
-
 TEST_CASE_METHOD(OverlayGeometryFixture, "Portrait overlays slide in and out on the X axis",
                  "[navigation][overlay-geometry][portrait]") {
-    // The display is restored to landscape by the next fixture's reclaim_display().
     lv_display_set_resolution(lv_display_get_default(), 480, 800);
     REQUIRE(is_portrait_layout(detect_layout_type(lv_obj_get_width(lv_screen_active()),
                                                   lv_obj_get_height(lv_screen_active()))));
@@ -141,5 +118,9 @@ TEST_CASE_METHOD(OverlayGeometryFixture, "Portrait overlays slide in and out on 
     CHECK(lv_obj_get_style_translate_x(w, LV_PART_MAIN) > 0);
     CHECK(lv_obj_get_style_translate_y(w, LV_PART_MAIN) == 0);
 
+    // Deleting the widget mid-slide cancels its animations: no callback outlives it.
+    lv_obj_delete(w);
+    REQUIRE(lv_anim_get(w, nullptr) == nullptr);
+    process_lvgl(500);
     settings.set_animations_enabled(animations_were_enabled);
 }

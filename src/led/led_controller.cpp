@@ -2,11 +2,14 @@
 
 #include "led/led_controller.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "color_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "hardware_object_table.h"
 #include "helix/xml/scoped_subject_registry.h"
@@ -18,12 +21,10 @@
 #include "led/led_device_page.h"
 #include "led_wled_json.h"
 #include "moonraker_error.h"
-#include "observer_factory.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
+#include "rest_response.h"
 #include "status_dispatch.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -86,11 +87,11 @@ void LedController::init(IMoonrakerAPI* api, IMoonrakerClient* client) {
     // Initialize subjects for UI binding (idempotent).
     // led_controllable is registered globally so XML can bind it by name.
     if (!version_subject_initialized_) {
-        lv_subject_init_int(&led_config_version_, 0);
-        lv_subject_init_int(&led_controllable_, 0);
-        lv_subject_init_int(&led_has_devices_, 0);
-        lv_subject_init_int(&led_command_in_flight_, 0);
-        lv_subject_init_int(&led_state_version_, 0);
+        led_config_version_.init_int(0);
+        led_controllable_.init_int(0);
+        led_has_devices_.init_int(0);
+        led_command_in_flight_.init_int(0);
+        led_state_version_.init_int(0);
         helix::xml::register_subject_in_current_scope("led_controllable", &led_controllable_);
         helix::xml::register_subject_in_current_scope("led_has_devices", &led_has_devices_);
         helix::xml::register_subject_in_current_scope("led_command_in_flight",
@@ -195,6 +196,7 @@ void LedController::deinit() {
     // and shutdown — a rediscovery re-runs init() alone and must NOT re-arm it.
     startup_preference_applied_ = false;
     wled_discovery_pending_ = false;
+    lights_disabled_ = false;
 
     spdlog::info("[LedController] Deinitialized");
 }
@@ -611,7 +613,7 @@ bool require_api(const IMoonrakerAPI* api, const char* call, const std::string& 
 }
 
 /// The MoonrakerError adapter every backend hands the API.
-std::function<void(const MoonrakerError&)>
+helix::SharedCallback<void(const MoonrakerError&)>
 forward_error(const NativeBackend::ErrorCallback& on_error) {
     return [on_error](const MoonrakerError& err) {
         if (on_error) {
@@ -1109,7 +1111,7 @@ bool WledBackend::has_strip_state(const std::string& strip_id) const {
     return strip_states_.count(strip_id) > 0;
 }
 
-void WledBackend::poll_status(std::function<void()> on_complete) {
+void WledBackend::poll_status(helix::SharedCallback<void()> on_complete) {
     if (!api_) {
         spdlog::debug("[WledBackend] poll_status: no API available");
         if (on_complete)
@@ -1840,7 +1842,7 @@ void LedController::update_from_status(const nlohmann::json& status) {
     }
 }
 
-void LedController::refresh_wled_state(std::function<void()> on_done) {
+void LedController::refresh_wled_state(helix::SharedCallback<void()> on_done) {
     auto tok = lifetime_.token();
     wled_.poll_status([this, tok, on_done]() {
         tok.defer("LedController::wled_state", [this, on_done]() {
@@ -2075,16 +2077,21 @@ void LedController::apply_startup_preference(const std::vector<std::string>& tar
     set_power(targets, true, /*silent=*/true);
 }
 
+void LedController::set_lights_disabled(bool disabled) {
+    lights_disabled_ = disabled;
+    publish_controllable_state();
+}
+
 void LedController::publish_controllable_state() {
     if (!version_subject_initialized_) {
         return;
     }
-    int desired = chamber_light().empty() ? 0 : 1;
+    int desired = (lights_disabled_ || chamber_light().empty()) ? 0 : 1;
     if (lv_subject_get_int(&led_controllable_) != desired) {
         lv_subject_set_int(&led_controllable_, desired);
         spdlog::debug("[LedController] led_controllable={}", desired);
     }
-    const int any = all_devices().empty() ? 0 : 1;
+    const int any = (lights_disabled_ || all_devices().empty()) ? 0 : 1;
     if (lv_subject_get_int(&led_has_devices_) != any) {
         lv_subject_set_int(&led_has_devices_, any);
         spdlog::debug("[LedController] led_has_devices={}", any);

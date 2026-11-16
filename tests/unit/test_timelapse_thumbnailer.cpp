@@ -3,17 +3,44 @@
 
 #include "timelapse_thumbnailer.h"
 
+#include <set>
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::timelapse;
 
-TEST_CASE("Thumbnailer: companion filename", "[timelapse][thumbnailer]") {
-    SECTION("mp4 gets .thumb.jpg companion") {
-        REQUIRE(companion_filename("benchy.mp4") == "benchy.thumb.jpg");
+TEST_CASE("Thumbnailer: companion thumbnail lookup", "[timelapse][thumbnailer]") {
+    SECTION("moonraker-timelapse preview <name>.jpg is used") {
+        const std::set<std::string> listing = {"timelapse__20261111_0506.mp4",
+                                               "timelapse__20261111_0506.jpg"};
+        REQUIRE(find_companion_thumbnail("timelapse__20261111_0506.mp4", listing) ==
+                "timelapse__20261111_0506.jpg");
     }
 
-    SECTION("mkv gets .thumb.jpg companion") {
-        REQUIRE(companion_filename("print.mkv") == "print.thumb.jpg");
+    SECTION(".thumb.jpg companion is still found") {
+        const std::set<std::string> listing = {"benchy.mp4", "benchy.thumb.jpg"};
+        REQUIRE(find_companion_thumbnail("benchy.mp4", listing) == "benchy.thumb.jpg");
+    }
+
+    SECTION("the plugin preview wins when both exist") {
+        const std::set<std::string> listing = {"benchy.mp4", "benchy.jpg", "benchy.thumb.jpg"};
+        REQUIRE(find_companion_thumbnail("benchy.mp4", listing) == "benchy.jpg");
+    }
+
+    SECTION("no companion gives an empty name") {
+        const std::set<std::string> listing = {"benchy.mp4", "other.jpg"};
+        REQUIRE(find_companion_thumbnail("benchy.mp4", listing).empty());
+    }
+
+    SECTION("a dotted stem keeps every dot but the extension's") {
+        const std::set<std::string> listing = {"a.b.mp4", "a.jpg", "a.b.jpg"};
+        REQUIRE(find_companion_thumbnail("a.b.mp4", listing) == "a.b.jpg");
+    }
+
+    SECTION("a name without an extension") {
+        const std::set<std::string> listing = {"clip", "clip.jpg"};
+        REQUIRE(find_companion_thumbnail("clip", listing) == "clip.jpg");
     }
 }
 

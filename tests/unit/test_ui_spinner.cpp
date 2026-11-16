@@ -5,15 +5,14 @@
  * @file test_ui_spinner.cpp
  * @brief Unit tests for ui_spinner.cpp - Reactive spinner widget
  *
- * Tests cover:
- * - Spinner arc color matches shared style from theme_core
- * - Spinner arc color updates reactively when theme changes
- *
- * Phase 2.4: ui_spinner should use ThemeManager::instance().get_style(StyleRole::Spinner) instead
- * of inline styles. This enables automatic theme reactivity via LVGL's style system.
+ * A spinner's arc reads the shared StyleRole::Spinner style rather than an
+ * inline colour, so a theme change recolours every spinner in place.
  */
 
+#include "ui_spinner.h"
+
 #include "../lvgl_ui_test_fixture.h"
+#include "lvgl_assert_handler.h"
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -40,158 +39,156 @@ static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
     return p;
 }
 
-// ============================================================================
-// Reactive Spinner Tests - Phase 2.4
-// ============================================================================
-// These tests verify that spinner widgets update their arc color when the theme
-// changes. The implementation uses shared styles from ThemeManager which
-// update in-place when the theme mode changes.
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color matches shared spinner style",
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: every spinner recolours with the shared style",
                  "[reactive-spinner][reactive]") {
-    // Create spinner widget via XML
-    const char* attrs[] = {"size", "md", nullptr};
-    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
-    REQUIRE(spinner != nullptr);
-
-    // Get the spinner's arc color (indicator part)
-    lv_color_t spinner_color = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    // Get expected color from the shared spinner style
-    lv_style_t* spinner_style = ThemeManager::instance().get_style(StyleRole::Spinner);
-    REQUIRE(spinner_style != nullptr);
-    lv_style_value_t value;
-    lv_style_res_t res = lv_style_get_prop(spinner_style, LV_STYLE_ARC_COLOR, &value);
-    REQUIRE(res == LV_STYLE_RES_FOUND);
-
-    // Spinner should have the same color as the shared style
-    REQUIRE(lv_color_eq(spinner_color, value.color));
-
-    lv_obj_delete(spinner);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color updates on theme change",
-                 "[reactive-spinner][reactive]") {
-    // Create spinner widget via XML
-    const char* attrs[] = {"size", "lg", nullptr};
-    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
-    REQUIRE(spinner != nullptr);
-
-    // Get initial arc color
-    lv_color_t before = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    uint32_t before_rgb = lv_color_to_u32(before) & 0x00FFFFFF;
-    INFO("Initial spinner arc color: 0x" << std::hex << before_rgb);
-
-    // Update theme colors to dark mode with DIFFERENT primary color (orange)
-    // Primary color is what drives spinner arc color
-    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
-    auto& tm = ThemeManager::instance();
-    tm.set_palettes(palette, palette);
-    tm.set_dark_mode(true);
-
-    // Force LVGL style refresh cascade
-    lv_obj_report_style_change(nullptr);
-
-    // Get updated arc color
-    lv_color_t after = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
-
-    uint32_t after_rgb = lv_color_to_u32(after) & 0x00FFFFFF;
-    INFO("After theme change spinner arc color: 0x" << std::hex << after_rgb);
-
-    // Spinner arc color should change (primary color changed)
-    // This will FAIL with inline style implementation, PASS with shared style
-    REQUIRE_FALSE(lv_color_eq(before, after));
-
-    lv_obj_delete(spinner);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: style matches shared style after theme change",
-                 "[reactive-spinner][reactive]") {
-    // Create spinner widget via XML
-    const char* attrs[] = {"size", "sm", nullptr};
-    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
-    REQUIRE(spinner != nullptr);
-
-    // Get the shared spinner style
+    const char* attrs_sm[] = {"size", "sm", nullptr};
+    const char* attrs_lg[] = {"size", "lg", nullptr};
+    lv_obj_t* small = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs_sm));
+    lv_obj_t* large = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs_lg));
+    REQUIRE(small != nullptr);
+    REQUIRE(large != nullptr);
     lv_style_t* shared_style = ThemeManager::instance().get_style(StyleRole::Spinner);
     REQUIRE(shared_style != nullptr);
+    const lv_color_t before = lv_obj_get_style_arc_color(small, LV_PART_INDICATOR);
 
-    // Update to dark mode with different primary color (purple)
     ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0x9C27B0));
     auto& tm = ThemeManager::instance();
     tm.set_palettes(palette, palette);
     tm.set_dark_mode(true);
-
     lv_obj_report_style_change(nullptr);
 
-    // Get the updated color from the shared style
     lv_style_value_t style_value;
-    lv_style_res_t res = lv_style_get_prop(shared_style, LV_STYLE_ARC_COLOR, &style_value);
-    REQUIRE(res == LV_STYLE_RES_FOUND);
+    REQUIRE(lv_style_get_prop(shared_style, LV_STYLE_ARC_COLOR, &style_value) ==
+            LV_STYLE_RES_FOUND);
+    for (lv_obj_t* spinner : {small, large}) {
+        CHECK(
+            lv_color_eq(lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR), style_value.color));
+    }
+    CHECK_FALSE(lv_color_eq(before, style_value.color));
 
-    // Get the actual color from the spinner widget
-    lv_color_t spinner_color = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
+    lv_obj_delete(small);
+    lv_obj_delete(large);
+}
 
-    // Log for debugging
-    uint32_t style_rgb = lv_color_to_u32(style_value.color) & 0x00FFFFFF;
-    uint32_t spinner_rgb = lv_color_to_u32(spinner_color) & 0x00FFFFFF;
-    INFO("Shared style arc_color: 0x" << std::hex << style_rgb);
-    INFO("Spinner actual arc_color: 0x" << std::hex << spinner_rgb);
+// ============================================================================
+// Hidden spinners stop animating
+// ============================================================================
 
-    // The spinner should have the same color as the shared style after update
-    // This verifies the spinner is actually using the shared style
-    REQUIRE(lv_color_eq(spinner_color, style_value.color));
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_spinner: a hidden spinner stops animating and resumes when shown",
+                 "[ui_spinner]") {
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_set_size(box, 200, 200);
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(box, "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    // The fixture pauses LVGL's refresh timer, so each draw is explicit.
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_set_hidden(box, true);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
+
+    lv_obj_set_hidden(box, false);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
+
+    lv_obj_delete(box);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: animated=false never starts animating when drawn",
+                 "[ui_spinner]") {
+    const char* attrs[] = {"size", "md", "animated", "false", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
+    REQUIRE(spinner != nullptr);
+
+    lv_refr_now(nullptr);
+    process_lvgl(100);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
 
     lv_obj_delete(spinner);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: multiple spinners update together on theme change",
-                 "[reactive-spinner][reactive]") {
-    // Create multiple spinners with different sizes
-    const char* attrs_sm[] = {"size", "sm", nullptr};
-    const char* attrs_md[] = {"size", "md", nullptr};
-    const char* attrs_lg[] = {"size", "lg", nullptr};
+TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: a frozen spinner stays still until unfrozen",
+                 "[ui_spinner]") {
+    struct FreezeGuard {
+        ~FreezeGuard() {
+            helix::ui::spinner_set_frozen(false);
+        }
+    } freeze_guard;
 
-    lv_obj_t* spinner1 = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs_sm));
-    lv_obj_t* spinner2 = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs_md));
-    lv_obj_t* spinner3 = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs_lg));
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spinner", attrs));
+    REQUIRE(spinner != nullptr);
 
-    REQUIRE(spinner1 != nullptr);
-    REQUIRE(spinner2 != nullptr);
-    REQUIRE(spinner3 != nullptr);
+    // What a remote-control freeze does: every animation gone, spinners held still.
+    helix::ui::spinner_set_frozen(true);
+    lv_anim_delete_all();
+    lv_obj_invalidate(spinner);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) == nullptr);
 
-    // Get initial colors - all should be the same (same primary color)
-    lv_color_t before1 = lv_obj_get_style_arc_color(spinner1, LV_PART_INDICATOR);
-    lv_color_t before2 = lv_obj_get_style_arc_color(spinner2, LV_PART_INDICATOR);
-    lv_color_t before3 = lv_obj_get_style_arc_color(spinner3, LV_PART_INDICATOR);
+    helix::ui::spinner_set_frozen(false);
+    lv_obj_invalidate(spinner);
+    lv_refr_now(nullptr);
+    CHECK(lv_anim_get(spinner, nullptr) != nullptr);
 
-    // All spinners should have the same initial color
-    REQUIRE(lv_color_eq(before1, before2));
-    REQUIRE(lv_color_eq(before2, before3));
+    lv_obj_delete(spinner);
+}
 
-    // Update to dark mode with different primary color (cyan)
-    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0x00BCD4));
-    auto& tm = ThemeManager::instance();
-    tm.set_palettes(palette, palette);
-    tm.set_dark_mode(true);
+namespace {
+int g_lvgl_asserts = 0;
 
-    lv_obj_report_style_change(nullptr);
+void count_lvgl_assert(const char* /*file*/, int /*line*/, const char* /*func*/) {
+    ++g_lvgl_asserts;
+}
+} // namespace
 
-    // Get colors after theme change
-    lv_color_t after1 = lv_obj_get_style_arc_color(spinner1, LV_PART_INDICATOR);
-    lv_color_t after2 = lv_obj_get_style_arc_color(spinner2, LV_PART_INDICATOR);
-    lv_color_t after3 = lv_obj_get_style_arc_color(spinner3, LV_PART_INDICATOR);
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_spinner: a parked spinner restarts on its draw without moving mid-render",
+                 "[ui_spinner]") {
+    // The restart runs inside the draw, where changing an angle invalidates the arc
+    // during rendering. The arc keeps the angles it parked on until the next tick.
+    struct AssertHook {
+        helix_assert_callback_t prev = g_helix_assert_cpp_callback;
+        AssertHook() {
+            g_lvgl_asserts = 0;
+            g_helix_assert_cpp_callback = count_lvgl_assert;
+        }
+        ~AssertHook() {
+            g_helix_assert_cpp_callback = prev;
+        }
+    } hook;
 
-    // All spinners should still have the same color (consistency)
-    REQUIRE(lv_color_eq(after1, after2));
-    REQUIRE(lv_color_eq(after2, after3));
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_set_size(box, 200, 200);
+    const char* attrs[] = {"size", "md", nullptr};
+    lv_obj_t* spinner = static_cast<lv_obj_t*>(lv_xml_create(box, "spinner", attrs));
+    REQUIRE(spinner != nullptr);
 
-    // And the color should have changed from before (reactivity)
-    REQUIRE_FALSE(lv_color_eq(before1, after1));
+    lv_refr_now(nullptr);
+    process_lvgl(600); // mid-cycle: both edges have left their first-frame angles
+    lv_obj_set_hidden(box, true);
+    process_lvgl(50);
+    REQUIRE(lv_anim_get(spinner, nullptr) == nullptr);
 
-    lv_obj_delete(spinner1);
-    lv_obj_delete(spinner2);
-    lv_obj_delete(spinner3);
+    const lv_value_precise_t parked_start = lv_arc_get_angle_start(spinner);
+    const lv_value_precise_t parked_end = lv_arc_get_angle_end(spinner);
+    // The first frame starts the trailing edge at 0 and the leading edge at 45.
+    REQUIRE(parked_start != 0);
+    REQUIRE(parked_end != 45);
+
+    lv_obj_set_hidden(box, false);
+    lv_refr_now(nullptr);
+    REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
+    CHECK(lv_arc_get_angle_start(spinner) == parked_start);
+    CHECK(lv_arc_get_angle_end(spinner) == parked_end);
+    CHECK(g_lvgl_asserts == 0);
+
+    lv_obj_delete(box);
 }

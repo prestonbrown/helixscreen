@@ -24,10 +24,10 @@
 
 #pragma once
 
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -46,6 +46,9 @@ class PrintingSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_printing_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void register_callbacks() override;

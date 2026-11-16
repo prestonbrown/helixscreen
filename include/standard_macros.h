@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "bed_mesh_probe_temp.h"
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "subject_managed_panel.h" // SubjectManager
 
 #include <functional>
@@ -206,6 +206,11 @@ struct MacroScriptValues {
 
     /// Replaces `{bed_temp}`, in whole degrees C: the bed temperature to probe at.
     int bed_temp_c = bed_mesh::kDefaultProbeBedTempC;
+
+    /// Replaces `{screws_tilt_builtin}`: Klipper's SCREWS_TILT_CALCULATE under the
+    /// name a wrapper renamed it to. Empty when nothing wraps it, and then a shipped
+    /// sequence naming the placeholder gives way to the next tier.
+    std::string screws_tilt_builtin;
 };
 
 /// A slot resolved into something runnable.
@@ -535,5 +540,5 @@ class StandardMacros {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t macros_version_{};
+    helix::Subject macros_version_{};
 };

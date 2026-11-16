@@ -2,14 +2,13 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "plugin_menu_kind.h"
 
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /// The app menus' only view of plugin menu items. An app menu asks whether any plugin
 /// declares items for it, resolves them against a plain JSON context when it opens, and

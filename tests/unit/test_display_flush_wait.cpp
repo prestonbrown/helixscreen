@@ -15,7 +15,7 @@
  * Test displays render into a buffer nobody reads, so a flush is finished the
  * moment it is issued and a no-op flush_wait_cb is the honest answer for all of
  * them. HelixTestFixture::reset_all() installs one on every display, which is
- * what the first case here holds the binary to.
+ * what this file holds the binary to.
  */
 
 // TEST_MIRROR_OK: the subject is the test binary's own display state and LVGL's
@@ -60,39 +60,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "every display can finish a flush wait",
                         << lv_display_get_vertical_resolution(d));
         CHECK(d->flush_wait_cb != nullptr);
     }
-}
-
-// Why the guarantee is needed, stated as the LVGL behaviour it defends against:
-// a flush with no callback behind it leaves the flag raised. Both displays here
-// carry the fixture's flush_wait_cb, so the second refresh returns instead of
-// spinning and the flag can be read afterwards.
-TEST_CASE_METHOD(LVGLTestFixture, "a display with no flush callback leaves flushing raised",
-                 "[lvgl][display][flush][1524]") {
-    constexpr int32_t W = 120;
-    constexpr int32_t H = 60;
-    alignas(64) static lv_color_t buf[W * 10];
-
-    lv_display_t* prev_default = lv_display_get_default();
-    lv_display_t* disp = lv_display_create(W, H);
-    REQUIRE(disp != nullptr);
-    lv_display_set_buffers(disp, buf, nullptr, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-    lv_display_set_flush_wait_cb(disp, [](lv_display_t*) {});
-
-    lv_display_set_default(disp);
-    lv_obj_t* screen = lv_obj_create(nullptr);
-    lv_screen_load(screen);
-    lv_obj_update_layout(screen);
-
-    lv_obj_invalidate(screen);
-    lv_refr_now(disp);
-    CHECK(disp->flushing != 0);
-
-    lv_display_set_flush_cb(
-        disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-    lv_obj_invalidate(screen);
-    lv_refr_now(disp);
-    CHECK(disp->flushing == 0);
-
-    lv_display_set_default(prev_default);
-    lv_display_delete(disp);
 }

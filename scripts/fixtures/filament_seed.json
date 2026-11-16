@@ -1144,5 +1144,29 @@
     "nozzle_max": 280,
     "density": 1.07,
     "source": "vendor-spec"
+  },
+  {
+    "id": "esun-abs-plus",
+    "brand": "eSUN",
+    "name": "ABS+",
+    "type": "ABS+",
+    "nozzle": 240,
+    "bed": 100,
+    "nozzle_min": 230,
+    "nozzle_max": 270,
+    "density": 1.04,
+    "source": "vendor-spec"
+  },
+  {
+    "id": "esun-abs-plus-hs",
+    "brand": "eSUN",
+    "name": "ABS+HS",
+    "type": "ABS+",
+    "nozzle": 240,
+    "bed": 100,
+    "nozzle_min": 230,
+    "nozzle_max": 270,
+    "density": 1.04,
+    "source": "vendor-spec"
   }
 ]

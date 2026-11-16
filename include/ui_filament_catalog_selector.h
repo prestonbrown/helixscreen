@@ -5,6 +5,7 @@
 
 #include "filament_catalog.h"
 #include "lvgl.h"
+#include "widget_data_registry.h"
 
 #include <functional>
 #include <map>
@@ -119,8 +120,8 @@ class FilamentCatalogSelector {
     /// string never matches a catalog or Spoolman brand.
     [[nodiscard]] static bool is_favorites_vendor(const std::string& vendor);
     [[nodiscard]] std::string current_vendor() const;
-    /// Selected Type-dropdown text. Since grouping, this is a material FAMILY
-    /// heading ("PLA"), not necessarily a catalog type — a family collapses
+    /// Selected Type-dropdown text: a material FAMILY heading ("PLA"), not
+    /// necessarily a catalog type: a family collapses
     /// PLA / PLA-CF / PLA-GF / PLA-AERO / SILK under one entry. Hosts that need
     /// the material a user actually picked must read highlighted()->type; this
     /// is only a last-resort fallback for a heading with no products behind it
@@ -206,7 +207,7 @@ class FilamentCatalogSelector {
     lv_obj_t* find_child(const char* name) const;
 
     static FilamentCatalogSelector* from_event(lv_event_t* e);
-    static std::map<lv_obj_t*, FilamentCatalogSelector*>& registry();
+    static WidgetDataRegistry<FilamentCatalogSelector>& registry();
     static bool callbacks_registered_;
 
     // Declarative row event callbacks (registered in register_callbacks(),

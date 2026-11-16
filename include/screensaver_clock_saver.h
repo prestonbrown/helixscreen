@@ -13,37 +13,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace helix::ui {
-
-/**
- * @brief Where a clock saver reads the time and the print each frame
- *
- * Unset reads saver_clock_now(), the time of day with no print. The manager reaches it through
- * Screensaver::clock_input_sink() and points it at the app's print.
- */
-class ClockInputSink {
-  public:
-    using InputSource = std::function<ClockInput()>;
-
-    virtual ~ClockInputSink() = default;
-
-    void set_input_source(InputSource source) {
-        source_ = std::move(source);
-    }
-
-  protected:
-    ClockInput read_input() const {
-        return source_ ? source_() : saver_clock_now();
-    }
-
-  private:
-    InputSource source_;
-};
 
 /**
  * @brief A SimSaver whose sim draws a clock: the time, the print, and text over the scene
@@ -55,13 +29,8 @@ class ClockInputSink {
  * holding those boxes (empty at start). reset_clock_text() forgets the saver's labels, after
  * the sim is initialized at start and once it is cleared at stop.
  */
-template <typename Sim, typename State = ClockState>
-class ClockSaver : public SimSaver<Sim>, public ClockInputSink {
+template <typename Sim, typename State = ClockState> class ClockSaver : public SimSaver<Sim> {
   public:
-    ClockInputSink* clock_input_sink() override {
-        return this;
-    }
-
     const State& clock() const {
         return clock_;
     }
@@ -78,7 +47,7 @@ class ClockSaver : public SimSaver<Sim>, public ClockInputSink {
 
     bool on_start() override {
         clock_.reset();
-        clock_.step(0, read_input());
+        clock_.step(0, this->read_input());
         this->start_sim(clock_face());
         under_.clear();
         under_.reserve(kSaverMaxDirtyAreas);
@@ -90,7 +59,7 @@ class ClockSaver : public SimSaver<Sim>, public ClockInputSink {
     }
 
     void on_frame(uint32_t dt_ms, std::vector<DirtyRect>& dirty) override {
-        clock_.step(dt_ms, read_input());
+        clock_.step(dt_ms, this->read_input());
         this->step_sim(dt_ms, dirty, clock_face());
         under_.assign(dirty.begin(), dirty.end());
         draw_clock_text(under_, dirty);

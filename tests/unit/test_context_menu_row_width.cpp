@@ -64,12 +64,12 @@ class EmptyFilamentColumnMenu : public BareContextMenu {
 
   protected:
     void on_created(lv_obj_t* menu) override {
-        // btn_preload is bound to ams_slot_preload, which AmsState keeps across tests, so it
-        // is hidden here rather than left to that subject's current value.
+        // btn_preload and btn_clear_error are bound to subjects that outlive a test, so
+        // they are hidden here rather than left to those subjects' current values.
         for (const char* name : {"btn_load", "btn_unload", "btn_purge", "btn_gate_check",
-                                 "btn_preload", "btn_mount", "btn_park"}) {
+                                 "btn_preload", "btn_clear_error", "btn_mount", "btn_park"}) {
             if (lv_obj_t* btn = lv_obj_find_by_name(menu, name))
-                lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(btn, true);
         }
     }
 };
@@ -80,8 +80,7 @@ struct Row {
 };
 
 bool is_tappable(lv_obj_t* row) {
-    return row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) &&
-           lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE) && lv_obj_get_height(row) >= 8;
+    return row && !lv_obj_is_hidden(row) && lv_obj_is_clickable(row) && lv_obj_get_height(row) >= 8;
 }
 
 void collect_from(lv_obj_t* container, std::vector<Row>& out) {
@@ -102,7 +101,7 @@ std::vector<Row> tappable_rows(lv_obj_t* card) {
     if (lv_obj_t* columns = lv_obj_find_by_name(card, "menu_columns")) {
         for (uint32_t i = 0; i < lv_obj_get_child_count(columns); i++) {
             lv_obj_t* col = lv_obj_get_child(columns, i);
-            if (col && !lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN))
+            if (col && !lv_obj_is_hidden(col))
                 collect_from(col, rows);
         }
     }
@@ -165,6 +164,58 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: every tappable row spans its own
     process_lvgl(50);
 }
 
+// Stacked one above the other, the groups share one width: a row in the narrower
+// group ("Load") must still reach the card's far edge, or a tap on its right end
+// lands in dead space beside it.
+TEST_CASE_METHOD(XMLTestFixture, "context menu: stacked groups' rows span the whole card",
+                 "[ui][context_menu]") {
+    REQUIRE(register_component("ams_context_menu"));
+    AmsState::instance().init_subjects(true);
+    helix::ui::AmsContextMenu::init_subjects();
+
+    ScopedResolution tall(lv_display_get_default(), 800, 1280);
+
+    // Show Preload and Clear Error as well, so the narrower group holds four rows
+    // whatever the other lane rows' defaults are.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 2);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 2);
+
+    BareContextMenu menu;
+    lv_obj_t* card = show_and_get_card(menu, test_screen());
+
+    lv_obj_t* columns = lv_obj_find_by_name(card, "menu_columns");
+    REQUIRE(columns != nullptr);
+    REQUIRE(lv_obj_get_style_flex_flow(columns, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
+
+    lv_area_t columns_area;
+    lv_obj_get_coords(columns, &columns_area);
+
+    int checked = 0;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(columns); i++) {
+        lv_obj_t* col = lv_obj_get_child(columns, i);
+        if (!col || lv_obj_is_hidden(col))
+            continue;
+        for (uint32_t r = 0; r < lv_obj_get_child_count(col); r++) {
+            lv_obj_t* row = lv_obj_get_child(col, r);
+            if (!is_tappable(row))
+                continue;
+            lv_area_t row_area;
+            lv_obj_get_coords(row, &row_area);
+            INFO("column " << i << " row " << r << ": x " << row_area.x1 << ".." << row_area.x2
+                           << ", groups x " << columns_area.x1 << ".." << columns_area.x2);
+            CHECK(row_area.x1 == columns_area.x1);
+            CHECK(row_area.x2 == columns_area.x2);
+            checked++;
+        }
+    }
+    CHECK(checked >= 4);
+
+    menu.hide();
+    process_lvgl(50);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_preload"), 0);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ams_slot_clear_error"), 0);
+}
+
 // The whole point of the reflow: whatever the layout ends up being, the card has to
 // sit inside the screen with a margin, or be scrollable if even the wide layout
 // cannot fit. A card that overflows is one whose top rows cannot be reached at all.
@@ -181,7 +232,7 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: card fits the screen height budg
     const int32_t budget = kTestDisplayHeight - (margin * 2);
 
     INFO("card h=" << lv_obj_get_height(card) << " budget=" << budget);
-    CHECK((lv_obj_get_height(card) <= budget || lv_obj_has_flag(card, LV_OBJ_FLAG_SCROLLABLE)));
+    CHECK((lv_obj_get_height(card) <= budget || lv_obj_is_scrollable(card)));
 
     menu.hide();
     process_lvgl(50);
@@ -233,15 +284,15 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: a column with no visible action 
     REQUIRE(col_filament != nullptr);
     REQUIRE(col_spool != nullptr);
 
-    CHECK(lv_obj_has_flag(col_filament, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(col_spool, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(col_filament));
+    CHECK_FALSE(lv_obj_is_hidden(col_spool));
 
     // The survivor is the only group left, so its heading is redundant with the card
     // header directly above it — the external-spool menu read "External Spool" and
     // then "Spool Info" one line down.
     lv_obj_t* heading = lv_obj_find_by_name(col_spool, "col_heading");
     REQUIRE(heading != nullptr);
-    CHECK(lv_obj_has_flag(heading, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(heading));
 
     menu.hide();
     process_lvgl(50);
@@ -261,12 +312,12 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: both headings show when both col
     for (const char* col_name : {"col_filament", "col_spool"}) {
         lv_obj_t* col = lv_obj_find_by_name(card, col_name);
         REQUIRE(col != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(col));
 
         INFO("heading of " << col_name);
         lv_obj_t* heading = lv_obj_find_by_name(col, "col_heading");
         REQUIRE(heading != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(heading, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(heading));
     }
 
     menu.hide();

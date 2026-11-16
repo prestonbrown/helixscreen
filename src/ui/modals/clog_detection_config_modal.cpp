@@ -5,6 +5,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "moonraker_error.h"
 #include "panel_widget_config.h"
@@ -51,26 +52,29 @@ void ClogDetectionConfigModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&mode_subject_, 2); // default auto
+    mode_subject_.init_int(2); // default auto
 
-    lv_subject_init_string(&threshold_text_subject_, threshold_text_buf_, nullptr,
-                           sizeof(threshold_text_buf_), lv_tr("Default"));
+    threshold_text_subject_.init_string(threshold_text_buf_, nullptr, sizeof(threshold_text_buf_),
+                                        lv_tr("Default"));
 
-    lv_subject_init_string(&det_length_text_subject_, det_length_text_buf_, nullptr,
-                           sizeof(det_length_text_buf_), "---");
+    det_length_text_subject_.init_string(det_length_text_buf_, nullptr,
+                                         sizeof(det_length_text_buf_), "---");
 
     // Default 0 (hidden): on_show() raises it only once the active backend is
     // known to take the detection-mode gcode. Failing closed keeps the controls
     // out of the way when there is no backend at all.
-    lv_subject_init_int(&mode_supported_subject_, 0);
+    mode_supported_subject_.init_int(0);
 
     // Per-button boolean subjects for bind_style selected/unselected
-    lv_subject_init_int(&src_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&src_encoder_active_, 0);
-    lv_subject_init_int(&src_flowguard_active_, 0);
-    lv_subject_init_int(&src_afc_active_, 0);
-    lv_subject_init_int(&mode_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&mode_manual_active_, 0);
+    src_auto_active_.init_int(1); // auto selected by default
+    src_encoder_active_.init_int(0);
+    src_flowguard_active_.init_int(0);
+    src_afc_active_.init_int(0);
+    mode_auto_active_.init_int(1); // auto selected by default
+    mode_manual_active_.init_int(0);
+    src_encoder_available_.init_int(0);
+    src_flowguard_available_.init_int(0);
+    src_afc_available_.init_int(0);
 
     // Register globally so XML bindings find them
     subjects_.publish("clog_cfg_mode", &mode_subject_);
@@ -83,6 +87,9 @@ void ClogDetectionConfigModal::init_subjects() {
     subjects_.publish("clog_src_afc_active", &src_afc_active_);
     subjects_.publish("clog_mode_auto_active", &mode_auto_active_);
     subjects_.publish("clog_mode_manual_active", &mode_manual_active_);
+    subjects_.publish("clog_src_encoder_available", &src_encoder_available_);
+    subjects_.publish("clog_src_flowguard_available", &src_flowguard_available_);
+    subjects_.publish("clog_src_afc_available", &src_afc_available_);
 
     subjects_initialized_ = true;
 }
@@ -140,8 +147,10 @@ void ClogDetectionConfigModal::on_show() {
         detection_length_ = 30.0f;
     original_detection_length_ = detection_length_;
 
-    // Hide source buttons that aren't available
-    update_source_visibility();
+    // A source the backend lacks hides its button
+    lv_subject_set_int(&src_encoder_available_, has_encoder_ ? 1 : 0);
+    lv_subject_set_int(&src_flowguard_available_, has_flowguard_ ? 1 : 0);
+    lv_subject_set_int(&src_afc_available_, has_afc_ ? 1 : 0);
 
     // If current source override points to an unavailable source, reset to auto
     if ((source_ == 1 && !has_encoder_) || (source_ == 2 && !has_flowguard_) ||
@@ -210,44 +219,17 @@ void ClogDetectionConfigModal::sync_mode_subjects() {
     lv_subject_set_int(&mode_manual_active_, detection_mode_ == 1 ? 1 : 0);
 }
 
-void ClogDetectionConfigModal::update_source_visibility() {
-    if (!dialog())
-        return;
-    auto* btn_enc = helix::ui::find_required(dialog(), "btn_source_encoder", get_name());
-    auto* btn_fg = helix::ui::find_required(dialog(), "btn_source_flowguard", get_name());
-    auto* btn_afc = helix::ui::find_required(dialog(), "btn_source_afc", get_name());
-
-    if (btn_enc) {
-        if (has_encoder_)
-            lv_obj_remove_flag(btn_enc, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_enc, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (btn_fg) {
-        if (has_flowguard_)
-            lv_obj_remove_flag(btn_fg, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_fg, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (btn_afc) {
-        if (has_afc_)
-            lv_obj_remove_flag(btn_afc, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_afc, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
 void ClogDetectionConfigModal::sync_threshold_text() {
     if (danger_threshold_ == 0)
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%s", lv_tr("Default"));
     else
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%d%%", danger_threshold_);
-    lv_subject_copy_string(&threshold_text_subject_, threshold_text_buf_);
+    lv_subject_set_string(&threshold_text_subject_, threshold_text_buf_);
 }
 
 void ClogDetectionConfigModal::sync_det_length_text() {
     snprintf(det_length_text_buf_, sizeof(det_length_text_buf_), "%.0fmm", detection_length_);
-    lv_subject_copy_string(&det_length_text_subject_, det_length_text_buf_);
+    lv_subject_set_string(&det_length_text_subject_, det_length_text_buf_);
 }
 
 std::optional<std::string>

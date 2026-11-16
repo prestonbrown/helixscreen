@@ -13,7 +13,7 @@
 #
 # Which driver LVGL compiles is a config macro, so the EGL one is a second
 # compile of the few translation units that read it: LVGL's DRM and OpenGL ES
-# drivers and src/api/display_backend_drm.cpp. Nothing else under src/,
+# drivers and src/platform/display/display_backend_drm.cpp. Nothing else under src/,
 # include/ or LVGL's core references LV_USE_OPENGLES, LV_LINUX_DRM_USE_EGL or
 # LV_USE_EGL, so the rest of the binary is shared.
 #
@@ -27,9 +27,9 @@
 EGL_VARIANT_DIR := $(BUILD_DIR)/egl-variant
 EGL_LVGL_VARIANT_DIR := $(EGL_VARIANT_DIR)/lvgl
 
-# HELIX_ENABLE_OPENGLES is the only knob. lv_conf.h maps it to LV_USE_OPENGLES,
-# and lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL and then LV_USE_EGL from
-# that — so setting either of those directly does nothing.
+# HELIX_ENABLE_OPENGLES is the only knob. lv_conf.h maps it to LV_USE_OPENGLES
+# and LV_LINUX_DRM_BACKEND_EGL, and lv_conf_internal.h derives LV_LINUX_DRM_USE_EGL
+# and then LV_USE_EGL from those.
 EGL_DEFINE := -DHELIX_ENABLE_OPENGLES
 
 # Every public function both DRM drivers define. A fifth one makes the link
@@ -92,7 +92,7 @@ $(EGL_LVGL_SHADER_OBJ): $(EGL_LVGL_SHADER_SRC) lv_conf.h $(PATCHES_STAMP) $(ABI_
 
 EGL_APP_VARIANT_OBJS := $(EGL_VARIANT_DIR)/display_backend_drm.o
 
-$(EGL_VARIANT_DIR)/display_backend_drm.o: src/api/display_backend_drm.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(EGL_VARIANT_DIR) $(PATCH_MARKER_STAMP)
+$(EGL_VARIANT_DIR)/display_backend_drm.o: src/platform/display/display_backend_drm.cpp $(LIBHV_LIB) $(PATCHES_STAMP) $(ABI_STAMP) | $(EGL_VARIANT_DIR) $(PATCH_MARKER_STAMP)
 	$(ECHO) "$(CYAN)[CXX/egl]$(RESET) $<"
 	$(Q)$(CXX) $(EGL_APP_CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
@@ -135,5 +135,5 @@ verify-egl: $(TARGET)
 	fi
 	@echo "$(GREEN)✓ $(TARGET) carries the EGL presentation path$(RESET)"
 
--include $(wildcard $(EGL_VARIANT_DIR)/*.d)
--include $(shell find $(EGL_LVGL_VARIANT_DIR) -name '*.d' 2>/dev/null)
+-include $(call depfiles,$(EGL_VARIANT_DIR)/*.d)
+-include $(if $(READ_DEPFILES),$(shell find $(EGL_LVGL_VARIANT_DIR) -name '*.d' 2>/dev/null))

@@ -15,6 +15,8 @@
 #include "gcode_parser.h"
 
 #include <fstream>
+#include <set>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -413,30 +415,36 @@ TEST_CASE("MultiColor - Benchbin MMU3 real file", "[gcode][multicolor][integrati
 
     auto result = parser.finalize();
 
-    SECTION("4-color PrusaSlicer MMU palette") {
-        REQUIRE(result.tool_color_palette.size() == 4);
-        REQUIRE(result.tool_color_palette[0] == "#E7BD00"); // Yellow
-        REQUIRE(result.tool_color_palette[1] == "#00C502"); // Green
-        REQUIRE(result.tool_color_palette[2] == "#F4E2C1"); // Beige
-        REQUIRE(result.tool_color_palette[3] == "#ED1C24"); // Red
+    // One parse of the 24 MB file feeds every check; a SECTION per check would
+    // parse it again for each.
+    // 4-color PrusaSlicer MMU palette
+    REQUIRE(result.tool_color_palette.size() == 4);
+    REQUIRE(result.tool_color_palette[0] == "#E7BD00"); // Yellow
+    REQUIRE(result.tool_color_palette[1] == "#00C502"); // Green
+    REQUIRE(result.tool_color_palette[2] == "#F4E2C1"); // Beige
+    REQUIRE(result.tool_color_palette[3] == "#ED1C24"); // Red
+
+    // Structure with many tool changes
+    REQUIRE(tool_change_count > 100);
+    REQUIRE(result.layers.size() > 10);
+    REQUIRE(result.total_segments > 0);
+
+    // Geometry builds from every 25th layer of the real file: the slice spans
+    // the print's height and every tool, at a tenth of the cost of all of them.
+    std::vector<Layer> slice;
+    std::set<int> tools;
+    for (size_t li = 0; li < result.layers.size(); li += 25) {
+        slice.push_back(std::move(result.layers[li]));
+        for (const auto& seg : slice.back().segments)
+            tools.insert(seg.tool_index);
     }
-
-    SECTION("Structure with many tool changes") {
-        REQUIRE(tool_change_count > 100);
-        REQUIRE(result.layers.size() > 10);
-        REQUIRE(result.total_segments > 0);
-    }
-
-    SECTION("Geometry builds from real file") {
-        GeometryBuilder builder;
-        builder.set_tool_color_palette(result.tool_color_palette);
-
-        SimplificationOptions opts;
-        auto geometry = builder.build(result, opts);
-
-        REQUIRE(geometry.vertices.size() > 0);
-        REQUIRE(geometry.color_palette.size() > 0);
-    }
+    result.layers = std::move(slice);
+    REQUIRE(tools.size() == 4);
+    GeometryBuilder builder;
+    builder.set_tool_color_palette(result.tool_color_palette);
+    auto geometry = builder.build(result, SimplificationOptions{});
+    REQUIRE(geometry.vertices.size() > 0);
+    REQUIRE(geometry.color_palette.size() > 0);
 }
 
 TEST_CASE("MultiColor - Backward compatibility", "[gcode][multicolor][compatibility]") {

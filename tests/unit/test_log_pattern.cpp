@@ -237,7 +237,7 @@ TEST_CASE("Each sink formatter tracks its own clock-step state", "[logging][patt
 // last_formatted(), so `%*` read the DUMP instant and every line in a 2000-line
 // tail carried the same offset. The step detector then compared a real wall
 // delta against a monotonic delta of ~0 and fired on every idle gap over a
-// second: bundle TDQCCQB3 shipped 97 CLOCK_STEP annotations summing to 8978 s,
+// second: one debug bundle shipped 97 CLOCK_STEP annotations summing to 8978 s,
 // which is the entire session. These pin the stamp to log time.
 //
 // The clock is injected, so none of these sleep.

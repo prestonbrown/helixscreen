@@ -8,14 +8,14 @@
  */
 
 #include "ui_icon.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/power_device_widget_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
+#include "device_display_name.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
@@ -59,7 +59,7 @@ class PowerTileFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// A notify_power_changed frame, delivered as the WebSocket delivers it.
@@ -126,21 +126,53 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: follows its device across a Klip
     CHECK(status_text() == "ON");
     notify("printer_psu", "off");
     CHECK(status_text() == "OFF");
+
+    // An unknown status shows the Configure prompt; a known one brings the name back.
+    lv_obj_t* name = harness_->child("power_device_name");
+    SubjectLifetime lifetime;
+    lv_subject_t* status = PowerDeviceState::instance().get_status_subject("printer_psu", lifetime);
+    lv_subject_set_int(status, -1);
+    drain();
+    CHECK(lv_obj_is_hidden(name));
+    lv_subject_set_int(status, 1);
+    drain();
+    CHECK_FALSE(lv_obj_is_hidden(name));
 }
 
-TEST_CASE_METHOD(PowerTileFixture, "Power tile: no user colour keeps the state colours",
+// With no user colour each tile wears its own state's colours.
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: two tiles keep their own state",
                  "[power_device_widget][tile_color]") {
-    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
-    make_tile({{"device", "printer_psu"}});
-
+    PowerDeviceState::instance().set_devices(
+        {{"printer_psu", "gpio", "on", false}, {"bed_lamp", "gpio", "off", false}});
+    PanelWidgetHarness<PowerDeviceWidget> psu(
+        test_screen(), HarnessConfig{{{"device", "printer_psu"}}, true}, "power_device:1");
+    PanelWidgetHarness<PowerDeviceWidget> lamp(
+        test_screen(), HarnessConfig{{{"device", "bed_lamp"}}, true}, "power_device:2");
+    psu.create_tile(test_screen());
+    lamp.create_tile(test_screen());
+    drain();
+    auto text = [](PanelWidgetHarnessBase& h, const char* name) {
+        return std::string(lv_label_get_text(h.child(name)));
+    };
+    auto badge = [](PanelWidgetHarnessBase& h) {
+        return rgb(lv_obj_get_style_bg_color(h.child("power_badge"), LV_PART_MAIN));
+    };
+    auto icon = [](PanelWidgetHarnessBase& h) {
+        return rgb(lv_obj_get_style_text_color(h.child("power_icon"), LV_PART_MAIN));
+    };
     const uint32_t danger = rgb(theme_manager_get_color("danger"));
-    CHECK(status_text() == "ON");
-    CHECK(icon_rgb() == danger);
-    CHECK(badge_rgb() == danger);
+    const uint32_t muted = rgb(theme_manager_get_color("text_muted"));
+    CHECK(text(psu, "power_device_status") == "ON");
+    CHECK(text(lamp, "power_device_status") == "OFF");
+    CHECK(text(psu, "power_device_name") != text(lamp, "power_device_name"));
+    CHECK((badge(psu) == danger && icon(psu) == danger));
+    CHECK((badge(lamp) == muted && icon(lamp) == muted_variant_rgb(test_screen())));
 
     notify("printer_psu", "off");
-    CHECK(icon_rgb() == muted_variant_rgb(test_screen()));
-    CHECK(badge_rgb() == rgb(theme_manager_get_color("text_muted")));
+    notify("bed_lamp", "on");
+    CHECK(text(psu, "power_device_status") == "OFF");
+    CHECK(text(lamp, "power_device_status") == "ON");
+    CHECK((badge(psu) == muted && badge(lamp) == danger));
 }
 
 TEST_CASE_METHOD(PowerTileFixture, "Power tile: a user colour paints on, mutes off, spares locked",
@@ -265,4 +297,33 @@ TEST_CASE("tile_color: the stored colour is read tolerantly", "[tile_color]") {
     CHECK(tile_color::color_from_config({{"color", 0x1000000}}) == 0);
     CHECK(tile_color::color_from_config(nlohmann::json::object()) == 0);
     CHECK(tile_color::color_from_config(nlohmann::json()) == 0);
+}
+
+// A device that left discovery while the picker was open has no state to show
+// yet, so the tile names it and shows no ON/OFF rather than the last device's.
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: a picked device with no state reads unknown",
+                 "[power_device_widget][select_device]") {
+    PowerDeviceState::instance().set_devices(
+        {{"bed_lamp", "gpio", "off", false}, {"printer_psu", "gpio", "on", false}});
+    auto& widget = make_tile({{"device", "printer_psu"}});
+    REQUIRE(status_text() == "ON");
+
+    Access::set_screen(widget, test_screen(), harness_->root());
+    Access::show_picker(widget);
+    lv_obj_t* list = lv_obj_find_by_name(Access::backdrop(test_screen()), "device_list");
+    REQUIRE(list != nullptr);
+    lv_obj_t* lamp_row = lv_obj_get_child(list, 1); // after All Devices, sorted
+    REQUIRE(lamp_row != nullptr);
+
+    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
+    lv_obj_send_event(lamp_row, LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    REQUIRE(Access::device_name(widget) == "bed_lamp");
+    CHECK(status_text().empty());
+    lv_obj_t* name = harness_->child("power_device_name");
+    REQUIRE(name != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(name));
+    CHECK(std::string(lv_label_get_text(name)) ==
+          helix::get_display_name("bed_lamp", helix::DeviceType::POWER_DEVICE));
 }

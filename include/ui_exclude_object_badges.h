@@ -38,7 +38,7 @@ enum class ExcludeTapMode { ExcludeOnly, Toggle };
 struct ObjectBadge {
     int defined_index = -1; ///< Position in the defined list; also the palette index
     std::string name;
-    std::string number; ///< lane_number_text(defined_index)
+    std::string number; ///< display_ordinal(defined_index), as text
     bool excluded = false;
     bool current = false;
     bool has_anchor = false;

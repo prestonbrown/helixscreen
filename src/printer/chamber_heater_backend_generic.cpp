@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // VENDOR_OK: this file is the vendor-knowledge border for chamber heaters.
 #include "chamber_heater_backend.h"
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>

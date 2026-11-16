@@ -12,7 +12,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kSoundStateKey = 0;
+RegistryKey g_sound_state_key{"sound_state"};
 
 // The cues of the app's sound themes a plugin may request. The boot chime and the
 // urgent alarm stay the app's own, so a plugin can never sound like a printer fault.
@@ -33,7 +33,7 @@ struct SoundState {
 };
 
 SoundState& sound_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kSoundStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_sound_state_key);
     auto* s = static_cast<SoundState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -65,7 +65,7 @@ int sound_play(lua_State* L) {
 void install_sound_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     new (lua_newuserdatauv(L, sizeof(SoundState), 0)) SoundState;
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kSoundStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_sound_state_key);
 
     static const luaL_Reg sound_fns[] = {{"play", &sound_play}, {nullptr, nullptr}};
     lua_getglobal(L, "helix");

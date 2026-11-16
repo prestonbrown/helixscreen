@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "qr_decoder.h"
 
+#include "core/text_io.h"
 #include "quirc/lib/quirc.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

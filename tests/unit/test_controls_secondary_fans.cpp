@@ -25,15 +25,14 @@
  *    only observe because it holds a live copy.
  *  - The real teardown/rebuild path (populate_secondary_fans) runs without crashing
  *    even though it resets ObserverGuards whose subjects were already freed —
- *    ObserverGuard::reset() must skip lv_observer_remove() on the dead subjects.
+ *    ObserverGuard::reset() must skip lv_observer_delete() on the dead subjects.
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/controls_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>
@@ -43,7 +42,6 @@
 
 using helix::PrinterState;
 using helix::ui::ControlsPanelTestAccess;
-using helix::ui::UpdateQueueTestAccess;
 
 TEST_CASE_METHOD(XMLTestFixture,
                  "ControlsPanel keeps secondary-fan lifetime tokens as aligned members",
@@ -89,7 +87,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Step 7: the real production teardown+rebuild path must not crash. It resets
     // ObserverGuards whose subjects were already freed in step 5; ObserverGuard::
-    // reset() must skip lv_observer_remove() because the token is dead. After the
+    // reset() must skip lv_observer_delete() because the token is dead. After the
     // rebuild the only remaining fan is PART_COOLING, so there are no secondary
     // rows/observers/lifetimes — the vectors come back empty and aligned.
     lv_obj_t* list = lv_obj_create(lv_screen_active());
@@ -104,5 +102,5 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Flush any deferred observer notifications before the panel + fixture tear
     // down, so no queued callback references the about-to-be-destroyed panel.
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }

@@ -13,26 +13,31 @@
 
 #include "display_manager.h"
 
+#include "image_cache_env.h"
 #include "print_lifecycle_state.h"
 
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
 #include "ui_effects.h"
 #include "ui_fatal_error.h"
-#include "ui_update_queue.h"
 
 #include "../../include/pending_startup_warnings.h"
 #include "app_constants.h"
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
+#include "display_wake_request.h"
 #include "flush_stride.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "i_moonraker_client.h"
+#include "locale_formats.h"
+#include "lvgl.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"        // not in the lvgl.h umbrella
 #include "lvgl/src/misc/cache/instance/lv_image_header_cache.h" // not in the lvgl.h umbrella
 #include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::period; LVGL has no period getter
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "lvgl_log_handler.h"
 #include "printer_state.h"
 #include "refresh_period_hold.h"
@@ -62,7 +67,6 @@
 
 #ifdef HELIX_DISPLAY_SDL
 #include "app_globals.h" // For app_request_quit()
-#include "drivers/sdl/lv_sdl_window.h"
 
 #include <SDL.h>
 #endif
@@ -108,7 +112,8 @@ DisplayManager::DisplayManager()
     : m_sleep(DisplaySleepHost{
           m_backend, m_backlight, m_display, m_shutting_down, [] { cancel_pointer_presses(); },
           [this](lv_display_flush_cb_t cb) { restore_flush_cb(cb); },
-          [] { return helix::RemoteScreenService::instance().viewer_active(); }}) {}
+          [] { return helix::RemoteScreenService::instance().viewer_active(); },
+          m_settle_for_wake_frame}) {}
 
 DisplayManager::~DisplayManager() {
     shutdown();
@@ -144,10 +149,16 @@ long env_count(const char* name, long fallback) {
 /// any cache worth giving an embedded board.
 void apply_image_cache_env() {
     const long cache_kb = env_count("HELIX_IMAGE_CACHE_KB", 0);
-    if (cache_kb > 0) {
-        lv_image_cache_resize(static_cast<uint32_t>(cache_kb) * 1024u, false);
-        spdlog::info("[DisplayManager] Image cache: {} KB", cache_kb);
+    const uint32_t bytes = helix::image_cache_bytes(cache_kb);
+    if (bytes == 0) {
+        return;
     }
+    if (cache_kb > helix::kImageCacheMaxKb) {
+        spdlog::warn("[DisplayManager] HELIX_IMAGE_CACHE_KB={} is over the {} KB cap, using {} KB",
+                     cache_kb, helix::kImageCacheMaxKb, helix::kImageCacheMaxKb);
+    }
+    lv_image_cache_resize(bytes, false);
+    spdlog::info("[DisplayManager] Image cache: {} KB", bytes / 1024u);
 }
 
 } // namespace
@@ -203,12 +214,9 @@ bool DisplayManager::init(const Config& config) {
         spdlog::error("[DisplayManager] No display backend available");
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "no display backend available");
-        // lv_deinit() first, then lv_xml_deinit() — the teardown order shutdown()
-        // documents. Nothing is registered yet on this path, so either order works
-        // today; keeping one order everywhere is what stops the shutdown ordering
-        // bug from being reintroduced by copying this block.
-        lv_deinit();
-        lv_xml_deinit();
+        // The one teardown order (teardown_lvgl()). Nothing is registered yet on
+        // this path; sharing the function is what keeps the order from drifting.
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -295,9 +303,7 @@ bool DisplayManager::init(const Config& config) {
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "all display backends exhausted");
         m_backend.reset();
-        // Same teardown order as above and as shutdown().
-        lv_deinit();
-        lv_xml_deinit();
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -373,13 +379,9 @@ bool DisplayManager::init(const Config& config) {
                                 suggestions, 30000);
 
             m_backend.reset();
-            // Order matters here, unlike the two paths above: ui_show_fatal_error()
-            // has just built and shown a widget tree. Freeing the component scopes
-            // first would free styles those widgets still point at, and lv_deinit()
-            // runs layout passes while tearing them down — the use-after-free
-            // shutdown() hit. Destroy the widgets first, then the scopes.
-            lv_deinit();
-            lv_xml_deinit();
+            // ui_show_fatal_error() has just built and shown a widget tree, which is
+            // what teardown_lvgl()'s order exists for.
+            helix::ui::teardown_lvgl();
             return false;
         }
 #else
@@ -529,6 +531,15 @@ DisplayManager* DisplayManager::instance() {
 
 void DisplayManager::set_active_instance(DisplayManager* dm) {
     s_instance = dm;
+    if (dm) {
+        helix::set_display_wake_handler([] {
+            if (DisplayManager* active = instance()) {
+                active->wake_display();
+            }
+        });
+    } else {
+        helix::set_display_wake_handler(nullptr);
+    }
 }
 
 void DisplayManager::shutdown() {
@@ -564,6 +575,7 @@ void DisplayManager::shutdown() {
 
     m_sleep.abandon_lvgl_state();
     m_brightness_reassert_timer.reset();
+    m_pointer_reopen_timer.reset();
 
     // Release backends
     m_backlight.reset();
@@ -579,34 +591,29 @@ void DisplayManager::shutdown() {
     lv_sdl_quit();
 #endif
 
-    // Deinitialize LVGL FIRST, then the helix-xml engine.
-    //
-    // A component scope owns the styles its instances use: component_scope_free()
-    // clears scope->style_ll, freeing every lv_style_t in it. Widgets keep raw
-    // pointers to those styles, so freeing the scopes while the widget tree is
-    // still standing leaves live objects pointing at reclaimed style memory —
-    // and lv_deinit()'s own teardown runs layouts as it goes, so a flex pass
-    // reads a freed style before the object is deleted (heap-use-after-free in
-    // get_prop_core, via lv_obj_get_style_flex_grow).
-    //
-    // The reverse order is safe: lv_deinit() only needs the widget tree and its
-    // own allocator, neither of which the XML engine owns, and lv_free() here is
-    // plain free() (LV_USE_STDLIB_MALLOC = clib), so releasing scopes afterwards
-    // needs nothing from LVGL. The <subject_expr> observers detached below are
-    // attached to app-owned subjects, not objects, so lv_deinit() leaves them
-    // alone for lv_xml_deinit() to remove — which is why theme_manager_deinit()
-    // must run after all of this (see Application::shutdown()).
-    if (lv_is_initialized()) {
-        lv_deinit();
-    }
-
-    // Frees component scopes, their styles, fonts and <subject_expr> observers.
-    lv_xml_deinit();
+    helix::ui::teardown_lvgl();
 
     m_width = 0;
     m_height = 0;
     m_initialized = false;
 }
+
+namespace helix::ui {
+void teardown_lvgl() {
+    // Every helix::Subject node belongs to the LVGL generation that ends here.
+    helix::subjects_note_lvgl_deinit();
+
+    // LVGL, then the XML engine. A component scope owns the styles its instances use
+    // (component_scope_free() frees every lv_style_t in it), and lv_deinit() runs layout
+    // passes while it deletes the widget tree, so freeing the scopes first would leave
+    // live widgets reading freed styles. lv_deinit() frees every subject node with its
+    // observers, so lv_xml_deinit() after it frees only the engine's own memory.
+    if (lv_is_initialized()) {
+        lv_deinit();
+    }
+    lv_xml_deinit();
+}
+} // namespace helix::ui
 
 void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
     if (!m_pointer) {
@@ -656,15 +663,55 @@ void DisplayManager::configure_pointer(int scroll_throw, int scroll_limit) {
 }
 
 void DisplayManager::watch_pointer() {
-    m_indev_delete_watch.watch(m_pointer, &m_pointer);
+    m_indev_delete_watch.watch(m_pointer, &m_pointer, &DisplayManager::on_pointer_deleted, this);
+}
+
+void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) {
+    auto* dm = static_cast<DisplayManager*>(ctx);
+    if (dm->m_shutting_down || !dm->m_backend || dm->m_pointer_reopen_timer.get()) {
+        return;
+    }
+    if (!dm->m_backend->can_reopen_input_pointer()) {
+        spdlog::warn("[DisplayManager] Pointer device removed; the {} backend cannot reopen it",
+                     dm->m_backend->name());
+        return;
+    }
+    // A USB touch controller that resets drops off the bus and re-enumerates a
+    // few seconds later; lv_evdev has already deleted the device it read.
+    spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",
+                 kPointerReopenPeriodMs);
+    dm->m_pointer_reopen_timer.reset(
+        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, dm));
+}
+
+void DisplayManager::pointer_reopen_tick(lv_timer_t* t) {
+    auto* dm = static_cast<DisplayManager*>(lv_timer_get_user_data(t));
+    if (!dm->m_backend || dm->m_pointer) {
+        dm->m_pointer_reopen_timer.reset();
+        return;
+    }
+    lv_indev_t* pointer = dm->m_backend->reopen_input_pointer();
+    if (!pointer) {
+        return;
+    }
+    dm->m_pointer_reopen_timer.reset();
+    dm->m_pointer = pointer;
+    dm->configure_pointer(dm->m_scroll_throw, dm->m_scroll_limit);
+    // A new device starts at LVGL's default read period.
+    helix::apply_refresh_timing(dm->m_refresh_timing);
+    spdlog::info("[DisplayManager] Pointer device reopened");
 }
 
 void DisplayManager::watch_keyboard() {
     m_indev_delete_watch.watch(m_keyboard, &m_keyboard);
 }
 
-void DisplayManager::debug_touch_tick(lv_timer_t* /*t*/) {
-    if (!RuntimeConfig::debug_touches())
+void DisplayManager::debug_touch_tick(lv_timer_t* t) {
+    const bool enabled = RuntimeConfig::debug_touches();
+    if (t) {
+        lv_timer_set_period(t, helix::debug_touch_period_ms(enabled));
+    }
+    if (!enabled)
         return;
 
     auto* dm = DisplayManager::instance();
@@ -693,9 +740,9 @@ void DisplayManager::debug_touch_tick(lv_timer_t* /*t*/) {
     lv_point_t point;
     lv_indev_get_point(indev, &point);
 
-    static lv_coord_t last_x = -100, last_y = -100;
-    lv_coord_t dx = point.x - last_x;
-    lv_coord_t dy = point.y - last_y;
+    static int32_t last_x = -100, last_y = -100;
+    int32_t dx = point.x - last_x;
+    int32_t dy = point.y - last_y;
     if (dx * dx + dy * dy < 25) // <5px movement
         return;
 
@@ -709,11 +756,15 @@ lv_timer_t* DisplayManager::install_debug_touch_timer() {
         return nullptr;
     }
     // Timer runs unconditionally; flag is checked inside so the Settings
-    // toggle takes effect without a restart.
-    return lv_timer_create(&DisplayManager::debug_touch_tick, 30, nullptr);
+    // toggle takes effect without a restart. Each tick sets the period from the
+    // flag: frame rate while drawing ripples, a slow poll while off.
+    return lv_timer_create(&DisplayManager::debug_touch_tick,
+                           helix::debug_touch_period_ms(RuntimeConfig::debug_touches()), nullptr);
 }
 
 void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
+    m_scroll_throw = scroll_throw;
+    m_scroll_limit = scroll_limit;
     if (m_pointer) {
         configure_pointer(scroll_throw, scroll_limit);
     }
@@ -787,6 +838,8 @@ void DisplayManager::restore_flush_cb(lv_display_flush_cb_t flush_cb) {
 // ============================================================================
 
 void DisplayManager::check_display_sleep() {
+    // Called right after the loop applies notifications, outside any batch.
+    m_sleep.finish_owed_wake_frame();
     m_sleep.tick();
 }
 
@@ -820,11 +873,28 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
     host.print_status = [] {
         helix::PrinterPrintState& print = get_printer_state().print_state();
         helix::ui::ClockPrint status;
-        status.phase = helix::ui::clock_print_phase(print.get_print_lifecycle());
+        status.phase = helix::ui::clock_print_phase(
+            print.get_print_lifecycle(), static_cast<helix::PrintOutcome>(lv_subject_get_int(
+                                             print.get_print_outcome_subject())));
         status.remaining_s = lv_subject_get_int(print.get_print_time_left_subject());
         status.progress_pct = lv_subject_get_int(print.get_print_progress_display_subject());
         return status;
     };
+    // A reconnect bumps the generation; a printer switch changes the active id and rebuilds the
+    // client, whose generation starts over.
+    host.printer_epoch = [] {
+        const uint64_t id_hash =
+            std::hash<std::string>{}(helix::Config::get_instance()->get_active_printer_id());
+        const helix::IMoonrakerClient* client = get_moonraker_client();
+        const uint64_t generation = client ? client->connection_generation() : 0;
+        return id_hash ^ (generation * 0x9E3779B97F4A7C15ULL);
+    };
+    host.inactive_ms = [] { return lv_display_get_inactive_time(nullptr); };
+    host.show_print_progress = [] {
+        return helix::DisplaySettingsManager::instance().get_screensaver_print_progress();
+    };
+    // The state words are English stroke glyphs; any other language shows symbols.
+    host.spell_states = [] { return helix::ui::locale_current_language() == "en"; };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())
                 : "unknown";
@@ -999,8 +1069,7 @@ void DisplayManager::install_sleep_aware_input_wrapper() {
 // ============================================================================
 
 bool DisplayManager::try_drm_to_fbdev_fallback(lv_display_rotation_t rot, bool splash_active) {
-    if (m_backend->type() != DisplayBackendType::DRM ||
-        m_backend->supports_hardware_rotation(rot)) {
+    if (!m_backend->needs_fbdev_for_rotation(rot)) {
         return true; // No fallback needed
     }
 
@@ -1110,7 +1179,19 @@ void DisplayManager::run_rotation_probe() {
         [this, phys_w, phys_h](lv_display_rotation_t rot) {
             settle_display_rotation(rot, phys_w, phys_h);
         },
-        [this](bool suspended) { set_resize_fanout_suspended(suspended); }};
+        [this](bool suspended) { set_resize_fanout_suspended(suspended); },
+        // init() lit the panel, but the probe outlasts the window before a stock firmware
+        // dims it (schedule_brightness_reassert()), so every prompt relights it.
+        [this] {
+            if (m_backlight && m_backlight->is_available()) {
+                m_backlight->set_brightness(DisplaySettingsManager::instance().user_brightness());
+            }
+        }};
+    // Relighting every second is a sysfs write on the boards whose firmware dims the panel;
+    // elsewhere nothing dims it, and one backend relights by running a shell command.
+    if (helix::board::current_info().firmware_dims_backlight_after_boot) {
+        host.backlight_reassert_ms = 1000;
+    }
     helix::RotationProbe(std::move(host)).run();
 }
 
@@ -1236,8 +1317,8 @@ void DisplayManager::on_screen_size_changed(lv_obj_t* screen) {
         return;
     }
 
-    lv_coord_t width = lv_obj_get_width(screen);
-    lv_coord_t height = lv_obj_get_height(screen);
+    int32_t width = lv_obj_get_width(screen);
+    int32_t height = lv_obj_get_height(screen);
 
     if (m_resize_fanout_suspended) {
         spdlog::debug("[DisplayManager] Screen size changed to {}x{} while resize fanout "

@@ -54,11 +54,10 @@ struct AvailableSlot {
     int unit_index = 0;       ///< Unit index within the backend
     int local_slot_index = 0; ///< Slot index within its unit (for display labels)
     /// Unit name for display (empty = single-unit backend).
-    /// Default-initialised, like every field added after this struct's original
-    /// positional initializers: an aggregate initializer that stops short of a
+    /// Default-initialised: an aggregate initializer that stops short of a
     /// member with no default warns under -Wmissing-field-initializers, and
-    /// there are 200-odd such call sites in the mapper tests alone. The value
-    /// is the same one aggregate initialisation already gave it.
+    /// there are 200-odd such call sites in the mapper tests alone. The default
+    /// equals what aggregate initialisation gives the member anyway.
     std::string unit_display_name = {};
     /// Comma-separated hex codes for multi-color spools (companion to color_rgb;
     /// empty = single-color). Mirrors SlotInfo::multi_color_hexes. Kept last so
@@ -81,6 +80,10 @@ struct AvailableSlot {
     /// ~200 aggregate initializers in the mapper tests stay valid.
     helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;
 
+    /// SlotInfo::material_required: the printer will not print from this slot
+    /// until its material is set. Defaulted for the aggregate initializers.
+    bool material_required = false;
+
     /// Unique key for this slot across all backends
     SlotKey key() const {
         return {slot_index, backend_index};
@@ -90,9 +93,9 @@ struct AvailableSlot {
 /// What is wrong with pairing one tool with one lane.
 ///
 /// Produced by FilamentMapper::classify_mismatches() and adopted whole, so a
-/// seeding path cannot pick up one warning and quietly miss the other - which
-/// is exactly how the six hand-written copies of the material rule would have
-/// drifted the moment a second flag was added beside it.
+/// seeding path cannot pick up one warning and quietly miss the other.
+/// Hand-written copies of the material rule drift apart the moment a second
+/// flag is added beside it.
 struct MismatchFlags {
     bool material_mismatch = false;
     bool color_mismatch = false;
@@ -341,12 +344,12 @@ class FilamentMapper {
     /// A reprint has no detail view, no swatch card and no picker, so nothing on
     /// that path can recompute a colour match — the only thing that knows how the
     /// job was routed is the printer, and only while the task was still
-    /// configured (AmsBackend::last_print_tool_mapping() is that snapshot).
+    /// configured (IPrintRouting::last_print_tool_mapping() is that snapshot).
     ///
     /// Named and pure for the same reason effective_routing() is: getting it
     /// wrong is silent. An empty remap flows into build_preprint_gcode(), which
     /// resolves a tool it is not told about to that tool's firmware-default head,
-    /// so "we do not know how this job was routed" was emitted as
+    /// so "we do not know how this job was routed" would be emitted as
     /// SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=n MAP_EXTRUDER=n — actively erasing
     /// the crossover the original print installed.
     ///
@@ -383,7 +386,7 @@ class FilamentMapper {
     /// identity reads as a genuine remap and gets emitted.
     ///
     /// Single source of truth for PrintSelectDetailView::get_effective_remap()
-    /// and the preprint-gcode builders, which used to each carry their own copy.
+    /// and the preprint-gcode builders.
     static std::map<int, int> identity_filtered_remap(const std::vector<ToolMapping>& mappings,
                                                       const FirmwareRouting& routing = {});
 

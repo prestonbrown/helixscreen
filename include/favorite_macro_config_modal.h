@@ -19,7 +19,6 @@ class FavoriteMacroConfigModal : public Modal {
 
     FavoriteMacroConfigModal(const std::string& widget_id, const std::string& panel_id,
                              ChangeCallback on_change = nullptr);
-    ~FavoriteMacroConfigModal() override;
 
     const char* get_name() const override {
         return "Favorite Macro Config";
@@ -27,6 +26,7 @@ class FavoriteMacroConfigModal : public Modal {
     const char* component_name() const override {
         return "favorite_macro_config_modal";
     }
+    HELIX_KIND_TAG(FavoriteMacroConfigModal)
 
     // Static XML event callbacks (registered in register_favorite_macro_widgets()).
     static void tab_macro_cb(lv_event_t* e);
@@ -50,8 +50,8 @@ class FavoriteMacroConfigModal : public Modal {
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
     void select_require_confirmation(bool enabled);
-    /// Opens the macro's saved-defaults editor (KNOWN_PARAMS macros only; the
-    /// Options row is hidden otherwise). Stays open behind it.
+    /// Opens the macro's saved-defaults editor (macro_takes_saved_defaults()
+    /// macros only; the Options row is hidden otherwise). Stays open behind it.
     void open_defaults_editor();
     /// Republishes fav_macro_has_param_defaults from the configured macro's
     /// parameter knowledge.
@@ -73,8 +73,6 @@ class FavoriteMacroConfigModal : public Modal {
     /// Saved-defaults editor opened from the Options tab. Owned here so it is
     /// never shown by an already-destroyed config modal.
     MacroParamModal param_modal_;
-
-    static FavoriteMacroConfigModal* s_active_;
 };
 
 /// Registers the two C++-owned subjects (process-lifetime) used by the modal XML:

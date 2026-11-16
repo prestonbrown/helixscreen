@@ -1,23 +1,30 @@
 diff --git a/src/core/lv_observer.c b/src/core/lv_observer.c
+index 9c34d3610..d9e01d51d 100644
 --- a/src/core/lv_observer.c
 +++ b/src/core/lv_observer.c
-@@ -509,6 +509,19 @@ void lv_observer_remove(lv_observer_t * observer)
-         lv_obj_remove_event_cb_with_user_data(observer->target, NULL, observer->subject);
-     }
-
+@@ -598,7 +598,24 @@ void lv_observer_delete(lv_observer_t * observer)
+ 
+     if(observer->for_obj && observer->target) {
+         lv_obj_remove_event_cb_with_user_data(observer->target, unsubscribe_on_delete_cb, observer);
+-        lv_obj_remove_event_cb_with_user_data(observer->target, NULL, observer->subject);
++        /*A NULL user_data here would match, and remove, every unrelated callback
++         *registered with NULL user_data.*/
++        if(observer->subject) {
++            lv_obj_remove_event_cb_with_user_data(observer->target, NULL, observer->subject);
++        }
++    }
++
 +    /*Subject may have been freed already (e.g. XML component scope teardown
 +     *before the observing widget's delete event fires). Skip the unlink and
 +     *just free the observer to avoid a NULL dereference.*/
 +    if(!observer->subject) {
-+        LV_LOG_WARN("lv_observer_remove: observer->subject is NULL (observer=%p target=%p)",
++        LV_LOG_WARN("lv_observer_delete: observer->subject is NULL (observer=%p target=%p)",
 +                    (void *)observer, (void *)observer->target);
 +        if(observer->auto_free_user_data) {
 +            lv_free(observer->user_data);
 +        }
 +        lv_free(observer);
 +        return;
-+    }
-+
+     }
+ 
      observer->subject->notify_restart_query = 1;
-
- #if LV_USE_EXT_DATA

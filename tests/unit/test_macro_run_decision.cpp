@@ -284,11 +284,27 @@ TEST_CASE("ask off runs with the saved values, filtered to declared params",
         CHECK(decision.params ==
               std::map<std::string, std::string>{{"SPEED", "50"}, {"TEMP", "210"}});
     }
-    SECTION("UNKNOWN ignores saved values") {
-        auto decision = decide_macro_run(
-            unknown_params(), with_saved(panel_click(false, false), false, {{"TEMP", "210"}}));
+    SECTION("UNKNOWN sends every saved value, having no names to filter by") {
+        auto decision =
+            decide_macro_run(unknown_params(), with_saved(panel_click(false, false), false,
+                                                          {{"TEMP", "210"}, {"PURGE", "1"}}));
         CHECK(decision.action == MacroRunAction::Run);
-        CHECK(decision.params.empty());
+        CHECK(decision.params ==
+              std::map<std::string, std::string>{{"PURGE", "1"}, {"TEMP", "210"}});
+    }
+    SECTION("UNKNOWN sends its saved values but never the computed ones") {
+        auto decision =
+            decide_macro_run(unknown_params(), with_saved(router_click(false, {{"TEMP", "250"}}),
+                                                          false, {{"PURGE", "1"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params == std::map<std::string, std::string>{{"PURGE", "1"}});
+    }
+    SECTION("the widget opt-out sends an UNKNOWN macro's saved values") {
+        auto decision =
+            decide_macro_run(unknown_params(),
+                             with_saved(widget_click(false, false, false), true, {{"PURGE", "1"}}));
+        CHECK(decision.action == MacroRunAction::Run);
+        CHECK(decision.params == std::map<std::string, std::string>{{"PURGE", "1"}});
     }
     SECTION("KNOWN_NO_PARAMS ignores saved values") {
         auto decision = decide_macro_run(
@@ -350,13 +366,29 @@ TEST_CASE("an unconfirmed dangerous macro outranks saved values", "[macro][run_d
 }
 
 // ============================================================================
-// Rule 4: UNKNOWN always prompts free-form, prefill ignored
+// Rule 4: UNKNOWN always prompts free-form, prefilled with saved values only
 // ============================================================================
 
 TEST_CASE("UNKNOWN prompts free-form and ignores known_values", "[macro][run_decision]") {
     auto decision = decide_macro_run(unknown_params(), router_click(false, {{"TEMP", "210"}}));
     CHECK(decision.action == MacroRunAction::PromptUnknown);
     CHECK(decision.params.empty());
+}
+
+TEST_CASE("UNKNOWN with ask on prompts free-form prefilled with the saved values",
+          "[macro][run_decision]") {
+    auto decision =
+        decide_macro_run(unknown_params(), with_saved(router_click(false, {{"TEMP", "250"}}), true,
+                                                      {{"PURGE", "1"}}));
+    CHECK(decision.action == MacroRunAction::PromptUnknown);
+    CHECK(decision.params == std::map<std::string, std::string>{{"PURGE", "1"}});
+}
+
+TEST_CASE("saved defaults are offered for declared and free-form parameters only",
+          "[macro][run_decision]") {
+    CHECK(helix::macro_takes_saved_defaults(MacroParamKnowledge::KNOWN_PARAMS));
+    CHECK(helix::macro_takes_saved_defaults(MacroParamKnowledge::UNKNOWN));
+    CHECK_FALSE(helix::macro_takes_saved_defaults(MacroParamKnowledge::KNOWN_NO_PARAMS));
 }
 
 // ============================================================================

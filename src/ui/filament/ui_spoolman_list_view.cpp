@@ -1,0 +1,376 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "ui_spoolman_list_view.h"
+
+#include "ui_spool_canvas.h"
+#include "ui_virtual_list.h"
+
+#include "color_utils.h"
+#include "format_utils.h"
+#include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
+
+#include <spdlog/spdlog.h>
+
+#include <algorithm>
+#include <cstdio>
+
+namespace helix::ui {
+
+// ============================================================================
+// Destruction
+// ============================================================================
+
+SpoolmanListView::~SpoolmanListView() {
+    cleanup();
+}
+
+// ============================================================================
+// Setup / Cleanup
+// ============================================================================
+
+bool SpoolmanListView::setup(lv_obj_t* container) {
+    if (!container) {
+        spdlog::error("[SpoolmanListView] Cannot setup - null container");
+        return false;
+    }
+
+    if (container_ == container) {
+        return true; // same tree still alive; pool stays valid
+    }
+    // A different container means the tree the pool was built under is gone
+    // (hot-reload rebuild deletes and re-creates the widget tree on the same
+    // surviving panel). Cached pointers would dangle. The net unhooks the old
+    // container itself and runs the destroyed hook (the pool wipe) before
+    // this view adopts the new tree.
+    retarget_container_net(container);
+
+    container_ = container;
+    spdlog::trace("[SpoolmanListView] Setup complete");
+    return true;
+}
+
+void SpoolmanListView::clear_cached_state() {
+    pool_.clear();
+    pool_indices_.clear();
+    leading_spacer_ = nullptr;
+    trailing_spacer_ = nullptr;
+    visible_start_ = -1;
+    visible_end_ = -1;
+    total_items_ = 0;
+    cached_row_height_ = 0;
+    cached_row_gap_ = 0;
+    last_leading_height_ = -1;
+    last_trailing_height_ = -1;
+}
+
+void SpoolmanListView::on_netted_container_destroyed() {
+    container_ = nullptr;
+    clear_cached_state();
+}
+
+void SpoolmanListView::cleanup() {
+    // Remove the delete net first when the container still outlives this view,
+    // so it can never fire into a destroyed owner.
+    detach_container_net();
+    clear_cached_state();
+    container_ = nullptr;
+    spdlog::debug("[SpoolmanListView] cleanup()");
+}
+
+static SpoolmanListView::RowWidgets cache_row_widgets(lv_obj_t* row) {
+    SpoolmanListView::RowWidgets rw;
+    rw.root = row;
+    rw.canvas = helix::ui::find_required(row, "spool_canvas", "SpoolmanListView");
+    rw.id_label = helix::ui::find_required(row, "spool_id_label", "SpoolmanListView");
+    rw.name_label = helix::ui::find_required(row, "spool_name", "SpoolmanListView");
+    rw.vendor_label = helix::ui::find_required(row, "spool_vendor", "SpoolmanListView");
+    rw.weight_label = helix::ui::find_required(row, "weight_text", "SpoolmanListView");
+    rw.percent_label = helix::ui::find_required(row, "percent_text", "SpoolmanListView");
+    rw.low_stock_icon = helix::ui::find_required(row, "low_stock_indicator", "SpoolmanListView");
+    rw.active_indicator = helix::ui::find_required(row, "active_indicator", "SpoolmanListView");
+    return rw;
+}
+
+void SpoolmanListView::reset() {
+    for (auto& rw : pool_) {
+        lv_obj_set_hidden(rw.root, true);
+    }
+    std::fill(pool_indices_.begin(), pool_indices_.end(), static_cast<ssize_t>(-1));
+    if (leading_spacer_) {
+        lv_obj_set_height(leading_spacer_, 0);
+    }
+    if (trailing_spacer_) {
+        lv_obj_set_height(trailing_spacer_, 0);
+    }
+    visible_start_ = -1;
+    visible_end_ = -1;
+    total_items_ = 0;
+    last_leading_height_ = -1;
+    last_trailing_height_ = -1;
+    spdlog::debug("[SpoolmanListView] reset()");
+}
+
+// ============================================================================
+// Pool Initialization
+// ============================================================================
+
+bool SpoolmanListView::add_pool_row() {
+    if (!container_) {
+        return false;
+    }
+    lv_obj_t* row =
+        static_cast<lv_obj_t*>(lv_xml_create(container_, "spoolman_spool_row", nullptr));
+    if (!row) {
+        return false;
+    }
+    lv_obj_set_hidden(row, true); // XML_HIDDEN_OK: pooled row, shown by show_window
+    pool_.push_back(cache_row_widgets(row));
+    return true;
+}
+
+// ============================================================================
+// Row Configuration
+// ============================================================================
+
+void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int active_spool_id) {
+    if (!rw.root) {
+        return;
+    }
+
+    // Store spool ID in user_data for click handling
+    lv_obj_set_user_data(rw.root, reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)));
+
+    // Update 3D spool canvas
+    if (rw.canvas) {
+        uint32_t rgb =
+            helix::parse_hex_color(spool.color_hex)
+                .value_or(lv_color_to_u32(theme_manager_get_color("text_muted")) & 0xFFFFFF);
+        helix::ui::spool_canvas_set_filament(rw.canvas, rgb, spool.multi_color_hexes,
+                                             helix::ui::swatch_finish(spool.finish()));
+
+        // remaining_percent() reports 0 for an unweighed spool, which is honest for
+        // the percent label but would draw the spool empty. Weightless draws full.
+        float fill_level = (spool.initial_weight_g > 0)
+                               ? static_cast<float>(spool.remaining_percent()) / 100.0f
+                               : 1.0f;
+        ui_spool_canvas_set_fill_level(rw.canvas, fill_level);
+        ui_spool_canvas_redraw(rw.canvas);
+    }
+
+    // Update spool ID label
+    if (rw.id_label) {
+        char id_buf[16];
+        snprintf(id_buf, sizeof(id_buf), "#%d", spool.id);
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
+        lv_label_set_text(rw.id_label, id_buf);
+    }
+
+    // Update spool name (Material - Color)
+    if (rw.name_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
+        lv_label_set_text(rw.name_label, spool.display_name().c_str());
+    }
+
+    // Update vendor (with location if available)
+    if (rw.vendor_label) {
+        std::string vendor_text = spool.vendor.empty() ? lv_tr("Unknown") : spool.vendor;
+        if (!spool.location.empty()) {
+            vendor_text += " \xC2\xB7 " + spool.location; // middle dot: U+00B7
+        }
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
+        lv_label_set_text(rw.vendor_label, vendor_text.c_str());
+    }
+
+    // Update weight
+    if (rw.weight_label) {
+        char weight_buf[32];
+        snprintf(weight_buf, sizeof(weight_buf), "%.0fg", spool.remaining_weight_g);
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
+        lv_label_set_text(rw.weight_label, weight_buf);
+    }
+
+    // Update percentage
+    if (rw.percent_label) {
+        char percent_buf[16];
+        helix::format::format_percent(static_cast<int>(spool.remaining_percent()), percent_buf,
+                                      sizeof(percent_buf));
+        // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
+        lv_label_set_text(rw.percent_label, percent_buf);
+    }
+
+    // Low stock warning
+    if (rw.low_stock_icon) {
+        lv_obj_set_hidden(rw.low_stock_icon, !spool.is_low());
+    }
+
+    // Active spool: show checkmark + highlight row with checked state
+    bool is_active = (spool.id == active_spool_id);
+    if (rw.active_indicator) {
+        lv_obj_set_hidden(rw.active_indicator, !is_active);
+    }
+    lv_obj_set_state(rw.root, LV_STATE_CHECKED, is_active);
+
+    // Show the row
+    lv_obj_set_hidden(rw.root, false);
+}
+
+// ============================================================================
+// Population / Visibility
+// ============================================================================
+
+void SpoolmanListView::populate(const std::vector<SpoolInfo>& spools, int active_spool_id,
+                                bool preserve_scroll) {
+    if (!container_) {
+        return;
+    }
+
+    spdlog::debug("[SpoolmanListView] Populating with {} spools (preserve_scroll={})",
+                  spools.size(), preserve_scroll);
+
+    // One row up front to measure; the rest are sized from the viewport below
+    if (pool_.empty() && add_pool_row()) {
+        pool_indices_.push_back(-1);
+    }
+
+    // Create spacers if needed
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
+
+    // Cache row dimensions on first populate
+    if (cached_row_height_ == 0 && !pool_.empty() && !spools.empty()) {
+        configure_row(pool_[0], spools[0], active_spool_id);
+        lv_obj_update_layout(container_);
+
+        cached_row_height_ = lv_obj_get_height(pool_[0].root);
+        cached_row_gap_ = lv_obj_get_style_pad_row(container_, LV_PART_MAIN);
+
+        spdlog::debug("[SpoolmanListView] Cached row dimensions: height={} gap={}",
+                      cached_row_height_, cached_row_gap_);
+    }
+
+    // Reset visible range, spacer caches
+    visible_start_ = -1;
+    visible_end_ = -1;
+    last_leading_height_ = -1;
+    last_trailing_height_ = -1;
+
+    // Invalidate pool indices to force reconfiguration on data change
+    std::fill(pool_indices_.begin(), pool_indices_.end(), static_cast<ssize_t>(-1));
+
+    if (!preserve_scroll) {
+        lv_obj_scroll_to_y(container_, 0, LV_ANIM_OFF);
+    }
+
+    // The viewport is read from the laid-out container; one that was just unhidden has none yet
+    lv_obj_update_layout(container_);
+    const int row_stride = (cached_row_height_ > 0 ? cached_row_height_ : 56) + cached_row_gap_;
+    grow_pool_to(pool_rows_for_viewport(lv_obj_get_height(container_), row_stride,
+                                        static_cast<int>(spools.size()), kBufferRows,
+                                        static_cast<size_t>(kPoolSize)),
+                 pool_indices_, [this] { return add_pool_row(); });
+    update_visible(spools, active_spool_id);
+
+    spdlog::debug("[SpoolmanListView] Populated: {} spools, pool size {}", spools.size(),
+                  pool_.size());
+}
+
+void SpoolmanListView::update_visible(const std::vector<SpoolInfo>& spools, int active_spool_id) {
+    if (!container_ || pool_.empty() || spools.empty()) {
+        for (auto& rw : pool_) {
+            lv_obj_set_hidden(rw.root, true);
+        }
+        sync_list_spacers(container_, leading_spacer_, trailing_spacer_, VirtualWindow{},
+                          last_leading_height_, last_trailing_height_);
+        visible_start_ = -1;
+        visible_end_ = -1;
+        total_items_ = 0;
+        return;
+    }
+
+    int32_t scroll_y = lv_obj_get_scroll_y(container_);
+    int32_t viewport_height = lv_obj_get_height(container_);
+
+    int total_rows = static_cast<int>(spools.size());
+
+    int row_height = cached_row_height_ > 0 ? cached_row_height_ : 56;
+    int row_stride = row_height + cached_row_gap_;
+
+    const VirtualWindow win =
+        compute_window(scroll_y, viewport_height, row_stride, total_rows, kBufferRows);
+    const int first_visible = win.first;
+    const int last_visible = win.last;
+
+    // Force re-render if total item count changed (e.g. filter applied)
+    bool data_changed = (total_rows != total_items_);
+
+    // Skip if unchanged (unless data set size changed)
+    if (!data_changed && first_visible == visible_start_ && last_visible == visible_end_) {
+        return;
+    }
+
+    total_items_ = total_rows;
+
+    spdlog::debug(
+        "[SpoolmanListView] Rendering rows {}-{} of {} (scroll_y={} viewport={} data_changed={})",
+        first_visible, last_visible, total_rows, scroll_y, viewport_height, data_changed);
+
+    sync_list_spacers(container_, leading_spacer_, trailing_spacer_, win, last_leading_height_,
+                      last_trailing_height_);
+
+    show_window(
+        container_, pool_indices_, first_visible, last_visible, data_changed,
+        [this](size_t slot) { return pool_[slot].root; },
+        [&](size_t slot, ssize_t spool_idx) {
+            configure_row(pool_[slot], spools[static_cast<size_t>(spool_idx)], active_spool_id);
+        },
+        [this](size_t slot) { lv_obj_set_hidden(pool_[slot].root, true); });
+
+    spdlog::debug("[SpoolmanListView] Spacers: leading={}px trailing={}px, visible rows={}, "
+                  "container content_h={} child_count={}",
+                  win.leading_px, win.trailing_px, last_visible - first_visible,
+                  lv_obj_get_content_height(container_), lv_obj_get_child_count(container_));
+
+    visible_start_ = first_visible;
+    visible_end_ = last_visible;
+}
+
+void SpoolmanListView::refresh_content(const std::vector<SpoolInfo>& spools, int active_spool_id) {
+    if (!container_ || pool_.empty() || visible_start_ < 0) {
+        return;
+    }
+
+    for (size_t i = 0; i < pool_.size(); i++) {
+        ssize_t spool_idx = pool_indices_[i];
+        if (spool_idx >= 0 && static_cast<size_t>(spool_idx) < spools.size()) {
+            configure_row(pool_[i], spools[spool_idx], active_spool_id);
+        }
+    }
+}
+
+void SpoolmanListView::update_active_indicators(const std::vector<SpoolInfo>& spools,
+                                                int active_spool_id) {
+    if (!container_ || pool_.empty()) {
+        return;
+    }
+
+    for (size_t i = 0; i < pool_.size(); i++) {
+        ssize_t spool_idx = pool_indices_[i];
+        if (spool_idx < 0 || static_cast<size_t>(spool_idx) >= spools.size()) {
+            continue;
+        }
+
+        auto& rw = pool_[i];
+        bool is_active = (spools[spool_idx].id == active_spool_id);
+
+        lv_obj_set_state(rw.root, LV_STATE_CHECKED, is_active);
+
+        if (rw.active_indicator) {
+            lv_obj_set_hidden(rw.active_indicator, !is_active);
+        }
+    }
+
+    spdlog::debug("[SpoolmanListView] Updated active indicators (active={})", active_spool_id);
+}
+
+} // namespace helix::ui

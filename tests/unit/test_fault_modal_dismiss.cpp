@@ -24,10 +24,9 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_modal_registry.h"
 #include "moonraker_api.h"
@@ -68,7 +67,7 @@ class FaultModalFixture : public XMLTestFixture {
     /// it touches any modal), so a single drain leaves work in flight — which
     /// showed up as a sweep firing in the middle of a later test step.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), 16);
+        UpdateQueue::instance().drain_until_empty(16);
     }
 
     /// A fault alert exactly as ui_notification_printer_fault() builds it:
@@ -400,9 +399,10 @@ TEST_CASE_METHOD(KlippyRecoveryFixture,
     lv_obj_t* message = lv_obj_find_by_name(recovery, "recovery_message");
     REQUIRE(message != nullptr);
     CHECK(std::string(lv_label_get_text(message)).find("dragonbreath") != std::string::npos);
+    // The restarts stay on offer: with Klippy gone they run the recovery chain.
     lv_obj_t* restart_row = lv_obj_find_by_name(recovery, "recovery_restart_actions");
     REQUIRE(restart_row != nullptr);
-    CHECK(lv_obj_has_flag(restart_row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(restart_row));
     CHECK(fault_carrier_showing());
 }
 

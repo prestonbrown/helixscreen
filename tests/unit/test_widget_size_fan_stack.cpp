@@ -28,13 +28,13 @@
  * name + speed horizontally (panel_widget_fan_stack.xml), so a resolved name
  * ("Hotend" instead of "H") only ever competes for room along the width
  * axis; extra height just centers the same three rows, it never widens one.
- * Height used to also drive "bigger" (an OR), but Large/XLarge's single-row
- * cell height alone already clears h_tall() (141px, 169px) — wider than
- * h_tall()'s own calibration point (Micro's genuinely-2-row 131px) — so a
- * plain 1x1 widget on those two tiers read as "bigger" and squeezed resolved
- * names into a ~107-134px row. Three cases cover this: sub-threshold on both
+ * Height must not also drive "bigger" (an OR): Large/XLarge's single-row
+ * cell height alone already clears h_tall() (141px, 169px), wider than
+ * h_tall()'s own calibration point (Micro's genuinely-2-row 131px), so a
+ * plain 1x1 widget on those two tiers would read as "bigger" and squeeze
+ * resolved names into a ~107-134px row. Three cases cover this: sub-threshold on both
  * axes (compact), width alone (bigger), and height alone at a Large/XLarge-
- * shaped extent, which must stay compact now that height no longer counts.
+ * shaped extent, which must stay compact because height does not count.
  *
  * Row geometry (`fan_stack_{part,hotend,aux}_row` width/flex alignment,
  * `fan_stack_widget.cpp`) is no longer branch-dependent: both tiers run the
@@ -53,10 +53,10 @@
  */
 
 #include "ui_fonts.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "core/update_queue.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
 
@@ -163,8 +163,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
 
     // --- Height alone, at a real Large-tier 1x1 extent (107x141, from the
     // measured tier table): a plain 1x1 widget must stay compact here.
-    // Before this fix, height_px(141) >= h_tall() alone flipped this to
-    // "bigger" and squeezed "Hotend"/"Aux" into a 107px-wide row.
+    // height_px(141) >= h_tall() alone must not flip this to
+    // "bigger", which would squeeze "Hotend"/"Aux" into a 107px-wide row.
     // Contradicting span: 1x1 (old rowspan/colspan predicate -> compact, so
     // this also proves pixels don't silently regress to spans).
     h.resize(1, 1, 107, 141);
@@ -206,9 +206,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     // --- Micro-tier 1x2 (70x131): the legitimate tall case. Narrower than
     // any of the Large/XLarge false positives above, and genuinely
     // rowspan==2 — but this widget's "bigger" is width-only now, so a
-    // colspan==1 widget stays compact here regardless of row count. That is
-    // a real behavior change from the pre-fix OR (which showed resolved
-    // names in this same 70px row), traded deliberately: full names never
+    // colspan==1 widget stays compact here regardless of row count. An OR of
+    // width and height would show resolved names in this same 70px row; the
+    // trade is deliberate: full names never
     // fit a 70px row named/iconed/valued in three parts, tall or not.
     h.resize(1, 2, 70, 131);
     process_lvgl(30);
@@ -252,7 +252,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack icons line up one under the other
     REQUIRE(part_icon != nullptr);
     REQUIRE(hotend_icon != nullptr);
     REQUIRE(aux_icon != nullptr);
-    REQUIRE(!lv_obj_has_flag(h.child("fan_stack_aux_row"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(!lv_obj_is_hidden(h.child("fan_stack_aux_row")));
 
     // --- Compact tier: one shared left edge despite "35%" vs "0%" rows. ---
     h.resize(1, 1, w_normal() - 1, h_tall() - 1);
@@ -447,7 +447,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack rows fit the cell they were grant
         for (const char* rn : {"fan_stack_part_row", "fan_stack_hotend_row", "fan_stack_aux_row"}) {
             lv_obj_t* row = h.child(rn);
             REQUIRE(row != nullptr);
-            if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(row))
                 continue;
             INFO(c.name << ": granted " << c.width_px << "px, cell content " << cell_w << "px, "
                         << rn << " " << lv_obj_get_width(row) << "px, band " << w_normal()
@@ -571,4 +571,33 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack stacks icons above name+speed onl
     CHECK(lv_obj_get_x(part_icon) + lv_obj_get_width(part_icon) <= lv_obj_get_x(part_value));
     CHECK(lv_obj_get_style_text_font(part_speed, LV_PART_MAIN) ==
           theme_manager_get_font("font_xs"));
+}
+
+// Two fan stacks can sit on the home grid at once, and each tile's text and
+// aux row come from its own widget. Both are built before either tile is
+// parsed, the order PanelWidgetManager builds a page in.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack: two tiles keep their own text",
+                 "[widget_size][fan_stack][panel_widget]") {
+    state().fan_state().init_fans({"fan", "heater_fan hotend_fan"});
+    state().fan_state().update_fan_speed("fan", 0.35);
+    helix::ui::UpdateQueue::instance().drain();
+
+    PanelWidgetHarness<FanStackWidget> a(
+        test_screen(), HarnessConfig{nlohmann::json::object(), true}, "fan_stack", state());
+    PanelWidgetHarness<FanStackWidget> b(
+        test_screen(), HarnessConfig{nlohmann::json::object(), true}, "fan_stack:1", state());
+    a.create_tile(test_screen());
+    b.create_tile(test_screen());
+    a.resize(1, 1, w_normal() - 1, h_tall() - 1);
+    b.resize(1, 1, w_normal(), h_tall() - 1);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(30);
+
+    for (auto* h : {&a, &b}) {
+        CHECK(std::string(lv_label_get_text(h->child("fan_stack_part_speed"))) == "35%");
+        CHECK(lv_obj_is_hidden(h->child("fan_stack_aux_row")));
+    }
+    // The narrow tile names its rows by letter, the wider one in full.
+    CHECK(std::string(lv_label_get_text(a.child("fan_stack_part_name"))) == lv_tr("P"));
+    CHECK(std::string(lv_label_get_text(b.child("fan_stack_part_name"))) != lv_tr("P"));
 }

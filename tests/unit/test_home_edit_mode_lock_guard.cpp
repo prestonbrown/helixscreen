@@ -13,7 +13,7 @@
  * PIN pad and the user found it once the PIN cleared.
  *
  * DisplayManager::cancel_pointer_presses() is the root-cause fix
- * (tests/unit/application/test_display_wake_input_gate.cpp). This is the second
+ * (tests/unit/application/test_display_wake_touch_swallow.cpp). This is the second
  * layer: while the screen is locked, edit mode is never a legitimate outcome of
  * a hold, whatever produced the event.
  *

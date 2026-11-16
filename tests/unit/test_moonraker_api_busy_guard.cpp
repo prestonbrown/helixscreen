@@ -17,9 +17,9 @@
  * Recovery/homing/probe-control and macros are never discretionary, so they pass,
  * and nothing is blocked during a real file print.
  *
- * History: bundle 7CT79XXK (Sovol SV08) saw 4 fan commands each time out at 60s
- * during a Cartographer calibration — the guard originally REJECTED them; #1108
- * changed the benign path to queue-with-one-toast so the commands aren't lost.
+ * A Sovol SV08 sent 4 fan commands during a Cartographer calibration, each
+ * timing out at 60s. Rejecting them loses the commands, so the benign path
+ * queues them with one toast (#1108).
  */
 
 #include "../../include/moonraker_api.h"
@@ -115,7 +115,7 @@ TEST_CASE_METHOD(BusyGuardApiFixture,
             "SET_LED LED=my_leds RED=1.00 GREEN=1.00 BLUE=1.00 SYNC=0 TRANSMIT=1", note_success,
             [this](const MoonrakerError& err) { error_cb(err); }, 0, false, note_queued);
 
-        // Still queued fire-and-forget — the fix must not un-queue the command.
+        // Still queued fire-and-forget: the toast must not un-queue the command.
         REQUIRE(mock_client.last_send_method() == "printer.gcode.script");
         CHECK_FALSE(mock_client.gcode_script_history().empty());
 

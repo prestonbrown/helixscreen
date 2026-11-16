@@ -66,7 +66,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "register_xml_callbacks handles single entry",
     REQUIRE(retrieved == test_callback_a);
 }
 
-// Regression: bundle SSHGTVZQ (Qidi Q2 / v0.99.46 / pi). WizardWifiStep
+// Regression (Qidi Q2 / v0.99.46 / pi). WizardWifiStep
 // registered `on_network_item_clicked` globally during add-printer; when
 // NetworkSettingsOverlay later tried to register the same name for clicks on
 // its own wifi_network_item instances, lv_xml_register_event_cb's

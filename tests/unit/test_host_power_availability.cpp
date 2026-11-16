@@ -117,18 +117,18 @@ TEST_CASE_METHOD(AdvancedPowerGroupFixture,
                  "[android][advanced][power]") {
     // Sanity: a platform that supports host power shows the group.
     REQUIRE(lv_subject_get_int(host_power_subject()) == 1);
-    CHECK_FALSE(lv_obj_has_flag(group_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(group_));
 
     // The feature: unsupported platforms hide the whole POWER group — rows and
     // header, no orphaned "POWER" heading left behind.
     lv_subject_set_int(host_power_subject(), 0);
     process_lvgl(10);
-    CHECK(lv_obj_has_flag(group_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(group_));
 
     // And it comes back when the platform supports it again.
     lv_subject_set_int(host_power_subject(), 1);
     process_lvgl(10);
-    CHECK_FALSE(lv_obj_has_flag(group_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(group_));
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "show_shutdown_dialog is a no-op without host power support",
@@ -182,5 +182,5 @@ TEST_CASE("platform_host_power_supported outlives its registering fixture",
         lv_subject_add_observer(subj, [](lv_observer_t*, lv_subject_t*) {}, nullptr);
     REQUIRE(obs != nullptr);
     lv_subject_set_int(subj, 1);
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }

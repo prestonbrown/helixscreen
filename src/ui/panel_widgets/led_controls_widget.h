@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
 namespace helix {

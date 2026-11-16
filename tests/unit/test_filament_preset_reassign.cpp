@@ -70,9 +70,8 @@ TEST_CASE("validate_reassignment rejects bad slot, empty, or unknown material",
 
 // The guard-then-persist chain FilamentPanel::reassign_preset() runs: a picked
 // material only reaches MaterialSettingsManager when validate_reassignment()
-// accepts it. This is the state transition MaterialPickerMenu::dispatch_select()
-// used to kick off (once wired up by the panel) -- exercised directly now that
-// the widget is gone.
+// accepts it. This state transition is exercised directly, with no picker
+// widget in between.
 TEST_CASE_METHOD(PresetResetFixture, "reassign_preset_if_valid persists a valid material selection",
                  "[material_settings][presets]") {
     using helix::filament_presets::reassign_preset_if_valid;

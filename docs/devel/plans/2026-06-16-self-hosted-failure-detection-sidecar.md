@@ -1,5 +1,7 @@
 # Self-Hosted Local Print-Failure Detection (Sidecar) — Feasibility & Deferred Plan
 
+Parked design behind prestonbrown/helixscreen#1033.
+
 **Date:** 2026-06-16
 **Status:** PARKED / deferred — strategic feasibility captured, not scheduled. Un-parking criteria in §9.
 **Relation to shipped work:** Builds on the `DetectionSource` abstraction shipped for the Snapmaker U1 (`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md` § `defect_detection`). That adapter consumes a detector someone else runs. This doc is about HelixScreen **running its own detector** on printers whose stock AI is closed/unobservable.

@@ -4,6 +4,7 @@
 #if HELIX_HAS_SNAPMAKER
 
 #include "ams_backend_snapmaker.h"
+#include "ams_dryer.h"
 #include "multiace_status.h"
 
 #include <array>
@@ -30,8 +31,15 @@ namespace helix {
  * Until a frame shows api_version 1 and a multi or head mode, this backend
  * answers exactly as the base does: no ACE units, the stock feed path.
  */
-class AmsBackendMultiAce : public AmsBackendSnapmaker {
+class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsBackendSnapmaker::capability(tag);
+    }
+
     AmsBackendMultiAce(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     /// Unit 0 is the heads (PARALLEL). An ACE unit is a HUB in head mode, its
@@ -69,6 +77,11 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker {
     /// feed is its own source.
     [[nodiscard]] std::optional<int> head_source_slot(int head,
                                                       const AmsSystemInfo& info) const override;
+    /// An ACE feeds a head the U1 frame reports with no feeder module, so no head
+    /// here is a hand load.
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override {
+        return AmsBackend::head_filament_ops(head);
+    }
 
     /// Also drops a bay load waiting behind its head's unload: the restart
     /// ended that unload, so the load's second step must not follow it.
@@ -94,14 +107,12 @@ class AmsBackendMultiAce : public AmsBackendSnapmaker {
 
     /// A bay edit lands on the bay's own SlotInfo and the shared override
     /// store, keyed by the global slot index; nothing is written to the engine,
-    /// whose own spool table never sees the edit (phase 4). A head keeps the
+    /// whose own spool table never sees the edit. A head keeps the
     /// base's path, which also writes the head's firmware record.
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    /// The store, lane and SlotInfo halves of the same clear; a bay has no
-    /// head firmware record to drop and no tag product line to restate.
-    void clear_slot_override(int slot_index) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+    /// A head's clear is Snapmaker's; a bay has no head firmware record to
+    /// drop and no tag product line to restate.
+    void after_override_cleared_locked(int slot_index, SlotInfo& slot) override;
 
   protected:
     AmsError do_load_filament(int slot_index) override;

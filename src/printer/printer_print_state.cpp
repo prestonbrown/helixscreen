@@ -1,33 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_print_state.cpp
- * @brief Print state management extracted from PrinterState
+ * @brief Print state, one of PrinterState's domain sub-states
  *
  * Manages print subjects including progress, state, timing, layers, and
- * print start phases. Extracted from PrinterState as part of god class decomposition.
+ * print start phases.
  */
 
 #include "printer_print_state.h"
 
-#include "ui_filename_utils.h"
-#include "ui_timer_guard.h" // lv_timer_cancel_safe
-#include "ui_update_queue.h"
-
-#include "data_root_resolver.h"
-#include "firmware_error_envelope.h"
+#include "config.h"
+#include "core/data_root_resolver.h"
+#include "core/gcode_filename.h"
+#include "core/subject.h"
+#include "core/timer_guard.h" // lv_timer_cancel_safe
+#include "core/update_queue.h"
 #include "format_utils.h"
-#include "json_utils.h"
-#include "pause_descriptor.h"
-#include "plr_backend.h"
+#include "moonraker_error.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
 #include "state/subject_macros.h"
-#include "unit_conversions.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 
 namespace helix {
@@ -39,7 +35,6 @@ const char* PrinterPrintState::no_thumbnail_placeholder() {
 }
 
 PrinterPrintState::PrinterPrintState() {
-    // Initialize string buffers
     std::memset(print_filename_buf_, 0, sizeof(print_filename_buf_));
     std::memset(print_display_filename_buf_, 0, sizeof(print_display_filename_buf_));
     std::memset(print_thumbnail_path_buf_, 0, sizeof(print_thumbnail_path_buf_));
@@ -50,7 +45,6 @@ PrinterPrintState::PrinterPrintState() {
     std::memset(display_message_buf_, 0, sizeof(display_message_buf_));
     std::memset(print_message_buf_, 0, sizeof(print_message_buf_));
 
-    // Set default values
     std::strcpy(print_state_buf_, "standby");
 }
 
@@ -62,7 +56,6 @@ void PrinterPrintState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterPrintState] Initializing subjects (register_xml={})", register_xml);
 
-    // Print progress subjects
     INIT_SUBJECT_INT(print_progress, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(print_progress_display, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(print_progress_text, "0%", subjects_, register_xml);
@@ -86,6 +79,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     // an empty initial value would be delivered to every consumer before the
     // first print. See no_thumbnail_placeholder() for why "" is unsafe there.
     INIT_SUBJECT_STRING(print_thumbnail_path, no_thumbnail_placeholder(), subjects_, register_xml);
+    INIT_SUBJECT_INT(print_has_thumbnail, 0, subjects_, register_xml);
 #if defined(HELIX_PLATFORM_ESP32)
     INIT_SUBJECT_INT(print_psram_thumb_gen, 0, subjects_, register_xml);
 #endif
@@ -101,7 +95,6 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(print_time_left, 0, subjects_, false);
     INIT_SUBJECT_INT(print_filament_used, 0, subjects_, register_xml);
 
-    // Print start progress subjects
     INIT_SUBJECT_INT(print_start_phase, static_cast<int>(PrintStartPhase::IDLE), subjects_,
                      register_xml);
     INIT_SUBJECT_INT(print_start_chamber_wait, 0, subjects_, register_xml);
@@ -113,11 +106,11 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(preparing_epoch, 0, subjects_, false);
     INIT_SUBJECT_INT(preparing_start, static_cast<int>(PreparingStart::None), subjects_, false);
     INIT_SUBJECT_INT(print_identity_epoch, 0, subjects_, false);
+    INIT_SUBJECT_INT(print_state_report_seq, 0, subjects_, false);
     INIT_SUBJECT_INT(print_lifecycle_prev, static_cast<int>(PrintState::Idle), subjects_, false);
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_start_progress, 0, subjects_, register_xml);
 
-    // Print workflow in-progress subject
     INIT_SUBJECT_INT(print_in_progress, 0, subjects_, register_xml);
 
     // Pre-print duration prediction subjects
@@ -169,6 +162,10 @@ void PrinterPrintState::deinit_subjects() {
 
     spdlog::trace("[PrinterPrintState] Deinitializing subjects");
 
+    // A printer switch deinits here: another printer's starts never answer for this one.
+    pending_start_.reset();
+    confirmed_start_.reset();
+
     // Expire any setter callbacks still queued on the UpdateQueue. They capture
     // `this` and write the subjects being torn down below; without this the next
     // drain notifies a freed observer list (#1165, #1146).
@@ -177,14 +174,14 @@ void PrinterPrintState::deinit_subjects() {
     // Per-extruder filament_used subjects are dynamic: for each entry, signal
     // subject death BEFORE deinit so all ObserverGuards (including those still
     // holding shared_ptr copies) detect the subject as dead and skip
-    // lv_observer_remove() on the about-to-be-freed observers (#816).
+    // lv_observer_delete() on the about-to-be-freed observers (#816).
     for (auto& [idx, info] : extruder_filament_used_) {
         if (info.lifetime) {
             *info.lifetime = false;
         }
         info.lifetime.reset();
         if (info.subject) {
-            lv_subject_deinit(info.subject.get());
+            info.subject->reset();
         }
     }
     extruder_filament_used_.clear();
@@ -202,8 +199,8 @@ void PrinterPrintState::deinit_subjects() {
 
 void PrinterPrintState::create_extruder_filament_entry(int extruder_idx) {
     ExtruderFilamentInfo info;
-    info.subject = std::make_unique<lv_subject_t>();
-    lv_subject_init_int(info.subject.get(), 0);
+    info.subject = std::make_unique<helix::Subject>();
+    info.subject->init_int(0);
     info.lifetime = std::make_shared<bool>(true);
     extruder_filament_used_.emplace(extruder_idx, std::move(info));
 }
@@ -220,7 +217,7 @@ lv_subject_t* PrinterPrintState::get_extruder_filament_used_subject(int extruder
         return nullptr;
     }
     lifetime = it->second.lifetime;
-    return it->second.subject.get();
+    return it->second.subject->get();
 }
 
 void PrinterPrintState::publish_progress_display(int percent) {
@@ -231,7 +228,7 @@ void PrinterPrintState::publish_progress_display(int percent) {
     char buf[sizeof(print_progress_text_buf_)];
     helix::format::format_percent(percent, buf, sizeof(buf));
     if (strcmp(lv_subject_get_string(&print_progress_text_), buf) != 0) {
-        lv_subject_copy_string(&print_progress_text_, buf);
+        lv_subject_set_string(&print_progress_text_, buf);
     }
 }
 
@@ -410,7 +407,7 @@ void PrinterPrintState::reset_for_new_print() {
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
-    lv_subject_copy_string(&print_message_, "");
+    lv_subject_set_string(&print_message_, "");
     set_print_stop_reason("");
     lv_subject_set_int(&print_duration_, 0);
     lv_subject_set_int(&print_elapsed_, 0);
@@ -475,642 +472,6 @@ void PrinterPrintState::clear_print_exception() {
     }
 }
 
-void PrinterPrintState::update_from_status(const nlohmann::json& status, bool whole_objects) {
-    // Layer tracking has two sources within a single status update:
-    //   primary  — print_stats.info.{current_layer,total_layer} (slicer
-    //              SET_PRINT_STATS_INFO; authoritative when present)
-    //   fallback — virtual_sdcard.{layer,layer_count} (Klipper-side; populated
-    //              only when sdcard print is active)
-    // If both arrive in the same update, primary wins. These flags are
-    // per-update, scoped to this function call.
-    bool current_layer_from_info = false;
-    bool total_layer_from_info = false;
-    // IMPORTANT: Process print_stats BEFORE virtual_sdcard.
-    // The print_state_enum_ observer fires synchronously and reads print_progress_
-    // for mid-print detection (should_start_print_collector). If virtual_sdcard is
-    // processed first, progress is already non-zero when the observer fires, causing
-    // false mid-print detection and preventing the print start collector from activating.
-    if (status.contains("print_stats")) {
-        const auto& stats = status["print_stats"];
-
-        // plr_backend owns which print_stats key signals PLR support and the
-        // numeric-only rule. Latch UP only: status arrives as deltas, so a later
-        // frame without the key says nothing, and clearing on absence would
-        // manufacture a spurious 1->0->1 edge and re-fire the probe.
-        // PlrOfferController resets this on the disconnect edge instead.
-        if (helix::plr_parse_power_loss_signal(status) &&
-            lv_subject_get_int(&plr_power_loss_signal_) != 1) {
-            spdlog::info("[PrinterPrintState] PLR power-loss signal present");
-            lv_subject_set_int(&plr_power_loss_signal_, 1);
-        }
-
-        // Seed print_duration_ BEFORE updating print_state_enum_. The state-change
-        // observer in MoonrakerManager fires synchronously when print_state_enum_
-        // changes and uses print_duration as a mid-print-attach signal: at a normal
-        // print start print_duration is 0; when helix-screen connects to a printer
-        // already mid-print, the initial subscription payload carries
-        // print_duration > 0. Without this pre-pass, print_duration_ would still
-        // read 0 at the moment of the state transition, the collector would
-        // wrongly start, and the lifecycle would park in Preparing — leaving
-        // "Starting Print..." stuck and dropping print_elapsed updates.
-        if (auto pd_it = stats.find("print_duration"); pd_it != stats.end() && pd_it->is_number()) {
-            int print_seconds = static_cast<int>(pd_it->get<double>());
-            lv_subject_set_int(&print_duration_, print_seconds);
-        }
-        if (auto td_it = stats.find("total_duration"); td_it != stats.end() && td_it->is_number()) {
-            int total_elapsed = static_cast<int>(td_it->get<double>());
-            lv_subject_set_int(&print_elapsed_, total_elapsed);
-        }
-
-        // print_stats.message — populated by Klipper to describe pause/error reason
-        // (e.g. "Filament Sensor filament_sensor: Runout Detected"). Subscribed-field
-        // updates may send null when the field is absent on the Klipper side.
-        // Parsed before state: Klipper sets the error and its message in one frame,
-        // and an observer of the terminal transition reads the message that
-        // explains it.
-        const auto msg_it = stats.find("message");
-        if (msg_it != stats.end()) {
-            // A print error can carry a firmware JSON envelope; every consumer
-            // shows or substring-matches the message, so decode it once here.
-            const std::string new_msg =
-                msg_it->is_string()
-                    ? decode_firmware_error_text(msg_it->get_ref<const std::string&>())
-                    : std::string();
-            if (new_msg != lv_subject_get_string(&print_message_)) {
-                lv_subject_copy_string(&print_message_, new_msg.c_str());
-            }
-        }
-
-        ++print_stats_frames_;
-        const bool frame_has_exception = helix::pause_descriptor::frame_carries_cause(stats);
-        if (auto state_it = stats.find("state"); state_it != stats.end() && state_it->is_string()) {
-            std::string state_str = state_it->get<std::string>();
-            PrintJobState new_state = parse_print_job_state(state_str.c_str());
-            auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-            auto current_outcome = static_cast<PrintOutcome>(lv_subject_get_int(&print_outcome_));
-
-            // Update print_outcome based on state transitions:
-            // - Set outcome when print reaches a terminal state (COMPLETE/CANCELLED/ERROR)
-            // - Clear outcome when a NEW print starts (PRINTING from non-PAUSED)
-            if (new_state != current_state) {
-                // The exception describes one pause. Leaving the pause (a
-                // resume, a cancel, a new print) ends it, so a later pause
-                // whose frames carry no exception is not read as that one.
-                // An exception in this same frame is parsed below and latches
-                // again.
-                // RAW_PRINT_STATE_OK: the exception belongs to the printer's own
-                // pause, so the wire state is what scopes it.
-                if (new_state != PrintJobState::PAUSED) {
-                    clear_print_exception();
-                } else if (!frame_has_exception &&
-                           print_stats_frames_ - print_exception_frame_ > 1) {
-                    // An exception published earlier in the print describes
-                    // something else; this pause has none of its own yet.
-                    clear_print_exception();
-                }
-                // Entering a terminal state: record the outcome
-                if (new_state == PrintJobState::COMPLETE) {
-                    spdlog::info("[PrinterPrintState] Print completed - setting outcome=COMPLETE");
-                    lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::COMPLETE));
-                    freeze_progress_display(true);
-                } else if (new_state == PrintJobState::CANCELLED) {
-                    spdlog::debug(
-                        "[PrinterPrintState] Print cancelled - setting outcome=CANCELLED");
-                    lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::CANCELLED));
-                    freeze_progress_display(false);
-                } else if (new_state == PrintJobState::ERROR) {
-                    spdlog::info("[PrinterPrintState] Print error - setting outcome=ERROR");
-                    lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::ERROR));
-                    freeze_progress_display(false);
-                }
-                // RAW_PRINT_STATE_OK: this runs INSIDE the wire-state handler,
-                // one statement before publish_lifecycle_state() derives the
-                // lifecycle from it. Reading the derived value here would read
-                // the previous tick's answer.
-                // Starting a NEW print: clear the previous outcome and slicer state
-                // (only when transitioning TO PRINTING from a non-PAUSED state)
-                else if (new_state == PrintJobState::PRINTING &&
-                         current_state != PrintJobState::PAUSED) {
-                    if (current_outcome != PrintOutcome::NONE) {
-                        spdlog::info("[PrinterPrintState] New print starting - clearing outcome");
-                        lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
-                    }
-                    unfreeze_progress_display();
-                    // Reset slicer progress for the new print
-                    slicer_progress_ = 0.0;
-                    slicer_progress_active_ = false;
-                    // This frame's own message is already applied above.
-                    if (msg_it == stats.end()) {
-                        lv_subject_copy_string(&print_message_, "");
-                    }
-                }
-
-                // Clear M117 at print END, never at print start. Clearing on the
-                // observed transition INTO printing destroys PRINT_START-era
-                // messages permanently: Moonraker sends deltas, so Klipper never
-                // re-sends an unchanged value. Correctness here depends on
-                // print_stats being parsed (above) before display_status is
-                // parsed (see the display_status handling later in this
-                // function) within the same status object: if that ordering
-                // ever reversed, a display_status delta belonging to this same
-                // notification could be applied before this clear and get wiped
-                // out immediately after. An END_PRINT macro's M117 arrives in a
-                // later notification and displays normally.
-                //
-                // Must stay inside the `new_state != current_state` guard so this
-                // is EDGE-triggered. Level-triggered would re-clear on every
-                // notification while COMPLETE and would swallow the END_PRINT M117.
-                //
-                // Second clause covers an ABNORMAL exit: some paths (Klipper
-                // restart mid-print, SDCARD_RESET_FILE, certain firmware cancels)
-                // go printing/paused -> standby directly, without ever passing
-                // through a terminal state, so the block above never fires and
-                // the last mid-print M117 would otherwise persist into idle and
-                // into the next print. This must NOT fire on the normal
-                // complete -> standby leg of the end-of-print sequence — that
-                // transition's `current_state` is COMPLETE, not
-                // PRINTING/PAUSED, so it's excluded here and the END_PRINT
-                // macro's farewell message (set after the COMPLETE clear above)
-                // survives.
-                // RAW_PRINT_STATE_OK: same handler, same reason as above. The
-                // previous-state arm asks the wire question - printer_has_job() -
-                // because a preparing job the printer never took set no M117.
-                if (job_has_ended(new_state) ||
-                    (new_state == PrintJobState::STANDBY && printer_has_job(current_state))) {
-                    lv_subject_copy_string(&display_message_, "");
-                    update_display_message_visible();
-                }
-            }
-
-            // Always update print_state_enum to reflect true Moonraker state
-            // (print_outcome handles UI persistence for terminal states)
-            if (new_state != current_state) {
-                spdlog::debug("[PrinterPrintState] print_stats.state: '{}' -> enum {} (was {})",
-                              state_str, static_cast<int>(new_state),
-                              static_cast<int>(current_state));
-                lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
-                publish_lifecycle_state();
-                reconcile_preparing();
-            }
-
-            // Update string subject AFTER enum so observers see consistent state
-            // (PrintSelectPanel observes print_state_ string but reads print_state_enum_)
-            if (strcmp(lv_subject_get_string(&print_state_), state_str.c_str()) != 0) {
-                lv_subject_copy_string(&print_state_, state_str.c_str());
-            }
-
-            // Update print_active (1 when PRINTING/PAUSED, 0 otherwise)
-            // This derived subject simplifies XML bindings for card visibility.
-            // Uses the shared pure predicate so the subject's definition of
-            // "active" matches the discovery-time idle gate exactly.
-            bool is_active = status_indicates_active_print(status);
-            int active_val = is_active ? 1 : 0;
-            if (lv_subject_get_int(&print_active_) != active_val) {
-                lv_subject_set_int(&print_active_, active_val);
-
-                // Safety: When print becomes inactive, ensure print_start_phase is IDLE
-                // This prevents "Preparing Print" from showing when print is finished
-                if (!is_active && !has_preparing_job()) {
-                    int phase = lv_subject_get_int(&print_start_phase_);
-                    if (phase != static_cast<int>(PrintStartPhase::IDLE)) {
-                        spdlog::warn(
-                            "[PrinterPrintState] Safety reset: print inactive but phase={}, "
-                            "resetting to IDLE",
-                            phase);
-                        lv_subject_set_int(&print_start_phase_,
-                                           static_cast<int>(PrintStartPhase::IDLE));
-                        lv_subject_set_int(&print_start_chamber_wait_, 0);
-                        publish_lifecycle_state();
-                        lv_subject_copy_string(&print_start_message_, "");
-                        lv_subject_set_int(&print_start_progress_, 0);
-                        update_display_message_visible();
-                    }
-                }
-            }
-
-            // Update combined subject for home panel progress card visibility
-            update_print_show_progress();
-        }
-
-        if (auto fn_it = stats.find("filename"); fn_it != stats.end() && fn_it->is_string()) {
-            std::string filename = fn_it->get<std::string>();
-            if (strcmp(lv_subject_get_string(&print_filename_), filename.c_str()) != 0) {
-                // Order matters, exactly as it does in set_print_thumbnail():
-                // the identity must be visible BEFORE any observer of
-                // print_filename_ runs, or an immediate observer resolves the
-                // new print through the previous one's name.
-                recompute_effective_print_filename(filename);
-                lv_subject_copy_string(&print_filename_, filename.c_str());
-            }
-            reconcile_preparing();
-        }
-
-        // Structured pause cause. pause_descriptor owns which firmware publishes
-        // one and its schema; a frame silent about it leaves the latched cause,
-        // and an empty descriptor (a user pause, or the cause cleared) resets it.
-        if (auto cause = helix::pause_descriptor::read(stats)) {
-            if (frame_has_exception) {
-                print_exception_frame_ = print_stats_frames_;
-            }
-            print_exception_id_ = cause->id;
-            print_exception_code_ = cause->code;
-            print_exception_message_ = std::move(cause->message);
-        }
-        if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
-            lv_subject_set_int(&print_exception_, print_exception_code_);
-        }
-
-        // Update layer info from print_stats.info (sent by Moonraker/mock client)
-        // Note: Moonraker can send null values for layer fields when not available
-        if (stats.contains("info") && stats["info"].is_object()) {
-            const auto& info = stats["info"];
-            spdlog::trace("[LayerTracker] print_stats.info received: {}",
-                          helix::json_util::safe_dump(info));
-
-            if (info.contains("current_layer") && info["current_layer"].is_number()) {
-                int current_layer = info["current_layer"].get<int>();
-                if (!has_real_layer_data_) {
-                    spdlog::info("[LayerTracker] Receiving real layer data from print_stats.info");
-                    has_real_layer_data_ = true;
-                }
-                printer_reports_layers_ = true; // sticky printer capability
-                if (current_layer != lv_subject_get_int(&print_layer_current_)) {
-                    spdlog::debug("[LayerTracker] current_layer={} (from print_stats.info)",
-                                  current_layer);
-                }
-                apply_layer_current(current_layer, LayerSource::Reported, "print_stats.info");
-                current_layer_from_info = true;
-                slicer_layers_reported_ = true;
-                slicer_current_layer_ = current_layer;
-            }
-
-            if (info.contains("total_layer") && info["total_layer"].is_number()) {
-                int total_layer = info["total_layer"].get<int>();
-                printer_reports_layers_ =
-                    true; // sticky printer capability (U1 sends this at start)
-                if (total_layer != lv_subject_get_int(&print_layer_total_)) {
-                    spdlog::debug("[LayerTracker] total_layer={} (from print_stats.info)",
-                                  total_layer);
-                    lv_subject_set_int(&print_layer_total_, total_layer);
-                }
-                total_layer_from_info = true;
-                slicer_layers_reported_ = true;
-                slicer_total_layers_ = total_layer;
-            }
-        } else if (stats.contains("info")) {
-            spdlog::debug("[LayerTracker] print_stats.info is null/missing - slicer may not emit "
-                          "SET_PRINT_STATS_INFO");
-        }
-
-        // Accept estimated_time from status updates (mock includes this; real Moonraker
-        // sends it via file metadata API instead, handled by print status panel callback)
-        if (stats.contains("estimated_time") && stats["estimated_time"].is_number()) {
-            int est = static_cast<int>(stats["estimated_time"].get<double>());
-            if (est > 0 && estimated_print_time_ == 0) {
-                estimated_print_time_ = est;
-                spdlog::debug("[PrinterPrintState] Estimated time from status: {}s", est);
-            }
-        }
-
-        // Track filament usage (Moonraker reports in mm)
-        if (stats.contains("filament_used") && stats["filament_used"].is_number()) {
-            int filament_mm = static_cast<int>(stats["filament_used"].get<double>());
-            lv_subject_set_int(&print_filament_used_, filament_mm);
-        }
-
-        // Update print time tracking (elapsed and remaining)
-        if (stats.contains("print_duration") && stats["print_duration"].is_number()) {
-            print_clock_s_ = stats["print_duration"].get<double>();
-            int print_seconds = static_cast<int>(print_clock_s_);
-            lv_subject_set_int(&print_duration_, print_seconds);
-        }
-
-        // total_duration = wall-clock elapsed since job started (includes prep, pauses)
-        if (stats.contains("total_duration") && stats["total_duration"].is_number()) {
-            int total_elapsed = static_cast<int>(stats["total_duration"].get<double>());
-            lv_subject_set_int(&print_elapsed_, total_elapsed);
-
-            // Estimate remaining from progress using print_duration (actual print time),
-            // NOT total_duration (which includes prep/preheat and inflates the estimate)
-            int print_time = lv_subject_get_int(&print_duration_);
-            int progress = lv_subject_get_int(&print_progress_);
-
-            PrintEtaInputs eta_in;
-            eta_in.progress_pct = progress;
-            eta_in.print_duration_s = print_time;
-            eta_in.slicer_estimate_s = estimated_print_time_;
-            eta_in.preprint_remaining_s = lv_subject_get_int(&preprint_remaining_);
-
-            const int remaining = eta_estimator_.remaining_seconds(eta_in);
-            if (remaining != PrintEtaEstimator::kNoEstimate &&
-                lv_subject_get_int(&print_time_left_) != remaining) {
-                lv_subject_set_int(&print_time_left_, remaining);
-            }
-        }
-    }
-
-    // Parse display_status (M73 progress + M117 message)
-    if (status.contains("display_status")) {
-        const auto& display = status["display_status"];
-        // Not while paused. Klipper expires the M73 value behind this field and
-        // substitutes virtual_sdcard's byte position, and a pause is exactly when
-        // M73 stops being refreshed. commit_progress() declines to publish during
-        // the pause, but recording the substituted value here would outlive it: a
-        // later display_status carrying only an M117 message leaves this member
-        // untouched and still reaches the publish below, handing it the byte
-        // position as though it were the slicer's estimate.
-        if (display.contains("progress") && display["progress"].is_number() &&
-            get_print_lifecycle() != PrintState::Paused) {
-            double raw = display["progress"].get<double>();
-            slicer_progress_ = raw;
-            if (raw > 0.0 && !slicer_progress_active_) {
-                slicer_progress_active_ = true;
-                spdlog::info("[PrinterPrintState] Slicer progress active (M73 detected)");
-            }
-        }
-        // Klipper keeps the last M117 after a job ends, so a subscription response for
-        // an ended job usually carries a PRINT_START message that the live path
-        // cleared at the end edge. A whole-object payload cannot say whether its text
-        // came before or after the end, and a replayed one may be older than the live
-        // frames, so it leaves the shown message alone. print_stats is parsed above,
-        // so this is the state the frame reports.
-        const bool job_ended =
-            job_has_ended(static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_)));
-        if (display.contains("message") && whole_objects && job_ended) {
-            spdlog::debug("[PrinterPrintState] Subscription response for an ended job: "
-                          "display message left as shown");
-        } else if (display.contains("message")) {
-            const char* msg = display["message"].is_string()
-                                  ? display["message"].get_ref<const std::string&>().c_str()
-                                  : ""; // null or non-string clears the message
-            if (strcmp(lv_subject_get_string(&display_message_), msg) != 0) {
-                lv_subject_copy_string(&display_message_, msg);
-            }
-            update_display_message_visible();
-        }
-    }
-
-    // When slicer progress is active and display_status arrives without virtual_sdcard,
-    // update print_progress_ directly from slicer value
-    if (slicer_progress_active_ && status.contains("display_status") &&
-        !status.contains("virtual_sdcard")) {
-        commit_progress(static_cast<int>(slicer_progress_ * 100.0 + 0.5));
-    }
-
-    // Per-extruder filament_used (from Klipper's extruder/extruder1/... objects).
-    // Keys live at the top level of the status payload, NOT under print_stats.
-    // We scan a small fixed range (0..kMaxExtruderScan-1) — Klipper toolchanger
-    // setups max out well below that. Missing keys are silently skipped.
-    //
-    // All map entries are pre-populated by init_subjects(). We do a direct
-    // lookup and only mutate the int value inside the subject, so this runs
-    // safely on the WebSocket background thread without racing the UI
-    // accessor (no rehash, lv_subject_set_int is atomic on the int).
-    for (int idx = 0; idx < kMaxExtruderScan; ++idx) {
-        std::string key = (idx == 0) ? "extruder" : "extruder" + std::to_string(idx);
-        auto json_it = status.find(key);
-        if (json_it == status.end() || !json_it->is_object()) {
-            continue;
-        }
-        if (!json_it->contains("filament_used") || !(*json_it)["filament_used"].is_number()) {
-            continue;
-        }
-        int mm = static_cast<int>((*json_it)["filament_used"].get<double>());
-        auto map_it = extruder_filament_used_.find(idx);
-        if (map_it == extruder_filament_used_.end()) {
-            // Cannot happen after init_subjects() pre-population; defensive log.
-            spdlog::warn(
-                "[PrinterPrintState] extruder{} filament_used entry missing (init skipped?)", idx);
-            continue;
-        }
-        auto& info = map_it->second;
-        if (info.subject && lv_subject_get_int(info.subject.get()) != mm) {
-            lv_subject_set_int(info.subject.get(), mm);
-        }
-    }
-
-    // Cache commanded Z (mm) from gcode_move for Z-height layer derivation.
-    // gcode_position is [X, Y, Z, E] in raw mm (NOT centimm — only motion_state
-    // converts). This lives at the top level of the status payload, so it may
-    // arrive on an update that carries no virtual_sdcard. Cache it here so the
-    // derivation below can run regardless of which fields this update carries.
-    if (auto gm_it = status.find("gcode_move"); gm_it != status.end() && gm_it->is_object()) {
-        if (auto pos_it = gm_it->find("gcode_position");
-            pos_it != gm_it->end() && pos_it->is_array() && pos_it->size() >= 3 &&
-            (*pos_it)[2].is_number()) {
-            last_gcode_z_mm_ = (*pos_it)[2].get<double>();
-            have_gcode_z_ = true;
-        }
-    }
-
-    // Update print progress (virtual_sdcard) - processed AFTER print_stats
-    if (status.contains("virtual_sdcard")) {
-        const auto& sdcard = status["virtual_sdcard"];
-
-        // SD playback active flag — drives prepare_for_resume's dirty-bed
-        // restart UX. Coexists independently with PrintJobState; do not
-        // gate on other fields being present.
-        if (sdcard.contains("is_active") && sdcard["is_active"].is_boolean()) {
-            sdcard_active_ = sdcard["is_active"].get<bool>();
-        }
-
-        // Power-loss recovery: plr_backend owns which keys carry the
-        // validated-snapshot flag and the recovery file, and their type rules
-        // (-1 / nullptr mean this frame says nothing about them).
-        if (const int snapshot_valid = helix::plr_parse_snapshot_valid(status);
-            snapshot_valid >= 0) {
-            lv_subject_set_int(&plr_snapshot_valid_, snapshot_valid);
-        }
-        if (const std::string* fp = helix::plr_parse_recovery_file(status);
-            fp != nullptr && pl_recovery_file_ != *fp) {
-            pl_recovery_file_ = *fp;
-        }
-
-        if (sdcard.contains("progress") && sdcard["progress"].is_number()) {
-            int file_progress_pct = helix::units::json_to_percent(sdcard, "progress");
-
-            // Update print_progress_ subject (skipped when slicer is active
-            // but only file progress arrived — slicer is authoritative)
-            bool skip_progress_update =
-                slicer_progress_active_ && !status.contains("display_status");
-
-            if (!skip_progress_update) {
-                int progress_pct = file_progress_pct;
-                if (slicer_progress_active_) {
-                    // Slicer active and display_status present — use slicer value
-                    progress_pct = static_cast<int>(slicer_progress_ * 100.0 + 0.5);
-                }
-                commit_progress(progress_pct);
-            }
-
-            // virtual_sdcard.layer / layer_count are the FALLBACK source —
-            // skip them when print_stats.info already provided the value in
-            // this same update, since slicer-supplied values are
-            // authoritative (cancel-stale-progress semantics during
-            // pause/resume, etc.).
-            if (!current_layer_from_info && sdcard.contains("layer") &&
-                sdcard["layer"].is_number_integer()) {
-                int vsd_layer = sdcard["layer"].get<int>();
-                if (!has_real_layer_data_) {
-                    spdlog::info("[LayerTracker] Receiving real layer data from virtual_sdcard");
-                    has_real_layer_data_ = true;
-                }
-                printer_reports_layers_ = true; // sticky printer capability
-                if (vsd_layer != lv_subject_get_int(&print_layer_current_)) {
-                    spdlog::debug("[LayerTracker] current_layer={} (from virtual_sdcard)",
-                                  vsd_layer);
-                }
-                apply_layer_current(vsd_layer, LayerSource::Reported, "virtual_sdcard");
-            }
-            if (!total_layer_from_info && sdcard.contains("layer_count") &&
-                sdcard["layer_count"].is_number_integer()) {
-                int vsd_total = sdcard["layer_count"].get<int>();
-                printer_reports_layers_ = true; // sticky printer capability
-                if (vsd_total != lv_subject_get_int(&print_layer_total_)) {
-                    spdlog::debug("[LayerTracker] total_layer={} (from virtual_sdcard)", vsd_total);
-                    lv_subject_set_int(&print_layer_total_, vsd_total);
-                }
-            }
-
-            // Layer estimation fallback: linear interpolation from file progress.
-            //
-            // Gate on the STICKY printer_reports_layers_ capability, NOT the
-            // per-print has_real_layer_data_ flag. A printer that has ever
-            // reported a real layer field (the U1 sends total_layer in
-            // print_stats.info from print start) must NEVER fabricate a layer
-            // from progress: reset_for_new_print() clears has_real_layer_data_
-            // at the start of each print, and Moonraker DELTA updates omit the
-            // unchanged info.current_layer=0 throughout pre-print, so that flag
-            // stays false while file progress climbs. The old gate then
-            // estimated current_layer=1 from ~2% progress mid-pre-print, which
-            // tripped the pre-print→printing hand-off
-            // (MoonrakerManager::should_complete_preprint) ~24s in. With the
-            // sticky gate, current_layer holds the authoritative info value (0
-            // through pre-print) and only a genuine info.current_layer>=1
-            // advances it. Estimation remains available for printers that never
-            // report any real layer data (printer_reports_layers_ stays false).
-            // Additionally require unknown slice geometry (layer_height_ <= 0):
-            // when the layer height IS known, the Z-height derivation block below
-            // owns the estimate (it tracks real geometry instead of the byte/time
-            // progress fraction, which drifts high early in a print). This tier
-            // stays for non-sliced jobs / prints with no height metadata.
-            //
-            // Gated on print_duration > 0: Klipper advances print_duration only
-            // once real print/extrusion moves execute — never during PRINT_START
-            // (bed mesh / purge line / Z-hop). File-position progress, however,
-            // climbs while the START_PRINT macro streams through the file header,
-            // so without this gate a fabricated layer appears (and self-corrects
-            // only once printing begins). Deferring until print_duration > 0 shows
-            // the pre-print default instead of a bogus number.
-            if (!printer_reports_layers_ && layer_height_ <= 0.0 &&
-                lv_subject_get_int(&print_duration_) > 0) {
-                auto current_state =
-                    static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-                bool is_terminal_state = job_has_ended(current_state);
-                if (!is_terminal_state && file_progress_pct > 0) {
-                    int total = lv_subject_get_int(&print_layer_total_);
-                    if (total > 0) {
-                        int estimated = (file_progress_pct * total + 50) / 100;
-                        if (estimated < 1)
-                            estimated = 1;
-                        if (estimated > total)
-                            estimated = total;
-                        int current = lv_subject_get_int(&print_layer_current_);
-                        // Progress-fraction guess — the display marks this "~".
-                        layer_z_derived_ = false;
-                        if (estimated != current) {
-                            spdlog::debug("[LayerTracker] Estimated layer {}/{} from progress {}%",
-                                          estimated, total, file_progress_pct);
-                            apply_layer_current(estimated, LayerSource::Estimate,
-                                                "progress estimate");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Power-loss recovery: plr_backend owns which status key carries the
-    // interrupted flag and the boolean-only rule (-1 means this frame says
-    // nothing about it; see plr_parse_interrupted_flag). The offer controller
-    // resets the subject on the disconnect edge, like plr_snapshot_valid.
-    const int plr_flag = helix::plr_parse_interrupted_flag(status);
-    if (plr_flag >= 0 && lv_subject_get_int(&plr_interrupted_flag_) != plr_flag) {
-        spdlog::debug("[PrinterPrintState] PLR interrupted flag = {} (power-loss recovery)",
-                      plr_flag);
-        lv_subject_set_int(&plr_interrupted_flag_, plr_flag);
-    }
-
-    // Z-height current-layer derivation (Mainsail/Fluidd parity) — tier 3.
-    //
-    // For printers whose slicer never reports a layer number, derive the layer
-    // from commanded Z instead of the byte/time progress fraction. Progress is
-    // unrelated to layer count and drifts high early (12% of 75 layers => ~9
-    // while the true layer is 5). Formula:
-    //   round((z - first_layer_height) / layer_height) + 1
-    // While printing layer N the commanded Z sits at first + (N-1)*height, so
-    // rel = (z-first)/height = N-1 and round(rel)+1 = N. round() (not ceil)
-    // absorbs +-1/2 layer of commanded-Z float noise. A Z-hop lifts Z several
-    // layers for each travel move, so a new layer is shown only once Z has
-    // held it for kHeightLayerDwellSeconds of print time
-    // (decide_height_layer()); the first derived layer of a print shows at once.
-    //
-    // Gated on the STICKY printer_reports_layers_ (a printer that ever reports a
-    // real layer field must never fabricate one), known geometry, and a cached
-    // Z. has_real_layer_data_ / printer_reports_layers_ are deliberately NOT set
-    // (this is not a slicer-reported field, so the pre-print completion gate
-    // should_complete_preprint stays unaffected). It IS flagged layer_z_derived_,
-    // which marks the value display-accurate (Mainsail parity) so the label drops
-    // the "~" estimate prefix — the derivation tracks real commanded geometry.
-    //
-    // Gated on print_duration > 0 (see the Tier-2b note above): during
-    // PRINT_START the commanded Z is driven by bed probing and Z-hop, NOT model
-    // layers, so round((z - first) / height) + 1 fabricates a bogus layer
-    // (e.g. Z=2mm with 0.2mm layers => "layer 10"). Worse, this tier sets
-    // layer_z_derived_, so layer_is_accurate() would present that garbage WITHOUT
-    // the "~" estimate prefix. Klipper holds print_duration at 0 until real
-    // extrusion begins, so deferring the derivation until then keeps the layer at
-    // the pre-print default through bed mesh / purge / Z-hop.
-    if (!printer_reports_layers_ && layer_height_ > 0.0 && have_gcode_z_ &&
-        lv_subject_get_int(&print_duration_) > 0) {
-        auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
-        bool is_terminal_state = job_has_ended(current_state);
-        int total = lv_subject_get_int(&print_layer_total_);
-        if (!is_terminal_state && total > 0) {
-            int derived = static_cast<int>(std::lround((last_gcode_z_mm_ - first_layer_height_) /
-                                                       layer_height_)) +
-                          1;
-            if (derived < 1)
-                derived = 1;
-            if (derived > total)
-                derived = total;
-            const int shown = lv_subject_get_int(&print_layer_current_);
-            const HeightLayerDecision decision = decide_height_layer(
-                !layer_z_derived_, shown, derived, height_layer_pending_, print_clock_s_);
-            height_layer_pending_ = decision.pending;
-            // Mark the source BEFORE writing the subject so the label observer
-            // reads the correct accuracy state on the change it triggers.
-            layer_z_derived_ = true;
-            if (decision.show != shown) {
-                spdlog::debug("[LayerTracker] Derived layer {}/{} from Z={:.3f}mm "
-                              "(first={:.3f}, height={:.3f})",
-                              decision.show, total, last_gcode_z_mm_, first_layer_height_,
-                              layer_height_);
-                apply_layer_current(decision.show, LayerSource::Estimate, "z-height derivation");
-            }
-        }
-    }
-
-    // The printer's own record of a scheduled layer pause, when it keeps one.
-    if (!layer_pause_state_object_.empty()) {
-        if (const auto* object =
-                helix::json_util::find_member(status, layer_pause_state_object_.c_str())) {
-            layer_pause_.apply_status(*object);
-        }
-    }
-    refresh_layer_pause();
-}
-
 void PrinterPrintState::update_print_show_progress() {
     // Combined subject for home panel progress card visibility
     // Show progress card only when: print is active AND not in print start phase
@@ -1129,7 +490,7 @@ void PrinterPrintState::update_print_show_progress() {
 
 void PrinterPrintState::set_print_stop_reason(const std::string& reason) {
     if (reason != lv_subject_get_string(&print_stop_reason_)) {
-        lv_subject_copy_string(&print_stop_reason_, reason.c_str());
+        lv_subject_set_string(&print_stop_reason_, reason.c_str());
     }
     const int visible = reason.empty() ? 0 : 1;
     if (lv_subject_get_int(&print_stop_reason_visible_) != visible) {
@@ -1187,7 +548,11 @@ void PrinterPrintState::recompute_effective_print_filename(const std::string& ra
         print_identity_override_.clear();
     }
 
-    if (!print_identity_override_.empty()) {
+    if (printer_side_pre_start_ && lv_subject_get_int(&print_active_) == 0) {
+        // Another app's start, before its file opens: print_stats still names the
+        // previous job, and nothing names this one yet.
+        effective_print_filename_.clear();
+    } else if (!print_identity_override_.empty()) {
         effective_print_filename_ = print_identity_override_;
     } else {
         // No override: a rewritten path still has to resolve, because a print we
@@ -1206,6 +571,20 @@ void PrinterPrintState::publish_identity_if_changed(const std::string& before) {
     spdlog::debug("[PrinterPrintState] Effective print filename: '{}' -> '{}'", before,
                   effective_print_filename_);
     lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+}
+
+void PrinterPrintState::set_printer_side_pre_start(bool live) {
+    if (printer_side_pre_start_ == live) {
+        return;
+    }
+    printer_side_pre_start_ = live;
+    const std::string before = effective_print_filename_;
+    recompute_effective_print_filename(lv_subject_get_string(&print_filename_));
+    // After a Klipper restart the reported name is already empty, so the
+    // identity string does not move, but what it means does: announce it.
+    if (effective_print_filename_ == before) {
+        lv_subject_set_int(&print_identity_epoch_, ++print_identity_epoch_counter_);
+    }
 }
 
 void PrinterPrintState::set_print_identity_override(const std::string& name) {
@@ -1240,7 +619,27 @@ void PrinterPrintState::set_print_thumbnail(const std::string& for_file, const s
     // subject runs, so observers can trust it describes the path they see.
     print_thumbnail_file_ = for_file;
     if (strcmp(lv_subject_get_string(&print_thumbnail_path_), path.c_str()) != 0) {
-        lv_subject_copy_string(&print_thumbnail_path_, path.c_str());
+        lv_subject_set_string(&print_thumbnail_path_, path.c_str());
+    }
+    update_has_thumbnail();
+}
+
+bool PrinterPrintState::has_own_thumbnail(const char* path, bool psram_thumbnail) {
+    if (psram_thumbnail) {
+        return true;
+    }
+    return path != nullptr && path[0] != '\0' && strcmp(path, no_thumbnail_placeholder()) != 0;
+}
+
+void PrinterPrintState::update_has_thumbnail() {
+#if defined(HELIX_PLATFORM_ESP32)
+    const bool psram = print_psram_thumbnail_ != nullptr;
+#else
+    const bool psram = false;
+#endif
+    const int has = has_own_thumbnail(lv_subject_get_string(&print_thumbnail_path_), psram) ? 1 : 0;
+    if (lv_subject_get_int(&print_has_thumbnail_) != has) {
+        lv_subject_set_int(&print_has_thumbnail_, has);
     }
 }
 
@@ -1253,6 +652,7 @@ void PrinterPrintState::set_print_psram_thumbnail(
     spdlog::debug("[PrinterPrintState] PSRAM thumbnail {}",
                   print_psram_thumbnail_ ? "installed" : "cleared");
     lv_subject_set_int(&print_psram_thumb_gen_, lv_subject_get_int(&print_psram_thumb_gen_) + 1);
+    update_has_thumbnail();
 }
 #endif
 
@@ -1260,7 +660,7 @@ void PrinterPrintState::set_print_display_filename(const std::string& name) {
     // Display filename is set from PrintStatusPanel's main-thread callback.
     spdlog::trace("[PrinterPrintState] Setting print display filename: {}", name);
     if (strcmp(lv_subject_get_string(&print_display_filename_), name.c_str()) != 0) {
-        lv_subject_copy_string(&print_display_filename_, name.c_str());
+        lv_subject_set_string(&print_display_filename_, name.c_str());
     }
 }
 
@@ -1318,9 +718,10 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         // A live preparing job means WE started this and the printer has not
         // caught up yet - print_active is legitimately 0 for the whole
         // host-side pre-start block, and dropping these updates freezes the
-        // overlay on its first phase.
+        // overlay on its first phase. A start the printer announced itself is
+        // in the same window without a job of ours.
         if (phase != PrintStartPhase::IDLE && lv_subject_get_int(&print_active_) == 0 &&
-            !is_new_print_start && !has_preparing_job()) {
+            !is_new_print_start && !has_preparing_job() && !printer_side_pre_start_) {
             spdlog::debug("[PrinterPrintState] Ignoring stale phase {} (print inactive)",
                           static_cast<int>(phase));
             return;
@@ -1340,7 +741,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
                 lv_subject_set_int(&print_outcome_, static_cast<int>(PrintOutcome::NONE));
             }
         }
-        if (phase != PrintStartPhase::SOAKING) {
+        if (phase != PrintStartPhase::HEATING_CHAMBER) {
             set_print_start_chamber_wait(false);
         }
         if (lv_subject_get_int(&print_start_phase_) != static_cast<int>(phase)) {
@@ -1350,7 +751,7 @@ void PrinterPrintState::set_print_start_state(PrintStartPhase phase, const char*
         }
         if (!msg.empty() &&
             strcmp(lv_subject_get_string(&print_start_message_), msg.c_str()) != 0) {
-            lv_subject_copy_string(&print_start_message_, msg.c_str());
+            lv_subject_set_string(&print_start_message_, msg.c_str());
         }
         lv_subject_set_int(&print_start_progress_, clamped_progress);
         update_print_show_progress();
@@ -1366,7 +767,7 @@ void PrinterPrintState::reset_print_start_state() {
             lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
             lv_subject_set_int(&print_start_chamber_wait_, 0);
             publish_lifecycle_state();
-            lv_subject_copy_string(&print_start_message_, "");
+            lv_subject_set_string(&print_start_message_, "");
             lv_subject_set_int(&print_start_progress_, 0);
             update_print_show_progress();
             update_display_message_visible();
@@ -1390,13 +791,13 @@ void PrinterPrintState::set_print_in_progress(bool in_progress) {
 void PrinterPrintState::set_print_start_time_left(const char* text) {
     const char* new_text = (text && text[0] != '\0') ? text : "";
     if (strcmp(lv_subject_get_string(&print_start_time_left_), new_text) != 0) {
-        lv_subject_copy_string(&print_start_time_left_, new_text);
+        lv_subject_set_string(&print_start_time_left_, new_text);
     }
 }
 
 void PrinterPrintState::clear_print_start_time_left() {
     if (strcmp(lv_subject_get_string(&print_start_time_left_), "") != 0) {
-        lv_subject_copy_string(&print_start_time_left_, "");
+        lv_subject_set_string(&print_start_time_left_, "");
     }
     lv_subject_set_int(&preprint_remaining_, 0);
     lv_subject_set_int(&preprint_elapsed_, 0);
@@ -1462,6 +863,10 @@ bool PrinterPrintState::can_start_new_print() const {
     // Check if a print workflow is already in progress (UI state)
     // This prevents double-tap issues during long G-code modification workflows
     if (is_print_in_progress()) {
+        return false;
+    }
+    // The printer is running a start another app sent, before its file opens.
+    if (printer_side_pre_start_) {
         return false;
     }
 
@@ -1556,21 +961,53 @@ void PrinterPrintState::note_preparing_start_sent() {
     }
 }
 
+void PrinterPrintState::note_start_plate(const std::string& printer_id, const std::string& filename,
+                                         int plate) {
+    if (preparing_job_.empty()) {
+        return; // no job for the printer to confirm
+    }
+    pending_start_ = StartRecord{printer_id, filename, plate, preparing_epoch_counter_};
+}
+
+std::string PrinterPrintState::start_record_printer_id() {
+    const Config* config = Config::get_instance();
+    return config ? config->get_active_printer_id() : std::string();
+}
+
+std::optional<int> PrinterPrintState::confirmed_start_plate(const std::string& printer_id,
+                                                            const std::string& filename) const {
+    if (!confirmed_start_ || filename.empty() || confirmed_start_->printer_id != printer_id ||
+        confirmed_start_->filename != filename) {
+        return std::nullopt;
+    }
+    return confirmed_start_->plate;
+}
+
 void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) {
     if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return;
     }
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
+    if (!accepted) {
+        pending_start_.reset();
+    }
 }
 
-bool PrinterPrintState::hold_for_requested_cancel(int epoch) {
-    if (!preparing_cancel_requested_ || epoch == 0 || epoch != preparing_epoch_counter_ ||
-        preparing_job_.empty()) {
+bool PrinterPrintState::hold_unanswered_start(int epoch, const MoonrakerError& error) {
+    if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
         return false;
     }
-    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer with a cancel requested - "
-                 "holding the job for the cancel",
-                 preparing_job_.filename);
+    // A dropped connection may also be a start that never left the screen, so
+    // only a Stop waiting to cancel it is reason to keep the job.
+    const bool held =
+        error.command_may_still_run() || (error.is_transport_loss() && preparing_cancel_requested_);
+    if (!held) {
+        return false;
+    }
+    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer ({}){} - keeping the job "
+                 "until the printer reports it",
+                 preparing_job_.filename, error.message,
+                 preparing_cancel_requested_ ? " with a cancel requested" : "");
     set_preparing_start(PreparingStart::Unanswered);
     return true;
 }
@@ -1661,6 +1098,15 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     }
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
+    // The printer's last job is ours only when it confirms the one we sent;
+    // a job it took instead replaces whatever ours was.
+    if (reason == PreparingExit::Confirmed) {
+        const bool sent = pending_start_ && pending_start_->epoch == preparing_epoch_counter_;
+        confirmed_start_ = sent ? pending_start_ : std::nullopt;
+    } else if (reason == PreparingExit::Superseded) {
+        confirmed_start_.reset();
+    }
+    pending_start_.reset();
     preparing_job_ = {};
     preparing_cancel_requested_ = false;
     set_preparing_start(PreparingStart::None);
@@ -1681,7 +1127,7 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     // other reason means no print is coming, so the pre-print UI must come down.
     if (reason != PreparingExit::Confirmed) {
         lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
-        lv_subject_copy_string(&print_start_message_, "");
+        lv_subject_set_string(&print_start_message_, "");
         lv_subject_set_int(&print_start_progress_, 0);
         update_display_message_visible();
     }

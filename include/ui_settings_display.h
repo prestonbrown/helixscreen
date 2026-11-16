@@ -13,9 +13,10 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "screensaver_registry.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <vector>
@@ -29,6 +30,9 @@ class DisplaySettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_display_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void init_subjects() override;
@@ -57,7 +61,7 @@ class DisplaySettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// Subject for brightness value label binding
-    lv_subject_t brightness_value_subject_{};
+    helix::Subject brightness_value_subject_{};
     char brightness_value_buf_[8]; // e.g., "100%"
 
     /// Stable registry name ("off", "maze", ...) at each screensaver dropdown index.

@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         g++ \
         gdb \
         git \
+        jq \
         libbluetooth-dev \
         libcairo2-dev \
         libfmt-dev \
@@ -70,6 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-pip \
         python3-venv \
+        rsync \
         tzdata \
     && ln -sf "$(ls -d /usr/lib/llvm-*/bin/llvm-symbolizer | tail -1)" /usr/local/bin/llvm-symbolizer \
     && rm -rf /var/lib/apt/lists/*

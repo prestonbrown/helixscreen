@@ -34,62 +34,26 @@ TEST_CASE("printer_has_job: only PRINTING and PAUSED count", "[print][navigation
     REQUIRE_FALSE(printer_has_job(PrintJobState::ERROR));
 }
 
-TEST_CASE("Print start nav: inactive -> active edges navigate", "[print][navigation]") {
-    SECTION("STANDBY -> PRINTING (normal print start)") {
-        REQUIRE(print_start_nav_should_navigate(PrintJobState::STANDBY, PrintJobState::PRINTING));
-    }
-    SECTION("STANDBY -> PAUSED (power-loss recovery, #1099)") {
-        REQUIRE(print_start_nav_should_navigate(PrintJobState::STANDBY, PrintJobState::PAUSED));
-    }
-    SECTION("COMPLETE -> PRINTING (retry after finished print)") {
-        REQUIRE(print_start_nav_should_navigate(PrintJobState::COMPLETE, PrintJobState::PRINTING));
-    }
-    SECTION("ERROR -> PAUSED (recovery after error)") {
-        REQUIRE(print_start_nav_should_navigate(PrintJobState::ERROR, PrintJobState::PAUSED));
-    }
-    SECTION("CANCELLED -> PRINTING (new print after cancel)") {
-        REQUIRE(print_start_nav_should_navigate(PrintJobState::CANCELLED, PrintJobState::PRINTING));
-    }
-}
-
-TEST_CASE("Print start nav: active -> active transitions do NOT navigate", "[print][navigation]") {
-    SECTION("PAUSED -> PRINTING (mid-session resume must not yank user back)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PAUSED, PrintJobState::PRINTING));
-    }
-    SECTION("PRINTING -> PAUSED (pause)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PRINTING, PrintJobState::PAUSED));
-    }
-    SECTION("PRINTING -> PRINTING (no edge)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PRINTING, PrintJobState::PRINTING));
-    }
-    SECTION("PAUSED -> PAUSED (no edge)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PAUSED, PrintJobState::PAUSED));
-    }
-}
-
-TEST_CASE("Print start nav: transitions to inactive states do NOT navigate",
-          "[print][navigation]") {
-    SECTION("STANDBY -> COMPLETE") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::STANDBY, PrintJobState::COMPLETE));
-    }
-    SECTION("PRINTING -> COMPLETE (print finishes)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PRINTING, PrintJobState::COMPLETE));
-    }
-    SECTION("PRINTING -> CANCELLED") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::PRINTING, PrintJobState::CANCELLED));
-    }
-    SECTION("PAUSED -> ERROR") {
-        REQUIRE_FALSE(print_start_nav_should_navigate(PrintJobState::PAUSED, PrintJobState::ERROR));
-    }
-    SECTION("STANDBY -> STANDBY (no edge)") {
-        REQUIRE_FALSE(
-            print_start_nav_should_navigate(PrintJobState::STANDBY, PrintJobState::STANDBY));
+TEST_CASE("Print start nav: only an inactive -> active edge navigates", "[print][navigation]") {
+    using S = PrintJobState;
+    struct Edge {
+        S prev, current;
+        bool navigates;
+    };
+    const Edge edges[] = {
+        {S::STANDBY, S::PRINTING, true},   // normal print start
+        {S::STANDBY, S::PAUSED, true},     // power-loss recovery (#1099)
+        {S::COMPLETE, S::PRINTING, true},  // retry after a finished print
+        {S::ERROR, S::PAUSED, true},       // recovery after an error
+        {S::CANCELLED, S::PRINTING, true}, // new print after a cancel
+        {S::PAUSED, S::PRINTING, false},   // a resume must not yank the user back
+        {S::PRINTING, S::PAUSED, false},   {S::PRINTING, S::PRINTING, false},
+        {S::PAUSED, S::PAUSED, false},     {S::STANDBY, S::COMPLETE, false},
+        {S::PRINTING, S::COMPLETE, false}, {S::PRINTING, S::CANCELLED, false},
+        {S::PAUSED, S::ERROR, false},      {S::STANDBY, S::STANDBY, false},
+    };
+    for (const Edge& e : edges) {
+        CAPTURE(static_cast<int>(e.prev), static_cast<int>(e.current));
+        CHECK(print_start_nav_should_navigate(e.prev, e.current) == e.navigates);
     }
 }

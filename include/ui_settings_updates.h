@@ -17,10 +17,12 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -31,6 +33,9 @@ class UpdatesSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_updates_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void register_callbacks() override;
@@ -70,7 +75,7 @@ class UpdatesSettingsOverlay : public OverlayBase {
     /// (prestonbrown/helixscreen#1727).
     void on_download_status(int status);
 
-    lv_obj_t* update_download_modal_ = nullptr;
+    helix::ui::WidgetRef update_download_modal_;
     /// Set by hide_update_download_modal(): the user's own Cancel/Close, which
     /// an error arriving afterwards must not override.
     bool download_modal_closed_by_user_ = false;

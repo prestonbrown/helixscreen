@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -30,6 +30,9 @@ class HardwareSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "settings_hardware_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Default create() plus the live Hardware Health row binding.
     lv_obj_t* create(lv_obj_t* parent) override;
@@ -49,5 +52,13 @@ inline HardwareSettingsOverlay& get_hardware_settings_overlay() {
  * @param overlay_root A settings_hardware_overlay tree
  */
 void bind_hardware_health_row(lv_obj_t* overlay_root);
+
+/**
+ * @brief Turn the printer's light controls on or off, saved and applied live
+ *
+ * Writes the led capability override ("enable" or "disable") and republishes
+ * printer_has_led and the LED controller's light gates. Main thread only.
+ */
+void set_chamber_light_fitted(bool fitted);
 
 } // namespace helix::settings

@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 
 #include <string>
 
-// Forward declarations
-
 namespace helix {
 class IMoonrakerAPI;
+
+/// Whether the print status screen is on the navigation stack. The UI installs
+/// it; with none installed the user counts as not watching.
+using PrintStatusShownQuery = bool (*)();
+
+/// Install @p query and return the previous one. Not synchronized: the UI installs
+/// it during static initialization, before any print can end.
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query);
 
 /**
  * @brief Initialize print completion notification system
@@ -47,13 +52,12 @@ ObserverGuard init_preparing_exit_observer();
  *    terminal value when the phase clears. The preparing-exit observer cannot
  *    cover it either: the preparing job was retired as `Confirmed` the moment
  *    the printer took the job. Without this, a Klipper fault in `PRINT_START` or
- *    a cancel during a long bed mesh was reported by nothing at all.
+ *    a cancel during a long bed mesh is reported by nothing at all.
  *
  *  - A HOST-side block that is abandoned also derives `Preparing` -> terminal,
  *    but from the PREVIOUS job's stale `print_stats` value. `begin_preparing()`
  *    clears `print_outcome`, so that case reads NONE and is correctly silent -
  *    otherwise abandoning a start would announce the last print's completion.
- *    That is the stale-badge report this module's branch began with.
  *
  * @param outcome PrinterState's `print_outcome`, i.e. whether a terminal state
  *                was actually recorded for THIS attempt.

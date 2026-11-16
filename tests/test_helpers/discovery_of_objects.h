@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "json_fwd.h"
 #include "printer_discovery.h"
 
 #include <string>

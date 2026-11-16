@@ -27,6 +27,32 @@ setup() {
     contains "1 > baseline 0" "$output"
 }
 
+@test "a failure carries the marker that a gate log search looks for" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    run python3 "$GATE" --max-allowed=0 "$FILE"
+    contains "❌ Raw lv_obj_t* members" "$output"
+}
+
+@test "a failure names the hits in files this branch changed, and only those" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    OTHER="$BATS_TEST_TMPDIR/other.h"
+    printf '    lv_obj_t* other_ = nullptr;\n' > "$OTHER"
+    mock_command_script git "echo '$FILE'"
+    run python3 "$GATE" --max-allowed=0 "$FILE" "$OTHER"
+    [ "$status" -eq 1 ]
+    contains "  $FILE:1: lv_obj_t* label_" "$output"
+    lacks "$OTHER:1:" "$output"
+}
+
+@test "a failure still reports when git cannot name the changed files" {
+    printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
+    mock_command_fail git
+    run python3 "$GATE" --max-allowed=0 "$FILE"
+    [ "$status" -eq 1 ]
+    contains "1 > baseline 0" "$output"
+    lacks "$FILE:1:" "$output"
+}
+
 @test "an uninitialised member, a static member and a C array are each counted" {
     cat > "$FILE" <<'EOF'
     lv_obj_t* row_;
@@ -38,11 +64,19 @@ EOF
     contains "3 > baseline 0" "$output"
 }
 
-@test "a count at the baseline passes" {
+@test "a count at the baseline passes; under it passes at commit and fails at a push" {
     printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
     run python3 "$GATE" --max-allowed=1 "$FILE"
     [ "$status" -eq 0 ]
-    contains "1 <= baseline (1)" "$output"
+    contains "1 == baseline (1)" "$output"
+
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed=4 "$FILE"
+    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    contains "ratchet it down" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed=4 "$FILE"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "scripts/qc/decl_ui.sh" "$output"
+    contains "--max-allowed: 4 -> 1" "$output"
 }
 
 # ------------------------------------------------------------ quiet shapes
@@ -57,7 +91,7 @@ EOF
 EOF
     run python3 "$GATE" --max-allowed=0 "$FILE"
     [ "$status" -eq 0 ]
-    contains "0 <= baseline (0)" "$output"
+    contains "0 == baseline (0)" "$output"
 }
 
 @test "a member that says why it stays raw is not counted" {

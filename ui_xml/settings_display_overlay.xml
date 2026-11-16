@@ -118,6 +118,15 @@
             <event_cb trigger="clicked" callback="on_test_screensaver"/>
           </ui_button>
         </lv_obj>
+        <!-- Print progress card on savers without their own print display; hidden with the
+             screensaver off or not built. Starts hidden for the same reason as the Test button. -->
+        <setting_toggle_row name="row_screensaver_print_progress"
+                            label="Show Print Progress" icon="progress_clock"
+                            description="Show time left on screensavers during a print"
+                            subject="settings_screensaver_print_progress"
+                            callback="on_screensaver_print_progress_changed" hidden="true">
+          <bind_flag_if cond="settings_screensaver_type eq 0 or settings_has_screensaver eq 0" flag="hidden"/>
+        </setting_toggle_row>
         <!-- Sleep While Printing -->
         <setting_toggle_row name="row_sleep_while_printing"
                             label="Sleep While Printing" icon="sleep"

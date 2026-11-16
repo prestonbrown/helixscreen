@@ -68,11 +68,14 @@
                 width="0" height="content" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column">
           <ui_button name="preset_spool"
                      width="100%" height="content" layout="column" state_trickle="true" style_pad_ver="#space_sm"
-                     style_pad_gap="#temp_preset_btn_spacing" hidden="true">
+                     style_pad_gap="#temp_preset_btn_spacing">
+            <bind_flag_if_eq subject="filament_spool_preset_shown" flag="hidden" ref_value="0"/>
             <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
-            <text_body name="spool_preset_label" width="100%" text="" style_text_align="center" long_mode="dots"/>
-            <text_small name="spool_preset_temps" text="" style_text_align="center" style_text_color="#text_muted"/>
+            <text_body name="spool_preset_label"
+                       width="100%" bind_text="filament_spool_preset_name" style_text_align="center" long_mode="dots"/>
+            <text_small name="spool_preset_temps"
+                        bind_text="filament_spool_preset_temps" style_text_align="center" style_text_color="#text_muted"/>
           </ui_button>
         </lv_obj>
         <!-- Cool Down always occupies the third cell; it is disabled, not

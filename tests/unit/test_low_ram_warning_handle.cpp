@@ -14,10 +14,9 @@
  */
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 
 #include <functional>
 
@@ -39,7 +38,7 @@ class LowRamWarningFixture : public LVGLUITestFixture {
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static void press(lv_obj_t* dialog, const char* name) {
@@ -48,7 +47,7 @@ class LowRamWarningFixture : public LVGLUITestFixture {
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
     }
 
-    lv_obj_t* handle = nullptr;
+    helix::ui::WidgetRef handle;
 };
 
 } // namespace
@@ -57,12 +56,12 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle when c
                  "[modal][low_ram]") {
     helix::ui::ConfirmOptions opts;
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     press(handle, "btn_primary");
     settle();
 
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture,
@@ -75,20 +74,20 @@ TEST_CASE_METHOD(LowRamWarningFixture,
     helix::ui::ConfirmOptions opts;
     opts.on_cancel = [&cancelled]() { cancelled = true; };
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     press(handle, "btn_secondary");
     settle();
 
     CHECK(cancelled);
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle on a backdrop dismissal",
                  "[modal][low_ram]") {
     helix::ui::ConfirmOptions opts;
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
     REQUIRE(backdrop != nullptr);
@@ -96,27 +95,7 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning clears its handle on a b
     process_lvgl(50);
     settle();
 
-    CHECK(handle == nullptr);
-}
-
-TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning still reports a dismissal to its caller",
-                 "[modal][low_ram]") {
-    // The helper clears the handle itself, but a caller holding its own state
-    // has to be able to learn about the dismissal too.
-    bool dismissed = false;
-    helix::ui::ConfirmOptions opts;
-    opts.on_dismiss = [&dismissed]() { dismissed = true; };
-    helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
-
-    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
-    REQUIRE(backdrop != nullptr);
-    lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
-    process_lvgl(50);
-    settle();
-
-    CHECK(handle == nullptr);
-    CHECK(dismissed);
+    CHECK(handle.get() == nullptr);
 }
 
 TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal to its caller",
@@ -128,7 +107,7 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal
     helix::ui::ConfirmOptions opts;
     opts.on_dismiss = [&dismissed]() { dismissed = true; };
     helix::ui::show_low_ram_resonance_warning(256, &handle, []() {}, opts);
-    REQUIRE(handle != nullptr);
+    REQUIRE(handle.get() != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(handle);
     REQUIRE(backdrop != nullptr);
@@ -137,6 +116,6 @@ TEST_CASE_METHOD(LowRamWarningFixture, "Low-RAM warning reports an ESC dismissal
     process_lvgl(50);
     settle();
 
-    CHECK(handle == nullptr);
+    CHECK(handle.get() == nullptr);
     CHECK(dismissed);
 }

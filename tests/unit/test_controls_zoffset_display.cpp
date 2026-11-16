@@ -9,9 +9,9 @@
 // a missing observer would leave the row stale in exactly the way that shipped.
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>

@@ -6,6 +6,7 @@
 #include "ui_panel_filament.h"
 
 #include "ams_backend.h"
+#include "ams_narration_matcher.h"
 #include "ams_state.h"
 #include "gcode_response_lines.h"
 #include "i_moonraker_client.h"
@@ -93,18 +94,19 @@ void GcodeNarrationRouter::process_line(const std::string& line) {
     // Runs on the main thread (the ctor's lifetime_.bg_cb wrapper defers the
     // notify body to main), so these synchronous AmsState accesses are safe.
     auto* backend = AmsState::instance().get_backend();
-    if (!backend)
+    const INarrationMatcher* const matcher = backend ? backend->as<INarrationMatcher>() : nullptr;
+    if (!matcher)
         return;
 
     auto id =
-        prefixed ? backend->match_narration_phase(body) : backend->match_bare_narration_phase(body);
+        prefixed ? matcher->match_narration_phase(body) : matcher->match_bare_narration_phase(body);
     if (!id) {
         // Drift hint: a line the backend recognizes as its own but that matches
         // no phase is the fingerprint of an upstream rewording. The backend
         // decides what "its own" means — asking it is what makes the hint reach
         // the unprefixed lines, none of which contain the string "afc". Debug
         // level, and deduped so the interesting lines are greppable.
-        if (backend->is_narration_drift_candidate(body) && unmatched_logged_.insert(body).second) {
+        if (matcher->is_narration_drift_candidate(body) && unmatched_logged_.insert(body).second) {
             spdlog::debug("[GcodeNarration] no phase matched for '{}' — either the narration "
                           "wording changed upstream or this line has no phase in the template; "
                           "check match_narration_phase()/match_bare_narration_phase()",

@@ -3,9 +3,9 @@
 #pragma once
 
 #include "ui_exclude_object_map_view.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "panel_widget.h"
 #include "src/ui/panel_widgets/exclude_map_layout.h"
 

@@ -2,12 +2,11 @@
 #pragma once
 
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "moonraker_error.h"
 
 #include <functional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

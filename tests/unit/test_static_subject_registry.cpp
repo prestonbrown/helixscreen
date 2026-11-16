@@ -17,7 +17,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_subject_registry_isolation.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <algorithm>
 #include <string>
@@ -178,4 +178,10 @@ TEST_CASE_METHOD(HelixTestFixture,
     registry.deinit_all(Scope::ProcessExit);
     CHECK(ran == std::vector<std::string>{"fresh", "rerun", "process:new"});
     CHECK(registry.count() == 0);
+
+    // An emptied registry takes fresh registrations.
+    ran.clear();
+    registry.register_deinit("Again", [&ran]() { ran.emplace_back("again"); });
+    registry.deinit_all();
+    CHECK(ran == std::vector<std::string>{"again"});
 }

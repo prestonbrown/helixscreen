@@ -87,7 +87,7 @@ void ui_endless_spool_arrows_set_slot_overlap(lv_obj_t* obj, int32_t overlap);
 void ui_endless_spool_arrows_set_slot_offset(lv_obj_t* obj, int32_t offset);
 
 /**
- * @brief Clear all endless spool connections
+ * @brief Clear all endless spool connections, hiding the widget
  *
  * @param obj The endless_spool_arrows widget
  */
@@ -111,7 +111,8 @@ void ui_endless_spool_arrows_refresh(lv_obj_t* obj);
  * @brief Set the endless-spool relation to draw
  *
  * The widget decides bracket vs arrow from each group's `ordered` flag.
- * Members at or beyond the slot count are not drawn.
+ * Members at or beyond the slot count are not drawn. Set the slot count
+ * first: the widget hides itself when the relation draws no mark over it.
  *
  * @param obj The endless_spool_arrows widget
  * @param config The backend's group relation

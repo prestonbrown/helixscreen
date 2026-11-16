@@ -21,6 +21,9 @@
 # Use bash for all shell commands (needed for [[ ]] and read -n)
 SHELL := /bin/bash
 
+# ENABLE_* flags given on the command line accept 1/0, true/false, on/off and empty.
+include mk/enable-flags.mk
+
 # GNU make >= 4.2 (the $(file ...) function). An older make parses this file
 # without complaint and silently skips every $(file) call: the test-link
 # response file is never written, so a link either dies on a missing @-file or
@@ -179,6 +182,15 @@ endif # PLATFORM_TARGET != yocto
 # -MP: Add phony targets for headers (prevents errors when headers are deleted)
 # Note: -MF path is computed in the pattern rules to get the correct output path
 DEPFLAGS = -MMD -MP
+
+# A compile rewrites its .d in place, and a make that parses one mid-write stops
+# with "missing separator". The goals below compile nothing, so they read no .d:
+# land-gate runs them while its other lanes compile in this tree. Every .d
+# include goes through $(call depfiles,<glob>) so the rule holds for all of them.
+DEPFILE_FREE_GOALS := check-theme-tokens regen-tokens check-xml-schema lint-xml lint-xml-all \
+                      check-lvgl-event-codes test-python
+READ_DEPFILES := $(filter-out $(DEPFILE_FREE_GOALS),$(or $(MAKECMDGOALS),all))
+depfiles = $(if $(READ_DEPFILES),$(wildcard $(1)))
 
 # Optimization level: -O2 by default, override with OPT=0 or OPT=1 for faster builds
 # 'make dev' sets OPT=0 automatically (~2x faster compilation)
@@ -469,7 +481,7 @@ ifneq ($(ENABLE_GLES_3D),yes)
     APP_SRCS := $(filter-out $(SRC_DIR)/rendering/gcode_gles_renderer.cpp,$(APP_SRCS))
 endif
 # Screensaver sources: every saver, the parts they share and the manager
-SCREENSAVER_SRCS := $(SRC_DIR)/ui/ui_screensaver.cpp $(wildcard $(SRC_DIR)/ui/screensaver_*.cpp)
+SCREENSAVER_SRCS := $(wildcard $(SRC_DIR)/ui/screensaver/*.cpp)
 # Targets whose lv_conf.h LV_COLOR_DEPTH is 16. The savers below static_assert 32 bpp, so a
 # 16 bpp target missing here fails to compile rather than shipping them.
 SCREENSAVER_16BPP_TARGETS := ad5m ad5m-br cc1 mips k1 k1-dynamic ad5x k2 snapmaker-u1
@@ -491,21 +503,24 @@ else
 endif
 
 # PWM sysfs buzzer backend — ad5m/ad5m-br probe it; the generic SBC builds
-# (pi, pi32, x86, yocto, native) carry it for a sound.pwm_channel setting, a
-# buzzer the user wired to any board's hardware PWM pin.
+# (pi, pi32, x86, yocto, native) and the unified MIPS build (mips, k1, ad5x)
+# carry it for a sound.pwm_channel setting, a buzzer wired to any board's
+# hardware PWM pin. With no channel named, those builds never select it.
 #
 # The backend's own runtime probe is just "does /sys/class/pwm/pwmchip0 exist",
 # which is true on boards whose PWM controller drives something else entirely: a
 # CC1 has 8 channels there, no beeper on any of them, and its backlight on the
 # same controller. So the probe cannot be trusted to decide this — the platform
 # must, or the user naming the channel. M300 (the PRINTER's beeper, over gcode) is deliberately NOT gated and
-# keeps working everywhere. Neither MIPS board exposes a sysfs pwmchip (the
-# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1 has no audio at all).
+# keeps working everywhere. The stock MIPS boards expose no sysfs pwmchip (the
+# FlashForge MIPS boards' piezo goes through jz_pwm below, the K1's card through
+# the PCM pipe); a MIPS board whose kernel does, such as a custom AD5X image,
+# reaches its buzzer through the named channel.
 #
 # Decided HERE, above APP_OBJS, and not down in the sound-flags section: APP_OBJS
 # is computed from APP_SRCS a few lines below, so a filter-out placed after it is
 # a silent no-op that still compiles and still links the backend.
-ifneq (,$(filter ad5m ad5m-br pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both yocto native,$(PLATFORM_TARGET)))
+ifneq (,$(filter ad5m ad5m-br mips k1 ad5x pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both yocto native,$(PLATFORM_TARGET)))
     PWM_SOUND_CXXFLAGS := -DHELIX_HAS_PWM_SOUND
     # Auto-export: the stock AD5M kernel ships the beeper channel unexported
     # and nothing materializes pwm6, so initialize() writes the channel to
@@ -530,10 +545,21 @@ else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
 endif
 
+# PCM piped to the rootfs player (aplay) for boards whose binary cannot reach
+# libasound (static musl) but whose userland ships alsa-utils and a card: the
+# Creality K1 series. Probed at runtime, after JzPwm: the player must be
+# executable and /dev/snd must list a playback stream, so a FlashForge board
+# without a card falls through to the M300 gate as before.
+ifneq (,$(filter mips k1 ad5x k1-dynamic,$(PLATFORM_TARGET)))
+    PCM_PIPE_CXXFLAGS := -DHELIX_HAS_PCM_PIPE
+else
+    APP_SRCS := $(filter-out $(SRC_DIR)/system/pcm_pipe_sound_backend.cpp,$(APP_SRCS))
+endif
+
 ifneq ($(ENABLE_MOCKS),yes)
-    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/api/*_mock*.cpp),$(APP_SRCS))
-    APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
-    APP_SRCS := $(filter-out $(SRC_DIR)/api/moonraker_api_mock.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/mock/*_mock*.cpp $(SRC_DIR)/network/*_mock*.cpp $(SRC_DIR)/platform/usb/*_mock*.cpp),$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/printer/ams_backend_mock*.cpp),$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/mock/moonraker_api_mock.cpp,$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/system/mock_performance_source.cpp,$(APP_SRCS))
 endif
 
@@ -599,7 +625,7 @@ else
 endif
 
 ifneq ($(ENABLE_DEV_PANELS),yes)
-    APP_SRCS := $(filter-out $(SRC_DIR)/ui/ui_panel_glyphs.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(SRC_DIR)/ui/debug/ui_panel_glyphs.cpp,$(APP_SRCS))
 endif
 APP_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(APP_SRCS))
 
@@ -706,7 +732,16 @@ endif
 
 # spdlog (logging library) - Use system version if available, otherwise use submodule
 # Check for actual header file to avoid $(dir) path issues with directory paths
-SPDLOG_SYSTEM_HEADER_PATHS := /usr/include/spdlog/spdlog.h /usr/local/include/spdlog/spdlog.h /opt/homebrew/include/spdlog/spdlog.h
+SPDLOG_HOST_HEADER_PATHS := /usr/include/spdlog/spdlog.h /usr/local/include/spdlog/spdlog.h /opt/homebrew/include/spdlog/spdlog.h
+# The host's paths are probed only for a build that runs on this host (native)
+# or whose compiler resolves them in its own sysroot (yocto). A cross build
+# that found the build host's spdlog would compile against the host's headers,
+# so every other platform target uses the bundled copy (#1979).
+ifneq ($(filter native yocto,$(PLATFORM_TARGET)),)
+    SPDLOG_SYSTEM_HEADER_PATHS := $(SPDLOG_HOST_HEADER_PATHS)
+else
+    SPDLOG_SYSTEM_HEADER_PATHS :=
+endif
 SPDLOG_SYSTEM_HEADER := $(firstword $(wildcard $(SPDLOG_SYSTEM_HEADER_PATHS)))
 ifneq ($(SPDLOG_SYSTEM_HEADER),)
     # System spdlog found
@@ -839,7 +874,7 @@ WPA_CLIENT_LIB := $(BUILD_DIR)/lib/libwpa_client.a
 WPA_INC := -isystem $(WPA_DIR)/src/common -isystem $(WPA_DIR)/src/utils
 
 # Force-included ahead of every app and test C++ source. It supplies LVGL,
-# helix-xml, spdlog and the common STL headers, and many sources compile only
+# helix-xml and the common STL headers, and many sources compile only
 # because of it. It is an ordinary header, tracked through each object's .d
 # file; nothing is precompiled.
 FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h
@@ -1033,7 +1068,8 @@ CXXFLAGS += $(SYSTEMD_CXXFLAGS)
 
 # ALSA audio backend — real waveform synthesis on Linux targets with libasound2
 # Enabled for: Pi (all variants), x86 SBCs
-# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA)
+# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA;
+# the K1's card is reached through the PCM pipe backend above instead)
 ALSA_LIBS :=
 ALSA_CXXFLAGS :=
 ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
@@ -1076,12 +1112,14 @@ endif
 # SUBMODULE_CFLAGS/SUBMODULE_CXXFLAGS: instrumenting LVGL, libhv and helix-xml
 # would multiply build time and disk for lines no diff of ours ever touches.
 # -fprofile-abs-path puts absolute source paths in the .gcno, so gcov resolves
-# them no matter which directory the report is generated from.
+# them no matter which directory the report is generated from. Compilers that
+# reject it (clang before 15, the test host image's clang 14) get --coverage
+# alone and report from the tree root.
 #
 # Appended here, after the per-platform `LDFLAGS :=` composition above, for the
 # same reason the sanitizer flags are.
 ifeq ($(COVERAGE),1)
-    COVERAGE_FLAGS := --coverage -fprofile-abs-path
+    COVERAGE_FLAGS := --coverage $(shell $(CXX) -fprofile-abs-path -x c++ -fsyntax-only /dev/null >/dev/null 2>&1 && echo -fprofile-abs-path)
     CFLAGS += $(COVERAGE_FLAGS)
     CXXFLAGS += $(COVERAGE_FLAGS)
     LDFLAGS += --coverage
@@ -1135,7 +1173,9 @@ endif
 #   note fallback is measured against a running print on the hardware.
 # ad5x: tracker on. The jz_pwm backend drives the tracker's PC-speaker path with
 #   per-note buffers, so no PCM render loop is involved.
-# K1, MIPS and AD5X: tone SFX via the PWM/jz_pwm backend (HELIX_HAS_SOUND).
+# K1, MIPS and AD5X: tone SFX via the jz_pwm backend, or PCM SFX through the PCM pipe
+#   backend where the board has a card; on that backend the tracker renders PCM on
+#   its render thread, unmeasured against a running print (HELIX_HAS_SOUND).
 # K2, cc1, snapmaker-u1 and yocto match no branch below: no sound flags at all.
 SOUND_CXXFLAGS :=
 TRACKER_CXXFLAGS :=
@@ -1149,13 +1189,14 @@ else ifneq (,$(filter ad5m ad5m-br mips k1 ad5x,$(PLATFORM_TARGET)))
     ifneq (,$(filter mips k1 ad5x,$(PLATFORM_TARGET)))
         # Unified MIPS: the jz_pwm backend drives the tracker's PC-speaker
         # (synth fallback) path — per-note buffers, no PCM render loop involved.
+        # The PCM pipe backend does run one.
         TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
     endif
 else ifneq (,$(filter native x86-desktop,$(PLATFORM_TARGET)))
     SOUND_CXXFLAGS := -DHELIX_HAS_SOUND
     TRACKER_CXXFLAGS := -DHELIX_HAS_TRACKER
 endif
-CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
+CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS) $(PCM_PIPE_CXXFLAGS)
 
 # Feature gates. include/helix_features.h holds every gate's default; each one becomes a
 # make variable here so mk/cross.mk can turn it off for a platform and make logic (the
@@ -1334,11 +1375,15 @@ help-all: help-build help-test help-cross help-remote
 	@echo "  material-icons-add     - Download and add icons (ICONS=...)"
 	@echo "  material-icons-convert - Convert SVGs to C arrays (SVGS=...)"
 
-# Documentation screenshot generation
-screenshots: $(BIN)
-	$(Q)$(ECHO) "$(CYAN)Generating documentation screenshots...$(RESET)"
-	$(Q)./scripts/generate-screenshots.sh
-	$(Q)$(ECHO) "$(GREEN)✓ Documentation screenshots generated in docs/images/$(RESET)"
+# Documentation screenshots: every app entry in docs/images/doc-screenshots.yml,
+# headless (scripts/doc_screenshots.py). ONLY='<glob>' narrows it to some paths.
+DOC_SCREENSHOTS_PY := $(if $(wildcard .venv/bin/python3),.venv/bin/python3,python3)
+.PHONY: doc-screenshots screenshots
+doc-screenshots: $(BIN)
+	$(Q)$(ECHO) "$(CYAN)Regenerating doc screenshots$(if $(ONLY), matching $(ONLY))...$(RESET)"
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/doc_screenshots.py $(if $(ONLY),--only '$(ONLY)')
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/gen_gallery.py
+screenshots: doc-screenshots
 
 # =============================================================================
 # Symbol extraction and stripping (for crash backtrace resolution)
@@ -1499,6 +1544,63 @@ print-cxxflags:
 # does not need a new target here. `make print-var-SUBMODULE_CXXFLAGS`.
 print-var-%:
 	@echo "$($*)"
+
+# The compile command for a source, as its object rule's .ccj records it:
+#   make print-compile-command F=src/print/foo.cpp [F="a.cpp b.cpp"]
+# One line per source, `<compiler> <flags> -c <source>`, printed through the
+# shell exactly as emit-compile-command (mk/rules.mk) captures it. A source no
+# rule compiles prints nothing and fails; add -k to get the others' lines anyway.
+# Nothing is built: the targets below have no prerequisites, though parsing this
+# Makefile writes the stamps every invocation writes ($(FLAGS_STAMP), the patch id
+# and ABI stamps).
+# scripts/compile_command.py reads it for a tree whose compile database is
+# missing or was recorded by another version.
+#
+# Each entry pairs a source pattern with the *_COMPILE function of the rule that
+# compiles it, ordered as make chooses between those rules (shortest stem first).
+PRINT_COMPILE_RULES := \
+	$(SRC_DIR)/bluetooth/%.cpp=BT_COMPILE \
+	$(SRC_DIR)/%.cpp=APP_CXX_COMPILE \
+	$(SRC_DIR)/%.mm=APP_CXX_COMPILE \
+	$(SRC_DIR)/%.c=APP_C_COMPILE \
+	$(addsuffix =TEST_COMPILE,$(patsubst $(OBJ_DIR)/tests/%.o,$(TEST_DIR)/%.cpp,$(UI_TEST_UTILS_OBJ) $(LVGL_TEST_FIXTURE_OBJ) $(HELIX_TEST_FIXTURE_OBJ) $(TEST_FIXTURES_OBJ) $(LVGL_UI_TEST_FIXTURE_OBJ))) \
+	$(TEST_UNIT_DIR)/application/%.cpp=TEST_APP_COMPILE \
+	$(TEST_UNIT_DIR)/%.cpp=TEST_COMPILE \
+	$(TEST_MOCK_DIR)/%.cpp=TEST_MOCK_COMPILE \
+	$(TEST_DIR)/test_main.cpp=TEST_MAIN_COMPILE \
+	$(TEST_DIR)/catch_amalgamated.cpp=CATCH2_COMPILE \
+	$(addsuffix =LVGL_GLES_COMPILE,$(LVGL_OPENGLES_CXX_SRCS)) \
+	$(LVGL_DIR)/demos/%.c=LVGL_DEMO_COMPILE \
+	$(LVGL_DIR)/%.c=LVGL_C_COMPILE \
+	$(LVGL_DIR)/%.cpp=LVGL_CXX_COMPILE \
+	$(HELIX_XML_DIR)/%.c=HELIX_XML_COMPILE \
+	$(if $(SPDLOG_DIR),$(SPDLOG_DIR)/src/%.cpp=SPDLOG_COMPILE) \
+	$(LV_MARKDOWN_DIR)/%.c=LV_MARKDOWN_COMPILE \
+	$(QUIRC_DIR)/%.c=QUIRC_COMPILE \
+	$(LUA_DIR)/%.c=LUA_COMPILE \
+	assets/fonts/%.c=FONT_COMPILE
+print_compile_rule = $(firstword $(foreach r,$(PRINT_COMPILE_RULES),$(if $(filter $(firstword $(subst =, ,$(r))),$(1)),$(lastword $(subst =, ,$(r))))))
+
+.PHONY: print-compile-command
+print-compile-command: $(addsuffix .pcc,$(addprefix print-compile-command/,$(F)))
+	@$(if $(strip $(F)),:,echo "usage: make print-compile-command F=<source>" >&2; exit 2)
+
+print-compile-command/%.pcc:
+	@$(if $(call print_compile_rule,$*),printf '%s\n' "$(call $(call print_compile_rule,$*)) -c $*",echo "print-compile-command: no rule compiles $*" >&2; exit 1)
+
+# A recipe runs with its own target's variables and those it inherits as a
+# prerequisite, and these print targets are neither the object nor a prerequisite
+# of the test binary, so the target-specific flags those carry are added here.
+$(foreach f,$(F),$(if $(filter $(LFS_OBJS),$(f:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)),$(eval print-compile-command/$(f).pcc: override CXXFLAGS += $(LFS_CXXFLAGS))))
+$(foreach f,$(filter $(TEST_DIR)/%,$(F)),$(eval print-compile-command/$(f).pcc: override CXXFLAGS += $(TEST_BIN_CXXFLAGS)))
+
+# What an object rule needs in place before its compiler can read the source:
+# patched submodules, the third-party ABI stamp, the flags stamp, libhv's
+# generated headers (with the archive whose build installs them) and the
+# generated headers under $(BUILD_DIR)/generated. A syntax-only check of a tree
+# that was never built makes this and nothing else.
+.PHONY: compile-prereqs
+compile-prereqs: $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
 
 # =============================================================================
 # Install target — stages binary + assets under $(DESTDIR)/opt/helixscreen/

@@ -7,45 +7,15 @@
 # description, so under --success (which reports passing assertions) the
 # child's copy lands in the parent's report mid-element and the report stops
 # parsing. Check the fork result after the child block.
+#
+# Fixture tests of fork_assertion_offenders (scripts/code_lint.sh); the verdict
+# over tests/ is qc_test_lint's (lint_fork_assertions).
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
     load helpers.bash
-}
-
-# file:line of every Catch2 macro a forked child would evaluate: after a fork()
-# and before the `if` that branches on its result, or inside an `if (... == 0)`
-# child block. Braces are counted per line, which the test style here satisfies.
-fork_assertion_offenders() {
-    awk '
-        function macro(line) {
-            return line ~ /(^|[^A-Za-z_])(REQUIRE|CHECK|INFO|CAPTURE|FAIL|SUCCEED|WARN|UNSCOPED_INFO|SECTION)[A-Z_]*[[:space:]]*\(/
-        }
-        FNR == 1 { armed = 0; depth = 0 }
-        depth > 0 {
-            if (macro($0)) print FILENAME ":" FNR ": " $0
-            depth += gsub(/\{/, "{") - gsub(/\}/, "}")
-            next
-        }
-        /=[[:space:]]*fork[[:space:]]*\([[:space:]]*\)[[:space:]]*;/ { armed = 1; next }
-        armed && /^[[:space:]]*if[[:space:]]*\(/ {
-            armed = 0
-            if ($0 ~ /==[[:space:]]*0[[:space:]]*\)/) depth = gsub(/\{/, "{") - gsub(/\}/, "}")
-            next
-        }
-        armed && macro($0) { print FILENAME ":" FNR ": " $0 }
-    ' "$@"
-}
-
-@test "no test asserts in a forked child" {
-    local files
-    files=$(grep -rlE '=[[:space:]]*fork[[:space:]]*\(' tests/ --include='*.cpp' || true)
-    [ -n "$files" ] || fail "found no fork() in tests/; the gate is looking in the wrong place"
-    # shellcheck disable=SC2086
-    run fork_assertion_offenders $files
-    [ "$status" -eq 0 ]
-    [ -z "$output" ] || fail "assertions a forked child would also evaluate:
-$output"
+    # shellcheck source=scripts/code_lint.sh
+    . scripts/code_lint.sh
 }
 
 @test "the gate flags assertions a forked child would evaluate" {
@@ -99,4 +69,19 @@ SHAPES
     run fork_assertion_offenders "$f"
     [ "$status" -eq 0 ]
     [ -z "$output" ] || fail "unexpected findings: $output"
+}
+
+@test "the lint reads every fork() under tests/ and fails closed when it finds none" {
+    local root="$BATS_TEST_TMPDIR/root"
+    mkdir -p "$root/tests/unit"
+    cd "$root" || return 1
+    run lint_fork_assertions
+    [ "$status" -eq 1 ]
+    contains "found no fork()" "$output"
+
+    printf 'TEST_CASE("a") {\n    pid_t pid = fork();\n    REQUIRE(pid >= 0);\n    if (pid == 0) {\n        _exit(0);\n    }\n}\n' \
+        > tests/unit/test_forks.cpp
+    run lint_fork_assertions
+    [ "$status" -eq 1 ]
+    contains "tests/unit/test_forks.cpp:3:" "$output"
 }

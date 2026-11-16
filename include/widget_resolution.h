@@ -176,9 +176,6 @@ lv_obj_t* resolve_actionable(lv_obj_t* target, lv_obj_t** descended_to,
  */
 const char* click_blocker(lv_obj_t* obj);
 
-/// The first of @p obj and its ancestors carrying LV_OBJ_FLAG_HIDDEN, or nullptr.
-lv_obj_t* hidden_ancestor(lv_obj_t* obj);
-
 /**
  * @brief The nearest ancestor that clips @p obj out of sight, or nullptr when it shows.
  *

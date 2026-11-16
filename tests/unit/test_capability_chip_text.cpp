@@ -90,14 +90,15 @@ TEST_CASE("capability_chip_text: build volume", "[capability_chip_text]") {
 TEST_CASE("capability_chip_text: filament systems leave the tool changer to its own chip",
           "[capability_chip_text]") {
     CapabilityChipFacts f;
-    f.filament_systems = {{"Happy Hare", 8, false}, {"Tool Changer", 4, true}};
-    CHECK(capability_chip_text(CapChip::FilamentSystem, f) == "Happy Hare · 8");
+    f.filament_systems = {{"Happy Hare", false, "8 gates"}, {"Tool Changer", true, "4 tools"}};
+    CHECK(capability_chip_text(CapChip::FilamentSystem, f) == "Happy Hare · 8 gates");
 
-    f.filament_systems = {{"Tool Changer", 4, true}};
+    f.filament_systems = {{"Tool Changer", true, "4 tools"}};
     CHECK(capability_chip_text(CapChip::FilamentSystem, f).empty());
 
-    f.filament_systems = {{"Happy Hare", 8, false}, {"ACE", 4, false}};
-    CHECK(capability_chip_text(CapChip::FilamentSystem, f) == "Happy Hare · 8, ACE · 4");
+    // A system that reports no positions shows its name alone.
+    f.filament_systems = {{"Happy Hare", false, "8 gates"}, {"CFS", false, ""}};
+    CHECK(capability_chip_text(CapChip::FilamentSystem, f) == "Happy Hare · 8 gates, CFS");
 
     f.has_tool_changer = true;
     f.head_count = 4;
@@ -120,7 +121,7 @@ TEST_CASE("capability_chip_text: MCUs", "[capability_chip_text]") {
     f.mcus = {"stm32h723"};
     CHECK(capability_chip_text(CapChip::Mcus, f) == "stm32h723");
     f.mcus = {"stm32h723", "rp2040"};
-    CHECK(capability_chip_text(CapChip::Mcus, f) == "2 MCUs");
+    CHECK(capability_chip_text(CapChip::Mcus, f) == "MCUs · 2");
 }
 
 TEST_CASE("kinematics_display_name", "[capability_chip_text]") {
@@ -149,7 +150,7 @@ TEST_CASE("capability_chip_text: every chip has text when every fact is known",
     f.fan_count = 4;
     f.head_count = 4;
     f.has_tool_changer = true;
-    f.filament_systems = {{"Happy Hare", 8, false}};
+    f.filament_systems = {{"Happy Hare", false, "8 gates"}};
     f.filament_sensor_count = 2;
     f.width_sensor_count = 1;
     f.mcus = {"stm32h723"};

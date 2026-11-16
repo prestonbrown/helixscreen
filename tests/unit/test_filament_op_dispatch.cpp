@@ -102,7 +102,7 @@ TEST_CASE("dispatch: a user-configured macro outranks the backend on both ops",
                           /*macro_user_configured=*/true);
     CHECK(load.tier == FilamentTier::Macro);
 
-    // Unload: the surface that used to ignore the setting entirely.
+    // Unload honours the setting too.
     auto unload = plan_unload(ams, /*target_slot=*/2, /*target_is_loaded=*/true,
                               /*macro_available=*/true, /*macro_user_configured=*/true);
     CHECK(unload.tier == FilamentTier::Macro);
@@ -206,7 +206,7 @@ TEST_CASE("plan_load: bypass reaches the macro even with a backend present",
 // The lane tap is an explicit target. Honour it, and stand the box back up on
 // the way -- unless the bypass spool is still across the toolhead, which no
 // amount of gcode can fix (the switch sits above the cutter and reads the
-// upstream piece; only the user's hand clears it -- see 36205eb27).
+// upstream piece; only the user's hand clears it).
 // ---------------------------------------------------------------------------
 
 TEST_CASE("plan_load: a named lane under bypass reaches the backend, not the external macro",
@@ -324,10 +324,10 @@ TEST_CASE("plan_load: a backend whose load swaps lanes itself gets Load, not cha
 
 TEST_CASE("plan_load: a seated machine with no tool mapping loads the slot anyway",
           "[filament][dispatch][swap]") {
-    // There is no tool number to change to, so the swap arm cannot fire. This
-    // used to emit unload_active_filament() and stop — filament came out, the
-    // stepper showed a swap, and nothing ever loaded. One command now goes to
-    // the backend and the firmware decides: ACE's change_tool() IS
+    // There is no tool number to change to, so the swap arm cannot fire.
+    // Emitting unload_active_filament() and stopping would take filament out,
+    // show a swap on the stepper, and never load. One command goes to the
+    // backend and the firmware decides: ACE's change_tool() IS
     // load_filament(), QIDI's load_filament() retracts the seated slot itself,
     // and AFC's is `CHANGE_TOOL LANE={n}`. Happy Hare's `MMU_LOAD GATE={n}` will
     // refuse, which is what allows_implicit_chaining()==false asks for (#1229).

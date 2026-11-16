@@ -25,6 +25,16 @@ namespace helix {
 void register_xml_components();
 
 /**
+ * @brief Resolve the colour picker's consts (sv_size, hue_height, swatch_size,
+ *        color_preview_size and its globals) for the default display's current
+ *        resolution
+ *
+ * register_xml_components() runs this at boot and hooks it onto every
+ * theme_manager_refresh_layout_constants().
+ */
+void refresh_color_picker_constants();
+
+/**
  * @brief Register each XML component the first time anything names it
  *
  * Installs the engine's component loader: a tag, extends= base, lv_xml_create()
@@ -65,6 +75,19 @@ bool is_xml_component_cpp_extended(const std::string& name);
  * scope borrowed keeps its registration.
  */
 void unregister_idle_xml_components();
+
+/**
+ * @brief Before rebuilding the views for a new geometry: drop every first-use
+ *        component a fresh copy can replace, live ones included, and register
+ *        the shared styles again
+ *
+ * Component styles resolve their tokens at registration, so a rebuild from the
+ * old registration would keep the old geometry. A live widget keeps the scope it
+ * was built from until it is deleted; the rebuilt views register each component
+ * again at the new tokens and layout variant. A component holding C++ state
+ * keeps its registration, as in unregister_idle_xml_components().
+ */
+void reregister_xml_components_for_rebuild();
 
 /**
  * @brief Deinitialize XML-related subjects

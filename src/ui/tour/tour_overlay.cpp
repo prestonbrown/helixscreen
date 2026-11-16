@@ -3,8 +3,8 @@
 
 #include "tour_overlay.h"
 
-#include "ui_button.h"
-
+#include "core/subject.h"
+#include "printer_image_manager.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 namespace helix::tour {
 
@@ -22,6 +23,11 @@ constexpr int kTooltipMaxWidth = 480;
 // Per-screen dim fill with ~55% opacity.
 constexpr uint8_t kDimOpa = 140;
 
+// A preview would push the card off a screen shorter than this.
+constexpr int kMinScreenHeightForPreview = 400;
+
+constexpr int kTooltipMinWidth = 220;
+
 // Spacing tokens resolved at call time from the theme (responsive per breakpoint).
 inline int highlight_outline_pad() {
     return theme_manager_get_spacing("space_xs");
@@ -29,10 +35,30 @@ inline int highlight_outline_pad() {
 inline int tooltip_margin() {
     return theme_manager_get_spacing("space_sm");
 }
+
+/// The overlay a card button belongs to: its root sits on lv_layer_top() and
+/// carries the overlay as user data.
+TourOverlay* overlay_of(lv_event_t* e) {
+    auto* obj = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    while (obj && lv_obj_get_parent(obj) != lv_layer_top()) {
+        obj = lv_obj_get_parent(obj);
+    }
+    return obj ? static_cast<TourOverlay*>(lv_obj_get_user_data(obj)) : nullptr;
+}
 } // namespace
 
 TourOverlay::TourOverlay(std::vector<TourStep> steps, AdvanceCb on_next, SkipCb on_skip)
     : steps_(std::move(steps)), on_next_cb_(std::move(on_next)), on_skip_cb_(std::move(on_skip)) {
+    title_subject_.init_string(title_buf_, nullptr, sizeof(title_buf_), "");
+    body_subject_.init_string(body_buf_, nullptr, sizeof(body_buf_), "");
+    counter_subject_.init_string(counter_buf_, nullptr, sizeof(counter_buf_), "");
+    next_text_subject_.init_string(next_text_buf_, nullptr, sizeof(next_text_buf_), "");
+    subjects_.publish("tour_title", &title_subject_);
+    subjects_.publish("tour_body", &body_subject_);
+    subjects_.publish("tour_counter", &counter_subject_);
+    subjects_.publish("tour_next_text", &next_text_subject_);
+    lv_xml_register_event_cb(nullptr, "on_tour_skip", on_skip_cb);
+    lv_xml_register_event_cb(nullptr, "on_tour_next", on_next_cb);
     build_tree();
 }
 
@@ -48,18 +74,19 @@ void TourOverlay::build_tree() {
 
     // Absolute screen dimensions — avoids LV_PCT() sizing quirks when parent
     // is lv_layer_top() and layout hasn't resolved yet. See #<tour-overlay>.
-    const int screen_w = lv_display_get_horizontal_resolution(nullptr);
-    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    const int screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
     root_ = lv_obj_create(top);
+    lv_obj_set_user_data(root_, this); // the card buttons find their overlay here
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_size(root_, screen_w, screen_h);
     lv_obj_set_style_bg_opa(root_, 0, 0);
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
     lv_obj_set_style_radius(root_, 0, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_scrollable(root_, false);
+    lv_obj_set_click_focusable(root_, false);
 
     // Dim layer — click-blocking, absorbs all touches that miss the tooltip.
     dim_ = lv_obj_create(root_);
@@ -70,8 +97,8 @@ void TourOverlay::build_tree() {
     lv_obj_set_style_border_width(dim_, 0, 0);
     lv_obj_set_style_pad_all(dim_, 0, 0);
     lv_obj_set_style_radius(dim_, 0, 0);
-    lv_obj_add_flag(dim_, LV_OBJ_FLAG_CLICKABLE); // absorb clicks
-    lv_obj_clear_flag(dim_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(dim_, true); // absorb clicks
+    lv_obj_set_scrollable(dim_, false);
 
     // Highlight rect — transparent fill, outline + shadow. Hidden until step has target.
     highlight_ = lv_obj_create(root_);
@@ -83,8 +110,8 @@ void TourOverlay::build_tree() {
     lv_obj_set_style_shadow_width(highlight_, 24, 0);
     lv_obj_set_style_shadow_opa(highlight_, 180, 0);
     lv_obj_set_style_shadow_color(highlight_, theme_manager_get_color("primary"), 0);
-    lv_obj_clear_flag(highlight_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_clickable(highlight_, false);
+    lv_obj_set_hidden(highlight_, true);
 
     // Tooltip — instantiated from XML component.
     tooltip_ = static_cast<lv_obj_t*>(lv_xml_create(root_, "tour_tooltip_card", nullptr));
@@ -94,32 +121,20 @@ void TourOverlay::build_tree() {
     }
     // Responsive tooltip width: ~55% of screen, clamped to [220, 480].
     // Covers AD5M (480 -> 264px) through Sonic Pad (1024 -> 480px).
-    const int tooltip_w = std::clamp(screen_w * 55 / 100, 220, 480);
-    lv_obj_set_width(tooltip_, tooltip_w);
+    tooltip_width_ = std::clamp(screen_w * 55 / 100, kTooltipMinWidth, kTooltipMaxWidth);
+    lv_obj_set_width(tooltip_, tooltip_width_);
     lv_obj_update_layout(tooltip_);
-
-    // Find the skip/next buttons and attach static callbacks.
-    // Exception: per-instance closure — XML event_cb can't pass `this` captures.
-    // These buttons live and die with the overlay, so no static pointer hazards.
-    lv_obj_t* skip_btn = helix::ui::find_required(tooltip_, "tour_skip_btn", "TourOverlay");
-    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
-    if (skip_btn) {
-        lv_obj_add_event_cb(skip_btn, on_skip_cb, LV_EVENT_CLICKED, this);
-    }
-    if (next_btn) {
-        lv_obj_add_event_cb(next_btn, on_next_cb, LV_EVENT_CLICKED, this);
-    }
 }
 
 void TourOverlay::on_skip_cb(lv_event_t* e) {
-    auto* self = static_cast<TourOverlay*>(lv_event_get_user_data(e));
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_skip_cb_)
         return;
     self->on_skip_cb_();
 }
 
 void TourOverlay::on_next_cb(lv_event_t* e) {
-    auto* self = static_cast<TourOverlay*>(lv_event_get_user_data(e));
+    TourOverlay* self = overlay_of(e);
     if (!self || !self->on_next_cb_)
         return;
     self->on_next_cb_();
@@ -133,6 +148,9 @@ void TourOverlay::resolve_target(const TourStep& step, lv_area_t& out_rect, bool
     // Search the entire screen tree (home panel root + navbar + anything on layer_top below us).
     lv_obj_t* scr = lv_screen_active();
     lv_obj_t* target = lv_obj_find_by_name(scr, step.target_name.c_str());
+    if (!target && !step.fallback_target_name.empty()) {
+        target = lv_obj_find_by_name(scr, step.fallback_target_name.c_str());
+    }
     if (!target) {
         spdlog::warn("[TourOverlay] Target '{}' not found — skipping highlight", step.target_name);
         return;
@@ -147,13 +165,24 @@ void TourOverlay::place_highlight(const lv_area_t& target_rect) {
     lv_obj_set_pos(highlight_, target_rect.x1 - pad, target_rect.y1 - pad);
     lv_obj_set_size(highlight_, (target_rect.x2 - target_rect.x1) + 2 * pad,
                     (target_rect.y2 - target_rect.y1) + 2 * pad);
-    lv_obj_clear_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(highlight_, false);
 }
 
 void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, TooltipAnchor hint) {
     lv_obj_update_layout(tooltip_);
-    const int screen_w = lv_display_get_horizontal_resolution(nullptr);
-    const int screen_h = lv_display_get_vertical_resolution(nullptr);
+    const int screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
+
+    int width = tooltip_width_;
+    if (has_target && hint == TooltipAnchor::LeftNarrowed) {
+        const int room = target_rect.x1 - tooltip_margin() - 8;
+        if (room >= kTooltipMinWidth) {
+            width = std::min(room, tooltip_width_);
+        } else {
+            hint = TooltipAnchor::PreferAbove; // a portrait layout leaves nothing to the left
+        }
+    }
+    lv_obj_set_width(tooltip_, width);
 
     // Cap tooltip width responsively for small screens.
     const int max_w = std::min(kTooltipMaxWidth, screen_w - 32);
@@ -197,6 +226,9 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
     };
 
     switch (hint) {
+    case TooltipAnchor::LeftNarrowed:
+        set_left();
+        break;
     case TooltipAnchor::PreferBelow:
         set_below();
         if (fits(x, y))
@@ -228,33 +260,45 @@ void TourOverlay::place_tooltip(const lv_area_t& target_rect, bool has_target, T
 }
 
 void TourOverlay::update_tooltip_text(const TourStep& step, size_t index, size_t total) {
-    if (!tooltip_)
-        return;
-    lv_obj_t* title = helix::ui::find_required(tooltip_, "tour_title", "TourOverlay");
-    lv_obj_t* body = helix::ui::find_required(tooltip_, "tour_body", "TourOverlay");
-    lv_obj_t* next_btn = helix::ui::find_required(tooltip_, "tour_next_btn", "TourOverlay");
-
-    if (title)
-        lv_label_set_text(title, lv_tr(step.title_key.c_str()));
-    if (body)
-        lv_label_set_text(body, lv_tr(step.body_key.c_str()));
-
-    // Change "Next" to "Done" on last step.
-    if (next_btn) {
-        const char* key = (index + 1 == total) ? "Done" : "Next";
-        ui_button_set_text(next_btn, lv_tr(key));
-    }
-
+    lv_subject_set_string(&title_subject_, lv_tr(step.title_key.c_str()));
+    lv_subject_set_string(&body_subject_, lv_tr(step.body_key.c_str()));
+    // "Next" reads "Done" on the last step.
+    lv_subject_set_string(&next_text_subject_, lv_tr((index + 1 == total) ? "Done" : "Next"));
     update_counter(index, total);
 }
 
 void TourOverlay::update_counter(size_t index, size_t total) {
-    lv_obj_t* counter = helix::ui::find_required(tooltip_, "tour_counter", "TourOverlay");
-    if (!counter)
-        return;
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%zu / %zu", index + 1, total);
-    lv_label_set_text(counter, buf);
+    lv_subject_set_string(&counter_subject_, buf);
+}
+
+void TourOverlay::update_preview(const TourStep& step) {
+    lv_obj_t* preview = helix::ui::find_required(tooltip_, "tour_preview", "TourOverlay");
+    if (!preview)
+        return;
+    const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
+    if (!step.shows_print_status_preview || screen_h < kMinScreenHeightForPreview) {
+        lv_obj_set_hidden(preview, true); // DECLARATIVE_OK: per-step, C++-built card
+        return;
+    }
+    const std::string image = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    lv_obj_t* printer = helix::ui::find_required(tooltip_, "tour_preview_printer", "TourOverlay");
+    if (printer && !image.empty()) {
+        lv_image_set_src(printer, image.c_str());
+    }
+    lv_obj_update_layout(tooltip_);
+    // The real screen's 5:3 shape, at whatever width the card has on this display.
+    lv_obj_set_height(preview, lv_obj_get_content_width(tooltip_) * 3 / 5);
+    lv_obj_set_hidden(preview, false); // DECLARATIVE_OK: per-step, C++-built card
+}
+
+void TourOverlay::hide_card() {
+    if (!tooltip_ || !highlight_)
+        return;
+    lv_obj_set_hidden(tooltip_, true);   // DECLARATIVE_OK: C++-built overlay
+    lv_obj_set_hidden(highlight_, true); // DECLARATIVE_OK: C++-built overlay
 }
 
 void TourOverlay::show_step(size_t index) {
@@ -274,10 +318,12 @@ void TourOverlay::show_step(size_t index) {
     if (has_target) {
         place_highlight(target_rect);
     } else {
-        lv_obj_add_flag(highlight_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(highlight_, true);
     }
 
+    lv_obj_set_hidden(tooltip_, false); // DECLARATIVE_OK: C++-built overlay
     update_tooltip_text(step, index, steps_.size());
+    update_preview(step);
     place_tooltip(target_rect, has_target, step.anchor_hint);
 }
 

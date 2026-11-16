@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "filament_mapper.h"
 
 #include <cstddef>
@@ -44,7 +46,6 @@ class FilamentSlotPicker {
     FilamentSlotPicker() = default;
     ~FilamentSlotPicker();
 
-    // Non-copyable
     FilamentSlotPicker(const FilamentSlotPicker&) = delete;
     FilamentSlotPicker& operator=(const FilamentSlotPicker&) = delete;
 
@@ -114,7 +115,7 @@ class FilamentSlotPicker {
     void position_card(lv_obj_t* card);
     void scroll_to_selected(lv_obj_t* card);
 
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
     lv_obj_t* trigger_ = nullptr;
     bool trigger_highlighted_ = false;
     SelectCallback on_select_;

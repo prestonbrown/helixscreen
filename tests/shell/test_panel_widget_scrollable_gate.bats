@@ -135,7 +135,7 @@ run_gate() {
 
 @test "silent on a <view extends=\"ui_card\"> root with no scrollable" {
     # ui_card's create handler clears LV_OBJ_FLAG_SCROLLABLE before XML
-    # attributes are applied (src/ui/ui_card.cpp:53), so those roots are already
+    # attributes are applied (src/ui/components/ui_card.cpp:53), so those roots are already
     # safe. Flagging them would be pure noise on the most common widget root.
     run_gate panel_widget_card '<component>
   <view name="panel_widget_card" extends="ui_card" height="100%">
@@ -148,7 +148,7 @@ run_gate() {
 @test "ui_card really does clear the flag - the exemption is not folklore" {
     # If this create handler ever stops clearing the flag, the exemption above
     # silently becomes a hole. Pin it to the source.
-    run grep -q "lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)" src/ui/ui_card.cpp
+    run grep -q "lv_obj_set_scrollable(obj, false)" src/ui/components/ui_card.cpp
     [ "$status" -eq 0 ]
 }
 
@@ -208,18 +208,21 @@ run_gate() {
 
 # ---------------------------------------------------- the ratcheting baseline
 
-@test "the real tree passes at the baseline" {
-    run python3 "$GATE" --max-allowed "$BASELINE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"✅"* ]]
-}
-
 @test "the real tree FAILS one below the baseline - the ratchet bites" {
     # If this ever passes, the baseline has drifted below the real count and the
     # gate has stopped constraining anything.
     run python3 "$GATE" --max-allowed "$((BASELINE - 1))"
     [ "$status" -eq 1 ]
     [[ "$output" == *"❌"* ]]
+}
+
+@test "the real tree under a raised baseline passes at commit and fails at a push" {
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    contains "ratchet the baseline down" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "--max-allowed: $((BASELINE + 1)) -> $BASELINE" "$output"
 }
 
 @test "the real tree is exactly at the baseline, not under it" {

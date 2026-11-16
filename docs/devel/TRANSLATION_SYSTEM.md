@@ -113,10 +113,13 @@ These are the generator's only outputs.
 Translation generation is integrated into the build via `mk/translations.mk`:
 
 ```makefile
-# Regenerate the XML packs if YAML or script changes
-$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT)
-    python generate_translations.py
+# Regenerate the XML packs if the YAML, the script or HELIX_LANG changes
+$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT) $(TRANS_LANG_STAMP)
+    $(VENV_PYTHON_TRANS) $(TRANS_SCRIPT) $(TRANS_LANG_FLAG)
 ```
+
+`HELIX_LANG` limits which locales a build packs; the stamp file forces a regeneration when it
+changes.
 
 Run manually with:
 
@@ -150,11 +153,10 @@ so it never has to parse every language up front.
 **English never loads a pack.** English tags ARE the English UI text, and
 `lv_translation_get()` returns the tag unchanged when no pack matches, so
 `ensure_translation_loaded()` skips the identity locale entirely (heap + lookup
-scan savings — see `kIdentityLocale`). The hard consequence: **every key in
+scan savings - see `kIdentityLocale`). The hard consequence: **every key in
 `translations/en.yml` must be its own English text.** A "semantic" key whose
 value differs from the key (`pre_print_option.timelapse.label: Timelapse`)
-renders as the raw dotted identifier in the English UI — that exact bug shipped
-in v0.99.114 (timelapse toggle row, first-run tour). If the English text already
+renders as the raw dotted identifier in the English UI. If the English text already
 exists as a tag, point the reference (C++ / XML / `printer_database.json`) at
 the existing tag instead of adding a near-duplicate key.
 `scripts/check_translation_identity.py` (wired into `quality-checks.sh`) fails
@@ -265,7 +267,7 @@ std::string msg = fmt::format(lv_tr("Nozzle: {}°C"), temp);
 ```
 
 Wrapping a C++ string literal in `lv_tr(...)` (or `fmt::format(lv_tr("..{}.."), arg)`
-for format strings) is exactly how a C++ string becomes translatable — the
+for format strings) is exactly how a C++ string becomes translatable - the
 wrapped literal is also picked up by `make translation-sync`.
 
 ### Loading a locale and changing language
@@ -353,16 +355,16 @@ form against the format it replaces.
 
 ### Adding New Translatable Strings
 
-1. **Add to XML with translation_tag:**
+1. **Add the literal to XML** (the literal is its own tag; see "Static Text" above):
    ```xml
-   <text_body text="New Feature" translation_tag="New Feature"/>
+   <text_body text="New Feature"/>
    ```
 
 2. **Extract to YAML files:**
    ```bash
    make translation-sync
    ```
-   This scans XML files and adds new keys to all YAML files with the English value as placeholder.
+   This scans XML and C++ and adds new keys to every YAML file: the English text in `en.yml`, an empty value (needs translation) in the others.
 
 3. **Translate in YAML files:**
    Edit each `translations/*.yml` file to add proper translations:
@@ -377,7 +379,7 @@ form against the format it replaces.
    When translating a recurring domain term, reuse the rendering in
    `translations/GLOSSARY.md` for that language. For terms not in the glossary,
    grep the target `translations/<lang>.yml` and reuse the dominant existing
-   rendering — never coin a new word for a concept that's already translated.
+   rendering - never coin a new word for a concept that's already translated.
 
 4. **Regenerate the XML translation packs:**
    ```bash
@@ -386,7 +388,7 @@ form against the format it replaces.
 
 5. **Rebuild and test:**
    ```bash
-   make -j && ./build/bin/helix-screen --test -vv
+   make && ./build/bin/helix-screen --test -vv
    ```
 
 ### Preview Changes Before Sync
@@ -414,10 +416,10 @@ Extraction and obsolete-detection ask opposite questions, so they use different
 oracles:
 
 - **`sync`** asks *"should this string be translated?"* It is tuned for
-  **precision** — the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
+  **precision** - the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
   keep junk (subject names, hex colors, numbers) out of the YAML.
 - **`obsolete`** asks *"is this key mentioned at all?"* It is tuned for
-  **recall** — `collect_referenced_strings()` in `scripts/translations/obsolete.py`
+  **recall** - `collect_referenced_strings()` in `scripts/translations/obsolete.py`
   scans `src/`, `include/`, `ui_xml/`, `assets/`, `config/`, and `tests/` for the
   key as a delimited literal (a complete C/JSON string, an XML attribute value,
   or an XML text node).
@@ -431,7 +433,7 @@ dead, because keys reached *indirectly* are invisible to it:
 | Tag stored as JSON data | pre-print option labels in `assets/config/printer_database.json` |
 | Label text declared in a header | `include/ui_panel_controls.h` |
 
-Matching is deliberately **delimited, not substring** — otherwise the word
+Matching is deliberately **delimited, not substring** - otherwise the word
 `Unlink` inside a code comment would count as a use of the `Unlink` key and hide
 a genuinely dead entry. The scan errs toward reporting a reference: a key that
 also appears in an unrelated log message just leaves a stale entry behind,
@@ -442,7 +444,7 @@ Two categories are reported obsolete **by design**:
 - Strings that live only in a dev/test panel carrying an `<!-- i18n: skip-file -->`
   marker: the marker opts the file out, so its strings should not be keys.
 - Strings containing a literal `\n` (multi-line dropdown option labels), which
-  `should_skip_text()` no longer extracts.
+  `should_skip_text()` does not extract.
 
 The generated packs under `ui_xml/translations/` are excluded from the scan;
 they list every key by definition and so can never prove usage.
@@ -450,6 +452,28 @@ they list every key by definition and so can never prove usage.
 If a key is being wrongly reported, prefer making the reference visible (or add
 an `// i18n:` note explaining the indirection, as in `tour_steps.cpp`) over
 re-adding it after a delete.
+
+## Temperature Units, Date Order and Region Defaults
+
+Two display settings sit beside the language: the temperature unit and the date order. Neither changes what the printer or the config stores.
+
+### Temperature unit
+
+Every temperature in state, settings and G-code stays in Celsius. Only what is shown and what is typed crosses `include/core/temperature_units.h`: `helix::units::to_display_temp()` and `format_display_temp()` for readings, `display_temp_to_celsius()` for a typed target, `to_display_temp_delta()` for a band or a rate (a difference scales and has no offset), and `temp_axis_ticks()` for a graph axis, whose Fahrenheit ticks fall on round values. Both directions round with `std::lround`. New temperature UI calls these and never converts by hand.
+
+The setting is `/display/temp_unit` (0 Celsius, 1 Fahrenheit), owned by `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#set_temp_unit`) and shown as a row in Settings > Appearance. A change sets the process-wide display unit, updates the `settings_temp_unit_symbol` subject that XML labels bind for their "(°C)" suffix, refreshes the preset labels, and calls `units::publish_temp_unit()`.
+
+A string formatted in C++ from a cached Celsius value keeps its unit until its owner formats it again. `include/core/temp_unit_subject.h` is the trigger for that: `helix::ui::observe_temp_unit_change(owner, on_change)` runs `on_change` only when the unit really changes, never on registration, and queues it so it runs on the main thread. A panel, widget or state object that caches formatted temperature text observes it and reformats (examples: `src/ui/controls/temperature_service.cpp`, `src/printer/printer_temperature_state.cpp`, `src/ui/panel_widgets/nozzle_temps_widget.cpp`). The printer's own temperature subjects are not touched by a unit switch, so their observers do not fire.
+
+### Date order
+
+`/display/date_format` holds 0 for day-month-year, 1 for month-day-year and 2 for year-month-day. `src/ui/locale_formats.cpp#get_date_pattern` takes the arrangement from the saved order and falls back to the language's default while none is saved; the language still supplies day and month names and the punctuation German writes. The order is kept in an atomic (`saved_date_format()` in `include/region_defaults.h`) because dates are also formatted off the main thread. The row lives in Settings > Language & Time, and `DisplaySettingsManager::on_language_changed` updates it while it still follows the language.
+
+### Region defaults and the wizard step
+
+`src/system/region_defaults.cpp#region_defaults` turns a language and an IANA timezone into the defaults: a United States zone reads Fahrenheit and month-first, every other zone reads Celsius, an English speaker in a known non-US zone writes the day first, and with no zone the language alone decides the date order (Chinese and Japanese year first, English month first, the other languages day first).
+
+The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance.cpp`, `ui_xml/wizard_appearance.xml`) follows the Language step. It offers timezone, 12 or 24-hour clock, theme (applied live), dark mode, speed and flow units, temperature unit and date order. Each row reuses its Settings twin's subject and callback, so there is one copy of the state. Picking a timezone applies the region defaults to the unit rows that still follow the region, meaning rows nobody had saved when the page opened and nobody has picked on it since. A pick on a row stops that row following the region. The step is skipped when a printer is added after the first run, because every row is global.
 
 ## Key Files Reference
 
@@ -464,6 +488,8 @@ re-adding it after a delete.
 | `ui_xml/translations/translations.xml` | Generated combined LVGL XML pack |
 | `ui_xml/translations/<lang>.xml` | Generated per-locale packs (loaded at runtime) |
 | `src/system/translation_loader.cpp` | Per-locale pack loader (`ensure_translation_loaded()`) |
+| `include/core/temperature_units.h`, `include/core/temp_unit_subject.h` | Celsius/Fahrenheit conversion and the unit-change observer |
+| `include/region_defaults.h`, `src/system/region_defaults.cpp` | Region defaults for temperature unit and date order |
 | `src/application/application.cpp` | Translation startup / language switching |
 | `src/system/system_settings_manager.cpp` | Locale switching (`ensure_translation_loaded()` + `lv_translation_set_language()`) |
 
@@ -490,9 +516,11 @@ Fill in missing translations in the appropriate YAML files.
 
 The runtime CJK fonts (`assets/fonts/cjk/*.bin`) are subset to the characters `scripts/translations/cjk_charset.py` finds in the translations, C++ sources, XML layouts and `assets/config/printer_database.json`; `scripts/check_cjk_font_staleness.sh` (run by the commit hook) fails when that set holds a character the baked manifest lacks, and `make regen-text-fonts` fixes it. The first-run language chooser renders before any `.bin` loads, from the compiled `.c` fonts, so its characters must also be in `WIZARD_CJK` in `scripts/regen_text_fonts.sh`; the same gate enforces that (#1622).
 
+Print filenames are user text, so they get a second, larger set whatever the UI language (#2093). `scripts/translations/cjk_filename_fonts.py` defines it from `include/core/cjk_ranges.inc`, the ranges `contains_cjk()` detects: every codepoint of an `ALL` range (CJK punctuation, kana, fullwidth ASCII, halfwidth katakana), and from a `LISTED` range only level 1 of the Table of General Standard Chinese Characters (`scripts/translations/hanzi_level1.txt`, 3,500 hanzi) and the Joyo kanji (`joyo_kanji.txt`, 2,136). Traditional-only hanzi and rarer kanji render as boxes. The bins under `assets/fonts/cjk/filename/` hold only the part of that set the translation bins lack, one per pixel size that `font_body`, `font_small` or `font_xs` (the `text_body`, `text_small` and `text_xs` widgets every filename label is) takes at any breakpoint and any UI scale. The scale steps a face up through `DisplayMetrics::scaled_font_name()`; `scripts/translations/font_scale_reach.txt` lists what each face can become, and `[display_metrics]` fails when it disagrees with that function. A scaled face is adopted only when AssetManager registers it at the breakpoint: `scripts/translations/registered_text_fonts.txt` lists those names per breakpoint, written from `AssetManager::text_font_names_for_breakpoint()` (the registration table in `src/application/asset_manager.cpp`) and pinned by `[font_tier]`. `HELIX_UPDATE_GOLDEN=1` rewrites either file. Nothing loads until a filename containing CJK is formatted for display: `strip_gcode_extension()` and `get_display_filename()` in `include/core/gcode_filename.h` call `note_displayed_filename()`, as do the sites that show a raw name (a folder, a history row), and the hook `init_cjk_fonts()` (`src/application/cjk_filename_glyphs.cpp`) registers makes `CjkFontManager::ensure_filename_glyphs()` chain each size's filename bin behind a translation bin of the same size. A load then refreshes every object's style, so a label laid out before it, measured with missing glyphs, measures and wraps its text again. `check_cjk_font_coverage.py` fails when a size has no bin, a character of the set is in neither bin, or a listed character lies outside every `LISTED` range, and `platform_manifest.py prune-assets` ships a fixed panel only the sizes its breakpoint reaches at any scale in a build of its font tier. The ESP32 build (`HELIX_HAS_CJK=0`) loads none of it.
+
 ### Plural form not working
 
 1. Verify the call site uses `helix::ui::tr_plural()` with the plural key as a literal
 2. Verify the dictionary sits on the plural (`other_key`) entry and has an `other` form
-3. Check the language has a rule in `helix::ui::plural_category()` (`src/ui/i18n_plural.cpp`)
+3. Check the language has a rule in `helix::ui::plural_category()` (`src/core/i18n_plural.cpp`)
 4. Check the regenerated `ui_xml/translations/<lang>.xml` carries the `<key>_<category>` tags

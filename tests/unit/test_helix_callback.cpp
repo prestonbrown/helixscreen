@@ -104,12 +104,12 @@ TEST_CASE("Callback: storage path follows the callable's shape", "[helix_callbac
         (void)pad;
     };
 
-    STATIC_REQUIRE(callback_storage<decltype(trivial)>() == CallbackStorage::Trivial);
-    STATIC_REQUIRE(callback_storage<decltype(with_string)>() == CallbackStorage::Inline);
-    STATIC_REQUIRE(callback_storage<decltype(with_token)>() == CallbackStorage::Inline);
-    STATIC_REQUIRE(callback_storage<decltype(oversized)>() == CallbackStorage::Heap);
-    STATIC_REQUIRE(callback_storage<OverAligned>() == CallbackStorage::Heap);
-    STATIC_REQUIRE(callback_storage<MovingAddressReporter>() == CallbackStorage::Inline);
+    CHECK(callback_storage<decltype(trivial)>() == CallbackStorage::Trivial);
+    CHECK(callback_storage<decltype(with_string)>() == CallbackStorage::Inline);
+    CHECK(callback_storage<decltype(with_token)>() == CallbackStorage::Inline);
+    CHECK(callback_storage<decltype(oversized)>() == CallbackStorage::Heap);
+    CHECK(callback_storage<OverAligned>() == CallbackStorage::Heap);
+    CHECK(callback_storage<MovingAddressReporter>() == CallbackStorage::Inline);
 }
 
 TEST_CASE("Callback: LifetimeToken::defer's wrapper is stored inline", "[helix_callback]") {

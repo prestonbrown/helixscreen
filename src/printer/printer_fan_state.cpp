@@ -1,30 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_fan_state.cpp
- * @brief Fan state management extracted from PrinterState
+ * @brief Fan state management (a PrinterState sub-state)
  *
  * Manages fan subjects including main part-cooling fan speed, multi-fan
  * tracking with per-fan subjects, and fan metadata for UI display.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_fan_state.h"
 
 #include "config.h"
+#include "core/subject.h"
+#include "core/text_io.h"
 #include "device_display_name.h"
 #include "fan_gcode.h"
 #include "hardware_object_table.h"
 #include "hardware_role_registry.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "state/subject_macros.h"
-#include "text_io.h"
 #include "translation_loader.h"
 #include "unit_conversions.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace helix {
 
@@ -120,6 +121,7 @@ void PrinterFanState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(fan_speed, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(fans_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(primary_fans_version, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(fan_rpm_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterFanState] Subjects initialized successfully");
@@ -140,10 +142,10 @@ void PrinterFanState::deinit_subjects() {
     }
     fan_speed_lifetimes_.clear();
 
-    // Now safe to deinit subjects (lv_subject_deinit frees attached observers)
+    // Safe to reset subjects here (reset() frees attached observers)
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
-            lv_subject_deinit(subject_ptr.get());
+            subject_ptr->reset();
         }
     }
     fan_speed_subjects_.clear();
@@ -152,8 +154,27 @@ void PrinterFanState::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
+void PrinterFanState::update_klipper_rpm(const std::string& object_name,
+                                         const nlohmann::json& fan_status) {
+    // Klipper publishes rpm only with a tachometer_pin and sends null otherwise.
+    // A status update without the key leaves the last reading in place.
+    if (!fan_status.is_object())
+        return;
+    const auto it = fan_status.find("rpm");
+    if (it == fan_status.end())
+        return;
+    if (it->is_null()) {
+        // A fan with no tachometer_pin of its own may still be measured elsewhere.
+        const bool measured_elsewhere =
+            std::any_of(tachometers_.begin(), tachometers_.end(),
+                        [&](const fan_tach::TachSource& t) { return t.fan == object_name; });
+        if (!measured_elsewhere)
+            update_fan_rpm(object_name, std::nullopt);
+    } else if (it->is_number())
+        update_fan_rpm(object_name, static_cast<int>(std::lround(it->get<double>())));
+}
+
 void PrinterFanState::update_from_status(const nlohmann::json& status) {
-    // Update main part-cooling fan speed
     if (status.contains("fan")) {
         const auto& fan = status["fan"];
         spdlog::trace("[PrinterFanState] Received fan status update: {}",
@@ -168,9 +189,9 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
             // Also update multi-fan tracking
             update_fan_speed("fan", speed);
         }
+        update_klipper_rpm("fan", fan);
     }
 
-    // Check for other fan types in the status update
     // Moonraker sends fan objects as top-level keys: "heater_fan hotend_fan", "fan_generic xyz"
     for (const auto& [key, value] : status.items()) {
         const hw::ObjectKind kind = hw::classify_object(key).kind;
@@ -189,6 +210,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
                     lv_subject_set_int(&fan_speed_, speed_pct);
                 }
             }
+            update_klipper_rpm(key, value);
         }
 
         // Handle output_pin fan objects (Creality-style)
@@ -207,18 +229,8 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Parse fan_feedback RPM data (Creality-specific tachometer module)
-    if (status.contains("fan_feedback")) {
-        const auto& fb = status["fan_feedback"];
-        if (fb.is_object()) {
-            for (int i = 0; i < 10; i++) {
-                std::string key = "fan" + std::to_string(i) + "_speed";
-                if (fb.contains(key) && fb[key].is_number()) {
-                    int rpm = fb[key].get<int>();
-                    update_fan_rpm("output_pin fan" + std::to_string(i), rpm);
-                }
-            }
-        }
+    for (const auto& [fan, rpm] : fan_tach::readings(tachometers_, status)) {
+        update_fan_rpm(fan, rpm);
     }
 }
 
@@ -243,7 +255,6 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name,
     if (object_name == "fan") {
         return FanType::PART_COOLING;
     }
-    // Check if this fan is the wizard-configured part cooling fan
     if (!configured_part_fan.empty() && object_name == configured_part_fan) {
         return FanType::PART_COOLING;
     }
@@ -301,7 +312,7 @@ PrimaryFanSlots PrinterFanState::possible_primary_fan_slots() const {
 std::string PrinterFanState::resolve_part_fan(const std::string& configured) const {
     // The bare [fan] is Klipper's canonical part cooling object, but some printers
     // leave it a stale 0% stub and drive a manually-commandable named fan instead
-    // (output_pin fanN / fan_generic; user Discord report, e3f92c3f4). Auto-controlled
+    // (output_pin fanN / fan_generic). Auto-controlled
     // fans (heater/controller/temperature) can never be the M106 part fan, so they are
     // never candidates — promoting an idle controller_fan/temperature_fan over the
     // live [fan] is what stuck the Sovol SV08 part fan at 0% (#1124).
@@ -465,12 +476,11 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
 
     // Build new subject map, reusing existing subjects for fans that persist
     // across reconnections. Only deinit subjects for fans that disappeared.
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> new_subjects;
+    std::unordered_map<std::string, std::unique_ptr<helix::Subject>> new_subjects;
     std::unordered_map<std::string, SubjectLifetime> new_lifetimes;
     new_subjects.reserve(fan_objects.size());
     new_lifetimes.reserve(fan_objects.size());
 
-    // Store configured fan roles for classification and naming
     roles_ = roles;
     role_display_names_.clear();
 
@@ -554,7 +564,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
             // to the same value the struct carried forward. Writing 0 here would
             // re-open the struct/subject split that update_fan_speed's
             // unconditional write exists to absorb (#1181).
-            lv_subject_set_int(existing->second.get(), carried_speed);
+            lv_subject_set_int(existing->second->get(), carried_speed);
             new_subjects.emplace(obj_name, std::move(existing->second));
             // Reuse existing lifetime token too (observers still hold valid weak_ptrs)
             auto lifetime_it = fan_speed_lifetimes_.find(obj_name);
@@ -565,8 +575,8 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
             }
             spdlog::trace("[PrinterFanState] Reused speed subject for fan: {}", obj_name);
         } else {
-            auto subject_ptr = std::make_unique<lv_subject_t>();
-            lv_subject_init_int(subject_ptr.get(), 0);
+            auto subject_ptr = std::make_unique<helix::Subject>();
+            subject_ptr->init_int(0);
             new_subjects.emplace(obj_name, std::move(subject_ptr));
             new_lifetimes.emplace(obj_name, std::make_shared<bool>(true));
             spdlog::trace("[PrinterFanState] Created speed subject for fan: {}", obj_name);
@@ -585,11 +595,11 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
         }
     }
 
-    // Now safe to deinit orphaned subjects (observers already invalidated above)
+    // Safe to deinit orphaned subjects here (observers already invalidated above)
     for (auto& [name, subject_ptr] : fan_speed_subjects_) {
         if (subject_ptr) {
             spdlog::trace("[PrinterFanState] Deiniting orphaned speed subject for fan: {}", name);
-            lv_subject_deinit(subject_ptr.get());
+            subject_ptr->reset();
         }
     }
     fan_speed_subjects_ = std::move(new_subjects);
@@ -634,7 +644,7 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
             // cheaply rather than by argument (#1181).
             auto it = fan_speed_subjects_.find(object_name);
             if (it != fan_speed_subjects_.end() && it->second) {
-                lv_subject_set_int(it->second.get(), speed_pct);
+                lv_subject_set_int(it->second->get(), speed_pct);
                 if (changed) {
                     spdlog::trace("[PrinterFanState] Fan {} speed updated to {}%", object_name,
                                   speed_pct);
@@ -657,10 +667,13 @@ void PrinterFanState::update_fan_speed(const std::string& object_name, double sp
     // Fan not in list - this is normal during initial status before discovery
 }
 
-void PrinterFanState::update_fan_rpm(const std::string& object_name, int rpm) {
+void PrinterFanState::update_fan_rpm(const std::string& object_name, std::optional<int> rpm) {
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {
-            fan.rpm = rpm;
+            if (fan.rpm != rpm) {
+                fan.rpm = rpm;
+                lv_subject_set_int(&fan_rpm_version_, lv_subject_get_int(&fan_rpm_version_) + 1);
+            }
             return;
         }
     }
@@ -674,7 +687,7 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
         if (lt != fan_speed_lifetimes_.end()) {
             lifetime = lt->second;
         }
-        return it->second.get();
+        return it->second->get();
     }
     lifetime.reset();
     return nullptr;
@@ -683,13 +696,12 @@ lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_n
 lv_subject_t* PrinterFanState::get_fan_speed_subject(const std::string& object_name) {
     auto it = fan_speed_subjects_.find(object_name);
     if (it != fan_speed_subjects_.end() && it->second) {
-        return it->second.get();
+        return it->second->get();
     }
     return nullptr;
 }
 
 void PrinterFanState::rename_fan(const std::string& object_name, const std::string& new_name) {
-    // Save to config
     auto* config = Config::get_instance();
     std::string key = config->df() + "fans/names/" + object_name;
     config->set<std::string>(key, new_name);
@@ -701,7 +713,6 @@ void PrinterFanState::rename_fan(const std::string& object_name, const std::stri
                       object_name);
     }
 
-    // Update in-memory display name
     bool matched = false;
     for (auto& fan : fans_) {
         if (fan.object_name == object_name) {

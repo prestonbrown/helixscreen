@@ -12,6 +12,7 @@ class EthernetManager;
 
 #include "network_type.h"
 #include "wifi_backend.h"
+#include "wifi_ui_utils.h"
 
 namespace helix {
 class WiFiManager;
@@ -51,7 +52,9 @@ class NetworkWidget : public TiledPanelWidget {
     lv_subject_t* network_icon_state_ = nullptr;
 
     NetworkType current_network_ = NetworkType::Unknown;
-    int last_wifi_signal_ = 0;   // Last signal strength a status read returned
+    int last_wifi_signal_ = 0; // Last signal strength a status read returned
+    // Last link phase a status read returned; GettingAddress shows the alert icon.
+    helix::ui::wifi::LinkPhase last_wifi_phase_ = helix::ui::wifi::LinkPhase::Disconnected;
     bool backend_ready_ = false; // True after WiFi backend fires READY event
     bool active_ = false;        // Home is showing: between attach/on_activate and on_deactivate
     lv_timer_t* signal_poll_timer_ = nullptr;

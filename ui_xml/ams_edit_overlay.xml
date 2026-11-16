@@ -14,7 +14,7 @@
     <!-- Spool-picker list max height: caps the scroll viewport so the picker
          stays inside the overlay. Tuned to show ~5 rows at each breakpoint. -->
     <px name="spool_list_max_height_micro" value="130"/>
-    <px name="spool_list_max_height_tiny" value="150"/>
+    <px name="spool_list_max_height_tiny" value="184"/>
     <px name="spool_list_max_height_small" value="180"/>
     <px name="spool_list_max_height_medium" value="250"/>
     <px name="spool_list_max_height_large" value="330"/>
@@ -114,9 +114,14 @@
     <style name="color_pane_fit" width="content"/>
     <style name="color_pane_fill" width="100%"/>
   </styles>
+  <!-- Save is shut while nothing is dirty and until the lane records are read:
+       an edit before the read would overwrite records nobody has seen. A cond,
+       not a subject_expr: both operands come from init_subjects(), after the
+       component registers. -->
   <view name="ams_edit_overlay"
         extends="overlay_panel" title="Edit Spool" hide_action_button="false" action_button_text="Save"
-        action_button_callback="ams_edit_save_cb" action_button_disabled_subject="ams_edit_save_disabled"
+        action_button_callback="ams_edit_save_cb"
+        action_button_disabled_cond="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0"
         action_button_hidden_subject="ams_edit_save_hidden" title_badge_icon="spoolman"
         title_badge_subject="ams_edit_is_managed" back_button_callback="ams_edit_back_cb">
     <!-- Header icon buttons, left of Save: Choose from Spoolman and Scan QR,
@@ -160,6 +165,20 @@
               width="100%" height="content" flex_flow="column" style_pad_gap="#ams_edit_vgap" scrollable="false">
         <bind_flag_if_not_eq subject="ams_edit_view" flag="hidden" ref_value="0"/>
 
+        <text_small name="lane_records_loading"
+                    width="100%" long_mode="wrap" text="Loading lane details…" style_text_color="#text_muted">
+          <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
+        </text_small>
+        <!-- A save waits for the lane to hold it; one that does not stick says
+             why here and keeps the form, so Save retries it. -->
+        <text_small name="save_waiting" width="100%" long_mode="wrap" text="Saving..." style_text_color="#text_muted">
+          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="1"/>
+        </text_small>
+        <text_small name="save_error"
+                    width="100%" long_mode="wrap" bind_text="ams_edit_save_error" style_text_color="#danger">
+          <bind_flag_if_not_eq subject="ams_edit_save_state" flag="hidden" ref_value="2"/>
+        </text_small>
+
         <!-- Summary: colour dot + "eSUN Silk PETG, Blue" + from-tag badge +
              the weight pill. -->
         <lv_obj width="100%"
@@ -196,6 +215,36 @@
           <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
           <text_small name="temp_line" bind_text="ams_edit_temp_text" style_text_color="#text_muted"/>
           <tag_badge subject="ams_edit_tag_temps"/>
+        </lv_obj>
+
+        <!-- The lane holds one filament and its linked spool says another. The
+             lane's values stand above; the note names the spool's and offers
+             both ways to settle it. -->
+        <lv_obj name="spool_disagreement_note"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false" hidden="true">
+          <bind_flag_if_eq subject="ams_edit_spool_disagrees" flag="hidden" ref_value="0"/>
+          <icon src="alert" size="xs" variant="warning"/>
+          <text_small name="spool_disagreement_text"
+                      flex_grow="1" long_mode="wrap" bind_text="ams_edit_spool_disagreement_text"/>
+          <lv_obj name="btn_unlink_disagreeing"
+                  width="content" height="content" style_pad_hor="#space_xs" style_pad_ver="#space_xxs" flex_flow="row"
+                  style_flex_cross_place="center" style_radius="#border_radius" style_bg_opa="0" style_border_width="0"
+                  clickable="true" scrollable="false" ext_click_area="#ams_edit_bar_hit">
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="ams_edit_unlink_spool_cb"/>
+            <text_small text="Unlink" style_text_color="#primary" clickable="false" event_bubble="true"/>
+          </lv_obj>
+          <!-- The margin keeps this button's hit reach off Unlink beside it. -->
+          <lv_obj name="btn_reapply_spool"
+                  width="content" height="content" style_margin_left="#ams_edit_bar_hit" style_pad_hor="#space_xs"
+                  style_pad_ver="#space_xxs" flex_flow="row" style_flex_cross_place="center"
+                  style_radius="#border_radius" style_bg_opa="0" style_border_width="0" clickable="true"
+                  scrollable="false" ext_click_area="#ams_edit_bar_hit">
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="ams_edit_reapply_spool_cb"/>
+            <text_small text="Re-apply spool" style_text_color="#primary" clickable="false" event_bubble="true"/>
+          </lv_obj>
         </lv_obj>
 
         <!-- Two layouts, both built, one hidden (bind_flag, not a structural

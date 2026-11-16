@@ -179,23 +179,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots takes noun from each 
     ams.deinit_subjects();
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "clear_backends closes the home widget gates the departed backend opened",
-                 "[ams][ams_state][multi-printer]") {
-    // A live printer switch clears the backends and keeps the home grid; a slot count left
-    // behind keeps the Multi-Filament card on a printer that has no filament system.
-    auto& ams = AmsState::instance();
-    ams.init_subjects(false);
-    ams.set_backend(std::make_unique<AmsBackendMock>(4));
-    ams.sync_from_backend();
-    REQUIRE(lv_subject_get_int(ams.get_slot_count_subject()) == 4);
-
-    ams.clear_backends();
-
-    CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 0);
-    ams.deinit_subjects();
-}
-
 TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject to its default",
                  "[ams][ams_state][multi-printer]") {
     auto& ams = AmsState::instance();
@@ -216,6 +199,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject 
         static_cast<const char*>(lv_subject_get_pointer(ams.get_ams_system_logo_subject()));
     CHECK(lv_subject_get_int(ams.get_ams_system_has_logo_subject()) == (logo && logo[0] ? 1 : 0));
     const int slots_version = lv_subject_get_int(ams.get_slots_version_subject());
+    // Engaged on the departing backend, so the clear has a bypass to drop.
+    // The mock refuses bypass over loaded filament, so it unloads first.
+    REQUIRE(mock_ptr->unload_active_filament().success());
+    mock_ptr->wait_for_operation_thread();
+    REQUIRE(mock_ptr->enable_bypass().success());
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_bypass_active_subject()) == 1);
 
     mock_ptr->stop();
     ams.clear_backends();
@@ -224,6 +214,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "clear_backends returns every backend subject 
     CHECK(lv_subject_get_int(ams.get_is_filament_system_subject()) == 0);
     CHECK(lv_subject_get_int(ams.get_is_tool_changer_subject()) == 0);
     CHECK(lv_subject_get_int(ams.get_backend_count_subject()) == 0);
+    // A slot count left behind keeps the home grid's Multi-Filament card up.
     CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 0);
     CHECK(lv_subject_get_int(ams.get_supports_bypass_subject()) == 0);
     CHECK(lv_subject_get_int(ams.get_bypass_active_subject()) == 0);

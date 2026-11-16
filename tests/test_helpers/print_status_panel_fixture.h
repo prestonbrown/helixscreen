@@ -5,14 +5,15 @@
 // A real PrintStatusPanel built from production XML on an LVGL UI fixture.
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 #include "test_helpers/print_status_panel_test_access.h"
+#include "widget_in_tree.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -56,7 +57,7 @@ class PrintStatusPanelFixture : public LVGLUITestFixture {
     }
 
     ~PrintStatusPanelFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;

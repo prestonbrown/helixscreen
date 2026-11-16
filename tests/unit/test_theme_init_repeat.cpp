@@ -10,9 +10,9 @@
  */
 
 #include "ui_breakpoint.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "theme_manager.h"
 

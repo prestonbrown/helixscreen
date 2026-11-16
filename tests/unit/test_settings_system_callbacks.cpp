@@ -8,9 +8,10 @@
 
 #include "ui_panel_settings.h"
 #include "ui_settings_system.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
@@ -34,7 +35,7 @@ struct SystemCallbacksFixture : LVGLUITestFixture {
     }
 
     ~SystemCallbacksFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         helix::ui::UpdateQueue::instance().drain();
@@ -131,12 +132,12 @@ TEST_CASE_METHOD(SystemCallbacksFixture,
     sys.set_telemetry_enabled(true);
     lv_subject_set_int(extras, 1);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // The firmware build reports no platform extras: no data screen to open.
     lv_subject_set_int(extras, 0);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_subject_set_int(extras, extras_before);
     sys.set_telemetry_enabled(before);

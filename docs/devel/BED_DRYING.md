@@ -11,8 +11,8 @@ plate under a box, flip them midway, let the bed cool before removing them.
 | File | Role |
 |---|---|
 | `include/bed_drying.h` | Every decision as a pure function: enclosure, availability, clearance Z, the material table and its cap, the unload offer, run timing, the cool-down gate, the persisted `RunRecord` |
-| `include/bed_drying_controller.h`, `src/ui/bed_drying_controller.cpp` | `BedDryingController`: the run itself (prepare, confirm_placed, tick, stop, confirm_removed, restore) and its subjects |
-| `include/ui_bed_drying_modal.h`, `src/ui/ui_bed_drying_modal.cpp` | The start modal and the prompts around it (unload offer, place, stop, remove) |
+| `include/bed_drying_controller.h`, `src/ui/filament/bed_drying_controller.cpp` | `BedDryingController`: the run itself (prepare, confirm_placed, tick, stop, confirm_removed, restore) and its subjects |
+| `include/ui_bed_drying_modal.h`, `src/ui/filament/ui_bed_drying_modal.cpp` | The start modal and the prompts around it (unload offer, place, stop, remove) |
 | `include/spool_latch_gate.h` | The send-layer allowlist |
 | `src/api/moonraker_gcode_guards.cpp` | `reject_motion_while_spools_on_bed`, `reject_job_while_spools_on_bed` |
 | `ui_xml/bed_drying_modal.xml`, `ui_xml/components/bed_drying_banner.xml` | Start modal; the banner above every panel |

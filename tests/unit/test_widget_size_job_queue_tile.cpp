@@ -14,8 +14,6 @@
  * Run with: ./build/bin/helix-tests "[widget_size][job_queue]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
@@ -23,10 +21,10 @@
 #include "../test_helpers/one_line_label.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "job_queue_state.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/job_queue_widget.h"
@@ -64,7 +62,7 @@ struct JobQueueTileFixture : public LVGLUITestFixture, public JobQueueTileSeed {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void settle() {
         drain();
@@ -93,7 +91,7 @@ std::string subject_text(const char* name) {
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
 bool shown(lv_obj_t* obj) {
     for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(o))
             return false;
     }
     return true;

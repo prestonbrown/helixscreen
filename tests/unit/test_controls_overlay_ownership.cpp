@@ -13,13 +13,12 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/controls_panel_test_access.h"
 #include "../test_helpers/process_async_timers.h"
-#include "../test_helpers/update_queue_test_access.h"
-#include "static_panel_registry.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 
 #include <array>
 #include <memory>
@@ -36,7 +35,7 @@ void count_delete(lv_event_t* e) {
 
 void settle() {
     for (int i = 0; i < 5; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_timer_handler();
     }
     process_async_timers();

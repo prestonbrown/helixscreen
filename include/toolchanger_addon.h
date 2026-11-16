@@ -24,6 +24,8 @@
 // Adding a machine means adding one Provider to the table in
 // toolchanger_addon.cpp - no call site changes.
 
+#include "core/tool_number_style.h"
+#include "json_fwd.h"
 #include "macro_choice.h"
 
 #include <cstdint>
@@ -31,8 +33,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;
@@ -205,6 +205,15 @@ std::optional<MaterialReading> read_materials(const nlohmann::json& status, int 
 /// Whether any provider claims this printer.
 bool present(const PrinterDiscovery& hw);
 
+/// True only for a non-empty list where every name has the generated shape ("T0".."T5").
+bool tools_named_by_gcode(const std::vector<std::string>& tool_names);
+
+/// Gcode when the printer is plain klipper-toolchanger (`has_tool_changer()`, no
+/// provider here claiming it) and every `[tool]` section is named T<n>; Physical
+/// otherwise. Discovery invents T<n> names for a multi-extruder printer with no
+/// `[tool]` sections, and those say nothing about how the machine is labeled.
+helix::ui::ToolNumberStyle tool_number_style(const PrinterDiscovery& hw);
+
 /// Whether the Z-Mod Creator 5 changer row claims this printer: `zmod_color`
 /// plus the carriage grab buttons. The AD5X Z-Mod also publishes `zmod_color`
 /// but has no carriage buttons, so it cannot match. Backend selection asks this
@@ -215,6 +224,8 @@ bool zmod_c5_present(const PrinterDiscovery& hw);
 /// Whether the firmware picks each tool's lane itself at print time. Z-Mod's
 /// afclite, a lane-picking shim that publishes AFC-shaped objects, asks for the
 /// lanes in its own material prompt when the print starts, and refuses SET_MAP.
+/// Z-Mod's built-in AFC emulation does not: it takes the print's map from the
+/// print start (helix::print_start) and keeps SET_MAP's lane map.
 bool firmware_picks_lanes_at_print(const PrinterDiscovery& hw);
 
 /// The Z-Mod Creator 5 provider row's name, so callers holding machine_name()
@@ -253,16 +264,16 @@ struct AfcStateReading {
     std::string current_state; ///< As published; empty when the frame did not say
     bool error_state = false;  ///< The shim's own fault flag
     std::string message;       ///< Its fault text, when it sent one
-    /// `lanes[].map` verbatim ("T0", "T2", ...), indexed by lane; empty when
-    /// the frame carried no lane table. Read-only visibility: the lane→tool
-    /// relation is the firmware's own, and what it means for head indices is
-    /// exactly what a field capture has to settle before anything acts on it.
+    /// `lanes[].map` verbatim ("T0", "T2", ...; a list joined as "T0,T2"), indexed by lane; empty
+    /// when the frame carried no lane table. Read-only visibility: the lane→tool relation is the
+    /// firmware's own, and what it means for head indices is exactly what a field capture has to
+    /// settle before anything acts on it.
     std::vector<std::string> lane_maps;
 };
 
 /// Pull an AfcStateReading out of a Moonraker status frame carrying the
-/// `zmod_afclite` (or its `AFC` alias) object. nullopt when the frame carried
-/// neither object.
+/// `zmod_afclite` (or its `AFC` alias) object, or the built-in emulation's
+/// `AFC`. nullopt when the frame carried neither object.
 std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status);
 
 /// One afclite lane's Spoolman spool as its `AFC_lane <name>` object publishes

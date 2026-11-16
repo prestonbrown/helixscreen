@@ -3,14 +3,16 @@
 
 #pragma once
 
+#include "ui_coalesced_timer.h"
 #include "ui_nav.h"
 #include "ui_nav_backdrop.h"
 #include "ui_nav_panel_registry.h"
 #include "ui_nav_printer_badge.h"
 #include "ui_navbar_button.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"
@@ -226,6 +228,25 @@ class NavigationManager {
     lv_obj_t* get_panel_widget(helix::PanelId id) const;
 
     /**
+     * @brief Lend main panel @p id's widget tree to @p container
+     *
+     * A home full page (prestonbrown/helixscreen#1931) shows a main panel's own
+     * tree: built first if deferred, moved under @p container and shown, with its
+     * observers and callbacks as they are. Panel switches leave a lent tree alone
+     * until reclaim_panel(), and a switch to @p id itself reclaims it first.
+     *
+     * @return false, moving nothing, for the active panel, a panel already lent,
+     *         or one that has no tree
+     */
+    bool lend_panel(helix::PanelId id, lv_obj_t* container);
+
+    /// Move a lent tree back under the panel container, hidden; no-op when not lent.
+    void reclaim_panel(helix::PanelId id);
+
+    /// The container panel @p id is lent to, or nullptr.
+    lv_obj_t* panel_lent_to(helix::PanelId id) const;
+
+    /**
      * @brief Register a builder for panels that are instantiated lazily.
      *
      * On the ESP32 firmware only the home panel is built at boot (app_layout
@@ -246,7 +267,7 @@ class NavigationManager {
      *
      * Used by hot-reload overlay rebuild. Touches overlay_instances_,
      * persistent_overlay_instances_, the nested backdrops, overlay_close_callbacks_,
-     * and panel_stack_. Does NOT free either widget —
+     * panel_stack_ and queued operations. Does NOT free either widget —
      * caller handles old widget teardown.
      */
     void rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new_widget);
@@ -263,6 +284,18 @@ class NavigationManager {
      * Safe to call on the LVGL main thread only.
      */
     void rebuild_active_views();
+
+    /**
+     * @brief Rebuild for a layout the views were not built at (a resize across a tier)
+     *
+     * Marks every built main panel stale; set_active() rebuilds a stale panel
+     * before it shows it. The visible panel and the closed overlays are rebuilt
+     * once nothing is in use: no overlay open or closing, no modal, no keyboard,
+     * not suspended. Until then a timer retries, so an open dialog, a running
+     * measurement or a half-typed field is never torn down. Call after the
+     * tokens are refreshed and the components re-registered.
+     */
+    void rebuild_for_layout_change();
 
     /**
      * @brief Activate the initial panel after all panels are registered
@@ -333,12 +366,22 @@ class NavigationManager {
     /**
      * @brief Resume the previously suspended panel/overlay lifecycle
      *
-     * Calls on_activate() on whatever is currently visible. Used by DisplayManager
-     * when the screensaver stops to restart widget timers.
+     * Calls on_activate() on the view suspend_active() put to sleep, and only
+     * if it is still the one visible. Navigation keeps running while suspended:
+     * each view it brings on screen is activated by that navigation and then
+     * suspended again, so it becomes the one this wakes. A view covered or
+     * closed while asleep was deactivated as a navigation and is left alone.
+     * Used by DisplayManager when the screensaver stops to restart widget timers.
      *
      * No-op if not currently suspended.
      */
     void resume_active();
+
+    /// The view the next resume_active() wakes; null when awake or when that
+    /// view has been unregistered or destroyed since.
+    [[nodiscard]] const IPanelLifecycle* suspended_view() const {
+        return suspended_view_;
+    }
 
     /**
      * @brief Get current active panel
@@ -611,6 +654,9 @@ class NavigationManager {
      */
     void trigger_add_printer();
 
+    /// Open or close the printer switch menu under the navbar's printer badge.
+    void toggle_printer_menu();
+
   private:
     // Private constructor/destructor for singleton
     NavigationManager() = default;
@@ -662,6 +708,22 @@ class NavigationManager {
     // it only if that never happened. Clears the latch before dispatching, so a
     // re-entrant navigation from on_activate() can arm a fresh close cleanly.
     void activate_restored_target();
+
+    // Rebuild every overlay, and the active panel and the top modal if asked.
+    void rebuild_views(bool rebuild_panel, bool rebuild_top_modal);
+    // Nothing on screen is in use, so a layout rebuild loses nothing.
+    bool layout_rebuild_is_safe() const;
+    // Run a pending layout rebuild now if it is safe, else retry shortly.
+    void try_layout_rebuild();
+    // The lifecycle on screen now: the topmost overlay's, else the active
+    // main panel's. Null when the top overlay has none.
+    IPanelLifecycle* visible_lifecycle();
+    // Called after a navigation activated `view`: while suspended, a view that
+    // came on screen is suspended again so it stops drawing, and becomes the
+    // one resume_active() wakes.
+    void keep_suspended(IPanelLifecycle* view);
+    // Drop the wake record if it names `view`, which is going away.
+    void forget_suspended_view(const IPanelLifecycle* view);
 
     // Observer handlers (used by factory-created observers)
     void handle_active_panel_change(int32_t new_active_panel);
@@ -740,9 +802,13 @@ class NavigationManager {
     static void nav_button_clicked_cb(lv_event_t* event);
 
     // Active panel tracking
-    lv_subject_t active_panel_subject_{};
+    helix::Subject active_panel_subject_{};
     helix::PanelId active_panel_ = helix::PanelId::Home;
     bool suspended_ = false; // True when screensaver has suspended lifecycle
+    bool layout_rebuild_pending_ = false;
+    helix::ui::CoalescedTimer layout_rebuild_retry_{250};
+    DeactivateReason suspend_reason_ = DeactivateReason::Suspended;
+    IPanelLifecycle* suspended_view_ = nullptr; // what resume_active() wakes
 
     // Main panel widgets, their lifecycle instances and the lazy builder
     helix::ui::PanelRegistry panels_;
@@ -766,7 +832,7 @@ class NavigationManager {
     // push_overlay() targets not yet pushed. A queued push runs only while its
     // serial is still listed, so removing an entry cancels that push.
     struct PendingPush {
-        lv_obj_t* panel;
+        helix::ui::WeakWidget panel;
         uint64_t serial;
     };
     std::vector<PendingPush> pending_pushes_;
@@ -776,7 +842,7 @@ class NavigationManager {
     std::unordered_map<lv_obj_t*, helix::OverlayCloseCallback> overlay_close_callbacks_;
 
     // The dismiss backdrop behind the overlay stack, and its bookkeeping
-    helix::ui::OverlayBackdrop backdrop_;
+    helix::ui::OverlayBackdrop backdrop_{[this] { refresh_overlay_backdrop(); }};
 
     // Resolved width class per overlay (overlay → is_destination). Written by
     // apply_overlay_width() on every push, read by the next push to inherit and
@@ -788,22 +854,14 @@ class NavigationManager {
     // widths, e.g. the 70% widget catalog). #1178
     std::unordered_set<lv_obj_t*> overlay_width_unmanaged_;
 
-    // Rebuilt overlays (replaced root -> its live successor). Callers cache an
-    // overlay's root and keep registering and pushing it after a hot-reload
-    // rebuild has freed it, so every widget-taking entry point resolves through
-    // this. An entry is dropped when its successor is deleted, and when a
-    // different object is deleted at, or arrives live at, its key's address.
-    std::unordered_map<lv_obj_t*, lv_obj_t*> rebuilt_overlays_;
-    // Replaced roots still awaiting their deferred delete. Still valid objects,
-    // but never handed back: they resolve to their successor.
-    std::unordered_set<lv_obj_t*> condemned_roots_;
-
-    /// @p widget, or the live overlay that replaced it when a rebuild replaced it.
-    lv_obj_t* resolve_rebuilt(lv_obj_t* widget) const;
-    /// resolve_rebuilt() for a widget arriving to be registered or pushed: a
-    /// live object at a replaced root's address is a new object there, so its
-    /// forwarding entry ends.
-    lv_obj_t* resolve_arriving(lv_obj_t* widget);
+    // The widgets queued close and cancel operations name, by ticket.
+    // rekey_overlay_widget() rewrites them, so an operation queued before a rebuild
+    // reaches the rebuilt root; a deleted widget reads nullptr.
+    std::unordered_map<uint64_t, helix::ui::WeakWidget> queued_targets_;
+    uint64_t next_queued_target_ = 0;
+    uint64_t track_queued_target(lv_obj_t* widget);
+    /// The ticket's widget, or nullptr once deleted. Ends the ticket.
+    lv_obj_t* take_queued_target(uint64_t id);
 
     // Widgets that already have the LV_EVENT_DELETE scrub hook attached.
     // Prevents double-registering the callback and is itself scrubbed on delete.
@@ -849,7 +907,7 @@ class NavigationManager {
     bool subjects_initialized_ = false;
 
     // Overlay backdrop visibility subject (for modal dimming)
-    lv_subject_t overlay_backdrop_visible_subject_{};
+    helix::Subject overlay_backdrop_visible_subject_{};
 
     // Shutdown flag — overlays should skip destructive actions (e.g. ABORT)
     bool shutting_down_ = false;

@@ -63,3 +63,21 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
     helix::ui::PrintProgressText text(state(), lifecycle);
     CHECK(std::string(text.speed_text()) == helix::tune::live_rates_text(0, 0.0));
 }
+
+TEST_CASE_METHOD(PrintStatusPanelFixture,
+                 "Print status: a cancel that parks the head keeps the layer's height (#2055)",
+                 "[print_status][progress_text][layer_line_z]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}, {"filename", "a.gcode"}}}});
+    state().print_state().set_print_layer_total(6);
+    state().print_state().set_print_layer_heights(0.2, 0.3);
+    helix::ui::UpdateQueue::instance().drain();
+    state().update_from_status({{"print_stats", {{"print_duration", 30.0}}},
+                                {"gcode_move", {{"gcode_position", {10.0, 10.0, 0.5, 0.0}}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(subject_text("print_layer_text") == "2 / 6 · 0.5mm");
+
+    state().update_from_status({{"print_stats", {{"state", "cancelled"}}},
+                                {"gcode_move", {{"gcode_position", {10.0, 10.0, 110.2, 0.0}}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(subject_text("print_layer_text") == "2 / 6 · 0.5mm");
+}

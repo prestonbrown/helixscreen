@@ -8,14 +8,16 @@
   <!-- Full-screen backdrop overlay - tap to dismiss -->
   <view name="context_backdrop" extends="context_menu_backdrop">
     <!-- Context menu card - positioned by C++. The header carries the spool's
-         material name (e.g. "Polymaker PLA"); the colour and vendor subtitles sit
+         vendor and material (e.g. "Polymaker PLA"); the filament-name subtitle sits
          between it and the rule, so the card's own rule is suppressed. -->
     <context_menu_card width="220"
-                       title="Spool" title_name="spool_header" title_grow="1" title_long_mode="dots" hide_divider="true">
-      <!-- Color name (e.g., "Jet Black") -->
-      <text_small name="spool_color_label" width="100%" text="" long_mode="dots" style_text_color="#text_muted"/>
-      <!-- Vendor subtitle -->
-      <text_small name="spool_vendor_label" width="100%" text="" long_mode="dots" style_text_color="#text_muted"/>
+                       title_subject="spoolman_menu_header" title_name="spool_header" title_grow="1"
+                       title_long_mode="dots" hide_divider="true">
+      <!-- Filament name (e.g., "PLA Matte Charcoal"), hidden when Spoolman has none -->
+      <text_small name="spool_color_label"
+                  width="100%" bind_text="spoolman_menu_filament" long_mode="dots" style_text_color="#text_muted">
+        <bind_flag_if_eq subject="spoolman_menu_filament_shown" flag="hidden" ref_value="0"/>
+      </text_small>
       <!-- Header Divider -->
       <lv_obj width="100%"
               height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"/>
@@ -47,6 +49,7 @@
       <ui_button name="btn_archive"
                  width="100%" height="#button_height_sm" icon="archive_arrow_down" text="Archive" variant="ghost"
                  clickable="true" focusable="false" style_flex_main_place="start">
+        <bind_flag_if_eq subject="spoolman_menu_archive_shown" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="spoolman_context_archive_cb"/>
       </ui_button>
       <!-- Divider before destructive action -->

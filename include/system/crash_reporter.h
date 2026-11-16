@@ -20,10 +20,10 @@
  * Independent of TelemetryManager — works without telemetry opt-in.
  */
 
+#include "json_fwd.h"
+
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @brief Is a reported heap-snapshot age arithmetically possible?
@@ -134,6 +134,9 @@ class CrashReporter {
         std::string event_target;
         std::string event_original_target;
         int event_code = 0;
+        // "<major>.<minor>" of the LVGL the crashing binary was built against: the
+        // enum event_code belongs to. Empty in records written before it was recorded.
+        std::string lvgl_version;
 
         // Cached heap snapshot (refreshed every ~10s from main loop)
         struct HeapSnapshot {

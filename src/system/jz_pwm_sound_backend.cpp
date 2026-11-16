@@ -519,9 +519,9 @@ bool JzPwmSoundBackend::ensure_daemon() {
     if (sock_ >= 0)
         return true;
 
-    /* No daemon: spawn it once. Same child hygiene as the old per-buffer
-     * spawn (signal dispositions and masks survive execv), but this is a
-     * one-time cost for a process that lives as long as sound does. */
+    /* No daemon: spawn it once, resetting signal dispositions and masks in
+     * the child since they survive execv. This is a one-time cost for a
+     * process that lives as long as sound does. */
     pid_t pid = fork();
     if (pid == 0) {
         sigset_t empty;

@@ -18,10 +18,10 @@
  *   - gradient_render_columns(), which draws it, and
  *   - the cache signature, which decides whether a redraw can be skipped.
  *
- * They were separate copies of the same integer math. That is a silent-staleness
- * hazard: change the renderer's mapping and the signature keeps answering for
- * the old one, so it reports "unchanged" for frames that now render differently
- * and the graph freezes. One definition, used by both.
+ * Separate copies of the same integer math are a silent-staleness hazard:
+ * change the renderer's mapping and the signature keeps answering for the old
+ * one, so it reports "unchanged" for frames that render differently and the
+ * graph freezes. One definition, used by both.
  */
 
 namespace helix::temp_graph {

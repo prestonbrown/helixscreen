@@ -629,6 +629,23 @@ y: <v>" sweep lines are `gcode:<lambda>` log lines and do not reliably reach the
 Cancel/abort behaviour of the stock screen is unknown (never captured); HelixScreen sends
 `CMD=Y_SAFE` on leaving the jog step, the conservative unwind.
 
+HelixScreen also offers X jogging, which the stock screen does not. The capture never moved X
+before a save, so SAVE_POS writing a jogged X is read from its "reads the live position"
+behaviour and not yet seen on a machine, and nothing is recorded about what clears the head
+at other X positions past `safe_pos_y`, where the chute and cutter sit. `ChuteJogGuard`
+(`include/chute_jog_guard.h`) therefore lets Y pass the park position only with X within 2 mm of
+park, moves X past park only by single 0.1 mm taps inside that same 2 mm, and otherwise keeps X
+within 15 mm of where PREPARE parked it, on top of the
+live axis bounds. PREPARE parks at the stored `extrude_pos_x`, so that reach is per session: the
+only value on record, 184.5, is one K1 Max's stored setting and not a factory chute X, so nothing
+bounds the stored X absolutely across repeated saves.
+
+When box.cfg's `[box]` `clean_left_pos_*` / `clean_right_pos_*` reach `configfile.settings`
+(`cfs::parse_chute_wiper`, read from the same query as the address table), the guard also stops Y
+0.3 mm short of that wiper line while X is at or past the wiper's near end, and keeps X off the
+wiper while Y is beyond the line (#2007). A K1C reports park 152.5/221.5 and the silicone wiper
+from X 153.5 to 178.0 at Y 225.3, so the fine reach past park overlaps the wiper's first 1 mm.
+
 ### Machine geometry from the same log
 
 `[stepper_y] position_min=-0.5 position_max=307.5` (`gcode_position_max=295`, a Creality

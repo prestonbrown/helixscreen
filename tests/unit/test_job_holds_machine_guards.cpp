@@ -32,19 +32,17 @@
  * pass for the wrong reason.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/trait_probe_backend.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_cfs.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "print_lifecycle_state.h"
@@ -85,7 +83,7 @@ void drive_lifecycle(PrinterState& ps, const char* wire_state,
     ps.update_from_status(json{{"print_stats", {{"state", wire_state}}}});
     ps.print_state().set_print_start_state(phase, "", 0);
     // set_print_start_state defers, and its callback publishes the lifecycle.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 PrintState published_lifecycle(PrinterState& ps) {
@@ -249,15 +247,15 @@ TEST_CASE_METHOD(Ad5xToastFixture, "AD5X head-empty mid-print is a real runout",
 }
 
 TEST_CASE_METHOD(SensorEdgeToastFixture,
-                 "idle unload is expected only where the backend unloads to its hub",
+                 "idle unload is expected only where the backend parks filament off the toolhead",
                  "[ams][filament-sensor][job-holds-machine]") {
     drive_lifecycle(printer_state, "standby");
     REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
     REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
 
-    SECTION("a backend that unloads to its hub swallows the idle head-empty edge") {
+    SECTION("a backend that parks filament off the toolhead swallows the idle head-empty edge") {
         BackendTraits unloads;
-        unloads.unloads_to_hub_between_prints = true;
+        unloads.parks_filament_off_toolhead_when_idle = true;
         install_backend(std::make_unique<helix::test::TraitProbeBackend>(unloads));
         CHECK(report_head_empty() == 0);
     }
@@ -327,18 +325,48 @@ TEST_CASE_METHOD(SensorEdgeToastFixture,
     CHECK(report_head_empty() == 1);
 }
 
-TEST_CASE_METHOD(SensorEdgeToastFixture, "CFS head-empty while idle still toasts",
-                 "[ams][cfs][filament-sensor][job-holds-machine][1388]") {
-    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "a backend that owns the runout surface during the job does not own it idle",
+                 "[ams][filament-sensor][job-holds-machine][1388]") {
+    BackendTraits owns;
+    owns.raises_runout_fault = true;
+    owns.raises_runout_fault_during_job = true;
+    install_backend(std::make_unique<helix::test::TraitProbeBackend>(owns));
     REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
 
-    // The gate is scoped to the job phase: idle, the CFS raises no fault of
+    // The gate is scoped to the job phase: idle, the backend raises no fault of
     // its own and the sensor edge is news again. Dropping the job_holds_machine
     // conjunct from the manager's ownership term makes this 0.
     drive_lifecycle(printer_state, "standby");
     REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
 
     CHECK(report_head_empty() == 1);
+}
+
+TEST_CASE_METHOD(SensorEdgeToastFixture,
+                 "CFS end-of-print retract into the box is not a filament removal",
+                 "[ams][cfs][filament-sensor][job-holds-machine]") {
+    install_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+    REQUIRE_FALSE(AmsState::instance().is_filament_operation_active());
+
+    drive_lifecycle(printer_state, "printing");
+    REQUIRE(published_lifecycle(printer_state) == PrintState::Printing);
+
+    // The CFS cuts and retracts into the box after print_stats reads complete,
+    // so the head-empty edge arrives with no job holding the machine. Clearing
+    // parks_filament_off_toolhead_when_idle on the CFS traits makes each of these 1.
+    SECTION("after a completed print") {
+        drive_lifecycle(printer_state, "complete");
+        REQUIRE(published_lifecycle(printer_state) == PrintState::Complete);
+        CHECK(report_head_empty() == 0);
+    }
+
+    SECTION("once the printer is back to idle") {
+        drive_lifecycle(printer_state, "complete");
+        drive_lifecycle(printer_state, "standby");
+        REQUIRE(published_lifecycle(printer_state) == PrintState::Idle);
+        CHECK(report_head_empty() == 0);
+    }
 }
 
 // ============================================================================

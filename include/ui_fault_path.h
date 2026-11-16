@@ -22,7 +22,7 @@
  *
  * Subject values are `PathSegment` (`include/ams_types.h`), with 0 (`NONE`) meaning
  * "no recognised position" — the component binds `hidden` to that, so an unrecognised
- * or unpositioned fault shows nothing at all and the modal renders exactly as it did before.
+ * or unpositioned fault shows no strip at all.
  */
 
 namespace helix::ui {

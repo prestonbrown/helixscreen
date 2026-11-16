@@ -5,6 +5,7 @@
 #include "ui_modal.h"
 
 #include "bed_drying.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <string>
@@ -43,7 +44,7 @@ class BedDryingModal : public Modal {
 /// Unload through the shared filament ladder, then @p then once the toolhead
 /// is clear. A failed unload, or a filament-system one that never starts, stops
 /// the flow; "nothing loaded" goes straight on.
-void unload_before_drying(BedDryingController& ctrl, std::function<void()> then);
+void unload_before_drying(BedDryingController& ctrl, helix::SharedCallback<void()> then);
 
 /// The unload offer, then the clearance move, then the place prompt.
 void start_bed_drying_flow(const bed_drying::Material& material, bool with_appliance);

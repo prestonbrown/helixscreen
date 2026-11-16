@@ -17,8 +17,9 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <atomic>
@@ -32,24 +33,6 @@
 
 using namespace helix;
 
-namespace {
-struct LVGLInitializerBeltApi {
-    LVGLInitializerBeltApi() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerBeltApi lvgl_init;
-
-} // namespace
-
 /**
  * @brief Fixture for belt resonance API testing with the mock client
  *
@@ -57,7 +40,7 @@ static LVGLInitializerBeltApi lvgl_init;
  * playing console lines on an lv_timer, so every wait is a
  * lv_tick_inc/lv_timer_handler_safe pump.
  */
-class BeltApiFixture {
+class BeltApiFixture : public LVGLTestFixture {
   public:
     BeltApiFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
         state_.init_subjects(false); // Don't register XML bindings in tests
@@ -70,7 +53,7 @@ class BeltApiFixture {
     ~BeltApiFixture() {
         // Run what the collectors queued while this fixture's PrinterState is
         // still alive, then drop the API before the mock's timers go.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         api_.reset();
         MoonrakerClientMock::remove_belt_csvs();
     }

@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <any>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -212,4 +213,55 @@ TEST_CASE("an id outside the section vocabulary still renders",
     CHECK(section.label == "not_a_kind");
     CHECK(section.icon == "cog");
     CHECK(section.display_order == 3);
+}
+
+TEST_CASE("Happy Hare default sections and actions are well-formed", "[ams][hh_defaults]") {
+    const auto sections = hh_default_sections();
+    const auto actions = hh_default_actions();
+    REQUIRE_FALSE(sections.empty());
+    REQUIRE_FALSE(actions.empty());
+
+    std::set<std::string> section_ids;
+    for (size_t i = 0; i < sections.size(); ++i) {
+        const auto& s = sections[i];
+        INFO("section " << s.id);
+        CHECK_FALSE(s.id.empty());
+        CHECK_FALSE(s.label.empty());
+        CHECK_FALSE(s.description.empty());
+        CHECK(s.display_order >= 0);
+        if (i > 0) {
+            CHECK(s.display_order > sections[i - 1].display_order);
+        }
+        CHECK(section_ids.insert(s.id).second);
+    }
+
+    std::set<std::string> action_ids;
+    for (const auto& a : actions) {
+        INFO("action " << a.id);
+        CHECK_FALSE(a.id.empty());
+        CHECK_FALSE(a.label.empty());
+        CHECK(section_ids.count(a.section) == 1);
+        CHECK(action_ids.insert(a.id).second);
+        if (a.type == ActionType::SLIDER) {
+            CHECK(a.min_value < a.max_value);
+            CHECK_FALSE(a.unit.empty());
+        }
+        if (a.type == ActionType::DROPDOWN) {
+            CHECK(a.options.size() >= 2);
+        }
+    }
+}
+
+TEST_CASE("HH default actions: extruder load and unload share the first button row",
+          "[ams][hh_defaults]") {
+    // The section overlay packs consecutive buttons two to a row.
+    std::vector<std::string> maintenance_buttons;
+    for (const auto& a : hh_default_actions()) {
+        if (a.section == "maintenance" && a.type == ActionType::BUTTON) {
+            maintenance_buttons.push_back(a.id);
+        }
+    }
+    REQUIRE(maintenance_buttons.size() >= 2);
+    CHECK(maintenance_buttons[0] == "load_extruder");
+    CHECK(maintenance_buttons[1] == "unload_extruder");
 }

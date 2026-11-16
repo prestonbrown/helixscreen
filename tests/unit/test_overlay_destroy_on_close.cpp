@@ -12,31 +12,87 @@
  * reopens it and pops it again.
  */
 
+#include "ui_ams_device_operations_overlay.h"
+#include "ui_ams_device_section_detail_overlay.h"
 #include "ui_ams_environment_overlay.h"
+#include "ui_ams_zone_overview_overlay.h"
 #include "ui_cfs_chute_calibration_overlay.h"
+#include "ui_fan_control_overlay.h"
+#include "ui_maintenance_overlay.h"
 #include "ui_nav_manager.h"
+#include "ui_overlay_console_settings.h"
+#include "ui_overlay_network_settings.h"
+#include "ui_overlay_printer_image.h"
+#include "ui_overlay_printer_image_tagger.h"
+#include "ui_overlay_printer_type.h"
+#include "ui_overlay_retraction_settings.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_overlay_timelapse_install.h"
+#include "ui_overlay_timelapse_settings.h"
+#include "ui_overlay_timelapse_videos.h"
+#include "ui_panel_belt_tension.h"
 #include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
+#include "ui_panel_history_dashboard.h"
+#include "ui_panel_history_list.h"
 #include "ui_panel_motion.h"
+#include "ui_panel_screws_tilt.h"
+#include "ui_panel_spoolman.h"
+#include "ui_plugin_overview_overlay.h"
+#include "ui_print_tune_overlay.h"
+#include "ui_printer_events_overlay.h"
+#include "ui_printer_list_overlay.h"
 #include "ui_printer_manager_overlay.h"
+#include "ui_probe_overlay.h"
+#include "ui_settings_about.h"
+#include "ui_settings_appearance.h"
+#include "ui_settings_barcode_scanner.h"
+#include "ui_settings_connection.h"
+#include "ui_settings_display.h"
+#include "ui_settings_fans.h"
+#include "ui_settings_hardware.h"
+#include "ui_settings_hardware_health.h"
+#include "ui_settings_help.h"
+#include "ui_settings_label_printer.h"
+#include "ui_settings_language_time.h"
+#include "ui_settings_led.h"
+#include "ui_settings_machine_limits.h"
 #include "ui_settings_macro_buttons.h"
+#include "ui_settings_material_temps.h"
 #include "ui_settings_motion.h"
+#include "ui_settings_printing.h"
+#include "ui_settings_safety.h"
+#include "ui_settings_screen_sharing.h"
+#include "ui_settings_security.h"
+#include "ui_settings_sensors.h"
+#include "ui_settings_sound.h"
+#include "ui_settings_storage.h"
+#include "ui_settings_system.h"
+#include "ui_settings_telemetry_data.h"
+#include "ui_settings_touch.h"
+#include "ui_settings_updates.h"
 #include "ui_snapmaker_nozzle_offset_overlay.h"
+#include "ui_sound_preview_overlay.h"
+#include "ui_spool_wizard.h"
 #include "ui_theme_editor_overlay.h"
 #include "ui_touch_calibration_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_runtime_config.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "label_printer_settings.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
-#include "static_panel_registry.h"
+#include "printer_state.h"
+#include "runtime_config.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -56,7 +112,15 @@ void count_delete(lv_event_t* e) {
 
 class DestroyOnCloseFixture : public LVGLUITestFixture {
   protected:
+    // The Network case opens the overlay that creates the process-lifetime WiFiManager
+    // (get_wifi_manager()). Outside test_mode that singleton gets the platform backend
+    // and keeps it for every later test, which then finds no WifiBackendMock.
+    ScopedRuntimeConfig scoped_config_;
+
     DestroyOnCloseFixture() {
+        get_runtime_config()->test_mode = true;
+        get_runtime_config()->use_real_wifi = false;
+        get_runtime_config()->use_real_ethernet = false;
         for (auto& p : panels_)
             p = lv_obj_create(lv_screen_active());
         NavigationManager::instance().set_panels(panels_.data());
@@ -97,31 +161,283 @@ class DestroyOnCloseFixture : public LVGLUITestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][motion]") {
-    auto& p = get_global_motion_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
+namespace {
+
+template <auto Get> OverlayBase& as_base() {
+    return Get();
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion observers fired after close touch no freed tree",
-                 "[overlay_destroy_on_close][motion]") {
-    auto& p = get_global_motion_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
+using namespace helix::settings;
+
+/// These singletons refuse to construct through their getter.
+OverlayBase& timelapse_settings() {
+    init_global_timelapse_settings(nullptr);
+    return get_global_timelapse_settings();
+}
+OverlayBase& timelapse_install() {
+    init_global_timelapse_install(nullptr);
+    return get_global_timelapse_install();
+}
+OverlayBase& timelapse_videos() {
+    init_global_timelapse_videos(nullptr);
+    return get_global_timelapse_videos();
+}
+OverlayBase& retraction() {
+    init_global_retraction_settings(nullptr);
+    return get_global_retraction_settings();
+}
+
+/// An overlay reached through its singleton. A null open shows it through
+/// OverlayBase::show(); after_close is a late callback that reaches for the tree.
+struct OverlayCase {
+    const char* name;
+    OverlayBase& (*overlay)();
+    void (*open)() = nullptr;
+    void (*after_close)() = nullptr;
+};
+
+const OverlayCase kOverlayCases[] = {
     // The homed and position observers outlive the tree and reach for the jog pad.
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+    {"Motion", as_base<&get_global_motion_panel>, nullptr,
+     [] {
+         auto* homed = get_printer_state().motion_state().get_homed_axes_subject();
+         lv_subject_set_string(homed, "xyz");
+         lv_subject_set_string(homed, "");
+     }},
+    {"Macro Buttons", as_base<&get_macro_buttons_overlay>},
+    {"Theme Editor", as_base<&get_theme_editor_overlay>},
+    {"Touch Calibration", as_base<&helix::ui::get_touch_calibration_overlay>,
+     [] { REQUIRE(helix::ui::get_touch_calibration_overlay().show(lv_screen_active(), nullptr)); },
+     [] {
+         auto& p = helix::ui::get_touch_calibration_overlay();
+         // The lifted capture surface went back under the root.
+         CHECK(lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay") == nullptr);
+         p.on_progress();
+         p.on_capture_feedback({10, 10});
+         p.on_verify_feedback({10, 10});
+         p.handle_screen_touched(nullptr);
+         p.handle_screen_released();
+     }},
+    {"Temp Graph", as_base<&get_global_temp_graph_overlay>,
+     [] {
+         get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, lv_screen_active());
+     }},
+    {"PA Calibration", as_base<&get_global_pa_cal_panel>},
+    {"Tool Offset Calibration", as_base<&get_global_tool_offset_cal_panel>},
+    {"PID Calibration", as_base<&get_global_pid_cal_panel>},
+    {"Z Offset Calibration", as_base<&get_global_zoffset_cal_panel>},
+    {"Printer Manager", as_base<&get_printer_manager_overlay>},
+#if HELIX_HAS_CFS
+    {"CFS Chute Calibration", as_base<&get_cfs_chute_calibration_overlay>},
+#endif
+#if HELIX_HAS_SNAPMAKER
+    {"Toolhead Offset Calibration", as_base<&get_snapmaker_nozzle_offset_overlay>},
+#endif
+    {"Appearance", as_base<&get_appearance_settings_overlay>},
+    {"Connection", as_base<&get_connection_settings_overlay>},
+    {"Console Settings", as_base<&get_global_console_settings>},
+    {"Display", as_base<&get_display_settings_overlay>},
+    {"Hardware", as_base<&get_hardware_settings_overlay>},
+    {"Help", as_base<&get_help_settings_overlay>},
+    {"Language and Time", as_base<&get_language_time_settings_overlay>},
+    {"LED Settings", as_base<&get_led_settings_overlay>},
+    {"Label Printer", as_base<&get_label_printer_settings_overlay>},
+    {"Safety", as_base<&get_safety_settings_overlay>},
+    {"Screen Sharing", as_base<&get_screen_sharing_settings_overlay>},
+    {"Security", as_base<&get_security_settings_overlay>},
+    {"Sound Preview", as_base<&get_sound_preview_overlay>},
+    {"Storage", as_base<&get_storage_settings_overlay>},
+    {"System", as_base<&get_system_settings_overlay>},
+    {"Touch", as_base<&get_touch_settings_overlay>},
+    {"Updates", as_base<&get_updates_settings_overlay>},
+    {"Printer Image", as_base<&get_printer_image_overlay>},
+    {"Printer Type", as_base<&get_printer_type_overlay>},
+    {"Sound", as_base<&get_sound_settings_overlay>, nullptr,
+     [] { get_sound_settings_overlay().handle_volume_changed(40); }},
+    {"Telemetry Data", as_base<&get_telemetry_data_overlay>, nullptr,
+     [] { get_telemetry_data_overlay().handle_clear_queue(); }},
+    {"Printing", as_base<&get_printing_settings_overlay>, nullptr,
+     [] {
+         lv_subject_set_int(
+             get_printer_state().plugin_status_state().get_plr_feature_state_subject(), 1);
+     }},
+    {"Printer List", as_base<&get_printer_list_overlay>, nullptr,
+     [] {
+         lv_subject_set_int(
+             get_printer_state().network_state().get_printer_connection_state_subject(), 0);
+     }},
+    {"Printer Image Tagger", as_base<&get_printer_image_tagger_overlay>,
+     [] { get_printer_image_tagger_overlay().show(lv_screen_active(), ImageTagTarget{}); }},
+    {"About", as_base<&get_about_settings_overlay>},
+    {"Barcode Scanner", as_base<&get_barcode_scanner_settings_overlay>},
+    {"Fan Settings", as_base<&get_fan_settings_overlay>},
+    {"Hardware Health", as_base<&get_hardware_health_overlay>},
+    {"Material Temps", as_base<&get_material_temps_overlay>},
+    {"Machine Limits", as_base<&get_machine_limits_overlay>},
+    {"Retraction", retraction},
+    {"Plugin Overview", as_base<&helix::ui::get_plugin_overview_overlay>, nullptr,
+     [] {
+         auto* seq = get_printer_state().plugin_status_state().get_helix_plugin_probe_seq_subject();
+         lv_subject_set_int(seq, lv_subject_get_int(seq) + 1);
+     }},
+    {"Timelapse Settings", timelapse_settings},
+    {"Timelapse Install", timelapse_install},
+#if HELIX_HAS_TIMELAPSE_VIEWER
+    {"Timelapse Videos", timelapse_videos},
+#endif
+    {"Spoolman", as_base<&get_global_spoolman_panel>, nullptr,
+     [] { get_global_spoolman_panel().refresh_spools(); }},
+    {"Spool Wizard", as_base<&get_global_spool_wizard>},
+    {"Probe", as_base<&get_global_probe_overlay>},
+    {"History List", as_base<&get_global_history_list_panel>},
+    {"AMS Device Operations", as_base<&helix::ui::get_ams_device_operations_overlay>, nullptr,
+     [] { helix::ui::get_ams_device_operations_overlay().refresh(); }},
+    {"AMS Device Section", as_base<&helix::ui::get_ams_device_section_detail_overlay>,
+     [] {
+         helix::ui::get_ams_device_section_detail_overlay().show(lv_screen_active(), "hub", "Hub");
+     },
+     [] { helix::ui::get_ams_device_section_detail_overlay().refresh(); }},
+    {"Screws Tilt", as_base<&get_global_screws_tilt_panel>},
+    {"Maintenance", as_base<&helix::get_maintenance_overlay>},
+    {"Fan Control", as_base<&get_fan_control_overlay>},
+    {"Printer Events", as_base<&helix::ui::get_printer_events_overlay>, nullptr,
+     [] {
+         helix::ui::get_printer_events_overlay().show_entries(helix::JournalSource::Screen,
+                                                              {helix::JournalEntry{}});
+     }},
+    {"Print Tune", as_base<&get_print_tune_overlay>,
+     [] { get_print_tune_overlay().show(lv_screen_active(), nullptr, get_printer_state()); },
+     [] { get_print_tune_overlay().update_z_offset_display(-50); }},
+    {"History Dashboard", as_base<&get_global_history_dashboard_panel>, nullptr,
+     [] { get_global_history_dashboard_panel().set_time_filter(HistoryTimeFilter::DAY); }},
+    {"Sensors", as_base<&get_sensor_settings_overlay>},
+    {"Network", as_base<&get_network_settings_overlay>},
+    {"Belt Tension", as_base<&get_global_belt_tension_panel>, nullptr,
+     [] {
+         auto* active = get_printer_state().print_state().get_print_active_subject();
+         lv_subject_set_int(active, lv_subject_get_int(active) == 0 ? 1 : 0);
+     }},
+};
+
+} // namespace
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "Overlays rebuild on reopen and take late callbacks closed",
+                 "[overlay_destroy_on_close][overlay]") {
+    const OverlayCase& c = GENERATE(from_range(std::begin(kOverlayCases), std::end(kOverlayCases)));
+    CAPTURE(c.name);
+    OverlayBase& overlay = c.overlay();
+    expect_rebuilt_on_reopen(
+        [&] {
+            if (c.open) {
+                c.open();
+            } else {
+                REQUIRE(overlay.show(lv_screen_active()));
+            }
+        },
+        [&] { return overlay.get_root(); });
+
+    // A lifecycle or data callback arriving with the tree gone builds nothing.
+    overlay.on_activate();
+    if (c.after_close) {
+        c.after_close();
+    }
     settle();
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
-    settle();
-    CHECK(p.get_root() == nullptr);
+    CHECK(overlay.get_root() == nullptr);
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Macro Buttons rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][macro_buttons]") {
-    auto& p = helix::settings::get_macro_buttons_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
+TEST_CASE_METHOD(DestroyOnCloseFixture,
+                 "AMS Zone Overview reopened on the same zones fills its rows",
+                 "[overlay_destroy_on_close][ams_zone]") {
+    auto& o = helix::ui::get_ams_zone_overview_overlay();
+    const helix::printer::EnvironmentZone zone;
+    expect_rebuilt_on_reopen([&] { o.show(lv_screen_active(), {zone}); },
+                             [&] { return o.get_root(); });
+    o.show(lv_screen_active(), {zone});
+    settle();
+    lv_obj_t* label = lv_obj_find_by_name(o.get_root(), "zone_label");
+    lv_subject_t* text = lv_xml_get_subject(nullptr, "zone_ov_label_0");
+    REQUIRE((label != nullptr && text != nullptr));
+    CHECK(std::string(lv_label_get_text(label)) == lv_subject_get_string(text));
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "Print Tune stops observing the printer while closed",
+                 "[overlay_destroy_on_close][print_tune]") {
+    lv_subject_t* speed = get_printer_state().motion_state().get_speed_factor_subject();
+    const uint32_t closed = lv_ll_get_len(&speed->subs_ll);
+    for (int round = 0; round < 2; ++round) {
+        get_print_tune_overlay().show(lv_screen_active(), nullptr, get_printer_state());
+        settle();
+        REQUIRE(lv_ll_get_len(&speed->subs_ll) > closed);
+        NavigationManager::instance().go_back();
+        settle();
+        CHECK(lv_ll_get_len(&speed->subs_ll) == closed);
+    }
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "History List repopulates when closed under its detail",
+                 "[overlay_destroy_on_close][history]") {
+    auto& p = get_global_history_list_panel();
+    PrintHistoryJob job;
+    job.filename = "cube.gcode";
+    p.set_jobs({job});
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    const auto rows = [&] {
+        lv_obj_t* list = lv_obj_find_by_name(p.get_root(), "list_rows");
+        REQUIRE(list != nullptr);
+        return lv_obj_get_child_count(list);
+    };
+    REQUIRE(rows() > 0);
+    lv_obj_t* list = lv_obj_find_by_name(p.get_root(), "list_rows");
+    lv_obj_t* row = nullptr;
+    for (uint32_t i = 0; !row && i < lv_obj_get_child_count(list); ++i) {
+        lv_obj_t* child = lv_obj_get_child(list, static_cast<int32_t>(i));
+        row = lv_obj_get_event_count(child) > 0 && !lv_obj_is_hidden(child) ? child : nullptr;
+    }
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    // Closed from under its open detail, then the detail pops.
+    p.close();
+    settle();
+    REQUIRE(p.get_root() == nullptr);
+    NavigationManager::instance().go_back();
+    settle();
+
+    p.set_jobs({job}); // the dashboard hands over its jobs on every open
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    CHECK(rows() > 0);
+}
+
+TEST_CASE_METHOD(DestroyOnCloseFixture, "Label Printer keeps an address typed before a tap on Back",
+                 "[overlay_destroy_on_close][label_printer]") {
+    auto& settings = helix::LabelPrinterSettingsManager::instance();
+    const std::string type = settings.get_printer_type();
+    const std::string address = settings.get_printer_address();
+    settings.set_printer_type("network");
+    UITest::init(lv_screen_active());
+
+    auto& p = get_label_printer_settings_overlay();
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    lv_obj_t* input = lv_obj_find_by_name(p.get_root(), "input_address");
+    REQUIRE(input != nullptr);
+    REQUIRE(UITest::click(input));
+    lv_textarea_set_text(input, "10.1.2.3");
+    REQUIRE(UITest::click(lv_obj_find_by_name(p.get_root(), "back_button")));
+    settle();
+    REQUIRE(p.get_root() == nullptr);
+
+    REQUIRE(p.show(lv_screen_active()));
+    settle();
+    CHECK(std::string(lv_textarea_get_text(lv_obj_find_by_name(p.get_root(), "input_address"))) ==
+          "10.1.2.3");
+
+    UITest::cleanup();
+    settings.set_printer_address(address);
+    settings.set_printer_type(type);
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion Settings rebuilds its tree on reopen",
@@ -129,59 +445,6 @@ TEST_CASE_METHOD(DestroyOnCloseFixture, "Motion Settings rebuilds its tree on re
     expect_rebuilt_on_reopen(
         [&] { helix::settings::show_motion_settings_overlay(); },
         [&] { return lv_obj_find_by_name(lv_screen_active(), "jog_speed_xy_slider"); });
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Theme Editor rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][theme_editor]") {
-    auto& p = get_theme_editor_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Temp Graph rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][temp_graph]") {
-    auto& p = get_global_temp_graph_overlay();
-    expect_rebuilt_on_reopen([&] { p.open(TempGraphOverlay::Mode::Nozzle, lv_screen_active()); },
-                             [&] { return p.get_root(); });
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "PA Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][pa_cal]") {
-    auto& p = get_global_pa_cal_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Tool Offset Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][tool_offset_cal]") {
-    auto& p = get_global_tool_offset_cal_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-
-#if HELIX_HAS_CFS
-TEST_CASE_METHOD(DestroyOnCloseFixture, "CFS Chute Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][cfs_chute]") {
-    auto& p = get_cfs_chute_calibration_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-#endif
-
-#if HELIX_HAS_SNAPMAKER
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Toolhead Offset Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][nozzle_offset]") {
-    auto& p = get_snapmaker_nozzle_offset_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-#endif
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "PID Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][pid_cal]") {
-    auto& p = get_global_pid_cal_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
 }
 
 TEST_CASE_METHOD(DestroyOnCloseFixture,
@@ -210,13 +473,6 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
     settle();
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Z Offset Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][zoffset_cal]") {
-    auto& p = get_global_zoffset_cal_panel();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
-}
-
 TEST_CASE_METHOD(DestroyOnCloseFixture,
                  "Z Offset Calibration results and probe updates after close touch no tree",
                  "[overlay_destroy_on_close][zoffset_cal]") {
@@ -243,38 +499,29 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
     CHECK(p.get_root() == nullptr);
 }
 
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Touch Calibration rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][touch_cal]") {
-    auto& p = helix::ui::get_touch_calibration_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active(), nullptr)); },
-                             [&] { return p.get_root(); });
-    // The lifted capture surface goes back under the root, so nothing is left on the screen.
-    CHECK(lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay") == nullptr);
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Touch Calibration feedback after close touches no tree",
-                 "[overlay_destroy_on_close][touch_cal]") {
-    auto& p = helix::ui::get_touch_calibration_overlay();
-    REQUIRE(p.show(lv_screen_active(), nullptr));
+TEST_CASE_METHOD(DestroyOnCloseFixture,
+                 "Z Offset Calibration readouts follow the panel and a reopen clears the result",
+                 "[overlay_destroy_on_close][zoffset_cal]") {
+    auto& p = get_global_zoffset_cal_panel();
+    auto text = [&](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(p.get_root(), name)));
+    };
+    REQUIRE(p.show(lv_screen_active()));
     settle();
+    p.update_z_position(0.2f);
+    CHECK(text("z_position_display") == "Z: 0.200");
+    p.on_calibration_result(false, "probe failed");
+    settle();
+    CHECK(text("error_message") == "probe failed");
     NavigationManager::instance().go_back();
     settle();
-    REQUIRE(p.get_root() == nullptr);
 
-    p.on_progress();
-    p.on_capture_feedback({10, 10});
-    p.on_verify_feedback({10, 10});
-    p.handle_screen_touched(nullptr);
-    p.handle_screen_released();
+    REQUIRE(p.show(lv_screen_active()));
     settle();
-    CHECK(p.get_root() == nullptr);
-}
-
-TEST_CASE_METHOD(DestroyOnCloseFixture, "Printer Manager rebuilds its tree on reopen",
-                 "[overlay_destroy_on_close][printer_manager]") {
-    auto& p = get_printer_manager_overlay();
-    expect_rebuilt_on_reopen([&] { REQUIRE(p.show(lv_screen_active())); },
-                             [&] { return p.get_root(); });
+    CHECK(text("z_position_display") == "Z: 0.000");
+    CHECK(text("error_message") == "An error occurred during calibration.");
+    NavigationManager::instance().go_back();
+    settle();
 }
 
 namespace {

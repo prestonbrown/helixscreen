@@ -3,6 +3,7 @@
 
 #include "ui_overlay_network_settings.h"
 
+#include "ethernet_manager.h"
 #include "wifi_backend.h"
 
 #include <cstring>
@@ -22,9 +23,6 @@ class NetworkSettingsOverlayTestAccess {
     static helix::ui::WidgetRef& password_modal(NetworkSettingsOverlay& o) {
         return o.password_modal_;
     }
-    static helix::ui::WidgetRef& hidden_network_modal(NetworkSettingsOverlay& o) {
-        return o.hidden_network_modal_;
-    }
     static helix::ui::WidgetRef& test_modal(NetworkSettingsOverlay& o) {
         return o.test_modal_;
     }
@@ -36,9 +34,21 @@ class NetworkSettingsOverlayTestAccess {
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
         return o.wifi_manager_;
     }
+    /// The overlay's EthernetManager. create() makes one only when none is set.
+    static std::unique_ptr<EthernetManager>& ethernet_manager(NetworkSettingsOverlay& o) {
+        return o.ethernet_manager_;
+    }
+    /// No Ethernet probe in flight or queued behind one.
+    static bool eth_refresh_idle(NetworkSettingsOverlay& o) {
+        return !o.eth_probe_outstanding() && !o.eth_refresh_trailing_;
+    }
+    /// The eth_connected subject (0/1) the Ethernet row binds to.
+    static helix::Subject& eth_connected(NetworkSettingsOverlay& o) {
+        return o.eth_connected_;
+    }
     /// The wifi_connected subject (0/1) — the observable a transport refresh
     /// must move.
-    static lv_subject_t& wifi_connected(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_connected(NetworkSettingsOverlay& o) {
         return o.wifi_connected_;
     }
     /// Apply a status read's answer the way the async read does.
@@ -51,7 +61,7 @@ class NetworkSettingsOverlayTestAccess {
         return o.country_dropdown_;
     }
     /// The country dropdown's selection subject (0 = not set).
-    static lv_subject_t& wifi_country_index(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_country_index(NetworkSettingsOverlay& o) {
         return o.wifi_country_index_;
     }
     /// The SSID the password modal is about. The handlers read it rather than
@@ -66,15 +76,15 @@ class NetworkSettingsOverlayTestAccess {
         o.finish_wlan_toggle(requested, success, actual);
     }
     /// The wifi_hardware_available subject (0/1).
-    static lv_subject_t& wifi_hardware_available(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_hardware_available(NetworkSettingsOverlay& o) {
         return o.wifi_hardware_available_;
     }
     /// The wifi_toggle_locked subject (0/1) the switch's disabled state binds to.
-    static lv_subject_t& wifi_toggle_locked(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_toggle_locked(NetworkSettingsOverlay& o) {
         return o.wifi_toggle_locked_;
     }
     /// The wifi_enabled subject (0/1) the switch's checked state binds to.
-    static lv_subject_t& wifi_enabled(NetworkSettingsOverlay& o) {
+    static helix::Subject& wifi_enabled(NetworkSettingsOverlay& o) {
         return o.wifi_enabled_;
     }
     /// The production handler behind the WiFi switch's value_changed.
@@ -89,10 +99,6 @@ class NetworkSettingsOverlayTestAccess {
     /// button does.
     static void add_other_clicked(NetworkSettingsOverlay& o) {
         o.handle_add_other_clicked();
-    }
-    /// The production handler behind the hidden-network modal's Connect button.
-    static void hidden_connect_clicked(NetworkSettingsOverlay& o) {
-        o.handle_hidden_connect_clicked();
     }
     /// Build the scan rows synchronously, with no network connected — the click
     /// handler reads per-row data only this path attaches.
@@ -123,10 +129,26 @@ class NetworkSettingsOverlayTestAccess {
     static std::string ip(NetworkSettingsOverlay& o) {
         return o.ip_buffer_;
     }
+    static std::string ip_display(NetworkSettingsOverlay& o) {
+        return o.ip_display_buffer_;
+    }
     static std::string mac(NetworkSettingsOverlay& o) {
         return o.mac_buffer_;
     }
     static lv_obj_t* networks_list(NetworkSettingsOverlay& o) {
         return o.networks_list_;
+    }
+    /// The wifi_only_24ghz subject (1 = the 2.4 GHz-only indicator shows).
+    static helix::Subject& wifi_only_24ghz(NetworkSettingsOverlay& o) {
+        return o.wifi_only_24ghz_;
+    }
+    /// Whether the radio's country has been read since the overlay opened.
+    static bool radio_country_read(NetworkSettingsOverlay& o) {
+        return o.radio_country_.has_value();
+    }
+    /// Hand a scan's results to the overlay, as the scan callback does.
+    static void populate_network_list(NetworkSettingsOverlay& o,
+                                      const std::vector<WiFiNetwork>& networks) {
+        o.populate_network_list(networks);
     }
 };

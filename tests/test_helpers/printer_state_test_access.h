@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "capability_overrides.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "update_queue_test_access.h"
 
 #include <mutex>
 #include <vector>
@@ -52,6 +50,7 @@ class PrinterPrintStateTestAccess {
         // live preparing job into the next test, where it relaxes the
         // phase-update guard and the print_active safety reset.
         pps.preparing_job_ = {};
+        pps.printer_side_pre_start_ = false;
         pps.cancel_preparing_watchdog();
     }
 
@@ -101,13 +100,11 @@ class PrinterPrintStateTestAccess {
 // touch, and that therefore live for the whole process on the shared
 // get_printer_state() singleton.
 //
-// Deliberately absent: PrinterFanStateTestAccess and
-// PrinterTemperatureStateTestAccess. Both names are already taken by local
-// definitions in tests/unit/test_print_status_fan_section.cpp and
-// tests/unit/test_printer_temperature_{state,char}.cpp, two of which already
-// include this header — defining them here is an immediate ambiguity. Those two
-// domains are cleared through their public init_fans({}) / init_extruders({})
-// instead, which is also the only correct way to expire their per-item subjects.
+// Deliberately absent: PrinterFanStateTestAccess, a name already taken by a
+// local definition in tests/unit/test_print_status_fan_section.cpp, and a
+// temperature accessor. The fan and temperature domains are cleared through
+// their public init_fans({}) / init_extruders({}) instead, which is also the
+// only correct way to expire their per-item subjects.
 // ---------------------------------------------------------------------------
 
 class PrinterExcludedObjectsStateTestAccess {
@@ -175,8 +172,15 @@ class PrinterProfileStateTestAccess {
         // A latched external-persistence flag would hold FIRMWARE_MANAGED
         // across every later test in the binary after a mid-test failure.
         s.external_persistence_ = false;
+        // The tune hint subject is seeded from the cached value on re-init.
+        s.z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
+        s.z_offset_save_enabled_ = true;
+        s.db_z_offset_persists_ = true;
+        s.db_tool_change_resets_z_offset_ = false;
         s.db_enclosed_ = false;
+        s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;
+        s.heat_soak_macro_.clear();
         s.firmware_option_defaults_.clear();
     }
 
@@ -213,7 +217,7 @@ class PrinterStateTestAccess {
     /// data isolation no longer needs this — HelixTestFixture::reset_all() calls
     /// clear_data() on the global PrinterState in its ctor and dtor.
     static void reset(PrinterState& ps) {
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         clear_data(ps);
         ps.deinit_subjects();
     }
@@ -254,6 +258,7 @@ class PrinterStateTestAccess {
             ps.fan_state_.init_fans({});
             ps.temperature_state_.init_extruders({});
         }
+        ps.fan_state_.set_tachometers({});
         // Plain string setters — no subject touched, so they run unguarded. These
         // are the Klipper object names the chamber logic matches against; a leaked
         // one makes a later test's chamber read the previous test's sensor.
@@ -277,6 +282,7 @@ class PrinterStateTestAccess {
         PrinterProfileStateTestAccess::clear_data(ps.profile_state_);
         ps.auto_detected_bed_moves_ = false;
         ps.macro_option_count_ = 0;
+        ps.hidden_option_ids_.clear();
         ps.skip_gates_ = {};
         ps.is_paused_ = false;
         ps.last_kinematics_.clear();

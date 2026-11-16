@@ -6,8 +6,8 @@
 #include "../test_helpers/unique_temp_dir.h"
 #include "config.h"
 #include "config_storage.h"
+#include "core/text_io.h"
 #include "panel_widget_config.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -41,6 +41,34 @@ TEST_CASE("file storage round-trips a document atomically", "[config][storage]")
     storage->preserve_corrupt();
     REQUIRE_FALSE(storage->load(read_error).has_value());
     REQUIRE(fs::exists(path + ".corrupt"));
+
+    fs::remove_all(dir);
+}
+
+// Every symlinked layout links settings.json into a store outside the install
+// root; replacing the link with a file puts the settings back where the next
+// update deletes them (#2085).
+TEST_CASE("file storage behind a symlink keeps the link through store and preserve_corrupt",
+          "[config][storage][2085]") {
+    const fs::path dir = helix::test::unique_temp_dir("helix-storage-link");
+    fs::create_directories(dir / "store");
+    fs::create_directories(dir / "config");
+    const fs::path target = dir / "store" / "settings.json";
+    const fs::path link = dir / "config" / "settings.json";
+    fs::create_symlink(target, link);
+    auto storage = helix::make_file_config_storage(link.string());
+
+    REQUIRE(storage->store("{\"config_version\": 1}\n"));
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string()) == "{\"config_version\": 1}\n");
+
+    storage->preserve_corrupt();
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string() + ".corrupt") == "{\"config_version\": 1}\n");
+
+    REQUIRE(storage->store("{\"config_version\": 2}\n"));
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string()) == "{\"config_version\": 2}\n");
 
     fs::remove_all(dir);
 }
@@ -264,4 +292,48 @@ TEST_CASE("small-footprint storage writes a below-floor copy compact", "[config]
     REQUIRE(doc.is_object());
     CHECK(doc.value("marker", "") == "kept");
     cfg.clear_path();
+}
+
+TEST_CASE("init tops up a stored file's missing keys and leaves its own values alone",
+          "[config][storage]") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    ConfigDirGuard guard("topup");
+    const std::string path = (guard.dir / "settings.json").string();
+    const auto read_stored = [&path] {
+        std::ifstream file(path);
+        return nlohmann::json::parse(file);
+    };
+    // A first boot migrates the fixture, so only the top-up below can dirty the file.
+    fs::copy_file("tests/fixtures/config/ktouch_3_printers.json", path);
+    helix::Config{}.init(path);
+    const bool junk_calibration = GENERATE(false, true);
+    nlohmann::json doc = read_stored();
+    doc["display"] = {{"sleep_sec", 7}};
+    doc["input"] = {{"scroll_limit", 3}, {"calibration", {{"a", 2.0}}}};
+    if (junk_calibration) {
+        doc["input"]["calibration"] = "junk";
+    }
+    std::ofstream(path) << doc.dump();
+
+    helix::Config{}.init(path);
+
+    // Read from disk: a top-up the file never receives repeats on every boot.
+    nlohmann::json stored = read_stored();
+    CHECK(stored["display"]["sleep_sec"] == 7);
+    CHECK(stored["display"]["dim_sec"] == 600);
+    CHECK(stored["input"]["scroll_limit"] == 3);
+    CHECK(stored["input"].contains("scroll_throw"));
+    CHECK_FALSE(stored["input"].contains("long_press_time"));
+    CHECK(stored["input"]["calibration"]["a"] == (junk_calibration ? 1.0 : 2.0));
+    CHECK(stored["input"]["calibration"]["valid"] == false);
+}
+
+TEST_CASE("a config written whole carries the touch range slot", "[config][storage]") {
+    ScopedRuntimeConfig scoped_config;
+    get_runtime_config()->test_mode = true;
+    ConfigDirGuard guard("fresh");
+    helix::Config cfg;
+    cfg.init((guard.dir / "settings.json").string());
+    CHECK(cfg.get<bool>("/input/touch_range/valid", true) == false);
 }

@@ -13,14 +13,14 @@ leaves a different binary behind, and the stub suite prints a Catch2 failure
 when the change's marker is gone.
 """
 
+import json
 import os
 import re
-import resource
+import shlex
 import shutil
 import signal
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -202,7 +202,7 @@ def _git(work, *args):
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout
 
 
-def _fixture(tmp_path, makefile=FAST_MAKEFILE):
+def _fixture(tmp_path, makefile=FAST_MAKEFILE, other=False):
     work = tmp_path / "repo"
     (work / "scripts").mkdir(parents=True)
     (work / "src").mkdir()
@@ -210,6 +210,8 @@ def _fixture(tmp_path, makefile=FAST_MAKEFILE):
     shutil.copy(SCRIPTS_DIR / "mutate_diff.py", work / "scripts")
     shutil.copy(SCRIPTS_DIR / "diff_base.py", work / "scripts")
     (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    if other:
+        (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
     (work / ".gitignore").write_text("build/\n.mutant-*\n")
     _git(work, "init", "-q", "-b", "main")
     _git(work, "config", "user.email", "t@t")
@@ -265,7 +267,9 @@ def test_a_stop_signal_mid_mutant_restores_the_file_byte_for_byte(tmp_path, sig)
         [sys.executable, "scripts/mutate_diff.py", "--base", "main", "--shards", "1",
          "--log", str(work / "mutate.log")],
         cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        start_new_session=True, env=ENV)
+        start_new_session=True, env=ENV,
+        # A run keeps an inherited SIGHUP ignore, so a nohup'd pytest would hand it one.
+        preexec_fn=lambda: signal.signal(signal.SIGHUP, signal.SIG_DFL))
     try:
         _wait_for(work / ".mutant-build-started")
         child = _wait_for(work / ".mutant-build-child")
@@ -356,6 +360,116 @@ def test_max_minutes_stops_the_run_and_names_what_it_never_reached(tmp_path):
     assert not _alive(child), "the capped build's grandchild outlived the run"
 
 
+# other.cpp's mutant build hangs; a suite that detects nothing lets feature.cpp's survive.
+OTHER_HANGS_MAKEFILE = SLOW_MUTANT_MAKEFILE.replace("{secs}", "60").replace(
+    "NEW_BEHAVIOR src/feature.cpp", "NEW_TOO src/other.cpp")
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_a_capped_run_ends_on_a_summary_naming_what_it_never_reached(tmp_path, grouped):
+    work, base = _two_hunk_fixture(tmp_path, OTHER_HANGS_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    if grouped:
+        # Under a minute left, so neither group starts.
+        r = _mutate(work, "--base", base, "--max-minutes", "0.1",
+                    "--tests-for", "src/feature.cpp=[feat]", "--tests-for", "src/other.cpp=[oth]")
+        assert r.returncode == 3, r.stdout
+        tail = r.stdout[r.stdout.rindex("exit 3"):]
+        assert "VERDICT: INCOMPLETE" in tail, r.stdout
+        assert "2 file(s) UNEXAMINED: --max-minutes 0.1 reached" in tail, r.stdout
+        return
+    r = _mutate(work, "--base", base, "--max-minutes", "0.1")
+    # The survivor decides the exit; the summary still says the run stopped short.
+    assert r.returncode == 1, r.stdout
+    assert "src/feature.cpp:1" in r.stdout[r.stdout.index("FAIL: 1 hunk(s) survived"):]
+    tail = r.stdout[r.stdout.rindex("=" * 68):]
+    assert "1 hunk(s) UNEXAMINED: --max-minutes 0.1 reached" in tail, r.stdout
+    assert "Hunks SURVIVED above" in tail, r.stdout
+
+
+# A baseline suite that takes 30s while the change is in place, noting each start.
+SLOW_BASELINE_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+echo started >> .mutant-suite-starts
+grep -q NEW_BEHAVIOR src/feature.cpp && sleep 30
+exit 1
+"""
+BASELINE_RECORD = Path("build/mutate-baseline-secs.json")
+WHOLE_KEY = "catch2 shards=1 ~[.]~[slow]"
+
+
+def test_a_baseline_the_cap_cut_off_is_not_started_again_when_it_cannot_fit(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(SLOW_BASELINE_SUITE)
+    first = _mutate(work, "--base", "main", "--max-minutes", "0.05")
+    assert first.returncode == 3, first.stdout
+    assert "during the baseline" in first.stdout
+    kept = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]["secs"]
+    assert kept >= 2, kept
+    (work / ".mutant-suite-starts").unlink()
+    t0 = time.monotonic()
+    again = _mutate(work, "--base", "main", "--max-minutes", "0.04")
+    assert again.returncode == 3, again.stdout
+    assert time.monotonic() - t0 < 10, "a baseline known not to fit was started"
+    assert not (work / ".mutant-suite-starts").exists(), again.stdout
+    assert "baseline not started: the catch2 baseline for '~[.]~[slow]' took" in again.stdout
+    assert "UNEXAMINED    src/feature.cpp:1" in again.stdout
+    assert "VERDICT: INCOMPLETE" in again.stdout
+    # With room for it, the same baseline runs, and its green time replaces the bound.
+    (work / "build" / "bin" / "helix-tests").write_text(DETECTING_SUITE)
+    roomy = _mutate(work, "--base", "main", "--no-record")
+    assert roomy.returncode == 0, roomy.stdout
+    entry = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]
+    assert entry["secs"] < kept and not entry["refused"], entry
+
+
+def _seed_baseline(work, key=WHOLE_KEY, secs=99999):
+    (work / BASELINE_RECORD).write_text(json.dumps({key: {"secs": secs}}))
+
+
+def test_a_refused_baseline_is_measured_again_on_the_next_run(tmp_path):
+    work = _fixture(tmp_path)
+    _seed_baseline(work)                  # one measurement taken under heavy load
+    refused = _mutate(work, "--base", "main", "--no-record")
+    assert refused.returncode == 3, refused.stdout
+    assert "baseline not started" in refused.stdout
+    again = _mutate(work, "--base", "main", "--no-record")
+    assert again.returncode == 0, again.stdout
+    assert "refused last time at 99999s, so measured again" in again.stdout
+    entry = json.loads((work / BASELINE_RECORD).read_text())[WHOLE_KEY]
+    assert entry["secs"] < 60 and not entry["refused"], entry
+    # The fresh time fits, so the run after that starts it without a refusal.
+    third = _mutate(work, "--base", "main", "--no-record")
+    assert third.returncode == 0 and "measured again" not in third.stdout, third.stdout
+
+
+def test_a_baseline_time_is_kept_per_shard_count(tmp_path):
+    work = _fixture(tmp_path)
+    _seed_baseline(work)                  # measured with --shards 1
+    wider = subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "2", "--log",
+         str(work / "mutate.log"), "--base", "main", "--no-record"],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=ENV)
+    assert wider.returncode == 0, wider.stdout
+    assert "baseline not started" not in wider.stdout
+    assert "catch2 shards=2 ~[.]~[slow]" in json.loads((work / BASELINE_RECORD).read_text())
+    narrow = _mutate(work, "--base", "main", "--no-record")
+    assert "baseline not started" in narrow.stdout, narrow.stdout
+
+
+@linux_only
+def test_a_pool_skips_a_whole_suite_baseline_that_cannot_fit_and_judges_the_rest(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    _seed_baseline(work)
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "not started for ~[.]~[slow]" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:1", r.stdout), r.stdout
+    assert re.search(r"src/other.cpp:1.*no baseline to judge it by", r.stdout), r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
+
+
 def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):
     work = _fixture(tmp_path)
     r = _mutate(work, "--base", "main", "--max-minutes", "0", "--release")
@@ -366,18 +480,33 @@ def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):
 # ---------------------------------------------------------------------------
 # A run whose parent exits
 # ---------------------------------------------------------------------------
+# The first mutant's build ends only once the run's parent is gone, so the parent
+# outlives the run's startup and dies before the first hunk finishes.
+ORPHANED_BUILD_MAKEFILE = """test-build:
+\t@if ! grep -q NEW_BEHAVIOR src/feature.cpp; then \\
+\t    touch .mutant-build-started; \\
+\t    while [ ! -e .parent-gone ]; do sleep 0.05; done; \\
+\tfi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
 @linux_only
 def test_an_orphaned_run_stops_before_its_next_hunk(tmp_path):
-    work, base = _two_hunk_fixture(tmp_path, SLOW_MUTANT_MAKEFILE.replace("{secs}", "3"))
+    work, base = _two_hunk_fixture(tmp_path, ORPHANED_BUILD_MAKEFILE)
     out = work / "orphan.out"
     # The shell starts the run and exits during the first mutant's build, the
     # way a harness that reaps its shell but not the shell's children leaves it.
     subprocess.run(
         ["sh", "-c", f'{sys.executable} scripts/mutate_diff.py --base {base} --shards 1 '
-                     f'--log mutate.log > {out} 2>&1 & echo $! > orphan.pid; sleep 1'],
-        cwd=work, check=True, timeout=30, env=ENV)
+                     f'--log mutate.log > {out} 2>&1 & echo $! > orphan.pid; '
+                     'i=0; while [ ! -e .mutant-build-started ] && [ "$i" -lt 3600 ]; '
+                     'do sleep 0.05; i=$((i + 1)); done'],
+        cwd=work, check=True, timeout=240, env=ENV)
     pid = _wait_for(work / "orphan.pid")
-    deadline = time.monotonic() + 90
+    assert (work / ".mutant-build-started").exists(), out.read_text()
+    (work / ".parent-gone").touch()
+    deadline = time.monotonic() + 240
     while _alive(pid) and time.monotonic() < deadline:
         time.sleep(0.1)
     text = out.read_text()
@@ -469,13 +598,16 @@ def test_no_record_writes_nothing(tmp_path):
 def _commit_other_fix(work, msg="the fix"):
     """Commit a new src/other.cpp the stub suite checks for."""
     (work / ".mutant-expect-other").write_text("1\n")
+    (work / "src" / "other.cpp").write_text("int g() { return 1; }\n")
+    _git(work, "add", "src/other.cpp")
+    _git(work, "commit", "--allow-empty", "-qm", f"{msg}: the file it edits")
     (work / "src" / "other.cpp").write_text("int g() { return 2; }  // NEW_TOO\n")
     _git(work, "add", "src/other.cpp")
     _git(work, "commit", "-qm", msg)
 
 
 def _proven_then_new_change(tmp_path):
-    work = _fixture(tmp_path)
+    work = _fixture(tmp_path, other=True)
     _git(work, "commit", "-qam", "change")
     assert _mutate(work).returncode == 0
     _commit_other_fix(work)
@@ -781,9 +913,9 @@ def test_a_hung_shard_is_measured_against_its_own_baseline(tmp_path):
 
 
 def test_the_baseline_records_each_shard_and_orders_the_next_run(tmp_path):
-    # Whole seconds apart: on a loaded host a process can take hundreds of
-    # milliseconds just to start, which would reorder shards spaced closer.
-    exe = _shard_bin(tmp_path, 'sleep "$i"\n'
+    # Two seconds apart: on a loaded host a process can take over a second
+    # just to start, which would reorder shards spaced closer.
+    exe = _shard_bin(tmp_path, 'sleep "$((i * 2))"\n'
                                'echo "All tests passed (1 assertion in 1 test case)"\n')
     plan = md.Catch2Plan(3, 1)
     state, _, _ = md.run_catch2(tmp_path, exe, '[x]', plan, open(os.devnull, 'w'))
@@ -829,43 +961,177 @@ def test_a_timed_out_suite_reruns_at_normal_priority(monkeypatch):
     assert runs == [(1.0, []), (2.0, ['lifted'])]
 
 
-def _sched_policy_of_child():
-    out = subprocess.run(['sh', '-c', 'cat /proc/$$/sched'], capture_output=True, text=True).stdout
-    return int(re.search(r'^policy\s*:\s*(\d+)', out, re.M).group(1))
+class FakeThreadSched:
+    """The calling thread's scheduling class and niceness, in place of the
+    kernel's: a desktop scheduler daemon can rewrite a real thread's class at
+    any moment, and an unprivileged test can never exercise a successful lift."""
+
+    def __init__(self, monkeypatch, policy, niceness, deny_lift):
+        self.policy, self.niceness, self.deny_lift = policy, niceness, deny_lift
+        for name in ('sched_getscheduler', 'sched_setscheduler', 'getpriority', 'setpriority'):
+            monkeypatch.setattr(os, name, getattr(self, name), raising=False)
+
+    def sched_getscheduler(self, pid):
+        assert pid == 0, "the calling thread, not the process leader"
+        return self.policy
+
+    def sched_setscheduler(self, pid, policy, param):
+        assert pid == 0, "the calling thread, not the process leader"
+        if self.deny_lift and policy == os.SCHED_OTHER:
+            raise PermissionError
+        self.policy = policy
+
+    def getpriority(self, which, who):
+        assert (which, who) == (os.PRIO_PROCESS, 0), "the calling thread"
+        return self.niceness
+
+    def setpriority(self, which, who, niceness):
+        assert (which, who) == (os.PRIO_PROCESS, 0), "the calling thread"
+        self.niceness = niceness
+
+    @property
+    def state(self):
+        return self.policy, self.niceness
 
 
-def _in_idle_thread(body):
-    """Run body in a thread lowered to SCHED_IDLE, as test-host-run.sh's mutate
-    is, so the test's own thread keeps its priority."""
-    result = {}
-
-    def target():
-        os.sched_setscheduler(0, os.SCHED_IDLE, os.sched_param(0))
-        try:
-            result['value'] = body()
-        except BaseException as e:  # noqa: BLE001
-            result['error'] = e
-    t = threading.Thread(target=target)
-    t.start()
-    t.join()
-    if 'error' in result:
-        raise result['error']
-    return result['value']
-
-
-@pytest.mark.skipif(not hasattr(os, 'sched_getscheduler') or not os.path.exists('/proc/self/sched'),
-                    reason='per-thread scheduling classes are Linux-only')
-def test_normal_priority_lifts_an_idle_thread_for_its_children_and_restores_it():
-    def body():
-        with md.normal_priority():
-            inside = _sched_policy_of_child()
-        return inside, _sched_policy_of_child(), os.sched_getscheduler(0)
-    inside, after, own = _in_idle_thread(body)
-    assert after == os.SCHED_IDLE and own == os.SCHED_IDLE
-    may_lift = os.geteuid() == 0 or resource.getrlimit(resource.RLIMIT_NICE)[0] >= 20
+@pytest.mark.skipif(not hasattr(os, 'SCHED_IDLE'), reason='scheduling classes are Linux-only')
+@pytest.mark.parametrize('start,deny_lift,inside', [
+    ((os.SCHED_IDLE, 19), False, (os.SCHED_OTHER, 0)),
+    ((os.SCHED_IDLE, 0), False, (os.SCHED_OTHER, 0)),
+    ((os.SCHED_OTHER, 19), False, (os.SCHED_OTHER, 0)),
     # Without the right to leave SCHED_IDLE the thread stays where it is, and
     # the rerun still happens.
-    assert inside == (os.SCHED_OTHER if may_lift else os.SCHED_IDLE)
+    ((os.SCHED_IDLE, 19), True, (os.SCHED_IDLE, 19)),
+    ((os.SCHED_OTHER, 0), False, (os.SCHED_OTHER, 0)),
+] if hasattr(os, 'SCHED_IDLE') else [])
+def test_normal_priority_lifts_a_lowered_thread_and_restores_it(monkeypatch, start, deny_lift, inside):
+    sched = FakeThreadSched(monkeypatch, *start, deny_lift)
+    with md.normal_priority():
+        assert sched.state == inside
+    assert sched.state == start
+
+
+@pytest.mark.skipif(not hasattr(os, 'SCHED_IDLE'), reason='scheduling classes are Linux-only')
+def test_normal_priority_restores_the_thread_when_the_body_raises(monkeypatch):
+    sched = FakeThreadSched(monkeypatch, os.SCHED_IDLE, 19, False)
+    with pytest.raises(ValueError):
+        with md.normal_priority():
+            raise ValueError
+    assert sched.state == (os.SCHED_IDLE, 19)
+
+
+# ---------------------------------------------------------------------------
+# A renamed file
+# ---------------------------------------------------------------------------
+# Long enough that the one-line edit keeps git's rename detection above 50%.
+RENAMED_BODY = "".join(f"int pad{i}() {{ return {i}; }}\n" for i in range(12))
+
+
+def _rename_fixture(tmp_path, makefile):
+    """src/feature.cpp moved to the header src/renamed.h with an edit and a mode
+    change, staged; returns work."""
+    work = _fixture(tmp_path, makefile.replace("src/feature.cpp", "src/renamed.h"))
+    (work / "src" / "feature.cpp").write_text(ORIGINAL + RENAMED_BODY)
+    _git(work, "commit", "-qam", "longer")
+    _git(work, "mv", "src/feature.cpp", "src/renamed.h")
+    (work / "src" / "renamed.h").write_text(CHANGED + RENAMED_BODY)
+    (work / "src" / "renamed.h").chmod(0o755)
+    _git(work, "add", "src/renamed.h")
+    with open(work / ".git" / "info" / "exclude", "a") as f:
+        f.write("__pycache__/\nmutate.log*\n")     # the run's own byproducts
+    assert "R" in _git(work, "status", "--porcelain", "src")[:2]
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace("src/feature.cpp", "src/renamed.h"))
+    return work
+
+
+@pytest.mark.parametrize("route", ["normal", "capped", "signalled"])
+def test_reverting_a_renamed_file_leaves_no_path_behind(tmp_path, route):
+    slow = SLOW_MUTANT_MAKEFILE.replace("{secs}", "60")
+    work = _rename_fixture(tmp_path, FAST_MAKEFILE if route == "normal" else slow)
+    status = _git(work, "status", "--porcelain", "--untracked-files=all")
+    before = (work / "src" / "renamed.h").read_bytes()
+    mode = (work / "src" / "renamed.h").stat().st_mode
+    base = _git(work, "rev-parse", "HEAD").strip()
+    if route == "signalled":
+        proc = subprocess.Popen(
+            [sys.executable, "scripts/mutate_diff.py", "--base", base, "--shards", "1",
+             "--log", str(work / "mutate.log")],
+            cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            start_new_session=True, env=ENV)
+        try:
+            _wait_for(work / ".mutant-build-started")
+            os.kill(proc.pid, signal.SIGTERM)
+            out, _ = proc.communicate(timeout=60)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+        assert proc.returncode == 128 + signal.SIGTERM, out
+    else:
+        r = _mutate(work, "--base", base, *(["--max-minutes", "0.05"] if route == "capped" else []))
+        out = r.stdout
+        if route == "normal":
+            # The edit reverted in place is the mutant, and the suite reading it kills it.
+            assert r.returncode == 0, out
+            assert "killed" in out and "src/renamed.h" in out, out
+        else:
+            assert r.returncode == 3, out
+    assert not (work / "src" / "feature.cpp").exists(), out
+    assert (work / "src" / "renamed.h").read_bytes() == before, out
+    assert (work / "src" / "renamed.h").stat().st_mode == mode, out
+    assert _git(work, "status", "--porcelain", "--untracked-files=all") == status, out
+
+
+# ---------------------------------------------------------------------------
+# A path git quotes
+# ---------------------------------------------------------------------------
+# A space, a non-ASCII letter, a literal ` b/` and a double quote: the quote
+# makes git C-quote the name, and the space makes it end `---`/`+++` with a tab.
+ODD_PATH = 'src/odd b/na\u00efve "q".cpp'
+
+
+def test_git_unquote_reads_every_escape_git_writes():
+    assert md.git_unquote('"a/na\\303\\257ve \\"q\\"\\t\\\\.c"') == 'a/na\u00efve "q"\t\\.c'
+    assert md.git_unquote('a/plain b/name.c') == 'a/plain b/name.c'
+
+
+@pytest.mark.parametrize("change", ["edit", "rename"])
+def test_a_quoted_path_is_mutated_at_its_real_name_and_restored(tmp_path, change):
+    work = _fixture(tmp_path)
+    odd = work / ODD_PATH
+    odd.parent.mkdir()
+    (work / "src" / "feature.cpp").write_text(ORIGINAL + RENAMED_BODY)
+    if change == "edit":
+        odd.write_text(ORIGINAL + RENAMED_BODY)
+    _git(work, "add", "src")
+    _git(work, "commit", "-qm", "odd base")
+    if change == "rename":
+        _git(work, "mv", "src/feature.cpp", ODD_PATH)
+    odd.write_text(CHANGED + RENAMED_BODY)
+    _git(work, "add", "src")
+    with open(work / ".git" / "info" / "exclude", "a") as f:
+        f.write("__pycache__/\nmutate.log*\n")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    assert '"' in _git(work, "diff", "--name-only", base)      # git quotes this name
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace("src/feature.cpp", shlex.quote(ODD_PATH)))
+
+    hunks = md.collect_hunks(work, base)
+    assert [(h['file'], h['old_file']) for h in hunks] == [
+        (ODD_PATH, ODD_PATH if change == "edit" else "src/feature.cpp")]
+    assert md.changed_files(work, base) == [(ODD_PATH, False)]
+    quoted = ODD_PATH.replace('"', '\\"')
+    header = [ln for ln in hunks[0]['patch'].splitlines() if not ln.startswith('index ')]
+    assert header[:3] == [
+        f'diff --git "a/{quoted}" "b/{quoted}"', f'--- "a/{quoted}"\t', f'+++ "b/{quoted}"\t']
+
+    status = _git(work, "status", "--porcelain", "--untracked-files=all")
+    before = odd.read_bytes()
+    r = _mutate(work, "--base", base)
+    assert r.returncode == 0, r.stdout
+    assert f"{ODD_PATH}:1" in r.stdout and "killed" in r.stdout, r.stdout
+    assert odd.read_bytes() == before, r.stdout
+    assert _git(work, "status", "--porcelain", "--untracked-files=all") == status, r.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -948,6 +1214,19 @@ def test_parallel_verdicts_match_serial(tmp_path):
 
 
 @linux_only
+def test_a_parallel_run_makes_no_more_copies_than_it_has_hunks(tmp_path):
+    work = _fixture(tmp_path)
+    r = subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "4",
+         "--worker-dir", str(tmp_path / "copies"), "--log", str(work / "mutate.log"),
+         "--base", "main", "--no-record"],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+    assert r.returncode == 0, r.stdout
+    assert "1 workers, each in a copy of the tree" in r.stdout
+
+
+@linux_only
 def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path)
     r = subprocess.run(
@@ -957,7 +1236,8 @@ def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
         timeout=120, env=PARALLEL_ENV)
     assert r.returncode == 1, r.stdout
     runs = [ln.split() for ln in seen.read_text().splitlines()]
-    mutant_runs = [ln for ln in runs if len(ln) > 1]
+    # A detection repeats once before it counts, so a mutant can run twice.
+    mutant_runs = sorted({tuple(ln) for ln in runs if len(ln) > 1})
     assert len(mutant_runs) == PARALLEL_FILES, runs
     trees = {ln[0] for ln in mutant_runs}
     assert str(work) not in trees, "a mutant ran in the tree the run started in"
@@ -1113,6 +1393,293 @@ def test_auto_filter_gives_up_on_a_stem_too_many_files_name():
     assert md.auto_tests_filter("src/ui/widget_base.cpp", some) != ""
 
 
+SPLIT_TU = (
+    '#include "gizmo_bar_internal.h"\n'
+    '#include "gizmo.h"\n'
+    '#include "gizmo_bar_zap.h"\n'
+    'void Gizmo::discover() {}\n'
+)
+SPLIT_SOURCES = {
+    "test_gizmo": '#include "gizmo.h"\nTEST_CASE("x") { auto g = make_one(); g->connect(); }\n',
+    "test_unrelated": '#include "bar.h"\ngizmo_bar_zap and gizmobar\n',
+}
+
+
+def test_auto_filter_selects_the_tests_of_the_header_a_split_tu_implements():
+    # gizmo_bar.cpp implements gizmo.h: a test including gizmo.h reaches it, though
+    # it never names gizmo_bar. gizmo_bar_internal.h is not a prefix of the stem.
+    filt = md.auto_tests_filter("src/gizmo_bar.cpp", SPLIT_SOURCES, source_text=SPLIT_TU)
+    assert filt == "[#test_gizmo]~[.]~[slow]"
+
+
+def test_auto_filter_selects_tests_naming_the_class_a_tu_defines():
+    tu = '#include "printer_print_state.h"\nvoid PrinterPrintState::reset() {}\n'
+    sources = {"test_reach": "PrinterPrintState& s = get();\n",
+               "test_file": '#include "printer_print_state.h"\n',
+               "test_other": "PrinterState and PrinterPrintStateX\n"}
+    filt = md.auto_tests_filter("src/printer/printer_print_state.cpp", sources, source_text=tu)
+    assert filt == "[#test_file]~[.]~[slow],[#test_reach]~[.]~[slow]"
+    # A class the TU defines nothing of is no evidence: only the stem counts.
+    assert md.auto_tests_filter("src/printer/printer_print_state.cpp", sources,
+                                source_text='#include "printer_print_state.h"\n') \
+        == "[#test_file]~[.]~[slow]"
+
+
+def test_auto_filter_lets_header_reached_tests_past_the_stem_cap():
+    # A narrow filter that misses the header's tests reads as false survivors,
+    # so the header's includers widen it up to AUTO_TESTS_MAX_REACHED files.
+    sources = {f"test_{i}": '#include "gizmo.h"\n' for i in range(md.AUTO_TESTS_MAX_FILES)}
+    sources["test_named"] = "gizmo_bar\n"
+    filt = md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU)
+    assert filt.count("[#test_") == md.AUTO_TESTS_MAX_FILES + 1
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text="") \
+        == "[#test_named]~[.]~[slow]"
+
+
+def test_auto_filter_abstains_when_the_implemented_header_is_too_common():
+    sources = {f"test_{i}": '#include "gizmo.h"\n' for i in range(md.AUTO_TESTS_MAX_REACHED)}
+    sources["test_named"] = "gizmo_bar\n"
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
+    # --auto-tests-max past the reached cap raises it too.
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU,
+                                max_files=md.AUTO_TESTS_MAX_REACHED + 1).count("[#test_") \
+        == md.AUTO_TESTS_MAX_REACHED + 1
+
+
+def test_auto_filter_still_gives_up_on_a_common_stem_whatever_its_header():
+    sources = {f"test_{i}": "gizmo_bar\n" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    assert md.auto_tests_filter("src/gizmo_bar.cpp", sources, source_text=SPLIT_TU) == ""
+
+
+GIZMO_LOADER = (
+    '#include "gizmo_loader.h"\n'
+    'json GizmoLoader::load() { return read(find_readable("gizmo_db.json")); }\n'
+)
+DATA_SOURCES = {
+    "test_loader_user": "auto rules = GizmoLoader::load();\n",
+    "test_names_db": 'REQUIRE(path_of("gizmo_db") != "");\n',
+    "test_unrelated": "GizmoLoaderX and gizmo_dbx\n",
+}
+
+
+def test_a_data_file_is_judged_by_the_tests_reaching_its_declared_consumers():
+    filt = md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES,
+                                consumers=[("src/gizmo_loader.cpp", GIZMO_LOADER)])
+    assert filt == "[#test_loader_user]~[.]~[slow],[#test_names_db]~[.]~[slow]"
+    assert md.auto_tests_filter("assets/config/gizmo_db.json", DATA_SOURCES) \
+        == "[#test_names_db]~[.]~[slow]"
+
+
+def test_data_consumers_follow_the_map_globs():
+    rows = md.parse_data_consumers(
+        "# comment\n\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_loader.cpp\tgizmo_db.json\n"
+        "assets/config/presets/*.json\tsrc/system/config.cpp\tpresets/\n"
+        "assets/config/gizmo_db.json\tsrc/gizmo_rules.cpp\tgizmo_rules(\n")
+    assert md.data_consumers("assets/config/gizmo_db.json", rows) \
+        == ["src/gizmo_loader.cpp", "src/gizmo_rules.cpp"]
+    assert md.data_consumers("assets/config/presets/k1.json", rows) == ["src/system/config.cpp"]
+    assert md.data_consumers("assets/config/other.json", rows) == []
+
+
+def test_a_row_naming_its_reach_replaces_the_sources_own():
+    rows = md.parse_data_consumers(
+        "assets/config/presets/*.json\tsrc/system/config.cpp\t\"presets/\"\t"
+        "apply_preset_file, config/presets\n"
+        "assets/config/presets/*.json\tsrc/other.cpp\tpresets\n")
+    path = "assets/config/presets/k1.json"
+    assert md.data_consumers(path, rows) == ["src/other.cpp"]
+    assert md.data_names(path, rows) == ["apply_preset_file", "config/presets"]
+    sources = {"test_apply": "cfg.apply_preset_file(\"k1\");\n",
+               "test_links": 'const char* d = "assets/config/presets";\n',
+               "test_config": "Config c; c.load();\n"}
+    assert md.auto_tests_filter(path, sources, extra_names=md.data_names(path, rows)) \
+        == "[#test_apply]~[.]~[slow],[#test_links]~[.]~[slow]"
+
+
+def test_a_declared_reach_stands_in_for_a_data_stem_too_many_tests_name():
+    # A preset named for a printer (ad5x) shares its stem with that printer's
+    # every test; the loader the map declares is the evidence instead.
+    sources = {f"test_{i}": "ad5x persona\n" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    sources["test_apply"] = "cfg.apply_preset_file(name);\n"
+    path = "assets/config/presets/ad5x.json"
+    assert md.auto_tests_filter(path, sources) == ""
+    assert md.auto_tests_filter(path, sources, extra_names=["apply_preset_file"]) \
+        == "[#test_apply]~[.]~[slow]"
+
+
+def test_parse_data_consumers_refuses_a_row_without_three_fields():
+    with pytest.raises(ValueError):
+        md.parse_data_consumers("assets/config/x.json\tsrc/x.cpp\n")
+
+
+def test_every_declared_data_consumer_still_reads_its_data():
+    # A consumer that no longer loads the file would silently narrow its filter.
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    assert rows
+    tracked = subprocess.run(["git", "ls-files", "assets"], cwd=REPO_ROOT, text=True,
+                             stdout=subprocess.PIPE).stdout.split()
+    for glob, source, evidence, names in rows:
+        assert any(md.fnmatch(t, glob) for t in tracked), f"{glob} matches no tracked file"
+        text = (REPO_ROOT / source).read_text()
+        assert evidence in text, f"{source} no longer contains {evidence!r} for {glob}"
+        assert md.classify(source, False) == ("mutate", "cxx"), source
+        # A named reach is the source's own loader, or the data's own directory.
+        for name in names:
+            assert name in text or name in glob, f"{source} no longer has {name!r}"
+
+
+def test_the_printer_database_reaches_the_tests_reading_it_through_code():
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    path = "assets/config/printer_database.json"
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers)
+    # The whole --tests ('') also runs them; a narrow filter must name both.
+    assert filt == "" or ("[#test_probe_preparation]" in filt
+                          and "[#test_probe_sensor_manager]" in filt), filt
+
+
+@pytest.mark.parametrize("path,expected", [
+    ("assets/config/presets/k1.json",
+     ("test_config_preset", "test_preset_database_links")),
+    # Tests opening a preset by its quoted path segment ("presets/ad5x.json",
+    # "config" / "presets") read it without naming the loader.
+    ("assets/config/presets/ad5x.json",
+     ("test_config_preset", "test_preset_database_links", "test_display_manager",
+      "test_display_metrics", "test_hardware_validator")),
+    ("assets/config/default_layout.json",
+     ("test_default_layout", "test_default_layout_resolver", "test_panel_widget_live_default")),
+])
+def test_presets_and_the_default_layout_get_their_loaders_tests_not_the_suite(path, expected):
+    rows = md.parse_data_consumers((REPO_ROOT / md.DATA_CONSUMERS_MAP).read_text())
+    consumers = [(c, (REPO_ROOT / c).read_text()) for c in md.data_consumers(path, rows)]
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT), consumers=consumers,
+                                extra_names=md.data_names(path, rows))
+    assert filt, "fell back to the whole suite"
+    for name in expected:
+        assert f"[#{name}]" in filt, filt
+
+
+PARSER_CPP = (
+    '#include "ifs_parser.h"\n'
+    'namespace ifs {\n'
+    'SlotMap parse_slots(const json& j) {\n'
+    '    SlotMap out;\n'
+    '    return out;\n'
+    '}\n'
+    'class LaneReader {};\n'
+    'struct SensorFrame {\n'
+    '    std::optional<bool> motion_detected;\n'
+    '    std::array<int, 4> port_counts{};\n'
+    '};\n'
+    '}\n'
+)
+BACKEND_PRE = 'void Backend::update(const json& j) {\n    for (auto& s : j["slots"]) {}\n}\n'
+
+
+def _hunk(path, body, new_file=False):
+    head = "--- /dev/null\n" if new_file else f"--- a/{path}\n"
+    return {"file": path, "line": 1, "old_line": 1,
+            "body": ["@@ -1,2 +1,2 @@\n", *body],
+            "patch": f"diff --git a/{path} b/{path}\n{head}+++ b/{path}\n"}
+
+
+def test_an_added_file_is_one_whose_patch_starts_from_nothing():
+    hunks = [_hunk("src/ifs_parser.cpp", ["+x\n"], new_file=True),
+             _hunk("src/backend.cpp", ["-a\n", "+b\n"])]
+    assert md.added_files(hunks) == {"src/ifs_parser.cpp"}
+
+
+def test_a_survivor_calling_into_an_added_file_is_an_extraction():
+    swap = _hunk("src/backend.cpp", ['-    for (auto& s : j["slots"]) {}\n',
+                                     "+    slots_ = ifs::parse_slots(j);\n"])
+    plain = _hunk("src/backend.cpp", ["-    return 1;\n", "+    return 2;\n"])
+    # A name the pre-image already has (update, json) is no evidence of a move.
+    reuse = _hunk("src/backend.cpp", ["-    x();\n", "+    update(j);\n"])
+    # A member of a struct the added file declares is a moved name too.
+    field = _hunk("src/backend.cpp", ["-    if (j.contains(\"m\")) {\n",
+                                      "+    if (frame.motion_detected) {\n"])
+    field["line"] = 9
+    # Only adding a call is new behaviour, whose survival is a real gap.
+    added_call = _hunk("src/backend.cpp", ["+    ifs::parse_slots(j);\n"])
+    added_call["line"] = 20
+    found = md.extraction_targets([swap, plain, reuse, field, added_call], {"src/ifs_parser.cpp": PARSER_CPP},
+                                  {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp",
+                     "src/backend.cpp:9": "src/ifs_parser.cpp"}
+    assert md.extraction_targets([swap], {}, {"src/backend.cpp": BACKEND_PRE}) == {}
+
+
+def test_a_name_an_added_header_declares_is_credited_to_its_source():
+    swap = _hunk("src/backend.cpp", ["-    int k = 0;\n", "+    LaneFrame k = read();\n"])
+    found = md.extraction_targets(
+        [swap], {"include/ifs_parser.h": "struct LaneFrame { int n; };\n",
+                 "src/ifs_parser.cpp": PARSER_CPP}, {"src/backend.cpp": BACKEND_PRE})
+    assert found == {"src/backend.cpp:1": "src/ifs_parser.cpp"}
+
+
+def test_declared_names_cover_functions_types_and_members():
+    names = md.declared_names(PARSER_CPP)
+    assert {"parse_slots", "LaneReader", "ifs", "SensorFrame", "motion_detected",
+            "port_counts", "out"} <= names
+    assert "SlotMap" not in names and "return" not in names
+
+
+def test_the_summary_groups_extraction_survivors_by_the_file_they_moved_into():
+    lines = md.extraction_report({"src/backend.cpp:12": "src/ifs_parser.cpp",
+                                  "src/backend.cpp:40": "src/ifs_parser.cpp"},
+                                 ["src/ifs_parser.cpp:1", "src/ifs_parser.cpp:30",
+                                  "src/other.cpp:5"])
+    text = "\n".join(lines)
+    assert "2 survivor(s) replace code with a call into a file this diff adds" in text
+    assert "src/ifs_parser.cpp <- src/backend.cpp:12, src/backend.cpp:40" in text
+    assert "2 hunk(s) inside src/ifs_parser.cpp cannot be judged by a revert" in text
+    assert "--inside N --only src/ifs_parser.cpp" in text
+    assert "other.cpp" not in text
+    assert md.extraction_report({}, ["src/other.cpp:5"]) == []
+
+
+EXTRACTION_MAKEFILE = """test-build:
+\t@if grep -q parse_gizmo src/feature.cpp && ! grep -qs parse_gizmo src/gizmo_parser.cpp; \\
+\t    then echo 'undefined reference to parse_gizmo'; exit 1; fi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
+def test_a_run_over_an_extraction_names_the_shape_instead_of_listing_survivors(tmp_path):
+    work = _fixture(tmp_path, EXTRACTION_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text("int f(int n) {\n    return parse_gizmo(n);\n}\n")
+    (work / "src" / "gizmo_parser.cpp").write_text(
+        "int parse_gizmo(int n) {\n    return n + 1;\n}\n")
+    _git(work, "add", "-N", "src/gizmo_parser.cpp")
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--no-auto-tests")
+    assert r.returncode == 1, r.stdout
+    assert "EXTRACTION: 1 survivor(s) replace code with a call" in r.stdout, r.stdout
+    assert "src/gizmo_parser.cpp <- src/feature.cpp:1" in r.stdout
+    assert "1 hunk(s) inside src/gizmo_parser.cpp cannot be judged by a revert" in r.stdout
+    summary = r.stdout.split("hunk(s) survived reversion", 1)[1].split("EXTRACTION:", 1)[0]
+    assert "src/feature.cpp:1" not in summary, r.stdout
+
+
+def test_reach_names_are_the_stem_the_implemented_header_and_its_class():
+    assert md.reach_names("src/gizmo_bar.cpp", SPLIT_TU) == ["gizmo_bar", "gizmo", "Gizmo"]
+    assert md.reach_names("src/gizmo_bar.cpp", "") == ["gizmo_bar"]
+    # A header's own includes are its dependencies, not what it implements.
+    assert md.reach_names("include/gizmo_bar.h", SPLIT_TU) == ["gizmo_bar"]
+    # The longest prefix header wins; an unrelated include is ignored.
+    tu = '#include "gizmo.h"\n#include "gizmo_bar.h"\n#include "zap.h"\n'
+    assert md.reach_names("src/gizmo_bar_baz.cpp", tu) == ["gizmo_bar_baz", "gizmo_bar"]
+
+
+def test_filter_for_reads_the_split_tu_it_is_given():
+    assert md.filter_for("src/gizmo_bar.cpp", [], True, SPLIT_SOURCES, "[all]",
+                         source_text=SPLIT_TU) == ("[#test_gizmo]~[.]~[slow]",
+                                                   "test files reaching it")
+    assert md.filter_for("src/gizmo_bar.cpp", [], True, SPLIT_SOURCES, "[all]")[0] == "[all]"
+
+
 def test_filter_for_prefers_explicit_then_auto_then_default():
     tests_for = [("src/utils/*", "[explicit]")]
     assert md.filter_for("src/utils/network_validation.cpp", tests_for, True, SOURCES,
@@ -1131,6 +1698,41 @@ def test_files_sharing_a_filter_run_as_one_group():
         ("[x]", ["a.cpp", "c.cpp"]), ("[y]", ["b.cpp"])]
 
 
+@pytest.mark.parametrize("path", ["translations/de.yml", "assets/images/tour/preview.png"])
+def test_content_with_no_logic_does_not_make_a_run_incomplete(path):
+    assert md.classify(path, False)[0] == "inert"
+
+
+def test_an_unclaimed_asset_stays_visible():
+    assert md.classify("assets/sounds/beep.wav", False)[0] == "uncovered"
+
+
+@pytest.mark.parametrize("path", ["moonraker-plugin/install.sh", "config/helix_launcher.bash",
+                                  "assets/config/platform/hooks.sh"])
+def test_a_shell_script_outside_scripts_is_mutated_as_tooling(path):
+    assert md.classify(path, False) == ("mutate", "tooling")
+
+
+def test_an_extensionless_script_is_mutated_when_its_shebang_names_a_shell(tmp_path):
+    (tmp_path / "bin").mkdir()
+    (tmp_path / "bin" / "claim").write_text("#!/usr/bin/env bash\necho hi\n")
+    (tmp_path / "bin" / "tool").write_text("#!/usr/bin/env python3\nprint(1)\n")
+    (tmp_path / "bin" / "notes").write_text("plain text\n")
+    assert md.classify("bin/claim", False, tmp_path) == ("mutate", "tooling")
+    assert md.classify("bin/tool", False, tmp_path)[0] == "uncovered"
+    assert md.classify("bin/notes", False, tmp_path)[0] == "uncovered"
+    assert md.classify("bin/missing", False, tmp_path)[0] == "uncovered"
+
+
+@pytest.mark.parametrize("path", ["tests/shell/helpers.bash", "lib/libhv/configure.sh",
+                                  "android/gradlew"])
+def test_a_shell_script_the_tests_or_vendors_own_is_not_mutated(path, tmp_path):
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\nexit 0\n")
+    assert md.classify(path, False, tmp_path)[0] == "uncovered"
+
+
 @pytest.mark.parametrize("codes, worst", [
     ([0, 0], 0), ([0, 3], 3), ([3, 1, 0], 1), ([0, 4, 3], 4), ([143, 3], 143), ([], 0)])
 def test_the_worst_child_exit_is_the_run_exit(codes, worst):
@@ -1144,10 +1746,12 @@ def test_file_tag_filters_turn_on_catch2_file_tags():
 
 def test_generated_output_is_not_mutated_as_code():
     assert md.classify("src/generated/theme_token_table.cpp", False)[0] == "inert"
+    assert md.classify("ui_xml/translations/de.xml", False)[0] == "inert"
+    assert md.classify("ui_xml/print_status_panel.xml", False) == ("mutate", "data")
     assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
 
 
-@pytest.mark.parametrize("minutes", ["31", "0", "240"])
+@pytest.mark.parametrize("minutes", ["46", "0", "240"])
 def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
     p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
                         "--max-minutes", minutes], cwd=REPO_ROOT, capture_output=True, text=True)
@@ -1155,11 +1759,571 @@ def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
     assert "--release" in p.stderr
 
 
-def test_release_lifts_the_cap():
-    p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
-                        "--max-minutes", "240", "--release", "--base", "HEAD"],
-                       cwd=REPO_ROOT, capture_output=True, text=True)
-    assert p.returncode == 0, p.stderr
+def test_release_lifts_the_cap(tmp_path):
+    # A fixture repo, not this checkout: the pre-push sweep runs in a throwaway
+    # checkout whose submodules are symlinks, and git diff refuses those.
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _mutate(work, "--list-only", "--max-minutes", "240", "--release", "--base", base)
+    assert r.returncode == 0, r.stdout
+
+
+def test_first_puts_named_files_ahead_and_leaves_nothing_out():
+    assert md.first_rank("src/printer/notice.cpp", ["ams_backend", "notice"]) == 1
+    assert md.first_rank("src/printer/ams_backend.cpp", ["ams_backend", "notice"]) == 0
+    assert md.first_rank("src/other.cpp", ["ams_backend", "notice"]) == 2
+    assert md.split_patterns(["a,b", " c "]) == ["a", "b", "c"]
+
+
+def test_a_filter_is_ranked_by_how_much_it_runs():
+    defaults = ("~[.]", "tests/shell", "tests/python")
+    assert md.filter_scope(("[#a]", "", ""), defaults, True) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "", ""), defaults, True) == md.SCOPE_WHOLE_CATCH2
+    assert md.filter_scope(("~[.]", "tests/shell/a.bats", ""), defaults, False) == md.SCOPE_NARROW
+    assert md.filter_scope(("~[.]", "tests/shell", "tests/python"), defaults, False) \
+        == md.SCOPE_WHOLE_SCRIPTS
+
+
+def test_first_orders_the_run_and_a_whole_suite_waits_behind_a_scoped_filter(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/other.cpp", "src/feature.cpp"], r.stdout
+    r = _mutate(work, "--base", base, "--list-only", "--tests-for", "src/other.cpp=[oth]",
+                "--first", "feature")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert [p.split(":")[0] for p in listed] == ["src/feature.cpp", "src/other.cpp"], r.stdout
+
+
+def _pool(work, *args):
+    return subprocess.run(
+        [sys.executable, "scripts/mutate_diff.py", "--shards", "1", "--workers", "2", "--pool",
+         "--log", str(work / "mutate.log"), *args],
+        cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        timeout=120, env=PARALLEL_ENV)
+
+
+@linux_only
+def test_a_pool_judges_each_hunk_by_its_own_filter_with_one_build_and_one_set_of_copies(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 0, r.stdout
+    assert "=== group" not in r.stdout
+    assert r.stdout.count("workers, each in a copy of the tree") == 1, r.stdout
+    assert "catch2 green" in r.stdout and r.stdout.count("catch2 green") == 2, r.stdout
+    assert [v[0] for v in _verdicts(r.stdout)] == ["killed", "killed"], r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
+
+
+@linux_only
+def test_a_pool_names_the_filter_a_hunk_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 1, r.stdout
+    assert re.search(r"src/other.cpp:\d+  \[oth\]", r.stdout), r.stdout
+
+
+
+@linux_only
+def test_a_survivor_judged_by_the_tests_reaching_it_says_how_to_run_more(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "tests" / "unit").mkdir(parents=True, exist_ok=True)
+    (work / "tests" / "unit" / "test_other.cpp").write_text('#include "other.h"\n')
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]", "--no-record")
+    assert r.returncode == 1, r.stdout
+    assert re.search(r"src/other.cpp:\d+  \[#test_other\]", r.stdout), r.stdout
+    assert "ran only the tests that name them (src/other.cpp)" in r.stdout, r.stdout
+    assert "--tests-for 'PATH=[tag]'" in r.stdout
+    explicit = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                     "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert explicit.returncode == 1, explicit.stdout
+    assert "ran only the tests that name them" not in explicit.stdout
+
+NARROW_GREEN_SUITE = """#!/usr/bin/env bash
+case "$1" in *feat*) exit 0 ;; esac
+grep -q NEW_BEHAVIOR src/feature.cpp || {
+    echo "tests/unit/test_wide.cpp:3: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+@linux_only
+def test_confirm_survivors_asks_the_whole_suite_before_a_narrow_filter_reads_survived(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text(NARROW_GREEN_SUITE)
+    flags = ("--base", base, "--tests-for", "src/feature.cpp=[feat]",
+             "--only", "feature", "--no-record")
+    plain = _pool(work, *flags)
+    assert re.search(r"SURVIVED\s+src/feature.cpp", plain.stdout), plain.stdout
+    r = _pool(work, *flags, "--confirm-survivors")
+    assert "only the whole suite detected it" in r.stdout, r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
+@linux_only
+def test_a_red_baseline_leaves_its_filter_unjudged_and_the_others_judged(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace(
+        "#!/usr/bin/env bash\n",
+        '#!/usr/bin/env bash\n[ "$1" != "[oth]" ] || '
+        '{ echo "tests/unit/test_o.cpp:1: FAILED:"; exit 1; }\n', 1))
+    r = _pool(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+              "--tests-for", "src/other.cpp=[oth]", "--no-record")
+    assert r.returncode == 3, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+    verdicts = {v[1]: v[0] for v in _verdicts(r.stdout)}
+    assert any(k.startswith("src/feature.cpp") and v == "killed" for k, v in verdicts.items()), r.stdout
+    assert any(k.startswith("src/other.cpp") and v == "INCONCLUSIVE" for k, v in verdicts.items()), r.stdout
+    assert "whose suite exited without a verdict" in r.stdout
+
+
+def test_auto_tests_max_widens_what_a_stem_may_be_named_by():
+    sources = {f"test_{i}": "foo_stem" for i in range(20)}
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources) == ""
+    assert md.auto_tests_filter("src/foo_stem.cpp", sources, max_files=20).count("[#test_") == 20
+
+
+@pytest.mark.parametrize("line,expected", [
+    ("    if (a == b) {\n", ["    if (!(a == b)) {\n", "    if (a != b) {\n"]),
+    ("    helix::publish(x);\n", ["    ;\n"]),
+    ("    obj->call(a).then(b);\n", ["    ;\n"]),
+    ("    return true;\n", ["    return false;\n"]),
+    ("    auto x = (a < b);\n", ["    auto x = (a >= b);\n"]),
+    ('    s = "a && b";\n', []),
+    ("    x = 1;  // true && false\n", []),
+    ('    spdlog::info("x", y == z);\n', []),
+    ("#if X == 1\n", []),
+    ("    Foo bar(1);\n", []),
+    ("    /* a == b */ c = d;\n", []),
+    ('    t = R"(a == b)";\n', []),
+])
+def test_inside_edits_touch_code_and_never_a_literal_a_comment_or_a_log(line, expected):
+    assert [text for _, text in md.inside_edits(line)] == expected
+
+
+def test_inside_mutants_cover_added_lines_only_and_the_most_telling_first():
+    lines = ["int f() {\n", "    bool a = true;\n", "    if (b) {\n", "    if (old) {\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " int f() {\n", "+    bool a = true;\n", "+    if (b) {\n",
+                             "-    gone();\n", "     if (old) {\n", " }\n"]}
+    assert [(m[0], m[1]) for m in md.hunk_inside_mutants(h, lines)] == [
+        (3, "negate if"), (2, "true to false")]
+
+
+def test_inside_drops_a_call_written_over_several_lines():
+    lines = ["void f() {\n", "    helix::publish_ui_request(\n", "        {Kind::Offer, slot});\n",
+             "    int y = g(\n", "        1);\n", "    spdlog::info(\n", "        \"x\");\n", "}\n"]
+    h = {"line": 1, "body": ["@@\n", " void f() {\n"] + ["+" + ln for ln in lines[1:7]] + [" }\n"]}
+    mutants = md.hunk_inside_mutants(h, lines)
+    assert [(m[0], m[1], m[2], m[3]) for m in mutants] == [(2, "drop call", "    ;\n", 2)]
+
+
+def test_inside_mutants_spread_across_a_long_hunk():
+    mutants = [(line, "negate if", "x", 1) for line in range(1, 41)]
+    assert [m[0] for m in md.spread_mutants(mutants, 4)[:4]] == [1, 11, 21, 31]
+    assert md.spread_mutants(mutants, 1) == mutants
+    assert sorted(md.spread_mutants(mutants, 4)) == mutants
+
+
+INSIDE_CHANGED = "int f(int n) {\n    if (n == 2) { return 1; }  // NEW_BEHAVIOR\n    return n;\n}\n"
+# The revert removes a marker the build needs, so it can never build; the suite
+# reds on the original condition being edited.
+INSIDE_MAKEFILE = """test-build:
+\t@grep -q NEW_BEHAVIOR src/feature.cpp
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+INSIDE_SUITE = """#!/usr/bin/env bash
+grep -q 'if (n == 2) {' src/feature.cpp || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _inside_fixture(tmp_path, suite):
+    work = _fixture(tmp_path, INSIDE_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(INSIDE_CHANGED)
+    (work / "build" / "bin" / "helix-tests").write_text(suite)
+    return work
+
+
+def test_an_inside_mutant_judges_a_hunk_whose_revert_does_not_build(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    without = _mutate(work, "--base", "main", "--no-record")
+    assert without.returncode == 3 and "inside mutants" not in without.stdout, without.stdout
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"uncompilable\s+src/feature.cpp:\d+", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+    # The revert's verdict stands: one edit is not the question a revert asks.
+    assert r.returncode == 3, r.stdout
+    assert "VERDICT: INCOMPLETE" in r.stdout
+    assert (work / "src" / "feature.cpp").read_text() == INSIDE_CHANGED
+
+
+def test_a_surviving_inside_mutant_fails_the_run(tmp_path):
+    work = _inside_fixture(tmp_path, "#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert r.returncode == 1, r.stdout
+    assert "1 inside mutant(s) survived" in r.stdout
+    assert "src/feature.cpp:2  negate if" in r.stdout
+
+
+def test_an_inside_mutant_judges_a_revert_that_left_the_old_binary_in_place(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE.replace(
+        "if (n == 2) {' src/feature.cpp", "if (n == 2) { return 1; }  // NEW_BEHAVIOR' src/feature.cpp"))
+    (work / "Makefile").write_text(
+        "test-build:\n\t@! grep -q NEW_BEHAVIOR src/feature.cpp || "
+        "printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"killed\s+src/feature.cpp:2  negate if", r.stdout), r.stdout
+
+
+def test_an_inside_mutant_that_does_not_build_is_passed_over(tmp_path):
+    work = _inside_fixture(tmp_path, INSIDE_SUITE)
+    (work / "Makefile").write_text(INSIDE_MAKEFILE.replace(
+        "\t@printf", "\t@! grep -q 'if (!(' src/feature.cpp\n\t@printf", 1))
+    r = _mutate(work, "--base", "main", "--no-record", "--inside", "1")
+    assert re.search(r"killed\s+src/feature.cpp:2  == to !=", r.stdout), r.stdout
+
+
+@pytest.mark.parametrize("rc,printed,rejected", [
+    (1, "src/feature.cpp: FAILED (1.0s)\nsummary: 1 compiled, 0 skipped, 1 failed", True),
+    (0, "src/feature.cpp: ok (1.0s)", False),
+    (1, "src/feature.cpp: no such file\nsummary: 0 compiled, 0 skipped, 1 failed", False),
+    (2, "make compile-prereqs failed, so no make-derived command can run", False),
+])
+def test_only_a_compile_that_ran_and_failed_is_a_syntax_rejection(tmp_path, rc, printed, rejected):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        f"import sys\nprint({printed!r})\nsys.exit({rc})\n")
+    import io
+    assert md.syntax_rejects(tmp_path, "src/feature.cpp", io.StringIO()) is rejected
+
+
+def _flaky_suite(tmp_path):
+    """Red the first time its baseline runs, then green unless a mutant is in."""
+    return f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+grep -q NEW_BEHAVIOR src/feature.cpp || {{
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}}
+exit 0
+"""
+
+
+def test_a_catch2_baseline_red_once_is_retried_and_its_flake_named(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path))
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "red once and green on a re-run" in r.stdout, r.stdout
+    assert "tests/unit/test_budget.cpp:9" in r.stdout
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+
+
+def test_a_failure_that_does_not_repeat_kills_nothing(tmp_path):
+    work = _fixture(tmp_path)
+    # Green at baseline; the first run against a mutant fails an unrelated budget.
+    (work / "build" / "bin" / "helix-tests").write_text(f"""#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+if ! grep -q NEW_BEHAVIOR src/feature.cpp && [ ! -e {tmp_path}/flaked ]; then
+    touch {tmp_path}/flaked
+    echo "tests/unit/test_budget.cpp:9: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+fi
+exit 0
+""")
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert "tests/unit/test_budget.cpp:9 failed once and not again" in r.stdout, r.stdout
+    assert re.search(r"SURVIVED\s+src/feature.cpp", r.stdout), r.stdout
+    assert r.returncode == 1, r.stdout
+
+
+def test_a_reverted_new_source_is_inconclusive_with_no_build(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "src" / "added.cpp").write_text("int a() {\n    if (x) { return 1; }\n    return 0;\n}\n")
+    _git(work, "add", "-N", "src/added.cpp")
+    (work / "Makefile").write_text(
+        "test-build:\n\t@[ -e src/added.cpp ] || touch .mutant-built\n"
+        "\t@printf '\\n# relinked\\n' >> build/bin/helix-tests\n")
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", "main", "--no-record", "--only", "added", "--inside", "1")
+    assert re.search(r"INCONCLUSIVE\s+src/added.cpp:1", r.stdout), r.stdout
+    assert "deletes a new source file" in r.stdout
+    assert not (work / ".mutant-built").exists(), "a deleted source reached a build"
+    assert re.search(r"SURVIVED\s+src/added.cpp:2  negate if", r.stdout), r.stdout
+    assert (work / "src" / "added.cpp").exists()
+
+
+def test_a_catch2_baseline_red_twice_still_stops_the_run(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(
+        '#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    r = _mutate(work, "--base", "main", "--no-record")
+    assert r.returncode == 2, r.stdout
+    assert "baseline catch2 suite is RED" in r.stdout
+
+
+def test_a_failure_only_at_a_flaky_site_judges_nothing(tmp_path):
+    binary = tmp_path / "suite"
+    binary.write_text('#!/usr/bin/env bash\necho "t.cpp:1: FAILED:"\nexit 1\n')
+    binary.chmod(0o755)
+    plan = md.Catch2Plan(1, 1)
+    plan.limits = {0: 60}
+    import io
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.DETECTED
+    plan.flaky = {"t.cpp:1"}
+    assert md.run_catch2(tmp_path, binary, "[x]", plan, io.StringIO())[0] == md.GREEN
+
+
+def test_a_header_revert_is_syntax_checked_through_the_source_of_its_stem(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "syntax_check.py").write_text(
+        "import sys\nprint(sys.argv[1] + ': FAILED (1.0s)')\nsys.exit(1)\n")
+    (tmp_path / "src" / "printer").mkdir(parents=True)
+    (tmp_path / "src" / "printer" / "foo.cpp").write_text("")
+    import io
+    log = io.StringIO()
+    assert md.syntax_rejects(tmp_path, "include/foo.h", log) is True
+    assert "src/printer/foo.cpp: FAILED" in log.getvalue()
+    assert md.syntax_rejects(tmp_path, "include/nothing_named_this.h", io.StringIO()) is False
+
+
+def test_header_fanout_counts_the_units_naming_a_header(tmp_path):
+    objs = tmp_path / "build" / "obj"
+    objs.mkdir(parents=True)
+    (objs / "a.d").write_text(f"a.o: src/a.cpp include/x.h {tmp_path}/include/y.h \\\n include/x.h\n")
+    (objs / "b.d").write_text("b.o: src/b.cpp include/x.h /usr/include/z.h\n")
+    (objs / "b.o").write_text("include/x.h\n")
+    assert md.header_fanout(tmp_path) == {"include/x.h": 2, "include/y.h": 1}
+
+
+def test_a_pool_leaves_a_header_with_many_includers_until_last(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "include").mkdir()
+    (work / "include" / "wide.h").write_text("inline int w() { return 1; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 1; }\n")
+    _git(work, "add", "include", "src")
+    _git(work, "commit", "-qm", "headers")
+    base = _git(work, "rev-parse", "HEAD~1").strip()
+    (work / "include" / "wide.h").write_text("inline int w() { return 2; }\n")
+    (work / "include" / "thin.h").write_text("inline int t() { return 2; }\n")
+    objs = work / "build" / "obj"
+    objs.mkdir(parents=True)
+    for i in range(md.HEADER_COSTLY_INCLUDERS + 1):
+        (objs / f"u{i}.d").write_text("u.o: u.cpp include/wide.h\n")
+    r = _mutate(work, "--base", base, "--list-only", "--pool", "--first", "wide")
+    listed = [ln.split()[0].split(":")[0] for ln in r.stdout.splitlines() if ln.endswith("[cxx]")]
+    assert listed[-1] == "include/wide.h", r.stdout
+    assert "include/thin.h" in listed[:-1], r.stdout
+
+
+# The build records in the binary whether the source it built held the change, so
+# the suite judges what the binary holds, whatever the source says now.
+HOLDS_MAKEFILE = """test-build:
+\t@[ ! -e .mutant-refuse-rebuild ] || ! grep -q NEW_BEHAVIOR src/feature.cpp
+\t@grep -q NEW_BEHAVIOR src/feature.cpp && echo clean > build/bin/holds || echo mutant > build/bin/holds
+\t@printf '\\n# relinked\\n' >> build/bin/helix-tests
+"""
+HOLDS_SUITE = """#!/usr/bin/env bash
+case "$*" in *--list-tests*) exit 0 ;; esac
+[ "$(cat build/bin/holds 2>/dev/null)" != mutant ] || {
+    echo "tests/unit/test_feature.cpp:11: FAILED:"
+    echo "assertions: 1 | 1 failed"
+    exit 1
+}
+exit 0
+"""
+
+
+def _compiled_then_data_fixture(tmp_path):
+    work = _fixture(tmp_path, HOLDS_MAKEFILE)
+    (work / "src" / "feature.cpp").write_text(ORIGINAL)
+    (work / "ui_xml").mkdir()
+    (work / "ui_xml" / "panel.xml").write_text("<view>old</view>\n")
+    _git(work, "add", "ui_xml", "src")
+    _git(work, "commit", "-qm", "panel")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "src" / "feature.cpp").write_text(CHANGED)
+    (work / "ui_xml" / "panel.xml").write_text("<view>new</view>\n")
+    (work / "build" / "bin" / "helix-tests").write_text(HOLDS_SUITE)
+    return work, base
+
+
+def test_a_data_hunk_after_a_compiled_one_is_judged_on_a_clean_binary(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"killed\s+src/feature.cpp", r.stdout), r.stdout
+    assert re.search(r"SURVIVED\s+ui_xml/panel.xml", r.stdout), r.stdout
+
+
+def test_a_clean_binary_that_will_not_build_leaves_the_data_hunk_unjudged(tmp_path):
+    work, base = _compiled_then_data_fixture(tmp_path)
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(HOLDS_SUITE.replace('echo "tests/unit', 'touch .mutant-refuse-rebuild; echo "tests/unit', 1))
+    r = _mutate(work, "--base", base, "--no-record")
+    assert re.search(r"INCONCLUSIVE\s+ui_xml/panel.xml", r.stdout), r.stdout
+    assert "uncompilable" not in r.stdout
+
+
+def test_an_inside_mutant_cut_off_by_the_deadline_is_not_recorded(tmp_path, monkeypatch):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "f.cpp").write_text("    if (a) {\n")
+    h = {"file": "src/f.cpp", "line": 1, "body": ["@@\n", "+    if (a) {\n"]}
+    guard = md.TreeGuard(tmp_path)
+    guard.capture("src/f.cpp")
+
+    def cut_off(*_a, **_k):
+        monkeypatch.setattr(md.RUN_STATE, "out_of_time", True)
+        return "survived", "", True
+    monkeypatch.setattr(md, "build_and_judge", cut_off)
+    args = type("A", (), {"inside": 1})()
+    md.mutate_inside(tmp_path, guard, None, h, {}, args, None)
+    assert h["inside"] == []
+    assert (tmp_path / "src" / "f.cpp").read_text() == "    if (a) {\n"
+
+
+def _suites_on(tmp_path, script):
+    binary = tmp_path / "build" / "bin" / "helix-tests"
+    binary.parent.mkdir(parents=True, exist_ok=True)
+    binary.write_text(script)
+    binary.chmod(0o755)
+    args = type("A", (), {"jobs": 1, "shards": 1, "timeout": 0, "tests": "[x]", "log": "x",
+                          "shell_tests": "", "python_tests": ""})()
+    import io
+    suites = md.Suites(tmp_path, args, io.StringIO())
+    suites.catch2.limits = {0: 60}
+    return suites
+
+
+def _counted_script(tmp_path, *runs):
+    """A suite whose Nth run is the Nth of `runs`: a site that fails, or '' for green."""
+    cases = "\n".join(
+        f'{i}) ' + (f'echo "{site}: FAILED:"; echo "assertions: 1 | 1 failed"; exit 1'
+                    if site else 'exit 0') + ' ;;'
+        for i, site in enumerate(runs, 1))
+    return f"""#!/usr/bin/env bash
+n=$(( $(cat {tmp_path}/n 2>/dev/null || echo 0) + 1 )); echo $n > {tmp_path}/n
+case $n in
+{cases}
+*) exit 0 ;;
+esac
+"""
+
+
+def test_a_second_flake_on_the_rerun_has_to_repeat_too(tmp_path):
+    # Run, its repeat, the re-run failing elsewhere, that repeat, the last re-run.
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "", "b.cpp:2", "", ""))
+    assert suites.run("catch2")[0] == md.GREEN
+    assert suites.catch2.flaky == {"a.cpp:1", "b.cpp:2"}
+
+
+def test_a_failure_elsewhere_on_the_repeat_is_not_a_repeat(tmp_path):
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "b.cpp:2", "", ""))
+    assert suites.run("catch2")[0] == md.GREEN
+    assert "a.cpp:1" in suites.catch2.flaky
+
+
+def test_a_failure_that_repeats_at_its_site_is_a_detection(tmp_path):
+    suites = _suites_on(tmp_path, _counted_script(tmp_path, "a.cpp:1", "a.cpp:1"))
+    assert suites.run("catch2")[0] == md.DETECTED
+    assert suites.catch2.flaky == set()
+
+
+def test_a_repeat_that_crashes_naming_nothing_is_unjudged_and_flags_no_site(tmp_path):
+    suites = _suites_on(tmp_path, f"""#!/usr/bin/env bash
+if [ ! -e {tmp_path}/once ]; then
+    touch {tmp_path}/once; echo "a.cpp:1: FAILED:"; exit 1
+fi
+exit 139
+""")
+    state, why = suites.run("catch2")
+    assert state == md.INCONCLUSIVE, why
+    assert suites.catch2.flaky == set()
+
+
+def test_a_repeat_that_stalls_is_unjudged(tmp_path):
+    suites = _suites_on(tmp_path, f"""#!/usr/bin/env bash
+if [ ! -e {tmp_path}/once ]; then
+    touch {tmp_path}/once; echo "a.cpp:1: FAILED:"; exit 1
+fi
+exec sleep 30
+""")
+    suites.catch2.limits = {0: 3}
+    state, why = suites.run("catch2")
+    assert state == md.INCONCLUSIVE, why
+    assert suites.catch2.flaky == set()
+
+
+def test_every_flaky_assertion_is_named_at_the_end_and_on_the_clean_line(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path))
+    r = _mutate(work, "--base", "main", "--no-record")
+    tail = r.stdout.split("=" * 68, 1)[1]
+    assert "set aside as flaky" in tail and "tests/unit/test_budget.cpp:9" in tail, r.stdout
+    clean = next(ln for ln in tail.splitlines() if ln.startswith("VERDICT: CLEAN"))
+    assert "1 flaky assertion" in clean, r.stdout
+
+
+def test_a_group_run_names_its_childrens_flaky_assertions(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    (work / "build" / "bin" / "helix-tests").write_text(_flaky_suite(tmp_path).replace(
+        'grep -q NEW_BEHAVIOR src/feature.cpp ||',
+        'grep -q NEW_BEHAVIOR src/feature.cpp && grep -q NEW_TOO src/other.cpp ||'))
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    tail = r.stdout.rsplit("=" * 68, 1)[1]
+    assert "tests/unit/test_budget.cpp:9" in tail, r.stdout
+    assert re.search(r"VERDICT: CLEAN.*1 flaky assertion", tail), r.stdout
+
+
+@pytest.mark.skipif(shutil.which("bats") is None, reason="a script hunk is listed only when bats can run it")
+def test_a_script_waits_behind_every_compiled_hunk(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_tool.bats").write_text(
+        '@test "t" {\n  grep -q tool.sh "$BATS_TEST_FILENAME"\n}\n')
+    _git(work, "add", "scripts/tool.sh", "tests/shell")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--list-only", "--python-tests", "", "--first", "tool")
+    listed = [ln.split()[0] for ln in r.stdout.splitlines()
+              if ln.endswith(("[cxx]", "[tooling]"))]
+    assert [p.split(":")[0] for p in listed] == ["src/feature.cpp", "scripts/tool.sh"], r.stdout
+
+
+def test_confirm_survivors_without_a_pool_says_it_does_nothing(tmp_path):
+    work = _fixture(tmp_path)
+    r = _mutate(work, "--base", "main", "--no-record", "--confirm-survivors")
+    assert "--confirm-survivors needs --pool" in r.stdout, r.stdout
+
+
+def test_an_inside_mutant_of_a_file_the_change_deleted_is_passed_over(tmp_path):
+    h = {"file": "src/gone.cpp", "line": 1, "body": ["@@\n"]}
+    args = type("A", (), {"inside": 1})()
+    guard = md.TreeGuard(tmp_path)
+    assert md.mutate_inside(tmp_path, guard, None, h, {}, args, None) is False
+    assert h["inside"] == []
 
 
 def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
@@ -1186,6 +2350,26 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
     assert r.returncode == 1, r.stdout
     assert "exit 1  [oth]" in r.stdout
     assert "exit 0  [feat]" in r.stdout
+
+
+@pytest.mark.parametrize("other_detected, code, says", [
+    (False, 1, "Hunks SURVIVED above"),
+    (True, 3, "Nothing survived"),
+])
+def test_an_incomplete_group_run_tells_the_truth_about_survivors(
+        tmp_path, other_detected, code, says):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    if other_detected:
+        (work / ".mutant-expect-other").write_text("")
+    (work / "notes").mkdir()
+    (work / "notes" / "plan.txt").write_text("plan\n")
+    _git(work, "add", "-N", "notes/plan.txt")
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == code, r.stdout
+    assert "NOT COVERED notes/plan.txt" in r.stdout
+    verdict = r.stdout[r.stdout.index("VERDICT: INCOMPLETE - this run"):]
+    assert says in verdict
 
 
 # The mutant's build SIGKILLs the group child that started it (make's parent),
@@ -1270,6 +2454,27 @@ def test_a_group_is_described_by_everything_that_judges_it():
 
 
 needs_bats = pytest.mark.skipif(shutil.which("bats") is None, reason="needs bats")
+
+
+@needs_bats
+def test_a_cxx_file_with_no_tests_pays_no_baseline_for_a_script_with_none(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_other.bats").write_text('@test "other" {\n  true\n}\n')
+    _git(work, "add", "scripts/tool.sh", "tests/shell")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--python-tests", "")
+    groups = [ln for ln in r.stdout.splitlines() if ln.startswith("=== group ")]
+    assert len(groups) == 2, r.stdout
+    cxx = next(g for g in groups if "| tests/shell" not in g)
+    tool = next(g for g in groups if "| tests/shell" in g)
+    assert "~[.]~[slow]  (1 file(s))" in cxx and "~[.]~[slow] | tests/shell  (1 file(s))" in tool
+    # The C++ group's own section runs no bats at all.
+    section = r.stdout.split(cxx, 1)[1].split("=== group ", 1)[0]
+    assert "bats green" not in section, section
 
 
 @needs_bats
@@ -1506,3 +2711,31 @@ def test_a_symlinked_submodule_checkout_still_diffs(tmp_path):
     assert files == {"src/feature.cpp": False, "lib/sub": True}
     hunks = md.collect_hunks(str(work), base)
     assert {h["file"] for h in hunks} == {"src/feature.cpp"}
+
+
+def test_auto_filter_adds_the_cases_elsewhere_of_a_tag_its_files_own():
+    tu = '#include "gizmo.h"\nvoid Gizmo::run() {}\n'
+    own = 'TEST_CASE("a", "[gizmo][restart]") {}\nTEST_CASE("b", "[gizmo][restart][json]") {}\n'
+    sources = {"test_gizmo": '#include "gizmo.h"\n' + own,
+               "test_wiring": 'TEST_CASE_METHOD(F, "w", "[wiring][restart]") {}\n',
+               "test_json_a": 'TEST_CASE("j1", "[json]") {}\nTEST_CASE("j2", "[json]") {}\n',
+               "test_json_b": 'TEST_CASE("j3", "[json][.]") {}\n'}
+    # [restart]: 2 of its 3 cases are the gizmo tests'; [json] is mostly elsewhere.
+    assert md.auto_tests_filter("src/gizmo.cpp", sources, source_text=tu) \
+        == "[#test_gizmo]~[.]~[slow],[restart]~[.]~[slow]"
+    # A tag in more other files than the cap is a theme, not the file's behaviour.
+    for i in range(md.OWNED_TAG_MAX_OTHER_FILES):
+        sources[f"test_more_{i}"] = 'TEST_CASE("m", "[restart]") {}\n'
+    for i in range(10):
+        sources["test_gizmo"] += f'TEST_CASE("x{i}", "[restart]") {{}}\n'
+    assert md.auto_tests_filter("src/gizmo.cpp", sources, source_text=tu) \
+        == "[#test_gizmo]~[.]~[slow]"
+
+
+def test_printer_print_state_reaches_every_remap_restart_case():
+    # The session-wiring and retarget cases reach printer_print_state.cpp only
+    # through the PrinterState facade every test includes.
+    path = "src/printer/printer_print_state.cpp"
+    filt = md.auto_tests_filter(path, md._test_sources(REPO_ROOT),
+                                source_text=(REPO_ROOT / path).read_text())
+    assert "[remap-restart]~[.]~[slow]" in filt, filt

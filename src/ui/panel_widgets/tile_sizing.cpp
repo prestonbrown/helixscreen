@@ -5,10 +5,10 @@
 
 #include "ui_tile_rung.h"
 
+#include "core/observer_factory.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
 #include "panel_widget_size.h"
 #include "settings_manager.h"
 #include "src/ui/panel_widgets/content_chrome.h"
@@ -47,9 +47,9 @@ int authored_rung() {
 } // namespace
 
 TileSizing::TileSizing(const std::string& instance_id)
-    : icon_name_(instance_id + "_tile_icon"), label_name_(instance_id + "_tile_label"),
-      dir_name_(instance_id + "_tile_dir"), target_name_(instance_id + "_tile_target"),
-      drawn_name_(instance_id + "_tile_drawn") {
+    : instance_id_(instance_id), icon_name_(instance_id + "_tile_icon"),
+      label_name_(instance_id + "_tile_label"), dir_name_(instance_id + "_tile_dir"),
+      target_name_(instance_id + "_tile_target"), drawn_name_(instance_id + "_tile_drawn") {
     // Registered here, in the constructor, because the manager parses this
     // tile's XML before attach() runs and the parser drops a binding whose
     // subject is missing at parse time.
@@ -68,6 +68,13 @@ void TileSizing::add_subject_attr(const char* prop, const std::string& subject_n
     attr_storage_.emplace_back(prop);
     attr_storage_.push_back(subject_name);
     rebuild_attrs();
+}
+
+void TileSizing::publish_instance_subject(SubjectManager& owner, lv_subject_t* subject,
+                                          const char* prop, const char* suffix) {
+    const std::string name = instance_id_ + "_" + suffix;
+    owner.publish(name.c_str(), subject);
+    add_subject_attr(prop, name);
 }
 
 void TileSizing::rebuild_attrs() {

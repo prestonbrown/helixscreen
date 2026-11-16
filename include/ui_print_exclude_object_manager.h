@@ -20,9 +20,9 @@
  */
 
 #include "ui_exclude_object_modal.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 namespace helix {
 enum class PrintJobState;
@@ -32,7 +32,6 @@ enum class PrintJobState;
 #include <string>
 #include <unordered_set>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -47,7 +46,7 @@ namespace helix::ui {
 /**
  * @brief Manages the exclude object feature for PrintStatusPanel
  *
- * Extracted from PrintStatusPanel to reduce complexity. Handles:
+ * Handles:
  * - Long-press callback registration on gcode viewer
  * - Confirmation modal flow
  * - Undo timer and toast notification
@@ -76,7 +75,6 @@ class PrintExcludeObjectManager {
 
     ~PrintExcludeObjectManager();
 
-    // Non-copyable, non-movable
     PrintExcludeObjectManager(const PrintExcludeObjectManager&) = delete;
     PrintExcludeObjectManager& operator=(const PrintExcludeObjectManager&) = delete;
     PrintExcludeObjectManager(PrintExcludeObjectManager&&) = delete;
@@ -103,7 +101,8 @@ class PrintExcludeObjectManager {
     /**
      * @brief Handle long-press on object in G-code viewer
      *
-     * Called by PrintStatusPanel when the gcode viewer detects a long-press.
+     * Called from on_object_long_pressed(), the long-press callback init()
+     * registers on the gcode viewer, and from request_exclude().
      * Shows confirmation dialog if the object is not already excluded.
      *
      * @param object_name Name of the object that was long-pressed
@@ -237,7 +236,6 @@ class PrintExcludeObjectManager {
     /// is usually intentional and a notification about stale excludes would be noise.
     ObserverGuard print_state_observer_;
 
-    /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
     /// Track if init() was called
@@ -304,8 +302,6 @@ class PrintExcludeObjectManager {
      * @brief Static callback for gcode viewer long-press
      */
     static void on_object_long_pressed(lv_obj_t* viewer, const char* object_name, void* user_data);
-
-    // excluded_objects_observer_cb migrated to lambda in init()
 
     /**
      * @brief Timer callback when undo window expires

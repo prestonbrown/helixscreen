@@ -3,12 +3,15 @@
 
 #pragma once
 
-#include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_overlay_temp_graph.h"
 
 #include "async_lifetime_guard.h"
+#include "heater_type.h"
+#include "src/ui/panel_widgets/full_page_host.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
+
+#include <string>
 
 class TemperatureService;
 
@@ -34,26 +37,42 @@ class HeaterTempWidget : public TiledPanelWidget {
     using SubjectGetter = lv_subject_t* (*)(PrinterState&);
 
     struct Config {
-        const char* widget_id;   // PanelWidget id() (e.g. "bed_temperature")
-        const char* button_name; // ui_button name in the XML component
-        const char* icon_name;   // icon glyph name (exercised by tests; icon lookup
-                                 // itself now goes through HeaterIconBinder's own
-                                 // default_icon_name(heater))
-        const char* log_tag;     // spdlog prefix, e.g. "[BedTemperatureWidget]"
+        const char* widget_id; // PanelWidget id() (e.g. "bed_temperature")
+        const char* icon_name; // icon glyph name (exercised by tests; icon lookup
+                               // itself now goes through HeaterIconBinder's own
+                               // default_icon_name(heater))
+        const char* log_tag;   // spdlog prefix, e.g. "[BedTemperatureWidget]"
         TempGraphOverlay::Mode mode;
         SubjectGetter temp_getter;   // current temperature subject (exercised by tests)
         SubjectGetter target_getter; // target temperature subject (exercised by tests)
         HeaterType heater;           // which heater's subjects the icon binder observes
     };
 
+    /// @p instance_id is the layout entry's id: config.widget_id, or
+    /// "<widget_id>:N" for a further instance (a full page beside the tile).
     HeaterTempWidget(PrinterState& printer_state, TemperatureService* temp_panel,
-                     const Config& config);
+                     const Config& config, const std::string& instance_id = {});
     ~HeaterTempWidget() override;
 
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
+    void on_activate() override;
+    void on_deactivate() override;
+    void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
+
+  protected:
+    void on_hooked_root_deleted() override;
+
+  public:
+    std::string get_component_name() const override {
+        return std::string("panel_widget_") + cfg_.widget_id;
+    }
     const char* id() const override {
-        return cfg_.widget_id;
+        return instance_id_.c_str();
+    }
+
+    const FullPageHost& full_page() const {
+        return full_page_;
     }
 
     // Shared XML event callback. All three heater components register their
@@ -66,9 +85,12 @@ class HeaterTempWidget : public TiledPanelWidget {
     PrinterState& printer_state_;
     TemperatureService* temp_control_panel_;
     Config cfg_;
+    std::string instance_id_;
+    /// The heater's temperature overlay, hosted in place when this instance
+    /// covers an extra page.
+    FullPageHost full_page_;
 
     lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* temp_btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
     helix::ui::HeaterIconBinder icon_binder_;
@@ -83,6 +105,9 @@ class HeaterTempWidget : public TiledPanelWidget {
 
     void handle_temp_clicked();
 };
+
+/// What a heater's full page hosts, for jump_to_full_page(): "temp:<widget id>".
+std::string heater_full_page_function(const HeaterTempWidget::Config& config);
 
 // Per-heater configs — single source of truth shared by the widget factories
 // (panel_widget_registry) and unit tests.

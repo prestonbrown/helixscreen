@@ -108,14 +108,14 @@ test_shell() {
     printf '#!/bin/sh\n' > "$BIN/parallel"
     chmod +x "$BIN/bats" "$BIN/parallel"
     mkdir -p "$BATS_TEST_TMPDIR/tmp"
-    (cd "$(scratch_tree)" && env TMPDIR="$BATS_TEST_TMPDIR/tmp" PATH="$BIN:$(path_without_jobpool)" make -s --no-print-directory test-shell 2>&1)
+    (cd "$(scratch_tree)" && env TMPDIR="$BATS_TEST_TMPDIR/tmp" BATS_ALL=1 PATH="$BIN:$(path_without_jobpool)" make -s --no-print-directory test-shell 2>&1)
 }
 
 @test "make test-shell runs bats on the pool's growing slot file" {
     fake_pool
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs 2 --parallel-binary-name $(scratch_tree)/scripts/parallel-jobs-file.sh --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs 2 --parallel-binary-name $(scratch_tree)/scripts/parallel-jobs-file.sh --no-parallelize-within-files tests/shell/test_" "$output"
     contains "FILE 5" "$output"
     # A third of the fake pool's target of 7, and a slot file to grow.
     grep -q '^hold --min 2 --grow .*/slots -- ' "$FAKE_LOG"
@@ -131,7 +131,7 @@ test_shell() {
     export FAKE_NO_GROW=1
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs 5 --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs 5 --no-parallelize-within-files tests/shell/test_" "$output"
     ! contains "FILE" "$output"
     grep -q '^hold --min 2 -- ' "$FAKE_LOG"
     [ -z "$(ls -A "$BATS_TEST_TMPDIR/tmp")" ]
@@ -142,7 +142,7 @@ test_shell() {
     export FAKE_NO_GROW=1
     FAKE_SLOTS=1 run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS tests/shell/" "$output"
+    contains "BATS tests/shell/test_" "$output"
     ! contains "--jobs" "$output"
 }
 
@@ -150,8 +150,46 @@ test_shell() {
     no_pool
     run test_shell
     [ "$status" -eq 0 ]
-    contains "BATS --jobs $(nproc) --no-parallelize-within-files tests/shell/" "$output"
+    contains "BATS --jobs $(nproc) --no-parallelize-within-files tests/shell/test_" "$output"
     ! contains "FILE" "$output"
+}
+
+# make test-shell with the fake bats on a PATH from which GNU parallel is
+# gone: each directory that holds one is replaced by a copy of its links
+# without it.
+test_shell_without_parallel() {
+    printf '#!/bin/sh\necho "BATS $*"\n' > "$BIN/bats"
+    chmod +x "$BIN/bats"
+    local d p="" n=0 shadow IFS=:
+    for d in $(path_without_jobpool); do
+        if [ -e "$d/parallel" ]; then
+            n=$((n + 1)); shadow="$BATS_TEST_TMPDIR/no-parallel-$n"
+            [ -d "$shadow" ] || { mkdir "$shadow" &&
+                ls "$d" | grep -vx parallel | sed "s|^|$d/|" | xargs sh -c 'ln -s "$@" "$0"' "$shadow"; }
+            d=$shadow
+        fi
+        p=${p:+$p:}$d
+    done
+    unset IFS
+    (cd "$(scratch_tree)" && env PATH="$BIN:$p" make -s --no-print-directory test-shell "$@" 2>&1)
+}
+
+@test "make test-shell without GNU parallel refuses to run serially unless allowed" {
+    no_pool
+    run test_shell_without_parallel
+    [ "$status" -ne 0 ]
+    contains "GNU parallel not found" "$output"
+    contains "apt install parallel" "$output"
+    contains "BATS_ALLOW_SERIAL=1" "$output"
+    ! contains "BATS " "$output"
+    run test_shell_without_parallel BATS_ALLOW_SERIAL=1
+    [ "$status" -eq 0 ]
+    contains "BATS tests/shell/" "$output"
+    # A gate never runs it serially, allowed or not.
+    run test_shell_without_parallel BATS_ALLOW_SERIAL=1 BATS_REQUIRED=1
+    [ "$status" -ne 0 ]
+    contains "GNU parallel not found" "$output"
+    ! contains "BATS " "$output"
 }
 
 # ---------------------------------------------------------------------------
@@ -276,6 +314,8 @@ cached_ninja() {
     run "$POOL_DOCKER" docker run --rm -v /a:/b idf bash -c '. export.sh && idf.py -B b build'
     [ "$status" -eq 0 ]
     [ "$output" = "$(printf '%s\n' run --volume=/pool:/run/jobpool "--volume=$HELIX_NINJA_CACHE/ninja:/usr/bin/ninja:ro" \
+        "--volume=$REPO/scripts/container-make.sh:/usr/local/bin/helix-container-make:ro" \
+        -e MAKE=/usr/local/bin/helix-container-make \
         -e "MAKEFLAGS= -j --jobserver-auth=fifo:/run/jobpool/fifo" -e IDF_PY_BUILD_JOBS= \
         --rm -v /a:/b idf bash -c '. export.sh && idf.py -B b build' "ENV JOBPOOL_SLOTS=unset")" ]
     # Registered with the pool as a consumer, and no fixed hold.
@@ -284,6 +324,24 @@ cached_ninja() {
     # A bare ninja command line joins the same way.
     run "$POOL_DOCKER" docker run img ninja -C build
     contains "MAKEFLAGS= -j --jobserver-auth=fifo:/run/jobpool/fifo" "$output"
+}
+
+@test "container-make: the LTO link's make gets the pool FIFO as descriptors, or no jobserver" {
+    mkfifo "$BATS_TEST_TMPDIR/fifo"
+    printf '#!/bin/sh\necho "ARGS $* MAKEFLAGS=$MAKEFLAGS"\n[ -e /proc/self/fd/9 ] || [ -e /dev/fd/9 ] && echo fd9-open\n' \
+        > "$BATS_TEST_TMPDIR/realmake"
+    chmod +x "$BATS_TEST_TMPDIR/realmake"
+    export HELIX_CONTAINER_REAL_MAKE="$BATS_TEST_TMPDIR/realmake"
+    MAKEFLAGS=" -j --jobserver-auth=fifo:$BATS_TEST_TMPDIR/fifo" run "$REPO/scripts/container-make.sh" -f lto.mk all
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "ARGS -f lto.mk all MAKEFLAGS= -j --jobserver-auth=9,9" ]
+    [ "${lines[1]}" = "fd9-open" ]
+    # A FIFO the container cannot reach drops the jobserver rather than stopping make.
+    MAKEFLAGS=" -j --jobserver-auth=fifo:$BATS_TEST_TMPDIR/nowhere" run "$REPO/scripts/container-make.sh" all
+    [ "${lines[0]}" = "ARGS all MAKEFLAGS= -j " ]
+    # MAKEFLAGS without the fifo form passes through untouched.
+    MAKEFLAGS="-j4 --jobserver-auth=3,4" run "$REPO/scripts/container-make.sh" all
+    [ "${lines[0]}" = "ARGS all MAKEFLAGS=-j4 --jobserver-auth=3,4" ]
 }
 
 @test "pool-docker: idf.py with a ninja older than 1.13, or a pool that will not mount, holds slots" {

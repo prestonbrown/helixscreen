@@ -406,8 +406,8 @@ jobs:
         retention-days: 7
 
   build-macos:
-    name: Build (macOS 14)
-    runs-on: macos-14
+    name: Build (macOS 15)
+    runs-on: macos-15
     # Gated on the two jobs that need no build. A shell, gate or lint failure is
     # knowable in minutes; this job runs for well over an hour, so starting it
     # anyway spends a runner to re-learn what the fast suite already said. The
@@ -442,9 +442,9 @@ jobs:
           lib/libhv/lib/
           lib/libhv/include/hv/
 
-        key: deps-macos-14-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
+        key: deps-macos-15-${{ hashFiles('lib/libhv/**/*.c', 'lib/libhv/**/*.cpp', 'lib/libhv/**/*.h') }}
         restore-keys: |
-          deps-macos-14-
+          deps-macos-15-
 
     # Restore and save are split so the save can be limited to one ref. macOS is
     # a development platform, never a deployment target, so this job is a
@@ -455,9 +455,9 @@ jobs:
       uses: actions/cache/restore@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-macos-14-${{ github.sha }}
+        key: ccache-macos-15-${{ github.sha }}
         restore-keys: |
-          ccache-macos-14-
+          ccache-macos-15-
 
     - name: Verify submodules
       run: |
@@ -498,7 +498,7 @@ jobs:
       uses: actions/cache/save@v5
       with:
         path: ~/Library/Caches/ccache
-        key: ccache-macos-14-${{ github.sha }}
+        key: ccache-macos-15-${{ github.sha }}
 
     - name: Verify binary
       run: |
@@ -508,7 +508,7 @@ jobs:
     - name: Upload binary
       uses: actions/upload-artifact@v7
       with:
-        name: helix-screen-macos-14
+        name: helix-screen-macos-15
         path: build/bin/helix-screen
         retention-days: 7
 
@@ -525,9 +525,10 @@ jobs:
     # cap is a coin flip: it timed out at exactly 30:02 on one commit and passed
     # in 26 on the next. The ceiling is for a hung Gradle or NDK fetch, not for
     # the build, so it sits well clear of the build's own spread.
-    # The build is narrowed to the two 64-bit ABIs: armeabi-v7a is a third full
-    # native build, roughly half again on the job, and only the release workflow
-    # builds it.
+    # Two of the three release ABIs, one per pointer width: arm64-v8a, and
+    # armeabi-v7a for the 32-bit userland of Fire tablets and LineageOS Echo
+    # Shows. x86_64 is a third full native build, roughly half again on the job,
+    # and is 64-bit like arm64, so only the release workflow builds it.
     timeout-minutes: 50
 
     steps:
@@ -567,6 +568,15 @@ jobs:
     # main only (see the ccache note in compile-ubuntu), and trimmed to the
     # entries this job used. The key is not release.yml's: that cache holds
     # release objects, which share nothing with a debug build.
+    # The ccache action runs `apt-get install` without an update, so the mirrors are
+    # set and the index refreshed against them first: the runner image's cached index
+    # names the sources apt-prepare just replaced, and the install fails with exit 100.
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Refresh the apt index
+      run: sudo apt-get update
+
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2.22
       with:
@@ -577,7 +587,7 @@ jobs:
 
     - name: Build Android APK (debug)
       working-directory: android
-      run: ./gradlew assembleDebug -PhelixAbis=arm64-v8a,x86_64 -PuseCcache -PhelixNoDebugInfo
+      run: ./gradlew assembleDebug -PhelixAbis=arm64-v8a,armeabi-v7a -PuseCcache -PhelixNoDebugInfo
 
     - name: Upload APK
       uses: actions/upload-artifact@v7
@@ -702,10 +712,9 @@ jobs:
       with:
         submodules: false
 
-    # test_lvgl_event_code_gate.bats reads lib/lvgl/src/misc/lv_event.h, and it
-    # needs the PATCHED enum: lvgl_display_sync_cb.patch inserts four values
-    # (LV_EVENT_SYNC_{,WAIT_}{START,FINISH}) and renumbers everything after
-    # them, so the committed worker table only matches a patched checkout.
+    # test_lvgl_event_code_gate.bats reads lib/lvgl/include/lvgl/core/lv_event.h,
+    # and the committed worker table mirrors the enum of the checkout the app
+    # builds from, patches applied, so a patch that touches the enum stays covered.
     # Without these steps setup() died on a missing header and took the whole
     # file down. Skipping instead would make the "committed table is up to
     # date" case green-by-skip, the exact failure the venv note below exists
@@ -743,14 +752,29 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm ci --no-audit --no-fund
 
+    # make test-shell runs every product file and each build-tooling file whose
+    # trigger paths (tests/shell/tooling-triggers.tsv) the change touches,
+    # measured from BATS_BASE: the PR's base, or what the branch held before
+    # this push. The checkout is one commit deep, so that commit is fetched on
+    # its own. With nothing to measure from (a new branch) every file runs, and
+    # the nightly runs every file regardless.
+    - name: Fetch the commit the change is measured from
+      env:
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      run: |
+        if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
+           && git fetch --no-tags --depth=1 origin "$BASE"; then
+          echo "BATS_BASE=$BASE" >> "$GITHUB_ENV"
+        else
+          echo "BATS_ALL=1" >> "$GITHUB_ENV"
+        fi
+
     # make test-shell runs the files in parallel, one per slot of
     # `helix-claim jobs`; bare bats runs them one after another, which on this
-    # 4-core runner takes most of the job's timeout. A runner without GNU
-    # parallel would fall back to the serial run, so its absence is an error.
+    # 4-core runner takes most of the job's timeout. Under BATS_REQUIRED=1 it
+    # fails rather than run serially when GNU parallel is missing.
     - name: Run shell tests
-      run: |
-        command -v parallel >/dev/null || { echo "::error::GNU parallel is missing: make test-shell would run bats serially"; exit 1; }
-        make test-shell BATS_REQUIRED=1
+      run: make test-shell BATS_REQUIRED=1
 
   # The plugin runs inside each printer's own Moonraker, on Python 3.8 (K1C,
   # Buildroot 2020.02) up to 3.13; test-ubuntu runs the suite on 3.11. This

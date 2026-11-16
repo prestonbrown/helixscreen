@@ -105,8 +105,6 @@ lv_obj_t* gcode_viewer_create(lv_obj_t* parent);
  *
  * Asynchronously parses the file in background. Use state callback
  * to be notified when loading completes.
- *
- * Note: Async parsing not implemented in Phase 1 - parses synchronously.
  */
 void gcode_viewer_load_file(lv_obj_t* obj, const char* file_path);
 

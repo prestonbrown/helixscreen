@@ -21,11 +21,23 @@ for arg in "$@"; do
   esac
 done
 
+# A full sweep runs for minutes, and a laptop that idles into sleep freezes it
+# mid-gate: on a Mac the gates of one push have each stood still 15 minutes at a
+# time while the machine slept. caffeinate holds the machine awake for exactly
+# this run. A commit's staged sweep is too short to need it.
+qc_hold_awake() {
+  [ "$STAGED_ONLY" != true ] && [ -z "${HELIX_QC_AWAKE:-}" ] || return 0
+  command -v caffeinate >/dev/null 2>&1 || return 0
+  HELIX_QC_AWAKE=1 exec caffeinate -i -s "$@"
+}
+qc_hold_awake "$0" "$@"
+
 # Change to repo root
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_ROOT"
 
 EXIT_CODE=0
+FAILED_GATES=""
 SCRIPT_START=$(date +%s)
 
 # Each gate is one file, scripts/qc/<gate>.sh: its qc_<gate> function and the
@@ -34,11 +46,17 @@ SCRIPT_START=$(date +%s)
 # shellcheck source=scripts/qc/_lib.sh
 . scripts/qc/_lib.sh
 
+HELIX_RATCHET_STRICT="$(qc_ratchet_strictness "$STAGED_ONLY" "${HELIX_QC_SKIP_PUSH_ONLY:-0}")"
+export HELIX_RATCHET_STRICT
+
 echo "🔍 Running quality checks..."
 if [ "$STAGED_ONLY" = true ]; then
   echo "   Mode: Staged files only (pre-commit)"
 else
   echo "   Mode: All files (CI)"
+fi
+if [ "$HELIX_RATCHET_STRICT" = 1 ]; then
+  echo "   Ratchets: strict, a count under its baseline fails (lower the baseline)"
 fi
 echo ""
 
@@ -82,7 +100,8 @@ TRANS_FMT_PY="${VENV_PYTHON:-python3}"
 # left is redoing an identical full sweep: pre-push straight after a manual run,
 # or re-pushing with nothing touched in between. The stamp is the whole working
 # state (HEAD, staged diff, unstaged diff, untracked listing), so any edit
-# invalidates it. Set QC_NO_CACHE=1 to force, and note it only ever short-circuits
+# invalidates it, and a run that may pass the ESP32 link check without a verdict
+# never answers for one that must reach it. Set QC_NO_CACHE=1 to force, and note it only ever short-circuits
 # a run that previously PASSED - failures are never cached.
 QC_STAMP_DIR="build/.qc-stamps"
 qc_state_hash() {
@@ -93,6 +112,9 @@ qc_state_hash() {
     # Names only: an untracked file's contents are not hashed, so a scratch file
     # edited in place will not invalidate the stamp. Tracked work always does.
     git ls-files --others --exclude-standard 2>/dev/null | sort || true
+    echo "link verdict required: ${HELIX_LINK_BOUNDARY_REQUIRED:-0}"
+    # A sweep that left tests/python to the land gate is not a full sweep.
+    echo "python tests skipped: ${HELIX_QC_SKIP_PYTHON_TESTS:-0}"
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
@@ -122,13 +144,29 @@ qc_stamp_replay() {
   esac
   echo "   Force a re-run with QC_NO_CACHE=1"
 }
+# A work-branch sweep (HELIX_QC_SKIP_PUSH_ONLY) records its pass apart from a full
+# one: a full pass covers it, but it never stands in for a full sweep.
+qc_stamp_for_run() {
+  # $1 = the state's full-sweep stamp
+  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then echo "$1.commit-level"; else echo "$1"; fi
+}
+qc_stamp_covering() {
+  # $1 = the state's full-sweep stamp; prints a stamp that covers this run, if any
+  if [ -f "$1" ]; then
+    echo "$1"
+  elif [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ] && [ -f "$1.commit-level" ]; then
+    echo "$1.commit-level"
+  fi
+}
 QC_STAMP=""
 if [ "$STAGED_ONLY" != true ] && [ -z "${QC_NO_CACHE:-}" ]; then
-  QC_STAMP="$QC_STAMP_DIR/$(qc_state_hash)"
-  if [ -n "$QC_STAMP" ] && [ -f "$QC_STAMP" ]; then
-    qc_stamp_replay "$QC_STAMP"
+  QC_STAMP_FULL="$QC_STAMP_DIR/$(qc_state_hash)"
+  QC_COVERING="$(qc_stamp_covering "$QC_STAMP_FULL")"
+  if [ -n "$QC_COVERING" ]; then
+    qc_stamp_replay "$QC_COVERING"
     exit 0
   fi
+  QC_STAMP="$(qc_stamp_for_run "$QC_STAMP_FULL")"
 fi
 
 QC_TMP="$(mktemp -d)"
@@ -139,15 +177,46 @@ trap 'rm -rf "$QC_TMP"' EXIT
 QC_COUNTS="$QC_TMP/counts"
 QC_JOBS="${QC_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 
+# Milliseconds where date has %N; BSD date (macOS) prints a literal N, so it
+# falls back to whole seconds there.
+qc_now_ms() {
+  local ns
+  ns=$(date +%s%N)
+  case "$ns" in
+    *N) echo $(( $(date +%s) * 1000 )) ;;
+    *) echo $(( ns / 1000000 )) ;;
+  esac
+}
+
 qc_run_buffered() {
   local fn="$1" t0 t1
-  t0=$(date +%s)
+  t0=$(qc_now_ms)
   set +e
   "$fn" > "$QC_TMP/$fn.out" 2>&1
   echo $? > "$QC_TMP/$fn.rc"
   set -e
-  t1=$(date +%s)
-  echo $((t1 - t0)) > "$QC_TMP/$fn.time"
+  t1=$(qc_now_ms)
+  echo $((t1 - t0)) > "$QC_TMP/$fn.ms"
+}
+
+# A gate that failed or ran past HELIX_QC_KEEP_LOG_MS (5 minutes) keeps its
+# output and its own logs (QC_TMP files named for it), which QC_TMP's cleanup
+# would otherwise delete, so a stall can be read afterwards. They go to
+# HELIX_QC_LOG_DIR (pre-push names the pushing tree, since a push sweeps a
+# throwaway checkout), else this tree's build/qc-logs; the newest 20 are kept.
+qc_keep_gate_log() {
+  # $1 = gate, $2 = exit status, $3 = ms, $4 = QC_TMP, $5 = where kept logs go
+  local fn="$1" stem="${1#qc_}" dir
+  [ "$2" != 0 ] || [ "$3" -gt "${HELIX_QC_KEEP_LOG_MS:-300000}" ] || return 0
+  dir="$5/$(date -u +%Y%m%dT%H%M%SZ)-$stem"
+  mkdir -p "$dir" || return 0
+  cp "$4/$fn.out" "$4/$stem".* "$dir/" 2>/dev/null || true
+  echo "$fn: exit $2 after $(($3 / 1000))s" > "$dir/summary"
+  echo "📁 $fn log kept: $dir"
+  # Names start with a UTC time, so the oldest sort first.
+  ls -1d "$5"/*/ 2>/dev/null | sort |
+    awk -v keep="${HELIX_QC_KEEP_LOG_COUNT:-20}" '{d[NR] = $0} END {for (i = 1; i <= NR - keep; i++) print d[i]}' |
+    while IFS= read -r old; do rm -rf -- "$old"; done
 }
 
 # qc_xml_linter always regenerates the schema; qc_phase2 only rewrites files
@@ -155,14 +224,20 @@ qc_run_buffered() {
 QC_SERIAL="qc_xml_tools qc_xml_linter"
 if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
 
-QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_esp32_app_srcs qc_esp32_compile qc_esp32_xml_bindings qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_vendor_branches qc_hand_rolled_swatch qc_filament_ops_neutral qc_hold_ends_press qc_net_pii qc_decl_ui qc_namespace qc_constant_naming qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_bats_inert qc_python_tests"
+QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_esp32_app_srcs qc_esp32_compile qc_esp32_xml_bindings qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_vendor_branches qc_hand_rolled_swatch qc_filament_ops_neutral qc_hold_ends_press qc_net_pii qc_decl_ui qc_namespace qc_constant_naming qc_comment_archaeology qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_budget qc_growth_ratchets qc_layering qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_doc_anchors qc_doc_images qc_lvgl_event_codes qc_lvgl_deprecated qc_lvgl_subject_api qc_translation_fmt qc_base_locale qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_link_parity qc_feature_gates qc_workflow_submodules qc_ams_xml_mirror qc_bats_inert qc_code_lint qc_test_lint qc_ui_lint qc_python_tests"
 
-# Push-only gates: every gate that takes more than a few seconds on a fast host
-# (scripts/qc_timing.py, or QC_PROFILE=1 for the per-gate list). A commit waits
-# for its slowest gate, so one of these alone makes every commit cost tens of
-# seconds to minutes; pre-push and land-gate run them ungated before anything
-# reaches main. HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too.
-QC_PUSH_ONLY="qc_python_tests qc_hidden_tests qc_decl_ui qc_translation_coverage qc_hand_rolled_swatch qc_esp32_xml_bindings qc_esp32_app_srcs qc_esp32_compile qc_translation_fmt qc_namespace"
+# Push-only gates: the repo-wide scans that would set a commit's wall clock
+# (QC_PROFILE=1 prints each gate's time). A commit waits for its slowest gate,
+# so one of these alone costs every commit seconds to minutes; pre-push and
+# land-gate run them ungated before anything reaches main.
+# HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too.
+#
+# Only a lint belongs here: a failure it finds is a policy breach, not a commit
+# that fails to build or load. The slow gates a commit keeps are that kind:
+# qc_phase2 (formatting, the staged compile), qc_xml_tools and qc_xml_linter
+# (the XML the app loads at runtime) and qc_design_pixels (layout-variant
+# parity, without which a breakpoint loses the widgets its code looks up).
+QC_PUSH_ONLY="qc_python_tests qc_hidden_tests qc_decl_ui qc_translation_coverage qc_hand_rolled_swatch qc_esp32_xml_bindings qc_esp32_app_srcs qc_esp32_compile qc_translation_fmt qc_namespace qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press qc_test_budget qc_growth_ratchets qc_layering qc_code_lint"
 
 for fn in $QC_ALL; do
   # shellcheck source=/dev/null
@@ -189,8 +264,16 @@ qc_trigger_re() {
 
 QC_SKIPPED=""
 QC_DEFERRED=""
+QC_LEFT=""
 qc_wanted() {
   local re
+  # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
+  # land gate and CI, which every branch passes before it reaches main.
+  if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then
+    case " $QC_PUSH_ONLY " in
+      *" $1 "*) QC_LEFT="$QC_LEFT $1"; return 1 ;;
+    esac
+  fi
   [ "$STAGED_ONLY" = true ] || return 0
   case " $QC_PUSH_ONLY " in
     *" $1 "*)
@@ -218,31 +301,50 @@ for fn in $QC_PARALLEL; do
   qc_wanted "$fn" || continue
   qc_run_buffered "$fn" &
   running=$((running + 1))
-  if [ "$running" -ge "$QC_JOBS" ]; then wait -n 2>/dev/null || wait; running=$((running - 1)); fi
+  # bash 3.2 (a Mac's /bin/bash) has no wait -n: waiting for the whole batch frees
+  # every slot, and counting it as one would run each remaining gate alone.
+  if [ "$running" -ge "$QC_JOBS" ]; then
+    if wait -n 2>/dev/null; then running=$((running - 1)); else wait; running=0; fi
+  fi
 done
 wait
 
 for fn in $QC_ALL; do
   [ -f "$QC_TMP/$fn.out" ] && cat "$QC_TMP/$fn.out"
   rc=$(cat "$QC_TMP/$fn.rc" 2>/dev/null || echo 0)
-  [ "$rc" != "0" ] && EXIT_CODE=1
+  [ -f "$QC_TMP/$fn.ms" ] &&
+    qc_keep_gate_log "$fn" "$rc" "$(cat "$QC_TMP/$fn.ms")" "$QC_TMP" "${HELIX_QC_LOG_DIR:-$PWD/build/qc-logs}"
+  if [ "$rc" != "0" ]; then
+    EXIT_CODE=1
+    FAILED_GATES="$FAILED_GATES $fn"
+  fi
 done
 
 if [ -n "$QC_DEFERRED" ]; then
   echo ""
   echo "⏩ Deferred to pre-push (slow; HELIX_QC_ALL_AT_COMMIT=1 runs them now):$QC_DEFERRED"
 fi
+if [ -n "$QC_LEFT" ]; then
+  echo ""
+  echo "⏩ Left to make land-gate and CI (a work-branch push):$QC_LEFT"
+fi
 if [ -n "$QC_SKIPPED" ]; then
   echo ""
   echo "⏭️  Skipped (nothing staged that they inspect):$QC_SKIPPED"
   echo "   The pre-push hook runs all of them ungated."
 fi
+if [ -f "$QC_TMP/compile_sample.note" ]; then
+  echo ""
+  cat "$QC_TMP/compile_sample.note"
+fi
 
+# Every gate that ran, slowest first. The transcript cannot time them: gates run
+# in parallel and their output is replayed only once all have finished.
 if [ -n "${QC_PROFILE:-}" ]; then
-  echo ""; echo "slowest checks:"
+  echo ""; echo "gate times (ms), slowest first:"
   for fn in $QC_ALL; do
-    printf "%5ss  %s\n" "$(cat "$QC_TMP/$fn.time" 2>/dev/null || echo 0)" "$fn"
-  done | sort -rn | head -8
+    [ -f "$QC_TMP/$fn.ms" ] && printf "%7d  %s\n" "$(cat "$QC_TMP/$fn.ms")" "$fn"
+  done | sort -rn
 fi
 true
 
@@ -261,5 +363,6 @@ if [ $EXIT_CODE -eq 0 ]; then
   exit 0
 else
   echo "❌ Quality checks failed! (${TOTAL_SEC}s total)"
+  [ -z "$FAILED_GATES" ] || echo "   Failed gates:$FAILED_GATES"
   exit 1
 fi

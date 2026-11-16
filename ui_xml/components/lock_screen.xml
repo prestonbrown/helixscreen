@@ -2,6 +2,11 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <api>
+    <!-- PinDisplay's subjects: the filled-dot count and the error line. -->
+    <prop name="digits_subject" type="string" default=""/>
+    <prop name="error_subject" type="string" default=""/>
+  </api>
   <consts>
     <!-- Dot indicator size for PIN entry feedback -->
     <px name="dot_size" value="20"/>
@@ -87,27 +92,33 @@
                 style_bg_opa="0" style_border_width="0" align="center">
           <lv_obj name="lock_dot_0" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="1"/>
           </lv_obj>
           <lv_obj name="lock_dot_1" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="2"/>
           </lv_obj>
           <lv_obj name="lock_dot_2" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="3"/>
           </lv_obj>
           <lv_obj name="lock_dot_3" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="4"/>
           </lv_obj>
           <lv_obj name="lock_dot_4" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="5"/>
           </lv_obj>
           <lv_obj name="lock_dot_5" width="#dot_size" height="#dot_size">
             <style name="dot_empty"/>
+            <bind_style_if_ge name="dot_filled" subject="$digits_subject" ref_value="6"/>
           </lv_obj>
         </lv_obj>
 
-        <!-- Error label — invisible by default, space reserved -->
+        <!-- Error label: blank by default, space reserved -->
         <text_small name="lock_error_label"
-                    width="100%" text=" " style_text_color="#warning" style_text_align="center" style_opa="0"/>
+                    width="100%" bind_text="$error_subject" style_text_color="#warning" style_text_align="center"/>
       </lv_obj>
 
       <!-- Keypad: 4x3 grid using row_wrap -->

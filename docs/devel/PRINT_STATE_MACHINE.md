@@ -8,8 +8,7 @@ Moonraker's raw `PrintJobState` + `PrintOutcome` into UI-level `PrintState` valu
 **It is not the app-wide authority, and it is not the only consumer of this
 question.** The instance lives as a private member of `PrintStatusPanel`
 (`include/ui_panel_print_status.h`), so components that are not that panel cannot
-reach it and historically each kept its own previous-state variable with its own
-rules. The authoritative value is now the `print_lifecycle` subject on
+reach it. The authoritative value is the `print_lifecycle` subject on
 `PrinterPrintState`, derived once by `derive_print_state()`; observe that rather
 than re-deriving from the raw job-state enum.
 
@@ -129,14 +128,14 @@ printer-edge path would stop them entering `Preparing` at all.
 
 ### Why a live preparing job relaxes two guards
 
-`set_print_start_state()` used to drop every phase update after the first while
-`print_active == 0`, and a safety reset forced the phase back to IDLE on the
-`print_active -> 0` edge. Both assumed preparation only happens *inside* Moonraker's
+`set_print_start_state()` drops every phase update after the first while
+`print_active == 0`, and a safety reset forces the phase back to IDLE on the
+`print_active -> 0` edge. Both assume preparation only happens *inside* Moonraker's
 PRINTING window. That holds when `PRINT_START` owns the work; it does not when a
 host-side pre-start block runs before the printer is handed the job, because
 `print_stats` keeps the previous job's terminal state for the whole duration
-(measured at 455s on a K2 Plus running `BED_MESH_CALIBRATE_START_PRINT`). Both
-guards now yield to a live preparing job.
+(measured at 455s on a K2 Plus running `BED_MESH_CALIBRATE_START_PRINT`). So both
+guards yield to a live preparing job.
 
 ### Reconciliation
 
@@ -160,6 +159,7 @@ cools both heaters: a 65 minute ABS soak lost its bed 30 minutes in (#1365).
 | `Failed` | The start could not complete |
 | `Cancelled` | The user abandoned it |
 | `TimedOut` | No confirmation arrived. Ungated - a commit-armed job can be raised on a printer that never reaches `state=printing` |
+| `EndedByPrinter` | The printer took the job and ended it before reporting it printing (a cancel queued behind its start sequence); its own terminal state reports the outcome |
 
 `preparing_epoch` is bumped per preparing job and reads 0 when none is live.
 Consumers that must adopt the job's identity - `ActivePrintMediaManager` above all -
@@ -168,14 +168,14 @@ observe it rather than relying on each start path remembering to tell them.
 ## Asking whether a job owns the machine
 
 Two predicates, one per axis. Ask one of them rather than open-coding a comparison;
-the lint gate `scripts/check_raw_print_job_state.py` fails any raw read that does
+the `raw-print-state` rule of `scripts/check_source_rules.py` fails any raw read that does
 not say why it needs the wire.
 
 Read each enum through its own accessor: `get_print_lifecycle()` for `PrintState`,
 `get_print_job_state()` for the wire's `PrintJobState`, and `observe_print_lifecycle()` /
-`observe_print_state()` from `include/observer_factory.h` to watch them. The two enums share
+`observe_print_state()` from `include/core/observer_factory.h` to watch them. The two enums share
 no numbering past 0, so `static_cast<PrintState>(lv_subject_get_int(...))` on the wrong
-subject compiles and answers a different question; `scripts/check_print_state_cast.py`
+subject compiles and answers a different question; its `print-state-cast` rule
 rejects that cast.
 
 | Ask | When | True for |
@@ -214,17 +214,14 @@ because then no firmware macro can hide a `G28`.
 
 ## What just happened: `print_lifecycle_prev` and `should_notify_print_ended()`
 
-Consumers that need the *transition* - "what did we just leave?" - no longer keep
-a private previous-state variable. `PrinterPrintState` publishes
-`print_lifecycle_prev` (`include/printer_print_state.h#PrinterPrintState`-333) from the same
+Consumers that need the *transition* - "what did we just leave?" - read it rather than
+keep a private previous-state variable. `PrinterPrintState` publishes
+`print_lifecycle_prev` (`include/printer_print_state.h#PrinterPrintState/get_print_lifecycle_prev_subject`) from the same
 place that computes the transition, with three deliberate properties:
 
-- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp#publish_lifecycle_state`-1531). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
+- **Written only when the state actually changes** (`src/printer/printer_print_state.cpp#publish_lifecycle_state`). Rewriting it unconditionally would collapse it onto the current state and every consumer would see a self-transition.
 - **Written *before* `print_lifecycle`**, so an observer firing on the new value already sees a consistent pair.
 - **Initialized to `Idle`**, so booting straight into a terminal state reads as `Idle -> Complete` and correctly does not notify.
-
-Eight private previous-state variables existed before this subject, and they
-disagreed at the edges.
 
 The edge consumer is `should_notify_print_ended(prev, current, outcome)`
 (`include/print_completion.h#should_notify_print_ended`, `src/print/print_completion.cpp#should_notify_print_ended`), which
@@ -247,7 +244,7 @@ interesting arm, and it gates on `outcome` in both directions:
   completion.
 
 The completion observer (`src/print/print_completion.cpp#on_print_state_changed_for_notification`) reads both halves of the
-transition from `PrinterPrintState`; it no longer owns a latch of its own.
+transition from `PrinterPrintState` and keeps no latch of its own.
 
 ---
 

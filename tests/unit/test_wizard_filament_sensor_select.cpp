@@ -12,14 +12,14 @@
  * - Integration: wizard skip flow with single sensor auto-configuration
  */
 
-#include "ui_update_queue.h"
 #include "ui_wizard_filament_sensor_select.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "printer_discovery.h"
@@ -40,25 +40,9 @@ using namespace helix;
 // Test Fixture
 // ============================================================================
 
-class WizardFilamentSensorSelectTestFixture {
+class WizardFilamentSensorSelectTestFixture : public LVGLTestFixture {
   public:
     WizardFilamentSensorSelectTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                    });
-            display_created_ = true;
-        }
-
         // Initialize FilamentSensorManager subjects (idempotent)
         sensor_mgr().init_subjects();
 
@@ -79,7 +63,7 @@ class WizardFilamentSensorSelectTestFixture {
         // set_hardware fans out through capabilities_state_.set_hardware,
         // which sets lv_subjects; per L048, drain before assertions so
         // queued observer notifications can't race the test body.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     ~WizardFilamentSensorSelectTestFixture() {
@@ -88,7 +72,7 @@ class WizardFilamentSensorSelectTestFixture {
         // they expected (not a forcibly-empty discovery).
         FilamentSensorManagerTestAccess::reset(sensor_mgr());
         get_printer_state().set_hardware(std::move(saved_discovery_));
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   protected:
@@ -126,13 +110,9 @@ class WizardFilamentSensorSelectTestFixture {
 
   private:
     helix::PrinterDiscovery saved_discovery_;
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* WizardFilamentSensorSelectTestFixture::display_ = nullptr;
-bool WizardFilamentSensorSelectTestFixture::display_created_ = false;
 
 // ============================================================================
 // get_standalone_sensor_count() Tests

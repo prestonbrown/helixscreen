@@ -83,6 +83,17 @@ CPP
     contains "unregistered:on_other" "$output"
 }
 
+@test "an accepted finding that went away passes at commit and fails at a push" {
+    echo '<component><view><x callback="on_ghost"/></view></component>' > "$ROOT/ui_xml/demo.xml"
+    printf 'unregistered:on_ghost\nunregistered:on_fixed\n' > "$ROOT/baseline.txt"
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 0 ] || fail "a fixed finding failed at commit: $output"
+    contains "hold the gain" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 1 ] || fail "a fixed finding passed at a push: $output"
+    contains "unregistered:on_fixed: no longer a finding" "$output"
+}
+
 @test "a name handed to a component's callback prop from C++ counts as referenced" {
     echo '<component><view><x callback="$click_callback"/></view></component>' > "$ROOT/ui_xml/demo.xml"
     cat > "$ROOT/src/demo.cpp" <<'CPP'
@@ -97,9 +108,4 @@ CPP
     sed -i 's/"click_callback", "on_prop_fed"/"label", "x"/' "$ROOT/src/demo.cpp"
     run_gate
     contains "unreferenced:on_prop_fed" "$output"
-}
-
-@test "this tree holds its baseline" {
-    run python3 "$GATE" --baseline scripts/orphan_callback_baseline.txt
-    [ "$status" -eq 0 ]
 }

@@ -383,7 +383,7 @@ TEST_CASE("GCodeLayerCache thread safety", "[gcode][cache][thread][slow]") {
 }
 
 // =============================================================================
-// Main-thread stall regression (bundle C2CP6ZAW)
+// Main-thread stall regression
 //
 // get_or_load() used to hold mutex_ across the loader() call, which does a file
 // seek plus a G-code parse. The background ghost builder walks every layer
@@ -413,7 +413,7 @@ auto slow_loader(std::chrono::milliseconds delay, size_t segments_per_layer,
 constexpr auto kSlowLoad = std::chrono::milliseconds(400);
 
 // Generous enough to absorb CI scheduling noise while still being far below
-// kSlowLoad — the bug produces ~kSlowLoad, the fix produces ~0.
+// kSlowLoad — a blocking clear produces ~kSlowLoad, a non-blocking one ~0.
 constexpr auto kMustNotBlock = std::chrono::milliseconds(150);
 
 } // namespace
@@ -513,9 +513,8 @@ TEST_CASE("GCodeLayerCache clear waits for in-flight loads", "[gcode][cache][thr
     // Callers destroy the data source right after clear() (see
     // GCodeStreamingController::close()). A loader closure captures that source,
     // so clear() returning while a load is still running would leave the loader
-    // reading a freed file. Dropping the lock around loader() removed the
-    // implicit barrier that used to guarantee this; the explicit drain replaces
-    // it, and this pins it.
+    // reading a freed file. loader() runs without the lock, so only the
+    // explicit drain guarantees this, and this pins it.
     GCodeLayerCache cache(1024 * 1024);
 
     std::atomic<bool> load_running{false};

@@ -54,7 +54,9 @@ struct MoonrakerProbe {
     /// A bare answer, as a test's stand-in probe gives it.
     MoonrakerProbe(bool found = false) : moonraker(found) {}
 
-    bool moonraker = false;   ///< Moonraker answered
+    bool moonraker = false; ///< Moonraker answered
+    /// It answered 401 or 403: Moonraker behind its login, refusing this request.
+    bool login_required = false;
     std::string klippy_state; ///< Its `result.klippy_state`, when it gave one
     /// Why not, when it did not: nothing answered in time, the port refused, or something
     /// other than Moonraker answered (Unknown).
@@ -70,6 +72,11 @@ MoonrakerProbe read_server_info_response(const std::string& http_response);
 /// read_server_info_response(@p http_response).moonraker
 bool is_moonraker_server_info_response(const std::string& http_response);
 
+/// The GET /server/info request a probe sends, with @p api_key in Moonraker's key header
+/// when it is not empty.
+std::string server_info_request(const std::string& host, uint16_t port,
+                                const std::string& api_key = "");
+
 /**
  * @brief Ask @p host:@p port for /server/info over plain HTTP and read the answer
  *
@@ -81,7 +88,8 @@ bool is_moonraker_server_info_response(const std::string& http_response);
  */
 MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
                                     std::chrono::milliseconds connect_timeout,
-                                    std::chrono::milliseconds total_timeout);
+                                    std::chrono::milliseconds total_timeout,
+                                    const std::string& api_key = "");
 
 /// How hard a sweep pushes the network. lan_sweep_default_limits() gives each platform's.
 struct LanSweepLimits {
@@ -120,6 +128,9 @@ LanSweepWorkers start_lan_sweep_workers(size_t count, const LanSweepLimits& limi
 
 /// Blocking "is Moonraker on host:port" check; runs on a worker.
 using MoonrakerProbeFn = std::function<MoonrakerProbe(const std::string& host, uint16_t port)>;
+/// The same check sending an API key, which Test Connection may carry; empty sends none.
+using KeyedMoonrakerProbeFn = std::function<MoonrakerProbe(const std::string& host, uint16_t port,
+                                                           const std::string& api_key)>;
 /// How workers start; start_lan_sweep_workers() unless a test stands in.
 using StartWorkersFn =
     std::function<LanSweepWorkers(size_t, const LanSweepLimits&, std::function<void()>)>;
@@ -136,7 +147,11 @@ class MoonrakerConnectionTest {
   public:
     struct Result {
         bool reached = false;
-        int port = 0;             ///< Where Moonraker answered, when reached
+        int port = 0; ///< Where Moonraker answered, when reached
+        /// Moonraker answered but refused the request: it needs an API key, or the one
+        /// sent (key_sent) is wrong.
+        bool login_required = false;
+        bool key_sent = false;    ///< The test carried an API key
         std::string klippy_state; ///< What it said of Klipper, when it said
         std::vector<int> tried;   ///< The ports asked, in order
         ConnectFailureKind failure = ConnectFailureKind::Unknown; ///< The last port's, when not
@@ -150,8 +165,9 @@ class MoonrakerConnectionTest {
     MoonrakerConnectionTest(const MoonrakerConnectionTest&) = delete;
     MoonrakerConnectionTest& operator=(const MoonrakerConnectionTest&) = delete;
 
-    /// Main thread only.
-    void start(const std::string& host, std::vector<int> ports, DoneFn on_done);
+    /// Main thread only. A non-empty @p api_key goes to that host in Moonraker's key header.
+    void start(const std::string& host, std::vector<int> ports, DoneFn on_done,
+               const std::string& api_key = "");
     /// Main thread only. Does not wait for a running probe.
     void cancel();
     bool running() const {
@@ -173,15 +189,20 @@ class MoonrakerConnectionTest {
 
 /// Stand-ins every MoonrakerConnectionTest uses from its next start(); empty functions
 /// restore the real network.
-void set_connection_test_seams_for_test(MoonrakerProbeFn probe, StartWorkersFn start_workers);
+void set_connection_test_seams_for_test(KeyedMoonrakerProbeFn probe, StartWorkersFn start_workers);
 
 /// The translated status line for a failed test: the hint for @p kind, followed by the
 /// ports tried when there was more than one.
 std::string connect_failure_status(ConnectFailureKind kind, const std::vector<int>& ports_tried);
 
-/// The translated status line for a test that reached Moonraker at @p host.
+/// The translated status line for a test that reached Moonraker at @p host: what Klipper
+/// is doing, or that the printer needs an API key, or refused the one sent.
 std::string connection_test_status(const std::string& host,
                                    const MoonrakerConnectionTest::Result& result);
+
+/// Why @p api_key (already trimmed) cannot be used, translated, or empty when it can. A
+/// blank key is usable: it means the printer takes none.
+std::string api_key_problem(const std::string& api_key);
 
 /**
  * @brief An IMdnsDiscovery that sweeps the local /24 once per start

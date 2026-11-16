@@ -6,6 +6,7 @@
 #include "ui_ams_context_menu.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_insert_notice.h"
+#include "ui_widget_ref.h"
 
 #include "ams_tray_projection.h"
 #include "ams_types.h"
@@ -60,8 +61,9 @@ struct AmsDetailSlotResult {
     AmsSlotLayout layout;
 };
 
-AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[],
-                                            int max_slots, int unit_index, lv_event_cb_t click_cb,
+AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
+                                            helix::ui::WidgetRef slot_widgets[], int max_slots,
+                                            int unit_index, lv_event_cb_t click_cb,
                                             void* user_data);
 
 /**
@@ -70,7 +72,8 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w, lv_obj_t* slot_
  * @param slot_widgets Array of slot widget pointers to clear
  * @param slot_count  Number of slots to destroy (reset to 0)
  */
-void ams_detail_destroy_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int& slot_count);
+void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int& slot_count);
 
 /**
  * @brief Size tray to 1/4 of slot grid height (minimum 20px) with 3D box effect
@@ -79,8 +82,9 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
  * environment pill then stands beside the spools.
  * @param w Widget pointers — uses slot_grid height and positions slot_tray
  */
-void ams_detail_update_tray(AmsDetailWidgets& w, lv_obj_t* const slot_widgets[] = nullptr,
-                            int slot_count = 0, int unit_index = -1);
+void ams_detail_update_tray(AmsDetailWidgets& w,
+                            const helix::ui::WidgetRef slot_widgets[] = nullptr, int slot_count = 0,
+                            int unit_index = -1);
 
 /**
  * @brief Move material labels to overlay layer for 5+ overlapping slots
@@ -89,8 +93,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, lv_obj_t* const slot_widgets[] 
  * @param slot_count  Number of active slots
  * @param layout      Slot layout (width + overlap) from create_slots result
  */
-void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
-                              const AmsSlotLayout& layout);
+void ams_detail_update_labels(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int slot_count, const AmsSlotLayout& layout);
 
 /**
  * @brief Move slot badges to overlay layer so they render in front of the tray
@@ -99,8 +103,8 @@ void ams_detail_update_labels(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int
  * @param slot_count  Number of active slots
  * @param layout      Slot layout (width + overlap) from create_slots result
  */
-void ams_detail_update_badges(AmsDetailWidgets& w, lv_obj_t* slot_widgets[], int slot_count,
-                              const AmsSlotLayout& layout);
+void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
+                              int slot_count, const AmsSlotLayout& layout);
 
 /**
  * @brief Configure a path canvas from backend state
@@ -152,6 +156,9 @@ void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
 
+/// Whether a unit reports temperature, humidity or a dryer, which means it is closed up.
+bool unit_reports_climate(int unit_index);
+
 /// The box, lid and lane lids the last ams_detail_update_tray() laid out,
 /// relative to the slot_container. False when no box is drawn.
 bool ams_detail_tray_geometry(tray::TrayBox& box, tray::LidMode& lid, float& lid_height,
@@ -172,16 +179,24 @@ struct BufferBoxState {
 /// the system-level reading (buffer_reading(info, -1)).
 BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index);
 
+/// A unit's lane whose filament has gone furthest along its path; global -1 when none has any.
+struct UnitLane {
+    int global = -1;
+    PathSegment segment = PathSegment::NONE;
+    uint32_t color = 0;
+};
+UnitLane unit_furthest_lane(const AmsBackend& backend, const AmsUnit& unit);
+
 /**
  * @brief Disable the slot widgets of bays in an absent unit, enable the rest
  *
  * Runs on every slot refresh: a box leaving or rejoining the chain changes no
  * slot count, so no rebuild would otherwise pick it up.
  */
-void ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_count);
+void ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_count);
 
 /// The same, for a caller that already holds the system info.
-void ams_detail_sync_slot_states(lv_obj_t* slot_widgets[], int slot_count,
+void ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_count,
                                  const AmsSystemInfo& info);
 
 /**

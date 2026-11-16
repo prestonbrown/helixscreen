@@ -10,11 +10,11 @@
 
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_settings_about.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_temperature_source.h"
 #include "hardware_setup_prompter.h"
 #include "power_device_state.h"
@@ -143,6 +143,12 @@ void manual_probe_autoopen_step(DiscoveryContext& ctx) {
         int probe_active =
             lv_subject_get_int(ps.calibration_state().get_manual_probe_active_subject());
         spdlog::info("[Application] Checking manual_probe at startup: is_active={}", probe_active);
+        if (probe_active == 1 && ps.profile_state().z_offset_reapplied_per_head()) {
+            // Accepting there ends in an absolute offset on the mounted head.
+            spdlog::info("[Application] Manual probe active at startup, not opening Z-Offset "
+                         "Calibration: this printer applies each head's own Z offset at pickup");
+            return;
+        }
         if (probe_active == 1) {
             spdlog::info("[Application] Manual probe active at startup, auto-opening "
                          "Z-Offset Calibration");

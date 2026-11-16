@@ -21,6 +21,7 @@
  */
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"
@@ -49,11 +50,11 @@ constexpr const char* kFixtureXml = R"(<component>
 
 /// The bind's subject. Registered into the global XML scope once; the value is
 /// per-test state, so every test sets it before creating the component.
-lv_subject_t& mode_subject() {
-    static lv_subject_t subject;
+helix::Subject& mode_subject() {
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
-        lv_subject_init_int(&subject, 0);
+        subject.init_int(0);
         lv_xml_register_subject(nullptr, kModeSubject, &subject);
         registered = true;
     }

@@ -142,10 +142,9 @@ bool commit_calibration_result(ICalibrationSink* sink, const TouchCalibration& c
 /// Centralizing it guarantees the one invariant that matters: however a session
 /// ends — accepted, cancelled, timed out, or dismissed by navigating away — the
 /// affine transform is re-enabled, so an aborted recalibration never leaves
-/// touch uncalibrated until the next reboot (prestonbrown/helixscreen#943). The
-/// Settings overlay previously re-enabled the affine only in cleanup(), which
-/// the navigation stack never calls on a plain dismiss, so a failed recalibrate
-/// left the panel's touch input disabled until a restart.
+/// touch uncalibrated until the next reboot (prestonbrown/helixscreen#943).
+/// Re-enabling only in an overlay's cleanup() is not enough: the navigation
+/// stack never calls it on a plain dismiss.
 class TouchCalibrationSession {
   public:
     /// Snapshot the calibration and evdev range active now and disable the affine transform so

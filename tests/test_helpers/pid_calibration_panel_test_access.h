@@ -35,6 +35,9 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
+    static std::vector<helix::system::ConfigEdit> mpc_migration_edits(PIDCalibrationPanel& p) {
+        return p.control_migration_edits(PIDCalibrationPanel::CalibMethod::MPC);
+    }
 };
 
 } // namespace ui

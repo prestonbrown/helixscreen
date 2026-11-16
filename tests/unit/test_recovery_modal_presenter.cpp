@@ -1,14 +1,25 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_cold_pull_overlay.h"
+#include "ui_guided_device_flow.h"
+#include "ui_nav_manager.h"
+#include "ui_utils.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../test_helpers/scoped_shared_resource.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "cold_pull_runner.h"
+#include "core/update_queue.h"
+#include "display_wake_request.h"
+#include "error_classify.h"
 #include "gcode_response_routing.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -483,7 +494,7 @@ lv_obj_t* fault_button(const char* name) {
 }
 
 bool shown(lv_obj_t* obj) {
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 
 bool painted(lv_obj_t* btn, StyleRole role) {
@@ -550,19 +561,31 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault button sends its own gcode and
     CHECK_FALSE(presenter().is_visible());
 }
 
-TEST_CASE_METHOD(RecoveryPreheatFixture, "A dismiss-only fault button closes and sends nothing",
-                 "[error-center][recovery-presenter][1838]") {
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "A requires_homed recovery sends only while the toolhead is still homed",
+                 "[error-center][recovery-presenter][ad5x]") {
     helix::ErrorEvent fault = make_afc_jam();
-    fault.recovery_actions = {{"OK", "", "t::dismiss", ""}};
-    presenter().present(fault);
-    process_lvgl(20);
-    CHECK_FALSE(shown(fault_button("btn_secondary")));
+    helix::RecoveryAction load{"Load", "INSERT_PRUTOK_IFS PRUTOK=1", "ifs::load", "primary"};
+    load.requires_homed = true;
+    fault.recovery_actions = {load, {"Resume", "RESUME", "t::resume", ""}};
 
-    press("btn_primary");
-    process_lvgl(20);
-    CHECK(mock_client_.gcode_script_history().empty());
-    CHECK_FALSE(presenter().is_visible());
-    CHECK(TA::handled_detail(presenter()) == fault.detail);
+    SECTION("homed: sent") {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", "xyz"}}}});
+        presenter().present(fault);
+        process_lvgl(20);
+        TA::tap(presenter(), "INSERT_PRUTOK_IFS PRUTOK=1");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "INSERT_PRUTOK_IFS") == 1);
+    }
+    SECTION("homing lost since the dialog was built: refused") {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
+        presenter().present(fault);
+        process_lvgl(20);
+        TA::tap(presenter(), "INSERT_PRUTOK_IFS PRUTOK=1");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "INSERT_PRUTOK_IFS") == 0);
+    }
+    get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
 }
 
 TEST_CASE_METHOD(RecoveryPreheatFixture, "ESC closes the fault without running an action",
@@ -625,6 +648,29 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A Klipper action:prompt macro keeps th
     process_lvgl(20);
 }
 
+TEST_CASE_METHOD(RecoveryPreheatFixture, "An action prompt wakes the display",
+                 "[recovery-presenter][action_prompt][2037]") {
+    int wakes = 0;
+    helix::set_display_wake_handler([&wakes] { ++wakes; });
+    helix::GcodeResponseRouting routing;
+    routing.attach(&mock_client_, &api_);
+    helix::ActionPromptManager* prompts = routing.action_prompt_manager();
+    REQUIRE(prompts != nullptr);
+
+    prompts->process_line("// action:prompt_begin Purge done?");
+    prompts->process_line("// action:prompt_button Yes|RESPOND|primary");
+    CHECK(wakes == 0);
+    prompts->process_line("// action:prompt_show");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(wakes == 1);
+
+    helix::set_display_wake_handler(nullptr);
+    routing.detach_handlers(&mock_client_);
+    routing.release_routers();
+    helix::ActionPromptManager::set_instance(nullptr);
+    process_lvgl(20);
+}
+
 TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault with no actions offers OK to close it",
                  "[error-center][recovery-presenter][1838]") {
     helix::ErrorEvent fault = make_afc_jam();
@@ -643,4 +689,74 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault with no actions offers OK to c
     CHECK(mock_client_.gcode_script_history().empty());
     CHECK_FALSE(presenter().is_visible());
     CHECK(TA::handled_detail(presenter()) == fault.detail);
+}
+
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "The clog alert's Cold Pull opens the cold pull flow, which keeps its refusals",
+                 "[error-center][recovery-presenter][cold_pull]") {
+    auto& st = get_printer_state();
+    st.set_printer_connection_state(2, "Connected");
+    st.temperature_state().init_extruders({"extruder"});
+    helix_test::ScopedSharedResource<helix::ui::ColdPullRunner> runner(
+        std::make_shared<helix::ui::ColdPullRunner>(st));
+    runner.get().init_subjects();
+    struct FlowRegistration {
+        FlowRegistration() {
+            helix::ui::register_cold_pull_flow();
+        }
+        ~FlowRegistration() {
+            helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
+            NavigationManager::instance().go_back();
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+            helix::ui::destroy_static_panels();
+        }
+    } registration;
+
+    auto clog = helix::error_classify::classify(
+        R"(!! {"code":"key845","msg":"Nozzle clog","values":[]})", {});
+    REQUIRE(clog.has_value());
+    auto refusal = [] {
+        return static_cast<helix::ui::ColdPullRefusal>(
+            lv_subject_get_int(lv_xml_get_subject(nullptr, "cold_pull_refusal")));
+    };
+    // A value no section expects, so a tap that never reached Setup shows.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "cold_pull_refusal"),
+                       static_cast<int>(helix::ui::ColdPullRefusal::Running));
+    auto tap = [&](const char* button) {
+        presenter().present(*clog);
+        process_lvgl(20);
+        using Catch::Matchers::StartsWith;
+        CHECK_THAT(helix::test::subtree_text(fault_button("btn_primary")), StartsWith("Cold Pull"));
+        CHECK_THAT(helix::test::subtree_text(fault_button("btn_secondary")), StartsWith("OK"));
+        press(button);
+        process_lvgl(20);
+        CHECK_FALSE(presenter().is_visible());
+    };
+
+    SECTION("idle: the flow opens at Setup ready to start, and the tap sends nothing") {
+        tap("btn_primary");
+        CHECK(helix::ui::get_cold_pull_overlay().is_visible());
+        CHECK(refusal() == helix::ui::ColdPullRefusal::Ok);
+        CHECK(mock_client_.gcode_script_history().empty());
+    }
+    SECTION("a paused print: Setup shows the refusal and Start heats nothing") {
+        helix::test::set_wire_state(st, helix::PrintJobState::PAUSED);
+        tap("btn_primary");
+        CHECK(refusal() == helix::ui::ColdPullRefusal::JobHoldsMachine);
+        CHECK(runner.get().start_from_setup() == helix::ui::ColdPullRefusal::JobHoldsMachine);
+        process_lvgl(20);
+        CHECK(mock_client_.gcode_script_history().empty());
+        helix::test::set_wire_state(st, helix::PrintJobState::STANDBY);
+    }
+    SECTION("OK, or a flow nobody registered: the alert closes, answered, opening nothing") {
+        const bool ok = GENERATE(true, false);
+        if (!ok) {
+            helix::ui::unregister_guided_device_flow(helix::kColdPullFlowId);
+        }
+        tap(ok ? "btn_secondary" : "btn_primary");
+        CHECK_FALSE(helix::ui::get_cold_pull_overlay().is_visible());
+        CHECK(refusal() == helix::ui::ColdPullRefusal::Running);
+        CHECK(mock_client_.gcode_script_history().empty());
+        CHECK(TA::handled_detail(presenter()) == clog->detail);
+    }
 }

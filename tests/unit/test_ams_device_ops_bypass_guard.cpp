@@ -24,24 +24,26 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
+#include "ui_notification.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/chaining_mock_backend.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -187,7 +189,7 @@ class DeviceOpsBypassFixture : public LVGLUITestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(10);
     }
 
@@ -278,18 +280,40 @@ TEST_CASE_METHOD(DeviceOpsBypassFixture,
     tap(toggle);
 
     // THE REGRESSION ASSERTION: the handler ran its own print guard, so nothing
-    // reached the firmware. Pre-fix this handler called enable_bypass() directly.
+    // reached the firmware: this handler must not call enable_bypass() directly.
     CHECK_FALSE(backend->is_bypass_active());
     // ...and the switch does not sit there claiming bypass is on.
     CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
 }
 
 TEST_CASE_METHOD(DeviceOpsBypassFixture,
+                 "Closing Device Operations mid-chain says the bypass was canceled",
+                 "[ui_integration][ams][bypass-device-ops]") {
+    std::vector<std::string> surfaced;
+    helix::ui::set_test_notification_event_hook(
+        [&surfaced](const helix::ui::NotificationEvent& e) { surfaced.push_back(e.message); });
+
+    lv_obj_t* toggle = show_and_find_toggle();
+    backend->close_gate();
+    tap(toggle);
+
+    // The tree goes only when the slide-out animation ends.
+    NavigationManager::instance().go_back();
+    for (int i = 0; i < 20; ++i) {
+        settle();
+        process_lvgl(50);
+    }
+    helix::ui::set_test_notification_event_hook(nullptr);
+
+    CHECK(std::find(surfaced.begin(), surfaced.end(), "Bypass canceled") != surfaced.end());
+}
+
+TEST_CASE_METHOD(DeviceOpsBypassFixture,
                  "Device Operations bypass switch unloads the lane before enabling",
                  "[ui_integration][ams][bypass-device-ops]") {
     // The mock boots with slot 0 loaded, and its enable_bypass() has no
-    // filament-loaded refusal of its own — the same shape as AD5X IFS. Pre-fix
-    // the tap below enabled bypass on the spot and left this lane's filament
+    // filament-loaded refusal of its own — the same shape as AD5X IFS. Enabling
+    // bypass on the spot for the tap below would leave this lane's filament
     // stranded behind the external feed, which is what the #1229 chaining
     // discipline exists to prevent.
     REQUIRE(backend->get_system_info().filament_loaded);

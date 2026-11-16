@@ -8,13 +8,14 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/text_io.h"
 #include "i_moonraker_client.h"
 #include "lap_log.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "sound_manager.h"
-#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
@@ -59,9 +60,23 @@ void forget_previous_printer() {
         neutral[name] = {{"temperature", 0.0}, {"target", 0.0}};
     }
     ps.update_from_status(neutral);
+    // Chamber air controls follow a provider the new printer may not have.
+    ps.chamber_air().set_hardware(PrinterDiscovery{});
 
     if (PrintHistoryManager* history = get_print_history_manager()) {
         history->forget_printer();
+    }
+}
+
+/// Writes @p api_key to the printer entry at @p entry_path ("/printers/<id>/").
+void store_api_key(const std::string& entry_path, const std::string& api_key) {
+    Config* config = Config::get_instance();
+    const std::string_view key = text_io::trim(api_key);
+    // false, not "": the shape a printer with no key has from its defaults.
+    if (key.empty()) {
+        config->set(entry_path + "moonraker_api_key", false);
+    } else {
+        config->set(entry_path + "moonraker_api_key", std::string(key));
     }
 }
 
@@ -87,6 +102,14 @@ moonraker_auth::Credential active_printer_credential(const std::string& default_
         c.api_key = std::string(text_io::trim(key->get<std::string>()));
     }
     return c;
+}
+
+void set_printer_api_key(const std::string& printer_id, const std::string& api_key) {
+    store_api_key("/printers/" + printer_id + "/", api_key);
+}
+
+void set_active_printer_api_key(const std::string& api_key) {
+    store_api_key(Config::get_instance()->df(), api_key);
 }
 
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
@@ -125,6 +148,8 @@ bool retarget_printer_connection() {
     // The old printer's queued frames apply now rather than on top of the new printer.
     LapLog laps("PrinterRetarget");
     get_moonraker_manager()->process_notifications();
+    // Telemetry still held belongs to the old printer.
+    get_moonraker_manager()->discard_held_status();
     laps.lap("drain notifications");
 
     AmsState::instance().clear_backends();

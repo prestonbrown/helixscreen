@@ -219,7 +219,7 @@ bool bed_mesh_renderer_has_data(const bed_mesh_renderer_t* renderer);
  * The mesh bounds define where probing occurred (mesh is rendered within these).
  *
  * Call this AFTER set_mesh_data() to position the mesh correctly within the bed.
- * If not called, mesh bounds are used for both (legacy behavior).
+ * If not called, mesh bounds are used for both.
  *
  * @param renderer Renderer instance
  * @param bed_x_min Full bed minimum X coordinate

@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "ipv4_config.h"
+#include "link_events.h"
 #include "wifi_interface.h"
 
 #include <cstdint>
@@ -208,6 +210,24 @@ int wifi_signal_percent_from_dbm(int dbm);
  */
 std::optional<bool> wifi_parse_nm_radio_state(const std::string& output);
 
+namespace helix::wifi {
+
+/// What one nmcli GENERAL.STATE value says about the link.
+struct NmDeviceState {
+    bool connected{false};    ///< Joined: 70 (getting IP configuration) to 100 (connected)
+    bool getting_ipv4{false}; ///< 70 (connecting (getting IP configuration))
+};
+
+/**
+ * @brief Parse nmcli's GENERAL.STATE value ("100 (connected)")
+ *
+ * States 70 to 100 count as connected, the way wpa_supplicant's COMPLETED
+ * does: the radio has joined; at 70 the address is still outstanding.
+ */
+NmDeviceState wifi_parse_nm_device_state(const std::string& value);
+
+} // namespace helix::wifi
+
 /**
  * @brief WiFi network information
  */
@@ -255,8 +275,11 @@ std::vector<WiFiNetwork> wifi_merge_networks_by_ssid(const std::vector<WiFiNetwo
  * - Provide async operations with event-based completion
  * - Thread-safe operations where needed
  * - Clean error handling with meaningful messages
+ *
+ * IPv4 configuration comes from helix::net::Ipv4Configurable; its get/apply
+ * BLOCK and run on WiFiManager's control lane.
  */
-class WifiBackend {
+class WifiBackend : public helix::net::Ipv4Configurable {
   public:
     virtual ~WifiBackend() = default;
 
@@ -271,6 +294,9 @@ class WifiBackend {
         std::string mac_address; ///< Device WiFi adapter MAC address
         int signal_strength{0};  ///< Signal strength (0-100%)
         int frequency_mhz{0};    ///< Connected frequency in MHz (0 = unknown)
+        /// Joined, but no IPv4 address yet (DHCP still pending). Only with
+        /// connected, and ip_address is empty while it is set.
+        bool awaiting_ipv4{false};
         /// Set by WiFiManager, never by a backend: the control interface has
         /// stopped answering, and the fields above are the last answer it gave.
         bool unresponsive{false};
@@ -464,9 +490,8 @@ class WifiBackend {
      * @brief Enable or disable the WiFi radio itself
      *
      * Distinct from stop(), which only detaches this process from the WiFi
-     * subsystem. Before this existed the UI toggle called stop() and the
-     * station stayed associated and routed — a debug bundle uploaded over a
-     * connection the UI was reporting as off (9GQXV5VN, v0.99.106).
+     * subsystem. A UI toggle that only called stop() would leave the station
+     * associated and routed while the UI reports the radio as off.
      *
      * Implementations should stop association and, where the platform exposes
      * an rfkill switch, soft-block the radio. They must NOT take the network
@@ -615,6 +640,18 @@ class WifiBackend {
      * @return ConnectionStatus struct with current state
      */
     virtual ConnectionStatus get_status() = 0;
+
+    /**
+     * @brief Where an address gained or lost is announced
+     *
+     * For backends whose get_status() reads live state: WiFiManager watches
+     * this while a status says awaiting_ipv4, and re-reads on each event.
+     *
+     * @return nullptr when nothing announces it
+     */
+    virtual std::unique_ptr<helix::net::LinkEvents> open_address_events() {
+        return nullptr;
+    }
 
     /**
      * @brief Check if WiFi hardware supports 5GHz band

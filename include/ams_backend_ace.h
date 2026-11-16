@@ -5,7 +5,9 @@
 #if HELIX_HAS_ACE
 
 #include "ace_slot_parse.h"
+#include "ace_status_parse.h"
 #include "ams_bypass_policy.h"
+#include "ams_dryer.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "filament_slot_override.h"
@@ -57,8 +59,15 @@ namespace helix {
  */
 class AceTestAccess;
 
-class AmsBackendAce : public AmsSubscriptionBackend {
+class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendAce(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~AmsBackendAce() override;
@@ -147,30 +156,28 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     // Configuration
     // ========================================================================
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
+    /// Without the ACEPRO driver no edit reaches the hub, so the lane record
+    /// is a lane's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override;
 
     /// A bay's last identified tag read (rfid true, or 2): material, colour and
     /// the temperatures the frame carried. Dropped when the bay empties or a
     /// finished read finds no tag.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
 
-    // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
-    // in the AMS edit modal). Erases overrides_[slot_index], resets the
-    // override-exclusive fields on the live SlotInfo, and fires
-    // override_store_->clear_async. ACE firmware doesn't populate brand /
-    // spool_name / spoolman_* / weights / color_name — those are override-only,
-    // so they're all zeroed. Color/material come from firmware so they stay.
-    // The hardware-event detector calls this internally once an EMPTY -> present
-    // transition confirms a physical swap.
+    /// Clear Spool's lane half; on ACEPRO it waits for the hub's own clear
+    /// when one is still out.
     void clear_slot_override(int slot_index) override;
+
+    // clear_slot_override()'s ACE half: the user's temperature claims go with
+    // the override. ACE firmware doesn't populate brand / spool_name /
+    // spoolman_* / weights / color_name, so the base clears them all; colour and
+    // material come from firmware and stay. The hardware-event detector runs the
+    // clear once an EMPTY -> present transition confirms a physical swap.
+    void after_override_cleared_locked(int slot_index, SlotInfo& slot) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
-    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
     // Nothing here can re-aim a tool: the backend declares RemapStrategy::None
     // and owns no editable tool->slot table.
@@ -256,7 +263,8 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     void on_stopping() override;
 
     // ========================================================================
-    // Response Parsing (protected for unit testing)
+    // Response handling (protected for unit testing): each reads its payload
+    // through helix::ace (ace_status_parse.h) and applies it under mutex_.
     // ========================================================================
 
     /**
@@ -298,18 +306,36 @@ class AmsBackendAce : public AmsSubscriptionBackend {
   private:
     friend class AceTestAccess;
 
-    /// Keep or drop bay @p slot_index's tag reading from one frame's slot entry:
-    /// its decoded @p tag_read, the frame's @p material and @p color, its
-    /// temp_min / temp_max, and @p present. Caller holds mutex_.
-    void note_tag_frame_locked(int slot_index, helix::ace::TagRead tag_read,
-                               const nlohmann::json& slot_json,
-                               const std::optional<std::string>& material,
-                               const std::optional<uint32_t>& color, std::optional<bool> present);
+    /// Apply one object's parsed delta to unit @p unit (see parse_ace_object).
+    /// Caller holds mutex_.
+    void apply_ace_object_locked(const helix::ace::ObjectDelta& d, int unit);
 
-    /// Lay the REST bridge's temp_min / temp_max onto @p slot, unless a user
-    /// edit moved the slot's temperatures this session. Caller holds mutex_.
+    /// Keep or drop bay @p slot_index's tag reading from one frame's slot
+    /// @p entry (its tag read, material, colour and temperatures) and
+    /// @p present. Caller holds mutex_.
+    void note_tag_frame_locked(int slot_index, const helix::ace::SlotDelta& entry,
+                               std::optional<bool> present);
+
+    /// File @p hub as @p slot_index's Firmware reading. On a driver that
+    /// stores no edit (anything but ACEPRO) the colour, material and brand the
+    /// lane record states stand over the hub's memory. Caller holds mutex_.
+    void file_hub_reading_locked(int slot_index, helix::ams::Observation& hub);
+
+    /// Put an edit that went through onto the live slot, marking its
+    /// temperatures the user's when it moved them. Takes mutex_.
+    void apply_edit_to_slot(int slot_index, const SlotInfo& info);
+
+    /// The ACE_SET_SLOT command writing @p info to @p slot_index's ACEPRO
+    /// inventory entry (EMPTY=1 for an edit naming no material and no colour),
+    /// or "" when the edit lacks the material or nozzle temperature the
+    /// command requires. Takes mutex_ (slot_command()); call without it.
+    [[nodiscard]] std::string set_slot_gcode(int slot_index, const SlotInfo& info) const;
+
+    /// Lay the hub's temperatures (temp_min / temp_max, or the ACEPRO
+    /// driver's single `temp`) onto @p slot, unless a user edit moved the
+    /// slot's temperatures this session. Caller holds mutex_.
     void apply_hub_temps_locked(int slot_index, SlotInfo& slot,
-                                const nlohmann::json& slot_json) const;
+                                const helix::ace::SlotDelta& entry) const;
 
     /// Clear user_temps_ for @p slot_index. Caller holds mutex_.
     void forget_user_temps_locked(int slot_index);
@@ -443,7 +469,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// every unit, which all feed that one hub. A frame stating neither leaves
     /// the last reading standing: notify frames carry only changed fields, so
     /// silence is not a cleared sensor. Caller holds mutex_.
-    void apply_path_sensors_locked(const nlohmann::json& data);
+    void apply_path_sensors_locked(const helix::ace::PathSensors& sensors);
 
     /// Seat the loaded tool from the ACEPRO manager's `current_index` — the
     /// driver's tool number, -1 = nothing loaded. A tool no known slot carries
@@ -521,7 +547,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// clears, so the path stays on the outgoing lane while it retracts.
     /// Caller holds mutex_; parse the path sensors first.
     /// @return true when pending_target_slot or action changed
-    bool apply_target_index_locked(const nlohmann::json& data);
+    bool apply_target_index_locked(std::optional<int> target_index);
 
     /// Seat the loaded tool from a slot index (loaded_slot, the ValgACE
     /// "loaded" scan, current_filament's parsed local index): -1 clears,
@@ -623,11 +649,8 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// Consecutive data-endpoint (/status) failures before surfacing the
     /// "Moonraker bridge not found" error (genuinely-missing-bridge case).
     static constexpr int kMaxDataFetchFailures = 3;
-    /// An ACE Pro or ACE 2 has four slots; the ACEPRO driver numbers tools four per unit.
-    static constexpr int kSlotsPerUnit = 4;
-    /// Far beyond any daisy chain; bounds what a malformed `ace_instance_N`
-    /// name can allocate.
-    static constexpr int kMaxUnits = 16;
+    static constexpr int kSlotsPerUnit = helix::ace::kSlotsPerUnit;
+    static constexpr int kMaxUnits = helix::ace::kMaxUnits;
 
     // Layer any configured FilamentSlotOverride for `slot_index` over `slot`,
     // mutating `slot` in place. Override wins for every non-default field;
@@ -676,6 +699,7 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     /// only refreshes slot_count when the slot count actually changes.
     /// Caller holds mutex_.
     SlotInfo* mutable_slot_locked(int slot_index);
+    SlotInfo* identity_slot_locked(int slot_index) override;
     /// Reads the slots the same way, so a read sees what a write through
     /// mutable_slot_locked() left.
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {
@@ -775,17 +799,10 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     helix::BypassMacros bypass_detected_;
     std::vector<std::string> bypass_macro_options_;
 
-    /// The driver's per-slot `park_state`. "parked" is a strand the driver left
-    /// staged short of the hub: after a sensor-verified unload or smart load, but
-    /// also after a fixed-length toolhead-only unload, which need not reach the
-    /// hub. "loaded" and "unknown" (also a missing field, and any string this
-    /// backend does not know) carry no staging claim.
-    enum class ParkState { Unknown, Parked, Loaded };
-    static ParkState park_state_from_json(const nlohmann::json& slot_json);
+    using ParkState = helix::ace::ParkState;
 
-    /// Records slot `index`'s park_state from a slot object. Returns whether it
-    /// changed. A slot that states none is Unknown.
-    bool note_park_state_locked(int index, const nlohmann::json& slot_json);
+    /// Records slot `index`'s park_state. Returns whether it changed.
+    bool note_park_state_locked(int index, ParkState state);
 
     /// An idle slot the driver parked draws staged at the hub: not the seated
     /// slot, no toolchange or load under way, filament present.
@@ -801,12 +818,6 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     bool path_sensors_seen_ = false;
     bool rdm_sensor_ = false;
     bool toolhead_sensor_ = false;
-
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
 
     // Previous slot status per slot index. Used as the insert-edge signal:
     // an EMPTY -> present transition runs the insert rule. Map presence also

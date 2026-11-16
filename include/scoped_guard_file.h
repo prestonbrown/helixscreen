@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/text_io.h"
 #include "helix_fs.h"
-#include "text_io.h"
 
 #include <string>
 #include <utility>

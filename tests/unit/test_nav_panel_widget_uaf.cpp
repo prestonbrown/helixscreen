@@ -20,11 +20,10 @@
  * delete between enqueue and drain.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/ui_nav_manager.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 
 #include <algorithm>
@@ -53,7 +52,7 @@ class NavPanelWidgetUafFixture : public LVGLTestFixture {
         NavigationManager::instance().set_panels(panels_);
 
         // Every slot must actually hold a widget, or a "no crash" result would
-        // be the null check passing rather than the fix working.
+        // be the null check passing rather than the guard working.
         for (int i = 0; i < kUiPanelCount; i++) {
             REQUIRE(NavigationManager::instance().get_panel_widget(static_cast<PanelId>(i)) ==
                     panels_[i]);
@@ -103,14 +102,14 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
     CHECK(std::find(stack.begin(), stack.end(), doomed) == stack.end());
 
     // The whole bug in one line: the sweep writes LV_OBJ_FLAG_HIDDEN through
-    // every non-null slot. Pre-fix the Settings slot still pointed at freed
-    // memory and lv_obj_add_flag() faulted on it.
+    // every non-null slot. A Settings slot still pointing at freed
+    // memory would make lv_obj_add_flag() fault on it.
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Home);
 
     // Surviving panels are untouched by the scrub and still get their flags.
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == false);
-    CHECK(lv_obj_has_flag(panel(PanelId::Controls), LV_OBJ_FLAG_HIDDEN) == true);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == false);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Controls)) == true);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,
@@ -129,11 +128,11 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
     CHECK(NavigationManager::instance().get_panel_widget(PanelId::Settings) == nullptr);
     CHECK(NavigationManager::instance().get_panel_widget(PanelId::Controls) == nullptr);
 
-    // Pre-fix this drain ran the sweep over two freed widgets: SIGSEGV inside
-    // lv_obj_add_flag().
+    // Unguarded, this drain would run the sweep over two freed widgets:
+    // SIGSEGV inside lv_obj_add_flag().
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == true);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == true);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,
@@ -153,7 +152,7 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
 
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Filament);
-    CHECK(lv_obj_has_flag(replacement, LV_OBJ_FLAG_HIDDEN) == false);
+    CHECK(lv_obj_is_hidden(replacement) == false);
 
     // A widget registered only through replace_panel_widget() needs the same
     // protection as one registered through set_panels().
@@ -162,7 +161,7 @@ TEST_CASE_METHOD(NavPanelWidgetUafFixture,
 
     NavigationManagerTestAccess::handle_active_panel_change(NavigationManager::instance(),
                                                             PanelId::Home);
-    CHECK(lv_obj_has_flag(panel(PanelId::Home), LV_OBJ_FLAG_HIDDEN) == false);
+    CHECK(lv_obj_is_hidden(panel(PanelId::Home)) == false);
 }
 
 TEST_CASE_METHOD(NavPanelWidgetUafFixture,

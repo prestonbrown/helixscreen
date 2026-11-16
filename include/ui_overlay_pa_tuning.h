@@ -5,13 +5,14 @@
 
 #include "ui_head_picker.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_tuning.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "tool_state.h"
 
@@ -176,6 +177,8 @@ class PaTuningOverlay : public OverlayBase {
     void set_kind(helix::pa::ExtruderKind kind);
     void adjust_ramp_k(bool start, int direction);
     void confirm_and_start();
+    /// confirm_and_start() once the bed is known clear.
+    void confirm_once_bed_clear();
     /// Confirm-dialog options whose callbacks die with this object.
     ConfirmOptions owned_confirm();
     void begin_upload();
@@ -253,48 +256,48 @@ class PaTuningOverlay : public OverlayBase {
 
     SubjectManager subjects_;
 
-    lv_subject_t stage_subject_{};
-    lv_subject_t preset_selected_[kPresetSlots]{};
-    lv_subject_t preset_temp_[kPresetSlots]{};
+    helix::Subject stage_subject_{};
+    helix::Subject preset_selected_[kPresetSlots]{};
+    helix::Subject preset_temp_[kPresetSlots]{};
     char preset_temp_buf_[kPresetSlots][24] = {};
-    lv_subject_t kind_subject_{};
-    lv_subject_t start_k_{};
+    helix::Subject kind_subject_{};
+    helix::Subject start_k_{};
     char start_k_buf_[16] = {};
-    lv_subject_t end_k_{};
+    helix::Subject end_k_{};
     char end_k_buf_[16] = {};
-    lv_subject_t summary_{};
+    helix::Subject summary_{};
     char summary_buf_[384] = {};
-    lv_subject_t can_start_{};
+    helix::Subject can_start_{};
 
-    lv_subject_t k_big_{};
+    helix::Subject k_big_{};
     char k_big_buf_[16] = {};
-    lv_subject_t layer_text_{};
+    helix::Subject layer_text_{};
     char layer_text_buf_[64] = {};
-    lv_subject_t mode_text_{};
+    helix::Subject mode_text_{};
     char mode_text_buf_[96] = {};
-    lv_subject_t manual_{};
-    lv_subject_t step_idx_subject_{};
+    helix::Subject manual_{};
+    helix::Subject step_idx_subject_{};
 
-    lv_subject_t band_count_{};
-    lv_subject_t band_range_[kMaxBands]{};
+    helix::Subject band_count_{};
+    helix::Subject band_range_[kMaxBands]{};
     char band_range_buf_[kMaxBands][40] = {};
-    lv_subject_t band_k_[kMaxBands]{};
+    helix::Subject band_k_[kMaxBands]{};
     char band_k_buf_[kMaxBands][16] = {};
-    lv_subject_t band_selected_[kMaxBands]{};
-    lv_subject_t keep_selected_{};
-    lv_subject_t keep_text_{};
+    helix::Subject band_selected_[kMaxBands]{};
+    helix::Subject keep_selected_{};
+    helix::Subject keep_text_{};
     char keep_text_buf_[48] = {};
-    lv_subject_t has_pick_{};
+    helix::Subject has_pick_{};
 
-    lv_subject_t result_k_{};
+    helix::Subject result_k_{};
     char result_k_buf_[16] = {};
-    lv_subject_t result_note_{};
+    helix::Subject result_note_{};
     char result_note_buf_[192] = {};
-    lv_subject_t spoolman_text_{};
+    helix::Subject spoolman_text_{};
     char spoolman_text_buf_[160] = {};
-    lv_subject_t can_save_spool_{};
+    helix::Subject can_save_spool_{};
 
-    lv_subject_t error_{};
+    helix::Subject error_{};
     char error_buf_[192] = {};
 
     ObserverGuard print_state_observer_;

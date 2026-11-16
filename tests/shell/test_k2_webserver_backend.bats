@@ -218,9 +218,11 @@ redirected_init_script() {
 # A fake web-server that records its launch, notes its pid, and stays alive
 # long enough for lifecycle assertions. It takes a second to exit on SIGTERM,
 # the way a real server does under load, so a stop that does not wait for the
-# exit is caught every run instead of once in a while.
+# exit is caught every run instead of once in a while. It closes bats' output
+# fd 3, which bats waits on before ending the file, and takes its sleep down
+# with it, so an instance outliving its test costs the run nothing.
 write_fake_webserver() {
-    printf '#!/bin/sh\necho $$ > "%s/webserver.pid"\necho "launched web-server" >> "%s/servers.log"\ntrap "sleep 1; exit 0" TERM\nsleep 30 & wait\n' \
+    printf '#!/bin/sh\nexec 3>&-\necho $$ > "%s/webserver.pid"\necho "launched web-server" >> "%s/servers.log"\ntrap "kill \\$! 2>/dev/null; sleep 1; exit 0" TERM\nsleep 30 & wait\n' \
         "$BATS_TEST_TMPDIR" "$BATS_TEST_TMPDIR" \
         > "$MOCK_ROOT/usr/bin/web-server"
     chmod +x "$MOCK_ROOT/usr/bin/web-server"

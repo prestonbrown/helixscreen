@@ -5,8 +5,8 @@
 #include "bt_print_utils.h"
 
 #include "bluetooth_loader.h"
+#include "core/log_redact.h"
 #include "label_printer_settings.h"
-#include "log_redact.h"
 
 #include <spdlog/spdlog.h>
 

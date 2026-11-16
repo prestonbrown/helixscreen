@@ -192,3 +192,53 @@ TEST_CASE("moonraker auth: the active printer's saved key", "[moonraker-auth]") 
 
     printer = saved;
 }
+
+TEST_CASE("moonraker auth: a plausible key is 32 hex digits", "[moonraker-auth][api-key]") {
+    CHECK(is_plausible_api_key("0123456789abcdef0123456789abcdef"));
+    CHECK(is_plausible_api_key("0123456789ABCDEF0123456789ABCDEF"));
+    CHECK_FALSE(is_plausible_api_key(""));
+    CHECK_FALSE(is_plausible_api_key("0123456789abcdef0123456789abcde"));
+    CHECK_FALSE(is_plausible_api_key("0123456789abcdef0123456789abcdef0"));
+    CHECK_FALSE(is_plausible_api_key("0123456789abcdef0123456789abcdeg"));
+    CHECK_FALSE(is_plausible_api_key(" 123456789abcdef0123456789abcdef"));
+}
+
+TEST_CASE("moonraker auth: a refused login is recognized and reported once per credential",
+          "[moonraker-auth][api-key]") {
+    CredentialGuard guard;
+    CHECK(is_unauthorized_error(401, ""));
+    CHECK(is_unauthorized_error(0, "Unauthorized"));
+    CHECK(is_unauthorized_error(-32000, "unauthorized"));
+    CHECK_FALSE(is_unauthorized_error(403, "Forbidden"));
+    CHECK_FALSE(is_unauthorized_error(-32601, "Method not found"));
+
+    set_credential({"printer.lan", 7125, ""});
+    CHECK_FALSE(unauthorized());
+    CHECK(mark_unauthorized());
+    CHECK(unauthorized());
+    // A reconnect with the same credential is refused the same way; one report covers it.
+    CHECK_FALSE(mark_unauthorized());
+
+    // The next connect attempt has not been refused yet.
+    set_credential({"printer.lan", 7125, "0123456789abcdef0123456789abcdef"});
+    CHECK_FALSE(unauthorized());
+    CHECK(mark_unauthorized());
+}
+
+TEST_CASE("moonraker auth: the key is set on the active printer's entry only",
+          "[moonraker-auth][api-key]") {
+    Config* config = Config::get_instance();
+    const std::string df = config->df();
+    nlohmann::json& printer = config->get_json(df.substr(0, df.size() - 1));
+    const nlohmann::json saved = printer;
+
+    set_active_printer_api_key("  0123456789abcdef0123456789abcdef ");
+    CHECK(printer["moonraker_api_key"] == "0123456789abcdef0123456789abcdef");
+    CHECK(active_printer_credential().api_key == "0123456789abcdef0123456789abcdef");
+
+    set_active_printer_api_key("   ");
+    CHECK(printer["moonraker_api_key"] == false);
+    CHECK(active_printer_credential().api_key.empty());
+
+    printer = saved;
+}

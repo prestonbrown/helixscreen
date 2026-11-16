@@ -228,11 +228,12 @@
       <!-- ================================================================== -->
       <!-- MAX Z VELOCITY (read-only) -->
       <!-- ================================================================== -->
-      <setting_info_row name="row_max_z_velocity" label="Max Z Velocity" icon="axis_z_arrow" value="--"/>
+      <setting_info_row name="row_max_z_velocity"
+                        label="Max Z Velocity" icon="axis_z_arrow" bind_value="max_z_velocity_display"/>
       <!-- ================================================================== -->
       <!-- MAX Z ACCEL (read-only) -->
       <!-- ================================================================== -->
-      <setting_info_row name="row_max_z_accel" label="Max Z Accel" icon="axis_z_arrow" value="--"/>
+      <setting_info_row name="row_max_z_accel" label="Max Z Accel" icon="axis_z_arrow" bind_value="max_z_accel_display"/>
       <!-- Spacer to push buttons to bottom -->
       <lv_obj width="100%" flex_grow="1" scrollable="false"/>
     </lv_obj>

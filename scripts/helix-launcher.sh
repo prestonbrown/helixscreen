@@ -261,25 +261,32 @@ EOF
 # write or query, the glibc knobs the heap-diagnostic and arena blocks
 # document as overrides, and the launcher and app knobs docs/devel tells
 # users to set here (HELIX_OOM_SCORE_ADJ, HELIX_BOOT_RESPAWN_*,
-# HELIX_LOG_RING_LINES, HELIX_TOUCH_CAL_DEBOUNCE). A positive list on purpose: directory keys such as
+# HELIX_LOG_RING_LINES, HELIX_TOUCH_CAL_DEBOUNCE), and the display, screensaver
+# and sound tunables docs/devel/ENVIRONMENT_VARIABLES.md documents for a device
+# (each a number or a word the app range-checks itself). A positive list on purpose: directory keys such as
 # HELIX_DATA_DIR (the app chdirs there and dlopens plugins from it) and
 # HELIX_CONFIG_DIR stay off it, as does every other name (LD_*, PATH, IFS,
 # HOME, SHELL, ENV, BASH_ENV, PYTHON*, ...).
 helix_env_key_allowed() {
     case "$1" in
-        HELIX_ALSA_DEVICE | HELIX_AUTO_QUIT_MS | HELIX_AUTO_SCREENSHOT | \
-            HELIX_BACKLIGHT_DEVICE | HELIX_BOOT_RESPAWN_DELAY | \
+        HELIX_ALSA_DEVICE | HELIX_ALSA_KEEPALIVE | HELIX_AUTO_QUIT_MS | HELIX_AUTO_SCREENSHOT | \
+            HELIX_BACKLIGHT_DEVICE | HELIX_BED_MESH_2D | HELIX_BOOT_RESPAWN_DELAY | \
             HELIX_BOOT_RESPAWN_MAX | HELIX_BOOT_RESPAWN_WINDOW | \
             HELIX_COLOR_SWAP_RB | HELIX_DEBUG | \
             HELIX_DEBUG_TOUCH | HELIX_DEBUG_TOUCHES | HELIX_DIAGNOSTIC_UPLOADS | \
             HELIX_DISABLE_AUTO_UPDATES | HELIX_DISPLAY_BACKEND | \
             HELIX_DISPLAY_ROTATION | HELIX_DPI | HELIX_DRM_DEVICE | \
-            HELIX_FB_DEVICE | HELIX_GCODE_MODE | \
+            HELIX_EGL_PARTIAL_UPLOAD | HELIX_EGL_VSYNC | HELIX_EGL_XRGB | \
+            HELIX_FB_DEVICE | HELIX_GCODE_MODE | HELIX_GLASS | HELIX_HANG_THRESHOLD_SEC | \
+            HELIX_IMAGE_CACHE_KB | HELIX_KEY_DEPTH | HELIX_LOOP_MIN_SLEEP_MS | \
             HELIX_GCODE_STREAMING | HELIX_KEYBOARD_DEVICE | HELIX_LOG_DEST | \
             HELIX_LOG_FILE | HELIX_LOG_LEVEL | HELIX_LOG_RING_LINES | HELIX_MOUSE_DEVICE | \
-            HELIX_NICE | HELIX_NO_SPLASH | HELIX_OOM_SCORE_ADJ | HELIX_PWM_SOUND | HELIX_REMOTE_CONTROL | \
+            HELIX_NICE | HELIX_NO_SPLASH | HELIX_OOM_SCORE_ADJ | HELIX_PWM_MIN_NOTE_MS | \
+            HELIX_PWM_SOUND | HELIX_REFR_PERIOD_MS | HELIX_REFR_PERIOD_SCOPE | HELIX_REMOTE_CONTROL | \
             HELIX_REMOTE_HTTP_TOKEN | HELIX_REMOTE_SOCKET | \
-            HELIX_REQUIRE_POINTER | HELIX_SCREEN_SIZE | HELIX_SCROLL_GUARD | \
+            HELIX_REQUIRE_POINTER | HELIX_SCREEN_SIZE | HELIX_SCREENSAVER_BUDGET_PCT | \
+            HELIX_SCREENSAVER_LEVEL | HELIX_SCREENSAVER_NOW | HELIX_SCREENSAVER_REFR_PERIOD_MS | \
+            HELIX_SCROLL_GUARD | \
             HELIX_SCROLL_GUARD_COOLDOWN_MS | HELIX_SKIP_SPLASH | HELIX_SSAO | \
             HELIX_THEME | HELIX_TOUCH_CAL_DEBOUNCE | HELIX_TOUCH_CALIBRATE | HELIX_TOUCH_DEVICE | \
             HELIX_TOUCH_MAX_X | HELIX_TOUCH_MAX_Y | HELIX_TOUCH_MIN_X | \
@@ -334,6 +341,11 @@ helix_env_value_refusal() {
         HELIX_NICE)
             helix_env_uint_in "$2" 0 19 && return 1
             echo "must be 0-19 (a negative nice would let the UI starve Klipper)"
+            return 0
+            ;;
+        HELIX_IMAGE_CACHE_KB)
+            helix_env_uint_in "$2" 0 65536 && return 1
+            echo "must be 0-65536 (KB of decoded images held in RAM; the app takes any size it is given)"
             return 0
             ;;
         HELIX_OOM_SCORE_ADJ)
@@ -495,6 +507,31 @@ helix_env_dir_owner() {
     unset _hed_link _hed_real _hed_out
 }
 
+# "OWNER_UID DIR" when the only fault helix_env_dir_owner found with REAL_DIR
+# (args as there) is a group or world write bit on REAL_DIR or LINK_DIR: the
+# link sits where only root or UID could have put it, so chmod is the fix and
+# chown is not. Prints nothing for any other fault.
+helix_env_writable_dir() {
+    _hew_link=$(helix_env_stat "$2")
+    _hew_real=$(helix_env_stat "$1")
+    case "${_hew_link%% *}" in
+        0 | "$3") ;;
+        *) unset _hew_link _hew_real; return 0 ;;
+    esac
+    case "${_hew_link##* }${_hew_real##* }" in
+        '' | *[!0-9]*) ;;
+        *)
+            if [ -n "$_hew_real" ] && [ "$((0${_hew_real##* } & 022))" != "0" ]; then
+                echo "${_hew_real%% *} $1"
+            elif [ -n "$_hew_real" ] && [ "$((0${_hew_link##* } & 022))" != "0" ]; then
+                echo "${_hew_real%% *} $2"
+            fi
+            ;;
+    esac
+    unset _hew_link _hew_real
+    return 0
+}
+
 # Refuse the env file: log the detailed reason with the full fix, and hand a
 # structured record to the app (prestonbrown/helixscreen#1712) so the app
 # words the on-screen warning; the launcher's longer hint stays in the log.
@@ -545,6 +582,7 @@ helix_env_file_trusted() {
     [ -n "$_hef_real" ] || _hef_real="$1"
     _hef_uid=$(id -u 2>/dev/null) || _hef_uid=""
     _hef_dir_owner=0
+    _hef_wdir=""
     if [ -L "$1" ] && [ -n "$_hef_uid" ]; then
         # Only a link aimed straight at the file: a chain would let whoever
         # owns the middle link choose which file this is.
@@ -556,6 +594,11 @@ helix_env_file_trusted() {
         esac
         if [ -n "$_hef_hop" ] && [ ! -L "$_hef_hop" ]; then
             _hef_dir_owner=$(helix_env_dir_owner "${_hef_real%/*}" "${1%/*}" "$_hef_uid")
+            # A directory refused only for a write bit: the file's owner is right,
+            # and chowning it to root would be undone by the next web-UI save.
+            if [ "$_hef_dir_owner" = "0" ]; then
+                _hef_wdir=$(helix_env_writable_dir "${_hef_real%/*}" "${1%/*}" "$_hef_uid")
+            fi
         fi
     fi
     if [ "$_hef_dir_owner" = "0" ]; then
@@ -572,6 +615,15 @@ helix_env_file_trusted() {
     fi
     _hef_owner="${_hef_stat%% *}"
     _hef_mode="${_hef_stat##* }"
+    if [ "$_hef_owner" != "0" ] && [ "$_hef_owner" != "$_hef_uid" ] &&
+        [ "$_hef_owner" != "$_hef_dir_owner" ] && [ -n "$_hef_wdir" ] &&
+        [ "${_hef_wdir%% *}" = "$_hef_owner" ]; then
+        _hef_wdir="${_hef_wdir#* }"
+        _hef_fix="fix: chmod g-w,o-w $_hef_wdir"
+        _hef_detail="its directory $_hef_wdir is writable by other users"
+        helix_env_refuse "$1 is owned by uid $_hef_owner, the owner of its directory, but $_hef_wdir is group- or world-writable"
+        return 1
+    fi
     if [ "$_hef_owner" != "0" ] && [ "$_hef_owner" != "$_hef_uid" ] &&
         [ "$_hef_owner" != "$_hef_dir_owner" ]; then
         _hef_kind=owner
@@ -619,7 +671,7 @@ helix_env_file_trusted() {
 
 helix_env_trust_cleanup() {
     unset _hef_stat _hef_uid _hef_owner _hef_mode _hef_real _hef_dir_owner \
-        _hef_hop _hef_fix _hef_again _hef_again_mode _hef_kind _hef_detail \
+        _hef_hop _hef_wdir _hef_fix _hef_again _hef_again_mode _hef_kind _hef_detail \
         _hef_expected _hef_file
 }
 
@@ -1154,6 +1206,15 @@ if [ -z "${SSL_CERT_FILE:-}" ]; then
         done
         unset _cert_path
     fi
+fi
+
+# Z-Mod's own S80helixscreen never runs restore-user-config.sh, and its
+# Moonraker update rmtree()s the install root, config/ included. Relink the
+# user files from the state root before anything reads helixscreen.env or the
+# platform hooks. The script acts only on that layout (#2085).
+if [ -f "${INSTALL_DIR}/config/restore-user-config.sh" ]; then
+    HELIX_RESTORE_ZMOD_ONLY=1 IDIR="$INSTALL_DIR" \
+        sh "${INSTALL_DIR}/config/restore-user-config.sh" 2>/dev/null || true
 fi
 
 helix_load_env_file

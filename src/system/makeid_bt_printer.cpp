@@ -4,14 +4,13 @@
 
 #include "makeid_bt_printer.h"
 
-#include "ui_update_queue.h"
-
 #include "bluetooth_loader.h"
 #include "bt_print_utils.h"
+#include "core/log_redact.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "label_printer_settings.h"
-#include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "makeid_protocol.h"
 
 #include <spdlog/spdlog.h>

@@ -33,8 +33,8 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -68,7 +68,7 @@ struct NozzleTempsFixture : public LVGLUITestFixture {
     ~NozzleTempsFixture() override {
         ToolState::instance().deinit_subjects();
         AmsState::instance().clear_backends();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -100,7 +100,7 @@ void add_second_extruder(PrinterState& state) {
     ToolState::instance().init_tools(hw);
 
     state.temperature_state().init_extruders({"extruder", "extruder1"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// Adds a third physical extruder, so a rebuild can be provoked after the
@@ -114,7 +114,7 @@ void add_third_extruder(PrinterState& state) {
     ToolState::instance().init_tools(hw);
 
     state.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// The nth row's declared width. Two-column layout resolves to lv_pct(48) via
@@ -152,13 +152,13 @@ void check_one_label_visible(lv_obj_t* container, int index, NozzleLabelMode mod
     lv_obj_t* short_lbl = nth_row_label(container, index, "tool_label_short");
     lv_obj_t* number_lbl = nth_row_label(container, index, "tool_label_number");
     lv_obj_t* target_lbl = nth_row_label(container, index, "target_label");
-    CHECK(lv_obj_has_flag(long_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Long));
-    CHECK(lv_obj_has_flag(short_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Short));
-    CHECK(lv_obj_has_flag(number_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Number));
+    CHECK(lv_obj_is_hidden(long_lbl) == (mode != NozzleLabelMode::Long));
+    CHECK(lv_obj_is_hidden(short_lbl) == (mode != NozzleLabelMode::Short));
+    CHECK(lv_obj_is_hidden(number_lbl) == (mode != NozzleLabelMode::Number));
     // The number/icon rungs budget the current-only value: the target half
     // is hidden there and drawn at the text rungs.
     const bool text_mode = mode == NozzleLabelMode::Long || mode == NozzleLabelMode::Short;
-    CHECK(lv_obj_has_flag(target_lbl, LV_OBJ_FLAG_HIDDEN) != text_mode);
+    CHECK(lv_obj_is_hidden(target_lbl) != text_mode);
 }
 
 } // namespace
@@ -236,7 +236,7 @@ TEST_CASE_METHOD(
     // reading implementation leaves the new row's long label visible here.
     CHECK(label_mode_subject_value() == mode);
     check_one_label_visible(container, 1, static_cast<NozzleLabelMode>(mode));
-    CHECK(lv_obj_has_flag(nth_row_label(container, 1, "tool_label_long"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(nth_row_label(container, 1, "tool_label_long")));
 
     // One column at this width, so rows stack DOWNWARD: the second row's Y is
     // past the first's. A container whose bound style never activated a layout
@@ -259,17 +259,17 @@ TEST_CASE_METHOD(
     lv_subject_t* mode_subject = lv_xml_get_subject(nullptr, "nozzle_row_label_mode");
     REQUIRE(mode_subject != nullptr);
     lv_subject_set_int(mode_subject, 0);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 1);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 2);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 3);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
 }
 
 /**
@@ -374,13 +374,13 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     // number rung. Without the re-decide the tile keeps drawing the wide
     // value in the rung chosen for the narrow one.
     state().update_from_status(nlohmann::json{{"extruder", {{"target", 210.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
 
     // The print ends and the target clears: the value narrows again and the
     // ladder re-decides back. The transition fires both ways.
     state().update_from_status(nlohmann::json{{"extruder", {{"target", 0.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
 
     // The bed row's value is part of the same budget, and its observer
@@ -389,6 +389,6 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     h.resize(1, 1, 160, 300);
     REQUIRE(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Long));
     state().update_from_status(nlohmann::json{{"heater_bed", {{"target", 200.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
 }

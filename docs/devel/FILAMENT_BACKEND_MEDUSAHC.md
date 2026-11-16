@@ -404,13 +404,9 @@ two MedusaHC machines on one network can be at different points in the migration
 
 ## The operation step bar
 
-The sidebar's step bar used to render the legacy Heat/Feed/Purge stepper on every tool
-changer, because `AmsBackendToolChanger` overrode neither `toolchange_phase_template()` nor
-`get_operation_step_model()` and fell through to the coarse `AmsAction` fallback. On a
-hotend changer none of those three steps happen: nothing heats, no filament feeds and
-nothing purges. It swaps a hot end.
-
-The steps a machine gets are now derived from what it actually reports, by
+A hotend changer neither heats, feeds nor purges: it swaps a hot end, so the coarse
+Heat/Feed/Purge stepper describes the wrong machine. `AmsBackendToolChanger` overrides
+`get_operation_step_model()`, and the steps a machine gets are derived from what it reports by
 `tc_step_sequence()` in `ams_backend_toolchanger.cpp`:
 
 | reports | swap | fresh load | unload |
@@ -433,7 +429,7 @@ deriving both from the same function does not stop them from being derived from 
 snapshots of it.
 
 What actually prevents drift: `get_operation_step_model()` snapshots the latches it built the
-model from, and `step_index_for_phase_locked()` resolves every frame's index against that same
+model from, and `resolve_step_locked()` resolves every frame's index against that same
 snapshot rather than the live latches. Once a model exists, its index is pinned to the exact
 sequence it was built from until the next model build refreshes the snapshot - the two cannot
 drift apart in between.
@@ -444,9 +440,9 @@ grip that CLOSES it. A machine that does not report `feeder_open` cannot tell th
 and gets no step for an idle frame rather than a guessed one.
 
 That same ambiguity is why `apply_tool_sensor_locked()` does not report `AmsAction::IDLE`
-for an idle-with-the-gripper-open frame while an operation is in flight. Doing so ended the
-operation in the UI the instant it began - the bar was torn down on step 0 and the action
-buttons came back mid-swap. It is gated on an operation actually running, because the user
+for an idle-with-the-gripper-open frame while an operation is in flight. Doing so would end the
+operation in the UI the instant it began: the bar torn down on step 0 and the action
+buttons back mid-swap. It is gated on an operation actually running, because the user
 can open the gripper by hand from the feeder panel while genuinely idle and that must not
 read as busy.
 
@@ -459,11 +455,10 @@ controllers report phases - so in practice it is plain klipper-toolchanger, whos
 signal is `toolchanger.status == "changing"`.
 
 **Which actions count.** The bar's visibility and its operation-start detection both ask
-`AmsBackend::action_tracks_step_operation()`. They used to be two hardcoded action lists
-that disagreed, and a tool changer fell through both: it reports `SELECTING` for a swap and
-never heats, feeds or purges, so no start was detected, and once a bar did exist by accident
-it vanished for the half of the swap spent in `SELECTING`. The default is the
-filament-system vocabulary; `AmsBackendToolChanger` overrides it with
+`IStepOperation::action_tracks_step_operation()`, one rule for both. A tool changer reports
+`SELECTING` for a swap and never heats, feeds or purges, so the default filament-system
+vocabulary would miss its start and drop the bar for the half of the swap spent in
+`SELECTING`; `AmsBackendToolChanger` overrides it with
 `SELECTING || UNLOADING`. Distinct from `ams_action_is_busy()`, the broader
 "is anything happening" question the slot pulse asks.
 
@@ -608,8 +603,9 @@ the miss is the frame picture, not the capabilities.
 
 Not yet reconciled, and worth knowing before extending this:
 
-(Per-tool spool metadata used to be listed here. It is now persisted - see
-[FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
+Per-tool filament identity is the tool changer's `lane_data` record `T<n>`, written by
+HelixScreen and read back on the 10 s poll; the MedusaHC firmware holds none of it (see
+the Slot metadata row in [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md)).
 
 - **`layer` and the prime flags** - per-tool priming scheduled against the layer number.
   The layer command is `_LAYER_SET L=` (wrapping `MHC_LAYER_SET`), the first-use flags are

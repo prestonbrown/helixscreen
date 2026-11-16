@@ -6,21 +6,24 @@
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
+#include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
+#include "notice.h"
+#include "power_device_state.h"
 #include "print_lifecycle_state.h"
 #include "printer_recovery_service.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -143,7 +146,6 @@ void EmergencyStopOverlay::init_subjects() {
                               "recovery_title", subjects_);
     UI_MANAGED_SUBJECT_STRING(recovery_message_subject_, recovery_message_buf_, "",
                               "recovery_message", subjects_);
-    UI_MANAGED_SUBJECT_INT(recovery_can_restart_, 1, "recovery_can_restart", subjects_);
     UI_MANAGED_SUBJECT_STRING(recovery_code_subject_, recovery_code_buf_, "", "recovery_code",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(recovery_has_code_, 0, "recovery_has_code", subjects_);
@@ -161,6 +163,7 @@ void EmergencyStopOverlay::init_subjects() {
         {"advanced_estop_clicked", advanced_estop_clicked},
         {"advanced_restart_klipper_clicked", advanced_restart_klipper_clicked},
         {"advanced_firmware_restart_clicked", advanced_firmware_restart_clicked},
+        {"advanced_restart_moonraker_clicked", advanced_restart_moonraker_clicked},
         // Home panel firmware restart button (shown during klippy SHUTDOWN)
         {"firmware_restart_clicked", home_firmware_restart_clicked},
     });
@@ -225,6 +228,7 @@ void EmergencyStopOverlay::deinit_subjects() {
     print_state_observer_.reset();
     klippy_state_observer_.reset();
     klippy_message_observer_.reset();
+    wizard_observer_.reset();
 
     // Same reasoning as the dialog pointers above, one level up: init() stored
     // borrowed pointers, and neither object survives what this runs ahead of.
@@ -251,9 +255,9 @@ void EmergencyStopOverlay::create() {
 
     // This singleton outlives any given PrinterState — tests own one per fixture,
     // and a soft restart (Add Printer) tears the whole tree down and rebuilds it.
-    // deinit_subjects() flips this token before lv_subject_deinit() frees the
+    // deinit_subjects() flips this token before reset() frees the
     // observer nodes, which is the only thing that stops the guards below from
-    // calling lv_observer_remove() on freed memory (THREADING.md §5).
+    // calling lv_observer_delete() on freed memory (THREADING.md §5).
     const SubjectLifetime ps_subjects = printer_state_->get_subjects_lifetime();
 
     // Subscribe to print state changes for automatic visibility updates
@@ -268,11 +272,6 @@ void EmergencyStopOverlay::create() {
         printer_state_->print_state().get_print_lifecycle_subject(), this,
         [](EmergencyStopOverlay* self, int /*lifecycle*/) { self->update_visibility(); },
         ps_subjects);
-
-    // Reset the initial-fire guard so each (re)subscription — including
-    // soft-restart after Add Printer — drops the subject's placeholder
-    // SHUTDOWN before Moonraker reports the new printer's real state.
-    klippy_state_initial_seen_ = false;
 
     // The shutdown reason can land after the dialog is built (the shutdown edge
     // and the webhooks frame are separate messages), so a dialog still showing
@@ -295,17 +294,15 @@ void EmergencyStopOverlay::create() {
         [](EmergencyStopOverlay* self, int state) {
             auto klippy_state = static_cast<KlippyState>(state);
 
-            // First fire carries the subject's default (SHUTDOWN) emitted before
-            // Moonraker has reported real state. Acting on it produced a
-            // recovery-dialog flash on every launch once UpdateQueue stopped
-            // dropping freeze-window callbacks (1d13ed6b4). A genuine
-            // shutdown-at-startup is still delivered via the
-            // MoonrakerEventType::KLIPPY_SHUTDOWN event in MoonrakerManager.
-            if (!self->klippy_state_initial_seen_) {
-                self->klippy_state_initial_seen_ = true;
-                spdlog::debug(
-                    "[KlipperRecovery] Skipping initial klippy_state observer fire (state={})",
-                    state);
+            // Until a source reports Klippy's state the subject holds its SHUTDOWN
+            // placeholder, and acting on that flashes a recovery dialog on every
+            // launch. The first report notifies even when it matches the
+            // placeholder, so a printer already shut down at connect still
+            // arrives here.
+            if (!self->printer_state_ ||
+                !self->printer_state_->network_state().klippy_state_reported()) {
+                spdlog::debug("[KlipperRecovery] Ignoring klippy_state {} before any report",
+                              state);
                 return;
             }
 
@@ -388,7 +385,23 @@ void EmergencyStopOverlay::create() {
                 });
             }
         },
-        ps_subjects);
+        // Immediate: the before-any-report guard has to be read when the value
+        // is published. A deferred placeholder fire runs after the first report
+        // lands and would pass it carrying the stale SHUTDOWN. Everything that
+        // touches the UI below is queued already.
+        ps_subjects, helix::ui::Dispatch::Immediate);
+
+    // The setup wizard declines the dialog, and Klippy reports a fault once, so a
+    // printer that was already faulted while the wizard ran has nothing left to
+    // announce it when Home appears. The wizard closing re-asks.
+    wizard_observer_ = observe<int>(
+        &get_wizard_active_subject(), this,
+        [](EmergencyStopOverlay* self, int active) {
+            if (!active) {
+                self->surface_reported_klippy_fault();
+            }
+        },
+        get_app_globals_subjects_lifetime());
 
     // Initial visibility update
     update_visibility();
@@ -490,11 +503,10 @@ void EmergencyStopOverlay::show_confirmation_dialog() {
     spdlog::debug("[EmergencyStop] Showing confirmation dialog");
 
     // Create dialog via Modal system (handles backdrop, z-order, animations).
-    // The bare factory never reports a backdrop tap or ESC back here, so the
+    // A ComponentModal never reports a backdrop tap or ESC back here, so the
     // handle clears itself when the dialog is freed; a handle left set would
     // read as "already visible" and swallow every later press.
-    helix::ui::store_until_deleted(&confirmation_dialog_,
-                                   helix::ui::modal_show("estop_confirmation_dialog"));
+    confirmation_dialog_ = helix::ui::ComponentModal::show_owned("estop_confirmation_dialog");
 
     if (!confirmation_dialog_) {
         spdlog::error("[EmergencyStop] Failed to create confirmation dialog, executing directly");
@@ -519,7 +531,7 @@ void EmergencyStopOverlay::dismiss_confirmation_dialog() {
 void EmergencyStopOverlay::show_recovery_dialog() {
     // Don't show if already visible
     spdlog::debug("[KlipperRecovery] show_recovery_dialog() called, recovery_dialog_={}",
-                  static_cast<void*>(recovery_dialog_));
+                  static_cast<void*>(recovery_dialog_.get()));
     if (recovery_dialog_) {
         spdlog::debug("[KlipperRecovery] Recovery dialog already visible, skipping");
         return;
@@ -530,10 +542,9 @@ void EmergencyStopOverlay::show_recovery_dialog() {
 
     // Use Modal system — backdrop is created programmatically. Cleared when freed,
     // like confirmation_dialog_, so a manual dismiss never blocks the next one.
-    helix::ui::store_until_deleted(&recovery_dialog_,
-                                   helix::ui::modal_show("klipper_recovery_dialog"));
+    recovery_dialog_ = helix::ui::ComponentModal::show_owned("klipper_recovery_dialog");
     spdlog::debug("[KlipperRecovery] Dialog created, recovery_dialog_={}",
-                  static_cast<void*>(recovery_dialog_));
+                  static_cast<void*>(recovery_dialog_.get()));
 
     if (!recovery_dialog_) {
         spdlog::error("[KlipperRecovery] Failed to create recovery dialog");
@@ -613,13 +624,37 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
         return false;
     }
 
-    // If dialog is still showing, update reason if it's worse (SHUTDOWN -> DISCONNECTED means
-    // can't restart)
+    // Moonraker stops Klipper along with a bound power device, so Klipper being
+    // down is the normal state of a printer switched off on purpose (#2076). That
+    // stop carries no message, so a fault Klipper did report still shows.
+    // Handled, not declined: there is nothing to retry.
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ && printer_state_ &&
+        printer_state_->network_state().get_klippy_fault_message().empty() &&
+        helix::PowerDeviceState::instance().klipper_bound_device_off()) {
+        spdlog::info("[KlipperRecovery] Not showing {}: a power device that stops Klipper is off",
+                     recovery_reason_str(reason));
+        return true;
+    }
+
+    // A mainboard switched off through a power device: Home's status icon and
+    // power controls already cover it, and neither restart can reach an MCU
+    // with no power. Handled, not declined: there is nothing to retry.
+    if (reason != RecoveryReason::DISCONNECTED && !recovery_dialog_ && printer_state_ &&
+        is_klippy_mcu_connect_error(printer_state_->network_state().get_klippy_fault_message()) &&
+        helix::PowerDeviceState::instance().any_device_off()) {
+        spdlog::info("[KlipperRecovery] Not showing {}: the MCU is unreachable and a power "
+                     "device is off",
+                     recovery_reason_str(reason));
+        return true;
+    }
+
+    // If the dialog is still showing, a SHUTDOWN that loses Klippy altogether
+    // becomes DISCONNECTED: the title and message change.
     if (recovery_dialog_) {
         if (reason == RecoveryReason::DISCONNECTED &&
             recovery_reason_ == RecoveryReason::SHUTDOWN) {
             spdlog::info("[KlipperRecovery] Connection dropped while SHUTDOWN dialog showing, "
-                         "updating buttons");
+                         "updating its text");
             recovery_reason_ = RecoveryReason::DISCONNECTED;
             helix::ui::queue_update("KlipperRecovery::update_dialog", []() {
                 EmergencyStopOverlay::instance().update_recovery_dialog_content();
@@ -652,9 +687,28 @@ bool EmergencyStopOverlay::show_recovery_for_main(RecoveryReason reason) {
                      recovery_reason_str(inst.recovery_reason_));
         inst.show_recovery_dialog();
         inst.update_recovery_dialog_content();
+        // A Klipper fault needs the user to restart it. A lost connection is often a
+        // host reboot or a network blip that recovers on its own, so it does not wake.
+        if (inst.recovery_dialog_ && inst.recovery_reason_ != RecoveryReason::DISCONNECTED) {
+            helix::request_display_wake();
+        }
     });
 
     return true;
+}
+
+void EmergencyStopOverlay::surface_reported_klippy_fault() {
+    if (!printer_state_ || !printer_state_->network_state().klippy_state_reported()) {
+        return;
+    }
+    const auto state = static_cast<KlippyState>(
+        lv_subject_get_int(printer_state_->network_state().get_klippy_state_subject()));
+    if (state == KlippyState::SHUTDOWN || state == KlippyState::ERROR) {
+        spdlog::info("[KlipperRecovery] Klippy is {} after setup, showing recovery",
+                     klippy_state_name(state));
+        show_recovery_for(state == KlippyState::SHUTDOWN ? RecoveryReason::SHUTDOWN
+                                                         : RecoveryReason::ERROR);
+    }
 }
 
 EmergencyStopOverlay::~EmergencyStopOverlay() {
@@ -751,6 +805,21 @@ void EmergencyStopOverlay::recovery_recheck_cb(lv_timer_t* /*timer*/) {
     inst.arm_recovery_recheck_in(kRecoveryRecheckRetryMs);
 }
 
+namespace {
+// Runs on the WebSocket thread, before the disconnect that frame announces can
+// be judged: suppress_recovery_dialog() is an atomic store.
+const UiRequestRegistration s_expect_disconnect_registration{
+    UiRequestKind::ExpectKlippyDisconnect, [](const UiRequest&) {
+        EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
+    }};
+// A Moonraker restart takes klippy's connection down for as long as a firmware
+// restart does, with no toast: the caller already said why.
+const UiRequestRegistration s_expect_moonraker_restart_registration{
+    UiRequestKind::ExpectMoonrakerRestart, [](const UiRequest&) {
+        EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
+    }};
+} // namespace
+
 void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
     // Callable from the WebSocket background thread (Moonraker gcode callbacks) —
     // the deadline is atomic so main-thread readers never see a torn value.
@@ -790,12 +859,9 @@ bool EmergencyStopOverlay::is_expected_restart() const {
 
 void EmergencyStopOverlay::update_recovery_dialog_content() {
     auto content = get_recovery_content(recovery_reason_);
-    lv_subject_copy_string(&recovery_title_subject_, lv_tr(content.title));
-    lv_subject_set_int(&recovery_can_restart_,
-                       recovery_reason_ != RecoveryReason::DISCONNECTED ? 1 : 0);
-    spdlog::debug("[KlipperRecovery] Updated dialog content: reason={}, can_restart={}",
-                  recovery_reason_str(recovery_reason_),
-                  recovery_reason_ != RecoveryReason::DISCONNECTED);
+    lv_subject_set_string(&recovery_title_subject_, lv_tr(content.title));
+    spdlog::debug("[KlipperRecovery] Updated dialog content: reason={}",
+                  recovery_reason_str(recovery_reason_));
 
     // A dialog already showing klippy's reason that then loses the connection
     // keeps that reason; only the title and buttons change. The retired fault
@@ -825,14 +891,23 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     // Klippy's own reason restates any "Printer Error" alert raised for this
     // fault, and this dialog adds the restart, so it becomes the one dialog for
     // it. Generic text restates nothing, and the alerts stay.
-    helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_);
+    helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_.get());
     if (message.empty()) {
         message = lv_tr(content.message);
+    } else if (is_klippy_config_error(message)) {
+        // Restarting reloads the same broken file, so say what has to change
+        // first. Klipper's text names the option and section; the guidance goes
+        // ahead of it so a long reason cannot push it out of the subject buffer.
+        lv_subject_set_string(&recovery_title_subject_, lv_tr("Klipper Config Error"));
+        message = std::string(lv_tr("Klipper could not load its configuration. Fix the "
+                                    "setting below in the printer's config files, then "
+                                    "restart Klipper.")) +
+                  "\n\n" + message;
     }
 
     // Update subjects — XML bindings in klipper_recovery_dialog.xml react automatically
-    lv_subject_copy_string(&recovery_message_subject_, message.c_str());
-    lv_subject_copy_string(&recovery_code_subject_, code.c_str());
+    lv_subject_set_string(&recovery_message_subject_, message.c_str());
+    lv_subject_set_string(&recovery_code_subject_, code.c_str());
     lv_subject_set_int(&recovery_has_code_, code.empty() ? 0 : 1);
 }
 
@@ -871,6 +946,19 @@ void EmergencyStopOverlay::restart_klipper() {
             // Toast will update when klippy_state changes to READY
         },
         [](const MoonrakerError& err) {
+            if (err.is_klippy_disconnect()) {
+                // printer.restart travels through Klippy, so it cannot start a
+                // Klippy host that is not running. The recovery chain can: its
+                // platform script restarts the Klipper service itself.
+                spdlog::warn("[KlipperRecovery] Klippy host not connected ({}); escalating to "
+                             "the recovery chain",
+                             err.message);
+                helix::ui::run_on_main("restart_klipper_escalate", []() {
+                    EmergencyStopOverlay::instance().end_restart_window();
+                    EmergencyStopOverlay::instance().firmware_restart();
+                });
+                return;
+            }
             spdlog::error("[KlipperRecovery] Klipper restart failed: {}", err.message);
             if (!restart_may_be_running(err)) {
                 EmergencyStopOverlay::instance().end_restart_window();
@@ -925,6 +1013,52 @@ void EmergencyStopOverlay::firmware_restart() {
                     ToastSeverity::ERROR,
                     fmt::format(fmt::runtime(lv_tr("Firmware restart failed: {}")),
                                 err.localized_message())
+                        .c_str(),
+                    5000);
+            });
+        });
+}
+
+bool EmergencyStopOverlay::refuse_moonraker_restart() {
+    if (!api_ || !api_->is_connected()) {
+        spdlog::error("[KlipperRecovery] Cannot restart Moonraker: not connected");
+        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Restart failed: not connected"),
+                                      4000);
+        return true;
+    }
+    if (printer_state_ &&
+        lv_subject_get_int(printer_state_->print_state().get_job_holds_machine_subject()) != 0) {
+        spdlog::warn("[KlipperRecovery] Moonraker restart refused: a job holds the machine");
+        ToastManager::instance().show(ToastSeverity::WARNING,
+                                      lv_tr("Cannot restart Moonraker while printing"), 3000);
+        return true;
+    }
+    return refuse_restart_in_flight();
+}
+
+void EmergencyStopOverlay::restart_moonraker() {
+    if (refuse_moonraker_restart()) {
+        return;
+    }
+
+    // The websocket closes with Moonraker and libhv reconnects by itself, so
+    // the close is not reported as a lost connection.
+    helix::ui::begin_expected_klippy_restart("Restarting Moonraker...", api_);
+
+    api_->restart_moonraker(
+        []() { spdlog::info("[KlipperRecovery] Moonraker restart command sent"); },
+        [](const MoonrakerError& err) {
+            // Moonraker going down fails its own pending reply: success, not an error.
+            if (restart_may_be_running(err)) {
+                spdlog::info("[KlipperRecovery] Moonraker restart reply lost: {}", err.message);
+                return;
+            }
+            spdlog::error("[KlipperRecovery] Moonraker restart failed: {}", err.message);
+            // The callback can run on the WebSocket thread; the toast is main-thread only.
+            helix::ui::run_on_main("error_toast", [err]() {
+                ToastManager::instance().show(
+                    ToastSeverity::ERROR,
+                    fmt::format(fmt::runtime(lv_tr("Restart failed: {}")), err.localized_message())
                         .c_str(),
                     5000);
             });
@@ -1007,6 +1141,20 @@ void EmergencyStopOverlay::advanced_firmware_restart_clicked(lv_event_t* e) {
     EmergencyStopOverlay::instance().firmware_restart();
 }
 
+void EmergencyStopOverlay::advanced_restart_moonraker_clicked(lv_event_t* e) {
+    LV_UNUSED(e);
+    spdlog::info("[Advanced] Restart Moonraker clicked from Advanced panel");
+    auto& instance = EmergencyStopOverlay::instance();
+    if (instance.refuse_moonraker_restart()) {
+        return;
+    }
+    helix::ui::modal_confirm(
+        lv_tr("Restart Moonraker?"),
+        lv_tr("The screen will lose its connection to the printer for a few seconds."),
+        ModalSeverity::Warning, lv_tr("Restart"),
+        [] { EmergencyStopOverlay::instance().restart_moonraker(); });
+}
+
 void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
     LV_UNUSED(e);
     spdlog::info("[Home] Firmware Restart clicked from Home panel");
@@ -1033,17 +1181,22 @@ void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
 namespace helix {
 namespace ui {
 
-void begin_expected_klippy_restart(std::string message) {
+namespace {
+// The literal is the one the PID and input-shaper saves use for this event.
+const UiRequestRegistration s_expect_restart_registration{
+    UiRequestKind::ExpectKlippyRestart, [](const UiRequest& request) {
+        begin_expected_klippy_restart("Firmware restarting...", request.api);
+    }};
+} // namespace
+
+void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api) {
     // The suppression writes are atomic deadline stores, safe right here on
     // any thread; the toast is LVGL-facing so it hops to the main thread.
     EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);
-    if (auto* api = get_moonraker_api()) {
+    if (api) {
         api->suppress_disconnect_modal(kExpectedRestartDisconnectModalMs);
     }
-    // By value, because the toast is shown on a later main-thread tick. The
-    // previous `const char*` captured the POINTER into the deferred lambda, so
-    // it read the caller's buffer after the call had returned - safe only for
-    // the string literals every caller happened to pass.
+    // By value, because the toast is shown on a later main-thread tick.
     queue_update("begin_expected_klippy_restart", [message = std::move(message)]() {
         ToastManager::instance().show(ToastSeverity::INFO, lv_tr(message.c_str()), 3000);
     });

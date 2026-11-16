@@ -4,10 +4,10 @@
 
 #if HELIX_HAS_SNAPMAKER
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "snapmaker_nozzle_offset.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <string>
@@ -33,6 +33,8 @@ class SnapmakerNozzleOffsetOverlay : public OverlayBase {
 
     void init_subjects() override;
     void register_callbacks() override;
+    /// Start, once the bed is known clear.
+    void start_clicked();
 
     const char* get_name() const override {
         return "Toolhead Offset Calibration";

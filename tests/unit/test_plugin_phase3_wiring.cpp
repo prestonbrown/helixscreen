@@ -3,13 +3,12 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/plugin_host_test_support.h"
 #include "../test_helpers/plugin_test_support.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "plugin_source.h"
 #include "plugin_source_app.h"
 

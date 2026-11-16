@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "printer_image_regions.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -21,10 +21,62 @@ namespace helix {
 
 namespace {
 
-std::optional<NormPoint> read_point(const nlohmann::json& v) {
+/// Two numbers, as written.
+std::optional<NormPoint> read_pair(const nlohmann::json& v) {
     if (!v.is_array() || v.size() != 2 || !v[0].is_number() || !v[1].is_number())
         return std::nullopt;
     return NormPoint{v[0].get<float>(), v[1].get<float>()};
+}
+
+/// A point on the picture. A little outside it is a hand's slip; far outside is a
+/// broken file, held near the picture so no glow or layout reaches for it.
+std::optional<NormPoint> read_point(const nlohmann::json& v) {
+    const auto p = read_pair(v);
+    if (!p)
+        return std::nullopt;
+    const auto clamp = [](float f) { return std::clamp(f, -1.f, 2.f); };
+    return NormPoint{clamp(p->x), clamp(p->y)};
+}
+
+/// True when the quad turns the same way at every corner: no bowtie, no dent.
+bool is_convex(const std::array<NormPoint, 4>& q) {
+    int sign = 0;
+    for (size_t i = 0; i < q.size(); ++i) {
+        const NormPoint& a = q[i];
+        const NormPoint& b = q[(i + 1) % q.size()];
+        const NormPoint& c = q[(i + 2) % q.size()];
+        const float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        const int s = cross > 0.f ? 1 : cross < 0.f ? -1 : 0;
+        if (s == 0 || (sign != 0 && s != sign))
+            return false;
+        sign = s;
+    }
+    return true;
+}
+
+/// Each well-formed quad under `v` (`what` names them in the log); a malformed one
+/// is dropped with a warning.
+std::vector<std::array<NormPoint, 4>> read_quads(const nlohmann::json& v, const std::string& name,
+                                                 const char* what) {
+    std::vector<std::array<NormPoint, 4>> out;
+    if (!v.is_array())
+        return out;
+    for (const auto& quad : v) {
+        std::array<NormPoint, 4> pts{};
+        bool ok = quad.is_array() && quad.size() == pts.size();
+        for (size_t i = 0; ok && i < pts.size(); ++i) {
+            const auto p = read_point(quad[i]);
+            ok = p.has_value();
+            if (ok)
+                pts[i] = *p;
+        }
+        if (ok && is_convex(pts))
+            out.push_back(pts);
+        else
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex {}", name,
+                         what);
+    }
+    return out;
 }
 
 /// One regions file, read on first use. Main-thread only.
@@ -46,6 +98,10 @@ RegionsTable& user() {
 }
 
 constexpr const char* kUserRegionsFile = "printer_image_regions.json";
+/// An untagged plate's depth as a share of its pictured width, and how much
+/// narrower its far edge is on each side.
+constexpr float kPlateDepthRatio = 0.3f;
+constexpr float kPlateFarInset = 0.08f;
 
 /// `set_aside_bad`: a file that reads but does not parse is renamed to
 /// `<path>.bad` and the table starts empty, so the next save writes a fresh
@@ -98,12 +154,30 @@ nlohmann::json entry_json(const ImageRegions& r) {
     nlohmann::json e = {{"size", {r.src_w, r.src_h}},
                         {"nozzle", point_json(r.nozzle)},
                         {"bed", {point_json(r.bed_left), point_json(r.bed_right)}}};
+    if (r.bed_far) {
+        e["bed"].push_back(point_json(r.bed_far->right));
+        e["bed"].push_back(point_json(r.bed_far->left));
+    }
     if (r.part_fan)
         e["part_fan"] = point_json(*r.part_fan);
     if (r.chamber)
         e["chamber"] = point_json(*r.chamber);
     if (r.light)
         e["light"] = point_json(*r.light);
+    const auto quads_json = [](const std::vector<std::array<NormPoint, 4>>& quads) {
+        nlohmann::json out = nlohmann::json::array();
+        for (const auto& quad : quads) {
+            nlohmann::json q = nlohmann::json::array();
+            for (const NormPoint& p : quad)
+                q.push_back(point_json(p));
+            out.push_back(std::move(q));
+        }
+        return out;
+    };
+    if (!r.windows.empty())
+        e["windows"] = quads_json(r.windows);
+    if (!r.cutouts.empty())
+        e["cutouts"] = quads_json(r.cutouts);
     return e;
 }
 
@@ -138,14 +212,17 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         return out;
     }
     for (const auto& [name, e] : doc.items()) {
-        const auto size =
-            e.is_object() && e.contains("size") ? read_point(e["size"]) : std::nullopt;
+        const auto size = e.is_object() && e.contains("size") ? read_pair(e["size"]) : std::nullopt;
         const auto nozzle =
             e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
         const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();
-        const auto bl = bed.is_array() && bed.size() == 2 ? read_point(bed[0]) : std::nullopt;
-        const auto br = bed.is_array() && bed.size() == 2 ? read_point(bed[1]) : std::nullopt;
-        if (!size || !nozzle || !bl || !br) {
+        // Two points are the plate's near edge; four go on round its far edge.
+        const bool bed_ok = bed.is_array() && (bed.size() == 2 || bed.size() == 4);
+        const auto bl = bed_ok ? read_point(bed[0]) : std::nullopt;
+        const auto br = bed_ok ? read_point(bed[1]) : std::nullopt;
+        const auto fr = bed_ok && bed.size() == 4 ? read_point(bed[2]) : std::nullopt;
+        const auto fl = bed_ok && bed.size() == 4 ? read_point(bed[3]) : std::nullopt;
+        if (!size || !nozzle || !bl || !br || (bed_ok && bed.size() == 4 && (!fr || !fl))) {
             spdlog::warn("[PrinterImageRegions] skipping '{}': needs size, nozzle and bed", name);
             continue;
         }
@@ -155,12 +232,18 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         r.nozzle = *nozzle;
         r.bed_left = *bl;
         r.bed_right = *br;
+        if (fr && fl)
+            r.bed_far = ImageRegions::FarEdge{*fr, *fl};
         if (e.contains("part_fan"))
             r.part_fan = read_point(e["part_fan"]);
         if (e.contains("chamber"))
             r.chamber = read_point(e["chamber"]);
         if (e.contains("light"))
             r.light = read_point(e["light"]);
+        if (e.contains("windows"))
+            r.windows = read_quads(e["windows"], name, "window");
+        if (e.contains("cutouts"))
+            r.cutouts = read_quads(e["cutouts"], name, "cutout");
         out.emplace(name, r);
     }
     return out;
@@ -254,9 +337,24 @@ std::string printer_image_region_key(std::string_view path) {
     return is_shipped ? stem : "custom:" + stem;
 }
 
+std::array<NormPoint, 4> plate_quad(const ImageRegions& r) {
+    if (r.bed_far)
+        return {r.bed_left, r.bed_right, r.bed_far->right, r.bed_far->left};
+    // A three-quarter render shows the plate about a third as deep as it is
+    // wide, its far edge a little narrower. Depth is measured in pixels, so
+    // it is scaled by the image's aspect to land in normalized y.
+    const float dx = r.bed_right.x - r.bed_left.x;
+    const float aspect = r.src_h > 0 ? float(r.src_w) / float(r.src_h) : 1.f;
+    const float rise = std::abs(dx) * aspect * kPlateDepthRatio;
+    const float inset = dx * kPlateFarInset;
+    return {r.bed_left, r.bed_right, NormPoint{r.bed_right.x - inset, r.bed_right.y - rise},
+            NormPoint{r.bed_left.x + inset, r.bed_left.y - rise}};
+}
+
 bool ImageTagSession::can_skip() const {
     const auto p = prompt();
-    return p == TagPrompt::PartFan || p == TagPrompt::Chamber || p == TagPrompt::Light;
+    return p == TagPrompt::PartFan || p == TagPrompt::BedFarRight || p == TagPrompt::BedFarLeft ||
+           p == TagPrompt::Chamber || p == TagPrompt::WindowTopLeft || p == TagPrompt::Light;
 }
 
 void ImageTagSession::tap(NormPoint p) {
@@ -268,13 +366,20 @@ void ImageTagSession::tap(NormPoint p) {
 bool ImageTagSession::skip() {
     if (!can_skip())
         return false;
-    points_[step_++].reset();
+    const int run = prompt() == TagPrompt::WindowTopLeft ? kWindowCorners : 1;
+    for (int i = 0; i < run; ++i)
+        points_[step_++].reset();
     return true;
 }
 
 void ImageTagSession::undo() {
-    if (step_ > 0)
-        points_[--step_].reset();
+    if (step_ == 0)
+        return;
+    points_[--step_].reset();
+    // A skipped window's corners are all empty: step back over them as one.
+    const int first = static_cast<int>(TagPrompt::WindowTopLeft);
+    if (step_ > first && step_ < first + kWindowCorners && !points_[first])
+        step_ = first;
 }
 
 ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
@@ -285,9 +390,32 @@ ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
     r.nozzle = at(TagPrompt::Nozzle).value_or(NormPoint{});
     r.bed_left = at(TagPrompt::BedLeft).value_or(NormPoint{});
     r.bed_right = at(TagPrompt::BedRight).value_or(NormPoint{});
+    // A far edge needs both corners; one alone is no better than the estimate.
+    if (const auto fr = at(TagPrompt::BedFarRight), fl = at(TagPrompt::BedFarLeft); fr && fl)
+        r.bed_far = ImageRegions::FarEdge{*fr, *fl};
     r.part_fan = at(TagPrompt::PartFan);
     r.chamber = at(TagPrompt::Chamber);
     r.light = at(TagPrompt::Light);
+    std::array<NormPoint, 4> window;
+    bool all_corners = true;
+    for (int i = 0; i < kWindowCorners; ++i) {
+        const auto p = points_[static_cast<int>(TagPrompt::WindowTopLeft) + i];
+        all_corners = all_corners && p.has_value();
+        window[i] = p.value_or(NormPoint{});
+    }
+    if (all_corners) {
+        // Corners tapped out of order still bound one window: walk them around their centre.
+        const float cx = (window[0].x + window[1].x + window[2].x + window[3].x) / 4.f;
+        const float cy = (window[0].y + window[1].y + window[2].y + window[3].y) / 4.f;
+        std::sort(window.begin(), window.end(), [cx, cy](const NormPoint& a, const NormPoint& b) {
+            return std::atan2(a.y - cy, a.x - cx) < std::atan2(b.y - cy, b.x - cx);
+        });
+        if (is_convex(window))
+            r.windows.push_back(window);
+        else
+            spdlog::info("[PrinterImageRegions] tagged window corners do not bound an area; "
+                         "the window is left out");
+    }
     return r;
 }
 

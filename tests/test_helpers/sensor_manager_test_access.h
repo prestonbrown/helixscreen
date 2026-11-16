@@ -8,6 +8,8 @@
 #include <mutex>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix::sensors {
 
 namespace detail {

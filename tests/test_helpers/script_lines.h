@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <string>
 #include <string_view>

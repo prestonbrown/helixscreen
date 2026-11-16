@@ -30,7 +30,7 @@ const json& result_of(const json& response) {
 
 /// A call whose reply carries nothing the caller reads beyond success.
 void send_action(IMoonrakerAPI& api, const char* method, json params, uint32_t timeout_ms,
-                 std::function<void()> on_ok, ErrorCallback on_error) {
+                 helix::SharedCallback<void()> on_ok, ErrorCallback on_error) {
     api.get_client().send_jsonrpc(
         method, params,
         [on_ok = std::move(on_ok), method](const json& /*response*/) {
@@ -44,7 +44,7 @@ void send_action(IMoonrakerAPI& api, const char* method, json params, uint32_t t
 
 } // namespace
 
-void request_status(IMoonrakerAPI& api, std::function<void(const PlrPluginStatus&)> on_ok,
+void request_status(IMoonrakerAPI& api, helix::SharedCallback<void(const PlrPluginStatus&)> on_ok,
                     ErrorCallback on_error) {
     api.get_client().send_jsonrpc(
         kPlrStatusRpc, json::object(),
@@ -56,7 +56,7 @@ void request_status(IMoonrakerAPI& api, std::function<void(const PlrPluginStatus
         std::move(on_error), 0, /*silent=*/true);
 }
 
-void request_plan(IMoonrakerAPI& api, std::function<void(const PlrPlanReply&)> on_ok,
+void request_plan(IMoonrakerAPI& api, helix::SharedCallback<void(const PlrPlanReply&)> on_ok,
                   ErrorCallback on_error) {
     api.get_client().send_jsonrpc(
         kPlrPlanRpc, json::object(),
@@ -76,15 +76,15 @@ void request_plan(IMoonrakerAPI& api, std::function<void(const PlrPlanReply&)> o
 }
 
 void prepare(IMoonrakerAPI& api, const std::string& plan_id, bool skip_chamber_wait,
-             std::function<void()> on_ok, ErrorCallback on_error) {
+             helix::SharedCallback<void()> on_ok, ErrorCallback on_error) {
     send_action(api, kPlrPrepareRpc,
                 json{{"plan_id", plan_id}, {"skip_chamber_wait", skip_chamber_wait}},
                 kPrepareTimeoutMs, std::move(on_ok), std::move(on_error));
 }
 
 void commit(IMoonrakerAPI& api, const std::string& plan_id,
-            const std::vector<PlrConfirmation>& given, int tier, std::function<void()> on_ok,
-            ErrorCallback on_error) {
+            const std::vector<PlrConfirmation>& given, int tier,
+            helix::SharedCallback<void()> on_ok, ErrorCallback on_error) {
     // The plugin starts the resumed job once it has heated and purged.
     screen_start_ledger().note_any(ScreenStartLedger::Clock::now(),
                                    std::chrono::milliseconds(kCommitTimeoutMs));
@@ -92,18 +92,18 @@ void commit(IMoonrakerAPI& api, const std::string& plan_id,
                 std::move(on_ok), std::move(on_error));
 }
 
-void abort(IMoonrakerAPI& api, const std::string& plan_id, std::function<void()> on_ok,
+void abort(IMoonrakerAPI& api, const std::string& plan_id, helix::SharedCallback<void()> on_ok,
            ErrorCallback on_error) {
     send_action(api, kPlrAbortRpc, json{{"plan_id", plan_id}}, 0, std::move(on_ok),
                 std::move(on_error));
 }
 
-void discard(IMoonrakerAPI& api, std::function<void()> on_ok, ErrorCallback on_error) {
+void discard(IMoonrakerAPI& api, helix::SharedCallback<void()> on_ok, ErrorCallback on_error) {
     send_action(api, kPlrDiscardRpc, json::object(), 0, std::move(on_ok), std::move(on_error));
 }
 
 void request_recovery_probe(IMoonrakerAPI& api,
-                            std::function<void(const PlrDetectResult&)> on_result,
+                            helix::SharedCallback<void(const PlrDetectResult&)> on_result,
                             ErrorCallback on_error) {
     // Logged at info: this is a side-effectful, at-most-once-per-connection
     // call, so a second line in a session's log is itself a bug report.
@@ -126,8 +126,8 @@ void request_recovery_probe(IMoonrakerAPI& api,
         std::move(on_error));
 }
 
-void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan, std::function<void()> on_ok,
-                      ErrorCallback on_error) {
+void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan,
+                      helix::SharedCallback<void()> on_ok, ErrorCallback on_error) {
     if (plan.discard_rpc_method == kPlrDiscardRpc) {
         discard(api, std::move(on_ok), std::move(on_error));
         return;
@@ -144,7 +144,8 @@ void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan, std::func
         std::move(on_error));
 }
 
-void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool present)> on_ok,
+void request_mesh_include_status(IMoonrakerAPI& api,
+                                 helix::SharedCallback<void(bool present)> on_ok,
                                  ErrorCallback on_error) {
     api.get_client().send_jsonrpc(
         kPlrMeshIncludeRpc, json::object(),
@@ -157,7 +158,7 @@ void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool pre
 }
 
 void mesh_include_action(IMoonrakerAPI& api, bool add,
-                         std::function<void(bool present, bool changed)> on_ok,
+                         helix::SharedCallback<void(bool present, bool changed)> on_ok,
                          ErrorCallback on_error) {
     api.get_client().send_jsonrpc(
         kPlrMeshIncludeRpc, json{{"action", add ? "add" : "remove"}},
@@ -172,13 +173,13 @@ void mesh_include_action(IMoonrakerAPI& api, bool add,
         std::move(on_error));
 }
 
-void write_profile(IMoonrakerAPI& api, const json& profile, std::function<void()> on_stored,
+void write_profile(IMoonrakerAPI& api, const json& profile, helix::SharedCallback<void()> on_stored,
                    ErrorCallback on_error) {
     post_item_if_changed(api, kPlrDbNamespace, kPlrProfileKey, profile, on_stored,
                          std::move(on_error), on_stored);
 }
 
-void write_user(IMoonrakerAPI& api, bool enabled, std::function<void()> on_ok,
+void write_user(IMoonrakerAPI& api, bool enabled, helix::SharedCallback<void()> on_ok,
                 ErrorCallback on_error) {
     api.database_post_item(kPlrDbNamespace, kPlrUserKey, plr_user_json(enabled), std::move(on_ok),
                            std::move(on_error));

@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <vector>
 
+#include "hv/json.hpp"
+
 namespace helix::enclosure_top {
 namespace {
 

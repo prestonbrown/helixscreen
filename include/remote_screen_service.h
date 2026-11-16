@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 #include "remote_screen_control.h"
 

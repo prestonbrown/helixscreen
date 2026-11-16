@@ -5,27 +5,14 @@
 
 #include "ui_modal.h"
 
+#include "color_utils.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
-
-namespace helix {
-
-/**
- * @brief Map hex color value to human-readable name
- *
- * Uses algorithmic color naming (HSL-based) with special names for
- * preset colors that have non-standard names (Gold, Bronze, Wood, etc.)
- *
- * @param rgb Color as RGB packed uint32_t
- * @return Human-readable color name
- */
-std::string get_color_name_from_hex(uint32_t rgb);
-
-} // namespace helix
 
 namespace helix::ui {
 
@@ -34,7 +21,7 @@ namespace helix::ui {
  * @brief Color picker modal for filament and theme color selection
  *
  * Displays preset swatches and HSV picker for custom colors.
- * Extends ModalBase for RAII lifecycle and backdrop handling.
+ * Extends Modal for RAII lifecycle and backdrop handling.
  *
  * ## Usage:
  * @code
@@ -70,9 +57,8 @@ class ColorPicker : public Modal {
     ColorPicker();
     ~ColorPicker() override;
 
-    // Non-copyable, non-movable (Modal's move operations are deleted, and a
-    // moved ColorPicker would have left its subjects behind anyway - nothing
-    // ever moved one by value)
+    // Non-copyable, non-movable: Modal's move operations are deleted, and a
+    // moved ColorPicker would leave its subjects behind.
     ColorPicker(const ColorPicker&) = delete;
     ColorPicker& operator=(const ColorPicker&) = delete;
     ColorPicker(ColorPicker&&) = delete;
@@ -114,6 +100,7 @@ class ColorPicker : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "color_picker";
     }
+    HELIX_KIND_TAG(ColorPicker)
 
   protected:
     void on_show() override;
@@ -129,7 +116,7 @@ class ColorPicker : public Modal {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char hex_buf_[16] = {0};
     char name_buf_[64] = {0};
     bool subjects_initialized_ = false;
@@ -149,10 +136,6 @@ class ColorPicker : public Modal {
 
     // === Compact mode tab switching (MICRO + TINY share the same layout) ===
     bool is_tiny_mode_ = false; // Covers both MICRO and TINY breakpoints
-    lv_obj_t* presets_content_ = nullptr;
-    lv_obj_t* custom_content_ = nullptr;
-    lv_obj_t* btn_tab_presets_ = nullptr;
-    lv_obj_t* btn_tab_custom_ = nullptr;
 
     // === Internal Methods ===
     void init_subjects();
@@ -172,20 +155,9 @@ class ColorPicker : public Modal {
     // === Static Callback Registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static ColorPicker* active_instance_;
 
-    // === Static Callbacks (traverse widget tree to find modal instance) ===
+    // === Static Callbacks ===
     static void on_swatch_cb(lv_event_t* e);
-
-    /**
-     * @brief Get the currently active ColorPicker instance
-     *
-     * Returns the static active instance pointer. Only one ColorPicker
-     * can be visible at a time.
-     * @param e LVGL event (unused, kept for callback signature compatibility)
-     * @return ColorPicker pointer, or nullptr if none active
-     */
-    static ColorPicker* get_instance_from_event(lv_event_t* e);
 };
 
 /// The preset colors a swatch grid offers, 30 per palette, row-major in six

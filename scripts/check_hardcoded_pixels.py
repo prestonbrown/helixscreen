@@ -7,7 +7,7 @@ HelixScreen ships on screens from 480x272 to 1440p. A raw `style_pad_all="12"`
 is 12px on every one of them, so a layout tuned on a 1024x600 dev window is
 cramped on a Snapmaker U1 and lost in whitespace on a 1280x720 panel. The token
 ladders in ui_xml/globals.xml exist so one attribute resolves per breakpoint:
-theme_manager_resolve_px_tokens() (src/ui/theme_responsive.cpp) picks the
+theme_manager_resolve_px_tokens() (src/ui/theme/theme_responsive.cpp) picks the
 `_micro.._xxlarge` variant for the live display and registers it under the base
 name, which is what `#space_md` and theme_manager_get_spacing("space_md") read.
 
@@ -95,6 +95,9 @@ from pathlib import Path
 
 from staged_content import catfile_batch
 
+from source_strip import blank_xml_comments
+import ratchet  # noqa: E402
+
 XML_DIRS = ("ui_xml",)
 CPP_DIRS = ("src",)
 CPP_EXTS = (".cpp", ".cc")
@@ -113,9 +116,9 @@ OPT_OUT_LOOKBACK = 6
 # Dev-only surfaces and pre-theme crash screens. See WHAT IS NOT FLAGGED.
 EXEMPT_FILES = {
     "src/helix_watchdog.cpp",
-    "src/ui/ui_fatal_error.cpp",
-    "src/ui/ui_panel_glyphs.cpp",
-    "src/ui/ui_snake_game.cpp",
+    "src/ui/notify/ui_fatal_error.cpp",
+    "src/ui/debug/ui_panel_glyphs.cpp",
+    "src/ui/debug/ui_snake_game.cpp",
 }
 
 # Tokens whose value is not a length. modal_backdrop_opacity is 0-255 alpha; a
@@ -231,21 +234,9 @@ def root_is_self_bounding(text: str) -> bool:
     return bool(h and h.group(1).strip().endswith("%"))
 
 
-def blank_comments(text: str) -> str:
-    """Replace XML comment bodies with spaces, preserving length and newlines.
-
-    A comment that explains a fix by quoting the old attribute -- and the good
-    ones here do exactly that -- is documentation, not a violation. Offsets and
-    line numbers are preserved so annotation lookup still reads the real lines.
-    """
-    def blank(m: re.Match) -> str:
-        return "".join(ch if ch == "\n" else " " for ch in m.group(0))
-    return re.sub(r"<!--.*?-->", blank, text, flags=re.S)
-
-
 def scan_xml(text: str, rel: str, tokens: dict[int, list[str]]) -> list[tuple]:
     lines = text.split("\n")
-    scan = blank_comments(text)
+    scan = blank_xml_comments(text)
     hits = []
 
     # A min/max height literal taller than the MICRO dialog budget cannot be
@@ -434,8 +425,10 @@ def main() -> int:
         print("   Run: python3 scripts/check_hardcoded_pixels.py --list")
         return 1
     if total < limit:
-        print(f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
-        return 0
+        return ratchet.under_baseline(
+            'Hardcoded pixels', 'scripts/qc/design_pixels.sh',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
     print(f"✅ Hardcoded pixels: {total} == baseline ({limit})")
     return 0
 

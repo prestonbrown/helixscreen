@@ -6,11 +6,11 @@ Your printer's touchscreen should show you more than temperatures and a progress
 
 - **A real dashboard** — Drag-and-drop widgets across multiple pages. Temperature graphs, fan controls, camera feeds, power toggles, favorite macros. You decide what's on screen, not the developer.
 - **3D visualization** — Rotate your bed mesh with your finger. Preview G-code layers before printing. See input shaper frequency response charts right on the screen.
-- **Multi-material that works** — AFC, Happy Hare, ACE, CFS, AD5X IFS, Snapmaker U1, tool changers. Seven backends, tested on real hardware. Per-box drying controls and humidity monitoring, Spoolman integration.
+- **Multi-material that works** — 11 filament systems: AFC, Happy Hare, ACE, CFS, AD5X IFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX (early support), any Lane Status producer, and tool changers. Per-box drying controls and humidity monitoring, Spoolman integration.
 - **Exclude objects** — Tap the failing part on an overhead map to exclude it mid-print. No more scrapping an entire plate for one bad object.
 - **Runs on hardware you already own** — ~15MB RAM on embedded targets (a few times more on 64-bit Pi, still well under what other touchscreen UIs need). No X11, no browser, no desktop environment. Directly on the framebuffer. From a Creality K1 to a Pi Zero 2 W to a random mini-ITX box with an HDMI touchscreen.
-- **Looks good** — 17 theme presets with a live editor, responsive layouts from 480x320 to 1024x600, GPU-accelerated blur. Light and dark modes. (Ultrawide and portrait screens are alpha — see [Which displays are supported?](FAQ.md#which-displays-are-supported).)
-- **Smart setup** — A first-run wizard auto-detects your printer from a database of 90+ models and configures everything. 9 languages.
+- **Looks good** — 18 theme presets with a live editor, responsive layouts from 480x320 to 1024x600, GPU-accelerated blur. Light and dark modes. (Ultrawide and portrait screens are alpha — see [Which displays are supported?](FAQ.md#which-displays-are-supported).)
+- **Smart setup** — A first-run wizard auto-detects your printer from a database of over 100 models and configures everything. 9 languages.
 
 ![Home Panel](../images/screenshot-home-panel.png)
 
@@ -42,7 +42,7 @@ Run HelixScreen as an app window on your Linux PC or laptop, connected to your p
 Which printers get deep, model-specific integration — and exactly what works on each. Covers the FlashForge Adventurer 5M/5X (IFS), Creality K1/K2 (CFS), QIDI Box, Snapmaker U1, Anycubic ACE, and how every other Klipper printer is auto-detected.
 
 ### [Home Panel](guide/home-panel.md)
-Your printer dashboard: status area, configurable home widgets (temperature, network, LED, AMS, power, notifications, and more), active tool badge for toolchanger printers, emergency stop, and the Printer Manager with custom images. Long-press the widget grid to enter Edit Mode, where you can add, move, resize, and configure widgets across up to 8 pages; the Add page tile one swipe past your last page gives you a new one with a tap, or drag a widget past either edge of your pages. Each Light button picks its own light, or All lights, from the gear icon in Edit Mode; tap to toggle, or use its arrow (or the separate LED Controls widget) for full color, brightness, and effects in the LEDs overlay.
+Your printer dashboard: status area, configurable home widgets (temperature, network, LED, AMS, power, notifications, and more), active tool badge for toolchanger printers, emergency stop, and the Printer Manager with custom images. Long-press the widget grid to enter Edit Mode, where you can add, move, resize, and configure widgets across up to 8 pages; the Add page tile one swipe past your last page gives you a new one with a tap, or drag a widget past either edge of your pages. Each Light button picks its own light, or All lights, with Configure in its Edit Mode menu; tap to toggle, or use its arrow (or the separate LED Controls widget) for full color, brightness, and effects in the LEDs overlay.
 
 ### [Printing](guide/printing.md)
 The full printing workflow — file selection, preview, pre-print options, monitoring active prints, tune overlay, Z-offset baby steps, pressure advance, exclude object, post-print summary, and resuming after a power loss.

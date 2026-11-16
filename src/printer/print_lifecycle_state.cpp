@@ -77,7 +77,6 @@ StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState
     spdlog::debug("[PrintLifecycleState] state transition: {} -> {}",
                   helix::print_state_name(current_state_), helix::print_state_name(new_state));
 
-    // Compute derived booleans
     bool going_idle = (new_state == PrintState::Idle);
     // print_ended fires only on transition to Idle — that's when Moonraker sends
     // Standby after a terminal state. Resources (thumbnail, gcode, viewer) persist
@@ -106,7 +105,6 @@ StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState
     bool want = (new_state != PrintState::Idle);
     bool should_show_viewer = want && gcode_loaded_;
 
-    // Apply freeze for complete state
     if (should_freeze_complete) {
         current_progress_ = 100;
         if (total_layers_ > 0) {
@@ -119,13 +117,11 @@ StateChangeResult PrintLifecycleState::on_job_state_changed(helix::PrintJobState
                       current_layer_, total_layers_, elapsed_seconds_);
     }
 
-    // Clear gcode loaded if needed
     if (clear_gcode_loaded) {
         gcode_loaded_ = false;
         spdlog::trace("[PrintLifecycleState] cleared gcode_loaded");
     }
 
-    // Store old state and update
     PrintState old_state = current_state_;
     current_state_ = new_state;
 

@@ -3,17 +3,20 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-#include "ui_toast_manager.h"
-
+#include "ams_feeder_control.h"
+#include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "cleanup_hold.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
 #include "mount_feed_sequence.h"
+#include "notice.h"
 #include "toolchanger_addon.h"
 
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -59,8 +62,20 @@ class ToolChangerTestAccess;
  * - UNSELECT_TOOL          - Unmount current tool (park it)
  * - T{n}                   - Tool change macro (same as SELECT_TOOL)
  */
-class AmsBackendToolChanger : public AmsSubscriptionBackend {
+class AmsBackendToolChanger : public AmsSubscriptionBackend,
+                              public helix::IFeederControl,
+                              public helix::IStepOperation {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IFeederControl>()) {
+            return static_cast<helix::IFeederControl*>(this);
+        }
+        if (tag == helix::type_tag<helix::IStepOperation>()) {
+            return static_cast<helix::IStepOperation*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     /**
      * @brief Construct tool changer backend
      *
@@ -82,6 +97,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     void set_discovered_tools(std::vector<std::string> tool_names);
 
+    /// Each tool's configured number, keyed by lowercased tool name (from
+    /// PrinterDiscovery::configured_tool_numbers()). A mapping reset returns
+    /// every tool to it.
+    void set_configured_tool_numbers(std::unordered_map<std::string, int> numbers);
+
     /// Tool names plus the feeder, tool sensor, swap commands and material
     /// source resolved from discovery.
     void set_discovery(const helix::PrinterDiscovery& discovery) override;
@@ -96,18 +116,14 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// backend that treats material as a free-form label.
     [[nodiscard]] std::optional<std::vector<std::string>> get_supported_materials() const override;
 
-    /// True once a frame has carried the firmware's slots AND palette: only
-    /// then can an edit be snapped into the palette and normalized into the
-    /// types before it is sent. Before that, an edit stays local as on any
-    /// tool changer.
-    [[nodiscard]] bool firmware_stores_color_and_material(int slot_index) const override;
-
     /// Constant capability answers; see BackendTraits.
     static constexpr BackendTraits kTraits = [] {
         BackendTraits t;
         // Tool changers give each tool its own independent toolhead with no shared
         // physical tray/housing, so the AMS detail view's tray graphic is hidden.
         t.has_physical_tray = false;
+        // Every tool docks: the carriage can hold none.
+        t.carriage_can_be_empty = true;
         // A slot's status is where its tool sits (carriage, dock, removed); nothing
         // here senses filament.
         t.slot_status_tracks_filament = false;
@@ -117,6 +133,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         // Reset re-runs the changer's initialisation, which the toolchanger's own
         // recovery already offers.
         t.supports_reset = false;
+        t.lane_noun = helix::ui::LaneNoun::Tool;
         return t;
     }();
     /// With a firmware feed command (Z-Mod's afclite shim), Load feeds filament
@@ -140,10 +157,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
-        if (tool_feed_.present) {
-            return kTraitsWithFeed;
-        }
-        return mounts_to_feed_ ? kTraitsMountFeed : kTraits;
+        BackendTraits t = tool_feed_.present ? kTraitsWithFeed
+                          : mounts_to_feed_  ? kTraitsMountFeed
+                                             : kTraits;
+        t.tool_number_style = tool_number_style_;
+        return t;
     }
 
     /// Whether this machine moves filament only through the mounted tool
@@ -156,11 +174,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// unwinding, can be cancelled: the heater goes off and the carriage goes
     /// back. The same predicate cancel() acts on. Main thread.
     [[nodiscard]] bool can_cancel_operation() const override;
-
-    /// Every tool docks: the carriage can hold none.
-    [[nodiscard]] bool carriage_can_be_empty() const override {
-        return true;
-    }
 
     /**
      * @brief What each head can do with filament.
@@ -208,10 +221,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return zmod_c5_row_active();
     }
 
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        return helix::ui::LaneNoun::Tool;
-    }
-
     /// ASSIGN_TOOL belongs to klipper-toolchanger. A machine that drives swaps
     /// with its own T<n> commands instead (tool_commands_.present) has no
     /// tool-number indirection to rewrite: those macros name the physical tool
@@ -227,7 +236,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// the same answer the pre-print options use, so the picker is never offered
     /// when the rewrite cannot land.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
-        return tool_commands_.present ? RemapStrategy::GcodeRewrite : RemapStrategy::Native;
+        // Where the print start carries the map, the firmware routes each T<n>
+        // itself: rewriting the job too would map every tool twice.
+        return tool_commands_.present && !print_start_takes_tool_slots_
+                   ? RemapStrategy::GcodeRewrite
+                   : RemapStrategy::Native;
     }
 
     /// A tool changer has one extruder per tool, so its table is identity — but it
@@ -236,6 +249,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }
+
+    /// Each slot as its 1-based head, where the print start takes the map
+    /// (helix::print_start).
+    [[nodiscard]] helix::PrintStartParams
+    print_start_params(const std::map<int, int>& tool_slots) const override;
 
     /// Klipper tool-changers have one extruder per tool. Tool N sources slot N
     /// directly — identity mapping — which activates per-extruder consumption
@@ -439,6 +457,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] bool reset_available() const override;
     [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;
+    /// Ends a live mount-to-feed run with its heaters off and no carriage move,
+    /// while the client can still carry it.
+    void before_disconnect() override;
     /// Refuses while a swap the controller failed mid-print leaves its target
     /// tool too cold for the machine's own RESUME.
     void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
@@ -450,19 +471,19 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// retires its generation so a late ack resolves nothing. A mount-to-feed
     /// run ends here too, and any heaters-off a lost run still owes goes out.
     void on_klipper_restarted() override;
+    /// Re-seeds the Z-Mod tool state (T_INFO) on each edge into READY.
+    void on_klippy_ready() override;
     /// A mount-to-feed run ends: nothing it sent will be answered, and its
     /// cleanup waits for a printer that can take it.
     void on_connection_lost() override;
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    void clear_slot_override(int slot_index) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+
+    /// The T<n> record is a tool's only identity.
+    [[nodiscard]] bool lane_record_is_only_identity() const override {
+        return true;
+    }
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -475,7 +496,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool mapping via klipper-toolchanger ASSIGN_TOOL command
     AmsError reset_tool_mappings() override;
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
 
     // Bypass mode (not applicable for tool changers)
     AmsError enable_bypass() override;
@@ -561,6 +581,20 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
+    /// The stored override and the lane are cleared even for a tool not cached
+    /// yet, so a clear before the first frame sticks.
+    [[nodiscard]] bool clears_override_without_slot() const override {
+        return true;
+    }
+
+    /// Whether this machine's firmware holds each head's colour and material
+    /// (a material source with a writer, whose slots and palette a frame has
+    /// carried): an edit writes them there, and the lane record copies them
+    /// from the firmware. Caller holds mutex_.
+    [[nodiscard]] bool firmware_holds_identity_locked() const;
+
+    /// Copy each head's firmware colour and material into its record.
+    void on_lane_records_read_locked() override;
     [[nodiscard]] std::optional<AmsAction> step_action_locked() const override {
         return step_action_;
     }
@@ -600,9 +634,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void on_feed_signal(helix::mount_feed::ConsoleSignal signal);
     /// The backend stopping under a live run: the full cleanup goes out, best
     /// effort, and the run resets without waiting for an ack that may never
-    /// arrive. From on_stopped(). Takes mutex_ and emits, so never under the
-    /// lock.
-    void abandon_feed_run_after_disconnect();
+    /// arrive. Takes mutex_ and emits, so never under the lock.
+    void abandon_feed_run_after_disconnect(bool restore_carriage);
     /// The printer can no longer take the run's gcode (a lost connection, a
     /// Klipper restart): end the run sending nothing, say so, and owe its
     /// heaters-off to the next moment Klippy is ready.
@@ -686,8 +719,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void toast_unload_complete();
     /// @p heads as lane labels joined with ", " ("Tool 2, Tool 4").
     [[nodiscard]] std::string feed_lane_list(const std::vector<int>& heads) const;
+    /// "Tool 2", or "T1" in G-code style: how this backend's messages name a head.
+    [[nodiscard]] std::string head_label(int head) const;
     /// One toast about a run, with the no-LVGL test guard in one place.
-    void show_feed_toast(const std::string& message, ToastSeverity severity);
+    void show_feed_toast(const std::string& message, NoticeSeverity severity);
     /// Mirror the run onto the published action and step. Caller holds mutex_.
     void publish_feed_state_locked();
     void register_mount_feed_listener();
@@ -702,11 +737,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] std::string park_gcode() const;
 
     bool mounts_to_feed_ = false;
+    /// toolchanger_addon::tool_number_style() of the discovered printer. Set
+    /// by set_discovery() before start(), read-only after.
+    helix::ui::ToolNumberStyle tool_number_style_ = helix::ui::ToolNumberStyle::Physical;
     /// A mount-to-feed load's purge past the nozzle, from the purge_length
     /// device setting. Guarded by mutex_.
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;
     /// The run in progress. Main thread only; feed_active_ mirrors it under mutex_.
     std::optional<helix::mount_feed::Run> feed_run_;
+    helix::CleanupHold feed_heater_hold_;
     uint64_t feed_generation_ = 0;
     bool feed_active_ = false;
     AmsAction feed_action_ = AmsAction::IDLE;
@@ -736,7 +775,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// The last toast a feed run raised, recorded before the LVGL guard so
     /// unit tests can pin the wording without a display.
     std::string feed_last_toast_;
-    ToastSeverity feed_last_toast_severity_ = ToastSeverity::INFO;
+    NoticeSeverity feed_last_toast_severity_ = NoticeSeverity::INFO;
     /// The stage in flight swaps the carriage. Guarded by mutex_.
     bool feed_swap_in_flight_ = false;
     /// The stage in flight is the operator prompt. Guarded by mutex_.
@@ -785,7 +824,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// A toast apply_tool_sensor_locked() decided on, whole and ready to show
     /// once mutex_ is free, and how loud.
     std::string pending_failure_toast_;
-    ToastSeverity pending_failure_severity_ = ToastSeverity::WARNING;
+    NoticeSeverity pending_failure_severity_ = NoticeSeverity::WARNING;
     /// The controller's failure as the user reads it: the swap's target tool
     /// when the controller named one, then its own message. Caller holds mutex_.
     [[nodiscard]] std::string controller_failure_text_locked() const;
@@ -820,7 +859,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     apply_afc_lane_spools_locked(const std::vector<helix::toolchanger_addon::AfcLaneSpool>& spools);
     /// Ask Z-Mod where every tool sits (T_INFO is read-only). Its answer fixes
     /// the boot state on firmware whose active_tool_id only recomputes inside
-    /// its own commands.
+    /// its own commands. Sent only while Klipper reads READY: a start ahead of
+    /// READY leaves it to on_klippy_ready(), so each connect sends it once.
     void query_zmod_tool_state();
 
   private:
@@ -842,6 +882,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Each head's material and colour as the firmware last stated them, so a
     /// frame restating them is not taken for a change.
     std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_slot_values_;
+    /// Per head, the material and colour the firmware states for a head that
+    /// holds filament; what on_lane_records_read_locked() copies into the
+    /// record. Under mutex_.
+    std::vector<std::optional<std::pair<std::string, std::uint32_t>>> firmware_identity_;
     /// Each afclite lane's spool_id as last published, by lane name.
     std::unordered_map<std::string, int> afc_lane_spool_seen_;
     /// Latest per-dock occupancy from the dock sensors, indexed by slot: true
@@ -868,6 +912,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Whether the printer's macro list carries T_INFO (the read-only tool
     /// state query Z-Mod ships on the C5).
     bool tinfo_macro_present_ = false;
+    /// The print start takes this print's tool map (print_start_params()). Set
+    /// once by set_discovery() before start() and read-only afterwards.
+    bool print_start_takes_tool_slots_ = false;
     /// Whether the T_INFO block currently in flight on the console has named a
     /// HEAD row; the block-end line is what turns "no HEAD row" into "the
     /// carriage is empty".
@@ -994,24 +1041,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// klipper-toolchanger reports no material, colour, brand or weight at all.
     /// The store is the SOLE source of filament identity here, not a layer over
     /// a firmware reading, and initialize_tools() resets colour to default grey
-    /// on every rediscovery - which is exactly what used to wipe the user's edit.
+    /// on every rediscovery - which would wipe the user's edit without the store.
 
     /// The store is the sole source of filament identity here, so a clear
     /// blanks every identity field: nothing will restate them.
     void clear_override_fields(SlotInfo& slot) const override;
-
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
-    /// klipper-toolchanger reports no filament identity, so nothing here files
-    /// a vendor-cache reading from a status frame and the persisted record is
-    /// the lane's only account of what a slot holds.
-    [[nodiscard]] bool firmware_publishes_lane_identity() const override {
-        return false;
-    }
 
     /**
      * @brief Parse individual tool state from Moonraker JSON
@@ -1061,6 +1095,37 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     [[nodiscard]] int find_slot_for_tool(const std::string& tool_name) const;
 
+    /**
+     * @brief The slot holding the tool klipper-toolchanger numbers `tool_number`
+     *
+     * Tool numbers can be gapped (T0, T2, T3), so a number is not a slot index.
+     * Once toolchanger.tool_numbers/tool_names have arrived they are the answer,
+     * remaps included, and a number they do not list seats no slot. Before
+     * that, the forward tool map, then the number itself.
+     *
+     * @note Must be called while holding mutex_.
+     */
+    [[nodiscard]] int slot_for_tool_number_locked(int tool_number) const;
+
+    /// The G-code number the printer's listing gives slot @p slot_index's
+    /// tool, -1 when the listing names no number for it. Caller holds mutex_.
+    [[nodiscard]] int listed_number_for_slot_locked(int slot_index) const;
+
+    /// Restate the tool map (badges and op-button lanes) from the printer's
+    /// listing, so each slot is badged with its tool's G-code number. False,
+    /// and the map untouched, when no complete listing has arrived. Caller
+    /// holds mutex_.
+    bool apply_listing_to_tool_map_locked();
+
+    /// Forget the tool listing and the home numbers taken from it, for a
+    /// connection or Klipper that may come back numbered differently. Caller
+    /// holds mutex_.
+    void clear_tool_listing_locked();
+
+    /// Seat current_tool/current_slot/filament_loaded from toolchanger.tool_number.
+    /// @note Must be called while holding mutex_.
+    void seat_tool_number_locked(int tool_number);
+
     // === Optimistic dispatch + macro-ack resolution =========================
     //
     // The only thing that can move the action off the value a dispatch sets is
@@ -1098,6 +1163,17 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
 
     // Tool changer specific state
     std::vector<std::string> tool_names_; ///< Tool names from discovery
+    /// klipper-toolchanger's listing, parallel arrays: listed_tool_names_[i]
+    /// ("tool T2") answers to listed_tool_numbers_[i]. Cached separately because
+    /// Moonraker sends only the one that changed.
+    std::vector<int> listed_tool_numbers_;
+    std::vector<std::string> listed_tool_names_;
+    /// Each tool's number in the first complete listing that named it, which
+    /// reset_tool_mappings() falls back to for a tool with no configured number.
+    std::map<std::string, int> home_tool_numbers_;
+    /// Configured numbers from [tool <name>] sections, lowercased names. They
+    /// outrank home_tool_numbers_, which a remap made before connecting skews.
+    std::unordered_map<std::string, int> configured_tool_numbers_;
 
     // Cached toolchanger state
     bool tools_initialized_{false}; ///< Have we received initial state?

@@ -250,15 +250,6 @@ void Panel::load() {
 
 # --- the tree itself --------------------------------------------------------
 
-@test "src/ is clean under the gate today" {
-    # The ratchet. src/ was migrated off the legacy overloads entirely; this
-    # pins that state, and is what fails the moment a new consumer reaches for
-    # the unguarded form.
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [ -z "$output" ]
-}
-
 @test "the gate is wired into quality-checks.sh" {
     # A gate nothing runs is not a gate.
     run grep -c 'check_thumbnail_cache_guard.py' scripts/qc/decl_ui.sh
@@ -277,9 +268,9 @@ void Panel::load() {
     sed 's@^SINGLETON = "get_thumbnail_cache"@SINGLETON = "never_matches_anything"@' \
         "$GATE" > "$broken"
     refute_grep 'SINGLETON = "get_thumbnail_cache"' "$broken"
-    # The gate imports staged_content as a sibling module; a copy run outside
-    # scripts/ needs its own copy beside it.
-    cp "$(dirname "$GATE")/staged_content.py" "${FIXTURE_DIR}/"
+    # The gate imports staged_content and source_strip as sibling modules; a
+    # copy run outside scripts/ needs its own copies beside it.
+    cp "$(dirname "$GATE")/staged_content.py" "$(dirname "$GATE")/source_strip.py" "${FIXTURE_DIR}/"
 
     printf '%s\n' '
 void Panel::load() {

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "print_stop_reason.h"
 
+#include "core/observer_factory.h"
 #include "error_event.h"
 #include "firmware_error_envelope.h"
 #include "gcode_response_lines.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>

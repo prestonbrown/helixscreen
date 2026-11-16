@@ -15,9 +15,9 @@
 // full-screen modal that says more than a 3s INFO line could.
 //
 // Mock stack follows test_begin_expected_restart.cpp: MoonrakerClientMock +
-// MoonrakerAPIMock over a stack PrinterState, with the api published through
-// set_moonraker_api() because begin_expected_klippy_restart() reaches it that
-// way. The dropped rpc is injected with force_next_gcode_error() rather than
+// MoonrakerAPIMock over a stack PrinterState, with the global api left unset:
+// the restart window is armed on the api the macro went through. The dropped
+// rpc is injected with force_next_gcode_error() rather than
 // relying on a mock branch, so the macro name stays arbitrary and the error
 // shape is exactly Moonraker's.
 
@@ -26,9 +26,10 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/emergency_stop_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/toast_log.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "macro_executor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -65,7 +66,6 @@ class MacroFailureFixture : public LVGLTestFixture {
 
     MacroFailureFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
         helix::ui::set_test_toast_hook([this](ToastSeverity severity, const std::string& m,
                                               uint32_t) { toasts.push_back({severity, m}); });
         // The overlay is a process-wide singleton and Catch2 runs the suite in
@@ -77,7 +77,6 @@ class MacroFailureFixture : public LVGLTestFixture {
     }
 
     ~MacroFailureFixture() override {
-        set_moonraker_api(nullptr);
         helix::ui::set_test_toast_hook(nullptr);
         EmergencyStopOverlayTestAccess::reset_suppression(EmergencyStopOverlay::instance());
         settle();
@@ -99,7 +98,7 @@ class MacroFailureFixture : public LVGLTestFixture {
     // The rpc callback settles on the calling thread, but the toast and the
     // suppression writes hop the queue, so drain until it stops producing.
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -160,4 +159,51 @@ TEST_CASE_METHOD(MacroFailureFixture, "An ordinary macro's failed rpc is still r
 
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].severity == ToastSeverity::ERROR);
+}
+
+TEST_CASE_METHOD(MacroFailureFixture, "A machine gcode's outcome toasts its name from the queue",
+                 "[macro][toast]") {
+    helix::test::ToastLog log;
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+
+    SECTION("sent") {
+        helix::execute_machine_gcode(&api, cmd, "[MacroToastTest]");
+        CHECK(log.shown.empty());
+        settle();
+        log.expect_one(ToastSeverity::SUCCESS, "Plain sent", 2000);
+    }
+    SECTION("failed") {
+        drop_next_rpc_for(cmd.gcode.c_str());
+        helix::execute_machine_gcode(&api, cmd, "[MacroToastTest]");
+        CHECK(log.shown.empty());
+        settle();
+        log.expect_one(ToastSeverity::ERROR, "Plain failed", 4000);
+    }
+}
+
+TEST_CASE_METHOD(MacroFailureFixture, "A refused or unhomeable calibration says so",
+                 "[macro][toast]") {
+    helix::test::ToastLog log;
+    helix::MachineGcode cmd;
+    cmd.gcode = cmd.log_name = "PLAIN_WRAPPER";
+    cmd.display_name = "Plain";
+    helix::PrinterState& printer = get_printer_state();
+    printer.init_subjects(false);
+
+    SECTION("a print holds the machine") {
+        lv_subject_t* blocked = printer.print_state().get_machine_motion_blocked_subject();
+        lv_subject_set_int(blocked, 1);
+        helix::start_calibration_gcode(&api, cmd, /*needs_home=*/false, "[MacroToastTest]");
+        log.expect_one(ToastSeverity::WARNING, "Cannot calibrate while printing", 3000);
+        lv_subject_set_int(blocked, 0);
+    }
+    SECTION("homing fails") {
+        client.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST, "Klippy Disconnected",
+                                      "G28");
+        helix::start_calibration_gcode(&api, cmd, /*needs_home=*/true, "[MacroToastTest]");
+        settle();
+        log.expect_one(ToastSeverity::ERROR, "Plain failed", 4000);
+    }
 }

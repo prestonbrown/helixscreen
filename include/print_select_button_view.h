@@ -1,4 +1,3 @@
-// include/print_select_button_view.h
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 

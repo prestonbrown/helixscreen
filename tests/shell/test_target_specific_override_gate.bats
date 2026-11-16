@@ -131,10 +131,3 @@ $(OBJ_DIR)/b.o: CXXFLAGS += -DB'
     contains "a.o" "$output"
     [[ "$output" == *"b.o"* ]]
 }
-
-# ------------------------------------------------------------- the real tree
-
-@test "the checked-in makefiles satisfy the gate" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}

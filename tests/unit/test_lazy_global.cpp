@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../helix_test_fixture.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 
 #include <string>
 #include <vector>

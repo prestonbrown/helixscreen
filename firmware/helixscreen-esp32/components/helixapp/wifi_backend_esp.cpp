@@ -2,7 +2,7 @@
 //
 // Task 13 — WifiBackend over esp_wifi. Implements helix::create_platform_
 // wifi_backend() (declared in include/wifi_backend.h) so the shared
-// WiFiManager (src/api/wifi_manager.cpp) drives the real K-Touch radio the
+// WiFiManager (src/network/wifi_manager.cpp) drives the real K-Touch radio the
 // same way it drives NetworkManager/wpa_supplicant on desktop: register event
 // callbacks, then start_async(); scan/connect/status all go through the
 // WifiBackend contract.
@@ -37,13 +37,13 @@
 
 #include "wifi_backend_esp.h"
 
+#include "core/log_redact.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_moonraker_client.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
-#include "log_redact.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"

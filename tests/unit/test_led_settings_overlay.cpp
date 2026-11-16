@@ -10,13 +10,13 @@
 #include "ui_nav_manager.h"
 #include "ui_settings_led.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
-#include "static_panel_registry.h"
 
 #include <array>
 #include <string>
@@ -169,4 +169,46 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     CHECK(mapping->color == presets[2]);
     CHECK(selected_for_idle() == 2);
     CHECK(lv_obj_find_by_name(ctx, "led_auto_swatch_2") == third);
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: the startup readout and detail panels follow their subjects",
+                 "[led][settings]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.set_startup_brightness(65);
+    helix::led::LedStateAction brightness;
+    brightness.action_type = "brightness";
+    helix::led::LedAutoState::instance().set_mapping("idle", brightness);
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+
+    lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), "row_startup_brightness");
+    REQUIRE(row != nullptr);
+    lv_obj_t* readout = lv_obj_find_by_name(row, "value_label");
+    REQUIRE(readout != nullptr);
+    CHECK(std::string(lv_label_get_text(readout)) == "65%");
+    overlay.handle_startup_brightness_changed(42);
+    CHECK(std::string(lv_label_get_text(readout)) == "42%");
+
+    // A row with an action shows its detail panel; an "off" row hides it.
+    lv_obj_t* idle = lv_obj_find_by_name(lv_screen_active(), "detail_idle");
+    lv_obj_t* heating = lv_obj_find_by_name(lv_screen_active(), "detail_heating");
+    REQUIRE(idle != nullptr);
+    REQUIRE(heating != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(idle));
+    CHECK(lv_obj_is_hidden(heating));
+
+    // Picking "off" (the first option) in the idle row's dropdown hides its panel.
+    lv_obj_t* idle_row = lv_obj_get_sibling(idle, -1);
+    REQUIRE(idle_row != nullptr);
+    lv_obj_t* dropdown = lv_obj_find_by_name(idle_row, "dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 0);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK(lv_obj_is_hidden(idle));
+
+    ctrl.set_startup_brightness(80);
 }

@@ -4,10 +4,10 @@
 #include "probe_preparation.h"
 
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -29,6 +29,9 @@ struct DisplaySleepHost {
     std::function<void(lv_display_flush_cb_t)> restore_flush_cb;
     /// Someone is watching through the remote screen server; empty means nobody can.
     std::function<bool()> remote_viewer_active;
+    /// Brings every subject and queued observer up to date before the first frame after a
+    /// sleep: applies held status, ends the hold, drains the UpdateQueue. Empty: nothing to do.
+    const std::function<void()>& settle_for_wake_frame;
 };
 
 /// How the panel is darkened and dimmed, resolved by the owner at init.
@@ -64,8 +67,13 @@ class DisplaySleepController {
     /// One idle-check tick: reads the idle clock and applies helix::decide_idle().
     void tick();
 
-    /// Wakes from sleep, dim or a screensaver. A no-op when already awake.
+    /// Wakes from sleep, dim or a screensaver. A no-op when already awake. Inside an
+    /// UpdateQueue batch the first frame after a sleep is owed to finish_owed_wake_frame().
     void wake();
+
+    /// Settles, restores the panel and renders the first frame a wake inside a batch owed,
+    /// then restores the brightness. Main loop, outside any batch; a no-op when none is owed.
+    void finish_owed_wake_frame();
 
     /// Forces the display awake at startup whatever the previous run left behind.
     void ensure_on();
@@ -116,6 +124,10 @@ class DisplaySleepController {
     /// the post-wake repaint so the framebuffer is ready when LVGL paints.
     void restore_display_output();
 
+    /// Settles state, restores the panel output and renders synchronously, then lights it.
+    void render_first_wake_frame();
+    int restore_user_brightness();
+
     /// Disables invalidation and swaps the flush callback for a no-op while the panel is
     /// powered off, so no page-flip re-asserts DPMS-on. Idempotent.
     void suppress_flush_for_sleep();
@@ -125,6 +137,11 @@ class DisplaySleepController {
 
     void create_sleep_overlay();
     void destroy_sleep_overlay();
+
+    /// Hides the active screen while the hardware blank or the host has the panel dark,
+    /// and shows it again. Each is idempotent.
+    void hide_screen_for_dark_panel();
+    void show_screen_after_dark_panel();
 
     /// Asserts or releases the host window's keep-screen-on request. Android only, and
     /// transition-guarded so JNI is crossed only on a real change.
@@ -138,6 +155,7 @@ class DisplaySleepController {
     bool m_remote_sleep_held = false;  // a remote viewer is keeping an overdue sleep at dim
     bool m_remote_viewer_seen = false; // the previous tick saw a remote viewer
     bool m_wake_from_input = false;    // wake() is running for the user's touch or activity
+    bool m_wake_frame_owed = false;    // a wake inside a batch left the first frame to the loop
     int m_dim_timeout_sec = 600;
     int m_dim_brightness_percent = 30;
 
@@ -145,6 +163,7 @@ class DisplaySleepController {
     bool m_use_power_off = false;
     bool m_sleep_backlight_off = true;
     lv_obj_t* m_sleep_overlay = nullptr;
+    bool m_screen_hidden_for_dark_panel = false;
 
     /// The branch the most recent enter_sleep() actually took, which can differ from the
     /// selector's answer: power_off() may refuse at runtime and degrade to the overlay.

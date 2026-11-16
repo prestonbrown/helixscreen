@@ -201,8 +201,6 @@ TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
     fx.add("temperature_sensor enclosure");
-    fx.add("tmc2240 stepper_x");
-    fx.add("tmc5160 stepper_y");
 
     json subs = fx.build();
 
@@ -210,13 +208,9 @@ TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
     // sensors (Happy Hare filament dryer) stream %RH; temperature-only sensors
     // simply have Moonraker omit the absent field. Narrowing contract: no MORE
     // than these two fields stream back.
-    for (const auto& s :
-         {"temperature_sensor enclosure", "tmc2240 stepper_x", "tmc5160 stepper_y"}) {
-        CAPTURE(s);
-        REQUIRE(has_field(subs, s, "temperature"));
-        REQUIRE(has_field(subs, s, "humidity"));
-        REQUIRE(subs[s].size() == 2);
-    }
+    REQUIRE(has_field(subs, "temperature_sensor enclosure", "temperature"));
+    REQUIRE(has_field(subs, "temperature_sensor enclosure", "humidity"));
+    REQUIRE(subs["temperature_sensor enclosure"].size() == 2);
 }
 
 TEST_CASE("Subscription: humidity sensor chips are subscribed with humidity",
@@ -253,19 +247,21 @@ TEST_CASE("Subscription: fan field shape varies by object type", "[moonraker][su
 
     json subs = fx.build();
 
-    SECTION("standard fans: {speed}") {
+    SECTION("standard fans: {speed, rpm}") {
         for (const auto& f : {"fan", "heater_fan hotend_fan", "fan_generic part_cooling",
                               "controller_fan board_fan"}) {
             CAPTURE(f);
             REQUIRE(has_field(subs, f, "speed"));
-            REQUIRE(subs[f].size() == 1);
+            REQUIRE(has_field(subs, f, "rpm"));
+            REQUIRE(subs[f].size() == 2);
         }
     }
 
-    SECTION("temperature_fan: {temperature, target, speed} (sensor + fan union)") {
+    SECTION("temperature_fan: {temperature, target, speed, rpm} (sensor + fan union)") {
         REQUIRE(has_field(subs, "temperature_fan chamber", "temperature"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "target"));
         REQUIRE(has_field(subs, "temperature_fan chamber", "speed"));
+        REQUIRE(has_field(subs, "temperature_fan chamber", "rpm"));
     }
 
     SECTION("output_pin fan: {value} (Creality-style)") {
@@ -326,7 +322,7 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
 
     json subs = fx.build();
 
-    SECTION("AFC top-level reads ams_backend_afc.cpp parse_afc_state") {
+    SECTION("AFC top-level reads ams_backend_afc.cpp apply_afc_state") {
         REQUIRE(has_field(subs, "AFC", "current_load"));
         REQUIRE(has_field(subs, "AFC", "current_lane"));
         REQUIRE(has_field(subs, "AFC", "current_state"));
@@ -336,7 +332,7 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         REQUIRE(has_field(subs, "AFC", "units"));
     }
 
-    SECTION("AFC_stepper / AFC_lane: parse_afc_stepper fields") {
+    SECTION("AFC_stepper / AFC_lane: apply_lane_status fields") {
         for (const auto& obj : {"AFC_stepper lane1", "AFC_lane lane2"}) {
             CAPTURE(obj);
             REQUIRE(has_field(subs, obj, "prep"));
@@ -351,12 +347,12 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         }
     }
 
-    SECTION("AFC_hub: parse_afc_hub fields") {
+    SECTION("AFC_hub: apply_hub fields") {
         REQUIRE(has_field(subs, "AFC_hub turtle1", "state"));
         REQUIRE(has_field(subs, "AFC_hub turtle1", "afc_bowden_length"));
     }
 
-    SECTION("AFC_buffer: parse_afc_buffer fields") {
+    SECTION("AFC_buffer: apply_buffer fields") {
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "state"));
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "distance_to_fault"));
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "error_sensitivity"));
@@ -364,13 +360,13 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
         REQUIRE(has_field(subs, "AFC_buffer buffer1", "lanes"));
     }
 
-    SECTION("AFC_extruder: parse_afc_extruder fields") {
+    SECTION("AFC_extruder: apply_extruder_object fields") {
         REQUIRE(has_field(subs, "AFC_extruder extruder", "lane_loaded"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_end_status"));
         REQUIRE(has_field(subs, "AFC_extruder extruder", "tool_start_status"));
     }
 
-    SECTION("Unit-level (AFC_BoxTurtle): parse_afc_unit_object fields") {
+    SECTION("Unit-level (AFC_BoxTurtle): apply_unit_object fields") {
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "lanes"));
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "extruders"));
         REQUIRE(has_field(subs, "AFC_BoxTurtle turtle1", "hubs"));
@@ -423,11 +419,37 @@ TEST_CASE("Subscription: AFC field lists are exactly the parsers' inputs",
                                     "hubs",
                                     "extruders",
                                     "buffers"});
-    const json stepper =
-        json::array({"buffer_status",   "color",         "current_map", "dist_hub",      "extruder",
-                     "filament_status", "hub",           "load",        "loaded_to_hub", "map",
-                     "material",        "prep",          "runout_lane", "spool_id",      "status",
-                     "td1_color",       "td1_scan_time", "td1_td",      "tool_loaded",   "weight"});
+    const json stepper = json::array({"bed_temp",
+                                      "buffer_status",
+                                      "color",
+                                      "current_map",
+                                      "dist_hub",
+                                      "endstops",
+                                      "extruder",
+                                      "extruder_temp",
+                                      "filament_name",
+                                      "filament_status",
+                                      "filament_status_led",
+                                      "hub",
+                                      "initial_weight",
+                                      "load",
+                                      "loaded_to_hub",
+                                      "map",
+                                      "material",
+                                      "multi_color_hexes",
+                                      "prep",
+                                      "remember_spool",
+                                      "runout_lane",
+                                      "selector",
+                                      "spool_id",
+                                      "spool_vendor",
+                                      "status",
+                                      "td1_color",
+                                      "td1_scan_time",
+                                      "td1_td",
+                                      "tool_loaded",
+                                      "vendor_name",
+                                      "weight"});
 
     CHECK(subs["AFC"] == state);
     CHECK(subs["AFC_stepper lane1"] == stepper);
@@ -544,34 +566,36 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
     };
 
     // z_offset is requested everywhere: the Creality and QIDI forks publish it
-    // on their probe, and Klipper answers a module without it with null.
-    SECTION("ProbeCommandHelper objects: last_query + last_z_result + z_offset") {
+    // on their probe, and Klipper answers a module without it with null. name
+    // says which folded section a multi-coil probe is using.
+    SECTION("ProbeCommandHelper objects: last_query + last_z_result + z_offset + name") {
         for (const auto* name : {"probe", "bltouch", "smart_effector"}) {
-            requires_fields(build_with({name}), name, {"last_query", "last_z_result", "z_offset"});
+            requires_fields(build_with({name}), name,
+                            {"last_query", "last_z_result", "z_offset", "name"});
         }
     }
 
-    SECTION("objects with no usable last_query: last_z_result + z_offset") {
-        requires_fields(build_with({"beacon"}), "beacon", {"last_z_result", "z_offset"});
+    SECTION("objects with no usable last_query: last_z_result + z_offset + name") {
+        requires_fields(build_with({"beacon"}), "beacon", {"last_z_result", "z_offset", "name"});
         requires_fields(build_with({"probe_eddy_current btt"}), "probe_eddy_current btt",
-                        {"last_z_result", "z_offset"});
+                        {"last_z_result", "z_offset", "name"});
     }
 
     SECTION("Cartographer reads its status from the probe object it registers") {
         json subs = build_with({"probe", "cartographer"});
-        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("cartographer"));
     }
 
     SECTION("the [probe] alias is not subscribed beside the specific object") {
         json subs = build_with({"bltouch", "probe"});
-        requires_fields(subs, "bltouch", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "bltouch", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("probe"));
     }
 
     SECTION("an eddy object beside a Cartographer is not subscribed") {
         json subs = build_with({"probe", "probe_eddy_current carto", "cartographer"});
-        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset"});
+        requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
         REQUIRE_FALSE(subs.contains("cartographer"));
         REQUIRE_FALSE(subs.contains("probe_eddy_current carto"));
     }
@@ -789,17 +813,20 @@ TEST_CASE("Subscription: mains-monitor firmware subscribes its power-loss object
     }
 }
 
-TEST_CASE("Subscription: enclosure-top firmware subscribes the one field it reads",
-          "[moonraker][subscription][enclosure_top]") {
-    SECTION("purifier discovered -> power_detected subscribed alone") {
-        // The object's fan readings change every tick; only the flag is read.
+TEST_CASE("Subscription: enclosure-top firmware subscribes the fields it reads",
+          "[moonraker][subscription][enclosure_top][chamber_air]") {
+    SECTION("purifier discovered -> enclosure-top and chamber-air fields, unioned") {
+        // Two modules read the object; a plain assignment would keep only the
+        // later one's fields. The tachometer reading changes every tick and is
+        // never subscribed.
         DiscoveryFixture fx;
         fx.add("purifier");
         fx.add("fm175xx_reader");
         json subs = fx.build();
 
         REQUIRE(subs.contains("purifier"));
-        CHECK(subs["purifier"] == json::array({"power_detected"}));
+        CHECK(subs["purifier"] == json::array({"power_detected", "mode", "critical_chamber_temp",
+                                               "inner_fan_work_time", "exhaust_fan", "inner_fan"}));
     }
 
     SECTION("no purifier -> not subscribed") {

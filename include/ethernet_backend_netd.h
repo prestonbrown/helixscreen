@@ -24,7 +24,7 @@
  * mid-session must not blank a row whose kernel address is still live.
  *
  * has_interface() is deliberately daemon-free: it scans sysfs directly (the
- * shared ethernet:: classification), so the Ethernet row's visibility never
+ * shared helix::ethernet:: classification), so the Ethernet row's visibility never
  * flaps when the daemon restarts, and a downed eth0 (which still exists in
  * sysfs) still counts as present.
  *
@@ -58,6 +58,9 @@ class EthernetBackendNetd : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override {
+        return helix::net::open_kernel_link_events();
+    }
 
   private:
     std::string sysfs_root_;

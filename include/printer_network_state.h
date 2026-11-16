@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
@@ -10,10 +12,8 @@
 #include <optional>
 #include <string>
 
-#include "hv/json.hpp"
-
-// Forward declare ConnectionState and KlippyState (defined in moonraker_client.h and
-// printer_state.h)
+// Forward declare ConnectionState and KlippyState (defined in connection_state.h and
+// klippy_state.h)
 namespace helix {
 enum class ConnectionState;
 }
@@ -36,8 +36,6 @@ enum class MoonrakerLocality { Unknown = 0, Local = 1, Remote = 2 };
  * and Klipper firmware state. Also maintains a derived nav_buttons_enabled
  * subject that combines connection and klippy state for UI gating.
  *
- * Extracted from PrinterState as part of god class decomposition.
- *
  * Subjects (9 total):
  * - printer_connection_state_ (int) - ConnectionState enum values
  * - printer_connection_message_ (string, 128-byte buffer) - status message
@@ -47,6 +45,7 @@ enum class MoonrakerLocality { Unknown = 0, Local = 1, Remote = 2 };
  * - moonraker_connection_state_ (int, derived) - 1 when Moonraker WebSocket connected
  * - moonraker_is_remote_ (int) - 1 when the connected Moonraker is NOT this host
  * - moonraker_locality_ (int) - MoonrakerLocality for the current connection
+ * - klippy_state_message_seq_ (int) - bumped on every state message change
  *
  * Additional state:
  * - was_ever_connected_ (bool) - tracks if ever successfully connected this session
@@ -58,7 +57,6 @@ class PrinterNetworkState {
     PrinterNetworkState();
     ~PrinterNetworkState() = default;
 
-    // Non-copyable
     PrinterNetworkState(const PrinterNetworkState&) = delete;
     PrinterNetworkState& operator=(const PrinterNetworkState&) = delete;
 
@@ -139,6 +137,12 @@ class PrinterNetworkState {
 
     bool klippy_state_from_live() const {
         return klippy_state_from_live_.load();
+    }
+
+    /// Whether the klippy_state subject holds a state a source reported, rather
+    /// than the SHUTDOWN placeholder it starts with. Main thread only.
+    bool klippy_state_reported() const {
+        return klippy_state_reported_;
     }
 
     /// Start a new connection session: clears the watermark and the live latch and
@@ -257,15 +261,15 @@ class PrinterNetworkState {
     bool subjects_initialized_ = false;
 
     // Network state subjects
-    lv_subject_t printer_connection_state_{};   // Integer: ConnectionState enum values
-    lv_subject_t printer_connection_message_{}; // String buffer
-    lv_subject_t network_status_{};             // Integer: NetworkStatus enum values
-    lv_subject_t klippy_state_{};               // Integer: KlippyState enum values
-    lv_subject_t nav_buttons_enabled_{};        // Derived: 1 when connected AND klippy ready
-    lv_subject_t moonraker_connection_state_{}; // Derived: 1 when Moonraker WebSocket connected
-    lv_subject_t moonraker_is_remote_{};        // 1 when connected Moonraker is not this host
-    lv_subject_t moonraker_locality_{};         // MoonrakerLocality for this connection
-    lv_subject_t klippy_state_message_seq_{};   // Bumped on every state message change
+    helix::Subject printer_connection_state_{};   // Integer: ConnectionState enum values
+    helix::Subject printer_connection_message_{}; // String buffer
+    helix::Subject network_status_{};             // Integer: NetworkStatus enum values
+    helix::Subject klippy_state_{};               // Integer: KlippyState enum values
+    helix::Subject nav_buttons_enabled_{};        // Derived: 1 when connected AND klippy ready
+    helix::Subject moonraker_connection_state_{}; // Derived: 1 when Moonraker WebSocket connected
+    helix::Subject moonraker_is_remote_{};        // 1 when connected Moonraker is not this host
+    helix::Subject moonraker_locality_{};         // MoonrakerLocality for this connection
+    helix::Subject klippy_state_message_seq_{};   // Bumped on every state message change
 
     // String buffer for connection message
     char printer_connection_message_buf_[128];
@@ -273,6 +277,7 @@ class PrinterNetworkState {
     // Klipper state message (error/shutdown reason from webhooks.state_message)
     std::string klippy_state_message_;
     std::optional<KlippyState> klippy_state_message_describes_;
+    bool klippy_state_reported_ = false;
 
     // Track if we've ever successfully connected (for UI display)
     bool was_ever_connected_ = false;

@@ -31,25 +31,33 @@ int load_value(const PersistedSetting& s) {
 }
 } // namespace
 
-void init_setting(const PersistedSetting& s, lv_subject_t& subject, SubjectManager& subjects) {
+namespace {
+/// True while the setting's subject holds its value: after init_setting() and before a
+/// reset. A Subject's node is an INT placeholder from construction, so its type says nothing.
+bool holds_int(const Subject& subject) {
+    return subject.is_live();
+}
+} // namespace
+
+void init_setting(const PersistedSetting& s, Subject& subject, SubjectManager& subjects) {
     const int value = load_value(s);
     UI_MANAGED_SUBJECT_INT(subject, value, s.xml_name, subjects);
 }
 
-void reload_setting(const PersistedSetting& s, lv_subject_t& subject) {
-    if (subject.type == LV_SUBJECT_TYPE_INT) {
+void reload_setting(const PersistedSetting& s, Subject& subject) {
+    if (holds_int(subject)) {
         lv_subject_set_int(&subject, load_value(s));
     }
 }
 
-int get_setting(const PersistedSetting& s, const lv_subject_t& subject) {
-    if (subject.type != LV_SUBJECT_TYPE_INT) {
+int get_setting(const PersistedSetting& s, const Subject& subject) {
+    if (!holds_int(subject)) {
         return s.def;
     }
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&subject));
+    return lv_subject_get_int(subject.get());
 }
 
-void set_setting(const PersistedSetting& s, lv_subject_t& subject, int value) {
+void set_setting(const PersistedSetting& s, Subject& subject, int value) {
     value = normalize(s, value);
     Config* config = Config::get_instance();
     const std::string path = path_of(s, *config);

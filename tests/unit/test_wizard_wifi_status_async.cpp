@@ -6,14 +6,15 @@
 // control-socket round trip that can wait 10s, so no path may make one on the
 // UI thread.
 
-#include "ui_update_queue.h"
+#include "ui_modal.h"
 #include "ui_wizard_wifi.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wizard_wifi_test_access.h"
 #include "async_lifetime_guard.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -92,15 +93,13 @@ class WizardWifiStatusFixture : public LVGLUITestFixture {
         REQUIRE(wait_until([&]() { return *delivered; }));
     }
 
-    /// Stands in for the XML dialog: the widgets the connect handler looks up.
+    /// Stands in for the XML dialog: the input the connect handler reads.
     lv_obj_t* make_modal() {
         lv_obj_t* modal = lv_obj_create(test_screen());
         REQUIRE(modal != nullptr);
         lv_obj_t* input = lv_textarea_create(modal);
         lv_obj_set_name(input, "password_input");
         lv_textarea_set_text(input, "some-password");
-        lv_obj_t* status = lv_label_create(modal);
-        lv_obj_set_name(status, "modal_status");
         return modal;
     }
 
@@ -141,7 +140,8 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
 TEST_CASE_METHOD(WizardWifiStatusFixture,
                  "wizard wifi: the network list marks the connected network from an async read",
                  "[wizard_wifi][wifi_status_async]") {
-    Access::refresh_list(step(), {WiFiNetwork("Other", 90, true), WiFiNetwork(kSsid, 70, true)});
+    Access::refresh_list(step(),
+                         {WiFiNetwork("Other", 90, true, "WPA3"), WiFiNetwork(kSsid, 70, true)});
 
     auto connected_rows = [&]() {
         lv_obj_t* list = Access::network_list(step());
@@ -155,6 +155,20 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
     };
     REQUIRE(wait_until([&]() { return connected_rows() == 1 && shows_connection(); }));
     CHECK(no_read_on_this_thread());
+
+    // Each row shows its own security type and signal icon.
+    lv_obj_t* list = Access::network_list(step());
+    lv_obj_t* other = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(list) && !other; ++i) {
+        lv_obj_t* ssid = lv_obj_find_by_name(lv_obj_get_child(list, i), "ssid_label");
+        if (ssid && std::string(lv_label_get_text(ssid)) == "Other") {
+            other = lv_obj_get_child(list, i);
+        }
+    }
+    REQUIRE(other != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(other, "security_label"))) == "WPA3");
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(other, "sig_4_lock")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(other, "sig_4")));
 }
 
 TEST_CASE_METHOD(WizardWifiStatusFixture,
@@ -197,4 +211,28 @@ TEST_CASE_METHOD(WizardWifiStatusFixture,
     CHECK_FALSE(ran);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
+}
+
+TEST_CASE_METHOD(WizardWifiStatusFixture,
+                 "wizard wifi: Add Hidden Network joins a typed SSID as hidden",
+                 "[wizard_wifi][hidden]") {
+    Access::add_hidden_clicked(step());
+    lv_obj_t* modal = Modal::get_top();
+    REQUIRE(modal != nullptr);
+    lv_obj_t* ssid_input = lv_obj_find_by_name(modal, "ssid_input");
+    lv_obj_t* security = lv_obj_find_by_name(modal, "security_dropdown");
+    lv_obj_t* connect = lv_obj_find_by_name(modal, "connect_btn");
+    REQUIRE((ssid_input && security && connect));
+    // An open network the mock stocks, so the join succeeds after its connect delay.
+    const std::string joining = "Guest-Access";
+    REQUIRE_FALSE(names(Access::status(step()), joining));
+    lv_textarea_set_text(ssid_input, joining.c_str());
+    lv_dropdown_set_selected(security, 0);
+
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+
+    // "Connected to <ssid>" names the SSID the Started report recorded.
+    REQUIRE(
+        wait_until([&]() { return Access::status(step()) == "Connected to " + joining; }, 10000));
+    CHECK(wifi->last_connect_hidden());
 }

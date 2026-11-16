@@ -12,17 +12,18 @@
 
 #include "ui_panel_print_status.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -99,12 +100,13 @@ TEST_CASE_METHOD(ChamberPanelFixture, "print status chamber chip follows the eff
                               {"temperature_fan chamber_fan", {{"target", 30.0}}}});
     CHECK(chip() == "36 / 30°");
 
-    // Nothing holds a target and the chamber is cool: no chip at all.
+    // Nothing holds a target and the chamber is cool: the reading still shows,
+    // since the chamber's temperature matters to the print either way.
     temps.update_from_status(
-        {{"heater_generic chamber_heater", {{"temperature", 30.5}, {"target", 0.0}}},
+        {{"heater_generic chamber_heater", {{"temperature", 30.3}, {"target", 0.0}}},
          {"temperature_fan chamber_fan", {{"target", 0.0}}}});
     REQUIRE(lv_subject_get_int(temps.get_chamber_effective_target_subject()) == 0);
-    CHECK(chip().empty());
+    CHECK(chip() == "30°");
 }
 
 TEST_CASE_METHOD(ChamberPanelFixture,

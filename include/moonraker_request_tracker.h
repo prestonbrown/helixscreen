@@ -151,9 +151,9 @@ class MoonrakerRequestTracker {
 
     /// Same, for a long-running G-code script. `printer.gcode.script` does not
     /// return until Klipper finishes the macro, and an AFC toolchange over a 2 m
-    /// bowden is legitimately a minute or more, so the 30 s threshold flagged
-    /// healthy work: 77 warnings in one AFC bundle, all of them normal lane
-    /// loads. Past five minutes a script really has stopped.
+    /// bowden is legitimately a minute or more, so the 30 s threshold would flag
+    /// healthy work, warning on every normal lane load. Past five minutes a
+    /// script really has stopped.
     static constexpr uint32_t kPendingWarnAgeGcodeMs = 300000; // 5min
 
   private:

@@ -3,9 +3,9 @@
 How home-dashboard widgets are built, and the reference pattern for making
 one size itself responsively. The nozzle-temps widget is the exemplar to copy:
 `src/ui/panel_widgets/nozzle_temps_widget.{h,cpp}`,
-`src/ui/panel_widgets/nozzle_layout.h`, and its three XML components. Seven widgets
+`src/ui/panel_widgets/nozzle_layout.h`, and its three XML components. Ten widgets
 are built on the shared size ladder (`speed_flow`, `z_offset`, `dryer`, `host_health`,
-`toolhead`, `bed_mesh_tile`, `exclude_map`); `speed_flow` is the smallest worked example:
+`toolhead`, `bed_mesh_tile`, `exclude_map`, `job_queue`, `print_stats`, `maintenance`); `speed_flow` is the smallest worked example:
 `src/ui/panel_widgets/speed_flow_widget.{h,cpp}`,
 `src/ui/panel_widgets/speed_flow_layout.h`, and its two XML components. The ladder,
 the helpers around it and the checklist every one of them satisfies are in
@@ -25,7 +25,7 @@ printer image's live callouts are a third instance
 
 | Piece | Where | Notes |
 |-------|-------|-------|
-| Registry def | `src/ui/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
+| Registry def | `src/ui/home/panel_widget_registry.cpp` | id, display name, icon, category, default/enabled, colspan/rowspan and their min/max, whether it may span half cells, `scope` |
 | Widget class | `src/ui/panel_widgets/<name>_widget.{h,cpp}` | extends `PanelWidget`; implements `attach()` / `detach()` / `on_size_changed()` |
 | XML component | `ui_xml/components/panel_widget_<name>.xml` | the entire appearance |
 | Row/child components | `ui_xml/components/<name>_*.xml` | repeated fragments the widget creates per item |
@@ -62,7 +62,7 @@ header-only function next to the widget (`nozzle_layout.h`) taking measured
 pixel inputs and returning a small verdict struct. It is unit-testable
 without a display, and the tests' fixtures are the widths the widget really
 measured, so the boundaries they pin are the live ones. Split the decision
-the way the questions actually split — for nozzle-temps, the font tier is a
+the way the questions actually split - for nozzle-temps, the font tier is a
 HEIGHT question (a stack that overflows the tile overflows it at any width)
 and the label rung a WIDTH question (a row is one line tall whatever it
 says, so label richness never costs height). When two axes both matter,
@@ -71,7 +71,7 @@ model both explicitly rather than folding one into constants.
 **2. Measurement in the widget, one composer for render and measure.**
 `on_size_changed()` measures text in the fonts the rows actually render, and
 the strings it measures come from the same composer that `update_row_display`
-renders — measurement and rendering cannot drift apart, or the ladder decides
+renders - measurement and rendering cannot drift apart, or the ladder decides
 on widths the row does not draw. Measure the values the rows are ACTUALLY
 showing, not worst-case glyphs: an "888°" budget excludes normal-font rungs
 from tiles where every real value fits.
@@ -79,13 +79,13 @@ from tiles where every real value fits.
 **3. Publish the verdict as subjects.** One int subject per axis
 (`nozzle_row_label_mode`, `nozzle_row_columns`, `nozzle_row_compact`),
 registered via `register_widget_subjects("<id>", fn)` so they exist before
-any XML that binds them is parsed — the parser permanently skips a binding
+any XML that binds them is parsed - the parser permanently skips a binding
 whose subject does not exist at parse time. `on_size_changed()` becomes
 measure-and-publish with zero widget calls. Enum values ARE the subject ints
 (`NozzleLabelMode`), so XML `ref_value`s cannot drift from C++.
 
 **4. Bind every appearance in XML.** Row widths, container flow, label
-visibility, fonts — all `bind_flag_if_*` / `bind_style_if_*` off the
+visibility, fonts - all `bind_flag_if_*` / `bind_style_if_*` off the
 subjects. A row created by a late rebuild reads the current values at
 creation and agrees with its siblings with no seeding pass. Prefer one
 threshold bind (`bind_flag_if_lt subject=... ref_value="2"`) over enumerated
@@ -99,7 +99,7 @@ dotted name (`bind_style_if_eq name="styles.<name>" ...`).
 Let content degrade before identity does: the nozzle-temps value drops its
 target half (one tap away in a detail view) before the row drops its tool
 number, and the number before the icon. Budget each rung for what it
-ACTUALLY draws at that rung — the target-hiding rungs measure the
+ACTUALLY draws at that rung - the target-hiding rungs measure the
 current-only value. Re-decide when the value's width class changes (a
 target setting or clearing), so a tile sized under idle values never draws
 the wide value in the narrow rung.
@@ -218,7 +218,7 @@ is pure and has a boundary test; the widget measures, decides and publishes.
 | `print_stats` | `print_stats_tile_layout.h`, `include/print_activity.h` | - | this week's hours on one line at Strip; hours stacked over "this week" at Cell; seven day bars beside the hours at Wide; bars with weekday initials under them at Full; a lifetime line (prints, hours, filament in meters) where it fits whole |
 | `maintenance` | `maintenance_tile_layout.h`, `maintenance_model.h`, `include/maintenance_meters.h` | - | the ring of the meter closest to due with its hours left at Glance; its name and hours on one line at Strip; the ring over the name at Column and Cell; the ring beside a row per meter at Wide; a title, a row and a bar per meter and the total print time at Full. The ring is a square whose side the widget publishes (`maintenance_ring_d`), because an arc draws its circle from its top-left corner |
 
-All ten offer half-cell spans: their registry rows in `src/ui/panel_widget_registry.cpp`
+All ten offer half-cell spans: their registry rows in `src/ui/home/panel_widget_registry.cpp`
 set `supports_half_col` and `supports_half_row` and a one-track minimum, which is the
 combination `PanelWidgetDef` requires for a minimum below a whole cell (the flag on that
 axis AND a `fits_at()` that can refuse). A Glance tile is therefore a legal 0.5x0.5
@@ -297,14 +297,13 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   `ui_xml/components/panel_widget_z_offset.xml`, `z_offset_top`).
 - **A `<style>` that sets `flex_flow` or `flex_main_place` also sets `layout="flex"`.** The
   style path, unlike the inline attribute, does not switch the layout on, and the children
-  pile onto the first one. The bats test "home-widget styles that set flex_flow or
-  flex_main_place also set layout flex" in `tests/shell/test_code_lint.bats` covers
+  pile onto the first one. `lint_flex_styles_layout` in `scripts/code_lint.sh` covers
   `panel_widget_*.xml` plus `speed_flow_part.xml`, `chamber_dryer_row.xml` and
   `host_health_mcu_row.xml`; a new component file that carries such styles is added to that
   list.
 - **Stop redrawing while the home panel is covered.** `HomePanel` fans `on_deactivate()` and
   `on_activate()` out to the active page's widgets when the panel is covered or revealed and
-  when the page changes (`src/ui/ui_panel_home.cpp#on_deactivating`). A widget
+  when the page changes (`src/ui/home/ui_panel_home.cpp#on_deactivating`). A widget
   that draws a canvas or refreshes on a timer keeps a `panel_hidden_` flag, skips every
   update while it is set, and applies whatever changed once in `on_activate()`:
   `ToolheadWidget` cancels its 250 ms `CoalescedTimer` and forgets the drawn plate key
@@ -331,7 +330,7 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   `kNoMachineControlFiles`. The send layer is the
   guarantee; the disabled state is the courtesy.
 - **Give a gate subject an owner row.** A widget with a `hardware_gate_subject` needs that
-  name in `gate_subject_lifetime()` (`src/ui/panel_widget_manager.cpp#gate_subject_lifetime`),
+  name in `gate_subject_lifetime()` (`src/ui/home/panel_widget_manager.cpp#gate_subject_lifetime`),
   which hands the gate observer the death token of the object that registers the
   subject. `tests/unit/test_gate_subject_lifetime.cpp` has one `owners()` row per gate name,
   proves behaviourally that the token flips when the owner tears down, and fails a registry
@@ -486,7 +485,7 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   can fire first, so the cache reads the DECLARED size
   (`src/ui/panel_widgets/exact_size_image.cpp#declared_image_size`), never the coords.
   A generated copy whose size no longer matches the declared rect is dropped and the check
-  rescheduled. An exact copy is shown 1:1: `show_exact_copy()` sets the inner align to
+  rescheduled. An exact copy is shown 1:1: `ExactSizeImage::show_exact()` sets the inner align to
   CENTER, then `LV_SCALE_NONE`, then the source, because LVGL keeps the scale CONTAIN
   computed until the align changes and refuses a scale while CONTAIN is still set.
 - **Pinned chips slide apart.** After the pinned chips are placed on their points (and
@@ -508,21 +507,23 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   `stack()` records the elbow in `CalloutChipOut::line_xm` / `line_ym`.
 - **Leader lines keep their points alive.** `<leader_line>` (`include/ui_leader_line.h`)
   is a bare `lv_line`, and `lv_line` keeps the pointer it is given, so each line's three
-  points live in the widget (`callout_line_pts_`, one set per `CalloutKind` that can draw
+  points live in the presenter (`CalloutPresenter::line_pts_` in `include/callout_presenter.h`, one set per `CalloutKind` that can draw
   a line) for as long as the line exists.
 - **A chip's shown int has three values.** `callout_<kind>_shown` is 0 hidden, 1 active,
   2 residual: a heater that is off but still above 50C. XML hides a chip on `eq 0`, and
   `activity_chip` takes the chip's shown subject as `shown_subject` and binds a
   `#text_subtle` style on its label for 2, so a residual chip's text is greyed with no C++
   styling (the chip text is already `#text_muted`).
-- **Where the points come from.** Each shipped image's nozzle, bed edge, part fan, chamber
-  and light are hand-tagged, normalized over the source PNG, in
+- **Where the points come from.** Each shipped image's nozzle, bed plate, part fan, chamber
+  and light, plus the enclosure's see-through `windows` and the `cutouts` in front of them,
+  are hand-tagged, normalized over the source PNG, in
   `assets/images/printers/regions.json`; `assets/images/printers/README.md` documents the
   format and `tools/printer-regions-tagger.html` is the tagging tool. `[regions]` fails,
   naming the image, when a PNG no longer matches its recorded size.
 - **Users tag their own.** Tag parts in the printer image picker opens
-  `PrinterImageTaggerOverlay` (`src/ui/ui_overlay_printer_image_tagger.cpp`), which walks
-  `helix::ImageTagSession` through the same six prompts on the image the widget displays and
+  `PrinterImageTaggerOverlay` (`src/ui/printers/ui_overlay_printer_image_tagger.cpp`), which walks
+  `helix::ImageTagSession` through the same twelve prompts (one window, no cutouts) on the
+  image the widget displays and
   saves to `<config dir>/printer_image_regions.json` through `save_user_image_regions()`.
   Both files are keyed by `printer_image_region_key()`, which gives a custom photo
   `custom:<name>`. `lookup_image_regions()` prefers a user entry, but only when its `size`
@@ -566,15 +567,82 @@ opens from the face or from the mounted segment. A printer with more heads than 
 pools hold (`ToolSwitcherWidget::kPoolSize`) is decided as unrailable and gets the face and
 the picker.
 
+### Full-page widgets
+
+A widget whose tap opens an overlay or a main panel can show that view's own controls in
+place when it fills a page (prestonbrown/helixscreen#1931). It is a size, not a page type:
+nothing new is saved, and a full page is just an entry spanning the whole grid of a page
+other than the main page. Motion, Filament Operations and the three heater tiles opt in.
+
+- **The rule** is `helix::cell_fills_extra_page()` (`include/grid_layout.h`). The manager
+  evaluates it for every tile in `announce_tile_size()` and hands the answer to the widget
+  through `PanelWidget::set_page_placement()` right before `notify_size_changed()`, so an
+  `on_size_changed()` reads `fills_extra_page()` and `page_index()` for the placement it
+  belongs to, on a populate, a gated swap and an in-place resize alike.
+- **The host** is `helix::FullPageHost` (`src/ui/panel_widgets/full_page_host.h`), built in
+  the widget's constructor. It publishes `<instance>_full_page` (prop `full_page_subject`,
+  values `helix::FullPageState`: 0 a tile, 1 a full page, 2 a full page holding its view),
+  which the tile's XML uses to hide its compact face and show `full_page_frame`
+  (`ui_xml/full_page_frame.xml`): a `full_page_body`, a placeholder that hides at 2, and a
+  non-clickable swipe strip, so a drag that starts there always reaches the carousel. The
+  widget forwards `attach`, `detach`, `on_activate`, `on_deactivate` and its placement.
+- **The content** is a `helix::FullPageContent` (`include/full_page_content.h`):
+  `embed()`, `release_embed()`, `embedded_root()` and `host_deleting()`. OverlayBase and
+  PanelBase both implement it, so one host serves both kinds of view.
+- **One set of controls.** While the page is shown the host builds the overlay's own tree in
+  `full_page_body` with `OverlayBase::embed()`: the same `create()`, callbacks and subjects,
+  off the navigation stack, with the header's back affordance disarmed. `release_embed()`
+  frees it when the page goes off screen or the home panel is covered.
+  `OverlayBase::show()` releases an embedded tree first, so an open from elsewhere (the
+  Controls panel) always gets its tree on the stack. An overlay with a mode embeds through
+  its own entry point (`TempGraphOverlay::embed_in()`), never `before_show()`, which
+  registers with NavigationManager.
+- **A main panel** has one tree for the whole session, with its observers wired in
+  `setup()`, so a page never builds a second one. `PanelBase::embed()` asks
+  `NavigationManager::lend_panel()` to move the panel's live tree into `full_page_body`
+  (building a deferred ESP32 panel first) and `release_embed()` hands it back with
+  `reclaim_panel()`. A lent panel is skipped by every `show_only()`, and any switch to
+  that panel reclaims it first, so the navigation bar always finds its tree at home.
+  Lending refuses the active panel. `PanelBase::on_lent_to_page()` runs on every move in
+  either direction; FilamentPanel publishes `filament_on_page` from it, and its XML binds
+  that to drop the root padding and tighten the operation rows, which is what fits it
+  above the strip at 480x272.
+- **Delete without detach.** A tile tree deleted raw calls the host from the delete hook,
+  before LVGL deletes the tile's children. An overlay's tree dies with the page, so it
+  only schedules its deactivate for the next tick; a main panel's tree must not die, so
+  `PanelBase::host_deleting()` hands it back right there. This is the one exception to
+  "never reparent from `on_hooked_root_deleted()`": LVGL sends LV_EVENT_DELETE before it
+  deletes any child (`lib/lvgl/src/core/lv_obj_tree.c#"lv_result_t res = lv_obj_send_event(obj, LV_EVENT_DELETE, NULL);"`), so the borrowed
+  subtree is still whole, and moving it out is what keeps LVGL from freeing it. The same
+  holds when the delete starts at the page or further up. When the panel container is
+  itself going (a printer switch deletes the whole layout), there is nowhere to return
+  the tree to: it dies with the layout and NavigationManager's slot clears itself.
+- **Navigation while lent.** An overlay opened from the lent tree covers the home panel,
+  whose deactivation hands the tree back; closing the overlay re-activates the page,
+  which lends it again. The navbar button and `ctl navigate filament` take the tree back
+  before the Filament panel is shown. Modals sit above the home panel and leave the
+  tree where it is.
+- **Jumps.** Each host names the function it serves (`"motion"`, `"filament"`,
+  `"temp:<widget id>"`).
+  A tile that would open that overlay asks `jump_to_full_page()` first, which moves the
+  carousel through `HomePanel::show_page()`; it opens the overlay only when there is no
+  full page (the Filament tile requests the Filament panel instead, as its navigation bar
+  button does). The widget ids are `multi_instance` so a compact tile and a full page can
+  coexist. A build that predates this keeps `motion:1` in the page's `retained` list.
+- **Edit mode.** A tree embedded while the session holds the page is disarmed with
+  `disable_widget_clicks_recursive()`, so the session's restore re-arms it with the rest.
+  A tree leaving the page is re-armed by the host first, since a lent panel lives on
+  outside the page where that restore never reaches.
+
 ### Engine contracts this pattern relies on
 
-- A `<style>` carrying `flex_flow` must ALSO carry `layout="flex"` — the
+- A `<style>` carrying `flex_flow` must ALSO carry `layout="flex"` - the
   inline attribute path sets both, the style path does not, and a container
   without an active layout piles every child onto the first while
   `lv_obj_get_style_flex_flow` still reports the flow. Test layouts by
   asserting `LV_STYLE_LAYOUT` and child positions, not the flow value.
 - Inline `style_*` attributes write LOCAL styles that outrank any bound
-  style (declarative rule 6) — including `style_pad_all`, which shadows a
+  style (declarative rule 6) - including `style_pad_all`, which shadows a
   per-state bound `pad_top`. Split the inline all-sides form when any side
   is bound.
 - A measured-exact fit renders as an overlap: measurement and rendered width
@@ -592,7 +660,7 @@ the picker.
 - Pure decision tests on measured-live fixtures, every boundary exact
   (`[nozzle][layout]`).
 - Widget tests asserting the BOUND OUTCOME: which label carries HIDDEN, the
-  resolved width/flow/layout, distinct cell positions — not cached decisions
+  resolved width/flow/layout, distinct cell positions - not cached decisions
   (`[widget_size][nozzle_temps]`). Drive value-shape transitions through the
   real subjects to pin the re-decide.
 - The shared helpers have their own boundary tests (`[size_rung]`,

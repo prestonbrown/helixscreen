@@ -91,21 +91,18 @@ inline constexpr float kBracketArmMinMm = 0.01f;
 /// scans this far for a neighbouring pixel that is not the selected object. So
 /// this is the width you get, at any zoom, on any plate, on any panel.
 ///
-/// It replaces a pair of world-space knobs that could not do that. The 2D halo
-/// was a dilate-and-overpaint: draw the object wide in white, draw it again
-/// narrower on top, keep what survived. That holds up on a vertical wall, where
-/// consecutive layers land on each other, and floods on a sloped one, where each
-/// layer's white sticks out past the layer above it (a cone went solid white by
-/// layer 120). The 3D shell pushed 0.25mm along the normal, which at plate-wide
-/// zoom is roughly half a pixel: it survived on scattered pixels and read as
+/// A world-space width cannot do that. A 2D dilate-and-overpaint halo (draw the
+/// object wide in white, then narrower on top) holds up on a vertical wall but
+/// floods on a sloped one, where each layer's white sticks out past the layer
+/// above it (a cone goes solid white by layer 120). A 3D shell pushed 0.25mm
+/// along the normal is roughly half a pixel at plate-wide zoom and reads as
 /// speckle, or as nothing at all.
 inline constexpr int kOutlinePx = 2;
 inline constexpr int kOutlineSmallPanelPx = 1;
 
 /// How near a tap has to land, in screen pixels, to pick a toolpath. Shared
-/// because both renderers hit-test the same way and had their own identical copy
-/// of the number; a printer where one view selects and the other does not is the
-/// bug that duplication produces.
+/// because both renderers hit-test the same way; two copies of the number would
+/// let one view select where the other does not.
 inline constexpr float kPickThresholdPx = 15.0f;
 
 /// Panels at or below this width get the narrower rim: 2px per side swallows a

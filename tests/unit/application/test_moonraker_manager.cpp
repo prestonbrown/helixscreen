@@ -503,8 +503,8 @@ TEST_CASE("should_complete_preprint - non-layer-reporting printer falls back to 
 // StaticSubjectRegistry::deinit_all() BEFORE destroying singletons that the
 // Application owns directly (m_moonraker, etc.). Subject memory is freed at
 // that point, so any ObserverGuard member whose dtor still calls
-// lv_observer_remove() — i.e. any member NOT released() in that class's
-// own shutdown() — segfaults during teardown.
+// lv_observer_delete() — i.e. any member its class's own shutdown() does not end
+// with reset() (lifetime-token checked) or release() — segfaults during teardown.
 //
 // Originally this test covered just MoonrakerManager (issue #888 / bundle
 // T7M2ZYPY). Generalized via the SHUTDOWN_OBSERVER_CLASSES table below: any
@@ -573,17 +573,17 @@ std::string extract_method_body(const std::string& impl, const std::string& clas
     return impl.substr(start, pos - start - 1);
 }
 
-std::set<std::string> extract_released_members_in_method(const std::string& impl,
-                                                         const std::string& class_name,
-                                                         const std::string& method_name) {
-    // Extract `member.release();` calls from the method body.
+std::set<std::string> extract_ended_members_in_method(const std::string& impl,
+                                                      const std::string& class_name,
+                                                      const std::string& method_name) {
+    // Extract `member.release();` and `member.reset();` calls from the method body.
     std::string body = extract_method_body(impl, class_name, method_name);
     if (body.empty()) {
         return {};
     }
 
     std::set<std::string> released;
-    std::regex rel_re(R"(([A-Za-z][A-Za-z0-9_]*)\.release\s*\(\s*\)\s*;)");
+    std::regex rel_re(R"(([A-Za-z][A-Za-z0-9_]*)\.(?:release|reset)\s*\(\s*\)\s*;)");
     auto begin = std::sregex_iterator(body.begin(), body.end(), rel_re);
     auto end = std::sregex_iterator();
     for (auto it = begin; it != end; ++it) {
@@ -661,7 +661,7 @@ const std::vector<std::string>& detach_calls_required_in_teardown() {
 
 } // namespace
 
-TEST_CASE("Shutdown observer release contract — every ObserverGuard member is released",
+TEST_CASE("Shutdown observer contract — every ObserverGuard member is ended in shutdown",
           "[application][shutdown][regression]") {
     for (const auto& c : shutdown_observer_classes()) {
         DYNAMIC_SECTION(c.class_name << "::" << c.shutdown_method) {
@@ -674,19 +674,18 @@ TEST_CASE("Shutdown observer release contract — every ObserverGuard member is 
             INFO("Header: " << c.header_path);
             REQUIRE(static_cast<int>(members.size()) >= c.min_expected_members);
 
-            auto released =
-                extract_released_members_in_method(impl, c.class_name, c.shutdown_method);
+            auto released = extract_ended_members_in_method(impl, c.class_name, c.shutdown_method);
             INFO("Impl: " << c.impl_path << " method: " << c.shutdown_method);
             REQUIRE_FALSE(released.empty());
 
             for (const auto& member : members) {
                 INFO("ObserverGuard `" << member << "` declared in " << c.header_path
-                                       << " must call release() in " << c.class_name
+                                       << " must be reset() or release()d in " << c.class_name
                                        << "::" << c.shutdown_method
                                        << "(). Subjects are deinit'd before this class's "
-                                          "destructor runs, so the implicit ObserverGuard "
-                                          "dtor calling lv_observer_remove() on freed memory "
-                                          "crashes (issue #888 family).");
+                                          "destructor runs; ending each guard here, with its "
+                                          "subject's lifetime token, keeps the destructor off "
+                                          "freed observers (issue #888 family).");
                 REQUIRE(released.count(member) == 1);
             }
         }
@@ -855,16 +854,8 @@ TEST_CASE("PrintCollectorArming re-arms on reset so a printer switch cannot join
     // "Preparing..." overlay over a running print.
     helix::PrintCollectorArming arming;
 
-    SECTION("a fresh instance is armed") {
-        REQUIRE(arming.is_initial_transition());
-    }
-
-    SECTION("consuming the first transition disarms it") {
-        arming.consume_initial_transition();
-        REQUIRE_FALSE(arming.is_initial_transition());
-    }
-
     SECTION("reset re-arms after the first transition was consumed") {
+        REQUIRE(arming.is_initial_transition());
         arming.consume_initial_transition();
         REQUIRE_FALSE(arming.is_initial_transition());
 
@@ -879,35 +870,6 @@ TEST_CASE("PrintCollectorArming re-arms on reset so a printer switch cannot join
         arming.reset();
         REQUIRE(arming.prev_state() == PrintJobState::STANDBY);
     }
-}
-
-TEST_CASE("PrintCollectorArming drives the boot-join suppression across a printer switch",
-          "[application][print_start][regression]") {
-    // The end-to-end shape of the bug: connect to printer A, run a print to
-    // completion, then switch to printer B which is already 60% through a job.
-    // After the switch the collector must be suppressed, exactly as it would be
-    // on a cold boot into that same running print.
-    helix::PrintCollectorArming arming;
-
-    // Printer A: a normal print start consumes the initial transition.
-    REQUIRE(MoonrakerManager::should_start_print_collector(
-        arming.prev_state(), PrintJobState::PRINTING,
-        /*current_progress=*/0, arming.is_initial_transition(),
-        /*current_print_duration=*/0));
-    arming.consume_initial_transition();
-    arming.note_transition(PrintJobState::PRINTING);
-    arming.note_transition(PrintJobState::COMPLETE);
-
-    // Printer switch: init_print_start_collector() runs again.
-    arming.reset();
-
-    // Printer B is already 60% in. This presents as STANDBY -> PRINTING with
-    // stale progress, which is the genuine boot-into-running-print case and
-    // must be suppressed.
-    REQUIRE_FALSE(MoonrakerManager::should_start_print_collector(
-        arming.prev_state(), PrintJobState::PRINTING,
-        /*current_progress=*/60, arming.is_initial_transition(),
-        /*current_print_duration=*/4200));
 }
 
 // ============================================================================
@@ -943,6 +905,34 @@ TEST_CASE("should_stop_print_collector spares a collector armed at commit",
         REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::PAUSED, false));
         REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(PrintJobState::PRINTING, true));
     }
+}
+
+TEST_CASE("should_stop_print_collector spares a printer-side pre-start only across standby",
+          "[application][print_start][preparing][2054]") {
+    // A start the printer announced on its console, with no job of ours behind
+    // it: print_stats hops to STANDBY when the file opens, just before PRINTING.
+    REQUIRE_FALSE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::STANDBY, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    // A cancel or an error ends that start like any other.
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::CANCELLED, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::ERROR, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+    REQUIRE(MoonrakerManager::should_stop_print_collector(
+        PrintJobState::COMPLETE, /*has_preparing_job=*/false, /*printer_side_pre_start=*/true));
+}
+
+TEST_CASE("should_stop_collector_on_klippy_state ends a printer-announced start on any restart",
+          "[application][print_start][preparing][2054]") {
+    // A FIRMWARE_RESTART passes through STARTUP and brings print_stats back at
+    // STANDBY, which the STANDBY spare would otherwise hold open.
+    CHECK(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::STARTUP,
+                                                                  /*armed_by_printer=*/true));
+    CHECK(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::SHUTDOWN, true));
+    CHECK_FALSE(MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::READY, true));
+    // A run with a job behind it rides out a restart's STARTUP as before.
+    CHECK_FALSE(
+        MoonrakerManager::should_stop_collector_on_klippy_state(KlippyState::STARTUP, false));
 }
 
 // ============================================================================
@@ -1019,10 +1009,10 @@ TEST_CASE("should_stop_collector_on_klippy_state stops on shutdown and error",
 // IDLE. Drives the real manager with its mock client.
 
 #include "../../test_helpers/moonraker_manager_test_access.h"
-#include "../../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "application_test_fixture.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "print_start_collector.h"
 #include "print_start_phase.h"
@@ -1090,7 +1080,7 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
     // A print started from another frontend: only print_stats moves.
     lv_subject_set_int(ps.print_state().get_print_state_enum_subject(),
                        static_cast<int>(PrintJobState::PRINTING));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The collector started and published its first phase (deferred through
     // the UpdateQueue, hence the drain above): the phase left IDLE, which is
@@ -1104,20 +1094,54 @@ TEST_CASE_METHOD(ManagerCollectorArmingFixture,
                  "a homed_axes change reaches the armed collector without a timer tick",
                  "[application][print_start]") {
     auto& ps = get_printer_state();
-    lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "");
-    // Armed directly: an earlier fixture's print-state observer is released,
-    // not removed, at shutdown and would complete this collector on the edge.
+    lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "");
     auto collector = mgr.print_start_collector();
     collector->start();
     collector->enable_fallbacks();
     // The active flag a phase past INITIALIZING needs to publish.
     lv_subject_set_int(ps.print_state().get_print_active_subject(), 1);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // A cold G28 moves no heater target; only homed_axes changes.
-    lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xy");
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xy");
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(ps.print_state().get_print_start_phase_subject()) ==
           static_cast<int>(PrintStartPhase::HOMING));
     collector->stop();
+}
+
+TEST_CASE_METHOD(ManagerCollectorArmingFixture,
+                 "a printer switch re-arms the boot-join suppression on the new collector only",
+                 "[application][print_start][regression]") {
+    auto& print = get_printer_state().print_state();
+    auto set = [](lv_subject_t* subject, int value) {
+        lv_subject_set_int(subject, value);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    auto* state = print.get_print_state_enum_subject();
+    // Printer A: a normal start consumes the initial transition, then the print ends.
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    const auto first = mgr.print_start_collector();
+    REQUIRE(first->is_active());
+    set(state, static_cast<int>(PrintJobState::COMPLETE));
+    set(state, static_cast<int>(PrintJobState::STANDBY));
+    REQUIRE_FALSE(first->is_active());
+
+    // Printer B is already 60% through a job: suppressed, as on a cold boot into it.
+    mgr.init_print_start_collector();
+    const auto second = mgr.print_start_collector();
+    REQUIRE(second != first);
+    set(print.get_print_progress_subject(), 60);
+    set(print.get_print_duration_subject(), 4200);
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    CHECK_FALSE(second->is_active());
+
+    // Its next print arms the new collector; nothing still drives the old one.
+    set(state, static_cast<int>(PrintJobState::COMPLETE));
+    set(print.get_print_progress_subject(), 0);
+    set(print.get_print_duration_subject(), 0);
+    set(state, static_cast<int>(PrintJobState::PRINTING));
+    CHECK(second->is_active());
+    CHECK_FALSE(first->is_active());
+    second->stop();
 }

@@ -58,7 +58,7 @@ typedef struct _lv_obj_t lv_obj_t;
  * Layout:
  * - Icon + text: Horizontal flex layout with small gap between
  * - Icon only: Centered icon
- * - Text only: Centered text (original behavior)
+ * - Text only: Centered text
  *
  * Auto-contrast is computed using luminance formula:
  *   L = (299*R + 587*G + 114*B) / 1000

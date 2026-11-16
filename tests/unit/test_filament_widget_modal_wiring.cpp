@@ -34,12 +34,11 @@
  *     invisible to every other test in the tree.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_widget_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -150,7 +149,7 @@ TEST_CASE_METHOD(TapModalFixture, "Paused tap modal wires the buttons its paused
     // row, so the buttons are reachable. Without this the wiring assertions
     // below would pass just as happily against a row nobody can press.
     for (lv_obj_t* o = resume; o != dialog; o = lv_obj_get_parent(o)) {
-        CHECK_FALSE(lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(o));
     }
 
     // The other half: reachable buttons are wired ones.
@@ -198,12 +197,12 @@ TEST_CASE_METHOD(TapModalFixture,
 
 TEST_CASE_METHOD(TapModalFixture, "Declining the cancel returns to a working guidance dialog",
                  "[filament][widget_tap][wiring]") {
-    // The regression this pins: on_tertiary() used to hide unconditionally, so
-    // the dialog was already exiting by the time the confirmation appeared and
-    // declining left a bare screen. On the runout path it did not come back —
-    // check_and_show_runout_guidance() early-returns on
-    // runout_modal_shown_for_pause_ until the print state changes — so a user who
-    // reconsidered lost Load/Unload/Purge/Resume for the rest of that pause.
+    // on_tertiary() must not hide unconditionally: the dialog would already be
+    // exiting by the time the confirmation appears, and declining would leave a
+    // bare screen. On the runout path it would not come back
+    // (check_and_show_runout_guidance() early-returns on
+    // runout_modal_shown_for_pause_ until the print state changes), so a user who
+    // reconsidered would lose Load/Unload/Purge/Resume for the rest of that pause.
     //
     // "Still there" is not enough on its own: a dialog can survive with every
     // callback expired, which is the bug this file was written for. Assert it

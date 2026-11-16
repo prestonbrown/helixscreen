@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_versions_state.cpp
- * @brief Software version state management extracted from PrinterState
+ * @brief Software version state management (a PrinterState sub-state)
  *
  * Manages Klipper and Moonraker version subjects for UI display in the
  * Settings panel About section.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_versions_state.h"
 
+#include "core/text_io.h"
 #include "json_utils.h"
 #include "state/subject_macros.h"
-#include "text_io.h"
 #include "version.h"
 
 #include <spdlog/spdlog.h>
@@ -92,7 +90,6 @@ void PrinterVersionsState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterVersionsState] Initializing subjects (register_xml={})", register_xml);
 
-    // Initialize string subjects with em dash default
     INIT_SUBJECT_STRING(klipper_version, "—", subjects_, register_xml);
     INIT_SUBJECT_STRING(moonraker_version, "—", subjects_, register_xml);
     INIT_SUBJECT_STRING(os_version, "—", subjects_, register_xml);
@@ -116,12 +113,12 @@ void PrinterVersionsState::deinit_subjects() {
 
 void PrinterVersionsState::set_klipper_version_internal(const std::string& version) {
     klipper_version_raw_ = version;
-    lv_subject_copy_string(&klipper_version_, display_version(version).c_str());
+    lv_subject_set_string(&klipper_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] Klipper version set: {}", version);
 }
 
 void PrinterVersionsState::set_moonraker_version_internal(const std::string& version) {
-    lv_subject_copy_string(&moonraker_version_, display_version(version).c_str());
+    lv_subject_set_string(&moonraker_version_, display_version(version).c_str());
     // Derived from the raw string, not the display form: display_version()
     // collapses placeholders to a translated label that no comparison can read.
     const bool degraded = moonraker_history_is_degraded(version);
@@ -132,12 +129,12 @@ void PrinterVersionsState::set_moonraker_version_internal(const std::string& ver
 
 void PrinterVersionsState::set_firmware_name_internal(const std::string& name) {
     if (name != klipper_firmware_name_buf_) {
-        lv_subject_copy_string(&klipper_firmware_name_, name.c_str());
+        lv_subject_set_string(&klipper_firmware_name_, name.c_str());
     }
 }
 
 void PrinterVersionsState::set_os_version_internal(const std::string& version) {
-    lv_subject_copy_string(&os_version_, display_version(version).c_str());
+    lv_subject_set_string(&os_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] OS version set: {}", version);
 }
 

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "lvgl/lvgl.h"
 #include "prerender_size_class.h"
 #include "prerendered_images.h"
@@ -172,7 +172,7 @@ inline std::string get_image_path_for_name(const std::string& printer_name,
  * @brief Get image path for a printer type index
  *
  * Converts index to printer name, then looks up image in database.
- * Falls back to kDefaultImage if not found or file doesn't exist.
+ * Falls back to the generic CoreXY image if not found or file doesn't exist.
  *
  * @param printer_type_index Index from printer type list
  * @return Full LVGL path to printer image

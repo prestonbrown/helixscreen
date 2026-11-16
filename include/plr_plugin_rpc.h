@@ -7,6 +7,7 @@
 // the client delivers on: callers marshal to the main thread.
 
 #include "helix_plugin_features.h"
+#include "helix_shared_callback.h"
 #include "moonraker_error.h"
 #include "plr_backend.h"
 #include "plr_wizard.h"
@@ -22,7 +23,7 @@ class IMoonrakerAPI;
 
 namespace plr_rpc {
 
-using ErrorCallback = std::function<void(const MoonrakerError&)>;
+using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
 /// A plan scan runs in the plugin's worker; a long one answers `pending` well
 /// inside this and follows with notify_plr_plan_ready.
@@ -34,24 +35,24 @@ inline constexpr uint32_t kPrepareTimeoutMs = 90U * 60U * 1000U;
 /// commit runs the same heat waits again, then purges and starts the print.
 inline constexpr uint32_t kCommitTimeoutMs = 90U * 60U * 1000U;
 
-void request_status(IMoonrakerAPI& api, std::function<void(const PlrPluginStatus&)> on_ok,
+void request_status(IMoonrakerAPI& api, helix::SharedCallback<void(const PlrPluginStatus&)> on_ok,
                     ErrorCallback on_error);
 
 /// A reply that is neither pending nor a plan reaches @p on_error.
-void request_plan(IMoonrakerAPI& api, std::function<void(const PlrPlanReply&)> on_ok,
+void request_plan(IMoonrakerAPI& api, helix::SharedCallback<void(const PlrPlanReply&)> on_ok,
                   ErrorCallback on_error);
 
 void prepare(IMoonrakerAPI& api, const std::string& plan_id, bool skip_chamber_wait,
-             std::function<void()> on_ok, ErrorCallback on_error);
+             helix::SharedCallback<void()> on_ok, ErrorCallback on_error);
 
 void commit(IMoonrakerAPI& api, const std::string& plan_id,
-            const std::vector<PlrConfirmation>& given, int tier, std::function<void()> on_ok,
-            ErrorCallback on_error);
+            const std::vector<PlrConfirmation>& given, int tier,
+            helix::SharedCallback<void()> on_ok, ErrorCallback on_error);
 
-void abort(IMoonrakerAPI& api, const std::string& plan_id, std::function<void()> on_ok,
+void abort(IMoonrakerAPI& api, const std::string& plan_id, helix::SharedCallback<void()> on_ok,
            ErrorCallback on_error);
 
-void discard(IMoonrakerAPI& api, std::function<void()> on_ok, ErrorCallback on_error);
+void discard(IMoonrakerAPI& api, helix::SharedCallback<void()> on_ok, ErrorCallback on_error);
 
 /// Fire the firmware's active recovery probe (kCrealityDetectRpc).
 /// SIDE-EFFECTFUL: on a JSON parse failure the Klipper handler deletes the
@@ -63,17 +64,18 @@ void discard(IMoonrakerAPI& api, std::function<void()> on_ok, ErrorCallback on_e
 /// clearance lift on power_loss == 1. @p on_result gets every reply; an
 /// unusable one leaves `completed` false, which forbids the resume downstream.
 void request_recovery_probe(IMoonrakerAPI& api,
-                            std::function<void(const PlrDetectResult&)> on_result,
+                            helix::SharedCallback<void(const PlrDetectResult&)> on_result,
                             ErrorCallback on_error);
 
 /// Discard through @p plan's discard RPC: the plugin's own, or the firmware's.
 /// Touches no motion.
-void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan, std::function<void()> on_ok,
-                      ErrorCallback on_error);
+void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan,
+                      helix::SharedCallback<void()> on_ok, ErrorCallback on_error);
 
 /// server.helix.plr.mesh_include without an action: whether printer.cfg
 /// carries the include line a resume's mesh carry-over needs.
-void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool present)> on_ok,
+void request_mesh_include_status(IMoonrakerAPI& api,
+                                 helix::SharedCallback<void(bool present)> on_ok,
                                  ErrorCallback on_error);
 
 /// server.helix.plr.mesh_include with an action. @p on_ok gets the reply's
@@ -81,7 +83,7 @@ void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool pre
 /// printer.cfg cannot be read or written, and the change reaches Klipper
 /// only after a firmware restart, which the caller offers.
 void mesh_include_action(IMoonrakerAPI& api, bool add,
-                         std::function<void(bool present, bool changed)> on_ok,
+                         helix::SharedCallback<void(bool present, bool changed)> on_ok,
                          ErrorCallback on_error);
 
 /// Write `helix-screen` / `plr_profile` unless the stored record already equals
@@ -89,10 +91,10 @@ void mesh_include_action(IMoonrakerAPI& api, bool add,
 /// @p on_stored runs once the stored record equals @p profile: after the write,
 /// or as soon as the read shows it already did.
 void write_profile(IMoonrakerAPI& api, const nlohmann::json& profile,
-                   std::function<void()> on_stored, ErrorCallback on_error);
+                   helix::SharedCallback<void()> on_stored, ErrorCallback on_error);
 
 /// Write `helix-screen` / `plr_user`, the plugin's saving switch.
-void write_user(IMoonrakerAPI& api, bool enabled, std::function<void()> on_ok,
+void write_user(IMoonrakerAPI& api, bool enabled, helix::SharedCallback<void()> on_ok,
                 ErrorCallback on_error);
 
 /// Re-read the plugin's features map into PrinterState, so a switch or profile

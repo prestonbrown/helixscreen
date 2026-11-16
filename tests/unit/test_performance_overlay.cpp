@@ -14,12 +14,12 @@
 #include "ui_nav_manager.h"
 #include "ui_overlay_performance.h"
 #include "ui_settings_system.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/performance_state_test_access.h"
 #include "../test_helpers/ui_overlay_performance_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix_sparkline.h"
 #include "performance_state.h"
 
@@ -34,7 +34,6 @@ using helix::perf::PerfSample;
 using helix::ui::UiOverlayPerformance;
 using helix::ui::UiOverlayPerformanceTestAccess;
 using helix::ui::UpdateQueue;
-using helix::ui::UpdateQueueTestAccess;
 
 // ============================================================================
 // Fixture
@@ -84,7 +83,7 @@ class PerfOverlayFixture : public XMLTestFixture {
         // delete the test screen. By the time it does so, the overlay widget is
         // already gone (step 1), so the screen deletion is clean.
         lv_obj_t* root = UiOverlayPerformance::instance().root();
-        if (root && lv_obj_is_valid(root)) {
+        if (root && helix::test::widget_in_tree(root)) {
             lv_obj_delete(root);
         }
         UiOverlayPerformanceTestAccess::reset(UiOverlayPerformance::instance());
@@ -103,6 +102,20 @@ class PerfOverlayFixture : public XMLTestFixture {
 
 bool PerfOverlayFixture::s_perf_xml_registered = false;
 
+void set_mcus(std::initializer_list<const char*> mcu_names) {
+    PerfSample s;
+    s.host_cpu_pct = 30.0f;
+    float load = 0.10f;
+    for (const char* n : mcu_names) {
+        McuStat m;
+        m.name = n;
+        m.load = load;
+        load += 0.05f;
+        s.mcus.push_back(m);
+    }
+    PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
+}
+
 } // namespace
 
 // ============================================================================
@@ -112,51 +125,29 @@ bool PerfOverlayFixture::s_perf_xml_registered = false;
 TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynamically",
                  "[performance][xml]") {
     // --- initial state: 1 MCU ---
-    {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        McuStat a;
-        a.name = "mcu";
-        a.load = 0.10f;
-        s.mcus = {a};
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    }
+    set_mcus({"mcu"});
     // apply_sample runs synchronously; the observe<const char*> callback for
     // perf_mcu_names defers rebuild_mcu_rows via queue_update.
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     // create() registers the observer on perf_mcu_names and will immediately
     // find mcu_card (initially empty, before the next drain). Because
     // observe<const char*> is non-immediate, the first rebuild fires on the next drain.
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     // Drain: fires the initial observe<const char*> callback triggered by attaching
     // the observer (LVGL calls the cb once on subscription).
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     auto* card = lv_obj_find_by_name(root, "mcu_card");
     REQUIRE(card != nullptr);
     REQUIRE(lv_obj_get_child_count(card) == 1);
 
     // --- second sample: 3 MCUs -> overlay must rebuild to 3 rows ---
-    {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        McuStat a;
-        a.name = "mcu";
-        a.load = 0.10f;
-        McuStat b;
-        b.name = "mcu sb";
-        b.load = 0.20f;
-        McuStat c;
-        c.name = "mcu helper";
-        c.load = 0.30f;
-        s.mcus = {a, b, c};
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    }
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    set_mcus({"mcu", "mcu sb", "mcu helper"});
+    UpdateQueue::instance().drain();
 
     REQUIRE(lv_obj_get_child_count(card) == 3);
 }
@@ -168,7 +159,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
 // LV_SIZE_CONTENT) on every perf_mcu_names notification was both wasteful and
 // crash-prone: a freshly-created row carries the unresolved LV_COORD_MAX
 // sentinel until the next layout pass, and a render that blits it in that
-// window overflows int32 fill arithmetic → SIGSEGV. The fix gates rebuilds on
+// window overflows int32 fill arithmetic → SIGSEGV. The overlay gates rebuilds on
 // an actual change to the names string and forces a synchronous layout pass so
 // rows never linger with unresolved coordinates. See (prestonbrown/helixscreen#1061).
 // ============================================================================
@@ -177,27 +168,13 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
 TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay gates rebuild on actual name change",
                  "[perf][1061]") {
     // Seed an initial 3-MCU sample so the names subject is non-empty.
-    auto set_mcus = [](std::initializer_list<const char*> mcu_names) {
-        PerfSample s;
-        s.host_cpu_pct = 30.0f;
-        float load = 0.10f;
-        for (const char* n : mcu_names) {
-            McuStat m;
-            m.name = n;
-            m.load = load;
-            load += 0.05f;
-            s.mcus.push_back(m);
-        }
-        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    };
-
     set_mcus({"mcu", "Turtle_1", "EBBCan"});
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    lv_obj_set_hidden(root, false);
+    UpdateQueue::instance().drain();
 
     auto* card = lv_obj_find_by_name(root, "mcu_card");
     REQUIRE(card != nullptr);
@@ -210,16 +187,24 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay gates rebuild on actual
     // Re-publish the SAME MCU set. Without gating this tears down + recreates
     // every row; with gating it returns early and the pointers are stable.
     set_mcus({"mcu", "Turtle_1", "EBBCan"});
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE(lv_obj_get_child_count(card) == 3);
     REQUIRE(lv_obj_get_child(card, 0) == first_child_before);
 
     // A genuinely different MCU set MUST rebuild to the new count.
     set_mcus({"mcu", "Turtle_1"});
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE(lv_obj_get_child_count(card) == 2);
+
+    // A root deleted with its screen reads null, and a new one shows the rows again.
+    lv_obj_delete(root);
+    CHECK(UiOverlayPerformance::instance().root() == nullptr);
+    root = UiOverlayPerformance::instance().create(lv_screen_active());
+    REQUIRE(root != nullptr);
+    UpdateQueue::instance().drain();
+    CHECK(lv_obj_get_child_count(lv_obj_find_by_name(root, "mcu_card")) == 2);
 }
 
 // Test B: after a rebuild, every row must have resolved (non-sentinel, > 0)
@@ -237,12 +222,12 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay resolves row layout syn
         }
         PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
     }
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    lv_obj_set_hidden(root, false);
+    UpdateQueue::instance().drain();
 
     auto* card = lv_obj_find_by_name(root, "mcu_card");
     REQUIRE(card != nullptr);
@@ -275,7 +260,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay resolves row layout syn
 // printer switch, and between tests. mcu_names_observer_ lives on the overlay
 // SINGLETON (not the widget), so it can outlive the subject. If it was created
 // without subjects_lifetime(), tearing it down after the subject is freed calls
-// lv_observer_remove() on freed memory → UAF/SEGV (lv_observer.c:584) — the same
+// lv_observer_delete() on freed memory → UAF/SEGV (lv_observer.c:584) — the same
 // class of bug that 056bb40e9 fixed for HelixSparkline on perf_history_tick.
 //
 // This test frees the perf subjects out from under a live observer, then tears
@@ -295,13 +280,13 @@ TEST_CASE_METHOD(PerfOverlayFixture,
         s.mcus = {a};
         PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
     }
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     // create() registers mcu_names_observer_ on perf_mcu_names. The observer is a
     // member of the singleton, NOT tied to the widget lifetime.
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     // Delete the widget tree while the perf subjects are still alive so the
     // per-MCU XML binding observers unbind cleanly. mcu_names_observer_ survives
@@ -315,7 +300,7 @@ TEST_CASE_METHOD(PerfOverlayFixture,
 
     // Tear the observer down. This is the UAF site: ObserverGuard::reset() runs on
     // an observer whose subject was just freed. With subjects_lifetime() passed to
-    // observe<const char*>, reset() sees the dead token and skips lv_observer_remove();
+    // observe<const char*>, reset() sees the dead token and skips lv_observer_delete();
     // without it, this line SEGVs.
     UiOverlayPerformanceTestAccess::reset(UiOverlayPerformance::instance());
 
@@ -330,7 +315,7 @@ TEST_CASE_METHOD(PerfOverlayFixture,
 // stack without register_overlay_instance(). NavigationManager resolved no
 // lifecycle for it, so every open was filed as "unreg" in panel telemetry and in
 // the crash breadcrumb ring — and a genuine missing registration elsewhere became
-// indistinguishable from this known-benign one in user logs. Bundle 3Q2GB74K
+// indistinguishable from this known-benign one in user logs. One debug bundle
 // carried the resulting warning pair from a live printer.
 //
 // UiOverlayPerformance implements no IPanelLifecycle, so a null lifecycle is the
@@ -350,7 +335,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay registers with the nav 
     }
     nav.set_panels(panels.data());
     nav.set_active(helix::PanelId::Settings);
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE_FALSE(nav.has_open_overlays());
 
@@ -358,7 +343,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay registers with the nav 
     helix::settings::get_system_settings_overlay().open_performance();
 
     // push_overlay() queues its whole body through UpdateQueue.
-    UpdateQueueTestAccess::drain(UpdateQueue::instance());
+    UpdateQueue::instance().drain();
 
     REQUIRE(UiOverlayPerformance::instance().root() != nullptr);
     REQUIRE(nav.has_open_overlays());

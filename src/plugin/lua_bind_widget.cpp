@@ -14,7 +14,7 @@ namespace helix::plugin {
 
 namespace {
 
-const char kWidgetStateKey = 0;
+RegistryKey g_widget_state_key{"widget_state"};
 constexpr int kHookCount = 5;
 
 // The helix.widget handlers one runtime registered, keyed by full widget id. The state
@@ -25,7 +25,7 @@ struct WidgetState {
 };
 
 WidgetState* widget_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kWidgetStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_widget_state_key);
     auto* s = static_cast<WidgetState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return s;
@@ -82,7 +82,7 @@ void install_widget_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new WidgetState;
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kWidgetStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_widget_state_key);
     ctx.rt.on_close([state] { delete state; });
 
     lua_getglobal(L, "helix");

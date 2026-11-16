@@ -1,13 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../../include/theme_manager.h"
 #include "../../include/ui_nav_manager.h"
-#include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 
 #include <spdlog/spdlog.h>
@@ -21,22 +21,13 @@ using namespace helix;
 
 // Test fixture for navigation tests.
 //
-// Derives from HelixTestFixture so the UpdateQueue is drained on the way out:
+// Derives from LVGLTestFixture so the UpdateQueue is drained on the way out:
 // panel switching notifies subjects, and observe<int> defers every apply,
 // so a hand-rolled fixture returns with those applies still queued and hands
 // them to whichever test runs next (tests/CLAUDE.md, "inherit, don't hand-roll").
-class NavigationTestFixture : public HelixTestFixture {
+class NavigationTestFixture : public LVGLTestFixture {
   public:
     NavigationTestFixture() {
-        // Initialize LVGL for testing (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a display for testing (headless)
-        // LVGL 9 requires aligned buffers - use alignas(64) for portability
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
         // Initialize navigation system
         NavigationManager::instance().init();
     }
@@ -156,6 +147,7 @@ TEST_CASE_METHOD(NavigationTestFixture, "lv_indev_reset(NULL, NULL) clears in-fl
 // connection state and klippy state. They require full XML registration.
 
 #include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
 #include "printer_state.h"
 
 /// Puts an int subject back the way it was found, on every exit path. Catch2
@@ -223,14 +215,14 @@ class NavbarIconTestFixture : public LVGLUITestFixture {
         }
 
         // Check hidden flag on object itself
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(obj)) {
             return false;
         }
 
         // Check all ancestors for hidden flag
         lv_obj_t* parent = lv_obj_get_parent(obj);
         while (parent) {
-            if (lv_obj_has_flag(parent, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(parent)) {
                 return false;
             }
             parent = lv_obj_get_parent(parent);
@@ -414,7 +406,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: the bar swaps axes with ui_is_p
     REQUIRE(portrait != nullptr);
     ScopedSubjectInt restore_portrait(portrait);
 
-    // nav_btn_controls is the next visible child after nav_btn_home: the two
+    // nav_btn_controls is the next visible child after nav_btn_home: the three
     // edit-mode buttons ahead of them and the printer badge behind them are
     // hidden until their subjects say otherwise.
     lv_obj_t* home = lv_obj_find_by_name(navbar_, "nav_btn_home");
@@ -486,26 +478,74 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: landscape edit buttons clamp to
 
     // Hidden objects take no part in flex layout; edit mode is what shows them.
     lv_obj_t* add = lv_obj_find_by_name(navbar_, "nav_btn_edit_add");
+    lv_obj_t* del = lv_obj_find_by_name(navbar_, "nav_btn_edit_delete_page");
     lv_obj_t* done = lv_obj_find_by_name(navbar_, "nav_btn_edit_done");
     REQUIRE(add != nullptr);
+    REQUIRE(del != nullptr);
     REQUIRE(done != nullptr);
-    lv_obj_remove_flag(add, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(done, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(add, false);
+    lv_obj_set_hidden(del, false);
+    lv_obj_set_hidden(done, false);
     lv_obj_update_layout(navbar_);
 
     const int32_t bar_h = lv_obj_get_height(navbar_);
     INFO("bar " << bar_h << ", button_height " << button_height << ", add "
-                << lv_obj_get_height(add) << ", done " << lv_obj_get_height(done));
+                << lv_obj_get_height(add) << ", delete page " << lv_obj_get_height(del) << ", done "
+                << lv_obj_get_height(done));
 
     // min_height is the touch-target floor and wins where button_height sits below it.
-    const int32_t add_floor = lv_obj_get_style_min_height(add, LV_PART_MAIN);
-    const int32_t done_floor = lv_obj_get_style_min_height(done, LV_PART_MAIN);
-    REQUIRE(add_floor > 0);
-    REQUIRE(done_floor > 0);
-    CHECK(lv_obj_get_height(add) <= std::max(button_height, add_floor));
-    CHECK(lv_obj_get_height(done) <= std::max(button_height, done_floor));
-    CHECK(lv_obj_get_height(add) < bar_h);
-    CHECK(lv_obj_get_height(done) < bar_h);
+    for (lv_obj_t* btn : {add, del, done}) {
+        const int32_t floor = lv_obj_get_style_min_height(btn, LV_PART_MAIN);
+        REQUIRE(floor > 0);
+        CHECK(lv_obj_get_height(btn) <= std::max(button_height, floor));
+        CHECK(lv_obj_get_height(btn) < bar_h);
+    }
+}
+
+// The delete-page button lives in the navbar, off the grid, so it never covers
+// a tile (prestonbrown/helixscreen#2023).
+TEST_CASE_METHOD(NavbarIconTestFixture,
+                 "Navbar: the delete-page button shows in edit mode on a deletable page",
+                 "[navbar][ui_integration][grid_edit]") {
+    REQUIRE(navbar_ != nullptr);
+    ScopedSubjectInt restore_edit(&get_home_edit_mode_subject());
+    ScopedSubjectInt restore_deletable(&get_home_edit_page_deletable_subject());
+
+    struct Row {
+        int edit_mode, deletable;
+        bool shown;
+    };
+    for (const Row& r : {Row{0, 0, false}, Row{0, 1, false}, Row{1, 0, false}, Row{1, 1, true}}) {
+        CAPTURE(r.edit_mode, r.deletable);
+        lv_subject_set_int(&get_home_edit_mode_subject(), r.edit_mode);
+        lv_subject_set_int(&get_home_edit_page_deletable_subject(), r.deletable);
+        CHECK(is_visible("nav_btn_edit_delete_page") == r.shown);
+    }
+}
+
+// The edit buttons need the bar's room at 480x272, so the nav buttons, which
+// edit mode disables anyway, leave it while edit mode lasts.
+TEST_CASE_METHOD(NavbarIconTestFixture, "Navbar: edit mode hides the nav buttons",
+                 "[navbar][ui_integration][grid_edit][2023]") {
+    REQUIRE(navbar_ != nullptr);
+    ScopedSubjectInt restore_edit(&get_home_edit_mode_subject());
+
+    const char* nav[] = {"nav_btn_home", "nav_btn_controls", "nav_btn_filament", "nav_btn_settings",
+                         "nav_btn_advanced"};
+    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    for (const char* name : nav) {
+        CAPTURE(name);
+        CHECK(is_visible(name));
+    }
+    CHECK(is_hidden("nav_btn_edit_done"));
+
+    lv_subject_set_int(&get_home_edit_mode_subject(), 1);
+    for (const char* name : nav) {
+        CAPTURE(name);
+        CHECK(is_hidden(name));
+    }
+    CHECK(is_visible("nav_btn_edit_add"));
+    CHECK(is_visible("nav_btn_edit_done"));
 }
 
 /**
@@ -663,8 +703,6 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Overlay registration accepts IPanelLife
 // LV_EVENT_DELETE hook so a deleted widget is scrubbed from panel_stack_ (and the
 // other bookkeeping maps) synchronously, before its memory is freed.
 
-#include "../test_helpers/update_queue_test_access.h"
-
 TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs overlay_backdrop_",
                  "[navigation][overlay][backdrop]") {
     auto& nav = NavigationManager::instance();
@@ -680,10 +718,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
     REQUIRE(backdrop != nullptr);
@@ -694,7 +732,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band backdrop deletion scrubs ov
     lv_obj_delete(backdrop);
 
     // overlay_backdrop_ must clear itself, or deinit_subjects() reaches
-    // lv_obj_del(overlay_backdrop_) on freed memory, a heap-use-after-free that
+    // lv_obj_delete(overlay_backdrop_) on freed memory, a heap-use-after-free that
     // detonates in whatever unrelated test runs next.
     REQUIRE(NavigationManagerTestAccess::overlay_backdrop(nav) == nullptr);
 
@@ -720,10 +758,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Precondition: the overlay is tracked as the top of the stack.
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
@@ -744,10 +782,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "Out-of-band widget deletion scrubs pane
     MockPanelLifecycle mock_panel2;
     lv_obj_t* overlay2 = lv_obj_create(test_screen());
     REQUIRE(overlay2 != nullptr);
-    lv_obj_add_flag(overlay2, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay2, true);
     nav.register_overlay_instance(overlay2, &mock_panel2);
     nav.push_overlay(overlay2);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay2) == true);
 
     // overlay2 went through register_overlay_instance + push, so it is hooked
@@ -778,16 +816,16 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_on_top(overlay));
 
     // PanelBase::rebuild() creates the successor with the old widget's visibility.
     lv_obj_t* rebuilt = lv_obj_create(test_screen());
     REQUIRE(rebuilt != nullptr);
-    lv_obj_add_flag(rebuilt, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(rebuilt, true);
     nav.replace_panel_widget(PanelId::Home, rebuilt);
 
     CHECK(nav.is_panel_in_stack(rebuilt));
@@ -795,11 +833,11 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     CHECK(nav.is_panel_on_top(overlay));
 
     nav.go_back();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(nav.is_panel_in_stack(overlay));
     CHECK(nav.is_panel_on_top(rebuilt));
-    CHECK_FALSE(lv_obj_has_flag(rebuilt, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(rebuilt));
 
     lv_obj_delete(overlay);
     lv_obj_delete(base);
@@ -835,10 +873,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
 
     // Keyboard was visible when the backdrop was pressed: the CLICKED handler
@@ -852,7 +890,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     // the handler falls through to go_back() and dismisses the overlay.
     REQUIRE(nav.take_backdrop_keyboard_dismiss() == false);
     nav.go_back();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(nav.is_panel_in_stack(overlay) == false);
 
     lv_obj_delete(base);
@@ -871,9 +909,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
 // This differs from the ZW6ATWSL self-heal above: there the overlay was already
 // ON panel_stack_ when deleted; here it is deleted while the push is still
 // pending, so it never reached the stack and the delete-hook scrub does not
-// apply. The fix is an lv_obj_is_valid(overlay_panel) guard at the top of the
-// deferred lambda — lv_obj_is_valid searches the display tree rather than
-// dereferencing, so it is safe on a freed pointer.
+// apply. The deferred lambda holds a WeakWidget, which reads nullptr by then.
 
 TEST_CASE_METHOD(NavbarIconTestFixture,
                  "push_overlay skips a target freed before the deferred push drains",
@@ -894,7 +930,7 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
     nav.push_overlay(overlay);
 
@@ -903,11 +939,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture,
     lv_obj_delete(overlay);
 
     // Draining must not crash on the freed pointer, and the dead overlay must
-    // not be admitted to the stack. Without the lv_obj_is_valid guard the lambda
+    // not be admitted to the stack. Without the handle the lambda
     // calls lv_obj_get_screen on freed memory (SIGSEGV under ASAN) or pushes the
     // dangling pointer onto panel_stack_ (is_panel_in_stack would be true).
-    REQUIRE_NOTHROW(
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
+    REQUIRE_NOTHROW(helix::ui::UpdateQueue::instance().drain_until_empty());
     REQUIRE(nav.is_panel_in_stack(overlay) == false);
     REQUIRE(nav.is_panel_in_stack(base) == true); // base untouched
 
@@ -935,12 +970,12 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "push_overlay onto empty stack does not 
     MockPanelLifecycle mock_panel;
     lv_obj_t* overlay = lv_obj_create(test_screen());
     REQUIRE(overlay != nullptr);
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, &mock_panel);
 
     // Pushing onto the empty stack must not crash on panel_stack_.back().
     nav.push_overlay(overlay);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The overlay is now the (only) entry — survived the empty-stack push.
     REQUIRE(nav.is_panel_in_stack(overlay) == true);
@@ -975,10 +1010,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
 
     MockPanelLifecycle mock_first;
     lv_obj_t* first = lv_obj_create(test_screen());
-    lv_obj_add_flag(first, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(first, true);
     nav.register_overlay_instance(first, &mock_first);
     nav.push_overlay(first);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(nav.is_panel_on_top(first) == true);
     REQUIRE(nav.is_panel_on_top(base) == false); // in the stack, but buried
@@ -986,10 +1021,10 @@ TEST_CASE_METHOD(NavbarIconTestFixture, "is_panel_on_top distinguishes top from 
     // The user navigates on — this is the state the timed-out callback wakes to.
     MockPanelLifecycle mock_second;
     lv_obj_t* second = lv_obj_create(test_screen());
-    lv_obj_add_flag(second, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(second, true);
     nav.register_overlay_instance(second, &mock_second);
     nav.push_overlay(second);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The discrimination that matters: `first` is still in the stack, so an
     // is_panel_in_stack() guard would wave the blind go_back() through.

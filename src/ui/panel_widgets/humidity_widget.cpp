@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "format_utils.h"
 #include "humidity_sensor_manager.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
@@ -12,7 +13,7 @@
 #include <spdlog/spdlog.h>
 
 // File-static subject: formatted chamber humidity text for XML binding
-static lv_subject_t s_chamber_humidity_text;
+static helix::Subject s_chamber_humidity_text;
 static char s_chamber_humidity_text_buf[8]; // "45%" or "--"
 static helix::WidgetSubjects s_subjects{"HumidityWidgetSubjects"};
 static ObserverGuard s_humidity_observer;
@@ -20,12 +21,11 @@ static ObserverGuard s_humidity_observer;
 static void humidity_widget_init_subjects() {
     s_subjects.ensure_init(
         [] {
-            lv_subject_init_string(&s_chamber_humidity_text, s_chamber_humidity_text_buf, nullptr,
-                                   sizeof(s_chamber_humidity_text_buf), "--");
+            s_chamber_humidity_text.init_string(s_chamber_humidity_text_buf, nullptr,
+                                                sizeof(s_chamber_humidity_text_buf), "--");
             s_subjects.publish("chamber_humidity_text", &s_chamber_humidity_text);
-            SubjectDebugRegistry::instance().register_subject(
-                &s_chamber_humidity_text, "chamber_humidity_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-                __LINE__);
+            HELIX_SUBJECT_DEBUG_REGISTER(&s_chamber_humidity_text, "chamber_humidity_text",
+                                         LV_SUBJECT_TYPE_STRING);
 
             // Observe raw humidity int and format for display
             auto* raw_subj =
@@ -41,7 +41,7 @@ static void humidity_widget_init_subjects() {
                             snprintf(buf, sizeof(buf), "--");
                         }
                         if (strcmp(lv_subject_get_string(target), buf) != 0) {
-                            lv_subject_copy_string(target, buf);
+                            lv_subject_set_string(target, buf);
                         }
                     },
                     helix::sensors::HumiditySensorManager::instance().subjects_lifetime());

@@ -11,6 +11,7 @@
 // It is compiled into the ESP32 firmware, so it never throws.
 
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 #include "moonraker_types.h" // GcodeStoreEntry
 
 #include <cstddef>
@@ -19,8 +20,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

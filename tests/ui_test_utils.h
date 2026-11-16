@@ -39,18 +39,6 @@
 void lv_init_safe();
 
 /**
- * @brief Create the shared 480x320 headless display, once per process.
- *
- * Idempotent: the first call creates the display, later calls do nothing. Tests
- * that need LVGL to have somewhere to render (any fixture standing up widgets or
- * pumping the UpdateQueue) can call this instead of hand-rolling the
- * create/buffers/flush_cb dance. Three wifi fixtures each carried their own
- * copy with a private `static bool created`, so running two of them in one
- * process created two displays.
- */
-void ensure_headless_display();
-
-/**
  * @brief Let a flush wait return on every display registered so far.
  *
  * A test display renders into a buffer nobody reads, so a flush is finished the

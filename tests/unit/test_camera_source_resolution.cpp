@@ -11,14 +11,15 @@
 
 #include "lvgl.h"
 
-#if HELIX_HAS_CAMERA
+#include "hv/json.hpp"
 
-#include "ui_update_queue.h"
+#if HELIX_HAS_CAMERA
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "app_globals.h"
 #include "camera_stream.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/camera_widget.h"
 

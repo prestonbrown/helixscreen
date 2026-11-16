@@ -3,15 +3,13 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "runtime_config.h"
 
 #include <functional>
 #include <memory>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -31,6 +29,7 @@ class PluginStatusRefresh;
 } // namespace helix
 namespace helix::ui {
 class FilamentOpHeater;
+class ColdPullRunner;
 class PlrOfferController;
 class ChamberStallPrompt;
 } // namespace helix::ui
@@ -46,18 +45,22 @@ class ChamberStallPrompt;
  * 2. init_panels(api) - Panel subjects with API injected at construction
  * 3. init_post() - Observers and utility subjects
  *
- * Usage (preferred - proper DI):
+ * Usage:
  *   SubjectInitializer subjects;
  *   subjects.init_core_and_state();
  *   // ... initialize MoonrakerManager to get API ...
  *   subjects.init_panels(api, runtime_config);
- *   subjects.init_post(runtime_config);
+ *   subjects.init_post(api, runtime_config);
  *
  */
 class SubjectInitializer {
   public:
     SubjectInitializer();
     ~SubjectInitializer();
+
+    /// Lets what this owns send its last commands while the client is still
+    /// connected: a live cold pull turns its heater off and restores its fan.
+    void before_disconnect();
 
     // Non-copyable, non-movable (owns observer guards)
     SubjectInitializer(const SubjectInitializer&) = delete;
@@ -91,7 +94,7 @@ class SubjectInitializer {
      * Initializes: print completion observer, print start navigation,
      * notification system, USB manager.
      */
-    void init_post(const RuntimeConfig& runtime_config);
+    void init_post(helix::IMoonrakerAPI* api, const RuntimeConfig& runtime_config);
 
     /**
      * @brief Check if subjects have been initialized
@@ -142,7 +145,7 @@ class SubjectInitializer {
     void init_ams_subjects();
     void init_panel_subjects(helix::IMoonrakerAPI* api);
     void init_temperature_control(helix::IMoonrakerAPI* api);
-    void init_observers();
+    void init_observers(helix::IMoonrakerAPI* api);
     void init_utility_subjects();
     void init_usb_manager(const RuntimeConfig& runtime_config);
 
@@ -159,6 +162,7 @@ class SubjectInitializer {
     std::unique_ptr<helix::PluginStatusRefresh> m_plugin_status_refresh;
     std::unique_ptr<helix::TemperatureController> m_temp_controller;
     std::unique_ptr<helix::ui::FilamentOpHeater> m_filament_op_heater;
+    std::unique_ptr<helix::ui::ColdPullRunner> m_cold_pull_runner;
     std::unique_ptr<helix::BedDryingController> m_bed_drying;
     std::unique_ptr<TemperatureService> m_temp_control_panel;
     // Registered as a shared resource by this object, owned by MoonrakerManager.

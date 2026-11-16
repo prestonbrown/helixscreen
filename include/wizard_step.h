@@ -14,6 +14,7 @@ namespace helix::wizard {
 enum class StepId {
     TouchCalibration = 0,
     Language,
+    Appearance,
     Wifi,
     Connection,
     PrinterIdentify,
@@ -27,7 +28,7 @@ enum class StepId {
     Summary,
     Telemetry,
 };
-inline constexpr int STEP_COUNT = 14;
+inline constexpr int STEP_COUNT = 15;
 
 // Plain data needed to decide skips — no LVGL, constructible in tests.
 struct StepContext {

@@ -25,10 +25,10 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/scoped_breakpoint.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "printer_excluded_objects_state.h"
 #include "printer_state.h"
@@ -77,7 +77,7 @@ struct ExcludeMapFixture : public LVGLUITestFixture {
         drain();
     }
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     static void tap(lv_obj_t* obj) {
         lv_obj_send_event(obj, LV_EVENT_CLICKED, nullptr);
@@ -132,7 +132,7 @@ lv_obj_t* part(PanelWidgetHarness<ExcludeMapWidget>& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.

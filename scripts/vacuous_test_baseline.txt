@@ -18,9 +18,7 @@
 # compiler, so the property cannot break without failing the build - but Catch2
 # counts only runtime assertions, and emits no <Expression> for these at all.
 # Unlisted, each would fail the gate with no runtime assertion to add.
-AFC backend get_tool_mapping returns the SlotRegistry tool_to_slot vector  # static_assert on the return type
 Geometry Builder: RibbonVertex is 8 bytes  # 3 static_asserts on layout
-GhostRenderMode is one shared type, not a per-renderer copy  # 2 static_asserts on type identity
 #1127 seeding state costs no extra bytes per layer entry  # static_assert on sizeof
 HeatingIconAnimator::State is the shared HeatState  # static_assert on type identity
 IFilesAPI exposes the file manager's root list  # 2 static_asserts on the interface
@@ -37,13 +35,9 @@ MoonrakerPerformanceSource satisfies IPerformanceSource interface  # 2 static_as
 # the call is observable, so an assertion would only restate that it returned.
 emergency_stop_and_restart with no API does nothing  # null API dereference would SIGSEGV
 a null api sends nothing and does not crash  # null API dereference would SIGSEGV
-fan_arc_resize_to_fit: null card is safe  # null card dereference would SIGSEGV
-fan_arc_resize_to_fit: missing children is safe  # null dial_arc dereference would SIGSEGV
-fan_arc_attach_auto_resize: null is safe  # null card dereference would SIGSEGV
 configure_touch_gestures: null indev is a no-op  # null indev dereference would SIGSEGV
 UI Utils: disable_widget_clicks_recursive - null is safe  # null root dereference would SIGSEGV
 UI Utils: clear_pressed_state_recursive - null is safe  # null root dereference would SIGSEGV
-apply_swatch_color: nullptr is a safe no-op  # null swatch dereference would SIGSEGV
 Grid with empty column template does not crash  # patches/lvgl_grid_update_guard.patch: zero-track grid, SIGSEGV or ASAN
 Grid with empty row template does not crash  # patches/lvgl_grid_update_guard.patch: zero-track grid, SIGSEGV or ASAN
 Grid with both templates empty does not crash  # patches/lvgl_grid_update_guard.patch: zero-track grid, SIGSEGV or ASAN

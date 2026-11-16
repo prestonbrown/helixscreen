@@ -52,8 +52,8 @@ The main binary never links libsystemd or libbluetooth for Bluetooth. Everything
 | `include/bt_scanner_discovery_utils.h` | HID scanner classification (`0x1124` classic HID, `0x1812` HID-over-GATT, brand names) and `classify_device()`, the printer/scanner traits discovery reports |
 | `include/bt_discovery_run.h` / `src/system/bt_discovery_run.cpp` | `SharedContext` (a plugin context co-owned by an overlay and its workers) and `DiscoveryRun` (one scan on a worker, reported on the UI thread) |
 | `include/bt_print_utils.h` / `src/system/bt_print_utils.cpp` | `rfcomm_send()`, `rfcomm_send_receive()`, `resolve_label_printer_channel()` |
-| `src/ui/ui_settings_label_printer.cpp` | Label printer settings: scan, pair, forget a BT printer |
-| `src/ui/ui_settings_barcode_scanner.cpp` | Barcode scanner settings: list known scanners, scan, pair (HID bonding), forget |
+| `src/ui/settings/ui_settings_label_printer.cpp` | Label printer settings: scan, pair, forget a BT printer |
+| `src/ui/settings/ui_settings_barcode_scanner.cpp` | Barcode scanner settings: list known scanners, scan, pair (HID bonding), forget |
 | `mk/bluetooth.mk` | Builds `libhelix-bluetooth.so` when the dependencies exist |
 | `lib/minilzo/` | miniLZO, compiled into the plugin only |
 
@@ -188,7 +188,7 @@ Because almost every call blocks, the app never calls the plugin from the LVGL t
 Both settings overlays scan through `DiscoveryRun` (`include/bt_discovery_run.h#DiscoveryRun`). It owns the parts that outlive any one overlay call: the per-scan state lives in a `shared_ptr` the worker co-owns, so a Stop, a rescan or the overlay's destruction never frees what the worker or its queued callbacks still read. The overlay supplies three callbacks:
 
 ```cpp
-// src/ui/ui_settings_barcode_scanner.cpp (start_bt_discovery)
+// src/ui/settings/ui_settings_barcode_scanner.cpp (start_bt_discovery)
 helix::bluetooth::DiscoveryRun::Callbacks callbacks;
 callbacks.accept = [](const helix_bt_device& dev) { return dev.is_scanner; };  // bus thread
 callbacks.on_device = [this](const helix::bluetooth::DiscoveredDevice& found) { ... };  // UI thread
@@ -198,7 +198,7 @@ bt_discovery_.start(bt_ctx_, 15000, lifetime_.token(), std::move(callbacks));
 
 `accept` runs on the bus thread inside the plugin's callback; `DiscoveryRun` copies each accepted device's strings before the callback returns and defers `on_device` through the token. `cancel()` silences the scan's remaining callbacks and sets that scan's own cancel flag, which the plugin reads even before the scan has started; other scans on the context (the label printer's rediscover-before-pair, say) keep running. A later `start()` cancels the scan it replaces the same way, then gets fresh state. `on_finished(false)` means the scan never ran: `SharedContext::get()` could not create a context, or `discover()` failed (no adapter, `StartDiscovery` refused; the plugin's `last_error` is logged). Both overlays then show "Could not start Bluetooth discovery" over their empty list.
 
-The barcode scanner overlay seeds its list from `enumerate_known()` the same way: the saved scanner shows at once, and BlueZ's known scanners merge in from a worker (`src/ui/ui_settings_barcode_scanner.cpp#seed_known_bt_devices`).
+The barcode scanner overlay seeds its list from `enumerate_known()` the same way: the saved scanner shows at once, and BlueZ's known scanners merge in from a worker (`src/ui/settings/ui_settings_barcode_scanner.cpp#seed_known_bt_devices`).
 
 ### Teardown order
 
@@ -270,7 +270,7 @@ The two settings overlays check different things once `pair()` returns:
 | Overlay | Post-pair check | Outcome |
 |---------|-----------------|---------|
 | Label printer | `is_paired()` and `is_connected()` | Saves `bt_address`, `bt_name` and `bt_transport` (`"ble"` or `"spp"`) to `LabelPrinterSettingsManager` |
-| Barcode scanner | `is_paired()`, `is_bonded()`, then polls up to 5 s for the scanner's HID input device | When no HID device appears and the scanner is not bonded, it is removed again with `remove_device()` so the next attempt starts clean; the toast wording depends on `is_bonded()` (`src/ui/ui_settings_barcode_scanner.cpp#"ldr.is_bonded"`) |
+| Barcode scanner | `is_paired()`, `is_bonded()`, then polls up to 5 s for the scanner's HID input device | When no HID device appears and the scanner is not bonded, it is removed again with `remove_device()` so the next attempt starts clean; the toast wording depends on `is_bonded()` (`src/ui/settings/ui_settings_barcode_scanner.cpp#"ldr.is_bonded"`) |
 
 `is_bonded()` exists because "Just Works" SSP can leave a device paired without a stored long-term key, and BlueZ's input plugin refuses HID for unbonded devices.
 

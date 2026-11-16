@@ -22,6 +22,7 @@
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <chrono>
@@ -31,27 +32,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerExcludeObject {
-    LVGLInitializerExcludeObject() {
-        // Only initialize if not already done
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerExcludeObject lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -62,7 +42,7 @@ static LVGLInitializerExcludeObject lvgl_init;
  *
  * Uses a disconnected MoonrakerClient - validation happens before network I/O.
  */
-class ExcludeObjectTestFixture {
+class ExcludeObjectTestFixture : public LVGLTestFixture {
   public:
     ExcludeObjectTestFixture() {
         // Initialize printer state
@@ -114,7 +94,7 @@ class ExcludeObjectTestFixture {
  *
  * Uses MoonrakerClientMock to verify G-code is sent correctly.
  */
-class ExcludeObjectMockTestFixture {
+class ExcludeObjectMockTestFixture : public LVGLTestFixture {
   public:
     ExcludeObjectMockTestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         // Initialize printer state

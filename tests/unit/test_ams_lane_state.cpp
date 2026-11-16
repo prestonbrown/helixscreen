@@ -165,8 +165,8 @@ TEST_CASE("Fill level: tracked ratio, else the assumed constant", "[ams][lane_st
         CHECK(lane_fill_level(s) == Catch::Approx(kAssumedFillLevel));
     }
     SECTION("a ghosted lane keeps its last known fill") {
-        // Deliberate reversal of a106413f6 (#1071). Safe only because the whole
-        // cell is ghosted — see the wiring test in Task 5.
+        // Deliberate (#1071): safe only because the whole cell is ghosted, which
+        // the ams_lane_bar wiring test asserts.
         SlotInfo s;
         s.status = SlotStatus::EMPTY;
         s.material = "PETG";

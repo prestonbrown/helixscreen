@@ -287,14 +287,21 @@ TEST_CASE("remember_plugin_self_heal: what the startup check keeps for the next 
     }
 }
 
-TEST_CASE("the remote install command runs one release's wrapper with sh, pinned to it",
+TEST_CASE("the remote install command fetches a release's wrapper from the release CDN",
           "[plugin_installer]") {
     const std::string cmd = plugin_remote_install_command("v1.1.0-beta.10");
 
-    CHECK(cmd == "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/"
-                 "v1.1.0-beta.10/moonraker-plugin/remote-install.sh | sh -s -- v1.1.0-beta.10");
+    CHECK(cmd == "curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh"
+                 " | sh -s -- v1.1.0-beta.10");
     CHECK(cmd.find("bash") == std::string::npos);
-    CHECK(cmd.find("/main/") == std::string::npos);
+    CHECK(cmd.find("githubusercontent") == std::string::npos);
+}
+
+TEST_CASE("the remote install command for main fetches main's wrapper from GitHub",
+          "[plugin_installer]") {
+    CHECK(plugin_remote_install_command("main") ==
+          "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/"
+          "moonraker-plugin/remote-install.sh | sh -s -- main");
 }
 
 // ============================================================================
@@ -306,21 +313,77 @@ TEST_CASE("the remote install command runs one release's wrapper with sh, pinned
 // the logic but may need to be run in isolation or with a test config setup.
 
 TEST_CASE("HelixPluginInstaller preferences logic", "[plugin_installer][preferences]") {
-    SECTION("should_prompt_install requires beta features and a completed wizard") {
+    SECTION("should_prompt_install requires a completed wizard") {
         helix::HelixPluginInstaller installer;
         helix::Config* config = helix::Config::get_instance();
-        const bool result = installer.should_prompt_install();
+        if (config->is_wizard_required()) {
+            CHECK_FALSE(installer.should_prompt_install());
+        }
+    }
+}
 
-        // Whatever this environment's config happens to say, a true answer
-        // implies both gates were open.
-        if (result) {
-            CHECK(config->is_beta_features_enabled());
-            CHECK_FALSE(config->is_wizard_required());
+TEST_CASE("decide_plugin_prompt_snooze survives a clock it cannot trust", "[plugin_installer]") {
+    constexpr int64_t kDay = 24 * 60 * 60;
+    constexpr int64_t kReal = 1800000000;
+    constexpr int64_t kEpochBoot = 30;
+    constexpr int64_t kTrustFloor = 1577836800;
+
+    SECTION("never snoozed opens on any clock") {
+        CHECK(decide_plugin_prompt_snooze({}, kEpochBoot, true).open);
+        CHECK(decide_plugin_prompt_snooze({}, kReal, true).open);
+    }
+    SECTION("seven measured days, to the second") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal);
+        CHECK(snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(snooze, kReal + 7 * kDay - 1, true).open);
+        CHECK(decide_plugin_prompt_snooze(snooze, kReal + 7 * kDay, true).open);
+    }
+    SECTION("the trust floor is the first trusted second") {
+        CHECK(plugin_prompt_snooze_at(kTrustFloor - 1).snoozed_at_s == kPluginPromptStampUnknown);
+        CHECK(plugin_prompt_snooze_at(kTrustFloor).snoozed_at_s == kTrustFloor);
+    }
+    SECTION("dismissed at the epoch: the first trusted reading starts the seven days") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kEpochBoot);
+        const PluginPromptSnoozeTurn turn = decide_plugin_prompt_snooze(snooze, kReal, true);
+        CHECK_FALSE(turn.open);
+        CHECK(turn.snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(turn.snooze, kReal + 6 * kDay, true).open);
+        CHECK(decide_plugin_prompt_snooze(turn.snooze, kReal + 7 * kDay, true).open);
+    }
+    SECTION("no clock ever: closed for six starts, open on the seventh and until answered") {
+        PluginPromptSnooze snooze = plugin_prompt_snooze_at(kEpochBoot);
+        for (int start = 1; start < kPluginPromptMaxUnmeasuredStarts; ++start) {
+            const PluginPromptSnoozeTurn turn =
+                decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+            CHECK_FALSE(turn.open);
+            snooze = turn.snooze;
         }
-        // Contrapositive, so the false branch is not a free pass either.
-        if (!config->is_beta_features_enabled() || config->is_wizard_required()) {
-            CHECK_FALSE(result);
+        const PluginPromptSnoozeTurn last = decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+        CHECK(last.open);
+        CHECK(decide_plugin_prompt_snooze(last.snooze, kEpochBoot, true).open);
+    }
+    SECTION("a trusted stamp survives an epoch boot, and NTP then measures it") {
+        const PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal);
+        const PluginPromptSnoozeTurn boot = decide_plugin_prompt_snooze(snooze, kEpochBoot, true);
+        CHECK_FALSE(boot.open);
+        CHECK(boot.snooze.snoozed_at_s == kReal);
+        CHECK_FALSE(decide_plugin_prompt_snooze(boot.snooze, kReal + kDay, false).open);
+        CHECK(decide_plugin_prompt_snooze(boot.snooze, kReal + 7 * kDay, false).open);
+    }
+    SECTION("a stamp from a clock far ahead cannot lock the prompt out") {
+        PluginPromptSnooze snooze = plugin_prompt_snooze_at(kReal + 3650 * kDay);
+        PluginPromptSnoozeTurn turn{};
+        for (int start = 0; start < kPluginPromptMaxUnmeasuredStarts; ++start) {
+            CHECK_FALSE(turn.open);
+            turn = decide_plugin_prompt_snooze(snooze, kReal, true);
+            snooze = turn.snooze;
         }
+        CHECK(turn.open);
+    }
+    SECTION("a re-check within one run is not another start") {
+        const PluginPromptSnoozeTurn turn =
+            decide_plugin_prompt_snooze(plugin_prompt_snooze_at(kEpochBoot), kEpochBoot, false);
+        CHECK(turn.snooze.unmeasured_starts == 0);
     }
 }
 
@@ -459,9 +522,17 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
         CHECK(sandbox.script_args() == "--restart-moonraker ");
     }
-    SECTION("Moonraker refused, or still runs the old plugin") {
+    SECTION("Moonraker restarted but still runs the old plugin") {
         sandbox.write_script("exit 3");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NeedsManual);
+    }
+    SECTION("Moonraker refused the restart") {
+        sandbox.write_script("exit 9");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Refused);
+    }
+    SECTION("Moonraker names no service of its own") {
+        sandbox.write_script("exit 8");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NoService);
     }
     SECTION("a print holds it off") {
         sandbox.write_script("exit 4");
@@ -497,14 +568,14 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
     }
     SECTION("an inherited HELIX_JOB_STATE never reaches the script, which asks Moonraker") {
         helix::ScopedEnv inherited("HELIX_JOB_STATE", "idle");
-        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 9");
+        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 5");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
     }
 }
 
-TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual restart, is "
-          "not repeated for the same versions",
-          "[plugin_installer]") {
+TEST_CASE("plugin_restart_finished: only a restart that happened is not repeated for the same "
+          "versions",
+          "[plugin_installer][2090]") {
     using Outcome = helix::PluginRestartOutcome;
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, true));
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, false));
@@ -512,6 +583,9 @@ TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual 
     // With no plugin loaded, a restart that did not load one is tried again.
     CHECK_FALSE(helix::plugin_restart_finished(Outcome::NeedsManual, false));
     for (const bool loaded : {true, false}) {
+        // Moonraker never went down: nothing restarted (#2090).
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::NoService, loaded));
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::Refused, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::HeldForPrint, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::JobUnknown, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::NotAnswering, loaded));

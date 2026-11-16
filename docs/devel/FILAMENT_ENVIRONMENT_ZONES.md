@@ -26,7 +26,7 @@ zone code.
 Backend hardware state
   |
   |  AmsBackend::get_environment_zones(unit)   (include/ams_backend.h)
-  |    default: walk AmsUnit::environment / SlotInfo::environment + get_dryer_info()
+  |    default: walk AmsUnit::environment / SlotInfo::environment + dryer_info()
   |    Happy Hare: derive_environment_zones() over its per-gate lists
   |    Mock: default walk, plus a simulated cap in "capped" mode
   v
@@ -36,7 +36,7 @@ std::vector<EnvironmentZone>          (include/ams_environment_zone.h)
   |
   |  select_zone_presentation(zones)  ->  Single | Tabs | List
   v
-open_environment_for_unit(unit)       (src/ui/ui_ams_environment_overlay.cpp)
+open_environment_for_unit(unit)       (src/ui/filament/ui_ams_environment_overlay.cpp)
   |
   +-> AmsZoneOverviewOverlay  (List)     one zone_row per zone, drill into detail
   |     ui_xml/ams_zone_overview_overlay.xml + ui_xml/components/zone_row.xml
@@ -46,7 +46,7 @@ open_environment_for_unit(unit)       (src/ui/ui_ams_environment_overlay.cpp)
         readouts, material comfort strip, dryer controls, queued banner
           |
           v
-        AmsBackend::start_drying / stop_drying (unit = the shown zone's unit_index)
+        IDryer::start_drying_request / stop_drying_gates (unit = the shown zone's unit_index)
 ```
 
 The invariant: **a zone is what the UI selects, renders and controls.** Nothing above the
@@ -62,13 +62,13 @@ heater is shared or per-lane.
 | `include/ams_environment_zone.h` | `EnvironmentZone`, `ZoneDryingState`, `ZonePresentation`, `kMaxZoneTabs`, and the four pure functions |
 | `src/printer/ams_environment_zone.cpp` | `derive_environment_zones()`, `fold_zone_drying_state()`, `queue_zones_waiting_for_the_cap()`, `select_zone_presentation()` |
 | `include/ui_zone_presentation.h` | `ZoneVerdict`, the humidity thresholds, `zone_display_label()`, `zone_slot_text()`, `zones_span_units()` |
-| `src/ui/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
-| `include/ams_backend.h` | `get_environment_zones()` - the sixth dryer-family virtual - and the five it sits beside |
+| `src/ui/filament/ui_zone_presentation.cpp` | Their implementations. LVGL-free and translation-free: callers pass translated words in |
+| `include/ams_backend.h`, `include/ams_dryer.h` | `get_environment_zones()` on the backend; the `IDryer` capability and `dryer_info()` beside it |
 | `src/printer/ams_backend.cpp` | `AmsBackend::get_environment_zones` - the default walk every backend gets for free |
 | `src/printer/ams_backend_happy_hare.cpp` | The one hardware override, plus `heater_suffix_locked()` and the `MMU_HEATER` command shapes |
 | `src/printer/ams_backend_mock.cpp` | Zone-shape rigs for the six `HELIX_MOCK_AMS_ENV` modes; the only caller of `queue_zones_waiting_for_the_cap()` |
-| `include/ui_ams_environment_overlay.h`, `src/ui/ui_ams_environment_overlay.cpp` | Detail overlay + tab selector, `open_environment_for_unit()`, the dryer control call sites |
-| `include/ui_ams_zone_overview_overlay.h`, `src/ui/ui_ams_zone_overview_overlay.cpp` | The zone list, its status text and unit grouping |
+| `include/ui_ams_environment_overlay.h`, `src/ui/filament/ui_ams_environment_overlay.cpp` | Detail overlay + tab selector, `open_environment_for_unit()`, the dryer control call sites |
+| `include/ui_ams_zone_overview_overlay.h`, `src/ui/filament/ui_ams_zone_overview_overlay.cpp` | The zone list, its status text and unit grouping |
 | `ui_xml/ams_environment_overlay.xml`, `ui_xml/components/zone_tab.xml` | Detail layout and the segmented selector |
 | `ui_xml/ams_zone_overview_overlay.xml`, `ui_xml/components/zone_row.xml` | List layout and one row |
 | `tests/unit/test_ams_environment_zones.cpp` | The pure functions - `[ams][dryer][zones]` |
@@ -119,8 +119,8 @@ comfort strip rather than printing a fabricated all-clear.
 
 `unit_index == -1` is not a display problem, it is a **control** problem. A read that only shapes
 a display value may treat it as "no data for this unit"; the start/stop call sites refuse rather
-than guess which box to command (`src/ui/ui_ams_environment_overlay.cpp#acting_unit_index`, and
-the two `unit < 0` branches in `on_start_stop_clicked`).
+than guess which box to command (`src/ui/filament/ui_ams_environment_overlay.cpp#acting_unit_index`, and
+the two `unit < 0` branches in `AmsEnvironmentOverlay::handle_start_stop`).
 
 ### `ZoneDryingState`
 
@@ -134,7 +134,7 @@ a control that did nothing when the user pressed it. `Cancelled` and `Complete` 
 one answers "someone stopped it", the other "it finished".
 
 The integer values are the contract with XML. `zone_tab.xml` picks one of four state icons by
-comparing `env_zone_tab_state_${i}` against 1..4, and `ams_environment_overlay.xml` shows the
+comparing its `state_subject` (the overlay passes `env_zone_tab_state_${i}`) against 1..4, and `ams_environment_overlay.xml` shows the
 queued banner on `env_zone_state == 1` and hides the progress bar on the same value.
 
 ---
@@ -274,7 +274,7 @@ to make before they can see that the two differ at all. So any capability split 
 whatever the count, and only the count question is left for `kMaxZoneTabs` - which is a width
 constraint: above four, a segmented selector stops fitting the narrow breakpoints.
 
-`open_environment_for_unit()` (`src/ui/ui_ams_environment_overlay.cpp#open_environment_for_unit`)
+`open_environment_for_unit()` (`src/ui/filament/ui_ams_environment_overlay.cpp#open_environment_for_unit`)
 is the one caller. The branch lives there rather than inside either overlay, so neither overlay
 has to decide that the other one should have been opened.
 
@@ -313,24 +313,25 @@ color band - so a row cannot name one state while coloring for another:
    exactly the one whose color is the only signal the row gives, so it keeps its verdict.
 3. Otherwise `Verdict`, severity from `zone_verdict()`.
 
-`zone_status_text()` in the overview (`src/ui/ui_ams_zone_overview_overlay.cpp`) turns the kind
+`zone_status_text()` in the overview (`src/ui/filament/ui_ams_zone_overview_overlay.cpp`) turns the kind
 into a word: "Drying", "passive", or the verdict itself as "OK" / "Marginal" / "Too humid", with
 `Unknown` rendering `--`. The severity feeds `verdict_pool_` and the `bind_style_if_eq` rules in
 `zone_row.xml`, which style only `Marginal` (1) and `TooHumid` (2). So a heated box with no
 humidity sensor shows a neutral `--`, and a damp passive box shows "passive" in the danger color
 because that is the one thing the row can still tell you.
 
-**`zone_display_label(zone, unit_word, slot_word, type_name)`** - three cases, in order:
+**`zone_display_label(zone, unit_word, slot_noun, type_name)`** - three cases, in order:
 
 1. A zone the backend named uses that name.
-2. A single-gate zone with no name is one slot, `slot_word + " " + (gate + 1)` (one-based on the
-   global gate index).
-3. Anything else is `type_name + " " + unit_word + " " + (unit_index + 1)`.
+2. A single-gate zone with no name is one slot, `lane_label(slot_noun, gate)` (the backend's
+   noun, one-based on the global gate index).
+3. Anything else is `type_name + " " + unit_word + " " + (unit_index + 1)`, or `type_name`
+   alone when the unit index is unresolved.
 
 Case 1 matters on rigs that name their boxes ("Box Turtle 1", "Night Owl"): an ordinal against
 the system type cannot tell one from another on the very screen where you pick between them.
 
-**`zone_slot_text(zone, plural_word, singular_word)`** - the slots a zone covers as the user
+**`zone_slot_text(zone, noun)`** - the slots a zone covers as the user
 reads them: one-based, contracted to a range (`"Slots 1-4"`, or `"Slot 3"` when first == last).
 Slots are contiguous within a zone on every shape we serve, so a range is honest. An empty zone
 gets an empty string rather than a range of nothing.
@@ -441,11 +442,13 @@ the widget subjects, so the next refresh that finds it attaches its observers.
 | Mock | **Override** (default walk, plus a simulated cap in `"capped"` mode) | Whatever `HELIX_MOCK_AMS_ENV` rigs: passive, per-slot, EMU, mixed or capped |
 | QIDI Box | Default walk | One heated zone per box - per-unit `environment` plus per-unit `DryerInfo` |
 | ACE | Default walk | One heated zone. Temperature always; humidity only on firmware variants that publish a top-level `humidity` |
+| MultiACE | Default walk | One heated zone per ACE unit, with humidity where the unit reports it |
+| OpenAMS | Default walk | One zone per unit the manager reports climate for: heated when it offers a dryer, passive with only a sensor |
 | CFS | Default walk | Passive zones, one per box. The backend never touches `DryerInfo`, so `dryer.supported` stays false on every zone |
-| AFC | Default walk | None. No environment data, no dryer |
+| AFC | Default walk | Passive zones, one per unit whose `[AFC_OAMS]` controller reports temperature or humidity; none otherwise. No dryer |
 | Tool Changer | Default walk | None |
 | AD5X IFS | Default walk | None |
-| Snapmaker U1 | Default walk | None |
+| Snapmaker U1, INDX, lane-status producers | Default walk | None |
 
 A backend in the "None" rows costs nothing: the default walk finds neither a sensor nor a dryer
 on any unit and returns an empty vector, which `open_environment_for_unit()` renders as the
@@ -524,8 +527,8 @@ site, so these are the contract for whoever wires the first one.
 | Backend | Behavior |
 |---------|-----------|
 | Happy Hare | Temperature alone re-sends the setpoint and leaves the cycle and its timer alone. Any duration change is a stop then a start, carrying the running target when only the duration moved |
-| ACE | Always a stop then a start. When the duration was not specified it restarts on `remaining_min` rather than `duration_min`, so a temperature change does not silently hand back time already served |
-| Every other backend | The `AmsBackend` default: `NOT_SUPPORTED` |
+| ACE, MultiACE | Always a stop then a start (`helix::ace::restart_request()`). When the duration was not specified it restarts on `remaining_min` rather than `duration_min`, so a temperature change does not silently hand back time already served |
+| Every other backend | The `IDryer` default: `NOT_SUPPORTED` |
 
 QIDI overrides `get_dryer_info`, `start_drying` and `stop_drying` but **not** `update_drying`, so
 its adjustments fall to that default. Its input validation lives in `start_drying`, which range-
@@ -541,18 +544,16 @@ than silently dropping an adjustment.
 
 ## Adding environment support to a new backend
 
-`get_environment_zones()` is the sixth virtual in the dryer family, beside `get_dryer_info()`,
-`start_drying()`, `stop_drying()`, `update_drying()` and `get_drying_presets()`. Unlike the other
-five it is **not** a "not supported" stub - it has a working default, so most backends should
-never override it.
+`get_environment_zones()` is on `AmsBackend`, not `IDryer` (`include/ams_dryer.h`), because a zone
+needs no dryer. It has a working default, so most backends should never override it.
 
 **To get a passive zone from the default walk**, publish an `EnvironmentData` on the unit
 (`AmsUnit::environment`) or on each measured slot (`SlotInfo::environment`). Set `has_humidity`
 only when a real humidity channel exists; leaving it false with `humidity_pct == 0` is what makes
 the verdict `Unknown` instead of a fabricated `Ok`.
 
-**To get a heated zone**, additionally return `DryerInfo{.supported = true, ...}` from
-`get_dryer_info(unit)` and implement `start_drying()` / `stop_drying()`. Fill `min_temp_c`,
+**To get a heated zone**, additionally publish `IDryer`, return `DryerInfo{.supported = true, ...}`
+from `get_dryer_info(unit)` and implement `start_drying()` / `stop_drying()`. Fill `min_temp_c`,
 `max_temp_c` and `max_duration_min` from the hardware - the overlay clamps the keypad and the
 Start command to exactly those, so a wrong ceiling shows the user a number the command will
 silently replace. Set `supports_live_temp` / `supports_live_duration` only where the hardware
@@ -574,14 +575,13 @@ target rather than following a bad guess. No other `AmsState` wiring is needed.
 
 ## Boundaries
 
-- **Control is per unit, not per zone.** `start_drying` / `stop_drying` take a unit index, and on
-  Happy Hare that becomes `GATES=` over every gate on that unit. On an EMU rig the zones are
-  per-lane for display while a Start on any one of them commands the whole unit. Independently
-  drying a subset of gates, per-gate countdowns, and the `HUMIDITY=` termination target are open
-  in **#1026**.
+- **Control is per unit unless the dryer reports `supports_gate_selection`.** `start_drying` /
+  `stop_drying` take a unit index, and on Happy Hare that becomes `GATES=` over every gate on that
+  unit. Only a per-gate-heater Happy Hare 4 unit takes a chosen subset (see "A chosen set of
+  gates"); per-gate countdowns and the `HUMIDITY=` termination target are open in **#1026**.
 - **Per-gate occupancy filtering is unwritten and unverifiable here.** `heater_suffix_locked()`
-  lists empty gates along with loaded ones. We own no EMU rig; the per-gate paths are unit-tested
-  against synthetic status frames only.
+  lists empty gates along with loaded ones. The per-gate paths are unit-tested against synthetic
+  status frames only.
 - **Nothing infers a concurrency cap.** `Queued` is only ever a firmware report folded by
   `fold_zone_drying_state()`. `queue_zones_waiting_for_the_cap()` exists to let the mock simulate
   a cap and has no production caller outside it.

@@ -62,6 +62,7 @@ import json
 import pathlib
 import re
 import sys
+import ratchet  # noqa: E402
 
 SRC_DIRS = ("src", "include")
 # The subject macros' own doc comments register "my_count"/"name"/"temperature"
@@ -282,14 +283,18 @@ def collect_registrations(root: pathlib.Path, files=None, read=None):
     return found, members, owned
 
 
-def collect_xml_refs(root: pathlib.Path) -> set[str]:
+def collect_xml_refs(root: pathlib.Path, xml_files=None, ignore_attrs=()) -> set[str]:
+    """xml_files limits the XML read; default ui_xml/. ignore_attrs names attributes
+    whose values are never subject names (a widget's name=)."""
     refs: set[str] = set()
-    for path in (root / XML_DIR).rglob("*.xml"):
+    for path in (root / XML_DIR).rglob("*.xml") if xml_files is None else xml_files:
         text = path.read_text(errors="ignore")
         # Any attribute value that is a bare identifier may be a subject name:
         # bind_text=, subject=, and caller-named component params alike.
-        for m in re.finditer(r'="([^"]*)"', text):
-            val = m.group(1)
+        for m in re.finditer(r'([\w:.-]*)="([^"]*)"', text):
+            if m.group(1) in ignore_attrs:
+                continue
+            val = m.group(2)
             if "${" in val or val.startswith(("#", "$")):
                 continue
             # `@name` is the subject-reference spelling for widget attributes
@@ -507,10 +512,12 @@ def main() -> int:
 
     gone = sorted(accepted - set(orphans))
     if gone:
-        print(f"✅ Orphan subjects: {count} of {len(registered)} registered, "
-              f"{len(gone)} fewer than {args.baseline} — re-run with --write-baseline "
-              f"to hold the gain ({', '.join(gone)}).")
-        return 0
+        return ratchet.under_baseline(
+            "Orphan subjects", f"{args.baseline} (re-run with --write-baseline)",
+            [f"{name}: no longer an orphan" for name in gone],
+            f"✅ Orphan subjects: {count} of {len(registered)} registered, "
+            f"{len(gone)} fewer than {args.baseline} — re-run with --write-baseline "
+            f"to hold the gain ({', '.join(gone)}).")
 
     print(f"✅ Orphan subjects: {count} of {len(registered)} registered, all accepted debt "
           f"in {args.baseline}")

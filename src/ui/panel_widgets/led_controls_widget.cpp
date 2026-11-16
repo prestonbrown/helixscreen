@@ -29,12 +29,6 @@ LedControlsWidget::~LedControlsWidget() {
 void LedControlsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-
-    // Register click handler via per-callback user_data
-    lv_obj_t* btn = lv_obj_find_by_name(widget_obj_, "led_controls_button");
-    if (btn) {
-        lv_obj_add_event_cb(btn, on_led_controls_clicked, LV_EVENT_CLICKED, this);
-    }
 }
 
 void LedControlsWidget::detach() {
@@ -44,7 +38,7 @@ void LedControlsWidget::detach() {
 
 void LedControlsWidget::on_led_controls_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[LedControlsWidget] on_led_controls_clicked");
-    auto* self = static_cast<LedControlsWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<LedControlsWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_clicked();

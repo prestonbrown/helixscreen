@@ -3,10 +3,10 @@
 
 #include "input_sensor_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "app_globals.h"
+#include "core/text_io.h"
 #include "json_utils.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "print_start_checks.h"
 #include "printer_discovery.h"
@@ -24,14 +24,6 @@ namespace {
 
 constexpr uint8_t kDoor = static_cast<uint8_t>(InputSensorRole::DOOR);
 
-bool contains_ci(std::string_view haystack, std::string_view needle) {
-    return std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
-                       [](char a, char b) {
-                           return std::tolower(static_cast<unsigned char>(a)) ==
-                                  std::tolower(static_cast<unsigned char>(b));
-                       }) != haystack.end();
-}
-
 /// The words a row shows for an input's state: door wording for a Door input,
 /// switch wording for any other.
 const char* state_text(InputSensorRole role, const InputReading& reading) {
@@ -48,7 +40,7 @@ const char* state_text(InputSensorRole role, const InputReading& reading) {
 
 InputSensorRole default_input_role(std::string_view sensor_name) {
     for (const char* word : {"door", "lid", "cover"}) {
-        if (contains_ci(sensor_name, word)) {
+        if (helix::text_io::contains_ignore_case(sensor_name, word)) {
             return InputSensorRole::DOOR;
         }
     }
@@ -356,7 +348,7 @@ void InputSensorManager::refresh_subjects() {
                                      get_printer_state().print_state().print_materials())) {
             const std::string msg =
                 fmt::format(fmt::runtime(lv_tr("Door opened during print: {}")), name);
-            ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str(), 6000);
+            helix::publish_notice({helix::NoticeSeverity::WARNING, msg, 6000});
         }
     }
     open_doors_seen_ = std::move(open);

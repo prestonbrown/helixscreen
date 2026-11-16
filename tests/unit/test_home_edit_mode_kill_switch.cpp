@@ -11,7 +11,7 @@
  * hard kill switch for users who never want edit mode at all.
  *
  * It is enforced by the first branch of should_suppress_edit_mode()
- * (src/ui/ui_panel_home.cpp), a static function with no other caller — so the
+ * (src/ui/home/ui_panel_home.cpp), a static function with no other caller — so the
  * only seam that exercises it is the LV_EVENT_LONG_PRESSED handler the XML wires
  * onto the carousel host, which is what these cases drive. Everything below the
  * event send is the production path: should_suppress_edit_mode(), the drift

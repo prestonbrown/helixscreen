@@ -27,9 +27,7 @@ enum class LaneState {
     Empty,
 };
 
-/// Fill level for a lane that has filament but no weight data. One named
-/// constant instead of the bare 1.0f that used to sit in display_fill_level()
-/// and three places in ui_spool_canvas.cpp.
+/// Fill level for a lane that has filament but no weight data.
 inline constexpr float kAssumedFillLevel = 1.0f;
 
 /**
@@ -58,9 +56,8 @@ inline constexpr float kAssumedFillLevel = 1.0f;
  *
  * UNKNOWN is treated exactly as EMPTY. It is not a steady state on any backend:
  * every SlotStatus::UNKNOWN assignment is skeleton construction before firmware
- * data arrives (ams_backend_qidi.cpp:72, ams_backend_snapmaker.cpp:263,
- * ams_backend_happy_hare.cpp:1325, ams_backend_ace.cpp:1317,
- * ams_backend_afc.cpp:4339), plus one QIDI fallback for an unrecognised value.
+ * data arrives (the QIDI, Snapmaker, Happy Hare, ACE and AFC backends), plus
+ * one QIDI fallback for an unrecognised value.
  * Treating it as EMPTY lets it inherit the identity split, so a lane whose
  * material is already known dims rather than blanking during startup.
  *
@@ -89,8 +86,8 @@ inline constexpr float kAssumedFillLevel = 1.0f;
 /**
  * @brief How full to draw this lane, 0.0-1.0.
  *
- * A ghosted lane keeps its last known fill. That reverses a106413f6 (#1071),
- * where an emptied lane rendered a full-strength 75% bar and read as loaded.
+ * A ghosted lane keeps its last known fill. Undimmed, an emptied lane drawn as
+ * a full-strength 75% bar reads as loaded (#1071).
  * It is safe here ONLY because Ghosted dims the entire cell — the dimming is
  * the disclaimer. Do not reuse this value without the ghost.
  */

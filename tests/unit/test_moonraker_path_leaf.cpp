@@ -11,7 +11,7 @@
  * bare leaf ("Gridfinity"). PrintSelectPathNavigator::navigate_to() then
  * concatenated the full path onto the already-current path, producing a doubled
  * segment ("Feinkost/Feinkost/Gridfinity") that the server reports as missing,
- * wedging the Print Files panel (debug bundle TJVQDCZ6).
+ * wedging the Print Files panel.
  *
  * moonraker_path_leaf() normalizes any such value down to its final component so
  * navigation rebuilds the correct path. It must be a no-op for stock Moonraker
@@ -29,7 +29,7 @@ TEST_CASE("[moonraker_path_leaf] stock Moonraker leaf is unchanged", "[files][pa
 
 TEST_CASE("[moonraker_path_leaf] FlashForge root-relative path is stripped to leaf",
           "[files][path][regression]") {
-    // The exact value behind debug bundle TJVQDCZ6.
+    // The exact value from the field report.
     REQUIRE(moonraker_path_leaf("Feinkost/Gridfinity") == "Gridfinity");
     REQUIRE(moonraker_path_leaf("a/b/c") == "c");
 }

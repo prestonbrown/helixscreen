@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cmath>
@@ -298,16 +298,16 @@ struct DryingPreset {
  * derives one preset per compatibility group by taking the group-wide MAXIMUM of
  * both dry_temp_c and dry_time_min across that group's hygroscopic members.
  *
- * Why max and not first-member (the old behaviour), and why one preset per group
+ * Why max and not first-member, and why one preset per group
  * rather than one per material:
  *
  *  - Max, because the two failure directions are not symmetric. Under-drying
  *    leaves moisture in the filament and ruins the print; over-drying *within a
  *    compat group* does not, because a compat group is by construction a set of
  *    chemically interchangeable materials whose glass-transition temperatures sit
- *    in the same band. Taking the first member silently under-dried 8 materials
- *    (PET/PET-CF/PET-GF at 65 °C got the PETG row's 55 °C; PA66/PA6-CF/PPA/
- *    PPA-CF/PPA-GF at 80 °C got the PA row's 70 °C).
+ *    in the same band. Taking the first member would silently under-dry 8 materials
+ *    (PET/PET-CF/PET-GF at 65 °C would get the PETG row's 55 °C; PA66/PA6-CF/PPA/
+ *    PPA-CF/PPA-GF at 80 °C would get the PA row's 70 °C).
  *  - Per group, because the consumer is a dryer preset dropdown
  *    (ams_types.h get_default_drying_presets() -> AMS environment overlay). One
  *    entry per material would turn a 12-row list into a 60+ row scroll for no
@@ -448,8 +448,8 @@ struct MaterialComfortRange {
  *
  * The drying temperature and time that get_comfort_range() reports are NOT listed
  * here — they come from get_drying_presets_by_group(), which derives them from
- * the `types` table. Adding dry_temp/dry_time columns to this table would recreate the
- * third drying source that this layout exists to eliminate.
+ * the `types` table. Adding dry_temp/dry_time columns to this table would create a
+ * second, independent drying source, which this layout exists to prevent.
  */
 struct GroupHumidityRange {
     const char* group;

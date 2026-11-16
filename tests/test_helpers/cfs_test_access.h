@@ -6,9 +6,11 @@
 #include "ams_backend_cfs.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -17,8 +19,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -40,12 +40,10 @@ class CfsTestAccess {
     /// Runs only the startup store load: a null client skips the initial query.
     static void start_load(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
-    /// Takes a notify frame, the shape the subscription delivers.
-    static void handle_status(helix::printer::AmsBackendCfs& b, const nlohmann::json& n) {
-        b.handle_status_update(n);
-    }
     static void seed_override(helix::printer::AmsBackendCfs& b, int slot_index,
                               const helix::ams::FilamentSlotOverride& ovr) {
         {
@@ -71,6 +69,9 @@ class CfsTestAccess {
     static void inject_override_store(helix::printer::AmsBackendCfs& b,
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
+        // A start bound the tracker's baseline writes to the store this replaces.
+        helix::ams::bind_fingerprint_persistence(b.rfid_tracker_, b.override_store_.get(),
+                                                 b.overrides_);
     }
     /// Put a whole Spoolman link on the live slot — the shape a linked slot
     /// carries. The persisted override record has no filament-id field, so
@@ -120,6 +121,16 @@ class CfsTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.bypass_declared_ = declared;
         b.system_info_.supports_bypass = true;
+    }
+
+    /// What a read of the bypass declaration finding @p declared does.
+    static bool adopt_bypass_declaration(helix::printer::AmsBackendCfs& b, bool declared) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.adopt_bypass_declaration_locked(declared);
+    }
+
+    static void mark_running(helix::printer::AmsBackendCfs& b) {
+        b.running_ = true;
     }
 
     static void set_seated_bay(helix::printer::AmsBackendCfs& b, int slot) {
@@ -229,8 +240,31 @@ class CfsTestAccess {
 
     /// Run the real on_started (declaration restore + initial query; the
     /// Moonraker query itself is null-guarded in test constructions).
+    /// on_started() with the store's first read left unlanded on the queue.
+    static void call_on_started_unread(helix::printer::AmsBackendCfs& b) {
+        b.on_started();
+    }
+
     static void call_on_started(helix::printer::AmsBackendCfs& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    /// The configfile query's answer, as configfile.settings.
+    static void answer_unit_registration(helix::printer::AmsBackendCfs& b,
+                                         const nlohmann::json& settings) {
+        b.apply_unit_registration(helix::cfs::has_registered_unit(settings)
+                                      ? helix::printer::AmsBackendCfs::UnitRegistration::Registered
+                                      : helix::printer::AmsBackendCfs::UnitRegistration::None);
+    }
+    /// The configfile query sent and not yet answered.
+    static void await_unit_registration(helix::printer::AmsBackendCfs& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.unit_registration_ = helix::printer::AmsBackendCfs::UnitRegistration::Unknown;
+    }
+    static void expire_unit_settle(helix::printer::AmsBackendCfs& b) {
+        b.finish_unit_settle();
     }
 };
 } // namespace helix

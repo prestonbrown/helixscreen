@@ -43,7 +43,8 @@
          bar instead of clipping. -->
     <header_bar name="overlay_header"
                 title="" title_subject="keypad_title" title_transform="none" title_font="#keypad_title_font"
-                title_long_mode="dots" title_max_lines="2" action_button_text="Set " hide_action_button="false"/>
+                title_long_mode="dots" title_max_lines="2" action_button_text="Set " hide_action_button="false"
+                action_button_callback="on_keypad_confirm"/>
     <!-- Content -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column" style_pad_gap="0"
@@ -87,25 +88,43 @@
                   width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                   style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
                   style_flex_main_place="space_between">
-            <ui_button name="btn_7" width="32%" height="100%" text="7" variant="secondary"/>
-            <ui_button name="btn_8" width="32%" height="100%" text="8" variant="secondary"/>
-            <ui_button name="btn_9" width="32%" height="100%" text="9" variant="secondary"/>
+            <ui_button name="btn_7" width="32%" height="100%" text="7" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_8" width="32%" height="100%" text="8" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_9" width="32%" height="100%" text="9" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
           </lv_obj>
           <lv_obj name="keypad_row_2"
                   width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                   style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
                   style_flex_main_place="space_between">
-            <ui_button name="btn_4" width="32%" height="100%" text="4" variant="secondary"/>
-            <ui_button name="btn_5" width="32%" height="100%" text="5" variant="secondary"/>
-            <ui_button name="btn_6" width="32%" height="100%" text="6" variant="secondary"/>
+            <ui_button name="btn_4" width="32%" height="100%" text="4" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_5" width="32%" height="100%" text="5" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_6" width="32%" height="100%" text="6" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
           </lv_obj>
           <lv_obj name="keypad_row_3"
                   width="100%" flex_grow="1" style_pad_all="0" style_pad_bottom="#space_sm" style_bg_opa="0"
                   style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_column="0"
                   style_flex_main_place="space_between">
-            <ui_button name="btn_1" width="32%" height="100%" text="1" variant="secondary"/>
-            <ui_button name="btn_2" width="32%" height="100%" text="2" variant="secondary"/>
-            <ui_button name="btn_3" width="32%" height="100%" text="3" variant="secondary"/>
+            <ui_button name="btn_1" width="32%" height="100%" text="1" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_2" width="32%" height="100%" text="2" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
+            <ui_button name="btn_3" width="32%" height="100%" text="3" variant="secondary">
+              <event_cb trigger="clicked" callback="on_keypad_digit"/>
+            </ui_button>
           </lv_obj>
         </lv_obj>
         <!-- Row 4: dot, 0, backspace (calculator); backspace, 0, dot (phone) -->
@@ -128,14 +147,19 @@
                   clickable="false">
             <ui_button name="btn_dot" width="100%" height="100%" text="." variant="secondary">
               <bind_flag_if_eq subject="keypad_allow_decimal" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_keypad_dot"/>
             </ui_button>
             <ui_button name="btn_confirm" width="100%" height="100%" icon="check" text="" variant="success">
               <bind_flag_if cond="keypad_allow_decimal ne 0 or settings_keypad_layout ne 0" flag="hidden"/>
               <event_cb trigger="clicked" callback="on_keypad_confirm"/>
             </ui_button>
           </lv_obj>
-          <ui_button name="btn_0" width="32%" height="100%" text="0" variant="secondary"/>
-          <ui_button name="btn_backspace" width="32%" height="100%" icon="backspace" text=""/>
+          <ui_button name="btn_0" width="32%" height="100%" text="0" variant="secondary">
+            <event_cb trigger="clicked" callback="on_keypad_digit"/>
+          </ui_button>
+          <ui_button name="btn_backspace" width="32%" height="100%" icon="backspace" text="">
+            <event_cb trigger="clicked" callback="on_keypad_backspace"/>
+          </ui_button>
         </lv_obj>
       </lv_obj>
     </lv_obj>

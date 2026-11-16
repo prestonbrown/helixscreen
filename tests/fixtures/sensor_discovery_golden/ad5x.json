@@ -4,15 +4,16 @@
       "fan_generic fanM106",
       "heater_fan heat_fan",
       "fan_generic chamber_fan",
-      "fan_generic pcb_fan"
+      "controller_fan driver_fan"
     ],
     "filament_sensor_names": [
-      "filament_switch_sensor head_switch_sensor"
+      "filament_switch_sensor head_switch_sensor",
+      "filament_motion_sensor ifs_motion_sensor"
     ],
     "has_accelerometer": true,
     "has_fan_feedback": false,
     "has_filament_sensors": true,
-    "has_led": false,
+    "has_led": true,
     "has_led_effects": false,
     "has_probe": true,
     "has_speaker": true,
@@ -21,7 +22,10 @@
       "heater_bed",
       "extruder"
     ],
-    "leds": [],
+    "leds": [
+      "led chamber_led",
+      "led chamber_light"
+    ],
     "load_cells": [],
     "printer_objects": [
       "heater_bed",
@@ -33,7 +37,9 @@
       "fan_generic fanM106",
       "heater_fan heat_fan",
       "fan_generic chamber_fan",
-      "fan_generic pcb_fan",
+      "controller_fan driver_fan",
+      "led chamber_led",
+      "led chamber_light",
       "gcode_macro SET_EXTRUDER_SLOT",
       "exclude_object",
       "gcode_macro START_PRINT",
@@ -53,7 +59,12 @@
       "mcu",
       "timelapse",
       "probe",
-      "filament_switch_sensor head_switch_sensor"
+      "filament_switch_sensor head_switch_sensor",
+      "zmod",
+      "zmod_ifs",
+      "zmod_color",
+      "save_variables",
+      "filament_motion_sensor ifs_motion_sensor"
     ],
     "sensors": [
       "temperature_sensor chamber",
@@ -75,7 +86,7 @@
       ]
     },
     "filament": {
-      "count": 1,
+      "count": 2,
       "entries": [
         {
           "enabled": true,
@@ -83,6 +94,13 @@
           "role": "none",
           "sensor_name": "head_switch_sensor",
           "type": "switch"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor ifs_motion_sensor",
+          "role": "none",
+          "sensor_name": "ifs_motion_sensor",
+          "type": "motion"
         }
       ]
     },
@@ -136,6 +154,10 @@
       "mesh_params",
       "profiles"
     ],
+    "controller_fan driver_fan": [
+      "speed",
+      "rpm"
+    ],
     "display_status": [
       "message",
       "progress"
@@ -154,13 +176,17 @@
       "nozzle_volume_type"
     ],
     "fan_generic chamber_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic fanM106": [
-      "speed"
+      "speed",
+      "rpm"
     ],
-    "fan_generic pcb_fan": [
-      "speed"
+    "filament_motion_sensor ifs_motion_sensor": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
     ],
     "filament_switch_sensor head_switch_sensor": [
       "filament_detected",
@@ -199,10 +225,17 @@
       "power"
     ],
     "heater_fan heat_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"
+    ],
+    "led chamber_led": [
+      "color_data"
+    ],
+    "led chamber_light": [
+      "color_data"
     ],
     "manual_probe": [
       "is_active",
@@ -233,8 +266,10 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
+    "save_variables": null,
     "stepper_enable": [
       "steppers"
     ],
@@ -262,6 +297,8 @@
     "webhooks": [
       "state",
       "state_message"
-    ]
+    ],
+    "zmod_color": null,
+    "zmod_ifs": null
   }
 }

@@ -24,6 +24,18 @@
 // Forward declarations
 namespace helix {
 class IMoonrakerClient;
+
+/**
+ * @brief Read a GET /machine/timelapse/settings body into @p out
+ *
+ * Moonraker wraps the plugin's settings dict in "result", like every other
+ * endpoint; a bare dict is read as is. Fields the body lacks or holds as null
+ * keep the plugin's defaults, and float values the plugin writes for integer
+ * fields (park_retract_distance: 1.0) are truncated.
+ *
+ * @return false when the body is not a JSON object; @p out is then untouched
+ */
+bool parse_timelapse_settings(const std::string& body, TimelapseSettings& out);
 } // namespace helix
 
 /**

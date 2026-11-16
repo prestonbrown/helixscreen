@@ -1,15 +1,14 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
+#include "notice.h"
 #include "power_device_state.h"
 #include "printer_state.h"
 
@@ -98,7 +97,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PowerDeviceState deinit clears all subjects",
 namespace {
 
 void drain_queue() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 int effective_status(PowerDeviceState& st, const char* name) {
@@ -359,4 +358,51 @@ TEST_CASE_METHOD(RediscoveryFixture,
 
     notify("chamber_heater", "off");
     CHECK(lv_subject_get_int(heater) == 0);
+}
+
+TEST_CASE_METHOD(
+    RediscoveryFixture,
+    "PowerDeviceState: a device going off expects the disconnect before the frame ends",
+    "[power_device_state][recovery]") {
+    static int s_expected = 0;
+    s_expected = 0;
+    const auto previous = set_ui_request_handler(UiRequestKind::ExpectKlippyDisconnect,
+                                                 [](const UiRequest&) { ++s_expected; });
+    auto frame = [this](const char* status) {
+        client_.dispatch_method_callback(
+            "notify_power_changed",
+            {{"method", "notify_power_changed"},
+             {"params", nlohmann::json::array({{{"device", "psu"}, {"status", status}}})}});
+    };
+
+    frame("on");
+    CHECK(s_expected == 0);
+    frame("off");
+    CHECK(s_expected == 1); // No drain: the klippy disconnect is judged on this same thread.
+
+    drain_queue();
+    set_ui_request_handler(UiRequestKind::ExpectKlippyDisconnect, previous);
+}
+
+TEST_CASE_METHOD(RediscoveryFixture, "A Klipper-bound device counts as off only when reported off",
+                 "[power_device_state][power]") {
+    auto& state = PowerDeviceState::instance();
+    state.set_devices({PowerDevice{"printer", "gpio", "on", false}});
+    state.set_klipper_bound_devices({"printer"});
+    REQUIRE_FALSE(state.klipper_bound_device_off());
+
+    notify("printer", "off");
+    CHECK(state.klipper_bound_device_off());
+    notify("printer", "error");
+    CHECK_FALSE(state.klipper_bound_device_off());
+
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    CHECK(state.klipper_bound_device_off());
+    state.set_devices({PowerDevice{"printer", "gpio", "error", false}});
+    CHECK_FALSE(state.klipper_bound_device_off());
+
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    state.deinit_subjects();
+    state.set_devices({PowerDevice{"printer", "gpio", "off", false}});
+    CHECK_FALSE(state.klipper_bound_device_off());
 }

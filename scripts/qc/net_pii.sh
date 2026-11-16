@@ -34,7 +34,7 @@ else
   echo ""
   cat /tmp/wifi_pii_check.out
   echo "   Run: python3 scripts/check_wifi_pii_logging.py"
-  echo "   See include/log_redact.h for the redaction helpers."
+  echo "   See include/core/log_redact.h for the redaction helpers."
   EXIT_CODE=1
 fi
 

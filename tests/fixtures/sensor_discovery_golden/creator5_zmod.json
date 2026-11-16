@@ -65,19 +65,21 @@
       "zmod",
       "zmod_color",
       "save_variables",
+      "output_pin enable_pin_tmc_x",
+      "output_pin enable_pin_tmc_y",
       "zmod_afclite",
       "AFC",
       "AFC_unit C5",
       "AFC_lane E0",
+      "AFC_lane E1",
+      "AFC_lane E2",
+      "AFC_lane E3",
       "filament_switch_sensor fd_ex0",
       "filament_motion_sensor fm_ex0",
-      "AFC_lane E1",
       "filament_switch_sensor fd_ex1",
       "filament_motion_sensor fm_ex1",
-      "AFC_lane E2",
       "filament_switch_sensor fd_ex2",
       "filament_motion_sensor fm_ex2",
-      "AFC_lane E3",
       "filament_switch_sensor fd_ex3",
       "filament_motion_sensor fm_ex3",
       "gcode_button extruder_pos1",
@@ -92,6 +94,8 @@
       "gcode_button topDoor",
       "gcode_macro CALIBRATE_EXTRUDERS",
       "gcode_macro CALIBRATE_VFA",
+      "gcode_macro STEPPER_RESONANCE_DAMP_ENABLE",
+      "gcode_macro STEPPER_RESONANCE_DAMP_DISABLE",
       "gcode_macro AIR_CIRCULATION_INTERNAL",
       "gcode_macro AIR_CIRCULATION_EXTERNAL",
       "gcode_macro AIR_CIRCULATION_STOP",
@@ -469,13 +473,16 @@
       "nozzle_volume_type"
     ],
     "fan_generic chamber_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic chamber_loop_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic fanM106": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_motion_sensor fm_ex0": [
       "filament_detected",
@@ -583,7 +590,8 @@
       "power"
     ],
     "heater_fan heat_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_generic chamber_heater": [
       "temperature",
@@ -644,7 +652,8 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "stepper_enable": [
       "steppers"

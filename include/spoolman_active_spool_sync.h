@@ -3,11 +3,10 @@
 #pragma once
 
 #include "i_moonraker_sub_apis.h"
+#include "json_fwd.h"
 #include "spoolman_types.h"
 
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

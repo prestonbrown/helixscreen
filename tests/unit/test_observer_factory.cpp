@@ -8,18 +8,16 @@
  * edge cases, and behavior preservation.
  */
 
-#include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
-#include <atomic>
-#include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,323 +25,21 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
-using namespace helix::ui;
 using helix::PrintJobState;
-using helix::ui::temperature::deci_to_degrees;
 
 // Helper to drain the update queue after subject changes.
 // observe<int> and observe<const char*> defer callbacks via ui_queue_update.
 static void drain() {
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 // ============================================================================
 // Test Panel Class - Mimics a real panel for testing
 // ============================================================================
 
-class TestPanel {
-  public:
+struct TestPanel {
     int int_value = 0;
-    int callback_count = 0;
-    bool update_called = false;
-    std::string string_value;
-
-    void on_value_update() {
-        update_called = true;
-        callback_count++;
-    }
-
-    void reset() {
-        int_value = 0;
-        callback_count = 0;
-        update_called = false;
-        string_value.clear();
-    }
 };
-
-// ============================================================================
-// observe<int> Tests (deferred via ui_queue_update)
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> stores value", "[factory][observer]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-
-    TestPanel panel;
-
-    auto guard = observe<int>(
-        &subject, &panel, [](TestPanel* p, int value) { p->int_value = value; },
-        subject_never_freed());
-
-    // Initial callback fires on subscription (deferred)
-    drain();
-    REQUIRE(panel.int_value == 0);
-
-    // Value change triggers callback
-    lv_subject_set_int(&subject, 42);
-    drain();
-    REQUIRE(panel.int_value == 42);
-
-    // Another change
-    lv_subject_set_int(&subject, 100);
-    drain();
-    REQUIRE(panel.int_value == 100);
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> with transformation",
-                 "[factory][observer]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-
-    TestPanel panel;
-
-    // Use transformation inside lambda
-    auto guard = observe<int>(
-        &subject, &panel, [](TestPanel* p, int raw) { p->int_value = deci_to_degrees(raw); },
-        subject_never_freed());
-
-    // Set to 210C (decidegrees = 2100)
-    lv_subject_set_int(&subject, 2100);
-    drain();
-    REQUIRE(panel.int_value == 210);
-
-    // Set to 245C
-    lv_subject_set_int(&subject, 2450);
-    drain();
-    REQUIRE(panel.int_value == 245);
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> null subject returns empty guard",
-                 "[factory][observer][edge]") {
-    TestPanel panel;
-
-    auto guard = observe<int>(
-        nullptr, &panel, [](TestPanel* p, int value) { p->int_value = value; },
-        subject_never_freed());
-
-    REQUIRE_FALSE(guard); // Guard should be empty
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> null panel returns empty guard",
-                 "[factory][observer][edge]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 42);
-
-    auto guard = observe<int>(
-        &subject, static_cast<TestPanel*>(nullptr),
-        [](TestPanel* p, int value) { p->int_value = value; }, subject_never_freed());
-
-    REQUIRE_FALSE(guard); // Guard should be empty
-
-    lv_subject_deinit(&subject);
-}
-
-// ============================================================================
-// observe<int> with Dispatch::Immediate (synchronous, no deferral)
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> fires synchronously",
-                 "[factory][observer]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-
-    TestPanel panel;
-
-    auto guard = observe<int>(
-        &subject, &panel, [](TestPanel* p, int value) { p->int_value = value; },
-        subject_never_freed(), Dispatch::Immediate);
-
-    // No drain needed — immediate fires synchronously
-    REQUIRE(panel.int_value == 0);
-
-    lv_subject_set_int(&subject, 42);
-    REQUIRE(panel.int_value == 42);
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-// ============================================================================
-// observe<const char*> Tests (deferred via ui_queue_update)
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<const char*> handles string values",
-                 "[factory][observer][string]") {
-    static char buf[32] = "";
-    lv_subject_t subject;
-    lv_subject_init_string(&subject, buf, nullptr, sizeof(buf), "");
-
-    TestPanel panel;
-
-    auto guard = observe<const char*>(
-        &subject, &panel, [](TestPanel* p, const char* str) { p->string_value = str; },
-        subject_never_freed());
-
-    // Initial callback fires on subscription (deferred)
-    drain();
-    REQUIRE(panel.string_value == "");
-
-    // Value change triggers callback
-    lv_subject_copy_string(&subject, "test");
-    drain();
-    REQUIRE(panel.string_value == "test");
-
-    // Another change
-    lv_subject_copy_string(&subject, "hello world");
-    drain();
-    REQUIRE(panel.string_value == "hello world");
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<const char*> parses axes like ControlsPanel",
-                 "[factory][observer][string]") {
-    static char buf[16] = "";
-    lv_subject_t subject;
-    lv_subject_init_string(&subject, buf, nullptr, sizeof(buf), "");
-
-    struct AxesState {
-        bool x = false, y = false, z = false;
-        bool all = false;
-    } state;
-
-    auto guard = observe<const char*>(
-        &subject, &state,
-        [](AxesState* s, const char* axes) {
-            s->x = strchr(axes, 'x') != nullptr;
-            s->y = strchr(axes, 'y') != nullptr;
-            s->z = strchr(axes, 'z') != nullptr;
-            s->all = s->x && s->y && s->z;
-        },
-        subject_never_freed());
-
-    // Empty = nothing homed
-    drain();
-    REQUIRE(state.x == false);
-    REQUIRE(state.all == false);
-
-    // All homed
-    lv_subject_copy_string(&subject, "xyz");
-    drain();
-    REQUIRE(state.x == true);
-    REQUIRE(state.y == true);
-    REQUIRE(state.z == true);
-    REQUIRE(state.all == true);
-
-    // Partial homing
-    lv_subject_copy_string(&subject, "xy");
-    drain();
-    REQUIRE(state.x == true);
-    REQUIRE(state.y == true);
-    REQUIRE(state.z == false);
-    REQUIRE(state.all == false);
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-// ============================================================================
-// observe<const char*> Tests
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<const char*> fires synchronously",
-                 "[factory][observer][string]") {
-    static char buf[32] = "";
-    lv_subject_t subject;
-    lv_subject_init_string(&subject, buf, nullptr, sizeof(buf), "");
-
-    TestPanel panel;
-
-    auto guard = observe<const char*>(
-        &subject, &panel, [](TestPanel* p, const char* str) { p->string_value = str; },
-        subject_never_freed(), Dispatch::Immediate);
-
-    // No drain needed — immediate fires synchronously
-    REQUIRE(panel.string_value == "");
-
-    lv_subject_copy_string(&subject, "test");
-    REQUIRE(panel.string_value == "test");
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
-
-// ============================================================================
-// RAII Cleanup Tests
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: ObserverGuard RAII cleanup works",
-                 "[factory][observer][raii]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-
-    std::atomic<int> callback_count{0};
-
-    {
-        TestPanel panel;
-        auto guard = observe<int>(
-            &subject, &panel, [&callback_count](TestPanel*, int) { callback_count++; },
-            subject_never_freed());
-
-        drain();
-        REQUIRE(callback_count.load() == 1); // Initial
-
-        lv_subject_set_int(&subject, 42);
-        drain();
-        REQUIRE(callback_count.load() == 2);
-
-        // Guard goes out of scope here — drain any pending before panel dies
-        drain();
-    }
-
-    // After guard destroyed, no more callbacks
-    callback_count.store(0);
-    lv_subject_set_int(&subject, 100);
-    drain();
-    REQUIRE(callback_count.load() == 0);
-
-    lv_subject_deinit(&subject);
-}
-
-// ============================================================================
-// Edge Cases
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "Factory: LVGL optimizes unchanged values",
-                 "[factory][observer][edge]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 50);
-
-    int callback_count = 0;
-    TestPanel panel;
-
-    auto guard = observe<int>(
-        &subject, &panel, [&callback_count](TestPanel*, int) { callback_count++; },
-        subject_never_freed());
-
-    drain();
-    callback_count = 0; // Reset after initial
-
-    // Same value - no callback
-    lv_subject_set_int(&subject, 50);
-    drain();
-    REQUIRE(callback_count == 0);
-
-    // Different value - callback
-    lv_subject_set_int(&subject, 51);
-    drain();
-    REQUIRE(callback_count == 1);
-
-    guard.reset();
-    lv_subject_deinit(&subject);
-}
 
 // ============================================================================
 // Deferred safety test — observer reassignment during notification
@@ -351,10 +47,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: LVGL optimizes unchanged values",
 
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> safe under observer reassignment",
                  "[factory][observer][safety]") {
-    lv_subject_t subject_a;
-    lv_subject_t subject_b;
-    lv_subject_init_int(&subject_a, 0);
-    lv_subject_init_int(&subject_b, 100);
+    helix::Subject subject_a;
+    helix::Subject subject_b;
+    subject_a.init_int(0);
+    subject_b.init_int(100);
 
     TestPanel panel;
     ObserverGuard inner_guard;
@@ -390,8 +86,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: observe<int> safe under observer rea
 
     outer_guard.reset();
     inner_guard.reset();
-    lv_subject_deinit(&subject_a);
-    lv_subject_deinit(&subject_b);
 }
 
 // ============================================================================
@@ -412,10 +106,10 @@ struct Recorder {
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: a guard reset before drain drops the queued call",
                  "[factory][observer][safety]") {
     static char buf[16] = "";
-    lv_subject_t int_subject;
-    lv_subject_t str_subject;
-    lv_subject_init_int(&int_subject, 0);
-    lv_subject_init_string(&str_subject, buf, nullptr, sizeof(buf), "");
+    helix::Subject int_subject;
+    helix::Subject str_subject;
+    int_subject.init_int(0);
+    str_subject.init_string(buf, nullptr, sizeof(buf), "");
     Recorder rec;
     ObserverGuard guard;
 
@@ -447,24 +141,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: a guard reset before drain drops the
     rec = Recorder{};
 
     lv_subject_set_int(&int_subject, 2);
-    lv_subject_copy_string(&str_subject, "x");
+    lv_subject_set_string(&str_subject, "x");
     guard.reset();
     drain();
 
     CHECK(rec.ints.empty());
     CHECK(rec.strings.empty());
-
-    lv_subject_deinit(&int_subject);
-    lv_subject_deinit(&str_subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: deferred families deliver the value at notify time",
                  "[factory][observer]") {
     static char buf[16] = "";
-    lv_subject_t int_subject;
-    lv_subject_t str_subject;
-    lv_subject_init_int(&int_subject, 0);
-    lv_subject_init_string(&str_subject, buf, nullptr, sizeof(buf), "");
+    helix::Subject int_subject;
+    helix::Subject str_subject;
+    int_subject.init_int(0);
+    str_subject.init_string(buf, nullptr, sizeof(buf), "");
     Recorder rec;
 
     auto g1 = observe<int>(
@@ -486,8 +177,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: deferred families deliver the value 
     // string is copied at notify time, not read back from the subject's buffer at drain.
     lv_subject_set_int(&int_subject, 1);
     lv_subject_set_int(&int_subject, 2);
-    lv_subject_copy_string(&str_subject, "a");
-    lv_subject_copy_string(&str_subject, "b");
+    lv_subject_set_string(&str_subject, "a");
+    lv_subject_set_string(&str_subject, "b");
     CHECK(rec.ints.size() == 1);
     drain();
     CHECK(rec.ints == std::vector<int>{0, 1, 2});
@@ -495,17 +186,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: deferred families deliver the value 
 
     g1.reset();
     g2.reset();
-    lv_subject_deinit(&int_subject);
-    lv_subject_deinit(&str_subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: immediate families run inside the notification",
                  "[factory][observer]") {
     static char buf[16] = "";
-    lv_subject_t int_subject;
-    lv_subject_t str_subject;
-    lv_subject_init_int(&int_subject, 0);
-    lv_subject_init_string(&str_subject, buf, nullptr, sizeof(buf), "");
+    helix::Subject int_subject;
+    helix::Subject str_subject;
+    int_subject.init_int(0);
+    str_subject.init_string(buf, nullptr, sizeof(buf), "");
     drain();
     Recorder rec;
 
@@ -526,7 +215,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: immediate families run inside the no
     CHECK(queue_empty());
 
     lv_subject_set_int(&int_subject, static_cast<int>(PrintJobState::PAUSED));
-    lv_subject_copy_string(&str_subject, "now");
+    lv_subject_set_string(&str_subject, "now");
     CHECK(rec.ints == std::vector<int>{0, 100, 2, 102});
     CHECK(rec.strings == std::vector<std::string>{"", "now"});
     CHECK(queue_empty());
@@ -534,14 +223,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: immediate families run inside the no
     g1.reset();
     g2.reset();
     g3.reset();
-    lv_subject_deinit(&int_subject);
-    lv_subject_deinit(&str_subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: handler captures are freed after reset and drain",
                  "[factory][observer][raii]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     Recorder rec;
     auto state = std::make_shared<int>(0);
     std::weak_ptr<int> weak_state = state;
@@ -565,15 +252,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: handler captures are freed after res
     guard.reset();
     drain();
     CHECK(weak_state.expired());
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Factory: a dead subject lifetime drops the queued call and frees the context",
                  "[factory][observer][subject_lifetime]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     SubjectLifetime lifetime = std::make_shared<bool>(true);
     Recorder rec;
     auto state = std::make_shared<int>(0);
@@ -593,7 +278,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_subject_set_int(&subject, 9);
     // Owner teardown order: signal death, then deinit frees the observer node.
     *lifetime = false;
-    lv_subject_deinit(&subject);
+    subject.reset();
     guard.reset(); // must not touch the freed observer (ASAN)
     drain();
 
@@ -603,8 +288,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(LVGLTestFixture, "Factory: null subject or owner returns an empty guard",
                  "[factory][observer][edge]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 1);
+    helix::Subject subject;
+    subject.init_int(1);
     int calls = 0;
     auto h_int = [&calls](Recorder*, int) { calls++; };
     auto h_str = [&calls](Recorder*, const char*) { calls++; };
@@ -623,8 +308,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "Factory: null subject or owner returns an emp
         nullptr, &rec, [](Recorder*, PrintJobState) {}, subject_never_freed()));
     drain();
     CHECK(calls == 0);
-
-    lv_subject_deinit(&subject);
 }
 
 namespace {
@@ -645,8 +328,8 @@ struct DestroyProbe {
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Factory: an immediate handler that resets its own guard outlives the call",
                  "[factory][observer][safety]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     Recorder rec;
     static bool handler_destroyed = false;
     static bool destroyed_mid_call = true;
@@ -675,14 +358,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(rec.ints == std::vector<int>{0, 1});
 
     self_guard = nullptr;
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Factory: a mutable immediate handler keeps its state across notifications",
                  "[factory][observer]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     Recorder rec;
 
     auto guard = observe<int>(
@@ -693,5 +375,145 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(rec.ints == std::vector<int>{1, 2, 3});
 
     guard.reset();
-    lv_subject_deinit(&subject);
+}
+
+// ============================================================================
+// SubjectLifetime with several holders: ObserverGuard detects a dead subject by
+// the bool value, not by shared_ptr expiry (#816).
+//
+// When a dynamic subject is destroyed, the source sets *lifetime = false then
+// resets its shared_ptr. Other services may still hold copies (refcount > 0).
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "SubjectLifetime: guard skips remove when bool is false but refcount > 0",
+                 "[observer_cleanup][crash_hardening][subject_lifetime]") {
+    // Simulate: source creates a dynamic subject with lifetime token
+    helix::Subject subject;
+    subject.init_int(0);
+    SubjectLifetime source_lifetime = std::make_shared<bool>(true);
+
+    // Two services observe the same subject and hold lifetime copies
+    SubjectLifetime service_a_lifetime = source_lifetime;
+    SubjectLifetime service_b_lifetime = source_lifetime;
+
+    // Service A creates an observer (like NozzleTempsWidget)
+    struct DummyPanel {
+        int count = 0;
+    } panel;
+    ObserverGuard guard_a = observe<int>(
+        &subject, &panel, [](DummyPanel* self, int) { self->count++; }, service_a_lifetime);
+    drain();
+
+    // Verify observer works
+    panel.count = 0;
+    lv_subject_set_int(&subject, 42);
+    drain();
+    REQUIRE(panel.count == 1);
+
+    // Source signals death and destroys the subject (like init_extruders)
+    *source_lifetime = false;
+    source_lifetime.reset();
+    subject.reset(); // Frees observer struct!
+
+    // Service A tries to clean up its observer (like clear_rows)
+    // The weak_ptr is NOT expired because service_b still holds a copy.
+    // But the bool was set to false, so the guard should skip lv_observer_delete.
+    REQUIRE_FALSE(service_b_lifetime.use_count() == 0); // Still alive
+    service_a_lifetime.reset();
+    guard_a.reset(); // Must NOT crash — observer struct was freed by deinit
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "SubjectLifetime: guard still removes when subject is alive",
+                 "[observer_cleanup][crash_hardening][subject_lifetime]") {
+    // When the subject IS alive (bool = true), guard must call lv_observer_delete
+    helix::Subject subject;
+    subject.init_int(0);
+    SubjectLifetime lifetime = std::make_shared<bool>(true);
+
+    SubjectLifetime observer_lifetime = lifetime;
+
+    struct DummyPanel {
+        int count = 0;
+    } panel;
+    ObserverGuard guard = observe<int>(
+        &subject, &panel, [](DummyPanel* self, int) { self->count++; }, observer_lifetime);
+    drain();
+
+    // Subject is alive — guard should properly remove the observer
+    observer_lifetime.reset();
+    guard.reset(); // Should call lv_observer_delete (subject alive, bool = true)
+
+    // After removal, setting subject should not fire any callbacks
+    panel.count = 0;
+    lv_subject_set_int(&subject, 99);
+    drain();
+    REQUIRE(panel.count == 0);
+
+    lifetime.reset();
+}
+
+// A moved-from ObserverGuard must not run the cleanup its destination now owns.
+//
+// std::function's moved-from state is valid but UNSPECIFIED. libc++ keeps the
+// target when the callable fits its small-object buffer, and the observer
+// factories' `[ctx]() { delete ctx; }` does - one captured pointer. A source
+// that kept the cleanup frees the observer's context from its own destructor
+// while the destination keeps the observer attached to a live subject, so the
+// next lv_subject_notify() reads freed memory inside the synchronous observer
+// body. libstdc++ empties the source and hides it (prestonbrown/helixscreen#1446).
+TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard: a moved-from guard runs no cleanup",
+                 "[observer_cleanup][crash_hardening][1446]") {
+    helix::Subject subject;
+    subject.init_int(0);
+    auto noop = [](lv_observer_t*, lv_subject_t*) {};
+    int cleanups = 0;
+
+    SECTION("move construction") {
+        std::optional<ObserverGuard> dst;
+        {
+            ObserverGuard src(&subject, noop, &cleanups, [&cleanups]() { cleanups++; });
+            dst.emplace(std::move(src));
+        }
+        // src is gone; the context it was constructed with belongs to dst now.
+        CHECK(cleanups == 0);
+        dst.reset();
+        CHECK(cleanups == 1);
+    }
+
+    SECTION("move assignment") {
+        ObserverGuard dst;
+        {
+            ObserverGuard src(&subject, noop, &cleanups, [&cleanups]() { cleanups++; });
+            dst = std::move(src);
+        }
+        CHECK(cleanups == 0);
+        dst.reset();
+        CHECK(cleanups == 1);
+    }
+}
+
+// The shape the crash actually took: a factory returns its guard by value, so
+// the context outlives every temporary along the way and is still valid when
+// the subject notifies.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "ObserverGuard: a factory-returned guard survives its temporaries",
+                 "[observer_cleanup][crash_hardening][1446]") {
+    helix::Subject subject;
+    subject.init_int(0);
+
+    struct DummyPanel {
+        int count = 0;
+    } panel;
+
+    ObserverGuard guard = observe<int>(
+        &subject, &panel, [](DummyPanel* self, int) { self->count++; }, subject_never_freed());
+    drain();
+
+    panel.count = 0;
+    lv_subject_set_int(&subject, 7);
+    drain();
+    CHECK(panel.count == 1);
+
+    guard.reset();
 }

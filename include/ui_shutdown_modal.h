@@ -6,7 +6,8 @@
 #include "ui_modal.h"
 #include "ui_split_button.h"
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
 
 #include <spdlog/spdlog.h>
 
@@ -158,7 +159,7 @@ class ShutdownModal : public Modal {
     ActionCallback on_both_shutdown_cb_;
     ActionCallback on_both_reboot_cb_;
 
-    static inline lv_subject_t view_state_subject_{};
+    static inline helix::Subject view_state_subject_{};
     static inline bool subjects_initialized_ = false;
 
     static void init_subjects() {
@@ -166,7 +167,7 @@ class ShutdownModal : public Modal {
             return;
         subjects_initialized_ = true;
 
-        lv_subject_init_int(&view_state_subject_, 0);
+        view_state_subject_.init_int(0);
 
         auto* scope = lv_xml_component_get_scope("shutdown_modal");
         if (scope) {
@@ -182,7 +183,7 @@ class ShutdownModal : public Modal {
             if (auto* scope = lv_xml_component_find_scope("shutdown_modal")) {
                 lv_xml_unregister_subject(scope, "shutdown_view_state");
             }
-            lv_subject_deinit(&view_state_subject_);
+            view_state_subject_.reset();
             subjects_initialized_ = false;
         });
     }

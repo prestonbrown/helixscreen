@@ -28,8 +28,8 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_required_names import strip_comments  # noqa: E402
+from source_strip import blank_cxx
+import ratchet  # noqa: E402
 
 PATTERNS = {
     "already_exists": re.compile(r"spdlog::\w+\([^;]*already exists"),
@@ -41,7 +41,7 @@ def counts(root: Path) -> dict[str, int]:
     out = dict.fromkeys(PATTERNS, 0)
     base = root / "src" / "ui"
     for f in sorted(list(base.rglob("*.cpp")) + list(base.rglob("*.h"))):
-        code = strip_comments(f.read_text(errors="replace"))
+        code = blank_cxx(f.read_text(errors="replace"), strings="keep")
         for key, pat in PATTERNS.items():
             out[key] += len(pat.findall(code))
     return out
@@ -89,8 +89,13 @@ def main() -> int:
         print("   Use OverlayBase::show() and lazy_global<T>() instead of hand-rolling them.")
         return 1
     shrank = [k for k, v in now.items() if v < base.get(k, 0)]
-    note = f"; re-run with --write-baseline to hold the gain ({', '.join(shrank)})" if shrank else ""
-    print(f"✅ Overlay boilerplate: {now}, within {args.baseline}{note}")
+    if shrank:
+        return ratchet.under_baseline(
+            "Overlay boilerplate", f"{args.baseline} (re-run with --write-baseline)",
+            [ratchet.lowered(k, base.get(k, 0), now.get(k, 0)) for k in shrank],
+            f"✅ Overlay boilerplate: {now}, within {args.baseline}; re-run with "
+            f"--write-baseline to hold the gain ({', '.join(shrank)})")
+    print(f"✅ Overlay boilerplate: {now}, within {args.baseline}")
     return 0
 
 

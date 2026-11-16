@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <cctype>
 #include <string>

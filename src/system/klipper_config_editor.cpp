@@ -3,17 +3,16 @@
 
 #include "klipper_config_editor.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
-#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -502,10 +501,10 @@ void KlipperConfigEditor::load_config_files(IMoonrakerAPI& api, SectionMapCallba
     spdlog::info("[ConfigEditor] Loading config files from printer");
 
     // Listing and downloading is delegated to resolve_active_config_files_with_content():
-    // it lists the whole config directory, which is the only way a glob include
-    // ([include conf.d/*.cfg]) can be followed — the pattern names files we do not
-    // know about until Moonraker lists them — and downloads the files the include
-    // chain from printer.cfg reaches. resolve_includes() then does the pure
+    // it lists the directories the includes name, which is the only way a glob
+    // include ([include conf.d/*.cfg]) can be followed — the pattern names files we
+    // do not know about until Moonraker lists them — and downloads the files the
+    // include chain from printer.cfg reaches. resolve_includes() then does the pure
     // section -> file mapping over that content, globs included.
     resolve_active_config_files_with_content(
         api,
@@ -540,7 +539,7 @@ constexpr const char* kBackupSuffix = ".helix_backup";
 /// Create each directory of @p dirs in turn, then run @p done. A directory
 /// that already exists answers with an error, which is what most of these are.
 void create_config_dirs(IMoonrakerAPI& api, std::vector<std::string> dirs, std::size_t index,
-                        std::function<void()> done) {
+                        helix::SharedCallback<void()> done) {
     if (index >= dirs.size()) {
         done();
         return;
@@ -868,6 +867,21 @@ KlipperConfigEditor::apply_edits(const std::string& content, const std::string& 
             break;
         }
 
+        case ConfigEdit::Type::ADD_IF_ABSENT:
+            if (parse_structure(current).find_key(section, edit.key).has_value()) {
+                spdlog::debug("[ConfigEditor] apply_edits: [{}] {} already set, kept", section,
+                              edit.key);
+                break;
+            }
+            result = add_key(current, section, edit.key, edit.value);
+            if (!result.has_value()) {
+                spdlog::error("[ConfigEditor] apply_edits: ADD_IF_ABSENT failed for [{}] {}",
+                              section, edit.key);
+                return std::nullopt;
+            }
+            current = *result;
+            break;
+
         case ConfigEdit::Type::REMOVE_KEY:
             result = remove_key(current, section, edit.key);
             if (!result.has_value()) {
@@ -1000,6 +1014,16 @@ PluginConfigEditPlan plan_plugin_config_edits(const std::string& section,
             }
             [[fallthrough]];
         case ConfigEdit::Type::ADD_KEY:
+            plan.edits.push_back({{"section", section},
+                                  {"option", edit.key},
+                                  {"action", "set"},
+                                  {"value", edit.value},
+                                  {"expect", expect}});
+            value = edit.value;
+            break;
+        case ConfigEdit::Type::ADD_IF_ABSENT:
+            if (value)
+                break;
             plan.edits.push_back({{"section", section},
                                   {"option", edit.key},
                                   {"action", "set"},

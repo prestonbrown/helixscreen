@@ -37,19 +37,19 @@
  */
 
 #include "ui_callback_helpers.h"
+#include "ui_modal.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/delayed_file_transfers.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/scoped_macros_read.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "gcode_preview_fetcher.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "http_executor.h"
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -138,7 +138,7 @@ class DetailDownloadFixture : public LVGLUITestFixture {
     /// through ensure_gcode_downloaded / finish_scan crosses the UpdateQueue
     /// via tok.defer — pump a few passes so the whole chain has run.
     void drain_queue_chain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Production close flow: go_back is deferred, so drain runs
@@ -664,6 +664,40 @@ TEST_CASE_METHOD(DetailDownloadFixture,
         CHECK_FALSE(prep->has_printer_stop_answer_for(name));
         CHECK(prep->printer_stop_check_for(name).state == helix::PrinterStopCheck::State::NotRun);
     }
+}
+
+TEST_CASE_METHOD(DetailDownloadFixture,
+                 "A Print tap waiting on the file scan still starts after the screensaver",
+                 "[print_select][detail_view][printer_stop][suspend]") {
+    CacheDirGuard guard;
+    helix::ScopedEnv mem_fail("HELIX_FORCE_GCODE_MEMORY_FAIL", "1");
+    StopMacroCache macros;
+    const std::string content = "G28\nG1 X10 Y10 E1\n";
+    PlantedGcode file("suspend_tap_" + std::to_string(::getpid()) + ".gcode", "", content);
+
+    transfers_.hold_partials = true;
+    view_.show(file.name(), "", "PLA", {"#FF0000"}, {}, content.size(), 42);
+    REQUIRE(wait_until([this]() { return view_.is_preflight_ready(); }, 15000));
+    REQUIRE_FALSE(view_.is_print_start_ready());
+
+    int taps = 0;
+    view_.run_when_preflight_ready([&taps]() { ++taps; });
+    drain_queue_chain();
+    REQUIRE(taps == 0);
+    // A question the user was answering stays up too.
+    view_.show_delete_confirmation(file.name());
+    REQUIRE_FALSE(ModalStack::instance().empty());
+
+    view_.on_deactivate(DeactivateReason::Suspended);
+    transfers_.release_held_partials();
+    drain_queue_chain();
+    view_.on_activate();
+    drain_queue_chain();
+
+    CHECK(taps == 1);
+    CHECK_FALSE(ModalStack::instance().empty());
+    view_.hide_delete_confirmation();
+    pop_and_drain();
 }
 
 // ============================================================================

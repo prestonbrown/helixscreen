@@ -13,12 +13,15 @@
  */
 
 #include "ui_settings_display.h"
+#include "ui_test_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "rotation_probe.h"
 #include "screensaver_registry.h"
+#include "test_helpers/config_test_access.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -184,7 +187,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DisplayRotation: the row is gated on backen
 
     // The bind_flag_if_eq must resolve, not silently no-op: an inert control on
     // a backend that ignores /display/rotate is worse than no control at all.
-    bool hidden = lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN);
+    bool hidden = lv_obj_is_hidden(row);
     REQUIRE(hidden == !DisplaySettingsManager::rotation_setting_available());
 
     lv_obj_delete(overlay);
@@ -196,6 +199,64 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DisplayRotation: the dropdown callback is r
     // fails silently - the dropdown moves and nothing is saved.
     helix::settings::get_display_settings_overlay().register_callbacks();
     REQUIRE(lv_xml_get_event_cb(nullptr, "on_display_rotation_changed") != nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "DisplayRotation: tapping the Normal it already shows pins the probe",
+                 "[display_settings][rotation][ui]") {
+    // An unanswered first boot shows Normal, the value the screen is using for the session.
+    // Tapping that same item is how a user stops the probe from returning every boot.
+    Config* config = Config::get_instance();
+    std::string& path = ConfigTestAccess::path(*config);
+    const std::string saved_path = path;
+    const json saved_data = ConfigTestAccess::data(*config);
+    path.clear();
+    json& display = config->get_json("/display");
+    if (!display.is_object()) {
+        display = json::object();
+    }
+    display.erase("rotate");
+    display.erase("rotation_probed");
+    REQUIRE(rotation_probe_unanswered(*config));
+
+    helix::settings::get_display_settings_overlay().register_callbacks();
+    lv_obj_t* overlay = static_cast<lv_obj_t*>(
+        lv_xml_create(lv_screen_active(), "settings_display_overlay", nullptr));
+    REQUIRE(overlay != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(overlay, "row_display_rotation");
+    REQUIRE(row != nullptr);
+    lv_obj_set_hidden(row, false);
+    lv_obj_t* dropdown = lv_obj_find_by_name(row, "dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_selected(dropdown) == 0);
+    lv_obj_scroll_to_view_recursive(dropdown, LV_ANIM_OFF);
+    lv_obj_update_layout(lv_screen_active());
+
+    UITest::init(lv_screen_active());
+    lv_area_t box;
+    lv_obj_get_coords(dropdown, &box);
+    REQUIRE(UITest::click_at((box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2));
+    REQUIRE(lv_dropdown_is_open(dropdown));
+
+    lv_obj_t* list = lv_dropdown_get_list(dropdown);
+    REQUIRE(list != nullptr);
+    lv_obj_update_layout(list);
+    lv_obj_t* label = lv_obj_get_child(list, 0);
+    REQUIRE(label != nullptr);
+    lv_area_t first;
+    lv_obj_get_coords(label, &first);
+    REQUIRE(UITest::click_at((first.x1 + first.x2) / 2, first.y1 + 4));
+    UITest::cleanup();
+
+    CHECK_FALSE(lv_dropdown_is_open(dropdown));
+    CHECK(lv_dropdown_get_selected(dropdown) == 0);
+    CHECK(config->get<int>("/display/rotate", -1) == 0);
+    CHECK(config->get<bool>("/display/rotation_probed", false));
+    CHECK_FALSE(rotation_probe_unanswered(*config));
+
+    lv_obj_delete(overlay);
+    ConfigTestAccess::data(*config) = saved_data;
+    path = saved_path;
 }
 
 // ============================================================================
@@ -226,8 +287,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: settings_dim_row_kind shows at most
                           Case{Kind::ScreensaverAfter, false, true}}) {
         lv_subject_set_int(kind, static_cast<int>(c.kind));
         CAPTURE(static_cast<int>(c.kind));
-        CHECK(!lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN) == c.dim_visible);
-        CHECK(!lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN) == c.saver_after_visible);
+        CHECK(!lv_obj_is_hidden(dim) == c.dim_visible);
+        CHECK(!lv_obj_is_hidden(saver_after) == c.saver_after_visible);
     }
     lv_subject_set_int(kind, before);
 
@@ -254,12 +315,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: Screensaver after follows the scree
     REQUIRE(saver_after != nullptr);
 
     mgr.set_screensaver_type(static_cast<int>(ScreensaverType::OFF));
-    CHECK(lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(saver_after));
+    CHECK(lv_obj_is_hidden(dim));
 
     mgr.set_screensaver_type(static_cast<int>(ScreensaverType::STARFIELD));
-    CHECK_FALSE(lv_obj_has_flag(saver_after, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(dim, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(saver_after));
+    CHECK(lv_obj_is_hidden(dim));
 
     lv_obj_delete(overlay);
     mgr.set_screensaver_type(before);
@@ -291,14 +352,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Screensaver picker visibility comes from it
     REQUIRE(test_btn != nullptr);
 
     lv_subject_set_int(has_saver, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     lv_subject_set_int(has_saver, 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     lv_subject_set_int(type, 0);
-    CHECK(lv_obj_has_flag(test_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(test_btn));
     lv_subject_set_int(type, 2);
-    CHECK_FALSE(lv_obj_has_flag(test_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(test_btn));
 
     lv_obj_delete(overlay);
     lv_subject_set_int(has_saver, has_before);

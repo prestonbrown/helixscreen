@@ -24,10 +24,11 @@
  * gates, settings subject) lives in ui_notification.cpp / SafetySettingsManager.
  */
 
-#include "ui_notification_threshold.h"
 #include "ui_toast_manager.h"
 
+#include "../helix_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/notification_threshold.h"
 
 #include <string>
 #include <vector>
@@ -83,8 +84,8 @@ TEST_CASE("'Errors only' shows only ERROR", "[notifications][1213]") {
     CHECK(severity_meets_threshold(kErrorSev, 2));
 }
 
-TEST_CASE("transient success toast honours init and the minimum severity",
-          "[notifications][1213]") {
+TEST_CASE_METHOD(HelixTestFixture, "transient success toast honours init and the minimum severity",
+                 "[notifications][1213]") {
     using helix::ui::notifications::set_min_toast_severity_cache;
     using helix::ui::notifications::show_transient_success;
 

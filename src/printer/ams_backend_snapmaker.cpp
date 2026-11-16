@@ -3,11 +3,6 @@
 
 #include "ams_backend_snapmaker.h"
 
-#include "ui_insert_notice.h"
-#include "ui_notification.h"
-#include "ui_snapmaker_nozzle_offset_overlay.h"
-#include "ui_toast_manager.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -15,19 +10,20 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "core/notification_api.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_patterns.h"
 #include "moonraker_api.h"
 #include "multiace_status.h"
+#include "notice.h"
 #include "pause_cause.h"
 #include "post_op_cooldown_manager.h"
 #include "print_start_inputs.h"
@@ -38,7 +34,6 @@
 #include "snapmaker_resume.h"
 #include "snapmaker_screws_tilt.h"
 #include "snapmaker_status_parse.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -57,9 +52,6 @@
 namespace helix {
 
 namespace {
-
-/// The section the firmware's print preferences sit in.
-constexpr const char* kPrintPrefsSection = "print_prefs";
 
 /// Parses a pending insert verdict may hold while waiting for the tag
 /// reader's filament_detect.info entry. Status frames arrive about once a
@@ -162,12 +154,17 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return line;
 }
 
+/// Whether @p record says which spool the lane holds (a link, a brand or a
+/// name), beyond the type and colour it copies from the firmware.
+[[nodiscard]] bool record_names_spool(const helix::ams::FilamentSlotOverride& record) {
+    return record.spoolman_id > 0 || !record.brand.empty() || !record.spool_name.empty();
+}
+
 /// The spool name the lane's tag states, or empty. The vendor-cache record
 /// holds the last tag reading with our own write-back already withheld, so this
 /// is the machine's word on the spool and never an echo of an edit.
 [[nodiscard]] std::string tag_product_line(helix::ams::LaneId lane) {
-    const std::optional<helix::ams::Observation> cache =
-        helix::ams::lane_sources(lane).vendor_cache;
+    const std::optional<helix::ams::Observation> cache = helix::ams::lane_sources(lane).firmware;
     return cache.has_value() ? tag_spool_name(*cache) : std::string{};
 }
 
@@ -204,6 +201,14 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
+// The status line for a channel fault, in the current language.
+[[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
+                                               const std::string& op_state,
+                                               helix::ui::LaneNoun noun, int lane_index) {
+    return from_error_token ? friendly_channel_error(error, noun, lane_index)
+                            : friendly_channel_state_fail(op_state, noun, lane_index);
+}
+
 using snapmaker::ChannelStateInfo;
 using snapmaker::classify_channel_state;
 
@@ -226,6 +231,11 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
     for (int i = 0; i < 4; ++i) {
         objects[fmt::format("filament_motion_sensor e{}_filament", i)] = nullptr;
     }
+    // Each head's toolchanger state, merged by discovery onto the extruder's heater fields.
+    for (const auto& name : hw.heaters()) {
+        if (is_extruder_name(name))
+            objects[name] = {"state", "park_pin", "active_pin", "activating_move"};
+    }
     // The batch macro's `doing` variable drives batch-feed progress, so it needs a
     // subscription to be readable while a feed runs. Klipper keeps the config's case
     // for the status object key, so subscribe under the name as written in
@@ -233,6 +243,12 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
     const std::string batch_macro = hw.macro_config_name(helix::macro_patterns::AUTO_FEEDING_BATCH);
     if (!batch_macro.empty()) {
         objects[fmt::format("gcode_macro {}", batch_macro)] = nullptr;
+    }
+    // The head-to-feeder-channel map the Auto loading rows send to.
+    const std::string feed_variable =
+        hw.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    if (!feed_variable.empty()) {
+        objects[fmt::format("gcode_macro {}", feed_variable)] = nullptr;
     }
     // ACE units hung off the heads (AmsBackendMultiAce reads it).
     if (multiace::present(hw)) {
@@ -243,7 +259,6 @@ nlohmann::json AmsBackendSnapmaker::required_status_objects(const helix::Printer
 
 AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
-    // Initialize system info
     system_info_.type = AmsType::SNAPMAKER;
     system_info_.type_name = "Snapmaker SnapSwap";
     system_info_.supports_bypass = false;
@@ -254,7 +269,6 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     // "Heat nozzle -> Retract" stepper (see recreate_step_progress_for_operation).
     system_info_.tip_method = TipMethod::NONE;
 
-    // Initialize 1 unit with 4 slots
     AmsUnit unit;
     unit.unit_index = 0;
     unit.name = "SnapSwap";
@@ -285,12 +299,9 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     //
     // It is NOT the print routing, and nothing may read it as such. Which head
     // prints logical tool N lives in print_task_config.extruder_map_table, which
-    // get_tool_mapping() below publishes. This map was originally populated to
-    // stop helix::ui::gcode_viewer_apply_ams_tool_colors() short-circuiting on an empty
-    // map (which left the model black when the first tool's filament was dark) —
-    // i.e. a safety valve was fed data to keep it from tripping, and the "fix"
-    // made every tool render in head-index order. That consumer now resolves
-    // through the routing table instead, so this map has no display job.
+    // get_tool_mapping() below publishes. This map has no display job either:
+    // helix::ui::gcode_viewer_apply_ams_tool_colors() resolves tool colours through the
+    // routing table. Reading this map there would render every tool in head-index order.
     system_info_.tool_to_slot_map.reserve(kNumTools);
     for (int i = 0; i < kNumTools; i++) {
         system_info_.tool_to_slot_map.push_back(i);
@@ -313,6 +324,12 @@ void AmsBackendSnapmaker::set_discovery(const helix::PrinterDiscovery& discovery
     use_batch_macro_ = !macro.empty();
     batch_macro_object_ = macro.empty() ? std::string{} : "gcode_macro " + macro;
     nozzle_offset_supported_ = snapmaker::nozzle_offset::supported(discovery);
+    const std::string feed_variable =
+        discovery.macro_config_name(snapmaker::feed_mode::kFeedVariableMacro);
+    feed_variable_object_ = feed_variable.empty() ? std::string{} : "gcode_macro " + feed_variable;
+    // The map belongs to the printer just discovered: its own macro frame
+    // restates it, and until then a head takes the stock wiring.
+    feed_channels_ = snapmaker::feed_mode::stock_channel_map();
 }
 
 void AmsBackendSnapmaker::before_disconnect() {
@@ -338,22 +355,16 @@ void AmsBackendSnapmaker::on_started() {
     if (nozzle_offset && client_) {
         snapmaker::nozzle_offset::reconcile_on_connect(*client_, [] {
             helix::ui::queue_update("AmsBackendSnapmaker::held_nozzle_offset_cal", [] {
-                helix::ui::get_snapmaker_nozzle_offset_overlay().prompt_end_held_calibration();
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::PromptEndHeldNozzleOffsetCalibration});
             });
         });
     }
 
-    // Load persisted per-slot overrides (brand, spool name, spoolman IDs, etc.)
-    // from the Moonraker DB lane_data namespace BEFORE any status parse runs.
-    // AmsSubscriptionBackend::start() registers the WebSocket subscription
-    // before on_started(); a status notification could in principle fire on
-    // the libhv thread while we're still inside load_blocking(). Holding
-    // mutex_ only during the swap keeps the parse path's read of overrides_
-    // coherent without blocking it during the 5s DB round-trip.
     {
         // A start forgets what each channel's firmware said: a frame arriving
-        // while the load below runs must not be judged against a silence from
-        // the previous session.
+        // before the records are read must not be judged against a silence
+        // from the previous session.
         std::lock_guard<std::mutex> lock(mutex_);
         tag_names_identity_.fill(std::nullopt);
         task_vendor_.fill(std::nullopt);
@@ -363,72 +374,34 @@ void AmsBackendSnapmaker::on_started() {
         task_subtype_.fill(std::nullopt);
         tag_slot_values_.fill(std::nullopt);
         tag_readings_.fill(std::nullopt);
+        tag_firmware_.fill(std::nullopt);
         tag_has_card_.fill(std::nullopt);
         card_seen_.fill(false);
         // The first print state the connection reads decides whether the
         // per-print marks survive (apply_print_state_locked).
         print_state_.reset();
         main_state_.reset();
-        // The overrides reload below; a held save belongs to the session that
-        // made it.
-        pending_record_writes_.fill(std::nullopt);
         record_restore_sent_.fill(false);
         insert_since_declaration_.fill(false);
     }
     if (!api_)
         return;
 
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "snapmaker", get_type(), backend_log_tag());
-    if (loaded.store) {
-        // A product line the record only remembers, stored beside another
-        // vendor's brand, is a label the slot kept from a Snapmaker spool that
-        // has since left it. Dropped before the records are classified, so the
-        // lane never shows it, and saved back so lane_data stops stating it.
-        // Whether the record declares the name is the record translation's
-        // answer, legacy records included; a declared name is the user's.
-        std::vector<int> repaired;
-        loaded.store->amend_loaded_records([&repaired](int slot_index,
-                                                       helix::ams::FilamentSlotOverride& record,
-                                                       const nlohmann::json& wire) {
-            if (!names_foreign_product_line(record.spool_name, record.brand)) {
-                return;
-            }
-            const helix::ams::LaneSources filed =
-                helix::ams::sources_from_record(record, wire, helix::ams::LegacyLockKeys::LaneData);
-            if (!filed.remembered.has_value() ||
-                filed.remembered->spool_name != record.spool_name) {
-                return;
-            }
-            record.spool_name.clear();
-            repaired.push_back(slot_index);
-        });
-        for (const int slot_index : repaired) {
-            auto it = loaded.overrides.find(slot_index);
-            if (it == loaded.overrides.end() ||
-                !names_foreign_product_line(it->second.spool_name, it->second.brand)) {
-                continue;
-            }
-            spdlog::info("{} Slot {} dropped product line '{}' stored beside brand '{}'",
-                         backend_log_tag(), slot_index, it->second.spool_name, it->second.brand);
-            it->second.spool_name.clear();
-            helix::ams::save_override_async(loaded.store.get(), slot_index, it->second,
-                                            backend_log_tag(), "Product-line repair");
-        }
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-        helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
         // A reconnect re-baselines the feed ports: an insert pending from
         // before it is judged against nothing this session has seen.
         pending_insert_passes_.fill(0);
         insert_verdict_.fill(InsertIdentity::NotRead);
         feed_presence_seen_.fill(false);
+        // The sink names the store being replaced; the new one's first read rebinds it.
+        rfid_tracker_.set_baseline_sink(nullptr);
     }
+    open_lane_record_store("snapmaker");
+}
+
+void AmsBackendSnapmaker::on_lane_records_read_locked() {
+    helix::ams::bind_fingerprint_persistence(rfid_tracker_, override_store_.get(), overrides_);
 }
 
 // ============================================================================
@@ -451,6 +424,17 @@ std::optional<AmsAction> u1_step_action(bool unload, int phase) {
     }
     return unload ? kUnload[static_cast<size_t>(phase)] : kLoad[static_cast<size_t>(phase)];
 }
+
+/// The batch progress line's verb in the current language.
+std::string batch_direction_label(bool load) {
+    return load ? lv_tr("Load") : lv_tr("Unload");
+}
+
+/// "Load 2 of 4": the head now in progress, from the plan's translated words.
+std::string batch_progress_text(const AmsBackendSnapmaker::BatchPlan& plan) {
+    return fmt::format("{} {} {} {}", plan.direction_label, plan.cursor + 1, plan.of_label,
+                       plan.heads.size());
+}
 } // namespace
 
 AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
@@ -458,6 +442,26 @@ AmsSystemInfo AmsBackendSnapmaker::get_system_info() const {
     AmsSystemInfo info = system_info_;
     info.action = published_action_locked();
     return info;
+}
+
+void AmsBackendSnapmaker::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (batch_.active) {
+        const bool shown = system_info_.operation_detail == batch_progress_text(batch_);
+        batch_.direction_label = batch_direction_label(batch_.load);
+        batch_.of_label = lv_tr("of");
+        if (shown) {
+            system_info_.operation_detail = batch_progress_text(batch_);
+        }
+    }
+    if (!channel_fault_text_ || system_info_.operation_detail != channel_fault_text_->shown) {
+        channel_fault_text_.reset();
+        return;
+    }
+    ChannelFaultText& text = *channel_fault_text_;
+    text.shown = channel_fault_detail(text.from_error_token, text.error, text.op_state, lane_noun(),
+                                      text.lane);
+    system_info_.operation_detail = text.shown;
 }
 
 std::optional<AmsAction> AmsBackendSnapmaker::step_action_locked() const {
@@ -472,8 +476,7 @@ SlotInfo* AmsBackendSnapmaker::cached_slot_locked(int slot_index) {
     return system_info_.get_slot_global(slot_index);
 }
 
-AmsBackend::OperationStepModel
-AmsBackendSnapmaker::get_operation_step_model(StepOperationType op) const {
+OperationStepModel AmsBackendSnapmaker::get_operation_step_model(StepOperationType op) const {
     // Per-direction firmware step sequence. Each step's phase_id is the index the
     // classifier (classify_channel_state) emits into system_info_.operation_phase,
     // which the sidebar consumes directly as the current step index via the
@@ -622,8 +625,14 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     // whose module is absent or out of automatic mode, or whose motion sensor
     // is disabled. Those are refused here, where the user can be told why.
     switch (const auto eligibility = slot_op_eligibility(slot_index, /*load=*/true)) {
-    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::FeederUnavailable:
+        if (auto_load_off(channel_snapshot(slot_index))) {
+            return AmsErrorHelper::slot_ineligible(
+                lane_noun(), slot_index,
+                TR_NOOP("Auto loading is off; turn it on under Print Behavior"));
+        }
+        [[fallthrough]];
+    case FilamentOpEligibility::AlreadyLoaded:
     case FilamentOpEligibility::SensorDisabled:
         return AmsErrorHelper::slot_ineligible(lane_noun(), slot_index,
                                                filament_op_eligibility_reason(eligibility));
@@ -737,7 +746,7 @@ AmsError AmsBackendSnapmaker::do_filament_batch(const std::vector<int>& slots, b
         // parse only formats them and makes no LVGL calls.
         batch_ = BatchPlan{slots,           load,
                            /*cursor=*/0,
-                           /*active=*/true, load ? lv_tr("Load") : lv_tr("Unload"),
+                           /*active=*/true, batch_direction_label(load),
                            lv_tr("of"),     next_batch_dispatch_id_};
         dispatch_id = next_batch_dispatch_id_++;
     }
@@ -904,6 +913,21 @@ AmsBackendSnapmaker::ChannelSnapshot AmsBackendSnapmaker::channel_snapshot(int s
     return channel_snapshots_[slot_index];
 }
 
+HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
+    HeadFilamentOps ops = AmsBackend::head_filament_ops(head);
+    if (head < 0 || head >= kNumTools || !feeder_absent(channel_snapshot(head))) {
+        return ops;
+    }
+    ops.load = FilamentOpSupport::Manual;
+    ops.load_reason =
+        auto_load_off(channel_snapshot(head))
+            ? lv_tr("Auto loading is off for this toolhead. Turn it on under Print Behavior, or "
+                    "load the filament by hand.")
+            : lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    ops.guided_hand_load = true;
+    return ops;
+}
+
 AmsBackend::FilamentOpEligibility AmsBackendSnapmaker::slot_op_eligibility(int slot_index,
                                                                            bool load) const {
     using E = FilamentOpEligibility;
@@ -1015,8 +1039,8 @@ AmsError AmsBackendSnapmaker::cancel() {
 // Resume Preparation
 // ============================================================================
 
-// NOTE: This method has no caller in tree right now. The auto-recover-on-pause
-// path that consumed it was pulled after field testing showed the
+// NOTE: This method has no caller in tree. No auto-recover-on-pause path
+// consumes it: field testing showed the
 // motion=false + port=true signal can't distinguish "stale encoder, filament
 // at gear" from "filament preloaded 4-inches short of gear" (firmware assist
 // motor stops at preload_finish). Kept as detection infrastructure for the
@@ -1154,8 +1178,9 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
             if (on_ready) {
                 on_ready(
                     AmsError(AmsResult::COMMAND_FAILED, "runout: refeed left to the user",
-                             helix::ui::tool_label_in_form(tool_noun(), helix::ui::tool_label(slot),
-                                                           slot, helix::ui::ToolLabelForm::Full) +
+                             helix::ui::tool_label_in_form(tool_noun(), display_tool_number_style(),
+                                                           helix::ui::tool_label(slot), slot,
+                                                           helix::ui::ToolLabelForm::Full) +
                                  ": " + lv_tr("Filament runout"),
                              lv_tr("Load it in the filament panel, then tap Resume.")));
             }
@@ -1260,9 +1285,8 @@ void AmsBackendSnapmaker::run_runout_refeed(int slot, ResumeReadyCallback on_rea
     // the user what the wait is — otherwise the long pause reads as a hang.
     // prepare_for_resume runs on the main thread (resume-button path), so this
     // toast is safe to raise directly here.
-    ToastManager::instance().show(ToastSeverity::INFO,
-                                  lv_tr("Refeeding filament — this may take a minute"),
-                                  /*duration_ms=*/8000);
+    publish_notice({NoticeSeverity::INFO, lv_tr("Refeeding filament — this may take a minute"),
+                    /*duration_ms=*/8000});
 
     auto tok = lifetime_.token();
     const char* tag = backend_log_tag();
@@ -1400,8 +1424,9 @@ void AmsBackendSnapmaker::settle_refeed(int slot, ResumeReadyCallback on_ready) 
 
 AmsError AmsBackendSnapmaker::unconfirmed_load_error(int head, std::string technical,
                                                      bool retry_on_resume) const {
-    const std::string tool = helix::ui::tool_label_in_form(tool_noun(), helix::ui::tool_label(head),
-                                                           head, helix::ui::ToolLabelForm::Full);
+    const std::string tool = helix::ui::tool_label_in_form(tool_noun(), display_tool_number_style(),
+                                                           helix::ui::tool_label(head), head,
+                                                           helix::ui::ToolLabelForm::Full);
     return AmsError(
         AmsResult::COMMAND_FAILED, std::move(technical),
         fmt::format(fmt::runtime(lv_tr("{} didn't load. Check that its hotend is seated and do a "
@@ -1501,7 +1526,8 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
         }
         for (int head : unloaded) {
             const std::string tool = helix::ui::tool_label_in_form(
-                tool_noun(), helix::ui::tool_label(head), head, helix::ui::ToolLabelForm::Full);
+                tool_noun(), display_tool_number_style(), helix::ui::tool_label(head), head,
+                helix::ui::ToolLabelForm::Full);
             spdlog::warn("{} '{}' uses tool {}, whose feeder reports it not loaded",
                          backend_log_tag(), filename, head);
             ui_notification_warning(
@@ -1535,55 +1561,52 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
 // Configuration
 // ============================================================================
 
-AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& info,
-                                              const helix::ams::Observation& declared) {
+AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& info) {
     auto err = validate_slot_index(slot_index);
     if (err.result != AmsResult::SUCCESS)
         return err;
 
+    std::optional<RecordWrite> record_write;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* slot = system_info_.units[0].get_slot(slot_index);
         if (!slot)
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumTools - 1);
 
+        // print_task_config is the head's firmware record: RESUME refuses a
+        // used head whose record names no type, and the stock screen and
+        // slicers read the spool from it. Its write runs FLOW_RESET_K on the
+        // head, so while a print or the offset calibration holds the heads an
+        // edit that would change it is refused, not held: a held write would
+        // leave the lane showing a type the firmware never took.
+        record_write = plan_record_write_locked(slot_index, info, slot->material != info.material);
+        if (record_write && record_writes_held_locked(slot_index)) {
+            spdlog::info("{} head {} filament record edit refused while the heads are busy",
+                         backend_log_tag(), slot_index);
+            return AmsErrorHelper::busy_with_print();
+        }
         slot->assign_filament_fields(info);
         insert_since_declaration_[static_cast<size_t>(slot_index)] = false;
 
-        // handle_status writes RFID and print_task_config fields
-        // unconditionally, so an edit kept only in memory is wiped by the next
-        // Klipper status update. Stage the override into overrides_ so the edit
-        // survives a restart; the lane's own declaration, filed when the edit is
-        // committed, is what apply_resolved_lane lays back over firmware data on
-        // every subsequent parse.
-        //
-        // NOTE on self-wipe: the AD5X IFS implementation pre-updates
-        // last_firmware_color_ here to prevent the color-based hardware-event
-        // check from misreading a user color edit as a physical spool swap.
-        // Snapmaker's hardware-event check is RFID-UID-based, and the user
-        // cannot set a CARD_UID through the edit UI — SlotInfo has no UID
-        // field. So rfid_tracker_ keeps whatever the firmware last
-        // reported, and the next parse compares firmware UID against that
-        // baseline exactly as intended. No expected-echo value needed here.
-        // (CFS shares the tracker and DOES register one — it writes
-        // color_value back to the box, which is half of its fingerprint.)
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+        // Spool, name, weights, brand and temperatures go in the lane_data
+        // record; type and colour go to print_task_config below, and the
+        // record copies them from the firmware's echo.
+        persist_record_beside_firmware_locked(slot_index, info);
+        if (record_write) {
+            const auto idx = static_cast<size_t>(slot_index);
+            // This write is the record's restore until the firmware echoes it.
+            record_restore_sent_[idx] = true;
+            sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu};
+        }
     }
 
-    if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
+    // SET_PRINT_FILAMENT_CONFIG writes the record and leaves the head
+    // unofficial. The Extended Firmware's filament_detect/set fills the same
+    // record but flags the head official, as an RFID spool, and the firmware
+    // then refuses plain writes to it.
+    if (record_write) {
+        write_task_filament_record(slot_index, info, *record_write);
     }
-
-    // print_task_config is the head's firmware record: RESUME refuses a used
-    // head whose record names no type, and the stock screen and slicers read
-    // the spool from it. SET_PRINT_FILAMENT_CONFIG writes it and leaves the
-    // head unofficial. The Extended Firmware's filament_detect/set fills the
-    // same record but flags the head official, as an RFID spool, and the
-    // firmware then refuses plain writes to it. The filament_detect entry that
-    // endpoint also writes is read elsewhere only for a slicer's bed
-    // temperature.
-    write_task_filament_record(slot_index, info, declared.material.has_value());
 
     // Pass slot_index as event data so AmsState can do a targeted slot sync.
     // Without it, AmsState::on_event silently skips the refresh and the AMS
@@ -1593,49 +1616,8 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendSnapmaker::sync_external_identity(int slot_index, const SlotInfo& info) {
-    auto err = validate_slot_index(slot_index);
-    if (err.result != AmsResult::SUCCESS)
-        return err;
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* slot = system_info_.units[0].get_slot(slot_index);
-        if (!slot)
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, kNumTools - 1);
-
-        // overrides_ is left alone and nothing reaches firmware: the next
-        // Klipper status update overwrites a synced value.
-        slot->assign_filament_fields(info);
-    }
-
-    // Pass slot_index as event data so AmsState can do a targeted slot sync.
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
-void AmsBackendSnapmaker::persist_external_identity_impl(int slot_index,
-                                                         const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendSnapmaker::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                              float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
-}
-
 AmsError AmsBackendSnapmaker::can_set_tool_mapping(int /*tool_number*/, int /*slot_index*/) const {
     return AmsErrorHelper::not_supported("Tool mapping not supported on Snapmaker");
-}
-
-AmsError AmsBackendSnapmaker::set_tool_mapping_impl(int tool_number, int slot_index) {
-    return can_set_tool_mapping(tool_number, slot_index);
 }
 
 // ============================================================================
@@ -1728,7 +1710,14 @@ void AmsBackendSnapmaker::apply_extruders_locked(const snapmaker::StatusDelta& d
             fx.changed = true;
         }
 
-        extruder_states_[i].apply(*extruder);
+        auto& state = extruder_states_[i];
+        const auto diameter = state.nozzle_diameter;
+        const auto volume_type = state.nozzle_volume_type;
+        state.apply(*extruder);
+        // The nozzle rows show these.
+        if (state.nozzle_diameter != diameter || state.nozzle_volume_type != volume_type) {
+            fx.changed = true;
+        }
     }
 }
 
@@ -1938,7 +1927,7 @@ void AmsBackendSnapmaker::apply_rfid_entry_locked(int i, const SnapmakerRfidInfo
         // reading the struct back would file a user's edit as
         // something the tag says.
         //
-        helix::ams::Observation cache(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation cache(helix::ams::ObservationSource::Firmware);
         if (!rfid.main_type.empty())
             cache.material = rfid.main_type;
         // Both spellings of "the tag named no vendor" retract
@@ -1974,7 +1963,8 @@ void AmsBackendSnapmaker::apply_rfid_entry_locked(int i, const SnapmakerRfidInfo
         // the tag names no line or names it beside a brand that cannot
         // carry it: a kept name would outlive the spool it described.
         slot->spool_name = tag_spool_name(cache);
-        helix::ams::ingest(lane_id(i), cache);
+        tag_firmware_[static_cast<size_t>(i)] = cache;
+        file_head_firmware_locked(i);
     }
     fx.changed = true;
 }
@@ -2027,9 +2017,15 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
     }
     if (channel.module_exist) {
         snap.module_exist = *channel.module_exist;
+        snap.module_reported = true;
     }
     if (channel.disable_auto) {
+        // The Auto loading row shows this, so a change redraws the overlay.
+        if (!snap.auto_reported || snap.disable_auto != *channel.disable_auto) {
+            fx.changed = true;
+        }
         snap.disable_auto = *channel.disable_auto;
+        snap.auto_reported = true;
     }
     // The op lifecycle, error surfacing and batch
     // verification read the op's outcome; the latch and the
@@ -2251,8 +2247,9 @@ void AmsBackendSnapmaker::apply_channel_outcome_locked(int i, const std::string&
         } else {
             system_info_.action = AmsAction::ERROR;
             system_info_.operation_detail =
-                has_error_token ? friendly_channel_error(error, lane_noun(), i)
-                                : friendly_channel_state_fail(op_state, lane_noun(), i);
+                channel_fault_detail(has_error_token, error, op_state, lane_noun(), i);
+            channel_fault_text_ = ChannelFaultText{i, has_error_token, error, op_state,
+                                                   system_info_.operation_detail};
             fx.changed = true;
         }
     } else if (!op_state.empty() && !op_info.ignore) {
@@ -2337,9 +2334,7 @@ void AmsBackendSnapmaker::advance_batch_locked(int i, const std::string& op_stat
                 // "Load 2 of 4" — the head now in progress.
                 // The words arrive pretranslated from dispatch, so
                 // this parse makes no LVGL calls.
-                system_info_.operation_detail =
-                    fmt::format("{} {} {} {}", batch_.direction_label, batch_.cursor + 1,
-                                batch_.of_label, batch_.heads.size());
+                system_info_.operation_detail = batch_progress_text(batch_);
             } else {
                 // Every head verified. Nothing is in
                 // progress, and no later frame clears the
@@ -2478,26 +2473,11 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
         }
     }
 
-    // These three fields write SlotInfo and deliberately file NO lane
-    // observation, unlike the RFID parse.
-    //
-    // print_task_config is a write surface, not a sensor.
-    // SET_PRINT_FILAMENT_CONFIG takes VENDOR / FILAMENT_TYPE / FILAMENT_SUBTYPE /
-    // FILAMENT_COLOR_RGBA as gcode parameters and persists them, so whoever sent
-    // that command set these values: the machine's own screen, a slicer, a
-    // console, or this backend's own write-back. Filing any of it as
-    // VendorCache would return a user's own edit as firmware truth.
-    //
-    // The firmware carries the provenance bit itself, and it shows the channel is
-    // redundant rather than merely unsafe: filament_official marks a head whose
-    // entry came from a Snapmaker RFID spool, and SET_PRINT_FILAMENT_CONFIG is
-    // refused on such a head without FORCE. An official entry is the tag
-    // filament_detect.info already reports, which the RFID parse files; an
-    // unofficial one is somebody's declaration. Neither is a reading this key can
-    // contribute.
-    //
-    // A user's declaration reaches the lane model through commit_slot_edit, which
-    // is the funnel that records authorship.
+    // print_task_config is the head's firmware record: whoever set it (the
+    // machine's own screen, a slicer, a console, or this backend's edit), it is
+    // what the head prints with, so converge_lanes_locked() files it as the
+    // lane's Firmware reading (file_head_firmware_locked()). An edit of ours is
+    // shown as pending until this echoes it.
     for (int i = 0; i < kNumTools; i++) {
         auto* slot = system_info_.units[0].get_slot(i);
         if (!slot) {
@@ -2508,6 +2488,9 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
             // Base type only (e.g., "PLA") for compact display; firmware's
             // spelling of no type is no material.
             slot->material = task_field_value(ptc.filament_type[i]);
+            // Flow calibration and RESUME both stop on a head whose record
+            // names no type (`not edit filament info`).
+            slot->material_required = is_unset_task_field(*ptc.filament_type[i]);
             fx.changed = true;
         }
         if (ptc.filament_vendor[i]) {
@@ -2656,26 +2639,26 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         // so the call is unconditional rather than gated on which keys the
         // notification happened to carry.
         check_hardware_event_clear(*slot, i, fx.observed_evidence[i]);
-        // Mirror firmware-truth color/material into lane_data so OrcaSlicer's
-        // MoonrakerPrinterAgent sees the spool. OverwriteAlways policy: user
-        // edits via apply_user_edit round-trip through firmware via
-        // SET_PRINT_FILAMENT_CONFIG, so firmware-truth and user-truth
-        // converge, and overwriting lane_data is safe and also catches
-        // external edits (CHANGE_ZCOLOR from a print, manual gcode, the stock
-        // screen, OrcaSlicer). A head holding an RFID tag's record is not
-        // written, and the user's override is persisted to lane_data
-        // separately. See mirror_firmware_to_lane_data docs and AD5X IFS for
-        // the same pattern.
-        //
-        // The stored override defers to what a declaring lane source holds,
-        // so the store reads the lane here. A Spoolman record or a user's
-        // value never reaches firmware, and firmware's reading must not
-        // overwrite it in the override or in the lane_data record it
-        // persists.
-        helix::ams::mirror_firmware_to_lane_data(
-            override_store_.get(), overrides_, i, slot->color_rgb, slot->material,
-            slot->status == SlotStatus::AVAILABLE, helix::ams::MirrorPolicy::OverwriteAlways,
-            backend_log_tag(), helix::ams::declared_on_lane(lane_id(i)));
+        // Copy the head's firmware type and colour into its lane_data record,
+        // for OrcaSlicer's MoonrakerPrinterAgent and other record readers:
+        // print_task_config's, else the tag the reader names. Only the
+        // firmware's own fields are copied, never the painted slot, which
+        // carries an edit still on its way. A head whose record the firmware
+        // reset (NONE once the filament left) states no spool: copying that
+        // would erase the identity record_restores_locked() writes back.
+        file_head_firmware_locked(i);
+        const auto ti = static_cast<size_t>(i);
+        const bool holds_filament =
+            slot->status == SlotStatus::AVAILABLE || slot->status == SlotStatus::LOADED;
+        const bool record_reset = task_type_[ti] && is_unset_task_field(*task_type_[ti]);
+        if (holds_filament && !record_reset) {
+            if (task_type_[ti] && task_color_[ti]) {
+                mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti]);
+            } else if (const auto& tag = tag_firmware_[ti];
+                       tag && tag->color_rgb && tag->material) {
+                mirror_firmware_identity_locked(i, *tag->color_rgb, *tag->material);
+            }
+        }
 
         // Lane presence: the port/buffer sensor OR the loaded-at-toolhead
         // latch. The port sensor is the spool-side reading; the latch
@@ -2694,7 +2677,6 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
             helix::ams::ingest(lane_id(i), sensed);
         }
 
-        retract_unbacked_identity_locked(i, *slot);
         apply_resolved_lane(*slot, i);
     }
 }
@@ -2722,9 +2704,9 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
     }
 
     // No lane record carries a multi-colour, so the tag's is laid onto the slot
-    // here, and only while nobody declares the lane's colour: a declared colour
-    // replaced the tag's and must survive this frame.
-    if (helix::ams::declared_on_lane(lane_id(slot_index)).color) {
+    // here, except while an edit's colour is on its way to the head.
+    if (const auto pending = helix::ams::lane_sources(lane_id(slot_index)).pending;
+        pending.has_value() && pending->color_rgb.has_value()) {
         return;
     }
     const std::string& now = kept ? kept->multi_color_hexes : std::string{};
@@ -2743,14 +2725,38 @@ std::optional<helix::ams::TagReading> AmsBackendSnapmaker::tag_reading(int slot_
     return tag_readings_[static_cast<size_t>(slot_index)];
 }
 
+void AmsBackendSnapmaker::file_head_firmware_locked(int head) {
+    const auto idx = static_cast<size_t>(head);
+    helix::ams::Observation stated = tag_firmware_[idx].value_or(
+        helix::ams::Observation(helix::ams::ObservationSource::Firmware));
+    bool says_anything = tag_firmware_[idx].has_value();
+    // print_task_config is what the head prints with: its type and colour
+    // outrank the tag's. A record reset to NONE states nothing. Its vendor is
+    // a category (Snapmaker or the placeholder Generic), not the spool's
+    // brand, so the brand stays the tag's or the lane record's.
+    if (task_type_[idx] && !is_unset_task_field(*task_type_[idx])) {
+        stated.material = *task_type_[idx];
+        if (task_color_[idx]) {
+            stated.color_rgb = *task_color_[idx];
+        }
+        says_anything = true;
+    }
+    const helix::ams::LaneId lane = lane_id(head);
+    if (says_anything) {
+        helix::ams::ingest(lane, stated);
+    } else if (helix::ams::lane_sources(lane).firmware.has_value()) {
+        helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Firmware);
+    }
+}
+
 bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& slot) {
     const helix::ams::LaneId lane = lane_id(slot_index);
     const std::optional<helix::ams::Observation> cache =
-        helix::ams::lane_sources(lane).vendor_cache;
+        std::exchange(tag_firmware_[static_cast<size_t>(slot_index)], std::nullopt);
     if (!cache.has_value()) {
         return false;
     }
-    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::VendorCache);
+    file_head_firmware_locked(slot_index);
 
     // A SlotInfo field still holding the dropped record's value got it from
     // the tag; print_task_config is the firmware's other word on the head, so
@@ -2767,10 +2773,10 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     if (cache->color_rgb.has_value() && slot.color_rgb == *cache->color_rgb) {
         slot.color_rgb = task_color_[i].value_or(kAmsDefaultSlotColor);
     }
-    // No lane record carries temperatures or weight, so a user's own values
-    // are told apart only by the lane holding a declaration or a bound spool.
+    // No lane source carries temperatures or weight, so a user's own values
+    // are told apart only by the lane holding an edit or a bound spool.
     const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
-    const bool user_declared = sources.local_user.has_value() || sources.spoolman.has_value();
+    const bool user_declared = sources.pending.has_value() || sources.spoolman.has_value();
     if (const std::optional<TagSlotValues> tag = tag_slot_values_[i]; tag && !user_declared) {
         const SlotInfo blank;
         if (slot.nozzle_temp_min == tag->nozzle_temp_min) {
@@ -2803,108 +2809,6 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     spdlog::debug("{} Slot {} tag reader names no tag, dropped the cached tag reading",
                   backend_log_tag(), slot_index);
     return true;
-}
-
-void AmsBackendSnapmaker::retract_unbacked_identity_locked(int slot_index, SlotInfo& slot) {
-    // The channel has to be silent in both places firmware keeps identity:
-    // the tag names nothing, and print_task_config names no vendor and no
-    // official spool. Either one speaking is the firmware standing behind a
-    // spool, and a source not heard from yet is no verdict.
-    const auto i = static_cast<size_t>(slot_index);
-    const bool tag_silent = tag_names_identity_[i].has_value() && !*tag_names_identity_[i];
-    const bool task_silent = task_vendor_[i].has_value() && is_unset_task_field(*task_vendor_[i]) &&
-                             !task_official_[i].value_or(false);
-    if (!tag_silent || !task_silent) {
-        return;
-    }
-
-    // Only identity in the firmware's own vocabulary that nobody declared
-    // retracts: a remembered Snapmaker product line, and the Snapmaker brand
-    // beside it, which a stored record copied from what firmware once said.
-    // The same rule the vendor-cache brand follows when a tag stops naming a
-    // vendor. Anything else remembered (a name kept across a Spoolman
-    // unlink, one typed by hand) never came from firmware and stays, as do
-    // declared fields and a brand beside the user's catalog pick, which names
-    // it. A slot whose record still names a Spoolman spool is the spool's.
-    auto ovr = overrides_.find(slot_index);
-    if (ovr != overrides_.end() && ovr->second.spoolman_id > 0) {
-        return;
-    }
-    const helix::ams::LaneId lane = lane_id(slot_index);
-    const helix::ams::LaneSources sources = helix::ams::lane_sources(lane);
-    if (!sources.remembered.has_value()) {
-        return;
-    }
-    helix::ams::Observation kept = *sources.remembered;
-    // A product-line literal is Snapmaker's word only beside Snapmaker or no
-    // brand at all; beside another vendor ("eSUN Silk") it names that
-    // vendor's product.
-    const bool line_vendor =
-        !kept.brand.has_value() || kept.brand->empty() || is_product_line_vendor(*kept.brand);
-    const auto is_line = [line_vendor](const std::optional<std::string>& v) {
-        return line_vendor && v.has_value() && is_known_subtype(*v);
-    };
-    const bool drop_name = is_line(kept.spool_name);
-    const bool drop_product = is_line(kept.product_name);
-    const bool picked =
-        sources.local_user.has_value() && sources.local_user->catalog_id.has_value();
-    const bool drop_brand = (drop_name || drop_product) && kept.brand.has_value() &&
-                            is_product_line_vendor(*kept.brand) && !picked;
-    if (!drop_name && !drop_product && !drop_brand) {
-        return;
-    }
-    const helix::ams::Observation dropped = kept;
-    if (drop_name) {
-        kept.spool_name.reset();
-        if (slot.spool_name == *dropped.spool_name) {
-            slot.spool_name.clear();
-        }
-    }
-    if (drop_product) {
-        kept.product_name.reset();
-    }
-    if (drop_brand) {
-        kept.brand.reset();
-        if (slot.brand == *dropped.brand) {
-            slot.brand.clear();
-        }
-    }
-    helix::ams::drop_lane_source(lane, helix::ams::ObservationSource::Remembered);
-    const bool kept_any =
-        std::apply([](const auto&... f) { return (f.has_value() || ...); }, kept.fields());
-    if (kept_any) {
-        helix::ams::ingest(lane, kept);
-    }
-
-    if (ovr == overrides_.end()) {
-        return;
-    }
-    // The stored record loses a field only where it still holds the value
-    // being retracted; anything it says beyond that is not this rule's to drop.
-    helix::ams::FilamentSlotOverride& record = ovr->second;
-    bool changed = false;
-    if (drop_name && record.spool_name == *dropped.spool_name) {
-        record.spool_name.clear();
-        changed = true;
-    }
-    if (drop_product && record.product_name == *dropped.product_name) {
-        record.product_name.clear();
-        changed = true;
-    }
-    if (drop_brand && record.brand == *dropped.brand) {
-        record.brand.clear();
-        changed = true;
-    }
-    if (!changed) {
-        return;
-    }
-    spdlog::info("{} Slot {} firmware states no spool; retracted remembered '{}' '{}'",
-                 backend_log_tag(), slot_index, dropped.brand.value_or(""),
-                 dropped.spool_name.value_or(dropped.product_name.value_or("")));
-    if (override_store_) {
-        helix::ams::save_override_async(override_store_.get(), slot_index, record,
-                                        backend_log_tag(), "Retraction");
-    }
 }
 
 void AmsBackendSnapmaker::track_active_port_present_locked(FrameEffects& fx) {
@@ -2946,6 +2850,8 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
       // with sync_from_backend() which acquires mutex_ via get_system_info()
         std::lock_guard<std::mutex> lock(mutex_);
 
+        update_feed_channels_locked(status);
+
         bool frame_names_state = false;
         bool frame_names_file = false;
         if (const nlohmann::json* ps = helix::json_util::find_member(status, "print_stats")) {
@@ -2956,8 +2862,17 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
             }
             if (const nlohmann::json* state = helix::json_util::find_member(*ps, "state");
                 state && state->is_string()) {
+                const bool was_in_progress = print_in_progress_locked();
                 apply_print_state_locked(state->get<std::string>());
                 frame_names_state = true;
+                // The nozzle rows are unavailable while a print is in progress.
+                const bool nozzle_rows = std::any_of(
+                    extruder_states_.begin(), extruder_states_.end(), [](const auto& e) {
+                        return e.nozzle_diameter.has_value() || e.nozzle_volume_type.has_value();
+                    });
+                if (nozzle_rows && print_in_progress_locked() != was_in_progress) {
+                    fx.changed = true;
+                }
             }
         }
         if (const auto main_state = snapmaker::screws_tilt::main_state_from_status(status)) {
@@ -2990,18 +2905,6 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
 
         fx.official_repairs = official_flag_repairs_locked();
         fx.record_restores = record_restores_locked();
-        // A save held across a print waits for the heads to be free: a pause
-        // the print raised (a runout, an M600) is no moment to reset a head's
-        // flow calibration behind the user's back.
-        if (heads_free_locked()) {
-            for (int head = 0; head < kNumTools; ++head) {
-                auto& pending = pending_record_writes_[static_cast<size_t>(head)];
-                if (pending) {
-                    fx.record_flushes.emplace_back(head, std::move(*pending));
-                    pending.reset();
-                }
-            }
-        }
     } // Release mutex_ before emitting event
 
     dispatch_effects(fx);
@@ -3023,13 +2926,14 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
         AmsState::instance().mark_slot_unloaded(lane);
     }
 
-    // An insert the RFID side vouches nothing for asks whether the stored
-    // record still describes the spool that went in (#1710). The notice
-    // re-checks its own guards (print-feeding lane, lane with nothing to
-    // clear) on the UI thread.
+    // An insert the RFID side vouches nothing for asks whether the stored record still
+    // describes the spool that went in (#1710). The notice re-checks its own guards
+    // (print-feeding lane, lane with nothing to clear) on the UI thread.
     for (int lane : fx.unverified_insert_lanes) {
-        helix::ui::queue_update("AmsBackendSnapmaker::handle_status",
-                                [lane] { helix::ui::offer_clear_after_unverified_insert(lane); });
+        helix::ui::queue_update("AmsBackendSnapmaker::handle_status", [lane] {
+            helix::publish_ui_request(
+                {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, lane});
+        });
     }
 
     if (fx.batch_failed_head >= 0) {
@@ -3044,9 +2948,6 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
     dispatch_record_scripts(fx.record_restores,
                             "record names no filament while the spool declared for it is still "
                             "in the feeder; writing the declaration back");
-    for (const auto& [head, pending] : fx.record_flushes) {
-        write_task_filament_record(head, pending.info, pending.material_declared);
-    }
 
     if (fx.refeed_settled) {
         finish_refeed_wait();
@@ -3073,9 +2974,7 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
 void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                      const helix::ams::SpoolEvidence& observed) {
     // The bookkeeping lives in the shared tracker (CFS runs the same one);
-    // the verdict on a change is the insert rule's. Snapmaker registers no
-    // expect() value, so OwnWriteEcho cannot occur here - nothing on this
-    // backend writes a CARD_UID back to firmware.
+    // the verdict on a change is the insert rule's.
     //
     //   NoSignal  = the frame answered no RFID info for the channel. Baseline
     //               untouched, no clear.
@@ -3123,8 +3022,6 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, &slot);
-    // A held save described the spool that left.
-    drop_pending_record_write_locked(slot_index);
     slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
@@ -3136,34 +3033,15 @@ void AmsBackendSnapmaker::clear_override_fields(SlotInfo& slot) const {
     slot.spoolman_id = 0;
     slot.spoolman_vendor_id = 0;
     slot.spoolman_filament_id = 0;
+    slot.spoolman_orca_filament_id.clear();
     slot.remaining_weight_g = -1.0f;
     slot.color_name.clear();
     slot.catalog_id.clear();
     slot.product_name.clear();
 }
 
-void AmsBackendSnapmaker::clear_slot_override(int slot_index) {
-    if (auto err = validate_slot_index(slot_index); !err.success()) {
-        spdlog::warn("{} clear_slot_override: invalid slot {}", backend_log_tag(), slot_index);
-        return;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        auto* slot =
-            system_info_.units.empty() ? nullptr : system_info_.units[0].get_slot(slot_index);
-        if (!slot) {
-            spdlog::warn("{} clear_slot_override: no slot entry for index {}", backend_log_tag(),
-                         slot_index);
-            return;
-        }
-        spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
-        clear_override_locked(slot_index, slot);
-        drop_pending_record_write_locked(slot_index);
-        slot->spool_name = tag_product_line(lane_id(slot_index));
-    }
-
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
+void AmsBackendSnapmaker::after_override_cleared_locked(int slot_index, SlotInfo& slot) {
+    slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
 // ============================================================================
@@ -3336,23 +3214,28 @@ namespace {
 
 /// The VENDOR and FILAMENT_SUBTYPE a record write sends for @p slot. The stock
 /// screen offers only these two vendors; anything else the firmware would
-/// store verbatim, and other Snapmaker tooling compares it.
-std::pair<std::string, std::string> record_vendor_subtype(const SlotInfo& slot) {
+/// store verbatim, and other Snapmaker tooling compares it. A slot naming no
+/// product line sends @p kept_subtype when the caller has one.
+std::pair<std::string, std::string> record_vendor_subtype(const SlotInfo& slot,
+                                                          const std::string& kept_subtype = {}) {
     std::string vendor =
         is_product_line_vendor(slot.brand) ? std::string(kProductLineVendor) : "Generic";
-    std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name : "Basic";
+    std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name
+                          : kept_subtype.empty()            ? "Basic"
+                                                            : kept_subtype;
     return {std::move(vendor), std::move(subtype)};
 }
 
 } // namespace
 
 std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const SlotInfo& slot,
-                                                             bool force, RecordLines lines) {
+                                                             bool force, RecordLines lines,
+                                                             const std::string& kept_subtype) {
     if (is_unset_task_field(slot.material) ||
         !IMoonrakerAPI::is_safe_material_param(slot.material)) {
         return {};
     }
-    const auto [vendor, subtype] = record_vendor_subtype(slot);
+    const auto [vendor, subtype] = record_vendor_subtype(slot, kept_subtype);
     const char* force_arg = force ? " FORCE=1" : "";
     // Colour rides its own line, as the stock screen sends it: the firmware's
     // colour forms are parsed apart from the identity fields.
@@ -3395,92 +3278,116 @@ std::optional<bool> AmsBackendSnapmaker::record_write_needs_force_locked(int hea
     return true;
 }
 
-bool AmsBackendSnapmaker::record_writes_held_locked() const {
-    // Every record write runs FLOW_RESET_K on its head, which must not land
-    // under a running print or between the offset calibration's steps.
+bool AmsBackendSnapmaker::record_writes_held_locked(int head) const {
+    // Every record write runs FLOW_RESET_K on its head, resetting its pressure
+    // advance, and the firmware never refuses one mid-print; nor may one land
+    // between the offset calibration's steps.
     if (calibration_holds_heads_locked()) {
         return true;
     }
+    bool printing = false;
+    bool paused = false;
     if (print_state_) {
-        return *print_state_ == "printing";
-    }
-    // Before this backend's own frames have named a state, the app's print
-    // state answers for a user's save, and a state nobody has read holds it.
-    // RAW_PRINT_STATE_OK: the write is gated on what the job is doing to the
-    // heads, not on the lifecycle the UI shows.
-    if (!get_printer_state().are_subjects_initialized()) {
+        printing = *print_state_ == "printing";
+        paused = *print_state_ == "paused";
+    } else if (get_printer_state().are_subjects_initialized()) {
+        // Before this backend's own frames have named a state, the app's
+        // print state answers.
+        // RAW_PRINT_STATE_OK: the write is gated on what the job is doing to
+        // the heads, not on the lifecycle the UI shows.
+        const PrintJobState job = get_printer_state().print_state().get_print_job_state();
+        printing = job == PrintJobState::PRINTING;
+        paused = job == PrintJobState::PAUSED;
+    } else {
+        // A state nobody has read may be a print: busy until one is read.
         return true;
     }
-    return get_printer_state().print_state().get_print_job_state() == PrintJobState::PRINTING;
+    if (printing) {
+        return true;
+    }
+    if (paused) {
+        // The runout reload: the firmware forgot the head's type when the
+        // filament left, and the resume has to write one before RESUME runs,
+        // so naming the new spool costs no reset the resume would not make.
+        const auto idx = static_cast<size_t>(head);
+        return !(task_type_[idx] && is_unset_task_field(*task_type_[idx]));
+    }
+    return false;
+}
+
+std::string AmsBackendSnapmaker::kept_subtype_locked(int head, const SlotInfo& info) const {
+    const auto idx = static_cast<size_t>(head);
+    // The editor has no field for most product lines, so a save naming none says
+    // nothing about the sub-type: an unchanged filament keeps the one it holds.
+    if (!is_known_subtype(info.spool_name) && task_type_[idx] && task_subtype_[idx] &&
+        !is_unset_task_field(*task_subtype_[idx]) &&
+        helix::text_io::equals_ignore_case(*task_type_[idx], info.material) &&
+        (!task_vendor_[idx] || helix::text_io::equals_ignore_case(
+                                   *task_vendor_[idx], record_vendor_subtype(info).first))) {
+        return *task_subtype_[idx];
+    }
+    return {};
+}
+
+std::optional<AmsBackendSnapmaker::RecordWrite>
+AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
+                                              bool material_declared) const {
+    const auto idx = static_cast<size_t>(head);
+    const std::optional<bool> needs_force = record_write_needs_force_locked(head);
+    if (!needs_force) {
+        spdlog::debug("{} head {} holds an RFID tag's record; leaving it to the tag",
+                      backend_log_tag(), head);
+        return std::nullopt;
+    }
+    if (!IMoonrakerAPI::is_safe_material_param(info.material)) {
+        spdlog::warn("{} head {} material '{}' cannot be sent as a gcode parameter",
+                     backend_log_tag(), head, info.material);
+        return std::nullopt;
+    }
+    std::string kept_subtype = kept_subtype_locked(head, info);
+    RecordLines lines = RecordLines::Both;
+    // Every line runs FLOW_RESET_K on the head, so a save that leaves the
+    // firmware's record standing sends nothing, forced head or not.
+    if (!task_type_[idx].has_value()) {
+        if (!material_declared) {
+            return std::nullopt;
+        }
+    } else {
+        const auto [vendor, subtype] = record_vendor_subtype(info, kept_subtype);
+        const bool identity_differs =
+            is_unset_task_field(*task_type_[idx]) ||
+            !helix::text_io::equals_ignore_case(*task_type_[idx], info.material) ||
+            (task_vendor_[idx] &&
+             !helix::text_io::equals_ignore_case(*task_vendor_[idx], vendor)) ||
+            (task_subtype_[idx] &&
+             !helix::text_io::equals_ignore_case(*task_subtype_[idx], subtype));
+        // A colour not seen yet goes out beside an identity change, and
+        // never alone.
+        const bool colour_known = task_color_[idx].has_value();
+        const bool colour_differs =
+            colour_known && *task_color_[idx] != (info.color_rgb & 0xFFFFFFu);
+        if (identity_differs && (colour_differs || !colour_known)) {
+            lines = RecordLines::Both;
+        } else if (identity_differs) {
+            lines = RecordLines::Identity;
+        } else if (colour_differs) {
+            lines = RecordLines::Colour;
+        } else {
+            return std::nullopt;
+        }
+    }
+    // An official head is rewritten whole, so no line leaves the flag.
+    if (*needs_force) {
+        lines = RecordLines::Both;
+    }
+    return RecordWrite{*needs_force, lines, std::move(kept_subtype)};
 }
 
 void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& info,
-                                                     bool material_declared) {
-    if (head < 0 || head >= kNumTools || !api_) {
-        return;
-    }
-    const auto idx = static_cast<size_t>(head);
-    bool force = false;
-    RecordLines lines = RecordLines::Both;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (record_writes_held_locked()) {
-            spdlog::info("{} head {} filament record held until the print stops running",
-                         backend_log_tag(), head);
-            pending_record_writes_[idx] = PendingRecordWrite{info, material_declared};
-            return;
-        }
-        const std::optional<bool> needs_force = record_write_needs_force_locked(head);
-        if (!needs_force) {
-            spdlog::debug("{} head {} holds an RFID tag's record; leaving it to the tag",
-                          backend_log_tag(), head);
-            return;
-        }
-        if (!IMoonrakerAPI::is_safe_material_param(info.material)) {
-            spdlog::warn("{} head {} material '{}' cannot be sent as a gcode parameter",
-                         backend_log_tag(), head, info.material);
-            return;
-        }
-        // Every line runs FLOW_RESET_K on the head, so a save that leaves the
-        // firmware's record standing sends nothing, forced head or not.
-        if (!task_type_[idx].has_value()) {
-            if (!material_declared) {
-                return;
-            }
-        } else {
-            const auto [vendor, subtype] = record_vendor_subtype(info);
-            const bool identity_differs =
-                is_unset_task_field(*task_type_[idx]) ||
-                !helix::text_io::equals_ignore_case(*task_type_[idx], info.material) ||
-                (task_vendor_[idx] &&
-                 !helix::text_io::equals_ignore_case(*task_vendor_[idx], vendor)) ||
-                (task_subtype_[idx] &&
-                 !helix::text_io::equals_ignore_case(*task_subtype_[idx], subtype));
-            // A colour not seen yet goes out beside an identity change, and
-            // never alone.
-            const bool colour_known = task_color_[idx].has_value();
-            const bool colour_differs =
-                colour_known && *task_color_[idx] != (info.color_rgb & 0xFFFFFFu);
-            if (identity_differs && (colour_differs || !colour_known)) {
-                lines = RecordLines::Both;
-            } else if (identity_differs) {
-                lines = RecordLines::Identity;
-            } else if (colour_differs) {
-                lines = RecordLines::Colour;
-            } else {
-                return;
-            }
-        }
-        // An official head is rewritten whole, so no line leaves the flag.
-        force = *needs_force;
-        if (force) {
-            lines = RecordLines::Both;
-        }
-        // This write is the record's restore until the firmware echoes it.
-        record_restore_sent_[idx] = true;
-    }
-    const std::string gcode = build_filament_config_gcode(head, info, force, lines);
-    if (gcode.empty()) {
+                                                     const RecordWrite& plan) {
+    const std::string gcode =
+        build_filament_config_gcode(head, info, plan.force, plan.lines, plan.kept_subtype);
+    if (gcode.empty() || !api_) {
         return;
     }
     const char* tag = backend_log_tag();
@@ -3492,12 +3399,6 @@ void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& i
         },
         /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
-}
-
-void AmsBackendSnapmaker::drop_pending_record_write_locked(int head) {
-    if (head >= 0 && head < kNumTools) {
-        pending_record_writes_[static_cast<size_t>(head)].reset();
-    }
 }
 
 bool AmsBackendSnapmaker::calibration_holds_heads_locked() const {
@@ -3530,24 +3431,23 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::official_flag_repa
             !tag_has_card_[idx].has_value() || *tag_has_card_[idx] || card_seen_[idx]) {
             continue;
         }
-        // The record has to be the one this backend's stored edit wrote. A
-        // record naming anything else came from some other writer, whose
-        // choice a forced rewrite would discard.
-        const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() || is_unset_task_field(ovr->second.material) ||
-            !task_type_[idx] ||
-            !helix::text_io::equals_ignore_case(*task_type_[idx], ovr->second.material)) {
+        // The record has to be the one this backend's edit wrote. A record
+        // naming anything else came from some other writer, whose choice a
+        // forced rewrite would discard.
+        const auto& sent = sent_record_[idx];
+        if (!sent || !task_type_[idx] ||
+            !helix::text_io::equals_ignore_case(*task_type_[idx], sent->material)) {
             continue;
         }
-        if (ovr->second.color_set && task_color_[idx] &&
-            *task_color_[idx] != (ovr->second.color_rgb & 0xFFFFFFu)) {
+        if (task_color_[idx] && *task_color_[idx] != sent->color_rgb) {
             continue;
         }
         const SlotInfo* slot = system_info_.units[0].get_slot(head);
         if (!slot) {
             continue;
         }
-        std::string gcode = build_filament_config_gcode(head, *slot, /*force=*/true);
+        std::string gcode = build_filament_config_gcode(
+            head, *slot, /*force=*/true, RecordLines::Both, kept_subtype_locked(head, *slot));
         if (gcode.empty()) {
             continue;
         }
@@ -3588,9 +3488,13 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
             helix::snapmaker::channel_state_in_progress(channel_snapshots_[idx].state)) {
             continue;
         }
+        // The record copies every type the firmware states, so a type alone
+        // is no reason to rewrite the head (each write resets its flow
+        // calibration): only a record that also names the spool, which only
+        // an edit or a Spoolman link puts there.
         const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() ||
-            !helix::ams::declared_on_lane(lane_id(head), &ovr->second).material) {
+        if (ovr == overrides_.end() || ovr->second.material.empty() ||
+            !record_names_spool(ovr->second)) {
             continue;
         }
         std::string gcode = unset_record_restore_locked(head);
@@ -3617,7 +3521,18 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     if (!slot) {
         return {};
     }
-    return build_filament_config_gcode(head, *slot, *needs_force);
+    // The type and colour written back are the record's: the last ones the
+    // firmware itself stated, which the record copied before the reset.
+    SlotInfo restore = *slot;
+    if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
+        if (!ovr->second.material.empty()) {
+            restore.material = ovr->second.material;
+        }
+        if (ovr->second.color_set) {
+            restore.color_rgb = ovr->second.color_rgb;
+        }
+    }
+    return build_filament_config_gcode(head, restore, *needs_force);
 }
 
 void AmsBackendSnapmaker::dispatch_record_scripts(
@@ -3794,9 +3709,25 @@ std::vector<bool> end_unload_list(const snapmaker::PrintPreferences& p,
     return list;
 }
 
-/// The end-unload action id's tool, or nullopt for an id that is not one.
-std::optional<size_t> end_unload_tool(const std::string& action_id) {
-    static constexpr std::string_view prefix = "snapmaker_end_unload_t";
+constexpr std::string_view kEndUnloadPrefix = "snapmaker_end_unload_t";
+constexpr std::string_view kNozzleDiameterPrefix = "snapmaker_nozzle_diameter_t";
+constexpr std::string_view kNozzleFlowPrefix = "snapmaker_nozzle_flow_t";
+constexpr const char* kToolheadSection = "toolhead";
+
+/// The failure a nozzle change that was answered reports. @p reason is the
+/// firmware's or the transport's words, empty when neither gave any.
+AmsError nozzle_refusal(const std::string& reason) {
+    AmsError error = AmsErrorHelper::command_failed(snapmaker::nozzle::kMethod, reason);
+    error.user_msg = reason.empty()
+                         ? std::string(lv_tr("Nozzle not changed: the printer did not confirm it"))
+                         : fmt::format(fmt::runtime(lv_tr("Nozzle not changed: {}")), reason);
+    error.suggestion.clear();
+    return error;
+}
+
+/// The tool a per-tool action id (@p prefix, then the tool number) names, or
+/// nullopt for an id that is not one.
+std::optional<size_t> tool_from_action_id(std::string_view prefix, const std::string& action_id) {
     if (action_id.rfind(prefix, 0) != 0) {
         return std::nullopt;
     }
@@ -3811,6 +3742,11 @@ std::optional<size_t> end_unload_tool(const std::string& action_id) {
         return std::nullopt;
     }
     return static_cast<size_t>(*parsed);
+}
+
+bool is_nozzle_action(const std::string& action_id) {
+    return tool_from_action_id(kNozzleDiameterPrefix, action_id) ||
+           tool_from_action_id(kNozzleFlowPrefix, action_id);
 }
 } // namespace
 
@@ -3832,8 +3768,24 @@ std::vector<helix::printer::DeviceSection> AmsBackendSnapmaker::get_device_secti
     using helix::printer::DeviceSection;
     std::vector<DeviceSection> out;
     // Nothing reported yet - an empty section is worse than none.
-    if (!print_preferences().empty()) {
+    if (!print_preferences().empty() || auto_load_reported()) {
         out.push_back(helix::printer::device_section(kPrintPrefsSection, 50, ""));
+    }
+    const auto nozzles = reported_nozzles();
+    if (std::any_of(nozzles.begin(), nozzles.end(),
+                    [](const auto& n) { return n.diameter || n.volume_type; })) {
+        out.push_back(helix::printer::device_section(
+            kToolheadSection, 60, TR_NOOP("Nozzle size and flow type per head")));
+    }
+    return out;
+}
+
+std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
+AmsBackendSnapmaker::reported_nozzles() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount> out;
+    for (size_t i = 0; i < out.size() && i < extruder_states_.size(); ++i) {
+        out[i] = {extruder_states_[i].nozzle_diameter, extruder_states_[i].nozzle_volume_type};
     }
     return out;
 }
@@ -3888,7 +3840,96 @@ std::vector<helix::printer::DeviceAction> AmsBackendSnapmaker::get_device_action
         }
         out.push_back(std::move(a));
     }
+
+    append_auto_load_actions(out);
+
+    // Each head's nozzle, one row per field the head reports. A head reading a
+    // value no option names shows it as unknown rather than as an option.
+    namespace nozzle = snapmaker::nozzle;
+    const auto nozzles = reported_nozzles();
+    bool in_progress = false;
+    std::array<bool, snapmaker::kToolCount> changing{};
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        in_progress = print_in_progress_locked();
+        changing = nozzle_change_in_flight_;
+    }
+    auto per_head = [&](DeviceAction a, int head) {
+        a.slot_index = head;
+        a.tool_index = head;
+        if (changing[static_cast<size_t>(head)]) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Wait for the current operation to complete");
+        }
+        // The firmware refuses the change while printing or paused.
+        if (in_progress) {
+            a.enabled = false;
+            a.disable_reason = TR_NOOP("Finish or cancel the print first");
+        }
+        out.push_back(std::move(a));
+    };
+    for (size_t h = 0; h < nozzles.size(); ++h) {
+        const int head = static_cast<int>(h);
+        if (const auto& d = nozzles[h].diameter) {
+            const std::string shown = nozzle::diameter_option(*d);
+            per_head(DeviceAction::dropdown(std::string(kNozzleDiameterPrefix) + std::to_string(h),
+                                            "Nozzle diameter", kToolheadSection,
+                                            nozzle::diameter_options(),
+                                            shown.empty() ? std::any{} : std::any(shown))
+                         .with_option_confirm(
+                             nozzle::diameter_option(0.2),
+                             TR_NOOP("A 0.2 mm nozzle can't print every filament, including "
+                                     "PA, PC, TPU and carbon- or glass-filled types. If this "
+                                     "head has one of them loaded, the printer clears its "
+                                     "filament info and you'll need to set it again."),
+                             TR_NOOP("Change")),
+                     head);
+        }
+        if (const auto& t = nozzles[h].volume_type) {
+            const std::string shown = nozzle::flow_option(*t);
+            DeviceAction flow = DeviceAction::dropdown(
+                std::string(kNozzleFlowPrefix) + std::to_string(h), "Nozzle flow", kToolheadSection,
+                nozzle::flow_options(), shown.empty() ? std::any{} : std::any(shown));
+            if (!nozzle::flow_selectable(nozzles[h])) {
+                flow.enabled = false;
+                flow.disable_reason = TR_NOOP("High Flow needs a 0.4 mm nozzle");
+            }
+            per_head(std::move(flow), head);
+        }
+    }
     return out;
+}
+
+AmsBackendSnapmaker::NozzleChange
+AmsBackendSnapmaker::build_nozzle_change(const std::string& action_id,
+                                         const std::any& value) const {
+    namespace nozzle = snapmaker::nozzle;
+    const auto diameter_head = tool_from_action_id(kNozzleDiameterPrefix, action_id);
+    const auto flow_head = tool_from_action_id(kNozzleFlowPrefix, action_id);
+    const auto head = diameter_head ? diameter_head : flow_head;
+    const auto nozzles = reported_nozzles();
+    if (!head || *head >= nozzles.size()) {
+        return {};
+    }
+    const auto [choice, err] = printer::device_action_value<std::string>(value, "setting");
+    if (!err) {
+        return {};
+    }
+    const nozzle::Nozzle& reported = nozzles[*head];
+    nozzle::Nozzle wanted;
+    if (diameter_head) {
+        wanted.diameter = nozzle::diameter_from_option(choice);
+        // A row exists only for a field the head reports.
+        if (!wanted.diameter || !reported.diameter) {
+            return {};
+        }
+    } else {
+        wanted.volume_type = nozzle::volume_type_from_option(choice);
+        if (!wanted.volume_type || !reported.volume_type) {
+            return {};
+        }
+    }
+    return {true, nozzle::change_params(static_cast<int>(*head), reported, wanted)};
 }
 
 std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& action_id,
@@ -3923,7 +3964,7 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
             return {};
         }
         changes.filament_entangle_sen = v;
-    } else if (const auto tool = end_unload_tool(action_id)) {
+    } else if (const auto tool = tool_from_action_id(kEndUnloadPrefix, action_id)) {
         // END_UNLOAD_FILAMENT takes the whole list, so the untouched tools
         // travel at their saved values or they are cleared. The firmware's
         // own list is not used: it lags a tap behind, and it is cleared when
@@ -3944,6 +3985,8 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
         auto list = end_unload_list(prefs, soft);
         list[*tool] = v;
         changes.end_unload_filament = std::move(list);
+    } else if (const auto head = tool_from_action_id(kAutoLoadActionPrefix, action_id)) {
+        return auto_load_gcode(*head, value);
     } else {
         return {};
     }
@@ -3952,11 +3995,14 @@ std::string AmsBackendSnapmaker::build_preference_gcode(const std::string& actio
 
 AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action_id,
                                                        const std::any& value) {
+    if (is_nozzle_action(action_id)) {
+        return do_run_device_action(action_id, value, nullptr);
+    }
     const std::string gcode = build_preference_gcode(action_id, value);
     if (gcode.empty()) {
         return AmsErrorHelper::not_supported(action_id);
     }
-    if (const auto tool = end_unload_tool(action_id)) {
+    if (const auto tool = tool_from_action_id(kEndUnloadPrefix, action_id)) {
         // The saved choice is what every print start sends, so it is written
         // whether or not the firmware can take it now.
         SettingsManager::instance().set_end_of_print_unload_tool(
@@ -3976,6 +4022,111 @@ AmsError AmsBackendSnapmaker::do_execute_device_action(const std::string& action
         }
     }
     return execute_gcode(gcode);
+}
+
+AmsError AmsBackendSnapmaker::do_run_device_action(const std::string& action_id,
+                                                   const std::any& value,
+                                                   DeviceActionDone on_done) {
+    if (!is_nozzle_action(action_id)) {
+        return AmsSubscriptionBackend::do_run_device_action(action_id, value, std::move(on_done));
+    }
+    NozzleChange change = build_nozzle_change(action_id, value);
+    if (!change.valid) {
+        return AmsErrorHelper::not_supported(action_id);
+    }
+    if (!change.params) {
+        spdlog::debug("{} {}: the head already reports that; nothing sent", backend_log_tag(),
+                      action_id);
+        if (on_done) {
+            on_done(AmsErrorHelper::success());
+        }
+        return AmsErrorHelper::success();
+    }
+    return send_nozzle_change(std::move(*change.params), std::move(on_done));
+}
+
+AmsError AmsBackendSnapmaker::send_nozzle_change(nlohmann::json params, DeviceActionDone on_done) {
+    if (!client_) {
+        return AmsErrorHelper::not_connected("No Moonraker client");
+    }
+    const int head = json_util::safe_int(params, "extruder", -1);
+    if (head < 0 || head >= static_cast<int>(nozzle_change_in_flight_.size())) {
+        return AmsErrorHelper::not_supported(snapmaker::nozzle::kMethod);
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        nozzle_change_in_flight_[static_cast<size_t>(head)] = true;
+    }
+    emit_event(EVENT_STATE_CHANGED);
+    spdlog::info("{} Nozzle change: {}", backend_log_tag(), params.dump());
+    // The firmware refuses inside a successful reply, so the reply is read
+    // before anything counts as changed. A change it takes arrives as an
+    // extruder status update, which is what moves the row.
+    client_->send_jsonrpc(
+        snapmaker::nozzle::kMethod, params,
+        lifetime_.bg_cb(
+            "AmsBackendSnapmaker::nozzle_change.reply",
+            [this, on_done, head, params](const nlohmann::json& response) {
+                const auto reply = snapmaker::nozzle::read_reply(response);
+                finish_nozzle_change(
+                    head, reply.kind == snapmaker::nozzle::ReplyKind::Accepted ? &params : nullptr);
+                switch (reply.kind) {
+                case snapmaker::nozzle::ReplyKind::Accepted:
+                    spdlog::info("{} Nozzle change accepted", backend_log_tag());
+                    if (on_done) {
+                        on_done(AmsErrorHelper::success());
+                    }
+                    return;
+                case snapmaker::nozzle::ReplyKind::Refused:
+                    nozzle_change_failed(nozzle_refusal(reply.message), on_done);
+                    return;
+                case snapmaker::nozzle::ReplyKind::Unexpected:
+                    spdlog::warn("{} Nozzle change: unexpected reply {}", backend_log_tag(),
+                                 response.dump());
+                    nozzle_change_failed(nozzle_refusal({}), on_done);
+                    return;
+                }
+            }),
+        lifetime_.bg_cb("AmsBackendSnapmaker::nozzle_change.error",
+                        [this, on_done, head](const MoonrakerError& err) {
+                            finish_nozzle_change(head, nullptr);
+                            // No answer does not say the change was refused.
+                            nozzle_change_failed(
+                                err.type == MoonrakerErrorType::TIMEOUT ||
+                                        err.type == MoonrakerErrorType::CONNECTION_LOST
+                                    ? AmsErrorHelper::timeout(snapmaker::nozzle::kMethod)
+                                    : nozzle_refusal(err.message),
+                                on_done);
+                        }),
+        snapmaker::nozzle::kTimeoutMs, /*silent=*/true);
+    return AmsErrorHelper::success();
+}
+
+void AmsBackendSnapmaker::finish_nozzle_change(int head, const nlohmann::json* accepted) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto h = static_cast<size_t>(head);
+        nozzle_change_in_flight_[h] = false;
+        if (accepted != nullptr && h < extruder_states_.size()) {
+            extruder_states_[h].apply(snapmaker::parse_extruder_delta(nlohmann::json{
+                {"nozzle_diameter",
+                 accepted->contains("diameter") ? (*accepted)["diameter"] : nlohmann::json()},
+                {"nozzle_volume_type", accepted->contains("volume_type")
+                                           ? (*accepted)["volume_type"]
+                                           : nlohmann::json()}}));
+        }
+    }
+    emit_event(EVENT_STATE_CHANGED);
+}
+
+void AmsBackendSnapmaker::nozzle_change_failed(const AmsError& error,
+                                               const DeviceActionDone& on_done) {
+    if (on_done) {
+        on_done(error);
+    } else {
+        helix::ui::notify_ams_error(error);
+    }
+    emit_event(EVENT_STATE_CHANGED);
 }
 
 helix::printer::EndlessSpoolCapabilities

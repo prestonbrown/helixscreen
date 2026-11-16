@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "platform_capabilities.h"
 

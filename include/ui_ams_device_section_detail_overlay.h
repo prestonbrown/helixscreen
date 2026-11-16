@@ -16,16 +16,17 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 
 #include <any>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -79,6 +80,9 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
 
     const char* xml_component() const override {
         return "ams_device_section_detail";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     lv_obj_t* create(lv_obj_t* parent) override;
@@ -148,7 +152,10 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
 
     /// Run @p action through the backend, reporting a failure, and on success record
     /// @p value as the one its row shows. Returns the result.
-    AmsError execute(const helix::printer::DeviceAction& action, std::any value);
+    /// With @p on_done, the backend reports through it once the action has ended,
+    /// on the main thread; it is not called when the send itself is refused.
+    AmsError execute(const helix::printer::DeviceAction& action, std::any value,
+                     std::function<void(const AmsError&)> on_done = nullptr);
 
     /// Show slider @p position as @p action's value in its row's value display.
     void show_slider_value(lv_obj_t* row, const helix::printer::DeviceAction& action,
@@ -157,6 +164,22 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     /// Set @p action's slider to @p value (clamped to its range and step) and send it.
     /// A refused value puts the slider back on the action's current value.
     void apply_slider_value(const helix::printer::DeviceAction& action, double value);
+
+    /// Show @p choice in @p action's dropdown and send it. A refused choice puts
+    /// the section back on what the backend reports.
+    void apply_dropdown_choice(const helix::printer::DeviceAction& action,
+                               const std::string& choice);
+
+    /// Ask @p confirm's question before @p choice is sent. Confirmed, it goes
+    /// through on_choice_confirmed(); cancelled or dismissed, nothing is sent and
+    /// the section goes back to what the backend reports.
+    void confirm_dropdown_choice(const helix::printer::DeviceAction& action,
+                                 const std::string& choice,
+                                 const helix::printer::DeviceAction::OptionConfirm& confirm);
+
+    /// Send a confirmed @p choice, unless @p action_id has since gone or become
+    /// unavailable (or no longer lists it), when the pick is dropped.
+    void on_choice_confirmed(const std::string& action_id, const std::string& choice);
 
     //
     // === Static Callbacks ===
@@ -178,10 +201,14 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Container for section action controls
     lv_obj_t* actions_container_ = nullptr;
+
+    void on_ui_destroyed() override {
+        actions_container_ = nullptr;
+    }
 
     /// The section ID this overlay is currently showing
     std::string section_id_;
@@ -202,7 +229,10 @@ class AmsDeviceSectionDetailOverlay : public OverlayBase {
     std::string keypad_action_id_;
     std::string keypad_title_;
 
-    lv_subject_t action_disabled_subject_{};
+    helix::Subject action_disabled_subject_{};
+    /// Header title: the section's own name, set before each show.
+    helix::Subject title_subject_{};
+    char title_buf_[96] = {};
     /// Declared after the subject it deinits, so it is destroyed first.
     SubjectManager subjects_;
 };

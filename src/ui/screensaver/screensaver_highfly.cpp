@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#if HELIX_ENABLE_SCREENSAVER
+
+#include "screensaver_highfly.h"
+
+#include "screensaver_print_colors.h"
+
+#include <utility>
+
+namespace helix::ui {
+
+namespace {
+
+/// The date block and AM/PM: the numerals' pale blue-white, a little more see-through.
+constexpr Rgb TEXT_COLOR{226, 238, 250};
+/// Their soft shadow, the numerals' deep blue.
+constexpr Rgb kTextHalo{10, 50, 92};
+constexpr lv_opa_t kTextHaloOpa = LV_OPA_60;
+
+} // namespace
+
+ClockLines highfly_clock_lines(const ClockReading& reading) {
+    if (!highfly_counts_down(reading)) {
+        return clock_lines(reading);
+    }
+    ClockLines lines;
+    lines.first = std::move(clock_print_text(reading).eta);
+    lines.second = clock_minute_text(reading.time.hour_of_day * 60 + reading.time.minute);
+    return lines;
+}
+
+void HighFlyScreensaver::draw_clock_text(const std::vector<DirtyRect>& under,
+                                         std::vector<DirtyRect>& dirty) {
+    if (under.empty() && !date_line_.box().empty()) {
+        // Nothing beneath the text was repainted, so a changed line waits for the next frame
+        // that repaints the clock rather than drawing over the old one.
+        return;
+    }
+    const ClockLines& lines = lines_.get(clock_reading());
+    const HighFlyClockLayout& layout = sim_.clock_layout();
+    const Rgb color = print_state_color(clock_reading().mode, TEXT_COLOR);
+    // Every box sits inside the clock bounds, which the sim repaints before the text changes.
+    date_line_.draw(canvas(), lines.first, layout.date_line, color, LV_OPA_80, LV_TEXT_ALIGN_LEFT,
+                    under, dirty);
+    day_line_.draw(canvas(), lines.second, layout.day_line, color, LV_OPA_80, LV_TEXT_ALIGN_LEFT,
+                   under, dirty);
+    meridiem_.draw(canvas(), lines.meridiem, layout.meridiem, color, LV_OPA_80, LV_TEXT_ALIGN_LEFT,
+                   under, dirty);
+}
+
+void HighFlyScreensaver::reset_clock_text() {
+    lines_.reset();
+    date_line_.reset();
+    day_line_.reset();
+    meridiem_.reset();
+    const SaverLabelHalo halo{kTextHalo, kTextHaloOpa, sim_.clock_layout().text_halo};
+    date_line_.set_halo(halo);
+    day_line_.set_halo(halo);
+    meridiem_.set_halo(halo);
+}
+
+} // namespace helix::ui
+
+#endif // HELIX_ENABLE_SCREENSAVER

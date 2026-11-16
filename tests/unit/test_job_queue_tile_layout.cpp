@@ -3,7 +3,8 @@
 
 /**
  * @file test_job_queue_tile_layout.cpp
- * @brief decide_job_queue_tile_layout() at each rung boundary, per tile state.
+ * @brief decide_job_queue_tile_layout()'s flags per rung and tile state. Rung choice
+ * itself is choose_size_rung's (test_size_rung.cpp).
  *
  * Run with: ./build/bin/helix-tests "[job_queue_tile][layout]"
  */
@@ -47,17 +48,6 @@ JobQueueTileVerdict verdict_for(int w, int h,
 }
 
 } // namespace
-
-TEST_CASE("job queue tile: rung boundaries are exact", "[job_queue_tile][layout]") {
-    CHECK_FALSE(verdict_for(99, 40).fits);
-    CHECK(verdict_for(100, 40).rung == SizeRung::Strip);
-    CHECK(verdict_for(100, 99).rung == SizeRung::Strip);
-    CHECK(verdict_for(100, 100).rung == SizeRung::Cell);
-    CHECK(verdict_for(219, 100).rung == SizeRung::Cell);
-    CHECK(verdict_for(220, 100).rung == SizeRung::Wide);
-    CHECK(verdict_for(220, 219).rung == SizeRung::Wide);
-    CHECK(verdict_for(220, 220).rung == SizeRung::Full);
-}
 
 TEST_CASE("job queue tile: a waiting job's flags per rung", "[job_queue_tile][layout]") {
     const auto strip = verdict_for(100, 40);
@@ -145,20 +135,6 @@ TEST_CASE("job queue tile: Starts automatically only while the queue advances it
     CHECK_FALSE(verdict_for(100, 129, JobQueueTileState::AutoNext).show_auto_line);
     CHECK(verdict_for(100, 130, JobQueueTileState::AutoNext).show_auto_line);
     CHECK(verdict_for(100, 129, JobQueueTileState::AutoNext).show_detail);
-}
-
-TEST_CASE("job queue tile: fits is false below the strip and monotonic",
-          "[job_queue_tile][layout]") {
-    CHECK_FALSE(verdict_for(60, 30).fits);
-    for (int w = 90; w <= 240; w += 10) {
-        for (int h = 30; h <= 240; h += 10) {
-            INFO(w << "x" << h);
-            if (verdict_for(w, h).fits) {
-                CHECK(verdict_for(w + 10, h).fits);
-                CHECK(verdict_for(w, h + 10).fits);
-            }
-        }
-    }
 }
 
 TEST_CASE("job queue tile: a Cell name on two lines takes the room under it",

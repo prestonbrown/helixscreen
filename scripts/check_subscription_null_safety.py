@@ -10,8 +10,7 @@
 # no detection_count). nlohmann::json::value("k", default) and .get<T>() throw
 # json::type_error::302 on null. An uncaught throw inside a subscription
 # handler unwinds out of run() into main()'s top-level catch, exiting 134 and
-# triggering a watchdog crash loop the user can't break out of (#filament_motion_sensor,
-# fixed in f75b961d8).
+# triggering a watchdog crash loop the user can't break out of.
 #
 # Documented in memory: feedback_moonraker_subscribed_null.md
 #
@@ -56,7 +55,7 @@
 # Exit 134 is the watchdog-crash-loop signature. An out-of-range numeric index
 # on a const array is a straight SIGSEGV.
 #
-# The canonical shape (five sites, fixed in 530fcea39):
+# The canonical shape:
 #
 #   token.defer("tag", [this, response = std::move(response)]() {  // NOT mutable
 #       const auto& s = response["result"]["status"]["configfile"]["settings"];

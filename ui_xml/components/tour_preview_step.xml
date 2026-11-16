@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One checklist line in the first-run tour sample of Print Status. -->
+  <api>
+    <prop name="text" type="string" default=""/>
+    <prop name="icon" type="string" default="check_circle"/>
+    <prop name="variant" type="string" default="success"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" flex_flow="row" scrollable="false" clickable="false" style_bg_opa="0"
+        style_border_width="0" style_pad_all="0" style_pad_gap="#space_xxs" style_flex_cross_place="center">
+    <icon src="$icon" size="xs" variant="$variant"/>
+    <text_small text="$text"/>
+  </view>
+</component>

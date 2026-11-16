@@ -20,6 +20,7 @@
  * - "moonraker_version"
  */
 
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -47,14 +48,9 @@ TEST_CASE("Versions characterization: klipper_version initializes to em dash",
     REQUIRE(std::string(version) == "—");
 }
 
-TEST_CASE("Versions characterization: moonraker_version initializes to em dash",
-          "[characterization][versions][init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: moonraker_version initializes to em dash",
+                 "[characterization][versions][init]") {
     const char* version =
         lv_subject_get_string(state.versions_state().get_moonraker_version_subject());
     REQUIRE(version != nullptr);
@@ -65,64 +61,54 @@ TEST_CASE("Versions characterization: moonraker_version initializes to em dash",
 // Version Subject Update Tests - Verify subject updates work correctly
 // ============================================================================
 
-TEST_CASE("Versions characterization: klipper_version subject accepts string updates",
-          "[characterization][versions][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: klipper_version subject accepts string updates",
+                 "[characterization][versions][setter]") {
     lv_subject_t* subject = state.versions_state().get_klipper_version_subject();
 
     SECTION("typical version string") {
-        lv_subject_copy_string(subject, "v0.12.0-108-g2c7a9d58");
+        lv_subject_set_string(subject, "v0.12.0-108-g2c7a9d58");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "v0.12.0-108-g2c7a9d58");
     }
 
     SECTION("simple version string") {
-        lv_subject_copy_string(subject, "v0.12.0");
+        lv_subject_set_string(subject, "v0.12.0");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "v0.12.0");
     }
 
     SECTION("empty version string") {
-        lv_subject_copy_string(subject, "");
+        lv_subject_set_string(subject, "");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "");
     }
 }
 
-TEST_CASE("Versions characterization: moonraker_version subject accepts string updates",
-          "[characterization][versions][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: moonraker_version subject accepts string updates",
+                 "[characterization][versions][setter]") {
     lv_subject_t* subject = state.versions_state().get_moonraker_version_subject();
 
     SECTION("typical version string") {
-        lv_subject_copy_string(subject, "v0.8.0-143-g2c7a9d58");
+        lv_subject_set_string(subject, "v0.8.0-143-g2c7a9d58");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "v0.8.0-143-g2c7a9d58");
     }
 
     SECTION("simple version string") {
-        lv_subject_copy_string(subject, "v0.8.0");
+        lv_subject_set_string(subject, "v0.8.0");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "v0.8.0");
     }
 
     SECTION("empty version string") {
-        lv_subject_copy_string(subject, "");
+        lv_subject_set_string(subject, "");
 
         const char* version = lv_subject_get_string(subject);
         REQUIRE(std::string(version) == "");
@@ -133,28 +119,22 @@ TEST_CASE("Versions characterization: moonraker_version subject accepts string u
 // Version Subject Independence Tests
 // ============================================================================
 
-TEST_CASE("Versions characterization: version subjects are independent",
-          "[characterization][versions][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Versions characterization: version subjects are independent",
+                 "[characterization][versions][independence]") {
     lv_subject_t* klipper = state.versions_state().get_klipper_version_subject();
     lv_subject_t* moonraker = state.versions_state().get_moonraker_version_subject();
 
     SECTION("changing klipper_version does not affect moonraker_version") {
-        lv_subject_copy_string(moonraker, "v0.8.0");
-        lv_subject_copy_string(klipper, "v0.12.0");
+        lv_subject_set_string(moonraker, "v0.8.0");
+        lv_subject_set_string(klipper, "v0.12.0");
 
         REQUIRE(std::string(lv_subject_get_string(moonraker)) == "v0.8.0");
         REQUIRE(std::string(lv_subject_get_string(klipper)) == "v0.12.0");
     }
 
     SECTION("changing moonraker_version does not affect klipper_version") {
-        lv_subject_copy_string(klipper, "v0.12.0");
-        lv_subject_copy_string(moonraker, "v0.8.0");
+        lv_subject_set_string(klipper, "v0.12.0");
+        lv_subject_set_string(moonraker, "v0.8.0");
 
         REQUIRE(std::string(lv_subject_get_string(klipper)) == "v0.12.0");
         REQUIRE(std::string(lv_subject_get_string(moonraker)) == "v0.8.0");
@@ -165,20 +145,15 @@ TEST_CASE("Versions characterization: version subjects are independent",
 // Reset Cycle Tests - Verify subjects reset to default values
 // ============================================================================
 
-TEST_CASE("Versions characterization: versions reset to em dash after reset cycle",
-          "[characterization][versions][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: versions reset to em dash after reset cycle",
+                 "[characterization][versions][reset]") {
     lv_subject_t* klipper = state.versions_state().get_klipper_version_subject();
     lv_subject_t* moonraker = state.versions_state().get_moonraker_version_subject();
 
     // Set version values
-    lv_subject_copy_string(klipper, "v0.12.0-108-g2c7a9d58");
-    lv_subject_copy_string(moonraker, "v0.8.0-143-g2c7a9d58");
+    lv_subject_set_string(klipper, "v0.12.0-108-g2c7a9d58");
+    lv_subject_set_string(moonraker, "v0.8.0-143-g2c7a9d58");
 
     // Verify values were set
     REQUIRE(std::string(lv_subject_get_string(klipper)) == "v0.12.0-108-g2c7a9d58");
@@ -195,20 +170,15 @@ TEST_CASE("Versions characterization: versions reset to em dash after reset cycl
                 state.versions_state().get_moonraker_version_subject())) == "—");
 }
 
-TEST_CASE("Versions characterization: subjects are functional after reset cycle",
-          "[characterization][versions][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: subjects are functional after reset cycle",
+                 "[characterization][versions][reset]") {
     lv_subject_t* klipper = state.versions_state().get_klipper_version_subject();
     lv_subject_t* moonraker = state.versions_state().get_moonraker_version_subject();
 
     // Set initial values
-    lv_subject_copy_string(klipper, "v0.11.0");
-    lv_subject_copy_string(moonraker, "v0.7.0");
+    lv_subject_set_string(klipper, "v0.11.0");
+    lv_subject_set_string(moonraker, "v0.7.0");
 
     // Reset and reinitialize
     PrinterStateTestAccess::reset(state);
@@ -219,8 +189,8 @@ TEST_CASE("Versions characterization: subjects are functional after reset cycle"
     moonraker = state.versions_state().get_moonraker_version_subject();
 
     // Set new values - should work
-    lv_subject_copy_string(klipper, "v0.12.0");
-    lv_subject_copy_string(moonraker, "v0.8.0");
+    lv_subject_set_string(klipper, "v0.12.0");
+    lv_subject_set_string(moonraker, "v0.8.0");
 
     REQUIRE(std::string(lv_subject_get_string(klipper)) == "v0.12.0");
     REQUIRE(std::string(lv_subject_get_string(moonraker)) == "v0.8.0");
@@ -236,14 +206,8 @@ TEST_CASE("Versions characterization: subjects are functional after reset cycle"
 // through untouched. Regression coverage for prestonbrown/helixscreen#1068.
 // ============================================================================
 
-TEST_CASE("Versions: placeholder version strings normalize to Unknown",
-          "[versions][setter][normalization]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Versions: placeholder version strings normalize to Unknown",
+                 "[versions][setter][normalization]") {
     auto klipper = [&] {
         return std::string(
             lv_subject_get_string(state.versions_state().get_klipper_version_subject()));
@@ -256,7 +220,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("QIDI '?' sentinel becomes Unknown") {
         state.set_klipper_version("?");
         state.set_moonraker_version("?");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -264,7 +228,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("parse-layer 'unknown' fallback becomes Unknown (case-insensitive)") {
         state.set_klipper_version("unknown");
         state.set_moonraker_version("UNKNOWN");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -272,7 +236,7 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("empty and whitespace-only become Unknown") {
         state.set_klipper_version("");
         state.set_moonraker_version("   ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(moonraker() == "Unknown");
     }
@@ -280,14 +244,14 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
     SECTION("a real version passes through untouched") {
         state.set_klipper_version("v0.12.0-108-g2c7a9d58");
         state.set_moonraker_version("v0.8.0");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "v0.12.0-108-g2c7a9d58");
         REQUIRE(moonraker() == "v0.8.0");
     }
 
     SECTION("surrounding whitespace is trimmed from a real version") {
         state.set_klipper_version("  v0.12.0  ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "v0.12.0");
     }
 
@@ -300,12 +264,12 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
                     .empty()); // nothing set yet this section
 
         state.set_klipper_version("?");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(klipper() == "Unknown");
         REQUIRE(state.versions_state().get_klipper_version_raw() == "?");
 
         state.set_klipper_version("  v0.12.0  ");
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         REQUIRE(state.versions_state().get_klipper_version_raw() == "  v0.12.0  ");
     }
 }
@@ -314,14 +278,9 @@ TEST_CASE("Versions: placeholder version strings normalize to Unknown",
 // Observer Notification Tests - Verify observers fire on state changes
 // ============================================================================
 
-TEST_CASE("Versions characterization: observer fires when klipper_version changes",
-          "[characterization][versions][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: observer fires when klipper_version changes",
+                 "[characterization][versions][observer]") {
     lv_subject_t* subject = state.versions_state().get_klipper_version_subject();
 
     int callback_count = 0;
@@ -343,22 +302,17 @@ TEST_CASE("Versions characterization: observer fires when klipper_version change
     REQUIRE(last_value == "—");
 
     // Update version
-    lv_subject_copy_string(subject, "v0.12.0");
+    lv_subject_set_string(subject, "v0.12.0");
 
     REQUIRE(callback_count == 2);
     REQUIRE(last_value == "v0.12.0");
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
-TEST_CASE("Versions characterization: observer fires when moonraker_version changes",
-          "[characterization][versions][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Versions characterization: observer fires when moonraker_version changes",
+                 "[characterization][versions][observer]") {
     lv_subject_t* subject = state.versions_state().get_moonraker_version_subject();
 
     int callback_count = 0;
@@ -380,22 +334,18 @@ TEST_CASE("Versions characterization: observer fires when moonraker_version chan
     REQUIRE(last_value == "—");
 
     // Update version
-    lv_subject_copy_string(subject, "v0.8.0");
+    lv_subject_set_string(subject, "v0.8.0");
 
     REQUIRE(callback_count == 2);
     REQUIRE(last_value == "v0.8.0");
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
-TEST_CASE("Versions characterization: observers on different version subjects are independent",
-          "[characterization][versions][observer][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(
+    FreshPrinterState,
+    "Versions characterization: observers on different version subjects are independent",
+    "[characterization][versions][observer][independence]") {
     lv_subject_t* klipper = state.versions_state().get_klipper_version_subject();
     lv_subject_t* moonraker = state.versions_state().get_moonraker_version_subject();
 
@@ -416,19 +366,19 @@ TEST_CASE("Versions characterization: observers on different version subjects ar
     REQUIRE(moonraker_count == 1);
 
     // Update only klipper version
-    lv_subject_copy_string(klipper, "v0.12.0");
+    lv_subject_set_string(klipper, "v0.12.0");
 
     // Only klipper observer should fire
     REQUIRE(klipper_count == 2);
     REQUIRE(moonraker_count == 1);
 
     // Update only moonraker version
-    lv_subject_copy_string(moonraker, "v0.8.0");
+    lv_subject_set_string(moonraker, "v0.8.0");
 
     // Only moonraker observer should fire
     REQUIRE(klipper_count == 2);
     REQUIRE(moonraker_count == 2);
 
-    lv_observer_remove(klipper_observer);
-    lv_observer_remove(moonraker_observer);
+    lv_observer_delete(klipper_observer);
+    lv_observer_delete(moonraker_observer);
 }

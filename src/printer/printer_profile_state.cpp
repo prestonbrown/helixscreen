@@ -14,11 +14,15 @@ namespace helix {
 
 ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool external_persistence, bool db_persists,
-                                           bool tool_change_resets, bool save_enabled) {
+                                           bool tool_change_resets, bool save_enabled,
+                                           bool per_head) {
     const ZOffsetTuneHint temporary =
         tool_change_resets ? ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE : ZOffsetTuneHint::TEMPORARY;
     if (strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         return save_enabled ? ZOffsetTuneHint::SAVE_ON_CONTROLS : temporary;
+    }
+    if (per_head) {
+        return ZOffsetTuneHint::AUTO_SAVED_PER_HEAD;
     }
     if (external_persistence || db_persists) {
         return ZOffsetTuneHint::AUTO_SAVED;
@@ -38,6 +42,8 @@ void PrinterProfileState::init_subjects(bool register_xml) {
     // Z-offset save visibility (1 = Save Z Offset offered, 0 = no Save step)
     INIT_SUBJECT_INT(z_offset_can_save, 1, subjects_, register_xml);
     INIT_SUBJECT_INT(z_offset_tune_hint, static_cast<int>(z_offset_tune_hint_value_), subjects_,
+                     register_xml);
+    INIT_SUBJECT_INT(z_offset_reapplied_per_head, z_offset_reapplied_per_head() ? 1 : 0, subjects_,
                      register_xml);
     subjects_initialized_ = true;
 }
@@ -78,9 +84,9 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
 
     const bool db_persists = PrinterDetector::z_offset_persists(type);
     const bool db_tool_change_resets = PrinterDetector::tool_change_resets_z_offset(type);
-    const ZOffsetTuneHint new_hint =
-        resolve_z_offset_tune_hint(new_strategy, external_persistence_, db_persists,
-                                   db_tool_change_resets, z_offset_save_enabled_);
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        new_strategy, external_persistence_, db_persists, db_tool_change_resets,
+        z_offset_save_enabled_, z_offset_per_head_);
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_ &&
         new_hint == z_offset_tune_hint_value_) {
@@ -97,7 +103,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
     db_hides_dot_dirs_ = PrinterDetector::klipper_hides_dot_dirs(type);
 
     if (subjects_initialized_) {
-        lv_subject_copy_string(&printer_type_subject_, type.c_str());
+        lv_subject_set_string(&printer_type_subject_, type.c_str());
     }
 
     // Synthesize runtime-dependent options (timelapse) on top of the DB load.
@@ -108,6 +114,7 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
                            new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? 1 : 0);
         lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
+    publish_z_offset_reapplied_per_head();
     return true;
 }
 
@@ -116,9 +123,9 @@ bool PrinterProfileState::set_z_offset_save_enabled(bool enabled) {
         return false;
     }
     z_offset_save_enabled_ = enabled;
-    const ZOffsetTuneHint new_hint =
-        resolve_z_offset_tune_hint(z_offset_calibration_strategy_, external_persistence_,
-                                   db_z_offset_persists_, db_tool_change_resets_z_offset_, enabled);
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        z_offset_calibration_strategy_, external_persistence_, db_z_offset_persists_,
+        db_tool_change_resets_z_offset_, enabled, z_offset_per_head_);
     if (new_hint == z_offset_tune_hint_value_) {
         return false;
     }
@@ -135,6 +142,21 @@ bool PrinterProfileState::set_external_persistence(bool persisted) {
     }
     external_persistence_ = persisted;
     return true;
+}
+
+bool PrinterProfileState::set_z_offset_per_head(bool per_head) {
+    if (z_offset_per_head_ == per_head) {
+        return false;
+    }
+    z_offset_per_head_ = per_head;
+    publish_z_offset_reapplied_per_head();
+    return true;
+}
+
+void PrinterProfileState::publish_z_offset_reapplied_per_head() {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&z_offset_reapplied_per_head_, z_offset_reapplied_per_head() ? 1 : 0);
+    }
 }
 
 bool PrinterProfileState::merge_firmware_option_defaults(
@@ -167,7 +189,8 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     pre_print_option_set_.options.erase(
         std::remove_if(pre_print_option_set_.options.begin(), pre_print_option_set_.options.end(),
                        [](const PrePrintOption& opt) {
-                           return opt.id == "timelapse" || skip_wrappers::is_wrapper_option(opt);
+                           return opt.id == "timelapse" || opt.id == kHeatSoakOptionId ||
+                                  skip_wrappers::is_wrapper_option(opt);
                        }),
         pre_print_option_set_.options.end());
 
@@ -215,7 +238,7 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     // Moonraker. Synthesising on top of it gives the user two timelapse
     // toggles, and on firmware that ships a compatibility stub for the plugin
     // API the synthesised one silently does nothing. The database wins.
-    const bool database_owns_timelapse = pre_print_option_set_.declares_capability("timelapse");
+    firmware_owns_timelapse_ = pre_print_option_set_.declares_capability("timelapse");
 
     // Timelapse: append when the moonraker-timelapse plugin reports available.
     // Strategy is RuntimeCommand with sentinel values that
@@ -223,7 +246,7 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
     // for command_enabled / command_disabled prefixed with "timelapse:").
     // These are NOT gcode lines — start_print() routes them to
     // `api_->timelapse().set_timelapse_enabled(...)`.
-    if (!database_owns_timelapse && timelapse_available) {
+    if (!firmware_owns_timelapse_ && timelapse_available) {
         PrePrintOption tl;
         tl.id = "timelapse";
         tl.label_key = "Timelapse";
@@ -241,6 +264,26 @@ void PrinterProfileState::apply_dynamic_options(bool exclude_object_known, bool 
         cmd.command_disabled = "timelapse:off";
         tl.strategy = cmd;
         pre_print_option_set_.options.push_back(std::move(tl));
+    }
+
+    // Heat soak: the printer's soak macro, run ahead of the start macro with
+    // its own defaults. Off by default, since a soak adds minutes to a print
+    // the user did not ask to wait for. No off form: switched off, nothing is
+    // sent. A database option for the capability is the printer's own way to
+    // soak and wins.
+    if (!heat_soak_macro_.empty() &&
+        !pre_print_option_set_.declares_capability(kHeatSoakOptionId)) {
+        PrePrintOption soak;
+        soak.id = kHeatSoakOptionId;
+        soak.category = PrePrintCategory::Mechanical;
+        soak.order = -1; // the soak runs before any leveling step
+        soak.default_enabled = false;
+        soak.strategy_kind = PrePrintStrategyKind::PreStartGcode;
+        PrePrintStrategyPreStartGcode line;
+        line.gcode_template = heat_soak_macro_;
+        line.emit_when_disabled = false;
+        soak.strategy = std::move(line);
+        pre_print_option_set_.options.push_back(std::move(soak));
     }
 
     // Skip toggles for the leveling steps helix_skips.cfg wraps. A database

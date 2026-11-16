@@ -11,8 +11,7 @@ enum class PrintOutcome;
 /**
  * @brief Print state machine states
  *
- * Extracted from PrintStatusPanel for testability. Maps the raw Moonraker
- * job state + outcome into higher-level UI states.
+ * Maps the raw Moonraker job state + outcome into higher-level UI states.
  */
 enum class PrintState {
     Idle,      ///< No active print
@@ -23,6 +22,12 @@ enum class PrintState {
     Cancelled, ///< Print cancelled by user
     Error      ///< Print failed with error
 };
+
+/// What the printer has said about its job: running, not running, or nothing yet.
+/// Unknown is not Idle: a subject still holding its boot default says nothing.
+namespace helix {
+enum class ReportedPrintActivity { Active, Idle, Unknown };
+} // namespace helix
 
 /**
  * @brief Derive the UI-level print state from the printer's job state and phase
@@ -49,10 +54,10 @@ const char* print_state_name(PrintState state);
  *
  * True for `Preparing`, `Printing` and `Paused`: the states in which a print job
  * is entitled to move the toolhead, and therefore the states in which nothing
- * else may. This is the question the ~60 open-coded `PRINTING || PAUSED`
- * comparisons are all trying to ask, and the reason they get it wrong is that
- * `PrintJobState` cannot express `Preparing` - a job the app has committed to
- * but the printer has not reported yet.
+ * else may. An open-coded `PRINTING || PAUSED` comparison is trying to ask this
+ * question and gets it wrong, because `PrintJobState` cannot express
+ * `Preparing` - a job the app has committed to but the printer has not
+ * reported yet.
  *
  * Ask this instead of comparing the raw job state whenever the decision is
  * "would acting now fight the printer for the toolhead": motion and extrusion
@@ -106,7 +111,7 @@ constexpr bool print_job_running(PrintState state) {
  *   PAUSED, backend homes itself        -> refuse. AD5X IFS only: its
  *                                         `_IFS_REMOVE_CURRENT_PRUTOK` runs a
  *                                         buried `_G28` that probes a loadcell-Z
- *                                         nozzle into the part (bundle XWPBR2DX).
+ *                                         nozzle into the part.
  *   PAUSED, backend does NOT self-home  -> ALLOW. Pause-then-swap is the runout
  *                                         and colour-change recovery workflow on
  *                                         AFC / Happy Hare / CFS / ACE / QIDI /
@@ -136,6 +141,64 @@ namespace helix {
     return job_holds_machine(lifecycle);
 }
 
+/**
+ * @brief Would a filament LOAD run a firmware home right now?
+ *
+ * A self-homing backend homes unless its buried home is skipped on a toolhead
+ * that already reads "xyz" homed (AmsBackend::self_home_skipped_when_homed()).
+ *
+ * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
+ * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
+ * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ */
+[[nodiscard]] constexpr bool filament_load_homes_now(bool backend_self_homes,
+                                                     bool self_home_skipped_when_homed,
+                                                     bool toolhead_homed) {
+    return backend_self_homes && !(self_home_skipped_when_homed && toolhead_homed);
+}
+
+/**
+ * @brief Would a print refuse a filament LOAD right now?
+ *
+ * print_blocks_filament_op() with one refinement on a self-homing backend:
+ * where that backend's buried home only runs on an unhomed toolhead
+ * (AmsBackend::self_home_skipped_when_homed()), a PAUSED job whose toolhead
+ * reports "xyz" homed homes nothing, so the load goes through. Not homed, the
+ * home would fire into the part, and the load stays refused.
+ *
+ *   PRINTING / PREPARING        -> refuse, as for every filament op.
+ *   PAUSED, self-homes, homed   -> ALLOW when the home is skipped once homed
+ *                                  and the load unloads nothing first.
+ *   PAUSED, self-homes, unhomed -> refuse.
+ *   idle                        -> allow.
+ *
+ * A load that first unloads filament already at the toolhead
+ * (AmsBackend::load_unloads_toolhead_now()) is an unload as far as the job is
+ * concerned, and answers to print_blocks_filament_op() like one.
+ *
+ * Load only: a runout pause leaves an empty toolhead that only a load can fix,
+ * so this is the op the refinement was made for. Unload, tool change and
+ * purge keep print_blocks_filament_op().
+ *
+ * @param lifecycle                     The derived PrintState.
+ * @param backend_self_homes            AmsBackend::filament_ops_self_home(); false with none.
+ * @param self_home_skipped_when_homed  AmsBackend::self_home_skipped_when_homed(); false with none.
+ * @param toolhead_homed                toolhead_is_homed(): homed_axes holds x, y and z.
+ * @param load_unloads_toolhead         AmsBackend::load_unloads_toolhead_now(); false with none.
+ */
+[[nodiscard]] constexpr bool print_blocks_filament_load(PrintState lifecycle,
+                                                        bool backend_self_homes,
+                                                        bool self_home_skipped_when_homed,
+                                                        bool toolhead_homed,
+                                                        bool load_unloads_toolhead) {
+    if (load_unloads_toolhead) {
+        return print_blocks_filament_op(lifecycle, backend_self_homes);
+    }
+    return print_blocks_filament_op(
+        lifecycle,
+        filament_load_homes_now(backend_self_homes, self_home_skipped_when_homed, toolhead_homed));
+}
+
 } // namespace helix
 
 /**
@@ -163,7 +226,7 @@ struct StateChangeResult {
 /**
  * @brief Pure-logic state machine for print lifecycle
  *
- * Owns all the mutable state that PrintStatusPanel previously held inline.
+ * Owns the mutable print-lifecycle state behind PrintStatusPanel.
  * Has NO LVGL or widget dependencies — testable in isolation.
  *
  * Usage:
@@ -183,16 +246,16 @@ class PrintLifecycleState {
      *
      * @param start_phase The LIVE pre-print phase, so this derives the same
      *        answer as `PrinterPrintState::publish_lifecycle_state()` does for
-     *        the `print_lifecycle` subject. It used to hard-code 0 on the
-     *        reasoning that `on_start_phase_changed()` owned that axis, which is
-     *        false: a job-state change arriving while a phase is live must still
-     *        let the phase outrank it, exactly as `derive_print_state()` says.
-     *        Hard-coding 0 made this object disagree with the published subject
-     *        for the whole of a pre-print window - `Printing` instead of
-     *        `Preparing` on a firmware-side `PRINT_START`, and `Complete`
-     *        instead of `Preparing` when a host-side block runs after a finished
-     *        job. Defaulted to 0 so the phase-less unit tests, which exercise
-     *        this axis deliberately, keep reading as written.
+     *        the `print_lifecycle` subject. `on_start_phase_changed()` does not
+     *        own that axis alone: a job-state change arriving while a phase is
+     *        live must still let the phase outrank it, exactly as
+     *        `derive_print_state()` says. Passing 0 there makes this object
+     *        disagree with the published subject for the whole of a pre-print
+     *        window - `Printing` instead of `Preparing` on a firmware-side
+     *        `PRINT_START`, and `Complete` instead of `Preparing` when a
+     *        host-side block runs after a finished job. Defaulted to 0 so the
+     *        phase-less unit tests, which exercise this axis deliberately, keep
+     *        reading as written.
      */
     StateChangeResult on_job_state_changed(helix::PrintJobState job_state,
                                            helix::PrintOutcome outcome, int start_phase = 0);

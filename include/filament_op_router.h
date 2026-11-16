@@ -24,25 +24,11 @@
 #include <optional>
 #include <string>
 
-namespace helix::ui {
+namespace helix {
+class AmsBackend;
+}
 
-/**
- * @brief The process-wide MacroParamModal every filament surface shares.
- *
- * A function-local static, exactly as it was when it lived in
- * ui_panel_filament.cpp: one instance for the whole app, alive for the process
- * lifetime.
- *
- * That lifetime is load-bearing and easy to miss. MacroParamModal stores its
- * on_execute_ callback and does NOT clear it on dismiss — only the next
- * show_for_*() overwrites it. So a callback handed to this modal can fire
- * arbitrarily later, long after the object that built it is gone. FilamentPanel
- * is an immortal singleton and may capture [this] directly [L012]. Every other
- * caller MUST route through an AsyncLifetimeGuard token; AmsOperationSidebar is
- * destroyed whenever the AMS panel closes, which is a live use-after-free
- * without one.
- */
-helix::MacroParamModal& get_filament_param_modal();
+namespace helix::ui {
 
 /// Whether a tier-2 dispatch may interrupt the user to collect parameters.
 enum class ParamPolicy {
@@ -61,7 +47,7 @@ enum class ParamPolicy {
 /**
  * @brief How a parameter prompt is raised.
  *
- * The default installs get_filament_param_modal() on lv_screen_active(). It is
+ * The default raises helix::get_macro_param_modal() on lv_screen_active(). It is
  * an injection point so the prompt branch is reachable in a test binary with no
  * screen, and so a future surface can present parameters its own way without
  * forking dispatch_filament_macro().
@@ -151,7 +137,17 @@ nozzle_temp_prefill(FilamentMacroOp op, int extruder_target_c, std::optional<int
  *        extrusion. Purge has no plan_purge()/AmsBackend tier, so this is the
  *        whole tier-2 ladder alongside the configured macro, not "tier 3" of
  *        three.
+ *
+ * When @p backend can make that purge over its waste chute
+ * (IPrintRouting::manual_purge_gcode()), its wrapped script is returned instead
+ * of the in-place extrude.
  */
-[[nodiscard]] std::string filament_purge_fallback_gcode();
+[[nodiscard]] std::string filament_purge_fallback_gcode(const AmsBackend* backend = nullptr);
+
+/**
+ * @brief Relative extrusion of @p mm at @p speed_mm_min: `M83` then `G1 E.. F..`.
+ *        A negative @p mm retracts.
+ */
+[[nodiscard]] std::string extrude_gcode(int mm, int speed_mm_min);
 
 } // namespace helix::ui

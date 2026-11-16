@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
+#include "core/subject.h"
 #include "touch_calibration_controller.h"
 #include "touch_calibration_layout.h"
 #include "touch_calibration_panel.h"
@@ -22,15 +25,17 @@
  *
  * ## Class-Based Architecture
  *
- * - Instance members instead of static globals
+ * - Instance members, no static globals
  * - Global singleton getter for wizard framework compatibility
  * - Static trampolines for LVGL event callbacks
  *
  * ## Subject Bindings (3 total):
  *
- * - instruction_text (string) - Current instruction for the user
- * - current_step (int) - 0-3 (0-2 = calibration points, 3 = verify)
- * - calibration_valid (int) - 0=not valid, 1=valid
+ * - touch_cal_current_step (int) - 0-3 (0-2 = calibration points, 3 = verify)
+ * - touch_cal_valid (int) - 0=not valid, 1=valid
+ * - touch_cal_wizard_state (int) - TouchCalibrationPanel::State
+ *
+ * The instruction text goes to wizard_subtitle, not a subject of its own.
  *
  * Initialization Order (CRITICAL):
  *   1. Register XML components (wizard_touch_calibration.xml)
@@ -66,7 +71,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     WizardTouchCalibrationStep();
     ~WizardTouchCalibrationStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardTouchCalibrationStep(const WizardTouchCalibrationStep&) = delete;
     WizardTouchCalibrationStep& operator=(const WizardTouchCalibrationStep&) = delete;
@@ -84,9 +89,10 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
      * @brief Register event callbacks with lv_xml system
      *
      * Registers callbacks:
-     * - on_touch_cal_accept_clicked
-     * - on_touch_cal_retry_clicked
+     * - on_wizard_touch_cal_retry_clicked
      * - on_touch_cal_screen_touched
+     * - on_touch_cal_screen_released
+     * - on_touch_cal_test_area_touched
      */
     void register_callbacks() override;
 
@@ -101,7 +107,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     /**
      * @brief Cleanup resources
      *
-     * Resets UI references. Does NOT call lv_obj_del() - wizard
+     * Resets UI references. Does NOT call lv_obj_delete() - wizard
      * framework handles widget deletion.
      */
     void cleanup() override;
@@ -138,16 +144,18 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     friend class WizardTouchCalibrationTestAccess;
 
     lv_obj_t* screen_root_ = nullptr;
-    lv_obj_t* crosshair_ = nullptr;           // Reparented to screen for absolute positioning
-    lv_obj_t* test_area_container_ = nullptr; // Container for test area (shown in COMPLETE state)
-    lv_obj_t* test_touch_area_ = nullptr;     // Touch area for testing calibration
+    helix::ui::WidgetRef crosshair_;      // Reparented to screen for absolute positioning
+    lv_obj_t* test_touch_area_ = nullptr; // Touch area for testing calibration
     /// Panel, session, sink resolution, capture, retry and commit. Shared with the
     /// Settings recalibration overlay so neither can drift from the other.
     helix::ui::TouchCalibrationController controller_;
 
     // Subjects for UI state (instruction text uses wizard_subtitle instead)
-    lv_subject_t current_step_{}; // 0, 1, 2, 3 (3 = verify)
-    lv_subject_t calibration_valid_{};
+    helix::Subject current_step_{}; // 0, 1, 2, 3 (3 = verify)
+    helix::Subject calibration_valid_{};
+    /// The panel's TouchCalibrationPanel::State as an int; the capture surface,
+    /// crosshair and test area bind it
+    helix::Subject cal_state_{};
 
     bool subjects_initialized_ = false;
     bool calibration_failed_ = false; // True after failed attempt, cleared on first point capture
@@ -168,7 +176,7 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     void handle_test_area_touched(lv_event_t* e);
 
     // Ripple animation for touch feedback
-    void create_ripple_at(lv_coord_t x, lv_coord_t y);
+    void create_ripple_at(int32_t x, int32_t y);
 
     // Panel callback
     void on_calibration_complete(const helix::TouchCalibration* cal);
@@ -176,8 +184,8 @@ class WizardTouchCalibrationStep : public helix::wizard::Step,
     // Auto-accept handler fired when the panel enters VERIFY (issue #1029).
     // Wired via set_verify_entry_callback so it runs on every commit path
     // (release event / 600ms stall timer / legacy sample-on-press), not just
-    // the press edge — clean capacitive panels (Goodix/Q2) commit POINT_3 on
-    // release, so the old press-handler check never fired and the wizard hung
+    // the press edge: clean capacitive panels (Goodix/Q2) commit POINT_3 on
+    // release, so a press-edge check alone never fires and the wizard hangs
     // on "Computing calibration...".
     void on_verify_entered();
 

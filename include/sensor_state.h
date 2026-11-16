@@ -4,6 +4,7 @@
 
 #include "dynamic_subject_map.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 #include "sensor_manager.h"
 
 #include <lvgl/lvgl.h>
@@ -13,8 +14,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

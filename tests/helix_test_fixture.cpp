@@ -9,10 +9,9 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_notification_history.h"
-#include "ui_observer_guard.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_test_utils.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_constants.h"
@@ -21,18 +20,25 @@
 #include "audio_settings_manager.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/observer_guard.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_surface_correlation.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "filament_slot_override_store.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "http_executor.h"
 #include "lane_source_store.h"
 #include "logging_init.h"
 #include "lvgl_log_handler.h"
+#include "macro_param_cache.h"
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
+#include "post_op_cooldown_manager.h"
+#include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
@@ -41,6 +47,7 @@
 #include "settings_manager.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
+#include "standing_print_options.h"
 #include "system/crash_error_log_sink.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
@@ -52,12 +59,14 @@
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
-#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
+
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -151,17 +160,6 @@ struct ConfigSandbox {
         fs::create_directories(base / "backup", ec);
         dir = base.string();
 
-        // FilamentSlotOverrideStore's on-disk read-cache defaults to
-        // helix::get_user_config_dir() — the RELATIVE "config", i.e. the
-        // repo's own config/ under the test binary's CWD. AMS backend tests
-        // construct real backends whose stores get no per-instance dir (the
-        // per-test TestAccess classes that pin one exist only in the
-        // dedicated store tests), so `make test-run` wrote
-        // config/filament_slot_overrides.json into the repo. Redirect the
-        // process-wide fallback here — static initializer, so before main()
-        // and before any backend thread exists. Per-instance dirs still win.
-        helix::ams::detail::slot_override_cache_dir_ref() = dir;
-
         // The user filament overlay resolves to the same relative "config" dir.
         // MaterialSettingsManager writes it on every override change.
         helix::printer::detail::user_overlay_dir_ref() = dir;
@@ -226,13 +224,6 @@ void reset_config_singleton() {
     std::error_code backup_ec;
     std::filesystem::remove_all(config_sandbox_dir() + "/state", backup_ec);
     std::filesystem::remove_all(config_sandbox_dir() + "/backup", backup_ec);
-
-    // ToolState persists tool_spools.json into helix::get_user_config_dir(),
-    // which defaults to the RELATIVE dir "config" — i.e. the repo's own
-    // config/ under the test binary's CWD. It really did write there during
-    // `make test-run`, which also means a later run could load another run's
-    // spool assignments. set_config_dir() is the supported override.
-    helix::ToolState::instance().set_config_dir(config_sandbox_dir());
 
     // A test that wrote the overlay leaves its types merged into the material
     // table; drop both so the next test sees only the shipped types.
@@ -314,6 +305,8 @@ void HelixTestFixture::reset_printer_state() {
     // The print lifecycle lives in subjects, so clear_data() leaves it alone,
     // and a test that drove the global printer into a job leaves the next test
     // reading a print in progress (Clear Spool refused, pause paths armed).
+    // print_active is checked on its own: tests set it directly, with the job
+    // state still standby, and discovery reads it as a running print.
     // Returned to standby through the production path, which notifies only
     // when a value actually moves. Standby alone keeps the finished job's
     // progress and layer, as it does on a printer, so the next test's first
@@ -325,6 +318,7 @@ void HelixTestFixture::reset_printer_state() {
         if (ps.are_subjects_initialized() &&
             (print.get_print_lifecycle() != PrintState::Idle || print.is_in_print_start() ||
              print.get_print_job_state() != helix::PrintJobState::STANDBY ||
+             lv_subject_get_int(print.get_print_active_subject()) != 0 ||
              lv_subject_get_int(print.get_print_layer_current_subject()) != 0 ||
              lv_subject_get_int(print.get_print_progress_subject()) != 0)) {
             print.reset_print_start_state(); // deferred: drained below
@@ -333,6 +327,11 @@ void HelixTestFixture::reset_printer_state() {
             print.reset_for_new_print();
         }
     }
+}
+
+void HelixTestFixture::keep_logger_for_exit() {
+    static const auto* kept = new std::shared_ptr<spdlog::logger>(spdlog::default_logger());
+    (void)kept;
 }
 
 void HelixTestFixture::reset_all() {
@@ -398,6 +397,8 @@ void HelixTestFixture::reset_all() {
     // derived fixture did, which is what the scattered clear_path() calls in
     // individual tests were working around.
     helix::test::reset_config_singleton();
+    // A backend's start reads this cache to pick its firmware's command dialect.
+    helix::MacroParamCache::instance().clear();
     // StandardMacros holds each slot's user-configured macro, and reset() keeps
     // it on purpose, so a Load macro one test assigned outlives the config
     // reset above and routes every later filament op to the macro tier.
@@ -406,10 +407,18 @@ void HelixTestFixture::reset_all() {
     StandardMacros::instance().load_from_config();
     helix::SystemSettingsManager::instance().init_subjects();
     helix::SystemSettingsManager::instance().set_language("en");
+    // Every formatter reads the display unit; a test that shows °F must not
+    // leave the rest of the binary reading it.
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+    helix::units::publish_temp_unit();
+    helix::set_saved_date_format(std::nullopt);
 
     // A same-spool notice asked in one test would otherwise hold its lane's
     // quiet window open into the next, and that test's insert would ask nothing.
     helix::ui::reset_insert_offers_for_test();
+
+    // A whole suite opens more overlay names than the open trace has records for.
+    helix::nav::reset_overlay_open_trace_for_test();
 
     // Global RuntimeConfig's --real-*/--no-ams/--disconnected opt-out flags back
     // to their off-by-default state. Every test that exercises RuntimeConfig
@@ -426,11 +435,9 @@ void HelixTestFixture::reset_all() {
     // later test that connects a mock client with MMU hardware. test_mode itself
     // is still intentionally left alone: a test that sets it expects it to hold
     // for the duration of its own TEST_CASE, and resetting it here would fight
-    // that. Restoring it is the setter's job — both tests that used to leave it
-    // set on the global (test_printer_capabilities_char.cpp,
-    // test_wizard_input_shaper_step.cpp) now hold a ScopedRuntimeConfig instead
-    // (tests/test_helpers/scoped_runtime_config.h), after one of them cost four
-    // unrelated tool_state/tool_switcher failures under a combined filter (#1287).
+    // that. Restoring it is the setter's job: a test that sets it holds a
+    // ScopedRuntimeConfig (tests/test_helpers/scoped_runtime_config.h), since a
+    // leaked test_mode fails unrelated tool_state/tool_switcher cases (#1287).
     get_runtime_config()->use_real_wifi = false;
     get_runtime_config()->use_real_ethernet = false;
     get_runtime_config()->use_real_moonraker = false;
@@ -457,6 +464,12 @@ void HelixTestFixture::reset_all() {
     // took.
     helix::ams::reset_lane_sources();
 
+    // The screen-start ledger is process-wide, so a start one test noted would
+    // be claimed as this screen's by the next. A claim at the end of time
+    // expires every entry.
+    helix::screen_start_ledger().claim("", helix::ScreenStartLedger::Clock::time_point::max());
+    helix::screen_start_ledger().set_announce(false);
+
     // PrintStatusWidget's DetailedFormatter used to be torn down here for the
     // reason described below, and no longer needs to be: its PrinterState
     // observers now carry that state's SubjectLifetime, so their guards learn the
@@ -469,7 +482,7 @@ void HelixTestFixture::reset_all() {
     // subject; lv_subject_deinit frees the observer node, leaving the
     // controller's ObserverGuard with a dangling lv_observer_t*. The next
     // destructor that walks it (the singleton's own static teardown at exit, or
-    // the next fixture's reset()) calls lv_observer_remove() on freed memory →
+    // the next fixture's reset()) calls lv_observer_delete() on freed memory →
     // SIGSEGV / heap corruption. This surfaced as nightly [slow] crashes:
     // a segfault in ~PrintControlButtons at process exit, plus mid-run
     // "malloc(): unaligned tcache chunk detected" aborts. Removing the observer
@@ -714,6 +727,11 @@ void HelixTestFixture::reset_all() {
     // clear it. A motion sensor left enabled turns the clog meter on for every
     // later test that syncs a snapshot with no backend detector.
     helix::FilamentSensorManagerTestAccess::clear_sensors(helix::FilamentSensorManager::instance());
+
+    // A pending post-op cooldown holds a CleanupHold, which every later case would
+    // read as SIGTERM's graceful path. After the drains, so no queued schedule()
+    // re-arms it. Cases that schedule cooldowns init() the manager themselves.
+    PostOpCooldownManager::instance().shutdown();
 
     // NOTE: NavigationManager has no public reset API (clear_overlay_stack is
     // private; shutdown() is a one-way teardown for app exit). Add a reset

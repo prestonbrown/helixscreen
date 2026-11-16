@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -21,8 +21,7 @@ struct PreferenceRows {
 };
 
 PreferenceRows preference_rows(bool is_subsequent_printer, bool bypass_is_virtual,
-                               bool reports_spool_ids, bool retains_spool_info,
-                               bool has_sound_backend);
+                               bool lane_record_is_only_identity, bool has_sound_backend);
 
 /// Wizard page of taste-only toggles. Each row is bound to the same subject and
 /// callback as its settings-overlay twin, so there is no second copy of the state.
@@ -55,10 +54,10 @@ class WizardPreferencesStep : public Step {
     ObserverGuard backend_count_observer_;
     ObserverGuard ams_type_observer_;
     SubjectManager subjects_;
-    lv_subject_t show_global_{};
-    lv_subject_t show_bypass_spool_{};
-    lv_subject_t show_keep_spool_info_{};
-    lv_subject_t show_sounds_{};
+    helix::Subject show_global_{};
+    helix::Subject show_bypass_spool_{};
+    helix::Subject show_keep_spool_info_{};
+    helix::Subject show_sounds_{};
 };
 
 WizardPreferencesStep* get_wizard_preferences_step();

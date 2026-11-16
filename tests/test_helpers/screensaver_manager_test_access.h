@@ -7,6 +7,7 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "config.h"
+#include "json_fwd.h"
 #include "platform_capabilities.h"
 #include "refresh_period_hold.h"
 #include "refresh_period_hold_test_access.h"
@@ -21,8 +22,6 @@
 #include <string>
 #include <utility>
 
-#include "hv/json.hpp"
-
 namespace helix {
 
 // Test-only seam. The manager owns its saver instances, its gate state and its clock privately.
@@ -33,9 +32,15 @@ class ScreensaverManagerTestAccess {
         return mgr.active_;
     }
 
-    /// Replaces the CPU clock; the next idle-check tick samples it at once.
-    static void set_cpu_clock(ScreensaverManager& mgr, helix::ui::CpuClockFn clock) {
+    /// Replaces the CPU clock; the next idle-check tick samples it at once. The wall clock
+    /// checked between samples is `wall`, or else the wall half of `clock`.
+    static void set_cpu_clock(ScreensaverManager& mgr, helix::ui::CpuClockFn clock,
+                              helix::ui::WallClockFn wall = {}) {
+        if (!wall) {
+            wall = [clock] { return clock().wall_ns; };
+        }
         mgr.cpu_clock_ = std::move(clock);
+        mgr.wall_clock_ = std::move(wall);
         mgr.sampled_ = false;
     }
 

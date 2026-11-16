@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 /**
  * @file led_color_utils.h
@@ -53,7 +53,7 @@ inline bool parse_color_data(const nlohmann::json& led_obj, RgbwF& out) {
     // Field-restricted Moonraker subscriptions can deliver null channel
     // values for strips that don't expose a particular component; guard
     // each get<double>() so a null doesn't throw type_error.302 and
-    // unwind into main() (#filament_motion_sensor / f75b961d8 family).
+    // unwind into main().
     if (!first[0].is_number() || !first[1].is_number() || !first[2].is_number()) {
         return false;
     }

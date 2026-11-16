@@ -7,22 +7,25 @@
  *        failed.
  *
  * Every one of the overlay's three join paths has a different surface - the
- * password modal's status label, the hidden-network modal's error label, and
- * a toast for an open network, which opens no modal at all. All three must
+ * password modal's status label, the hidden-network modal's error label
+ * (test_network_settings_hidden_connect.cpp), and a toast for an open network,
+ * which opens no modal at all. All three must
  * carry the reason the join failed. A canned "check your password" is correct
  * for exactly one WiFiResult; substituting it for a daemon that is down, a
  * network out of range or a transport that took the link tells a user whose
  * password is correct to retype it indefinitely.
  */
 
+#include "ui_modal.h"
 #include "ui_overlay_network_settings.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -56,20 +59,6 @@ class ConnectFailureFixture : public LVGLUITestFixture {
         return wm;
     }
 
-    /// A stand-in for a modal built from XML: the widgets the handler looks
-    /// up by name, and nothing else.
-    lv_obj_t* make_modal(const char* input_name, const char* status_name) {
-        lv_obj_t* modal = lv_obj_create(lv_screen_active());
-        REQUIRE(modal != nullptr);
-        lv_obj_t* input = lv_textarea_create(modal);
-        lv_obj_set_name(input, input_name);
-        lv_textarea_set_text(input, "some-password");
-        lv_obj_t* status = lv_label_create(modal);
-        lv_obj_set_name(status, status_name);
-        lv_label_set_text(status, "");
-        return modal;
-    }
-
     static std::string label_text(lv_obj_t* modal, const char* name) {
         lv_obj_t* label = lv_obj_find_by_name(modal, name);
         REQUIRE(label != nullptr);
@@ -93,68 +82,7 @@ struct ErrorToastCapture {
 
 } // namespace
 
-TEST_CASE_METHOD(ConnectFailureFixture,
-                 "Password modal shows the backend's reason, not a password prompt",
-                 "[network_settings][1542][wifi]") {
-    auto wm = make_manager();
-    auto overlay = std::make_unique<NetworkSettingsOverlay>();
-    overlay->init_subjects();
-    overlay->register_callbacks();
-    Access::wifi_manager(*overlay) = wm;
-    REQUIRE(overlay->create(test_screen()) != nullptr);
-
-    lv_obj_t* modal = make_modal("password_input", "modal_status");
-    Access::password_modal(*overlay) = modal;
-    Access::set_current_ssid(*overlay, kUnknownSsid);
-
-    Access::password_connect_clicked(*overlay);
-    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
-
-    const std::string shown = label_text(modal, "modal_status");
-    // The reason reached the label. Asserting the precondition first: an
-    // empty label would mean the failure branch never ran, and then the
-    // inequality below would pass having tested nothing.
-    REQUIRE_FALSE(shown.empty());
-    REQUIRE(shown != lv_tr("Connection failed. Check password."));
-    REQUIRE(shown.find(kUnknownSsid) != std::string::npos);
-
-    Access::password_modal(*overlay) = nullptr;
-}
-
-TEST_CASE_METHOD(ConnectFailureFixture,
-                 "Hidden-network modal shows the backend's reason, not a credential prompt",
-                 "[network_settings][1542][wifi]") {
-    auto wm = make_manager();
-    auto overlay = std::make_unique<NetworkSettingsOverlay>();
-    overlay->init_subjects();
-    overlay->register_callbacks();
-    Access::wifi_manager(*overlay) = wm;
-    REQUIRE(overlay->create(test_screen()) != nullptr);
-
-    // The hidden-network form: an SSID field, and security left at "None" so
-    // no password is required of it.
-    lv_obj_t* modal = lv_obj_create(lv_screen_active());
-    REQUIRE(modal != nullptr);
-    lv_obj_t* ssid_input = lv_textarea_create(modal);
-    lv_obj_set_name(ssid_input, "ssid_input");
-    lv_textarea_set_text(ssid_input, kUnknownSsid);
-    lv_obj_t* error_label = lv_label_create(modal);
-    lv_obj_set_name(error_label, "error_label");
-    lv_label_set_text(error_label, "");
-    Access::hidden_network_modal(*overlay) = modal;
-
-    Access::hidden_connect_clicked(*overlay);
-    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
-
-    const std::string shown = label_text(modal, "error_label");
-    REQUIRE_FALSE(shown.empty());
-    REQUIRE(shown != lv_tr("Connection failed. Check credentials."));
-    REQUIRE(shown.find(kUnknownSsid) != std::string::npos);
-
-    Access::hidden_network_modal(*overlay) = nullptr;
-}
-
-TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to join tells the user",
+TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join tells the user why",
                  "[network_settings][1542][wifi]") {
     ErrorToastCapture toasts;
 
@@ -172,25 +100,60 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to j
     open_net.ssid = kUnknownSsid; // in the list, unknown to the backend
     open_net.is_secured = false;
     open_net.signal_strength = 70;
-    Access::populate(overlay, {open_net});
+    WiFiNetwork secured_net;
+    secured_net.ssid = "#LockedNet"; // a leading '#' must reach the label as typed
+    secured_net.is_secured = true;
+    secured_net.security_type = "WPA2";
+    secured_net.signal_strength = 30;
+    Access::populate(overlay, {open_net, secured_net});
 
     REQUIRE(overlay.get_root() != nullptr);
 
-    // Row names carry a process-wide counter, so the row is found by its
+    // Row names carry a process-wide counter, so a row is found by its
     // rendered SSID rather than by guessing an index.
-    lv_obj_t* list_row = nullptr;
-    for (uint32_t i = 0; i < 64 && !list_row; i++) {
-        char name[32];
-        snprintf(name, sizeof(name), "network_item_%u", i);
-        lv_obj_t* candidate = lv_obj_find_by_name(overlay.get_root(), name);
-        if (candidate) {
-            lv_obj_t* ssid_label = lv_obj_find_by_name(candidate, "ssid_label");
-            if (ssid_label && std::string(lv_label_get_text(ssid_label)) == kUnknownSsid) {
-                list_row = candidate;
+    auto find_row = [&](const std::string& ssid) -> lv_obj_t* {
+        for (uint32_t i = 0; i < 64; i++) {
+            char name[32];
+            snprintf(name, sizeof(name), "network_item_%u", i);
+            lv_obj_t* candidate = lv_obj_find_by_name(overlay.get_root(), name);
+            lv_obj_t* label = candidate ? lv_obj_find_by_name(candidate, "ssid_label") : nullptr;
+            if (label && std::string(lv_label_get_text(label)) == ssid) {
+                return candidate;
             }
         }
-    }
+        return nullptr;
+    };
+    // The one signal icon a row shows, by name.
+    auto shown_signal_icon = [](lv_obj_t* row) {
+        std::string shown;
+        for (const char* name : {"sig_1", "sig_2", "sig_3", "sig_4", "sig_1_lock", "sig_2_lock",
+                                 "sig_3_lock", "sig_4_lock"}) {
+            lv_obj_t* icon = lv_obj_find_by_name(row, name);
+            REQUIRE(icon != nullptr);
+            if (!lv_obj_is_hidden(icon)) {
+                REQUIRE(shown.empty());
+                shown = name;
+            }
+        }
+        return shown;
+    };
+    auto security_text = [](lv_obj_t* row) {
+        lv_obj_t* label = lv_obj_find_by_name(row, "security_label");
+        REQUIRE(label != nullptr);
+        return std::string(lv_label_get_text(label));
+    };
+
+    lv_obj_t* locked_row = find_row(secured_net.ssid);
+    REQUIRE(locked_row != nullptr);
+    CHECK(security_text(locked_row) == "WPA2");
+    CHECK(shown_signal_icon(locked_row).find("_lock") != std::string::npos);
+
+    lv_obj_t* list_row = find_row(kUnknownSsid);
     REQUIRE(list_row != nullptr);
+    CHECK(security_text(list_row).empty());
+    const std::string open_icon = shown_signal_icon(list_row);
+    CHECK_FALSE(open_icon.empty());
+    CHECK(open_icon.find("_lock") == std::string::npos);
 
     lv_obj_send_event(list_row, LV_EVENT_CLICKED, nullptr);
     REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
@@ -204,6 +167,32 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping an open network that fails to j
             named_the_reason = true;
     }
     REQUIRE(named_the_reason);
+
+    // A secured row opens the password modal, whose status line says why
+    // Connect did nothing, then carries the backend's reason rather than a
+    // canned password prompt.
+    lv_obj_send_event(locked_row, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* modal = ModalStack::instance().top_dialog();
+    REQUIRE(modal != nullptr);
+    lv_obj_t* status = lv_obj_find_by_name(modal, "modal_status");
+    lv_obj_t* connect = lv_obj_find_by_name(modal, "modal_connect_btn");
+    REQUIRE(status != nullptr);
+    REQUIRE(connect != nullptr);
+    REQUIRE(lv_obj_is_hidden(status));
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+    CHECK(label_text(modal, "modal_status") == lv_tr("Password cannot be empty"));
+    CHECK_FALSE(lv_obj_is_hidden(status));
+
+    lv_textarea_set_text(lv_obj_find_by_name(modal, "password_input"), "some-password");
+    lv_obj_send_event(connect, LV_EVENT_CLICKED, nullptr);
+    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
+    const std::string shown = label_text(modal, "modal_status");
+    // Not empty first: an empty label would pass the inequality having tested nothing.
+    REQUIRE_FALSE(shown.empty());
+    CHECK(shown != lv_tr("Connection failed. Check password."));
+    CHECK(shown.find(secured_net.ssid) != std::string::npos);
+    CHECK_FALSE(lv_obj_is_hidden(status));
+    lv_obj_send_event(lv_obj_find_by_name(modal, "modal_cancel_btn"), LV_EVENT_CLICKED, nullptr);
 
     Access::wifi_manager(overlay) = previous;
 }

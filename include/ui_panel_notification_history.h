@@ -4,9 +4,10 @@
 #pragma once
 
 #include "ui_notification_history.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "subject_managed_panel.h"
 
@@ -34,8 +35,6 @@
  * - Enables unit testing with mock NotificationHistory
  * - Decouples panel from global state
  *
- * ## Migration Notes:
- * Phase 3 panel - first to demonstrate service injection pattern.
  * Uses overlay panel helpers (ui_overlay_panel_setup_standard).
  *
  * @see PanelBase for base class documentation
@@ -62,9 +61,6 @@ class NotificationHistoryPanel : public PanelBase {
     // === PanelBase Implementation ===
     //
 
-    /**
-     * @brief Initialize subjects for reactive bindings
-     */
     void init_subjects() override;
 
     /**
@@ -122,10 +118,10 @@ class NotificationHistoryPanel : public PanelBase {
     SubjectManager subjects_;
 
     /// Has entries subject (1 = has entries, 0 = empty)
-    lv_subject_t has_entries_subject_{};
+    helix::Subject has_entries_subject_{};
 
     /// Rows the list's <repeat> builds, and each row's fields by index.
-    lv_subject_t row_count_subject_{};
+    helix::Subject row_count_subject_{};
     helix::xml::IndexedSubjectPool severity_pool_{"notification_row_severity",
                                                   helix::xml::IndexedSubjectPool::Type::Int};
     helix::xml::IndexedSubjectPool title_pool_{"notification_row_title",
@@ -186,7 +182,7 @@ class NotificationHistoryPanel : public PanelBase {
     void dispatch_action(const char* action);
 };
 
-// Global instance accessor (needed by main.cpp)
+// Global instance accessor; NotificationManager opens the panel through it.
 NotificationHistoryPanel& get_global_notification_history_panel();
 
 namespace helix::ui {

@@ -21,8 +21,9 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_pointer_indev.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "home_edit_mode_test_helpers.h"
 #include "moonraker_api.h"
@@ -30,7 +31,6 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/speed_flow_widget.h"
-#include "static_panel_registry.h"
 #include "tune_controller.h"
 
 #include "../catch_amalgamated.hpp"
@@ -50,7 +50,7 @@ struct SpeedFlowFixture : public LVGLUITestFixture {
         set_physical_units(false);
         set_print_active(false);
         set_percentages(100, 100);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void set_physical_units(bool on) {
@@ -73,7 +73,7 @@ struct SpeedFlowFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -105,7 +105,7 @@ lv_obj_t* part(PanelWidgetHarness<SpeedFlowWidget>& h, const char* axis, const c
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.

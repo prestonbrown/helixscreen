@@ -27,7 +27,6 @@
 
 #include "ui_job_queue_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/job_queue_modal_test_access.h"
 #include "../test_helpers/job_queue_state_test_access.h"
@@ -43,6 +42,8 @@
 #include "../test_helpers/tile_boxes.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"
@@ -51,7 +52,6 @@
 #include "queued_job_options.h"
 #include "queued_job_start.h"
 #include "src/ui/panel_widgets/job_queue_widget.h"
-#include "static_panel_registry.h"
 #include "test_helpers/pre_print_option_sets.h"
 #include "test_helpers/printer_state_test_access.h"
 
@@ -260,16 +260,16 @@ TEST_CASE_METHOD(QueuedStartFixture,
 
 namespace {
 
-/// A job_queue_row carrying @p job_id, its callbacks acting on @p modal.
+/// A job_queue_row carrying @p job_id inside @p modal's dialog, which is how its
+/// callbacks find the modal they act on.
 lv_obj_t* make_queue_row(JobQueueModal& modal, const std::string& job_id,
                          const std::string& filename) {
-    JobQueueModalTestAccess::register_callbacks();
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/job_queue_row.xml") ==
             LV_RESULT_OK);
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "job_queue_row", nullptr));
+    REQUIRE(modal.show(lv_screen_active()));
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(modal.dialog(), "job_queue_row", nullptr));
     REQUIRE(row != nullptr);
     JobQueueModalTestAccess::attach_row_data(row, job_id, filename);
-    JobQueueModalTestAccess::set_active(&modal);
     return row;
 }
 
@@ -506,6 +506,27 @@ TEST_CASE_METHOD(QueuedStartFixture,
     CHECK_FALSE(::PrintSelectPanelTestAccess::detail_view_visible(*panel_));
 }
 
+TEST_CASE_METHOD(QueuedStartFixture,
+                 "the screensaver over the queued file's detail view keeps the pending start",
+                 "[job_queue][queue_start][suspend]") {
+    PlantedGcode file("queue_start_suspend.gcode");
+    seed_store("0001", file.name(), {{"bed_mesh", false}});
+
+    panel_->start_queued_job(entry("0001", file.name()));
+    drain();
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "detail_view_visible")) == 1);
+    REQUIRE(pending_job_id() != nullptr);
+
+    NavigationManager::instance().suspend_active();
+    drain();
+    NavigationManager::instance().resume_active();
+    drain();
+
+    const std::string* pending = pending_job_id();
+    REQUIRE(pending != nullptr);
+    CHECK(*pending == "0001");
+}
+
 // ============================================================================
 // The home tile's starter shares the after-start bookkeeping
 // ============================================================================
@@ -610,7 +631,7 @@ class TileStartFixture : public helix::test::QueuedStartMockedFixture {
         tile.resize(1, 1, w, h);
         lv_obj_t* button = tile.child(button_name);
         REQUIRE(button != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(button));
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
         CHECK(helix::queue::queued_job_starter().in_flight());
         REQUIRE(wait_until([] { return !helix::queue::queued_job_starter().in_flight(); }, 5000));
@@ -664,7 +685,7 @@ TEST_CASE_METHOD(TileStartFixture, "the tile reads Starting with no button while
     tile.resize(1, 1, test::kCell.w, test::kCell.h);
     lv_obj_t* button = tile.child("jq_action");
     REQUIRE(button != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(button));
     auto state = []() { return lv_subject_get_int(lv_xml_get_subject(nullptr, "jq_tile_state")); };
 
     mock_client_.defer_next("server.database.get_item"); // hold the saved-options read
@@ -673,7 +694,7 @@ TEST_CASE_METHOD(TileStartFixture, "the tile reads Starting with no button while
     process_lvgl(30); // the tile refreshes on the next tick
     REQUIRE(helix::queue::queued_job_starter().in_flight());
     CHECK(state() == static_cast<int>(helix::JobQueueTileState::Starting));
-    CHECK(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(button));
 
     // The printer takes another job meanwhile, which ends the start.
     set_wire_state(get_printer_state(), PrintJobState::PRINTING);
@@ -726,4 +747,40 @@ TEST_CASE_METHOD(helix::test::QueuedStartMockedFixture,
     CHECK(*pending == "0001");
     CHECK_FALSE(helix::queue::queued_job_starter().in_flight());
     CHECK(starts() == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the job queue modal's state line and empty state follow the queue",
+                 "[job_queue]") {
+    JobQueueState jqs{nullptr, nullptr};
+    helix::ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+    auto* modal = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "job_queue_modal", nullptr));
+    REQUIRE(modal != nullptr);
+    auto shown = [modal](const char* name) {
+        return !lv_obj_is_hidden(lv_obj_find_by_name(modal, name));
+    };
+    auto set = [](const char* subject, int v) {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, subject), v);
+    };
+
+    set("job_queue_count", 0);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Ready));
+    CHECK(shown("modal_empty_state"));
+    CHECK(shown("queue_state_label"));
+    CHECK_FALSE(shown("queue_paused_label"));
+    CHECK(shown("btn_toggle_queue"));
+    CHECK_FALSE(shown("btn_start_queue"));
+
+    set("job_queue_count", 2);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Paused));
+    set("job_queue_loaded", 0); // disconnected: the count is a stale fetch's
+    CHECK(shown("modal_empty_state"));
+    set("job_queue_loaded", 1);
+    CHECK_FALSE(shown("modal_empty_state"));
+    CHECK_FALSE(shown("queue_state_label"));
+    CHECK(shown("queue_paused_label"));
+    CHECK_FALSE(shown("btn_toggle_queue"));
+    CHECK(shown("btn_start_queue"));
+    lv_obj_delete(modal);
 }

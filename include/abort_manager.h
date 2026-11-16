@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_job_api.h"
 #include "printer_recovery_service.h"
@@ -88,10 +90,6 @@ class AbortManager {
         UNSUPPORTED ///< Firmware without HEATER_INTERRUPT
     };
 
-    /**
-     * @brief Get singleton instance
-     * @return Reference to the global AbortManager instance
-     */
     static AbortManager& instance();
 
     /**
@@ -141,7 +139,7 @@ class AbortManager {
 
     /**
      * @brief Check if abort is currently in progress
-     * @return true if state is not IDLE
+     * @return true unless the state is IDLE or COMPLETE
      */
     bool is_aborting() const;
 
@@ -155,24 +153,16 @@ class AbortManager {
      * @brief Check if AbortManager is handling a controlled shutdown
      *
      * Returns true when AbortManager has initiated an M112 emergency stop
-     * and is managing the recovery. This flag persists until klippy returns
-     * to READY state, even after the state machine reaches COMPLETE.
+     * and is managing the recovery. The flag is set with M112 and cleared
+     * when klippy returns to READY or the abort sequence completes.
      * Used to suppress the global "Printer Shutdown" recovery dialog.
      *
      * @return true if currently handling M112/restart recovery
      */
     bool is_handling_shutdown() const;
 
-    /**
-     * @brief Get current state machine state
-     * @return Current State enum value
-     */
     State get_state() const;
 
-    /**
-     * @brief Get HEATER_INTERRUPT support status
-     * @return Current HeaterInterruptSupport enum value
-     */
     HeaterInterruptSupport get_heater_interrupt_support() const;
 
     /**
@@ -252,7 +242,6 @@ class AbortManager {
     AbortManager() = default;
     ~AbortManager() = default;
 
-    // Non-copyable
     AbortManager(const AbortManager&) = delete;
     AbortManager& operator=(const AbortManager&) = delete;
 
@@ -271,13 +260,13 @@ class AbortManager {
     std::string last_result_message_;
 
     // Subject for UI binding
-    lv_subject_t abort_state_subject_{};
-    lv_subject_t progress_message_subject_{};
+    helix::Subject abort_state_subject_{};
+    helix::Subject progress_message_subject_{};
     char progress_message_buf_[128]{};
     bool subjects_initialized_ = false;
 
     // Modal backdrop + dialog (created on lv_layer_top() for overlay behavior)
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
 
     // Observer for klippy state changes during WAITING_RECONNECT
     ObserverGuard klippy_observer_;
@@ -288,8 +277,8 @@ class AbortManager {
     // RAII subject manager for automatic cleanup
     SubjectManager subjects_;
 
-    // Persistent flag: set when M112 sent, cleared when klippy returns to READY
-    // Used to suppress "Printer Shutdown" dialog even after state machine completes
+    // Set when M112 is sent; cleared when klippy returns to READY or the abort
+    // completes. Suppresses the "Printer Shutdown" dialog during that recovery.
     std::atomic<bool> shutdown_recovery_in_progress_{false};
 
     // Flag to track if we've seen SHUTDOWN state during WAITING_RECONNECT

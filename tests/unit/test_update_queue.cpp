@@ -1,11 +1,15 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/widget_in_tree.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "lvgl_test_fixture.h"
-#include "observer_factory.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/update_queue_test_access.h"
 
+#include <functional>
+#include <memory>
 #include <system_error>
 
 #include "../catch_amalgamated.hpp"
@@ -19,7 +23,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "drain works before freeze", "[update_queue]")
 
     // Queue and drain before freezing — callback should run
     q.queue([&first_ran]() { first_ran = true; });
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(first_ran);
 }
 
@@ -33,12 +37,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "drain inside freeze is a no-op for buffered w
         q.queue([&ran]() { ran = true; });
         // Drain inside freeze: the work was diverted into frozen_buffer_,
         // so pending_ is empty and the drain is a no-op.
-        UpdateQueueTestAccess::drain(q);
+        q.drain();
         REQUIRE_FALSE(ran);
     }
     // Freeze released → buffer spliced into pending_. Flush before captures
     // go out of scope.
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(ran);
 }
 
@@ -52,12 +56,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScopedFreeze buffers, splices on release", "[
         q.queue("a-buffered", [&a]() { a = true; });
         q.queue("b-buffered", [&b]() { b = true; });
         // Drain inside freeze is a no-op for buffered work.
-        UpdateQueueTestAccess::drain(q);
+        q.drain();
         REQUIRE_FALSE(a);
         REQUIRE_FALSE(b);
     }
     // Freeze released → buffer spliced into pending_. Drain fires both.
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(a);
     REQUIRE(b);
 }
@@ -71,7 +75,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScopedFreeze is RAII — thaw on scope exit",
 
     // After scope exit, queue should work again
     q.queue([&ran]() { ran = true; });
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
 
     REQUIRE(ran);
 }
@@ -92,7 +96,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "queue resumes after thaw — buffered + post-
     // After thaw, queue another callback. Drain fires both: the spliced-in
     // buffered one and the post-thaw one.
     q.queue([&resumed_ran]() { resumed_ran = true; });
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
 
     REQUIRE(buffered_ran);
     REQUIRE(resumed_ran);
@@ -127,8 +131,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback is buffered dur
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 42);
+    helix::Subject subject;
+    subject.init_int(42);
 
     // Guard must outlive the freeze. In real code the guard is a member of
     // the widget that registered it; destroying it before the buffered initial
@@ -145,16 +149,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback is buffered dur
             subject_never_freed());
 
         // Drain inside freeze is a no-op — buffer has not been spliced yet.
-        UpdateQueueTestAccess::drain(q);
+        q.drain();
         REQUIRE(panel.observed_value == -1);
     }
 
     // After thaw, the buffered initial fire is in pending_. Drain delivers it.
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(panel.observed_value == 42);
 
     guard.reset();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without ScopedFreeze",
@@ -162,8 +165,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without S
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 42);
+    helix::Subject subject;
+    subject.init_int(42);
 
     {
         // Create observer without freeze — initial fire should be delivered.
@@ -171,11 +174,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> initial callback works without S
             &subject, &panel, [](FakePanel* p, int value) { p->observed_value = value; },
             subject_never_freed());
 
-        UpdateQueueTestAccess::drain(q);
+        q.drain();
         REQUIRE(panel.observed_value == 42);
     }
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered after thaw",
@@ -183,8 +184,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered
     auto& q = UpdateQueue::instance();
     FakePanel panel;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     ObserverGuard guard;
     {
@@ -198,16 +199,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> subsequent changes are delivered
 
     // Buffered initial fire spliced into pending_ on freeze release — drain
     // delivers it.
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(panel.observed_value == 0);
 
     // A subsequent subject change is also delivered.
     lv_subject_set_int(&subject, 99);
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
     REQUIRE(panel.observed_value == 99);
 
     guard.reset();
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "tagged queue_update sets current_callback_tag during execution",
@@ -218,7 +218,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "tagged queue_update sets current_callback_tag
     q.queue("TestTag::my_callback", [&tag_during_callback]() {
         tag_during_callback = UpdateQueue::current_callback_tag();
     });
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
 
     REQUIRE(tag_during_callback != nullptr);
     REQUIRE(std::string(tag_during_callback) == "TestTag::my_callback");
@@ -232,7 +232,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "untagged queue_update has null callback tag",
 
     q.queue(
         [&tag_during_callback]() { tag_during_callback = UpdateQueue::current_callback_tag(); });
-    UpdateQueueTestAccess::drain(q);
+    q.drain();
 
     REQUIRE(tag_during_callback == nullptr);
 }
@@ -252,6 +252,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "drain timer does not wake the main loop faste
     CHECK(UpdateQueueTestAccess::timer_period(q) >= LV_DEF_REFR_PERIOD);
 }
 
+// A soft restart shuts the queue down and initializes it again in a live LVGL.
+// Each cycle must leave exactly one drain timer, not one more than the last.
+TEST_CASE_METHOD(LVGLTestFixture, "init and shutdown cycles leave one drain timer",
+                 "[update_queue]") {
+    auto count_timers = [] {
+        int n = 0;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            ++n;
+        }
+        return n;
+    };
+    auto& q = UpdateQueue::instance();
+    const int before = count_timers();
+    for (int i = 0; i < 5; ++i) {
+        q.shutdown();
+        q.init();
+    }
+    CHECK(count_timers() == before);
+}
+
 // The early-out that skips building a local queue when nothing is pending must
 // not swallow work: a drain that finds the queue empty has to leave frozen
 // callbacks buffered, and the next drain has to run everything that arrived in
@@ -266,13 +286,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "empty drain leaves buffered and later work in
         auto freeze = q.scoped_freeze();
         q.queue("frozen", [&frozen_ran]() { frozen_ran = true; });
         // pending_ is empty here — the work went to the frozen buffer.
-        UpdateQueueTestAccess::drain(q);
+        q.drain();
         CHECK_FALSE(frozen_ran);
     }
 
     q.queue("nests",
             [&q, &nested_ran]() { q.queue("nested", [&nested_ran]() { nested_ran = true; }); });
-    UpdateQueueTestAccess::drain_all(q);
+    q.drain_until_empty();
 
     CHECK(frozen_ran);
     CHECK(nested_ran);
@@ -298,7 +318,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         throw std::system_error(static_cast<int>(0xB338C5C0u), std::generic_category());
     });
     q.queue("AfterThrow::still_runs", [&ran_after_throw]() { ran_after_throw = true; });
-    UpdateQueueTestAccess::drain_all(q);
+    q.drain_until_empty();
 
     CHECK(UpdateQueueTestAccess::callback_exception_count() == before + 1);
     CHECK(ran_after_throw);
@@ -319,7 +339,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "an untagged throwing callback is named by its
     helix::TextLogCapture capture;
 
     q.queue([]() { throw std::runtime_error("boom"); });
-    UpdateQueueTestAccess::drain_all(q);
+    q.drain_until_empty();
 
     CHECK(UpdateQueueTestAccess::callback_exception_count() == before + 1);
     CHECK(capture.contains("std::runtime_error"));
@@ -336,7 +356,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a non-std exception names its type with no me
     helix::TextLogCapture capture;
 
     q.queue("IntThrower::raw", []() { throw 42; });
-    UpdateQueueTestAccess::drain_all(q);
+    q.drain_until_empty();
 
     CHECK(UpdateQueueTestAccess::callback_exception_count() == before + 1);
     CHECK(capture.contains("IntThrower::raw"));
@@ -364,6 +384,46 @@ TEST_CASE_METHOD(LVGLTestFixture, "queue_update frees its payload when the callb
     lv_obj_delete(widget);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "drain_until_empty follows queued work up to its pass cap",
+                 "[update_queue]") {
+    auto& q = UpdateQueue::instance();
+    int ran = 0;
+    std::function<void(int)> chain = [&](int hops) {
+        q.queue("chain", [&, hops]() {
+            ++ran;
+            if (hops > 1) {
+                chain(hops - 1);
+            }
+        });
+    };
+
+    SECTION("drain alone stops at the first hop") {
+        chain(2);
+        q.drain();
+        CHECK(ran == 1);
+    }
+    SECTION("the default cap covers ten hops and stops short of an eleventh") {
+        chain(10);
+        q.drain_until_empty();
+        CHECK(ran == 10);
+        CHECK(UpdateQueueTestAccess::queue_empty(q));
+
+        ran = 0;
+        chain(11);
+        q.drain_until_empty();
+        CHECK(ran == 10);
+        CHECK_FALSE(UpdateQueueTestAccess::queue_empty(q));
+    }
+    SECTION("an explicit cap leaves the rest queued") {
+        chain(5);
+        q.drain_until_empty(2);
+        CHECK(ran == 2);
+        CHECK_FALSE(UpdateQueueTestAccess::queue_empty(q));
+    }
+    // Nothing queued may outlive the captures above.
+    q.drain_until_empty();
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "is_draining holds through nested drains and ends with them",
                  "[update_queue][lifecycle]") {
     auto& q = UpdateQueue::instance();
@@ -389,4 +449,97 @@ TEST_CASE_METHOD(LVGLTestFixture, "is_draining holds through nested drains and e
     q.queue("throws", []() { throw std::runtime_error("boom"); });
     q.drain();
     CHECK_FALSE(q.is_draining());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: valid widget executes callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+    auto data = std::make_unique<int>(42);
+
+    helix::ui::queue_update<int>(widget, std::move(data), [&callback_fired](lv_obj_t* w, int* d) {
+        REQUIRE(helix::test::widget_in_tree(w));
+        REQUIRE(*d == 42);
+        callback_fired = true;
+    });
+
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: deleted widget skips callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+    auto data = std::make_unique<int>(99);
+
+    helix::ui::queue_update<int>(widget, std::move(data),
+                                 [&callback_fired](lv_obj_t*, int*) { callback_fired = true; });
+
+    // Destroy widget before draining queue
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Widget-safe queue_update: data freed even when skipped",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    struct TrackDestruction {
+        bool* destroyed;
+        ~TrackDestruction() {
+            *destroyed = true;
+        }
+    };
+
+    bool data_destroyed = false;
+    auto data = std::make_unique<TrackDestruction>();
+    data->destroyed = &data_destroyed;
+
+    helix::ui::queue_update<TrackDestruction>(widget, std::move(data),
+                                              [](lv_obj_t*, TrackDestruction*) {});
+
+    // Destroy widget — callback should be skipped but data still freed
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(data_destroyed);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update: valid widget executes callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+
+    helix::ui::queue_widget_update(widget, [&callback_fired](lv_obj_t* w) {
+        REQUIRE(helix::test::widget_in_tree(w));
+        callback_fired = true;
+    });
+
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(callback_fired);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "queue_widget_update: deleted widget skips callback",
+                 "[widget_safe][async]") {
+    lv_obj_t* widget = lv_obj_create(test_screen());
+    REQUIRE(widget != nullptr);
+
+    bool callback_fired = false;
+
+    helix::ui::queue_widget_update(widget, [&callback_fired](lv_obj_t*) { callback_fired = true; });
+
+    lv_obj_delete(widget);
+
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(callback_fired);
 }

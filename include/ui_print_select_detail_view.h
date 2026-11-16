@@ -5,14 +5,17 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_filament_mapping_card.h"
-#include "ui_observer_guard.h"
 #include "ui_plugin_items_menu.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
+#include "ui_widget_ref.h"
 
 #include "ams_remap.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "gcode_footer_summary.h"
 #include "gcode_preview_fetcher.h"
+#include "helix_shared_callback.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "preflight_validator.h"
@@ -31,7 +34,6 @@
 #include <set>
 #include <string>
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -72,7 +74,7 @@ namespace helix::ui {
 /**
  * @brief Callback when delete is confirmed
  */
-using DeleteConfirmedCallback = std::function<void()>;
+using DeleteConfirmedCallback = helix::SharedCallback<void()>;
 
 /**
  * @brief Detail view overlay manager
@@ -178,7 +180,7 @@ class PrintSelectDetailView : public OverlayBase {
      * The tap is only offered when current_remap_block() answers None, which
      * also drives the chevron and the card's clickable flag.
      */
-    void set_on_remap_requested(std::function<void()> callback) {
+    void set_on_remap_requested(helix::SharedCallback<void()> callback) {
         on_remap_requested_ = std::move(callback);
     }
 
@@ -189,7 +191,7 @@ class PrintSelectDetailView : public OverlayBase {
      * panel to the plugin install modal, so a card that refuses a remap offers
      * the one action that would make it work instead of dead-ending.
      */
-    void set_on_plugin_setup_requested(std::function<void()> callback) {
+    void set_on_plugin_setup_requested(helix::SharedCallback<void()> callback) {
         on_plugin_setup_requested_ = std::move(callback);
     }
 
@@ -202,7 +204,7 @@ class PrintSelectDetailView : public OverlayBase {
      * panel wires its back-out bookkeeping (a pending queued start) here so
      * those paths cannot miss it.
      */
-    void set_on_dismissed(std::function<void()> callback) {
+    void set_on_dismissed(helix::SharedCallback<void()> callback) {
         on_dismissed_cb_ = std::move(callback);
     }
 
@@ -214,7 +216,7 @@ class PrintSelectDetailView : public OverlayBase {
 
     /// Set callback fired when file_check_pending() may have changed: the
     /// shown file's scan was asked for or answered, or an option row changed.
-    void set_on_print_readiness_changed(std::function<void()> callback) {
+    void set_on_print_readiness_changed(helix::SharedCallback<void()> callback) {
         on_print_readiness_changed_cb_ = std::move(callback);
     }
 
@@ -396,7 +398,7 @@ class PrintSelectDetailView : public OverlayBase {
      * callback is tracked; a later call overwrites an earlier pending one.
      * Cleared on show() so a stale attempt from a previous file can't fire.
      */
-    void run_when_loaded(std::function<void()> cb);
+    void run_when_loaded(helix::SharedCallback<void()> cb);
 
     /**
      * @brief Run @p cb once a Print tap can be evaluated (is_print_start_ready()).
@@ -409,7 +411,7 @@ class PrintSelectDetailView : public OverlayBase {
      * wedge the print: the print proceeds without those checks rather than never
      * starting.
      */
-    void run_when_preflight_ready(std::function<void()> cb);
+    void run_when_preflight_ready(helix::SharedCallback<void()> cb);
 
     // === Pre-start object picks ===
 
@@ -706,16 +708,6 @@ class PrintSelectDetailView : public OverlayBase {
         return timelapse_checkbox_;
     }
 
-    // === Subject Access ===
-
-    [[nodiscard]] lv_subject_t* get_prep_time_estimate_subject() {
-        return &prep_time_estimate_subject_;
-    }
-
-    void set_prep_estimate_visible(int visible) {
-        lv_subject_set_int(&preprint_estimate_visible_, visible);
-    }
-
     // === Resize Handling ===
 
     /**
@@ -746,6 +738,9 @@ class PrintSelectDetailView : public OverlayBase {
 
   private:
     friend class ::PrintSelectDetailViewTestAccess;
+
+    /// Re-estimate the prep time and publish it to this view's label subjects.
+    void update_prep_time_label();
 
     /// Keep the file's fetched metadata and re-estimate the prep time, which
     /// heats to the metadata's first-layer temperatures. Metadata fetched for
@@ -804,6 +799,7 @@ class PrintSelectDetailView : public OverlayBase {
     // === Dependencies ===
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
+    PrinterState* observed_printer_ = nullptr; ///< see observe_printer()
     lv_subject_t* visible_subject_ = nullptr;
     lv_subject_t* material_text_subject_ = nullptr; ///< see set_material_text_subject()
 
@@ -813,7 +809,7 @@ class PrintSelectDetailView : public OverlayBase {
     // === Widget References ===
     // Note: overlay_root_ inherited from OverlayBase holds the main widget
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* confirmation_dialog_widget_ = nullptr;
+    helix::ui::WidgetRef confirmation_dialog_widget_;
     lv_obj_t* print_button_ = nullptr;
     lv_obj_t* gcode_viewer_ = nullptr;
 
@@ -825,20 +821,20 @@ class PrintSelectDetailView : public OverlayBase {
     lv_obj_t* purge_line_checkbox_ = nullptr;
     lv_obj_t* timelapse_checkbox_ = nullptr;
 
-    // History status display
-    lv_obj_t* history_status_row_ = nullptr;
-    lv_obj_t* history_status_icon_ = nullptr;
-    lv_obj_t* history_status_label_ = nullptr;
+    // History status display: the FileHistoryStatus value picks the row's icon in XML
+    helix::Subject detail_history_status_{};
+    helix::Subject detail_history_text_{};
+    char detail_history_text_buf_[64]{};
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
-    lv_subject_t detail_gcode_viewer_mode_{};
+    helix::Subject detail_gcode_viewer_mode_{};
     // G-code loading indicator (0=hidden, 1=visible)
-    lv_subject_t detail_gcode_loading_{};
+    helix::Subject detail_gcode_loading_{};
 
     /// Indexing progress 0-100; 0 = nothing to show (spinner). Driven by
     /// progress_timer_ polling the viewer while detail_gcode_loading_ is 1.
-    lv_subject_t detail_gcode_progress_{};
-    lv_subject_t detail_gcode_progress_text_{};
+    helix::Subject detail_gcode_progress_{};
+    helix::Subject detail_gcode_progress_text_{};
     char detail_gcode_progress_text_buf_[64]{};
 
     /// Polls the viewer's load progress onto the subjects above. Raw lv_timer_t,
@@ -855,11 +851,11 @@ class PrintSelectDetailView : public OverlayBase {
     // 1 = the gcode viewer has rendered its first real frame. The thumbnail
     // (which sits on top of the viewer in z-order) stays visible until this
     // flips, covering the gray viewer during the load-to-render gap.
-    lv_subject_t detail_viewer_first_frame_{};
+    helix::Subject detail_viewer_first_frame_{};
 
     /// Whether the viewer widget is hidden, per preview_viewer_hidden(). Bound
     /// by print_file_detail.xml; kept in step by refresh_viewer_visibility().
-    lv_subject_t detail_viewer_hidden_{};
+    helix::Subject detail_viewer_hidden_{};
 
     /// Recompute detail_viewer_hidden from the render mode and first-frame
     /// state. Call after either changes - they are written from several places
@@ -867,19 +863,19 @@ class PrintSelectDetailView : public OverlayBase {
     void refresh_viewer_visibility();
     // 1 = show slicer-intended colors instead of loaded AMS slot colors.
     // View-local, resets to 0 (actual) on every show().
-    lv_subject_t detail_prefer_sliced_colors_{};
+    helix::Subject detail_prefer_sliced_colors_{};
     // 1 = the options scroll area has content below its visible bottom edge.
     // Drives the bottom fade cue's visibility binding in print_file_detail.xml;
     // updated by update_options_more_below() from the scroll area's
     // scroll/size/layout events and after the option rows are populated.
-    lv_subject_t detail_options_more_below_{};
+    helix::Subject detail_options_more_below_{};
     // 0 = mapping/swatch chips not authoritative yet (XML shows skeletons),
     // 1 = authoritative chip state rendered. Mirrors is_preflight_ready() —
     // the same readiness the print-start gate waits on. Flips 0→1 at show()
     // on a tools-used cache hit, else when the headless scan or the viewer
     // parse completes; back to 0 in on_deactivate(). Published ONLY via
     // publish_mapping_ready().
-    lv_subject_t detail_mapping_ready_{};
+    helix::Subject detail_mapping_ready_{};
     /// The file's objects with the pending picks as its excluded set. Private
     /// to this view: init_subjects(false) keeps it off the XML registry.
     helix::PrinterExcludedObjectsState exclude_objects_;
@@ -890,9 +886,9 @@ class PrintSelectDetailView : public OverlayBase {
     /// See hold_picks_for_start().
     bool picks_held_for_start_ = false;
     /// 1 when the skip button shows (pre_start_exclude_available()).
-    lv_subject_t detail_exclude_available_{};
-    lv_subject_t detail_exclude_pick_count_{};
-    lv_subject_t detail_exclude_pick_count_text_{};
+    helix::Subject detail_exclude_available_{};
+    helix::Subject detail_exclude_pick_count_{};
+    helix::Subject detail_exclude_pick_count_text_{};
     char detail_exclude_pick_count_text_buf_[8]{};
     /// Push the pick count and the viewer's faded set from the picks.
     void publish_exclude_picks();
@@ -903,7 +899,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Pending print-attempt (or other) callback registered via run_when_loaded()
     // while a parse was still in flight. Fired once from the load callback after
     // preflight_result_ is fresh, then cleared. Reset on show().
-    std::function<void()> on_loaded_cb_;
+    helix::SharedCallback<void()> on_loaded_cb_;
 
     // --- Shared gcode download (ONE file + ONE download per open) ---
     // The headless tools scan and the viewer preview share a single canonical
@@ -962,7 +958,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Pending callback registered via run_when_preflight_ready() while neither the
     // viewer parse nor the headless scan had completed. Fired once when readiness
     // arrives (or on the safety timeout), then cleared. Reset on show().
-    std::function<void()> on_preflight_ready_cb_;
+    helix::SharedCallback<void()> on_preflight_ready_cb_;
     lv_timer_t* preflight_ready_timeout_timer_ = nullptr; // safety fallback; never wedge a print
 
     // Safety fallback: if neither the viewer parse nor the headless scan reports
@@ -971,49 +967,48 @@ class PrintSelectDetailView : public OverlayBase {
     static constexpr uint32_t kPreflightReadyTimeoutMs = 8000;
 
     // Pre-print option toggle state lives in `option_rows_renderer_` (one
-    // heap-allocated subject per option) — the legacy fixed six subjects
-    // (preprint_bed_mesh_, preprint_qgl_, etc.) were retired in Phase 3.5.
-    lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
+    // heap-allocated subject per option), never in fixed per-option members.
+    helix::Subject filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
     // 1 = tapping the filament card opens the remap picker. Drives BOTH the
     // chevron that advertises the tap and the card's own clickable flag, so a
     // card that cues a tap and a card that answers one can never disagree.
     // Published with filament_mapping_visible_ by publish_card_visibility().
-    lv_subject_t color_card_remappable_{};
+    helix::Subject color_card_remappable_{};
     // The rest of the card's remap story, published from the same place. One
     // RemapBlock decides all four, so the greyed card, its stated reason and the
     // affordance that fixes it cannot describe different states.
     // 1 = the one case where the card would otherwise lie: a job this printer
     // could remap, refused only because the plugin is absent. Drives the
     // disabled look AND the Set up affordance, because they are one condition.
-    lv_subject_t color_card_remap_needs_setup_{};
+    helix::Subject color_card_remap_needs_setup_{};
     // 1 = the card carries something worth explaining, so show the help icon.
     // Covers both the refusal and the "this will misfile your history" advisory;
     // the copy is chosen when the icon is tapped, not when it is published.
-    lv_subject_t color_card_remap_help_visible_{};
+    helix::Subject color_card_remap_help_visible_{};
     // The fit check's verdict for the shown file: 0 none, 1 notes only,
     // 2 warnings, 3 a block, and one line per finding.
-    lv_subject_t detail_fit_severity_{};
-    lv_subject_t detail_fit_text_{};
+    helix::Subject detail_fit_severity_{};
+    helix::Subject detail_fit_text_{};
     char detail_fit_text_buf_[512]{};
     // The plugin's analysis of the shown file, as the fit check reads it.
     std::optional<helix::FitFile> fit_record_;
     /// 1 while an enabled plugin declares a print_file menu item: the button row
     /// becomes Delete, more, Print as square icon buttons. Set on every show().
-    lv_subject_t print_detail_has_plugin_items_{};
+    helix::Subject print_detail_has_plugin_items_{};
     helix::ui::PluginItemsMenu plugin_items_menu_;
     // Whether a job rewrite can run, in the tri-state the pre-print option rows
     // that need one bind their visibility to: 1 yes, 0 no, -1 not known yet.
     // Published by publish_rewrite_availability().
-    lv_subject_t gcode_rewrite_available_{};
+    helix::Subject gcode_rewrite_available_{};
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed (works
     // even when the mapping card is hidden, e.g. Snapmaker U1 / ACE). Read by the
     // print-start gate and the enriched pre-print modal. Empty until a file parses.
     helix::PreflightResult preflight_result_{};
-    lv_subject_t prep_time_estimate_subject_{}; // formatted prep time string for bind_text
-    lv_subject_t preprint_estimate_visible_{};  // 1 while the estimate line has text
-    char prep_time_estimate_buf_[64]{};         // buffer backing the string subject
-    SubjectManager subjects_;                   // RAII manager for subject cleanup
+    helix::Subject prep_time_estimate_subject_{}; // formatted prep time string for bind_text
+    helix::Subject preprint_estimate_visible_{};  // 1 while the estimate line has text
+    char prep_time_estimate_buf_[64]{};           // buffer backing the string subject
+    SubjectManager subjects_;                     // RAII manager for subject cleanup
     // Note: subjects_initialized_ inherited from OverlayBase
 
     // Live re-color when AMS slot colors/presence change while this view is open.
@@ -1084,11 +1079,11 @@ class PrintSelectDetailView : public OverlayBase {
     // open the remap modal — the same entry point the preflight-check modal's
     // "Map Filament…" button uses. Empty on backends where the card is purely
     // informational.
-    std::function<void()> on_remap_requested_;
-    std::function<void()> on_plugin_setup_requested_;
-    std::function<void()> on_dismissed_cb_;
+    helix::SharedCallback<void()> on_remap_requested_;
+    helix::SharedCallback<void()> on_plugin_setup_requested_;
+    helix::SharedCallback<void()> on_dismissed_cb_;
     MacroAnalysisCallback on_macro_analysis_cb_;
-    std::function<void()> on_print_readiness_changed_cb_;
+    helix::SharedCallback<void()> on_print_readiness_changed_cb_;
     void notify_print_readiness_changed() const;
 
     // === Internal Methods ===
@@ -1160,7 +1155,7 @@ class PrintSelectDetailView : public OverlayBase {
      * resolves (main thread). ok=false on download error / no API / no cache
      * dir.
      */
-    void ensure_gcode_downloaded(std::function<void(bool ok, const std::string& path)> cb);
+    void ensure_gcode_downloaded(helix::SharedCallback<void(bool ok, const std::string& path)> cb);
 
     /**
      * @brief Point the viewer at @p path and start loading it
@@ -1325,6 +1320,10 @@ class PrintSelectDetailView : public OverlayBase {
      * backfill, a fresh used-tool set) must run `update()` BEFORE this.
      */
     void publish_card_visibility();
+
+    /// Hooks the card and exclude-object observers to the injected printer, once its
+    /// state and this view's subjects both exist, whichever the caller arranged first.
+    void observe_printer();
     /// Why a job rewrite cannot run right now, or None.
     [[nodiscard]] helix::GcodeRewriteBlock rewrite_block() const;
     void publish_rewrite_availability();

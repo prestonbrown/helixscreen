@@ -4,8 +4,10 @@
 #if HELIX_ENABLE_SCREENSAVER
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/screensaver_clock_scopes.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "asset_manager.h"
 #include "screensaver_aqua.h"
 #include "screensaver_fireflies.h"
 #include "screensaver_fireworks.h"
@@ -15,6 +17,7 @@
 #include "screensaver_maze.h"
 #include "screensaver_pipes.h"
 #include "screensaver_starfield.h"
+#include "theme_manager.h"
 
 #include <cinttypes>
 #include <cstdint>
@@ -112,29 +115,43 @@ uint64_t saver_run(Saver& ss, uint32_t seed, int frames, int sample_every,
     return run;
 }
 
-uint64_t pipes_run(uint32_t seed) {
+uint64_t pipes_run(uint32_t seed, bool printing) {
     PipesScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kSteadyMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 120, 20, kSteadyMs, &elapsed_ms);
 }
 
-uint64_t starfield_run(uint32_t seed) {
+uint64_t starfield_run(uint32_t seed, bool printing = false) {
     StarfieldScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t fireworks_run(uint32_t seed) {
+uint64_t fireworks_run(uint32_t seed, bool printing) {
     FireworksScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t hyperspace_run(uint32_t seed) {
+uint64_t hyperspace_run(uint32_t seed, bool printing = false) {
     HyperspaceScreensaver ss;
-    return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    if (printing) {
+        ss.set_input_source([&elapsed_ms] { return clock_input_at(elapsed_ms, true); });
+    }
+    return saver_run(ss, seed, 120, 20, kUnevenFrameMs, &elapsed_ms);
 }
 
-uint64_t fireflies_run(uint32_t seed) {
+uint64_t fireflies_run(uint32_t seed, bool printing) {
     FirefliesScreensaver ss;
-    return saver_run(ss, seed, 150, 25, kUnevenFrameMs);
+    uint32_t elapsed_ms = 0;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, seed, 150, 25, kUnevenFrameMs, &elapsed_ms);
 }
 
 uint64_t maze_run(uint32_t seed) {
@@ -144,9 +161,27 @@ uint64_t maze_run(uint32_t seed) {
     return saver_run(ss, seed, 120, 20, kUnevenFrameMs);
 }
 
+/**
+ * @brief Pins what a clock saver reads from the app around its run
+ *
+ * Clock savers draw in theme fonts and colors, and the theme stays initialized for the rest
+ * of the process once any case has initialized it, so a run that initializes it itself (light
+ * mode, at the fixture's 800x480, as LVGLUITestFixture does) draws the same pixels whatever
+ * ran before it. The text also reads the language and the Time Format setting.
+ */
+struct ClockSaverScope {
+    ClockSaverScope() {
+        AssetManager::register_all();
+        theme_manager_init(lv_display_get_default(), false);
+    }
+    helix::test::LanguageScope language{"en"};
+    helix::test::TimeFormatScope time_format{helix::TimeFormat::HOUR_12};
+};
+
 /// The flip clock draws no random numbers, so a different start time stands in for a seed. A
 /// 25 s offset starts the run at 10:08:55, so its cards flip to 10:09 five seconds in.
 uint64_t flip_clock_run(uint32_t start_offset_s, bool printing) {
+    ClockSaverScope app;
     FlipClockScreensaver ss;
     uint32_t elapsed_ms = start_offset_s * 1000;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
@@ -154,6 +189,7 @@ uint64_t flip_clock_run(uint32_t start_offset_s, bool printing) {
 }
 
 uint64_t aqua_run(uint32_t seed, bool printing) {
+    ClockSaverScope app;
     AquaScreensaver ss;
     uint32_t elapsed_ms = 0;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
@@ -161,6 +197,7 @@ uint64_t aqua_run(uint32_t seed, bool printing) {
 }
 
 uint64_t highfly_run(uint32_t seed, bool printing) {
+    ClockSaverScope app;
     HighFlyScreensaver ss;
     uint32_t elapsed_ms = 0;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
@@ -217,11 +254,11 @@ void write_fingerprints(const std::map<std::string, std::string>& values) {
 /// Fingerprints are recorded with the Linux x86-64 test builds; another compiler or target may
 /// contract floating point differently and draw a pixel one step apart. A line may list one
 /// value per toolchain that draws the saver differently (clang on thelio, g++ in CI's image).
-void skip_off_the_recording_platform() {
-#if !(defined(__linux__) && defined(__x86_64__))
-    SKIP("screensaver fingerprints are recorded on x86-64 Linux");
+#if defined(__linux__) && defined(__x86_64__)
+constexpr bool kOnRecordingPlatform = true;
+#else
+constexpr bool kOnRecordingPlatform = false;
 #endif
-}
 
 void check_fingerprint(const std::string& name, uint64_t value) {
     if (std::getenv("HELIX_SCREENSAVER_FINGERPRINT_WRITE") != nullptr) {
@@ -241,90 +278,104 @@ void check_fingerprint(const std::string& name, uint64_t value) {
     CHECK(accepts(recorded.at(name), hex(value)));
 }
 
-} // namespace
-
-TEST_CASE_METHOD(LVGLTestFixture, "every canvas saver matches its recorded pixel fingerprint",
-                 "[screensaver][screensaver_fingerprint]") {
-    skip_off_the_recording_platform();
-    SECTION("pipes") {
-        check_fingerprint("pipes", pipes_run(42));
-    }
-    SECTION("starfield") {
-        check_fingerprint("starfield", starfield_run(5));
-    }
-    SECTION("fireworks") {
-        check_fingerprint("fireworks", fireworks_run(7));
-    }
-    SECTION("hyperspace") {
-        check_fingerprint("hyperspace", hyperspace_run(11));
-    }
-    SECTION("fireflies") {
-        check_fingerprint("fireflies", fireflies_run(13));
-    }
-    SECTION("maze") {
-        check_fingerprint("maze", maze_run(17));
-    }
-    SECTION("flip clock") {
-        check_fingerprint("flip_clock", flip_clock_run(25, false));
-    }
-    SECTION("flip clock counting a print down") {
-        check_fingerprint("flip_clock_print", flip_clock_run(25, true));
-    }
-    SECTION("aqua") {
-        check_fingerprint("aqua", aqua_run(19, false));
-    }
-    SECTION("aqua counting a print down") {
-        check_fingerprint("aqua_print", aqua_run(19, true));
-    }
-    SECTION("high fly") {
-        check_fingerprint("highfly", highfly_run(23, false));
-    }
-    SECTION("high fly counting a print down") {
-        check_fingerprint("highfly_print", highfly_run(23, true));
+/**
+ * @brief `value` is the run `name` records, which proves the run replays exactly
+ *
+ * A recorded value was drawn by another process, so matching it is a replay. Off the
+ * recording platform no value applies, and `rerun` must match `value` instead. Callers run
+ * the saver with another seed first, so state one run leaks into the next changes `value`.
+ */
+template <typename Rerun> void check_replay(const std::string& name, uint64_t value, Rerun rerun) {
+    if (kOnRecordingPlatform) {
+        check_fingerprint(name, value);
+    } else {
+        CHECK(value == rerun());
     }
 }
 
+} // namespace
+
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "a fingerprint run replays exactly and a different seed draws different pixels",
+                 "every canvas saver replays its recorded pixel fingerprint and a different seed "
+                 "draws different pixels",
                  "[screensaver][screensaver_fingerprint]") {
     SECTION("pipes") {
-        CHECK(pipes_run(42) == pipes_run(42));
-        CHECK(pipes_run(42) != pipes_run(43));
+        const uint64_t other = pipes_run(43, false);
+        const uint64_t run = pipes_run(42, false);
+        const uint64_t print = pipes_run(42, true);
+        check_replay("pipes", run, [] { return pipes_run(42, false); });
+        check_replay("pipes_print", print, [] { return pipes_run(42, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("starfield") {
-        CHECK(starfield_run(5) == starfield_run(5));
-        CHECK(starfield_run(5) != starfield_run(6));
+        const uint64_t other = starfield_run(6);
+        const uint64_t run = starfield_run(5);
+        const uint64_t print = starfield_run(5, true);
+        check_replay("starfield", run, [] { return starfield_run(5); });
+        check_replay("starfield_print", print, [] { return starfield_run(5, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireworks") {
-        CHECK(fireworks_run(7) == fireworks_run(7));
-        CHECK(fireworks_run(7) != fireworks_run(8));
+        const uint64_t other = fireworks_run(8, false);
+        const uint64_t run = fireworks_run(7, false);
+        const uint64_t print = fireworks_run(7, true);
+        check_replay("fireworks", run, [] { return fireworks_run(7, false); });
+        check_replay("fireworks_print", print, [] { return fireworks_run(7, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("hyperspace") {
-        CHECK(hyperspace_run(11) == hyperspace_run(11));
-        CHECK(hyperspace_run(11) != hyperspace_run(12));
+        const uint64_t other = hyperspace_run(12);
+        const uint64_t run = hyperspace_run(11);
+        const uint64_t print = hyperspace_run(11, true);
+        check_replay("hyperspace", run, [] { return hyperspace_run(11); });
+        check_replay("hyperspace_print", print, [] { return hyperspace_run(11, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("fireflies") {
-        CHECK(fireflies_run(13) == fireflies_run(13));
-        CHECK(fireflies_run(13) != fireflies_run(14));
+        const uint64_t other = fireflies_run(14, false);
+        const uint64_t run = fireflies_run(13, false);
+        const uint64_t print = fireflies_run(13, true);
+        check_replay("fireflies", run, [] { return fireflies_run(13, false); });
+        check_replay("fireflies_print", print, [] { return fireflies_run(13, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("maze") {
-        CHECK(maze_run(17) == maze_run(17));
-        CHECK(maze_run(17) != maze_run(18));
+        const uint64_t other = maze_run(18);
+        const uint64_t run = maze_run(17);
+        check_replay("maze", run, [] { return maze_run(17); });
+        CHECK(run != other);
     }
     SECTION("flip clock") {
-        CHECK(flip_clock_run(25, false) == flip_clock_run(25, false));
-        CHECK(flip_clock_run(25, false) != flip_clock_run(85, false));
-        CHECK(flip_clock_run(25, false) != flip_clock_run(25, true));
+        const uint64_t other = flip_clock_run(85, false);
+        const uint64_t run = flip_clock_run(25, false);
+        const uint64_t print = flip_clock_run(25, true);
+        check_replay("flip_clock", run, [] { return flip_clock_run(25, false); });
+        check_replay("flip_clock_print", print, [] { return flip_clock_run(25, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("aqua") {
-        CHECK(aqua_run(19, false) == aqua_run(19, false));
-        CHECK(aqua_run(19, false) != aqua_run(20, false));
-        CHECK(aqua_run(19, false) != aqua_run(19, true));
+        const uint64_t other = aqua_run(20, false);
+        const uint64_t run = aqua_run(19, false);
+        const uint64_t print = aqua_run(19, true);
+        check_replay("aqua", run, [] { return aqua_run(19, false); });
+        check_replay("aqua_print", print, [] { return aqua_run(19, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
     SECTION("high fly") {
-        CHECK(highfly_run(23, false) == highfly_run(23, false));
-        CHECK(highfly_run(23, false) != highfly_run(24, false));
-        CHECK(highfly_run(23, false) != highfly_run(23, true));
+        const uint64_t other = highfly_run(24, false);
+        const uint64_t run = highfly_run(23, false);
+        const uint64_t print = highfly_run(23, true);
+        check_replay("highfly", run, [] { return highfly_run(23, false); });
+        check_replay("highfly_print", print, [] { return highfly_run(23, true); });
+        CHECK(run != other);
+        CHECK(run != print);
     }
 }
 

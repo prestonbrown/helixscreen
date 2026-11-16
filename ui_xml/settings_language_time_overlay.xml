@@ -30,6 +30,12 @@
                               label="Time Format" icon="clock" description="Choose 12-hour or 24-hour time display"
                               options="12 Hour&#10;24 Hour" options_tag="12 Hour&#10;24 Hour"
                               bind_selected="settings_time_format" callback="on_time_format_changed"/>
+        <!-- Date Format Dropdown -->
+        <setting_dropdown_row name="row_date_format"
+                              label="Date Format" icon="clock" description="Choose the order of day, month and year"
+                              options="Day Month Year&#10;Month Day Year&#10;Year Month Day"
+                              options_tag="Day Month Year&#10;Month Day Year&#10;Year Month Day"
+                              bind_selected="settings_date_format" callback="on_date_format_changed"/>
       </setting_group>
       <!-- Bottom padding for scroll -->
       <lv_obj width="100%" scrollable="false">

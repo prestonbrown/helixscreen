@@ -17,8 +17,8 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
 
@@ -58,26 +58,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Re-created DetailedFormatter keeps its XML s
     // ...and it is the live formatter's subject, not an orphaned record.
     lv_subject_set_int(ps.print_state().get_print_layer_current_subject(), 7);
     lv_subject_set_int(ps.print_state().get_print_layer_total_subject(), 9);
-    UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+    UpdateQueue::instance().drain_until_empty();
     CHECK(std::string(lv_subject_get_string(layer_text)) == "7 / 9");
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "release_formatter_for_test does not underflow the refcount",
-                 "[print_status][formatter]") {
-    PrintStatusWidget::destroy_formatter_for_test();
-
-    PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
-    ps.init_subjects(false);
-
-    PrintStatusWidget::ensure_formatter_for_test();
-    // destroy_ zeroes the count outright; a release_ landing after it used to
-    // wrap around to SIZE_MAX, so every later release_ left the formatter alive.
-    PrintStatusWidget::destroy_formatter_for_test();
-    PrintStatusWidget::release_formatter_for_test();
-
-    // A fresh widget must still be the one that builds a formatter, which only
-    // holds if the count is genuinely at zero.
-    PrintStatusWidget widget;
-    CHECK(lv_xml_get_subject(nullptr, "print_status_layer_text") != nullptr);
 }

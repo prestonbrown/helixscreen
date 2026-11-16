@@ -3,12 +3,19 @@
 
 #include "temperature_sensor_manager.h"
 
+#include "core/text_io.h"
 #include "device_display_name.h"
+#include "humidity_sensor_types.h"
+#include "notice.h"
+#include "printer_discovery.h"
+#include "sort_small.h"
+#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "unit_conversions.h"
 
 #include <algorithm>
+
+#include "hv/json.hpp"
 
 namespace helix::sensors {
 
@@ -52,10 +59,29 @@ uint8_t role_for_name(const std::string& name, const std::string& klipper_name) 
     if (is_host_name(name)) {
         return kHost;
     }
-    if (klipper_name.rfind("tmc2240 ", 0) == 0 || klipper_name.rfind("tmc5160 ", 0) == 0) {
+    if (hw::classify_object(klipper_name).kind == hw::ObjectKind::DriverTemperature) {
         return kStepperDriver;
     }
     return kAuxiliary;
+}
+
+/// The role a `[temperature_sensor]` section's sensor_type implies, or 0 for none.
+uint8_t role_for_sensor_type(const nlohmann::json* body) {
+    if (body == nullptr || !body->is_object()) {
+        return 0;
+    }
+    const auto it = body->find("sensor_type");
+    if (it == body->end() || !it->is_string()) {
+        return 0;
+    }
+    const std::string type = helix::text_io::to_lower(it->get<std::string>());
+    if (type == "temperature_mcu") {
+        return kMcu;
+    }
+    if (type == "temperature_host") {
+        return kHost;
+    }
+    return 0;
 }
 
 /// The role a sensor falls back to when CHAMBER is taken from it.
@@ -85,11 +111,15 @@ TemperatureSensorConfig config_of(const SensorEntry& entry) {
     const TemperatureSensorType type = type_of(entry.klipper_name);
     TemperatureSensorConfig config(
         entry.klipper_name, entry.display_name,
-        // A heater is named as one ("Chamber Heater"), so it never reads the same as a
+        // A heater is named as one ("Chamber Heater") and a humidity chip carries its
+        // chip ("Chamber Temperature (BME280)"), so neither reads the same as a
         // thermistor of the same name.
-        helix::get_display_name(entry.display_name, type == TemperatureSensorType::HEATER_GENERIC
-                                                        ? DeviceType::HEATER
-                                                        : DeviceType::TEMP_SENSOR),
+        with_humidity_chip_suffix(
+            helix::get_display_name(entry.display_name,
+                                    type == TemperatureSensorType::HEATER_GENERIC
+                                        ? DeviceType::HEATER
+                                        : DeviceType::TEMP_SENSOR),
+            entry.klipper_name),
         type);
     config.role = static_cast<TemperatureSensorRole>(entry.role);
     config.enabled = entry.enabled;
@@ -105,19 +135,6 @@ bool sorts_before(const TemperatureSensorConfig& a, const TemperatureSensorConfi
     return a.display_name < b.display_name;
 }
 
-/// Stable insertion sort. These lists hold a handful of sensors, where
-/// std::sort and std::stable_sort cost firmware flash and buy nothing.
-template <typename T, typename Less> void sort_small(std::vector<T>& items, Less less) {
-    for (size_t i = 1; i < items.size(); ++i) {
-        T item = std::move(items[i]);
-        size_t j = i;
-        for (; j > 0 && less(item, items[j - 1]); --j) {
-            items[j] = std::move(items[j - 1]);
-        }
-        items[j] = std::move(item);
-    }
-}
-
 } // namespace
 
 TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
@@ -130,6 +147,8 @@ TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
     o.revision_subject = "temp_sensor_revision";
     o.settings_section = "temp";
     o.row_toggle = RowToggle::None;
+    // The configfile pass reads each sensor's sensor_type for the MCU and HOST roles.
+    o.rediscover_on_config = true;
     // Readings go to the temperature subjects; Settings rows show none.
     o.rows_show_readings = false;
     for (const auto& r : kTemperatureSensorRoles) {
@@ -179,15 +198,33 @@ TemperatureSensorManager::TemperatureSensorManager() : SensorManager(make_option
 // Discovery hooks
 // ============================================================================
 
-void TemperatureSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {
+void TemperatureSensorManager::on_discovered(const PrinterDiscovery& hw) {
     for (auto& e : entries_locked()) {
-        if (e.role != 0) {
-            continue;
+        if (e.role == 0) {
+            e.role = role_for_name(e.display_name, e.klipper_name);
         }
-        e.role = role_for_name(e.display_name, e.klipper_name);
+        // A sensor_type outranks the name, but only over the AUXILIARY fallback:
+        // CHAMBER may have been moved here by apply_chamber_sensor_override().
+        if (e.role == kAuxiliary) {
+            if (const uint8_t typed = role_for_sensor_type(hw.section(e.klipper_name))) {
+                e.role = typed;
+            }
+        }
         spdlog::debug("[TemperatureSensorManager] Discovered {} (role {})", e.klipper_name,
                       enum_id(kTemperatureSensorRoles, static_cast<TemperatureSensorRole>(e.role)));
     }
+
+    // A discovery may be a different printer whose drivers share these names
+    // ("tmc2209 stepper_x"), so no level carries over: the next frame re-reads
+    // each driver and a hot one notifies again.
+    driver_objects_.clear();
+    for (const auto& [name, kind] : hw.object_kinds()) {
+        if (hw::is_stepper_driver(kind)) {
+            driver_objects_.push_back(name);
+        }
+    }
+    driver_levels_.clear();
+    driver_levels_notified_.clear();
 }
 
 void TemperatureSensorManager::on_entries_changed() {
@@ -222,6 +259,8 @@ void TemperatureSensorManager::sync_subjects_locked() {
 void TemperatureSensorManager::on_deinit_subjects() {
     temp_subjects_.clear();
     target_subjects_.clear();
+    driver_levels_.clear();
+    driver_levels_notified_.clear();
 }
 
 void TemperatureSensorManager::register_subjects(SubjectManager& /*subjects*/) {}
@@ -259,6 +298,34 @@ bool TemperatureSensorManager::parse_status(const nlohmann::json& status) {
                           entry.klipper_name, state.temperature, state.target, state.speed);
         }
     }
+
+    // A frame without drv_status leaves the level alone; a null one (motors off,
+    // the driver unpolled) clears it.
+    for (const auto& name : driver_objects_) {
+        const auto driver = status.find(name);
+        if (driver == status.end() || !driver->is_object()) {
+            continue;
+        }
+        const auto flags = driver->find("drv_status");
+        if (flags == driver->end()) {
+            continue;
+        }
+        const DriverOvertemp level = classify_drv_status(*flags);
+        const auto known = driver_levels_.find(name);
+        const DriverOvertemp before =
+            known != driver_levels_.end() ? known->second : DriverOvertemp::None;
+        if (level == before) {
+            continue;
+        }
+        if (level == DriverOvertemp::None) {
+            driver_levels_.erase(name);
+        } else {
+            driver_levels_[name] = level;
+        }
+        changed = true;
+        spdlog::info("[TemperatureSensorManager] {} overtemperature level {} -> {}", name,
+                     static_cast<int>(before), static_cast<int>(level));
+    }
     return changed;
 }
 
@@ -269,8 +336,10 @@ void TemperatureSensorManager::refresh_subjects() {
         int target;
     };
     std::vector<Reading> readings;
+    std::map<std::string, DriverOvertemp> driver_levels;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
+        driver_levels = driver_levels_;
         // Subjects are rebuilt here too: deinit clears them and entries outlive it.
         sync_subjects_locked();
         for (const auto& e : entries_locked()) {
@@ -292,6 +361,66 @@ void TemperatureSensorManager::refresh_subjects() {
             }
         }
     }
+
+    // One notice per rise, so a driver that stays hot does not repeat it.
+    for (const auto& alert : driver_overtemp_rises(driver_levels_notified_, driver_levels)) {
+        publish_driver_overtemp_notice(alert);
+    }
+    driver_levels_notified_ = std::move(driver_levels);
+}
+
+void TemperatureSensorManager::publish_driver_overtemp_notice(const DriverOvertempAlert& alert) {
+    const std::string driver = hw::classify_object(alert.klipper_name).instance;
+    const std::string stepper = driver.empty() ? alert.klipper_name : driver;
+    if (alert.level == DriverOvertemp::Shutdown) {
+        publish_notice(
+            {NoticeSeverity::ERROR,
+             fmt::format(fmt::runtime(lv_tr("Stepper driver {} overheated and shut down")),
+                         stepper),
+             10000});
+    } else {
+        publish_notice(
+            {NoticeSeverity::WARNING,
+             fmt::format(fmt::runtime(lv_tr("Stepper driver {} is overheating")), stepper), 8000});
+    }
+}
+
+// ============================================================================
+// Stepper driver overtemperature
+// ============================================================================
+
+DriverOvertemp classify_drv_status(const nlohmann::json& drv_status) {
+    if (!drv_status.is_object()) {
+        return DriverOvertemp::None;
+    }
+    // Klipper publishes only the fields that are set, each as a non-zero number.
+    auto set = [&drv_status](const char* field) {
+        const auto it = drv_status.find(field);
+        return it != drv_status.end() && it->is_number() && it->get<double>() != 0.0;
+    };
+    if (set("ot")) {
+        return DriverOvertemp::Shutdown;
+    }
+    for (const char* field : {"otpw", "t120", "t143", "t150", "t157"}) {
+        if (set(field)) {
+            return DriverOvertemp::Warning;
+        }
+    }
+    return DriverOvertemp::None;
+}
+
+std::vector<DriverOvertempAlert>
+driver_overtemp_rises(const std::map<std::string, DriverOvertemp>& before,
+                      const std::map<std::string, DriverOvertemp>& now) {
+    std::vector<DriverOvertempAlert> rises;
+    for (const auto& [name, level] : now) {
+        const auto it = before.find(name);
+        const DriverOvertemp was = it != before.end() ? it->second : DriverOvertemp::None;
+        if (level > was) {
+            rises.push_back({name, level});
+        }
+    }
+    return rises;
 }
 
 // ============================================================================

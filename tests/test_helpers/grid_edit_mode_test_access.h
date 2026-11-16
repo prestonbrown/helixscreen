@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "app_globals.h"
 #include "grid_edit_mode.h"
 
 namespace helix {
@@ -41,9 +42,12 @@ struct GridEditModeTestAccess {
         return em.resize_outline_[0];
     }
 
+    static std::array<lv_obj_t*, 4> raw_bars(const std::array<helix::ui::WeakWidget, 4>& bars) {
+        return {bars[0].get(), bars[1].get(), bars[2].get(), bars[3].get()};
+    }
     /// All four bars of the resize outline.
     static std::array<lv_obj_t*, 4> resize_outline(const GridEditMode& em) {
-        return em.resize_outline_;
+        return raw_bars(em.resize_outline_);
     }
 
     /// Create the resize outline the way handle_resize_move() does. A full drag
@@ -136,17 +140,10 @@ struct GridEditModeTestAccess {
         return em.selected_widget_id();
     }
 
-    /// The selection chrome: the outline overlay and its remove and configure
-    /// buttons (the configure button exists only for a widget that offers
-    /// configuration). All three are children of the scoped container.
+    /// The selection chrome: the outline overlay, a child of the scoped
+    /// container.
     static lv_obj_t* selection_overlay(const GridEditMode& em) {
         return em.selection_overlay_;
-    }
-    static lv_obj_t* remove_button(const GridEditMode& em) {
-        return em.remove_btn_;
-    }
-    static lv_obj_t* configure_button(const GridEditMode& em) {
-        return em.configure_btn_;
     }
 
     /// The live drag's grid-snapped drop preview, or nullptr when none is drawn.
@@ -156,7 +153,7 @@ struct GridEditModeTestAccess {
 
     /// All four bars of the snap preview.
     static std::array<lv_obj_t*, 4> snap_preview_bars(const GridEditMode& em) {
-        return em.snap_preview_;
+        return raw_bars(em.snap_preview_);
     }
 
     /// Lift the selected widget for a drag, and settle it back, as a drag's
@@ -196,11 +193,6 @@ struct GridEditModeTestAccess {
         return drop.outcome == helix::DropOutcome::CreatePage;
     }
 
-    /// The delete-page button on the shield, or nullptr when none is drawn.
-    static lv_obj_t* delete_page_button(const GridEditMode& em) {
-        return em.delete_page_btn_;
-    }
-
     /// Release the selection chrome, the snap preview, and redraw the lattice,
     /// each as edit mode's own paths do.
     static void destroy_selection_chrome(GridEditMode& em) {
@@ -219,5 +211,11 @@ struct GridEditModeTestAccess {
         return em.snap_anim_outline_[0] != nullptr;
     }
 };
+
+/// Whether the edit session publishes its page as deletable, which shows the
+/// navbar's delete-page button.
+inline bool delete_page_offered() {
+    return lv_subject_get_int(&get_home_edit_page_deletable_subject()) == 1;
+}
 
 } // namespace helix

@@ -9,15 +9,16 @@
 
 #include "ui_ams_environment_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_panel_registry.h"
 
 #include <memory>
 #include <string>
@@ -88,13 +89,13 @@ std::string subject_string(const char* name) {
 /// show_beta_features, registered once: the XML subject registry is process-global and
 /// never forgets an entry, so the subject has to outlive every test.
 lv_subject_t* beta_subject() {
-    static lv_subject_t subject;
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
         if (lv_subject_t* existing = lv_xml_get_subject(nullptr, "show_beta_features")) {
             return existing;
         }
-        lv_subject_init_int(&subject, 1);
+        subject.init_int(1);
         lv_xml_register_subject(nullptr, "show_beta_features", &subject);
         registered = true;
     }
@@ -144,8 +145,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A dryer that heats its gates together offers n
 
     CHECK(subject_int("env_dry_gate_count") == 0);
     CHECK(subject_int("env_dry_rotate_visible") == 0);
-    CHECK(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("zone_slots_label")));
 
     press_start_stop();
     REQUIRE(backend->starts.size() == 1);
@@ -161,8 +162,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A per-lane dryer offers a chip per lane, all s
     auto& overlay = get_ams_environment_overlay();
 
     REQUIRE(subject_int("env_dry_gate_count") == 4);
-    CHECK_FALSE(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK(lv_obj_is_hidden(find_widget("zone_slots_label")));
     CHECK(subject_string("env_dry_gate_label_0") == "1");
     CHECK(subject_string("env_dry_gate_label_3") == "4");
     for (const char* sel : {"env_dry_gate_selected_0", "env_dry_gate_selected_1",

@@ -33,6 +33,7 @@
 #include "moonraker_types.h"
 #include "pa_calibration.h"
 #include "print_history_data.h"
+#include "print_start_params.h"
 #include "spoolman_types.h"
 
 #include <atomic>
@@ -121,19 +122,26 @@ class IJobAPI {
 
     virtual ~IJobAPI() = default;
 
+    /// @p extra_params ride beside `filename` in printer.print.start
+    /// (helix::print_start: a firmware's per-print tool -> slot map).
     virtual void start_print(const std::string& filename, SuccessCallback on_success,
-                             ErrorCallback on_error) = 0;
+                             ErrorCallback on_error,
+                             const helix::PrintStartParams& extra_params = {}) = 0;
 
+    /// @p extra_params go to the plugin beside the copy, which starts it with the
+    /// ones its Moonraker's start takes (the tool map; HELIXPRINT_PLUGIN.md).
     virtual void start_modified_print(const std::string& original_filename,
                                       const std::string& temp_file_path,
                                       const std::vector<std::string>& modifications,
-                                      ModifiedPrintCallback on_success, ErrorCallback on_error) = 0;
+                                      ModifiedPrintCallback on_success, ErrorCallback on_error,
+                                      const helix::PrintStartParams& extra_params = {}) = 0;
 
     virtual void start_edited_print(const std::string& original_filename,
                                     const std::string& temp_file_path, const json& edits,
                                     const std::vector<std::string>& modifications,
                                     uint64_t file_size, ModifiedPrintCallback on_success,
-                                    ErrorCallback on_error) = 0;
+                                    ErrorCallback on_error,
+                                    const helix::PrintStartParams& extra_params = {}) = 0;
 
     using PluginInfoCallback = std::function<void(const HelixPluginInfo&)>;
 
@@ -302,7 +310,8 @@ class IAdvancedAPI {
     using BedMeshProgressCallback = std::function<void(int current, int total)>;
     using NoiseCheckCallback = std::function<void(float noise_level)>;
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
-    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback =
+        helix::SharedCallback<void(const std::string& control_type, bool names_cooling_fan)>;
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
 
@@ -483,8 +492,6 @@ class IRestAPI {
 
     virtual void wled_set_strip(const std::string& strip, const std::string& action, int brightness,
                                 int preset, SuccessCallback on_success, ErrorCallback on_error) = 0;
-
-    virtual void wled_get_status(RestCallback on_success, ErrorCallback on_error) = 0;
 
     virtual void get_server_config(RestCallback on_success, ErrorCallback on_error) = 0;
 };

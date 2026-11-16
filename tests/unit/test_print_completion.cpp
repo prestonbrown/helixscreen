@@ -10,14 +10,13 @@
  * - Detects PRINTING/PAUSED -> COMPLETE/CANCELLED/ERROR transitions
  * - Does NOT trigger on startup when printer is mid-print
  *
- * The key fix being tested: has_received_first_update flag that prevents
+ * Under test: the has_received_first_update flag that prevents
  * false notifications on observer registration.
- *
- * TEST-FIRST: Documents expected behavior for the fix.
  */
 
 #include "ui_format_utils.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "print_completion.h"
@@ -26,6 +25,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using json = nlohmann::json;
@@ -34,24 +34,9 @@ using json = nlohmann::json;
 // Test Fixture
 // ============================================================================
 
-class PrintCompletionTestFixture {
+class PrintCompletionTestFixture : public LVGLTestFixture {
   public:
     PrintCompletionTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_, [](lv_display_t* disp, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(disp);
-            });
-            display_created_ = true;
-        }
-
         // Reset PrinterState for test isolation
         PrinterStateTestAccess::reset(state_);
 
@@ -66,7 +51,7 @@ class PrintCompletionTestFixture {
     ~PrintCompletionTestFixture() {
         // Remove observer if registered
         if (observer_ != nullptr) {
-            lv_observer_remove(observer_);
+            lv_observer_delete(observer_);
             observer_ = nullptr;
         }
         PrinterStateTestAccess::reset(state_);
@@ -150,8 +135,6 @@ class PrintCompletionTestFixture {
     }
 
     PrinterState state_;
-    static lv_display_t* display_;
-    static bool display_created_;
 
     lv_observer_t* observer_ = nullptr;
     PrintJobState prev_print_state_ = PrintJobState::STANDBY;
@@ -160,9 +143,6 @@ class PrintCompletionTestFixture {
     int completion_callback_count_ = 0;
     PrintJobState last_completion_state_ = PrintJobState::STANDBY;
 };
-
-lv_display_t* PrintCompletionTestFixture::display_ = nullptr;
-bool PrintCompletionTestFixture::display_created_ = false;
 
 // ============================================================================
 // First Callback Skipping Tests
@@ -480,10 +460,10 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
 
 TEST_CASE("build_completion_stats renders layers through the canonical formatter",
           "[print_completion][format]") {
-    // The completion modal used to hand-roll snprintf("%d %s", n, lv_tr("layers")),
-    // which renders "0 layers" where the shared helper returns UNAVAILABLE and
-    // "1 layers" where it returns the singular. It also used a second, separate
-    // translation key for the same word. Asserting equality with the helper
+    // A hand-rolled snprintf("%d %s", n, lv_tr("layers")) renders "0 layers"
+    // where the shared helper returns UNAVAILABLE and "1 layers" where it
+    // returns the singular, and needs a second translation key for the same
+    // word. Asserting equality with the helper
     // states the contract directly and survives translation.
     SECTION("zero layers matches the helper's unavailable form") {
         auto stats = helix::build_completion_stats(60, 0, 0, 0);

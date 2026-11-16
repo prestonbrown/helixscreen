@@ -25,7 +25,8 @@
     "nozzle_volume_type"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "gcode_macro START_PRINT": [
     "preparation_done"
@@ -89,6 +90,8 @@
     "sync_feedback_bias_modelled",
     "sync_feedback_bias_raw",
     "sync_feedback_flow_rate",
+    "sync_feedback_enabled",
+    "fans",
     "sync_drive",
     "spoolman_support",
     "pending_spool_id",

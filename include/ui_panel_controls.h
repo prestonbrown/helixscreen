@@ -5,21 +5,24 @@
 
 #include "ui_component_keypad.h"
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_temperature_utils.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "operation_timeout_guard.h"
 #include "quick_action_buttons.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_nozzle_observers.h"
+#include "target_tool_selection.h"
 #include "ui/position_observer_bundle.h"
 #include "ui/temperature_observer_bundle.h"
-#include "ui/ui_modal_guard.h"
 
 #include <array>
 #include <functional>
@@ -27,7 +30,6 @@
 #include <optional>
 #include <string>
 
-// Forward declaration
 class TemperatureService;
 namespace helix {
 class TemperatureController;
@@ -96,7 +98,7 @@ class ControlsPanel : public PanelBase {
     /**
      * @brief Deinitialize subjects for clean shutdown
      *
-     * Calls lv_subject_deinit() on all local lv_subject_t members.
+     * Calls reset() on all local helix::Subject members.
      * Must be called before lv_deinit() to prevent dangling observers.
      */
     void deinit_subjects();
@@ -162,31 +164,56 @@ class ControlsPanel : public PanelBase {
     //
 
     // Nozzle label (dynamic: "Nozzle:" or "Nozzle N:" for multi-tool)
-    lv_subject_t nozzle_label_subject_{};
+    helix::Subject nozzle_label_subject_{};
     char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
+    ObserverGuard tools_version_observer_;
+    ObserverGuard extruder_version_observer_;
+
+    // The nozzle row aims at a chosen tool on multi-head printers.
+    helix::ui::TargetToolSelection nozzle_tool_;
+    helix::ui::TargetNozzleObservers nozzle_observers_;
+    helix::Subject nozzle_cur_deci_subject_{};
+    helix::Subject nozzle_tgt_deci_subject_{};
+    helix::Subject nozzle_multi_head_subject_{};
+    helix::ui::WidgetRef nozzle_tool_dropdown_;
+    /// The nozzle row's tool, clamped to the current tool list.
+    [[nodiscard]] int nozzle_tool() const;
+    /// Whether the row's tool is the one on the carriage (always, with one head).
+    [[nodiscard]] bool nozzle_tool_mounted() const;
+    /// That tool's Klipper extruder ("extruder" when it names none).
+    [[nodiscard]] std::string nozzle_extruder_name() const;
+    /// Bring the row's label, chooser and temperature source to nozzle_tool().
+    void sync_nozzle_tool();
+    void populate_nozzle_tool_dropdown();
+
+  public:
+    /// The nozzle row's chooser picked @p tool.
+    void select_nozzle_tool(int tool);
+
+  private:
     void update_nozzle_label();
 
     // Nozzle temperature display
-    lv_subject_t nozzle_temp_subject_{};
+    helix::Subject nozzle_temp_subject_{};
     char nozzle_temp_buf_[32] = {};
-    lv_subject_t nozzle_pct_subject_{};
-    lv_subject_t nozzle_status_subject_{}; ///< duty text ("" = none)
+    helix::Subject nozzle_pct_subject_{};
+    helix::Subject nozzle_status_subject_{}; ///< duty text ("" = none)
     char nozzle_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t nozzle_status_state_subject_{}; ///< HeaterStatusState int
+    helix::Subject nozzle_status_state_subject_{}; ///< HeaterStatusState int
 
     // Bed temperature display
-    lv_subject_t bed_temp_subject_{};
+    helix::Subject bed_temp_subject_{};
     char bed_temp_buf_[32] = {};
-    lv_subject_t bed_pct_subject_{};
-    lv_subject_t bed_status_subject_{}; ///< duty text ("" = none)
+    helix::Subject bed_pct_subject_{};
+    helix::Subject bed_status_subject_{}; ///< duty text ("" = none)
     char bed_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t bed_status_state_subject_{}; ///< HeaterStatusState int
+    helix::Subject bed_status_state_subject_{}; ///< HeaterStatusState int
 
     // Chamber temperature display
-    lv_subject_t chamber_status_subject_{}; ///< duty text ("" = none)
+    helix::Subject chamber_status_subject_{}; ///< duty text ("" = none)
     char chamber_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t chamber_status_state_subject_{}; ///< HeaterStatusState int
+    helix::Subject chamber_status_state_subject_{}; ///< HeaterStatusState int
 
     // Heating icon animators (nozzle/bed/chamber), bound from the panel's own
     // container so lv_obj_find_by_name() cannot pick up another panel's
@@ -196,20 +223,20 @@ class ControlsPanel : public PanelBase {
     helix::ui::HeaterIconBinder chamber_icon_binder_;
 
     // "N more sensors" link: caption plus the count that hides it at zero
-    lv_subject_t more_sensors_subject_{};
+    helix::Subject more_sensors_subject_{};
     char more_sensors_buf_[48] = {};
-    lv_subject_t more_sensors_count_{};
+    helix::Subject more_sensors_count_{};
     void update_more_sensors();
 
     // Calibration & Tools grid: cells sized for the tiles visible after layout,
     // fitted to the grid's own box (fit_tile_grid); labels only where they fit
-    lv_subject_t calib_grid_labels_{};
+    helix::Subject calib_grid_labels_{};
     static void update_calib_grid(lv_obj_t* grid);
 
     // Fan speed display
-    lv_subject_t fan_speed_subject_{};
+    helix::Subject fan_speed_subject_{};
     char fan_speed_buf_[16] = {};
-    lv_subject_t fan_pct_subject_{};
+    helix::Subject fan_pct_subject_{};
     uint32_t last_fan_slider_input_ = 0; // Tick of last slider interaction (suppression window)
 
     //
@@ -250,6 +277,7 @@ class ControlsPanel : public PanelBase {
     ObserverGuard chamber_target_observer_; // Chamber raw heater target observer (keypad seed)
     ObserverGuard chamber_effective_target_observer_; // Chamber effective target observer (status)
     ObserverGuard chamber_mode_observer_;             // Chamber M141 control mode observer
+    ObserverGuard temp_unit_observer_; // Re-formats the card temperatures on a °C/°F switch
 
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
@@ -261,7 +289,7 @@ class ControlsPanel : public PanelBase {
     // === Modal Dialog State ===
     //
 
-    helix::ui::ModalGuard motors_confirmation_dialog_;
+    helix::ui::WidgetRef motors_confirmation_dialog_;
     OperationTimeoutGuard operation_guard_;
 
     //
@@ -273,7 +301,7 @@ class ControlsPanel : public PanelBase {
     /// @brief Info for a secondary fan row for reactive speed updates
     struct SecondaryFanRow {
         std::string object_name;
-        lv_obj_t* speed_label = nullptr;
+        helix::ui::WeakWidget speed_label;
     };
     std::vector<SecondaryFanRow> secondary_fan_rows_;    ///< Tracked for reactive updates
     std::vector<ObserverGuard> secondary_fan_observers_; ///< Per-fan speed observers
@@ -291,7 +319,7 @@ class ControlsPanel : public PanelBase {
     // === Z-Offset Banner (reactive binding - no widget caching needed) ===
     //
 
-    lv_subject_t z_offset_delta_display_subject_{}; // Formatted delta string (e.g., "+0.05mm")
+    helix::Subject z_offset_delta_display_subject_{}; // Formatted delta string (e.g., "+0.05mm")
     char z_offset_delta_display_buf_[32] = {};
     ObserverGuard pending_z_offset_observer_; // Observer to update display when delta changes
 
@@ -299,20 +327,20 @@ class ControlsPanel : public PanelBase {
     // === Homing Status Subjects (for bind_style visual feedback) ===
     //
 
-    lv_subject_t x_homed_{};            // 1 if X is homed (for position indicator)
-    lv_subject_t y_homed_{};            // 1 if Y is homed (for position indicator)
-    lv_subject_t xy_homed_{};           // 1 if X and Y are homed
-    lv_subject_t z_homed_{};            // 1 if Z is homed
-    lv_subject_t all_homed_{};          // 1 if all axes are homed
+    helix::Subject x_homed_{};          // 1 if X is homed (for position indicator)
+    helix::Subject y_homed_{};          // 1 if Y is homed (for position indicator)
+    helix::Subject xy_homed_{};         // 1 if X and Y are homed
+    helix::Subject z_homed_{};          // 1 if Z is homed
+    helix::Subject all_homed_{};        // 1 if all axes are homed
     ObserverGuard homed_axes_observer_; // Observer for PrinterState::homed_axes_
 
     //
     // === Position Display Subjects (for Position card) ===
     //
 
-    lv_subject_t controls_pos_x_subject_{};
-    lv_subject_t controls_pos_y_subject_{};
-    lv_subject_t controls_pos_z_subject_{};
+    helix::Subject controls_pos_x_subject_{};
+    helix::Subject controls_pos_y_subject_{};
+    helix::Subject controls_pos_z_subject_{};
     char controls_pos_x_buf_[32] = {};
     char controls_pos_y_buf_[32] = {};
     char controls_pos_z_buf_[32] = {};
@@ -323,7 +351,7 @@ class ControlsPanel : public PanelBase {
     //
 
     char controls_z_offset_buf_[16] = {};
-    lv_subject_t controls_z_offset_subject_{};
+    helix::Subject controls_z_offset_subject_{};
     ObserverGuard gcode_z_offset_observer_;
     // ZMOD zeroes the live offset outside a print, so the row has to re-pick its
     // source when either the persisted value or the print state changes.
@@ -335,7 +363,7 @@ class ControlsPanel : public PanelBase {
     // === Speed/Flow Override Subjects ===
     //
 
-    lv_subject_t speed_override_subject_{};
+    helix::Subject speed_override_subject_{};
     char speed_override_buf_[16] = {};
     ObserverGuard speed_factor_observer_;
 
@@ -344,7 +372,11 @@ class ControlsPanel : public PanelBase {
   public:
     // === Leveling Commands (shared with MotionPanel) ===
     void handle_qgl();
+    /// handle_qgl() once the bed is known clear.
+    void run_qgl();
     void handle_z_tilt();
+    /// handle_z_tilt() once the bed is known clear.
+    void run_z_tilt();
 
   private:
     //
@@ -515,7 +547,7 @@ void ControlsPanel::show_temperature_keypad(const char* title, int cached_target
         .min_value = 0.0f,
         .max_value = static_cast<float>(max_temp),
         .title_label = lv_tr(title),
-        .unit_label = "°C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback =
@@ -525,7 +557,8 @@ void ControlsPanel::show_temperature_keypad(const char* title, int cached_target
                     (self->*Handler)(value);
                 }
             },
-        .user_data = this};
+        .user_data = this,
+        .temperature = true};
 
     ui_keypad_show(&config);
 }

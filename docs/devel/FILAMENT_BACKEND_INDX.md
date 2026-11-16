@@ -16,8 +16,8 @@ with one `[extruder]`: `heater_pin: indx:heater`, `sensor_type: indx`.
 | Backend | `include/ams_backend_indx.h`, `src/printer/ams_backend_indx.cpp` (derives `AmsBackendToolChanger`) |
 | Detection | `src/printer/printer_discovery_parse.cpp#parse_objects`, `#parse_config_keys` |
 | Shared heater in ToolState | `ToolTopology::heads_share_heater`, `include/tool_state.h#ToolState/names_mounted_nozzle` |
-| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/temperature_controller.cpp#"void TemperatureController::set_target(HeaterType type"` |
-| Mock | `HELIX_MOCK_AMS=indx`, `src/api/moonraker_client_mock_indx.cpp` |
+| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/controls/temperature_controller.cpp#"void TemperatureController::set_target(HeaterType type"` |
+| Mock | `HELIX_MOCK_AMS=indx`, `src/mock/moonraker_client_mock_indx.cpp` |
 
 ## The macro contract
 
@@ -40,7 +40,7 @@ contract. Nothing outside these two tables is read or sent.
 | Tools with no hotend | `gcode_macro TOOL_POSITIONS.no_heat_tools` | A pen or cutter: never heated, no filament ops |
 | Docks measured | `gcode_macro TOOL_POSITIONS.docks_calibrated` | `False` refuses every change and park |
 | Load presets | `gcode_macro LOAD_FILAMENT.filament_presets` | `TYPE=` names for Load, sent as the printer spells them |
-| Per-tool spool | `gcode_macro T<n>.spool_id` | Not upstream: read where a macro set declares it, filed as the lane's Spoolman id. Never written |
+| Per-tool spool | `gcode_macro T<n>.spool_id` | Not upstream: read where a macro set declares it, filed as the firmware's link for the lane, so a macro or another client changing it wins over the `T<n>` record. `None`, 0 and a negative id read as no spool. An edit that moves the link makes the two writes Mainsail's spool dialog makes for a tool, `SET_GCODE_VARIABLE MACRO=T<n> VARIABLE=spool_id VALUE=<id>` and `SAVE_VARIABLE VARIABLE=t<n>__spool_id VALUE=<id>` (`None` to unlink), only for a tool whose variable has been seen (`src/printer/ams_backend_indx.cpp#apply_user_edit`) |
 
 Status keys are matched case-insensitively and subscribed under the configured case
 (`PrinterDiscovery::macro_config_name`).
@@ -148,7 +148,7 @@ nothing at all on an unrecognized contract:
 | Maintenance | Cycle every tool (guided flow) | Refused printing or paused; greyed by a seat fault or uncalibrated docks |
 | Tool Offsets | One read-only row per tool ("X 0.120  Y -0.045  Z 0.030 mm", an unknown axis `-`), and the global Z offset | None |
 
-The flows live in `src/ui/ui_indx_device_flows.cpp`: each asks first, then runs through
+The flows live in `src/ui/filament/ui_indx_device_flows.cpp`: each asks first, then runs through
 `run_device_action()` and keeps one status line under the section's buttons
 (`ui_xml/components/indx_flow_status.xml`) from "Calibrating..." to the result. A calibration
 that succeeds offers **Save & Restart** / **Later**; one that times out says the printer may
@@ -192,8 +192,18 @@ the status line is visible at `--sim-speed 6`. Knobs in
 
 ## Not yet hardware-verified
 
-No INDX is in the test fleet; verification goes through the #1333 reporter. Open: whether
-Kalico's `[indx]` lists as an object, and how the reporter's `spool_id` macros persist a spool.
+No INDX is in the test fleet; verification goes through the #1333 reporter. Open:
+
+- Whether Kalico's `[indx]` lists as an object. Detection handles both.
+- How the head engages a docked tool's filament, and whether a retract can unload one. Unload
+  stays Manual until the reporter confirms; a built-in mount, heat and retract waits on that.
+- What the induction heater does with no tool on the head. It is treated as unsafe because
+  upstream refuses it.
+- Where the reporter's `INDX_FORCE_STATE`, `VERIFY_TOOL_PRESENT` and `spool_id` macros come
+  from, and how `spool_id` persists a spool. `T<n>.spool_id` stays read-only until then, so a
+  spool assigned on the screen lives in HelixScreen's store.
+- Whether a user's own `T<n>` without `variable_active` behaves differently from upstream's.
+  Nothing here reads `active`.
 
 Part of the filament system: see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) and the
 base this backend extends, [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md).

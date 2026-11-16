@@ -5,7 +5,7 @@
 
 #include "audio_settings_manager.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "i_moonraker_client.h"
 #include "jz_pwm_sound_backend.h"
 #include "m300_sound_backend.h"
@@ -22,6 +22,10 @@
 #ifdef HELIX_HAS_ALSA
 #include "alsa_device_enum.h"
 #include "alsa_sound_backend.h"
+#endif
+
+#ifdef HELIX_HAS_PCM_PIPE
+#include "pcm_pipe_sound_backend.h"
 #endif
 
 #ifdef HELIX_HAS_TRACKER
@@ -81,6 +85,8 @@ void SoundManager::probe_and_install_host_backend() {
 
 void SoundManager::set_moonraker_client(IMoonrakerClient* client, bool host_recovery) {
     client_ = client;
+    // The busy state belongs to the printer just detached; the next one reports its own.
+    printer_busy_.store(false, std::memory_order_relaxed);
     spdlog::debug("[SoundManager] Moonraker client set: {} (host_recovery={})",
                   client ? "connected" : "nullptr", host_recovery);
 
@@ -159,10 +165,12 @@ void SoundManager::try_install_m300_backend(bool detected_m300_handler) {
     }
 
     spdlog::info("[SoundManager] Installing M300 backend (Klipper beeper confirmed)");
-    backend_ = std::make_shared<M300SoundBackend>([this](const std::string& gcode) -> int {
-        auto* c = client_;
-        return c ? c->gcode_script(gcode) : -1;
-    });
+    backend_ = std::make_shared<M300SoundBackend>(
+        [this](const std::string& gcode) -> int {
+            auto* c = client_;
+            return c ? c->gcode_script(gcode) : -1;
+        },
+        [this] { return printer_busy_.load(std::memory_order_relaxed); });
 
     finalize_backend_setup();
 }
@@ -406,8 +414,10 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // Auto-detection order:
     // 1. SDL audio available (desktop build) -> SDLBackend
     // 2. ALSA PCM available (Linux with audio) -> ALSABackend
-    // 3. /sys/class/pwm/pwmchip0 exists -> PWMBackend
-    // 4. None -> wait for M300 gate, or sounds disabled
+    // 3. /dev/jz_pwm and fx-pwm exist -> JzPwmBackend
+    // 4. AD5M family only: /sys/class/pwm/pwmchip0 exists -> PWMBackend (auto-export)
+    // 5. An executable aplay and a playback node in /dev/snd -> PcmPipeBackend
+    // 6. None -> wait for M300 gate, or sounds disabled
     //
     // A buzzer named on a PWM channel (setting sound.pwm_channel, or the
     // HELIX_PWM_SOUND override) wins over all of them: a Pi with a passive
@@ -415,20 +425,11 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
     // and plays to nothing.
 
 #ifdef HELIX_HAS_PWM_SOUND
-    int chip = -1;
-    int channel = -1;
-    if (PWMSoundBackend::resolve_channel(AudioSettingsManager::instance().get_pwm_channel(),
-                                         std::getenv("HELIX_PWM_SOUND"), chip, channel)) {
-        auto pwm = std::make_shared<PWMSoundBackend>("/sys/class/pwm", chip, channel);
-        pwm->set_auto_export(true);
-        pwm->set_klippy_shares_channel(false);
-        if (pwm->initialize()) {
-            spdlog::info("[SoundManager] Using PWM sysfs backend ({}) for the named buzzer",
-                         pwm->channel_path());
-            return pwm;
-        }
-        spdlog::warn("[SoundManager] Named buzzer {} unavailable, falling back",
+    if (auto pwm = PWMSoundBackend::open_named_channel(
+            AudioSettingsManager::instance().get_pwm_channel(), std::getenv("HELIX_PWM_SOUND"))) {
+        spdlog::info("[SoundManager] Using PWM sysfs backend ({}) for the named buzzer",
                      pwm->channel_path());
+        return pwm;
     }
 #endif
 
@@ -490,6 +491,23 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
         return pwm_backend;
     }
     spdlog::debug("[SoundManager] PWM sysfs not available, falling back");
+#endif
+
+#ifdef HELIX_HAS_PCM_PIPE
+    // Last host-side resort: PCM piped to the rootfs player (aplay), for a
+    // board with a playback card the static binary cannot open itself (K1
+    // series). Probed, not assumed: a board without a card or player falls
+    // through to the M300 gate exactly as before.
+    if (PcmPipeSoundBackend::available()) {
+        auto pipe_backend = std::make_shared<PcmPipeSoundBackend>();
+        std::string player =
+            PcmPipeSoundBackend::find_player(std::getenv(PcmPipeSoundBackend::kPlayerEnv));
+        if (pipe_backend->initialize(player)) {
+            spdlog::info("[SoundManager] Using PCM pipe backend ({})", player);
+            return pipe_backend;
+        }
+    }
+    spdlog::debug("[SoundManager] PCM pipe player not available, falling back");
 #endif
 
     spdlog::debug("[SoundManager] No host audio backend available");
@@ -592,7 +610,10 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
 
     // Route ticks to tracker for sequencing
     auto* tp = tracker_.get();
-    sequencer_->set_external_tick([tp](float dt_ms) { tp->tick(dt_ms); });
+    sequencer_->set_external_tick([tp](float dt_ms) {
+        tp->tick(dt_ms);
+        return tp->is_playing();
+    });
 
     // Set render source for PCM sample playback on capable backends.
     // Frequency-only backends (PWM, M300) get synth fallback via set_voice().
@@ -649,7 +670,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
             tp->set_volume_override(0);
             // Schedule stop (can't call stop_tracker from within the tick)
             tp->stop();
-            return;
+            return false;
         }
 
         float elapsed_ms = std::chrono::duration<float, std::milli>(now - fade_start).count();
@@ -657,6 +678,7 @@ void SoundManager::fade_out_tracker(uint32_t duration_ms) {
         float progress = elapsed_ms / total_ms;
         int vol = static_cast<int>(100.0f * (1.0f - progress));
         tp->set_volume_override(std::max(0, vol));
+        return tp->is_playing();
     });
 }
 #endif

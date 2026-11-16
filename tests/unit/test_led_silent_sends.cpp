@@ -17,7 +17,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api_mock.h"
@@ -86,7 +86,7 @@ struct SilentSendFixture : public LVGLTestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Arm the print-start window the busy gate reads. The phase subject is

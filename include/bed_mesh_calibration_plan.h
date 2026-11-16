@@ -3,8 +3,8 @@
 
 #pragma once
 
+#include "core/text_io.h"
 #include "standard_macros.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 namespace helix {
 namespace bed_mesh {

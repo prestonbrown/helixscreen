@@ -314,8 +314,8 @@ DNS_RESOLV_OBJ := $(OBJ_DIR)/tests/dns_resolv.o
 
 TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/main.o \
-    $(OBJ_DIR)/ui/ui_switch.o \
-    $(OBJ_DIR)/ui/ui_button.o \
+    $(OBJ_DIR)/ui/components/ui_switch.o \
+    $(OBJ_DIR)/ui/components/ui_button.o \
     $(OBJ_DIR)/remote/remote_client.o \
     ,$(APP_OBJS) $(APP_C_OBJS))
 
@@ -330,6 +330,10 @@ TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pwm_sound_backend.o)
 # the host. The gate decides what SHIPS, not what is testable - same
 # treatment as the sysfs PWM backend above.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/jz_pwm_sound_backend.o)
+# The PCM pipe backend ships in the MIPS builds only, but
+# tests/unit/test_pcm_pipe_sound_backend.cpp drives it against a fake player
+# on the host - same treatment again.
+TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pcm_pipe_sound_backend.o)
 
 # ============================================================================
 # Test Targets
@@ -466,10 +470,12 @@ full-test-run:
 # and the moonraker plugin tests, and the generated-artefact freshness checks.
 # The C++ lane goes to the test host as full-test-run's does (TEST_HOST); the
 # rest run here in parallel. Prints a PASS/FAIL table; scripts/land-gate.sh.
+# STAGES=ui,bats reruns only those steps on the commit the last run judged and
+# merges their verdicts into its table.
 CI_SHARDS ?= 8
 
 land-gate:
-	$(Q)TEST_HOST="$(TEST_HOST)" CI_SHARDS="$(CI_SHARDS)" MAKE="$(MAKE)" scripts/land-gate.sh
+	$(Q)TEST_HOST="$(TEST_HOST)" CI_SHARDS="$(CI_SHARDS)" MAKE="$(MAKE)" scripts/land-gate.sh $(if $(STAGES),--rerun "$(STAGES)")
 
 # ----------------------------------------------------------------------------
 # test-run: a signpost that refuses
@@ -611,15 +617,31 @@ test-kiauh:
 # scripts/parallel-jobs-file.sh as its parallel, which hands GNU parallel the
 # file instead; parallel re-reads it as the suite runs. With no file, one
 # slot runs serially and more run at the fixed count.
+# Without GNU parallel bats can only run the files one after another, which
+# takes the better part of an hour, so a missing parallel is an error naming
+# the install. BATS_ALLOW_SERIAL=1 runs the serial suite anyway, except under
+# BATS_REQUIRED=1.
 # BATS_REQUIRED=1 turns a missing bats into a failure instead of a skip, for a
 # gate that must not report a suite it never ran; BATS_BIN names the bats to run.
+# Which files run is scripts/bats_select.py's answer: every product file, and
+# each build-tooling file (tests/shell/tooling-triggers.tsv) whose paths differ
+# from BATS_BASE, by default the fork point. BATS_ALL=1 runs every file.
+# BATS_APP=needs or BATS_APP=without keeps only the selected files that drive
+# the built app, or only the rest (bats_select.py --app), so a gate can start the
+# second half before its app build ends. A half with no file in it passes.
 BATS_BIN ?= bats
 BATS_REQUIRED ?=
+BATS_ALLOW_SERIAL ?=
+BATS_BASE ?=
+BATS_ALL ?=
+BATS_APP ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v "$(BATS_BIN)" >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
+		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
+		if [ -z "$$BATS_FILES" ]; then echo "✓ no shell test file selected$(if $(BATS_APP), (BATS_APP=$(BATS_APP)))"; exit 0; fi; \
 		if command -v parallel >/dev/null 2>&1; then \
 			jobs_dir=$$(mktemp -d); \
 			BATS_BIN="$(BATS_BIN)" HELIX_JOBS_FILE=$$jobs_dir/slots scripts/helix-claim hold --grow "$$jobs_dir/slots" -- \
@@ -627,12 +649,17 @@ test-shell:
 					exec "$$BATS_BIN" --jobs 2 --parallel-binary-name "$$PWD/scripts/parallel-jobs-file.sh" \
 						--no-parallelize-within-files "$$@"; fi; \
 				[ "$$JOBPOOL_SLOTS" -gt 1 ] || exec "$$BATS_BIN" "$$@"; \
-				exec "$$BATS_BIN" --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats tests/shell/; \
+				exec "$$BATS_BIN" --jobs "$$JOBPOOL_SLOTS" --no-parallelize-within-files "$$@"' bats $$BATS_FILES; \
 			STATUS=$$?; \
 			rm -f "$$jobs_dir"/*; rmdir "$$jobs_dir"; \
-		else \
-			"$(BATS_BIN)" tests/shell/; \
+		elif [ "$(BATS_ALLOW_SERIAL)" = 1 ] && [ "$(BATS_REQUIRED)" != 1 ]; then \
+			"$(BATS_BIN)" $$BATS_FILES; \
 			STATUS=$$?; \
+		else \
+			echo "$(RED)$(BOLD)✗ GNU parallel not found: bats would run the shell suite serially, for most of an hour$(RESET)"; \
+			echo "  Install with: brew install parallel (macOS) or apt install parallel (Linux)"; \
+			[ "$(BATS_REQUIRED)" = 1 ] || echo "  BATS_ALLOW_SERIAL=1 runs it serially anyway"; \
+			exit 1; \
 		fi; \
 		END_TIME=$$(date +%s); \
 		DURATION=$$((END_TIME - START_TIME)); \
@@ -980,19 +1007,28 @@ endif
 .PHONY: FORCE
 FORCE:
 
+# The compiler and flags of each tests/ object rule, without -c and -o; $(1)
+# takes what the recipe adds and its .ccj leaves out. mk/rules.mk explains the
+# shape, and print-compile-command (Makefile) prints these for a tests/ source.
+TEST_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF)
+TEST_APP_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF)
+TEST_MOCK_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF)
+TEST_MAIN_COMPILE = $(CXX) $(CXXFLAGS) $(1) -I$(TEST_DIR)
+CATCH2_COMPILE = $(CXX) $(CXXFLAGS) $(1)
+
 # Compile test main (Catch2 runner)
 # Note: No DEPFLAGS for Catch2 infrastructure - rarely changes
 $(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp $(TEST_DIR)/test_helpers/stale_binary_check.h $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-MAIN]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@
+	$(Q)$(call TEST_MAIN_COMPILE) -c $< -o $@
 
 # Compile Catch2 amalgamated source
 # Note: No DEPFLAGS - this is third-party code that never changes
 $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CATCH2]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(Q)$(call CATCH2_COMPILE) -c $< -o $@
 
 # Test compile rules depend on libhv-generated headers ($(LIBHV_JSON_HEADER))
 # and the LVGL patch stamp so a fresh `make test-asan` / `make test-tsan` (without a prior
@@ -1003,32 +1039,32 @@ $(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
 $(UI_TEST_UTILS_OBJ): $(TEST_DIR)/ui_test_utils.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile LVGL test fixture (shared base class for UI tests)
 # Uses DEPFLAGS to track header dependencies
 $(LVGL_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[LVGL-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile HelixScreen test fixture (base class that resets process singletons)
 # Uses DEPFLAGS to track header dependencies
 $(HELIX_TEST_FIXTURE_OBJ): $(TEST_DIR)/helix_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[HELIX-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile test fixtures (reusable fixtures with mock initialization helpers)
 # Uses DEPFLAGS to track header dependencies
 $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[TEST-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile LVGL UI test fixture (full UI integration test fixture)
 # Uses DEPFLAGS to track header dependencies
@@ -1036,8 +1072,8 @@ $(TEST_FIXTURES_OBJ): $(TEST_DIR)/test_fixtures.cpp $(LIBHV_LIB) $(LIBHV_JSON_HE
 $(LVGL_UI_TEST_FIXTURE_OBJ): $(TEST_DIR)/lvgl_ui_test_fixture.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[UI-FIXTURE]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Warnings promoted to errors for TEST code only.
 #
@@ -1059,16 +1095,16 @@ TEST_WARN_FLAGS := -Werror=type-limits
 $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_COMPILE),$<,$@)
 
 # Compile application subdirectory test sources
 # Emits .ccj fragment for incremental compile_commands.json generation
 $(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-APP]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(TEST_WARN_FLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_DIR) -I$(TEST_UNIT_DIR)/application $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_APP_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_APP_COMPILE),$<,$@)
 
 # Compile libhv dns_resolv.c for test_dns_resolver
 # rules.mk makes dns_resolv.c depend on PATCHES_STAMP, which creates it.
@@ -1086,8 +1122,8 @@ $(DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c $(LIBHV_LIB)
 $(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(YELLOW)[MOCK]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) -I$(TEST_MOCK_DIR) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(Q)$(call TEST_MOCK_COMPILE,$(DEPFLAGS)) -c $< -o $@
+	$(call emit-compile-command,$(call TEST_MOCK_COMPILE),$<,$@)
 
 # ============================================================================
 # Sanitizer Targets (Memory Safety Testing)
@@ -1122,8 +1158,12 @@ TSAN_OBJ_DIR := $(BUILD_DIR)/obj-tsan
 # so they beat the `:=` assignments in the top-level Makefile. BIN_DIR is left
 # shared deliberately — the binaries already have distinct names, and keeping it
 # stable means $(TEST_ASAN_BIN) resolves to the same path in both makes.
+# ASan instruments the submodules too: a freed widget is nearly always read inside
+# LVGL's own C, which an uninstrumented build never reports.
 ASAN_MAKE_OVERRIDES := OBJ_DIR=$(ASAN_OBJ_DIR) \
-	CXXFLAGS='$(CXXFLAGS) $(ASAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(ASAN_FLAGS)'
+	CXXFLAGS='$(CXXFLAGS) $(ASAN_FLAGS)' LDFLAGS='$(LDFLAGS) $(ASAN_FLAGS)' \
+	SUBMODULE_CFLAGS='$(SUBMODULE_CFLAGS) $(ASAN_FLAGS)' \
+	SUBMODULE_CXXFLAGS='$(SUBMODULE_CXXFLAGS) $(ASAN_FLAGS)'
 # TSan also instruments the submodules. LVGL's draw-task handshake is C atomics in
 # lv_draw.c and lv_draw_sw.c; left uninstrumented, TSan sees none of that ordering
 # but still sees the memcpy and free interceptors either side of it, and reports
@@ -1229,7 +1269,10 @@ TEST_TSAN_BIN := $(BIN_DIR)/helix-tests-tsan
 # attaches to those targets too. `override` is what makes it survive there: the
 # same invocation passes CXXFLAGS on the command line, and a command-line
 # variable discards every makefile assignment to it without the keyword.
-$(TEST_BIN): override CXXFLAGS += -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
+# print-compile-command (Makefile) adds TEST_BIN_CXXFLAGS to every tests/ source
+# itself: it runs outside this target, where the inheritance does not reach.
+TEST_BIN_CXXFLAGS := -DHELIX_HAS_ACE=1 -DHELIX_HAS_QIDI=1 -DHELIX_HAS_SNAPMAKER=1
+$(TEST_BIN): override CXXFLAGS += $(TEST_BIN_CXXFLAGS)
 
 # Run a sanitizer binary in Catch2 shards, $(3) at a time, each into
 # $$shard_dir/<i>.log with its exit status in <i>.exit. The caller creates

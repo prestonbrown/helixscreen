@@ -13,15 +13,17 @@
 #include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
 #include "settings_manager.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "src/ui/ui_filament_path_plan.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui::fpath;
+using helix::ui::tray::LaneJoin;
 
 namespace {
 
@@ -106,9 +108,8 @@ float inlet_y(const HubCanvas& c) {
 const PathPlan& plan_of(const HubCanvas& c, LinearHubFrame* frame_out) {
     static PathPlan plan;
     const BaseGeometry g = compute_base_geometry(c.obj, c.data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
-    *frame_out = compute_linear_hub_frame(*c.data, g,
-                                          toolhead_top_y(nozzle_y, c.data->theme.extruder_scale));
+    *frame_out = compute_linear_hub_frame(
+        *c.data, g, toolhead_top_y(linear_hub_nozzle_y(*c.data, g), c.data->theme.extruder_scale));
     plan_linear_hub(*frame_out, *c.data, g, plan);
     return plan;
 }
@@ -124,19 +125,6 @@ int32_t center_y(const lv_area_t& a) {
 }
 
 } // namespace
-
-TEST_CASE_METHOD(HubStackFixture, "HUB loaded to the nozzle with a buffer is one contiguous route",
-                 "[filament-path][hub-stack]") {
-    auto c = make(/*buffer=*/true, /*bypass=*/false);
-    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    render(c);
-    const auto& route = c.data->path_cache.path;
-    check_contiguous(route);
-    // The route passes the hub's bottom edge and ends in the glyph's inlet.
-    REQUIRE(c.data->hits.hub_valid);
-    CHECK(segment_starting_at(route, (float)c.data->hits.hub.y2) >= 0);
-    CHECK(seg_end(route.segs[route.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
-}
 
 TEST_CASE_METHOD(HubStackFixture, "HUB output run with a buffer reaches the toolhead unbroken",
                  "[filament-path][hub-stack]") {
@@ -170,6 +158,8 @@ TEST_CASE_METHOD(HubStackFixture, "HUB output run with a buffer reaches the tool
         CHECK(seg_start(r.path.segs[strokes[i].end]).y == Catch::Approx(y1).margin(0.01));
     }
     CHECK(errors == 1);
+    check_contiguous(r.path);
+    CHECK(seg_end(r.path.segs[r.path.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
 }
 
 namespace {
@@ -250,15 +240,144 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK(seg_end(route.segs[route.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "HUB with the bypass shown keeps the ratio layout",
+TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merges them at a point",
                  "[filament-path][hub-stack]") {
-    auto c = make(true, true);
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Junction);
     render(c);
-    REQUIRE(c.data->hits.hub_valid);
-    REQUIRE(c.data->hits.buffer_valid);
-    CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
-    CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
+    CHECK_FALSE(c.data->hits.hub_valid); // no box, so nothing to tap
+
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    REQUIRE(plan.active_route == 0);
+    const float top = (float)(f.hub_y - f.hub_h / 2);
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& route = plan.routes[i].path;
+        REQUIRE(route.count > 0);
+        CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
+        bool meets = false;
+        for (int s = 0; s < route.count; ++s)
+            meets = meets || (std::fabs(seg_end(route.segs[s]).x - (float)f.center_x) < 0.5f &&
+                              std::fabs(seg_end(route.segs[s]).y - top) < 0.5f);
+        CHECK(meets);
+    }
+    check_contiguous(plan.routes[0].path);
+    // An outer lane travels sideways on the bus, rather than along a straight diagonal.
+    const float bus = (float)built_in_bus_y(f);
+    bool horizontal = false;
+    for (int s = 0; s < plan.routes[0].path.count; ++s) {
+        const auto& seg = plan.routes[0].path.segs[s];
+        horizontal =
+            horizontal || (seg.type == pg::PathSeg::LINE && std::fabs(seg.p0.y - bus) < 0.5f &&
+                           std::fabs(seg.p1.y - bus) < 0.5f);
+    }
+    CHECK(horizontal);
+}
+
+TEST_CASE("A selector rail's carriage follows the active gate and keeps its place otherwise",
+          "[filament-path][selector-rail]") {
+    const int32_t slots[] = {100, 160, 220, 280};
+    CHECK(rail_carriage_x(slots, 4, 2, 0, false) == 220);
+    CHECK(rail_carriage_x(slots, 4, 2, 175, true) == 175); // mid-slide
+    CHECK(rail_carriage_x(slots, 4, -1, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -2, 160, false) == 160);
+    CHECK(rail_carriage_x(slots, 4, -1, 0, false) == 100); // never placed: rests at the first gate
+    CHECK(rail_carriage_x(slots, 4, -1, 900, false) == 100);
+}
+
+TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to its gate",
+                 "[filament-path][selector-rail]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_topology(c.obj, 0);
+    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    ui_filament_path_canvas_set_active_slot(c.obj, -1);
+    ui_filament_path_canvas_set_active_slot(c.obj, 2);
+    render(c);
+    REQUIRE((c.data->hits.hub_valid && !c.data->rail_drawn));
+    const lv_area_t bar = c.data->hits.hub;
+    const helix::ui::tray::UnitShell* ercf = helix::ui::tray::unit_shell_by_id("ercf_rail");
+    REQUIRE(ercf != nullptr);
+    CHECK(helix::ui::tray::unit_shell_face_art(*ercf, 5) == nullptr);
+    const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*ercf, 4);
+    ui_filament_path_canvas_set_selector_rail(c.obj, ercf->id, art);
+    render(c);
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    REQUIRE((art != nullptr && c.data->rail_drawn && f.rail.w > 0));
+    CHECK(std::abs(f.rail.x + f.rail.w / 2 - f.center_x) <= 1);
+    CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < f.buffer_y));
+    CHECK((c.data->hits.hub.x1 == f.rail.x && c.data->hits.hub.y2 == f.rail.y + f.rail.h));
+    const float in_y = (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h));
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const float gate = (float)rail_gate_x(*art, f.rail, i);
+        bool reaches = false;
+        for (int s = 0; s < plan.routes[i].path.count; ++s) {
+            const pg::PathPoint p = seg_end(plan.routes[i].path.segs[s]);
+            reaches = reaches || (std::fabs(p.x - gate) < 0.5f && std::fabs(p.y - in_y) < 0.5f);
+        }
+        CHECK(reaches);
+    }
+    // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
+    CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
+           f.output_y >= f.rail.y + f.rail.h * 9 / 10));
+    // A rail's sync sensor is at its outlet: no buffer box, the outlet band shows its state.
+    ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
+    ui_filament_path_canvas_set_buffer_fault_state(c.obj, 2);
+    render(c);
+    const PathPlan& synced = plan_of(c, &f);
+    const SensorBand* sync = nullptr;
+    for (int b = 0; b < synced.band_count; ++b)
+        if (synced.bands[b].state == BandState::Sync && synced.bands[b].at.y == (float)f.output_y)
+            sync = &synced.bands[b];
+    REQUIRE(sync != nullptr);
+    CHECK((!f.has_buffer && center_y(c.data->hits.buffer) == f.output_y &&
+           lv_color_eq(band_color(*sync, tube_palette(*c.data)), c.data->theme.color_buffer[2])));
+    // A new selection slides the exit toward that gate's outlet, before any repaint.
+    ui_filament_path_canvas_set_active_slot(c.obj, 3);
+    CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));
+
+    BaseGeometry short_canvas = compute_base_geometry(c.obj, c.data);
+    short_canvas.height = 120; // too short for the art: the bar comes back
+    CHECK(rail_art_rect(*c.data, short_canvas).w == 0);
+
+    // Art whose images are missing gives the whole layout back to the bar.
+    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
+    render(c);
+    plan_of(c, &f);
+    CHECK((!c.data->rail_drawn && f.rail.w == 0 && f.has_buffer));
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
+    render(c);
+    CHECK(
+        (c.data->hits.hub_valid && c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
+}
+
+TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
+                 "[filament-path][hub-stack]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    for (int i = 0; i < 4; ++i)
+        c.data->slot_has_prep_sensor[i] = c.data->slot_has_load_sensor[i] = true;
+    ui_filament_path_canvas_set_hub_sensor(c.obj, true, false);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Inside);
+    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
+    render(c);
+    CHECK(c.data->hits.hub_valid); // no box, but the merge still opens the unit's settings
+    // Routes to separate tools never merge, whatever the unit does inside.
+    CHECK(drawn_lane_join(LaneJoin::Inside, helix::PathTopology::PARALLEL) == LaneJoin::Hub);
+    CHECK(drawn_lane_join(LaneJoin::Junction, helix::PathTopology::MIXED) == LaneJoin::Hub);
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
+    auto junction = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    ui_filament_path_canvas_set_lane_join(junction.obj, LaneJoin::Junction);
+    render(junction);
+    LinearHubFrame outside{};
+    plan_of(junction, &outside);
+    CHECK(f.hub_y < outside.hub_y);
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
@@ -277,8 +396,17 @@ TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "HUB on a canvas too short to stack keeps the ratio layout",
+TEST_CASE_METHOD(HubStackFixture,
+                 "HUB keeps the ratio layout with the bypass shown or a canvas too short to stack",
                  "[filament-path][hub-stack]") {
+    auto shown = make(true, true);
+    load(shown, static_cast<int>(helix::PathSegment::NOZZLE));
+    render(shown);
+    REQUIRE((shown.data->hits.hub_valid && shown.data->hits.buffer_valid));
+    CHECK(center_y(shown.data->hits.hub) == Catch::Approx(ratio_y(shown, kHubYRatio)).margin(1));
+    CHECK(center_y(shown.data->hits.buffer) ==
+          Catch::Approx(ratio_y(shown, kBufferYRatio)).margin(1));
+
     auto c = make(false, false);
     lv_obj_set_size(c.obj, kCanvasW, 100);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));
@@ -289,7 +417,8 @@ TEST_CASE_METHOD(HubStackFixture, "HUB on a canvas too short to stack keeps the 
     const int32_t hub_h = (int32_t)(100 * kHubHeightRatio);
     const int32_t gap = hub_h / 2 + 2 * c.data->theme.sensor_radius;
     const int32_t glyph_top =
-        toolhead_top_y(ratio_y(c, kNozzleYRatio), c.data->theme.extruder_scale);
+        toolhead_top_y(linear_hub_nozzle_y(*c.data, compute_base_geometry(c.obj, c.data)),
+                       c.data->theme.extruder_scale);
     REQUIRE(glyph_top - 2 * gap - hub_h / 2 <= ratio_y(c, kHubYRatio));
     CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
 }
@@ -305,20 +434,41 @@ TEST_CASE_METHOD(HubStackFixture, "toolhead_top_y matches each renderer's top ed
     const Case c = GENERATE(
         // Bambu body: 40 tall, cap 4 over a 4 bevel, iso depth 6 -> 300 - 20 - 8 - 3
         Case{helix::ToolheadStyle::DEFAULT, 269},
-        // Design y 0 vs center 630, render 12*10 = 120 over 2000 -> -37.8, truncated
-        Case{helix::ToolheadStyle::A4T, 263},
-        // Design y 78 vs center 500, render 100 over 1000 -> -42.2, truncated
-        Case{helix::ToolheadStyle::STEALTHBURNER, 258},
-        // Design y 2 vs center 687, render 100 over 2400 -> -28.5, truncated
-        Case{helix::ToolheadStyle::JABBERWOCKY, 272},
-        // Image row 0 vs pivot 81 of 163, scaled to 65 px -> -32.3, truncated
-        Case{helix::ToolheadStyle::ANTHEAD, 268},
-        // Body 48 tall, iso depth 6 -> 300 - 24 - 3
-        Case{helix::ToolheadStyle::CREALITY_K1, 273},
-        // Body 48 tall, iso depth 5 -> 300 - 24 - 2
-        Case{helix::ToolheadStyle::CREALITY_K2, 274});
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::A4T, 256},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::STEALTHBURNER, 261},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::JABBERWOCKY, 251},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::ANTHEAD, 259},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::CREALITY_K1, 267},
+        // The baked head's top edge
+        Case{helix::ToolheadStyle::CREALITY_K2, 255});
     ScopedToolheadStyle scoped(c.style);
     CAPTURE(static_cast<int>(c.style));
     REQUIRE(helix::SettingsManager::instance().get_effective_toolhead_style() == c.style);
     CHECK(toolhead_top_y(300, 10) == c.top);
+}
+
+// The AMS panel's path canvas height (ctl geom) and the theme's extruder scale
+// there, LV_MAX(8, space_md), at 480x272 and 800x480.
+TEST_CASE_METHOD(HubStackFixture,
+                 "Every toolhead's glyph stays on the path canvas at 480x272 and 800x480",
+                 "[filament-path][hub-stack][toolhead-fit]") {
+    const auto bp =
+        GENERATE(std::pair<int32_t, int32_t>{119, 8}, std::pair<int32_t, int32_t>{262, 10});
+    const int style_id = GENERATE(range(1, helix::kLastToolheadStyle + 1));
+    ScopedToolheadStyle scoped(static_cast<helix::ToolheadStyle>(style_id));
+    REQUIRE(static_cast<int>(helix::SettingsManager::instance().get_effective_toolhead_style()) ==
+            style_id);
+    FilamentPathData d;
+    d.theme.extruder_scale = bp.second;
+    BaseGeometry g;
+    g.height = bp.first;
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, linear_hub_nozzle_y(d, g), bp.second);
+    CAPTURE(style_id, bp.first, b.top, b.bottom);
+    CHECK(b.top >= 0);
+    CHECK(b.bottom < bp.first);
 }

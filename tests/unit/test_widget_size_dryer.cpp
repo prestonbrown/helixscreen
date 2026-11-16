@@ -20,7 +20,8 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/zero_lane_numbering.h"
+#include "core/update_queue.h"
 #include "dryer_summary.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
@@ -55,7 +56,7 @@ struct DryerFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void publish(const DryerSummaryInput& in) {
         dryer_model::publish_for_test(summarize_dryers(in));
@@ -118,7 +119,7 @@ int rung_subject() {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
@@ -252,7 +253,7 @@ TEST_CASE_METHOD(DryerFixture, "dryer: drying draws the ring at Glance, Cell and
     CHECK_FALSE(shown(part(h, "dryer_ring_box")));
     CHECK(shown(part(h, "dryer_time")));
     CHECK(shown(part(h, "dryer_temp")));
-    CHECK(subject_text("home_dryer_temp_text") == "47/55\xC2\xB0"
+    CHECK(subject_text("home_dryer_temp_text") == "47 / 55\xC2\xB0"
                                                   "C");
 
     h.resize(1, 1, 55, 113);
@@ -275,6 +276,38 @@ TEST_CASE_METHOD(DryerFixture, "dryer: drying draws the ring at Glance, Cell and
     CHECK(shown(part(h, "dryer_rh_detail")));
     CHECK(shown(part(h, "dryer_end")));
     CHECK_FALSE(shown(part(h, "dryer_count")));
+
+    // A box with no name of its own is counted, not a numbered position.
+    ScopedZeroLaneNumbering zero;
+    DryerSummaryInput nameless = one_box_drying();
+    nameless.zones[0].label.clear();
+    publish(nameless);
+    CHECK(subject_text("home_dryer_name_text") == "Box 1");
+}
+
+TEST_CASE_METHOD(DryerFixture, "dryer: the drying temperature fits its tile on one line",
+                 "[widget_size][dryer]") {
+    publish(one_box_drying());
+    PanelWidgetHarness<DryerWidget> h(test_screen());
+
+    for (const auto& b : {kGlance, kStrip, kColumn, kCell, kWide}) {
+        INFO(b.w << "x" << b.h);
+        h.resize(1, 1, b.w, b.h);
+        lv_obj_update_layout(test_screen());
+        lv_obj_t* temp = part(h, "dryer_temp");
+        if (!shown(temp)) {
+            continue;
+        }
+        INFO("text: " << lv_label_get_text(temp));
+        lv_area_t tile;
+        lv_area_t text;
+        lv_obj_get_coords(h.root(), &tile);
+        lv_obj_get_coords(temp, &text);
+        CHECK(text.x1 >= tile.x1);
+        CHECK(text.x2 <= tile.x2);
+        const lv_font_t* font = lv_obj_get_style_text_font(temp, LV_PART_MAIN);
+        CHECK(lv_obj_get_height(temp) <= lv_font_get_line_height(font));
+    }
 }
 
 TEST_CASE_METHOD(DryerFixture, "dryer: an unknown progress draws the time with no ring",

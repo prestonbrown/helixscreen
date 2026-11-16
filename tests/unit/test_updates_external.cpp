@@ -203,7 +203,7 @@ TEST_CASE("compute_self_update_supported is TRUE on a read-only parent when the 
     // Escalation is deliberately false here: the shipped unit sets
     // NoNewPrivileges=true, so sudo cannot rescue this case even where sudoers
     // would allow it. If this term is dropped the user is locked out for good,
-    // because the fix can only reach them through an update.
+    // because any remedy can only reach them through an update.
     std::error_code ec;
     const std::filesystem::path base = std::filesystem::temp_directory_path(ec) /
                                        ("helix_selfupdate_inplace_" + std::to_string(::getpid()));
@@ -280,7 +280,7 @@ TEST_CASE("checking is gated more weakly than installing", "[update][external]")
     // The whole point of the split. Checking is a manifest fetch that touches no
     // files, so an install tree we cannot write must never silence it: a user on a
     // non-updatable install still needs to be told a new version exists, and that
-    // notice is the only route back out — the fix for whatever made the install
+    // notice is the only route back out: a remedy for whatever made the install
     // non-updatable can only reach them through an update they cannot apply.
     //
     // Concretely: update_checks_suppressed() must not depend on

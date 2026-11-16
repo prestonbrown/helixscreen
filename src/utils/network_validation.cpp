@@ -3,7 +3,7 @@
 
 #include "utils/network_validation.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 #include "translation_loader.h"
 
 #include <algorithm>

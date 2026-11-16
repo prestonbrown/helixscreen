@@ -4,6 +4,7 @@
 #include "snapmaker_print_preferences.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix::snapmaker;
 

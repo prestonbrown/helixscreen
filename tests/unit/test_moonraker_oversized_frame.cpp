@@ -3,21 +3,18 @@
 
 /**
  * @file test_moonraker_oversized_frame.cpp
- * @brief Regression test for the oversized-frame self-deadlock in on_ws_message().
+ * @brief What on_ws_message() does with a frame over kMaxMessageSize.
  *
  * The onmessage trampoline holds callback_lifecycle_mutex_ SHARED for as long as
- * on_ws_message() runs. on_ws_message() used to react to a frame over
- * kMaxMessageSize by calling disconnect() inline, and disconnect() takes that
- * same mutex EXCLUSIVE. std::shared_mutex is neither recursive nor upgradeable,
- * so the thread blocked handing the lock to itself: the libhv event loop stopped
- * being serviced entirely and every later request timed out with no clue why.
- *
- * The teardown is deferred through queueInLoop() now, so it lands on the next
- * loop iteration with the trampoline's shared lock already released.
+ * on_ws_message() runs, so anything there that takes that mutex EXCLUSIVE (as
+ * disconnect() does) blocks the libhv loop on itself. An oversized frame is dropped
+ * and the connection kept: the frame is usually Moonraker's valid reply to a large
+ * request, and disconnect() would also switch off auto-reconnect.
  */
 
 #include "../../include/moonraker_client.h"
 #include "../helix_test_fixture.h"
+#include "../test_helpers/moonraker_client_test_access.h"
 
 #include <atomic>
 #include <chrono>
@@ -31,28 +28,25 @@ using namespace helix;
 
 namespace {
 
-// Nothing listens here, so connect() fails fast. Distinct from the ports the
-// other client tests use so a stray listener cannot influence this one.
-constexpr const char* kDeadUrl = "ws://127.0.0.1:19993/websocket";
-
 // on_ws_message()'s kMaxMessageSize is 5 MB; comfortably over it.
 constexpr size_t kOversizedBytes = 6 * 1024 * 1024;
 
 } // namespace
 
 TEST_CASE_METHOD(HelixTestFixture,
-                 "MoonrakerClient oversized frame does not self-deadlock the event loop",
+                 "MoonrakerClient drops an oversized frame without deadlocking or disconnecting",
                  "[connection][eventloop][drain]") {
     auto loop_thread = std::make_shared<hv::EventLoopThread>();
     loop_thread->start();
 
     MoonrakerClient client(loop_thread->loop());
 
-    // connect() is what installs the onmessage trampoline (install-once), which
-    // is the half that takes the shared lock. Without it there is no lock to
-    // collide with and the test proves nothing.
-    client.connect(kDeadUrl, []() {}, []() {});
+    // The onmessage trampoline is the half that takes the shared lock; without it
+    // there is no lock to collide with and the test proves nothing. Installed
+    // without connecting, so nothing but this frame can change the connection.
+    MoonrakerClientTestAccess::install_ws_callbacks(client);
     REQUIRE(client.onmessage != nullptr);
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
 
     const std::string huge(kOversizedBytes, 'x');
 
@@ -93,15 +87,9 @@ TEST_CASE_METHOD(HelixTestFixture,
     CAPTURE(elapsed_ms.load());
     REQUIRE(elapsed_ms.load() < 1000);
 
-    // The teardown still has to actually happen, just later — a deferral that
-    // silently dropped the disconnect would pass the deadlock check above while
-    // leaving the client wired to a peer that just violated the protocol.
-    const auto disconnect_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-    while (client.get_connection_state() != ConnectionState::DISCONNECTED &&
-           std::chrono::steady_clock::now() < disconnect_deadline) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    CHECK(client.get_connection_state() == ConnectionState::DISCONNECTED);
+    // The connection survives the dropped frame: no teardown is queued for later either.
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    CHECK(client.get_connection_state() == ConnectionState::CONNECTED);
 
     loop_thread->stop(true);
 }

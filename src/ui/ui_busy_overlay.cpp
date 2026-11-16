@@ -4,9 +4,10 @@
 #include "ui_busy_overlay.h"
 
 #include "ui_effects.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
@@ -23,7 +24,7 @@ namespace helix {
 // ============================================================================
 namespace {
 
-lv_obj_t* g_overlay = nullptr;       // Full-screen backdrop
+helix::ui::WidgetRef g_overlay;      // Full-screen backdrop
 lv_obj_t* g_spinner = nullptr;       // Centered spinner
 lv_obj_t* g_label = nullptr;         // Progress text below spinner
 lv_timer_t* g_grace_timer = nullptr; // Delayed show timer
@@ -34,9 +35,8 @@ std::string g_pending_text;          // Text to show when overlay appears
 constexpr uint8_t kOverlayBackdropOpacity = 180;
 
 // Spacing between spinner and label
-constexpr lv_coord_t kSpinnerLabelGap = 16;
+constexpr int32_t kSpinnerLabelGap = 16;
 
-// Forward declarations
 void create_overlay_internal();
 void destroy_overlay_internal();
 
@@ -79,7 +79,7 @@ void create_overlay_internal() {
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(container, kSpinnerLabelGap, LV_PART_MAIN);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
 
     // Create spinner using XML widget (with fallback to raw LVGL)
     g_spinner = static_cast<lv_obj_t*>(lv_xml_create(container, "spinner", nullptr));
@@ -100,14 +100,13 @@ void create_overlay_internal() {
         }
     }
 
-    // Create progress label
     g_label = lv_label_create(container);
     lv_obj_set_style_text_color(g_label, theme_manager_get_color("text"), LV_PART_MAIN);
     lv_obj_set_style_text_font(g_label, theme_manager_get_font("font_small"), LV_PART_MAIN);
     lv_label_set_text(g_label, g_pending_text.c_str());
 
     // Bring to foreground
-    lv_obj_move_foreground(g_overlay);
+    lv_obj_move_to_index(g_overlay, -1);
 
     g_pending_show = false;
     spdlog::debug("[BusyOverlay] Created overlay with text: '{}'", g_pending_text);
@@ -198,14 +197,12 @@ void BusyOverlay::set_progress(const std::string& operation, float percent) {
     // Update pending text (in case overlay not yet visible)
     g_pending_text = buf;
 
-    // Update label if visible
     if (g_overlay && g_label) {
         lv_label_set_text(g_label, buf);
     }
 }
 
 void BusyOverlay::hide() {
-    // Cancel grace timer if pending
     if (g_grace_timer) {
         lv_timer_delete(g_grace_timer);
         g_grace_timer = nullptr;
@@ -215,7 +212,6 @@ void BusyOverlay::hide() {
     g_pending_show = false;
     g_pending_text.clear();
 
-    // Destroy overlay if visible
     if (g_overlay) {
         destroy_overlay_internal();
     }

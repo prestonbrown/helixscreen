@@ -2,10 +2,9 @@
 #pragma once
 
 #include "gcode_narration_router.h"
+#include "json_fwd.h"
 
 #include <string>
-
-#include "hv/json.hpp"
 
 // Friend of GcodeNarrationRouter: drives a raw narration line straight through
 // process_line() without standing up a MoonrakerClient + WebSocket.

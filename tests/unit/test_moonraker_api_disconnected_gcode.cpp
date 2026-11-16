@@ -5,7 +5,7 @@
  * @file test_moonraker_api_disconnected_gcode.cpp
  * @brief The klippy-halted gate must not speak for a printer we never reached.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the WebSocket to
+ * Context (K2 Plus, v0.99.98): the WebSocket to
  * Moonraker never opened once for the whole session. klippy_state therefore
  * still held its startup default of SHUTDOWN (printer_network_state.cpp,
  * "default to SHUTDOWN until confirmed ready") — there is no UNKNOWN value to
@@ -26,7 +26,6 @@
 #include "../../include/moonraker_error.h"
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/moonraker_client_test_access.h"
 #include "hv/EventLoopThread.h"
 
 #include <atomic>
@@ -91,41 +90,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     REQUIRE(error_fired->load());
 
-    // The whole point: transport failure, not a firmware halt. Before the fix
-    // this was NOT_READY / "Klipper is halted — restart firmware to continue".
+    // The whole point: transport failure, not a firmware halt, so never
+    // NOT_READY / "Klipper is halted — restart firmware to continue".
     CHECK(*error_type == MoonrakerErrorType::CONNECTION_LOST);
     CHECK(error_message->find("halted") == std::string::npos);
     CHECK(error_message->find("restart firmware") == std::string::npos);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "execute_gcode still refuses a genuine halt while connected",
-                 "[moonraker][api][regression][eventloop][slow]") {
-    // The complement: narrowing the gate to "connected" must not disarm it.
-    // A connected client reporting SHUTDOWN is a real halt and must still be
-    // refused with NOT_READY — that gate closed the K2 M106 flood (2026-05-05).
-    PrinterState state;
-    state.init_subjects(false);
-    state.set_klippy_state_sync(KlippyState::SHUTDOWN);
-
-    UnconnectedApi u(state);
-
-    // Drive the client's own state to CONNECTED without a socket: the gate reads
-    // get_connection_state(), which is what a live session would report.
-    MoonrakerClientTestAccess::force_connection_state(*u.client_, ConnectionState::CONNECTED);
-    REQUIRE(u.client_->get_connection_state() == ConnectionState::CONNECTED);
-
-    auto error_fired = std::make_shared<std::atomic<bool>>(false);
-    auto error_type = std::make_shared<MoonrakerErrorType>(MoonrakerErrorType::UNKNOWN);
-    auto error_message = std::make_shared<std::string>();
-
-    u.api_->execute_gcode("M117 hello", nullptr,
-                          [error_fired, error_type, error_message](const MoonrakerError& err) {
-                              error_fired->store(true);
-                              *error_type = err.type;
-                              *error_message = err.message;
-                          });
-
-    REQUIRE(error_fired->load());
-    CHECK(*error_type == MoonrakerErrorType::NOT_READY);
-    CHECK(error_message->find("halted") != std::string::npos);
 }

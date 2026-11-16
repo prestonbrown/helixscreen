@@ -4,6 +4,8 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
@@ -28,22 +30,18 @@
  * - Auto-discovery trigger on success
  * - Configuration persistence
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Async WebSocket callbacks with captured instance reference
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (6 total):
+ * ## Subject Bindings (10 total):
  *
  * - connection_ip (string) - IP address or hostname
  * - connection_port (string) - Port number (default "7125")
- * - connection_status_icon (string) - MDI icon (check/xmark/empty)
+ * - connection_status_kind (int) - Status icon, a StatusKind value (0=none)
  * - connection_status_text (string) - Status message text
  * - connection_testing (int) - 0=idle, 1=testing (disables button)
  * - connection_discovering (int) - 0=not discovering, 1=discovering (shows spinner)
+ * - connection_api_key (string) - Moonraker API key
+ * - connection_login_required (int) - 1 shows the API key entry
+ * - mdns_status (string) - mDNS discovery status text
+ * - connection_discovery_active (int) - 0=idle, 1=mDNS discovery running
  *
  * ## External Subject:
  *
@@ -91,7 +89,7 @@ class WizardConnectionStep : public helix::wizard::Step {
     WizardConnectionStep();
     ~WizardConnectionStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardConnectionStep(const WizardConnectionStep&) = delete;
     WizardConnectionStep& operator=(const WizardConnectionStep&) = delete;
@@ -173,23 +171,30 @@ class WizardConnectionStep : public helix::wizard::Step {
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
-    // Subjects (6 total)
-    lv_subject_t connection_ip_{};
-    lv_subject_t connection_port_{};
-    lv_subject_t connection_status_icon_{};
-    lv_subject_t connection_status_text_{};
-    lv_subject_t connection_testing_{};
-    lv_subject_t connection_discovering_{};
+    // Subjects
+    helix::Subject connection_ip_{};
+    helix::Subject connection_port_{};
+    /// StatusKind: which icon the status line shows (wizard_connection.xml)
+    helix::Subject connection_status_kind_{};
+    helix::Subject connection_status_text_{};
+    helix::Subject connection_testing_{};
+    helix::Subject connection_discovering_{};
+    /// Moonraker API key, for a printer whose Moonraker requires a login.
+    helix::Subject connection_api_key_{};
+    /// 1 shows the API key field: the printer refused a test for want of one, or has one saved.
+    helix::Subject connection_login_required_{};
 
     // String buffers (must be persistent)
     char connection_ip_buffer_[128];
     char connection_port_buffer_[8];
-    char connection_status_icon_buffer_[8];
-    char connection_status_text_buffer_[256];
+    char connection_status_text_buffer_[1024]; // holds a Klipper error message in full
+    char connection_api_key_buffer_[80];
 
     // State tracking (main thread only)
     bool connection_validated_ = false;
     bool subjects_initialized_ = false;
+    /// True while create() fills the inputs: their change handlers ignore it
+    bool prefilling_inputs_ = false;
 
     // Async callback safety — invalidated on cleanup AND on each new connection
     // attempt, replacing both cleanup_called_ and connection_generation_ (#193, #827)
@@ -214,8 +219,9 @@ class WizardConnectionStep : public helix::wizard::Step {
 
     // Saved values for async callback - protected by mutex for thread-safe access
     mutable std::mutex saved_values_mutex_;
-    std::string saved_ip_;   // Protected by saved_values_mutex_
-    std::string saved_port_; // Protected by saved_values_mutex_
+    std::string saved_ip_;      // Protected by saved_values_mutex_
+    std::string saved_port_;    // Protected by saved_values_mutex_
+    std::string saved_api_key_; // Protected by saved_values_mutex_
 
     // Where the port field's value came from (main thread only); moonraker_ports_to_try()
     // decides from it. Reset to FilledIn by cleanup().
@@ -233,6 +239,16 @@ class WizardConnectionStep : public helix::wizard::Step {
     /// A probe found Moonraker on @p port: record it and show it in the port field.
     void adopt_probed_port(int port);
 
+    /// The API key field, trimmed; blank means the printer takes none.
+    std::string entered_api_key();
+
+    /// Moonraker at @p ip answered the test but refused it: show the key field and why.
+    void show_login_required(const std::string& ip,
+                             const helix::MoonrakerConnectionTest::Result& result);
+
+    /// Writes the tested address and API key to the active printer's settings.
+    void save_connection(const std::string& ip, const std::string& port);
+
     // Event handler implementations
     void handle_test_connection_clicked();
     void handle_ip_input_changed();
@@ -247,9 +263,16 @@ class WizardConnectionStep : public helix::wizard::Step {
     /// for the hardware discovery the next steps need.
     void connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe, uint32_t timeout_ms);
 
-    // Helper to set status icon and text imperatively with appropriate colors
-    enum class StatusVariant { None, Success, Warning, Danger };
-    void set_status(const char* icon_name, StatusVariant variant, const char* text);
+    /// The status line's icon, matched by value in wizard_connection.xml.
+    enum class StatusKind : int {
+        None = 0,
+        Testing = 1, ///< question mark, muted
+        Success = 2, ///< check, success colour
+        Error = 3,   ///< cross, danger colour
+        Refused = 4, ///< cross, warning colour: the printer wants a key
+        Caution = 5, ///< warning triangle
+    };
+    void set_status(StatusKind kind, const char* text);
 
   public:
     /**
@@ -314,6 +337,14 @@ class WizardConnectionStep : public helix::wizard::Step {
     /// Shared tail of allow_continue_without_klipper() / discovery_watchdog_expired()
     void unblock_after_incomplete_discovery(const char* message);
 
+    /// The Klipper-down status, carrying Klipper's own reason once it is known.
+    std::string klipper_unavailable_status() const;
+
+    /// The status line currently shows klipper_unavailable_status(). Cleared by
+    /// every other set_status(). Main thread only.
+    bool showing_klipper_unavailable_ = false;
+    ObserverGuard klippy_message_observer_;
+
     // Auto-probe methods for localhost detection
     bool should_auto_probe() const;
     void attempt_auto_probe();
@@ -324,6 +355,7 @@ class WizardConnectionStep : public helix::wizard::Step {
     static void on_test_connection_clicked_static(lv_event_t* e);
     static void on_ip_input_changed_static(lv_event_t* e);
     static void on_port_input_changed_static(lv_event_t* e);
+    static void on_api_key_input_changed_cb(lv_event_t* e);
     static void auto_probe_timer_cb(lv_timer_t* timer);
     static void discovery_watchdog_timer_cb(lv_timer_t* timer);
 
@@ -336,8 +368,8 @@ class WizardConnectionStep : public helix::wizard::Step {
     std::vector<helix::DiscoveredPrinter> discovered_printers_;
 
     // Subjects for mDNS UI
-    lv_subject_t mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
-    lv_subject_t discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
+    helix::Subject mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
+    helix::Subject discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
     char mdns_status_buffer_[64];
 
     // mDNS callbacks

@@ -32,6 +32,7 @@
 namespace helix {
 class AmsBackend;
 struct AmsError;
+class IMoonrakerAPI;
 class PrinterState;
 } // namespace helix
 
@@ -71,6 +72,19 @@ namespace helix::ui {
  */
 [[nodiscard]] FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& state,
                                                        const AmsSystemInfo* snapshot = nullptr);
+
+/**
+ * @brief print_blocks_filament_load() over a live backend and printer.
+ *
+ * The backend's two homing answers, whether its load begins by unloading the
+ * toolhead, and the live homed_axes, so every Load
+ * surface asks the question AmsSubscriptionBackend::refuse_load_if_printing()
+ * answers. Null @p backend: no firmware macro can home, as for
+ * print_blocks_filament_op().
+ *
+ * @warning Main thread only: reads the homed_axes subject.
+ */
+[[nodiscard]] bool print_blocks_load_now(const AmsBackend* backend, PrinterState& state);
 
 /**
  * @brief The slot a runout's Load or Unload names.
@@ -122,6 +136,18 @@ struct OpNozzle {
 /// ask about, and plan_unload() gates its tier 1 on the backend anyway.
 [[nodiscard]] bool read_unload_target_loaded(AmsBackend* backend, const AmsSystemInfo& info,
                                              int target_slot);
+
+/**
+ * @brief Whether a Load here is the user's hand push, with nothing else to run it.
+ *
+ * True with no filament system, no load macro (plan_live_load() falls to the raw
+ * tier) and no job holding the machine: a single-spool printer whose Load would
+ * otherwise extrude blind. Such a Load is the guided manual load (#2000). During
+ * a job the raw tier stays, because a paused print's reload runs at its own heat.
+ *
+ * @warning Main thread only.
+ */
+[[nodiscard]] bool load_is_by_hand(AmsBackend* backend, int slot, PrinterState& state);
 
 // ============================================================================
 // Preheat
@@ -344,7 +370,21 @@ void execute_filament_unload(AmsBackend* backend, int slot, bool target_is_loade
 /// Purge counterpart. Two tiers only (the configured macro, then
 /// filament_purge_fallback_gcode() from filament_op_router.h) — no AmsBackend
 /// exposes a purge entry point, so there is no plan_purge() to route through.
-/// Heats for the loaded lane's material first, like the load and unload.
+/// Heats for the loaded lane's material first, like the load and unload, and
+/// sends the backend's purge preamble ahead of the purge itself.
 void execute_filament_purge(const char* log_tag);
+
+/// Run @p purge once the active filament backend's purge preamble
+/// (IPrintRouting::purge_preamble_gcode(), asked with whether a job holds the
+/// machine right now) has completed. Every Purge surface sends its macro or raw
+/// fallback through this, so the preamble cannot be skipped by one of them.
+///
+/// No backend or an empty preamble: @p purge runs synchronously, nothing is
+/// sent. Otherwise the preamble goes out first and @p purge runs on the main
+/// thread once it succeeds; if it fails, @p on_error runs on the main thread
+/// instead and @p purge never does.
+void run_after_purge_preamble(helix::IMoonrakerAPI* api, const char* log_tag,
+                              std::function<void()> purge,
+                              std::function<void(const MoonrakerError&)> on_error);
 
 } // namespace helix::ui

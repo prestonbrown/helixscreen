@@ -33,7 +33,7 @@ struct PhaseOption {
 [[nodiscard]] const std::vector<PhaseOption>& print_start_phase_options();
 
 /// The phase a pre-print option id toggles: bed_mesh, qgl, z_tilt,
-/// nozzle_clean, purge_line. nullopt for every other id (timelapse,
+/// nozzle_clean, purge_line, heat_soak. nullopt for every other id (timelapse,
 /// ai_detect, ...).
 [[nodiscard]] std::optional<PrintStartPhase>
 print_start_phase_of_option(std::string_view option_id);

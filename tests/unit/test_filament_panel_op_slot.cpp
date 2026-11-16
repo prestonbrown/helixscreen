@@ -13,12 +13,12 @@
  * with a real ToolState topology + a recording AMS backend injected into the real
  * AmsState singleton. It asserts WHICH slot argument reaches the backend.
  *
- * The bug this guards (single-source-of-truth fix): execute_load/execute_unload
- * used to read backend->get_system_info().current_slot and act on THAT, so on a
- * BoxTurtle where lane 4 (slot 3) was loaded to the toolhead but the dropdown
- * defaulted to T0, Load acted on the already-loaded lane 3 instead of the
- * selected lane 0. Both executors now call the private selected_op_slot() — the
- * same resolution the button gating uses — so the op can never diverge.
+ * execute_load/execute_unload must not act on backend->get_system_info()
+ * .current_slot: on a BoxTurtle where lane 4 (slot 3) is loaded to the
+ * toolhead but the dropdown defaults to T0, Load would act on the
+ * already-loaded lane 3 instead of the selected lane 0. Both executors call the
+ * private selected_op_slot(), the same resolution the button gating uses, so
+ * the op can never diverge.
  *
  * Mutation check: reverting execute_load() to dispatching on sys.current_slot
  * makes "BoxTurtle: Load follows the selected tool" FAIL (the backend is asked
@@ -27,18 +27,17 @@
 
 #include "ui_modal.h"
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_shared_resource.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
@@ -384,89 +383,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): dropdown selection changes tool to the selected index",
+                 "Toolchanger (PARALLEL): dropdown selection issues NO physical tool change",
                  "[filament][op_slot][panel]") {
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.mock->topology_ = PathTopology::PARALLEL;
     helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(false);
     h.select_tool(1); // != active T0
 
-    // RecordingBackend::change_tool() accepts synchronously, so on_success()
-    // (the "Switching to {}" toast) runs inside this call, on this thread. An
-    // accepted change has not happened yet: the toast must not claim it has.
-    helix::LogCapture log(64);
     TA::handle_extruder_changed(*h.panel);
 
-    REQUIRE(h.mock->change_tool_calls == 1);
-    CHECK(h.mock->last_change_tool == 1);
-    // NOTIFY_SUCCESS logs the text of the toast it raises.
-    // The toast names the tool the user tapped, never the 0-based G-code form.
-    CHECK(log.count_containing("Switching to Tool 2") >= 1);
-    CHECK(log.count_containing("Switching to T1") == 0);
-    CHECK(log.count_containing("Switched to") == 0);
-}
-
-// With "Confirm tool changes" on, the dropdown's selection waits on the dialog,
-// and a change that does not happen leaves the dropdown on the mounted tool.
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): dropdown selection asks first and reverts on cancel",
-                 "[filament][op_slot][panel][confirm]") {
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
-    h.mock->topology_ = PathTopology::PARALLEL;
-    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-    h.select_tool(2); // != active T0
-
-    TA::handle_extruder_changed(*h.panel);
-    CHECK(h.mock->change_tool_calls == 0);
-    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
-    CHECK(lv_dropdown_get_selected(dd) == 2);
-
-    SECTION("confirming changes tool") {
-        helix::test::answer_top_modal("btn_primary");
-        CHECK(h.mock->change_tool_calls == 1);
-        CHECK(h.mock->last_change_tool == 2);
-    }
-    SECTION("cancelling puts the dropdown back on the mounted tool") {
-        helix::test::answer_top_modal("btn_secondary");
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-    SECTION("a backdrop dismissal puts it back too") {
-        helix::test::dismiss_top_modal();
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-    SECTION("a programmatic close puts it back too") {
-        Modal::hide(ModalStack::instance().top_dialog());
-        process_lvgl(500);
-        helix::ui::UpdateQueue::instance().drain();
-        REQUIRE(ModalStack::instance().stack_empty());
-        CHECK(h.mock->change_tool_calls == 0);
-        CHECK(lv_dropdown_get_selected(dd) == 0);
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): a refused dropdown selection reverts without a dialog",
-                 "[filament][op_slot][panel][confirm]") {
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
-    h.mock->topology_ = PathTopology::PARALLEL;
-    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-
-    SECTION("while printing") {
-        set_wire_state(state(), "printing");
-    }
-    SECTION("while the filament system is busy") {
-        h.mock->sys_.action = AmsAction::LOADING;
-    }
-    h.select_tool(1);
-    TA::handle_extruder_changed(*h.panel);
-
+    // Choosing aims the panel; Pick up is the deliberate change.
     CHECK(h.mock->change_tool_calls == 0);
     CHECK(ModalStack::instance().stack_empty());
-    CHECK(lv_dropdown_get_selected(dd) == 0);
+    CHECK(TA::target_tool(*h.panel) == 1);
 }
 
 namespace {
@@ -475,7 +404,7 @@ namespace {
 void set_nozzle(helix::PrinterState& st, int temp_c, int target_c) {
     lv_subject_set_int(st.temperature_state().get_active_extruder_target_subject(), target_c * 10);
     lv_subject_set_int(st.temperature_state().get_active_extruder_temp_subject(), temp_c * 10);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 /// A ticket @p heater heated for: an op requested on a cold nozzle, run once hot.
@@ -729,9 +658,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Drain the update queue WITHOUT lv_timer_handler. schedule() creates the timer
     // from a queued lambda, but a 0ms timer would then fire and null itself inside
     // the same process_lvgl() sweep — making "fired instantly" (the bug) read
-    // identical to "never scheduled" (the fix). Draining alone lets the timer be
+    // identical to "never scheduled" (correct). Draining alone lets the timer be
     // created but never run, so its mere existence is the failure signal.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK_FALSE(cd.has_pending_timer());
 
@@ -745,7 +674,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // a panel that is already open — which is how the failure reached the user. The
 // AD5X reporter was sitting on the filament screen when the runout pause fired,
 // tapped a still-lit Load, and got "Cannot run filament operation while
-// printing" from the backend guard (bundle JX2FVRB9).
+// printing" from the backend guard.
 //
 // The panel watches print_lifecycle. It needs PRINTING -> PAUSED as a gating edge
 // (a pause UNGATES the buttons on every backend but AD5X, and print_active reads 1
@@ -861,7 +790,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // The runout pause. AFC does not self-home, so refuse_if_printing() now
     // ALLOWS the unload here — pause-then-swap is the recovery Klipper asks for,
-    // and the panel must hand the button back or the fix is invisible.
+    // and the panel must hand the button back or the recovery is unreachable.
     set_job_state(helix::PrintJobState::PAUSED);
     CHECK(read("filament_load_disabled") == 1);   // slot 3 already loaded
     CHECK(read("filament_unload_disabled") == 0); // the paused-swap fix

@@ -15,7 +15,7 @@ qc_filament_ops_neutral() {
   SECTION_START=$(date +%s)
   echo -n "🧵 Checking filament-op code for backend-type branches..."
 
-  if python3 scripts/check_filament_ops_neutral.py >"$QC_TMP/filament_ops_neutral.out" 2>&1; then
+  if python3 scripts/check_source_rules.py --rule filament-ops-neutral >"$QC_TMP/filament_ops_neutral.out" 2>&1; then
     section_time "$SECTION_START"
     echo ""
     echo "✅ Filament-op code is backend-neutral"
@@ -32,4 +32,4 @@ qc_filament_ops_neutral() {
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_filament_ops_neutral='^(src|include)/.*\.(cpp|h)$|^scripts/check_filament_ops_neutral\.py$'
+QC_TRIGGER_qc_filament_ops_neutral='^(src|include)/.*\.(cpp|h)$|^scripts/(check_source_rules|source_strip)\.py$'

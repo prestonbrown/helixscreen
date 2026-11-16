@@ -11,10 +11,11 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "camera_config_modal.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_registry.h"
@@ -34,9 +35,16 @@
 #include <utility>
 #include <vector>
 
-// Module-level subject for status text binding (static — shared across instances)
-static lv_subject_t s_camera_status_subject;
+// Module-level subjects the camera components bind. Static: the home grid
+// holds one camera tile, and one fullscreen view is open at a time.
+static helix::Subject s_camera_status_subject;
 static char s_camera_status_buffer[64];
+// 1 while the tile shows its icon-and-status overlay instead of a frame.
+static helix::Subject s_camera_overlay_shown_subject;
+// 1 while the tile is too narrow to stream, which hides the status line.
+static helix::Subject s_camera_compact_subject;
+// 1 until the open fullscreen view draws its first frame.
+static helix::Subject s_camera_fullscreen_connecting_subject;
 static helix::WidgetSubjects s_subjects{"CameraWidgetSubjects"};
 static const char* const kDefaultCameraStatusKey = TR_NOOP("No Camera");
 // The translation key the status text was produced from, so a language switch
@@ -48,15 +56,27 @@ static void camera_widget_init_subjects() {
         // The key belongs to the subject's lifetime: a printer switch re-inits
         // the subjects after a frame or stream status has left it nullptr.
         s_camera_status_key = kDefaultCameraStatusKey;
-        lv_subject_init_string(&s_camera_status_subject, s_camera_status_buffer, nullptr,
-                               sizeof(s_camera_status_buffer), lv_tr(s_camera_status_key));
+        s_camera_status_subject.init_string(s_camera_status_buffer, nullptr,
+                                            sizeof(s_camera_status_buffer),
+                                            lv_tr(s_camera_status_key));
         s_subjects.publish("camera_status_text", &s_camera_status_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_camera_status_subject, "camera_status_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-            __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_camera_status_subject, "camera_status_text",
+                                     LV_SUBJECT_TYPE_STRING);
+        s_camera_overlay_shown_subject.init_int(1);
+        s_subjects.publish("camera_overlay_shown", &s_camera_overlay_shown_subject);
+        s_camera_compact_subject.init_int(0);
+        s_subjects.publish("camera_compact", &s_camera_compact_subject);
+        s_camera_fullscreen_connecting_subject.init_int(1);
+        s_subjects.publish("camera_fullscreen_connecting", &s_camera_fullscreen_connecting_subject);
 
         spdlog::debug("[CameraWidget] Subjects initialized");
     });
+}
+
+static void set_camera_subject(lv_subject_t* subject, int value) {
+    if (s_subjects.initialized()) {
+        lv_subject_set_int(subject, value);
+    }
 }
 
 // Only one fullscreen camera overlay can be open at a time
@@ -128,8 +148,8 @@ void CameraWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     install_delete_hook(widget_obj);
 
     camera_image_ = lv_obj_find_by_name(widget_obj_, "camera_image");
-    camera_overlay_ = lv_obj_find_by_name(widget_obj_, "camera_overlay");
-    camera_status_ = lv_obj_find_by_name(widget_obj_, "camera_status");
+    // A fresh tile has no frame yet, even when the stream outlived the old one.
+    set_camera_subject(&s_camera_overlay_shown_subject, 1);
 
     language_observer_ = helix::ui::observe_language_change(this, [](CameraWidget* self) {
         if (s_camera_status_key) {
@@ -250,8 +270,6 @@ void CameraWidget::forget_tile_widgets() {
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
     camera_image_ = nullptr;
-    camera_overlay_ = nullptr;
-    camera_status_ = nullptr;
 }
 
 void CameraWidget::on_activate() {
@@ -286,12 +304,7 @@ void CameraWidget::on_activate() {
         start_stream();
     } else {
         // Compact mode: just show the icon overlay, no stream
-        if (camera_overlay_) {
-            lv_obj_remove_flag(camera_overlay_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (camera_status_) {
-            lv_obj_add_flag(camera_status_, LV_OBJ_FLAG_HIDDEN);
-        }
+        set_camera_subject(&s_camera_overlay_shown_subject, 1);
     }
 }
 
@@ -313,6 +326,7 @@ void CameraWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_p
     // a stream it wouldn't otherwise get — only a second column does, same
     // as fan_stack's row layout.
     compact_ = (width_px < widget_size::w_normal());
+    set_camera_subject(&s_camera_compact_subject, compact_ ? 1 : 0);
 
     // Ensure scale-to-cover after any resize
     if (camera_image_) {
@@ -327,17 +341,10 @@ void CameraWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_p
         if (camera_image_) {
             lv_image_set_src(camera_image_, nullptr);
         }
-        if (camera_overlay_) {
-            lv_obj_remove_flag(camera_overlay_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (camera_status_) {
-            lv_obj_add_flag(camera_status_, LV_OBJ_FLAG_HIDDEN);
-        }
+        set_camera_subject(&s_camera_overlay_shown_subject, 1);
     } else if (!compact_ && was_compact) {
-        // Transitioning from compact to larger: show status text, start streaming
-        if (camera_status_) {
-            lv_obj_remove_flag(camera_status_, LV_OBJ_FLAG_HIDDEN);
-        }
+        // Transitioning from compact to larger: the status text shows again
+        // with camera_compact; start streaming
         if (active_) {
             start_stream();
         }
@@ -362,13 +369,11 @@ void CameraWidget::start_stream() {
             if (target) {
                 lv_image_set_src(target, frame);
                 set_status_text("");
-                // Hide the spinner overlay matching the active view on first frame.
-                // In fullscreen the frame goes to fullscreen_image_, so the fullscreen
-                // overlay's own spinner must be hidden — not the inline widget's.
-                lv_obj_t* spinner = fullscreen_image_ ? fullscreen_spinner_ : camera_overlay_;
-                if (spinner && !lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN)) {
-                    lv_obj_add_flag(spinner, LV_OBJ_FLAG_HIDDEN);
-                }
+                // Drop the "Connecting" indicator of the view this frame went
+                // to: the fullscreen one while it is open, else the tile's.
+                set_camera_subject(fullscreen_image_ ? &s_camera_fullscreen_connecting_subject
+                                                     : &s_camera_overlay_shown_subject,
+                                   0);
             }
         },
         [this](const std::string& status) { set_status_text(status.c_str()); });
@@ -380,12 +385,9 @@ void CameraWidget::start_stream() {
 
     set_status_key(TR_NOOP("Connecting Camera..."));
 
-    // Unhide the overlay so the user sees "Connecting Camera..." instead of
-    // a bare gray rectangle. The overlay was hidden when the previous stream's
-    // first frame arrived — we need to re-show it for the new connection attempt.
-    if (camera_overlay_) {
-        lv_obj_remove_flag(camera_overlay_, LV_OBJ_FLAG_HIDDEN);
-    }
+    // Show the overlay again so the user sees "Connecting Camera..." instead
+    // of a bare gray rectangle: the previous stream's first frame hid it.
+    set_camera_subject(&s_camera_overlay_shown_subject, 1);
 }
 
 void CameraWidget::stop_stream() {
@@ -484,7 +486,7 @@ void CameraWidget::update_stream_fps() {
 void CameraWidget::set_status_text(const char* text) {
     s_camera_status_key = nullptr;
     if (s_subjects.initialized()) {
-        lv_subject_copy_string(&s_camera_status_subject, text);
+        lv_subject_set_string(&s_camera_status_subject, text);
     }
 }
 
@@ -515,12 +517,13 @@ void CameraWidget::show_fullscreen_overlay() {
     }
 
     // Create overlay as child of active screen (standard overlay pattern)
-    lv_obj_t* screen = lv_display_get_screen_active(nullptr);
+    lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         return;
     }
 
-    // Hidden until push_overlay shows it
+    // Hidden until push_overlay shows it, and connecting until its first frame
+    set_camera_subject(&s_camera_fullscreen_connecting_subject, 1);
     auto* overlay = helix::ui::create_xml_hidden(screen, "camera_fullscreen");
     if (!overlay) {
         spdlog::warn("[CameraWidget] Failed to create camera_fullscreen component");
@@ -530,7 +533,6 @@ void CameraWidget::show_fullscreen_overlay() {
     fullscreen_overlay_ = overlay;
     fullscreen_image_ =
         helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
-    fullscreen_spinner_ = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
     s_fullscreen_owner = this;
     lv_obj_add_event_cb(overlay, on_fullscreen_overlay_deleted, LV_EVENT_DELETE, nullptr);
 
@@ -556,7 +558,6 @@ void CameraWidget::show_fullscreen_overlay() {
             lv_image_set_src(fullscreen_image_, nullptr);
         }
         fullscreen_image_ = nullptr;
-        fullscreen_spinner_ = nullptr;
         // A raw overlay delete frees the slot before this queued close runs, so
         // another widget may own it by now.
         if (s_fullscreen_owner == this) {
@@ -569,12 +570,7 @@ void CameraWidget::show_fullscreen_overlay() {
         // In compact mode, stop the stream — the widget only shows an icon
         if (compact_) {
             stop_stream();
-            if (camera_overlay_) {
-                lv_obj_remove_flag(camera_overlay_, LV_OBJ_FLAG_HIDDEN);
-            }
-            if (camera_status_) {
-                lv_obj_add_flag(camera_status_, LV_OBJ_FLAG_HIDDEN);
-            }
+            set_camera_subject(&s_camera_overlay_shown_subject, 1);
         }
 
         spdlog::debug("[CameraWidget] Fullscreen overlay closed");
@@ -601,7 +597,6 @@ void CameraWidget::on_fullscreen_overlay_deleted(lv_event_t* e) {
     }
     owner->fullscreen_overlay_ = nullptr;
     owner->fullscreen_image_ = nullptr;
-    owner->fullscreen_spinner_ = nullptr;
     s_fullscreen_owner = nullptr;
     spdlog::debug("[CameraWidget] Fullscreen overlay deleted without a close");
 }
@@ -648,7 +643,6 @@ void StandaloneCameraViewer::on_overlay_deleted(lv_event_t* e) {
     }
     s_open_->overlay_ = nullptr;
     s_open_->image_ = nullptr;
-    s_open_->spinner_ = nullptr;
     close();
 }
 
@@ -677,11 +671,15 @@ bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
         return s_fullscreen_owner != nullptr;
     }
 
-    lv_obj_t* screen = lv_display_get_screen_active(nullptr);
+    lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         return false;
     }
 
+    // Its spinner binds a widget subject, which no camera tile may have
+    // registered yet.
+    camera_widget_init_subjects();
+    set_camera_subject(&s_camera_fullscreen_connecting_subject, 1);
     auto* overlay = helix::ui::create_xml_hidden(screen, "camera_fullscreen");
     if (!overlay) {
         spdlog::warn("[CameraWidget] Standalone: failed to create camera_fullscreen component");
@@ -691,7 +689,6 @@ bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
     auto* viewer = new StandaloneCameraViewer();
     viewer->overlay_ = overlay;
     viewer->image_ = helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
-    viewer->spinner_ = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
     if (viewer->image_) {
         lv_image_set_inner_align(viewer->image_, LV_IMAGE_ALIGN_COVER);
     }
@@ -705,9 +702,7 @@ bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
             }
             lv_image_set_src(viewer->image_, frame);
             // First frame: hide the "Connecting..." spinner
-            if (viewer->spinner_ && !lv_obj_has_flag(viewer->spinner_, LV_OBJ_FLAG_HIDDEN)) {
-                lv_obj_add_flag(viewer->spinner_, LV_OBJ_FLAG_HIDDEN);
-            }
+            set_camera_subject(&s_camera_fullscreen_connecting_subject, 0);
         },
         [](const std::string& status) {
             spdlog::debug("[CameraWidget] Standalone stream status: {}", status);
@@ -755,7 +750,6 @@ void CameraWidget::destroy_fullscreen() {
         lv_image_set_src(fullscreen_image_, nullptr);
     }
     fullscreen_image_ = nullptr;
-    fullscreen_spinner_ = nullptr;
     s_fullscreen_owner = nullptr;
 
     helix::nav::clear_on_close(fullscreen_overlay_);

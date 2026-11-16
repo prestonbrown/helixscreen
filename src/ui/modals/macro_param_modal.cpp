@@ -3,17 +3,22 @@
 
 #include "macro_param_modal.h"
 
+#include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "static_subject_registry.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/text_io.h"
+#include "lvgl.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
+#include <vector>
 
 using namespace helix;
 
@@ -26,19 +31,21 @@ std::string helix::macro_param_placeholder(const MacroParam& param) {
     return param.default_value.empty() ? param.name : param.default_value;
 }
 
-MacroParamModal* MacroParamModal::s_active_instance_ = nullptr;
+MacroParamModal& helix::get_macro_param_modal() {
+    return lazy_global<MacroParamModal>("MacroParamModal");
+}
 
 namespace {
 
 /// Save mode (1) re-titles the dialog, swaps Run for Save and reveals the
 /// "Ask for parameters" toggle; run mode (0) hides all of that.
-lv_subject_t s_save_mode_subject{};
+helix::Subject s_save_mode_subject{};
 /// The "Ask for parameters" toggle: 1 = prompt with these values prefilled,
 /// 0 = run with them without asking.
-lv_subject_t s_ask_subject{};
+helix::Subject s_ask_subject{};
 /// Fields the modal shows (raw mode is one): two or more widen the card so the
 /// fields can share rows.
-lv_subject_t s_field_count_subject{};
+helix::Subject s_field_count_subject{};
 bool s_modal_subjects_registered = false;
 SubjectManager s_subjects;
 
@@ -47,9 +54,9 @@ SubjectManager s_subjects;
 void register_modal_subjects() {
     if (s_modal_subjects_registered)
         return;
-    lv_subject_init_int(&s_save_mode_subject, 0);
-    lv_subject_init_int(&s_ask_subject, 1);
-    lv_subject_init_int(&s_field_count_subject, 0);
+    s_save_mode_subject.init_int(0);
+    s_ask_subject.init_int(1);
+    s_field_count_subject.init_int(0);
     s_subjects.publish("macro_param_modal_save_mode", &s_save_mode_subject);
     s_subjects.publish("macro_param_modal_ask", &s_ask_subject);
     s_subjects.publish("macro_param_modal_field_count", &s_field_count_subject);
@@ -78,10 +85,11 @@ void MacroParamModal::show_for_macro(lv_obj_t* parent, const std::string& macro_
 }
 
 void MacroParamModal::show_for_unknown_params(lv_obj_t* parent, const std::string& macro_name,
-                                              MacroExecuteCallback on_execute) {
+                                              MacroExecuteCallback on_execute,
+                                              const std::map<std::string, std::string>& prefill) {
     macro_name_ = macro_name;
     params_.clear();
-    prefill_.clear();
+    prefill_ = prefill;
     on_execute_ = std::move(on_execute);
     raw_mode_ = true;
     save_mode_ = false;
@@ -99,7 +107,7 @@ void MacroParamModal::show_for_defaults(lv_obj_t* parent, const std::string& mac
     prefill_ = record.values;
     on_execute_ = nullptr;
     on_save_ = std::move(on_save);
-    raw_mode_ = false;
+    raw_mode_ = params.empty();
     save_mode_ = true;
     register_modal_subjects();
     lv_subject_set_int(&s_save_mode_subject, 1);
@@ -120,10 +128,7 @@ void MacroParamModal::show_common(lv_obj_t* parent) {
     if (!show(parent)) {
         spdlog::error("[MacroParamModal] Failed to show modal{}", raw_mode_ ? " (raw mode)" : "");
         raw_mode_ = false;
-        return;
     }
-
-    s_active_instance_ = this;
 }
 
 void MacroParamModal::on_show() {
@@ -141,6 +146,9 @@ void MacroParamModal::on_ok() {
         on_save_clicked();
         return;
     }
+    if (refuse_unparsed_raw_text()) {
+        return;
+    }
     if (on_execute_) {
         on_execute_(collect_values());
     }
@@ -148,6 +156,9 @@ void MacroParamModal::on_ok() {
 }
 
 void MacroParamModal::on_save_clicked() {
+    if (refuse_unparsed_raw_text()) {
+        return;
+    }
     if (on_save_) {
         // Every field the user filled becomes a saved value, whatever side of
         // the params/variables split it would run on; the run path re-splits
@@ -156,6 +167,11 @@ void MacroParamModal::on_save_clicked() {
         MacroParamDefaultRecord record;
         record.values = collected.params;
         record.values.insert(collected.variables.begin(), collected.variables.end());
+        // A bare KEY= in the free-form text leaves the macro its own default,
+        // which is what an absent value already means.
+        for (auto it = record.values.begin(); it != record.values.end();) {
+            it = it->second.empty() ? record.values.erase(it) : std::next(it);
+        }
         record.ask_for_params = lv_subject_get_int(&s_ask_subject) != 0;
         on_save_(record);
     }
@@ -174,9 +190,6 @@ void MacroParamModal::on_hide() {
     raw_mode_ = false;
     raw_textarea_ = nullptr;
     textareas_.clear();
-    if (s_active_instance_ == this) {
-        s_active_instance_ = nullptr;
-    }
 }
 
 void MacroParamModal::populate_param_fields() {
@@ -196,6 +209,9 @@ void MacroParamModal::populate_param_fields() {
         lv_obj_t* field = static_cast<lv_obj_t*>(lv_xml_create(param_list, "form_field", attrs));
         if (field) {
             raw_textarea_ = lv_obj_find_by_name(field, "field_input");
+        }
+        if (raw_textarea_ && !prefill_.empty()) {
+            lv_textarea_set_text(raw_textarea_, format_raw_macro_params(prefill_).c_str());
         }
         spdlog::debug("[MacroParamModal] Created raw param field for {}", macro_name_);
         return;
@@ -264,30 +280,41 @@ MacroParamResult MacroParamModal::collect_values() const {
     return result;
 }
 
+bool MacroParamModal::refuse_unparsed_raw_text() const {
+    if (!raw_mode_ || !raw_textarea_) {
+        return false;
+    }
+    const char* text = lv_textarea_get_text(raw_textarea_);
+    std::vector<std::string> rejected;
+    (void)parse_raw_macro_params(text ? text : "", &rejected);
+    if (rejected.empty()) {
+        return false;
+    }
+    NOTIFY_WARNING("{}: {}", lv_tr("Invalid parameter"), rejected.front());
+    return true;
+}
+
 // Static callbacks
 void MacroParamModal::run_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] run_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_ok();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_ok();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void MacroParamModal::cancel_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] cancel_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_cancel();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_cancel();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void MacroParamModal::save_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[MacroParamModal] save_cb");
-    (void)e;
-    if (s_active_instance_) {
-        s_active_instance_->on_save_clicked();
+    if (auto* self = Modal::from_event<MacroParamModal>(e)) {
+        self->on_save_clicked();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

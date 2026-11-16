@@ -13,7 +13,6 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -21,10 +20,10 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/print_history_seed.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "locale_formats.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_history_api.h"
@@ -72,7 +71,7 @@ struct PrintStatsTileFixture : public LVGLUITestFixture, public PrintHistorySeed
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void settle() {
         drain();
@@ -95,7 +94,7 @@ std::string subject_text(const char* name) {
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
 bool shown(lv_obj_t* obj) {
     for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(o))
             return false;
     }
     return true;

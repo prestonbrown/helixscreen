@@ -39,6 +39,14 @@ teardown() {
     contains "STALE" "$output"
 }
 
+@test "without /proc a claim stays LIVE when the system timezone changes" {
+    TZ=America/Los_Angeles run "$CLAIM" take heavy:probe probing --pid "$OWNER"
+    [ "$status" -eq 0 ]
+    TZ=America/New_York run "$CLAIM" check heavy:probe
+    [ "$status" -eq 1 ]
+    contains "LIVE" "$output"
+}
+
 @test "without /proc a claim records a start time, and a different one reads STALE" {
     "$CLAIM" take heavy:probe probing --pid "$OWNER" >/dev/null
     local f="$HELIX_CLAIM_DIR/heavy_probe.json"

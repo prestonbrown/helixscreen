@@ -1,8 +1,27 @@
+diff --git a/include/lvgl/widgets/lv_label.h b/include/lvgl/widgets/lv_label.h
+index 723c1f3ea..7772fd90c 100644
+--- a/include/lvgl/widgets/lv_label.h
++++ b/include/lvgl/widgets/lv_label.h
+@@ -139,6 +139,14 @@ void lv_label_set_text_static(lv_obj_t * obj, const char * text);
+  */
+ void lv_label_set_long_mode(lv_obj_t * obj, lv_label_long_mode_t long_mode);
+ 
++/**
++ * Enable uppercase text transform (HelixScreen extension)
++ * When enabled, all text set on this label is converted to uppercase before display.
++ * @param obj       pointer to a label object
++ * @param enable    true to enable uppercase transform
++ */
++void lv_label_set_text_transform_upper(lv_obj_t * obj, bool enable);
++
+ /**
+  * Set the maximum number of lines that the label should display in
+  * `LV_LABEL_LONG_MODE_WRAP` and `LV_LABEL_LONG_MODE_DOTS` mode.
 diff --git a/src/widgets/label/lv_label.c b/src/widgets/label/lv_label.c
-index d550043c5..9ba865c99 100644
+index fe89f494f..f8ded10ba 100644
 --- a/src/widgets/label/lv_label.c
 +++ b/src/widgets/label/lv_label.c
-@@ -50,6 +50,7 @@ static void lv_label_event(const lv_obj_class_t * class_p, lv_event_t * e);
+@@ -46,6 +46,7 @@ static void lv_label_event(const lv_obj_class_t * class_p, lv_event_t * e);
  static void draw_main(lv_event_t * e);
  
  static void set_text_internal(lv_obj_t * obj, const char * text);
@@ -10,13 +29,13 @@ index d550043c5..9ba865c99 100644
  static void remove_translation_tag(lv_obj_t * obj);
  static void lv_label_refr_text(lv_obj_t * obj);
  static void update_layout_completed_cb(lv_event_t * e);
-@@ -170,6 +171,14 @@ void lv_label_set_text_vfmt(lv_obj_t * obj, const char * fmt, va_list args)
+@@ -168,6 +169,14 @@ void lv_label_set_text_vfmt(lv_obj_t * obj, const char * fmt, va_list args)
      lv_label_mark_need_refr_text(obj);
  }
  
 +void lv_label_set_text_transform_upper(lv_obj_t * obj, bool enable)
 +{
-+    LV_ASSERT_OBJ(obj, MY_CLASS);
++    LV_CHECK_OBJ(obj, MY_CLASS, return);
 +    lv_label_t * label = (lv_label_t *)obj;
 +    label->text_transform_upper = enable ? 1 : 0;
 +    if(enable) set_text_internal(obj, NULL); /* Re-process current text */
@@ -24,8 +43,8 @@ index d550043c5..9ba865c99 100644
 +
  void lv_label_set_text_static(lv_obj_t * obj, const char * text)
  {
-     LV_ASSERT_OBJ(obj, MY_CLASS);
-@@ -1016,9 +1025,83 @@ static void set_text_internal(lv_obj_t * obj, const char * text)
+     LV_CHECK_OBJ(obj, MY_CLASS, return);
+@@ -1083,9 +1092,84 @@ static void set_text_internal(lv_obj_t * obj, const char * text)
          label->static_txt = 0;
      }
  
@@ -106,33 +125,15 @@ index d550043c5..9ba865c99 100644
 +    }
 +}
 +
++
  static void remove_translation_tag(lv_obj_t * obj)
  {
-     LV_UNUSED(obj);
-diff --git a/src/widgets/label/lv_label.h b/src/widgets/label/lv_label.h
-index 92f846ac7..bf9d1c1cf 100644
---- a/src/widgets/label/lv_label.h
-+++ b/src/widgets/label/lv_label.h
-@@ -136,6 +136,14 @@ void lv_label_set_text_static(lv_obj_t * obj, const char * text);
-  */
- void lv_label_set_long_mode(lv_obj_t * obj, lv_label_long_mode_t long_mode);
- 
-+/**
-+ * Enable uppercase text transform (HelixScreen extension)
-+ * When enabled, all text set on this label is converted to uppercase before display.
-+ * @param obj       pointer to a label object
-+ * @param enable    true to enable uppercase transform
-+ */
-+void lv_label_set_text_transform_upper(lv_obj_t * obj, bool enable);
-+
- /**
-  * Set where text selection should start
-  * @param obj       pointer to a label object
+     LV_ASSERT(obj != NULL);
 diff --git a/src/widgets/label/lv_label_private.h b/src/widgets/label/lv_label_private.h
-index 8681a22db..87e42b8e6 100644
+index a3cd144c5..71f1fdb91 100644
 --- a/src/widgets/label/lv_label_private.h
 +++ b/src/widgets/label/lv_label_private.h
-@@ -54,6 +54,7 @@ struct _lv_label_t {
+@@ -55,6 +55,7 @@ struct _lv_label_t {
      uint8_t expand : 1;                 /**< Ignore real width (used by the library with LV_LABEL_LONG_MODE_SCROLL) */
      uint8_t invalid_size_cache : 1;     /**< 1: Recalculate size and update cache */
      uint8_t need_refr_text : 1;         /**< 1: Refresh text after layout update completion */

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- ESP32 firmware override of ui_xml/ipv4_settings_overlay.xml: an empty component. The
+     firmware compiles out the static IPv4 code and Network Settings hides its
+     rows there, so the shared screen would only spend flash and bind subjects
+     and callbacks nothing registers (prestonbrown/helixscreen#1900). -->
+<component>
+  <view extends="lv_obj" width="0" height="0"/>
+</component>

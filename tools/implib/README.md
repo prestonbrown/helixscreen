@@ -22,7 +22,7 @@ reviewed list calls in.
 
 Upstream's generated loader aborts when a library or symbol is missing. We pass
 `--dlopen-callback helix_gpu_lib_open --dlsym-callback helix_gpu_lib_symbol`
-(`src/api/gpu_libs.cpp`), so it never does: a call that reaches a missing
+(`src/platform/display/gpu_libs.cpp`), so it never does: a call that reaches a missing
 library logs an error and gets a failure back by return type (-1 with errno
 ENOSYS, 0.0, or 0/NULL), read from the table `scripts/gpu_lib_return_kinds.py`
 builds out of the libraries' headers.

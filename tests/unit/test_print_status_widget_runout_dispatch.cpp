@@ -23,12 +23,12 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_op_router.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"

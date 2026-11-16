@@ -117,20 +117,16 @@ A `Flat` box whose module we cannot identify still has its control paths refused
 > **"K2 SE" is a K1-family board.** It is served by the K1 MIPS OTA image and speaks the plain `BOX_*`
 > dialect, not `CR_BOX_*`. Do not classify it from the "K2" in its name — see the dialect note below.
 
-> **Correction — `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` DO exist on K1.** This doc previously recorded them as
-> "verified absent in the public K1-Max `box.cfg` dump." That evidence was invalid: they are C-extension
-> commands registered from `box_wrapper.cpython-38-mipsel-linux-gnu.so` (handlers `cmd_save_fan` /
-> `cmd_restore_fan`), never `[gcode_macro]`s, so a config dump could never have listed them. Verified by
-> symbol grep of the extension in `CR4CU220812S11_ota_img_V2.3.5.34`. `BOX_MODE_WAIT` genuinely is absent.
+> **`BOX_SAVE_FAN`/`BOX_RESTORE_FAN` exist on K1.** They are C-extension commands registered
+> from `box_wrapper.cpython-38-mipsel-linux-gnu.so` (handlers `cmd_save_fan` / `cmd_restore_fan`),
+> never `[gcode_macro]`s, so no config dump lists them; the symbol grep of
+> `CR4CU220812S11_ota_img_V2.3.5.34` settles it. The K1 envelope emits them, and the
+> `dispatch_action_script` error unwind runs on K1 as on K2. `BOX_MODE_WAIT` is genuinely absent.
 >
-> Two evidence traps to avoid repeating: **neither `box.cfg` nor `printer.gcode.help` can prove a `BOX_*`
-> command absent.** gcode.py records a description only when one is supplied, and the extension carries
-> 5 help strings against 69 handlers — roughly 64 commands are executable and invisible to help. Only a
-> symbol grep of the `.so` settles presence.
->
-> This has been **fixed**: the K1 envelope now emits `BOX_SAVE_FAN`/`BOX_RESTORE_FAN`, and the
-> `dispatch_action_script` error unwind (gated to K2 for the same wrong reason) runs on K1 too.
-> Re-confirmed against the extension a second time on 2026-08-16.
+> **Neither `box.cfg` nor `printer.gcode.help` can prove a `BOX_*` command absent.** gcode.py
+> records a description only when one is supplied, and the extension carries 5 help strings
+> against 69 handlers, so roughly 64 commands are executable and invisible to help. Only a symbol
+> grep of the `.so` settles presence.
 
 ### Macro dialect comparison
 
@@ -141,7 +137,7 @@ A `Flat` box whose module we cannot identify still has its control paths refused
 | Unload current | `CR_BOX_PRE_OPT` → `BOX_CUT_MATERIAL` → `BOX_MODE_WAIT` → `CR_BOX_RETRUDE` → `CR_BOX_END_OPT` | `BOX_CUT_MATERIAL` → `BOX_RETRUDE_MATERIAL` |
 | Envelope close (with wipe) | `BOX_NOZZLE_CLEAN` → `BOX_RESTORE_FAN` → `BOX_MOVE_TO_SAFE_POS` → `RESTORE_GCODE_STATE` | `BOX_NOZZLE_CLEAN` → `BOX_RESTORE_FAN` → `BOX_MOVE_TO_SAFE_POS` → `RESTORE_GCODE_STATE` |
 | Tool remap | `BOX_MODIFY_TN T<src>=T<dst>` | (same syntax; persists silently and no `map` echo follows, see below) |
-| Color sync | `BOX_MODIFY_TN_DATA ADDR=… NUM=… PART=color_value DATA=0RRGGBB` + `BOX_UPDATE_SAME_MATERIAL_LIST` | (same — `PART` names match the tn_data.json fields; the same-material refresh follows on both families because group membership requires exact color equality) |
+| Slot identity (colour, material) | `BOX_MODIFY_TN_DATA ADDR=… NUM=… PART=color_value` or `PART=material_type` + `BOX_UPDATE_SAME_MATERIAL_LIST` | (same — `PART` names match the tn_data.json fields; the same-material refresh follows on both families because group membership requires exact color equality) |
 
 Both dialects cut with `BOX_CUT_MATERIAL`, the firmware's positioned cut. The K2's
 `CR_BOX_CUT` (`M8200 C`) is a bare cutter primitive: it strikes in X from wherever the
@@ -169,9 +165,9 @@ present on both families and are now emitted on both.
 | File | Role |
 |------|------|
 | `include/ams_backend_cfs.h` | `CfsMacroVariant` enum, `AmsBackendCfs` class, static `load_gcode/unload_gcode/swap_gcode(idx, variant)` helpers (load and swap take the Fork `BOX_SELECT_SLOT` choice) |
-| `src/printer/ams_backend_cfs.cpp` | `wrap_with_park_k1` / `wrap_with_park_k2` envelopes, K1-vs-K2 body emission, both schema parsers, the Fork revision gates and `BOX_PRINT_MAP` |
+| `src/printer/ams_backend_cfs.cpp` | `wrap_with_envelope_k1` / `wrap_with_park_k2` envelopes, K1-vs-K2 body emission, both schema parsers, the Fork revision gates and `BOX_PRINT_MAP` |
 | `include/cfs_status_parse.h` / `src/printer/cfs_status_parse.cpp` | Pure parse of the small status objects around a `box` frame (frame shape, filament sensor) into `std::optional` structs |
-| `include/printer_discovery.h` | `box` object handler — enables CFS for both K1 and K2 (#968 gate flipped) |
+| `src/printer/printer_discovery_parse.cpp` | `box` object handler: enables CFS on K1 and K2 |
 
 `AmsBackendCfs::macro_variant_` starts in the constructor from the model, `K1` when `PrinterDetector::is_creality_k1()` or `is_creality_hi()` matches and `K2` otherwise, and that model answer is kept in `model_macro_variant_`. The first flat frame carrying `api_version == 1` switches it to `Fork`; a later stock (`T<n>`) frame hands back the model's variant (`src/printer/ams_backend_cfs.cpp#handle_box_frame`). All member operations (`load_filament`, `unload_filament`, `change_tool`) thread `macro_variant_` into the gcode helpers. Static call sites without an explicit variant default to `K2` to preserve existing test behavior.
 
@@ -197,12 +193,48 @@ Creality's own UI can hold a high key while fewer units are attached.
 **Tag reading.** The stock `material_type`/`color_value` arrays are latched RFID data,
 so the bay's box record is its tag reading: material, brand and the catalog's nozzle
 range for the code, colour; on the flat schema `material`, `brand`, `name` (the product)
-and `color`, with the per-material temperature. A user edit is written back into that
-same record, so the reading is folded frame by frame (`helix::ams::fold_tag_frame`): a
-field the own-write echo guard withholds keeps the tag's value. After a restart the box
-holds the user's values and they become the reading, and a value set on the printer's
-screen cannot be told from a tag read
-(`src/printer/ams_backend_cfs.cpp#file_box_readings`, `src/printer/ams_tag_reading.cpp#fold_tag_frame_into`).
+and `color`, with the per-material temperature. A user edit is written into that same
+record (below), so a value set by an edit, on the printer's screen or by a tag read all read
+the same way
+(`src/printer/ams_backend_cfs.cpp#file_box_readings`, `src/printer/ams_tag_reading.cpp#keep_tag_reading`).
+
+**Edits are written to the box.** The box holds a bay's colour and material, so
+`apply_user_edit()` writes them there (`push_slot_identity_to_firmware`) and the lane shows
+the edit as Pending until a frame restates it. The lane record is saved once Klipper has run
+the write; a write that does not reach the printer, or that Klipper rejects, saves nothing
+and withdraws the pending edit with Klipper's message. While a print holds the printer an
+edit is refused (a box write changes the same-material refill groups under the print).
+
+- **Stock:** `BOX_MODIFY_TN_DATA ... PART=color_value DATA=0RRGGBB` (`-1` for a cleared
+  colour) and `PART=material_type DATA=<code>`, then `BOX_UPDATE_SAME_MATERIAL_LIST`. The
+  code comes from `material_code_locked()`: the picked catalog product in the full form
+  this box reported it, a code the box reported for the brand and material, the catalog's
+  generic code for the material in the `0`-prefix form a K1's tn_data.json carries
+  (`000001` Generic PLA, `000003` Generic PETG), then any code the box reported for the
+  material. A branded code the box never reported is never synthesized: its prefix digit
+  is the box's own. An emptied material writes `-1`. A material with no code is not written:
+  the lane record holds it, and the parse lets the record's material stand over the code
+  the box still carries (`record_material_stands_locked`). The parse states no brand for a
+  `Generic` code, so the record's brand stands beside a generic code.
+- **Fork:** `_BOX_SLOT_SET` with every field the module holds (material, colour, brand,
+  name, Spoolman id); the material is uppercased as box.py stores it, and that spelling is
+  what the lane waits for and the record carries. An edit that empties the material sends
+  `_BOX_SLOT_CLEAR`, since `_BOX_SLOT_SET` requires one.
+- **Unidentified flat module:** no write command, so an edit is refused.
+
+The colour/material mirror into the record (`converge_box_lanes_locked`) waits for the first
+read of the records to land, so a frame that beats it cannot post a bare record over a stored
+one. The lane record (`lane_data`, writer `helixscreen`) carries what the box has no field for
+(brand, spool, weights, temperatures, colour name, catalog pick, a material without a code)
+plus the colour and material for slicers. Firmware outranks the record wherever the box
+states a field.
+
+**Clear Spool** resets the box too, so Creality's own screen agrees. Its cleared edit is the
+box write (once; `clear_slot_override()` is the lane half and writes nothing): stock sends
+`material_type DATA=-1` and `color_value DATA=-1` (and, for any emptied material on a bay
+whose tag is seated, `remain_len DATA=-1`, so the untagged `remain_len` presence fallback
+cannot keep the pulled spool present once the code reads unset), then
+`BOX_UPDATE_SAME_MATERIAL_LIST`; Fork sends `_BOX_SLOT_CLEAR`.
 
 What a stock tag reading can carry is whatever `box_wrapper` publishes per bay in
 `T<n>`: `material_type` (catalog code, resolved through `assets/filaments.json`'s `cfs`
@@ -212,7 +244,7 @@ The per-unit `uuid` array is not read at all. A tagged bay's `vender` entry is t
 whole 40-character record (field layout in `printer-research/CREALITY_CFS_K2_INTERNALS.md`
 § "RFID tags"), and HelixScreen reads three things from it: occupancy (a sentinel means an
 empty bay), a brand fallback for a material code the catalog does not know
-(`AmsBackendCfs::brand_from_vender`: supplier code `0276` and `"unknown"` read as Creality,
+(`cfs::brand_from_vender`: supplier code `0276` and `"unknown"` read as Creality,
 another supplier's record as no brand, a short vendor name as itself), and a Spoolman spool
 id from the serial field (below). The printer has no known command that writes a tag.
 
@@ -222,7 +254,13 @@ fingerprint to `rfid_tracker_` (a `helix::ams::SlotFingerprintTracker`). A `Chan
 event on a bay with an override runs `clear_override_locked()`
 (`src/printer/ams_subscription_backend.cpp#clear_override_locked`): the override, the
 lane's records and the per-spool fields (brand, Spoolman link, weights) go, so they do not
-follow the old spool. The fingerprint is `material_type|color_value`, so two blind spots
+follow the old spool. Our own edits write both fingerprint fields, so a change is that edit coming back, and
+clears nothing, while the bay's lane has an edit of ours in flight (a Pending record, read
+before the frame's readings are filed, since a reading that echoes the edit withdraws it) or
+while the bay's last write is unconfirmed (`unconfirmed_writes_`: the fingerprint the write
+will produce, until the box reports exactly it or `kPendingWriteTimeout` passes). The second
+covers two edits a second apart, where the second edit's record can end its Pending before
+the box restates the first. The fingerprint is `material_type|color_value`, so two blind spots
 follow from it: a different spool with the same Creality code and colour reads
 `Unchanged` and keeps the previous link and fields, and an untagged bay (sentinel code)
 yields an empty fingerprint, `NoSignal`, which never clears. In both cases the user must
@@ -239,7 +277,8 @@ serial field, chars 29-34, as `String.format("%06d", id)` for ids 1 to 999999.
 `TagReading::spoolman_id` (`src/printer/ams_backend_cfs.cpp#file_box_readings`). Creality
 writes its factory serial `000001` on every stock tag (CFTag's own default serial is the
 same, with reserve `000000`), so 1 names no spool, and neither do 0, a serial that is not
-six digits, or anything but a whole record. A real Spoolman spool #1 therefore cannot be
+six digits, a record whose supplier field (chars 6-9) is not Creality's `0276`, or anything
+but a whole record. A real Spoolman spool #1 therefore cannot be
 linked from a tag. The generic tag-link policy (`FILAMENT_SLOT_METADATA.md` § "Tag-declared
 Spoolman links") turns that id into a link; `tags_name_spoolman_spools()` answers true on
 the stock schema. Otherwise a stock lane's `spoolman_id` comes from a user pick (editor,
@@ -347,24 +386,70 @@ Two deliberate subtleties in the stock derivation:
   pulls the external filament back out, the sentinel clears but the declaration stands
   until the toggle is turned off — matching what the sidebar toggle shows.
 
-The declaration survives restarts: `enable_bypass`/`disable_bypass` persist it through
-`SettingsManager::get/set_bypass_declared()` (per-printer `ams/bypass_declared`),
-`on_started()` restores it — pairing with the `ENABLE=0` the box's own tn_data.json
-kept — and a full box frame reporting an explicit `enable == 1` drops it (someone
-re-armed the CFS through Creality's own screen; in-memory clear on the bg thread, the
-persisted flag re-clears idempotently on the next boot).
+The declaration lives in Moonraker, as the `cfs_bypass_declared` key in HelixScreen's own
+`helix-screen` namespace (`FilamentSlotOverrideStore::save_key_async`; not in `lane_data`, whose
+every value OrcaSlicer reads as a record), because the box cannot
+hold it: on a K2 Plus `enable` returned to 1 by itself across a restart, with no host command,
+while the external spool was still feeding, so `enable` is not read as the declaration.
+`enable_bypass`/`disable_bypass` write and delete the key, a lane load that re-arms the box
+deletes it, and so does the drift guard below (a bay named active). It is read beside the lane
+records on every refresh and poll (`AmsBackendCfs::refresh_backend_keys`), so a restart
+and every other HelixScreen on the printer see the same declaration. A value this client wrote holds
+until a read returns it or the write fails (`bypass_declared_unconfirmed_`), so a read that
+left before the write landed cannot flip the toggle back.
+
+### Calibration section
+
+The device operations' **Calibration** section holds one-at-a-time actions that move
+the machine (`calibration_in_flight_` locks them, `refuse_motion_if_printing()` refuses
+during a print or pause). What it lists depends on the dialect and the printer's macros:
+
+| Action | K1 stock | K2 stock / Kalico port |
+|--------|----------|------------------------|
+| **Calibrate Cutter** (`cfs_cutter` flow) | `BOX_FIND_CUT_POS` | `CALIBRATE_CUT_POS`, when the printer defines that `gcode_macro` |
+| **Calibrate Purge Chute** (`cfs_purge_chute` flow) | `BOX_CUSTOM_COMMAND` steps | none |
+| **Tension Belts** (`cfs_belt_tension` flow) | none | `BELT_TENSION`, when the printer defines that `gcode_macro` |
+
+Stock K2 firmware defines both macros: `CALIBRATE_CUT_POS` homes if needed and wraps
+`MOTOR_CHECK_CUT_POS`; `BELT_TENSION` homes X/Y if needed, parks with
+`BOX_MOVE_TO_SAFE_POS`, turns the steppers off and runs `BELT_MDL_SET MDL_NAME=mdlx|mdly
+MDL_N=140`. The Kalico port's `BELT_TENSION` calls `BELT_TENSION_SET AXIS=X|Y TENSION=140`
+and its `CALIBRATE_CUT_POS` is a Python command rather than a macro, so that port shows
+Tension Belts only. Both macros read `AXES`, but they disagree on `AXES=XY` (stock runs X
+alone), so HelixScreen sends `BELT_TENSION` bare, which tensions both axes on each (#2059).
+The cutter and belt flows share one status line under the buttons
+(`ui_xml/components/cfs_cutter_status.xml`).
 
 ### No CFS on the bus
 
 Stock K2 firmware registers `box` whether or not a CFS is attached. With none, every
-address `T1`..`T4` reads `state: "None"`, so the parse finds no unit (#1904). The backend
+address `T1`..`T4` reads `state: "None"` and the box's own `state` reads `"disconnect"`, so
+the parse finds no unit (#1904). The backend
 still runs, because it owns the external-spool load and unload, and it reports the
 machine through `AmsSystemInfo::external_spool_only`:
 
-- `apply_box_units_locked()` sets it when a stock frame finds no unit and none has been
-  seen this session. A unit seen once keeps its place in the list when a later frame
-  drops it, so the flag cannot return on a unit that went briefly quiet. A unit coming
-  online clears it, and clears a `-2` the declaration does not hold.
+- `converge_external_spool_only_locked()` sets it when no unit has been seen this
+  session and the box's `state` (from the merged frames) is `"disconnect"`, provided the
+  bus has settled. A K2 with a CFS publishes that same frame for about 30 s at every boot,
+  until discovery reaches its unit (§ Boot sequence and the address table in
+  `printer-research/CREALITY_CFS_K2_INTERNALS.md`, #1933). So at start and on every
+  Klipper restart the backend reads printer.cfg's address table
+  (`configfile.settings.auto_addr.mb_addr_table_uniids`, `cfs::has_registered_unit`):
+  - no registered unit, or no table: settled, so `"disconnect"` decides at once (#1904);
+  - a registered unit: unsettled until it reports or `kRegisteredUnitSettle` (90 s, more
+    than twice the measured 38 s) has passed since the start, so a CFS unplugged since
+    printer.cfg last saved it still ends single-spool;
+  - query not answered yet at a start: unsettled, with the same 90 s bound. A Klipper
+    restart keeps the last answer until the new one lands, and opens a new 90 s window.
+
+  The box's `"None"` state, which every Klipper start publishes before discovery, leaves
+  the last `"disconnect"` or `"connect"` reading standing, so a K2 with no CFS stays
+  single-spool through a `FIRMWARE_RESTART` or `SAVE_CONFIG`.
+
+  A bare `state` delta counts as a full frame so the verdict follows it. A unit seen once
+  keeps its place in the list when a later frame drops it, so the flag cannot return on a
+  unit that went briefly quiet. A unit coming online clears it, and clears a `-2` the
+  declaration does not hold.
 - `supports_bypass` stays false (the toggle would have no other side), and
   `is_bypass_active()` is true. Load therefore falls through to `LOAD_MATERIAL` and
   unload stays on the backend's bypass script, `QUIT_MATERIAL` plus the long retract
@@ -395,33 +480,27 @@ empty bus under `--test`.
 Full mechanism for each of these, with sources and evidence tiers:
 **[CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md)**.
 
-The full `BOX_*` command surface has since been read directly out of the shipped extension in
+The full `BOX_*` command surface is read directly out of the shipped extension in
 `CR4CU220812S11_ota_img_V2.3.5.34`, so the items below rest on the artifact rather than on
-inference.
+inference. What the backend already handles on K1:
 
-**Fixed:**
-
-- ~~Part-cooling ran through every K1 operation.~~ `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` do exist on
-  K1 and are now in the K1 envelope, along with the matching error-unwind (#1278).
-- ~~Two runout give-up wordings were unmatched.~~ There are **four** literals, not two;
-  `no tray with ingredients found` and `no auto refill` both fell through every tier, so those
-  paths paused the print with no modal at all. Both now matched.
-- ~~`BOX_MODIFY_TN` no-ops on K1.~~ It does not. It persists silently and applies to the
-  slicer's `T0`-`T15`, which is the entrypoint that resolves `Tnn_map`. Comments corrected in
-  three places; behaviour was already right.
-- ~~No phase verification.~~ The primitives record and queue failures instead of raising, so a
-  whole sequence could return success while nothing moved. `finish_action()` now checks the
-  toolhead filament switch against the operation's latched intent and raises a fault through
-  `current_error()` when they disagree. Applies to every dialect — it reads physical state, not
-  macros. See [CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md#failures-are-deferred-not-raised--fixed-host-side-verification).
+- `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` are in the K1 envelope, with the matching error unwind (#1278).
+- All **four** runout give-up literals are matched, including `no tray with ingredients found`
+  and `no auto refill`, so those paths raise the runout modal.
+- `BOX_MODIFY_TN` persists silently and applies to the slicer's `T0`-`T15`, the entrypoint that
+  resolves `Tnn_map`.
+- **Phase verification.** The primitives record and queue failures instead of raising, so a whole
+  sequence can return success while nothing moved. `finish_action()` checks the toolhead filament
+  switch against the operation's latched intent and raises a fault through `current_error()`
+  when they disagree, on every dialect. See [CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md#failures-are-deferred-not-raised--fixed-host-side-verification).
 
 **Still open:**
 
 - **`BOX_ERROR_CLEAR` opening every sequence discards queued retry work** — reviewed and
   kept: a user-initiated load wants a clean slate, and `BOX_TNN_RETRY_PROCESS` is deliberately
   not wired to a button because it can resume a paused print as a side effect.
-- **Resume swallows the entire K1 body** — seven commands no-op during resume handling. No
-  longer silent (phase verification reports it), but it cannot be blocked up front: neither
+- **Resume swallows the entire K1 body:** seven commands no-op during resume handling. Phase
+  verification reports it, but it cannot be blocked up front: neither
   Klipper nor the box publishes a "resuming" state, and gating on "paused" would break
   loading filament during a runout pause.
 - **Swap flush is a deliberate choice, not a bug.** `swap_gcode()` emits a bare
@@ -429,9 +508,10 @@ inference.
   The colour-aware `BOX_MATERIAL_CHANGE_FLUSH LAST_TNN=<old> TNN=<new>` exists and is what the
   internal `T*` path uses, but adopting it changes purge length on unowned hardware and adds a
   blockage failure mode, so it needs a K1 + CFS to settle.
-- `BOX_MODIFY_TN_DATA` (color sync) syntax is confirmed correct — `PART` values are the
-  tn_data.json field names. Material-type writeback is unblocked *except* for the
-  `material_type` value domain, which is still unknown.
+- `BOX_MODIFY_TN_DATA` syntax is confirmed correct — `PART` values are the
+  tn_data.json field names. Writing the `-1` sentinel (Clear Spool, an emptied field), a
+  generic `0`-prefix code the box never reported, and `PART=remain_len` are unverified on
+  hardware.
 - `BOX_LOAD_MATERIAL_WITH_MATERIAL` and `BOX_QUIT_MATERIAL` (K1 high-level orchestrators) are not used; HelixScreen drives the primitives directly to keep behavior parallel between the two backends.
 - Bed-area shrink for the rear-mounted K1 CFS upgrade (~5 mm Y) is not yet applied via the printer database.
 - Hardware validation for K1/K1C is pending — track via [#968](https://github.com/prestonbrown/helixscreen/issues/968).

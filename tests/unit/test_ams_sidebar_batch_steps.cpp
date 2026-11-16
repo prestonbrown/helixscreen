@@ -11,17 +11,18 @@
  */
 
 #include "ui_ams_sidebar.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "filament_action_set.h"
 #include "mount_feed_sequence.h"
 #include "printer_discovery.h"
-#include "static_subject_registry.h"
 #include "test_helpers/ams_sidebar_xml.h"
 #include "toolchanger_addon.h"
 
@@ -121,7 +122,7 @@ struct BatchStepsFixture : public XMLTestFixture {
 
     void close() {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         panel_ = nullptr;
@@ -141,7 +142,7 @@ struct BatchStepsFixture : public XMLTestFixture {
     }
 
     [[nodiscard]] bool cancel_shown() const {
-        return !lv_obj_has_flag(cancel_button(), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(cancel_button());
     }
 
     void pick(HeadPickOp op, const std::vector<int>& slots) {
@@ -153,7 +154,7 @@ struct BatchStepsFixture : public XMLTestFixture {
         helix::ui::UpdateQueue::instance().drain();
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE_FALSE(changer_->sent_.empty()); // the batch reached the backend
-        REQUIRE(lv_obj_is_valid(panel_));
+        REQUIRE(helix::test::widget_in_tree(panel_));
     }
 
     /// Every row label the step bar on screen shows, in order.

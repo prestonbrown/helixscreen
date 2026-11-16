@@ -4,10 +4,11 @@
 <!-- Power Device Row Component -->
 <!-- Displays a power device name with a toggle switch for on/off control -->
 <!-- Usage: <power_device_row device_name="LED Lights" name="led_row"/> -->
-<!-- Lock indicator shown via C++ when device is locked during print -->
+<!-- locked="true": the device is locked during a print, shown by a lock and a note -->
 <component>
   <api>
     <prop name="device_name" type="string" default="Device"/>
+    <prop name="locked" type="string" default="false"/>
   </api>
   <view name="power_device_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
@@ -16,12 +17,12 @@
     <!-- Left: Device info (name + optional status) -->
     <lv_obj flex_grow="1" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
       <text_body name="device_label" text="$device_name"/>
-      <text_small name="device_status" text="" hidden="true"/>
+      <text_small name="device_status" text="Locked during print" hidden_if_prop_not_eq="$locked|true"/>
     </lv_obj>
     <!-- Right: Lock icon + toggle switch -->
     <lv_obj height="content"
             flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-      <icon name="lock_icon" src="lock" size="sm" variant="secondary" hidden="true"/>
+      <icon name="lock_icon" src="lock" size="sm" variant="secondary" hidden_if_prop_not_eq="$locked|true"/>
       <ui_switch name="device_toggle" size="small">
         <event_cb trigger="value_changed" callback="on_power_device_toggle"/>
       </ui_switch>

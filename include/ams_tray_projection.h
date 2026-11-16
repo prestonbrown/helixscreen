@@ -14,6 +14,7 @@
  */
 
 #include "ams_types.h"
+#include "ams_unit_shell.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -26,7 +27,7 @@ inline constexpr float kBoxDepthMargin = 0.10f;    // box depth: a spool diamete
 inline constexpr float kDepthRise = 0.09f;         // back edges rise this share of the depth
 inline constexpr float kSpoolFloorGap = 2.0f;      // flange bottom above the floor's front edge
 inline constexpr float kLidGap = 1.0f;             // lid crest above the spool tops
-inline constexpr float kSpoolWidth = 0.35f;        // flange-to-flange width / spool size
+inline constexpr float kSpoolWidth = 0.294f;       // flange-to-flange width / spool size
 inline constexpr float kPitchClearance = 16.0f;    // free space between neighbouring spools
 
 struct PointF {
@@ -45,6 +46,22 @@ float box_rise(float depth);
 /// Slot pitch for a spool size: its footprint, half the lid-cap tuck, and the clearance.
 float spool_pitch(float spool_size);
 PointF proj(const TrayBox& b, float x, float y, float z);
+
+/// Front-plane distance from an end spool's centre to the unit's end: it clears only the
+/// flange, and never more than half the lane pitch, so a squeezed row stays in its container.
+float cap_width(const UnitShell& shell, float spool_size, float pitch);
+/// Point @p i of the body's top edge, on the side plane at @p x.
+PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
+/// The screen box of one front part, for the lane at front-plane @p lane_x (ignored unless
+/// the part repeats per lane): x0, y0, x1, y1.
+void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, float lane_x,
+                    float out[4]);
+/// @p n points of a unit's real lid profile at plane @p x, front to back.
+void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                        PointF* out, int n);
+/// Where the body's top edge lies under @p upper, a point of the lid's end at plane @p x.
+PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
+                   PointF upper);
 
 struct TrayFaces {
     PointF back_wall[4], floor[4], left_wall[4], front[4], right_side[4];
@@ -67,22 +84,29 @@ int cap_polyline(const TrayBox& b, float lid_h, float x_end, PointF* out, int n)
 float unit_top_y(const TrayBox& b, float lid_h, bool has_lid);
 
 /// Top-left of lane @p lane_x's number badge on the box front. It sits inside the
-/// front face, @p inset above its bottom edge, with its right edge @p inset inside
-/// the lane's lid edge (lane_x + @p lane_half); where the pitch is too tight for
-/// that, centered on the lane instead.
+/// front face, twice @p inset above its bottom edge, with its right edge @p inset inside
+/// the lane's bay (lane_x + @p lane_half); where the pitch is too tight for that,
+/// centered on the lane instead.
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
                          float badge_h, float inset);
 
 /// Left edge of the environment pill that stands against the box's right end:
 /// the box's back-right corner, where its right side face ends.
 float pill_left_x(const TrayBox& b);
+/// The same, moved right as far as needed to stand clear of @p clear_of.
+float pill_left_x(const TrayBox& b, float clear_of);
 
 enum class LidMode : uint8_t { None, Unit, PerLane };
 /// Any climate data gets glass: a unit reading or a dryer covers the row, per-lane
 /// readings get a lid per lane. No physical tray, no lid.
 LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_supported);
+/// A drawn unit's lids: none without a dome, else one over the row or one per lane.
+LidMode lid_mode(const UnitShell& shell);
 /// Per-lane lid half width: each lid's right cap tucks halfway behind the next lid.
 float lane_lid_half_width(float slot_spacing, const TrayBox& b);
+/// How far a spool's flanges stand above the box's front bottom edge: a hair, or a drawn
+/// unit's base below them.
+float spool_floor_gap(const UnitShell* shell, float shell_scale);
 
 // The lid's sheen: one diffuse band, drawn as one horizontal gradient per row.
 inline constexpr int kSheenMaxRows = 25;

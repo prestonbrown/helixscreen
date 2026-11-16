@@ -9,7 +9,7 @@ How the crash reporter works end-to-end: crash detection, report collection, del
 | `include/system/crash_reporter.h` | CrashReporter API |
 | `src/system/crash_reporter.cpp` | Core logic: parsing, formatting, sending |
 | `include/ui_crash_report_modal.h` | Modal dialog class |
-| `src/ui/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
+| `src/ui/notify/ui_crash_report_modal.cpp` | Modal UI logic and delivery flow |
 | `ui_xml/crash_report_modal.xml` | Modal layout (XML) |
 | `server/crash-worker/src/index.ts` | Cloudflare Worker (creates GitHub issues) |
 | `tests/unit/test_crash_reporter.cpp` | Unit tests (30 cases, 72 assertions) |
@@ -75,7 +75,7 @@ A handler that runs on the faulting stack has no room when that stack is what ov
 
 ## Delivery Pipeline
 
-Priority order — first success wins:
+Priority order - first success wins:
 
 ### 1. Auto-Send (CF Worker)
 
@@ -86,7 +86,7 @@ Device → POST crash.helixscreen.org/v1/report → CF Worker → GitHub Issues 
          (X-API-Key header)                      (GITHUB_TOKEN secret)
 ```
 
-Uses the shared telemetry ingest key (`INGEST_API_KEY`). Not a true secret — it's baked into the binary to prevent casual spam, not to authenticate individual devices.
+Uses the shared telemetry ingest key (`INGEST_API_KEY`). Not a true secret - it's baked into the binary to prevent casual spam, not to authenticate individual devices.
 
 ### 2. QR Code Fallback
 
@@ -121,7 +121,7 @@ if (m_crash_reporter.has_crash_report()) {
 }
 ```
 
-The modal self-deletes via `ui_queue_update()` in `on_hide()` — no external ownership needed.
+The modal self-deletes via `ui_queue_update()` in `on_hide()` - no external ownership needed.
 
 ### Startup Order
 
@@ -131,10 +131,10 @@ Phase 2:  crash_handler::install("config/crash.txt")
           CrashReporter::init("config")
           mock crash file written (if --mock-crash)
 Phase 8:  XML components registered (crash_report_modal.xml)
-Phase 10: init_ui() — screen exists
+Phase 10: init_ui() - screen exists
           → Crash detection + modal show (HERE)
 Phase 12: Wizard check
-          TelemetryManager::init() — crash.txt already consumed
+          TelemetryManager::init() - crash.txt already consumed
 ```
 
 ---
@@ -212,7 +212,7 @@ Set via `wrangler secret put`:
 
 | Secret | Purpose |
 |--------|---------|
-| `INGEST_API_KEY` | Shared with telemetry worker — validates device requests |
+| `INGEST_API_KEY` | Shared with telemetry worker - validates device requests |
 | `GITHUB_TOKEN` | GitHub PAT with Issues: Read and write scope |
 
 `GITHUB_REPO` is set as a plain var in `wrangler.toml` (not a secret).
@@ -226,16 +226,16 @@ in R2 or on a GitHub release, and none ever will.
 
 Two checks run before an issue is filed:
 
-1. **Shape** — `app_version` must be semver-shaped (`isVersionShapeValid`). Failures
+1. **Shape** - `app_version` must be semver-shaped (`isVersionShapeValid`). Failures
    get `400`. This also bounds the string that lands in the issue title.
-2. **Published release** — `isKnownRelease()` asks GitHub whether tag `v<version>`
+2. **Published release** - `isKnownRelease()` asks GitHub whether tag `v<version>`
    exists. If it definitively does not, the report is accepted with `202
    {"status": "ignored"}` and logged, but no issue is created.
 
 The tag check uses `git/matching-refs` (not a direct ref lookup) because "no such
 tag" comes back as `200` + an empty array, which is distinguishable from a
 permission or transport failure. Every other outcome **fails open** and files the
-issue — a GitHub outage must never silently drop a real crash.
+issue - a GitHub outage must never silently drop a real crash.
 
 Reports from independently compiled binaries do arrive (#1240: a `v0.1.4` report
 from a Pi, a value `VERSION.txt` has never held, with a 27 MB text segment that
@@ -259,7 +259,7 @@ Node 20 or newer.
 Before filing, the worker looks for an open `crash`-labelled issue whose body
 carries the same fingerprint (`findExistingIssue`); a hit gets an "Additional
 occurrence" comment instead of a new issue. The search matches the labelled
-`Fingerprint: ...` line rather than the bare key — GitHub tokenises the query,
+`Fingerprint: ...` line rather than the bare key - GitHub tokenises the query,
 and a symbol-keyed fingerprint also appears in the backtrace table of every
 issue whose crash merely passed through that function.
 
@@ -270,7 +270,7 @@ The fingerprint (`crashFingerprint`, `server/crash-worker/src/github-app.ts`) is
 gcode_viewer_occluder_delete_cb/0.99.116
 ```
 
-The symbol is normalised first — `+0x18` offset, GCC clone/specialisation
+The symbol is normalised first - `+0x18` offset, GCC clone/specialisation
 suffixes (`[clone .lto_priv.0]`, `.isra.0`) and the C++ parameter list all come
 off, since each of those moves between architectures and between builds of the
 same source.
@@ -285,7 +285,7 @@ splits one defect across an issue per signal/PC combination (#1347, #1356,
 Version stays in the key so a defect that survives into the next release files
 fresh rather than reviving a closed issue.
 
-When the top frame has no symbol — no map published for that build, or a fault
+When the top frame has no symbol - no map published for that build, or a fault
 inside a shared library - the key falls back to the symbol-less
 `SIGSEGV/0.99.116/0x2a00c8` shape.
 
@@ -309,7 +309,7 @@ wrangler secret put GITHUB_TOKEN     # GitHub PAT
 wrangler deploy
 ```
 
-Custom domain: `crash.helixscreen.org` — configured via `[[routes]]` in `wrangler.toml`. Requires AAAA DNS record (`100::`) with Cloudflare proxy enabled on the `helixscreen.org` zone.
+Custom domain: `crash.helixscreen.org` - configured via `[[routes]]` in `wrangler.toml`. Requires AAAA DNS record (`100::`) with Cloudflare proxy enabled on the `helixscreen.org` zone.
 
 ---
 
@@ -317,7 +317,7 @@ Custom domain: `crash.helixscreen.org` — configured via `[[routes]]` in `wrang
 
 ### XML Component
 
-`ui_xml/crash_report_modal.xml` — extends `ui_dialog` with:
+`ui_xml/crash_report_modal.xml` - extends `ui_dialog` with:
 - Warning icon + "HelixScreen Crashed" title
 - Crash details bound to `crash_report_details` subject
 - Status text bound to `crash_report_status` subject
@@ -334,7 +334,7 @@ Custom domain: `crash.helixscreen.org` — configured via `[[routes]]` in `wrang
 
 ### Callback Registration
 
-Follows the standard modal pattern with static callbacks dispatching to `active_instance_`:
+Follows the standard modal pattern, with static callbacks that find their instance through `Modal::from_event<T>()`:
 
 ```cpp
 lv_xml_register_event_cb(nullptr, "on_crash_report_send", on_send_cb);
@@ -346,7 +346,7 @@ lv_xml_register_event_cb(nullptr, "on_crash_report_dismiss", on_dismiss_cb);
 1. `show_modal()` → registers callbacks, inits subjects, populates crash details, calls `Modal::show()`
 2. User clicks "Send Report" → `attempt_delivery()` tries auto-send → QR → file
 3. User clicks "Dismiss" → `consume_crash_file()` + `hide()`
-4. `on_hide()` → nulls `active_instance_`, schedules `delete this` via `ui_queue_update()`
+4. `on_hide()` → clears the framebuffer; `ModalStack` frees the instance when its entry goes
 
 ---
 
@@ -401,13 +401,13 @@ This downloads `.sym` files from the releases R2 bucket and uses `addr2line` to 
 
 ### Shared Library Addresses
 
-Not all backtrace frames come from the main binary — some are in shared libraries (libc, libpthread, etc.). The crash-worker's symbol resolver (`server/crash-worker/src/symbol-resolver.ts`) detects these automatically:
+Not all backtrace frames come from the main binary - some are in shared libraries (libc, libpthread, etc.). The crash-worker's symbol resolver (`server/crash-worker/src/symbol-resolver.ts`) detects these automatically:
 
 - After computing `file_offset = address - load_base`, if the offset is negative or exceeds the last known symbol address (+ 1MB margin), the frame is labeled **`<shared library>`** instead of being resolved against the main binary's symbol table.
 - Without this, libc addresses (e.g., `0x7fff80012345`) get force-matched to the nearest binary symbol and produce garbage symbol names.
 - The Python telemetry tool (`scripts/telemetry-crashes.py`) has equivalent logic via `is_shared_lib_addr()`.
 
-Shared library frames are expected in crash backtraces — they indicate the crash unwind passed through system code (e.g., `__libc_start_main`, signal handlers).
+Shared library frames are expected in crash backtraces - they indicate the crash unwind passed through system code (e.g., `__libc_start_main`, signal handlers).
 
 ---
 

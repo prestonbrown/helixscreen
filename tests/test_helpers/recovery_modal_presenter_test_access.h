@@ -14,8 +14,9 @@
 // Shared by test_recovery_modal_presenter.cpp and test_ams_error_bridge.cpp so
 // the two test files do not each define the friend struct (ODR).
 struct RecoveryModalPresenterTestAccess {
-    /// The body of the modal's action callback. present()'s lambda forwards to
-    /// this and does nothing else, so calling it is the button tap.
+    /// The body of the modal's action callback for a gcode action. present()'s
+    /// lambda forwards every action without a guided flow here, so calling it
+    /// is the button tap.
     static void tap(helix::ui::RecoveryModalPresenter& p, const std::string& gcode) {
         p.on_recovery_tapped(gcode);
     }

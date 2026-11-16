@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "lvgl.h"
 
 #include <string>
@@ -80,6 +81,21 @@ class KeyboardManager {
      *                 that was never registered.
      */
     void unregister_textarea(lv_obj_t* textarea);
+
+    /**
+     * @brief Keep @p target above the keyboard whenever @p textarea is being typed in.
+     *
+     * The keyboard lifts the page only as far as the focused field needs, so a
+     * control just below the field - the next row of a form - stays covered while
+     * the user types. With a target set, the lift clears the target's bottom edge
+     * too, though never so far that the field itself leaves the top of the screen.
+     * A hidden target is ignored.
+     *
+     * @param textarea A registered textarea. Its entry goes when it is deleted.
+     * @param target   The widget to keep visible; nullptr clears the entry. Held
+     *                 weakly, so deleting it first is safe.
+     */
+    void set_reveal_target(lv_obj_t* textarea, lv_obj_t* target);
 
     /**
      * @brief Manually show the keyboard for a specific textarea
@@ -259,8 +275,8 @@ class KeyboardManager {
     ObserverGuard theme_observer_;
 
     // Global keyboard instance
-    lv_obj_t* keyboard_ = nullptr;
-    lv_obj_t* context_textarea_ = nullptr;
+    helix::ui::WidgetRef keyboard_;
+    helix::ui::WidgetRef context_textarea_;
 
     // Keyboard font with MDI fallback
     lv_font_t keyboard_font_{};
@@ -271,7 +287,7 @@ class KeyboardManager {
 
     // Long-press state tracking
     LongPressState longpress_state_ = LP_IDLE;
-    lv_obj_t* overlay_ = nullptr;
+    helix::ui::WidgetRef overlay_;
     uint32_t pressed_btn_id_ = 0;
     char pressed_char_ = 0;
     const char* alternatives_ = nullptr;
@@ -291,6 +307,10 @@ class KeyboardManager {
 
     // Static alternative character mapping table
     static const AltCharMapping alt_char_map_[];
+
+    /// set_reveal_target() entries, keyed by textarea. Node-based, so each
+    /// WidgetRef keeps the address its delete hook points at.
+    std::unordered_map<lv_obj_t*, helix::ui::WidgetRef> reveal_targets_;
 
     /// Per-key reordering of alt_char_map_ entries, seeded lazily on first promotion.
     /// Absent key = shipped order. Node-based so a string's address is stable across

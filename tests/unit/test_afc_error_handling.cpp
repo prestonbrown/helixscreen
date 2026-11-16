@@ -12,14 +12,13 @@
  * - Message reset when error clears
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "system/afc_message_dedup.h"
 #include "test_helpers/afc_test_access.h"
@@ -52,7 +51,7 @@ namespace helix {
 class AfcErrorHandlingHelper : public AmsBackendAfc {
   public:
     AfcErrorHandlingHelper() : AmsBackendAfc(nullptr, nullptr) {
-        // Initialize some lanes so parse_afc_state works
+        // Initialize some lanes so apply_afc_state works
         std::vector<std::string> names = {"lane1", "lane2", "lane3", "lane4"};
         AfcTestAccess::slots(*this).initialize("AFC Test Unit", names);
     }

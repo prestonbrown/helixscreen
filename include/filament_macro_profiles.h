@@ -25,11 +25,11 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <map>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix::filament_macros {
 

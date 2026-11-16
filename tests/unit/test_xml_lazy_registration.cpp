@@ -6,14 +6,13 @@
 // scratch ui_xml/ tree whose components nothing registers up front.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
-#include "../test_helpers/layout_manager_test_access.h"
-#include "data_root_resolver.h"
-#include "layout_manager.h"
-#include "static_subject_registry.h"
+#include "core/data_root_resolver.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "xml_hot_reloader.h"
 #include "xml_registration.h"
 
@@ -67,13 +66,11 @@ class LazyXmlFixture : public XMLTestFixture {
                 ("helix_lazy_xml_" +
                  std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()))) {
         fs::create_directories(root_ / "ui_xml" / "components");
-        fs::create_directories(root_ / "ui_xml" / "portrait");
         helix::set_asset_root(root_.string());
     }
 
     ~LazyXmlFixture() override {
         helix::set_asset_root(saved_root_);
-        LayoutManagerTestAccess::reset(helix::LayoutManager::instance());
         std::error_code ec;
         fs::remove_all(root_, ec);
     }
@@ -138,20 +135,6 @@ TEST_CASE_METHOD(LazyXmlFixture,
         lv_xml_create(test_screen(), "lazy_probe_wraps_widget_user", nullptr));
     REQUIRE(user != nullptr);
     CHECK(lv_obj_find_by_name(user, "inner") == nullptr);
-}
-
-TEST_CASE_METHOD(LazyXmlFixture, "first use registers the active layout variant's copy",
-                 "[xml][lazy]") {
-    write("lazy_probe_variant.xml", component_with_label("base"));
-    write("portrait/lazy_probe_variant.xml", component_with_label("portrait"));
-    auto& lm = helix::LayoutManager::instance();
-    lm.set_override("portrait");
-    lm.init(480, 800);
-
-    auto* obj = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_variant", nullptr));
-
-    REQUIRE(obj != nullptr);
-    CHECK(label_text(obj) == "portrait");
 }
 
 TEST_CASE_METHOD(LazyXmlFixture, "a component registered on first use hot-reloads",
@@ -233,38 +216,34 @@ TEST_CASE_METHOD(LazyXmlFixture, "a component file that does not parse is read o
 }
 
 TEST_CASE_METHOD(LazyXmlFixture,
-                 "after a layout change an idle component registers its new variant",
+                 "after a layout change an idle component registers again from its file",
                  "[xml][lazy]") {
-    write("lazy_probe_resized.xml", component_with_label("base"));
-    write("portrait/lazy_probe_resized.xml", component_with_label("portrait"));
-    auto& lm = helix::LayoutManager::instance();
+    write("lazy_probe_resized.xml", component_with_label("before"));
     auto* before =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_resized", nullptr));
     REQUIRE(before != nullptr);
-    REQUIRE(label_text(before) == "base");
+    REQUIRE(label_text(before) == "before");
     lv_obj_delete(before);
 
-    lm.set_override("portrait");
-    lm.init(480, 800);
+    // Registration bakes in the tokens of the moment; the file stands in for
+    // what a new geometry would resolve differently.
+    write("lazy_probe_resized.xml", component_with_label("after"));
     helix::unregister_idle_xml_components();
 
     auto* after =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_resized", nullptr));
     REQUIRE(after != nullptr);
-    CHECK(label_text(after) == "portrait");
+    CHECK(label_text(after) == "after");
 }
 
 TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component with a live instance",
                  "[xml][lazy]") {
     write("lazy_probe_live.xml", component_with_label("base"));
-    write("portrait/lazy_probe_live.xml", component_with_label("portrait"));
     auto* live = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_live", nullptr));
     REQUIRE(live != nullptr);
     lv_xml_component_scope_t* scope = lv_xml_component_find_scope("lazy_probe_live");
 
-    auto& lm = helix::LayoutManager::instance();
-    lm.set_override("portrait");
-    lm.init(480, 800);
+    write("lazy_probe_live.xml", component_with_label("changed"));
     helix::unregister_idle_xml_components();
 
     CHECK(lv_xml_component_find_scope("lazy_probe_live") == scope);
@@ -294,15 +273,15 @@ TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component holding a C+
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "lazy_probe_cpp_subject", nullptr)));
     lv_xml_component_scope_t* scope = lv_xml_component_find_scope("lazy_probe_cpp_subject");
     REQUIRE(scope != nullptr);
-    static lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    static helix::Subject subject;
+    subject.init_int(0);
     REQUIRE(lv_xml_register_subject(scope, "lazy_probe_cpp_value", &subject) == LV_RESULT_OK);
 
     helix::unregister_idle_xml_components();
 
     CHECK(lv_xml_component_find_scope("lazy_probe_cpp_subject") == scope);
     lv_xml_component_unregister("lazy_probe_cpp_subject");
-    lv_subject_deinit(&subject);
+    subject.reset();
 }
 
 TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component whose style was borrowed",

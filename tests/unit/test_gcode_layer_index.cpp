@@ -229,12 +229,12 @@ TEST_CASE("GCodeLayerIndex - LAYER_CHANGE_HOOK is not a marker", "[gcode][layer_
     // (e.g. a custom ;LAYER_CHANGE_HOOK macro) must not flip the indexer
     // into marker-based mode.
     //
-    // Pre-fix behavior (no terminator check): ;LAYER_CHANGE_HOOK matches,
+    // Without a terminator check, ;LAYER_CHANGE_HOOK matches,
     // use_layer_markers becomes true, and subsequent Z-changes are ignored
     // because no real marker re-arms pending_layer_start. The whole file
     // collapses to a single layer.
     //
-    // Post-fix behavior: ;LAYER_CHANGE_HOOK is rejected, the indexer stays
+    // Required: ;LAYER_CHANGE_HOOK is rejected, the indexer stays
     // in Z-change mode, and we get one entry per Z transition (3 here).
     std::string gcode = R"(
 ;LAYER_CHANGE_HOOK

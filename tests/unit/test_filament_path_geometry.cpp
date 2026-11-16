@@ -683,8 +683,8 @@ float leg_len(const MergeLaneOut& o, int i) {
 // The bug fix: every interior vertex of every generated lane must have BOTH
 // adjoining legs at least fillet_r long, so route_polyline_filleted's half-leg
 // trim clamp can sweep the corner at the full radius instead of collapsing to a
-// starved arc or a sharp mitered notch. The two corners that previously starved
-// were the FIRST (just below the sensor) and LAST (just above the hub) verticals.
+// starved arc or a sharp mitered notch. The corners most at risk are the FIRST
+// (just below the sensor) and LAST (just above the hub) verticals.
 TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-path][geometry]") {
     const float kFilletR = 8.0f;
 
@@ -692,7 +692,7 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
         INFO(label);
         // Interior vertices are pts[1] and pts[2]; each touches two legs.
         // Leg 0 (first vertical, start_y -> y_bend) and leg 2 (last vertical,
-        // approach_y -> hub_top) are the ones that previously starved. The middle
+        // approach_y -> hub_top) are the ones at risk of starving. The middle
         // diagonal (leg 1) may legitimately vanish for a lane directly above its
         // entry (dx ~ 0) -> the polyline collapses to a plain vertical there, so a
         // zero-length middle leg is allowed; when it is non-trivial it must also be
@@ -710,7 +710,7 @@ TEST_CASE("build_merge_fan reserves fillet room at every corner", "[filament-pat
     };
 
     // AFC-like fan: 4 lanes, sensors across the top, hub well below. The steepest
-    // outer lanes are the ones whose first/last legs used to collapse.
+    // outer lanes are the ones whose first/last legs are most likely to collapse.
     {
         MergeLaneIn in[4] = {{20.0f, 0.0f}, {60.0f, 0.0f}, {140.0f, 0.0f}, {180.0f, 0.0f}};
         MergeLaneOut out[4];

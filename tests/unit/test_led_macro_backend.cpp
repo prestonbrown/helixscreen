@@ -3,89 +3,45 @@
 
 #include "led/led_controller.h"
 
+#include <functional>
+#include <utility>
+
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE("MacroBackend: execute_on with null API calls error callback", "[led][macro]") {
+TEST_CASE("MacroBackend: an action it cannot send reports an error", "[led][macro]") {
     helix::led::MacroBackend backend;
+    helix::led::LedMacroInfo onoff;
+    onoff.display_name = "Cabinet Light";
+    onoff.on_macro = "LIGHTS_ON";
+    onoff.off_macro = "LIGHTS_OFF";
+    backend.add_macro(onoff);
+    helix::led::LedMacroInfo toggle;
+    toggle.display_name = "Light Toggle";
+    toggle.toggle_macro = "TOGGLE_LIGHT";
+    backend.add_macro(toggle);
+    helix::led::LedMacroInfo empty; // neither on_macro nor toggle_macro
+    empty.display_name = "Custom";
+    backend.add_macro(empty);
 
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Cabinet Light";
-    macro.on_macro = "LIGHTS_ON";
-    macro.off_macro = "LIGHTS_OFF";
-    backend.add_macro(macro);
-
-    bool error_called = false;
-    backend.execute_on("Cabinet Light", nullptr,
-                       [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("MacroBackend: execute_off with null API calls error callback", "[led][macro]") {
-    helix::led::MacroBackend backend;
-
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Cabinet Light";
-    macro.on_macro = "LIGHTS_ON";
-    macro.off_macro = "LIGHTS_OFF";
-    backend.add_macro(macro);
-
-    bool error_called = false;
-    backend.execute_off("Cabinet Light", nullptr,
-                        [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("MacroBackend: execute_toggle with null API calls error callback", "[led][macro]") {
-    helix::led::MacroBackend backend;
-
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Light Toggle";
-    macro.toggle_macro = "TOGGLE_LIGHT";
-    backend.add_macro(macro);
-
-    bool error_called = false;
-    backend.execute_toggle("Light Toggle", nullptr,
-                           [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("MacroBackend: execute_custom_action with null API calls error callback",
-          "[led][macro]") {
-    helix::led::MacroBackend backend;
-
-    bool error_called = false;
-    backend.execute_custom_action("LED_PARTY", nullptr,
-                                  [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("MacroBackend: execute_on with empty on_macro calls error", "[led][macro]") {
-    helix::led::MacroBackend backend;
-    backend.set_api(nullptr); // Still null but with macro registered
-
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Custom";
-    // Both on_macro and toggle_macro empty
-    backend.add_macro(macro);
-
-    bool error_called = false;
-    backend.execute_on("Custom", nullptr, [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
-}
-
-TEST_CASE("MacroBackend: execute_on for unknown macro calls error", "[led][macro]") {
-    helix::led::MacroBackend backend;
-
-    bool error_called = false;
-    backend.execute_on("NonExistent", nullptr,
-                       [&](const std::string& err) { error_called = true; });
-
-    REQUIRE(error_called);
+    using Send =
+        std::function<void(helix::led::MacroBackend&, helix::led::NativeBackend::ErrorCallback)>;
+    const std::pair<const char*, Send> cases[] = {
+        {"on, no API", [](auto& b, auto err) { b.execute_on("Cabinet Light", nullptr, err); }},
+        {"off, no API", [](auto& b, auto err) { b.execute_off("Cabinet Light", nullptr, err); }},
+        {"toggle, no API",
+         [](auto& b, auto err) { b.execute_toggle("Light Toggle", nullptr, err); }},
+        {"custom action, no API",
+         [](auto& b, auto err) { b.execute_custom_action("LED_PARTY", nullptr, err); }},
+        {"on, no on or toggle macro",
+         [](auto& b, auto err) { b.execute_on("Custom", nullptr, err); }},
+        {"on, unknown macro", [](auto& b, auto err) { b.execute_on("NonExistent", nullptr, err); }},
+    };
+    for (const auto& [name, send] : cases) {
+        INFO(name);
+        bool error_called = false;
+        send(backend, [&](const std::string&) { error_called = true; });
+        CHECK(error_called);
+    }
 }
 
 TEST_CASE("MacroBackend: null callbacks don't crash", "[led][macro]") {

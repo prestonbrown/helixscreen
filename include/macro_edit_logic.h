@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-// Pure decision logic for the Macros panel edit mode, extracted from
+// Pure decision logic for the Macros panel edit mode, kept out of
 // MacrosPanel so it can be unit-tested with realistic inputs without
 // instantiating any LVGL widgets (see test_ui_panel_macros_edit_mode.cpp).
 //
@@ -86,8 +86,8 @@ struct RowValues {
 //   is_hidden  : this macro is in the pending-hidden set (edit mode only)
 //   has_desc   : the macro has a non-empty cached description
 //   no_params  : the macro is KNOWN_NO_PARAMS (no chevron in normal mode)
-//   has_params : the macro is KNOWN_PARAMS (defaults button in edit mode);
-//                there is no field list to save otherwise
+//   has_params : macro_takes_saved_defaults() (defaults button in edit mode);
+//                a macro taking no parameters has nothing to save
 inline RowValues compute_row_values(bool edit_mode, bool is_hidden, bool has_desc, bool no_params,
                                     bool has_params = false) {
     RowValues rv;
@@ -100,8 +100,8 @@ inline RowValues compute_row_values(bool edit_mode, bool is_hidden, bool has_des
     rv.desc_hidden = !has_desc ? 1 : 0;
     // No chevron in edit mode, or when the macro takes no parameters.
     rv.chevron_hidden = (edit_mode || no_params) ? 1 : 0;
-    // Saved defaults need a declared parameter list, and editing them is an
-    // edit-mode action.
+    // Saved defaults need a macro that takes parameters, and editing them is
+    // an edit-mode action.
     rv.defaults_hidden = (edit_mode && has_params) ? 0 : 1;
     return rv;
 }

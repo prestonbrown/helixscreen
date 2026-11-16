@@ -112,6 +112,55 @@ inline constexpr float kHighflyClockCoverMax = 0.70f;
 /// scene (where the interior alone already covers more, the wisp adds nothing).
 Rgb highfly_inside(Rgb scene, float amt, float wisp = 0.0f, float most = 1.0f);
 
+/// True when the big numerals show the print's time left rather than the time of day:
+/// COUNTDOWN, and PAUSED once an estimate has been seen.
+constexpr bool highfly_counts_down(const ClockReading& r) {
+    return r.mode == ClockMode::COUNTDOWN || (r.mode == ClockMode::PAUSED && r.has_countdown);
+}
+
+/// The six numeral slots for `r`: {H, H, M, M} big and {S, S} small. The time of day for CLOCK,
+/// PROGRESS and ended prints; for COUNTDOWN, and PAUSED with an estimate, the time left with
+/// hours clamped to 99 and a leading zero hour blank (-1).
+std::array<int, 6> highfly_numerals(const ClockReading& r);
+
+/// The sky's colours for one moment of a print: the sky's top, its bottom and the sun's glow,
+/// then the deck's sunlit tops, its fog, its shadows and its midtones.
+struct HighflyPalette {
+    Rgb top, bottom, glow, lit, fog, shadow, midtone;
+
+    bool operator==(const HighflyPalette& o) const {
+        return top == o.top && bottom == o.bottom && glow == o.glow && lit == o.lit &&
+               fog == o.fog && shadow == o.shadow && midtone == o.midtone;
+    }
+};
+/// A clear midday: the sky with no print.
+inline constexpr HighflyPalette kHighflyDay{{40, 128, 180},  {12, 78, 124},  {215, 242, 252},
+                                            {252, 254, 255}, {30, 110, 162}, {45, 130, 182},
+                                            {150, 212, 235}};
+/// Golden hour, which a print reaches at 100%: amber sky and glow over warm-lit tops.
+inline constexpr HighflyPalette kHighflyGolden{{196, 126, 64},  {92, 66, 84},   {255, 222, 150},
+                                               {255, 238, 204}, {128, 96, 100}, {128, 102, 126},
+                                               {236, 186, 146}};
+/// Sunset, for a finished print: violet above, a deep orange sun.
+inline constexpr HighflyPalette kHighflySunset{{70, 38, 110},   {150, 58, 74}, {255, 116, 40},
+                                               {255, 196, 150}, {104, 54, 96}, {96, 58, 112},
+                                               {222, 132, 120}};
+/// Overcast, for a failed or cancelled print: blue-grey, the sun hidden.
+inline constexpr HighflyPalette kHighflyOvercast{{92, 104, 116},  {58, 66, 78}, {164, 172, 180},
+                                                 {196, 200, 206}, {78, 86, 98}, {98, 106, 118},
+                                                 {148, 154, 164}};
+/// A print warms the sky in this many steps, so it rebakes at most this often per print.
+inline constexpr int kHighflyPaletteSteps = 10;
+/// kHighflyDay with no print; blended toward kHighflyGolden with progress, in
+/// kHighflyPaletteSteps steps; kHighflySunset for DONE, kHighflyOvercast for FAILED and
+/// CANCELLED.
+HighflyPalette highfly_palette(const ClockReading& r);
+/// Forward speed while a print is paused, against 1 otherwise.
+inline constexpr float kHighflyPausedSpeed = 0.25f;
+/// How far the paused view sways to either side, field texels, and its rate, radians a second.
+inline constexpr float kHighflySwayTexels = 24.0f;
+inline constexpr float kHighflySwayRate = 0.15f;
+
 /// Where the clock sits on a w x h canvas, moved by the drift (dx, dy).
 struct HighFlyClockLayout {
     int32_t digit_unit = 0;            ///< big numerals' glyph unit
@@ -150,8 +199,9 @@ class HighFlySim {
     const HighFlyClockLayout& clock_layout() const {
         return clock_;
     }
-    /// Seconds since init(), and since the current fly-through's whiteout began (negative when
-    /// none runs; the cloud it flies into shows for a while before, see next_fly_s()).
+    /// Seconds of flight since init() (run time, slowed while a print is paused), and since the
+    /// current fly-through's whiteout began (negative when none runs; the cloud it flies into
+    /// shows for a while before, see next_fly_s()).
     double elapsed_s() const {
         return t_;
     }
@@ -225,6 +275,14 @@ class HighFlySim {
     /// painted it: from then on a frame only redraws the clock over that frame.
     void release_scene();
     void build_sky();
+    /// Per deck slice: 256 shades through the palette's near white and fog.
+    void bake_slice_lut();
+    /// Follows the print over `dt_s` seconds: forward speed and sway ease toward paused or not,
+    /// the step into DONE starts a fly-through, and the palette moves to highfly_palette()
+    /// (DONE's once a fly-through's whiteout covers the frame), asking for a repaint.
+    void follow_print(const ClockReading& reading, float dt_s);
+    /// World units the view sits sideways of its centre line.
+    float sway() const;
     void build_polar();
     void update_schedule(std::minstd_rand& rng);
     /// Starts a tower in `slot` that entered at run time `entered_s`.
@@ -319,6 +377,11 @@ class HighFlySim {
     std::vector<DirtyRect> boxes_;      ///< internal boxes above the band repainted this frame
     std::vector<DirtyRect> last_boxes_; ///< and last frame
     HighFlyClockLayout clock_;
+    HighflyPalette palette_ = kHighflyDay; ///< what sky_ and slice_lut_ were baked with
+    float speed_ = 1.0f;                   ///< forward speed, 1 or easing toward paused
+    float sway_amp_ = 0.0f;                ///< 0 to 1: how much of the paused sway shows
+    ClockMode last_mode_ = ClockMode::CLOCK;
+    std::minstd_rand scene_rng_; ///< the rng as the scene was last built from, to build it again
     StrokeDigitSet digits_;
     StrokeDigitSet second_digits_;
     StrokeDigitSet digit_halo_; ///< digits_ widened and blurred, drawn under them

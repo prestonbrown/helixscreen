@@ -165,10 +165,10 @@ TEST_CASE("Bypass: the external spool outranks any tool->slot map", "[filament][
     CHECK(resolve_op_button_slot(nothing, /*selected_tool=*/0, /*tool_count=*/1) == -1);
 }
 
-// Snapmaker U1 regression guard (commit 504905a2 "Unload visits T0 first").
+// Snapmaker U1: unload must not visit T0 first.
 // U1 = 4 virtual tools T0..T3 with an identity tool->slot map
 // (ams_backend_snapmaker.cpp), current_slot == current_tool == the picked-up
-// toolhead. The original bug came from a stuck current_slot == -1 forcing a
+// toolhead. A stuck current_slot == -1 would force a
 // bare-default (T0) unload. Resolving the op slot from the dropdown-selected
 // tool through the identity map must (a) match current_slot in steady state
 // and (b) STILL yield the selected tool even when current_slot is stuck at -1,
@@ -197,7 +197,7 @@ TEST_CASE("Panel op-target contract: Load follows the dropdown, Unload gated on 
     auto only_slot3_loaded = [](int s) { return s == 3; };
 
     // BoxTurtle: T0 selected while lane4 (slot 3) is loaded. Load targets slot 0
-    // (the selection), NOT the loaded slot 3 — the exact bug this fix closes.
+    // (the selection), NOT the loaded slot 3.
     AmsSystemInfo bt = make_sys(/*tool_map=*/{0, 1, 2, 3}, /*current_slot=*/3);
     CHECK(panel_load_target(bt, /*T0=*/0, /*tool_count=*/4) == 0);
     // Unload of T0 is refused (slot 0 not loaded → button greyed); Unload of T3
@@ -216,7 +216,7 @@ TEST_CASE("Panel op-target contract: Load follows the dropdown, Unload gated on 
 }
 
 // ---------------------------------------------------------------------------
-// Print-state gating (bundle JX2FVRB9, bundle XWPBR2DX)
+// Print-state gating
 // ---------------------------------------------------------------------------
 //
 // Load/Unload both run through AmsSubscriptionBackend::check_preconditions(true)
@@ -544,7 +544,7 @@ TEST_CASE("compute_op_button_gating: cold lane ops survive a print, heated Unloa
 // Note the two halves of that report. Before, the button was live and the op was
 // refused. Now the button is live *and the op succeeds*, because a paused unload
 // is permitted on every backend but AD5X — so the gate must not simply become
-// "grey it whenever print_active", or the fix would be invisible.
+// "grey it whenever print_active", or the allowed cases would be invisible.
 //
 // Mutation check: hardcode unload_is_cold_lane_op = true in
 // build_unload_gating_state() and the PRINTING cases fail; feed the raw

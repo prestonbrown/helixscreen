@@ -76,12 +76,9 @@ bool UpgradeNudge::is_update_visible_now() const {
         return false;
     }
     // Don't nudge while a job owns the machine — the printer is the priority,
-    // not our prompts. This used to test PRINTING only, with no PAUSED arm; a
-    // paused print is still mid-print, the neighbouring guard in
-    // UpdateChecker::start_download() has always refused on PRINTING || PAUSED
-    // for the same reason, and a user who has just committed to a print is the
-    // last person who wants an upgrade prompt. Deliberately normalised: this
-    // makes the nudge strictly rarer, never more frequent.
+    // not our prompts. A paused print is still mid-print, so it counts too,
+    // matching the guard in UpdateChecker::start_download(); a user who has just
+    // committed to a print is the last person who wants an upgrade prompt.
     const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
     if (job_holds_machine(lifecycle)) {
         return false;

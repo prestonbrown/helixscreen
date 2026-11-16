@@ -14,7 +14,7 @@
  * [exclude_object] section therefore never overwrote the sets, and the previous
  * printer's object list stayed on screen indefinitely.
  *
- * The fix hangs excluded_objects_state_.clear_objects() off the PrinterCacheRegistry
+ * PrinterState hangs excluded_objects_state_.clear_objects() off the PrinterCacheRegistry
  * invalidator that PrinterState already registers. These tests drive the real
  * invalidate_all() entry point rather than calling clear_objects() directly, so
  * unhooking the invalidator fails them.
@@ -118,4 +118,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clearing exclude_object state is idempotent
 
     CHECK(eo->get_defined_objects().empty());
     CHECK(lv_subject_get_int(eo->get_defined_objects_version_subject()) == defined_before);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "an excluded-object set bumps its version only when it changes",
+                 "[exclude_object][excluded_objects]") {
+    auto& eo = state().excluded_objects_state();
+    lv_subject_t* version = eo.get_excluded_objects_version_subject();
+    const int start = lv_subject_get_int(version);
+
+    eo.set_excluded_objects({"Part_1"});
+    CHECK(lv_subject_get_int(version) == start + 1);
+
+    // An identical set, even a fresh container, wakes no observer.
+    eo.set_excluded_objects({"Part_1"});
+    CHECK(lv_subject_get_int(version) == start + 1);
+
+    // Adding, removing and replacing each count as a change.
+    eo.set_excluded_objects({"Part_1", "Part_2"});
+    CHECK(lv_subject_get_int(version) == start + 2);
+    eo.set_excluded_objects({"Part_2"});
+    CHECK(lv_subject_get_int(version) == start + 3);
+    eo.set_excluded_objects({"NewObject_A", "NewObject_B"});
+    CHECK(lv_subject_get_int(version) == start + 4);
 }

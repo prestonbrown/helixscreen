@@ -46,12 +46,13 @@ constexpr bool nav_root_is_destination(PanelId id) {
 
 } // namespace helix
 
-// Legacy aliases for backward compatibility
+/// PanelId::Count as an int.
 constexpr int kUiPanelCount = static_cast<int>(helix::PanelId::Count);
 
 /// The navigation calls most callers need, without the NavigationManager class.
 /// Each forwards to NavigationManager::instance(); include ui_nav_manager.h only
-/// for the rest of its surface.
+/// for the rest of its surface. A widget argument is nullptr or live: an owner
+/// holds its root in a WidgetRef and passes that (prestonbrown/helixscreen#1983).
 namespace helix::nav {
 
 /// Show @p overlay on top of the stack. Queued; see NavigationManager::push_overlay().
@@ -82,6 +83,11 @@ void set_overlay_width_unmanaged(lv_obj_t* overlay);
 /// Swap the base panel. See NavigationManager::set_active().
 void set_active(PanelId panel_id);
 
+/// Do what tapping @p panel_id's navigation bar button does, queued for a later
+/// UpdateQueue drain, as an LVGL event callback needs. See
+/// NavigationManager::request_panel().
+void request_panel(PanelId panel_id);
+
 /// Deactivate the current panel and overlay and clear the navigation registries. See
 /// NavigationManager::shutdown().
 void shutdown();
@@ -103,5 +109,8 @@ bool is_push_pending(lv_obj_t* panel);
 /// stack, or off the stack but still drawn as it slides out. A guard against
 /// opening a panel twice asks this.
 bool is_showing(lv_obj_t* panel);
+
+/// Open or close the printer switch menu under the navbar's printer badge.
+void toggle_printer_menu();
 
 } // namespace helix::nav

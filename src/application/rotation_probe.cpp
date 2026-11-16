@@ -7,7 +7,7 @@
 #include "display_backend.h"
 #include "display_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,6 +26,11 @@ constexpr int kNumRotations = 4;
 constexpr int kMaxCycles = 3;
 
 } // namespace
+
+bool rotation_probe_unanswered(const Config& config) {
+    return !config.get<bool>("/display/rotation_probed", false) &&
+           !config.exists("/display/rotate");
+}
 
 RotationProbe::RotationProbe(RotationProbeHost host)
     : m_host(std::move(host)), m_tap_latch(!m_host.is_sdl) {
@@ -47,21 +52,24 @@ void RotationProbe::set_subtitle(Phase phase, int rot_deg, int secs, int step, i
         snprintf(buf, sizeof(buf), lv_tr("Rotation: %d\xc2\xb0 - %ds remaining (or wait to retry)"),
                  rot_deg, secs);
     }
-    lv_subject_copy_string(&m_subtitle_subject, buf);
+    lv_subject_set_string(&m_subtitle_subject, buf);
 }
 
 void RotationProbe::show_screen(Phase phase, int rot_deg, int step, int steps,
                                 uint32_t timeout_ms) {
     if (phase == Phase::Scan) {
-        lv_subject_copy_string(&m_main_subject,
-                               lv_tr("Tap anywhere if this text is right-side up"));
-        lv_subject_copy_string(&m_help_subject,
-                               lv_tr("HelixScreen is detecting your display orientation"));
+        lv_subject_set_string(&m_main_subject, lv_tr("Tap anywhere if this text is right-side up"));
+        lv_subject_set_string(&m_help_subject,
+                              lv_tr("HelixScreen is detecting your display orientation"));
     } else {
-        lv_subject_copy_string(&m_main_subject, lv_tr("Tap again to confirm this orientation"));
-        lv_subject_copy_string(&m_help_subject, "");
+        lv_subject_set_string(&m_main_subject, lv_tr("Tap again to confirm this orientation"));
+        lv_subject_set_string(&m_help_subject, "");
     }
     set_subtitle(phase, rot_deg, static_cast<int>(timeout_ms / 1000), step, steps);
+
+    if (m_host.keep_backlight_on) {
+        m_host.keep_backlight_on();
+    }
 
     lv_obj_t* scr = lv_screen_active();
     lv_obj_clean(scr);
@@ -107,6 +115,7 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
                                  int steps) {
     const uint32_t start = DisplayManager::get_ticks();
     int last_sec = -1;
+    uint32_t last_backlight = start;
 
     // Drop anything latched by the previous screen, and re-baseline the coordinate so the
     // position the last tap left behind cannot read as a fresh one. A contact still down here
@@ -156,6 +165,12 @@ bool RotationProbe::wait_for_tap(Phase phase, uint32_t timeout_ms, int rot_deg, 
             return true;
         }
 
+        if (m_host.backlight_reassert_ms > 0 && m_host.keep_backlight_on &&
+            DisplayManager::get_ticks() - last_backlight >= m_host.backlight_reassert_ms) {
+            m_host.keep_backlight_on();
+            last_backlight = DisplayManager::get_ticks();
+        }
+
         const int remaining_sec = static_cast<int>((timeout_ms - elapsed + 999) / 1000);
         if (remaining_sec != last_sec) {
             set_subtitle(phase, rot_deg, remaining_sec, step, steps);
@@ -198,8 +213,8 @@ int RotationProbe::run() {
             }
 
             spdlog::info("[RotationProbe] testing {}° ({}x{})", kRotationDegrees[i],
-                         lv_display_get_horizontal_resolution(nullptr),
-                         lv_display_get_vertical_resolution(nullptr));
+                         lv_display_get_horizontal_resolution(lv_display_get_default()),
+                         lv_display_get_vertical_resolution(lv_display_get_default()));
 
             show_screen(Phase::Scan, kRotationDegrees[i], i, kNumRotations, m_host.scan_timeout_ms);
             if (!wait_for_tap(Phase::Scan, m_host.scan_timeout_ms, kRotationDegrees[i], i,
@@ -220,17 +235,21 @@ int RotationProbe::run() {
         }
     }
 
+    // Silence is not an answer: whoever installs the printer may not be standing at it on its
+    // first boot. Saving nothing leaves the probe due on the next one, and Settings > Display
+    // can still set the rotation by hand in the meantime.
     if (confirmed_rotation < 0) {
-        spdlog::warn("[RotationProbe] no confirmation after {} cycles, defaulting to 0°",
+        spdlog::warn("[RotationProbe] no confirmation after {} cycles, using 0° for this session; "
+                     "the probe runs again next boot",
                      kMaxCycles);
         confirmed_rotation = 0;
+    } else {
+        Config* cfg = Config::get_instance();
+        cfg->set("/display/rotation_probed", true);
+        cfg->set("/display/rotate", confirmed_rotation);
+        cfg->save();
+        spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
     }
-
-    Config* cfg = Config::get_instance();
-    cfg->set("/display/rotation_probed", true);
-    cfg->set("/display/rotate", confirmed_rotation);
-    cfg->save();
-    spdlog::info("[RotationProbe] saved: {}°", confirmed_rotation);
 
     if (!m_host.is_sdl) {
         m_host.settle_rotation(degrees_to_lv_rotation(confirmed_rotation));

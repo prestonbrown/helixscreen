@@ -3,14 +3,16 @@
 
 #pragma once
 
-#include "ui_heater_config.h" // helix::HeaterType
-
 #include "app_macro_activity.h"
 #include "app_motion_activity.h"
 #include "async_lifetime_guard.h"
 #include "busy_episode_owner.h"
 #include "capability_overrides.h"
+#include "chamber_air_state.h"
+#include "core/subject.h"
 #include "hardware_validator.h"
+#include "heater_type.h" // helix::HeaterType
+#include "json_fwd.h"
 #include "klippy_state.h"
 #include "lvgl/lvgl.h"
 #include "print_start_phase.h"
@@ -39,12 +41,11 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp" // libhv's nlohmann json (via cpputil/)
 
 namespace helix {
 
@@ -73,8 +74,8 @@ enum class PrinterStatus {
  * Represents the state of the current print job as reported by Klipper/Moonraker.
  * This is the canonical enum for print job state throughout HelixScreen.
  *
- * @note Values are chosen to match the integer representation used internally
- *       by MoonrakerClientMock for backward compatibility.
+ * @note Values match the integer print_state_ that MoonrakerClientMock stores;
+ *       keep the two in sync.
  */
 enum class PrintJobState {
     STANDBY = 0,   ///< No active print, printer idle (Moonraker: "standby")
@@ -250,8 +251,8 @@ class PrinterState {
     /**
      * @brief Deinitialize all subjects across all state components
      *
-     * Cascades to all 13 sub-component deinit_subjects() methods and
-     * then deinitializes PrinterState's own subjects.
+     * Cascades to every domain component's deinit_subjects() and then
+     * deinitializes PrinterState's own subjects.
      */
     void deinit_subjects();
 
@@ -348,6 +349,13 @@ class PrinterState {
     helix::PrinterCompositeVisibilityState& composite_visibility_state() {
         return composite_visibility_state_;
     }
+    /// Live chamber air readings and subjects (include/chamber_air_state.h).
+    helix::ChamberAirState& chamber_air() {
+        return chamber_air_state_;
+    }
+    const helix::ChamberAirState& chamber_air() const {
+        return chamber_air_state_;
+    }
     const helix::PrinterCompositeVisibilityState& composite_visibility_state() const {
         return composite_visibility_state_;
     }
@@ -404,15 +412,16 @@ class PrinterState {
      * The per-domain tokens above are narrower — one component's subjects, or a
      * single dynamic subject. This one is flipped false at the top of
      * `deinit_subjects()`, before any component tears its subjects down, so it
-     * covers the whole tree: temperature, motion, fan, LED, print, capabilities,
-     * excluded objects, and PrinterState's own.
+     * covers the whole tree: every domain component's subjects (temperature,
+     * motion, fan, print, capabilities, excluded objects and the rest) and
+     * PrinterState's own.
      *
      * Any observer whose owner can outlive a `deinit_subjects()` cycle MUST pass
      * this (or a narrower token for the same subject) to `observe_*`. Panels held
      * in process-lifetime singletons are exactly that case: `deinit_subjects()`
-     * runs `lv_subject_deinit()`, which frees every observer node, and an
+     * resets every subject, which frees every observer node, and an
      * ObserverGuard that never learned the subject died then calls
-     * `lv_observer_remove()` on freed memory the next time it resets.
+     * `lv_observer_delete()` on freed memory the next time it resets.
      *
      * Prefer the narrower per-subject token where one exists (dynamic per-fan and
      * per-extruder subjects die independently of a full deinit); use this for the
@@ -449,7 +458,7 @@ class PrinterState {
      * @brief Set printer connection state (Moonraker WebSocket)
      *
      * Updates both printer_connection_state and printer_connection_message subjects.
-     * Called by main.cpp WebSocket callbacks.
+     * Called from MoonrakerManager's WebSocket connection callbacks.
      *
      * @param state 0=disconnected, 1=connecting, 2=connected, 3=reconnecting, 4=failed
      * @param message Status message ("Connecting...", "Ready", "Disconnected", etc.)
@@ -523,17 +532,25 @@ class PrinterState {
      *
      * Updates subjects that control visibility of pre-print option checkboxes.
      * Applies user-configured overrides from settings.json before updating subjects.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param hardware PrinterDiscovery populated from printer.objects.list
      */
     void set_hardware(helix::PrinterDiscovery hardware);
 
     /**
+     * @brief Set the led capability override, save it, and republish printer_has_led
+     *
+     * Main thread only. The light controls LedController publishes follow
+     * separately (LedController::set_lights_disabled()).
+     */
+    void set_led_override(OverrideState state);
+
+    /**
      * @brief Set Klipper software version from printer.info
      *
      * Updates klipper_version_ subject for Settings panel About section.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version Version string (e.g., "v0.12.0-108-g2c7a9d58")
      */
@@ -543,7 +560,7 @@ class PrinterState {
      * @brief Set Moonraker software version from server.info
      *
      * Updates moonraker_version_ subject for Settings panel About section.
-     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version Version string (e.g., "v0.8.0-143-g2c7a9d58")
      */
@@ -553,7 +570,7 @@ class PrinterState {
      * @brief Set OS version from machine.system_info
      *
      * Updates os_version_ subject for Settings panel About section.
-     * Called after MoonrakerClient::discover_printer() completes.
+     * Called by the discovery sequence once printer discovery completes.
      *
      * @param version OS distribution name (e.g., "Forge-X 1.4.0")
      */
@@ -664,6 +681,9 @@ class PrinterState {
     set_helix_plugin_features(helix::PluginFeatureMap features,
                               helix::FeatureAnnounce announce = helix::FeatureAnnounce::Always);
 
+    /// The plugin's last signal macro migration report, read from its `state`; any thread.
+    void set_signal_migration_report(helix::signal_macros::SignalMigrationReport report);
+
     /**
      * @brief Set how many PRINT OPTIONS rows the PRINT_START analysis adds
      *
@@ -672,6 +692,15 @@ class PrinterState {
      * plugin to deliver its skip. Main thread only.
      */
     void set_macro_option_count(size_t count);
+
+    /**
+     * @brief Set which of the printer's declared options the detail view leaves out
+     *
+     * A declared option can still draw no row: the heat soak option when
+     * PRINT_START soaks on its own, say. The PRINT OPTIONS card counts only the
+     * rows that render. Main thread only; apply set_macro_option_count() after.
+     */
+    void set_hidden_option_ids(std::set<std::string> ids);
 
     /// A `_HELIX_PREP` skip was set and never consumed (main thread only).
     [[nodiscard]] bool skip_pending() const {
@@ -749,14 +778,14 @@ class PrinterState {
      * NOT blocking; motion sent into an episode someone else started is not.
      * Manual probe remains an absolute block. Guards for discretionary gcode use
      * THIS predicate so back-to-back jogs don't self-block — idle_timeout reports
-     * "Printing" during any move, including our own jog (spec 2026-07-15).
+     * "Printing" during any move, including our own jog.
      *
      * @return true if a blocking non-print operation NOT caused by the app is active
      */
     bool is_external_blocking_operation_active();
 
-    /// App-initiated motion (jog) activity tracker; Task 3 stamps it from the
-    /// motion API so is_external_blocking_operation_active() can subtract self-busy.
+    /// App-initiated motion (jog) activity tracker; the motion API stamps it
+    /// so is_external_blocking_operation_active() can subtract self-busy.
     helix::AppMotionActivity& app_motion_activity() {
         return app_motion_activity_;
     }
@@ -906,6 +935,7 @@ class PrinterState {
 
     /// Composite visibility state component (has_any_preprint_options aggregate)
     helix::PrinterCompositeVisibilityState composite_visibility_state_;
+    helix::ChamberAirState chamber_air_state_;
 
     /// Network state component (connection, klippy, nav buttons)
     helix::PrinterNetworkState network_state_;
@@ -921,7 +951,7 @@ class PrinterState {
     helix::PrinterProfileState profile_state_;
 
     // Multi-printer subjects (owned directly by PrinterState)
-    lv_subject_t active_printer_name_{};
+    helix::Subject active_printer_name_{};
     char active_printer_name_buf_[128];
 
     // Initialization guard to prevent multiple subject initializations
@@ -953,7 +983,8 @@ class PrinterState {
 
     /// Auto-detected bed_moves value from kinematics (before user override)
     bool auto_detected_bed_moves_ = false;
-    size_t macro_option_count_ = 0; ///< See set_macro_option_count()
+    size_t macro_option_count_ = 0;           ///< See set_macro_option_count()
+    std::set<std::string> hidden_option_ids_; ///< See set_hidden_option_ids()
 
     /// Klipper pause_resume.is_paused: true when the print is paused via PAUSE gcode
     bool is_paused_ = false;
@@ -966,7 +997,6 @@ class PrinterState {
     // through async_lifetime_.defer(), ensuring thread safety.
 
     friend class PrinterStateTestAccess;
-    friend class PrinterTemperatureStateTestAccess;
 
     void set_klipper_version_internal(const std::string& version);
     void set_moonraker_version_internal(const std::string& version);

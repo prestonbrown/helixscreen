@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "resonance_console.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
 #include "i_moonraker_client.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cmath>
 #include <string_view>
+
+#include "hv/json.hpp"
 
 namespace helix::calibration {
 

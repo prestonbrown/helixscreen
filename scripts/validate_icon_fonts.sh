@@ -41,15 +41,14 @@ if [[ "$1" == "--fix" ]]; then
     FIX_MODE=true
 fi
 
-# Extract codepoints from ui_icon_codepoints.h
-# Format: {"name", "\xF3\xB0\x80\xA6"},  // F0026 alert
-# We extract the hex codepoint from the comment (e.g., F0026)
+# Every glyph the fonts must carry: the icon table and the ICON_* macros in
+# include/ui_fonts.h, read the way the font regen scripts read them
+# (mdi_icon_codepoints.py), so the check and the build cannot disagree.
 extract_required_codepoints() {
-    # Match lines with icon definitions and extract the codepoint from comment
-    grep -E '\{"[^"]+",\s*"\\x[^"]+"\}.*//\s*[Ff][0-9A-Fa-f]+' "$CODEPOINTS_FILE" |
-    grep -oE '//\s*[Ff][0-9A-Fa-f]+' |
-    sed 's|// *||' |
-    tr '[:lower:]' '[:upper:]' |
+    local table
+    table=$(python3 scripts/mdi_icon_codepoints.py --table) || return 1
+    printf '%s\n' "$table" |
+    awk '{ sub(/^0x/, "", $1); print toupper($1) }' |
     sort -u
 }
 
@@ -74,7 +73,7 @@ echo "Validating icon fonts..."
 echo "  Codepoints file: $CODEPOINTS_FILE"
 echo ""
 
-REQUIRED=$(extract_required_codepoints)
+REQUIRED=$(extract_required_codepoints) || { echo "ERROR: could not read the icon codepoints" >&2; exit 2; }
 REQUIRED_COUNT=$(echo "$REQUIRED" | wc -l | tr -d ' ')
 echo "  Required icons: $REQUIRED_COUNT"
 
@@ -90,7 +89,7 @@ for FONT_FILE in "${FONT_FILES[@]}"; do
         echo "$MISSING" | while IFS= read -r cp; do
             if [[ -n "$cp" ]]; then
                 # Find the icon name for this codepoint
-                NAME=$(grep -E "//\s*$cp" "$CODEPOINTS_FILE" | head -1 | sed -E 's/.*\{"([^"]+)".*/\1/')
+                NAME=$(python3 scripts/mdi_icon_codepoints.py --table | awk -v cp="0x$cp" 'toupper($1) == toupper(cp) { $1 = ""; sub(/^ /, ""); print; exit }')
                 echo "   0x$cp ($NAME)"
             fi
         done

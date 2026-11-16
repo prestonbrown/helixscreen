@@ -2,9 +2,53 @@
 // include/idle_timeout_busy.h
 #pragma once
 
+#include <atomic>
 #include <chrono>
 
 namespace helix {
+
+/**
+ * The busy trackers' time source: steady_clock plus an offset that only moves
+ * forward.
+ *
+ * Every decision IdleTimeoutBusy and BusyEpisodeOwner make compares two
+ * readings of this clock, so advancing it is indistinguishable to them from
+ * that much real time passing. That lets a test cross kSettle or kGraceWindow
+ * without sleeping through it; nothing else reads this clock, so moving it
+ * reaches no other timer.
+ *
+ * Its time_point is its own type, not steady_clock's: a steady_clock reading
+ * handed to a busy tracker would ignore the offset, so the mix is a compile
+ * error rather than a reading that lands in the past.
+ */
+class BusyClock {
+  public:
+    using duration = std::chrono::steady_clock::duration;
+    using rep = duration::rep;
+    using period = duration::period;
+    using time_point = std::chrono::time_point<BusyClock, duration>;
+    static constexpr bool is_steady = true;
+
+    static time_point now() {
+        return time_point{std::chrono::steady_clock::now().time_since_epoch() +
+                          duration{offset().load(std::memory_order_relaxed)}};
+    }
+
+    /// Moves now() forward by @p by. Never backward: a reading already taken
+    /// must not land in the future. Tests only; scripts/code_lint.sh
+    /// refuses a call under src/ or include/.
+    static void advance_for_test(duration by) {
+        if (by.count() > 0) {
+            offset().fetch_add(by.count(), std::memory_order_relaxed);
+        }
+    }
+
+  private:
+    static std::atomic<rep>& offset() {
+        static std::atomic<rep> value{0};
+        return value;
+    }
+};
 
 /**
  * Debounces Klipper's idle_timeout "Printing" flag before it counts as a
@@ -12,10 +56,10 @@ namespace helix {
  *
  * idle_timeout.state reads "Printing" while ANY gcode executes, not only during
  * a blocking operation. A printer with housekeeping delayed_gcode loops
- * therefore reports it in short bursts forever while sitting idle: debug bundle
- * L53W5PKG (Voron Trident with bedfanloop, _AIR_FILTER_TIMER and AFC PREP)
- * logged 632 transitions, the flag high for ~0.7 s out of every 10 s. Each of
- * those windows made the discretionary-gcode guard refuse jogs with "Printer is
+ * therefore reports it in short bursts forever while sitting idle: a Voron
+ * Trident with bedfanloop, _AIR_FILTER_TIMER and AFC PREP logs 632 transitions,
+ * the flag high for ~0.7 s out of every 10 s. Read as busy, each of those
+ * windows would make the discretionary-gcode guard refuse jogs with "Printer is
  * busy — try again in a moment" on an idle printer.
  *
  * Duration is the discriminator: the operations the guard exists for (G28,
@@ -32,11 +76,11 @@ namespace helix {
  * Not thread-safe; fed from PrinterCalibrationState::update_from_status and read
  * at gcode send time, both on the main thread. Mirrors the shape of
  * AppMotionActivity (app_motion_activity.h): header-only, with a defaulted
- * `now` so tests drive it without a clock injection seam.
+ * `now` so unit tests pass explicit times; end-to-end tests advance BusyClock.
  */
 class IdleTimeoutBusy {
   public:
-    using clock = std::chrono::steady_clock;
+    using clock = BusyClock;
 
     /// How long idle_timeout must report "Printing" before it counts as blocking.
     static constexpr std::chrono::milliseconds kSettle{1000};

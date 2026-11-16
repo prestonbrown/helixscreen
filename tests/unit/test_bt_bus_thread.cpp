@@ -162,11 +162,11 @@ TEST_CASE("BusThread start is idempotent", "[bt][slow]") {
 
 TEST_CASE("BusThread concurrent start+submit: on_thread never races thread_id_",
           "[bt][bus_thread][slow]") {
-    // Regression: thread_id_ used to be written by the parent after std::thread
-    // construction, so the worker's first on_thread() check could race with a
-    // submit() from another thread calling on_thread() via run_sync(). Here we
+    // If the parent wrote thread_id_ after std::thread construction, the
+    // worker's first on_thread() check could race with a submit() from another
+    // thread calling on_thread() via run_sync(). Here we
     // start the thread and immediately submit work items whose body reads
-    // on_thread() — with the fix (worker publishes its own id before loop()),
+    // on_thread(); the worker publishes its own id before loop(), so
     // every work item sees on_thread() == true.
     for (int iter = 0; iter < 20; ++iter) {
         BusThread bt(nullptr);
@@ -249,9 +249,9 @@ TEST_CASE("BusThread submit racing with stop: no orphan tasks", "[bt][bus_thread
 }
 
 TEST_CASE("BusThread post-loop drain breaks promises before destructor", "[bt][bus_thread][slow]") {
-    // Regression for the sd_bus_process error-exit orphan-task leak: when
-    // loop() exits early (error path), queued items used to sit in the queue
-    // until ~BusThread, hanging callers blocked on .get(). With the post-loop
+    // sd_bus_process error-exit orphan tasks: when loop() exits early (error
+    // path), queued items must not sit in the queue until ~BusThread, hanging
+    // callers blocked on .get(). With the post-loop
     // drain in loop(), every future resolves promptly when the loop exits —
     // we don't need the destructor to run.
     //

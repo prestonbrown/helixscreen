@@ -12,7 +12,7 @@
 #include "i_moonraker_api.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -159,7 +159,7 @@ void AmsBackendIndx::handle_status(const nlohmann::json& status) {
             if (tool < 0 || tool >= system_info_.total_slots) {
                 continue;
             }
-            ams::Observation stated(ams::ObservationSource::VendorCache);
+            ams::Observation stated(ams::ObservationSource::Firmware);
             stated.spoolman_id = id > 0 ? id : 0;
             ams::ingest(lane_id(tool), stated);
         }
@@ -172,6 +172,39 @@ void AmsBackendIndx::handle_status(const nlohmann::json& status) {
         }
     }
     emit_event(EVENT_STATE_CHANGED);
+}
+
+AmsError AmsBackendIndx::apply_user_edit(int slot_index, const SlotInfo& info) {
+    std::optional<int> macro_link;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto it = state_.tool_spool_ids.find(slot_index);
+        if (it != state_.tool_spool_ids.end()) {
+            macro_link = it->second;
+        }
+    }
+    AmsError err = AmsBackendToolChanger::apply_user_edit(slot_index, info);
+    if (!err.success() && !err.partially_applied) {
+        return err;
+    }
+    const int link = info.spoolman_id > 0 ? info.spoolman_id : 0;
+    if (!macro_link || *macro_link == link) {
+        return err;
+    }
+    // The same two writes Mainsail's spool dialog makes for a tool, so either
+    // client reads the other's link: the macro variable, then its
+    // save_variables copy (t<n>__spool_id) that survives a restart. None is
+    // "no spool", the variable's own default.
+    const std::string value = link > 0 ? std::to_string(link) : std::string("None");
+    AmsError sent = execute_gcode(
+        fmt::format("SET_GCODE_VARIABLE MACRO=T{} VARIABLE=spool_id VALUE={}\n"
+                    "SAVE_VARIABLE VARIABLE=t{}__spool_id VALUE={}",
+                    slot_index, value, slot_index, value)); // DISPLAY_NUMBERING_OK: gcode names
+    if (!sent.success()) {
+        sent.partially_applied = true;
+        return sent;
+    }
+    return err;
 }
 
 bool AmsBackendIndx::apply_seat_fault_locked() {
@@ -258,6 +291,13 @@ std::string paused_swap_reason() {
 std::string AmsBackendIndx::motion_blocked_reason() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return indx::motion_blocked_reason(contract_, state_);
+}
+
+void AmsBackendIndx::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (seat_fault_raised_ && system_info_.action == AmsAction::ERROR) {
+        system_info_.operation_detail = indx::motion_blocked_reason(contract_, state_);
+    }
 }
 
 std::optional<helix::ErrorEvent> AmsBackendIndx::current_error() const {

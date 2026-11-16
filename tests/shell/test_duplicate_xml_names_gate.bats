@@ -299,12 +299,6 @@ run_gate() {
 
 # --- the real tree ---------------------------------------------------------
 
-@test "ui_xml/ is at or below the recorded baseline" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *'✅'* ]]
-}
-
 @test "--list enumerates the baselined sites and exits 0" {
     run python3 "$GATE" --list
     [ "$status" -eq 0 ]

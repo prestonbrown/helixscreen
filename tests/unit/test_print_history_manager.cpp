@@ -11,6 +11,8 @@
  * - Observer notification when data changes
  */
 
+#include "../../include/core/gcode_filename.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/json_utils.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
@@ -19,12 +21,10 @@
 #include "../../include/print_history_manager.h"
 #include "../../include/print_history_parse.h"
 #include "../../include/printer_state.h"
-#include "../../include/ui_filename_utils.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/history_call_counting_api.h"
 #include "../test_helpers/print_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -38,31 +38,10 @@
 using namespace helix;
 using namespace helix::ui;
 // ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-namespace {
-struct LVGLInitializerHistoryManager {
-    LVGLInitializerHistoryManager() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerHistoryManager lvgl_init;
-} // namespace
-
-// ============================================================================
 // Test Fixture
 // ============================================================================
 
-class HistoryManagerTestFixture {
+class HistoryManagerTestFixture : public LVGLTestFixture {
     static bool queue_initialized;
 
   public:
@@ -86,7 +65,7 @@ class HistoryManagerTestFixture {
         client_.disconnect();
 
         // Drain pending callbacks
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown queue
         helix::ui::update_queue_shutdown();
@@ -100,7 +79,7 @@ class HistoryManagerTestFixture {
     /// defers (invalidate -> fetch -> success defer) room to finish.
     void pump(int rounds = 20) {
         for (int i = 0; i < rounds; ++i) {
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
     }
@@ -172,7 +151,7 @@ class HistoryManagerTestFixture {
     bool wait_for_loaded(int timeout_ms = 500) {
         for (int i = 0; i < timeout_ms / 10; ++i) {
             // Drain the update queue to process callbacks scheduled via ui_queue_update
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
 
             if (manager_->is_loaded(HistoryScope::RECENT)) {
                 return true;
@@ -391,8 +370,8 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     // against the live set. If an observer's backing object was destroyed during
     // the same dispatch pass — e.g. a PrintStatusWidget torn down on panel
     // teardown, whose destructor calls remove_observer() — the stale snapshot
-    // still dereferenced the now-freed std::function pointer (SIGSEGV, debug
-    // bundle S52DJB5W: fault ~0x800020c during nav-away + reconnect).
+    // still dereferenced the now-freed std::function pointer (SIGSEGV,
+    // fault ~0x800020c during nav-away + reconnect).
     std::atomic<int> victim_count{0};
 
     // The "victim" models that torn-down widget: it is removed mid-dispatch and
@@ -817,7 +796,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager handles concurr
     // the server has measurable RTT. With the synchronous mock client the
     // success callback fires inline and clears the guard before the next
     // fetch() executes, so all three calls may proceed. We assert the weaker
-    // invariant the fix (1f719d0e2) actually guarantees: at least one fetch
+    // invariant the guard actually guarantees: at least one fetch
     // completes, and the guard is never stranded (subsequent fetches proceed).
     manager_->fetch(HistoryScope::COMPLETE);
     manager_->fetch(HistoryScope::COMPLETE);

@@ -11,7 +11,7 @@ load helpers
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 GATE="$REPO_ROOT/scripts/land-gate.sh"
 
-ALL_STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
+ALL_STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 no-mocks quality"
 
 # Every make here is a stub, and a stub must never reach the real make or the
 # jobpool shim: JOBPOOL=0 keeps the shim out of any make that does run, and the
@@ -19,7 +19,9 @@ ALL_STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lin
 # loudly instead of forking without bound.
 setup() {
     export JOBPOOL=0
-    unset FAKE_MAKE_DEPTH LAND_GATE_ACTIVE
+    # A `make land-gate STAGES=...` rerun exports STAGES to every step it runs,
+    # bats included; left set, it reaches the make fragments these tests drive.
+    unset FAKE_MAKE_DEPTH LAND_GATE_ACTIVE STAGES
     export TMPDIR="$BATS_TEST_TMPDIR"
     export CALLS="$BATS_TEST_TMPDIR/calls"
     export LAND_GATE_LOGDIR="$BATS_TEST_TMPDIR/logs"
@@ -27,6 +29,7 @@ setup() {
     # A passing gate run in the real tree must never vouch for its HEAD to the
     # real pre-push hook.
     export HELIX_LAND_GATE_STAMP_DIR="$BATS_TEST_TMPDIR/stamps"
+    export HELIX_LAND_GATE_SHARED_STAMP_DIR="$BATS_TEST_TMPDIR/shared-stamps"
     : >"$CALLS"
     # A target exits with $RC_<target, - as _>, default 0; no target is "app".
     mock_command_script fake-make '
@@ -39,6 +42,8 @@ echo "start $t" >> "$CALLS.order"
 [ "$t" != unit-sweep ] || [ -z "${UNIT_SWEEP_SECS:-}" ] || sleep "$UNIT_SWEEP_SECS"
 trap '\''echo "end $t" >> "$CALLS.order"'\'' EXIT
 [ "$t" != quality ] || [ -z "${MAKE_QUALITY_HOOK:-}" ] || eval "$MAKE_QUALITY_HOOK"
+eval "hook=\${HOOK_$(echo "$t" | tr - _):-}"
+[ -z "$hook" ] || eval "$hook"
 echo "output of $t"
 eval "rc=\${RC_$(echo "$t" | tr - _):-0}"
 exit "$rc"'
@@ -57,8 +62,13 @@ case "$1" in take) exit "${CLAIM_TAKE_RC:-0}" ;; esac'
 echo "esp32 $*" >> "$CALLS"
 echo "output of esp32"
 exit "${RC_esp32:-0}"'
+    # The no-mocks check, likewise, with $RC_no_mocks.
+    mock_command_script fake-no-mocks '
+echo "no-mocks $*" >> "$CALLS"
+echo "output of no-mocks"
+exit "${RC_no_mocks:-0}"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
-    export ESP32_CHECK=fake-esp32 LAND_GATE_BASE_REF=HEAD
+    export ESP32_CHECK=fake-esp32 NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -80,7 +90,8 @@ row() { # <status> <step>: the table row for step has that status
     for s in $ALL_STEPS; do row PASS "$s"; done
     contains "LAND GATE: PASS" "$output"
     grep -qx "make app" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
     grep -qx "make test-ui-ci" "$CALLS"
     grep -qx "make test-plugin" "$CALLS"
     grep -qx "make test-python" "$CALLS"
@@ -90,6 +101,14 @@ row() { # <status> <step>: the table row for step has that status
     grep -qx "make check-lvgl-event-codes" "$CALLS"
     grep -qx "make quality" "$CALLS"
     grep -qx "esp32 --require --base $(git rev-parse HEAD) --head HEAD" "$CALLS"
+    grep -qx "no-mocks --base $(git rev-parse HEAD)" "$CALLS"
+}
+
+@test "the no-mocks check measures from the merge-base; with none its row fails" {
+    LAND_GATE_BASE_REF=refs/heads/no-such-branch-for-the-gate run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL no-mocks
+    refute_grep "^no-mocks " "$CALLS"
 }
 
 @test "the ESP32 check measures from the merge-base with the base ref; with none its row fails" {
@@ -122,9 +141,9 @@ row() { # <status> <step>: the table row for step has that status
 
 @test "each failing step fails the gate and shows FAIL in its own row" {
     local target step
-    for pair in app:app-build unit-sweep:ci-shards test-shell:bats test-ui-ci:ui test-plugin:plugin test-python:python \
+    for pair in app:app-build unit-sweep:ci-shards test-slow:slow test-shell:bats test-ui-ci:ui test-plugin:plugin test-python:python \
                 check-theme-tokens:theme-tokens check-xml-schema:xml-schema lint-xml:lint-xml \
-                check-lvgl-event-codes:lvgl-event-codes esp32:esp32; do
+                check-lvgl-event-codes:lvgl-event-codes esp32:esp32 no-mocks:no-mocks; do
         target=${pair%%:*} step=${pair#*:}
         eval "export RC_$(echo "$target" | tr - _)=3"
         run "$GATE"
@@ -134,6 +153,19 @@ row() { # <status> <step>: the table row for step has that status
         contains "LAND GATE: FAIL" "$output"
         contains "output of $target" "$output"
     done
+}
+
+@test "the slow tier runs after the CI-layout run, in the same place" {
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    [ "$(order_of "end unit-sweep")" -lt "$(order_of "start test-slow")" ]
+    [ "$(order_of "end test-slow")" -lt "$(order_of "start quality")" ]
+
+    : >"$CALLS"
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -qx "host-run exec -- make --no-print-directory test-slow SHARD_CRASH_FAILS=1" "$CALLS"
+    refute_grep "^make test-slow" "$CALLS"
 }
 
 @test "a red CI-layout run on the test host fails the gate" {
@@ -148,13 +180,20 @@ row() { # <status> <step>: the table row for step has that status
     row FAIL app-build
     row SKIP ui
     row SKIP plugin
+    row SKIP no-mocks
     row SKIP quality
     refute_grep "make test-ui-ci" "$CALLS"
+    refute_grep "^no-mocks " "$CALLS"
     row PASS bats
 }
 
 # order_of <event>: its line number in the stubs' start/end log.
 order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
+
+@test "the quality step requires a link boundary verdict" {
+    TEST_HOST=1 MAKE_QUALITY_HOOK='echo "link required: ${HELIX_LINK_BOUNDARY_REQUIRED:-no}" >> "$CALLS"' run "$GATE"
+    grep -qx "link required: 1" "$CALLS"
+}
 
 @test "a local C++ run finishes before quality starts its own makes in the tree" {
     UNIT_SWEEP_SECS=2 run "$GATE"
@@ -162,13 +201,6 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     row PASS quality
     [ "$(grep -c "^make quality" "$CALLS")" -eq 1 ]
     [ "$(order_of "end unit-sweep")" -lt "$(order_of "start quality")" ]
-}
-
-@test "bats starts after the app build, which relinks the binary its ctl tests run" {
-    run "$GATE"
-    [ "$status" -eq 0 ]
-    row PASS bats
-    [ "$(order_of "end app")" -lt "$(order_of "start test-shell")" ]
 }
 
 @test "bats still runs when the app build fails" {
@@ -192,14 +224,37 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     [ "$(grep -c "^make quality" "$CALLS")" -eq 1 ]
 }
 
+@test "TEST_HOST=1 exports a load ceiling of zero, so the C++ run does not wait" {
+    unset HELIX_TEST_MAX_LOAD
+    TEST_HOST=1 MAKE_QUALITY_HOOK='echo "max-load ${HELIX_TEST_MAX_LOAD-unset}" >> "$CALLS"' run "$GATE"
+    grep -qx "max-load 0" "$CALLS"
+}
+
 @test "TEST_HOST=1 sends the C++ run to the test host, once, and runs none here" {
     TEST_HOST=1 run "$GATE"
     [ "$status" -eq 0 ]
     [ "$(grep -c "^host-run sweep" "$CALLS")" -eq 1 ]
     grep -qx "host-run sweep NPROCS=8 SHARD_TIMEOUT=600 SHARD_CRASH_FAILS=1" "$CALLS"
     refute_grep "make unit-sweep" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
     grep -qx "make test-ui-ci" "$CALLS"
+}
+
+@test "a test-host C++ run starts only after patches/ is applied here; a failed apply runs no lane" {
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    local applied swept
+    applied=$(grep -nx "make apply-patches" "$CALLS" | head -n 1 | cut -d: -f1)
+    swept=$(grep -n "^host-run sweep" "$CALLS" | head -n 1 | cut -d: -f1)
+    [ -n "$applied" ] && [ -n "$swept" ] && [ "$applied" -lt "$swept" ]
+    [ "$(order_of "end apply-patches")" -lt "$(order_of "start app")" ]
+    : >"$CALLS"
+    TEST_HOST=1 RC_apply_patches=2 run "$GATE"
+    [ "$status" -eq 1 ]
+    contains "output of apply-patches" "$output"
+    refute_grep "^host-run sweep" "$CALLS"
+    refute_grep "^make app$" "$CALLS"
 }
 
 @test "a bad TEST_HOST refuses before running anything" {
@@ -378,6 +433,205 @@ stamp_tree() {
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$(git -C "$T" rev-parse HEAD)" ]
 }
 
+gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
+
+@test "a red step completed by a passing rerun of it on the same commit stamps the commit" {
+    stamp_tree
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    row FAIL lint-xml
+    contains "make land-gate STAGES=lint-xml" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    : >"$CALLS"
+    gate_in_tree --rerun lint-xml
+    [ "$status" -eq 0 ]
+    for s in $ALL_STEPS; do row PASS "$s"; done
+    contains "LAND GATE: PASS (${SHA:0:7}" "$output"
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ -f "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
+    # Only the named step ran: lint-xml tests nothing app-build links.
+    [ "$(grep '^make' "$CALLS")" = "make lint-xml" ]
+}
+
+@test "on macOS a rerun runs unless it names the C++ suite" {
+    stamp_tree
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    mock_command_script uname 'echo Darwin'
+    gate_in_tree --rerun ci-shards
+    [ "$status" -eq 2 ]
+    contains "land-gate does not run the C++ suite on macOS" "$output"
+    [ ! -s "$CALLS" ]
+    gate_in_tree --rerun lint-xml
+    [ "$status" -eq 0 ]
+    [ "$(grep '^make' "$CALLS")" = "make lint-xml" ]
+}
+
+@test "a rerun of a step that tests the app build rebuilds the app and reruns every such step" {
+    stamp_tree
+    RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    gate_in_tree --rerun ui
+    [ "$status" -eq 0 ]
+    [ "$(grep '^make' "$CALLS")" = "$(printf 'make app\nmake test-shell BATS_REQUIRED=1 BATS_APP=without\nmake test-shell BATS_REQUIRED=1 BATS_APP=needs\nmake test-ui-ci\nmake quality')" ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun whose app build fails records its dependents SKIP and stamps nothing" {
+    stamp_tree
+    RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    : >"$CALLS"
+    RC_app=2 gate_in_tree --rerun ui
+    [ "$status" -eq 1 ]
+    row FAIL app-build
+    row SKIP ui
+    row SKIP bats
+    row SKIP quality
+    refute_grep "make test-ui-ci" "$CALLS"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun of the app build reruns its dependents, so a PASS from a failed build never counts" {
+    stamp_tree
+    # bats runs after a failed build, against whatever binary is on disk.
+    RC_app=2 gate_in_tree
+    [ "$status" -eq 1 ]
+    row PASS bats
+    : >"$CALLS"
+    RC_test_shell=1 gate_in_tree --rerun app-build,plugin,no-mocks
+    [ "$status" -eq 1 ]
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    row PASS app-build
+    row FAIL bats
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    gate_in_tree --rerun app-build,plugin,no-mocks
+    [ "$status" -eq 0 ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun whose tree changes while it runs merges nothing" {
+    stamp_tree
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    HOOK_lint_xml="echo edited >f" gate_in_tree --rerun lint-xml
+    [ "$status" -eq 1 ]
+    contains "nothing was merged" "$output"
+    grep -q "^FAIL " "$LAND_GATE_LOGDIR/results/$SHA/lint-xml"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a red full run of a stamped commit removes its stamp, here and in the shared record" {
+    stamp_tree
+    gate_in_tree
+    [ "$status" -eq 0 ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ -f "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
+    RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ ! -e "$HELIX_LAND_GATE_SHARED_STAMP_DIR/$SHA" ]
+}
+
+# kill_lane_hook <lane>: shell that, run from inside a step, kill the lane running it, as a crash
+# would; the lane then never writes the rows of its remaining steps.
+kill_lane_hook() {
+    printf '%s' 'p=$PPID; while [ "${p:-1}" -gt 1 ]; do case "$(ps -o args= -p "$p")" in *"--lane '"$1"'"*) kill -9 "$p"; break ;; esac; p=$(ps -o ppid= -p "$p" | tr -d " "); done'
+}
+
+@test "a second run of a commit whose lane dies leaves no earlier PASS standing" {
+    stamp_tree
+    gate_in_tree
+    [ "$status" -eq 0 ]
+    HOOK_lint_xml="$(kill_lane_hook fresh)" gate_in_tree
+    [ "$status" -eq 1 ]
+    contains "no result: its lane died" "$output"
+    [ ! -e "$LAND_GATE_LOGDIR/results/$SHA/lint-xml" ]
+    gate_in_tree --rerun python
+    [ "$status" -eq 1 ]
+    row FAIL lint-xml
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun on another commit or a dirty tree is refused and writes nothing" {
+    stamp_tree
+    RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    echo b >"$T/f"
+    : >"$CALLS"
+    gate_in_tree --rerun ui
+    [ "$status" -eq 2 ]
+    contains "needs a clean tree" "$output"
+    git -C "$T" -c user.email=t@t -c user.name=t commit -qam moved
+    gate_in_tree --rerun ui
+    [ "$status" -eq 2 ]
+    contains "no gate results for HEAD $(git -C "$T" rev-parse --short HEAD)" "$output"
+    refute_grep "^make" "$CALLS"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$(git -C "$T" rev-parse HEAD)" ]
+}
+
+@test "a gate on a tree dirty at the start records no results, even if clean at the end" {
+    stamp_tree
+    echo b >"$T/f"
+    MAKE_QUALITY_HOOK="echo a >f" RC_test_ui_ci=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    lacks "STAGES=" "$output"
+    [ -z "$(git -C "$T" status --porcelain)" ]
+    gate_in_tree --rerun ui
+    [ "$status" -eq 2 ]
+    contains "no gate results for HEAD" "$output"
+}
+
+@test "a rerun whose step still fails, or that leaves another step red, writes nothing" {
+    stamp_tree
+    RC_test_ui_ci=1 RC_lint_xml=1 gate_in_tree
+    [ "$status" -eq 1 ]
+    RC_test_ui_ci=1 gate_in_tree --rerun ui
+    [ "$status" -eq 1 ]
+    row FAIL ui
+    contains "LAND GATE: FAIL" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    gate_in_tree --rerun ui
+    [ "$status" -eq 1 ]
+    row PASS ui
+    row FAIL lint-xml
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+    gate_in_tree --rerun lint-xml
+    [ "$status" -eq 0 ]
+    [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "a rerun of a step the gate does not have is refused before anything runs" {
+    stamp_tree
+    gate_in_tree
+    [ "$status" -eq 0 ]
+    rm -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA"
+    : >"$CALLS"
+    gate_in_tree --rerun ui,nope
+    [ "$status" -eq 2 ]
+    contains "land-gate has no step 'nope'" "$output"
+    gate_in_tree --rerun ""
+    [ "$status" -eq 2 ]
+    contains "--rerun needs step names" "$output"
+    [ ! -s "$CALLS" ]
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
+}
+
+@test "make land-gate STAGES= hands the steps to the script as --rerun" {
+    mkdir -p "$BATS_TEST_TMPDIR/mkfrag/scripts"
+    printf '#!/bin/sh\necho "stub gate args=[$*]"\n' >"$BATS_TEST_TMPDIR/mkfrag/scripts/land-gate.sh"
+    chmod +x "$BATS_TEST_TMPDIR/mkfrag/scripts/land-gate.sh"
+    run run_fragment '^CI_SHARDS [?]=' land-gate land-gate
+    [ "$status" -eq 0 ]
+    contains "stub gate args=[]" "$output"
+    run run_fragment '^CI_SHARDS [?]=' land-gate land-gate STAGES=ui,bats
+    contains "stub gate args=[--rerun ui,bats]" "$output"
+}
+
 @test "test-shell with BATS_REQUIRED=1 fails when bats is missing; without it, skips" {
     run run_fragment '^BATS_BIN [?]=' test-shell test-shell BATS_BIN=no-such-bats BATS_REQUIRED=1
     [ "$status" -ne 0 ]
@@ -385,6 +639,36 @@ stamp_tree() {
     run run_fragment '^BATS_BIN [?]=' test-shell test-shell BATS_BIN=no-such-bats
     [ "$status" -eq 0 ]
     contains "skipping shell tests" "$output"
+}
+
+# A scratch selector stands in for scripts/bats_select.py in the fragment's dir:
+# it records its arguments and selects $FAKE_SELECTED.
+fake_selector_fragment() {
+    mkdir -p "$BATS_TEST_TMPDIR/mkfrag/scripts"
+    cat >"$BATS_TEST_TMPDIR/mkfrag/scripts/bats_select.py" <<'PY'
+import os, sys
+open(os.environ["CALLS"], "a").write(" ".join(["select"] + sys.argv[1:]) + "\n")
+print(os.environ.get("FAKE_SELECTED", ""))
+PY
+    mock_command_script fake-bats 'echo "bats $*" >> "$CALLS"'
+}
+
+@test "test-shell hands BATS_APP to the selector as --app, and an empty half runs no bats" {
+    unset BATS_ALL BATS_BASE
+    fake_selector_fragment
+    FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell \
+        BATS_BIN=fake-bats BATS_APP=needs
+    grep -qx "select --app needs" "$CALLS"
+    : >"$CALLS"
+    FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell BATS_BIN=fake-bats BATS_APP=
+    grep -qx "select" "$CALLS"
+    : >"$CALLS"
+    FAKE_SELECTED="" run run_fragment '^BATS_BIN [?]=' test-shell test-shell \
+        BATS_BIN=fake-bats BATS_ALLOW_SERIAL=1 BATS_APP=without
+    [ "$status" -eq 0 ]
+    grep -qx "select --app without" "$CALLS"
+    refute_grep "^bats" "$CALLS"
+    contains "no shell test file selected" "$output"
 }
 
 # A stubbed step that re-enters the gate (a make target running land-gate, or a
@@ -460,7 +744,7 @@ teardown() {
     run "$GATE"
     [ "$status" -eq 0 ]
     contains "no measured land-gate time yet for local sweeps" "$output"
-    read -r _ secs verdict where <"$LAND_GATE_HISTORY"
+    read -r _ secs verdict where _ <"$LAND_GATE_HISTORY"
     [[ "$secs" =~ ^[0-9]+$ ]] || fail "seconds not recorded: $secs"
     [ "$verdict" = PASS ]
     [ "$where" = local ]
@@ -478,4 +762,129 @@ teardown() {
     RC_lint_xml=1 run "$GATE"
     [ "$status" -ne 0 ]
     [ "$(awk '{print $3}' "$LAND_GATE_HISTORY")" = FAIL ]
+}
+
+@test "on macOS a local C++ run refuses in one line naming the test host" {
+    mock_command_script uname 'echo Darwin'
+    run "$GATE"
+    [ "$status" -eq 2 ]
+    [ "${#lines[@]}" -eq 1 ]
+    contains "TEST_HOST=1 make land-gate sends it to testhost.invalid" "$output"
+    [ ! -s "$CALLS" ]
+}
+
+@test "on macOS with no test host configured the refusal says how to name one" {
+    mock_command_script uname 'echo Darwin'
+    HELIX_TEST_HOST= run "$GATE"
+    [ "$status" -eq 2 ]
+    contains "set HELIX_TEST_HOST in ~/.config/helixscreen/build-hosts.env" "$output"
+}
+
+@test "on macOS a C++ run already routed to the test host runs the gate" {
+    mock_command_script uname 'echo Darwin'
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -qx "host-run sweep NPROCS=8 SHARD_TIMEOUT=600 SHARD_CRASH_FAILS=1" "$CALLS"
+}
+
+@test "bats starts beside the app build; only the half that drives the binary waits for it" {
+    HOOK_app='sleep 2' HOOK_test_shell='echo "shell$vars" >> "$CALLS.order"' run "$GATE"
+    [ "$status" -eq 0 ]
+    row PASS bats
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    [ "$(order_of "shell BATS_REQUIRED=1 BATS_APP=without")" -lt "$(order_of "end app")" ]
+    [ "$(order_of "end app")" -lt "$(order_of "shell BATS_REQUIRED=1 BATS_APP=needs")" ]
+}
+
+@test "a bats half past the step timeout reads TIMEOUT" {
+    LAND_GATE_STEP_TIMEOUT=2 HOOK_test_shell='case "$vars" in *needs*) sleep 30 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row TIMEOUT bats
+    # The half is stopped at its own budget, not at the backstop around both.
+    grep -Eq '^TIMEOUT [2-4] ' "$LAND_GATE_LOGDIR/rows/bats"
+    # Its log names the half's budget, which is the one that fired.
+    grep -qx "killed after 2s (LAND_GATE_STEP_TIMEOUT, bats half needs)" "$LAND_GATE_LOGDIR/bats.log"
+    refute_grep "killed after 6s" "$LAND_GATE_LOGDIR/bats.log"
+}
+
+@test "a red bats half outranks a timed-out one, in either order" {
+    LAND_GATE_STEP_TIMEOUT=2 HOOK_test_shell='case "$vars" in *without*) exit 4 ;; *needs*) sleep 30 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL bats
+    LAND_GATE_STEP_TIMEOUT=2 HOOK_test_shell='case "$vars" in *without*) sleep 30 ;; *needs*) exit 4 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL bats
+}
+
+@test "a red half of bats fails its row, and the other half still runs" {
+    HOOK_test_shell='case "$vars" in *without*) exit 4 ;; esac' run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL bats
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+}
+
+@test "patches/ is applied before any lane starts, so bats and the freshness checks read patched submodules" {
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    [ "$(order_of "end apply-patches")" -lt "$(order_of "start app")" ]
+    [ "$(order_of "end apply-patches")" -lt "$(order_of "start test-shell")" ]
+    [ "$(order_of "end apply-patches")" -lt "$(order_of "start test-python")" ]
+}
+
+@test "after the app build, ui, plugin, no-mocks and a test-host gate's quality run side by side" {
+    TEST_HOST=1 HOOK_test_ui_ci='sleep 2' run "$GATE"
+    [ "$status" -eq 0 ]
+    for s in ui plugin no-mocks quality; do row PASS "$s"; done
+    [ "$(order_of "end app")" -lt "$(order_of "start test-ui-ci")" ]
+    [ "$(order_of "start test-plugin")" -lt "$(order_of "end test-ui-ci")" ]
+    [ "$(order_of "start quality")" -lt "$(order_of "end test-ui-ci")" ]
+}
+
+@test "the gate's quality sweep leaves tests/python to the python step" {
+    MAKE_QUALITY_HOOK='echo "skip python: ${HELIX_QC_SKIP_PYTHON_TESTS:-no}" >> "$CALLS"' run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -qx "skip python: 1" "$CALLS"
+    grep -qx "make test-python" "$CALLS"
+}
+
+@test "the history row names the judged commit, its base and every step's verdict and time" {
+    RC_lint_xml=1 run "$GATE"
+    [ "$status" -eq 1 ]
+    local line
+    line=$(cat "$LAND_GATE_HISTORY")
+    [ "$(echo "$line" | awk '{print $5}')" = "$(git rev-parse HEAD)" ] || [ "$(echo "$line" | awk '{print $5}')" = "$(git rev-parse HEAD)+dirty" ]
+    [ "$(echo "$line" | awk '{print $6}')" = "$(git rev-parse HEAD)" ]
+    contains " lint-xml=FAIL:" "$line"
+    contains " app-build=PASS:" "$line"
+    [ "$(echo "$line" | grep -o ' [a-z0-9-]*=[A-Z]*:' | wc -l)" -eq 14 ]
+}
+
+@test "app-build records what it recompiled, which shared stamps moved, and the ccache delta" {
+    local obj="$BATS_TEST_TMPDIR/obj"
+    mkdir -p "$obj/ui"
+    echo "cc -O2" >"$obj/.build-flags"
+    : >"$obj/ui/old.o"
+    touch -d '2001-01-01' "$obj/.build-flags" "$obj/ui/old.o"
+    export LAND_GATE_OBJ_DIR="$obj" LAND_GATE_BUILD_DIR="$BATS_TEST_TMPDIR/b"
+    mkdir -p "$LAND_GATE_BUILD_DIR"
+    : >"$LAND_GATE_BUILD_DIR/.patches-applied"
+    touch -d '2001-01-01' "$LAND_GATE_BUILD_DIR/.patches-applied"
+    echo 10 >"$BATS_TEST_TMPDIR/misses"
+    mock_command_script fake-ccache 'printf "cache_miss\t%s\ndirect_cache_hit\t5\ncleanups_performed\t7\n" "$(cat "'"$BATS_TEST_TMPDIR"'/misses")"'
+    export LAND_GATE_CCACHE=fake-ccache
+    HOOK_app='echo "cc -O3" >"$LAND_GATE_OBJ_DIR/.build-flags"; : >"$LAND_GATE_OBJ_DIR/ui/new.o"; echo 13 >"'"$BATS_TEST_TMPDIR"'/misses"' run "$GATE"
+    [ "$status" -eq 0 ]
+    local why="$LAND_GATE_LOGDIR/app-build.why.log"
+    [ -f "$why" ]
+    contains "app-build recompiled 1 object(s)" "$output"
+    grep -q "ui/new.o" "$why"
+    run grep "old.o" "$why"
+    [ "$status" -ne 0 ]
+    grep -q "moved: $obj/.build-flags" "$why"
+    grep -q "^- cc -O2" "$why"
+    grep -q "^+ cc -O3" "$why"
+    run grep "\.patches-applied" "$why"
+    [ "$status" -ne 0 ]
+    grep -q "cache_miss +3" "$LAND_GATE_LOGDIR/app-build.why.log"
 }

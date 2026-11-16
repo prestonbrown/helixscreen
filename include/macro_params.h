@@ -32,9 +32,15 @@ struct MacroParam {
 [[nodiscard]] std::vector<MacroParam> parse_macro_params(const std::string& gcode_template);
 
 /// Parse raw "KEY=VALUE KEY2=VALUE2" text into a parameter map.
-/// Keys are uppercased to match Klipper convention.
+/// Keys are uppercased to match Klipper convention. A token that is not
+/// KEY=VALUE (no '=', or nothing before it) is left out of the map and, when
+/// @p rejected is given, appended to it as typed.
 [[nodiscard]] std::map<std::string, std::string>
-parse_raw_macro_params(const std::string& raw_text);
+parse_raw_macro_params(const std::string& raw_text, std::vector<std::string>* rejected = nullptr);
+
+/// The text parse_raw_macro_params() reads back as @p values: "KEY=VALUE"
+/// pairs joined by single spaces, in key order.
+[[nodiscard]] std::string format_raw_macro_params(const std::map<std::string, std::string>& values);
 
 /// Result from macro parameter modal: inline params and variable overrides
 struct MacroParamResult {

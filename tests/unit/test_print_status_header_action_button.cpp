@@ -18,9 +18,10 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
@@ -56,7 +57,7 @@ struct PrintStatusHeaderFixture : public LVGLUITestFixture {
     ~PrintStatusHeaderFixture() override {
         // Widgets first: the XML bindings observe subjects the panel owns, and
         // ~PrintStatusPanel calls deinit_subjects().
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -117,8 +118,8 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
 
     // Baseline: header_bar's hide_action_button default, untouched; the Files
     // entry opts in via hide_action_icon="false".
-    REQUIRE(lv_obj_has_flag(action, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(files, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(action));
+    CHECK_FALSE(lv_obj_is_hidden(files));
 
     // The three states the removed code un-hid the button for, plus the ones
     // around them so a re-added show/hide pair cannot pass by hiding on the way
@@ -135,10 +136,10 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
         CAPTURE(static_cast<int>(s));
         // An unconfigured button has no text, no icon and no callback. Revealing
         // it paints an empty #primary pill over the header.
-        CHECK(lv_obj_has_flag(action, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(action));
         // The Files entry is the print-select affordance: it must stay reachable
         // for the whole print, not just the active states.
-        CHECK_FALSE(lv_obj_has_flag(files, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(files));
     }
 }
 
@@ -147,11 +148,9 @@ TEST_CASE("print_status_panel.xml passes no action-button props to header_bar",
     // Structural companion to the behavioural test above. The PRIMARY slot stays
     // unconfigured (header_bar defaults: hidden, empty text/icon, no callback) so
     // the empty-pill regression cannot return; the icon-only action is the Files
-    // entry and must name the folder icon and the navigation callback. Both
-    // layout variants, since layout-class resolution picks one at runtime and the
-    // unit test only exercises the base.
-    const std::string files[] = {"ui_xml/print_status_panel.xml",
-                                 "ui_xml/portrait/print_status_panel.xml"};
+    // entry and must name the folder icon and the navigation callback. One file
+    // serves every layout class: print_status_body carries the arrangement.
+    const std::string files[] = {"ui_xml/print_status_panel.xml"};
 
     for (const std::string& path : files) {
         const std::string xml = read_xml(path);

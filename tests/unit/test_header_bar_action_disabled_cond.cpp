@@ -6,7 +6,7 @@
  * @brief header_bar's action_button_disabled_cond prop, and the calibration
  *        panels that depend on it to gate Start while the printer is offline.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the WebSocket to Moonraker
+ * Context (K2 Plus, v0.99.98): the WebSocket to Moonraker
  * never opened. The PID panel greyed out its *content* — the gate lives on
  * `overlay_content` — but the Start button sits in the header bar, a sibling of
  * that container, so it stayed live. The reporter pressed it and got a failure
@@ -14,7 +14,7 @@
  *
  * header_bar's action button supports exactly one disabled binding, and two
  * bind_state_* on one LVGL state clobber each other (each observer asserts BOTH
- * polarities on every fire), so the fix is a single expression-driven binding.
+ * polarities on every fire), so it is a single expression-driven binding.
  *
  * The second test reads the real panel XML and drives header_bar with the exact
  * expression each panel ships. That is deliberate: a cond naming a subject that
@@ -23,9 +23,9 @@
  * Compiling each shipped expression against live subjects is what catches that.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 
 #include <fstream>
 #include <lvgl.h>
@@ -105,10 +105,10 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     // Subjects the shipped expressions reference besides nav_buttons_enabled.
     // In production these are registered by each panel's init_subjects() at
     // startup, long before the overlay XML is created.
-    static lv_subject_t pid_not_idle;
-    static lv_subject_t is_calibrate_all_disabled;
-    lv_subject_init_int(&pid_not_idle, 0);
-    lv_subject_init_int(&is_calibrate_all_disabled, 0);
+    static helix::Subject pid_not_idle;
+    static helix::Subject is_calibrate_all_disabled;
+    pid_not_idle.init_int(0);
+    is_calibrate_all_disabled.init_int(0);
     lv_xml_register_subject(nullptr, "pid_cal_not_idle", &pid_not_idle);
     lv_xml_register_subject(nullptr, "is_calibrate_all_disabled", &is_calibrate_all_disabled);
 
@@ -164,6 +164,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     }
 
     lv_subject_set_int(nav, 1);
-    lv_subject_deinit(&pid_not_idle);
-    lv_subject_deinit(&is_calibrate_all_disabled);
+    pid_not_idle.reset();
+    is_calibrate_all_disabled.reset();
 }

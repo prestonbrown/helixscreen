@@ -17,10 +17,11 @@
 
 #include "moonraker_rest_api.h"
 
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "hv/requests.h"
 #include "json_utils.h"
 #include "moonraker_error.h"
+#include "rest_response.h"
 #include "spdlog/spdlog.h"
 
 namespace {
@@ -306,23 +307,6 @@ void MoonrakerRestAPI::wled_get_strips(RestCallback on_success, ErrorCallback on
             }
         } else {
             spdlog::debug("[MoonrakerRestAPI] WLED get_strips failed: {}", resp.error);
-            if (on_error) {
-                on_error(MoonrakerError::unknown(resp.error, "wled"));
-            }
-        }
-    });
-}
-
-void MoonrakerRestAPI::wled_get_status(RestCallback on_success, ErrorCallback on_error) {
-    spdlog::debug("[MoonrakerRestAPI] Fetching WLED status");
-
-    call_rest_get("/machine/wled/strips", [on_success, on_error](const RestResponse& resp) {
-        if (resp.success) {
-            if (on_success) {
-                on_success(resp);
-            }
-        } else {
-            spdlog::debug("[MoonrakerRestAPI] WLED get_status failed: {}", resp.error);
             if (on_error) {
                 on_error(MoonrakerError::unknown(resp.error, "wled"));
             }

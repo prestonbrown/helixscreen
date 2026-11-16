@@ -6,6 +6,7 @@
 #include "ui_color_picker.h"
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "spoolman_types.h"
 #include "subject_managed_panel.h"
 
@@ -44,7 +45,6 @@ class SpoolEditModal : public Modal {
     SpoolEditModal();
     ~SpoolEditModal() override;
 
-    // Non-copyable
     SpoolEditModal(const SpoolEditModal&) = delete;
     SpoolEditModal& operator=(const SpoolEditModal&) = delete;
 
@@ -69,6 +69,7 @@ class SpoolEditModal : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "spoolman_edit_modal";
     }
+    HELIX_KIND_TAG(SpoolEditModal)
 
   protected:
     void on_show() override;
@@ -89,9 +90,18 @@ class SpoolEditModal : public Modal {
     void deinit_subjects();
 
     // === Subjects ===
-    lv_subject_t save_button_text_subject_{};
+    helix::Subject save_button_text_subject_{};
     char save_button_text_buf_[16]{};
     char save_button_text_prev_buf_[16]{};
+    // The title and the read-only info lines (data, so bound, never props)
+    helix::Subject title_subject_{};
+    char title_buf_[48]{};
+    helix::Subject material_subject_{};
+    char material_buf_[64]{};
+    helix::Subject color_subject_{};
+    char color_buf_[64]{};
+    helix::Subject vendor_subject_{};
+    char vendor_buf_[96]{};
 
     // === Internal Methods ===
     void populate_fields();
@@ -115,10 +125,6 @@ class SpoolEditModal : public Modal {
     // === Static Callback Registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static SpoolEditModal* active_instance_;
-
-    // === Static Callbacks ===
-    static SpoolEditModal* get_instance_from_event(lv_event_t* e);
 };
 
 } // namespace helix::ui

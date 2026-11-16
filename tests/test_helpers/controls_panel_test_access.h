@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // ObserverGuard, SubjectLifetime
 #include "ui_panel_controls.h"
+
+#include "core/observer_guard.h" // ObserverGuard, SubjectLifetime
 
 #include <string>
 #include <utility>
@@ -25,6 +26,17 @@ struct ControlsPanelTestAccess {
 
     static void confirm_custom_nozzle(ControlsPanel& p, float celsius) {
         p.handle_custom_nozzle_confirmed(celsius);
+    }
+    /// Subjects and observers without the XML tree: the nozzle row's logic.
+    static void init_and_observe(ControlsPanel& p) {
+        p.init_subjects();
+        p.register_observers();
+    }
+    static void nozzle_row_clicked(ControlsPanel& p) {
+        p.handle_nozzle_temp_clicked();
+    }
+    static int nozzle_tool(const ControlsPanel& p) {
+        return p.nozzle_tool();
     }
     static int cached_extruder_target(const ControlsPanel& p) {
         return p.cached_extruder_target_;
@@ -48,7 +60,7 @@ struct ControlsPanelTestAccess {
     static void set_rows(ControlsPanel& p, const std::vector<std::string>& object_names) {
         p.secondary_fan_rows_.clear();
         for (const auto& name : object_names) {
-            p.secondary_fan_rows_.push_back({name, nullptr});
+            p.secondary_fan_rows_.push_back({name, {}});
         }
     }
 

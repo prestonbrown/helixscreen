@@ -28,8 +28,8 @@ namespace helix::ui {
  */
 class RecoveryFaultModal : public Modal {
   public:
-    /// Receives the gcode of the action the user tapped.
-    using ActionCallback = std::function<void(const std::string& gcode)>;
+    /// Receives the action the user tapped: one with a gcode or a guided flow.
+    using ActionCallback = std::function<void(const helix::RecoveryAction& action)>;
     /// Fires for every close this class's owner did not make with hide(): a
     /// button (including a dismiss-only one), backdrop tap, ESC or a sweep.
     /// Runs inside Modal::hide(), so it must not show a modal.
@@ -47,8 +47,9 @@ class RecoveryFaultModal : public Modal {
     /**
      * @brief Show the fault, replacing the one on screen if any
      *
-     * Actions past kMaxActions are not shown. An action with an empty gcode
-     * closes the dialog and sends nothing; with no actions, an OK button does.
+     * Actions past kMaxActions are not shown. An action with neither a gcode
+     * nor a guided flow closes the dialog and sends nothing; with no actions,
+     * an OK button does.
      *
      * @return true if the dialog is on screen
      */

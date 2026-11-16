@@ -21,9 +21,10 @@
  */
 
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
+#include "app_constants.h"
 #include "backlight_backend.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "lvgl_test_fixture.h"
@@ -199,7 +200,7 @@ class WakeChain {
         lv_obj_set_scroll_dir(list, LV_DIR_VER);
         lv_obj_t* content = lv_obj_create(list);
         lv_obj_set_size(content, 150, 2000);
-        lv_obj_remove_flag(content, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(content, false);
         lv_obj_add_event_cb(list, count_cb, LV_EVENT_SCROLL_BEGIN, nullptr);
         lv_obj_update_layout(screen);
     }
@@ -433,7 +434,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     chain.hold(LV_INDEV_STATE_PRESSED, kOnButton, 30);
     CHECK_FALSE(chain.asleep_or_dimmed()); // woken by the press, not the release
 
-    chain.hold(LV_INDEV_STATE_PRESSED, kOnButton, 470);
+    // Held well past the long-press threshold from the touch-down, so a wake that left
+    // the press live would fire LONG_PRESSED before the lift.
+    chain.hold(LV_INDEV_STATE_PRESSED, kOnButton,
+               static_cast<int>(helix::app_constants::input::kLongPressMs) + 200 - 30);
     chain.hold(LV_INDEV_STATE_RELEASED, kOnButton, 50);
 
     CHECK(g_counts.clicked == 0);

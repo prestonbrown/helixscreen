@@ -50,9 +50,9 @@ Detection uses a multi-signal system with these fallbacks for completion:
 ### Option 1: Install HelixScreen Macros (Recommended)
 
 The HelixScreen macro file provides:
-- **Instant detection**: `HELIX_READY` signal at the end of your PRINT_START
-- **Phase tracking**: Optional `HELIX_PHASE_*` macros for detailed progress display
-- **Pre-print helpers**: `HELIX_BED_LEVEL_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
+- **Instant detection**: `_HELIX_READY` signal at the end of your PRINT_START
+- **Phase tracking**: Optional `_HELIX_PHASE_*` macros for detailed progress display
+- **Pre-print helpers**: `HELIX_BED_MESH_IF_NEEDED`, `HELIX_CLEAN_NOZZLE`, `HELIX_START_PRINT`
 
 **Installation via the UI:**
 
@@ -69,7 +69,7 @@ The HelixScreen macro file provides:
 [include helix_macros.cfg]
 ```
 
-3. Add `HELIX_READY` at the end of your PRINT_START macro:
+3. Add `_HELIX_READY` at the end of your PRINT_START macro:
 
 ```gcode
 [gcode_macro PRINT_START]
@@ -83,7 +83,7 @@ gcode:
     BED_MESH_CALIBRATE
 
     # Signal HelixScreen that prep is done
-    HELIX_READY
+    _HELIX_READY
 
     # Purge line or first layer starts here
 ```
@@ -95,24 +95,64 @@ Phase display works out of the box: with no instrumentation at all, HelixScreen 
 ```gcode
 [gcode_macro PRINT_START]
 gcode:
-    HELIX_PHASE_HOMING
+    _HELIX_PHASE_HOMING
     G28
 
-    HELIX_PHASE_HEATING_BED
+    _HELIX_PHASE_HEATING_BED
     M190 S{BED_TEMP}
 
-    HELIX_PHASE_BED_MESH
+    _HELIX_PHASE_BED_MESH
     BED_MESH_CALIBRATE
 
-    HELIX_PHASE_HEATING_NOZZLE
+    _HELIX_PHASE_HEATING_NOZZLE
     M109 S{EXTRUDER_TEMP}
 
-    HELIX_PHASE_PURGING
+    _HELIX_PHASE_PURGING
     # Your purge line code here
 
     # Signal preparation complete
-    HELIX_READY
+    _HELIX_READY
 ```
+
+### Declaring Phase Durations
+
+An adaptive `PRINT_START` often knows exactly how long a soak or a chamber wait will take. Say so
+once and the countdown trusts it instead of pricing the phase from past prints:
+
+```
+[gcode_macro PRINT_START]
+gcode:
+    {% set bed = params.BED|int %}
+    {% set soak = 600 if bed >= 100 else 0 %}
+    {% set mesh = params.MESH|default(1)|int %}
+    _HELIX_PLAN SOAKING={soak} BED_MESH={90 if mesh else 0}
+    _HELIX_PHASE_HOMING
+    G28
+    _HELIX_PHASE_HEATING_BED
+    M190 S{bed}
+    {% if soak > 0 %}
+    _HELIX_PHASE_SOAKING
+    G4 P{soak * 1000}
+    {% endif %}
+    {% if mesh %}
+    _HELIX_PHASE_BED_MESH
+    BED_MESH_CALIBRATE
+    {% endif %}
+    _HELIX_READY
+```
+
+- `_HELIX_PLAN NAME=SECONDS ...` takes any phase name from the table above, without the
+  `_HELIX_PHASE_` prefix, or its alias (`SOAK`, `HEAT_CHAMBER`, `QUAD_GANTRY_LEVEL`). Durations are
+  per phase; there is no total, because the sum of the phases you declare is the total you know.
+- A value of 0 means the phase will not run. A phase you leave out keeps its usual estimate.
+- The most a phase may declare is 6 hours (21600); a larger value is dropped with a warning.
+- You may call it again from a sub-macro. A later value for a phase replaces the earlier one. For
+  the phase already running, the value means the seconds left from now, so a plan just before
+  `G4 P600000` is right whether it comes before or after the phase signal. A finished phase ignores it.
+- Also signal the phase with its `_HELIX_PHASE_*` macro, so the countdown knows when it starts. While a
+  declared phase runs, a silent macro will not trip the timeouts; if it runs past its declared length,
+  the time label says it is running over.
+- The plan is kept in `_HELIX_STATE`, so a screen that restarts mid-start picks it back up.
 
 ### Option 2: Add Variables to Existing Macro
 
@@ -144,32 +184,60 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names; a printer that still needs the old visible names gets forwarders, described in [Visible names and forwarders](#visible-names-and-forwarders). Copying `helix_macros.cfg` over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
+
+### Visible names and forwarders
+
+A printer may call the visible spellings (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) from its own macros or its sliced files (#2006). When the app installs or updates the pack, `MacroManager::macro_content_for` appends one forwarder per visible name it keeps, after the pack in the same `helix_macros.cfg`, so a single upload carries both and no include has to agree with a second file:
+
+```
+[gcode_macro HELIX_READY]
+description: HelixScreen alias for _HELIX_READY
+gcode:
+    RESPOND TYPE=command MSG="HELIX:ALIAS:HELIX_READY"
+    _HELIX_READY
+```
+
+Which names a printer keeps is pure logic in `include/signal_macro_names.h` (`helix::signal_macros`):
+
+- **The scan.** `scan()` reads `configfile.settings` at discovery (`src/api/moonraker_discovery_sequence.cpp`, beside the other configfile analyzers). It looks at every string option of every section, so `[delayed_gcode]`, `[gcode_button]` and `[idle_timeout]` count as well as macro bodies, and it over-matches on purpose: a missed call answers `Unknown command`, a spurious one only keeps a name visible. A `[gcode_macro HELIX_*]` section is our forwarder by its description (`kAliasDescriptionPrefix`), an earlier pack's macro by that name's `kPackDescriptions` entry, and the user's own otherwise. The user's own lands in `foreign` and is never forwarded, since a forwarder would merge into it.
+- **All eleven or none.** `names_to_alias()` keeps all eleven when the visible names were loaded, the config calls one, or a sliced file was heard calling one, because the scan cannot see sliced files and a file may call any of them. A printer that never had them gets none.
+- **Dropping unused forwarders.** Each forwarder announces itself with `HELIX:ALIAS:<name>`. `SlicedSignalWatcher` (`include/sliced_signal_names.h`) counts, per printer, the completed prints each loaded forwarder went unheard; after `kAliasDropAfterPrints` (5) the name is retired and the next update drops it, unless the config still calls it. A print counts only if it completed, had run no more than 60 seconds when the app saw it start (the probes `src/application/gcode_response_routing.cpp` wires in), and had announcing forwarders loaded with `[respond]` present. Any hit clears the count. The console panel hides the announcement lines.
+- **Sliced files.** The same watcher reads `Unknown command:"HELIX_X"` responses during a print (`unknown_signal_command`), records the names under the printer's `helix_macros/sliced_signal_names` setting when the print ends, shows one toast per print, and the next update forwards them again (`extra_names`).
+- **Status.** `drift()` compares what is loaded with what an update would stage (the old visible pack, a called name with no forwarder, or a forwarder that would be dropped); anything but `None` reads the helper macros as outdated, so the update is offered. The helper macros row states the outcome through `signal_names_line()`.
+
+The HelixPrint plugin renames the visible calls the pre-1.1 instrumentation wrote inside `HELIX_TRACKING` marker blocks: [HELIXPRINT_PLUGIN.md § Signal Macro Migration](HELIXPRINT_PLUGIN.md#signal-macro-migration-signal_macro_migration-v1). `configfile.settings` carries no comments, so the app cannot see the blocks; a visible call in `PRINT_START`, `START_PRINT` or `_PRINT_START` stands in for them (`marker_callers_present`).
+
+**Known limit.** A pre-1.2 HelixScreen run against a printer the plugin has renamed sees the forwarders' `HELIX_READY`, so a helper macro update from that app writes the old visible pack, which defines no hidden names. The renamed calls then answer `Unknown command` until the app is updated again or the `.bak.<stamp>` backup is restored.
+
 ### Core Signals
 
 | Macro | Purpose |
 |-------|---------|
-| `HELIX_READY` | Signal that print preparation is complete |
-| `HELIX_ENDED` | Signal that print has ended (called in PRINT_END) |
-| `HELIX_RESET` | Reset state (for cancel/error recovery) |
+| `_HELIX_READY` | Signal that print preparation is complete |
+| `_HELIX_ENDED` | Signal that print has ended (called in PRINT_END) |
+| `_HELIX_RESET` | Reset state (for cancel/error recovery) |
 
 ### Phase Tracking (Optional)
 
 | Macro | Phase Displayed |
 |-------|-----------------|
-| `HELIX_PHASE_HOMING` | "Homing..." |
-| `HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
-| `HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
-| `HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
-| `HELIX_PHASE_QGL` | "Leveling Gantry..." |
-| `HELIX_PHASE_Z_TILT` | "Z Tilt Adjust..." |
-| `HELIX_PHASE_CLEANING` | "Cleaning Nozzle..." |
-| `HELIX_PHASE_PURGING` | "Purging..." |
+| `_HELIX_PHASE_HOMING` | "Homing..." |
+| `_HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `_HELIX_PHASE_HEATING_CHAMBER` | "Heating Chamber..." |
+| `_HELIX_PHASE_SOAKING` | "Heat Soaking..." |
+| `_HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
+| `_HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
+| `_HELIX_PHASE_QGL` | "Leveling Gantry..." |
+| `_HELIX_PHASE_Z_TILT` | "Z Tilt Adjust..." |
+| `_HELIX_PHASE_CLEANING` | "Cleaning Nozzle..." |
+| `_HELIX_PHASE_PURGING` | "Purging..." |
 
 ### Pre-Print Helpers
 
 | Macro | Purpose |
 |-------|---------|
-| `HELIX_BED_LEVEL_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
+| `HELIX_BED_MESH_IF_NEEDED` | Run bed mesh only if stale (configurable max age) |
 | `HELIX_CLEAN_NOZZLE` | Nozzle cleaning sequence (configure brush position) |
 | `HELIX_START_PRINT` | Complete start print sequence with all options |
 
@@ -196,11 +264,11 @@ This is how the shipped "Auto Bed Mesh" toggle works on the Creality K2, K2 Plus
 
 An option with `emit_when_disabled: false` has no "off" gcode at all: unchecking it sends nothing and the firmware's own default sequence runs.
 
-`emit_when_disabled: false` has a second meaning (`include/pre_print_option.h#emit_when_disabled`): the line *is* the step, so it is not sent when the started file calls the same command itself. For an enabled option whose id maps to a file-embeddable operation (`bed_mesh`, `qgl`, `z_tilt`, `nozzle_clean`), `collect_pre_start_gcode_lines()` drops the line when `file_runs_command()` finds the rendered line's command word, under that operation type, in the scan's `operation_commands` (`src/ui/ui_print_preparation_manager.cpp#file_runs_command`). `GCodeOpsDetector` records there the command word of every line that matches an operation pattern, while `operations` keeps only the first line of each type for the file-modification path. On a K2 only a direct `BED_MESH_CALIBRATE_START_PRINT` call counts, wherever it sits among the file's `BED_MESH` lines; `BED_MESH_PROFILE LOAD`, `BED_MESH_CLEAR` and `START_PRINT` mesh parameters do not, and the line is still sent. The scan is `GCodeOpsDetector` with its default `DetectionConfig` (first 500 lines or 50 KB, thumbnail comments counted, stopping at the first extruding move or layer marker), so a call past that window is not seen and the line is sent. A start with no scan for its file skips nothing.
+`emit_when_disabled: false` has a second meaning (`include/pre_print_option.h#emit_when_disabled`): the line *is* the step, so it is not sent when the started file calls the same command itself. For an enabled option whose id maps to a file-embeddable operation (`bed_mesh`, `qgl`, `z_tilt`, `nozzle_clean`), `collect_pre_start_gcode_lines()` drops the line when `file_runs_command()` finds the rendered line's command word, under that operation type, in the scan's `operation_commands` (`src/ui/print/ui_print_preparation_manager.cpp#file_runs_command`). `GCodeOpsDetector` records there the command word of every line that matches an operation pattern, while `operations` keeps only the first line of each type for the file-modification path. On a K2 only a direct `BED_MESH_CALIBRATE_START_PRINT` call counts, wherever it sits among the file's `BED_MESH` lines; `BED_MESH_PROFILE LOAD`, `BED_MESH_CLEAR` and `START_PRINT` mesh parameters do not, and the line is still sent. The scan is `GCodeOpsDetector` with its default `DetectionConfig` (first 500 lines or 50 KB, thumbnail comments counted, stopping at the first extruding move or layer marker), so a call past that window is not seen and the line is sent. A start with no scan for its file skips nothing.
 
 The pre-start block exists only on starts HelixScreen makes (`PrintPreparationManager::start_print`): the file view's Print, the queue's file-view start and the Job Queue widget's Start next. A job started by a slicer upload, another web UI or Moonraker's `automatic_transition` never gets it.
 
-**Which option states a queued start uses.** Options picked at queue time live in the Moonraker database, namespace `helix-screen`, one key per job at `queued_job_options.<job_id>` (`include/queued_job_options.h`). A job queued elsewhere (Mainsail, Fluidd, a slicer) has no entry, and `load_queued_job_options()` answers an empty map for it, as it does for a read error. The Job Queue widget's Start next (`QueuedJobStarter`, `src/ui/queued_job_start.cpp`) installs `saved_option_state()` as the start's option override; an id with no saved state returns -1 and falls through to `option_state_provider_` (only bound while the detail view has rendered rows), then the option's `default_enabled` (`PrintPreparationManager::get_option_state`). The file-view path (`PrintSelectPanel::start_queued_job`) seeds the detail view's rows from the saved entry; rows it does not name keep their `default_enabled`. Either way a K2 job queued from another client starts with `bed_mesh` on.
+**Which option states a queued start uses.** Options picked at queue time live in the Moonraker database, namespace `helix-screen`, one key per job at `queued_job_options.<job_id>` (`include/queued_job_options.h`). A job queued elsewhere (Mainsail, Fluidd, a slicer) has no entry, and `load_queued_job_options()` answers an empty map for it, as it does for a read error. The Job Queue widget's Start next (`QueuedJobStarter`, `src/ui/print/queued_job_start.cpp`) installs `saved_option_state()` as the start's option override; an id with no saved state returns -1 and falls through to `option_state_provider_` (only bound while the detail view has rendered rows), then the option's `default_enabled` (`PrintPreparationManager::get_option_state`). The file-view path (`PrintSelectPanel::start_queued_job`) seeds the detail view's rows from the saved entry; rows it does not name keep their `default_enabled`. Either way a K2 job queued from another client starts with `bed_mesh` on.
 
 **K1C specifics.** The K1 firmware's `START_PRINT` runs its full preparation chain whenever its `prepare` variable is 0 (homing, nozzle wipe, accurate Z homing, then `CX_PRINT_LEVELING_CALIBRATE`). That command is a 4-corner bed check - it re-meshes the whole bed only when ≥2 corners drift beyond tolerance, and the whole decision is internal: none of it reaches the gcode console. The shipped toggle front-runs exactly what Creality's own app sends - heat, home, nozzle wipe, accurate home, `BED_MESH_CALIBRATE`, then `PRINT_PREPARED` (which makes the file's `START_PRINT` skip its now-redundant chain) - so one preparation pass runs, at print temperature, with a guaranteed mesh.
 
@@ -327,7 +395,7 @@ gcode:
         BED_MESH_CALIBRATE
     {% endif %}
 
-    HELIX_READY
+    _HELIX_READY
 ```
 
 **Opt-OUT Style:**
@@ -343,7 +411,7 @@ gcode:
         BED_MESH_CALIBRATE
     {% endif %}
 
-    HELIX_READY
+    _HELIX_READY
 ```
 
 ### Using HELIX_START_PRINT
@@ -388,7 +456,7 @@ If the home panel stays on "Preparing Print" indefinitely:
 
 If detection falls all the way through to a timeout:
 
-1. **Add HELIX_READY**: The most reliable option
+1. **Add _HELIX_READY**: The most reliable option
 2. **Check if your slicer sets layer info**: Look for `SET_PRINT_STATS_INFO` in your G-code
 3. **Verify macro object subscriptions**: HelixScreen subscribes to `gcode_macro _HELIX_STATE`, `gcode_macro _START_PRINT`, and `gcode_macro START_PRINT`
 4. **ForgeX users**: Detection should be instant via the Forge-X profile (the `operation_context` status object on 1.4.x, `// State:` lines on older versions), the `_START_PRINT.print_started` and `START_PRINT.preparation_done` macro variables

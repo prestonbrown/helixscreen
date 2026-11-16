@@ -173,32 +173,47 @@ TEST_CASE("z-offset persistence: a near-miss macro detects nothing", "[zoffset][
 }
 
 // ============================================================================
-// Clearing the stale probe delta before an idle adjustment
+// Per-head offsets on a head changer
 // ============================================================================
 
-TEST_CASE("z-offset persistence: ZMOD's stale probe delta has a clear command",
-          "[zoffset][persistence]") {
-    // ZMOD persists every SET_GCODE_OFFSET as `z - _TEST_POINT.temp_z_offset`,
-    // where temp_z_offset holds the last print-start probe delta. That variable
-    // survives END_PRINT/CANCEL_PRINT, so an idle adjustment stores the intended
-    // value minus a stale delta (ghzserg/zmod#699). The fix is to zero it right
-    // before the adjustment goes out.
-    PrinterDiscovery hw = printer_with_macros({"SAVE_ZMOD_DATA"});
+namespace {
 
-    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(hw) ==
-          "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0");
+/// A printer whose objects list carries the given objects plus gcode macros.
+PrinterDiscovery printer_with(std::initializer_list<const char*> objects_in,
+                              std::initializer_list<const char*> macros) {
+    json objects = json::array();
+    objects.push_back("gcode_move");
+    objects.push_back("toolhead");
+    for (const char* o : objects_in) {
+        objects.push_back(o);
+    }
+    for (const char* m : macros) {
+        objects.push_back(std::string("gcode_macro ") + m);
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
 }
 
-TEST_CASE("z-offset persistence: no stale-delta clear without the mechanism",
-          "[zoffset][persistence]") {
-    // Forge-X keeps no probe-delta transient, and a plain printer has no
-    // firmware override at all - either way there is nothing to clear, and an
-    // empty string means "send nothing", not "send an empty line".
-    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(printer_with_macros({"SET_MOD"})).empty());
-    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(
-              printer_with_macros({"START_PRINT", "END_PRINT"}))
-              .empty());
-    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(printer_with_macros({})).empty());
+} // namespace
+
+TEST_CASE("z-offset persistence: only a Z-Mod head changer keeps the offset per head",
+          "[zoffset][persistence][per_head]") {
+    // Z-Mod on the Creator 5 sets the mounted head's offset absolutely at every
+    // pickup and saves a Z_ADJUST against that head. Its probe-delta variable
+    // feeds that pickup offset, so zeroing it would move the next head.
+    PrinterDiscovery c5 =
+        printer_with({"zmod_color", "gcode_button extruder_grab1"}, {"SAVE_ZMOD_DATA"});
+    CHECK(helix::zoffset::firmware_applies_z_offset_per_head(c5));
+    CHECK(helix::zoffset::stale_probe_delta_clear_gcode(c5).empty());
+
+    // The AD5X Z-Mod publishes zmod_color too, with one head and no carriage buttons.
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(
+        printer_with({"zmod_color"}, {"SAVE_ZMOD_DATA"})));
+    // The changer's objects without Z-Mod's offset storage, and another firmware's.
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(
+        printer_with({"zmod_color", "gcode_button extruder_grab1"}, {})));
+    CHECK_FALSE(helix::zoffset::firmware_applies_z_offset_per_head(printer_with({}, {"SET_MOD"})));
 }
 
 // ============================================================================

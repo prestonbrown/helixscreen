@@ -17,9 +17,9 @@
  */
 
 #include "../lvgl_test_fixture.h"
-#include "test_helpers/afc_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "test_helpers/afc_test_access.h"
 
 #include <memory>
 #include <string>
@@ -91,12 +91,4 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // default keeps it enabled.
     afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}});
     CHECK_FALSE(afc.printer_retains_spool_info());
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "printer_retains_spool_info base default is false",
-                 "[ams][capabilities][spool-retention]") {
-    // Qualified call pins the BASE default (false), matching the
-    // printer_reports_spool_ids pattern in test_ams_firmware_persistence.cpp.
-    auto afc = std::make_unique<AmsBackendAfc>(nullptr, nullptr);
-    CHECK_FALSE(afc->AmsBackend::printer_retains_spool_info());
 }

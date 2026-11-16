@@ -28,6 +28,7 @@
 #include "ams_backend_cfs.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -35,7 +36,6 @@
 #include "rpc_error_correlation.h"
 #include "temperature_controller.h"
 #include "test_helpers/cfs_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "toolhead_homing.h"
 
 #include <algorithm>
@@ -53,7 +53,7 @@ class OwnershipFixture : public LVGLTestFixture {
         helix::rpc_error_correlation::clear_for_test();
     }
     ~OwnershipFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::rpc_error_correlation::clear_for_test();
     }
 };
@@ -66,7 +66,7 @@ constexpr const char* kG28Rejection = "Must home axis first";
 helix::PrinterState& unhomed_global_state() {
     helix::PrinterState& state = get_printer_state();
     state.init_subjects(false);
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "");
     return state;
 }
 
@@ -122,12 +122,12 @@ TEST_CASE_METHOD(OwnershipFixture,
 
     // A real caller-supplied handler is presumed to raise its own UI, so the
     // `!!` broadcast of the same rejection must dedup against it rather than
-    // double-report. This is the other half of the contract: the fix must not
-    // simply hardcode false.
+    // double-report. This is the other half of the contract: intent must not
+    // simply be hardcoded false.
     CHECK(client.current_send_intent().surfaces_errors);
     CHECK(helix::rpc_error_correlation::was_recently_handled(kG28Rejection));
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(seen == kG28Rejection);
 }
 
@@ -157,7 +157,7 @@ TEST_CASE_METHOD(OwnershipFixture,
 
     // G28's ack is marshalled through token.defer(); drain so the payload send
     // (the one that fails) actually happens.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // last_send_* is NOT usable here: the error handler's best-effort unwind
     // (RESTORE_GCODE_STATE) is dispatched from the same drain and overwrites it.

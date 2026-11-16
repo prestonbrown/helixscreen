@@ -59,12 +59,9 @@ class IMoonrakerAPI;
 /**
  * @brief Alias for OperationCategory
  *
- * PrintStartOpCategory is now an alias to the shared OperationCategory enum
- * in operation_patterns.h. This provides a single source of truth for
- * operation categories across the codebase.
- *
- * Note: OperationCategory::PURGE_LINE corresponds to what was previously
- * PrintStartOpCategory::PRIMING.
+ * The shared OperationCategory enum in operation_patterns.h is the single
+ * source of truth for operation categories across the codebase. Priming
+ * operations are OperationCategory::PURGE_LINE.
  */
 using PrintStartOpCategory = OperationCategory;
 
@@ -73,8 +70,8 @@ using PrintStartOpCategory = OperationCategory;
  */
 [[nodiscard]] const char* category_to_string(PrintStartOpCategory category);
 
-// ParameterSemantic is now defined in operation_patterns.h (LT3 unification)
-// Use helix::ParameterSemantic from that header
+// ParameterSemantic is defined in operation_patterns.h; use helix::ParameterSemantic
+// from that header
 
 /**
  * @brief An operation detected within a PRINT_START macro
@@ -93,12 +90,16 @@ struct PrintStartOperation {
  */
 struct PrintStartAnalysis {
     // === Macro Discovery ===
-    bool found = false;      ///< A print start macro was found
-    std::string macro_name;  ///< Actual name found (e.g., "PRINT_START", "START_PRINT")
-    std::string source_file; ///< Config file containing the macro (e.g., "macros.cfg")
+    bool found = false;     ///< A print start macro was found
+    std::string macro_name; ///< Actual name found (e.g., "PRINT_START", "START_PRINT")
+    /// Config file containing the macro (e.g., "macros.cfg"); empty when it was
+    /// read from Klipper's configfile object, which does not name files.
+    std::string source_file;
     /// Every macro whose body was analyzed, in call order: a wrapper's chain is
     /// {"PRINT_START", "START_PRINT"}. Operations from all of them are merged.
     std::vector<std::string> macro_chain;
+    /// Some macro in the chain calls _HELIX_PLAN, so a plan is about to arrive.
+    bool declares_plan = false;
 
     // === Detected Operations ===
     std::vector<PrintStartOperation> operations;
@@ -168,12 +169,15 @@ class PrintStartAnalyzer {
     /**
      * @brief Analyze PRINT_START macro from connected printer
      *
-     * Fetches printer config via Moonraker, finds the print start macro,
-     * and parses it to detect operations and their controllability.
+     * Reads the macros from Klipper's configfile object, which carries every
+     * macro Klipper loaded whether or not Moonraker serves its file. When the
+     * object has no print start macro, falls back to downloading printer.cfg and
+     * its includes: a file Moonraker refuses (403) or lacks (404) is read past.
      *
      * @param api IMoonrakerAPI instance (must be connected)
      * @param on_complete Callback with analysis result
-     * @param on_error Error callback (connection failed, parse error, etc.)
+     * @param on_error Error callback, with the failure's own type: a dropped
+     *        connection is CONNECTION_LOST, a refused login PERMISSION_DENIED
      */
     void analyze(IMoonrakerAPI* api, AnalysisCallback on_complete, ErrorCallback on_error);
 

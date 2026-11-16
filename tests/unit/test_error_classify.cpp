@@ -66,9 +66,8 @@ TEST_CASE("uncoded !! while paused carries Resume plus a dismiss", "[error-cente
     // affordance, so a lone Resume would trap a user who does not want to resume.
     REQUIRE(e->recovery_actions[1].label == "OK");
     // An EMPTY gcode is the dismiss spelling: the modal closes and sends
-    // nothing. This used to have to be a Klipper comment, because a blank
-    // gcode made create_buttons() send the LABEL as a command — so "OK" went
-    // to Klipper. That fallback is gone (#1172).
+    // nothing. create_buttons() never sends the LABEL as a command for a blank
+    // gcode, so it need not be a Klipper comment (#1172).
     REQUIRE(e->recovery_actions[1].gcode.empty());
 
     // Neither button is styled primary: the cause is unknown, so the UI must not

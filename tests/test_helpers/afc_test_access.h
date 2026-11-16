@@ -78,7 +78,7 @@ class AfcTestAccess {
     /// built. Lets a test assert the PRIVATE namespace without reaching for the
     /// store itself, which stays private.
     template <class B> static std::string store_namespace(const B& b) {
-        return b.override_store_ ? b.override_store_->namespace_for_test() : std::string();
+        return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
     template <class B> static auto& extruders(B& b) {
         return b.extruders_;
@@ -127,6 +127,10 @@ class AfcTestAccess {
     }
     template <class B> static auto& unit_oams_names(B& b) {
         return b.unit_oams_names_;
+    }
+    /// A read of the lane records, as the poll and every write start one.
+    template <class B> static void refresh_lane_records(B& b) {
+        b.refresh_lane_records();
     }
     template <class B> static void apply_unit_environment(B& b) {
         b.apply_unit_environment();
@@ -216,11 +220,11 @@ class AfcTestAccess {
     template <class B, class... A> static decltype(auto) on_started(B& b, A&&... a) {
         return b.on_started(std::forward<A>(a)...);
     }
-    template <class B, class... A> static decltype(auto) parse_afc_state(B& b, A&&... a) {
-        return b.parse_afc_state(std::forward<A>(a)...);
+    template <class B, class... A> static decltype(auto) apply_afc_state(B& b, A&&... a) {
+        return b.apply_afc_state(std::forward<A>(a)...);
     }
-    template <class B, class... A> static decltype(auto) parse_lane_data(B& b, A&&... a) {
-        return b.parse_lane_data(std::forward<A>(a)...);
+    template <class B, class... A> static decltype(auto) apply_lane_data(B& b, A&&... a) {
+        return b.apply_lane_data(std::forward<A>(a)...);
     }
     template <class B, class... A> static decltype(auto) apply_lane_data_response(B& b, A&&... a) {
         return b.apply_lane_data_response(std::forward<A>(a)...);
@@ -259,15 +263,8 @@ class AfcTestAccess {
     static decltype(auto) tool_index_for_extruder_unlocked(B& b, A&&... a) {
         return b.tool_index_for_extruder_unlocked(std::forward<A>(a)...);
     }
-    template <class B, class... A> static decltype(auto) record_own_spool_write(B& b, A&&... a) {
-        return b.record_own_spool_write(std::forward<A>(a)...);
-    }
     template <class B, class... A> static decltype(auto) ensure_homed_then(B& b, A&&... a) {
         return b.ensure_homed_then(std::forward<A>(a)...);
-    }
-    /// Static private method, so it takes no backend object.
-    template <class... A> static decltype(auto) database_item_value(A&&... a) {
-        return AmsBackendAfc::database_item_value(std::forward<A>(a)...);
     }
     template <class B, class... A> static decltype(auto) clear_values(B& b, A&&... a) {
         return b.clear_values(std::forward<A>(a)...);

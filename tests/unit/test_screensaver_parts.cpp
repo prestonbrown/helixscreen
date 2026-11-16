@@ -39,6 +39,7 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::ui::ClockPrintPhase;
 using helix::ui::DirtyRect;
 using helix::ui::kSaverMaxDirtyAreas;
 using helix::ui::PixelWriter;
@@ -180,8 +181,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_obj_get_parent(obj) == lv_layer_top());
     CHECK(lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) == LV_OPA_COVER);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(obj, LV_PART_MAIN), lv_color_black()));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_clickable(obj));
+    CHECK_FALSE(lv_obj_is_scrollable(obj));
 
     overlay.make_transparent();
     CHECK(lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) == LV_OPA_TRANSP);
@@ -189,7 +190,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     overlay.destroy();
     CHECK(overlay.obj() == nullptr);
     // Deleted on a later timer pass, hidden until then.
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(obj));
 }
 
 // ============================================================================
@@ -249,7 +250,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "releasing a saver canvas hides it and frees i
 
     canvas.release();
 
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(obj));
     CHECK(canvas.obj() == nullptr);
     CHECK(canvas.data() == nullptr);
     CHECK(canvas.buffer_size() == 0);
@@ -574,10 +575,10 @@ TEST_CASE_METHOD(
     CHECK_FALSE(saver.is_active());
     CHECK(timer->timer_cb == nullptr);
     CHECK(SaverTestAccess::timer(saver) == nullptr);
-    CHECK(lv_obj_has_flag(canvas, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(canvas));
     CHECK(SaverTestAccess::draw_buf_size(saver) == 0);
     CHECK(SaverTestAccess::overlay(saver) == nullptr);
-    CHECK(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay));
     CHECK(saver.calls == std::vector<std::string>{"start", "stop"});
 }
 
@@ -966,6 +967,9 @@ class ProbeSimSaver : public helix::ui::SimSaver<ProbeSim> {
     ScreensaverType type() const override {
         return ScreensaverType::HYPERSPACE;
     }
+    helix::ui::ClockInput input() const {
+        return read_input();
+    }
 
   protected:
     std::optional<lv_color_format_t> canvas_format() const override {
@@ -1065,6 +1069,38 @@ struct ProbeNoRngSim {
     int got = 0;
 };
 
+/// A scene sim that reads the print: records the mode each call saw.
+struct ProbeReadingSim {
+    static constexpr const auto& kLevels = kProbeSimLevels;
+
+    void init(helix::ui::FrameTarget& /*frame*/, std::minstd_rand& /*rng*/, size_t /*level*/,
+              const helix::ui::ClockReading& reading) {
+        modes.push_back(reading.mode);
+    }
+    void step(uint32_t /*dt_ms*/, helix::ui::FrameTarget& /*frame*/, std::minstd_rand& /*rng*/,
+              const helix::ui::ClockReading& reading, std::vector<DirtyRect>& /*dirty*/) {
+        modes.push_back(reading.mode);
+    }
+    void request_level(size_t /*level*/) {}
+    void clear() {
+        modes.clear();
+    }
+
+    std::vector<helix::ui::ClockMode> modes;
+};
+
+class ProbeReadingSaver : public helix::ui::SimSaver<ProbeReadingSim> {
+  public:
+    ScreensaverType type() const override {
+        return ScreensaverType::HYPERSPACE;
+    }
+
+  protected:
+    std::optional<lv_color_format_t> canvas_format() const override {
+        return helix::ui::kSaverBuildCanvasFormat;
+    }
+};
+
 helix::ui::ClockInput input_at(int32_t seconds_of_day) {
     helix::ui::ClockInput in;
     in.seconds_of_day = seconds_of_day;
@@ -1111,6 +1147,55 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(sim_calls() == std::vector<std::string>{"clear"});
     CHECK(ss.sim().heap_bytes() == 0);
     CHECK(&SimSaverTestAccess::sim(ss) == &ss.sim());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a scene saver reads the print a frame before the card would",
+                 "[screensaver][screensaver_parts]") {
+    using helix::ui::ClockMode;
+    ProbeReadingSaver ss;
+    ScreensaverStopOnExit<ProbeReadingSaver> stop_on_exit{ss};
+    helix::ui::ClockInput reported;
+    ss.set_input_source([&reported] { return reported; });
+    ss.start();
+    REQUIRE(ss.is_active());
+    advance_saver(ss, 33);
+    CHECK(ss.sim().modes == std::vector<ClockMode>{ClockMode::CLOCK, ClockMode::CLOCK});
+    CHECK_FALSE(ss.print_card_shown());
+
+    // The frame the source turns PRINTING, the sim draws it, and the card agrees.
+    reported.print = {ClockPrintPhase::PRINTING, -1, 12};
+    advance_saver(ss, 33);
+    REQUIRE(ss.sim().modes.size() == 3);
+    CHECK(ss.sim().modes.back() == ClockMode::PROGRESS);
+    CHECK(ss.print_card_shown());
+    CHECK(ss.print_card_face().mode == ClockMode::PROGRESS);
+
+    // A saver started mid-print opens on the print.
+    ss.stop();
+    ss.start();
+    REQUIRE(ss.is_active());
+    CHECK(ss.sim().modes == std::vector<ClockMode>{ClockMode::PROGRESS});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a sim without a reading still starts and steps",
+                 "[screensaver][screensaver_parts]") {
+    static_assert(!helix::ui::sim_inits_with_v<ProbeSim, const helix::ui::ClockReading&>);
+    static_assert(helix::ui::sim_inits_with_v<ProbeReadingSim, const helix::ui::ClockReading&>);
+    static_assert(!helix::ui::sim_inits_with_v<ProbeReadingSim>);
+    ProbeSimSaver ss;
+    ScreensaverStopOnExit<ProbeSimSaver> stop_on_exit{ss};
+    // A running print changes nothing for a sim that does not read it.
+    ss.set_input_source([] {
+        helix::ui::ClockInput in;
+        in.print = {ClockPrintPhase::PRINTING, 600, 40};
+        return in;
+    });
+    sim_calls().clear();
+    ss.start();
+    REQUIRE(ss.is_active());
+    CHECK(sim_calls() == std::vector<std::string>{"clear", "init 0"});
+    advance_saver(ss, 20);
+    CHECK(sim_calls() == std::vector<std::string>{"clear", "init 0", "step 20"});
 }
 
 TEST_CASE("ladder_period reads a table's rows and clamps to its last rung",
@@ -1170,10 +1255,19 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(ss.resets == 2);
 }
 
-TEST_CASE("a saver with no clock has no clock input", "[screensaver][screensaver_parts]") {
+TEST_CASE("every saver reads the print from its source", "[screensaver][screensaver_parts]") {
     ProbeSimSaver ss;
     Screensaver& as_saver = ss;
-    CHECK(as_saver.clock_input_sink() == nullptr);
+    helix::ui::ClockInputSink* sink = as_saver.clock_input_sink();
+    REQUIRE(sink != nullptr);
+    CHECK(ss.input().print.phase == ClockPrintPhase::NONE);
+    sink->set_input_source([] {
+        helix::ui::ClockInput in;
+        in.print = {ClockPrintPhase::PAUSED, 600, 42};
+        return in;
+    });
+    CHECK(ss.input().print.phase == ClockPrintPhase::PAUSED);
+    CHECK(ss.input().print.progress_pct == 42);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a clock saver hands a face-drawing sim its state's face",

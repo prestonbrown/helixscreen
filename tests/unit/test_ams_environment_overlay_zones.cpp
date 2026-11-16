@@ -4,15 +4,15 @@
 #include "ui_ams_environment_overlay.h"
 #include "ui_ams_zone_overview_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -52,8 +52,51 @@ std::vector<EnvironmentZone> capped_rig_zones() {
 /// Drop any instance an earlier case left behind so create() runs against this
 /// case's screen instead of one already torn down.
 void reset_overlay_singleton() {
+    // Left open, they cover Home for every later test that asks whether it is.
+    while (NavigationManager::instance().has_open_overlays()) {
+        NavigationManager::instance().go_back();
+        helix::ui::UpdateQueue::instance().drain();
+    }
     helix::ui::destroy_static_panels();
     helix::ui::UpdateQueue::instance().drain();
+    // The destroyed root waits on the top layer for LVGL's deferred delete, and the
+    // navigation stack names it until that delete runs.
+    lv_timer_handler();
+}
+
+/// A two-unit rig whose unit 0 temperature the test sets, and whose unit 1 can report
+/// no environment zones at all.
+class ScopedEnvMock : public AmsBackendMock {
+  public:
+    ScopedEnvMock() : AmsBackendMock(4) {}
+
+    AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = AmsBackendMock::get_system_info();
+        if (!info.units.empty() && info.units[0].environment.has_value()) {
+            info.units[0].environment->temperature_c = unit0_temp_c;
+        }
+        return info;
+    }
+
+    std::vector<EnvironmentZone> get_environment_zones(int unit) const override {
+        auto zones = AmsBackendMock::get_environment_zones(unit);
+        if (!unit1_has_zones) {
+            zones.erase(std::remove_if(zones.begin(), zones.end(),
+                                       [](const EnvironmentZone& z) { return z.unit_index == 1; }),
+                        zones.end());
+        }
+        return zones;
+    }
+
+    float unit0_temp_c = 30.0f;
+    bool unit1_has_zones = true;
+};
+
+std::string subject_text(const char* name) {
+    lv_subject_t* subj = lv_xml_get_subject(nullptr, name);
+    REQUIRE(subj != nullptr);
+    const char* s = lv_subject_get_string(subj);
+    return s ? s : "";
 }
 
 } // namespace
@@ -197,7 +240,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Zone tabs keep the card-on-flat look", "[ams][
         CHECK(lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN)) ==
               lv_color_to_u32(theme_manager_get_color("text")));
         lv_obj_t* light = lv_obj_find_by_name(tab, "light_dot");
-        CHECK((light == nullptr || lv_obj_has_flag(light, LV_OBJ_FLAG_HIDDEN)));
+        CHECK((light == nullptr || lv_obj_is_hidden(light)));
     }
 
     reset_overlay_singleton();
@@ -279,26 +322,54 @@ TEST_CASE_METHOD(XMLTestFixture, "Switching tabs retargets the unit the controls
     AmsState::instance().set_backend(nullptr);
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "A refresh keeps a selector's zone set intact",
-                 "[ams][zones][overlay]") {
+TEST_CASE_METHOD(XMLTestFixture, "A refresh keeps the zone set the overlay opened on",
+                 "[ams][zones][overlay][dryer]") {
     reset_overlay_singleton();
-    auto backend = std::make_unique<AmsBackendMock>();
+    // Live AmsState subjects, so on_activate()'s observers run the refreshes a real
+    // reading change would.
+    AmsState::instance().deinit_subjects();
+    auto backend = std::make_unique<ScopedEnvMock>();
     backend->set_multi_unit_mode(true);
-    backend->set_environment_mode("capped");
+    backend->set_environment_mode("passive");
+    auto* raw = backend.get();
     AmsState::instance().set_backend(std::move(backend));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    REQUIRE(raw->get_environment_zones(-1).size() == 2);
 
-    auto zones = AmsState::instance().get_backend()->get_environment_zones(-1);
-    REQUIRE(zones.size() == 2);
+    // A reading change on the printer: sync_from_backend() moves the env indicator
+    // subjects the overlay observes, and each one refreshes it.
+    auto reading_changes = [raw](float temp_c) {
+        raw->unit0_temp_c = temp_c;
+        AmsState::instance().sync_from_backend();
+        helix::ui::UpdateQueue::instance().drain();
+    };
 
-    auto& overlay = get_ams_environment_overlay();
-    overlay.show_zone(lv_screen_active(), zones, 0, true);
-    REQUIRE(overlay.zone_count() == 2);
+    SECTION("an unscoped open keeps every unit's zone") {
+        // Capped gives both units a dryer, so the set opens as tabs on this overlay
+        // rather than as the zone list.
+        raw->set_environment_mode("capped");
+        AmsState::instance().sync_from_backend();
+        open_environment_for_unit(-1);
+        REQUIRE(get_ams_environment_overlay().zone_count() == 2);
+        reading_changes(41.0f);
+        CHECK(get_ams_environment_overlay().zone_count() == 2);
+    }
 
-    // refresh() is what on_activate()'s live-update observers call on every environment
-    // subject change, the temperature ticking during a dry among them. A re-derivation
-    // that narrows by unit_index_ would collapse the tab strip to one zone right here.
-    overlay.refresh();
-    CHECK(overlay.zone_count() == 2);
+    SECTION("a unit with zones follows its live reading") {
+        open_environment_for_unit(0);
+        reading_changes(32.0f);
+        REQUIRE(subject_text("ams_env_overlay_temp_text").rfind("32", 0) == 0);
+        reading_changes(47.0f);
+        CHECK(subject_text("ams_env_overlay_temp_text").rfind("47", 0) == 0);
+    }
+
+    SECTION("a unit with no zones stays on its empty state") {
+        raw->unit1_has_zones = false;
+        open_environment_for_unit(1);
+        reading_changes(44.0f);
+        CHECK(subject_text("ams_env_overlay_title_text") == "No Multi-Filament System connected");
+    }
 
     helix::ui::UpdateQueue::instance().drain();
     reset_overlay_singleton();
@@ -409,7 +480,7 @@ TEST_CASE_METHOD(XMLTestFixture, "The cross-unit affordance leaves the list dril
 
     lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "subtitle_label");
     REQUIRE(subtitle != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(subtitle, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(subtitle));
 
     // Through the widget, not a direct call: on_all_zones_clicked is only reachable
     // as an XML event_cb.
@@ -447,7 +518,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone says what it is waiting for",
 
     lv_obj_t* banner = lv_obj_find_by_name(lv_screen_active(), "queued_banner");
     REQUIRE(banner != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(banner));
 
     // The banner names the zone being waited on, not a generic "please wait".
     const std::string text =
@@ -456,7 +527,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone says what it is waiting for",
 
     // Selecting the running zone puts it away.
     overlay.select_zone(0);
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
 
     reset_overlay_singleton();
 }
@@ -508,7 +579,7 @@ TEST_CASE_METHOD(XMLTestFixture, "An idle zone shows no queued banner", "[ams][z
     // Proves the banner exists and is being driven, rather than the lookup silently
     // returning null and the assertion passing for the wrong reason.
     REQUIRE(banner != nullptr);
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
 
     reset_overlay_singleton();
 }
@@ -522,11 +593,20 @@ TEST_CASE_METHOD(XMLTestFixture, "A queued zone shows no progress bar", "[ams][z
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* bar = lv_obj_find_by_name(lv_screen_active(), "drying_progress_bar");
     REQUIRE(bar != nullptr);
-    CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bar));
 
     // The active zone still shows it, so the gate is not simply always-hidden.
     overlay.select_zone(0);
-    CHECK_FALSE(lv_obj_has_flag(bar, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bar));
+
+    // A dry of unknown length has a countdown and no bar.
+    auto unknown = capped_rig_zones();
+    unknown[0].dryer.duration_min = 0;
+    overlay.show_zone(lv_screen_active(), unknown, 0, true);
+    helix::ui::UpdateQueue::instance().drain();
+    bar = lv_obj_find_by_name(lv_screen_active(), "drying_progress_bar");
+    REQUIRE(bar != nullptr);
+    CHECK(lv_obj_is_hidden(bar));
 
     reset_overlay_singleton();
 }
@@ -543,14 +623,14 @@ TEST_CASE_METHOD(XMLTestFixture, "An empty zone set clears a stale queued banner
 
     lv_obj_t* banner = lv_obj_find_by_name(lv_screen_active(), "queued_banner");
     REQUIRE(banner != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(banner));
 
     // Re-shown with nothing to display, the way a disconnect or a stale caller might -
     // the banner must not go on naming a zone that is no longer there.
     overlay.show_zone(lv_screen_active(), {}, 0, false);
     helix::ui::UpdateQueue::instance().drain();
 
-    CHECK(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(banner));
     lv_subject_t* banner_text = lv_xml_get_subject(nullptr, "env_queued_banner_text");
     REQUIRE(banner_text != nullptr);
     CHECK(std::string(lv_subject_get_string(banner_text)).empty());

@@ -12,11 +12,11 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -49,7 +49,7 @@ class CloseTimingFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void stack_both() {
@@ -126,10 +126,10 @@ TEST_CASE_METHOD(CloseTimingFixture, "Closing a buried overlay deletes its backd
 
     nav().close_overlay(lower_);
     drain();
-    CHECK(lv_obj_is_valid(backdrop));
+    CHECK(helix::test::widget_in_tree(backdrop));
 
     process_lvgl(50);
-    CHECK_FALSE(lv_obj_is_valid(backdrop));
+    CHECK_FALSE(helix::test::widget_in_tree(backdrop));
 }
 
 TEST_CASE_METHOD(CloseTimingFixture, "A close with animations off defers the close callback",

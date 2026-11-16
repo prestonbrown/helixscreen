@@ -1,7 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 #include "ui_wizard_connection.h"
 
@@ -10,19 +9,19 @@
 #include "../mocks/mock_mdns_discovery.h"
 #include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/scoped_moonraker_client.h"
-#include "../test_helpers/update_queue_test_access.h"
-#include "../ui_test_utils.h"
 #include "config.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it
+#include "moonraker_auth.h"
 #include "moonraker_client.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
+#include "theme_manager.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
-
-#include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <memory>
@@ -33,266 +32,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Test Fixture for Wizard Connection UI
-// ============================================================================
-// Extends LVGLUITestFixture which provides full XML component registration
-
-class WizardConnectionUIFixture : public LVGLUITestFixture {
-  public:
-    WizardConnectionUIFixture() {
-        // LVGLUITestFixture handles all LVGL, theme, widget, subject,
-        // callback, and XML component initialization
-
-        // Create the wizard container on the test screen
-        wizard = ui_wizard_create(test_screen());
-        if (!wizard) {
-            spdlog::error("[WizardConnectionUIFixture] Failed to create wizard!");
-            return;
-        }
-
-        // Check if XML infrastructure is available before navigating.
-        // Navigation initializes step state (timers, callbacks) that can crash
-        // if widgets don't exist, and makes cleanup unsafe.
-        lv_obj_t* content = lv_obj_find_by_name(wizard, "wizard_content");
-        if (!content) {
-            spdlog::warn(
-                "[WizardConnectionUIFixture] XML components not loaded, skipping navigation");
-            return;
-        }
-
-        // Navigate to the Moonraker Connection screen
-        ui_wizard_navigate_to_step(helix::wizard::StepId::Connection);
-
-        // Verify that connection step loaded by checking for a key widget
-        ready_ = (lv_obj_find_by_name(wizard, "ip_input") != nullptr);
-
-        // Stop mDNS discovery and timers to prevent hangs during
-        // UITest::wait_ms() timer processing. Widgets remain in the LVGL
-        // tree - tests find them via lv_obj_find_by_name on the wizard.
-        get_wizard_connection_step()->cleanup();
-
-        // Initialize UI test system with test screen
-        UITest::init(test_screen());
-
-        // Skip LVGL processing in constructor - let individual tests process
-        // NOTE: mDNS timer processing was causing test hangs
-    }
-
-    ~WizardConnectionUIFixture() {
-        if (ready_) {
-            UITest::cleanup();
-        }
-        // Clean up connection step (stops mDNS discovery, cancels timers)
-        get_wizard_connection_step()->cleanup();
-        // Do NOT call lv_obj_delete(wizard) - let lv_deinit() in
-        // LVGLTestFixture handle widget tree cleanup.
-        wizard = nullptr;
-    }
-
-    void require_ready() {
-        if (!ready_) {
-            SKIP("XML infrastructure not available (ui_integration test)");
-        }
-    }
-
-    lv_obj_t* wizard = nullptr;
-    bool ready_ = false;
-};
-
-// ============================================================================
-// UI Widget Tests
-// ============================================================================
-
-// =============================================================================
-// UI Integration Tests - Require XML component registration
-// =============================================================================
-// These tests are marked [.ui_integration] (hidden from the default run)
-// because they need the ui_xml/ component tree readable from disk, which makes
-// them dependent on the working directory rather than on the build alone.
-// LVGLUITestFixture does register the components, so they pass when run from
-// the repo root:
-//   ./build/bin/helix-tests "[.ui_integration]"
-//
-// They assert the wizard connection step's XML structure (widget names, title
-// text, flex layout). Nothing else in the suite covers that, and tests/ui/ has
-// no wizard coverage — the wizard is pre-first-boot, so ctl cannot reach it.
-// =============================================================================
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: All widgets exist",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-
-    // Find the main connection screen widgets (search in wizard, not test_screen)
-    lv_obj_t* ip_input = lv_obj_find_by_name(wizard, "ip_input");
-    REQUIRE(ip_input != nullptr);
-
-    lv_obj_t* port_input = lv_obj_find_by_name(wizard, "port_input");
-    REQUIRE(port_input != nullptr);
-
-    lv_obj_t* test_btn = lv_obj_find_by_name(wizard, "btn_test_connection");
-    REQUIRE(test_btn != nullptr);
-
-    // Note: connection_status_text is the actual widget name in XML
-    lv_obj_t* status_label = lv_obj_find_by_name(wizard, "connection_status_text");
-    REQUIRE(status_label != nullptr);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Test button state",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    lv_obj_t* test_btn = UITest::find_by_name(test_screen(), "btn_test_connection");
-    REQUIRE(test_btn != nullptr);
-
-    // Button should not have the CLICKABLE flag removed
-    bool has_clickable = lv_obj_has_flag(test_btn, LV_OBJ_FLAG_CLICKABLE);
-    REQUIRE(has_clickable == true);
-
-    // Button should be visible
-    REQUIRE(UITest::is_visible(test_btn) == true);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Navigation buttons",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    // Find navigation buttons (names from wizard_container.xml)
-    lv_obj_t* back_btn = UITest::find_by_name(test_screen(), "btn_back");
-    lv_obj_t* next_btn = UITest::find_by_name(test_screen(), "btn_next");
-
-    // Both should exist
-    REQUIRE(back_btn != nullptr);
-    REQUIRE(next_btn != nullptr);
-
-    // On step 3 (Connection), back button should be visible
-    REQUIRE(UITest::is_visible(back_btn) == true);
-}
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Title and progress",
-                 "[wizard][connection][ui][.ui_integration]") {
-    require_ready();
-    // Find title label (from wizard_header_bar.xml)
-    lv_obj_t* title = UITest::find_by_name(test_screen(), "wizard_title");
-    REQUIRE(title != nullptr);
-
-    // Check title text (set from step_title const in wizard_connection.xml)
-    std::string title_text = UITest::get_text(title);
-    REQUIRE(title_text == "Printer Setup: Connection");
-}
-
-// ============================================================================
-// Mock Connection Tests
-// ============================================================================
-
-// Mock MoonrakerClient for testing
-class MockMoonrakerClient {
-  public:
-    int connect(const char* url, helix::SharedCallback<void()> on_connected,
-                helix::SharedCallback<void()> on_disconnected) {
-        last_url = url;
-        connected_callback = on_connected;
-        disconnected_callback = on_disconnected;
-        return 0;
-    }
-
-    void trigger_connected() {
-        if (connected_callback) {
-            connected_callback();
-        }
-    }
-
-    void trigger_disconnected() {
-        if (disconnected_callback) {
-            disconnected_callback();
-        }
-    }
-
-    void set_connection_timeout(int timeout_ms) {
-        timeout = timeout_ms;
-    }
-
-    ConnectionState get_connection_state() const {
-        return state;
-    }
-
-    void close() {
-        state = ConnectionState::DISCONNECTED;
-    }
-
-    std::string last_url;
-    helix::SharedCallback<void()> connected_callback;
-    helix::SharedCallback<void()> disconnected_callback;
-    int timeout = 0;
-    ConnectionState state = ConnectionState::DISCONNECTED;
-};
-
-TEST_CASE("Connection UI: Mock connection flow", "[wizard][connection][mock]") {
-    MockMoonrakerClient mock_client;
-
-    SECTION("Successful connection") {
-        bool connected = false;
-
-        mock_client.connect(
-            "ws://192.168.1.100:7125/websocket", [&connected]() { connected = true; }, []() {});
-
-        // Verify URL was captured
-        REQUIRE(mock_client.last_url == "ws://192.168.1.100:7125/websocket");
-
-        // Trigger successful connection
-        mock_client.trigger_connected();
-
-        REQUIRE(connected == true);
-    }
-
-    SECTION("Failed connection") {
-        bool disconnected = false;
-
-        mock_client.connect(
-            "ws://192.168.1.100:7125/websocket", []() {},
-            [&disconnected]() { disconnected = true; });
-
-        // Trigger disconnection/failure
-        mock_client.trigger_disconnected();
-
-        REQUIRE(disconnected == true);
-    }
-
-    SECTION("Timeout configuration") {
-        mock_client.set_connection_timeout(5000);
-        REQUIRE(mock_client.timeout == 5000);
-    }
-}
-
-// ============================================================================
-// Responsive Layout Tests
-// ============================================================================
-
-TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Responsive layout",
-                 "[wizard][connection][ui][responsive][.ui_integration]") {
-    require_ready();
-
-    // Get the wizard content area
-    lv_obj_t* content = lv_obj_find_by_name(wizard, "wizard_content");
-    REQUIRE(content != nullptr);
-
-    // Connection screen root is the first child of wizard_content
-    lv_obj_t* connection_root = lv_obj_get_child(content, 0);
-    REQUIRE(connection_root != nullptr);
-
-    // Verify connection root uses column flex layout
-    lv_flex_flow_t flow = lv_obj_get_style_flex_flow(connection_root, LV_PART_MAIN);
-    REQUIRE(flow == LV_FLEX_FLOW_COLUMN);
-
-    // Verify key widgets exist and are structured correctly
-    lv_obj_t* ip_input = lv_obj_find_by_name(wizard, "ip_input");
-    REQUIRE(ip_input != nullptr);
-
-    lv_obj_t* port_input = lv_obj_find_by_name(wizard, "port_input");
-    REQUIRE(port_input != nullptr);
-
-    // Verify the connection root has children (layout content exists)
-    uint32_t child_count = lv_obj_get_child_count(connection_root);
-    REQUIRE(child_count > 0);
-}
 
 // ============================================================================
 // AsyncLifetimeGuard Integration Tests
@@ -338,7 +77,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
     bool callback_ran = false;
     tok.defer("test_after_cleanup", [&callback_ran]() { callback_ran = true; });
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(callback_ran);
 }
 
@@ -372,7 +111,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
     bool callback_ran = false;
     tok.defer("test_valid_token", [&callback_ran]() { callback_ran = true; });
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(callback_ran);
 }
 
@@ -387,7 +126,7 @@ TEST_CASE_METHOD(WizardConnectionLifetimeFixture,
 // and no way into the app's own Klipper error surface. Only --skip-wizard or
 // hand-editing settings.json got the user out.
 
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 class WizardConnectionGateFixture : public LVGLTestFixture {
   public:
@@ -546,15 +285,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     WizardConnectionStep* step = get_wizard_connection_step();
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
 
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
     lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The untouched default also tries port 80 before giving up, and a failed test never
     // reaches the live client.
@@ -567,6 +307,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(text == connect_failure_status(kind, {7125, 80}));
     CHECK(text.find(lv_tr(connect_failure_hint(kind, is_android_platform()))) == 0);
     CHECK(text.find("80") != std::string::npos);
+
+    // One icon shows, in the danger colour.
+    lv_obj_t* icons = lv_obj_find_by_name(root, "connection_status_icon");
+    REQUIRE(icons != nullptr);
+    std::vector<lv_obj_t*> shown;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(icons); ++i) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(icons, i))) {
+            shown.push_back(lv_obj_get_child(icons, i));
+        }
+    }
+    REQUIRE(shown.size() == 1);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(shown[0], LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
     step->cleanup();
 }
 
@@ -596,16 +349,17 @@ struct RestoreDefaultPortField {
     WizardConnectionStep* step;
     ~RestoreDefaultPortField() {
         step->cleanup();
-        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
     }
 };
 
 lv_obj_t* create_step_and_test(WizardConnectionStep* step, lv_obj_t* parent) {
     step->init_subjects();
+    step->register_callbacks();
     step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
     lv_obj_t* root = step->create(parent);
     REQUIRE(root != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
     return root;
 }
 
@@ -613,7 +367,7 @@ void click_test(lv_obj_t* root) {
     lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace
@@ -636,7 +390,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The live client goes straight to the port that answered, for discovery.
     REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
     REQUIRE(client.fire_connected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
           "80");
@@ -683,7 +437,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(root != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(section));
     step->cleanup();
 }
 
@@ -706,7 +460,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(root != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     REQUIRE(mdns->is_discovering());
 
     // A connection test retires its own callbacks, not discovery's.
@@ -732,7 +486,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
     REQUIRE(port_input != nullptr);
     CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -781,7 +535,44 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     click_test(root);
 
     CHECK(net.asked == std::vector<std::string>{"192.168.1.112:7125"});
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: picking another printer clears the key entered for this one",
+                 "[wizard][connection][api-key][lan_sweep]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    step->init_subjects();
+    step->register_callbacks();
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    MockMdnsDiscovery* mdns = mock.get();
+    step->set_mdns_discovery(std::move(mock));
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+
+    lv_subject_t* key = lv_xml_get_subject(nullptr, "connection_api_key");
+    lv_subject_t* login = lv_xml_get_subject(nullptr, "connection_login_required");
+    REQUIRE(key != nullptr);
+    REQUIRE(login != nullptr);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "192.168.1.20");
+    lv_subject_set_string(key, "0123456789abcdef0123456789abcdef");
+    lv_subject_set_int(login, 1);
+
+    mdns->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    mdns->simulate_discovery();
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    CHECK(std::string(lv_subject_get_string(key)).empty());
+    CHECK(lv_subject_get_int(login) == 0);
+    lv_subject_set_string(key, "");
+    lv_subject_set_int(login, 0);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -794,7 +585,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // A worker that has not run yet when the user types.
     std::function<void()> pending;
     helix::set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
         [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
             pending = std::move(body);
             return LanSweepWorkers{nullptr, 1};
@@ -808,13 +599,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_textarea_set_text(ip_input, "10.9.9.8");
 
     pending();
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     helix::set_connection_test_seams_for_test(nullptr, nullptr);
 
     // The answer was for the old address: no live connect, Next stays shut.
     CHECK(client.connect_urls.empty());
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "connection_testing")) == 0);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -831,12 +622,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     step->arm_auto_probe_timer_for_test();
     process_lvgl(150);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
     REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
 
     REQUIRE(client.fire_connected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
           "80");
     lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
@@ -860,7 +651,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SECTION("the auto-probe") {
         step->arm_auto_probe_timer_for_test();
         process_lvgl(150);
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
     REQUIRE_FALSE(net.asked.empty());
     CHECK(client.disconnect_calls == 0);
@@ -875,7 +666,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     RestoreDefaultPortField restore{step};
     std::function<void()> pending;
     helix::set_connection_test_seams_for_test(
-        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [](const std::string&, uint16_t, const std::string&) { return MoonrakerProbe(true); },
         [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
             pending = std::move(body);
             return LanSweepWorkers{nullptr, 1};
@@ -887,8 +678,80 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a t
     step->cleanup();
 
     pending();
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     helix::set_connection_test_seams_for_test(nullptr, nullptr);
 
     CHECK(client.connect_urls.empty());
+}
+
+// ============================================================================
+// Moonraker behind its login (prestonbrown/helixscreen#1929)
+// ============================================================================
+
+namespace {
+
+constexpr const char* kWizardKey = "0123456789abcdef0123456789abcdef";
+
+/// Puts the saved key and the step's key field back the way a fresh install has them.
+struct RestoreApiKey {
+    Config* cfg = Config::get_instance();
+    std::string key_path = cfg->df() + "moonraker_api_key";
+    nlohmann::json saved =
+        cfg->try_get_json(key_path) ? *cfg->try_get_json(key_path) : nlohmann::json(false);
+    ~RestoreApiKey() {
+        cfg->set(key_path, saved);
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), "");
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "connection_login_required"), 0);
+        helix::moonraker_auth::set_credential({});
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: a printer that requires a login asks for its API key",
+                 "[wizard][connection][api-key]") {
+    SavedMoonrakerAddress saved;
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    RestoreApiKey restore_key;
+    step->register_callbacks();
+
+    helix::test::ScopedFakeConnectionTest net;
+    net.require_key("10.9.9.9:7125", kWizardKey);
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    lv_obj_t* section = lv_obj_find_by_name(root, "api_key_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_is_hidden(section));
+
+    click_test(root);
+
+    // Refused: the field appears, the live client stays put, Next stays shut.
+    CHECK_FALSE(lv_obj_is_hidden(section));
+    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
+    REQUIRE(status != nullptr);
+    CHECK(std::string(lv_label_get_text(status)).find("requires an API key") != std::string::npos);
+    CHECK(client.connect_urls.empty());
+    CHECK_FALSE(step->is_validated());
+
+    SECTION("a key that is not 32 hex digits is refused before any test") {
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), "secret");
+        click_test(root);
+        CHECK(net.asked.size() == 1);
+        CHECK(std::string(lv_label_get_text(status)) == helix::api_key_problem("secret"));
+    }
+    SECTION("the right key connects with it and is saved with the printer") {
+        lv_subject_set_string(lv_xml_get_subject(nullptr, "connection_api_key"), kWizardKey);
+        click_test(root);
+        CHECK(net.keys_sent.back() == kWizardKey);
+        REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+        // The WebSocket upgrade to this printer carries it.
+        CHECK(helix::moonraker_auth::key_for("10.9.9.9", 7125) == kWizardKey);
+
+        REQUIRE(client.fire_connected());
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(restore_key.cfg->get<std::string>(restore_key.key_path, "") == kWizardKey);
+    }
 }

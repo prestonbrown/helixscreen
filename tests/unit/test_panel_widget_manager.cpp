@@ -1,14 +1,14 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
 #include "../test_helpers/panel_widget_manager_test_access.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/scoped_xml_component_stub.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -134,7 +134,7 @@ TEST_CASE("PanelWidgetManager raw pointer shared resources", "[panel_widget][man
     mgr.clear_shared_resources();
 }
 
-// Regression test for AD5X bundles XG9QJ3V9 / PFEHDEXF (v0.99.49):
+// Regression test for two AD5X debug bundles (v0.99.49):
 // SIGBUS in unsubscribe_on_delete_cb -> lv_obj_remove_event_cb_with_user_data
 // during early startup, after a burst of 8 hardware-gate subjects fired in
 // ~150 ms. Each firing triggered populate_page synchronously in the same
@@ -156,9 +156,9 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
     // the hardware_gate_subject for every registered widget def. Any subject
     // that doesn't already exist gets created here so the observer chain has
     // something to attach to. nullptr scope = global.
-    static lv_subject_t klippy_state_subj;
+    static helix::Subject klippy_state_subj;
     if (!lv_xml_get_subject(nullptr, "klippy_state")) {
-        lv_subject_init_int(&klippy_state_subj, 0);
+        klippy_state_subj.init_int(0);
         lv_xml_register_subject(nullptr, "klippy_state", &klippy_state_subj);
     }
 
@@ -186,10 +186,10 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
             if (auto* existing = lv_xml_get_subject(nullptr, name)) {
                 out.emplace_back(name, existing);
             } else {
-                auto* subj = new lv_subject_t;
-                lv_subject_init_int(subj, 0);
-                lv_xml_register_subject(nullptr, name, subj);
-                out.emplace_back(name, subj);
+                auto* subj = new helix::Subject;
+                subj->init_int(0);
+                lv_xml_register_subject(nullptr, name, subj->get());
+                out.emplace_back(name, subj->get());
             }
         }
         return out;
@@ -248,7 +248,7 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
 
     // Cleanup observers so the test fixture's reset_all() doesn't see stale
     // state. setup_gate_observers stores the new vector under panel_id; the
-    // destructor of ObserverGuard will call lv_observer_remove which is safe
+    // destructor of ObserverGuard will call lv_observer_delete which is safe
     // because the subjects are still alive at this point.
     mgr.clear_gate_observers("test_panel");
 }
@@ -297,13 +297,12 @@ void* GridSpyWidget::s_user_data_at_attach = nullptr;
 // children (card backgrounds + widgets) were created; a widget whose attach()
 // synchronously triggered lv_obj_update_layout (e.g. PrintStatusWidget ->
 // lv_image_set_src -> update_align, see print_status_widget.cpp:331) cascaded a
-// grid_update on a half-built grid. The fix defers grid-layout activation until
+// grid_update on a half-built grid. The manager defers grid-layout activation until
 // all children exist, then runs one clean layout pass.
 //
 // Invariant captured here: at the moment any widget's attach() runs, the
 // container's layout is NOT yet LV_LAYOUT_GRID; after populate_widgets()
 // returns, the container's layout IS LV_LAYOUT_GRID and the child exists.
-// This FAILS before the fix (grid active during build) and PASSES after.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager activates grid layout after children are built",
                  "[panel_widget][manager][regression]") {
@@ -386,7 +385,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
 namespace {
 
-// Spy PanelWidget for the grid *rebuild* race (#983, bundle VDJ3J9UV). Unlike
+// Spy PanelWidget for the grid *rebuild* race (#983). Unlike
 // GridSpyWidget it actively FORCES a synchronous layout from inside attach() —
 // exactly what PrintStatusWidget does (resize_and_publish -> lv_obj_update_layout,
 // ui_progress_arc.cpp). On a rebuild the page container is reused and is still in
@@ -394,7 +393,7 @@ namespace {
 // dsc.col_dsc buffer; populate_widgets() move-reassigns that vector (freeing the
 // buffer) before reinstalling a fresh descriptor at the end. If the grid is still
 // active when this forced layout runs, grid_update -> count_tracks walks the freed
-// descriptor off the heap end -> SIGSEGV. The fix deactivates the grid
+// descriptor off the heap end -> SIGSEGV. The manager deactivates the grid
 // (LV_LAYOUT_NONE) at the start of every (re)build so the container is not a live
 // grid while children attach.
 struct GridRebuildSpyWidget : helix::PanelWidget {
@@ -406,8 +405,8 @@ struct GridRebuildSpyWidget : helix::PanelWidget {
         lv_obj_t* parent = widget_obj ? lv_obj_get_parent(widget_obj) : nullptr;
         s_layout_at_last_attach =
             parent ? static_cast<int>(lv_obj_get_style_layout(parent, LV_PART_MAIN)) : -1;
-        // Force the synchronous layout that triggers the crash pre-fix. With the
-        // fix the parent is LV_LAYOUT_NONE here, so this is a harmless no-op walk.
+        // Force the synchronous layout that would crash on a stale grid. The
+        // parent is LV_LAYOUT_NONE here, so this is a harmless no-op walk.
         if (parent)
             lv_obj_update_layout(parent);
     }
@@ -425,18 +424,16 @@ int GridRebuildSpyWidget::s_attach_count = 0;
 
 } // namespace
 
-// Regression test for #983 rebuild path (bundle VDJ3J9UV, v0.99.75, Pi): SIGSEGV
-// in grid_update -> count_tracks while REPOPULATING the home grid. The build-time
-// fix (#983, commit 69e9923dd) activates the grid last, which only covers the
-// first build — on a rebuild the reused container enters populate_widgets already
-// in LV_LAYOUT_GRID holding the previous build's descriptor pointer, which the
+// #983 rebuild path: SIGSEGV in grid_update -> count_tracks while REPOPULATING
+// the home grid. Activating the grid last covers only the first build. On a
+// rebuild the reused container enters populate_widgets already in
+// LV_LAYOUT_GRID holding the previous build's descriptor pointer, which the
 // move-assignment `dsc.col_dsc = make_col_dsc(...)` then frees. A child whose
 // attach() forces a layout walks the freed descriptor and crashes.
 //
 // Invariant: on the SECOND populate_widgets (rebuild) of the same container, the
-// container's layout is NOT LV_LAYOUT_GRID at the moment a child attaches (the fix
-// deactivated it), and the process survives the attach-forced layout. FAILS
-// pre-fix (container still grid during rebuild) and PASSES after.
+// container's layout is NOT LV_LAYOUT_GRID at the moment a child attaches, and
+// the process survives the attach-forced layout.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager deactivates grid before rebuilding a reused container",
                  "[panel_widget][manager][regression]") {
@@ -489,7 +486,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     // active_configs_ (so populate_widgets does a full rebuild instead of taking
     // the "widget list unchanged" early-out) AND erases grid_descriptors_, which
     // *frees the descriptor buffer the reused container's grid style still points
-    // at* — exactly the dangling pointer that count_tracks walks off pre-fix.
+    // at* — exactly the dangling pointer count_tracks would walk off.
     GridRebuildSpyWidget::s_layout_at_last_attach = -2;
     widgets1.clear(); // release the first build's widget instances
     mgr.clear_panel_config(panel_id);
@@ -530,10 +527,10 @@ struct ThrowingConfigWidget : helix::PanelWidget {
 
 } // namespace
 
-// Regression: a widget whose factory/set_config throws during the populate_widgets
-// COLLECTION loop used to let the exception escape the Home Panel dashboard
+// A widget whose factory/set_config throws during the populate_widgets
+// COLLECTION loop must not let the exception escape the Home Panel dashboard
 // rebuild -> std::terminate -> SIGABRT, taking every OTHER widget on the page down
-// with it. The collection loop now guards each iteration: a throwing widget is
+// with it. The collection loop guards each iteration: a throwing widget is
 // logged and skipped, and well-formed siblings on the same page still build.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager skips a widget whose config throws and keeps the rest",
@@ -699,7 +696,6 @@ TEST_CASE_METHOD(HelixTestFixture,
 // Invariant: a populate that runs while klippy_state != READY must NOT mutate
 // the persisted panel_widgets layout on disk. Persistence of auto-placed
 // positions must wait until Klipper is READY (no firmware_restart injected).
-// FAILS pre-fix (auto-placed position saved during the injection), PASSES after.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PanelWidgetManager does not persist layout while Klipper is not READY",
                  "[panel_widget][manager][regression]") {
@@ -1268,9 +1264,9 @@ TEST_CASE_METHOD(XMLTestFixture,
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
 
     lv_subject_t* gate = lv_xml_get_subject(nullptr, "led_controllable");
-    static lv_subject_t s_fallback_gate;
+    static helix::Subject s_fallback_gate;
     if (!gate) {
-        lv_subject_init_int(&s_fallback_gate, 0);
+        s_fallback_gate.init_int(0);
         lv_xml_register_subject(nullptr, "led_controllable", &s_fallback_gate);
         gate = &s_fallback_gate;
     }

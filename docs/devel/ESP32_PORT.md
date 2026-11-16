@@ -18,9 +18,12 @@ Most firmware breakage comes from ordinary `src/` changes, because nothing in `m
 firmware. Before you commit:
 
 - **New `src/` file:** add it to `firmware/helixscreen-esp32/components/helixapp/app_srcs.txt` or to
-  `app_srcs_excluded.txt` with a reason. `scripts/check_esp32_app_srcs.py` fails the commit otherwise.
+  `app_srcs_excluded.txt` with a reason. `scripts/check_esp32_app_srcs.py` fails the push otherwise.
+- **New call from a compiled file into an excluded one:** guard it, stub it, or inline it in the header. The land gate
+  fails on the symbol; a stub for another member of the same class does not cover it.
 - **New XML subject or callback:** its registration must be in a file and an `#if` branch the firmware compiles, or
-  on the device the binding resolves to nothing. `scripts/check_esp32_xml_bindings.py` ratchets it.
+  on the device the binding resolves to nothing. `scripts/check_esp32_xml_bindings.py` fails it, unless every binding
+  sits in a screen `scripts/esp32_xml_exempt_screens.txt` lists as one the firmware never opens.
 - **Exceptions:** no `try`/`catch`/`throw`, and none of the calls that compile and then abort (`j.value("k", d)`,
   `j.at("k")`, one-argument `json::parse`, `std::sto*`, value-form `std::any_cast`). Use `json_util`'s readers,
   `text_io::parse_leading` and `include/exception_policy.h`.
@@ -35,14 +38,32 @@ firmware. Before you commit:
   `dryer_widget.cpp`, `dryer_model.cpp`, `tool_switcher_widget.cpp`) declare them all `HELIX_PSRAM_BSS`, as
   do the state singletons they read (`src/printer/bed_mesh_state.cpp`, `src/system/performance_state.cpp`).
   The same goes beyond the home screen: the AMS sidebar's and context menu's subjects and hint buffers
-  (`src/ui/ui_ams_sidebar.cpp`, `src/ui/ui_ams_context_menu.cpp`), the theme's XML subjects
-  (`src/ui/theme_manager.cpp#subjects`) and `SettingsManager`
+  (`src/ui/filament/ui_ams_sidebar.cpp`, `src/ui/filament/ui_ams_context_menu.cpp`), the theme's XML subjects
+  (`src/ui/theme/theme_manager.cpp#subjects`) and `SettingsManager`
   (`src/system/settings_manager.cpp#"static HELIX_PSRAM_BSS SettingsManager instance"`). Do the same for a new widget's, overlay's
   or model's subjects, buffers and singleton. Subjects registered at app runtime are first touched after PSRAM
   is up, which is what makes the attribute legal.
 - **Push:** `.githooks/pre-push` runs `scripts/esp32_syntax_check.py`, which compiles the touched firmware units
   `-fsyntax-only` in the `espressif/idf` image and catches the host-green, Xtensa-red class (`int32_t` is `long`).
   It skips with a note when docker or the image is missing; `HELIX_ESP32_SYNTAX=0` skips it.
+
+## The K-Touch feature profile
+
+The firmware leaves out a feature by turning its `HELIX_HAS_*` gate off in
+`firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt`. Every gate's default is in
+`include/helix_features.h`, so the desktop and Pi builds keep the feature. The gated `.cpp` files move from
+`app_srcs.txt` to `app_srcs_excluded.txt`, and the screens only that feature opens are listed in
+`scripts/esp32_xml_exempt_screens.txt`. That CMake block is the one K-Touch feature profile. Beyond the v1 Core+AMS
+cut, it removes:
+
+| Gate | What the panel loses | Entry points removed |
+|---|---|---|
+| `HELIX_HAS_CONSOLE=0` | The G-code console, its settings overlay and the home Console widget | The Advanced page's G-code Console row hides on `platform_console_supported` (0 on the firmware), and the widget is not in the home catalog |
+| `HELIX_HAS_SNAKE_GAME=0` | The Snake easter egg | Seven taps on the About page's printer name do nothing |
+
+Measured with the app-component LTO build (#1916): with both gates at 0 the app image went from 6,197,264 to 6,164,992 bytes, saving
+32,272 bytes, nearly all of it in `.flash.text` (29 KB) and `.flash.rodata` (3 KB). That leaves 445,952 bytes under
+`app_max_bytes`. To cut another feature, gate it the same way and record the measured saving in this table.
 
 ## Building
 
@@ -70,6 +91,24 @@ the firmware's ninja joins the machine-wide pool; `scripts/esp32_build_debug_hea
 `docker run` line, including the extra read-only mount a `setup-worktree.sh` tree needs for its symlinked `lib/`.
 Natively, source ESP-IDF's environment first (`. $IDF_PATH/export.sh`).
 
+### Code-generation flags
+
+`helixapp` and `helixnet` build with `-fno-ipa-sra -fno-ipa-cp-clone -fno-partial-inlining`, which stops GCC
+emitting a private copy of the same inline helper in every translation unit (about 160 KB of image). Leave the
+Xtensa literal-pool placement at its default. Measured on helixapp with LTO on (#1921), against a 6,197,264 byte
+image with 5,208,040 bytes of `.flash.text`:
+
+| Flags on helixapp and the LTO link | Image (bytes) | `.flash.text` change | Result |
+|------|---:|---:|------|
+| none (default) | 6,197,264 | | |
+| `-mtext-section-literals` | 6,806,128 | +608,860 | Links, 9.6 KB under the 0x680000 OTA slot |
+| `-mauto-litpools` | 6,879,968 | +682,796 | Overflows both OTA slots by 0xfae0 |
+
+`.flash.rodata` moves by under 100 bytes, and IRAM and DRAM not at all. The likely cause is sharing: in the default
+layout the linker can share one literal among the functions of a `.literal` section, while pools in `.text` give each
+function its own copies. `-mauto-litpools` implies
+text-section literals, so the two together are no better than `-mauto-litpools` alone.
+
 ### Local configuration
 
 `sdkconfig.local` in the firmware directory is git-ignored and layered over `sdkconfig.defaults` when present. Put
@@ -81,6 +120,8 @@ bench-only values there, never in a committed file:
 | `CONFIG_HELIX_HIL_MOONRAKER_URL` | First-boot Moonraker host (`ws://host:7125/websocket`); never overrides a host saved in Settings |
 | `CONFIG_HELIX_MOCK_PRINTER=y` | Synthetic printer, no network (chapter 17, Mock mode) |
 | `CONFIG_HELIX_LOG_STRIP_DEBUG=n` | Keep `spdlog::debug`/`trace`; stripped by default, so a debug line you add does not print |
+| `CONFIG_HELIX_LOG_TOKENIZE=n` | Print info/warn/error/critical as plain text instead of token records (section "Reading the log") |
+| `CONFIG_HELIX_SUBJECT_DEBUG_STRIP=n` | Keep the subject macros' `SubjectDebugRegistry` records, so an LVGL subject warning names the subject |
 | `CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS=y` | Let the ACE and AD5X IFS backends run |
 | `CONFIG_HELIX_FAULT_CRASH_HOST` | Abort when connected to a matching host, to exercise the boot crash guard (#1750) |
 | `CONFIG_HELIX_NET_HIL` / `CONFIG_HELIX_HTTP_HIL` | Test-only transport and HTTP-lane probes |
@@ -129,6 +170,57 @@ Without `--settle` the capture lands during boot, before WiFi and Moonraker: zer
 mean "not connected yet", not a bug. The log lines worth grepping are listed in chapter 17 (Crash recovery and
 diagnostics); the boot heap gates print as `heap before pthread` and `internal heap before rgb panel`.
 
+### Reading the log
+
+`spdlog::info`/`warn`/`error`/`critical` print as token records, not text: a line `$` + base64 holding a
+token and the call's arguments. The format strings stay out of the image (#1915); the build writes them to
+`<build>/helixscreen_esp32.logtok.json`, and the release zip carries the same file as
+`<zip folder>/helixscreen-esp32-ktouch-logtok.json`. Turn a capture back into text with the database of the build that
+printed it:
+
+```bash
+scripts/detokenize_log.py build/helixscreen_esp32.logtok.json serial.log     # or pipe the console in
+scripts/detokenize_log.py --level <db> serial.log                             # prefix [I]/[W]/[E]
+```
+
+Other lines (ESP-IDF's own logs, the snapshot protocol, `printf`) pass through unchanged. The firmware prints
+`$HLT1:<first nine hex digits of the ELF SHA-256>` before its first record and every 200 after, the same
+digits as the boot banner's `ELF file SHA256`; the tool warns when they do not match the database, because a
+token then points at a different string. A record whose arguments did not fit its 192 bytes ends in `[cut]`.
+The build fails when tokenizing is on and the ELF has no format strings, and the release packager refuses an
+empty database.
+
+How it works: in a firmware translation unit the shim (`components/helixnet/shim/spdlog_shim.h`) defines
+`info(...)`, `warn(...)`, `error(...)` and `critical(...)` as macros that wrap a string-literal first argument
+with its token: the offset of its stringized text in the ELF's `.helix_logfmt` section, which is `(INFO)` and
+never loaded (`components/helixnet/helix_logfmt.ld`). Every call reaches one out-of-line emitter
+(`shim/log_token_esp.cpp`) with the arguments type-erased by fmt, and the format string itself is never
+referenced, so it never reaches flash. A call whose format is not a plain literal, or whose arguments include
+a type with its own `fmt::formatter`, prints text as before. `debug`/`trace` are not tokenized. Measured on
+the K-Touch image (#1915): 178,368 bytes smaller than the same tree with `CONFIG_HELIX_LOG_TOKENIZE=n`
+(`.flash.rodata` -199,120, `.flash.text` +20,756).
+
+A record is `$` + base64 without padding of: one level byte (spdlog numbering, `0x80` set when an argument
+was cut or dropped), the token as unsigned LEB128, then per argument a tag byte and its payload: signed
+integer as zigzag LEB128, unsigned and pointer as LEB128, double as 8 and float as 4 little-endian bytes,
+bool and char as one byte, string as LEB128 length plus bytes (a separate tag when cut to fit), and a bare
+tag for a value the encoder cannot carry. `shim/log_token.h` holds the tags; `scripts/detokenize_log.py` is
+the only decoder. Changing the format means changing both, and the shared fixture
+(`tests/fixtures/logtok/corpus.json`) fails the C++ and Python tests until they agree.
+
+Why macros: a C++17 function cannot see its format literal as a constant, so hashing it at compile time
+is out, and tokens from `__builtin_FILE`/`__builtin_LINE` would need the strings parsed back out of the
+source. Two GCC behaviours shape the token macro: one section name shared by statics in inline and ordinary
+functions is a "section type conflict", so each site gets `.helix_logfmt.<__COUNTER__>`; and under LTO an
+inline function's static loses its section and lands in `.rodata` unless it is marked `used`.
+
+Because those four names are macros there, a firmware-compiled declaration of any other function named
+`info`, `warn`, `error` or `critical` with parameters must parenthesize its name (`static HardwareIssue
+(info)(...)`); calls to it need nothing, and the firmware compile fails loudly on a declaration that forgets.
+One case does not fail: such a function whose first parameter is a forwarding `T&&` or `auto` receives the
+wrapper `helix::logtok::Site<N>` for a literal argument instead of the string, so give it a concrete string
+parameter.
+
 ## Debugging recipes
 
 | Symptom | Look at |
@@ -147,12 +239,12 @@ diagnostics); the boot heap gates print as `heap before pthread` and `internal h
 
 | Tool | When | What |
 |------|------|------|
-| `scripts/check_esp32_app_srcs.py` | commit (`scripts/qc/esp32_app_srcs.sh`) | Manifest coverage, stale lines, locale-pulling includes, exception sites. `--link` (advisory) reads native objects for a kept file calling a symbol only an excluded file defines |
-| `scripts/check_esp32_xml_bindings.py` | commit (`scripts/qc/esp32_xml_bindings.sh`) | XML bindings the firmware does not register; baseline `scripts/esp32_xml_binding_baseline.txt` |
+| `scripts/check_esp32_app_srcs.py` | push and land gate (`scripts/qc/esp32_app_srcs.sh`) | Manifest coverage, stale lines, locale-pulling includes, exception sites. `--link` reads native objects for a kept file calling a symbol only an excluded file defines, ratcheted by `scripts/esp32_link_baseline.txt`. It has a verdict only on Linux, with objects newer than their inputs; the land gate fails without one |
+| `scripts/check_esp32_xml_bindings.py` | commit (`scripts/qc/esp32_xml_bindings.sh`) | XML bindings the firmware does not register, outside the screens `scripts/esp32_xml_exempt_screens.txt` exempts |
 | `scripts/esp32_syntax_check.py` | pre-push | Xtensa `-fsyntax-only` on touched firmware units |
 | `scripts/check_esp32_size.py` | `esp32-build.yml` | App image vs `app_max_bytes`, `.dram0.bss`/`.data` vs their ceilings, exception support or `std::locale` linked. A breach prints the eight largest inputs of the section (size, input section, object file) so the offending static is named; read that list before raising a ceiling |
 | `tests/python/test_esp32_pack_assets.py` | `esp32-build.yml` | The frogfs packer round trip |
-| `tests/shell/test_code_lint.bats` | bats suite | A PSRAM heap walk on a per-event path (thumbnail, print select, print status) |
+| `scripts/code_lint.sh` | `qc_code_lint` | A PSRAM heap walk on a per-event path (thumbnail, print select, print status) |
 | `tests/unit/test_esp32_*.cpp` | unit sweep | Reconnect backoff, link liveness, transport ordering, the HTTP lane queue, tested on the host |
 
 `size_budget.json` ceilings are raised only after checking internal free at boot on the device; the comment in that

@@ -17,6 +17,7 @@
  *   server.stop();
  */
 
+#include "json_fwd.h"
 #include "remote_transport.h"
 
 #include <atomic>
@@ -26,8 +27,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 struct _lv_timer_t;
 
@@ -160,6 +159,7 @@ class RemoteControlServer {
     nlohmann::json handle_list_panels(const nlohmann::json& params);
     nlohmann::json handle_list_components(const nlohmann::json& params);
     nlohmann::json handle_list_callbacks(const nlohmann::json& params);
+    nlohmann::json handle_perf(const nlohmann::json& params);
     nlohmann::json handle_get_current(const nlohmann::json& params);
     /// Absolute locator for a target, so `cd` can record where it landed.
     nlohmann::json handle_resolve(const nlohmann::json& params);
@@ -177,6 +177,7 @@ class RemoteControlServer {
     // Determinism toggle: stop/resume animations + periodic timers for
     // reproducible captures. See docs/devel/HELIXCTL.md "Diagnostics & lifecycle".
     nlohmann::json handle_freeze(const nlohmann::json& params);
+    nlohmann::json handle_resize(const nlohmann::json& params);
     nlohmann::json handle_unfreeze(const nlohmann::json& params);
 
     // Phase 3 handlers

@@ -5,12 +5,12 @@
  * @file moonraker_file_api.h
  * @brief File management operations via Moonraker (WebSocket-based)
  *
- * Extracted from MoonrakerAPI to encapsulate all WebSocket-based file management
+ * A MoonrakerAPI sub-API that encapsulates all WebSocket-based file management
  * functionality in a dedicated class. Uses MoonrakerClient for JSON-RPC transport.
  *
  * Covers: list, get directory, get metadata, metascan, delete, move, copy,
  * create/delete directory. Does NOT include HTTP file transfers (download,
- * upload, thumbnail) which remain in MoonrakerAPI.
+ * upload, thumbnail), which live in MoonrakerFileTransferAPI.
  */
 
 #pragma once
@@ -55,10 +55,10 @@ std::vector<FileRoot> parse_file_roots(const json& response);
  * Stock Moonraker returns bare leaf names in the `dirname`/`filename` fields of
  * server.files.get_directory (e.g. "Gridfinity"). FlashForge's Moonraker fork
  * (Adventurer 5X) instead returns paths relative to the gcodes root
- * (e.g. "Feinkost/Gridfinity"). Stored verbatim, those got concatenated onto the
- * already-current path by the Print Files navigator, producing a doubled segment
- * ("Feinkost/Feinkost/Gridfinity") that the server reports as missing and the
- * panel then retried forever (debug bundle TJVQDCZ6).
+ * (e.g. "Feinkost/Gridfinity"). Stored verbatim, those would be concatenated onto
+ * the already-current path by the Print Files navigator, producing a doubled
+ * segment ("Feinkost/Feinkost/Gridfinity") that the server reports as missing and
+ * the panel retries forever.
  *
  * Normalizing to the leaf lets navigation append a single segment correctly.
  * It is a no-op for stock leaf names (leaf in -> leaf out), and tolerates a

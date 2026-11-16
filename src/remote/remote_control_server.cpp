@@ -7,15 +7,16 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
+#include "ui_spinner.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "demo_overlays.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "grid_edit_drop.h"
-#include "http_executor.h"
 #include "input_settings_manager.h"
 #include "klipper_config_includes.h"
 #include "logging_init.h"
@@ -23,6 +24,7 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "moonraker_client_mock.h"
 #endif
+#include "ui_perf_report.h"
 #include "ui_utils.h"
 
 #include "panel_factory.h"
@@ -105,7 +107,7 @@ static std::optional<helix::PanelId> name_to_panel_id(const std::string& name) {
 // mid-drive. Calling this on every interaction both prevents that and makes
 // DisplayManager close an already-active screensaver on its next tick. UI thread.
 static void wake_display() {
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 }
 
 RemoteControlServer::~RemoteControlServer() {
@@ -257,17 +259,30 @@ nlohmann::json RemoteControlServer::dispatch(const std::string& method,
     }
 }
 
+namespace {
+// A UI-thread failure reaches the waiting transport thread as text. The exception
+// object stays on the thread that threw it, and the waiter throws its own.
+struct UiThreadOutcome {
+    nlohmann::json value;
+    std::string error;
+    bool failed = false;
+};
+} // namespace
+
 nlohmann::json RemoteControlServer::execute_on_ui_thread(std::function<nlohmann::json()> fn) {
-    auto promise = std::make_shared<std::promise<nlohmann::json>>();
+    auto promise = std::make_shared<std::promise<UiThreadOutcome>>();
     auto future = promise->get_future();
 
     helix::ui::queue_update("RemoteControlServer::execute_on_ui_thread",
                             [promise, fn = std::move(fn)]() {
+                                UiThreadOutcome outcome;
                                 try {
-                                    promise->set_value(fn());
+                                    outcome.value = fn();
                                 } catch (const std::exception& e) {
-                                    promise->set_exception(std::current_exception());
+                                    outcome.failed = true;
+                                    outcome.error = e.what();
                                 }
+                                promise->set_value(std::move(outcome));
                             });
 
     // Wait with timeout, polling running_ so a concurrent stop() unblocks this
@@ -278,7 +293,11 @@ nlohmann::json RemoteControlServer::execute_on_ui_thread(std::function<nlohmann:
     // it — the queued fn is dropped when the queue shuts down.
     for (int i = 0; i < 100; ++i) { // 100 * 100ms = 10s
         if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready) {
-            return future.get();
+            UiThreadOutcome outcome = future.get();
+            if (outcome.failed) {
+                throw std::runtime_error(outcome.error);
+            }
+            return std::move(outcome.value);
         }
         if (!running_.load()) {
             throw std::runtime_error("remote server shutting down");
@@ -311,6 +330,7 @@ void RemoteControlServer::register_builtin_handlers() {
     handlers_["resolve"] = [this](const nlohmann::json& p) { return handle_resolve(p); };
     handlers_["screenshot"] = [this](const nlohmann::json& p) { return handle_screenshot(p); };
     handlers_["status"] = [this](const nlohmann::json& p) { return handle_status(p); };
+    handlers_["perf"] = [this](const nlohmann::json& p) { return handle_perf(p); };
     handlers_["demo"] = [this](const nlohmann::json& p) { return handle_demo(p); };
 
     // Phase 2: Subject get/set/list/wait_for
@@ -322,6 +342,7 @@ void RemoteControlServer::register_builtin_handlers() {
     handlers_["wait_for"] = [this](const nlohmann::json& p) { return handle_wait_for(p); };
     handlers_["wait_idle"] = [this](const nlohmann::json& p) { return handle_wait_idle(p); };
     handlers_["freeze"] = [this](const nlohmann::json& p) { return handle_freeze(p); };
+    handlers_["resize"] = [this](const nlohmann::json& p) { return handle_resize(p); };
     handlers_["unfreeze"] = [this](const nlohmann::json& p) { return handle_unfreeze(p); };
 
     // Phase 3: Widget interaction + scenarios
@@ -440,7 +461,7 @@ nlohmann::json RemoteControlServer::handle_navigate(const nlohmann::json& params
             throw std::invalid_argument("Not a panel, and no widget named '" + target +
                                         "' on screen");
         }
-        if (!lv_obj_has_flag(widget, LV_OBJ_FLAG_CLICKABLE)) {
+        if (!lv_obj_is_clickable(widget)) {
             throw std::invalid_argument("Widget '" + target + "' is not clickable");
         }
         helix::ui::send_tap(widget);
@@ -613,6 +634,12 @@ nlohmann::json RemoteControlServer::handle_list_components(const nlohmann::json&
             arr.push_back(n);
         }
         return {{"components", arr}};
+    });
+}
+
+nlohmann::json RemoteControlServer::handle_perf(const nlohmann::json& /*params*/) {
+    return execute_on_ui_thread([]() -> nlohmann::json {
+        return helix::ui_perf_to_json(helix::capture_ui_perf(lv_display_get_default()));
     });
 }
 
@@ -886,7 +913,7 @@ nlohmann::json RemoteControlServer::handle_set_subject(const nlohmann::json& par
 
         } else if (type == LV_SUBJECT_TYPE_STRING) {
             std::string value = value_json.get<std::string>();
-            lv_subject_copy_string(subject, value.c_str());
+            lv_subject_set_string(subject, value.c_str());
             return {{"name", name}, {"set", value}};
 
         } else {
@@ -904,7 +931,7 @@ nlohmann::json RemoteControlServer::handle_list_subjects(const nlohmann::json& /
         auto* scope = lv_xml_component_get_scope("globals");
         if (scope) {
             lv_xml_subject_t* xml_sub =
-                static_cast<lv_xml_subject_t*>(_lv_ll_get_head(&scope->subjects_ll));
+                static_cast<lv_xml_subject_t*>(lv_ll_get_head(&scope->subjects_ll));
             while (xml_sub) {
                 if (xml_sub->name && xml_sub->subject) {
                     auto type = static_cast<lv_subject_type_t>(xml_sub->subject->type);
@@ -912,7 +939,7 @@ nlohmann::json RemoteControlServer::handle_list_subjects(const nlohmann::json& /
                         {{"name", xml_sub->name}, {"type", subject_type_name(type)}});
                 }
                 xml_sub =
-                    static_cast<lv_xml_subject_t*>(_lv_ll_get_next(&scope->subjects_ll, xml_sub));
+                    static_cast<lv_xml_subject_t*>(lv_ll_get_next(&scope->subjects_ll, xml_sub));
             }
         }
 
@@ -1064,7 +1091,7 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
 
         helix::ui::queue_update("RemoteControlServer::handle_wait_for", [state, cleanup_promise]() {
             if (state->observer) {
-                lv_observer_remove(state->observer);
+                lv_observer_delete(state->observer);
                 state->observer = nullptr;
             }
             cleanup_promise->set_value();
@@ -1163,7 +1190,7 @@ static std::string topmost_layer() {
         uint32_t count = lv_obj_get_child_count(root);
         for (uint32_t i = count; i > 0; --i) {
             lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i - 1));
-            if (child && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            if (child && !lv_obj_is_hidden(child)) {
                 return path_of(child);
             }
         }
@@ -1371,6 +1398,25 @@ nlohmann::json RemoteControlServer::handle_wait_idle(const nlohmann::json& param
     }
 }
 
+nlohmann::json RemoteControlServer::handle_resize(const nlohmann::json& params) {
+    const int w = params.value("width", 0);
+    const int h = params.value("height", 0);
+    if (w <= 0 || h <= 0) {
+        return {{"error", "resize requires a positive width and height"}};
+    }
+    return execute_on_ui_thread([w, h]() -> nlohmann::json {
+        lv_display_t* disp = lv_display_get_default();
+        if (!disp) {
+            return {{"error", "no display"}};
+        }
+        // The call the SDL driver makes when its window is resized, so the
+        // debounced resize fan-out runs as it would for a window drag.
+        lv_display_set_resolution(disp, w, h);
+        return {{"width", lv_display_get_horizontal_resolution(disp)},
+                {"height", lv_display_get_vertical_resolution(disp)}};
+    });
+}
+
 nlohmann::json RemoteControlServer::handle_freeze(const nlohmann::json& /*params*/) {
     return execute_on_ui_thread([this]() -> nlohmann::json {
         // Stop animations already in flight.
@@ -1429,6 +1475,7 @@ nlohmann::json RemoteControlServer::handle_freeze(const nlohmann::json& /*params
         }
 #endif
 
+        helix::ui::spinner_set_frozen(true);
         frozen_ = true;
 
         spdlog::debug("[RemoteControl] freeze: paused {} timers (skipped queue+refresh), "
@@ -1465,6 +1512,7 @@ nlohmann::json RemoteControlServer::handle_unfreeze(const nlohmann::json& /*para
             }
         }
         paused_timers_.clear();
+        helix::ui::spinner_set_frozen(false);
         frozen_ = false;
 #ifdef HELIX_ENABLE_MOCKS
         if (auto* mock = get_moonraker_client_mock()) {
@@ -1543,7 +1591,7 @@ nlohmann::json RemoteControlServer::handle_click(const nlohmann::json& params) {
         // it (extruder selector, gcode test Travels).
         bool toggle_class = lv_obj_check_type(widget, &lv_switch_class) ||
                             lv_obj_check_type(widget, &lv_checkbox_class);
-        if (toggle_class || lv_obj_has_flag(widget, LV_OBJ_FLAG_CHECKABLE)) {
+        if (toggle_class || lv_obj_is_checkable(widget)) {
             bool now = !lv_obj_has_state(widget, LV_STATE_CHECKED);
             if (now) {
                 lv_obj_add_state(widget, LV_STATE_CHECKED);
@@ -1692,12 +1740,12 @@ static nlohmann::json describe_one(lv_obj_t* o, const char* name, const std::str
     entry["layer"] = layer_of(o);
 
     nlohmann::json actions = nlohmann::json::array();
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_CLICKABLE)) {
+    if (lv_obj_is_clickable(o)) {
         actions.push_back("click");
     }
     // Report containers that can actually scroll (flag set AND content overflows),
     // so callers know what to target with `scroll`.
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE)) {
+    if (lv_obj_is_scrollable(o)) {
         int32_t below = lv_obj_get_scroll_bottom(o);
         int32_t above = lv_obj_get_scroll_top(o);
         int32_t right = lv_obj_get_scroll_right(o);
@@ -1759,7 +1807,7 @@ static void describe_walk(lv_obj_t* parent, const std::string& path_prefix, nloh
         if (!child) {
             continue;
         }
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(child)) {
             continue; // hidden subtree — not on screen
         }
         // Segments are names where a name uniquely identifies the child among
@@ -1863,7 +1911,7 @@ nlohmann::json RemoteControlServer::handle_overflow(const nlohmann::json& params
                 out.push_back({{"name", resolved_name(ov.obj)},
                                {"path", path_of(ov.obj)},
                                {"layer", layer_of(ov.obj)},
-                               {"scrollable", lv_obj_has_flag(ov.obj, LV_OBJ_FLAG_SCROLLABLE)},
+                               {"scrollable", lv_obj_is_scrollable(ov.obj)},
                                {"top", ov.top},
                                {"bottom", ov.bottom},
                                {"left", ov.left},
@@ -2206,9 +2254,9 @@ nlohmann::json RemoteControlServer::handle_state(const nlohmann::json& params) {
         // bind_flag_if contracts are assertable here.
         auto flags_of = [](lv_obj_t* w) {
             return nlohmann::json{
-                {"hidden", lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN)},
-                {"clickable", lv_obj_has_flag(w, LV_OBJ_FLAG_CLICKABLE)},
-                {"scrollable", lv_obj_has_flag(w, LV_OBJ_FLAG_SCROLLABLE)},
+                {"hidden", lv_obj_is_hidden(w)},
+                {"clickable", lv_obj_is_clickable(w)},
+                {"scrollable", lv_obj_is_scrollable(w)},
             };
         };
         result["flags"] = flags_of(widget);
@@ -2352,9 +2400,9 @@ nlohmann::json RemoteControlServer::handle_scroll(const nlohmann::json& params) 
             const bool inactive_screen = lv_obj_get_parent(clipper) == nullptr &&
                                          clipper != lv_screen_active() &&
                                          clipper != lv_layer_top() && clipper != lv_layer_sys();
-            const char* why = helix::hidden_ancestor(obj) == clipper ? "hidden by "
-                              : inactive_screen                      ? "on inactive screen "
-                                                                     : "clipped by ";
+            const char* why = helix::ui::hidden_ancestor(obj) == clipper ? "hidden by "
+                              : inactive_screen                          ? "on inactive screen "
+                                                                         : "clipped by ";
             throw std::runtime_error("Widget '" + target_label(params) +
                                      "' is still out of view: " + why + helix::path_of(clipper));
         }
@@ -2402,8 +2450,8 @@ static void geom_walk(lv_obj_t* obj, const std::string& path, int depth, nlohman
     e["req_w"] = describe_style_size(lv_obj_get_style_width(obj, LV_PART_MAIN));
     e["req_h"] = describe_style_size(lv_obj_get_style_height(obj, LV_PART_MAIN));
     e["flex_grow"] = lv_obj_get_style_flex_grow(obj, LV_PART_MAIN);
-    e["hidden"] = lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
-    e["scrollable"] = lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    e["hidden"] = lv_obj_is_hidden(obj);
+    e["scrollable"] = lv_obj_is_scrollable(obj);
     e["scroll"] = {{"top", lv_obj_get_scroll_top(obj)},
                    {"bottom", lv_obj_get_scroll_bottom(obj)},
                    {"left", lv_obj_get_scroll_left(obj)},

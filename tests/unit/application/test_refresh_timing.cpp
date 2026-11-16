@@ -187,6 +187,32 @@ TEST_CASE("the awake cap follows a refresh period longer than 33 ms",
     CHECK(helix::main_loop_sleep_ms(1000, true, t) == 200);
 }
 
+TEST_CASE("the update queue drains once a frame awake and slowly while the display sleeps",
+          "[application][display][refresh_period]") {
+    RefreshTiming t;
+    CHECK(helix::update_queue_period_ms(false, t, 33) == 33);
+    CHECK(helix::update_queue_period_ms(true, t, 33) == helix::kSleepingPeriodMs);
+
+    // A global period that paces only the display leaves the queue at the default.
+    t.refr_period_ms = 50;
+    CHECK(helix::update_queue_period_ms(false, t, 33) == 33);
+
+    // HELIX_REFR_PERIOD_SCOPE=all paces the queue too, awake; sleep still slows it.
+    t.scope_all = true;
+    CHECK(helix::update_queue_period_ms(false, t, 33) == 50);
+    CHECK(helix::update_queue_period_ms(true, t, 33) == helix::kSleepingPeriodMs);
+
+    // Sleep never speeds the queue up.
+    t.scope_all = false;
+    CHECK(helix::update_queue_period_ms(true, t, 300) == 300);
+}
+
+TEST_CASE("the debug-touch timer polls slowly while the setting is off",
+          "[application][display][refresh_period]") {
+    CHECK(helix::debug_touch_period_ms(true) == 30);
+    CHECK(helix::debug_touch_period_ms(false) == 500);
+}
+
 TEST_CASE("HELIX_EGL_VSYNC reaches the vsync setter unless it is 0",
           "[application][display][refresh_period]") {
     RefreshEnv env;

@@ -10,17 +10,19 @@
 #include "ui_ams_selector_menu.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "ams_standing_fault.h"
 #include "ams_state.h"
 #include "ams_types.h" // For SlotInfo
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 /**
@@ -158,7 +160,7 @@ class AmsPanel : public PanelBase {
     // === Slot Management ===
 
     static constexpr int kMaxVisibleSlots = kAmsDetailMaxSlots; ///< Max slots displayed
-    lv_obj_t* slot_widgets_[kMaxVisibleSlots] = {nullptr};
+    helix::ui::WidgetRef slot_widgets_[kMaxVisibleSlots];
     lv_obj_t* label_widgets_[kMaxVisibleSlots] = {nullptr}; ///< Separate label layer for z-order
     AmsDetailWidgets detail_widgets_;                       ///< Shared component widget pointers
 
@@ -220,7 +222,7 @@ class AmsPanel : public PanelBase {
 
     // === Filament Path Canvas ===
 
-    lv_obj_t* path_canvas_ = nullptr; ///< Filament path visualization widget
+    helix::ui::WidgetRef path_canvas_; ///< Filament path visualization widget
 
     // === Bypass Spool Holder (overlay on path canvas) ===
     //
@@ -274,7 +276,6 @@ class AmsPanel : public PanelBase {
     // === UI Update Handlers ===
 
     void update_slot_colors();
-    void update_slot_status(int slot_index);
     void update_current_slot_highlight(int slot_index);
 
     // === Event Callbacks (static trampolines) ===
@@ -314,7 +315,8 @@ class AmsPanel : public PanelBase {
 
     // === UI Module Helpers (internal, show modals with callbacks) ===
 
-    void show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt);
+    void show_context_menu(int slot_index, lv_obj_t* near_widget,
+                           std::optional<lv_point_t> tap = std::nullopt);
     void show_loading_error_modal();
 
     /**
@@ -328,7 +330,7 @@ class AmsPanel : public PanelBase {
 
     // === Action Handlers (public for XML event callbacks) ===
   public:
-    void handle_slot_tap(int slot_index, lv_point_t click_pt);
+    void handle_slot_tap(int slot_index);
 };
 
 /**

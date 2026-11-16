@@ -3,21 +3,22 @@
 
 #pragma once
 
-#include "ui_heater_config.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_temp_graph.h"
 
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "heater_type.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "temp_graph_controller.h"
+#include "temp_graph_series_policy.h"
 
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
-// Forward declarations
 namespace helix {
 class PrinterState;
 } // namespace helix
@@ -26,8 +27,8 @@ class TemperatureService;
 /**
  * @brief Unified temperature graph overlay
  *
- * Replaces the 3 separate nozzle/bed/chamber overlays with a single overlay
- * that graphs ALL temperature sensors with toggle chips and optional controls.
+ * One overlay that graphs ALL temperature sensors, with toggle chips and
+ * optional nozzle/bed/chamber controls.
  *
  * Graph lifecycle (creation, observers, history backfill, auto-range) is
  * delegated to TempGraphController. The overlay owns UI-specific concerns:
@@ -71,8 +72,30 @@ class TempGraphOverlay : public OverlayBase {
      *
      * @param mode The display mode (determines which controls are shown)
      * @param parent_screen Parent screen for lazy creation
+     * @param nozzle_extruder In Nozzle mode, the extruder the card opens on
+     *        (the tool the caller is showing). Empty keeps the remembered pick;
+     *        the mounted extruder means no pick.
      */
-    void open(Mode mode, lv_obj_t* parent_screen);
+    void open(Mode mode, lv_obj_t* parent_screen, const std::string& nozzle_extruder = {});
+
+    /// The extruder the nozzle card was told to show instead of the mounted
+    /// one; empty when it follows the mounted tool.
+    [[nodiscard]] const std::string& picked_extruder() const {
+        return picked_extruder_;
+    }
+
+    /**
+     * @brief Build the overlay in a specific mode inside a home page
+     *
+     * The full-page form of a heater tile (prestonbrown/helixscreen#1931):
+     * OverlayBase::embed() with the mode open() would set.
+     */
+    bool embed_in(Mode mode, lv_obj_t* container);
+
+    /// The header carries only the title, which a home page repeats.
+    bool embed_keeps_header() const override {
+        return false;
+    }
 
   protected:
     void before_show() override;
@@ -98,7 +121,9 @@ class TempGraphOverlay : public OverlayBase {
         bool visible = true;                 ///< Current visibility state
         bool has_target = false;             ///< Whether this heater has a controllable target
         bool is_dynamic = false;             ///< Dynamic sensor (needs SubjectLifetime)
-        lv_obj_t* chip = nullptr;            ///< Toggle chip widget
+        bool is_sensor = false; ///< From TemperatureSensorManager: @ref group sets its default
+        helix::TempGraphSensorGroup group = helix::TempGraphSensorGroup::Auxiliary;
+        lv_obj_t* chip = nullptr; ///< Toggle chip widget
     };
 
     // Series management
@@ -112,6 +137,8 @@ class TempGraphOverlay : public OverlayBase {
 
     // Chip interaction
     void toggle_series_visibility(size_t series_idx);
+    /// Show or hide one series' lines and dim its chip to match.
+    void show_series(size_t series_idx);
     void update_chip_style(size_t series_idx);
     static void on_chip_clicked(lv_event_t* e);
 
@@ -180,21 +207,21 @@ class TempGraphOverlay : public OverlayBase {
     // Drives strip visibility and graph_outer width from XML — see
     // temp_graph_overlay.xml's <subjects> block. Seeded with mode_ by
     // init_subjects(); synced on every open() call.
-    lv_subject_t mode_subject_{};
+    helix::Subject mode_subject_{};
     std::unique_ptr<helix::TempGraphController> controller_;
     lv_obj_t* chip_row_ = nullptr;
     lv_obj_t* graph_container_ = nullptr;
     lv_obj_t* nozzle_strip_ = nullptr;
     lv_obj_t* bed_strip_ = nullptr;
     lv_obj_t* chamber_strip_ = nullptr;
-    lv_obj_t* extruder_selector_row_ = nullptr;
+    lv_obj_t* extruder_selector_row_ = nullptr; ///< Its buttons are built in C++
     std::vector<SeriesInfo> series_;
 
     // Thermal tint for the largest heater glyphs in the product (size="xl", one
-    // per control strip). Bound in on_activate(), unbound in on_deactivate() —
-    // cached_overlay_ persists across pushes, but the printer_state_ pointer and
+    // per control strip). Bound in on_activate(), unbound in on_deactivating():
+    // the widget tree survives a stacked push, but the printer_state_ pointer and
     // subject lifetimes are only valid while active, same pattern as
-    // PrintStatusWidget's binders (ui_panel_print_status.cpp).
+    // PrintStatusWidget's binders (print_status_widget.h).
     helix::ui::HeaterIconBinder nozzle_icon_binder_;
     helix::ui::HeaterIconBinder bed_icon_binder_;
     helix::ui::HeaterIconBinder chamber_icon_binder_;
@@ -209,7 +236,7 @@ class TempGraphOverlay : public OverlayBase {
     // machine's active tool otherwise. Bound in on_activate() to ToolState's
     // active_tool/tools_version pair (the same two subjects ui_ams_tool_text
     // observes for the badge), unbound in on_deactivating().
-    lv_subject_t nozzle_badge_subject_{};
+    helix::Subject nozzle_badge_subject_{};
     char nozzle_badge_buffer_[16]{};
     ObserverGuard nozzle_badge_tool_observer_;
     ObserverGuard nozzle_badge_version_observer_;
@@ -228,15 +255,23 @@ class TempGraphOverlay : public OverlayBase {
     // repoint_nozzle_card() aims the observers at the picked extruder's own
     // subjects or, with no pick, at the active-extruder subjects, which
     // already re-target on every machine toolchange.
-    lv_subject_t nozzle_card_temp_subject_{};
-    lv_subject_t nozzle_card_target_subject_{};
+    helix::Subject nozzle_card_temp_subject_{};
+    helix::Subject nozzle_card_target_subject_{};
     // The card's status area (glyph + duty), classified from the mirrors
     // above plus the displayed extruder's own power. TemperatureService's
     // nozzle status tracks the MACHINE's tool on purpose, so a card showing a
     // picked tool computes its own.
-    lv_subject_t nozzle_card_status_state_subject_{};
-    lv_subject_t nozzle_card_status_subject_{};
+    helix::Subject nozzle_card_status_state_subject_{};
+    helix::Subject nozzle_card_status_subject_{};
     char nozzle_card_status_buffer_[16]{};
+
+    /// 1 when the nozzle strip shows its extruder selector (several extruders).
+    helix::Subject multi_extruder_subject_{};
+    /// Per chamber preset (Off, 1-3): 1 while the configured ceiling allows it.
+    helix::Subject chamber_preset_visible_subjects_[4]{};
+    /// Per chamber preset 1-3: its temperature as the user reads it ("40°C").
+    helix::Subject chamber_preset_text_subjects_[3]{};
+    char chamber_preset_text_bufs_[3][16]{};
     /// Last power reading (whole percent, -1 unknown) from the displayed
     /// extruder's power subject.
     int nozzle_card_power_ = -1;
@@ -250,8 +285,12 @@ class TempGraphOverlay : public OverlayBase {
     // queue never drains (lv_subject_add_observer notifies on attach, and
     // observe<int> defers the handler through queue_update).
     ObserverGuard extruder_version_observer_;
+    // Drops the nozzle pick on a tool change; armed with the version watch.
+    ObserverGuard active_tool_observer_;
+    static constexpr int kNoPickTool = -2;
+    /// The mounted tool when the pick was last confirmed current.
+    int pick_tool_ = kNoPickTool;
 
-    // Subject management
     SubjectManager subjects_;
 
     // Color palette — uses shared kTempGraphSeriesColors from temp_graph_controller.h

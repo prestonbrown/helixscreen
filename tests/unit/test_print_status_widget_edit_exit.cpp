@@ -45,14 +45,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // A job existed when edit mode began, so the row was armed and the
         // session disarmed it. The test environment has no history, so the job
         // is gone by the time the session ends.
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(row, true);
         helix::ui::disable_widget_clicks_recursive(page);
-        REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+        REQUIRE_FALSE(lv_obj_is_clickable(row));
 
         helix::ui::enable_widget_clicks_recursive(page);
-        clickable_after_restore = lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        clickable_after_restore = lv_obj_is_clickable(row);
         widget.on_edit_mode_exited();
-        clickable_after_hook = lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        clickable_after_hook = lv_obj_is_clickable(row);
 
         widget.detach();
         lv_obj_delete(page);

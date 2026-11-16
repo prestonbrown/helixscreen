@@ -132,35 +132,11 @@ TEST_CASE("a root with no permissions field is not assumed writable", "[file_roo
 // K2 would quietly fall back to today's broken behaviour.
 // ============================================================================
 
-#include "moonraker_client_mock.h"
-
-namespace {
-
-/// Answers one RPC with a canned payload and remembers what was asked.
-class RootsClient : public MoonrakerClientMock {
-  public:
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params,
-        helix::SharedCallback<void(const json&)> success_cb,
-        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-        bool silent = false,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
-        last_method = method;
-        if (method == "server.files.roots" && success_cb) {
-            success_cb(json::parse(kK2Roots));
-            return 1;
-        }
-        return MoonrakerClientMock::send_jsonrpc(method, params, success_cb, error_cb, timeout_ms,
-                                                 silent, intent);
-    }
-
-    std::string last_method;
-};
-
-} // namespace
+#include "../fake_moonraker_client.h"
 
 TEST_CASE("get_file_roots asks Moonraker for server.files.roots", "[file_roots]") {
-    RootsClient client;
+    helix::test::FakeMoonrakerClient client;
+    client.respond_to("server.files.roots", json::parse(kK2Roots));
     MoonrakerFileAPI files(client);
 
     std::vector<FileRoot> got;
@@ -168,7 +144,7 @@ TEST_CASE("get_file_roots asks Moonraker for server.files.roots", "[file_roots]"
     files.get_file_roots([&got](const std::vector<FileRoot>& r) { got = r; },
                          [&errored](const MoonrakerError&) { errored = true; });
 
-    CHECK(client.last_method == "server.files.roots");
+    CHECK(client.rpc_count("server.files.roots") == 1);
     CHECK_FALSE(errored);
     REQUIRE(got.size() == 5);
     CHECK(helix::writable_root_path(got, "config") == "/mnt/UDISK/printer_data/config");

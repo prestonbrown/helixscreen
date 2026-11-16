@@ -31,6 +31,7 @@
 #include "ams_backend_toolchanger.h"
 #include "ams_remap.h"
 #include "ams_tool_topology.h"
+#include "test_helpers/backend_harness.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -80,11 +81,11 @@ TEST_CASE("AD5X IFS produces no topology until the wire tool_map is discovered",
     // nothing to build from — and the 1:1 slot-count fallback must not paper
     // over that, which it would if the gate asked any question but table
     // ownership.
-    Ad5xIfsProbe ad5x;
+    helix::test::StartedBackend<Ad5xIfsProbe> ad5x;
     CHECK_FALSE(helix::build_ams_topology(&ad5x, 0).has_value());
 
     // The module's echo shape: string tool keys, 1-based lanes.
-    helix::Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
+    ad5x.fire_status(helix::test::ad5x_identity_tool_map_frame());
     CHECK(helix::build_ams_topology(&ad5x, 0).has_value());
 }
 

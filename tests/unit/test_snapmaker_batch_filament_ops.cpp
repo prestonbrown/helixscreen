@@ -16,7 +16,6 @@
 #include "ui_ams_sidebar.h"
 #include "ui_batch_filament_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -28,13 +27,16 @@
 #include "ams_error.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "test_helpers/ams_sidebar_xml.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 
 #include <condition_variable>
 #include <memory>
@@ -136,11 +138,11 @@ struct BatchMockHarness {
     /// tests that reach what only AmsBackendSnapmaker exposes. Registered
     /// through AmsState so lane funnels accept its lane ids, and handed the
     /// mock client/api pair so a dispatch through it records its script.
-    helix::AmsBackendSnapmaker& backend() {
+    helix::test::WiredBackend<helix::AmsBackendSnapmaker>& backend() {
         if (!raw_backend_) {
             raw_backend_ =
-                std::make_unique<helix::test::RegisteredBackend<helix::AmsBackendSnapmaker>>(
-                    api.get(), &mock_client);
+                std::make_unique<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>>(
+                    api.get());
         }
         return **raw_backend_;
     }
@@ -148,7 +150,7 @@ struct BatchMockHarness {
     /// Feed one raw JSON status frame to the backend's status handler — the
     /// same entry point the WebSocket drives.
     void feed_status(const std::string& json_text) {
-        helix::SnapmakerTestAccess::handle_status(backend(), nlohmann::json::parse(json_text));
+        backend().fire_status(nlohmann::json::parse(json_text));
     }
 
     /// One frame carrying the feeder channel and its motion sensor — the two
@@ -172,7 +174,7 @@ struct BatchMockHarness {
     MoonrakerClientMock mock_client;
     helix::PrinterState state;
     std::unique_ptr<MoonrakerAPIMock> api;
-    std::unique_ptr<helix::test::RegisteredBackend<helix::AmsBackendSnapmaker>> raw_backend_;
+    std::unique_ptr<helix::test::RegisteredWired<helix::AmsBackendSnapmaker>> raw_backend_;
 };
 
 struct BatchFixture : public LVGLTestFixture, public BatchMockHarness {};
@@ -495,7 +497,7 @@ TEST_CASE_METHOD(BatchFixture, "A feeder delta keeps the fields it does not ment
 // ============================================================================
 
 TEST_CASE_METHOD(BatchFixture, "A finished batch leaves no progress line behind",
-                 "[snapmaker][batch]") {
+                 "[snapmaker][batch][i18n]") {
     helix::SnapmakerTestAccess::set_batch_plan(backend(), {0, 1}, /*load=*/true, "Load", "of");
 
     SECTION("mid-batch, the line names the head now in progress") {
@@ -503,6 +505,9 @@ TEST_CASE_METHOD(BatchFixture, "A finished batch leaves no progress line behind"
         CHECK(backend().batch_plan().cursor == 1);
         CHECK(backend().batch_plan().active);
         CHECK(backend().get_system_info().operation_detail == "Load 2 of 2");
+        helix::ScopedLanguage fr("fr");
+        backend().refresh_translated_texts();
+        CHECK(backend().get_system_info().operation_detail == "Charger 2 de 2");
     }
 
     SECTION("the final head verifies and clears the line") {
@@ -752,7 +757,7 @@ TEST_CASE_METHOD(BatchFixture, "An op's working head names the header, not the l
             &notifications);
         notifications = 0; // adding an observer notifies it once
         ams.sync_from_backend();
-        lv_observer_remove(obs);
+        lv_observer_delete(obs);
         CHECK(notifications == 0);
         CHECK(std::string(lv_subject_get_string(header)) == working_header);
     }
@@ -918,8 +923,8 @@ TEST_CASE_METHOD(BatchModalFixture,
     };
 
     // Several heads: Unload is the picker button; the one-tap one hides.
-    CHECK(lv_obj_has_flag(ui.button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(ui.button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ui.button("btn_unload")));
+    CHECK_FALSE(lv_obj_is_hidden(ui.button("btn_batch_unload")));
     tap_expects_no_picker(ui.button("btn_batch_unload"));
     tap_expects_no_picker(ui.button("btn_load"));
 }

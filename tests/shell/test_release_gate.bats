@@ -12,6 +12,7 @@ setup() {
     mkdir -p "$T/scripts"
     cp "$REPO_ROOT/scripts/release-gate.sh" "$REPO_ROOT/scripts/generate-whatsnew.sh" \
         "$REPO_ROOT/scripts/android-version-code.sh" "$REPO_ROOT/scripts/changelog-section.sh" \
+        "$REPO_ROOT/scripts/mock_symbol_pattern.txt" \
         "$T/scripts/"
     cat >"$T/scripts/helix-claim" <<'CLAIM'
 #!/usr/bin/env bash

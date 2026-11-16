@@ -150,7 +150,6 @@ class GCodeFileModifier {
   public:
     GCodeFileModifier() = default;
 
-    // Non-copyable, movable
     GCodeFileModifier(const GCodeFileModifier&) = delete;
     GCodeFileModifier& operator=(const GCodeFileModifier&) = delete;
     GCodeFileModifier(GCodeFileModifier&&) = default;

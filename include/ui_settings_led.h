@@ -19,11 +19,12 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "led/led_auto_state.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <string>
@@ -61,6 +62,9 @@ class LedSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "led_settings_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void on_activate() override;
@@ -112,17 +116,21 @@ class LedSettingsOverlay : public OverlayBase {
 
     // Auto-state editor state
     SubjectManager subjects_;
-    lv_subject_t auto_state_enabled_subject_{};
-    lv_subject_t led_on_at_start_subject_{};
-    lv_subject_t print_macros_drive_leds_subject_{};
+    helix::Subject auto_state_enabled_subject_{};
+    helix::Subject led_on_at_start_subject_{};
+    helix::Subject startup_brightness_subject_{}; ///< percent, the slider row's readout
+    helix::Subject print_macros_drive_leds_subject_{};
     /// The colour presets every auto-state row's swatches show
     /// (led_auto_color_swatches.xml), and which one each row has picked.
-    lv_subject_t auto_preset_count_{};
+    helix::Subject auto_preset_count_{};
     helix::xml::IndexedSubjectPool auto_preset_color_pool_{
         "led_auto_preset_color", helix::xml::IndexedSubjectPool::Type::Color};
     /// One per kStateRows entry: the preset index ringed, or -1.
     helix::xml::IndexedSubjectPool auto_color_selected_pool_{
         "led_auto_color_sel", helix::xml::IndexedSubjectPool::Type::Int};
+    /// One per kStateRows entry: 1 while its action has a detail panel to show.
+    helix::xml::IndexedSubjectPool auto_detail_shown_pool_{
+        "led_auto_detail_shown", helix::xml::IndexedSubjectPool::Type::Int};
     std::vector<std::string> action_type_options_; // Maps dropdown index to action type string
     int editing_macro_index_ = -1;                 // -1 = no macro device being edited
 };

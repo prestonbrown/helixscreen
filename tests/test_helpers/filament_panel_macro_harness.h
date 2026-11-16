@@ -3,11 +3,13 @@
 #pragma once
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "ams_state.h"
+#include "ams_state_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_op_router.h"
+#include "json_fwd.h"
 #include "macro_param_cache.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -27,7 +29,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-#include "hv/json.hpp"
 
 namespace helix::test {
 
@@ -165,7 +166,7 @@ struct FilamentPanelMacroHarness {
         spool.material = "Spool Test Filament";
         spool.nozzle_temp_min = nozzle_c;
         spool.nozzle_temp_max = nozzle_c;
-        AmsState::instance().set_external_spool_info_in_memory(spool);
+        helix::AmsStateTestAccess::seed_external_spool(spool);
     }
 
     /// Every script sent whose first word is @p macro.

@@ -6,14 +6,13 @@
 #include "ui_breakpoint.h"
 
 #include "default_layout_resolver.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -260,6 +259,16 @@ class PanelWidgetConfig {
     /// does: an added instance ("fan:1") is deleted, a built-in widget stays in
     /// the catalog disabled and unplaced. Does not save().
     void remove_from_page(size_t page_index, size_t index);
+
+    /// Put @p entry back on page @p page_index at list position @p index
+    /// (clamped to the page's end), undoing remove_from_page(). An entry named
+    /// entry.id on that page, the disabled one a built-in widget's removal
+    /// leaves behind, is erased first. One on another page stays: it holds no
+    /// cell, and load() puts an unplaced twin of a default-enabled widget on the
+    /// main page anyway. Refuses, returning false and changing nothing, when
+    /// @p page_index is past the last page or an entry named entry.id holds a
+    /// cell on any page. The rectangle is written as given. Does not save().
+    bool restore_entry(size_t page_index, size_t index, PanelWidgetEntry entry);
 
     /// Generate the default layout for a measured grid.
     ///
@@ -634,9 +643,9 @@ class PanelWidgetConfig {
 /// Most specific breakpoint key present in @p by_bp, or nullptr.
 ///
 /// Both the per-anchor `placements` map and a variant's `disabled` map are keyed
-/// by breakpoint name and resolve through the same chain theme_manager uses.
+/// by breakpoint name and resolve through layout::breakpoint_fallback_chain().
 /// Exported so the shipped-table tests resolve keys through the same function
-/// the loader uses instead of carrying a copy of the fallback chain.
+/// the loader uses.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint);
 
 } // namespace helix

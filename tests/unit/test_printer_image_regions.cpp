@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <set>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -22,6 +23,9 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
       "full":    {"size": [100, 50], "nozzle": [0.5, 0.2], "part_fan": [0.5, 0.1],
                   "chamber": [0.3, 0.4], "light": [0.2, 0.1], "bed": [[0.2, 0.7], [0.8, 0.7]]},
       "minimal": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "quad":    {"size": [10, 10], "nozzle": [0.5, 0.5],
+                  "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6], [0.2, 0.6]]},
+      "bad_quad": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6]]},
       "no_bed":  {"size": [10, 10], "nozzle": [0.5, 0.5]},
       "bad_pt":  {"size": [10, 10], "nozzle": "x", "bed": [[0.1, 0.9], [0.9, 0.9]]}
     })");
@@ -31,8 +35,60 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
     CHECK(m.at("full").bed_right.x == Catch::Approx(0.8f));
     REQUIRE(m.count("minimal") == 1);
     CHECK_FALSE(m.at("minimal").chamber.has_value());
+    CHECK_FALSE(m.at("minimal").bed_far.has_value());
+    REQUIRE(m.at("quad").bed_far.has_value());
+    CHECK(m.at("quad").bed_far->left.x == Catch::Approx(0.2f));
+    CHECK(plate_quad(m.at("quad"))[3].y == Catch::Approx(0.6f));
+    CHECK(m.count("bad_quad") == 0);
+    // An untagged far edge is estimated above the near edge and inside its ends.
+    const auto est = plate_quad(m.at("minimal"));
+    CHECK(est[2].y < 0.9f);
+    CHECK(est[2].x < 0.9f);
+    CHECK(est[3].x > 0.1f);
     CHECK(m.count("no_bed") == 0);
     CHECK(m.count("bad_pt") == 0);
+}
+
+TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][regions]") {
+    const auto m = parse_image_regions(R"({
+      "two":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.2], [0.5, 0.2], [0.5, 0.8], [0.1, 0.8]],
+                           [[0.6, 0.3], [0.9, 0.3], [0.9, 0.7], [0.6, 0.7]]]},
+      "none": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "bad":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.2], [0.5, 0.2], [0.5, 0.8]],
+                           [[0.1, 0.2], [0.5, "x"], [0.5, 0.8], [0.1, 0.8]],
+                           [[0.6, 0.3], [0.9, 0.3], [0.9, 0.7], [0.6, 0.7]]]},
+      "odd":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]], "windows": 3},
+      "shapes": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "windows": [[[0.1, 0.1], [0.5, 0.5], [0.5, 0.1], [0.1, 0.5]],
+                           [[0.1, 0.1], [0.5, 0.1], [0.2, 0.2], [0.1, 0.5]],
+                           [[0.6, 0.3], [0.6, 0.7], [0.9, 0.7], [0.9, 0.3]]]},
+      "far":  {"size": [10, 10], "nozzle": [1e30, -1e30], "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "cut":  {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9]],
+               "cutouts": [[[0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]],
+                           [[0.1, 0.1], [0.5, 0.5], [0.5, 0.1], [0.1, 0.5]],
+                           [[0.4, 0.4], [9.0, 0.4], [9.0, 0.6], [0.4, 0.6]]]}
+    })");
+    REQUIRE(m.at("two").windows.size() == 2);
+    CHECK(m.at("two").windows[1][2].x == Catch::Approx(0.9f));
+    CHECK(m.at("two").windows[1][2].y == Catch::Approx(0.7f));
+    CHECK(m.at("none").windows.empty());
+    // A malformed quad is dropped; the rest of the entry stands.
+    REQUIRE(m.at("bad").windows.size() == 1);
+    CHECK(m.at("bad").windows[0][0].x == Catch::Approx(0.6f));
+    CHECK(m.at("odd").windows.empty());
+    // A bowtie and a dented quad are dropped; a counter-clockwise one is fine.
+    REQUIRE(m.at("shapes").windows.size() == 1);
+    CHECK(m.at("shapes").windows[0][1].y == Catch::Approx(0.7f));
+    // A point far off the picture is pulled back near it.
+    CHECK(m.at("far").nozzle.x == Catch::Approx(2.f));
+    CHECK(m.at("far").nozzle.y == Catch::Approx(-1.f));
+    // Cutouts parse like windows: the bowtie goes, a far corner is held near the picture.
+    CHECK(m.at("cut").windows.empty());
+    REQUIRE(m.at("cut").cutouts.size() == 2);
+    CHECK(m.at("cut").cutouts[0][2].x == Catch::Approx(0.3f));
+    CHECK(m.at("cut").cutouts[1][1].x == Catch::Approx(2.f));
 }
 
 TEST_CASE("parse_image_regions: malformed document yields empty map", "[printer_image][regions]") {
@@ -184,13 +240,33 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     CHECK(s.prompt() == TagPrompt::BedRight);
     CHECK_FALSE(s.skip());
     s.tap({0.8f, 0.8f});
+    CHECK(s.prompt() == TagPrompt::BedFarRight);
+    CHECK(s.can_skip()); // the far edge can be estimated
+    s.tap({0.7f, 0.6f});
+    CHECK(s.prompt() == TagPrompt::BedFarLeft);
+    s.tap({0.3f, 0.6f});
     CHECK(s.prompt() == TagPrompt::Chamber);
 
     // Undo steps back one prompt and forgets its point.
     s.undo();
-    CHECK(s.prompt() == TagPrompt::BedRight);
-    s.tap({0.7f, 0.7f});
+    CHECK(s.prompt() == TagPrompt::BedFarLeft);
+    CHECK_FALSE(s.regions(300, 200).bed_far.has_value()); // one far corner is no edge
+    s.tap({0.25f, 0.6f});
     s.tap({0.3f, 0.4f});
+    // A window is all four corners or none: only its first corner can be skipped,
+    // and skipping it skips the rest.
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.can_skip());
+    s.tap({0.1f, 0.1f});
+    CHECK(s.prompt() == TagPrompt::WindowTopRight);
+    CHECK_FALSE(s.skip());
+    s.undo();
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.skip());
+    CHECK(s.prompt() == TagPrompt::Light);
+    s.undo(); // back over the whole skipped window
+    CHECK(s.prompt() == TagPrompt::WindowTopLeft);
+    CHECK(s.skip());
     CHECK(s.prompt() == TagPrompt::Light);
     CHECK(s.skip());
     CHECK(s.done());
@@ -201,17 +277,38 @@ TEST_CASE("ImageTagSession: prompt order, skips, undo", "[printer_image][image_t
     CHECK(r.src_w == 300);
     CHECK(r.src_h == 200);
     CHECK(r.nozzle.x == Catch::Approx(0.5f));
-    CHECK(r.bed_right.x == Catch::Approx(0.7f));
+    CHECK(r.bed_right.x == Catch::Approx(0.8f));
+    REQUIRE(r.bed_far.has_value());
+    CHECK(r.bed_far->right.x == Catch::Approx(0.7f));
+    CHECK(r.bed_far->left.x == Catch::Approx(0.25f));
     CHECK_FALSE(r.part_fan.has_value());
     REQUIRE(r.chamber.has_value());
     CHECK(r.chamber->y == Catch::Approx(0.4f));
     CHECK_FALSE(r.light.has_value());
+    CHECK(r.windows.empty());
 
     // Undo from the end, past a skip, returns to that prompt.
     s.undo();
     CHECK(s.prompt() == TagPrompt::Light);
     s.tap({0.1f, 0.1f});
     CHECK(s.regions(300, 200).light.has_value());
+
+    // Corners tapped out of order still make one window; three corners on a line make none.
+    s.undo();
+    s.undo();
+    REQUIRE(s.prompt() == TagPrompt::WindowTopLeft);
+    for (const NormPoint p : {NormPoint{0.1f, 0.1f}, NormPoint{0.9f, 0.9f}, NormPoint{0.9f, 0.1f},
+                              NormPoint{0.1f, 0.9f}})
+        s.tap(p);
+    const auto w = s.regions(300, 200).windows;
+    REQUIRE(w.size() == 1);
+    CHECK(w[0][0].x == Catch::Approx(0.1f));
+    CHECK(w[0][0].y == Catch::Approx(0.1f));
+    CHECK(w[0][2].x == Catch::Approx(0.9f));
+    CHECK(w[0][2].y == Catch::Approx(0.9f));
+    s.undo();
+    s.tap({0.5f, 0.1f});
+    CHECK(s.regions(300, 200).windows.empty());
 }
 
 TEST_CASE("user regions: save writes the entry, reset removes only its key",
@@ -224,7 +321,12 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     s.tap({0.5f, 0.125f});
     s.tap({0.25f, 0.75f});
     s.tap({0.75f, 0.75f});
+    s.tap({0.625f, 0.5f});
+    s.tap({0.375f, 0.5f});
     s.skip();
+    for (const NormPoint p : {NormPoint{0.125f, 0.125f}, NormPoint{0.875f, 0.125f},
+                              NormPoint{0.875f, 0.875f}, NormPoint{0.125f, 0.875f}})
+        s.tap(p);
     s.tap({0.375f, 0.125f});
     REQUIRE(s.done());
     REQUIRE(save_user_image_regions("custom:mine", s.regions(300, 200)));
@@ -233,7 +335,8 @@ TEST_CASE("user regions: save writes the entry, reset removes only its key",
     const auto doc = nlohmann::json::parse(read_user_file(cfg));
     CHECK(doc["custom:mine"] == nlohmann::json::parse(R"({"size": [300, 200], "nozzle": [0.5, 0.25],
                                     "part_fan": [0.5, 0.125], "light": [0.375, 0.125],
-                                    "bed": [[0.25, 0.75], [0.75, 0.75]]})"));
+                                    "bed": [[0.25, 0.75], [0.75, 0.75], [0.625, 0.5], [0.375, 0.5]],
+                                    "windows": [[[0.125, 0.125], [0.875, 0.125], [0.875, 0.875], [0.125, 0.875]]]})"));
     // The file reads back through the same parser as regions.json.
     CHECK(parse_image_regions(read_user_file(cfg)).size() == 2);
     // The saved tags take effect without a reload.
@@ -409,6 +512,17 @@ TEST_CASE("user regions: reset with no user entry writes nothing",
     CHECK_FALSE(std::filesystem::exists(cfg.dir / "printer_image_regions.json"));
 }
 
+TEST_CASE("tag_prompt_text: every prompt asks for its own part and none for the review",
+          "[printer_image][image_tagger]") {
+    std::set<std::string> seen;
+    for (int i = 0; i < ImageTagSession::kPromptCount; ++i) {
+        const std::string text = tag_prompt_text(static_cast<TagPrompt>(i));
+        INFO("prompt " << i << ": " << text);
+        CHECK(text != tag_prompt_text(TagPrompt::Done));
+        CHECK(seen.insert(text).second);
+    }
+}
+
 TEST_CASE("tagger_tap_point: screen taps map through the image box, letterboxed on either axis",
           "[printer_image][image_tagger]") {
     // A 400x200 box at (10, 50) holding a square image: bars left and right.
@@ -449,4 +563,22 @@ TEST_CASE("review chips: every part's chip and shown subject is in the tagger XM
         CHECK(xml.find("name=\"" + review_chip_name(kind) + "\"") != std::string::npos);
         CHECK(xml.find("subject=\"" + review_chip_shown_subject(kind) + "\"") != std::string::npos);
     }
+}
+
+TEST_CASE("save_user_image_regions: windows survive a save", "[printer_image][regions]") {
+    const ConfigDirGuard cfg("regions_windows_save");
+    ImageRegions r;
+    r.src_w = 300;
+    r.src_h = 200;
+    r.nozzle = {0.5f, 0.25f};
+    r.bed_left = {0.25f, 0.75f};
+    r.bed_right = {0.75f, 0.75f};
+    r.windows.push_back({{{0.1f, 0.2f}, {0.5f, 0.2f}, {0.5f, 0.8f}, {0.1f, 0.8f}}});
+    r.cutouts.push_back({{{0.2f, 0.3f}, {0.3f, 0.3f}, {0.3f, 0.4f}, {0.2f, 0.4f}}});
+    REQUIRE(save_user_image_regions("custom:mine", r));
+    const auto back = parse_image_regions(read_user_file(cfg));
+    REQUIRE(back.at("custom:mine").windows.size() == 1);
+    CHECK(back.at("custom:mine").windows[0][2].y == Catch::Approx(0.8f));
+    REQUIRE(back.at("custom:mine").cutouts.size() == 1);
+    CHECK(back.at("custom:mine").cutouts[0][1].x == Catch::Approx(0.3f));
 }

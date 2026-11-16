@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -19,12 +20,6 @@
  *
  * ## Skip Logic
  * - Skipped if no AMS detected (AmsType::NONE)
- *
- * ## Class-Based Architecture
- *
- * Follows the wizard step pattern with:
- * - Instance members instead of static globals
- * - Global singleton getter for backwards compatibility
  */
 
 namespace helix::ui {
@@ -56,7 +51,7 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     WizardAmsIdentifyStep();
     ~WizardAmsIdentifyStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardAmsIdentifyStep(const WizardAmsIdentifyStep&) = delete;
     WizardAmsIdentifyStep& operator=(const WizardAmsIdentifyStep&) = delete;
@@ -64,7 +59,7 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     WizardAmsIdentifyStep& operator=(WizardAmsIdentifyStep&&) = delete;
 
     /**
-     * @brief Initialize reactive subjects (no-op for this step)
+     * @brief Register the AMS type, details and logo subjects
      */
     void init_subjects() override;
 
@@ -102,9 +97,6 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
      */
     [[nodiscard]] bool should_skip() const;
 
-    /**
-     * @brief Get step name for logging
-     */
     [[nodiscard]] static const char* get_name() {
         return "Wizard AMS Identify";
     }
@@ -116,9 +108,11 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
     SubjectManager subjects_;
 
     // Subjects for reactive XML binding
-    lv_subject_t wizard_ams_type_{};
-    lv_subject_t wizard_ams_details_{};
-    lv_subject_t wizard_ams_logo_color_{}; ///< 1 for full-color logo art, 0 for a tinted mono mark
+    helix::Subject wizard_ams_type_{};
+    helix::Subject wizard_ams_details_{};
+    helix::Subject
+        wizard_ams_logo_color_{}; ///< 1 for full-color logo art, 0 for a tinted mono mark
+    helix::Subject wizard_ams_logo_visible_{}; ///< 1 when the system has logo art
     static char ams_type_buffer_[64];
     static char ams_details_buffer_[128];
     bool subjects_initialized_{false};
@@ -140,10 +134,6 @@ class WizardAmsIdentifyStep : public helix::wizard::Step {
      */
     [[nodiscard]] std::string get_ams_details() const;
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the singleton wizard AMS identify step instance

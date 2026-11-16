@@ -4,8 +4,10 @@
 #pragma once
 
 #include "ams_backend_ace.h"
+#include "core/update_queue.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "json_fwd.h"
 #include "test_helpers/seeded_override.h"
 
 #include <chrono>
@@ -14,8 +16,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -139,6 +139,8 @@ class AceTestAccess {
     // right after it.
     static void start_load(AmsBackendAce& b) {
         b.on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // --- HelixPrint plugin vendor push ---

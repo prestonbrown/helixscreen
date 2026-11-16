@@ -13,13 +13,12 @@
 #include "ui_gcode_viewer.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "printer_state.h"
 
@@ -72,7 +71,7 @@ class CameraToggleFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static void set_webcam(bool present) {
@@ -103,7 +102,7 @@ class CameraToggleFixture : public LVGLUITestFixture {
         return obj;
     }
     static bool hidden(lv_obj_t* obj) {
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
     static int subject(const char* name) {
         lv_subject_t* s = lv_xml_get_subject(nullptr, name);

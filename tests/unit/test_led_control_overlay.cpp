@@ -12,14 +12,13 @@
 #include "ui_color_picker.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_auto_state.h"
 #include "led/led_backend.h"
@@ -137,7 +136,7 @@ bool within_rounding(uint32_t a, uint32_t b) {
 }
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 // A controller wired to a mock API with a live connection, so commands reach
@@ -916,13 +915,13 @@ TEST_CASE_METHOD(OverlayXmlFixture,
                  "overlay XML: the page shows only the focused device's sections",
                  "[led][overlay][xml]") {
     // RGBW with an effect: lamp, White, Color and the Effects row; no levels, no macro buttons.
-    CHECK_FALSE(lv_obj_has_flag(need("led_power_btn"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_white_section"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_color_section"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(need("led_chip_none"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_level_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_macro_on"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(need("led_empty_state"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_power_btn")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_white_section")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_color_section")));
+    CHECK_FALSE(lv_obj_is_hidden(need("led_chip_none")));
+    CHECK(lv_obj_is_hidden(need("led_level_row")));
+    CHECK(lv_obj_is_hidden(need("led_macro_on")));
+    CHECK(lv_obj_is_hidden(need("led_empty_state")));
 }
 
 TEST_CASE_METHOD(OverlayXmlFixture, "overlay XML: the brightness fill is flat-topped inside a pill",
@@ -1132,8 +1131,7 @@ TEST_CASE_METHOD(OverlayXmlFixture, "overlay XML: a tab dot shows exactly its de
         REQUIRE(dot != nullptr);
         std::vector<int> shown;
         for (uint32_t i = 0; i < lv_obj_get_child_count(dot); ++i) {
-            if (!lv_obj_has_flag(lv_obj_get_child(dot, static_cast<int32_t>(i)),
-                                 LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(lv_obj_get_child(dot, static_cast<int32_t>(i)))) {
                 shown.push_back(static_cast<int>(i));
             }
         }

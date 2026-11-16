@@ -41,19 +41,19 @@ CpuSample at(double wall_s, double cpu_s) {
 TEST_CASE("the saver budget follows the core count and drops while printing",
           "[screensaver][screensaver_gate]") {
     using helix::ui::saver_budget_share;
-    CHECK(saver_budget_share(8, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(4, false) == Catch::Approx(1.00));
-    CHECK(saver_budget_share(3, false) == Catch::Approx(0.75));
-    CHECK(saver_budget_share(2, false) == Catch::Approx(0.50));
-    CHECK(saver_budget_share(1, false) == Catch::Approx(0.10));
-    CHECK(saver_budget_share(0, false) == Catch::Approx(0.10));
+    CHECK(saver_budget_share(8, false, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, false, false) == Catch::Approx(1.00));
+    CHECK(saver_budget_share(4, true, false) == Catch::Approx(0.50)); // every core in-order
+    CHECK(saver_budget_share(3, false, false) == Catch::Approx(0.75));
+    CHECK(saver_budget_share(2, false, false) == Catch::Approx(0.50));
+    CHECK(saver_budget_share(1, false, false) == Catch::Approx(0.10));
+    CHECK(saver_budget_share(0, false, false) == Catch::Approx(0.10));
     // klippy shares the SoC while printing: these stay where they are on purpose.
-    CHECK(saver_budget_share(8, true) == Catch::Approx(0.25));
-    CHECK(saver_budget_share(4, true) == Catch::Approx(0.25));
-    CHECK(saver_budget_share(3, true) == Catch::Approx(0.185));
-    CHECK(saver_budget_share(2, true) == Catch::Approx(0.125));
-    CHECK(saver_budget_share(1, true) == Catch::Approx(0.05));
-    CHECK(saver_budget_share(0, true) == Catch::Approx(0.05));
+    CHECK(saver_budget_share(4, true, true) == Catch::Approx(0.25));
+    CHECK(saver_budget_share(3, false, true) == Catch::Approx(0.185));
+    CHECK(saver_budget_share(2, false, true) == Catch::Approx(0.125));
+    CHECK(saver_budget_share(1, false, true) == Catch::Approx(0.05));
+    CHECK(saver_budget_share(0, false, true) == Catch::Approx(0.05));
 }
 
 TEST_CASE("over budget steps down one level, at the bottom it is too heavy",

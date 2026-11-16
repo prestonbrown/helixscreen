@@ -38,7 +38,6 @@
  */
 
 #include "ui_breakpoint.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -50,10 +49,10 @@
 #include "../test_helpers/scoped_animations_enabled.h"
 #include "../test_helpers/scoped_widget_labels.h"
 #include "../test_helpers/tips_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "bed_mesh_state.h"
+#include "core/update_queue.h"
 #include "display_metrics.h"
 #include "grid_layout.h"
 #include "panel_widget_manager.h"
@@ -77,7 +76,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -262,7 +260,7 @@ struct TestModeGuard {
 struct ContentFitsFixture : public LVGLUITestFixture {
     /// What the seeds that publish through the update queue call after each change.
     void settle_updates() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(30);
     }
     ~ContentFitsFixture() override {
@@ -270,10 +268,10 @@ struct ContentFitsFixture : public LVGLUITestFixture {
         // it: PrintStatusWidget's formatter is a process-lifetime static whose
         // observers sit on ToolState and PrinterState subjects. Tearing those
         // subjects down first frees the observer nodes, and the formatter's
-        // guards then call lv_observer_remove() on freed memory.
+        // guards then call lv_observer_delete() on freed memory.
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // The sweep drives the display through eight resolutions; put the token
         // table back where the rest of the suite expects it, and drop the components
         // registered at the last one so their next use takes the restored tokens.
@@ -296,7 +294,7 @@ void seed_printer_topology(PrinterState& state) {
     ToolState::instance().set_ams_topology(topo);
 
     state.temperature_state().init_extruders({"extruder"});
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// The filament buffer tile binds to AmsState subjects, so it only has content
@@ -431,7 +429,7 @@ Rendered render_at(lv_obj_t* screen, const PanelWidgetDef& def, const CellMetric
         // Several widgets rebuild their content from an observer that fires
         // through UpdateQueue rather than inline (observe<int> queues its
         // handler), so measuring before the drain measures the pre-rebuild tree.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_obj_update_layout(h.root());
         out.report = collect_overflow(h.root(), exceptions());
         if (lv_subject_t* rung =
@@ -445,7 +443,7 @@ Rendered render_at(lv_obj_t* screen, const PanelWidgetDef& def, const CellMetric
     }
     // Anything the widget queued on its way out must run while the objects it
     // captured are still the most recent ones deleted.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     return out;
 }
 
@@ -459,7 +457,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a child past the content
                  "[content_fits][detector]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 100, 100);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -483,7 +481,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // overruns once the 20px padding is taken out.
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 100, 100);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_border_width(parent, 0, 0);
     lv_obj_set_style_pad_all(parent, 20, 0);
 
@@ -534,7 +532,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a clipped string reports
 
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 60, 40);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -558,7 +556,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 60, 40);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 0, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -583,7 +581,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "overflow detector: a tree that fits reports
     // layout, or it gets switched off.
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 200, 120);
-    lv_obj_remove_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(parent, false);
     lv_obj_set_style_pad_all(parent, 4, 0);
     lv_obj_set_style_border_width(parent, 0, 0);
 
@@ -887,10 +885,16 @@ TEST_CASE_METHOD(ContentFitsFixture,
         const CellMetrics m =
             grid_cell_metrics(g.content_w, g.content_h, dims.cols, dims.rows, g.gutter);
 
-        for (const Span sp : spans) {
-            const std::string where =
-                std::string(g.name) + " @ " + std::to_string(sp.c) + "x" + std::to_string(sp.r);
-            for (const PanelWidgetDef* def : {queue_def, stats_def}) {
+        // The spans each tile is offered here. Every queue state is then applied
+        // once per geometry and rendered at each of them: applying one settles the
+        // update queue several times, which costs more than the render.
+        std::vector<Span> offered[2];
+        const PanelWidgetDef* const tiles[2] = {queue_def, stats_def};
+        for (int t = 0; t < 2; ++t) {
+            const PanelWidgetDef* def = tiles[t];
+            for (const Span sp : spans) {
+                const std::string where =
+                    std::string(g.name) + " @ " + std::to_string(sp.c) + "x" + std::to_string(sp.r);
                 if (sp.c > dims.cols || sp.r > dims.rows) {
                     refused.push_back(std::string(def->id) + " " + where + " (grid " +
                                       std::to_string(dims.cols) + "x" + std::to_string(dims.rows) +
@@ -908,23 +912,28 @@ TEST_CASE_METHOD(ContentFitsFixture,
                     refused.push_back(std::string(def->id) + " " + where + " (fits_at)");
                     continue;
                 }
-                if (def == queue_def) {
-                    for (const QueueState& qs : queue_states) {
-                        (queue.*qs.apply)();
-                        INFO(def->id << " " << where << " " << qs.name);
-                        const Rendered r = render_at(test_screen(), *def, m, sp.c, sp.r);
-                        REQUIRE(r.built);
-                        ++rendered_count;
-                        check_clean(r);
-                    }
-                } else {
-                    INFO(def->id << " " << where << " Activity");
-                    const Rendered r = render_at(test_screen(), *def, m, sp.c, sp.r, nullptr, true);
-                    REQUIRE(r.built);
-                    ++rendered_count;
-                    check_clean(r);
-                }
+                offered[t].push_back(sp);
             }
+        }
+        for (const QueueState& qs : queue_states) {
+            if (offered[0].empty())
+                break;
+            (queue.*qs.apply)();
+            for (const Span sp : offered[0]) {
+                INFO(queue_def->id << " " << g.name << " @ " << sp.c << "x" << sp.r << " "
+                                   << qs.name);
+                const Rendered r = render_at(test_screen(), *queue_def, m, sp.c, sp.r);
+                REQUIRE(r.built);
+                ++rendered_count;
+                check_clean(r);
+            }
+        }
+        for (const Span sp : offered[1]) {
+            INFO(stats_def->id << " " << g.name << " @ " << sp.c << "x" << sp.r << " Activity");
+            const Rendered r = render_at(test_screen(), *stats_def, m, sp.c, sp.r, nullptr, true);
+            REQUIRE(r.built);
+            ++rendered_count;
+            check_clean(r);
         }
     }
     for (const auto& x : refused) {
@@ -1135,18 +1144,18 @@ TEST_CASE_METHOD(ContentFitsFixture,
             RegistryWidgetHarness harness(test_screen(), *def, &m);
             REQUIRE(harness.created());
             harness.resize(box.tracks, 1, w, h);
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             lv_obj_update_layout(harness.root());
             require_no_overflow(harness.root(), exceptions(), "favorite_macro micro half height");
 
             lv_obj_t* badge = harness.child("fav_macro_badge");
-            lv_obj_t* name = harness.child("fav_macro_name");
+            lv_obj_t* name = harness.child("fav_macro_name_prompt");
             REQUIRE(badge != nullptr);
             REQUIRE(name != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(badge));
             // Whether the name fits beside the disc depends on the tier's faces; wherever it
             // is drawn it must be whole.
-            if (!lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(name)) {
                 ++names_drawn;
                 // Inside the tile's content box on every edge, and a whole line of its face
                 // tall: its dots ellipsize the width by design, never the height.
@@ -1165,5 +1174,5 @@ TEST_CASE_METHOD(ContentFitsFixture,
     }
     // The wider strips draw the name, so the bounds checks above ran.
     CHECK(names_drawn > 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }

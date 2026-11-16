@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The Moonraker API key field: a label, a masked input bound to `subject`, and the
+     reveal button. Shared by every screen that takes a printer's key, so the field reads
+     the same wherever a user meets it. The input is named password_input, the name the
+     reveal button looks for. -->
+<component>
+  <api>
+    <prop name="subject" type="string" default=""/>
+    <prop name="changed_callback" type="string" default=""/>
+  </api>
+  <view name="api_key_field"
+        extends="lv_obj" width="100%" height="content" scrollable="false" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column">
+    <text_body width="100%" text="API Key (if Moonraker requires a login)"/>
+    <lv_obj width="100%" height="#input_height" scrollable="false" flex_flow="row" style_pad_all="0" style_pad_gap="0">
+      <text_input name="password_input"
+                  height="100%" flex_grow="1" bind_text="$subject" placeholder_text="32 characters, 0-9 and a-f"
+                  placeholder_tag="32 characters, 0-9 and a-f" password_mode="true">
+        <event_cb trigger="value_changed" callback="$changed_callback"/>
+      </text_input>
+      <ui_button name="eye_toggle"
+                 width="#input_height" height="100%" variant="ghost" icon="eye_off" click_focusable="false">
+        <event_cb trigger="clicked" callback="on_toggle_password_visibility"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

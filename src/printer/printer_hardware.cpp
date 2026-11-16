@@ -4,9 +4,9 @@
 #include "printer_hardware.h"
 
 #include "ams_backend.h"
+#include "core/text_io.h"
 #include "hardware_role_registry.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -536,7 +536,6 @@ std::string PrinterHardware::guess_runout_sensor(const std::vector<std::string>&
         return match;
     }
 
-    // No match found
     spdlog::debug("[PrinterHardware] guess_runout_sensor() -> no match found");
     return "";
 }
@@ -546,7 +545,6 @@ std::string PrinterHardware::guess_runout_sensor(const std::vector<std::string>&
 // ============================================================================
 
 bool PrinterHardware::is_ams_sensor_substring(const std::string& sensor_name) {
-    // Convert to lowercase for case-insensitive matching
     std::string lower_name = sensor_name;
     lower_name = helix::text_io::to_lower(lower_name);
 

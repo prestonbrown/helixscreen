@@ -3,13 +3,17 @@
 // Out-of-line PrinterDiscovery members: the object-list scan and config parsers.
 
 #include "ace_vocabulary.h"         // ace::kInstanceObjectPrefix
+#include "ams_types.h"              // ams_type_to_string
 #include "chamber_heater_backend.h" // chamber::match, chamber::keyword_confidence
-#include "display_numbering.h"      // helix::ui::tool_label
+#include "core/text_io.h"
+#include "display_numbering.h" // helix::ui::tool_label
 #include "json_utils.h"
 #include "klipper_extruder_naming.h" // count_extruder_names
+#include "lane_status_parse.h"       // lane_status::kObject
 #include "macro_patterns.h"
+#include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "printer_discovery.h"
-#include "text_io.h"
+#include "start_macro_injection.h"
 #include "toolchanger_addon.h" // zmod_c5_present
 
 #include <spdlog/spdlog.h>
@@ -18,12 +22,26 @@
 #include <climits>
 #include <cstdlib>
 
+#include "hv/json.hpp"
+
 namespace helix {
+
+struct PrinterDiscovery::ClassifiedSection {
+    std::string name;
+    hw::ObjectClass cls;
+    nlohmann::json body;
+};
+
+PrinterDiscovery::PrinterDiscovery() = default;
+PrinterDiscovery::PrinterDiscovery(const PrinterDiscovery&) = default;
+PrinterDiscovery::PrinterDiscovery(PrinterDiscovery&&) noexcept = default;
+PrinterDiscovery& PrinterDiscovery::operator=(const PrinterDiscovery&) = default;
+PrinterDiscovery& PrinterDiscovery::operator=(PrinterDiscovery&&) noexcept = default;
+PrinterDiscovery::~PrinterDiscovery() = default;
 
 void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     clear();
 
-    // Validate input is an array
     if (!objects.is_array()) {
         return;
     }
@@ -121,13 +139,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     };
 
     for (const auto& obj : objects) {
-        // Skip non-string elements
         if (!obj.is_string()) {
             continue;
         }
         std::string name = obj.template get<std::string>();
 
-        // Skip empty strings
         if (name.empty()) {
             continue;
         }
@@ -239,6 +255,7 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         } else if (name == "AFC") {
             has_mmu_ = true;
             mmu_type_ = AmsType::AFC;
+            has_afc_object_ = true;
         }
         // Z-Mod's afclite extra for the Creator 5 line registers the `AFC`
         // object above through its own name; recorded separately so backend
@@ -247,12 +264,22 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         else if (name == "zmod_afclite") {
             has_zmod_afclite_ = true;
         }
+        // Z-Mod's own extra, on every Z-Mod printer whatever its AFC setting.
+        // Beside `AFC` it names Z-Mod's built-in AFC emulation.
+        else if (name == "zmod_color") {
+            has_zmod_color_ = true;
+        }
         // klipper_openams. The name alone cannot claim the printer: a
         // manager that predates its versioned API publishes only
         // current_group, and AFC drives OpenAMS hardware without this
         // object. settle_status_claims() decides once the status is read.
         else if (name == openams::kManagerObject) {
             has_openams_manager_ = true;
+        }
+        // The Lane Status Surface's neutral object. Any filament system may
+        // publish it, so it never claims a printer a backend of its own reads.
+        else if (name == lane_status::kObject) {
+            has_lane_status_ = true;
         }
         // CFS detection (Creality Filament System).
         //
@@ -450,12 +477,10 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             // macro_config_name().
             macro_config_names_.emplace(upper_macro, macro_name);
 
-            // Check for HelixScreen helper macros
             if (upper_macro.rfind("HELIX_", 0) == 0) {
                 helix_macros_.insert(upper_macro);
             }
 
-            // Check for Klippain Shake&Tune
             if (upper_macro == "AXES_SHAPER_CALIBRATION") {
                 has_klippain_shaketune_ = true;
             }
@@ -481,7 +506,6 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                 has_auto_feeding_batch_ = true;
             }
 
-            // Check for common macro patterns and cache them
             if (nozzle_clean_macro_.empty()) {
                 // Shared with StandardMacros' CleanNozzle slot — see
                 // include/macro_patterns.h.
@@ -651,21 +675,30 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                      "the printer and its four toolheads.");
     }
 
-    // Z-Mod's afclite shim impersonates AFC so Fluidd and Mainsail draw an AFC
-    // panel for the Creator 5's four heads. It reports no extruders and no
-    // hubs, so an AFC backend infers a hub topology for heads that are each
-    // their own path, and most of the AFC op macros do not exist on this
-    // firmware. The changer fingerprint is what names the machine (the AD5X
-    // Z-Mod publishes zmod_color but has no carriage grab buttons), so the
-    // toolchanger backend keeps the printer. Scoped to that fingerprint for the
-    // same reason the PAXX rule is scoped to filament_detect: a bare
-    // zmod_afclite on some other machine is displacing nothing better.
-    if (has_mmu_ && mmu_type_ == AmsType::AFC && has_zmod_afclite_ &&
-        toolchanger_addon::zmod_c5_present(*this)) {
-        has_mmu_ = false;
-        spdlog::info("[PrinterDiscovery] zmod_afclite alongside the Creator 5 changer "
-                     "fingerprint: Z-Mod's AFC shim on a head changer. The toolchanger "
-                     "backend keeps the printer and its four toolheads.");
+    // Z-Mod's AFC-shaped objects (the afclite shim on older builds, the
+    // built-in emulation on current ones) exist so Fluidd and Mainsail draw an
+    // AFC panel. They report no extruders and no hubs, and most of the AFC op
+    // macros do not exist on this firmware, so the backend built for the
+    // machine underneath keeps it. The changer fingerprint names the Creator 5
+    // (the AD5X Z-Mod publishes zmod_color but has no carriage grab buttons),
+    // and the toolchanger backend keeps its four heads. On the AD5X the IFS
+    // backend keeps its ports, an IFS Jacker's past the fourth included:
+    // zmod_color and the IFS sensors are there whatever the AFC setting says, so
+    // flipping it changes nothing on screen.
+    // Scoped to Z-Mod's own objects for the same reason the PAXX rule is scoped
+    // to filament_detect: a bare zmod_afclite on some other machine is
+    // displacing nothing better.
+    if (has_mmu_ && mmu_type_ == AmsType::AFC && (has_zmod_afclite_ || has_zmod_afc())) {
+        if (toolchanger_addon::zmod_c5_present(*this)) {
+            has_mmu_ = false;
+            spdlog::info("[PrinterDiscovery] Z-Mod's AFC objects alongside the Creator 5 changer "
+                         "fingerprint: the toolchanger backend keeps the printer and its four "
+                         "toolheads.");
+        } else if (has_zmod_afc()) {
+            mmu_type_ = AmsType::AD5X_IFS;
+            spdlog::info("[PrinterDiscovery] Z-Mod's built-in AFC on an AD5X: the IFS backend "
+                         "keeps the printer and its ports.");
+        }
     }
 
     register_detected_ams_systems();
@@ -719,12 +752,46 @@ const nlohmann::json* PrinterDiscovery::section(std::string_view name) const {
     return nullptr;
 }
 
+namespace {
+
+/// Drops fan-named output_pins that only gate a sibling PWM pin (`fan0_en` beside
+/// `fan0`). A lone enable pin stays: it may be the only control that fan has.
+void remove_fan_enable_pins(std::vector<std::string>& fans) {
+    static constexpr std::string_view kPrefix = "output_pin ";
+    // remove_if overwrites elements as it goes, so siblings are looked up in a copy.
+    const std::vector<std::string> names = fans;
+    const auto has_sibling = [&names](std::string_view stem) {
+        return std::any_of(names.begin(), names.end(), [stem](const std::string& fan) {
+            return std::string_view(fan).substr(0, kPrefix.size()) == kPrefix &&
+                   text_io::equals_ignore_case(std::string_view(fan).substr(kPrefix.size()), stem);
+        });
+    };
+    const auto gates_sibling = [&has_sibling](const std::string& fan) {
+        if (std::string_view(fan).substr(0, kPrefix.size()) != kPrefix) {
+            return false;
+        }
+        const std::string_view pin = std::string_view(fan).substr(kPrefix.size());
+        for (const std::string_view suffix :
+             {std::string_view("_en"), std::string_view("_enable")}) {
+            if (text_io::ends_with_ignore_case(pin, suffix) &&
+                has_sibling(pin.substr(0, pin.size() - suffix.size()))) {
+                return true;
+            }
+        }
+        return false;
+    };
+    fans.erase(std::remove_if(fans.begin(), fans.end(), gates_sibling), fans.end());
+}
+
+} // namespace
+
 void PrinterDiscovery::rebuild_buckets() {
     using hw::ObjectKind;
     heaters_ = objects_of({ObjectKind::Heater, ObjectKind::GenericHeater});
     fans_ =
         objects_of({ObjectKind::Fan, ObjectKind::HeaterFan, ObjectKind::ControllerFan,
                     ObjectKind::GenericFan, ObjectKind::TemperatureFan, ObjectKind::OutputPinFan});
+    remove_fan_enable_pins(fans_);
     sensors_ = objects_of({ObjectKind::TemperatureSensor, ObjectKind::TemperatureFan,
                            ObjectKind::DriverTemperature, ObjectKind::HumidityChip});
     leds_ = objects_of({ObjectKind::Led, ObjectKind::OutputPinLed});
@@ -733,6 +800,14 @@ void PrinterDiscovery::rebuild_buckets() {
     steppers_ = objects_of({ObjectKind::Stepper});
     width_sensor_objects_ = objects_of({ObjectKind::WidthSensor});
     filament_sensor_names_ = objects_of({ObjectKind::FilamentSwitch, ObjectKind::FilamentMotion});
+}
+
+nlohmann::json PrinterDiscovery::claim_status_query() const {
+    nlohmann::json query = nlohmann::json::object();
+    if (has_openams_manager_ && !has_mmu_) {
+        query[openams::kManagerObject] = nlohmann::json::array({"api_version", "schema"});
+    }
+    return query;
 }
 
 void PrinterDiscovery::settle_status_claims(const nlohmann::json& status) {
@@ -771,6 +846,13 @@ void PrinterDiscovery::register_detected_ams_systems() {
         // Docked passive nozzles on one extruder: never the tool-changer arm
         // below, which needs several extruders or klipper-toolchanger.
         mmu_type_ = AmsType::INDX;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
+    } else if (has_lane_status_) {
+        // A producer no backend here knows: the generic lane_status reader.
+        // After every native fallback, so a status-only producer that wraps a
+        // system HelixScreen reads natively leaves it to that backend
+        // (lane-status-spec RFC 0001 §4).
+        mmu_type_ = AmsType::LANE_STATUS;
         detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (!tool_names_.empty() && (has_tool_changer_ || tool_names_.size() > 1)) {
         // More than one hot end, and no filament system managing them:
@@ -828,6 +910,9 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
 
     if (config.contains("spoollink")) {
         has_spoollink_ = true;
+    }
+    if (config.contains("pa_adjust")) {
+        has_pa_adjust_ = true;
     }
     // [indx] on Kalico may have no get_status(), so the configfile section is
     // the only sign of it, and it arrives after parse_objects() registered the
@@ -969,6 +1054,10 @@ void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
     probe_xy_offset_ = offset;
 }
 
+void PrinterDiscovery::parse_start_macro_injection(const nlohmann::json& settings) {
+    firmware_runs_start_macro_before_file_ = helix::firmware_runs_start_macro_before_file(settings);
+}
+
 void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
     software_version_ = json_util::safe_string(result, "software_version", "unknown");
     if (json_util::safe_string(result, "app") == "Kalico") {
@@ -995,6 +1084,7 @@ void PrinterDiscovery::clear() {
     afc_buffer_names_.clear();
     afc_extruder_names_.clear();
     tool_names_.clear();
+    tool_numbers_.clear();
     filament_sensor_names_.clear();
     width_sensor_objects_.clear();
     mmu_encoder_names_.clear();
@@ -1009,7 +1099,9 @@ void PrinterDiscovery::clear() {
     led_driving_macros_.clear();
     skip_wrappable_.clear();
     skip_active_.clear();
+    signal_macro_scan_.reset();
     sensor_toggle_command_.clear();
+    screws_tilt_builtin_.clear();
     helix_macros_.clear();
     nozzle_clean_macro_.clear();
     purge_line_macro_.clear();
@@ -1026,6 +1118,8 @@ void PrinterDiscovery::clear() {
     has_snapmaker_ = false;
     has_afc_lite_ = false;
     has_zmod_afclite_ = false;
+    has_afc_object_ = false;
+    has_zmod_color_ = false;
     has_tool_changer_ = false;
     coexisting_systems_.clear();
     has_pin_watch_ = false;
@@ -1033,8 +1127,10 @@ void PrinterDiscovery::clear() {
     has_medusahc_ = false;
     medusahc_object_name_.clear();
     has_indx_ = false;
+    has_lane_status_ = false;
     has_save_variables_ = false;
     has_spoollink_ = false;
+    has_pa_adjust_ = false;
     has_chamber_heater_ = false;
     has_chamber_sensor_ = false;
     chamber_sensor_name_.clear();
@@ -1047,10 +1143,15 @@ void PrinterDiscovery::clear() {
     chamber_fan_resting_deci_ = 0;
     filament_diameter_mm_ = filament::kDefaultDiameterMm;
     nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;
+    stepper_x_geometry_.reset();
+    stepper_y_geometry_.reset();
     fit_machine_.reset();
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
+    firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
+    fan_tachometers_.clear();
+    configured_tool_numbers_.clear();
     has_led_ = false;
     led_effects_.clear();
     has_led_effects_ = false;
@@ -1085,17 +1186,110 @@ void PrinterDiscovery::clear() {
     objects_reported_ = false;
 }
 
-bool PrinterDiscovery::parse_sensor_toggle_command(const nlohmann::json& settings) {
-    const auto wrapper = settings.find("gcode_macro set_filament_sensor");
+namespace {
+
+/// The name a [gcode_macro <section>] wrapper gave the builtin it replaced
+/// (rename_existing), or empty when nothing wraps it. @p section is the
+/// lowercase configfile key.
+std::string renamed_builtin(const nlohmann::json& settings, const char* section) {
+    const auto wrapper = settings.find(section);
     if (wrapper == settings.end() || !wrapper->is_object()) {
-        return false;
+        return {};
     }
     const auto renamed = wrapper->find("rename_existing");
-    if (renamed == wrapper->end() || !renamed->is_string() || renamed->get<std::string>().empty()) {
+    if (renamed == wrapper->end() || !renamed->is_string()) {
+        return {};
+    }
+    return renamed->get<std::string>();
+}
+
+} // namespace
+
+bool PrinterDiscovery::parse_sensor_toggle_command(const nlohmann::json& settings) {
+    std::string builtin = renamed_builtin(settings, "gcode_macro set_filament_sensor");
+    if (builtin.empty()) {
         return false;
     }
-    sensor_toggle_command_ = renamed->get<std::string>();
+    sensor_toggle_command_ = std::move(builtin);
     return true;
+}
+
+bool PrinterDiscovery::parse_screws_tilt_builtin(const nlohmann::json& settings) {
+    screws_tilt_builtin_ = renamed_builtin(settings, "gcode_macro screws_tilt_calculate");
+    return !screws_tilt_builtin_.empty();
+}
+
+void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings) {
+    const auto extruder = settings.find("extruder");
+    if (extruder == settings.end() || !extruder->is_object()) {
+        return;
+    }
+    auto read_positive = [&extruder](const char* key, float& out) {
+        const auto v = extruder->find(key);
+        if (v != extruder->end() && v->is_number() && v->get<float>() > 0.0f) {
+            out = v->get<float>();
+        }
+    };
+    read_positive("filament_diameter", filament_diameter_mm_);
+    read_positive("nozzle_diameter", nozzle_diameter_mm_);
+}
+
+void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
+    auto read =
+        [&settings](const char* section) -> std::optional<calibration::ripple::MotorGeometry> {
+        const auto s = settings.find(section);
+        if (s == settings.end() || !s->is_object()) {
+            return std::nullopt;
+        }
+        const auto rd = s->find("rotation_distance");
+        if (rd == s->end() || !rd->is_number() || !(rd->get<float>() > 0.0f)) {
+            return std::nullopt;
+        }
+        calibration::ripple::MotorGeometry g;
+        g.rotation_distance_mm = rd->get<float>();
+        const auto steps = s->find("full_steps_per_rotation");
+        if (steps != s->end() && steps->is_number_integer() && steps->get<int>() > 0) {
+            g.full_steps_per_rotation = steps->get<int>();
+        }
+        const auto gear = s->find("gear_ratio");
+        if (gear != s->end() && gear->is_array()) {
+            for (const auto& pair : *gear) {
+                if (pair.is_array() && pair.size() == 2 && pair[0].is_number() &&
+                    pair[1].is_number() && pair[1].get<float>() > 0.0f) {
+                    g.gear_ratio *= pair[0].get<float>() / pair[1].get<float>();
+                }
+            }
+        }
+        return g;
+    };
+    stepper_x_geometry_ = read("stepper_x");
+    stepper_y_geometry_ = read("stepper_y");
+}
+
+void PrinterDiscovery::parse_leveling_probe_points(const nlohmann::json& settings) {
+    leveling_probe_points_.clear();
+    auto read = [&](const char* section, PrintStartPhase phase) {
+        const auto s = settings.find(section);
+        if (s == settings.end() || !s->is_object()) {
+            return;
+        }
+        const auto pts = s->find("points");
+        if (pts == s->end() || !pts->is_array()) {
+            return;
+        }
+        std::vector<LevelingProbePoint> parsed;
+        for (const auto& p : *pts) {
+            if (!p.is_array() || p.size() < 2 || !p[0].is_number() || !p[1].is_number()) {
+                return;
+            }
+            parsed.push_back({p[0].get<double>(), p[1].get<double>(), phase});
+        }
+        leveling_probe_points_.insert(leveling_probe_points_.end(), parsed.begin(), parsed.end());
+    };
+    if (settings.is_object()) {
+        read("quad_gantry_level", PrintStartPhase::QGL);
+        read("z_tilt", PrintStartPhase::Z_TILT);
+    }
 }
 
 void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_status) {
@@ -1109,9 +1303,16 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
 
     // klipper-toolchanger names each tool by its config section, "tool Left".
     static constexpr std::string_view kSectionPrefix = "tool ";
+    // tool_numbers[i] is the number of tool_names[i] (klipper/extras/toolchanger.py).
+    const auto numbers = toolchanger_status.find("tool_numbers");
+    const bool has_numbers = numbers != toolchanger_status.end() && numbers->is_array() &&
+                             numbers->size() == listed->size();
+
     std::vector<std::string> ordered;
+    std::vector<int> ordered_numbers;
     ordered.reserve(tool_names_.size());
-    for (const auto& entry : *listed) {
+    for (size_t i = 0; i < listed->size(); ++i) {
+        const auto& entry = (*listed)[i];
         if (!entry.is_string()) {
             continue;
         }
@@ -1123,12 +1324,23 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
             std::find(tool_names_.begin(), tool_names_.end(), name) != tool_names_.end();
         if (discovered && std::find(ordered.begin(), ordered.end(), name) == ordered.end()) {
             ordered.push_back(std::move(name));
+            int number = -1;
+            if (has_numbers && (*numbers)[i].is_number_integer()) {
+                number = (*numbers)[i].get<int>();
+            }
+            ordered_numbers.push_back(number);
         }
     }
     for (const auto& name : tool_names_) {
         if (std::find(ordered.begin(), ordered.end(), name) == ordered.end()) {
             ordered.push_back(name);
+            ordered_numbers.push_back(-1);
         }
+    }
+    if (has_numbers) {
+        tool_numbers_ = std::move(ordered_numbers);
+    } else {
+        tool_numbers_.clear();
     }
 
     if (ordered != tool_names_) {
@@ -1141,9 +1353,26 @@ void PrinterDiscovery::order_tools_by_number(const nlohmann::json& toolchanger_s
     }
 }
 
+void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& settings) {
+    if (!settings.is_object()) {
+        return;
+    }
+    static constexpr std::string_view kSectionPrefix = "tool ";
+    for (const auto& [section, values] : settings.items()) {
+        if (section.rfind(kSectionPrefix, 0) != 0 || !values.is_object()) {
+            continue;
+        }
+        const auto number = values.find("tool_number");
+        if (number == values.end() || !number->is_number_integer()) {
+            continue;
+        }
+        configured_tool_numbers_[helix::text_io::to_lower(section.substr(kSectionPrefix.size()))] =
+            number->get<int>();
+    }
+}
+
 void PrinterDiscovery::natural_sort(std::vector<std::string>& names) {
     std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
-        // Find where trailing digits start
         auto digit_start = [](const std::string& s) -> size_t {
             size_t i = s.size();
             while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1])))

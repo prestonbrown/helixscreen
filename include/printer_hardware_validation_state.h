@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "hardware_validator.h"
 #include "subject_managed_panel.h"
 
@@ -14,7 +15,7 @@ namespace helix {
  * Tracks hardware validation state including issue counts, severity levels,
  * and formatted status text for the Settings panel Hardware Health section.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * ## Subjects (8 total):
  * - hardware_status_level_ (int): 0=ok, 1=attention, 2=critical (headline badge)
@@ -31,7 +32,6 @@ class PrinterHardwareValidationState {
     PrinterHardwareValidationState() = default;
     ~PrinterHardwareValidationState() = default;
 
-    // Non-copyable
     PrinterHardwareValidationState(const PrinterHardwareValidationState&) = delete;
     PrinterHardwareValidationState& operator=(const PrinterHardwareValidationState&) = delete;
 
@@ -89,30 +89,18 @@ class PrinterHardwareValidationState {
         return &hardware_status_level_;
     }
 
-    /**
-     * @brief Get hardware critical count subject
-     */
     lv_subject_t* get_hardware_critical_count_subject() {
         return &hardware_critical_count_;
     }
 
-    /**
-     * @brief Get hardware warning count subject
-     */
     lv_subject_t* get_hardware_warning_count_subject() {
         return &hardware_warning_count_;
     }
 
-    /**
-     * @brief Get hardware info count subject
-     */
     lv_subject_t* get_hardware_info_count_subject() {
         return &hardware_info_count_;
     }
 
-    /**
-     * @brief Get hardware session count subject
-     */
     lv_subject_t* get_hardware_session_count_subject() {
         return &hardware_session_count_;
     }
@@ -175,14 +163,14 @@ class PrinterHardwareValidationState {
     bool subjects_initialized_ = false;
 
     // Hardware validation subjects
-    lv_subject_t hardware_status_level_{};   // Integer: 0=ok, 1=attention, 2=critical
-    lv_subject_t hardware_critical_count_{}; // Integer: count of critical issues
-    lv_subject_t hardware_warning_count_{};  // Integer: count of warning issues
-    lv_subject_t hardware_info_count_{};     // Integer: count of info issues
-    lv_subject_t hardware_session_count_{};  // Integer: count of session change issues
-    lv_subject_t hardware_status_title_{};   // String: e.g., "All Healthy"
-    lv_subject_t hardware_status_detail_{};  // String: e.g., "1 critical, 2 warnings"
-    lv_subject_t hardware_issues_label_{};   // String: "1 Hardware Issue" / "5 Hardware Issues"
+    helix::Subject hardware_status_level_{};   // Integer: 0=ok, 1=attention, 2=critical
+    helix::Subject hardware_critical_count_{}; // Integer: count of critical issues
+    helix::Subject hardware_warning_count_{};  // Integer: count of warning issues
+    helix::Subject hardware_info_count_{};     // Integer: count of info issues
+    helix::Subject hardware_session_count_{};  // Integer: count of session change issues
+    helix::Subject hardware_status_title_{};   // String: e.g., "All Healthy"
+    helix::Subject hardware_status_detail_{};  // String: e.g., "1 critical, 2 warnings"
+    helix::Subject hardware_issues_label_{};   // String: "1 Hardware Issue" / "5 Hardware Issues"
 
     // Stored validation result for UI access
     HardwareValidationResult hardware_validation_result_;

@@ -25,7 +25,8 @@
     "nozzle_volume_type"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_hub": null,
   "gcode_macro START_PRINT": [

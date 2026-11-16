@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "bed_drying.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "subject_managed_panel.h"
 
@@ -75,7 +76,8 @@ class BedDryingController {
     /// message when a move was refused or failed, or the latch could not be
     /// saved.
     void prepare(const bed_drying::Material& material, bool with_appliance,
-                 std::function<void()> on_ready, std::function<void(const std::string&)> on_error);
+                 helix::SharedCallback<void()> on_ready,
+                 helix::SharedCallback<void(const std::string&)> on_error);
 
     /// The spools are on the plate: persist the run, heat. False, with nothing
     /// heated, when the run could not be saved.
@@ -99,7 +101,8 @@ class BedDryingController {
     /// once its action has gone busy and back to idle, @p on_failed on ERROR
     /// (started = true) or when it never goes busy within kUnloadStartWindowMs
     /// (started = false). A second call replaces the first wait.
-    void await_unload(std::function<void()> on_done, std::function<void(bool started)> on_failed);
+    void await_unload(helix::SharedCallback<void()> on_done,
+                      helix::SharedCallback<void(bool started)> on_failed);
 
     /// Drop the wait without running either callback.
     void cancel_unload_wait();
@@ -204,13 +207,13 @@ class BedDryingController {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t bed_drying_state_{};
-    lv_subject_t bed_drying_text_{};
-    lv_subject_t bed_drying_remaining_min_{};
-    lv_subject_t bed_drying_progress_pct_{};
-    lv_subject_t bed_drying_ack_{};
-    lv_subject_t bed_drying_chamber_assist_{};
-    lv_subject_t bed_drying_chamber_text_{};
+    helix::Subject bed_drying_state_{};
+    helix::Subject bed_drying_text_{};
+    helix::Subject bed_drying_remaining_min_{};
+    helix::Subject bed_drying_progress_pct_{};
+    helix::Subject bed_drying_ack_{};
+    helix::Subject bed_drying_chamber_assist_{};
+    helix::Subject bed_drying_chamber_text_{};
     char text_buf_[96]{};
     char chamber_text_buf_[96]{};
 
@@ -223,8 +226,8 @@ class BedDryingController {
     ObserverGuard unload_watch_;
     lv_timer_t* unload_timer_ = nullptr;
     bool unload_seen_busy_ = false;
-    std::function<void()> unload_done_;
-    std::function<void(bool)> unload_failed_;
+    helix::SharedCallback<void()> unload_done_;
+    helix::SharedCallback<void(bool)> unload_failed_;
 
     AsyncLifetimeGuard lifetime_;
 };

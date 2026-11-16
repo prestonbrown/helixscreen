@@ -6,9 +6,9 @@
 // live speed on a row.
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>
@@ -152,20 +152,12 @@ TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan rows say 'fan' for a sing
     CHECK(r[2][0] == "1 additional fan");
 }
 
-TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan rows have no overflow row when all fit",
+TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan row speed follows the fan, no overflow row",
                  "[controls][fans][fan-rows]") {
     state().fan_state().init_fans({"fan", "fan_generic exhaust"});
     build_and_activate();
-
-    const auto r = rows();
-    REQUIRE(r.size() == 1);
-    CHECK(r[0].size() == 3);
-}
-
-TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan row speed follows the fan",
-                 "[controls][fans][fan-rows]") {
-    state().fan_state().init_fans({"fan", "fan_generic exhaust"});
-    build_and_activate();
+    REQUIRE(rows().size() == 1);
+    CHECK(rows()[0].size() == 3);
     REQUIRE(rows().at(0).at(1) == "Off");
 
     set_speed("fan_generic exhaust", 0.5);
@@ -173,6 +165,19 @@ TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan row speed follows the fan
 
     set_speed("fan_generic exhaust", 0.0);
     CHECK(rows().at(0).at(1) == "Off");
+}
+
+TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan speed skips a deleted row's label",
+                 "[controls][fans][fan-rows]") {
+    state().fan_state().init_fans({"fan", "fan_generic exhaust"});
+    build_and_activate();
+    lv_obj_t* row = lv_obj_get_child(list(), 0);
+    REQUIRE(row != nullptr);
+    const uint32_t before = lv_obj_get_child_count(list());
+    lv_obj_delete(row);
+    REQUIRE(lv_obj_get_child_count(list()) == before - 1);
+
+    set_speed("fan_generic exhaust", 0.5);
 }
 
 TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan rows rebuild when fans are rediscovered",
@@ -187,7 +192,7 @@ TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan rows rebuild when fans ar
     CHECK(rows().size() == 2);
 
     // A tap anywhere on the list opens the fan overlay.
-    CHECK(lv_obj_has_flag(list(), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(list()));
 }
 
 TEST_CASE_METHOD(ControlsFanRowsFixture,

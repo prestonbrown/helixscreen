@@ -3,8 +3,8 @@
 
 #include "filament_display_name.h"
 
-#include "operation_patterns.h"
-#include "text_io.h"
+#include "ams_types.h"
+#include "core/text_io.h"
 
 #include <cctype>
 #include <initializer_list>
@@ -106,7 +106,7 @@ bool material_is_redundant(const std::string& name, const std::string& material)
             continue;
         }
         saw_token = true;
-        if (!contains_ci(name, material.substr(start, i - start))) {
+        if (!helix::text_io::contains_ignore_case(name, material.substr(start, i - start))) {
             return false;
         }
     }
@@ -187,8 +187,20 @@ FilamentLabelParts resolve_filament_label_parts(const SlotInfo& slot, const Spoo
 
 std::string slot_card_name(const SlotInfo& slot, const SpoolIdentity* identity) {
     const SpoolIdentity* id = (identity != nullptr && identity->valid()) ? identity : nullptr;
-    const std::string_view id_name = id ? std::string_view(id->filament_name) : std::string_view();
-    return normalize_ws(first_non_blank({slot.spool_name, id_name, slot.product_name}));
+    // The brand is the one name every lane states the same way. Spool and
+    // filament names are free text that opens with a brand on one spool and a
+    // colour on the next, and the card only has room for their first word.
+    std::string brand = normalize_ws(slot.brand);
+    if (brand.empty() && id != nullptr) {
+        brand = normalize_ws(id->vendor);
+    }
+    // "Generic" names no maker, and a brand spelled as the material repeats
+    // the line below it.
+    if (text_io::equals_ignore_case(brand, "Generic") ||
+        text_io::equals_ignore_case(brand, normalize_ws(slot.material))) {
+        return {};
+    }
+    return brand;
 }
 
 SlotCardLines slot_card_lines(std::string_view name, std::string_view material,

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_context_menu.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_home_layout.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "led/led_controller.h"
 #include "led/led_devices.h"
@@ -63,7 +63,7 @@ struct LedWidgetFixture : public LVGLTestFixture {
         ctrl.rebuild_macro_backend();
     }
     ~LedWidgetFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         LedController::instance().set_on_wled_settled(nullptr);
         LedController::instance().deinit();
     }
@@ -128,7 +128,7 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: a vanished device resolves to the
 
     client.clear_gcode_script_history();
     lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(scripts_naming(client, "chamber_light") > 0);
     w.detach_tile();
 }
@@ -172,9 +172,43 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: a fresh button names and toggles 
 
     client.clear_gcode_script_history();
     lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(scripts_naming(client, "chamber_light") > 0);
     CHECK(scripts_naming(client, "sb_leds") == 0);
+    w.detach_tile();
+}
+
+TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: a tile deleted under it ignores later light changes",
+                 "[led][light_button][lifetime]") {
+    // A layout <if> deletes its branch, cells and all, before the panel that
+    // attached this widget is rebuilt; the widget must let go of the icon then,
+    // not on its next detach.
+    LedWidget w("led", ps, api.get());
+    w.set_config(nlohmann::json::object());
+    lv_obj_t* branch = lv_obj_create(test_screen());
+    lv_obj_t* cell = lv_obj_create(branch);
+    lv_obj_t* icon = lv_label_create(cell);
+    lv_obj_set_name(icon, "light_icon");
+    w.attach_tile(cell, test_screen());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    lv_obj_delete(branch);
+    // A label made now usually lands in the icon's freed memory, so a stale
+    // write through the widget's old pointer shows up on it.
+    lv_obj_t* bystander = lv_label_create(test_screen());
+    lv_label_set_text(bystander, "bystander");
+    lv_obj_set_style_text_color(bystander, lv_color_hex(0x123456), LV_PART_MAIN);
+
+    auto& ctrl = LedController::instance();
+    for (lv_subject_t* version :
+         {ctrl.get_led_state_version_subject(), ctrl.get_led_config_version_subject()}) {
+        lv_subject_set_int(version, lv_subject_get_int(version) + 1);
+    }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(std::string(lv_label_get_text(bystander)) == "bystander");
+    CHECK(lv_color_to_u32(lv_obj_get_style_text_color(bystander, LV_PART_MAIN)) ==
+          lv_color_to_u32(lv_color_hex(0x123456)));
+    CHECK(name_of("led") == "Chamber Light");
     w.detach_tile();
 }
 
@@ -235,10 +269,10 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: the name follows a change in the 
     LedWidget wled("led", ps, api.get());
     wled.set_config({{"led", "printer_led"}});
     wled.attach(lv_obj_create(test_screen()), test_screen());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(name_of("led") == "Chamber Light");
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE_FALSE(name_for("printer_led").empty());
     CHECK(name_of("led") == name_for("printer_led"));
     wled.detach();
@@ -247,7 +281,7 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: the name follows a change in the 
     LedWidget macro("led:1", ps, api.get());
     macro.set_config({{"led", "macro:Lamp"}});
     macro.attach(lv_obj_create(test_screen()), test_screen());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(name_of("led:1") == "Lamp");
     std::vector<LedMacroInfo> kept;
     for (const auto& m : ctrl.configured_macros()) {
@@ -257,7 +291,7 @@ TEST_CASE_METHOD(LedWidgetFixture, "LedWidget: the name follows a change in the 
     }
     ctrl.set_configured_macros(kept);
     ctrl.rebuild_macro_backend();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(name_of("led:1") == "Chamber Light");
     macro.detach();
 }
@@ -300,7 +334,7 @@ struct LedPickerFixture : public XMLTestFixture {
         add_strips({"neopixel chamber_light", "neopixel sb_leds"});
     }
     ~LedPickerFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         LedController::instance().deinit();
     }
     static void add_strips(const std::vector<std::string>& ids) {
@@ -331,6 +365,14 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     process_lvgl(50);
 
     CHECK(w.light_key() == "neopixel sb_leds");
+
+    // Its subjects drop their names at deinit and come back on the next open.
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one("LedPicker"));
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_count") == nullptr);
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_name_0") == nullptr);
+    w.on_edit_configure();
+    CHECK(lv_xml_get_subject(nullptr, "led_picker_count") != nullptr);
+    CHECK(lv_obj_find_by_name(test_screen(), "led_picker_row_1") != nullptr);
     w.detach_tile();
 }
 
@@ -343,7 +385,7 @@ nlohmann::json wled_bound_light() {
 }
 
 void drain_queue() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 } // namespace
 
@@ -479,7 +521,7 @@ TEST_CASE_METHOD(LedWidgetFixture, "toggle_lights: switches its ids and reports 
     CHECK(client.gcode_script_history().empty());
 
     CHECK(toggle_lights({"neopixel sb_leds"}, "test").outcome == LightToggle::On);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(scripts_naming(client, "sb_leds") == 1);
     CHECK(scripts_naming(client, "chamber_light") == 0);
 }
@@ -490,14 +532,14 @@ TEST_CASE_METHOD(LedWidgetFixture,
     auto& ctrl = LedController::instance();
     // A TOGGLE macro has no readable state; a native strip has none until Klipper reports it.
     const auto lamp = toggle_lights({"macro:Lamp"}, "test");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(lamp.outcome == LightToggle::On);
     CHECK(lamp.unconfirmed);
 
     ctrl.update_from_status({{"neopixel sb_leds", {{"color_data", {{0.0, 0.0, 0.0, 0.0}}}}}});
     REQUIRE(ctrl.device_state("neopixel sb_leds").power == PowerState::Off);
     const auto mixed = toggle_lights({"macro:Lamp", "neopixel sb_leds"}, "test");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(mixed.unconfirmed);
 
     CHECK_FALSE(toggle_lights({}, "test").unconfirmed);
@@ -521,10 +563,10 @@ TEST_CASE_METHOD(LedWidgetFixture,
     lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
     CHECK(client.gcode_script_history().empty());
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE_FALSE(LedController::instance().light_command_in_flight());
     lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(scripts_naming(client, "chamber_light") > 0);
     w.detach_tile();
 }

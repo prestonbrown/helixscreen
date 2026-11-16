@@ -2,6 +2,7 @@ set_wizard_cancel_callback
 reset_discovery_session
 queue_freeze.emplace
 AmsState::instance().before_disconnect()
+m_subjects->before_disconnect()
 ->disconnect()
 SoundManager::instance().set_moonraker_client(nullptr
 set_moonraker_manager(nullptr)

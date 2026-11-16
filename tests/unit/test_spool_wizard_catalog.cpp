@@ -6,10 +6,10 @@
 
 #include "ui_search_debounce.h"
 #include "ui_spool_wizard.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -256,6 +256,23 @@ TEST_CASE_METHOD(WizardCatalogFixture,
         REQUIRE(client.spoolman_mock().created_vendors.size() == 1);
         CHECK(client.spoolman_mock().created_vendors[0]["name"] == "Prusament");
     }
+}
+
+TEST_CASE_METHOD(WizardCatalogFixture,
+                 "a SpoolmanDB pick of a precise type finds the record it was filed under",
+                 "[spool_wizard][spoolman_db]") {
+    // A PLA+ pick is filed as the slicer's PLA, so its record carries PLA.
+    client.spoolman_mock().add_vendor(7, "Polymaker");
+    client.spoolman_mock().add_filament(70, 7, "PLA", "1E5AA8", "PolyLite PLA+ Blue");
+    wizard.load_vendors();
+    drain();
+    ExternalFilament f = catalog_filament();
+    f.name = "PolyLite PLA+ Blue";
+    f.material = "PLA+";
+    wizard.apply_catalog_results({f});
+    wizard.select_catalog_result(0);
+    drain();
+    CHECK(wizard.selected_filament().server_id == 70);
 }
 
 TEST_CASE_METHOD(WizardCatalogFixture, "an answer after the wizard closes is ignored",

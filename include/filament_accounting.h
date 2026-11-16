@@ -15,14 +15,13 @@
 
 #include "display_numbering.h"
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

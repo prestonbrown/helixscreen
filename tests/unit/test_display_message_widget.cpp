@@ -15,7 +15,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
@@ -92,7 +92,7 @@ struct DisplayMessageFixture : public LVGLUITestFixture {
     void set_message(const char* text) {
         nlohmann::json msg = text ? nlohmann::json(text) : nlohmann::json(nullptr);
         state().update_from_status({{"display_status", {{"message", msg}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -104,7 +104,7 @@ int subject_int(const char* name) {
 
 bool hidden(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 std::string label_text(lv_obj_t* obj) {

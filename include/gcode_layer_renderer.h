@@ -41,6 +41,20 @@ constexpr bool reveal_ready_2d(bool ghost_output, bool solid_incomplete, bool gh
     return ghost_output || (!solid_incomplete && !ghost_running);
 }
 
+/// One step of the adaptive layers-per-frame controller, as a pure rule.
+/// Under budget it grows by at least one layer, so small values climb back
+/// after a slow frame instead of rounding to themselves. Over twice the
+/// target it scales down by the overshoot; slightly over, it drops to 75%.
+/// The result is clamped to [1, max_lpf].
+///
+/// @param lpf         current layers per frame
+/// @param frame_ms    render time of the last frame (0 = no sample: unchanged)
+/// @param target_ms   per-frame budget
+/// @param growth_cap  largest growth ratio per step (lower on constrained devices)
+/// @param max_lpf     device-aware upper bound
+int next_adaptive_layers_per_frame(int lpf, uint32_t frame_ms, int target_ms, float growth_cap,
+                                   int max_lpf);
+
 /**
  * @brief 2D software-rasterized G-code preview
  *
@@ -747,9 +761,8 @@ class GCodeLayerRenderer {
 
     /// What the SSAO pass changed, so it can be taken back.
     ///
-    /// This replaced a full-canvas ARGB8888 second buffer whose only job was to
-    /// keep an untouched copy of the source. The pass darkens the silhouette
-    /// edge, and the edge is a perimeter: measured across a whole 218-layer
+    /// Cheaper than keeping a full-canvas ARGB8888 copy of the source. The pass
+    /// darkens the silhouette edge, and the edge is a perimeter: measured across a whole 218-layer
     /// three-object print it peaked at 713 pixels, 4.3% of the filled pixels and
     /// falling as the model densified. 713 entries is 6KB against the buffer's
     /// 427KB.
@@ -836,7 +849,8 @@ class GCodeLayerRenderer {
     // Constrained device limits (AD5M, low-RAM embedded < 256MB)
     static constexpr int kConstrainedStartLpf = 5;
     static constexpr int kConstrainedMaxLpf = 15;
-    static constexpr float kConstrainedGrowthCap = 1.3f; // vs 2.0f normal
+    static constexpr float kGrowthCap = 2.0f;
+    static constexpr float kConstrainedGrowthCap = 1.3f;
 
     int layers_per_frame_{kDefaultLayersPerFrame}; ///< Current layers per frame (may be adaptive)
     int config_layers_per_frame_{0};               ///< Config value (0 = adaptive)

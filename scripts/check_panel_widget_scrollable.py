@@ -8,10 +8,9 @@
 # but NOT scrollable, so an author who reads "our theme makes lv_obj a pure
 # layout container" reasonably concludes scrolling is off. It is not.
 #
-# That shipped a bug. ui_xml/components/panel_widget_print_status.xml had
-# print_card_idle and print_card_idle_compact with no `scrollable` attribute, so
-# they qualified for a page-scroll gutter and the chevrons rendered on top of the
-# widget's thumbnail on an 800x480 ESP32 K-Touch (fixed in 7d69130df). Home
+# A container with no `scrollable` attribute qualifies for a page-scroll gutter,
+# and its chevrons render on top of the widget's content (a print-status
+# thumbnail on an 800x480 ESP32 K-Touch, for one). Home
 # widget tiles are also drag-scrolled by the grid beneath them, so an accidental
 # scrollable container inside a tile steals the drag the grid wants.
 #
@@ -26,7 +25,7 @@
 #
 # NOT flagged:
 #   - <view extends="ui_card"> and any other extends=. ui_card's create handler
-#     already clears the flag (src/ui/ui_card.cpp:53), so those roots are safe.
+#     already clears the flag (src/ui/components/ui_card.cpp:53), so those roots are safe.
 #     Other extends= inherit whatever that component declared; the declaration
 #     belongs on the component that actually extends lv_obj, not on every file
 #     that composes it.
@@ -70,6 +69,9 @@ import subprocess
 import sys
 
 from staged_content import catfile_batch
+import ratchet  # noqa: E402
+
+from source_strip import blank_xml_comments
 
 SCAN_DIR = os.path.join('ui_xml', 'components')
 SCAN_GLOB = 'panel_widget_*.xml'
@@ -95,12 +97,6 @@ TAG_RE = re.compile(r'<(lv_obj|view)\b((?:[^>"\']|"[^"]*"|\'[^\']*\')*)/?>')
 
 ATTR_RE = re.compile(r'\bscrollable\s*=')
 EXTENDS_RE = re.compile(r'\bextends\s*=\s*"([^"]*)"')
-COMMENT_RE = re.compile(r'<!--.*?-->', re.S)
-
-
-def strip_comments(src):
-    """Blank out comment bodies, keeping newlines so line numbers stay true."""
-    return COMMENT_RE.sub(lambda m: re.sub(r'[^\n]', ' ', m.group(0)), src)
 
 
 def is_panel_widget(path):
@@ -109,7 +105,7 @@ def is_panel_widget(path):
 
 def scan_source(path, src):
     """Scan already-sourced text. `path` is only carried into the report."""
-    src = strip_comments(src)
+    src = blank_xml_comments(src)
     lines = src.split('\n')
     hits = []
 
@@ -260,8 +256,10 @@ def main():
         print('   Run: python3 scripts/check_panel_widget_scrollable.py --list')
         return 1
     if total < limit:
-        print(f'✅ Panel-widget scrollable: {total} (baseline {limit} - ratchet the baseline down)')
-        return 0
+        return ratchet.under_baseline(
+            'Panel-widget scrollable', 'scripts/qc/design_pixels.sh and BASELINE in tests/shell/test_panel_widget_scrollable_gate.bats',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f'✅ Panel-widget scrollable: {total} (baseline {limit} - ratchet the baseline down)')
     print(f'✅ Panel-widget scrollable: {total} == baseline ({limit})')
     return 0
 

@@ -67,13 +67,6 @@ BASE_TOKENS='<px name="space_md" value="6"/>
   <px name="gap_large" value="8"/>
   <color name="accent" value="#112233"/>'
 
-@test "the real tree's artefacts are current" {
-    cd "$REPO_ROOT" || return 1
-    run python3 "$GATE" --staged-only
-    [ "$status" -eq 0 ]
-    contains "Theme artefacts match" "$output"
-}
-
 @test "an unchanged tree passes" {
     run_staged
     [ "$status" -eq 0 ]
@@ -215,7 +208,7 @@ BASE_TOKENS='<px name="space_md" value="6"/>
              scripts/gen_theme_tokens.py; do
         echo "$p" | grep -qE "$re" || fail "$p should trigger"
     done
-    for p in ui_xml/components/row.xml src/ui/theme_manager.cpp docs/devel/README.md; do
+    for p in ui_xml/components/row.xml src/ui/theme/theme_manager.cpp docs/devel/README.md; do
         if echo "$p" | grep -qE "$re"; then fail "$p should not trigger"; fi
     done
 }

@@ -11,9 +11,9 @@
  * right when debug meant "off in the field".
  *
  * It stopped being right when the debug bundle grew its in-memory ring, which is
- * captured at debug (logging_init.cpp, and see log_redact.h). From then on the
+ * captured at debug (logging_init.cpp, and see core/log_redact.h). From then on the
  * dedupe quieted the console while still spending the ring on every repeat. In
- * bundle TPVTQKBM one untranslated tag — re-resolved on a temperature tick, so
+ * one debug bundle, one untranslated tag — re-resolved on a temperature tick, so
  * ~5.5 times a second for the whole session — took 10,103 of the 13,310 lines
  * the bundle shipped, and pushed the print-start evidence we had asked that
  * reporter for out of the capture window entirely.
@@ -23,8 +23,12 @@
  * genuinely missing tag or a genuinely broken asset.
  */
 
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
+#include "subject_debug_registry.h"
 
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -50,21 +54,14 @@ class LevelCapture {
         prev_level_ = logger_->level();
         ring_->set_level(spdlog::level::debug);
         all_->set_level(spdlog::level::trace);
-        logger_->sinks().push_back(ring_);
-        logger_->sinks().push_back(all_);
+        helix::attach_log_sink(*logger_, ring_);
+        helix::attach_log_sink(*logger_, all_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LevelCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto* wanted : {&ring_, &all_}) {
-            for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-                if (*it == *wanted) {
-                    sinks.erase(it);
-                    break;
-                }
-            }
-        }
+        helix::detach_log_sink(*logger_, ring_);
+        helix::detach_log_sink(*logger_, all_);
         logger_->set_level(prev_level_);
     }
 
@@ -76,6 +73,16 @@ class LevelCapture {
     /// Lines recorded at any level, including trace.
     int total(const std::string& needle) const {
         return count(all_, needle);
+    }
+
+    /// The first line recorded at any level containing @p needle, or "".
+    std::string first_line_with(const std::string& needle) const {
+        for (const auto& line : all_->last_formatted(256)) {
+            if (line.find(needle) != std::string::npos) {
+                return line;
+            }
+        }
+        return "";
     }
 
   private:
@@ -263,3 +270,54 @@ TEST_CASE("LVGL log handler: English having no translation pack stays out of the
     warn_language_not_found("de", de_tag);
     CHECK(logs.in_ring(de_tag) == 1);
 }
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
+    "[logging][lvgl][subject]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    helix::Subject subject;
+    subject.init_int(0);
+    SubjectDebugRegistry::instance().register_subject(&subject, "helix_type_probe",
+                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+
+    // An int subject read as a string: what a binding wired to the wrong subject does.
+    // LVGL itself writes the warning, so the handler sees the exact text it ships.
+    (void)lv_subject_get_string(&subject);
+
+    const std::string warning = logs.first_line_with("subject->type");
+    REQUIRE_FALSE(warning.empty());
+    const char* code = helix::logging::anomaly_code_for_warning(warning);
+    REQUIRE(code != nullptr);
+    CHECK(std::string(code) == "subject_type_mismatch");
+    CHECK(logs.total("Expected type: STRING") == 1);
+    CHECK(logs.total("Subject: \"helix_type_probe\"") == 1);
+
+    SubjectDebugRegistry::instance().unregister_subject(&subject);
+}
+
+TEST_CASE("LVGL log handler: a deprecation notice stays out of the ring", "[logging][lvgl]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    const std::string call = unique_tag("deprecated_call");
+    LV_LOG_WARN("Deprecated: use %s instead.", call.c_str());
+    CHECK(logs.total(call) == 1);
+    CHECK(logs.in_ring(call) == 0);
+}
+
+#if !LV_DRAW_TRANSFORM_USE_MATRIX
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Asking for matrix rotation without matrix transforms logs nothing",
+                 "[logging][lvgl]") {
+    helix::logging::register_lvgl_log_handler();
+    LevelCapture logs;
+
+    // The DRM/EGL flush asks this for every flushed area.
+    REQUIRE(lv_display_get_default() != nullptr);
+    CHECK_FALSE(lv_display_get_matrix_rotation(lv_display_get_default()));
+    CHECK(logs.total("lv_display_get_matrix_rotation") == 0);
+}
+#endif

@@ -150,8 +150,8 @@ TEST_CASE("layer index: a line straddling the read block is not split",
 
 TEST_CASE("layer index: progress is reported and ends at the whole file",
           "[gcode][layer_index][framing][progress]") {
-    // get_index_progress() used to go 0.0 -> 1.0 with nothing between, so the
-    // only honest UI was an indeterminate spinner. The callback is coarse (every
+    // get_index_progress() reports intermediate values so the UI can show a
+    // determinate bar. The callback is coarse (every
     // N lines), so a small file may report nothing at all — what must hold is
     // that anything it DOES report is a sane fraction.
     std::string body = "; header\n";

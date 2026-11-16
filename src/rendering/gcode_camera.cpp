@@ -61,7 +61,6 @@ void GCodeCamera::pan(float delta_x, float delta_y) {
     // Up vector in camera space (perpendicular to view and right)
     glm::vec3 camera_up = glm::normalize(glm::cross(right, view_dir));
 
-    // Apply pan
     target_ += right * delta_x;
     target_ += camera_up * delta_y;
 
@@ -117,7 +116,6 @@ void GCodeCamera::fit_to_bounds(const AABB& raw_bounds) {
         return;
     }
 
-    // Set target to center of bounding box
     target_ = bounds.center();
 
     // Set distance far enough for near/far clipping planes
@@ -325,7 +323,7 @@ void GCodeCamera::update_matrices() {
 
         projection_matrix_ = glm::ortho(left, right, bottom, top, near_plane_, far_plane_);
     } else {
-        // Perspective projection (not used in Phase 1)
+        // Perspective projection (not fully implemented)
         float fov = glm::radians(60.0f / zoom_level_);
         projection_matrix_ = glm::perspective(fov, aspect_ratio, near_plane_, far_plane_);
     }

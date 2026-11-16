@@ -15,38 +15,45 @@ branch outside a template. GCC does not. Fixed in 5d3ea331c.
 This gate runs clang with ``-fsyntax-only`` over the TUs a change touches. No
 codegen, no linking, no cross-compiling: a few seconds per TU.
 
-Compile database
+Compile commands
 ----------------
-Commands come from the build's own emitted compile-command fragments
-(``build/obj/**/*.ccj``, written by ``emit-compile-command`` in ``mk/rules.mk``)
-unioned with ``compile_commands.json``.
+A TU's command comes from ``scripts/compile_command.py``, which ``syntax_check.py``
+asks too, so the two never disagree about a file's flags. In order:
 
-Reading both is not belt-and-braces, it is required. ``compile_commands.json`` is
-regenerated from the fragments only at certain build steps, so it lags: at the time
-this script was written the tree had 2265 fragments but 1303 entries in the JSON,
-and *none* of the 972 test TUs were in the JSON. ``tests/unit/test_json_utils.cpp``
--- the TU that actually broke CI -- was one of the missing ones. A checker driven by
-``compile_commands.json`` alone could not have caught the bug it exists to catch.
+1. The build's own record. Commands come from the build's emitted compile-command
+   fragments (``build/obj/**/*.ccj``, written by ``emit-compile-command`` in
+   ``mk/rules.mk``) unioned with ``compile_commands.json``. Reading both is
+   required: ``compile_commands.json`` is regenerated from the fragments only at
+   certain build steps, so it lags, and a test TU can be missing from it while its
+   fragment is current. Several entries usually describe one file (one per object
+   tree, plus the JSON's) and they need not agree; ``merge_compile_commands.py``
+   picks the freshest, so this gate and an editor's index resolve a file the same
+   way. Only an entry stamped with ``VERSION.txt``'s version counts here.
+2. ``make print-compile-command F=<file>``: the command the file's object rule
+   runs today, printed from the same Makefile function, so it is trusted as a
+   fresh entry is. It needs no prior build, which is what lets an unbuilt
+   worktree, or one whose copied database was recorded at another version, check
+   its own changes. Replaying it needs the headers the object rules make first,
+   so the first such TU runs ``make compile-prereqs`` (about 20s on a fresh
+   ``--no-build`` worktree, then a second or two).
+3. With no make rule for the file, a current entry for a neighbour in the same
+   directory, borrowed and named in a note.
 
 Trusting a command
 ------------------
-Several entries usually describe one source file - one per object tree, plus whatever
-``compile_commands.json`` last recorded - and they need not agree. The choice between
-them (freshest wins, orphans dropped) lives in ``scripts/merge_compile_commands.py``,
-so this gate and an editor's index resolve a file the same way.
+An entry recorded at another version is never replayed to fail the gate. A fragment
+is rewritten only when its object is, and make rebuilds an object when a
+prerequisite is newer, not when the command line changes - so a version bump or a
+new ``-DHELIX_HAS_*`` leaves untouched trees frozen at older flags. Replaying one
+of those produces diagnostics about the *command*: a type behind a feature macro
+the entry never received reads as ``unknown type name``, six or eight times,
+indistinguishable in shape from a real clang finding. So trust is decided before
+clang runs and from the entry alone, never from what clang said: a TU whose only
+command is stale (no make rule could replace it) is skipped with a note, and only
+a command that describes today's build gets to fail the gate.
 
-Even the freshest can be out of date. A fragment is rewritten only when its object is,
-and make rebuilds an object when a prerequisite is newer, not when the command line
-changes - so a version bump or a new ``-DHELIX_HAS_*`` leaves untouched trees frozen at
-older flags. Replaying one of those produces diagnostics about the *command*: a type
-behind a feature macro the entry never received reads as ``unknown type name``, six or
-eight times, indistinguishable in shape from a real clang finding.
-
-Those two cases must not collapse into one verdict, so trust is decided before clang
-runs and from the entry alone, never from what clang said. An entry stamped with a
-version other than ``VERSION.txt``'s was recorded by a different build; it is skipped
-with a note, exactly as an entry that does not exist already is. Only a command that
-describes today's build gets to fail the gate, and then the failure is about the code.
+A changed TU with no command from any of the three is named, and when nothing at
+all could be checked the gate fails: it verified nothing.
 
 Argument handling: entries carry either an ``arguments`` array or a ``command``
 string. Both are normalised by ``merge_compile_commands.entry_argv`` and never handed
@@ -88,7 +95,7 @@ rather than passed over in silence.
 
 Usage
 -----
-    scripts/check_clang_diagnostics.py              # files changed vs origin/main
+    scripts/check_clang_diagnostics.py              # files changed since the fork point
     scripts/check_clang_diagnostics.py --all        # every TU (slow, full audit)
     scripts/check_clang_diagnostics.py -j 4 f.cpp   # explicit files
 
@@ -101,7 +108,6 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import glob
-import json
 import os
 import re
 import shutil
@@ -111,13 +117,22 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+from compile_command import (  # noqa: E402
+    IGNORE_CLAIM_ENV,
+    SIBLING,
+    STALE,
+    PrereqsFailed,
+    PrereqsRefused,
+    load_db,
+    resolve,
+)
+from diff_base import base_line, resolve_base  # noqa: E402
 from merge_compile_commands import (  # noqa: E402
     current_version,
     entry_argv,
     entry_source_path,
     is_stale,
     recorded_version,
-    select_freshest,
 )
 
 # C++ translation units only. The tree's .c files are generated LVGL font
@@ -264,46 +279,6 @@ def entry_args(entry: dict) -> list[str]:
     constant. Those read exactly like real findings about the code.
     """
     return entry_argv(entry)
-
-
-def load_compile_db(root: str, frag_root: str | None = None) -> dict[str, dict]:
-    """file realpath -> the entry describing how that file is built today.
-
-    Both sources are read, then ranked together rather than layered: an entry
-    stamped with the tree's current version beats one that is not, whichever file
-    it came from, which is what rescues a TU whose newest fragment lives in an
-    object tree nobody has rebuilt. ``_mtime`` breaks the remaining ties, and the
-    JSON's entries carry none - so at equal version a fragment still wins, being
-    per-TU and written at compile time.
-
-    frag_root redirects the fragment glob to a caller-supplied directory: the
-    meta-test builds a throwaway database there so its fixtures can never leak
-    into (or depend on) this tree's build/obj - a leftover fixture under build/obj
-    would be unioned into every real --all audit until something cleaned it up.
-    """
-    entries: list[dict] = []
-
-    cc_json = os.path.join(root, "compile_commands.json")
-    if frag_root is None and os.path.exists(cc_json):
-        try:
-            with open(cc_json) as fh:
-                entries.extend(e for e in json.load(fh) if isinstance(e, dict))
-        except (OSError, ValueError):
-            pass
-
-    frag_dir = frag_root if frag_root else os.path.join(root, "build", "obj")
-    for frag in glob.glob(os.path.join(frag_dir, "**", "*.ccj"), recursive=True):
-        try:
-            with open(frag) as fh:
-                entry = json.load(fh)
-            if not isinstance(entry, dict):
-                continue
-            entry["_mtime"] = os.path.getmtime(frag)
-        except (OSError, ValueError):
-            continue
-        entries.append(entry)
-
-    return select_freshest(entries, current_version(root), root)
 
 
 def build_header_map(root: str, dep_root: str | None = None) -> dict[str, set[str]]:
@@ -456,34 +431,25 @@ def git(root: str, *args: str) -> str:
         return ""
 
 
-def changed_files(root: str) -> list[str]:
-    base = git(root, "merge-base", "HEAD", "origin/main")
-    if not base:
-        base = git(root, "merge-base", "HEAD", "main")
-    if not base:
-        # No upstream to diff against; fall back to the working tree.
-        out = git(root, "diff", "--name-only", "--diff-filter=ACM", "HEAD")
-    else:
-        out = git(root, "diff", "--name-only", "--diff-filter=ACM", base)
+def default_base(root: str) -> tuple[str, str]:
+    """(base, why): the fork point a default run diffs against.
+
+    The nearest fork point among the branches this one could have been cut from
+    (scripts/diff_base.py, shared with mutate_diff.py and cov_diff.py), so a
+    branch off a release branch is measured against that branch and not handed
+    every file where the release and main differ. With nothing to resolve, the
+    base is HEAD and the run covers uncommitted work.
+    """
+    return resolve_base(root)
+
+
+def changed_files(root: str, base: str) -> list[str]:
+    """Files added, copied or modified since base, plus whatever is staged."""
+    out = git(root, "diff", "--name-only", "--diff-filter=ACM", base)
     files = [ln for ln in out.splitlines() if ln]
     staged = git(root, "diff", "--name-only", "--diff-filter=ACM", "--cached")
     files += [ln for ln in staged.splitlines() if ln]
     return sorted(set(files))
-
-
-def partition_by_trust(selected: dict[str, dict], root: str) -> tuple[list[dict], list[dict]]:
-    """Split chosen entries into (checkable, untrusted).
-
-    Untrusted means the entry's own version stamp says a different build recorded
-    it, so its flags may not describe how the file compiles now. Decided here,
-    before clang runs, so that no verdict ever has to be judged for plausibility
-    after the fact.
-    """
-    current = current_version(root)
-    trusted, untrusted = [], []
-    for entry in sorted(selected.values(), key=lambda e: e.get("file", "")):
-        (untrusted if is_stale(entry, current) else trusted).append(entry)
-    return trusted, untrusted
 
 
 def describe_untrusted(untrusted: list[dict], root: str) -> list[str]:
@@ -492,7 +458,7 @@ def describe_untrusted(untrusted: list[dict], root: str) -> list[str]:
         return []
     current = current_version(root) or "?"
     versions = sorted({recorded_version(e) or "?" for e in untrusted})
-    head = (f"{len(untrusted)} TU(s) have a stale compile command "
+    head = (f"{len(untrusted)} TU(s) have only a stale compile command and no make rule "
             f"(recorded at {', '.join(versions)}; tree is {current}) -- not checked. "
             "Rebuild to refresh: make -j && make test")
     notes = [head]
@@ -504,24 +470,38 @@ def describe_untrusted(untrusted: list[dict], root: str) -> list[str]:
     return notes
 
 
-def select_entries(args, db, root) -> tuple[list[dict], list[dict], list[str]]:
-    """Returns (entries to check, entries skipped as untrusted, notes to print)."""
-    notes: list[str] = []
+class Selection:
+    """What one run checks, skips and cannot check, with the notes to print."""
 
-    if args.all:
-        # Same TU filter as the explicit-files path: --all must not bypass it,
-        # or every .c in the compile database (generated fonts, the expat
-        # sources inside lib/helix-xml) gets its -std=c11 command line replayed
-        # through clang++ - the exact misclassification the filter exists for.
-        every = {k: e for k, e in db.items()
-                 if str(e.get("file", "")).endswith(TU_EXTENSIONS)}
-        trusted, untrusted = partition_by_trust(every, root)
-        return trusted, untrusted, notes
+    def __init__(self) -> None:
+        self.entries: list[dict] = []
+        self.untrusted: list[dict] = []
+        self.underivable: list[str] = []      # TUs with no flags from anywhere
+        self.unresolved_headers: list[str] = []  # headers with no dependent known
+        self.notes: list[str] = []
 
-    paths = args.files or changed_files(root)
-    if not paths:
-        return [], [], notes
 
+def select_all(db: dict[str, dict], root: str) -> Selection:
+    """--all: every C++ TU in the database, stale entries skipped."""
+    sel = Selection()
+    current = current_version(root)
+    # Same TU filter as the explicit-files path: --all must not bypass it, or
+    # every .c in the compile database (generated fonts, the expat sources inside
+    # lib/helix-xml) gets its -std=c11 command line replayed through clang++.
+    for entry in sorted(db.values(), key=lambda e: e.get("file", "")):
+        if not str(entry.get("file", "")).endswith(TU_EXTENSIONS):
+            continue
+        (sel.untrusted if is_stale(entry, current) else sel.entries).append(entry)
+    return sel
+
+
+def select_entries(paths: list[str], args, db: dict[str, dict], root: str) -> Selection:
+    """The TUs paths name or reach through their headers, with a command for each.
+
+    Each file's command comes from scripts/compile_command.py, the same helper
+    syntax_check.py asks; may raise compile_command.PrereqsFailed.
+    """
+    sel = Selection()
     tus: list[str] = []
     headers: list[str] = []
     for p in paths:
@@ -531,49 +511,59 @@ def select_entries(args, db, root) -> tuple[list[dict], list[dict], list[str]]:
         elif p.endswith(HEADER_EXTENSIONS):
             headers.append(full)
 
-    current = current_version(root)
-    selected: dict[str, dict] = {}
-    skipped: dict[str, dict] = {}
-    for t in tus:
-        if t in db:
-            selected[t] = db[t]
-        else:
-            notes.append(f"no compile command for {os.path.relpath(t, root)} (never built?)")
-
+    dependents: dict[str, list[str]] = {}
     if headers:
         hmap = build_header_map(root, args.compile_db_dir)
         if not hmap:
-            notes.append(
+            sel.notes.append(
                 f"{len(headers)} header(s) changed but no .d files under build/obj -- "
                 "header changes are UNCHECKED in this tree; build first for coverage"
             )
         for h in headers:
-            dependents = sorted(hmap.get(h, ()))
-            if not dependents:
-                notes.append(f"no known dependents for {os.path.relpath(h, root)}")
+            deps = sorted(hmap.get(h, ()))
+            if not deps:
+                sel.notes.append(f"no known dependents for {os.path.relpath(h, root)}")
+                sel.unresolved_headers.append(h)
                 continue
-            # Trust decides membership before the fan-out cap does, or a widely
-            # included header spends its whole budget on TUs that get skipped and
-            # the ones it could have checked never make the list.
-            usable = [d for d in dependents if d in db and not is_stale(db[d], current)]
-            for d in dependents:
-                if d in db and is_stale(db[d], current):
-                    skipped.setdefault(d, db[d])
-            if len(usable) > args.max_header_tus:
-                notes.append(
-                    f"{os.path.relpath(h, root)}: {len(usable)} dependent TUs, "
-                    f"checking first {args.max_header_tus} (raise --max-header-tus for all)"
-                )
-                usable = usable[: args.max_header_tus]
-            for d in usable:
-                selected.setdefault(d, db[d])
+            dependents[h] = deps
 
-    trusted, untrusted = partition_by_trust(selected, root)
-    for key, entry in skipped.items():
-        if key not in selected:
-            untrusted.append(entry)
-    untrusted.sort(key=lambda e: e.get("file", ""))
-    return trusted, untrusted, notes
+    wanted = sorted(set(tus) | {d for deps in dependents.values() for d in deps})
+    choices = resolve(wanted, db, root, make_root=args.make_root)
+
+    selected: dict[str, dict] = {}
+    skipped: dict[str, dict] = {}
+    for t in tus:
+        choice = choices.get(t)
+        if choice is None:
+            sel.underivable.append(t)
+        elif choice.source == STALE:
+            skipped[t] = choice.entry
+        else:
+            selected[t] = choice.entry
+            if choice.source == SIBLING:
+                sel.notes.append(f"{os.path.relpath(t, root)}: no make rule, flags borrowed "
+                                 f"from {choice.borrowed_from}")
+
+    for h, deps in dependents.items():
+        # Trust decides membership before the fan-out cap does, or a widely
+        # included header spends its whole budget on TUs that get skipped and
+        # the ones it could have checked never make the list.
+        usable = [d for d in deps if choices.get(d) is not None and choices[d].source != STALE]
+        for d in deps:
+            if choices.get(d) is not None and choices[d].source == STALE:
+                skipped.setdefault(d, choices[d].entry)
+        if len(usable) > args.max_header_tus:
+            sel.notes.append(
+                f"{os.path.relpath(h, root)}: {len(usable)} dependent TUs, "
+                f"checking first {args.max_header_tus} (raise --max-header-tus for all)"
+            )
+            usable = usable[: args.max_header_tus]
+        for d in usable:
+            selected.setdefault(d, choices[d].entry)
+
+    sel.entries = [selected[k] for k in sorted(selected)]
+    sel.untrusted = [e for k, e in sorted(skipped.items()) if k not in selected]
+    return sel
 
 
 # --------------------------------------------------------------------------------
@@ -598,27 +588,10 @@ def _default_jobs() -> int:
     return max(1, min(8, cpus // 4)) if busy else max(1, min(8, cpus))
 
 
-def changed_cpp_paths(args, root) -> list[str]:
-    """C++ files this run would have checked, independent of the compile database.
-
-    select_entries() answers the same question but only for files the database
-    knows, which is no answer at all when the database is missing.
-    """
-    if args.files:
-        paths = list(args.files)
-    else:
-        base = git(root, "merge-base", "HEAD", "origin/main") or git(root, "merge-base", "HEAD", "main")
-        if not base:
-            return []
-        out = git(root, "diff", "--name-only", "--diff-filter=ACM", base)
-        paths = out.split("\n") if out else []
-    return [p for p in paths if p.endswith(TU_EXTENSIONS) or p.endswith(HEADER_EXTENSIONS)]
-
-
 def main() -> int:
     default_jobs = _default_jobs()
     ap = argparse.ArgumentParser(description="Syntax-check TUs with clang to catch GCC/clang divergence.")
-    ap.add_argument("files", nargs="*", help="explicit files (default: changed vs origin/main)")
+    ap.add_argument("files", nargs="*", help="explicit files (default: changed since the branch's fork point)")
     ap.add_argument("--all", action="store_true", help="check every TU in the compile database (slow)")
     ap.add_argument("-j", "--jobs", type=int, default=default_jobs,
                     help=f"parallel clang invocations (default {default_jobs}; kept low, "
@@ -631,6 +604,9 @@ def main() -> int:
                     help="read *.ccj fragments and *.d dependency files from DIR "
                          "instead of build/obj, and skip compile_commands.json "
                          "(test isolation)")
+    ap.add_argument("--make-root", default=None, metavar="DIR",
+                    help="ask the Makefile in DIR for compile commands and prerequisites "
+                         "instead of this tree's (test isolation)")
     args = ap.parse_args()
 
     root = REPO_ROOT
@@ -640,70 +616,79 @@ def main() -> int:
         print(f"SKIP: clang syntax check -- {desc}")
         return 0
 
-    db = load_compile_db(root, args.compile_db_dir)
-    if not db:
-        # Skipping here is right only when there was nothing to check anyway.
-        # With C++ in the diff and no database, this gate inspects none of it and
-        # a bare SKIP reads downstream as a pass — the shape that let an unbuilt
-        # release checkout report a clean divergence stage in one second.
-        changed, firmware_only = split_outside_native_build(changed_cpp_paths(args, root), root)
-        if firmware_only:
-            print(
-                f"  note: {len(firmware_only)} changed file(s) under firmware/ are "
-                "built by the ESP-IDF job, not by this tree"
-            )
-        if changed:
-            print(
-                f"clang syntax check: {len(changed)} changed C++ file(s) and no "
-                "compile database"
-            )
-            print(
-                "\nThe tree was never built, so this gate inspected nothing. Build it\n"
-                "(make -j && make test -j) and re-run; a green result from an unbuilt\n"
-                "tree is not a green result."
-            )
-            return 1
-        if firmware_only:
-            print(
-                f"clang syntax check: {len(firmware_only)} changed file(s), all built "
-                "by the firmware job, none checkable here"
-            )
-            return 0
-        print("SKIP: clang syntax check -- no C++ changed and no compile database")
-        return 0
+    db = load_db(root, args.compile_db_dir)
 
-    entries, untrusted, notes = select_entries(args, db, root)
-    for n in notes + describe_untrusted(untrusted, root):
+    if args.all:
+        sel = select_all(db, root)
+        firmware_only: list[str] = []
+        wanted = len(sel.entries) + len(sel.untrusted)
+    else:
+        if args.files:
+            paths = list(args.files)
+        else:
+            base, why = default_base(root)
+            print(base_line(root, base, why))
+            paths = changed_files(root, base)
+        paths = [p for p in paths if p.endswith(TU_EXTENSIONS) or p.endswith(HEADER_EXTENSIONS)]
+        paths, firmware_only = split_outside_native_build(paths, root)
+        try:
+            sel = select_entries(paths, args, db, root)
+        except PrereqsRefused as exc:
+            print("clang syntax check: a changed TU's compile command comes from make, and its "
+                  "headers\nneed `make compile-prereqs` in "
+                  f"{args.make_root or root}, where another session is building:")
+            for line in str(exc).splitlines()[-15:]:
+                print(f"    {line}")
+            print(f"\nRun the gate again when that build finishes, or set {IGNORE_CLAIM_ENV}=1 "
+                  "to make the\nprerequisites beside it.")
+            return 1
+        except PrereqsFailed as exc:
+            print("clang syntax check: a changed TU's compile command comes from make, and "
+                  "make could not\nproduce the headers that command reads (patched "
+                  f"submodules, libhv, build/generated) in {args.make_root or root}:")
+            for line in str(exc).splitlines()[-15:]:
+                print(f"    {line}")
+            print("\nMake them with:  make compile-prereqs")
+            return 1
+        wanted = len(paths)
+
+    if firmware_only:
+        print(
+            f"  note: {len(firmware_only)} changed file(s) under firmware/ are "
+            "built by the ESP-IDF job, not by this tree"
+        )
+    for t in sel.underivable:
+        print(f"  note: no compile command for {os.path.relpath(t, root)}: no current "
+              "database entry, no make rule, no neighbour to borrow from")
+    for n in sel.notes + describe_untrusted(sel.untrusted, root):
         print(f"  note: {n}")
 
+    untrusted = sel.untrusted
+    entries = sel.entries
     skipped_note = f", {len(untrusted)} skipped (stale compile command)" if untrusted else ""
 
     if not entries:
-        # A diff with no C++ in it has genuinely nothing to check. A diff full of
-        # C++ that yielded no compile commands is a different thing wearing the
-        # same result: the tree was never built, so the gate saw nothing and would
-        # report a clean bill of health for code it never compiled. The divergence
-        # this exists to catch is precisely what an unbuilt tree cannot show.
-        # A TU skipped as stale is a deliberate decline, not a gap: its recorded
-        # command describes an older build, so replaying it would judge the command
-        # rather than the code. Only the files still unaccounted for once those are
-        # subtracted mean the gate inspected nothing it was asked to.
-        checkable, firmware_only = split_outside_native_build(changed_cpp_paths(args, root), root)
-        if firmware_only:
-            print(
-                f"  note: {len(firmware_only)} changed file(s) under firmware/ are "
-                "built by the ESP-IDF job, not by this tree"
-            )
-        wanted = len(checkable)
-        if wanted > len(untrusted):
+        # A diff with no C++ in it has genuinely nothing to check. A diff whose
+        # C++ yielded no command is a different thing wearing the same result:
+        # the gate saw nothing and would report a clean bill of health for code
+        # it never compiled. A TU skipped as stale is a deliberate decline, not a
+        # gap. Only the files no command could be found for mean the gate
+        # inspected nothing it was asked to, and they are named.
+        unchecked = sel.underivable + sel.unresolved_headers
+        if unchecked:
             print(
                 f"clang syntax check: 0 of {wanted} changed C++ file(s) could be "
                 f"checked{skipped_note}"
             )
+            for f in unchecked:
+                print(f"    {os.path.relpath(f, root)}")
             print(
-                "\nNo compile commands were found for any of them, so this gate "
-                "verified nothing.\nBuild the tree (make -j && make test -j) and "
-                "re-run; a green result from an\nunbuilt tree is not a green result."
+                "\nNo compile command could be derived for these, so this gate "
+                "verified nothing.\nA TU needs a current compile database entry, a "
+                "rule in the Makefile\n(make print-compile-command F=<file>) or a "
+                "neighbour in the database to borrow\nfrom; a header needs a TU "
+                "known to include it (the build's .d files). A green\nresult that "
+                "checked nothing is not a green result."
             )
             return 1
         if wanted:

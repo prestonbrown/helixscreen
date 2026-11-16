@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_obj_flags.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "panel_widget.h"
@@ -29,6 +31,9 @@ namespace helix {
 /// without this.
 struct HarnessConfig {
     nlohmann::json value;
+    /// Leave the tile for create_tile(), so several widgets can exist before any
+    /// tile is parsed, the order PanelWidgetManager builds a page in.
+    bool defer_tile = false;
 };
 
 /// Every box from @p w_from x @p h_from to @p w_to x @p h_to, a pixel apart. Hold one
@@ -111,7 +116,7 @@ class PanelWidgetHarnessBase {
         const uint32_t count = lv_obj_get_child_count(obj);
         for (uint32_t i = 0; i < count; ++i) {
             lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(child))
                 continue;
             if (const char* name = lv_obj_get_name(child))
                 parts.append(name).append(" ");
@@ -155,6 +160,7 @@ class PanelWidgetHarnessBase {
                 sizing->set_cell_metrics(cell_metrics_);
             }
         }
+        helix::ui::obj_set_flags(obj_, kPanelWidgetTileFlag, true);
         widget.attach_tile(obj_, screen);
         return true;
     }
@@ -195,6 +201,12 @@ template <typename W> class PanelWidgetHarness : public PanelWidgetHarnessBase {
     PanelWidgetHarness(lv_obj_t* screen, HarnessConfig config, Args&&... args)
         : widget_(std::forward<Args>(args)...) {
         widget_.set_config(config.value);
+        if (!config.defer_tile) {
+            create_and_attach(screen, widget_);
+        }
+    }
+
+    void create_tile(lv_obj_t* screen) {
         create_and_attach(screen, widget_);
     }
 
@@ -438,13 +450,13 @@ inline void check_text(lv_obj_t* o, const std::string& path, OverflowReport& r) 
 
 inline void walk(lv_obj_t* o, const std::string& path, const OverflowExceptions& ex,
                  OverflowReport& r) {
-    if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(o)) {
         return; // Not rendered, so nothing to clip.
     }
 
     const char* name = lv_obj_get_name(o);
-    const bool scroll_exempt = lv_obj_has_flag(o, LV_OBJ_FLAG_SCROLLABLE) &&
-                               lv_obj_get_scroll_dir(o) != LV_DIR_NONE && ex.exempts(name);
+    const bool scroll_exempt =
+        lv_obj_is_scrollable(o) && lv_obj_get_scroll_dir(o) != LV_DIR_NONE && ex.exempts(name);
     if (scroll_exempt) {
         r.skipped.push_back(path + " (named scrollable exception)");
         return;
@@ -491,7 +503,7 @@ inline void walk(lv_obj_t* o, const std::string& path, const OverflowExceptions&
     const uint32_t n = lv_obj_get_child_count(o);
     for (uint32_t i = 0; i < n; ++i) {
         lv_obj_t* c = lv_obj_get_child(o, i);
-        if (lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(c)) {
             continue;
         }
         const std::string cpath = obj_path(path, c, static_cast<int>(i));

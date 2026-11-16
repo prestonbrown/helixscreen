@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "capability_overrides.h"
+#include "config.h"
 #include "printer_discovery.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using json = nlohmann::json;
 
@@ -207,6 +209,7 @@ TEST_CASE("CapabilityOverrides - summary", "[printer][overrides]") {
         REQUIRE(summary.find("heat_soak=") != std::string::npos);
         REQUIRE(summary.find("chamber=") != std::string::npos);
         REQUIRE(summary.find("speaker=") != std::string::npos);
+        REQUIRE(summary.find("led=") != std::string::npos);
     }
 
     SECTION("Summary shows auto(Y) for detected capabilities") {
@@ -266,6 +269,46 @@ TEST_CASE("CapabilityOverrides - speaker override", "[printer][overrides]") {
         overrides.set_override(capability::SPEAKER, OverrideState::AUTO);
         // No beeper and no sound backend in unit tests
         REQUIRE_FALSE(overrides.has_speaker());
+    }
+}
+
+TEST_CASE("CapabilityOverrides - led override", "[printer][overrides]") {
+    CapabilityOverrides overrides;
+    helix::PrinterDiscovery with_led;
+    with_led.parse_objects(json{"led chamber_light"});
+    REQUIRE(with_led.has_led());
+    helix::PrinterDiscovery without_led;
+    without_led.parse_objects(json{"bed_mesh"});
+
+    SECTION("DISABLE hides a light the firmware declares") {
+        overrides.set_hardware(with_led);
+        overrides.set_override(capability::LED, OverrideState::DISABLE);
+        CHECK_FALSE(overrides.has_led());
+    }
+
+    SECTION("ENABLE shows lights detection did not find") {
+        overrides.set_hardware(without_led);
+        overrides.set_override(capability::LED, OverrideState::ENABLE);
+        CHECK(overrides.has_led());
+        CHECK(overrides.is_forced_on(capability::LED));
+    }
+
+    SECTION("AUTO follows detection") {
+        overrides.set_override(capability::LED, OverrideState::AUTO);
+        overrides.set_hardware(with_led);
+        CHECK(overrides.has_led());
+        overrides.set_hardware(without_led);
+        CHECK_FALSE(overrides.has_led());
+    }
+
+    SECTION("A saved override loads back from the printer's config") {
+        helix::Config* cfg = helix::Config::get_instance();
+        const std::string path = cfg->df() + "capability_overrides/led";
+        const std::string before = cfg->get<std::string>(path, "auto");
+        cfg->set<std::string>(path, "disable");
+        overrides.load_from_config();
+        cfg->set<std::string>(path, before);
+        CHECK(overrides.get_override(capability::LED) == OverrideState::DISABLE);
     }
 }
 

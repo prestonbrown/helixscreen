@@ -42,9 +42,12 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+import ratchet  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_required_names import call_args, strip_comments  # noqa: E402
+from check_required_names import call_args  # noqa: E402
+
+from source_strip import blank_cxx  # noqa: E402
 
 XML_REF_RE = re.compile(r'\b(?:[a-z0-9_]*callback|event_cb)="([^"]*)"')
 # C++ naming a callback through a component's `$..._callback` prop:
@@ -67,7 +70,7 @@ def collect_registrations(root: Path, files=None, read=None) -> dict[str, set[st
     regs: dict[str, set[str]] = defaultdict(set)
     read = read or (lambda f: f.read_text(errors="replace"))
     for f in source_files(root) if files is None else files:
-        code = strip_comments(read(f))
+        code = blank_cxx(read(f), strings="keep")
         rel = str(f.relative_to(root))
         loop_registers = False
         for m in re.finditer(r"\blv_xml_register_event_cb\s*\(", code):
@@ -91,13 +94,13 @@ def collect_registrations(root: Path, files=None, read=None) -> dict[str, set[st
     return regs
 
 
-def collect_xml_refs(root: Path) -> dict[str, set[str]]:
-    """name -> XML files referencing it."""
+def collect_xml_refs(root: Path, xml_files=None) -> dict[str, set[str]]:
+    """name -> XML files referencing it. xml_files limits the XML read; default ui_xml/."""
     refs: dict[str, set[str]] = defaultdict(set)
     ui_xml = root / "ui_xml"
     if not ui_xml.is_dir():
         return refs
-    for f in sorted(ui_xml.rglob("*.xml")):
+    for f in sorted(ui_xml.rglob("*.xml")) if xml_files is None else sorted(xml_files):
         rel = str(f.relative_to(root))
         for value in XML_REF_RE.findall(f.read_text(errors="replace")):
             if value and "$" not in value and re.fullmatch(r"\w+", value):
@@ -105,7 +108,7 @@ def collect_xml_refs(root: Path) -> dict[str, set[str]]:
     src = root / "src"
     if src.is_dir():
         for f in sorted(src.rglob("*.cpp")):
-            for name in CPP_ATTR_REF_RE.findall(strip_comments(f.read_text(errors="replace"))):
+            for name in CPP_ATTR_REF_RE.findall(blank_cxx(f.read_text(errors="replace"), strings="keep")):
                 refs[name].add(str(f.relative_to(root)))
     return refs
 
@@ -173,10 +176,12 @@ def main() -> int:
         return 1
     gone = sorted(accepted - set(found))
     if gone:
-        print(f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
-              f"{args.baseline}; re-run with --write-baseline to hold the gain "
-              f"({', '.join(gone)}).")
-        return 0
+        return ratchet.under_baseline(
+            "Orphan callbacks", f"{args.baseline} (re-run with --write-baseline)",
+            [f"{k}: no longer a finding" for k in gone],
+            f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
+            f"{args.baseline}; re-run with --write-baseline to hold the gain "
+            f"({', '.join(gone)}).")
     print(f"✅ Orphan callbacks: {len(found)} findings, all accepted debt in {args.baseline}")
     return 0
 

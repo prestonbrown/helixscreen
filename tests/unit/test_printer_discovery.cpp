@@ -20,7 +20,10 @@
 // This include will fail until the header is created - that's expected!
 #include "printer_discovery.h"
 
+#include <initializer_list>
 #include <json.hpp> // nlohmann/json from libhv
+#include <string>
+#include <vector>
 
 using json = nlohmann::json;
 using namespace helix;
@@ -779,14 +782,42 @@ TEST_CASE("PrinterDiscovery detects new AFC object types", "[printer_discovery][
     }
 }
 
-TEST_CASE("PrinterDiscovery detects Happy Hare MMU", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"mmu", "extruder", "heater_bed"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_mmu());
-    REQUIRE(hw.mmu_type() == AmsType::HAPPY_HARE);
+TEST_CASE("PrinterDiscovery picks the filament system from the object list",
+          "[printer_discovery][ams][ad5x_ifs][qidi_box]") {
+    // Happy Hare's [mmu] wins over the sensors and steppers other systems are
+    // recognised by; a plain runout sensor is no filament system at all.
+    struct Row {
+        const char* label;
+        std::vector<std::string> objects;
+        bool has_mmu;
+        AmsType type;
+    };
+    const Row rows[] = {
+        {"Happy Hare", {"mmu", "extruder", "heater_bed"}, true, AmsType::HAPPY_HARE},
+        {"a runout sensor without zmod sensors",
+         {"extruder", "heater_bed", "filament_switch_sensor runout_sensor"},
+         false,
+         AmsType::NONE},
+        {"Happy Hare over IFS port sensors",
+         {"mmu", "filament_switch_sensor _ifs_port_sensor_1"},
+         true,
+         AmsType::HAPPY_HARE},
+        {"Happy Hare over a QIDI Box",
+         {"mmu", "box_stepper slot0", "box_stepper slot1", "box_stepper slot2",
+          "box_stepper slot3"},
+         true,
+         AmsType::HAPPY_HARE},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.label) {
+            PrinterDiscovery hw;
+            hw.parse_objects(json(row.objects));
+            CHECK(hw.has_mmu() == row.has_mmu);
+            CHECK(hw.mmu_type() == row.type);
+            // The box is not counted when another system owns filament.
+            CHECK(hw.qidi_box_slot_count() == 0);
+        }
+    }
 }
 
 TEST_CASE("PrinterDiscovery parses Happy Hare mmu_encoder objects", "[printer_discovery]") {
@@ -1195,22 +1226,25 @@ TEST_CASE("PrinterDiscovery detects LED capability", "[printer_discovery]") {
     }
 }
 
-TEST_CASE("PrinterDiscovery detects firmware retraction", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "firmware_retraction"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_firmware_retraction());
-}
-
-TEST_CASE("PrinterDiscovery detects timelapse plugin", "[printer_discovery]") {
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "timelapse"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_timelapse());
+TEST_CASE("PrinterDiscovery reports a capability for its module object",
+          "[printer_discovery][capabilities]") {
+    struct Row {
+        const char* object;
+        bool (PrinterDiscovery::*has)() const;
+    };
+    const Row rows[] = {
+        {"firmware_retraction", &PrinterDiscovery::has_firmware_retraction},
+        {"timelapse", &PrinterDiscovery::has_timelapse},
+        {"screws_tilt_adjust", &PrinterDiscovery::has_screws_tilt},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.object) {
+            PrinterDiscovery hw;
+            CHECK_FALSE((hw.*row.has)());
+            hw.parse_objects(json{"extruder", "heater_bed", row.object});
+            CHECK((hw.*row.has)());
+        }
+    }
 }
 
 TEST_CASE("PrinterDiscovery detects chamber heater and sensor", "[printer_discovery]") {
@@ -1563,6 +1597,102 @@ TEST_CASE("PrinterDiscovery chamber heater prefers heater_generic over temperatu
 // Clear/Reset Tests
 // ============================================================================
 
+namespace {
+PrinterDiscovery chamber_parse(std::initializer_list<std::string> objs) {
+    PrinterDiscovery d;
+    json arr = json::array();
+    for (const auto& o : objs)
+        arr.push_back(o);
+    d.parse_objects(arr);
+    return d;
+}
+
+// Object names spanning the keyword tiers, both penalties, case handling and
+// the separator rules (whitespace splits tokens, hyphen does not).
+const std::vector<std::string> kChamberKeywordNames = {
+    "chamber",          // 100 exact keyword
+    "ChAmBeR",          // 100 case-insensitive
+    "chamber_temp",     // 99 compound penalty
+    "my chamber",       // 99 whitespace-separated compound
+    "chamber-tvoc",     // 99 hyphen is not a separator: no air-quality penalty
+    "enclosure",        // 90
+    "enclosure_tvoc",   // 49 air-quality penalty
+    "cavity",           // 85
+    "cavity_pressure",  // 44
+    "box",              // 60 standalone token
+    "box_fan",          // 59
+    "box_gas",          // 19
+    "chamber_humidity", // 59
+};
+
+// Which of the two candidate object names a recorded full name kept.
+std::string picked_chamber_name(const std::string& full, const std::string& prefix,
+                                const std::string& first, const std::string& second) {
+    return full == prefix + first ? first : second;
+}
+} // namespace
+
+TEST_CASE("printer-native chamber wins over appliance name", "[chamber][discovery]") {
+    auto d =
+        chamber_parse({"heater_generic chamber", "heater_generic dragonbreath", "dragonbreath"});
+    CHECK(d.chamber_heater_name() == "heater_generic chamber");
+    CHECK(d.chamber_heater_backend_id() == "generic");
+    CHECK(d.chamber_diagnostics_object().empty());
+}
+
+TEST_CASE("keyword-matched chamber heater uses the generic backend", "[chamber][discovery]") {
+    auto d = chamber_parse({"heater_generic chamber_heater", "temperature_fan chamber_fan"});
+    CHECK(d.chamber_heater_name() == "heater_generic chamber_heater");
+    CHECK(d.chamber_heater_backend_id() == "generic");
+    CHECK(d.chamber_cooling_fan_name() == "temperature_fan chamber_fan");
+    auto none = chamber_parse({"heater_bed", "extruder"});
+    CHECK_FALSE(none.has_chamber_heater());
+    CHECK(none.chamber_heater_backend_id().empty());
+}
+
+TEST_CASE("all three chamber paths rank the same names identically", "[chamber][discovery]") {
+    for (const auto& first : kChamberKeywordNames) {
+        for (const auto& second : kChamberKeywordNames) {
+            if (first == second) {
+                continue;
+            }
+            auto heater = chamber_parse({"heater_generic " + first, "heater_generic " + second});
+            auto sensor =
+                chamber_parse({"temperature_sensor " + first, "temperature_sensor " + second});
+            auto fan = chamber_parse({"temperature_fan " + first, "temperature_fan " + second});
+            // Every path scores the object NAME with the same keyword rule, so
+            // the winner must be path-independent, including on equal scores,
+            // where all three keep whichever object was listed first.
+            std::string heater_pick =
+                picked_chamber_name(heater.chamber_heater_name(), "heater_generic ", first, second);
+            std::string sensor_pick = picked_chamber_name(sensor.chamber_sensor_name(),
+                                                          "temperature_sensor ", first, second);
+            std::string fan_pick = picked_chamber_name(fan.chamber_cooling_fan_name(),
+                                                       "temperature_fan ", first, second);
+            INFO("first=" << first << " second=" << second);
+            CHECK(heater_pick == sensor_pick);
+            CHECK(heater_pick == fan_pick);
+        }
+    }
+}
+
+TEST_CASE("sensor and cooling-fan paths score keywords only", "[chamber][discovery]") {
+    // No chamber keyword: never a sensor or cooling-fan candidate.
+    auto numbered_box = chamber_parse({"temperature_sensor box1_heater"});
+    CHECK_FALSE(numbered_box.has_chamber_sensor());
+    CHECK(numbered_box.chamber_sensor_name().empty());
+    CHECK(chamber_parse({"temperature_fan boxx"}).chamber_cooling_fan_name().empty());
+
+    // Appliance names are match()-only (heater slot). The sensor and
+    // cooling-fan slots are decided by keyword score alone, so an appliance
+    // name never claims them even though match() gives it 95.
+    CHECK_FALSE(chamber_parse({"temperature_sensor dragonbreath"}).has_chamber_sensor());
+    CHECK(chamber_parse({"temperature_fan panda_breath"}).chamber_cooling_fan_name().empty());
+
+    // A floored air-quality chamber sensor stays detectable.
+    CHECK(chamber_parse({"temperature_sensor chamber_humidity"}).has_chamber_sensor());
+}
+
 TEST_CASE("PrinterDiscovery clear resets all state", "[printer_discovery]") {
     PrinterDiscovery hw;
 
@@ -1649,16 +1779,6 @@ TEST_CASE("PrinterDiscovery handles full Voron 2.4 config", "[printer_discovery]
 // ============================================================================
 // NOTE: screws_tilt_adjust doesn't implement get_status() in Klipper,
 // so it typically won't appear in objects/list. Must detect from configfile.
-
-TEST_CASE("PrinterDiscovery detects screws_tilt_adjust from objects list", "[printer_discovery]") {
-    // Belt-and-suspenders: if a future Klipper version adds get_status(), this still works
-    PrinterDiscovery hw;
-
-    json objects = {"extruder", "heater_bed", "screws_tilt_adjust"};
-    hw.parse_objects(objects);
-
-    REQUIRE(hw.has_screws_tilt());
-}
 
 TEST_CASE("PrinterDiscovery detects screws_tilt_adjust from config keys", "[printer_discovery]") {
     PrinterDiscovery hw;
@@ -1760,32 +1880,6 @@ TEST_CASE("PrinterDiscovery detects native ZMOD IFS via motion sensor",
                       "filament_switch_sensor head_switch_sensor") != sensors.end());
 }
 
-TEST_CASE("PrinterDiscovery does not detect AD5X IFS without zmod sensors",
-          "[printer_discovery][ad5x_ifs]") {
-    helix::PrinterDiscovery discovery;
-    discovery.parse_objects(nlohmann::json::array({
-        "extruder",
-        "heater_bed",
-        "filament_switch_sensor runout_sensor",
-    }));
-
-    REQUIRE_FALSE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::NONE);
-}
-
-TEST_CASE("PrinterDiscovery: Happy Hare takes priority over IFS sensors",
-          "[printer_discovery][ad5x_ifs]") {
-    helix::PrinterDiscovery discovery;
-    // Both MMU and IFS sensors present — MMU wins because it's detected first
-    discovery.parse_objects(nlohmann::json::array({
-        "mmu",
-        "filament_switch_sensor _ifs_port_sensor_1",
-    }));
-
-    REQUIRE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::HAPPY_HARE);
-}
-
 // ==========================================================================
 // QIDI Box Detection
 // ==========================================================================
@@ -1864,26 +1958,6 @@ TEST_CASE("PrinterDiscovery counts QIDI Box slots from box_stepper objects",
         discovery.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
         REQUIRE(discovery.qidi_box_slot_count() == 0);
     }
-}
-
-TEST_CASE("PrinterDiscovery: Happy Hare takes priority over QIDI Box",
-          "[printer_discovery][qidi_box]") {
-    // Happy Hare is a generic MMU and wins over hardware-specific backends
-    // (matches AD5X IFS priority semantics). If both objects appear in
-    // printer.objects.list, mmu_type() must be HAPPY_HARE.
-    helix::PrinterDiscovery discovery;
-    discovery.parse_objects(nlohmann::json::array({
-        "mmu",
-        "box_stepper slot0",
-        "box_stepper slot1",
-        "box_stepper slot2",
-        "box_stepper slot3",
-    }));
-
-    REQUIRE(discovery.has_mmu());
-    REQUIRE(discovery.mmu_type() == AmsType::HAPPY_HARE);
-    // QIDI slot counter must NOT increment when Happy Hare claims the slot.
-    REQUIRE(discovery.qidi_box_slot_count() == 0);
 }
 
 // ============================================================================
@@ -1968,6 +2042,44 @@ TEST_CASE("PrinterDiscovery: sensor toggle command follows a SET_FILAMENT_SENSOR
         CHECK_FALSE(discovery.parse_sensor_toggle_command(
             json{{"gcode_macro set_filament_sensor", {{"rename_existing", 3}}}}));
         CHECK(discovery.sensor_toggle_command() == "SET_FILAMENT_SENSOR");
+    }
+}
+
+TEST_CASE("PrinterDiscovery: a SCREWS_TILT_CALCULATE wrapper's builtin is recorded",
+          "[printer_discovery][screws_tilt]") {
+    helix::PrinterDiscovery discovery;
+    REQUIRE(discovery.screws_tilt_builtin().empty());
+
+    SECTION("no wrapper records nothing") {
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro set_filament_sensor", {{"rename_existing", "_SFS"}}}}));
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a wrapper's rename_existing names the builtin, and clear() forgets it") {
+        REQUIRE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate",
+                  {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}, {"gcode", "..."}}}}));
+        CHECK(discovery.screws_tilt_builtin() == "SCREWS_TILT_CALCULATE_BASE");
+
+        discovery.clear();
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a later configfile without the wrapper drops the builtin") {
+        REQUIRE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate",
+                  {{"rename_existing", "SCREWS_TILT_CALCULATE_BASE"}}}}));
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(json::object()));
+        CHECK(discovery.screws_tilt_builtin().empty());
+    }
+
+    SECTION("a wrapper with no usable rename_existing records nothing") {
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate", {{"gcode", "..."}}}}));
+        CHECK_FALSE(discovery.parse_screws_tilt_builtin(
+            json{{"gcode_macro screws_tilt_calculate", {{"rename_existing", 3}}}}));
+        CHECK(discovery.screws_tilt_builtin().empty());
     }
 }
 

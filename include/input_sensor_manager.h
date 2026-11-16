@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "input_sensor_types.h"
 #include "sensor_manager.h"
 
@@ -111,7 +112,7 @@ class InputSensorManager : public SensorManager {
     /// the one-toast-per-opening rule. Main thread only.
     std::vector<std::string> open_doors_seen_;
 
-    lv_subject_t door_check_subject_{};
+    helix::Subject door_check_subject_{};
 };
 
 } // namespace helix::sensors

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
@@ -20,6 +21,7 @@ namespace helix {
  * - telemetry_enabled (opt-in toggle)
  * - wifi_enabled (radio on/off choice, survives restarts)
  * - wifi_country (regulatory country, "" = leave it to the system)
+ * - wifi_country_last_seen (last real country the radio reported)
  *
  * Thread safety: Single-threaded, main LVGL thread only.
  */
@@ -147,6 +149,36 @@ class SystemSettingsManager {
      */
     void set_wifi_country(const std::string& code);
 
+    /**
+     * @brief The last real country the radio reported (ISO 3166-1 alpha-2),
+     *        "" when it never reported one. Readable before init_subjects().
+     *
+     * Not a choice: WiFiManager records it, and sends it back when the radio
+     * comes up in the world domain with no saved choice.
+     */
+    std::string get_wifi_country_last_seen() const;
+
+    /// Persist the last real country the radio reported.
+    void set_wifi_country_last_seen(const std::string& code);
+
+    // =========================================================================
+    // PLUGIN INSTALL PROMPT
+    // =========================================================================
+
+    /// The user asked never to be offered the HelixPrint plugin again.
+    /// Readable before init_subjects(), like the rest of this group.
+    bool get_plugin_install_declined() const;
+    void set_plugin_install_declined();
+
+    /// Seconds since the epoch the prompt was last snoozed; 0 when never. See
+    /// decide_plugin_prompt_snooze() in helix_plugin_installer.h.
+    int64_t get_plugin_prompt_snoozed_at() const;
+
+    /// Starts since the snooze on which the clock could not measure it.
+    int get_plugin_prompt_unmeasured_starts() const;
+
+    void set_plugin_prompt_snooze(int64_t snoozed_at_s, int unmeasured_starts);
+
     // =========================================================================
     // LOG LEVEL SETTINGS
     // =========================================================================
@@ -200,8 +232,8 @@ class SystemSettingsManager {
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t language_subject_{};
-    lv_subject_t log_level_subject_{};
+    helix::Subject language_subject_{};
+    helix::Subject log_level_subject_{};
 
     bool subjects_initialized_ = false;
 };

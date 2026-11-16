@@ -20,15 +20,15 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 #include "test_helpers/print_status_panel_test_access.h"
 
 #include <lvgl.h>
@@ -88,8 +88,8 @@ TEST_CASE_METHOD(
     // Tree dies while the handler is still sitting in the queue.
     delete_widget_tree();
 
-    // Pre-fix this ran on_print_start_progress_changed() against the freed
-    // preparing bar: lv_bar_set_value() on freed memory. SIGSEGV.
+    // Unguarded, this would run on_print_start_progress_changed() against the
+    // freed preparing bar: lv_bar_set_value() on freed memory. SIGSEGV.
     UpdateQueue::instance().drain();
 
     // The handler must have RUN, not been skipped: it still publishes its own
@@ -258,7 +258,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::FilamentSensorManager::instance().deinit_subjects();
 
     // Every guard reset() lands here. Each one that never learned its subject
-    // died calls lv_observer_remove() on a freed node.
+    // died calls lv_observer_delete() on a freed node.
     panel->deinit_subjects();
     panel.reset();
     UpdateQueue::instance().drain();

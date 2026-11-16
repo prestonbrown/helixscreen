@@ -108,7 +108,6 @@ class TouchCalibrationPanel {
     TouchCalibrationPanel();
     ~TouchCalibrationPanel();
 
-    // Non-copyable
     TouchCalibrationPanel(const TouchCalibrationPanel&) = delete;
     TouchCalibrationPanel& operator=(const TouchCalibrationPanel&) = delete;
 

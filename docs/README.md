@@ -33,6 +33,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Plugin Development**](devel/PLUGIN_DEVELOPMENT.md) | Writing a Lua plugin: manifest, XML rules, the helix.* API, permissions, limits, debugging |
 | [**Architecture**](devel/ARCHITECTURE.md) | Whole-app model + routing to the 17-chapter guide (`devel/architecture/`) |
 | [**Build System**](devel/BUILD_SYSTEM.md) | Makefile, cross-compilation, patches |
+| [**Sharing the Tree**](devel/SHARED_TREE.md) | Working beside other sessions: `helix-claim`, the git hooks, committing in a shared tree |
 | [**Testing**](devel/TESTING.md) | Test infrastructure and Catch2 usage |
 | [**Changelog Style**](devel/CHANGELOG_STYLE.md) | How `CHANGELOG.md` entries are written: user-facing voice, separator, issue links, daily vs milestone shapes |
 
@@ -71,7 +72,8 @@ Welcome to the HelixScreen documentation. Choose your path:
 |----------|-------------|
 | [**Label Printer System**](devel/LABEL_PRINTER_SYSTEM.md) | Brother QL, Phomemo, Niimbot, MakeID; USB/TCP/Bluetooth |
 | [**Filament Management**](devel/FILAMENT_MANAGEMENT.md) | Shared filament-system architecture: multi-backend, dispatch ladder, slot metadata, endless spool, dryer, device ops |
-| **Filament Backend Leaves** | Per-backend docs: [AFC](devel/FILAMENT_BACKEND_AFC.md), [Happy Hare](devel/FILAMENT_BACKEND_HAPPY_HARE.md), [ACE](devel/FILAMENT_BACKEND_ACE.md), [Tool Changer](devel/FILAMENT_BACKEND_TOOLCHANGER.md), [AD5X IFS](devel/FILAMENT_BACKEND_AD5X_IFS.md), [CFS](devel/FILAMENT_BACKEND_CFS.md), [QIDI Box](devel/FILAMENT_BACKEND_QIDI_BOX.md), [Snapmaker U1](devel/FILAMENT_BACKEND_SNAPMAKER_U1.md), [multiACE](devel/FILAMENT_BACKEND_MULTIACE.md), [INDX](devel/FILAMENT_BACKEND_INDX.md), [MedusaHC](devel/FILAMENT_BACKEND_MEDUSAHC.md) |
+| [**Unit Art**](devel/UNIT_ART.md) | Drawn filament units and toolheads: art kit, baked layers, tray shapes, adding a unit |
+| **Filament Backend Leaves** | Per-backend docs: [AFC](devel/FILAMENT_BACKEND_AFC.md), [Happy Hare](devel/FILAMENT_BACKEND_HAPPY_HARE.md), [ACE](devel/FILAMENT_BACKEND_ACE.md), [Tool Changer](devel/FILAMENT_BACKEND_TOOLCHANGER.md), [AD5X IFS](devel/FILAMENT_BACKEND_AD5X_IFS.md), [CFS](devel/FILAMENT_BACKEND_CFS.md), [QIDI Box](devel/FILAMENT_BACKEND_QIDI_BOX.md), [Snapmaker U1](devel/FILAMENT_BACKEND_SNAPMAKER_U1.md), [multiACE](devel/FILAMENT_BACKEND_MULTIACE.md), [INDX](devel/FILAMENT_BACKEND_INDX.md), [Lane Status](devel/FILAMENT_BACKEND_LANE_STATUS.md), [MedusaHC](devel/FILAMENT_BACKEND_MEDUSAHC.md) |
 | [**Filament Slot Metadata (internal)**](devel/FILAMENT_SLOT_METADATA.md) | `FilamentSlotOverrideStore` implementation: per-backend hooks, hardware-event clearing, cache, migration |
 | [**Creality CFS Internals (K1)**](devel/printer-research/CREALITY_CFS_K1_INTERNALS.md) | K1-family CFS box-wrapper RE reference: `BOX_*` semantics, the printer-side tn_data.json userdata, deferred-failure/resume traps |
 | [**Creality CFS Internals (K2)**](devel/printer-research/CREALITY_CFS_K2_INTERNALS.md) | K2 CFS module RE reference: `box` schema variants, command surface, error codes, runout, the community Kalico port |
@@ -79,14 +81,18 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Filament Slots Spec (public)**](specs/filament_slots.md) | Wire-format convention for the `lane_data` Moonraker DB namespace — readable by any third party |
 | [**Input Shaper & PID**](devel/INPUT_SHAPER.md) | Calibration, frequency response charts, CSV parser |
 | [**Pressure Advance Tuning**](devel/PRESSURE_ADVANCE_TUNING.md) | Tune K by eye on a live test print; Spoolman and Moonraker persistence |
+| [**Vertical Artifact Check**](devel/MOTOR_RIPPLE_CHECK.md) | Motor ripple speed sweep: speeds to avoid, compensation off/on compare, the outer-wall-speed print-start warning, mock knobs |
 | [**Belt Tension**](devel/BELT_TENSION.md) | Resonance-sweep belt path comparison and guided tuning loop: gate, collector, settling laps, provisional verdicts, mock knobs |
 | [**Preprint Prediction**](devel/PREPRINT_PREDICTION.md) | ETA prediction engine, phase timing, history |
 | [**Exclude Objects**](devel/EXCLUDE_OBJECTS.md) | Object exclusion, thumbnails, slicer setup |
 | [**Print Start Profiles**](devel/PRINT_START_PROFILES.md) | Print start phase detection, developer guide: pipeline, signal sources, evidence kinds, profiles |
 | [**Print Start Integration**](devel/PRINT_START_INTEGRATION.md) | User-facing macro setup guide |
 | [**Update System**](devel/UPDATE_SYSTEM.md) | Channels, R2 CDN, downloads, Moonraker updater |
+| [**Guided Cold Pull**](devel/COLD_PULL.md) | Nozzle cleaning walkthrough, the clog alert's Cold Pull button, heater safety |
+| [**Maintenance Reminders**](devel/MAINTENANCE.md) | Print-hour meters, per-printer defaults, due notices |
 | [**Sound System**](devel/SOUND_SYSTEM.md) | Audio architecture, JSON themes, backends |
 | [**Built-in Screen Server**](devel/REMOTE_SCREEN.md) | The screen as a Mainsail/Fluidd webcam, remote touch, pairing and the nginx route |
+| [**UI cost on real boards**](devel/PERFORMANCE.md) | Measured CPU and memory per board, how to measure, open costs |
 | [**Screensavers**](devel/SCREENSAVERS.md) | Registry, shared parts, CPU gate and stored levels, adding a saver |
 | [**LED Control**](devel/LED_CONTROL.md) | LED system: 5 backends, auto-state lighting, overlays |
 | [**Sensor Management**](devel/SENSOR_MANAGEMENT.md) | The hardware object table and the `SensorManager` base (filament, temperature, humidity, probe, accel, width, load cell, input): discovery, subjects, Settings rows, runout handling |
@@ -114,7 +120,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Snapmaker U1 Support**](devel/printers/SNAPMAKER_U1_SUPPORT.md) | Snapmaker U1 toolchanger platform guide |
 | [**Creality K2 Support**](devel/printers/CREALITY_K2_SUPPORT.md) | Creality K2 series platform guide |
 | [**FlashForge AD5X Support**](devel/printers/FLASHFORGE_AD5X_SUPPORT.md) | FlashForge Adventurer 5X (MIPS, ZMOD) |
-| [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2000 MIPS, unified `mips` target) |
+| [**FlashForge Creator 5 Support**](devel/printers/FLASHFORGE_CREATOR5_PRO_SUPPORT.md) | FlashForge Creator 5 and Creator 5 Pro (Ingenic X2600 MIPS, unified `mips` target) |
 | [**Elegoo Centauri Carbon (Yocto)**](devel/printers/ELEGOO_CENTAURI_CARBON_YOCTO.md) | Centauri Carbon `cc1` / `yocto` targets and the OpenCentauri COSMOS Yocto dev loop |
 | [**ESP32 Firmware Architecture**](devel/architecture/17-esp32-firmware.md) | The BTT K-Touch (ESP32-S3) firmware: source subset, memory model, tasks, boot order, rendering, networking, storage, OTA |
 | [**ESP32 Port**](devel/ESP32_PORT.md) | Building, flashing and debugging the K-Touch firmware, and the rules a shared change must follow |
@@ -135,16 +141,11 @@ Welcome to the HelixScreen documentation. Choose your path:
 
 ## Audits & Reports
 
-**Security reviews and quality assessments.**
+**Point-in-time quality assessments.**
 
 | Document | Description |
 |----------|-------------|
 | [**Safety Audit**](audits/SAFETY_AUDIT.md) | User-facing safety: printer damage, self-harm, misleading state |
-| [**Security Review**](audits/MOONRAKER_SECURITY_REVIEW.md) | Moonraker security assessment |
-| [**Memory Analysis**](audits/MEMORY_ANALYSIS.md) | Memory profiling and optimization |
-| [**Test Coverage**](audits/TEST_COVERAGE_REPORT.md) | Test coverage report |
-| [**Moonraker Audit Summary**](audits/MOONRAKER_AUDIT_SUMMARY.md) | Moonraker client code-quality audit |
-| [**Moonraker Client Test Results**](audits/MOONRAKER_CLIENT_TEST_RESULTS.md) | Moonraker client robustness testing |
 
 ---
 
@@ -180,7 +181,7 @@ docs/
 │   ├── CLAUDE.md             # Specs subtree routing
 │   └── filament_slots.md     # lane_data Moonraker DB convention
 │
-├── audits/                   # 6 audit and review reports
+├── audits/                   # Safety audit
 ├── store/android/            # Play Store listing assets
 └── images/                   # Screenshots (+ images/user/)
 

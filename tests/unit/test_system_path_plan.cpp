@@ -10,7 +10,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "filament_path_test_helpers.h"
-#include "src/ui/ui_system_path_plan.h"
+#include "src/ui/filament/ui_system_path_plan.h"
 
 #include <memory>
 

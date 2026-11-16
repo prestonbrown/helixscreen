@@ -63,6 +63,7 @@ void ui_spool_canvas_invalidate_cache(void);
 #include "ui_swatch.h"
 
 #include "filament_tube_stroker.h"
+#include "spool_spin.h"
 
 #include <string>
 
@@ -93,23 +94,33 @@ void spool_canvas_set_view(lv_obj_t* canvas, SpoolView view);
 SpoolView spool_canvas_get_view(lv_obj_t* canvas);
 
 /**
+ * @brief Turn @p canvas's spool as @p spin says; a direction of 0 stands it still.
+ *
+ * The vents step through pre-rendered phases held in the render cache, so a
+ * turning spool costs a copy of its buffer per step, not a repaint, and its
+ * glow never repaints. The spin ends with the canvas, and a hidden canvas does
+ * not step. No-op on a spin already running.
+ */
+void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin);
+
+/**
  * @brief Create a glow layer: an image the caller places behind a spool,
  *        centered on it and sized like it.
  */
 lv_obj_t* spool_glow_create(lv_obj_t* parent);
 
 /**
- * @brief Light the glow for a silhouette of @p size px and keep it current.
+ * @brief Light the glow in @p color for a silhouette of @p size px and keep it current.
  *
  * The silhouette is @p spool_canvas's own alpha, from the side or face-on.
  * The layer stays bound to the spool: it repaints when the spool renders a new shape, and stays
- * empty until the spool's first render. Capable hardware gets a soft accent halo plus a lighter
- * tight rim; @p simple a 2 px solid outline. The image overhangs the object by the glow margin,
- * reported as ext draw size, so layout never moves. One image per (shape, accent, simple) is shared
- * by every layer showing it, from a small cache of its own. Calling again re-reads the theme
- * accent.
+ * empty until the spool's first render. Capable hardware gets a soft halo plus a lighter tight
+ * rim; @p simple a 2 px solid outline. The image overhangs the object by the glow margin,
+ * reported as ext draw size, so layout never moves. One image per (shape, color, simple) is shared
+ * by every layer showing it, from a small cache of its own. The current lane glows in
+ * tube_accent(); a lane in error in its severity color.
  */
-void spool_glow_paint(lv_obj_t* glow, lv_obj_t* spool_canvas, int32_t size,
+void spool_glow_paint(lv_obj_t* glow, lv_obj_t* spool_canvas, int32_t size, lv_color_t color,
                       bool simple = reduced_effects());
 
 /// Unlight the layer and drop its image reference.

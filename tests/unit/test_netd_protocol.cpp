@@ -85,6 +85,10 @@ TEST_CASE("netd snapshot SSID base64 round-trips UTF-8 and decodes invalid base6
     // Invalid base64 is a known field answered with an empty string, never an error.
     REQUIRE(helix::netd::parse_snapshot_line("SSID=!!not-base64!!", snap));
     REQUIRE(snap.ssid.empty());
+    // Canonical length, but padding before the final quantum.
+    REQUIRE(helix::netd::parse_snapshot_line("SSID=" + b64(cjk), snap));
+    REQUIRE(helix::netd::parse_snapshot_line("SSID=QUJD=AAA", snap));
+    REQUIRE(snap.ssid.empty());
 
     // Empty value round-trips to empty.
     REQUIRE(helix::netd::parse_snapshot_line("SSID=", snap));

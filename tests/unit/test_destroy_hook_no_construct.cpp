@@ -20,14 +20,14 @@
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 
 #include <lvgl.h>
 

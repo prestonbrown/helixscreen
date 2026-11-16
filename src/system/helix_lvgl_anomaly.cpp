@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "helix_lvgl_anomaly.h"
 
+#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/spdlog.h>
+
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
 #include <string>
 
 // Stack trace support (glibc Linux / macOS only).
@@ -40,6 +45,22 @@ std::string capture_backtrace_hex() {
 } // namespace
 
 extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
+    // HELIX_LOG_ANOMALIES=1 also writes each anomaly to the log. Telemetry drops them in
+    // tests and rate-limits them in the app, so this is how a run counts them.
+    static const bool log_anomalies = [] {
+        const char* v = std::getenv("HELIX_LOG_ANOMALIES");
+        return v != nullptr && v[0] == '1';
+    }();
+    if (log_anomalies) {
+        // Its own stderr logger, not the default one: the default can be a null sink (the
+        // test binary installs one). Held for good: an anomaly can be reported from the
+        // atexit chain, after spdlog's registry is gone.
+        static const auto* logger =
+            new std::shared_ptr<spdlog::logger>(std::make_shared<spdlog::logger>(
+                "lvgl_anomaly", std::make_shared<spdlog::sinks::stderr_sink_mt>()));
+        (*logger)->warn("[LvglAnomaly] {}: {}", code ? code : "unknown_anomaly",
+                        context ? context : "");
+    }
     // Use "display" category — it's on the TelemetryManager allow-list and
     // semantically correct for LVGL/render-layer anomalies. Per-category rate
     // limit (1/5min) applies, so we share the budget with other display errors.
@@ -52,8 +73,8 @@ extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
     // Stable anchor: runtime address of helix_lvgl_anomaly itself.
     // Python-side resolver uses this to compute load_base directly
     // (base = runtime_anchor - file_offset_of_helix_lvgl_anomaly), avoiding
-    // the heuristic guesswork that fails on PIE binaries. Backwards-compat:
-    // pre-fix bundles lack this field and the resolver falls back to raw hex.
+    // the heuristic guesswork that fails on PIE binaries. Bundles from older
+    // builds lack this field and the resolver falls back to raw hex.
     {
         char anchor_buf[40];
         std::snprintf(anchor_buf, sizeof(anchor_buf), "runtime_anchor=0x%lx | ",

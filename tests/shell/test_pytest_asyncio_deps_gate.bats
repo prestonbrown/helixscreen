@@ -285,11 +285,3 @@ EOF
     contains "test_marked (marked)" "$output"
     [[ "$output" == *"test_bare (UNMARKED)"* ]]
 }
-
-# ------------------------------------------------- the real tree (the ratchet)
-
-@test "the repository's own Python suites satisfy the gate" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"OK"* ]]
-}

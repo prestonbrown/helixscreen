@@ -12,12 +12,11 @@
  * Run with: ./build/bin/helix-tests "[shared_resources]"
  */
 
-#include "ui_update_queue.h"
-
 #include "../../lvgl_ui_test_fixture.h"
 #include "../../test_helpers/subject_initializer_test_access.h"
-#include "../../test_helpers/update_queue_test_access.h"
 #include "bed_drying_controller.h"
+#include "cold_pull_runner.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
@@ -54,7 +53,7 @@ class SharedResourceFixture : public LVGLUITestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   private:
@@ -81,6 +80,7 @@ TEST_CASE_METHOD(SharedResourceFixture,
     REQUIRE(mgr.shared_resource<BedDryingController>() != nullptr);
     REQUIRE(mgr.shared_resource<TemperatureService>() != nullptr);
     REQUIRE(mgr.shared_resource<IMoonrakerAPI>() == api());
+    REQUIRE(mgr.shared_resource<helix::ui::ColdPullRunner>() != nullptr);
 
     si.reset();
 
@@ -88,6 +88,7 @@ TEST_CASE_METHOD(SharedResourceFixture,
     CHECK(mgr.shared_resource<BedDryingController>() == nullptr);
     CHECK(mgr.shared_resource<TemperatureService>() == nullptr);
     CHECK(mgr.shared_resource<IMoonrakerAPI>() == nullptr);
+    CHECK(mgr.shared_resource<helix::ui::ColdPullRunner>() == nullptr);
 }
 
 TEST_CASE_METHOD(SharedResourceFixture,

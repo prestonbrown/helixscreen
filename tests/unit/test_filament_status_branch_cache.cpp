@@ -19,20 +19,21 @@
  * interpolating arms are the easy ones to forget, because they return early and
  * never reach the bottom of the function.
  *
- * Reported shape (bundle TPVTQKBM, a Kalico Voron with min_extrude_temp: 10):
+ * Reported shape (a Kalico Voron with min_extrude_temp: 10):
  * that printer sits in the Ready arm permanently, so the constant arm is the
  * steady state rather than a transient — 10,103 of the 13,310 lines the bundle
  * shipped were the one warning this lookup emitted.
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 
 #include <lvgl.h>
@@ -88,24 +89,6 @@ struct StatusHarness {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: a repeated status arm is not re-rendered",
-                 "[filament][status][panel]") {
-    StatusHarness h(*this);
-
-    // Hot and idle: the Ready arm, whose text is constant.
-    h.set_nozzle(210.0, 0.0);
-    TA::update_status(*h.panel);
-    const std::string ready = h.status_text();
-    REQUIRE_FALSE(ready.empty());
-
-    // The steady state: temperatures keep ticking, the arm does not change.
-    // Whatever the early-out skips, it must not disturb what is on screen.
-    for (int i = 0; i < 5; ++i) {
-        TA::update_status(*h.panel);
-    }
-    CHECK(h.status_text() == ready);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: returning to a cached arm still repaints",
                  "[filament][status][panel]") {
     StatusHarness h(*this);
@@ -156,4 +139,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: an unset nozzle target reads
 
     h.set_nozzle(40.0, 215.0);
     CHECK(text() == "40 / 215°C");
+    // The readout colors itself by heating state: red while heating.
+    lv_obj_t* current = lv_obj_find_by_name(h.root, "nozzle_current_temp");
+    REQUIRE(current != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(current, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
 }

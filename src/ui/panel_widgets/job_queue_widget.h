@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_coalesced_timer.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "job_queue_tile_state.h"
 #include "panel_widget.h"
 #include "src/ui/panel_widgets/job_queue_tile_layout.h"

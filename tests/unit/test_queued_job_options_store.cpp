@@ -18,11 +18,9 @@
  * helix-xml's process-global scope would dangle after the test.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"
@@ -53,14 +51,14 @@ class QueueOptionsStoreFixture : public LVGLTestFixture {
         state_.reset();
         api_.reset();
         client_.disconnect();
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
     }
 
     /// The mock dispatches handlers inline on the calling thread, so each
     /// queued callback can queue one more round (get -> prune -> post); drain
     /// repeatedly the way JobQueueStalenessFixture does.
     void pump(int rounds = 10) {
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), rounds);
+        UpdateQueue::instance().drain_until_empty(rounds);
     }
 
     /// Reads the stored option map straight from the (mock) database. The

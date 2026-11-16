@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
+
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_exceptions.h

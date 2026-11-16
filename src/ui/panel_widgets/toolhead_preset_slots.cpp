@@ -4,9 +4,11 @@
 #include "toolhead_preset_slots.h"
 
 #include "device_display_name.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
+
+#include "hv/json.hpp"
 
 namespace helix {
 

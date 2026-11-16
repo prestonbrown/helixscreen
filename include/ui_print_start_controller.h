@@ -3,13 +3,17 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_mapper.h"
+#include "helix_shared_callback.h"
+#include "print_lifecycle_state.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
+#include "print_start_params.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -55,12 +59,12 @@ class PrintPreparationManager;
  */
 class PrintStartController {
   public:
-    using PrintStartedCallback = std::function<void()>;
-    using PrintCancelledCallback = std::function<void()>;
-    using UpdatePrintButtonCallback = std::function<void()>;
-    using HideDetailViewCallback = std::function<void()>;
-    using ShowDetailViewCallback = std::function<void()>;
-    using NavigateToPrintStatusCallback = std::function<void()>;
+    using PrintStartedCallback = helix::SharedCallback<void()>;
+    using PrintCancelledCallback = helix::SharedCallback<void()>;
+    using UpdatePrintButtonCallback = helix::SharedCallback<void()>;
+    using HideDetailViewCallback = helix::SharedCallback<void()>;
+    using ShowDetailViewCallback = helix::SharedCallback<void()>;
+    using NavigateToPrintStatusCallback = helix::SharedCallback<void()>;
 
     /**
      * @brief Construct controller with required dependencies
@@ -118,7 +122,7 @@ class PrintStartController {
     /// Runs when a start with no detail view meets a printer-stopping command
     /// check that did not run: the start ends there (then the cancelled
     /// callback), since nothing on screen can stand in for that check.
-    void set_on_file_unchecked(std::function<void()> cb) {
+    void set_on_file_unchecked(helix::SharedCallback<void()> cb) {
         on_file_unchecked_ = std::move(cb);
     }
 
@@ -148,7 +152,7 @@ class PrintStartController {
      * @p on_error are invoked on the MAIN thread.
      *
      * There is no detail view here and no reprint picker, so the routing comes
-     * from AmsBackend::last_print_tool_mapping() — the routing the printer ran
+     * from IPrintRouting::last_print_tool_mapping() — the routing the printer ran
      * the job with — via FilamentMapper::reprint_remap(). When that is not known
      * the map is SKIPPED rather than defaulted: an empty remap makes
      * build_preprint_gcode write every used tool to its firmware-default head,
@@ -168,12 +172,13 @@ class PrintStartController {
     /// the main thread; a later read supersedes an unanswered one.
     /// @p read bounds the file read: a caller that cannot wait on a download
     /// passes FileRead::Footer.
-    void read_file_tools(const std::string& filename, std::function<void(std::set<int>)> on_tools,
+    void read_file_tools(const std::string& filename,
+                         helix::SharedCallback<void(std::set<int>)> on_tools,
                          helix::FileRead read = helix::FileRead::Whole);
 
     void initiate_reprint(const std::string& filename, const std::string& path,
-                          const std::set<int>& tools_used, std::function<void()> on_started,
-                          std::function<void()> on_error, int archive_plate = 0);
+                          const std::set<int>& tools_used, helix::SharedCallback<void()> on_started,
+                          helix::SharedCallback<void()> on_error, int archive_plate = 0);
 
     /**
      * @brief initiate_reprint() with a routing the caller knows.
@@ -183,8 +188,8 @@ class PrintStartController {
      */
     void initiate_reprint_with_routing(const std::string& filename, const std::set<int>& tools_used,
                                        const std::map<int, int>& routing,
-                                       std::function<void()> on_started,
-                                       std::function<void()> on_error);
+                                       helix::SharedCallback<void()> on_started,
+                                       helix::SharedCallback<void()> on_error);
 
     /**
      * @brief Check if controller is ready to start a print
@@ -223,6 +228,11 @@ class PrintStartController {
     void set_can_print_subject(lv_subject_t* subject) {
         can_print_subject_ = subject;
     }
+
+    /// The printer.print.start parameters carrying this print's full tool map,
+    /// from the backend its lanes belong to (AmsBackend::print_start_params()).
+    /// Empty where that backend's printer takes no map at the start.
+    [[nodiscard]] helix::PrintStartParams print_start_params() const;
 
   private:
     /// Reads a reprinted file's tools when its caller has none; created on that use.
@@ -274,14 +284,25 @@ class PrintStartController {
     void reprint_impl(const std::string& filename, const std::string& path,
                       const std::set<int>& tools_used,
                       const std::optional<std::map<int, int>>& routing,
-                      std::function<void()> on_started, std::function<void()> on_error,
-                      int archive_plate);
+                      helix::SharedCallback<void()> on_started,
+                      helix::SharedCallback<void()> on_error, int archive_plate,
+                      std::optional<int> native_plate = std::nullopt);
+
+    /// The plate a Reprint of the .3mf @p filename, which printed as itself,
+    /// names: the plate of the job this session confirmed starting
+    /// (PrinterPrintState::confirmed_start_plate()), else the one the printer's
+    /// metadata leaves no doubt about (print_3mf::unrecorded_reprint_plate()).
+    /// Calls @p on_plate with it (0: none), or toasts and calls @p on_error when
+    /// which plate printed is unknown, a failed metadata read included.
+    void resolve_archive_reprint(const std::string& filename, std::function<void(int)> on_plate,
+                                 helix::SharedCallback<void()> on_error);
 
     /// @p routed false sends the backend's unrouted step for @p tools_used
     /// (build_unrouted_preprint_gcode()) instead of a map.
     void send_backend_preprint_then(const std::set<int>& tools_used,
-                                    const std::map<int, int>& remap, std::function<void()> on_done,
-                                    std::function<void()> on_abort, bool routed = true);
+                                    const std::map<int, int>& remap,
+                                    helix::SharedCallback<void()> on_done,
+                                    helix::SharedCallback<void()> on_abort, bool routed = true);
 
     /// The "Print setup failed" modal for a pre-print send that did not
     /// happen: @p reason when one is known, else the printer-refusal text.
@@ -331,12 +352,12 @@ class PrintStartController {
     std::vector<std::string> exclude_picks_;
     std::string thumbnail_path_; ///< Pre-extracted thumbnail for USB/embedded files
     std::string scan_key_;
-    std::function<void()> on_file_unchecked_;
+    helix::SharedCallback<void()> on_file_unchecked_;
 
     // === Gate Pipeline State ===
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
     size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
-    lv_obj_t* print_gate_modal_ = nullptr;         ///< the ONE gate dialog handle
+    helix::ui::WidgetRef print_gate_modal_;        ///< the ONE gate dialog handle
 
     // === Callbacks ===
     PrintStartedCallback on_print_started_;
@@ -372,6 +393,10 @@ class PrintStartController {
     // backend would accept every refused entry (see observe_backend_for_retry).
     ObserverGuard backend_retry_observer_;
 
+    // Armed while a replayed record waits for the printer's first print state
+    // report (see observe_print_report_for_restore).
+    ObserverGuard print_report_observer_;
+
     // Armed only between sending a restore and the firmware confirming it.
     ObserverGuard ams_data_observer_;
     bool awaiting_restore_confirmation_ = false;
@@ -405,6 +430,14 @@ class PrintStartController {
 
     /// Set up observer for print state to auto-restore mapping
     void observe_lifecycle_for_restore();
+
+    /// Hold a replayed record until the printer reports its print state, then
+    /// restore it if no job holds the machine, or at that job's end if one does.
+    void observe_print_report_for_restore();
+
+    /// The answer to the one-shot print_stats query observe_print_report_for_restore()
+    /// sends, as of report sequence @p seen. Main thread.
+    void on_print_state_answer(int seen, const std::string& state);
 
     /**
      * @brief Wait for Klipper to become READY, then retry a deferred restore.
@@ -471,9 +504,13 @@ class PrintStartController {
     friend void adopt_hand_tool_mapping(int backend_index, int tool, int slot);
 
   public:
-    /// Check for and restore any pending remap from a previous crashed session.
-    /// Call once after AMS backends are initialized.
-    void recover_pending_remap();
+    /// Replay the active printer's persisted record left by an earlier session.
+    /// @p activity is what the printer's own status says about its job:
+    /// discovery reads it from the status it delivers, before PrinterState's
+    /// print subjects have been updated from it. A running job keeps the record
+    /// until that job ends, an idle printer gets it back now, and with no report
+    /// the record waits for the printer's first one.
+    void recover_pending_remap(ReportedPrintActivity activity);
 };
 
 /**

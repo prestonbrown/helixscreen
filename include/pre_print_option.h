@@ -3,12 +3,12 @@
 
 #pragma once
 
+#include "json_fwd.h"
+
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file pre_print_option.h
@@ -158,6 +158,11 @@ struct PrePrintOption {
     /// variants but not on the user's K2). Empty = no gate (always shown).
     std::string requires_macro;
 
+    /// Enabling this option makes the printer refuse a slot whose material is
+    /// not set (SlotInfo::material_required), so the pre-flight blocks such a
+    /// slot only while it is on. JSON: "needs_material".
+    bool needs_material = false;
+
     PrePrintStrategyKind strategy_kind = PrePrintStrategyKind::MacroParam;
     PrePrintStrategyPayload strategy{PrePrintStrategyMacroParam{}};
 
@@ -235,6 +240,10 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j);
 PrePrintOptionSet parse_pre_print_option_set(const nlohmann::json& j);
 
 namespace helix {
+/// The id and capability of the heat soak option synthesized for a printer with
+/// a soak macro. A database option for the same capability declares another id.
+inline constexpr const char* kHeatSoakOptionId = "heat_soak";
+
 /// Sort by (category, order): the on-screen order every option set keeps.
 void sort_pre_print_options(std::vector<PrePrintOption>& options);
 } // namespace helix

@@ -3,19 +3,21 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
+#include "json_fwd.h"
 #include "overlay_base.h"
 #include "spoolman_catalog_search.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 // Forward declarations
 namespace helix::ui {
@@ -55,6 +57,9 @@ class SpoolWizardOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "spool_wizard";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
@@ -171,6 +176,11 @@ class SpoolWizardOverlay : public OverlayBase {
     /// The POST /v1/filament body for @p f under @p vendor_id
     static nlohmann::json filament_create_payload(const FilamentEntry& f, int vendor_id);
 
+    /// The record in @p filaments a pick of @p f under @p vendor_id would
+    /// create, so a repeat pick reuses it; nullptr when there is none.
+    static const FilamentInfo* existing_filament_for(const std::vector<FilamentInfo>& filaments,
+                                                     const FilamentEntry& f, int vendor_id);
+
     /// Load filaments for the selected vendor from server + SpoolmanDB
     void load_filaments();
 
@@ -282,26 +292,30 @@ class SpoolWizardOverlay : public OverlayBase {
 
     // ========== Subjects ==========
     SubjectManager subjects_;
-    lv_subject_t step_subject_{};
-    lv_subject_t can_proceed_subject_{};
-    lv_subject_t step_label_subject_{};
-    lv_subject_t creating_subject_{};
-    lv_subject_t selected_vendor_name_subject_{};
-    lv_subject_t summary_vendor_subject_{};
-    lv_subject_t summary_filament_subject_{};
-    lv_subject_t show_create_vendor_subject_{};
-    lv_subject_t show_create_filament_subject_{};
-    lv_subject_t vendor_count_subject_{};
-    lv_subject_t filament_count_subject_{};
-    lv_subject_t vendors_loading_subject_{};
-    lv_subject_t filaments_loading_subject_{};
-    lv_subject_t can_create_vendor_subject_{};
-    lv_subject_t summary_color_subject_{};
-    lv_subject_t summary_colors_subject_{};
-    lv_subject_t summary_finish_subject_{};
-    lv_subject_t catalog_available_subject_{};
-    lv_subject_t catalog_state_subject_{};
-    lv_subject_t catalog_count_subject_{};
+    helix::Subject step_subject_{};
+    helix::Subject can_proceed_subject_{};
+    helix::Subject step_label_subject_{};
+    // 1 while Create is refused for a missing material / color: the Create
+    // Filament modal's field label turns red.
+    helix::Subject material_error_subject_{};
+    helix::Subject color_error_subject_{};
+    helix::Subject creating_subject_{};
+    helix::Subject selected_vendor_name_subject_{};
+    helix::Subject summary_vendor_subject_{};
+    helix::Subject summary_filament_subject_{};
+    helix::Subject show_create_vendor_subject_{};
+    helix::Subject show_create_filament_subject_{};
+    helix::Subject vendor_count_subject_{};
+    helix::Subject filament_count_subject_{};
+    helix::Subject vendors_loading_subject_{};
+    helix::Subject filaments_loading_subject_{};
+    helix::Subject can_create_vendor_subject_{};
+    helix::Subject summary_color_subject_{};
+    helix::Subject summary_colors_subject_{};
+    helix::Subject summary_finish_subject_{};
+    helix::Subject catalog_available_subject_{};
+    helix::Subject catalog_state_subject_{};
+    helix::Subject catalog_count_subject_{};
     helix::xml::IndexedSubjectPool catalog_titles_{
         "spool_db_result_title", helix::xml::IndexedSubjectPool::Type::String, 128};
     helix::xml::IndexedSubjectPool catalog_details_{
@@ -372,10 +386,10 @@ class SpoolWizardOverlay : public OverlayBase {
     void publish_filament_summary();
 
     // ========== Create vendor modal ==========
-    lv_obj_t* create_vendor_dialog_ = nullptr;
+    helix::ui::WidgetRef create_vendor_dialog_;
 
     // ========== Create filament modal ==========
-    lv_obj_t* create_filament_dialog_ = nullptr;
+    helix::ui::WidgetRef create_filament_dialog_;
 
     // ========== Creation flow tracking ==========
     int created_vendor_id_ = -1;

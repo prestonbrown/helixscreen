@@ -7,12 +7,11 @@
  */
 
 #include "ui_nav_printer_badge.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 
@@ -25,14 +24,13 @@ namespace {
 class PrinterBadgeFixture : public LVGLUITestFixture {
   public:
     PrinterBadgeFixture() {
-        navbar_ = lv_obj_create(test_screen());
-        dot_ = lv_obj_create(navbar_);
-        lv_obj_set_name(dot_, "nav_printer_dot");
+        navbar_ = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "navigation_bar", nullptr));
+        dot_ = lv_obj_find_by_name(navbar_, "nav_printer_dot");
         conn_ = get_printer_state().network_state().get_printer_connection_state_subject();
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void connect_as(helix::ConnectionState state) {
@@ -78,30 +76,18 @@ TEST_CASE_METHOD(PrinterBadgeFixture, "Shutdown drops the callbacks",
     CHECK(calls == 0);
 }
 
-TEST_CASE_METHOD(PrinterBadgeFixture, "The dot follows the connection state",
+TEST_CASE_METHOD(PrinterBadgeFixture, "The navbar's dot follows the connection state",
                  "[navigation][printer_badge]") {
-    PrinterBadgeMenu badge;
-    badge.wire(navbar_);
-
+    REQUIRE(dot_ != nullptr);
     connect_as(helix::ConnectionState::CONNECTED);
-    CHECK(dot_color() == lv_color_to_u32(theme_manager_get_color("success")));
+    CHECK(dot_color() == lv_color_to_u32(helix::ui::connection_dot_color(2)));
 
     connect_as(helix::ConnectionState::CONNECTING);
     CHECK(dot_color() == lv_color_to_u32(theme_manager_get_color("warning")));
 
+    connect_as(helix::ConnectionState::RECONNECTING);
+    CHECK(dot_color() == lv_color_to_u32(theme_manager_get_color("warning")));
+
     connect_as(helix::ConnectionState::DISCONNECTED);
     CHECK(dot_color() == lv_color_to_u32(theme_manager_get_color("danger")));
-}
-
-TEST_CASE_METHOD(PrinterBadgeFixture, "Shutdown stops the dot following the connection state",
-                 "[navigation][printer_badge]") {
-    PrinterBadgeMenu badge;
-    badge.wire(navbar_);
-    connect_as(helix::ConnectionState::CONNECTED);
-    REQUIRE(dot_color() == lv_color_to_u32(theme_manager_get_color("success")));
-
-    badge.shutdown();
-    connect_as(helix::ConnectionState::DISCONNECTED);
-
-    CHECK(dot_color() == lv_color_to_u32(theme_manager_get_color("success")));
 }

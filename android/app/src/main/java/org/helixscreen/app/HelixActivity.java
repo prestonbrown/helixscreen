@@ -1,5 +1,6 @@
 package org.helixscreen.app;
 
+import android.annotation.TargetApi;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -50,7 +51,7 @@ import org.libsdl.app.SDLActivity;
  *   - API 30+: Uses WindowInsetsController with transient gesture bars.
  *     System edge-swipe reveals translucent bars that auto-fade. Our explicit
  *     show/hide via the custom swipe gesture uses the 3-second auto-hide timer.
- *   - API 28-29: Uses legacy setSystemUiVisibility with non-sticky IMMERSIVE
+ *   - API 24-29: Uses legacy setSystemUiVisibility with non-sticky IMMERSIVE
  *     flags so the hidden state persists across taps.
  *   - Reveal gesture: a swipe that starts within EDGE_ZONE_DP of the bottom
  *     edge and travels upward more than SWIPE_THRESHOLD_DP shows the nav bar.
@@ -229,7 +230,7 @@ public class HelixActivity extends SDLActivity {
     }
 
     /**
-     * API 28-29: legacy setSystemUiVisibility path.
+     * API 24-29: legacy setSystemUiVisibility path.
      * Uses non-sticky IMMERSIVE so HIDE_NAVIGATION persists across taps.
      */
     @SuppressWarnings("deprecation")
@@ -337,7 +338,9 @@ public class HelixActivity extends SDLActivity {
      * bottom swipe, etc. Our own touch handler doesn't see these because
      * the system consumes the gesture. Without this hook, mNavBarVisible
      * stays out of sync and the 3-second auto-hide timer is never scheduled.
+     * API 30+ only: onAttachedToWindow() is the one caller and checks it.
      */
+    @TargetApi(30)
     private void installNavbarInsetListener() {
         getWindow().getDecorView().setOnApplyWindowInsetsListener((v, insets) -> {
             boolean navVisibleNow =
@@ -444,7 +447,7 @@ public class HelixActivity extends SDLActivity {
     }
 
     /**
-     * Legacy visibility change listener for API 28-29.
+     * Legacy visibility change listener for API 24-29.
      * On API 30+ the WindowInsetsController manages bar state directly, so
      * this callback fires but we rely on our own mNavBarVisible tracking.
      */

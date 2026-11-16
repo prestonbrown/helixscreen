@@ -1,6 +1,6 @@
 # UI Contributor Guide
 
-A hands-on guide for contributing layout fixes and alternate screen layouts to HelixScreen. Whether you're fixing clipping at 480x320 or building a portrait layout from scratch, this document covers everything you need. XML changes don't require a rebuild -- just relaunch the app.
+A hands-on guide for contributing layout fixes and alternate screen layouts to HelixScreen. Whether you're fixing clipping at 480x320 or building a portrait layout from scratch, this document covers everything you need. XML changes don't require a rebuild: a native dev build hot-reloads `ui_xml/` within about 500ms of a save.
 
 For C++ internals, threading, and observer patterns, see the [Deep Dive References](#10-deep-dive-references) at the bottom.
 
@@ -12,7 +12,7 @@ Build once, then iterate on XML without rebuilding:
 
 ```bash
 # Build the binary
-make -j
+make
 
 # Run at any screen size (mock printer, debug logging)
 ./build/bin/helix-screen --test -vv -s 800x480
@@ -24,7 +24,7 @@ The `-s WIDTHxHEIGHT` flag sets the window size. The `--test` flag runs against 
 
 | Size | Category | Notes |
 |------|----------|-------|
-| `480x272` | Micro | Smallest supported. Has its own `ui_xml/micro/` overrides. |
+| `480x272` | Micro | Smallest supported. Controls switches to a denser arrangement here. |
 | `480x320` | Tiny | Where most bugs live. |
 | `800x480` | Standard / Medium | The "default" target. Most common screen. |
 | `1024x600` | Large | Waveshare 7" and similar. |
@@ -42,7 +42,7 @@ Take a screenshot of a specific panel at a specific size:
 ./scripts/screenshot.sh helix-screen tiny-home home --test -s 480x320
 ```
 
-This requires ImageMagick. You can also press **S** while the app is running for a quick screenshot.
+The tokens (`home` here) are listed in `scripts/screenshot-recipes.sh`. You can also press **S** while the app is running for a quick screenshot.
 
 ### Force a layout
 
@@ -60,7 +60,7 @@ This requires ImageMagick. You can also press **S** while the app is running for
 
 ### The golden rule
 
-**XML changes don't need a rebuild.** Edit any `.xml` file in `ui_xml/`, relaunch the app, and see your changes immediately. This makes layout iteration very fast.
+**XML changes don't need a rebuild.** Edit any `.xml` file in `ui_xml/` and a native dev build reloads it within about 500ms (`HELIX_HOT_RELOAD=0/1` overrides); invalid XML mid-write is skipped and retried.
 
 ---
 
@@ -89,32 +89,32 @@ The **index** column matters for XML reactive bindings. The `ui_breakpoint` subj
 | Ladder | Measures | Selects for | Function |
 |--------|----------|-------------|----------|
 | **Cramped axis** (default) | `min(width, height)` | Fonts, spacing, widths, column counts, everything axis-neutral | `responsive_dimension()` |
-| **Vertical axis** | `height` | Height tokens — how much room there is to stack things | `responsive_vertical_dimension()` |
+| **Vertical axis** | `height` | Height tokens - how much room there is to stack things | `responsive_vertical_dimension()` |
 
-The cramped axis is the design constraint for anything that has to *fit across*: on a landscape panel it is usually the height, which is why this was long described as height-based; on a portrait panel it is the width. The vertical axis is the constraint for anything that *stacks*: a row height on a 1480px-tall panel has no reason to be sized as if the screen were 320px.
+The cramped axis is the design constraint for anything that has to *fit across*: on a landscape panel it is usually the height; on a portrait panel it is the width. The vertical axis is the constraint for anything that *stacks*: a row height on a 1480px-tall panel has no reason to be sized as if the screen were 320px.
 
 On landscape and square displays `min(w, h) == h`, so the two ladders pick the same tier and nothing differs. **Only portrait geometry sees a difference.**
 
-Worked example — the 320x1480 Waveshare 11.9":
+Worked example - the 320x1480 Waveshare 11.9":
 
 | | Axis value | Tier | `#space_lg` | `#button_height` |
 |---|---|---|---|---|
-| Cramped | 320 | TINY | **8px** | — |
-| Vertical | 1480 | XXLARGE | — | **96px** |
+| Cramped | 320 | TINY | **8px** | - |
+| Vertical | 1480 | XXLARGE | - | **96px** |
 
 So padding stays tight (the panel really is only 320px wide) while buttons become credible touch targets instead of the 32px the cramped ladder alone would have given them.
 
-**Which subject holds which.** The `ui_breakpoint` LVGL subject holds the **cramped-axis** tier, and only that — every `bind_flag_if_eq` / `bind_style_if_*` `ref_value` in `ui_xml/` is written against it. There is no subject for the vertical tier; it exists only in C++, inside token resolution. If you need a *structural* portrait decision in XML, use `ui_breakpoint` plus the layout variant directories, not a second tier value.
+**Which subject holds which.** The `ui_breakpoint` LVGL subject holds the **cramped-axis** tier, and only that - every `bind_flag_if_eq` / `bind_style_if_*` `ref_value` in `ui_xml/` is written against it. There is no subject for the vertical tier; it exists only in C++, inside token resolution. If you need a *structural* portrait decision in XML, use `ui_breakpoint` plus the layout variant directories, not a second tier value.
 
 Background: prestonbrown/helixscreen#1209.
 
 ### Tiers pick the design; the UI scale sizes it physically
 
-Tiers are chosen from **pixels**, which treats resolution as a stand-in for physical size. That works across printer panels and breaks on phone-class ones — a 1080x2400 handset at ~405 DPI lands on XXLARGE and draws a grid cell measuring 12mm rather than the ~30mm the tier means.
+Tiers are chosen from **pixels**, which treats resolution as a stand-in for physical size. That works across printer panels and breaks on phone-class ones - a 1080x2400 handset at ~405 DPI lands on XXLARGE and draws a grid cell measuring 12mm rather than the ~30mm the tier means.
 
 A separate scale factor fixes the physical size without touching tier selection. Two things follow for you as a contributor:
 
-- **Author px values exactly as you do now**, against the 160 DPI reference. Every `<px>` token is multiplied by the scale at registration — responsive and non-suffixed alike — so you never write a scaled number by hand.
+- **Author px values exactly as you do now**, against the 160 DPI reference. Every `<px>` token is multiplied by the scale at registration - responsive and non-suffixed alike - so you never write a scaled number by hand.
 - **A non-suffixed token is not exempt.** `icon_badge_size`, `chip_height`, `swatch_size` and friends are fixed-size boxes holding scaled text, so they scale too. The only exemption is a name ending `_opacity`, which holds an 0-255 alpha rather than a length.
 
 Every shipping printer measures at or below the deadband (221 DPI at the top), so the scale is exactly 1.0 on all of them and this changes nothing you can see on real hardware. Reach for `--dpi <n>` to exercise it: `./build/bin/helix-screen --test -s 1080x2400 --dpi 405`.
@@ -135,7 +135,7 @@ In `globals.xml`, you define the suffixed variants of each token:
 
 At startup, `theme_manager` measures the axis that token follows, picks the matching suffix, and registers the **base name** (`space_lg`) pointing to the correct value. So when your XML says `style_pad_all="#space_lg"`, it resolves to 12, 16, or 20 depending on the screen.
 
-One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
+One function does the choosing for every token: `theme_manager_resolve_px_tokens()` (`src/ui/theme/theme_responsive.cpp`). Both the startup registration and the resize path apply its output verbatim, so a token cannot get one tier at boot and another after a rotation.
 
 Plugin constants ride the same ladder. `theme_manager_resolve_px_tokens()` reads the `ui_xml/` tables and hands them to `helix::theme_manager_resolve_px_tables()`, which picks the tier and applies the DPI scale; a plugin's own `<consts>` go through that second function too, on the narrow axis only (`PLUGIN_DEVELOPMENT.md` §7, Responsive sizing).
 
@@ -155,11 +155,11 @@ LVGL ignores duplicate variable registrations. If the base name `space_lg` is al
 
 ### CRITICAL: Responsive tokens only work at the top level of `ui_xml/`
 
-Token discovery does not recurse. `theme_manager_find_xml_files()` skips subdirectories, so only `ui_xml/*.xml` is ever scanned for suffixed tokens. A `<px name="nav_width_small">` declared in `ui_xml/components/`, `ui_xml/portrait/`, `ui_xml/micro/` or any other subdirectory is never registered, and every `#nav_width` that reads it silently resolves to nothing.
+Token discovery does not recurse. `theme_manager_find_xml_files()` skips subdirectories, so only `ui_xml/*.xml` is ever scanned for suffixed tokens. A `<px name="nav_width_small">` declared in `ui_xml/components/` or any other subdirectory is never registered, and every `#nav_width` that reads it silently resolves to nothing.
 
-That is deliberate. Discovery is alphabetical last-wins, so if variant directories were scanned a portrait-only token would shadow its base token *globally* — including while the standard layout is active — rather than only when that variant is in use.
+That is deliberate. Discovery is alphabetical last-wins, so scanning subdirectories would let a component's token shadow a top-level one of the same name *globally*.
 
-So declare responsive tokens in `ui_xml/globals.xml` (or another top-level token file such as `ams_tokens.xml`) and reference them with `#token` from the variant file. Non-responsive component-local `<consts>` are fine inside `ui_xml/components/`; they resolve through the component's own scope and never reach discovery.
+So declare responsive tokens in `ui_xml/globals.xml` (or another top-level token file such as `ams_tokens.xml`) and reference them with `#token` from anywhere. Non-responsive component-local `<consts>` are fine inside `ui_xml/components/`; they resolve through the component's own scope and never reach discovery.
 
 `scripts/check_responsive_token_scope.py` fails the build if a suffixed token is declared below the top level. Background: prestonbrown/helixscreen#1211.
 
@@ -173,7 +173,9 @@ Not every font tier is present on every target, and not every present tier is re
 
 **3. Runtime.** `AssetManager::register_fonts_for_tier()` is the re-entrant form. A breakpoint that *rises* registers the additional tiers; a same-or-lower tier is a no-op. Fonts are **never unregistered** -- live widgets hold pointers into that static `.rodata`, so the set only ever grows, bounded by `HELIX_MAX_FONT_TIER`. On a resize, `theme_manager_refresh_layout_constants()` runs the tier registration first, then re-points the font tokens, then re-runs the switch size presets. That order is load-bearing: re-pointing tokens at tiers whose faces were never registered would silently bounce them back down.
 
-**The limitation, stated plainly:** updating a token does not restyle widgets that already exist. `style_text_font` is resolved to a concrete `lv_font_t*` at parse time and baked into the widget's style, and the same is true of every `px` token -- this is not new with the font work. So a runtime resize is picked up by anything built *afterwards* (overlays, modals, print-select cards, later-created switches) but **not** by the six root panels, which are built eagerly at startup and never rebuilt. Making those follow a resize needs `NavigationManager::rebuild_active_views()`, which is what hot reload uses. This only matters on desktop SDL and Android; on-device rotation is fixed at startup.
+**Built widgets keep their tokens.** `style_text_font` is resolved to a concrete `lv_font_t*` at parse time and baked into the widget's style, and so is every `px` token, in component `<styles>` as well as inline. Re-pointing a token restyles nothing that exists, so a resize that moves one rebuilds the views instead (#1214). `theme_manager_refresh_layout_constants()` returns true when a px token or a breakpoint moved; the resize callback adds a change of layout type or UI scale, and only then calls `helix::reregister_xml_components_for_rebuild()` (live components and `styles.xml` register again from their files) and `NavigationManager::rebuild_for_layout_change()`. That marks every built root panel stale and waits until nothing is in use: no overlay open or sliding out, no modal, no keyboard, not suspended (a timer retries every 250ms). Then it rebuilds the shown panel and the closed overlays through the hot-reload path. A rebuild deactivates what it rebuilds, which would expire the lifetime token an open confirm answers through, cancel a running belt or resonance measurement and drop half-typed text, so it never runs under any of those. `set_active()` rebuilds a stale panel, hidden, before it activates it. The theme's default text font, which labels without their own inherit, is re-pointed in place (`theme_manager_refresh_base_font()`). A drag inside one tier rebuilds nothing, and the 250ms resize debounce makes a burst one rebuild.
+
+What a rebuild does not reach: the `app_layout` chrome (navbar width, the floating E-stop) keeps the geometry it was built at, because the engine re-resolves only colour tokens in a style. Whatever is open when the size changes keeps the old geometry until it closes. A rebuilt view loses its scroll position and any content it writes imperatively outside `setup()` and `repopulate()`; its subject-bound data comes back. This only matters on desktop SDL and Android; on-device rotation is fixed at startup.
 
 ---
 
@@ -218,7 +220,7 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 
 | Token | Axis | Small | Medium | Large | Purpose |
 |-------|------|-------|--------|-------|---------|
-| `#button_height` | vertical | 48px | 52px | 72px | Standard button height |
+| `#button_height` | vertical | 48px | 52px | 72px | Standard button height (micro 26px) |
 | `#button_height_sm` | vertical | 40px | 40px | 40px | Small buttons (back, icon-only) |
 | `#button_height_lg` | vertical | 64px | 70px | 96px | Large buttons |
 | `#header_height` | vertical | 48px | 56px | 60px | Panel header height |
@@ -228,27 +230,27 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 | `#dialog_content_pinned_max` | vertical | 164px | 207px | 272px | Same, plus one pinned block below the scroll area (measured 85% cap − chrome, #1277) |
 | `#dialog_content_recovery_max` | vertical | 218px | 276px | 352px | `klipper_recovery_dialog`'s message (measured 85% cap − chrome, #1277) |
 | `#badge_size` | neutral | 16px | 18px | 20px | Status badge diameter |
-| `#nav_width` | horizontal | 76px | 104px | 132px | Nav bar width — see note below |
+| `#nav_width` | horizontal | 76px | 104px | 132px | Nav bar width - see note below |
 | `#icon_size` | neutral | md | lg | lg | Responsive icon size string |
 | `#spinner_lg` | neutral | 48px | 56px | 64px | Large spinner |
 | `#spinner_md` | neutral | 24px | 28px | 32px | Standard spinner |
 | `#spinner_sm` | neutral | 16px | 18px | 20px | Small spinner |
 | `#spinner_xs` | neutral | 12px | 14px | 16px | Compact spinner |
 
-The **Axis** column says which ladder the token resolves from (see [The two ladders](#the-two-ladders)). `vertical` follows the screen height; `horizontal` and `neutral` both follow the cramped axis today — the distinction is documentation of intent, not yet two different code paths. All the `#space_*` tokens are neutral.
+The **Axis** column says which ladder the token resolves from (see [The two ladders](#the-two-ladders)). `vertical` follows the screen height; `horizontal` and `neutral` both follow the cramped axis today - the distinction is documentation of intent, not yet two different code paths. All the `#space_*` tokens are neutral.
 
 Two tokens in that list do not follow the ordinary rules:
 
 - **`#nav_width`** is declared in `ui_xml/navigation_bar.xml`, not `globals.xml`, and resolves through its own ladder (`helix::nav_width_suffix()`) rather than the general one. The nav bar is a full-height vertical strip, so its width tracks the *horizontal* axis and has an extra ultrawide case.
-- **`#border_radius`** is not a `globals.xml` triplet at all and is deliberately absent from the table. The theme picks a size name (None / Minimal / Subtle / Soft / Rounded / Bold / Pill / Full) and `BorderRadiusSizes` (`include/border_radius_sizes.h`) resolves it per breakpoint in C++. Do not add `border_radius_*` variants to `globals.xml`. The fixed `#border_radius_small` / `#border_radius_sm` (both 4px) are separate — they exist for swatches and badges that always want 4px regardless of theme.
+- **`#border_radius`** is not a `globals.xml` triplet at all and is deliberately absent from the table. The theme picks a size name (None / Minimal / Subtle / Soft / Rounded / Bold / Pill / Full) and `BorderRadiusSizes` (`include/border_radius_sizes.h`) resolves it per breakpoint in C++. Do not add `border_radius_*` variants to `globals.xml`. The fixed `#border_radius_small` / `#border_radius_sm` (both 4px) are separate - they exist for swatches and badges that always want 4px regardless of theme.
 
 ### Adding New Tokens
 
-**First, classify the axis.** Do this before writing the triplet — it decides which ladder the token resolves from:
+**First, classify the axis.** Do this before writing the triplet - it decides which ladder the token resolves from:
 
 | Axis | What it covers | Examples |
 |------|----------------|----------|
-| **vertical** | Heights, top/bottom padding, vertical maxima — anything sized by how much room there is to stack | `button_height`, `header_height`, `dialog_content_max` |
+| **vertical** | Heights, top/bottom padding, vertical maxima - anything sized by how much room there is to stack | `button_height`, `header_height`, `dialog_content_max` |
 | **horizontal** | Widths, left/right extents, column counts | `nav_width`, `field_w_num` |
 | **axis-neutral** | Applies to both axes, or to neither (square things, opacity-like scalars) | `space_*`, `icon_size`, `badge_size`, the spinner sizes |
 
@@ -256,15 +258,15 @@ Two tokens in that list do not follow the ordinary rules:
 
 How the choice is expressed in code:
 
-- **vertical** — add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention — `dialog_content_max` is a vertical maximum that does not end in `_height`.
-- **horizontal** and **axis-neutral** — nothing to do. Both resolve from the cramped axis, which is correct for widths (in portrait the cramped axis *is* the width) and is the deliberate compromise for neutrals.
+- **vertical** - add the exact base name to `VERTICAL_AXIS_TOKENS` in `src/ui/theme/theme_responsive.cpp`. That array is the single classification list; `theme_manager_token_uses_vertical_axis()` reads it, and `theme_manager_resolve_px_tokens()` is the only thing that calls it, so both registration sites stay in step automatically. Exact names, not a `*_height` convention - `dialog_content_max` is a vertical maximum that does not end in `_height`.
+- **horizontal** and **axis-neutral** - nothing to do. Both resolve from the cramped axis, which is correct for widths (in portrait the cramped axis *is* the width) and is the deliberate compromise for neutrals.
 
-`space_*` stays neutral on purpose. It feeds `pad_top`/`pad_bottom` and `pad_left`/`pad_right` alike, so splitting it means classifying every `#space_*` reference site across `ui_xml/` — that reference count, not the declarations, is the cost driver.
+`space_*` stays neutral on purpose. It feeds `pad_top`/`pad_bottom` and `pad_left`/`pad_right` alike, so splitting it means classifying every `#space_*` reference site across `ui_xml/` - that reference count, not the declarations, is the cost driver.
 
 Then follow the triplet pattern in `globals.xml`:
 
 ```xml
-<!-- In globals.xml — define suffixed variants only -->
+<!-- In globals.xml - define suffixed variants only -->
 <px name="my_widget_height_small" value="48"/>
 <px name="my_widget_height_medium" value="56"/>
 <px name="my_widget_height_large" value="72"/>
@@ -284,9 +286,9 @@ int h = theme_manager_get_spacing("my_widget_height");
 
 ### The limit: `height="content"` rows ignore height tokens
 
-A row declared `height="content"` is sized by its font and its padding. **No height token reaches it** — not `#button_height`, not any token you migrate to the vertical ladder.
+A row declared `height="content"` is sized by its font and its padding. **No height token reaches it** - not `#button_height`, not any token you migrate to the vertical ladder.
 
-That covers the whole `setting_*_row` family (`setting_action_row.xml`, `setting_toggle_row.xml`, and friends), and therefore most of Settings. Migrating a token and then finding that Settings did not move is the expected result, not a broken migration. Moving those rows means moving the font/padding tier, which is a different mechanism — see [Which font tiers actually exist](#which-font-tiers-actually-exist) and prestonbrown/helixscreen#1210.
+That covers the whole `setting_*_row` family (`setting_action_row.xml`, `setting_toggle_row.xml`, and friends), and therefore most of Settings. Migrating a token and then finding that Settings did not move is the expected result, not a broken migration. Moving those rows means moving the font/padding tier, which is a different mechanism - see [Which font tiers actually exist](#which-font-tiers-actually-exist) and prestonbrown/helixscreen#1210.
 
 ---
 
@@ -309,7 +311,7 @@ HelixScreen uses 16 semantic color tokens. These work across light and dark mode
 | `#primary` | Primary accent color |
 | `#secondary` | Secondary accent |
 | `#tertiary` | Tertiary accent |
-| `#info` | Info state (purple in Nord) |
+| `#info` | Info state (blue) |
 | `#success` | Success state (green) |
 | `#warning` | Warning state (amber) |
 | `#danger` | Error/danger (red) |
@@ -326,7 +328,7 @@ Just reference the token. The system handles light/dark mode for you:
 
 ### Theme JSON structure
 
-Themes are defined in `assets/config/themes/defaults/`. Here's a snippet from `nord.json`:
+Themes are defined in `assets/config/themes/defaults/`. Here's a trimmed snippet from `nord.json` (the full schema is in `THEME_CONTRIBUTOR_GUIDE.md`):
 
 ```json
 {
@@ -347,11 +349,11 @@ Themes are defined in `assets/config/themes/defaults/`. Here's a snippet from `n
     "text": "#2e3440",
     "text_muted": "#3b4252",
     "primary": "#5e81ac",
-    "danger": "#b23a48",
-    "success": "#3fa47d",
-    "warning": "#b08900"
+    "danger": "#bf616a",
+    "success": "#8fbcbb",
+    "warning": "#d08770"
   },
-  "border_radius": 12,
+  "border_radius_size": 3,
   "border_width": 1,
   "border_opacity": 40
 }
@@ -437,7 +439,7 @@ Don't re-specify `style_radius`, `style_bg_color`, or `style_border_*` -- they'r
 
 Themed button with automatic contrast text color and responsive height.
 
-Variants: `primary`, `secondary`, `danger`, `success`, `warning`, `tertiary`, `ghost`
+Variants: `primary`, `secondary`, `danger`, `success`, `warning`, `tertiary`, `ghost`, `outline`, `transparent`
 
 ```xml
 <ui_button variant="primary" text="Save"/>
@@ -512,7 +514,7 @@ ARGB8888 buffer it owns (re-rendered only when size, reading, phase or palette c
 draws that as one image, so a frame costs one blit per drop. The pure geometry and the
 rasterizer live in `include/humidity_drop_geometry.h` (no LVGL; tested in
 `tests/unit/test_humidity_drop.cpp`, tag `[humidity_drop]`), the widget in
-`src/ui/ui_humidity_drop.cpp`.
+`src/ui/filament/ui_humidity_drop.cpp`.
 
 ### spinner
 
@@ -533,16 +535,16 @@ Simple horizontal and vertical dividers with themed colors.
 <divider_vertical/>
 ```
 
-### ui_severity_card
+### severity_card
 
-A card with a severity-colored left border. Great for status messages.
+A card with a severity-colored border. Great for status messages.
 
 Severities: `info`, `success`, `warning`, `error`
 
 ```xml
-<ui_severity_card severity="warning">
+<severity_card severity="warning">
   <text_body text="Nozzle temperature is high"/>
-</ui_severity_card>
+</severity_card>
 ```
 
 `severity` is fixed when the card is created, so a severity card cannot sit in a `<repeat>` whose
@@ -568,6 +570,16 @@ Theme-aware markdown viewer for rich text content.
 ```xml
 <ui_markdown bind_text="release_notes" width="100%"/>
 ```
+
+### Text fields: long-press menu and clipboard
+
+Every `<text_input>` that `KeyboardManager` manages (`src/ui/components/ui_keyboard_manager.cpp`) gets a long-press menu with Cut, Copy and Paste. A hold raises `TextEditMenu` (`include/ui_text_edit_menu.h`) around the field through the shared `text_edit_long_press_cb`, and a field that offers no edit at all shows nothing and leaves the press alone. You add no wiring for a new field.
+
+The clipboard (`include/text_clipboard.h`) is one in-memory string capped at 4 KiB and never persisted. The pure rules (`clip_to_limit`, `sanitize_for_field`, `actions_for_field`) take no LVGL, so they test directly. A paste into a one-line field turns line breaks into spaces, and it goes through the textarea's own insert path, so `max_length` and accepted characters still apply. Each edit fires `VALUE_CHANGED`, so a bound subject follows.
+
+On the desktop and Android builds, where the display is SDL (`HELIX_DISPLAY_SDL`), `set_text()` also writes the OS clipboard and `get_text()` reads it when it holds text, so a value moves between the app and other programs. That bridge works only while SDL's video subsystem runs, so tests and headless runs use the in-app string alone. The printers' framebuffer and DRM displays have no OS clipboard.
+
+A field that holds a secret offers no menu actions: its text never reaches the clipboard and takes no paste. `<text_input password_mode>`, `register_textarea_ex` and the text-entry modal mark their masked fields with `mark_secret_field()` when they are made, and a field seen masked is marked from then on. Marking lasts for the widget's life, so a "show password" toggle that unmasks the text does not make it copyable. Call `mark_secret_field()` yourself when you build a field that holds a secret without password mode (`src/xml_registration.cpp` does so in the reveal toggle).
 
 ### Widget Defaults -- DON'T re-specify
 
@@ -612,14 +624,12 @@ it into the library rather than forking it.
 
 **A borrowed style is a raw pointer into another file's scope.** `lv_obj_add_style()`
 stores `&style`, and that storage belongs to `styles.xml`'s component scope, not to
-yours. Nothing instantiates `styles.xml`, so its instance count is permanently zero,
-and the engine used to free the whole scope the moment the file was re-registered --
-which every hot-reload save does -- leaving every borrower holding a dangling style.
-It detonated far away, in the next `lv_obj_report_style_change(NULL)` at theme init.
-Fixed in helix-xml `3177f3f7`: a lookup that crosses a scope boundary marks the
-lender, and a marked scope is held instead of freed. The mark is one-way, so a file
-that lends styles is held until `lv_xml_component_deinit()` -- one retained scope per
-hot-reload save of `styles.xml`, which is why the library is worth keeping small.
+yours. Nothing instantiates `styles.xml`, so its instance count is always zero; freeing
+that scope on re-registration (every hot-reload save) would leave every borrower holding
+a dangling style. So a lookup that crosses a scope boundary marks the lender, and a
+marked scope is held instead of freed. The mark is one-way, so a file that lends styles
+is held until `lv_xml_component_deinit()` -- one retained scope per hot-reload save of
+`styles.xml`, which is why the library is worth keeping small.
 
 **Registration order matters.** `styles.xml` is the one component registered eagerly, from
 `register_xml_components()` (`src/xml_registration.cpp`), which runs *after*
@@ -844,7 +854,7 @@ Our theme makes `lv_obj` a pure layout container by default: transparent backgro
 The last three are explained in full, with the `ctl geom` signatures that identify
 them, in `LVGL9_XML_GUIDE.md` under "Flex Layout".
 
-### Overlay width — don't set it
+### Overlay width - don't set it
 
 An overlay is one of two things, and the difference is visible against the nav
 dock:
@@ -854,10 +864,10 @@ dock:
 | **Destination** | `screen - nav` | flush against the dock; a place you park |
 | **Transient layer** | `screen - nav - space_lg` | a gap showing the dimmed backdrop; you'll go back |
 
-Settings is a destination, so everything you reach *inside* Settings is flush —
+Settings is a destination, so everything you reach *inside* Settings is flush -
 Settings › Connection › Network is a sub-screen of Settings, not a layer over it. AMS and
 Print Status are destinations too: people live on those screens. Console, Bed
-Mesh, Motion and the calibration panels are transient layers — tools you open
+Mesh, Motion and the calibration panels are transient layers - tools you open
 and return from.
 
 **Which one you get is not yours to choose in XML.** It depends on how the user
@@ -875,7 +885,7 @@ Two things you *can* declare, both in C++:
 - **A long-dwell screen** that should be a destination from every entry point:
   override `IPanelLifecycle::is_destination()` to return `true`. See
   `include/ui_panel_ams.h`.
-- **A deliberately odd width** that is neither class — `widget_catalog_overlay`
+- **A deliberately odd width** that is neither class - `widget_catalog_overlay`
   is `width="70%"` so the home grid stays visible behind it. Set the width in
   XML and call `NavigationManager::set_overlay_width_unmanaged()` once after
   creating the widget, or push will overwrite it.
@@ -885,9 +895,9 @@ Background: `include/overlay_class.h` and prestonbrown/helixscreen#1178.
 
 ---
 
-## 7. Layout Overrides
+## 7. Layout Classes
 
-HelixScreen supports layout-specific XML overrides so you can rearrange panels for different screen shapes without touching the standard layouts.
+Every panel is one XML file that serves every screen shape. Where a shape needs a different arrangement, the panel branches in place on the layout subjects (`ui_is_portrait`, `ui_is_ultrawide`, `ui_breakpoint`); there are no per-layout copies to keep in step.
 
 ### Layout types
 
@@ -896,64 +906,41 @@ HelixScreen supports layout-specific XML overrides so you can rearrange panels f
 | `standard` | Normal landscape (4:3 to 16:9) | 800x480, 1024x600, 1280x720 |
 | `ultrawide` | Aspect ratio > 2.5:1 | 1920x480, 1920x400 |
 | `portrait` | Aspect ratio < 0.8:1 | 480x800, 600x1024 |
-| `micro` | Min dimension <= 272, landscape | 480x272 |
-| `micro_portrait` | Min dimension <= 272, portrait | 272x480 |
+| `micro` | Max dimension <= 480 and min <= 272, landscape | 480x272 |
+| `micro_portrait` | Max dimension <= 480 and min <= 272, portrait | 272x480 |
 | `tiny` | Max dimension <= 480, landscape | 480x320, 320x240 |
 | `tiny_portrait` | Max dimension <= 480, portrait | 320x480, 240x320 |
 
-Detection lives in `LayoutManager::detect()` (`src/layout_manager.cpp`). Portrait
-sub-classes (`micro_portrait`, `tiny_portrait`) fall back through the shared
-`portrait/` layer before the standard layout -- see `variant_chain()`.
+Detection lives in `detect_layout_type()` (`src/layout_manager.cpp`), which `LayoutManager::detect()` calls. Every portrait class
+sets `ui_is_portrait`, and `ui_is_ultrawide` marks the ultrawide one; the breakpoint tiers
+come from the screen size on their own.
 
 Force a layout with `--layout ultrawide` on the command line, or set `display.layout` in `settings.json`.
 
-### Directory structure
+### Adapting a panel
 
-```
-ui_xml/
-  globals.xml              <-- Shared by ALL layouts (never override this)
-  home_panel.xml           <-- Standard home panel
-  controls_panel.xml       <-- Standard controls panel
-  ...                      <-- ~230 top-level XML files (components/ holds ~100 more)
-  micro/                   <-- Micro (480x272) overrides (4 files)
-    controls_panel.xml
-    header_bar.xml
-    ...
-  portrait/                <-- Portrait overrides (2 files)
-    print_status_panel.xml
-    print_tune_panel.xml
-  micro_portrait/          <-- Micro-portrait overrides (dir present, empty)
-  ultrawide/               <-- Does NOT exist yet (no overrides created)
-  tiny/, tiny_portrait/    <-- Do NOT exist yet
-```
-
-### How overrides work
-
-If `ui_xml/<layout>/<panel>.xml` exists, it's used instead of `ui_xml/<panel>.xml`. Otherwise the standard version is loaded. You only need to override the panels that actually need different layouts -- everything else falls through automatically.
-
-### Creating an override
-
-1. Copy the standard layout as a starting point:
-   ```bash
-   cp ui_xml/controls_panel.xml ui_xml/ultrawide/controls_panel.xml
-   ```
-
-2. Edit the copy for the target screen shape.
-
-3. Test it:
+1. Screenshot the panel at the target size first:
    ```bash
    ./build/bin/helix-screen --test -vv --layout ultrawide -s 1920x480
    ```
 
-4. No rebuild needed. XML loads at runtime.
+2. Edit the panel's own file. Pick the lightest construct that expresses the difference: a
+   `bind_style_if` pair for spacing or flex direction, a `bind_flag_if` for a block that
+   comes and goes, `<if cond="ui_is_portrait eq 1">…<else/>…</if>` for a different subtree.
+   A local attribute (or a widget that styles itself at creation, like `ui_card`) outranks a
+   bound style; a style selected on a state outranks it. `LAYOUT_SYSTEM.md` § "Adapting a
+   Panel" has the full table and the 480x272 Controls panel as the worked example.
+
+3. No rebuild needed. XML loads at runtime. Then check every other size the panel serves
+   is unchanged.
 
 ### The rules you must follow
 
-When creating a layout override, you're rearranging the same content for a different screen shape. The C++ code still expects certain widgets, bindings, and callbacks to exist.
+When you restructure a panel for a screen shape, every branch rearranges the same content. The C++ code still expects certain widgets, bindings, and callbacks to exist in each.
 
 1. **Keep all named widgets** that C++ looks up via `lv_obj_find_by_name()`. Search the panel's `.cpp` file to find required names:
    ```bash
-   grep lv_obj_find_by_name src/ui/panels/controls_panel.cpp
+   grep lv_obj_find_by_name src/ui/controls/ui_panel_controls.cpp
    ```
 
 2. **Keep all subject bindings** (`bind_text`, `bind_value`, `bind_flag_if_*`, etc.). These connect the UI to live data.
@@ -962,7 +949,7 @@ When creating a layout override, you're rearranging the same content for a diffe
 
 4. **Use design tokens** for all colors, spacing, and fonts. No hardcoded values.
 
-5. **Don't change existing values in globals.xml.** They're shared across all layouts. *Adding* a new suffixed token there is correct, and is the only place a variant-specific token can live -- token discovery never recurses into `ui_xml/` subdirectories, so a `<px name="foo_small">` declared next to your override is silently never registered (see section 2).
+5. **Don't change existing values in globals.xml.** They're shared across all layouts. *Adding* a new suffixed token there is correct, and is the only place a layout-specific token can live -- token discovery never recurses into `ui_xml/` subdirectories, so a `<px name="foo_small">` declared in `components/` is silently never registered (see section 2).
 
 You're free to rearrange the visual hierarchy, change flex directions, adjust sizes, hide optional decorative elements, or add new layout containers. Just preserve the functional widgets.
 
@@ -970,17 +957,17 @@ You're free to rearrange the visual hierarchy, change flex directions, adjust si
 
 **Ultrawide (1920x480):** Tons of horizontal space, very little vertical. Favor `flex_flow="row"` to spread content across columns. Aim for everything visible at once with no scrolling. Think "dashboard with columns" -- put related info side by side instead of stacking it.
 
-**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar and app shell already move to the bottom automatically (`ui_is_portrait`) — no override needed.
+**Portrait (480x800):** Lots of vertical space, narrow width. Content stacks naturally with `flex_flow="column"`. The navbar and app shell already move to the bottom automatically (`ui_is_portrait`).
 
 **Tiny (480x320):** Very limited in both directions. Reduce information density, use bigger touch targets (48px minimum), show fewer labels. Hide optional elements with conditional visibility or just remove decorative content.
 
 ### One tree, restyled for portrait
 
-A panel usually needs no portrait override. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
+A panel usually needs no portrait-only structure. The print file detail view is the pattern: one widget tree, with complementary `bind_style` pairs keyed on `ui_is_portrait` carrying every restyle that is a style property (row vs column, which side grows, the button tier). The inline attribute for a restyled property must come off the widget, because an inline attribute beats a bound style and freezes one orientation. What styles cannot express (a size measured from runtime pixels) is measured in C++: `src/ui/print/ui_print_select_detail_view.cpp#fit_portrait_preview` reads the options column's real content height and sets the preview card's height from `include/print_detail_layout.h#decide_detail_portrait_preview`. See `ui_xml/print_file_detail.xml` for the whole shape.
 
 The Controls panel's top row (`ui_xml/controls_panel.xml`) is the same pattern with a wrapping flow: three cards side by side in landscape, and in portrait the row wraps to Position beside Temperature with Cooling across the full width below. Two traps it shows: a style that sets `flex_flow` needs `layout="flex"` with it, because the inline attribute it replaces set both; and `ui_card` sets its own size locally when it is created, so no bound style can resize it. Put the card in a plain `lv_obj` cell that carries the bound sizes, and give the card `width="100%" height="100%"`.
 
-### Priority panels to override
+### Priority panels to adapt
 
 Start with the panels that matter most:
 
@@ -989,12 +976,11 @@ Start with the panels that matter most:
 | High | `home_panel.xml` | First thing users see |
 | Medium | `controls_panel.xml` | Multiple cards that benefit from rearranging |
 | Medium | `print_status_panel.xml` | Important during active prints |
-| Medium | `settings_panel.xml` | Grouped single-column list of 12 rows; sub-panels may benefit from multi-column |
+| Medium | `settings_panel.xml` | Grouped single-column list of 13-14 rows; sub-panels may benefit from multi-column |
 | Low | Overlays | Usually modal dialogs that adapt reasonably well |
 
 `app_layout.xml` and `navigation_bar.xml` are not in this table: both already adapt their
-chrome and nav position to `ui_is_portrait` in place, so a new layout family only needs to
-override them if its chrome is a genuinely different design, not just a different axis.
+chrome and nav position to `ui_is_portrait` in place.
 
 ### Responsive Setting Rows (no micro/ overrides)
 
@@ -1077,7 +1063,7 @@ hundredths. Match the display precision to the slider's resolution, or a typed
 
 ### Settings structure
 
-The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
+The Settings root (`ui_xml/settings_panel.xml`) is one grouped list: SCREEN (Display, Appearance, Touch & Input, Sound), PRINTER (Printer, Printing, Devices, Safety & Alerts, Connection) and HELIXSCREEN (Language & Time, System, Updates, Plugins when any are available, Help & About). Each page owns one concern, so a new setting goes on the page whose concern it is, never into a catch-all. A root row is a label plus an optional live status line: its `bind_description` subject is filled by `SettingsPanel::refresh_status_lines()` (`src/ui/settings/ui_panel_settings.cpp#refresh_status_lines`) from pure formatters in `src/ui/settings/settings_root_status.cpp`, and refreshed each time the root activates rather than observed. A row with nothing worth summarizing has no description. The user guide mirrors the tree, one page per file under `docs/user/guide/settings/`.
 
 ---
 
@@ -1134,19 +1120,18 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
-- Not started -- `ui_xml/ultrawide/` does not exist yet, so ultrawide screens
-  currently fall through to the standard layout.
+- Mostly the standard layout. `ui_xml/panel_belt_tension.xml` branches on
+  `ui_is_ultrawide`, and the home grid widens its columns itself.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with two overrides (`print_status_panel.xml`,
-  `print_tune_panel.xml`); the app shell and navigation bar are single files that
-  adapt via `ui_is_portrait` instead.
-- `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
-  `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
-- `ui_xml/micro_portrait/` exists as a directory but has no overrides yet.
-- `tiny/`, `tiny_portrait/` do not exist yet. Wide open for contributions.
+- The app shell, the navigation bar, the print status panel and Print Tune adapt to
+  portrait in their own files, through `ui_is_portrait` and measured layout.
+- At 480x272 the Controls panel switches to a denser arrangement in its own file (the
+  `controls_micro` subject); the header bar, the theme explorer and editor and the
+  material temperatures overlay adapt with `bind_style_if_eq` on `ui_breakpoint`.
+- Tiny and tiny-portrait screens use the same files; wide open for contributions.
 
 ---
 
@@ -1182,19 +1167,19 @@ These panels work well and can serve as reference for how to do things right:
 
 Screenshots save to `/tmp/ui-screenshot-<name>.png`.
 
-Set `HELIX_SCREENSHOT_DISPLAY=0` to prevent the app from opening a visible display window (useful for CI or batch screenshots).
+Set `HELIX_HEADLESS=1` to capture with no window at all (SDL's dummy driver; useful for CI, ssh sessions or batch screenshots). `HELIX_SCREENSHOT_DISPLAY` picks which display a visible window opens on.
 
 Replace `home` with any panel or overlay name: `controls`, `filament`, `settings`, `print-status`, `motion`, etc.
 
 ### Widget destruction safety
 
-Two rules, both required — they address different crashes.
+Two rules, both required - they address different crashes.
 
-**Rule 1 — never destroy a container from inside an event callback on its own child** (issue #80). The child widget is still on the call stack; deleting its parent synchronously causes use-after-free. Defer the rebuild to the next tick.
+**Rule 1 - never destroy a container from inside an event callback on its own child** (issue #80). The child widget is still on the call stack; deleting its parent synchronously causes use-after-free. Defer the rebuild to the next tick.
 
-**Rule 2 — never call synchronous widget deletion inside a deferred callback** (issue #776). `lv_obj_clean()`, `lv_obj_del()`, and `helix::ui::safe_delete()` all run synchronously. Multiple sync deletions in the same `UpdateQueue::process_pending()` batch corrupt LVGL's event linked list → SIGSEGV in `lv_event_mark_deleted`. `ui_queue_update`, `lifetime_.defer`, `tok.defer`, and observer callbacks all share that batch — the deferral alone is not enough.
+**Rule 2 - never call synchronous widget deletion inside a deferred callback** (issue #776). `lv_obj_clean()`, `lv_obj_delete()`, and `helix::ui::safe_delete()` all run synchronously. Multiple sync deletions in the same `UpdateQueue::process_pending()` batch corrupt LVGL's event linked list → SIGSEGV in `lv_event_mark_deleted`. `ui_queue_update`, `lifetime_.defer`, `tok.defer`, and observer callbacks all share that batch - the deferral alone is not enough.
 
-**Use the safe replacement** — it reparents children to `lv_layer_top()` and schedules them for `lv_obj_delete_async()`, which runs outside our UpdateQueue batch:
+**Use the safe replacement** - it reparents children to `lv_layer_top()` and schedules them for `lv_obj_delete_async()`, which runs outside our UpdateQueue batch:
 
 ```cpp
 // ❌ BAD (#80): swatch click handler destroys its own parent synchronously
@@ -1225,7 +1210,7 @@ Replacements table:
 | ❌ Banned in deferred callbacks | ✅ Use instead |
 |---------------------------------|----------------|
 | `safe_delete(ptr)` | `safe_delete_deferred(ptr)` |
-| `lv_obj_delete(obj)` / `lv_obj_del(obj)` | `lv_obj_delete_async(obj)` |
+| `lv_obj_delete(obj)` | `lv_obj_delete_async(obj)` |
 | `lv_obj_clean(container)` | `helix::ui::safe_clean_children(container)` |
 
 See `include/ui_utils.h` and [`THREADING.md`](THREADING.md) §3 for the full rationale.
@@ -1248,7 +1233,7 @@ PRs are welcome. To make review smooth:
 
 - Include **before/after screenshots** at the target resolution.
 - Test at the target size **and** at standard (800x480) to verify no regression.
-- If you created a layout override, mention which named widgets you found in the C++ source so reviewers can verify coverage.
+- If you restructured a panel for a screen shape, mention which named widgets you found in the C++ source so reviewers can verify every branch keeps them.
 - Keep changes focused. One panel per PR is easier to review than five.
 
 ---

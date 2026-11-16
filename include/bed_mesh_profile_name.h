@@ -4,16 +4,13 @@
 /// @file bed_mesh_profile_name.h
 /// @brief What a name typed into a bed-mesh profile field actually means.
 ///
-/// Every profile-name field in the bed-mesh panel used to read the textarea
-/// back and substitute the literal string "default" whenever it came back
-/// empty. Tapping Save without typing therefore replaced whatever mesh was
-/// stored under `default` -- no confirmation, no warning, and no sign in the
-/// success toast that a name the user never chose had been used
-/// (prestonbrown/helixscreen#1360).
+/// An empty field must not silently become "default": tapping Save without
+/// typing would replace whatever mesh is stored under `default` with no
+/// confirmation, no warning, and no sign in the success toast that a name the
+/// user never chose was used (#1360). Input is trimmed, so a field holding only
+/// spaces never produces a profile literally named "  ".
 ///
-/// The three fields (calibrate, save, rename) each re-implemented that read,
-/// and none of them trimmed, so a field holding only spaces produced a profile
-/// literally named "  ". This is the one place that decides, so a field added
+/// The three fields (calibrate, save, rename) all ask here, so a field added
 /// later cannot get its own answer.
 ///
 /// Policy stays with the caller: this reports which situation the user is

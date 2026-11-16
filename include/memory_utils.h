@@ -101,12 +101,10 @@ struct MemoryInfo {
         return total_kb > 0 && total_kb <= kTierLowRamKb;
     }
 
-    /// Get total memory in MB
     size_t total_mb() const {
         return total_kb / 1024;
     }
 
-    /// Get available memory in MB
     size_t available_mb() const {
         return available_kb / 1024;
     }

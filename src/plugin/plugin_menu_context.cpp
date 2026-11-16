@@ -2,9 +2,8 @@
 
 #include "plugin_menu_context.h"
 
-#include "ui_filename_utils.h"
-
 #include "color_utils.h"
+#include "core/gcode_filename.h"
 #include "plugin_manifest.h"
 
 #include <algorithm>

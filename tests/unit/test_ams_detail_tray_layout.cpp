@@ -24,8 +24,8 @@
 #include "config.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "src/ui/ui_filament_path_plan.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -64,7 +64,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
   public:
     /// A tool changer has no housing, and flat spools stand in none, so build()
     /// finds no tray for either.
-    void build(const char* env_mode, int gates = 4, bool tool_changer = false) {
+    void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false) {
         helix::Config::get_instance()->set<std::string>("/ams/spool_style", flat_ ? "flat" : "3d");
         auto mock = std::make_unique<AmsBackendMock>(gates);
         if (tool_changer)
@@ -72,6 +72,10 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         else
             mock->set_afc_mode(true);
         mock->set_environment_mode(env_mode);
+        // These cases cover the generic box, which a unit with its own drawing does not use.
+        mock->rename_unit(0, unit_name_);
+        if (ace)
+            mock->set_ace_identity();
         REQUIRE(mock->start().success());
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);
@@ -102,6 +106,16 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                 (tool_changer || flat_));
     }
 
+    /// Give every lane a brand, as a Spoolman vendor would (the mock's lanes
+    /// carry none), and lay the tray out again around the name lines.
+    void name_every_lane(int lanes, const char* brand) {
+        for (int i = 0; i < lanes; ++i)
+            lv_subject_set_string(AmsState::instance().get_slot_name_subject(0, i), brand);
+        panel_->refresh_slots();
+        process_lvgl(20);
+        lv_obj_update_layout(test_screen());
+    }
+
     ~AmsTrayPanelFixture() override {
         if (panel_) {
             panel_->on_deactivate(DeactivateReason::NavigateAway);
@@ -127,7 +141,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     void check_env_chip_clear(int gates) {
         lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
         REQUIRE(pill != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(pill));
         lv_obj_update_layout(test_screen());
         lv_area_t pa;
         lv_obj_get_coords(pill, &pa);
@@ -150,7 +164,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                     obstacles.push_back(o);
         int checked = 0;
         for (lv_obj_t* o : obstacles) {
-            if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(o))
                 continue;
             lv_area_t oa;
             lv_obj_get_coords(o, &oa);
@@ -183,6 +197,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     }
 
     bool flat_ = false;
+    const char* unit_name_ = "Generic Unit";
     std::unique_ptr<AmsPanel> panel_;
     lv_obj_t* panel_obj_ = nullptr;
     /// Where build() puts the panel; the screen when null.
@@ -277,13 +292,13 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS per-lane sensors: each lane's humidit
         CAPTURE(i);
         lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot(i));
         REQUIRE(row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row));
         // Temperature above, then the droplet and humidity.
         lv_obj_t* temp_row = lv_obj_find_by_name(row, "lane_temp_row");
         lv_obj_t* hum_row = lv_obj_find_by_name(row, "lane_humidity_row");
         REQUIRE(temp_row != nullptr);
         REQUIRE(hum_row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(temp_row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(temp_row));
         CHECK(lv_obj_get_index(temp_row) < lv_obj_get_index(hum_row));
         CHECK(std::strcmp(lv_obj_get_name(lv_obj_get_child(temp_row, 0)), "lane_temp_icon") == 0);
         const char* temp = lv_label_get_text(lv_obj_get_child(temp_row, 1));
@@ -376,7 +391,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     int32_t right = origin_.x + (int32_t)std::lround(hi);
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
-    if (!lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN)) {
+    if (!lv_obj_is_hidden(pill)) {
         lv_area_t pa;
         lv_obj_get_coords(pill, &pa);
         right = std::max(right, (int32_t)pa.x2);
@@ -446,7 +461,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 
     lv_obj_t* front = lv_obj_find_by_name(panel_obj_, "slot_tray");
     REQUIRE(front != nullptr);
-    CHECK(lv_obj_has_flag(front, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(front));
 
     // The row stays compact rather than spreading across the width.
     const int32_t pitch = theme_manager_get_spacing("ams_slot_spool_size") +
@@ -478,7 +493,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         CAPTURE(i);
         lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot(i));
         REQUIRE(row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row));
         lv_obj_t* label = lv_obj_find_by_name(slot(i), "material_label");
         REQUIRE(label != nullptr);
         lv_area_t ra, la;
@@ -486,6 +501,28 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         lv_obj_get_coords(label, &la);
         CHECK(ra.y2 <= la.y1);
     }
+}
+
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS tray: a drawn unit's readout tucks low over its end, clear of the last number",
+    "[ams][tray][ui_integration]") {
+    build("dryer", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+    REQUIRE(pill != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
+    lv_obj_update_layout(test_screen());
+    lv_area_t pill_area, box_area;
+    lv_obj_get_coords(pill, &pill_area);
+    lv_obj_get_coords(container_, &box_area);
+    const int32_t tuck = theme_manager_get_spacing("space_sm");
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE((badges != nullptr && lv_obj_get_child_count(badges) > 0));
+    lv_area_t last;
+    lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
+    CHECK(pill_area.x1 > last.x2);
+    CHECK(pill_area.x1 >= box_area.x1 + (int32_t)std::lround(tray::pill_left_x(box_)) - tuck);
+    CHECK(pill_area.y2 == box_area.y1 + (int32_t)std::lround(box_.fb) + tuck);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS flat spool style: the readout stands beside the spools",
@@ -499,7 +536,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS flat spool style: the readout stands 
 
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
     lv_obj_update_layout(test_screen());
     lv_area_t pa;
     lv_obj_get_coords(pill, &pa);
@@ -576,9 +613,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK(lv_obj_get_style_x(badge, LV_PART_MAIN) == corner_x);
 }
 
-TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a spool name stacks directly over its material",
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a brand stacks directly over its material",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
+    name_every_lane(4, "eSUN");
     int named = 0;
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
@@ -586,7 +624,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a spool name stacks directly ov
         lv_obj_t* material = lv_obj_find_by_name(slot(i), "material_label");
         REQUIRE(name != nullptr);
         REQUIRE(material != nullptr);
-        if (lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(name))
             continue;
         ++named;
         lv_area_t na, ma;
@@ -600,14 +638,41 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a spool name stacks directly ov
     REQUIRE(named > 0);
 }
 
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "EMU: a lid per box, spools lifted off its base, numbers right of each lane",
+                 "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "EMU EMU_1";
+    build("passive", 2); // a reading for the whole unit, which would put one lid over the row
+    CHECK(lid_ == tray::LidMode::PerLane);
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE(badges != nullptr);
+    for (int i = 0; i < 2; ++i) {
+        CAPTURE(i);
+        lv_area_t sa, ba;
+        lv_obj_get_coords(lv_obj_find_by_name(slot(i), "lane_spool"), &sa);
+        lv_obj_get_coords(lv_obj_get_child(badges, i), &ba);
+        const float flange_bottom =
+            (sa.y1 + sa.y2) / 2.0f + tray::kSpoolFlangeRadius * lv_area_get_width(&sa) - origin_.y;
+        CHECK(box_.fb - flange_bottom > tray::kSpoolFloorGap + 3);
+        CHECK(ba.x1 + ba.x2 > sa.x1 + sa.x2);
+    }
+    lv_area_t g;
+    lv_obj_get_coords(slot_grid_, &g);
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    REQUIRE(canvas != nullptr);
+    CHECK(std::abs(helix::ui::fpath::get_data(canvas)->lane_entry_offset -
+                   (origin_.y + (int32_t)std::lround(box_.fb) - g.y1)) <= 1);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on the box front",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
+    name_every_lane(4, "eSUN");
     int named = 0;
     for (int i = 0; i < 4; ++i) {
         lv_obj_t* name = lv_obj_find_by_name(slot(i), "name_label");
         REQUIRE(name != nullptr);
-        if (!lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(name))
             ++named;
     }
     REQUIRE(named > 0);
@@ -743,7 +808,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     for (const char* meter : {"clog_meter", "buffer_mini"}) {
         lv_obj_t* m = lv_obj_find_by_name(panel_obj_, meter);
         REQUIRE(m != nullptr);
-        if (lv_obj_has_flag(m, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(m))
             continue;
         ++meters_seen;
         lv_area_t ma;
@@ -789,7 +854,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(details != nullptr);
     REQUIRE(position != nullptr);
     REQUIRE(weight != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(weight, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(weight));
     lv_area_t da, pa, wa;
     lv_obj_get_coords(details, &da);
     lv_obj_get_coords(position, &pa);
@@ -812,7 +877,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     auto clear_name = [](int i) {
         lv_subject_t* s = AmsState::instance().get_slot_name_subject(0, i);
         REQUIRE(s != nullptr);
-        lv_subject_copy_string(s, "");
+        lv_subject_set_string(s, "");
     };
     auto spool_tops = [&]() {
         lv_obj_update_layout(test_screen());
@@ -829,10 +894,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     auto name_lines_shown = [&]() {
         int shown = 0;
         for (int i = 0; i < 4; ++i)
-            if (!lv_obj_has_flag(lv_obj_find_by_name(slot(i), "name_label"), LV_OBJ_FLAG_HIDDEN))
+            if (!lv_obj_is_hidden(lv_obj_find_by_name(slot(i), "name_label")))
                 ++shown;
         return shown;
     };
+    name_every_lane(4, "eSUN");
     const std::vector<int32_t> all_named = spool_tops();
     REQUIRE(name_lines_shown() == 4);
 
@@ -865,10 +931,16 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     AmsBackend* backend = AmsState::instance().get_backend();
     REQUIRE(backend != nullptr);
     REQUIRE(backend->get_endless_spool_capabilities().available());
-    REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
-
-    AmsPanelTestAccess::update_endless_arrows(*panel_);
     lv_obj_t* arrows = lv_obj_find_by_name(panel_obj_, "endless_arrows");
     REQUIRE(arrows != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(arrows, LV_OBJ_FLAG_HIDDEN));
+    // With no backup the row has nothing to draw and gives its space back.
+    CHECK(lv_obj_is_hidden(arrows));
+    // One backend leaves nothing to select between.
+    lv_obj_t* selector = lv_obj_find_by_name(panel_obj_, "backend_selector_row");
+    REQUIRE(selector != nullptr);
+    CHECK(lv_obj_is_hidden(selector));
+
+    REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
+    AmsPanelTestAccess::update_endless_arrows(*panel_);
+    CHECK_FALSE(lv_obj_is_hidden(arrows));
 }

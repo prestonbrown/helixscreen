@@ -4,16 +4,16 @@
 """Check that responsive design tokens are declared at the top level of ui_xml/.
 
 Token auto-discovery is top-level-only. It lists files with
-theme_manager_find_xml_files() (src/ui/theme_token_scan.cpp) and recursive=false,
+theme_manager_find_xml_files() (src/ui/theme/theme_token_scan.cpp) and recursive=false,
 which skips every subdirectory, so only ui_xml/*.xml is ever parsed for `<px name="foo_small">` /
-`<string name="foo_small">`. A responsive token declared in ui_xml/components/,
-ui_xml/portrait/, ui_xml/micro/ — anywhere below the top level — is never
+`<string name="foo_small">`. A responsive token declared in ui_xml/components/
+or anywhere else below the top level is never
 registered, and every `#foo` that references it silently resolves to nothing.
 Neither side warns (prestonbrown/helixscreen#1211).
 
 Recursing was the obvious fix and is the wrong one. Discovery is alphabetical
-last-wins, so a portrait-only `nav_width_small` would shadow the base token
-globally instead of only while the portrait variant is active. Discovery stays
+last-wins, so a component's `nav_width_small` would shadow the top-level token
+globally. Discovery stays
 top-level-only; this gate makes the constraint loud instead of silent.
 
 WHAT IS FLAGGED
@@ -41,6 +41,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from source_strip import blank_xml_comments
+
 SCAN_DIRS = ("ui_xml",)
 
 # android/app/src/main/assets/ui_xml/ is a gradle copy of ui_xml/, not a source
@@ -55,14 +57,6 @@ RESPONSIVE_SUFFIXES = ("_micro", "_tiny", "_small", "_medium", "_large", "_xlarg
 # theme_manager_parse_all_xml_for_suffix() reads. Attributes may wrap onto the
 # next line, so match across newlines.
 DECL_RE = re.compile(r'<(px|string)\b[^>]*?\bname\s*=\s*"([^"]*)"', re.DOTALL)
-
-COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-
-
-def strip_comments(text: str) -> str:
-    """Blank out comment bodies, keeping newlines so line numbers stay right."""
-    return COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
-
 
 def line_of(text: str, index: int) -> int:
     return text.count("\n", 0, index) + 1
@@ -89,7 +83,7 @@ def scan_file(path: Path) -> list[tuple[str, int, str]]:
         return []
 
     try:
-        text = strip_comments(path.read_text(encoding="utf-8"))
+        text = blank_xml_comments(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError):
         return []
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include "../catch_amalgamated.hpp"
@@ -11,7 +11,7 @@ namespace {
 struct EmptyDescFixture : LVGLUITestFixture {
     lv_subject_t* bp_ = nullptr;
     int saved_bp_ = 0;
-    lv_subject_t bound_{};
+    helix::Subject bound_{};
     char bound_buf_[32] = "0.8 mm";
 
     EmptyDescFixture() {
@@ -19,7 +19,7 @@ struct EmptyDescFixture : LVGLUITestFixture {
         REQUIRE(bp_ != nullptr);
         saved_bp_ = lv_subject_get_int(bp_);
         lv_xml_register_event_cb(nullptr, "test_empty_desc_noop", [](lv_event_t*) {});
-        lv_subject_init_string(&bound_, bound_buf_, nullptr, sizeof(bound_buf_), bound_buf_);
+        bound_.init_string(bound_buf_, nullptr, sizeof(bound_buf_), bound_buf_);
         lv_xml_register_subject(nullptr, "test_empty_desc_bound", &bound_);
     }
     ~EmptyDescFixture() override {
@@ -55,7 +55,7 @@ struct EmptyDescFixture : LVGLUITestFixture {
         lv_obj_t* obj = lv_obj_find_by_name(row, name);
         REQUIRE(obj != nullptr);
         for (lv_obj_t* o = obj; o && o != row; o = lv_obj_get_parent(o)) {
-            if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(o))
                 return false;
         }
         return true;

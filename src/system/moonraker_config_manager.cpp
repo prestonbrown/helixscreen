@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "moonraker_config_manager.h"
 
+#include "core/text_io.h"
 #include "klipper_config_includes.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

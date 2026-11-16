@@ -10,7 +10,8 @@
 
 #include "ams_backend_mock.h"
 #include "ams_state.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "print_start_phase.h"
 #include "thumbnail_processor.h"
 
 #include <spdlog/spdlog.h>
@@ -40,7 +41,7 @@ static void set_int(const char* name, int value) {
 static void set_string(const char* name, const char* value) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);
     if (s) {
-        lv_subject_copy_string(s, value);
+        lv_subject_set_string(s, value);
     } else {
         spdlog::warn("[Scenario] Subject not found: {}", name);
     }
@@ -324,7 +325,7 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 230); // 23.0°C (ambient)
                              set_int("bed_target", 0);
                              set_int("fan_speed", 0);
-                             set_int("print_start_phase", 0); // IDLE
+                             set_int("print_start_phase", static_cast<int>(PrintStartPhase::IDLE));
                          }});
 
     // --- printing ---
@@ -347,7 +348,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 600); // 60.0°C
                              set_int("bed_target", 600);
                              set_int("fan_speed", 255);
-                             set_int("print_start_phase", 10); // COMPLETE (past start)
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::COMPLETE));
                              set_int("print_show_progress", 1);
                          }});
 
@@ -368,7 +370,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("bed_temp", 600);
                              set_int("bed_target", 600);
                              set_int("fan_speed", 0);
-                             set_int("print_start_phase", 10);
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::COMPLETE));
                          }});
 
     // --- error ---
@@ -404,7 +407,8 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("print_active", 1);
                              set_int("print_progress", 0);
                              set_int("print_show_progress", 0);
-                             set_int("print_start_phase", 4); // HEATING_NOZZLE
+                             set_int("print_start_phase",
+                                     static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
                              set_int("print_start_progress", 65);
                              set_string("print_start_message", "Heating Nozzle...");
                              set_string("print_start_time_left", "~2 min left");
@@ -472,7 +476,7 @@ static std::vector<MockScenario> build_scenarios() {
     // drains the entire batch each time, so there's no way to widen that window
     // from the subject side. HttpExecutor::inflight() instead stays incremented for
     // the full wall-clock duration of the submitted job body (see
-    // http_executor.h's `submit()` — incremented there, decremented only on
+    // core/http_executor.h's `submit()` — incremented there, decremented only on
     // completion), so a deliberately slow job gives wait_idle(timeout=0.0) a
     // multi-hundred-millisecond window to land in instead of a sub-tick race.
     // 2s comfortably exceeds subprocess-spawn latency even under heavy load

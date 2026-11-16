@@ -5,7 +5,7 @@
  * @file bt_discovery_utils.h
  * @brief Bluetooth discovery UUID classification helpers.
  *
- * Extracted from bt_discovery.cpp so the logic can be unit-tested without
+ * Kept apart from bt_discovery.cpp so the logic can be unit-tested without
  * pulling in sd-bus or BlueZ dependencies.
  */
 

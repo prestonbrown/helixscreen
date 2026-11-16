@@ -84,6 +84,10 @@ class RecoveryModalPresenter {
     /// taps a recovery button.
     void on_recovery_tapped(const std::string& gcode);
 
+    /// A tap on an action that names a guided flow: the flow opens once the
+    /// dialog has closed, and nothing is sent from here.
+    void on_guided_flow_tapped(const helix::RecoveryAction& action);
+
     /// The tap's work once any confirm is answered: preheat first when
     /// @p needs_hot_nozzle and the nozzle is cold, else send.
     void continue_recovery(const std::string& gcode, const std::string& tag,

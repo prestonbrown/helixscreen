@@ -7,12 +7,12 @@
 #include "ui_history_photos.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
 #include "history_job_events.h"
 #include "moonraker_api_mock.h"
@@ -378,7 +378,7 @@ struct PhotosFx : LVGLTestFixture {
     PhotosFx() {
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcams({cam("main", "mjpegstreamer", "http://cam/snap.jpg")});
-        ps.plugin_status_state().set_locality_source([] { return true; });
+        ps.set_moonraker_is_remote(false);
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         ui::UpdateQueue::instance().drain();
         controller = std::make_unique<PrintPhotosController>(
@@ -391,7 +391,7 @@ struct PhotosFx : LVGLTestFixture {
         controller.reset();
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcam_available(false);
-        ps.plugin_status_state().set_locality_source(nullptr);
+        ps.clear_moonraker_locality();
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         ui::UpdateQueue::instance().drain();
     }
@@ -471,7 +471,7 @@ struct PhotosApiFx : LVGLUITestFixture {
         set_moonraker_api(api.get());
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcams({cam("main", "mjpegstreamer", "http://cam/snap.jpg")});
-        ps.plugin_status_state().set_locality_source([] { return true; });
+        ps.set_moonraker_is_remote(false);
         ps.plugin_status_state().set_stored_opt_ins(json::object());
         drain();
         controller = std::make_unique<PrintPhotosController>(
@@ -483,7 +483,7 @@ struct PhotosApiFx : LVGLUITestFixture {
         set_moonraker_api(previous_api);
         auto& ps = get_printer_state();
         ps.capabilities_state().set_webcam_available(false);
-        ps.plugin_status_state().set_locality_source(nullptr);
+        ps.clear_moonraker_locality();
         drain();
         client.stop_temperature_simulation();
         client.disconnect();
@@ -724,8 +724,8 @@ TEST_CASE_METHOD(PhotosApiFx, "history's detail card offers the job's photos",
     REQUIRE(tabs != nullptr);
     REQUIRE(photo != nullptr);
     // The card opens on the end photo, with the tabs to go back to the preview.
-    CHECK_FALSE(lv_obj_has_flag(tabs, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(photo, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tabs));
+    CHECK_FALSE(lv_obj_is_hidden(photo));
 
     NavigationManager::instance().go_back();
     drain();

@@ -3,10 +3,14 @@
 
 #pragma once
 
-#include "ams_types.h"
-
 #include <string>
 #include <string_view>
+
+namespace helix {
+// The label resolvers read a slot by reference only; a caller that builds one
+// includes ams_types.h itself.
+struct SlotInfo;
+} // namespace helix
 
 /**
  * @file filament_display_name.h
@@ -164,15 +168,15 @@ std::string resolve_filament_label(const SlotInfo& slot, const SpoolIdentity* id
 bool name_states_material(std::string_view name, std::string_view material);
 
 /**
- * @brief The spool name an AMS slot card shows above its material
+ * @brief The name an AMS slot card shows above its material: the brand
  *
- * `slot.spool_name` -> `identity->filament_name` -> `slot.product_name`: what
- * the spool IS ("PLA+ 2.0", "Silk PLA+"). Never a colour name: the spool graphic
- * under it already shows the colour.
+ * `slot.brand`, then the cached Spoolman vendor. Empty for no brand, for
+ * "Generic", and for a brand that only repeats `slot.material`. The card hides
+ * the line where the brand does not fit.
  *
  * @param slot     Slot to name
  * @param identity Cached Spoolman identity, or nullptr on a miss
- * @return Whitespace-normalized name; empty when nothing names the spool
+ * @return Whitespace-normalized brand; empty when the card shows none
  */
 std::string slot_card_name(const SlotInfo& slot, const SpoolIdentity* identity);
 

@@ -19,9 +19,7 @@ namespace helix {
  * loaded once behind a `loaded_` guard, a map keyed by panel/page, a lazily-built list —
  * keeps serving the PREVIOUS printer's data until something explicitly drops it.
  *
- * Each component that memoizes `df()`-derived state (`PanelWidgetManager`'s per-panel
- * `PanelWidgetConfig` cache, #804) would otherwise keep serving the previous printer's data
- * after a switch.
+ * `PanelWidgetManager`'s per-panel `PanelWidgetConfig` cache is one such component (#804).
  *
  * This registry makes the invalidation structural. A component that caches
  * `df()`-derived state self-registers a callback that drops it; every active-printer change
@@ -70,7 +68,7 @@ namespace helix {
  * registry lives on — e.g. a test fixture's instance) must call `unregister()` from its
  * teardown so the registry never holds a callback over freed memory.
  *
- * Main-thread only. `PrinterSession::switch_printer()` and the add-printer wizard paths call
+ * Main-thread only. PrinterSwitchFlow's switch and add-printer wizard paths call
  * `invalidate_all()` after `Config::set_active_printer()` and before
  * `tear_down_printer_state()`, i.e. while `df()` already points at the NEW printer.
  */
@@ -151,7 +149,6 @@ class PrinterCacheRegistry {
     PrinterCacheRegistry() = default;
     ~PrinterCacheRegistry();
 
-    // Non-copyable
     PrinterCacheRegistry(const PrinterCacheRegistry&) = delete;
     PrinterCacheRegistry& operator=(const PrinterCacheRegistry&) = delete;
 

@@ -8,6 +8,7 @@ WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
 setup() {
     load helpers
+    skip_line_tracking
     unset HELIX_INSTALL_VERBOSE COLORTERM NO_COLOR HELIX_INSTALL_LOGO LC_TERMINAL TERM_PROGRAM
     export HELIX_INSTALL_TTY=0
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh"

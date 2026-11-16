@@ -6,12 +6,14 @@
 #include "ui_buffer_slider.h"
 #include "ui_bypass_toggle_controller.h"
 #include "ui_clog_meter.h"
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "ams_backend.h"
+#include "ams_step_model.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"
@@ -52,9 +54,12 @@ std::string preheat_status_text(bool step_list_shows_temp, int current_c, int ta
  * Contains: current loaded card, status display, step progress stepper,
  * action buttons (unload/reset/settings/bypass), and dryer card.
  *
- * Uses user_data callback routing pattern (same as AmsDryerCard).
- * Static callbacks traverse parent chain to find the AmsOperationSidebar instance.
+ * Static callbacks find their sidebar by the panel the firing widget sits in.
  */
+/// The sidebar's mounted line on a multi-head printer: "Mounted: <tool>" for
+/// @p active_tool >= 0, "No tool mounted" otherwise.
+[[nodiscard]] std::string mounted_tool_text(LaneNoun tool_noun, int active_tool);
+
 class AmsOperationSidebar {
   public:
     explicit AmsOperationSidebar(PrinterState& ps);
@@ -68,8 +73,15 @@ class AmsOperationSidebar {
     AmsOperationSidebar(const AmsOperationSidebar&) = delete;
     AmsOperationSidebar& operator=(const AmsOperationSidebar&) = delete;
 
+    /// The panel the sidebar was set up on, for OpenInstances::owner_of(). Its
+    /// strip and status line move between the sidebar and the panel's portrait
+    /// slot, so the panel is the one root that holds every sidebar widget.
+    lv_obj_t* root() const {
+        return panel_;
+    }
+
     /**
-     * @brief Find sidebar widget in panel, set user_data, setup dryer card
+     * @brief Find sidebar widget in panel, register for callback routing, setup dryer card
      * @param panel Root panel object containing the ams_sidebar component
      * @return true if sidebar found and initialized
      */
@@ -191,6 +203,7 @@ class AmsOperationSidebar {
     helix::AsyncLifetimeGuard lifetime_;
 
     // Widget references
+    helix::ui::WidgetRef panel_;
     lv_obj_t* sidebar_root_ = nullptr;
     // The loaded strip and status line: in the sidebar in landscape, moved into
     // the panel's portrait_summary_slot (above the diagram) in portrait.
@@ -213,10 +226,11 @@ class AmsOperationSidebar {
     ObserverGuard action_observer_;
     ObserverGuard current_slot_observer_;
     ObserverGuard active_backend_observer_;
+    ObserverGuard active_tool_observer_;
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
     // The heaters the step bar's live-temp steps heat, where the backend names
-    // one other than the active extruder (AmsBackend::step_heater).
+    // one other than the active extruder (IStepOperation::step_heater).
     std::vector<ObserverGuard> step_heater_observers_;
     // The extruder set changing re-creates per-extruder subjects: the step
     // heater observers re-attach to the new ones.
@@ -247,7 +261,7 @@ class AmsOperationSidebar {
     lv_subject_t* step_index_subject_ = nullptr;
     // Keeps the current backend step model alive so live_temp / phase lookups
     // work for the active operation. Empty => legacy coarse model.
-    AmsBackend::OperationStepModel current_step_model_;
+    OperationStepModel current_step_model_;
 
     // Bypass toggle policy (guards, unload-first chain, print refusal)
     BypassToggleController bypass_toggle_;
@@ -320,7 +334,7 @@ class AmsOperationSidebar {
     void refresh_live_temp_step_label(int current_index);
 
     // Watch the heater of every live-temp step the backend names
-    // (AmsBackend::step_heater), so a step's readout moves with its own heater.
+    // (IStepOperation::step_heater), so a step's readout moves with its own heater.
     void observe_step_heaters();
     // observe_step_heaters(), and again whenever the extruder set changes.
     void watch_step_heaters();
@@ -347,7 +361,7 @@ class AmsOperationSidebar {
     /// sidebar lives; @p run must not need the sidebar.
     void run_backend_op_after_preheat(helix::ui::FilamentHeatOp op, helix::ui::PreheatSkip skip,
                                       int slot_index,
-                                      std::function<void(helix::ui::FilamentOpTicket)> run);
+                                      helix::SharedCallback<void(helix::ui::FilamentOpTicket)> run);
 
     // ---- Shared dispatch plan (filament_op_dispatch.h) ----------------------
     // Read the live backend's capabilities into the planner's plain-value form.
@@ -377,10 +391,9 @@ class AmsOperationSidebar {
     // ---- Action button gating (filament_op_slot_resolver.h) -----------------
     // Recompute every gated sidebar button and publish the results on
     // ams_sidebar_unload_disabled, ams_sidebar_load_disabled,
-    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Unload
-    // and Load come from the same compute_op_button_gating() rule the filament
-    // panel and the AMS context menu use; Reset and Check slots come from
-    // compute_machine_op_gating().
+    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Load
+    // and Unload come from decide_filament_actions() (filament_action_set.h); Reset and Check slots
+    // come from compute_machine_op_gating().
     void refresh_button_gating();
 
     // What the Load and Unload cells offer, decided by decide_filament_actions()
@@ -393,6 +406,10 @@ class AmsOperationSidebar {
         bool system_busy = false;
         PrintState lifecycle{};
         bool backend_self_homes = false;
+        bool print_blocks_load = false; ///< helix::ui::print_blocks_load_now()
+        /// A paused load is refused only because the toolhead is unhomed: the
+        /// backend skips its home once homed and the load unloads nothing first.
+        bool paused_load_waits_on_home = false;
     };
     [[nodiscard]] OpInputs read_op_inputs() const;
 
@@ -418,16 +435,20 @@ class AmsOperationSidebar {
     /// an operation starting and the subject settling, so each entry re-checks
     /// and refuses with copy the user can act on rather than forwarding a
     /// guaranteed backend rejection. True means "refused, stop here".
-    [[nodiscard]] bool refuse_if_busy_or_printing() const;
+    /// @param load The op is a load, which answers to print_blocks_load_now().
+    [[nodiscard]] bool refuse_if_busy_or_printing(bool load = false) const;
     void handle_bypass_toggle();
     void handle_reset();
     void handle_check_gates();
+    /// The loaded card's tap: the loaded lane's spool in the editor, or the
+    /// spool picker when Spoolman is up and the lane links no spool (#2094).
+    void handle_loaded_card_tap();
 
     // Action display (sidebar-relevant parts only)
     void update_action_display(AmsAction action);
 
     // Static callback routing
-    static AmsOperationSidebar* get_instance_from_event(lv_event_t* e);
+    static AmsOperationSidebar* from_event(lv_event_t* e);
 
     // Static XML callbacks
     static void on_settings_clicked_cb(lv_event_t* e);

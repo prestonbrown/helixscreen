@@ -1,15 +1,15 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../test_helpers/scoped_language.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_error_bridge.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_error_router.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"
@@ -254,12 +254,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge leaves the cooldown alone on
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge toasts an ERROR nothing else surfaced",
-                 "[error-center][ams-bridge]") {
+                 "[error-center][ams-bridge][i18n]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
     auto backend = std::make_unique<ErrorReportingBackend>(4); // current_error() == nullopt
     auto* raw = backend.get();
-    raw->set_operation_detail("Unloading lane 2 (timed out)");
+    helix::ScopedLanguage de("de"); // AFC's timeout key must toast translated
+    raw->set_operation_detail("Filament operation timed out");
     ams.set_backend(std::move(backend));
 
     park_action_idle(*this);
@@ -275,7 +276,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge toasts an ERROR nothing else
 
     REQUIRE_FALSE(presenter.is_visible()); // nullopt: nothing presented the fault
     REQUIRE(toasts.messages().size() == 1);
-    CHECK(toasts.messages()[0].find("Unloading lane 2 (timed out)") != std::string::npos);
+    const std::string german = lv_tr("Filament operation timed out");
+    REQUIRE(german != "Filament operation timed out");
+    CHECK(toasts.messages()[0].find(german) != std::string::npos);
 
     ams.set_backend(nullptr);
 }
@@ -422,7 +425,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge does not toast on non-ERROR 
 // fault text via fault_surface_correlation.
 //
 // These drive the REAL router through GcodeErrorRouterTestAccess rather than
-// seeding the registry by hand: the recording site is half the fix.
+// seeding the registry by hand: the recording site is half the contract.
 // ============================================================================
 
 namespace {

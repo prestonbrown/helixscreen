@@ -4,7 +4,10 @@
 #pragma once
 
 #include "ethernet_backend.h"
+#include "ipv4_config_system.h"
 
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,8 +48,36 @@ class EthernetBackendLinux : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override {
+        return helix::net::open_kernel_link_events();
+    }
+
+    /// Only where NetworkManager owns the interface.
+    bool supports_ipv4_config() const override {
+        return helix::net::store_supported(ipv4_store_.get());
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override;
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config& next,
+                                               helix::net::Ipv4Snapshot& out) override;
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot& target,
+                                             const helix::net::Ipv4Config& config) override;
+
+    /// Lists interfaces with their name, ip and mac (operstate stays empty;
+    /// get_info() reads it from sysfs). Returns 0, or ifconfig()'s error code.
+    using InterfaceLister = std::function<int(std::vector<helix::ethernet::InterfaceState>&)>;
+
+    /// Replace the interface listing and the sysfs root that get_info() reads.
+    void set_sources_for_test(InterfaceLister lister, std::string sysfs_root) {
+        lister_ = std::move(lister);
+        sysfs_root_ = std::move(sysfs_root);
+    }
 
   private:
+    std::unique_ptr<helix::net::Ipv4SystemStore> ipv4_store_ =
+        helix::net::make_network_manager_ipv4_store();
+    InterfaceLister lister_;
+    std::string sysfs_root_ = "/sys";
+
     /**
      * @brief Check if interface name looks like physical Ethernet
      *

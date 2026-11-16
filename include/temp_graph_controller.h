@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 #include "ui_temp_graph_scaling.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <chrono>
 #include <cstdint>
@@ -129,7 +130,6 @@ class TempGraphController {
 
     ~TempGraphController();
 
-    // Non-copyable, non-movable
     TempGraphController(const TempGraphController&) = delete;
     TempGraphController& operator=(const TempGraphController&) = delete;
     TempGraphController(TempGraphController&&) = delete;
@@ -234,9 +234,10 @@ class TempGraphController {
         return graph_;
     }
 
-    /// Check if graph was created successfully
+    /// True while the graph exists and still has its chart. LVGL deletes the
+    /// chart with the container, and the controller can outlive both.
     bool is_valid() const {
-        return graph_ != nullptr;
+        return ui_temp_graph_is_valid(graph_);
     }
 
     /**
@@ -304,7 +305,7 @@ class TempGraphController {
     void resolve_pending_series();
 
     TempGraphControllerConfig config_;
-    lv_obj_t* container_ = nullptr;
+    helix::ui::WidgetRef container_;
     ui_temp_graph_t* graph_ = nullptr;
 
     std::vector<SeriesState> series_;
@@ -323,7 +324,7 @@ class TempGraphController {
      *
      * observe<int>() attaches with lv_subject_add_observer_obj(), which
      * fires the observer once immediately — but that fire only *queues* the
-     * handler (observer_factory.h), so it lands in UpdateQueue and runs on a
+     * handler (core/observer_factory.h), so it lands in UpdateQueue and runs on a
      * later process_pending tick. On reconnect the subjects still hold their
      * pre-disconnect values, so that deferred fire would stamp a stale
      * temperature with a fresh `now` timestamp: the phantom spike of #1245.

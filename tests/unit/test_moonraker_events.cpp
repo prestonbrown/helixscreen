@@ -18,13 +18,12 @@
  * 5. Exception safety in event handlers
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/abort_manager_test_access.h"
 #include "../test_helpers/moonraker_request_tracker_test_access.h"
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_events.h"
 #include "moonraker_request.h"

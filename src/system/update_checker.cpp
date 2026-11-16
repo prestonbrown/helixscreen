@@ -15,18 +15,18 @@
 
 #include "system/update_checker.h"
 
-#include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
-#include "ui_notification.h"
-#include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
-#include "ui_timer_guard.h"
-#include "ui_update_queue.h"
 
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/log_redact.h"
+#include "core/notification_api.h"
+#include "core/text_io.h"
+#include "core/timer_guard.h"
+#include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_thread.h"
 #include "helix_version.h"
@@ -36,9 +36,9 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
-#include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_config_manager.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -54,7 +54,6 @@
 #include "system/tls_trust.h"
 #include "system_power.h"
 #include "system_settings_manager.h"
-#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <cctype>
@@ -96,7 +95,6 @@ using json = nlohmann::json;
 
 namespace {
 
-/// GitHub API URL for latest release
 constexpr const char* kGithubApiUrl =
     "https://api.github.com/repos/prestonbrown/helixscreen/releases/latest";
 
@@ -104,7 +102,6 @@ constexpr const char* kGithubApiUrl =
 constexpr const char* kGithubReleasesUrl =
     "https://api.github.com/repos/prestonbrown/helixscreen/releases";
 
-/// HTTP request timeout in seconds
 constexpr int kHttpTimeoutSeconds = 30;
 
 /// How long the download worker waits for the LVGL thread to run the queued
@@ -294,20 +291,17 @@ std::string extract_changelog_section(const std::string& changelog, const std::s
         return "";
     }
 
-    // Skip past the header line
     size_t content_start = changelog.find('\n', start);
     if (content_start == std::string::npos) {
         return "";
     }
     content_start++; // skip the newline
 
-    // Find the next "## [" section header
     size_t end = changelog.find("\n## [", content_start);
     if (end == std::string::npos) {
         end = changelog.size();
     }
 
-    // Trim leading/trailing whitespace
     std::string section = changelog.substr(content_start, end - content_start);
     while (!section.empty() && (section.front() == '\n' || section.front() == '\r')) {
         section.erase(section.begin());
@@ -472,7 +466,6 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
             setenv("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", 1);
         }
 
-        // Build C-style argv array
         std::vector<char*> argv;
         argv.reserve(args.size() + 1);
         for (const auto& arg : args) {
@@ -509,9 +502,7 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
 
     int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 
-    // Log captured stderr on failure
     if (capture_stderr && exit_code != 0 && !stderr_output.empty()) {
-        // Trim trailing whitespace
         while (!stderr_output.empty() &&
                (stderr_output.back() == '\n' || stderr_output.back() == '\r')) {
             stderr_output.pop_back();
@@ -894,15 +885,12 @@ void UpdateChecker::shutdown() {
 
     spdlog::debug("[UpdateChecker] Shutting down");
 
-    // Stop auto-check timer
     stop_auto_check();
 
-    // Signal cancellation
     cancelled_ = true;
     download_cancelled_ = true;
     shutting_down_ = true;
 
-    // Wait for worker thread to finish
     if (worker_thread_.joinable()) {
         spdlog::debug("[UpdateChecker] Joining worker thread");
         worker_thread_.join();
@@ -929,7 +917,6 @@ void UpdateChecker::shutdown() {
         download_error_.clear();
     }
 
-    // Cleanup subjects
     if (subjects_initialized_) {
         // Expire any worker-thread callback still queued on the UpdateQueue
         // before the subjects it writes are torn down (#1165, #1146).
@@ -957,7 +944,7 @@ lv_subject_t* UpdateChecker::version_text_subject() {
 void UpdateChecker::render_version_text() {
     switch (shown_.status) {
     case Status::Checking:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Checking..."));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Checking..."));
         return;
     case Status::UpdateAvailable:
         // A downgrade is not "available" in the usual sense: say what it
@@ -968,7 +955,7 @@ void UpdateChecker::render_version_text() {
                  shown_.version.c_str());
         break;
     case Status::UpToDate:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Up to date"));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Up to date"));
         return;
     case Status::Error:
         snprintf(version_text_buf_, sizeof(version_text_buf_), lv_tr("Error: %s"),
@@ -977,11 +964,11 @@ void UpdateChecker::render_version_text() {
                      : shown_.error.c_str());
         break;
     case Status::Idle:
-        lv_subject_copy_string(&version_text_subject_,
-                               fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
+        lv_subject_set_string(&version_text_subject_,
+                              fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
         return;
     }
-    lv_subject_copy_string(&version_text_subject_, version_text_buf_);
+    lv_subject_set_string(&version_text_subject_, version_text_buf_);
 }
 
 void UpdateChecker::on_language_changed() {
@@ -1307,13 +1294,11 @@ std::string UpdateChecker::get_download_path(DownloadPathDiag* diag,
         }
     }
 
-    // Home directory
     const char* home = std::getenv("HOME");
     if (home != nullptr && home[0] != '\0') {
         candidates.emplace_back(home);
     }
 
-    // Standard temp locations
     candidates.emplace_back("/tmp");
     candidates.emplace_back("/var/tmp");
     candidates.emplace_back("/mnt/tmp");
@@ -1381,7 +1366,6 @@ std::string UpdateChecker::get_download_path(DownloadPathDiag* diag,
     spdlog::info("[UpdateChecker] Download directory: {} ({:.0f} MB free)", best_dir,
                  static_cast<double>(best_space) / (1024.0 * 1024.0));
 
-    // Ensure trailing slash
     if (best_dir.back() != '/') {
         best_dir += '/';
     }
@@ -1508,7 +1492,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
         if (subjects_initialized_) {
             lv_subject_set_int(&download_status_subject_, static_cast<int>(status));
             lv_subject_set_int(&download_progress_subject_, progress);
-            lv_subject_copy_string(&download_text_subject_, text.c_str());
+            lv_subject_set_string(&download_text_subject_, text.c_str());
         }
     });
 }
@@ -1799,7 +1783,6 @@ void UpdateChecker::do_download() {
         }
     };
 
-    // Download the file using libhv
     helix::tls::TransferFailure transfer;
     size_t result = helix::tls::trusted_download(url, download_path, progress_cb, &transfer);
 
@@ -1894,7 +1877,6 @@ void UpdateChecker::do_download() {
 
     spdlog::info("[UpdateChecker] Archive verified OK");
 
-    // Validate architecture before installing
     if (!validate_elf_architecture(download_path)) {
         spdlog::error("[UpdateChecker] Downloaded update is for wrong architecture!");
         std::remove(download_path.c_str());
@@ -2101,7 +2083,6 @@ bool UpdateChecker::validate_elf_architecture(const std::string& tarball_path) {
     size_t nread = fread(header, 1, sizeof(header), f);
     fclose(f);
 
-    // Clean up extracted files
     safe_exec({rm_bin, "-rf", temp_dir});
 
     if (nread < 20) {
@@ -2179,7 +2160,6 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             const std::string config_bak = config_backup_fallback();
             const std::string env_bak = env_backup_fallback();
 
-            // Ensure fallback dir exists
             std::string fallback_dir = app_constants::update::backup_fallback_dir();
             safe_exec({mkdir_bin, "-p", fallback_dir});
 
@@ -2448,7 +2428,6 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
             int line_count = 0;
             flog_info("[UpdateChecker] ---- install.sh output ----");
             while (fgets(line, sizeof(line), lf)) {
-                // Strip trailing newline
                 size_t len = strlen(line);
                 while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
                     line[--len] = '\0';
@@ -2768,9 +2747,9 @@ UpdateChecker::find_local_installer(const std::vector<std::string>& extra_search
 
     // Belt-and-suspenders: also derive the root directly from /proc/self/exe
     // (strip the binary name and a trailing /bin) WITHOUT the is_valid_data_root()
-    // gate app_get_install_root() applies. This deprioritizes — never removes —
-    // the candidate the pre-refactor code offered, covering a partial install
-    // whose root lacks ui_xml/ (rejected by the canonical resolver) but still has
+    // gate app_get_install_root() applies. This candidate ranks below the
+    // canonical one, ahead of the well-known install roots, covering a partial
+    // install whose root lacks ui_xml/ (rejected by the canonical resolver) but still has
     // install.sh. Deduped against the canonical candidate above.
     char exe_buf[PATH_MAX] = {};
     ssize_t exe_len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
@@ -2833,7 +2812,6 @@ void warn_legacy_update_url_keys(Config* config) {
 } // namespace
 
 void UpdateChecker::check_for_updates(Callback callback) {
-    // Don't start new checks during shutdown
     if (shutting_down_) {
         spdlog::debug("[UpdateChecker] Ignoring check_for_updates during shutdown");
         return;
@@ -2854,7 +2832,6 @@ void UpdateChecker::check_for_updates(Callback callback) {
     // so we won't deadlock with the worker thread.
     std::unique_lock<std::mutex> lock(mutex_);
 
-    // Atomic check if already checking
     if (status_ == Status::Checking) {
         spdlog::debug("[UpdateChecker] Check already in progress, ignoring");
         return;
@@ -2874,7 +2851,6 @@ void UpdateChecker::check_for_updates(Callback callback) {
         spdlog::debug("[UpdateChecker] Rate limited, {} minutes until next check allowed",
                       minutes_remaining);
 
-        // Return cached result via callback
         if (callback) {
             auto cached = cached_info_;
             auto status = status_.load();
@@ -3072,7 +3048,6 @@ void UpdateChecker::do_check() {
             return;
         }
 
-        // Compare versions
         std::string current_version = HELIX_VERSION;
         spdlog::debug("[UpdateChecker] Current: {}, Latest: {}", current_version, info.version);
 
@@ -3358,8 +3333,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                 }
                 // The app's websocket drops with it and reconnects on its own; that
                 // rediscovery syncs again, finds the stanza matching, and stops.
-                EmergencyStopOverlay::instance().suppress_recovery_dialog(
-                    recovery_suppression::LONG);
+                helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
                 api_ptr->restart_moonraker(
                     []() {
                         spdlog::info(
@@ -3530,6 +3504,20 @@ void handle_update_response(const json& msg) {
 }
 } // namespace
 
+void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
+                                           const std::string& name) {
+    client.send_jsonrpc(
+        "machine.update.refresh", json{{"name", name}},
+        [name](const json&) {
+            spdlog::info("[UpdateChecker] Moonraker refreshed its update status for {}", name);
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[UpdateChecker] Moonraker update refresh of {} declined: {}", name,
+                          err.message);
+        },
+        0, /*silent=*/true);
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
         namespace fs = std::filesystem;
@@ -3541,19 +3529,8 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
             // Moonraker re-reads release_info.json only on a refresh, and its
             // own schedule can be a week apart, so Mainsail keeps showing the
             // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes; a missing or renamed section, or a
-            // print in progress, just gets an error back.
-            client.send_jsonrpc(
-                "machine.update.refresh", json{{"name", "helixscreen"}},
-                [](const json&) {
-                    spdlog::info("[UpdateChecker] Moonraker refreshed its HelixScreen "
-                                 "version after the update");
-                },
-                [](const MoonrakerError& err) {
-                    spdlog::debug("[UpdateChecker] Moonraker update refresh declined: {}",
-                                  err.message);
-                },
-                0, /*silent=*/true);
+            // section the installer writes.
+            helix::request_update_manager_refresh(client, "helixscreen");
         }
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
@@ -3624,7 +3601,6 @@ void UpdateChecker::start_auto_check() {
 
             spdlog::info("[UpdateChecker] Auto-check: performing initial check");
 
-            // Perform check with notification callback
             self->check_for_updates([self](Status status, std::optional<ReleaseInfo> info) {
                 if (status != Status::UpdateAvailable || !info) {
                     return;
@@ -3640,7 +3616,6 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
-                // Skip if version is dismissed
                 if (self->is_version_dismissed(info->version)) {
                     spdlog::info("[UpdateChecker] Auto-check: version {} is dismissed",
                                  info->version);
@@ -3659,14 +3634,12 @@ void UpdateChecker::start_auto_check() {
                     return;
                 }
 
-                // Populate release notes subject
                 if (self->subjects_initialized_) {
-                    lv_subject_copy_string(&self->release_notes_subject_,
-                                           info->release_notes.c_str());
+                    lv_subject_set_string(&self->release_notes_subject_,
+                                          info->release_notes.c_str());
                     lv_subject_set_int(&self->changelog_visible_subject_, 0);
                 }
 
-                // Show notification modal
                 self->show_update_notification();
             });
 
@@ -3749,7 +3722,7 @@ static void register_notify_callbacks() {
 void UpdateChecker::show_update_notification() {
     spdlog::info("[UpdateChecker] Show update notification");
     if (!notify_modal_) {
-        notify_modal_ = helix::ui::modal_show("update_notify_modal");
+        notify_modal_ = helix::ui::ComponentModal::show_owned("update_notify_modal");
     }
 }
 
@@ -3862,7 +3835,6 @@ bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
         return false;
     }
 
-    // Parse JSON array of releases
     try {
         auto releases = json::parse(body);
 
@@ -3910,13 +3882,11 @@ bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {
     // If dev_url is explicitly set, use it directly (backward compat)
     std::string dev_url = cached_dev_url_;
     if (!dev_url.empty()) {
-        // Validate URL scheme
         if (dev_url.find("http://") != 0 && dev_url.find("https://") != 0) {
             error = "Dev URL must use http:// or https:// scheme";
             return false;
         }
 
-        // Ensure trailing slash
         if (dev_url.back() != '/') {
             dev_url += '/';
         }
@@ -3974,13 +3944,11 @@ void UpdateChecker::report_fetched_release(ReleaseInfo info, const std::string& 
 
 void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info,
                                   const std::string& error) {
-    // Don't report if cancelled
     if (cancelled_ || shutting_down_) {
         spdlog::debug("[UpdateChecker] Skipping result report (cancelled/shutting down)");
         return;
     }
 
-    // Update state under lock
     Callback callback;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -3990,7 +3958,6 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
         if (status == Status::UpdateAvailable && info) {
             cached_info_ = info;
         } else if (status == Status::UpToDate) {
-            // Clear cached info when up to date
             cached_info_.reset();
         }
         // On Error, keep previous cached_info_ in case it was valid
@@ -4004,18 +3971,17 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
         "UpdateChecker::do_check_complete", [this, callback, status, info, error]() {
             spdlog::debug("[UpdateChecker] Executing on LVGL thread");
 
-            // Update LVGL subjects
             if (subjects_initialized_) {
                 lv_subject_set_int(&status_subject_, static_cast<int>(status));
 
                 if (status == Status::UpdateAvailable && info) {
                     shown_ = {status, info->version, info->is_downgrade, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, info->version.c_str());
+                    lv_subject_set_string(&new_version_subject_, info->version.c_str());
                 } else if (status == Status::UpToDate) {
                     shown_ = {status, "", false, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 } else if (status == Status::Error) {
                     // An Error carrying a release means the release is the problem:
                     // it has no build for this board.
@@ -4023,11 +3989,10 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                     shown_ = {status, no_build ? info->version : "", false, no_build ? "" : error,
                               no_build};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 }
             }
 
-            // Execute callback if present
             if (callback) {
                 callback(status, info);
             }

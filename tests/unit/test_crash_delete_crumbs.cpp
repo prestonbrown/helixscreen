@@ -5,7 +5,7 @@
  * @file test_crash_delete_crumbs.cpp
  * @brief async_d / sync_d crumbs carry the widget name (#960).
  *
- * Debug bundle 6F3QJLFG's final breadcrumb before a glibc heap abort was:
+ * One debug bundle's final breadcrumb before a glibc heap abort was:
  *
  *     crumb:1827960 async_d lv_obj 57241184
  *

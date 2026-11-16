@@ -7,12 +7,12 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_text_entry_modal.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "core/update_queue.h"
 #include "lua_bindings.h"
 #include "plugin_overlay_host.h"
 #include "settings_manager.h"
@@ -126,7 +126,7 @@ TEST_CASE_METHOD(EditorFixture, "helix.ui.edit_number with a negative min enters
     REQUIRE(ui_keypad_is_visible());
     lv_obj_t* sign = lv_obj_find_by_name(keypad(), "btn_sign");
     REQUIRE(sign);
-    CHECK_FALSE(lv_obj_has_flag(sign, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(sign));
     type_and_confirm("2.5-");
     CHECK_FALSE(ui_keypad_is_visible());
     CHECK(b.t.global("got") == "-2.5");
@@ -135,7 +135,7 @@ TEST_CASE_METHOD(EditorFixture, "helix.ui.edit_number with a negative min enters
     REQUIRE(b.t.run("open_number()"));
     drain();
     REQUIRE(ui_keypad_is_visible());
-    CHECK(lv_obj_has_flag(sign, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(sign));
     ui_keypad_hide();
     drain();
 }

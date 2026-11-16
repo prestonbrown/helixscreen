@@ -39,13 +39,15 @@ class SaveModeFixture : public LVGLUITestFixture {
     }
 
     ~SaveModeFixture() override {
-        // A failed assertion can leave the modal up with its static instance
-        // pointer aimed at this soon-dead object.
-        if (modal.dialog()) {
-            helix::MacroParamModal::cancel_cb(nullptr);
-        }
+        modal.hide();
         process_lvgl(20);
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
+    }
+
+    void press_primary(const char* row_name) {
+        lv_obj_t* row = lv_obj_find_by_name(modal.dialog(), row_name);
+        REQUIRE(row != nullptr);
+        lv_obj_send_event(lv_obj_find_by_name(row, "btn_primary"), LV_EVENT_CLICKED, nullptr);
     }
 
     void show_defaults(const ParamValues& values, bool ask = true) {
@@ -57,6 +59,30 @@ class SaveModeFixture : public LVGLUITestFixture {
                                     ++saves;
                                     saved_record = saved;
                                 });
+        REQUIRE(modal.dialog() != nullptr);
+    }
+
+    /// Save mode for an UNKNOWN macro: no declared parameters.
+    void show_unknown_defaults(const ParamValues& values, bool ask = true) {
+        helix::MacroParamDefaultRecord record;
+        record.values = values;
+        record.ask_for_params = ask;
+        modal.show_for_defaults(lv_screen_active(), "PY_LOAD", {}, record,
+                                [this](const helix::MacroParamDefaultRecord& saved) {
+                                    ++saves;
+                                    saved_record = saved;
+                                });
+        REQUIRE(modal.dialog() != nullptr);
+    }
+
+    void show_unknown_run(const ParamValues& prefill) {
+        modal.show_for_unknown_params(
+            lv_screen_active(), "PY_LOAD",
+            [this](const helix::MacroParamResult& result) {
+                ++runs;
+                run_result = result;
+            },
+            prefill);
         REQUIRE(modal.dialog() != nullptr);
     }
 
@@ -108,6 +134,7 @@ class SaveModeFixture : public LVGLUITestFixture {
     int saves = 0;
     int runs = 0;
     helix::MacroParamDefaultRecord saved_record;
+    helix::MacroParamResult run_result;
 
   private:
     bool prev_animations_ = true;
@@ -117,11 +144,11 @@ TEST_CASE_METHOD(SaveModeFixture, "Save mode shows the defaults furniture and hi
                  "[macro][macro_params][macro_param_defaults_modal]") {
     show_defaults({});
 
-    CHECK(lv_obj_has_flag(widget("modal_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("modal_title_save"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("run_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("save_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("save_extras"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(widget("modal_title")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("modal_title_save")));
+    CHECK(lv_obj_is_hidden(widget("run_button_row")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_button_row")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_extras")));
     lv_obj_t* ask = widget("ask_row");
     CHECK(lv_obj_has_state(lv_obj_find_by_name(ask, "toggle"), LV_STATE_CHECKED));
 }
@@ -130,11 +157,11 @@ TEST_CASE_METHOD(SaveModeFixture, "Run mode shows none of the save-mode furnitur
                  "[macro][macro_params][macro_param_defaults_modal]") {
     show_run();
 
-    CHECK_FALSE(lv_obj_has_flag(widget("modal_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("modal_title_save"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(widget("run_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("save_button_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(widget("save_extras"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(widget("modal_title")));
+    CHECK(lv_obj_is_hidden(widget("modal_title_save")));
+    CHECK_FALSE(lv_obj_is_hidden(widget("run_button_row")));
+    CHECK(lv_obj_is_hidden(widget("save_button_row")));
+    CHECK(lv_obj_is_hidden(widget("save_extras")));
 }
 
 TEST_CASE_METHOD(SaveModeFixture, "Saved values prefill the fields and Save hands back the record",
@@ -143,7 +170,7 @@ TEST_CASE_METHOD(SaveModeFixture, "Saved values prefill the fields and Save hand
 
     CHECK(field_texts() == std::vector<std::string>{"210", "40"});
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 1);
@@ -162,7 +189,7 @@ TEST_CASE_METHOD(SaveModeFixture, "An edited field and a toggled Ask both reach 
 
     lv_textarea_set_text(widget("field_input"), "220");
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saves == 1);
@@ -184,21 +211,88 @@ TEST_CASE_METHOD(SaveModeFixture, "An emptied field is not saved as a value",
 
     lv_textarea_set_text(widget("field_input"), "");
 
-    helix::MacroParamModal::save_cb(nullptr);
+    press_primary("save_button_row");
     process_lvgl(20);
 
     CHECK(saved_record.values == ParamValues{{"SPEED", "40"}});
 }
 
-TEST_CASE_METHOD(SaveModeFixture, "A backdrop close leaves no live instance behind",
+TEST_CASE_METHOD(SaveModeFixture, "A press on the closing dialog reaches nothing",
                  "[macro][macro_params][macro_param_defaults_modal][dismiss]") {
     show_run();
+    lv_obj_t* run_row = lv_obj_find_by_name(modal.dialog(), "run_button_row");
+    REQUIRE(run_row != nullptr);
+    lv_obj_t* run = lv_obj_find_by_name(run_row, "btn_primary");
     lv_obj_send_event(modal.backdrop(), LV_EVENT_CLICKED, nullptr);
-    process_lvgl(20);
     REQUIRE(modal.dialog() == nullptr);
 
-    // A late Run press from the closed dialog's callbacks reaches nothing.
-    helix::MacroParamModal::run_cb(nullptr);
+    lv_obj_send_event(run, LV_EVENT_CLICKED, nullptr);
     process_lvgl(20);
     CHECK(runs == 0);
+}
+
+// =============================================================================
+// UNKNOWN macros: the free-form KEY=VALUE text
+// =============================================================================
+
+TEST_CASE_METHOD(SaveModeFixture, "An UNKNOWN macro's saved values prefill one free-form field",
+                 "[macro][macro_params][macro_param_defaults_modal]") {
+    show_unknown_defaults({{"PURGE", "1"}, {"LANE", "lane2"}}, /*ask=*/false);
+
+    CHECK(field_texts() == std::vector<std::string>{"LANE=lane2 PURGE=1"});
+    CHECK_FALSE(lv_obj_is_hidden(widget("save_extras")));
+    CHECK_FALSE(
+        lv_obj_has_state(lv_obj_find_by_name(widget("ask_row"), "toggle"), LV_STATE_CHECKED));
+}
+
+TEST_CASE_METHOD(SaveModeFixture, "Saving free-form text stores its pairs with uppercased keys",
+                 "[macro][macro_params][macro_param_defaults_modal]") {
+    show_unknown_defaults({});
+
+    lv_textarea_set_text(widget("field_input"), "purge=1  Lane=lane2 SKIP=");
+    press_primary("save_button_row");
+    process_lvgl(20);
+
+    CHECK(saves == 1);
+    CHECK(runs == 0);
+    CHECK(saved_record.values == ParamValues{{"LANE", "lane2"}, {"PURGE", "1"}});
+    CHECK(saved_record.ask_for_params);
+}
+
+TEST_CASE_METHOD(SaveModeFixture, "Free-form text that is not KEY=VALUE refuses to save",
+                 "[macro][macro_params][macro_param_defaults_modal]") {
+    show_unknown_defaults({{"PURGE", "1"}});
+
+    lv_textarea_set_text(widget("field_input"), "PURGE=1 wipe");
+    press_primary("save_button_row");
+    process_lvgl(20);
+
+    CHECK(saves == 0);
+    // Still open, so the user can fix what they typed.
+    REQUIRE(modal.dialog() != nullptr);
+    CHECK(field_texts() == std::vector<std::string>{"PURGE=1 wipe"});
+}
+
+TEST_CASE_METHOD(SaveModeFixture, "The free-form run prompt starts with the saved values",
+                 "[macro][macro_params][macro_param_defaults_modal]") {
+    show_unknown_run({{"PURGE", "1"}});
+
+    CHECK(field_texts() == std::vector<std::string>{"PURGE=1"});
+    press_primary("run_button_row");
+    process_lvgl(20);
+
+    CHECK(runs == 1);
+    CHECK(run_result.params == ParamValues{{"PURGE", "1"}});
+}
+
+TEST_CASE_METHOD(SaveModeFixture, "The free-form run prompt refuses text that is not KEY=VALUE",
+                 "[macro][macro_params][macro_param_defaults_modal]") {
+    show_unknown_run({});
+
+    lv_textarea_set_text(widget("field_input"), "PURGE=1 wipe");
+    press_primary("run_button_row");
+    process_lvgl(20);
+
+    CHECK(runs == 0);
+    REQUIRE(modal.dialog() != nullptr);
 }

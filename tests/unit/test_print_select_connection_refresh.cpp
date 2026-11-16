@@ -39,7 +39,9 @@ class CountingFileAPI : public MoonrakerFileAPI {
 
     void get_directory(const std::string& root, const std::string& path,
                        FileListCallback on_success, ErrorCallback on_error) override {
-        ++listings;
+        // The panel's API also serves the PRINT_START walk over the config root.
+        if (root == "gcodes")
+            ++listings;
         MoonrakerFileAPI::get_directory(root, path, std::move(on_success), std::move(on_error));
     }
 

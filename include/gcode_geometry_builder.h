@@ -35,8 +35,7 @@ namespace gcode {
  * reach, and it is what the per-layer culling box wants: too small and geometry
  * pops at the frustum edge, too large and you draw offscreen tubes. The
  * quantization bounds want something bigger - see the call site - because being
- * short there does not cost fidelity, it corrupts vertices. Both used to be
- * hand-written floats commented "sqrt(2)", and one of them was 1.5.
+ * short there does not cost fidelity, it corrupts vertices.
  */
 inline constexpr float tube_half_diagonal(float width) {
     constexpr float kSqrt2 = 1.41421356f;
@@ -126,10 +125,9 @@ struct QuantizationParams {
  *   color    : 4 × uint8 RGBA8     ( 4 B, offset 8)  GL_UNSIGNED_BYTE, normalized
  *   (no padding; stride is a multiple of 4, which GL drivers prefer)
  *
- * Positions were previously dequantized to float on the CPU purely so they
- * could be uploaded — the source data in RibbonVertex is already int16. Passing
- * the int16 straight through is both smaller and less work: on a 28 MB gcode
- * this is 3.4 GB → 2.0 GB of upload buffers.
+ * Positions stay int16 because the source data in RibbonVertex already is;
+ * dequantizing to float on the CPU just to upload would be larger and slower
+ * (on a 28 MB gcode, 3.4 GB of upload buffers instead of 2.0 GB).
  *
  * Centralizes the vertex attribute layout so upload code (geometry builder)
  * and draw code (renderer) stay in sync.

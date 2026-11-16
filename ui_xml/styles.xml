@@ -19,6 +19,11 @@
          of its own gets the LVGL default, which ignores the theme's corner
          setting, so give it one. -->
     <style name="press_wash" bg_color="#primary" bg_opa="30%"/>
+    <!-- Pressed feedback for a tappable area that keeps its own background,
+         such as a picture or a home tile's row: the whole area dims. -->
+    <style name="press_dim" opa="70%"/>
+    <!-- A filament unit that is offline or absent. -->
+    <style name="unit_offline" opa="128"/>
     <!-- A filament slot picker row, at rest and as the current answer. The
          slot rows and the rows that name no slot (Auto, the extra answer,
          Cancel) share them. Inline style attributes outrank bound styles, so
@@ -62,8 +67,23 @@
     <!-- Heater status-area duty text. Two mutually exclusive bindings partition
          the state space (heating vs everything else); the pair lives here so
          every heater surface colors the duty identically. -->
-    <style name="heater_duty_heating" text_color="#warning"/>
+    <style name="heater_duty_heating" text_color="#danger"/>
     <style name="heater_duty_muted" text_color="#text_muted"/>
+
+    <!-- Text tones a subject or state swaps between. Bind them (or select them
+         by state) and leave the color off the widget's inline attrs, which
+         would outrank every one of them. -->
+    <style name="text_tone_muted" text_color="#text_muted"/>
+    <style name="text_tone_primary" text_color="#primary"/>
+    <style name="text_tone_danger" text_color="#danger"/>
+    <style name="text_tone_success" text_color="#success"/>
+    <style name="text_tone_warning" text_color="#warning"/>
+    <style name="text_tone_info" text_color="#info"/>
+
+    <!-- A printer connection dot: connected, connecting or reconnecting, down. -->
+    <style name="connection_dot_up" bg_color="#success"/>
+    <style name="connection_dot_trying" bg_color="#warning"/>
+    <style name="connection_dot_down" bg_color="#danger"/>
 
     <!-- The count-badge box paired with each tile icon rung: 2/5 of
          the glyph (tile_badge_* tokens), the proportion the AMS lane badge
@@ -95,6 +115,11 @@
     <!-- The text column beside a glyph in a row tile takes the width the glyph
          leaves, so a long name ellipsizes instead of running off the tile. -->
     <style name="tile_fill" flex_grow="1"/>
+
+    <!-- A heated bed's plate glow (<plate_glow>), by heat level: warm, hot, very hot. -->
+    <style name="plate_glow_warm" opa="90"/>
+    <style name="plate_glow_hot" opa="165"/>
+    <style name="plate_glow_very_hot" opa="235"/>
 
     <!-- The printer-image callout pill: a card-colored, bordered chip that
          lays its children out icon-first (row_reverse, so a nested icon

@@ -21,15 +21,15 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/z_offset_widget.h"
-#include "static_panel_registry.h"
 #include "tool_state.h"
 #include "z_offset_utils.h"
 
@@ -102,7 +102,7 @@ struct ZOffsetFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// A gcode no action sends, so "nothing was sent" is distinguishable.
@@ -124,6 +124,7 @@ struct ZOffsetFixture : public LVGLUITestFixture {
             {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
         state().set_hardware(hw);
         ToolState::instance().init_tools(hw);
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
         lv_subject_set_int(ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z), 1);
         ToolState::instance().set_tool_offset_local(0, Axis::Z, microns);
         drain();
@@ -159,7 +160,7 @@ lv_obj_t* part(PanelWidgetHarness<ZOffsetWidget>& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.

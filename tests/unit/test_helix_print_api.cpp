@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_job_api.h"
@@ -8,8 +9,8 @@
 #include "../../include/printer_state.h"
 #include "../../include/standing_print_options.h"
 #include "../../include/storage_report.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -20,30 +21,12 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-struct LVGLInitializerHelixPrint {
-    LVGLInitializerHelixPrint() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerHelixPrint lvgl_init_helix;
 
 // ============================================================================
 // Test Fixtures
 // ============================================================================
 
-class HelixPrintAPITestFixture {
+class HelixPrintAPITestFixture : public LVGLTestFixture {
   public:
     HelixPrintAPITestFixture() {
         state.init_subjects(false);
@@ -142,6 +125,7 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
         if (method == "printer.print.start") {
             ++print_start_calls;
             print_start_filename = params.value("filename", std::string{});
+            print_start_params = params;
             if (success_cb) {
                 success_cb(json::object());
             }
@@ -158,6 +142,7 @@ class FallbackScriptedClient : public helix::MoonrakerClient {
     int print_modified_calls = 0;
     int print_start_calls = 0;
     std::string print_start_filename;
+    json print_start_params;
 };
 } // namespace
 
@@ -283,6 +268,42 @@ TEST_CASE("HelixPrint API - falls back to printer.print.start when plugin print_
     REQUIRE(result.print_filename == temp_path);
 }
 
+TEST_CASE("HelixPrint API - the fallback start keeps the print's tool map", "[print][api][2038]") {
+    FallbackScriptedClient client;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/modified_1_benchy.gcode", {},
+        [](const ModifiedPrintResult&) {}, [](const MoonrakerError&) {}, {{"tools", "2,,1"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(client.print_start_calls == 1);
+    CHECK(client.print_start_params.value("tools", std::string{}) == "2,,1");
+}
+
+TEST_CASE("HelixPrint API - a print_modified refused as invalid is final", "[print][api][2038]") {
+    FallbackScriptedClient client;
+    client.print_modified_code = 400;
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+
+    bool succeeded = false;
+    int error_code = 0;
+    api.job().start_modified_print(
+        "benchy.gcode", ".helix_temp/modified_1_benchy.gcode", {},
+        [&](const ModifiedPrintResult&) { succeeded = true; },
+        [&](const MoonrakerError& err) { error_code = err.code; }, {{"tools", "2,,1"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(client.print_modified_calls == 1);
+    CHECK(client.print_start_calls == 0);
+    CHECK_FALSE(succeeded);
+    CHECK(error_code == 400);
+}
+
 // ============================================================================
 // print_modified's own RPC ceiling, and what the fallback may act on
 // ============================================================================
@@ -351,8 +372,6 @@ TEST_CASE("a print_modified refused for space is final: no stock start replaces 
     // The plugin deletes the copy and answers 507 when the print would leave
     // less than its free-space floor. A stock start would aim at the deleted
     // copy, or print below the floor, and hide the space message.
-    while (helix::screen_start_ledger().withdraw_any()) {
-    }
     FallbackScriptedClient client;
     client.print_modified_code = helix::storage::kNoSpaceRpcCode;
     PrinterState state;

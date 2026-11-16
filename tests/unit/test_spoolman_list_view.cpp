@@ -3,6 +3,7 @@
 
 #include "ui_print_select_card_view.h"
 #include "ui_print_select_list_view.h"
+#include "ui_spool_canvas.h"
 #include "ui_spoolman_list_view.h"
 
 #include "../lvgl_test_fixture.h"
@@ -62,7 +63,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SpoolmanListView - cleanup without setup",
 // reach anything. Under the plain LVGLTestFixture there is no XML registration,
 // so lv_xml_create("spoolman_spool_row") fails, pool_ stays empty, and
 // populate/update_visible/refresh_content/update_active_indicators all take the
-// pool_.empty() early return (src/ui/ui_spoolman_list_view.cpp:295 and friends).
+// pool_.empty() early return (src/ui/filament/ui_spoolman_list_view.cpp:295 and friends).
 // The XML-backed cases below cover the same calls for real.
 
 // ============================================================================
@@ -86,43 +87,37 @@ static std::vector<SpoolInfo> make_test_spools(int count) {
     return spools;
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate creates pool rows",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "SpoolmanListView - the pool builds only the rows the visible window needs",
                  "[spoolman_list_view][ui_integration]") {
+    const int count = GENERATE(5, 50);
+    CAPTURE(count);
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container);
 
-    auto spools = make_test_spools(5);
+    auto spools = make_test_spools(count);
     view.populate(spools, 1);
     process_lvgl(50);
 
-    REQUIRE(view.is_initialized() == true);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - populate with many spools",
-                 "[spoolman_list_view][ui_integration]") {
-    SpoolmanListView view;
-    lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    view.setup(container);
-
-    auto spools = make_test_spools(50);
-    view.populate(spools, 1);
-    process_lvgl(50);
-
-    REQUIRE(view.is_initialized() == true);
-    // Only kPoolSize rows should be created (not 50)
+    REQUIRE(view.is_initialized());
+    // Five spools fit the viewport: one row each. Fifty need a viewport's worth plus the
+    // buffer rows below it, well short of the pool's ceiling.
+    if (count == 5) {
+        REQUIRE(view.pool_size() == 5);
+    } else {
+        REQUIRE(view.pool_size() > 5);
+        REQUIRE(view.pool_size() < static_cast<size_t>(SpoolmanListView::kPoolSize));
+    }
 }
 
 /// Find the visible pool row currently showing @p spool_id.
 ///
 /// configure_row() stores the spool id in the row's user_data
-/// (src/ui/ui_spoolman_list_view.cpp:174) — the same handle the XML click
+/// (src/ui/filament/ui_spoolman_list_view.cpp:174) — the same handle the XML click
 /// callback reads — so this is the production lookup, not a test-only backdoor.
 /// Returns nullptr when the id is outside the virtualized window.
 static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
@@ -130,7 +125,7 @@ static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
     const uint32_t count = lv_obj_get_child_count(container);
     for (uint32_t i = 0; i < count; i++) {
         lv_obj_t* child = lv_obj_get_child(container, i);
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(child)) {
             continue; // recycled slot not currently showing anything
         }
         if (static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(child))) == spool_id) {
@@ -141,12 +136,34 @@ static lv_obj_t* find_row_for_spool(lv_obj_t* container, int spool_id) {
     return found;
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - an 8-digit spool color keeps its hue",
+                 "[spoolman_list_view][ui_integration][color]") {
+    SpoolmanListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 600);
+    lv_obj_set_scrollable(container, true);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container);
+
+    // #RRGGBBAA, as slicers and Spoolman's multi-color entries write it.
+    auto spools = make_test_spools(1);
+    spools[0].color_hex = "#FF0000FF";
+    view.populate(spools, 0);
+    process_lvgl(50);
+
+    lv_obj_t* row = find_row_for_spool(container, 1);
+    REQUIRE(row != nullptr);
+    lv_obj_t* canvas = lv_obj_find_by_name(row, "spool_canvas");
+    REQUIRE(canvas != nullptr);
+    REQUIRE((lv_color_to_u32(ui_spool_canvas_get_color(canvas)) & 0xFFFFFF) == 0xFF0000);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves to the new spool",
                  "[spoolman_list_view][ui_integration]") {
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container);
 
@@ -168,7 +185,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves t
     REQUIRE(active_row != nullptr);
     lv_obj_t* active_marker = lv_obj_find_by_name(active_row, "active_indicator");
     REQUIRE(active_marker != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(active_marker, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(active_marker));
     REQUIRE(lv_obj_has_state(active_row, LV_STATE_CHECKED));
 
     for (int id : {1, 2, 3, 4, 6, 7, 8, 9, 10}) {
@@ -179,7 +196,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves t
         }
         lv_obj_t* marker = lv_obj_find_by_name(row, "active_indicator");
         REQUIRE(marker != nullptr);
-        REQUIRE(lv_obj_has_flag(marker, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(marker));
         REQUIRE_FALSE(lv_obj_has_state(row, LV_STATE_CHECKED));
     }
 }
@@ -189,7 +206,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container);
 
@@ -212,7 +229,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
     view.refresh_content(spools, 1);
     process_lvgl(50);
 
-    // "%.0fg" in configure_row (src/ui/ui_spoolman_list_view.cpp:211-215).
+    // "%.0fg" in configure_row (src/ui/filament/ui_spoolman_list_view.cpp:211-215).
     // Rows are recycled in place, so the label pointer stays valid.
     REQUIRE(std::string(lv_label_get_text(weight_label)) == "42g");
 }
@@ -231,7 +248,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - container deletion drops
     SpoolmanListView view;
     lv_obj_t* container_a = lv_obj_create(test_screen());
     lv_obj_set_size(container_a, 400, 600);
-    lv_obj_add_flag(container_a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container_a, true);
     lv_obj_set_flex_flow(container_a, LV_FLEX_FLOW_COLUMN);
     view.setup(container_a);
 
@@ -254,7 +271,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - container deletion drops
     // new pool there rather than reuse the freed rows.
     lv_obj_t* container_b = lv_obj_create(test_screen());
     lv_obj_set_size(container_b, 400, 600);
-    lv_obj_add_flag(container_b, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container_b, true);
     lv_obj_set_flex_flow(container_b, LV_FLEX_FLOW_COLUMN);
     view.setup(container_b);
     view.populate(spools, 1);
@@ -270,7 +287,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SpoolmanListView view;
     lv_obj_t* container = lv_obj_create(test_screen());
     lv_obj_set_size(container, 400, 600);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, true);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     view.setup(container);
 
@@ -301,7 +318,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SpoolmanListView view;
     lv_obj_t* container_a = lv_obj_create(test_screen());
     lv_obj_set_size(container_a, 400, 600);
-    lv_obj_add_flag(container_a, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container_a, true);
     lv_obj_set_flex_flow(container_a, LV_FLEX_FLOW_COLUMN);
     view.setup(container_a);
     auto spools = make_test_spools(10);
@@ -311,7 +328,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Rebuild: setup() gets the replacement container first...
     lv_obj_t* container_b = lv_obj_create(test_screen());
     lv_obj_set_size(container_b, 400, 600);
-    lv_obj_add_flag(container_b, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container_b, true);
     lv_obj_set_flex_flow(container_b, LV_FLEX_FLOW_COLUMN);
     view.setup(container_b);
     view.populate(spools, 1);

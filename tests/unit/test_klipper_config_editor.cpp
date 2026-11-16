@@ -1,12 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "klipper_config_editor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -558,10 +556,10 @@ TEST_CASE("MoonrakerAPIMock serves injected config files by full path", "[config
 // ============================================================================
 // load_config_files() over Moonraker — the glob-include layout
 //
-// resolve_includes() is pure and already handles globs, but the download step
-// used to skip any include containing '*', so a section living in a
-// glob-included file was never in the map and safe_multi_edit() failed with
-// "Section not found".
+// resolve_includes() is pure and handles globs, so the download step must not
+// skip an include containing '*': a section living in a glob-included file
+// would never be in the map and safe_multi_edit() would fail with "Section not
+// found".
 // ============================================================================
 
 TEST_CASE("KlipperConfigEditor::load_config_files finds sections behind a glob include",
@@ -588,7 +586,7 @@ TEST_CASE("KlipperConfigEditor::load_config_files finds sections behind a glob i
             completed = true;
         },
         [&](const std::string& err) { error = err; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(error.empty());
     REQUIRE(completed);
@@ -653,7 +651,7 @@ TEST_CASE("KlipperConfigEditor::load_config_files still resolves plain includes"
             completed = true;
         },
         [](const std::string&) {});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     REQUIRE(completed);
     REQUIRE(section_map.count("probe") == 1);
@@ -799,9 +797,9 @@ TEST_CASE("add_section places a new section above SAVE_CONFIG", "[config][editor
 // ============================================================================
 // safe_multi_edit() and a section no active file declares
 //
-// apply_edits() creates an absent section for an all-ADD_KEY list, but it never
-// used to get the chance: safe_multi_edit() bailed at the section-map lookup, so
-// Save on a printer that had never been shaper-calibrated failed outright. The
+// apply_edits() creates an absent section for an all-ADD_KEY list, so
+// safe_multi_edit() must not bail at the section-map lookup first: Save on a
+// printer that had never been shaper-calibrated would fail outright. The
 // fallback picks printer.cfg - and it must stay scoped to ADD_KEY, or a typo'd
 // section name in a SET_VALUE caller would silently create a new section
 // instead of erroring.
@@ -841,7 +839,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         [&]() { succeeded = true; }, [&](const std::string& err) { error = err; },
         /*restart_timeout_ms=*/300);
     // The config walk downloads from the main thread: run it up to the write.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // The health monitor polls on an HttpExecutor::fast() worker that captured
     // `api` and `editor` BY REFERENCE. Returning while it is still running is a
@@ -894,7 +892,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
             {ConfigEdit::Type::ADD_KEY, "heater_power", "40"},
         },
         [&]() { succeeded = true; }, [&](const std::string& err) { error = err; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // Bails at the section lookup, so no worker was ever submitted - but assert
     // that rather than assume it, since a regression that reaches the upload

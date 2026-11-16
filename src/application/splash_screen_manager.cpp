@@ -3,6 +3,13 @@
 
 #include "splash_screen_manager.h"
 
+#include "ui_utils.h"
+
+// Private LVGL header needed to read display->flush_cb for the no-op swap
+#include "display/lv_display_private.h"
+#include "display_manager.h"
+#include "proc_comm.h"
+
 #include <spdlog/spdlog.h>
 
 #include <csignal>
@@ -15,37 +22,9 @@ namespace helix::application {
 
 namespace {
 
-// Verify a PID belongs to our early splash binary by reading /proc/<pid>/comm.
-// Mirrors helix_watchdog.cpp's pid_is_our_splash() PID-recycling guard: if the
-// original splash was reaped and the kernel handed the PID to an unrelated
-// process, signalling it would be a bug. Returns false on any uncertainty.
+// Verify a PID belongs to our early splash binary before signalling it.
 bool pid_is_helix_splash(pid_t pid) {
-    if (pid <= 0) {
-        return false;
-    }
-#ifdef __linux__
-    char comm_path[64];
-    snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
-    FILE* f = fopen(comm_path, "r");
-    if (!f) {
-        return false;
-    }
-    char comm[64] = {0};
-    bool got_line = (fgets(comm, sizeof(comm), f) != nullptr);
-    fclose(f);
-    if (!got_line) {
-        return false;
-    }
-    size_t n = strlen(comm);
-    if (n > 0 && comm[n - 1] == '\n') {
-        comm[n - 1] = '\0';
-    }
-    // Linux truncates /proc/<pid>/comm to 15 chars; "helix-splash" (12) fits.
-    return strcmp(comm, "helix-splash") == 0;
-#else
-    (void)pid;
-    return false;
-#endif
+    return proc_comm_is(pid, "helix-splash");
 }
 
 // Parse HELIX_SPLASH_PID from the environment. Returns <= 0 if unset/invalid.
@@ -62,6 +41,14 @@ pid_t read_env_splash_pid() {
     return static_cast<pid_t>(v);
 }
 
+void repaint_full_screen() {
+    if (lv_obj_t* screen = lv_screen_active()) {
+        lv_obj_update_layout(screen);
+        helix::ui::invalidate_all_recursive(screen);
+        lv_refr_now(nullptr);
+    }
+}
+
 } // namespace
 
 void SplashScreenManager::start(pid_t splash_pid) {
@@ -76,8 +63,8 @@ void SplashScreenManager::start(pid_t splash_pid) {
     // repainting /dev/fb0 (the remote screen) until its own 180s backstop, then
     // clears it — the remote goes black. When we were given no PID, adopt the one
     // the watchdog exported in HELIX_SPLASH_PID (verified via /proc/<pid>/comm) so
-    // the normal handoff path (check_and_signal -> SIGUSR1) retires it, no longer
-    // dependent solely on the watchdog's single reap. Only when the arg PID was
+    // the normal handoff path (check_and_signal -> SIGUSR1) retires it rather than
+    // leaving it to the watchdog's single reap. Only when the arg PID was
     // absent — a launcher-provided PID always wins.
     if (m_splash_pid <= 0) {
         pid_t env_pid = read_env_splash_pid();
@@ -99,7 +86,6 @@ void SplashScreenManager::check_and_signal() {
         return; // Already signaled
     }
 
-    // No splash process
     if (m_splash_pid <= 0) {
         m_signaled = true;
         m_post_refresh_frames = 1;
@@ -124,7 +110,6 @@ void SplashScreenManager::check_and_signal() {
 
     signal_and_wait();
 
-    // Schedule post-splash refresh
     spdlog::info("[SplashManager] Splash exited, scheduling post-splash refresh");
     m_post_refresh_frames = 1;
 }
@@ -137,6 +122,85 @@ int64_t SplashScreenManager::elapsed_ms() const {
 void SplashScreenManager::mark_refresh_done() {
     if (m_post_refresh_frames > 0) {
         m_post_refresh_frames--;
+    }
+}
+
+void SplashScreenManager::begin_render_suppression(pid_t launcher_splash_pid) {
+    // Prevents framebuffer flicker from both processes writing to the same framebuffer
+    // simultaneously. Validating the PID avoids an unnecessary wait until the failsafe.
+    if (launcher_splash_pid > 0 && kill(launcher_splash_pid, 0) == 0 && !has_exited()) {
+        m_suppression.begin();
+
+        // LVGL's invalidation system sends LV_EVENT_REFR_REQUEST which resumes the refresh
+        // timer (undoing lv_timer_pause), so pausing the timer alone is insufficient:
+        // rendering still happens. With the flush callback replaced, nothing reaches the
+        // framebuffer even if LVGL renders.
+        lv_display_t* disp = lv_display_get_default();
+        if (disp) {
+            m_original_flush_cb = disp->flush_cb;
+            lv_display_set_flush_cb(disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) {
+                lv_display_flush_ready(d); // Must signal ready to avoid hang
+            });
+            spdlog::debug("[SplashManager] Flush callback replaced with no-op (splash PID {})",
+                          launcher_splash_pid);
+        }
+        spdlog::debug("[SplashManager] Display invalidation suppressed while splash is active");
+    }
+}
+
+void SplashScreenManager::arm_invalidation_failsafe(uint32_t now_tick) {
+    m_suppression_start_tick = now_tick;
+}
+
+void SplashScreenManager::dismiss_for_rotation_probe(DisplayManager* display) {
+    if (!has_exited()) {
+        spdlog::info("[SplashManager] Dismissing splash for rotation probe");
+        on_discovery_complete();
+        check_and_signal();
+        restore_flush_callback(display);
+        m_suppression.end();
+    }
+}
+
+void SplashScreenManager::run_handoff_frame(DisplayManager* display, uint32_t now_tick) {
+    // ready_to_signal() makes this fire exactly once, on the frame the splash is about to be
+    // retired. Gated on a remote sink so devices without one skip the forced redraw.
+    if (display && display->remote_screen_active() && ready_to_signal()) {
+        // If a suppressed-flush splash path was active (launcher passed --splash-pid), lift
+        // suppression first so the repaint is not a no-op; on the DRM watchdog path
+        // invalidation was never suppressed. Ending it here also stops the post-signal
+        // block below from repainting a second time.
+        m_suppression.end();
+        restore_flush_callback(display); // no-op on the DRM path (flush never swapped)
+        repaint_full_screen();
+    }
+
+    check_and_signal();
+
+    if (m_suppression.active() && needs_post_splash_refresh()) {
+        m_suppression.end();
+        restore_flush_callback(display);
+        spdlog::info("[SplashManager] Post-splash handoff: flush callback restored, painting UI");
+        repaint_full_screen();
+        mark_refresh_done();
+    }
+
+    if (m_suppression.active() &&
+        (now_tick - m_suppression_start_tick) >= kInvalidationFailsafeMs) {
+        m_suppression.end();
+        restore_flush_callback(display);
+        spdlog::warn("[SplashManager] Invalidation failsafe triggered after {}ms",
+                     kInvalidationFailsafeMs);
+        lv_obj_invalidate(lv_screen_active());
+    }
+}
+
+void SplashScreenManager::restore_flush_callback(DisplayManager* display) {
+    if (m_original_flush_cb) {
+        if (display) {
+            display->restore_flush_cb(m_original_flush_cb);
+        }
+        m_original_flush_cb = nullptr;
     }
 }
 

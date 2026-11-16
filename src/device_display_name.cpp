@@ -3,8 +3,8 @@
 
 #include "device_display_name.h"
 
+#include "core/text_io.h"
 #include "hardware_object_table.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>

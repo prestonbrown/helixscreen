@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_pin_utils.h"
+
 #include <lvgl.h>
+#include <memory>
 #include <string>
 
 namespace helix::ui {
@@ -47,10 +50,11 @@ class LockScreenOverlay {
     void destroy_overlay();
     void update_dots();
     void shake_dots();
-    void show_error(const char* text = nullptr);
+    void show_error(const char* text);
     void hide_error();
 
     lv_obj_t* overlay_ = nullptr;
+    std::unique_ptr<PinDisplay> pin_display_; ///< Lives as long as overlay_ does
     std::string digit_buffer_;
 
     static constexpr int kMaxDigits = 6;

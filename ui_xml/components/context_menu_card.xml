@@ -21,6 +21,9 @@
     <!-- Header title. text_small everywhere, so every menu's header reads the same. -->
     <prop name="title" type="string" default=""/>
     <prop name="title_tag" type="string" default=""/>
+    <!-- A string subject the header shows instead of title, for a menu whose title
+         is data. Empty binds nothing. -->
+    <prop name="title_subject" type="string" default=""/>
     <!-- Named so C++ can retitle it; three menus rewrite their header at runtime. -->
     <prop name="title_name" type="string" default="card_title"/>
     <!-- 1 lets a long title claim the row and ellipsize instead of pushing the X off. -->
@@ -52,8 +55,8 @@
             height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
             style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
       <text_small name="$title_name"
-                  text="$title" translation_tag="$title_tag" flex_grow="$title_grow" long_mode="$title_long_mode"
-                  clickable="false" event_bubble="true"/>
+                  text="$title" translation_tag="$title_tag" bind_text="$title_subject" flex_grow="$title_grow"
+                  long_mode="$title_long_mode" clickable="false" event_bubble="true"/>
       <ui_button name="btn_close"
                  width="content" height="content" hidden="$hide_close" variant="ghost" icon="$close_icon"
                  text="$close_text" translation_tag="$close_text_tag" style_pad_right="0">

@@ -17,17 +17,32 @@
  * @threading Main thread only
  *
  * @see TelemetryManager for event queue management
- * @see SettingsPanel for entry point (on_telemetry_view_data)
+ * @see SystemSettingsOverlay for the entry point (on_telemetry_view_data)
  */
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
+#include <string>
+#include <vector>
+
 namespace helix::settings {
+
+/// One line of an event card: its text and the color token it is drawn in.
+struct TelemetryEventLine {
+    std::string text;
+    const char* color_token;
+};
+
+/// The lines a queued telemetry event shows on its card, heading first. A field
+/// that is missing or of an unexpected type is left off rather than defaulted.
+std::vector<TelemetryEventLine> describe_telemetry_event(const nlohmann::json& event);
 
 /**
  * @class TelemetryDataOverlay
@@ -58,6 +73,9 @@ class TelemetryDataOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "telemetry_data_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void register_callbacks() override;
 
@@ -68,10 +86,6 @@ class TelemetryDataOverlay : public OverlayBase {
     void handle_clear_queue();
 
   private:
-    //
-    // === Internal Methods ===
-    //
-
     /**
      * @brief Populate event list from TelemetryManager queue snapshot
      */
@@ -82,26 +96,18 @@ class TelemetryDataOverlay : public OverlayBase {
      */
     void update_status();
 
-    //
-    // === Subjects ===
-    //
-
     /// RAII manager for automatic subject cleanup
     SubjectManager subjects_;
 
     /// Status text subjects
-    lv_subject_t status_subject_{};
-    lv_subject_t detail_subject_{};
-    lv_subject_t count_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject detail_subject_{};
+    helix::Subject count_subject_{};
 
     char status_buf_[64];
     char detail_buf_[128];
 };
 
-/**
- * @brief Global instance accessor
- * @return Reference to singleton TelemetryDataOverlay
- */
 inline TelemetryDataOverlay& get_telemetry_data_overlay() {
     return lazy_global<TelemetryDataOverlay>("TelemetryDataOverlay");
 }

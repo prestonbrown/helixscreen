@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "helix_type_tag.h"
 
 #include <cstddef>
@@ -20,7 +22,7 @@ namespace helix::ui {
  * - Full-screen semi-transparent backdrop (click to dismiss)
  * - Card positioned near the triggering widget (smart left/right/vertical placement)
  * - Action callback dispatch via integer action IDs
- * - lv_obj_delete_async() for safe dismissal during event processing
+ * - safe_delete_deferred() for safe dismissal during event processing
  *
  * Subclasses define their own XML component, subjects, and specific actions.
  *
@@ -47,18 +49,34 @@ class ContextMenu {
     /**
      * @brief Where the card is placed, and what it is placed relative to
      *
-     * `ClickPoint` is the original behaviour: the card hangs off the captured
+     * `ClickPoint`: the card hangs off the captured
      * pointer position and mirrors about it horizontally when it would overflow.
-     * It never flips vertically, which suits a menu raised by tapping a row.
+     * It never flips vertically. It is for a tap on a canvas that draws many
+     * items, where no widget stands for the one tapped; the card covers the
+     * point and so has no caret. A tap on an item's own widget anchors to that
+     * widget instead (show_around_widget()).
      *
      * `BelowAnchor` places the card under a widget's rectangle and flips it above
      * when the bottom would fall off screen — what a menu raised by a button
      * needs, so the button itself stays visible.
+     *
+     * `AroundAnchor` keeps the whole anchor visible: below it, else above,
+     * else right of it, else left of it, the first side where the whole card
+     * fits inside the bounds less the margin. Below and above centre the card
+     * on the anchor; right and left top-align it. When no side fits the card is
+     * centred on the anchor, over it. Every mode is clamped to the bounds last.
+     *
+     * Whatever side the card lands on, a caret on the edge facing the anchor
+     * points at it (compute_caret()); a card over its anchor has none.
      */
     enum class AnchorMode {
         ClickPoint,
         BelowAnchor,
+        AroundAnchor,
     };
+
+    /** @brief Which side of its anchor an `AroundAnchor` card went; Over when none fit */
+    enum class AnchorSide { Below, Above, Right, Left, Over };
 
     /** @brief Horizontal placement of a `BelowAnchor` card against its anchor */
     enum class AnchorAlign {
@@ -99,8 +117,7 @@ class ContextMenu {
      * @brief The menu currently on screen, or nullptr
      *
      * One menu is raised at a time, so the shared XML callbacks (`backdrop_cb`,
-     * `close_cb`) resolve their target through this rather than each menu keeping
-     * its own `s_active_` static. Maintained by show/hide and by the card's
+     * `close_cb`) resolve their target through this. Maintained by show/hide and by the card's
      * LV_EVENT_DELETE hook, so it cannot outlive the widget it points at.
      */
     [[nodiscard]] static ContextMenu* active();
@@ -123,7 +140,7 @@ class ContextMenu {
      * pointer, but a menu's own XML callbacks act on their own type. One helper
      * rather than a `dynamic_cast` open-coded at each of the ~40 callback sites.
      *
-     * **Exact-type match, unlike the `dynamic_cast` this replaces.** A menu whose
+     * **Exact-type match, unlike `dynamic_cast`.** A menu whose
      * kind tag is a *derived* type's does not answer to its base's `active_as<>`.
      * Every subclass today is a direct leaf of ContextMenu, so the two agree; if
      * an intermediate class is ever introduced, code must ask for the leaf type
@@ -148,11 +165,9 @@ class ContextMenu {
      */
     static void register_shared_callbacks();
 
-    // Non-copyable
     ContextMenu(const ContextMenu&) = delete;
     ContextMenu& operator=(const ContextMenu&) = delete;
 
-    // Movable
     ContextMenu(ContextMenu&& other) noexcept;
     ContextMenu& operator=(ContextMenu&& other) noexcept;
 
@@ -180,6 +195,14 @@ class ContextMenu {
     bool show_below_widget(lv_obj_t* parent, int item_index, lv_obj_t* anchor,
                            AnchorAlign align = AnchorAlign::Center);
 
+    /**
+     * @brief Show the menu beside a widget without covering it
+     *
+     * The `AnchorMode::AroundAnchor` counterpart to show_below_widget(), for a
+     * menu about the widget it is anchored to, which must stay in view.
+     */
+    bool show_around_widget(lv_obj_t* parent, int item_index, lv_obj_t* anchor);
+
     /** @brief show_below_widget() for a menu that is not about an indexed item */
     bool show_below_widget(lv_obj_t* parent, lv_obj_t* anchor,
                            AnchorAlign align = AnchorAlign::Center) {
@@ -189,9 +212,11 @@ class ContextMenu {
     /**
      * @brief Set the click point for positioning (call before show)
      * Captures the display-coordinate click point from the triggering event.
+     * It serves the next show only: hide() clears it.
      */
     void set_click_point(lv_point_t point) {
         click_point_ = point;
+        has_click_point_ = true;
     }
 
     /**
@@ -292,8 +317,8 @@ class ContextMenu {
      *
      * A *configure* menu whose controls already apply live has nothing to cancel,
      * so it overrides this to commit and hide instead. Getting that wrong is not
-     * cosmetic: the two multi-select pickers used to disagree, and tapping outside
-     * one of them silently discarded the user's changes.
+     * cosmetic: a configure menu that cancels here silently discards the user's
+     * changes on a tap outside it.
      */
     virtual void on_backdrop_clicked();
 
@@ -330,36 +355,26 @@ class ContextMenu {
     [[nodiscard]] int32_t screen_height_pct(int pct) const;
 
   private:
-    lv_obj_t* menu_ = nullptr;
+    WidgetRef menu_;
     lv_obj_t* parent_ = nullptr;
     int item_index_ = -1;
     lv_point_t click_point_ = {0, 0};
+    bool has_click_point_ = false;
     AnchorMode anchor_mode_ = AnchorMode::ClickPoint;
     AnchorAlign anchor_align_ = AnchorAlign::Center;
-    lv_obj_t* anchor_widget_ = nullptr;
+    WidgetRef anchor_widget_;
     ActionCallback action_callback_;
 
     /** @brief The menu currently on screen — see active() */
-    static inline ContextMenu* s_active_ = nullptr;
+    static inline ContextMenu* s_active_ =
+        nullptr; // ACTIVE_INSTANCE_OK: registry behind active_as<T>()
 
-    /** @brief Shared body behind show_near_widget() and show_below_widget() */
+    /** @brief Shared body behind the show_*_widget() calls */
     bool show_impl(lv_obj_t* parent, int item_index, lv_obj_t* anchor, AnchorMode mode,
                    AnchorAlign align);
 
-    /** @brief Take over another menu's widget and delete hook (move ctor/assign) */
+    /** @brief Take over another menu's widgets (move ctor/assign) */
     void adopt_from(ContextMenu& other);
-
-    /**
-     * @brief Keep menu_/s_active_ from outliving the backdrop widget
-     *
-     * The backdrop can be destroyed without going through hide() — a screen swap
-     * takes its parent with it. Without this the pointers go stale and the next
-     * backdrop tap dispatches through freed memory. Re-pointed on move, since the
-     * callback carries `this`.
-     */
-    void install_delete_hook();
-    void uninstall_delete_hook();
-    static void on_menu_deleted(lv_event_t* e);
 
     /** @brief The two XML callbacks every menu shares; both route through active() */
     static void backdrop_cb(lv_event_t* e);
@@ -461,20 +476,80 @@ class ContextMenu {
      * @brief Geometry of position_card(), factored out so it can be tested
      *
      * Pure arithmetic in backdrop-local coordinates — no LVGL state — so the
-     * placement rules can be exercised without building a screen. All four
-     * previous implementations of this got their edge cases subtly different;
-     * one function with one set of tests is the point of the exercise.
+     * placement rules can be exercised without building a screen.
      *
      * @param card    Card size
      * @param anchor  Anchor rect (BelowAnchor) or a zero-size rect at the click
      *                point (ClickPoint), both backdrop-local
      * @param bounds  Backdrop size
      * @param margin  Smallest gap between card and backdrop edge
-     * @param gap     Gap between card and anchor in BelowAnchor mode
+     * @param gap     Gap between card and anchor in BelowAnchor and AroundAnchor mode
+     * @param side    Optional; receives the side of the anchor the placed card
+     *                ended up on, read off the final rectangle (side_of_anchor(),
+     *                preferring the side it was placed on) so a clamp that pushes
+     *                the card over its anchor reports Over. ClickPoint always
+     *                reports Over: its card has no caret
      */
     static lv_point_t compute_card_pos(lv_point_t card, lv_area_t anchor, lv_point_t bounds,
                                        int32_t margin, int32_t gap, AnchorMode mode,
-                                       AnchorAlign align);
+                                       AnchorAlign align, AnchorSide* side = nullptr);
+
+    /**
+     * @brief Which side of @p anchor the @p card rectangle lies on
+     *
+     * @p prefer when the card clears the anchor on that side: a card placed to
+     * the right of a small anchor and clamped down past it clears it on two
+     * sides, and the one it was placed on is the edge its caret belongs on. Otherwise the
+     * first side it clears of Below, Above, Right, Left, else Over. Both
+     * rectangles are inclusive LVGL areas in one coordinate space; a click point
+     * is a zero-size area.
+     */
+    static AnchorSide side_of_anchor(lv_area_t card, lv_area_t anchor,
+                                     AnchorSide prefer = AnchorSide::Over);
+
+    /**
+     * @brief Where a card's caret sits, the small triangle pointing at its anchor
+     *
+     * `side` is the card's side of its anchor, which names the edge: Below puts
+     * the caret on the card's top edge, Above on its bottom, Right on its left,
+     * Left on its right. Over means no caret.
+     */
+    struct CaretPlacement {
+        AnchorSide side = AnchorSide::Over;
+        /// Caret centre along its edge, from the card's left (top/bottom edge)
+        /// or top (left/right edge), in card-local px
+        int32_t offset = 0;
+
+        [[nodiscard]] bool visible() const {
+            return side != AnchorSide::Over;
+        }
+    };
+
+    /**
+     * @brief Place the caret on @p card's edge facing @p anchor
+     *
+     * Centred on the anchor's midpoint along that edge, then clamped so the
+     * caret's base (2 x @p caret_h wide, its sides at 45 degrees) stays clear of
+     * the card's corner radius. An edge too short for that gets the caret at its
+     * middle. Pure arithmetic, so it is tested without rendering.
+     *
+     * @param card    The placed card, inclusive area
+     * @param anchor  The anchor rectangle, or a zero-size area at the click point
+     * @param side    The card's side of the anchor (side_of_anchor())
+     * @param radius  The card's corner radius
+     * @param caret_h How far the caret's tip stands off the card edge
+     */
+    static CaretPlacement compute_caret(lv_area_t card, lv_area_t anchor, AnchorSide side,
+                                        int32_t radius, int32_t caret_h);
+
+  private:
+    /**
+     * @brief Draw @p caret on @p menu_card from now on, in the card's own colours
+     *
+     * The geometry lives on the card (freed with it), so the caret redraws with
+     * the card and never reads a menu object that may have moved or gone.
+     */
+    static void attach_caret(lv_obj_t* menu_card, CaretPlacement caret, int32_t caret_h);
 };
 
 /**

@@ -3,14 +3,16 @@
 
 #include "preset_materials.h"
 
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
-#include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -27,11 +29,11 @@ constexpr size_t kLabelBufSize = 48;
 constexpr size_t kTempBufSize = 32;
 
 struct SubjectState {
-    std::array<lv_subject_t, kPresetCount> name_subjects{};
-    std::array<lv_subject_t, kPresetCount> temp_subjects{};
+    std::array<helix::Subject, kPresetCount> name_subjects{};
+    std::array<helix::Subject, kPresetCount> temp_subjects{};
     std::array<std::array<char, kLabelBufSize>, kPresetCount> name_bufs{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> temp_bufs{};
-    lv_subject_t count_subject{};
+    helix::Subject count_subject{};
     SubjectManager subjects;
     bool ready = false;
 };
@@ -112,7 +114,8 @@ std::string temp_label(int slot) {
         return "---";
     }
     char buf[kTempBufSize];
-    std::snprintf(buf, sizeof(buf), "%d°C / %d°C", temps->nozzle, temps->bed);
+    std::snprintf(buf, sizeof(buf), "%s / %s", units::format_display_temp(temps->nozzle).c_str(),
+                  units::format_display_temp(temps->bed).c_str());
     return buf;
 }
 
@@ -122,8 +125,8 @@ void init_subjects() {
         return; // idempotent
     }
 
-    // Slot-indexed names on purpose. The old material-named subjects
-    // ("filament_preset_pla_name") implied slot 0 was always PLA, which is
+    // Slot-indexed names on purpose. A material-named subject
+    // ("filament_preset_pla_name") would imply slot 0 is always PLA, which is
     // exactly the assumption this module exists to remove.
     static constexpr const char* kNameSubjects[kPresetCount] = {
         "preset_material_0_name", "preset_material_1_name", "preset_material_2_name",
@@ -136,23 +139,20 @@ void init_subjects() {
         s.name_bufs[i][0] = '\0';
         s.temp_bufs[i][0] = '\0';
 
-        lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
-                               s.name_bufs[i].size(), s.name_bufs[i].data());
+        s.name_subjects[i].init_string(s.name_bufs[i].data(), nullptr, s.name_bufs[i].size(),
+                                       s.name_bufs[i].data());
         s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
-        SubjectDebugRegistry::instance().register_subject(
-            &s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING);
 
-        lv_subject_init_string(&s.temp_subjects[i], s.temp_bufs[i].data(), nullptr,
-                               s.temp_bufs[i].size(), s.temp_bufs[i].data());
+        s.temp_subjects[i].init_string(s.temp_bufs[i].data(), nullptr, s.temp_bufs[i].size(),
+                                       s.temp_bufs[i].data());
         s.subjects.publish(kTempSubjects[i], &s.temp_subjects[i]);
-        SubjectDebugRegistry::instance().register_subject(
-            &s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING);
     }
 
-    lv_subject_init_int(&s.count_subject, kPresetCount);
+    s.count_subject.init_int(kPresetCount);
     s.subjects.publish("preset_material_count", &s.count_subject);
-    SubjectDebugRegistry::instance().register_subject(&s.count_subject, "preset_material_count",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+    HELIX_SUBJECT_DEBUG_REGISTER(&s.count_subject, "preset_material_count", LV_SUBJECT_TYPE_INT);
 
     s.ready = true;
 
@@ -174,8 +174,8 @@ void refresh_subjects() {
         const std::string temps = temp_label(i);
         std::snprintf(s.name_bufs[i].data(), s.name_bufs[i].size(), "%s", label.c_str());
         std::snprintf(s.temp_bufs[i].data(), s.temp_bufs[i].size(), "%s", temps.c_str());
-        lv_subject_copy_string(&s.name_subjects[i], s.name_bufs[i].data());
-        lv_subject_copy_string(&s.temp_subjects[i], s.temp_bufs[i].data());
+        lv_subject_set_string(&s.name_subjects[i], s.name_bufs[i].data());
+        lv_subject_set_string(&s.temp_subjects[i], s.temp_bufs[i].data());
     }
 }
 

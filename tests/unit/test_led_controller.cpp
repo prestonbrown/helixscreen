@@ -1,21 +1,20 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_observer_guard.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_guard.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "led/led_controller.h"
 #include "led/led_device_page.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 
 #include <algorithm>
 
@@ -34,13 +33,25 @@ using namespace helix;
 /// HelixTestFixture's own teardown.
 struct LedControllerFixture : public HelixTestFixture {
     ~LedControllerFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         // A discovery over a saved selection stages the light selection; later
         // tests must see a config that has not migrated yet.
         auto* cfg = Config::get_instance();
         cfg->set(cfg->df() + "leds/auto_state/strips", nlohmann::json());
         cfg->set(cfg->df() + "leds/light_button_pending", nlohmann::json());
         cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
+    }
+};
+
+/// The controller initialized without an API for one case, and deinitialized after.
+struct InitedLedControllerFixture : public LedControllerFixture {
+    helix::led::LedController& ctrl = helix::led::LedController::instance();
+    InitedLedControllerFixture() {
+        ctrl.deinit();
+        ctrl.init(nullptr, nullptr);
+    }
+    ~InitedLedControllerFixture() override {
+        ctrl.deinit();
     }
 };
 
@@ -61,15 +72,9 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController init and deinit", "[led]")
     REQUIRE(!ctrl.is_initialized());
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController has_any_backend empty", "[led]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController has_any_backend empty", "[led]") {
     REQUIRE(!ctrl.has_any_backend());
     REQUIRE(ctrl.available_backends().empty());
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedControllerFixture,
@@ -323,12 +328,8 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController deinit clears all backends
     REQUIRE(ctrl.effects().effects().empty());
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip returns correct type",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: backend_for_strip returns correct type", "[led][controller]") {
     // Add native strip
     helix::led::LedStripInfo native_strip;
     native_strip.name = "Chamber Light";
@@ -353,37 +354,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip returns
 
     // No backend owns an id nothing discovered, so nothing is sent to it
     REQUIRE_FALSE(ctrl.backend_for_strip("unknown_strip").has_value());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip identifies macro backend",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: get/set_led_on_at_start",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    // Add a macro device
-    helix::led::LedMacroInfo macro;
-    macro.display_name = "Cabinet Light";
-    macro.type = helix::led::MacroLedType::ON_OFF;
-    macro.on_macro = "LIGHTS_ON";
-    macro.off_macro = "LIGHTS_OFF";
-    ctrl.macro().add_macro(macro);
-    ctrl.set_configured_macros({macro});
-
-    // Macro devices are identified by display name
-    REQUIRE(ctrl.backend_for_strip("Cabinet Light") == helix::led::LedBackendType::MACRO);
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedControllerFixture, "LedController: get/set_led_on_at_start",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Default should be false
     REQUIRE(ctrl.get_led_on_at_start() == false);
 
@@ -392,17 +366,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: get/set_led_on_at_start",
 
     ctrl.set_led_on_at_start(false);
     REQUIRE(ctrl.get_led_on_at_start() == false);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: apply_startup_preference does nothing when disabled",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     ctrl.set_led_on_at_start(false);
     // set_startup_brightness() also moves last_brightness, so move it back after.
     ctrl.set_startup_brightness(40);
@@ -413,41 +381,14 @@ TEST_CASE_METHOD(LedControllerFixture,
 
     // Disabled: the startup brightness is not applied.
     REQUIRE(ctrl.last_brightness() == before);
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedControllerFixture,
-                 "LedController: apply_startup_preference with no strips is a no-op",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    ctrl.set_led_on_at_start(true);
-    // set_startup_brightness() also moves last_brightness, so move it back after.
-    ctrl.set_startup_brightness(40);
-    ctrl.set_last_brightness(100);
-    const int before = ctrl.last_brightness();
-
-    ctrl.apply_startup_preference({});
-
-    // Nothing to light: the startup brightness is not applied.
-    REQUIRE(ctrl.last_brightness() == before);
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 1: macro: prefix handling
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip with macro: prefix",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: backend_for_strip with macro: prefix",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo macro;
     macro.display_name = "Cabinet Light";
     macro.type = helix::led::MacroLedType::ON_OFF;
@@ -459,16 +400,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: backend_for_strip with ma
     // Both prefixed and unprefixed should resolve to MACRO
     REQUIRE(ctrl.backend_for_strip("macro:Cabinet Light") == helix::led::LedBackendType::MACRO);
     REQUIRE(ctrl.backend_for_strip("Cabinet Light") == helix::led::LedBackendType::MACRO);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: set_power dispatches macro: prefixed ids",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: set_power dispatches macro: prefixed ids", "[led][controller]") {
     helix::led::LedMacroInfo macro;
     macro.display_name = "Cabinet Light";
     macro.type = helix::led::MacroLedType::ON_OFF;
@@ -482,21 +417,15 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: set_power dispatches macr
     ctrl.set_power({"macro:Cabinet Light"}, true);
     CHECK_FALSE(ctrl.toggle_power({"macro:Cabinet Light"}));
     CHECK(ctrl.toggle_power({"macro:Cabinet Light"}));
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 2: all_selectable_strips
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: all_selectable_strips includes native + WLED + macros",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Add a native strip
     helix::led::LedStripInfo native_strip;
     native_strip.name = "Chamber Light";
@@ -544,33 +473,21 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(strips[2].id == "macro:Cabinet Light");
     REQUIRE(strips[2].backend == helix::led::LedBackendType::MACRO);
     REQUIRE(strips[3].id == "macro:Desk Lamp");
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: all_selectable_strips empty when no backends",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     auto strips = ctrl.all_selectable_strips();
     REQUIRE(strips.empty());
-
-    ctrl.deinit();
 }
 
 // ============================================================================
 // Phase 3: first_available_strip
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip priority order",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: first_available_strip priority order",
                  "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // With nothing: empty
     REQUIRE(ctrl.first_available_strip().empty());
 
@@ -605,16 +522,10 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip pri
     ctrl.native().add_strip(native_strip);
 
     REQUIRE(ctrl.first_available_strip() == "neopixel chamber_light");
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip skips PRESET macros",
-                 "[led][controller]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: first_available_strip skips PRESET macros", "[led][controller]") {
     helix::led::LedMacroInfo preset_macro;
     preset_macro.display_name = "Party Mode";
     preset_macro.type = helix::led::MacroLedType::PRESET;
@@ -628,8 +539,6 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: first_available_strip ski
 
     // Should skip PRESET and return TOGGLE
     REQUIRE(ctrl.first_available_strip() == "macro:Desk Lamp");
-
-    ctrl.deinit();
 }
 
 // ============================================================================
@@ -846,7 +755,7 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: version observer fires on
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] > before);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ctrl.deinit();
 }
 
@@ -1010,113 +919,82 @@ struct LedMockApiFixture : public HelixTestFixture {
 // https://github.com/prestonbrown/helixscreen#toggle-brightness-regression
 // ============================================================================
 
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) uses last_brightness not full white",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0xFFFFFF);
-    ctrl.set_last_brightness(50);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    // With white color at 50% brightness, RGB should be 0.5 each (not 1.0)
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.5).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power(on) uses saved color not just white",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Red color at 100% brightness
-    ctrl.set_last_color(0xFF0000);
-    ctrl.set_last_brightness(100);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power(on) combines color and brightness",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Blue color (#0000FF) at 80% brightness → R=0, G=0, B=0.8
-    ctrl.set_last_color(0x0000FF);
-    ctrl.set_last_brightness(80);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.8).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: toggle_power uses saved brightness",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0xFFFFFF);
-    ctrl.set_last_brightness(50);
-
-    // Start off, toggle on
-    ctrl.set_power({kChamber}, false);
-    ctrl.toggle_power({kChamber});
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.5).margin(0.01));
+// The last look (color, white channel, brightness) is what power-on and a
+// brightness change send, scaled by the brightness; an all-zero look falls back
+// to full white so power-on never emits an off state.
+TEST_CASE_METHOD(LedMockApiFixture, "LedController: power-on and brightness send the saved look",
+                 "[led][controller][regression][rgbw]") {
+    enum class Op { PowerOn, Toggle, Brightness };
+    struct Row {
+        const char* label;
+        bool rgbw;
+        uint32_t color;
+        double white;   // < 0: left unset
+        int brightness; // < 0: left unset
+        Op op;
+        int op_brightness;
+        double r, g, b;
+        double w; // < 0: not checked
+    };
+    const Row rows[] = {
+        {"white at 50%", false, 0xFFFFFF, -1, 50, Op::PowerOn, 0, 0.5, 0.5, 0.5, -1},
+        {"red at 100%", false, 0xFF0000, -1, 100, Op::PowerOn, 0, 1.0, 0.0, 0.0, -1},
+        {"blue at 80%", false, 0x0000FF, -1, 80, Op::PowerOn, 0, 0.0, 0.0, 0.8, -1},
+        {"toggle on, white at 50%", false, 0xFFFFFF, -1, 50, Op::Toggle, 0, 0.5, 0.5, 0.5, -1},
+        {"gold at brightness 100", false, 0xFFD700, -1, -1, Op::Brightness, 100, 1.0, 0.843, 0.0,
+         -1},
+        {"red at brightness 50", false, 0xFF0000, -1, -1, Op::Brightness, 50, 0.5, 0.0, 0.0, -1},
+        {"RGBW white channel at 80%", true, 0x000000, 1.0, 80, Op::PowerOn, 0, 0.0, 0.0, 0.0, 0.8},
+        {"RGBW white channel at brightness 50", true, 0x000000, 1.0, -1, Op::Brightness, 50, 0.0,
+         0.0, 0.0, 0.5},
+        {"RGBW half white at 80%", true, 0x000000, 0.5, 80, Op::PowerOn, 0, 0.0, 0.0, 0.0, 0.4},
+        {"grey at 50%, no white", false, 0x808080, 0.0, 50, Op::PowerOn, 0, 0.25, 0.25, 0.25, 0.0},
+        {"all-zero look powers on full white", false, 0, 0.0, 0, Op::PowerOn, 0, 1.0, 1.0, 1.0, -1},
+        {"all-zero look at brightness 75", false, 0, 0.0, 50, Op::Brightness, 75, 0.75, 0.75, 0.75,
+         -1},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.label) {
+            if (row.rgbw) {
+                setup_controller_with_rgbw_strip();
+            } else {
+                setup_controller_with_strip();
+            }
+            auto& ctrl = helix::led::LedController::instance();
+            ctrl.set_last_color(row.color);
+            if (row.white >= 0) {
+                ctrl.set_last_white(row.white);
+            }
+            if (row.brightness >= 0) {
+                ctrl.set_last_brightness(row.brightness);
+            }
+            switch (row.op) {
+            case Op::PowerOn:
+                ctrl.set_power({kChamber}, true);
+                break;
+            case Op::Toggle:
+                ctrl.set_power({kChamber}, false);
+                ctrl.toggle_power({kChamber});
+                break;
+            case Op::Brightness:
+                ctrl.set_brightness({kChamber}, row.op_brightness);
+                break;
+            }
+            CHECK(chamber_on());
+            auto color = ctrl.native().get_strip_color("neopixel chamber");
+            CHECK(color.r == Catch::Approx(row.r).margin(0.01));
+            CHECK(color.g == Catch::Approx(row.g).margin(0.01));
+            CHECK(color.b == Catch::Approx(row.b).margin(0.01));
+            if (row.w >= 0) {
+                CHECK(color.w == Catch::Approx(row.w).margin(0.01));
+            }
+        }
+    }
 }
 
 // ============================================================================
 // Unit tests: set_brightness respects last_color
 // ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_brightness uses last_color not hardcoded white",
-                 "[led][controller]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Set color to yellow (#FFD700) and brightness to 100%
-    ctrl.set_last_color(0xFFD700);
-    ctrl.set_brightness({kChamber}, 100);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // #FFD700 → R=1.0, G=0.843, B=0.0 at 100%
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.843).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness scales color by brightness",
-                 "[led][controller]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Red at 50% → R=0.5, G=0, B=0
-    ctrl.set_last_color(0xFF0000);
-    ctrl.set_brightness({kChamber}, 50);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.5).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-}
 
 TEST_CASE_METHOD(LedMockApiFixture,
                  "LedController: apply_startup_preference uses startup_brightness with last_color",
@@ -1161,7 +1039,7 @@ void make_led_dispatch_real(helix::PrinterState& api_state) {
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
     ps.set_klippy_state_sync(helix::KlippyState::READY);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 /// Count SET_LED commands that actually hit the mock wire.
@@ -1190,7 +1068,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // --- First discovery completes: the preference applies, lights come up. ---
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(chamber_on());
     // Assert on the wire, not just the flag: a SET_LED really went to Klipper.
@@ -1199,7 +1077,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     // --- The user turns the lights off. ---
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
     REQUIRE(ctrl.native().get_strip_color("neopixel chamber").r == Catch::Approx(0.0).margin(0.01));
 
@@ -1216,7 +1094,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     // ...and the connected callback calls apply_startup_preference() again.
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The user's OFF has to survive the restart: startup already happened.
     CHECK(count_set_led(mock_client.gcode_script_history()) == 0);
@@ -1242,7 +1120,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // First discovery: no light yet — no-op, and no shot spent.
     REQUIRE(ctrl.light_targets("").empty());
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
 
     // Strips show up on the next pass.
@@ -1255,7 +1133,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(chamber_on());
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
@@ -1275,11 +1153,11 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ctrl.set_last_color(0xFFFFFF);
     ctrl.set_startup_brightness(80);
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(chamber_on());
 
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(chamber_on());
 
     // Printer switch: teardown + re-init.
@@ -1291,78 +1169,16 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     mock_client.clear_gcode_script_history();
     ctrl.apply_startup_preference(ctrl.light_targets(""));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(chamber_on());
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
 }
 
 // ============================================================================
-// RGBW support: white channel toggle and brightness (#737)
-// ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) restores white channel on RGBW strip",
-                 "[led][controller][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // White-only mode: RGB=0, W=1.0 at 80% brightness
-    ctrl.set_last_color(0x000000);
-    ctrl.set_last_white(1.0);
-    ctrl.set_last_brightness(80);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.8).margin(0.01)); // 1.0 * 80%
-}
-
-TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness preserves white channel",
-                 "[led][controller][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0x000000);
-    ctrl.set_last_white(1.0);
-    ctrl.set_brightness({kChamber}, 50);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.5).margin(0.01)); // 1.0 * 50%
-}
-
-// ============================================================================
 // Regression: set_power(ids, true) must never emit all-zero output (LED stuck off)
 // https://github.com/prestonbrown/helixscreen — "LEDs stay off" regression
 // ============================================================================
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) falls back to full white when state is all zero",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Poisoned state: everything zero (simulates overlay persisting an off LED)
-    ctrl.set_last_color(0);
-    ctrl.set_last_brightness(0);
-    ctrl.set_last_white(0.0);
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // Must produce visible light — fall back to full white at 100%
-    REQUIRE(color.r == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(1.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(1.0).margin(0.01));
-}
 
 TEST_CASE_METHOD(LedMockApiFixture,
                  "LedController: last_white persists through save_config/load_config round-trip",
@@ -1382,53 +1198,6 @@ TEST_CASE_METHOD(LedMockApiFixture,
 
     ctrl.load_config();
     REQUIRE(ctrl.last_white() == Catch::Approx(0.5).margin(0.001));
-}
-
-// Test A: RGBW white-only strip — the actual user hardware scenario.
-// Saved state has RGB=0 but white channel set. The power-on look
-// must NOT treat this as "no saved color"; it should scale the white channel.
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) scales white-only RGBW saved state",
-                 "[led][controller][regression][rgbw]") {
-    setup_controller_with_rgbw_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    ctrl.set_last_color(0);       // No RGB
-    ctrl.set_last_white(0.5);     // White channel at half
-    ctrl.set_last_brightness(80); // 80% brightness
-
-    ctrl.set_power({kChamber}, true);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    REQUIRE(color.r == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.0).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.0).margin(0.01));
-    // 0.5 * 0.8 = 0.4
-    REQUIRE(color.w == Catch::Approx(0.4).margin(0.01));
-}
-
-// Test B: set_brightness() shares set_power()'s fallback — dragging the
-// brightness slider with poisoned (all-zero) saved state must not output black.
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_brightness falls back to full white on zero saved state",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Poisoned state: no saved color at all
-    ctrl.set_last_color(0);
-    ctrl.set_last_white(0.0);
-    ctrl.set_last_brightness(50);
-
-    ctrl.set_brightness({kChamber}, 75);
-    REQUIRE(chamber_on());
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // Fallback to full white, scaled by 75% brightness
-    REQUIRE(color.r == Catch::Approx(0.75).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.75).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.75).margin(0.01));
 }
 
 // Test C: load_config with a pre-RGBW config (missing last_white key)
@@ -1451,27 +1220,6 @@ TEST_CASE_METHOD(LedMockApiFixture,
     // Regardless, loading should produce a valid clamped value in [0, 1].
     REQUIRE(ctrl.last_white() >= 0.0);
     REQUIRE(ctrl.last_white() <= 1.0);
-}
-
-TEST_CASE_METHOD(LedMockApiFixture,
-                 "LedController: set_power(on) normal path still scales color correctly",
-                 "[led][controller][regression]") {
-    setup_controller_with_strip();
-    auto& ctrl = helix::led::LedController::instance();
-
-    // Gray #808080 at 50% brightness, no white channel
-    ctrl.set_last_color(0x808080);
-    ctrl.set_last_brightness(50);
-    ctrl.set_last_white(0.0);
-
-    ctrl.set_power({kChamber}, true);
-
-    auto color = ctrl.native().get_strip_color("neopixel chamber");
-    // 0x80/255 ≈ 0.502, * 0.5 ≈ 0.251
-    REQUIRE(color.r == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.g == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.b == Catch::Approx(0.25).margin(0.01));
-    REQUIRE(color.w == Catch::Approx(0.0).margin(0.01));
 }
 
 // ============================================================================
@@ -1498,7 +1246,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ctrl.set_power({kChamber}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1513,7 +1261,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: in-flight clears even when t
     ctrl.set_power({kChamber}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
 }
 
@@ -1535,7 +1283,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: in-flight covers every devic
     ctrl.set_power({"neopixel a", "neopixel b"}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
 }
 
@@ -1560,7 +1308,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: disconnect clears in-flight 
     lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::DISCONNECTED));
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1593,13 +1341,13 @@ void wedge_in_flight_led_command(helix::PrinterState& api_state, MoonrakerClient
     lv_subject_set_int(ps.network_state().get_printer_connection_state_subject(),
                        static_cast<int>(helix::ConnectionState::CONNECTED));
     ps.set_klippy_state_sync(global_klippy);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The RPC goes out; the response never comes back. Neither on_success nor
     // on_error ever runs, so note_command_settled() is never reached.
     mock_client.force_next_gcode_dropped_response("SET_LED");
     helix::led::LedController::instance().set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace
@@ -1653,7 +1401,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     REQUIRE(lv_subject_get_int(ps.network_state().get_printer_connection_state_subject()) ==
             static_cast<int>(helix::ConnectionState::CONNECTED));
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(s) == 0);
     CHECK_FALSE(ctrl.light_command_in_flight());
 }
@@ -1678,7 +1426,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     ps.set_klippy_state_sync(helix::KlippyState::READY);
     REQUIRE(lv_subject_get_int(ps.network_state().get_klippy_state_subject()) ==
             static_cast<int>(helix::KlippyState::READY));
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(s) == 1);
     CHECK(ctrl.light_command_in_flight());
 }
@@ -1717,11 +1465,11 @@ TEST_CASE_METHOD(LedMockApiFixture,
     lv_subject_set_int(state.print_state().get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
     helix::PrinterStateTestAccess::set_sustained_idle_timeout_printing(state, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     mock_client.force_next_gcode_dropped_response("SET_LED");
     ctrl.set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // The command really did go out (queued in Klipper, not refused)...
     CHECK_FALSE(mock_client.gcode_script_history().empty());
@@ -1754,7 +1502,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: WLED toggle marks in-flight 
     ctrl.set_power({"wled_printer_led"}, true);
     REQUIRE(lv_subject_get_int(s) == 1);
 
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(lv_subject_get_int(s) == 0);
     REQUIRE_FALSE(ctrl.light_command_in_flight());
 }
@@ -1894,12 +1642,9 @@ TEST_CASE_METHOD(LedMockApiFixture,
 // config -- must never see an unnamed entry.
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro survives set_configured_macros",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro survives set_configured_macros",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Exactly what the + Add button builds.
     helix::led::LedMacroInfo draft;
     draft.display_name = "";
@@ -1911,17 +1656,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro survives set_
     REQUIRE(ctrl.configured_macros().size() == 1);
     REQUIRE(ctrl.configured_macros()[0].display_name.empty());
     REQUIRE(ctrl.configured_macros()[0].type == helix::led::MacroLedType::ON_OFF);
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: draft macro keeps its index beside named ones",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo named;
     named.display_name = "Cabinet Light";
     named.type = helix::led::MacroLedType::ON_OFF;
@@ -1938,16 +1677,10 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(ctrl.configured_macros().size() == 2);
     REQUIRE(ctrl.configured_macros()[0].display_name == "Cabinet Light");
     REQUIRE(ctrl.configured_macros()[1].display_name.empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not a selectable strip",
+TEST_CASE_METHOD(InitedLedControllerFixture, "LedController: draft macro is not a selectable strip",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
@@ -1959,31 +1692,21 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not a sele
         CHECK(!strip.name.empty());
     }
     REQUIRE(ctrl.all_selectable_strips().empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is never first_available_strip",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro is never first_available_strip",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
 
     REQUIRE(ctrl.first_available_strip().empty());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not pushed to the backend",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: draft macro is not pushed to the backend",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
     ctrl.set_configured_macros({draft});
@@ -1991,16 +1714,11 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: draft macro is not pushed
     // MacroBackend keys on display_name; an empty key can never be executed.
     REQUIRE(ctrl.macro().macros().empty());
     REQUIRE(!ctrl.macro().is_available());
-
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes it to a real device",
+TEST_CASE_METHOD(InitedLedControllerFixture,
+                 "LedController: naming a draft promotes it to a real device",
                  "[led][controller][macro]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // + Add
     helix::led::LedMacroInfo draft;
     draft.type = helix::led::MacroLedType::ON_OFF;
@@ -2024,8 +1742,6 @@ TEST_CASE_METHOD(LedControllerFixture, "LedController: naming a draft promotes i
     REQUIRE(strips[0].id == "macro:Cabinet Light");
     REQUIRE(strips[0].backend == helix::led::LedBackendType::MACRO);
     REQUIRE(ctrl.first_available_strip() == "macro:Cabinet Light");
-
-    ctrl.deinit();
 }
 
 // ============================================================================
@@ -2060,12 +1776,9 @@ namespace {
 void led_lifetime_noop_cb(lv_observer_t*, lv_subject_t*) {}
 } // namespace
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController registry deinit expires its token before freeing its subjects",
                  "[led][observer][crash_hardening]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
     REQUIRE(ctrl.is_initialized());
 
     auto token = ctrl.get_subjects_lifetime();
@@ -2082,8 +1795,6 @@ TEST_CASE_METHOD(LedControllerFixture,
 
     CHECK_FALSE(*token);
     guard.reset();
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(
@@ -2110,7 +1821,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_power sends nothing to a
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({"neopixel not_discovered"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(count_set_led(mock_client.gcode_script_history()) == 0);
     CHECK_FALSE(ctrl.native().has_strip_color("neopixel not_discovered"));
@@ -2138,11 +1849,11 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns a nat
     make_led_dispatch_real(state);
     ctrl.set_last_color(0xFF0000);
     ctrl.set_power({kChamber}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(chamber_on());
 
     ctrl.set_brightness({kChamber}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(ctrl.device_state(kChamber).power == helix::led::PowerState::Off);
     const auto c = ctrl.native().get_strip_color(kChamber);
@@ -2165,7 +1876,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns an ou
     mock_client.clear_gcode_script_history();
 
     ctrl.set_brightness({"output_pin case_light"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const auto& history = mock_client.gcode_script_history();
     REQUIRE(history.size() == 1);
@@ -2184,11 +1895,11 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: set_brightness 0 turns a WLE
     wled_strip.backend = helix::led::LedBackendType::WLED;
     ctrl.wled().add_strip(wled_strip);
     ctrl.set_power({"wled_printer_led"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(ctrl.device_state("wled_printer_led").power == helix::led::PowerState::On);
 
     ctrl.set_brightness({"wled_printer_led"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(ctrl.device_state("wled_printer_led").power == helix::led::PowerState::Off);
 }
@@ -2209,7 +1920,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_brightness({"macro:Cabinet"}, 0);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(history_mentions(mock_client.gcode_script_history(), "CABINET_OFF"));
     // What was last sent is off, so the next toggle turns it on.
@@ -2220,13 +1931,9 @@ TEST_CASE_METHOD(LedMockApiFixture,
 // Configfile capabilities survive discovery, in the order production runs them
 // ============================================================================
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: configfile capabilities applied before discovery survive it",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // The discovery sequence's configfile query lands before discover_from_hardware.
     const nlohmann::json cfg = {
         {"neopixel chamber", {{"pin", "PA1"}, {"color_order", "GRBW"}}},
@@ -2274,8 +1981,6 @@ TEST_CASE_METHOD(LedControllerFixture,
     REQUIRE(ctrl.effects().effects().size() == 1);
     CHECK(ctrl.effects().effects()[0].target_leds.empty());
     CHECK_FALSE(helix::led::find_strip(ctrl.native().strips(), "led status")->supports_color);
-
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedMockApiFixture,
@@ -2301,7 +2006,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({kChamber}, false);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     const auto& history = mock_client.gcode_script_history();
     CHECK(history_mentions(history, "EFFECT=chamber_glow STOP=1"));
@@ -2324,7 +2029,7 @@ TEST_CASE_METHOD(LedMockApiFixture,
     mock_client.clear_gcode_script_history();
 
     ctrl.set_power({kChamber, "wled_printer_led"}, true);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(count_set_led(mock_client.gcode_script_history()) == 1);
     CHECK(chamber_on());
@@ -2356,7 +2061,7 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: an output_pin with no pwm li
     ctrl.set_look({"output_pin caselight"}, 0xFFFFFF, 0.0, 30);
     ctrl.set_brightness({"output_pin caselight"}, 40);
     ctrl.output_pin().set_value("output_pin caselight", 0.5);
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     const auto& history = mock_client.gcode_script_history();
     CHECK(std::count_if(history.begin(), history.end(), [](const std::string& s) {
               return s.find("SET_PIN PIN=caselight VALUE=1.0000") != std::string::npos;
@@ -2368,13 +2073,9 @@ TEST_CASE_METHOD(LedMockApiFixture, "LedController: an output_pin with no pwm li
     ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: an addressable strip's white channel comes from its color_order",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Production order: configfile, then discovery, then a status frame. Klipper
     // reports four color_data channels for every LED type.
     ctrl.apply_configfile({{"neopixel grb", {{"pin", "PA1"}}},
@@ -2404,16 +2105,11 @@ TEST_CASE_METHOD(LedControllerFixture,
     // A chain is white-capable only when every LED in it has W.
     CHECK(page("neopixel chain").white == helix::led::WhiteMode::Mixed);
     CHECK(page("dotstar star").white == helix::led::WhiteMode::Mixed);
-    ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedControllerFixture,
+TEST_CASE_METHOD(InitedLedControllerFixture,
                  "LedController: an addressable chip name with no instance is not a strip type",
                  "[led][controller][configfile]") {
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
     // Only "<chip> <name>" is an addressable strip. A bare chip, or one whose name is empty,
     // keeps the fail-closed white-only default and learns nothing from color_order.
     ctrl.apply_configfile({{"neopixel ", {{"pin", "PA1"}, {"color_order", "GRBW"}}},
@@ -2431,7 +2127,6 @@ TEST_CASE_METHOD(LedControllerFixture,
         CHECK_FALSE(strip.supports_white);
         CHECK_FALSE(strip.pin_config_known);
     }
-    ctrl.deinit();
 }
 
 TEST_CASE_METHOD(LedMockApiFixture,

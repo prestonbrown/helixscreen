@@ -3,13 +3,13 @@
 
 /**
  * @file test_moonraker_client_reconnect.cpp
- * @brief Regression tests for install-once WebSocket callbacks (bundle UK9QCFY3).
+ * @brief Regression tests for install-once WebSocket callbacks.
  *
- * Root cause being guarded against: connect() used to reassign the inherited libhv
- * std::function callbacks (onopen/onmessage/onclose) on EVERY call. During a
- * change-host reconnect (disconnect() then connect()), the libhv event-loop thread
- * could be mid-invoke on the OLD onclose while the main thread reassigned it — freeing
- * the running lambda's heap storage → use-after-free → SIGSEGV with a garbage `this`.
+ * connect() must not reassign the inherited libhv std::function callbacks
+ * (onopen/onmessage/onclose) on every call. During a change-host reconnect
+ * (disconnect() then connect()), the libhv event-loop thread can be mid-invoke on
+ * the OLD onclose while the main thread reassigns it, freeing the running
+ * lambda's heap storage: use-after-free, SIGSEGV with a garbage `this`.
  *
  * Fix: install the three callbacks exactly ONCE (install_ws_callbacks(), guarded by
  * ws_callbacks_installed_ under connect_mutex_). The trampolines read per-connect state
@@ -24,7 +24,7 @@
  * The URLs point at loopback ports nothing listens on, so open() fails fast with no
  * external dependency. A short, deterministic settle() between cycles avoids a
  * pre-existing libhv-internal race under rapid open()/close() churn (see the cadence note
- * below) — that race is inside libhv, not this fix.
+ * below) — that race is inside libhv, not HelixScreen.
  */
 
 #include "../../include/moonraker_client.h"
@@ -53,7 +53,7 @@ constexpr const char* kBadUrl2 = "ws://127.0.0.1:19997/websocket"; // simulate c
 // SIGSEGVs *inside libhv* (crash backtrace is entirely hio_get / eventfd_read_cb /
 // onCustomEvent on the libhv loop thread — no HelixScreen frame, and the install-once
 // trampolines are not even on the stack). That is a pre-existing libhv limitation, not a
-// defect in this fix, and it is why the existing connection tests insert settle delays
+// HelixScreen defect, and it is why the existing connection tests insert settle delays
 // between connect attempts. We follow the same convention with a short (non-blocking,
 // deterministic) settle between cycles. The install-once invariant (ws_callbacks_installed_
 // flips true exactly once and is never cleared) is what these tests assert.
@@ -89,9 +89,9 @@ TEST_CASE("MoonrakerClient install-once: repeated connect/disconnect never reins
     MoonrakerClient client;
 
     // Repeated connect/disconnect against unreachable hosts, alternating URLs to mimic a
-    // change-host reconnect. Pre-fix, each connect() reassigned the inherited onclose/
-    // onopen/onmessage std::functions; doing that while the libhv thread serviced the prior
-    // close freed the running lambda's storage → UAF (bundle UK9QCFY3). Post-fix,
+    // change-host reconnect. Reassigning the inherited onclose/onopen/onmessage
+    // std::functions on each connect() while the libhv thread services the prior close
+    // would free the running lambda's storage → UAF. So
     // install_ws_callbacks() runs exactly once (guarded by ws_callbacks_installed_) and the
     // std::functions are never reassigned. We assert the guard flips true exactly once and
     // stays true across every cycle.

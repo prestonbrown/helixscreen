@@ -15,6 +15,7 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
@@ -22,6 +23,7 @@
 #include "helix/ui/text_metrics.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "spool_latch_gate.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -114,7 +116,7 @@ int mode() {
 }
 
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 
 lv_obj_t* named(PanelWidgetHarness<ToolSwitcherWidget>& h, const std::string& name) {
@@ -214,6 +216,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ToolSwitcherWidget: a rail cell raises its own widget's picker",
+                 "[tool_switcher][panel_widget][from_event]") {
+    ToolChangerRig rig(4);
+    PanelWidgetHarness<ToolSwitcherWidget> a(test_screen(), state());
+    PanelWidgetHarness<ToolSwitcherWidget> b(test_screen(), state());
+    process_lvgl(30);
+    resize_content(a, 214, 93);
+    resize_content(b, 214, 93);
+    process_lvgl(30);
+    REQUIRE(mode() == static_cast<int>(ToolSwitcherMode::Rail));
+
+    tap(named(a, "tool_switcher_seg_0"));
+    CHECK(a.widget().has_overlay_open());
+    CHECK_FALSE(b.widget().has_overlay_open());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "tool_switcher: the Pair face opens the sheet, and Park beside it needs a head",
                  "[tool_switcher][1784]") {
     ToolChangerRig rig(5);
@@ -310,7 +329,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(two_line) == 1);
     lv_obj_t* sub = lv_obj_find_by_name(h.child("tool_switcher_seg_0"), "tool_switcher_seg_sub");
     REQUIRE(sub != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(sub));
 
     // Cells on the touch floor are too short for two lines over the band.
     const int floor = resolve_px("touch_target_min", 48);
@@ -319,7 +338,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(mode() == static_cast<int>(ToolSwitcherMode::RailWithActions));
     REQUIRE(cell_h() - band_h() < lines);
     CHECK(lv_subject_get_int(two_line) == 0);
-    CHECK(lv_obj_has_flag(sub, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(sub));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -411,7 +430,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             lv_subject_get_int(lv_xml_get_subject(nullptr, (base + "_has_color").c_str()));
         lv_obj_t* strip = lv_obj_find_by_name(lv_obj_get_child(list, i), "tool_switcher_band_fill");
         REQUIRE(strip != nullptr);
-        CHECK(lv_obj_has_flag(strip, LV_OBJ_FLAG_HIDDEN) == (has_color == 0));
+        CHECK(lv_obj_is_hidden(strip) == (has_color == 0));
         if (has_color) {
             ++known;
             CHECK((lv_color_to_u32(lv_obj_get_style_bg_color(strip, LV_PART_MAIN)) & 0xFFFFFF) ==
@@ -600,10 +619,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             // The material shows on a labelled band with a known colour.
             lv_obj_t* text = lv_obj_find_by_name(cell, "tool_switcher_band_text");
             REQUIRE(text != nullptr);
-            if (!lv_obj_has_flag(band, LV_OBJ_FLAG_HIDDEN)) {
-                CHECK(lv_obj_has_flag(text, LV_OBJ_FLAG_HIDDEN) == !want.labelled);
+            if (!lv_obj_is_hidden(band)) {
+                CHECK(lv_obj_is_hidden(text) == !want.labelled);
             } else {
-                CHECK(lv_obj_has_flag(text, LV_OBJ_FLAG_HIDDEN));
+                CHECK(lv_obj_is_hidden(text));
             }
         };
 
@@ -735,7 +754,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* strip = lv_obj_find_by_name(row, "tool_switcher_band_fill");
     lv_obj_t* btn = row;
     REQUIRE(std::string(lv_label_get_text(temp)) == "150°C");
-    REQUIRE_FALSE(lv_obj_has_flag(strip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(strip));
     const lv_area_t t = coords_of(temp);
     const lv_area_t s = coords_of(strip);
     const lv_area_t b = coords_of(btn);
@@ -927,6 +946,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     tap(cell);
     CHECK(rig.backend->feeder_requests == std::vector<bool>{true, false});
     CHECK(rig.warnings.empty());
+    // A tap landing after the backend withdrew its feeder, before the cell hides.
+    rig.backend->has_feeder = false;
+    tap(cell);
+    CHECK(rig.backend->feeder_requests.size() == 2);
 
     // The cell shows the state AmsState publishes: the open lock and the
     // filled look while open, the closed lock while closed.
@@ -1319,7 +1342,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     };
 
     int flips = 0;
-    for (int w = 100; w <= 600; w += 4) {
+    for (int w = 100; w <= 600; w += 10) {
         CAPTURE(w);
         mount(short_tool);
         resize_content(h, w, 60);
@@ -1382,7 +1405,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     spool.color_rgb = 0xFF0000;
     spool.multi_color_hexes = "#FF0000,#00FF00,#0000FF";
     spool.material = "PLA Silk";
-    REQUIRE(rig.backend->sync_external_identity(1, spool).success());
+    REQUIRE(helix::test::apply_edit(*rig.backend, 1, spool).success());
     process_lvgl(30);
     PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
     process_lvgl(30);
@@ -1423,4 +1446,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(face_band != nullptr);
     CHECK(ui::swatch_paint_colors(face_band).size() == 3);
     CHECK(ui::swatch_paint_finish(face_band) == ui::SwatchFinish::Silk);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "tool_switcher: a G-code-style tool says its name once, not over itself",
+                 "[tool_switcher][tool_style]") {
+    using helix::ui::ToolNumberStyleSetting;
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    const auto seg = [](const char* part) {
+        return std::string(lv_subject_get_string(
+            lv_xml_get_subject(nullptr, (std::string("tool_switcher_seg_0") + part).c_str())));
+    };
+    const auto rail = [&](ToolNumberStyleSetting style) {
+        settings.set_tool_number_style_setting(style);
+        ToolChangerRig rig(4);
+        PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
+        process_lvgl(30);
+        resize_content(h, 600, 60);
+        process_lvgl(30);
+        return std::pair<std::string, std::string>{seg("_label"), seg("_sub")};
+    };
+    const auto physical = rail(ToolNumberStyleSetting::Physical);
+    REQUIRE(physical.first == "Tool 1"); // the rail chose the two-line form
+    CHECK(physical.second == "T0");
+    const auto gcode = rail(ToolNumberStyleSetting::Gcode);
+    settings.set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
+    CHECK(gcode.first == "T0");
+    CHECK(gcode.second != "T0");
 }

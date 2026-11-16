@@ -1,8 +1,8 @@
 diff --git a/src/draw/sw/lv_draw_sw_blur.c b/src/draw/sw/lv_draw_sw_blur.c
-index 2bb2b0a52..aede31da5 100644
+index ab23476cb..dc9c8d8e4 100644
 --- a/src/draw/sw/lv_draw_sw_blur.c
 +++ b/src/draw/sw/lv_draw_sw_blur.c
-@@ -136,6 +136,7 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -133,6 +133,7 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
          if(px_size == 1) {
              /*Compiler optimization might mishandle it, so add volatile*/
              uint8_t * buf_column_start = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x, y_start);
@@ -10,7 +10,7 @@ index 2bb2b0a52..aede31da5 100644
              blur_1_bytes_init(sum, buf_column_start, sample_len_limited, stride_byte * skip_cnt);
  
              uint8_t buf_prev = buf_column_start[0] + 1; /*Make sure that it's not equal in the first round*/
-@@ -148,18 +149,21 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -145,18 +146,21 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              uint8_t * buf_column_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x, y_end);
@@ -39,7 +39,7 @@ index 2bb2b0a52..aede31da5 100644
              blur_2_bytes_init(sum, (lv_color16_t *)buf16_column_start, sample_len_limited, stride_px * skip_cnt, swapped);
              uint16_t buf16_prev = buf16_column_start[0] + 1; /*Make sure that it's not equal in the first round*/
  
-@@ -172,20 +176,23 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -169,20 +173,23 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              uint16_t * buf16_column_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x, y_end);
@@ -71,7 +71,7 @@ index 2bb2b0a52..aede31da5 100644
              blur_3_bytes_init(sum, buf_column_start, sample_len_limited, stride_byte * skip_cnt);
  
              for(y = y_start; y <= y_end; y += skip_cnt) {
-@@ -194,10 +201,12 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -191,10 +198,12 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              volatile uint8_t * buf_column_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x, y_end);
@@ -88,7 +88,7 @@ index 2bb2b0a52..aede31da5 100644
              }
          }
      }
-@@ -222,6 +231,7 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -219,6 +228,7 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
          if(px_size == 1) {
              /*Compiler optimization might mishandle it, so add volatile*/
              uint8_t * buf_line_start = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x_start, y);
@@ -96,7 +96,7 @@ index 2bb2b0a52..aede31da5 100644
  
              blur_1_bytes_init(sum, buf_line_start, sample_len_limited, px_size * skip_cnt);
  
-@@ -235,39 +245,44 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -232,39 +242,44 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              uint8_t * buf_line_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x_end, y);
@@ -165,7 +165,7 @@ index 2bb2b0a52..aede31da5 100644
              blur_2_bytes_init(sum, (lv_color16_t *)buf16_line_start, sample_len_limited,  skip_cnt, swapped);
  
              uint16_t buf16_prev = buf16_line_start[0] + 1; /*Make sure that it's not equal in the first round*/
-@@ -281,41 +296,46 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -278,41 +293,46 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              uint16_t * buf16_line_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x_end, y);
@@ -237,7 +237,7 @@ index 2bb2b0a52..aede31da5 100644
  
              blur_3_bytes_init(sum, buf_line_start, sample_len_limited, px_size * skip_cnt);
              for(x = x_start + skip_cnt; x <= x_end; x += skip_cnt) {
-@@ -324,36 +344,40 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
+@@ -321,36 +341,40 @@ void lv_draw_sw_blur(lv_draw_task_t * t, const lv_draw_blur_dsc_t * dsc, const l
              }
  
              volatile uint8_t * buf_line_end = lv_draw_buf_goto_xy(t->target_layer->draw_buf, x_end, y);

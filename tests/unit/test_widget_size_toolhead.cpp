@@ -24,10 +24,11 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
 #include "bed_plate_context.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -35,7 +36,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/toolhead_widget.h"
-#include "static_panel_registry.h"
 #include "tool_state.h"
 #include "toolhead_preset_config_modal.h"
 
@@ -96,14 +96,14 @@ struct ToolheadFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void set_print_active(bool on) {
         lv_subject_set_int(state().print_state().get_print_active_subject(), on ? 1 : 0);
         drain();
     }
     void set_homed(const char* axes) {
-        lv_subject_copy_string(motion().get_homed_axes_subject(), axes);
+        lv_subject_set_string(motion().get_homed_axes_subject(), axes);
         drain();
     }
     void set_velocity(int mm_s) {
@@ -169,7 +169,7 @@ lv_obj_t* part(PanelWidgetHarness<ToolheadWidget>& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
@@ -459,6 +459,7 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead: a tool changer names its active too
         {"gcode_move", "toolhead", "extruder", "extruder1", "toolchanger", "tool T0", "tool T1"}));
     state().set_hardware(hw);
     ToolState::instance().init_tools(hw);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     drain();
     set_homed("xyz");
     set_print_active(true);
@@ -620,6 +621,7 @@ TEST_CASE_METHOD(ToolheadFixture,
         json::array({"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"}));
     state().set_hardware(hw);
     ToolState::instance().init_tools(hw);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
     drain();
     REQUIRE(ToolState::instance().is_multi_tool());
     REQUIRE_FALSE(ToolState::instance().has_multiple_extruders());
@@ -815,7 +817,7 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: a homed tap drops a target and m
     PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
     build(h);
     REQUIRE(h.widget().plate_interactive());
-    CHECK(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(part(h, "toolhead_plate")));
 
     tap_plate(h, plate_centre(h));
     process_lvgl(500);
@@ -861,13 +863,13 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: dismiss clears the target and se
     build(h);
     tap_plate(h, plate_centre(h));
     REQUIRE(subject_int("toolhead_ghost_active") == 1);
-    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(part(h, "toolhead_target_readout")));
 
     lv_obj_send_event(part(h, "toolhead_ghost_dismiss"), LV_EVENT_CLICKED, nullptr);
     drain();
     CHECK(subject_int("toolhead_ghost_active") == 0);
     CHECK(subject_int("toolhead_target_shown") == 0);
-    CHECK(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(part(h, "toolhead_target_readout")));
     CHECK(all_scripts().empty());
 }
 
@@ -902,7 +904,7 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: unhomed or printing, a tap opens
     CHECK_FALSE(h.widget().plate_interactive());
     CHECK(subject_int("toolhead_plate_interactive") == 0);
     // Not clickable, so a real tap lands on the tile itself.
-    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(part(h, "toolhead_plate")));
 
     tap_plate(h, centre);
     process_lvgl(500);

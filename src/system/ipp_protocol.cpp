@@ -453,8 +453,8 @@ std::string normalize_resource_path(const std::string& resource_path) {
 }
 
 std::string make_printer_uri(const std::string& host, uint16_t port,
-                             const std::string& resource_path) {
-    std::string uri = "ipp://";
+                             const std::string& resource_path, Transport transport) {
+    std::string uri = transport == Transport::Tls ? "ipps://" : "ipp://";
 
     // Wrap IPv6 addresses in brackets
     if (!host.empty() && host.find(':') != std::string::npos && host.front() != '[') {

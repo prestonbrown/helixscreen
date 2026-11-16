@@ -16,8 +16,6 @@
  * head's sensor and the parked heads read empty.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
@@ -27,6 +25,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "print_start_checks.h"

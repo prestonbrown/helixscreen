@@ -11,14 +11,14 @@
  * and status-update propagation from Klipper's extruder<n>.filament_used field.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using json = nlohmann::json;
@@ -114,7 +114,7 @@ TEST_CASE("PrinterState: per-extruder SubjectLifetime expires on deinit_subjects
 
     // Acquire the lifetime token observers would hold. The dynamic-subject
     // contract says tearing down the owner must signal death so ObserverGuard
-    // skips lv_observer_remove() on the about-to-be-freed subject.
+    // skips lv_observer_delete() on the about-to-be-freed subject.
     SubjectLifetime lifetime;
     auto* subj = state.print_state().get_extruder_filament_used_subject(1, lifetime);
     REQUIRE(subj != nullptr);

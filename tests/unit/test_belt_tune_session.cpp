@@ -1201,28 +1201,25 @@ TEST_CASE("tune rate: the calibration sample is the first, then the median of re
     CHECK(s.rounds().size() == 5);
 }
 
-TEST_CASE("tune rate: common drift teaches nothing", "[belt][tune]") {
-    auto s = tuning(112.0f, 98.0f, 100.0f, BeltTensionerKind::SCREW);
-    // A turn booked, but both paths rose 2 Hz: the gap held.
-    s.record_turns(1.0f);
-    const auto& r = sweep(s, 114.0f, 102.0f);
-    REQUIRE(r.turns_made == std::optional<float>(1.0f));
-    CHECK(r.outcome == BeltTuneOutcome::NO_MOVEMENT);
-    CHECK(s.hz_per_turn() == Catch::Approx(2.0f).margin(0.2f));
-    // A turn that closed the gap 4 Hz while both drifted 1 Hz: 4 Hz/turn.
-    s.record_turns(1.0f);
-    REQUIRE(sweep(s, 115.0f, 107.0f).outcome == BeltTuneOutcome::CLOSER);
-    CHECK(s.hz_per_turn() == Catch::Approx(3.0f).margin(0.3f));
-}
-
-TEST_CASE("tune rate: a wrong-way round teaches nothing", "[belt][tune]") {
+TEST_CASE("tune rate: common drift and a wrong-way round teach nothing", "[belt][tune]") {
     auto s = tuning(112.0f, 98.0f, 100.0f, BeltTensionerKind::SCREW);
     s.record_turns(1.0f);
-    REQUIRE(sweep(s, 112.0f, 98.0f).outcome == BeltTuneOutcome::WRONG_WAY);
-    CHECK(s.hz_per_turn() == Catch::Approx(2.0f).margin(0.2f));
-    // The next real move: one turn for 4 Hz.
-    s.record_turns(1.0f);
-    REQUIRE(sweep(s, 112.0f, 102.0f).outcome == BeltTuneOutcome::CLOSER);
+    SECTION("both paths rose 2 Hz: the gap held") {
+        const auto& r = sweep(s, 114.0f, 102.0f);
+        REQUIRE(r.turns_made == std::optional<float>(1.0f));
+        CHECK(r.outcome == BeltTuneOutcome::NO_MOVEMENT);
+        CHECK(s.hz_per_turn() == Catch::Approx(2.0f).margin(0.2f));
+        // A turn that closed the gap 4 Hz while both drifted 1 Hz: 4 Hz/turn.
+        s.record_turns(1.0f);
+        REQUIRE(sweep(s, 115.0f, 107.0f).outcome == BeltTuneOutcome::CLOSER);
+    }
+    SECTION("the gap widened") {
+        REQUIRE(sweep(s, 112.0f, 98.0f).outcome == BeltTuneOutcome::WRONG_WAY);
+        CHECK(s.hz_per_turn() == Catch::Approx(2.0f).margin(0.2f));
+        // The next real move: one turn for 4 Hz.
+        s.record_turns(1.0f);
+        REQUIRE(sweep(s, 112.0f, 102.0f).outcome == BeltTuneOutcome::CLOSER);
+    }
     CHECK(s.hz_per_turn() == Catch::Approx(3.0f).margin(0.3f));
 }
 
@@ -1346,30 +1343,27 @@ TEST_CASE("tune session: a turn carried past a peakless round is still a turn", 
     }
 }
 
-TEST_CASE("tune advice: a repeat check keeps the doubled turn", "[belt][tune]") {
+TEST_CASE("tune advice: the doubled turn survives a repeat check and a peakless round",
+          "[belt][tune]") {
     auto s = tuning(104.0f, 98.0f, 100.0f, BeltTensionerKind::SCREW);
     s.swap_adjusted_path();
     s.record_turns(1.0f);
-    REQUIRE(sweep(s, 104.0f, 100.0f).outcome == BeltTuneOutcome::NO_MOVEMENT);
-    REQUIRE(s.advice().turns == std::optional<float>(2.0f));
-    // A repeat check in between changes nothing.
-    REQUIRE(sweep(s, 104.0f, 100.0f).no_turn);
-    CHECK(s.advice().turns == std::optional<float>(2.0f));
-}
-
-TEST_CASE("tune advice: a turn carried past a peakless round still doubles", "[belt][tune]") {
-    auto s = tuning(104.0f, 98.0f, 100.0f, BeltTensionerKind::SCREW);
-    s.swap_adjusted_path();
-    s.record_turns(1.0f);
-    const auto w = *s.sweep_window();
-    REQUIRE(s.add_round(windowed(response_from(flat_curve()), w, 5.0f),
-                        windowed(peak_response(100.0f), w, kFloor))
-                .outcome == BeltTuneOutcome::NO_PEAK);
-    // The stepper is left untouched; the turn moved nothing.
-    const auto& r = sweep(s, 104.0f, 100.0f);
-    REQUIRE_FALSE(r.no_turn);
-    REQUIRE(r.outcome == BeltTuneOutcome::NO_MOVEMENT);
-    CHECK(r.turns_measured == Catch::Approx(1.0f));
+    SECTION("a repeat check in between changes nothing") {
+        REQUIRE(sweep(s, 104.0f, 100.0f).outcome == BeltTuneOutcome::NO_MOVEMENT);
+        REQUIRE(s.advice().turns == std::optional<float>(2.0f));
+        REQUIRE(sweep(s, 104.0f, 100.0f).no_turn);
+    }
+    SECTION("a turn carried past a peakless round still doubles") {
+        const auto w = *s.sweep_window();
+        REQUIRE(s.add_round(windowed(response_from(flat_curve()), w, 5.0f),
+                            windowed(peak_response(100.0f), w, kFloor))
+                    .outcome == BeltTuneOutcome::NO_PEAK);
+        // The stepper is left untouched; the turn moved nothing.
+        const auto& r = sweep(s, 104.0f, 100.0f);
+        REQUIRE_FALSE(r.no_turn);
+        REQUIRE(r.outcome == BeltTuneOutcome::NO_MOVEMENT);
+        CHECK(r.turns_measured == Catch::Approx(1.0f));
+    }
     CHECK(s.advice().turns == std::optional<float>(2.0f));
 }
 

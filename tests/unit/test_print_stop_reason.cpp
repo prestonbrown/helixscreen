@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "print_stop_reason.h"
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
@@ -78,7 +77,7 @@ class TrackerFixture : public LVGLTestFixture {
     }
 
     static void settle() {
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static std::string reason() {
@@ -183,7 +182,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         &seen);
     state.update_from_status(
         json{{"print_stats", {{"state", "error"}, {"message", "Heater extruder not heating"}}}});
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     CHECK(seen == "Heater extruder not heating");
     test::set_wire_state(state, PrintJobState::STANDBY);

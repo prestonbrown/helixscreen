@@ -3,8 +3,8 @@
 
 #include "macro_params.h"
 
+#include "core/text_io.h"
 #include "helix_regex.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
@@ -119,7 +119,6 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
     for (; it != end; ++it) {
         const auto& match = *it;
 
-        // Extract name from whichever group matched
         std::string name;
         if (match[1].matched)
             name = match[1].str();
@@ -128,10 +127,8 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
         else if (match[3].matched)
             name = match[3].str();
 
-        // Normalize to uppercase
         name = helix::text_io::to_upper(name);
 
-        // Skip duplicates
         if (seen.count(name)) {
             continue;
         }
@@ -181,7 +178,8 @@ std::vector<MacroParam> helix::parse_macro_params(const std::string& gcode_templ
     return result;
 }
 
-std::map<std::string, std::string> helix::parse_raw_macro_params(const std::string& raw_text) {
+std::map<std::string, std::string>
+helix::parse_raw_macro_params(const std::string& raw_text, std::vector<std::string>* rejected) {
     std::map<std::string, std::string> result;
     size_t pos = 0;
     while (pos < raw_text.size()) {
@@ -195,11 +193,26 @@ std::map<std::string, std::string> helix::parse_raw_macro_params(const std::stri
         std::string token = raw_text.substr(pos, end - pos);
         pos = end;
         auto eq = token.find('=');
-        if (eq == std::string::npos || eq == 0)
+        if (eq == std::string::npos || eq == 0) {
+            if (rejected)
+                rejected->push_back(token);
             continue;
+        }
         std::string key = token.substr(0, eq);
         key = helix::text_io::to_upper(key);
         result[key] = token.substr(eq + 1);
     }
     return result;
+}
+
+std::string helix::format_raw_macro_params(const std::map<std::string, std::string>& values) {
+    std::string text;
+    for (const auto& [key, value] : values) {
+        if (!text.empty())
+            text += ' ';
+        text += key;
+        text += '=';
+        text += value;
+    }
+    return text;
 }

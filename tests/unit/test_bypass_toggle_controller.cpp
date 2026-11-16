@@ -8,8 +8,6 @@
  */
 
 #include "ui_bypass_toggle_controller.h"
-#include "ui_observer_guard.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -20,8 +18,10 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/observer_guard.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 

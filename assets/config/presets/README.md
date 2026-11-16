@@ -11,7 +11,7 @@ For supported platforms (like AD5M and Snapmaker U1), the preset is baked into t
 
 The preset sets `wizard_completed: false` so the abbreviated wizard runs on first boot. The `preset` field triggers **preset mode**, which skips all hardware configuration steps since the answers are already known.
 
-The tarball is only one of the two ways a preset gets applied. The other is detection: `PrinterDetector` reads the `preset` field off the matched `printer_database.json` entry, so a preset that no database entry names is unreachable by every install route except its own factory tarball. **Every preset file must be named by a `"preset": "<name>"` key on some `printer_database.json` entry**, with two exceptions — `<base>_zmod.json` firmware variants, which `apply_preset_with_variants()` derives from the base preset's name at runtime, and reference configs that carry no `preset` key of their own. `tests/unit/test_preset_database_links.cpp` enforces this in both directions.
+The tarball is only one of the two ways a preset gets applied. The other is detection: `PrinterDetector` reads the `preset` field off the matched `printer_database.json` entry, so a preset that no database entry names is unreachable by every install route except its own factory tarball. **Every preset file must be named by a `"preset": "<name>"` key on some `printer_database.json` entry**, with two exceptions — `<base>_zmod.json` and `<base>_opencreator.json` firmware variants, which `apply_preset_with_variants()` derives from the base preset's name at runtime, and reference configs that carry no `preset` key of their own. `tests/unit/test_preset_database_links.cpp` enforces this in both directions.
 
 ## Available Presets
 
@@ -21,6 +21,7 @@ The tarball is only one of the two ways a preset gets applied. The other is dete
 | `ad5x.json` | Flashforge Adventurer 5X | Same hardware as AD5M, different display settings |
 | `creator5.json` | FlashForge Creator 5 | Applied by detection (no tarball bake). 4-head tool changer, no chamber heater, rotate 90 |
 | `creator5_pro.json` | FlashForge Creator 5 Pro | Applied by detection (no tarball bake). 4-head tool changer, chamber heater, rotate 90 |
+| `creator5_opencreator.json`, `creator5_pro_opencreator.json` | Creator 5 / 5 Pro on OpenCreator | Firmware variants, picked when `creator5_toolchanger` is present. No filament sensors (AFC owns its `extruder<N>_tool_start` switches and raises runout itself), chamber heater fan `heater_fan_throttled chamber_heat_fan`, Park Tool runs `DOCK_EXISTING_TOOL` |
 | `cc1.json` | Elegoo Centauri Carbon (COSMOS firmware) | Factory white-balance calibration (per-channel panel gain), hardware mappings, load-cell probe, Moonraker on port 80 |
 | `flsun_t1.json` | FLSUN T1 Pro (stock FLSUN OS) | Network-detected. Hardware mappings, Bed Level quick button on FLSUN's `BED_LEVEL_1`, enclosure light as an on/off macro device (`F106 S1` / `F106 S0`) |
 | `artillery-m1-pro.json` | Artillery M1 Pro | Network-detected. Touch calibration, hardware mappings, sound disabled (CPU overload) |

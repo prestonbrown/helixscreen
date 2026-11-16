@@ -10,15 +10,18 @@
 #include "ui_picker_option_row.h"
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
-#include "static_subject_registry.h"
+#include "printer_discovery.h"
 #include "subject_managed_panel.h"
 #include "tile_color.h"
 #include "ui/ui_widget_helpers.h"
@@ -32,11 +35,11 @@
 namespace helix {
 
 namespace {
-lv_subject_t s_tab_subject{};
-lv_subject_t s_require_confirm_subject{};
-/// 1 while the configured macro declares a parameter list, so the Options tab
-/// can show the "Default Parameters" row only for macros that have one.
-lv_subject_t s_has_param_defaults_subject{};
+helix::Subject s_tab_subject{};
+helix::Subject s_require_confirm_subject{};
+/// 1 while the configured macro takes parameters (declared or free-form), so
+/// the Options tab shows the "Default Parameters" row only for those.
+helix::Subject s_has_param_defaults_subject{};
 bool s_subjects_registered = false;
 SubjectManager s_subjects;
 
@@ -52,16 +55,14 @@ static constexpr size_t kCuratedIconCount = std::size(kCuratedIcons);
 
 } // namespace
 
-FavoriteMacroConfigModal* FavoriteMacroConfigModal::s_active_ = nullptr;
-
 void register_favorite_macro_config_subjects() {
     if (s_subjects_registered)
         return;
-    lv_subject_init_int(&s_tab_subject, 0);
+    s_tab_subject.init_int(0);
     // Default 1 mirrors FavoriteMacroConfig::require_confirmation, so the toggle
     // reads correctly even before on_show() loads a widget's config.
-    lv_subject_init_int(&s_require_confirm_subject, 1);
-    lv_subject_init_int(&s_has_param_defaults_subject, 0);
+    s_require_confirm_subject.init_int(1);
+    s_has_param_defaults_subject.init_int(0);
     s_subjects.publish("fav_macro_config_tab", &s_tab_subject);
     s_subjects.publish("fav_macro_require_confirm", &s_require_confirm_subject);
     s_subjects.publish("fav_macro_has_param_defaults", &s_has_param_defaults_subject);
@@ -80,14 +81,7 @@ void register_favorite_macro_config_subjects() {
 FavoriteMacroConfigModal::FavoriteMacroConfigModal(const std::string& widget_id,
                                                    const std::string& panel_id,
                                                    ChangeCallback on_change)
-    : widget_id_(widget_id), panel_id_(panel_id), on_change_(std::move(on_change)) {
-    s_active_ = this;
-}
-
-FavoriteMacroConfigModal::~FavoriteMacroConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
-}
+    : widget_id_(widget_id), panel_id_(panel_id), on_change_(std::move(on_change)) {}
 
 void FavoriteMacroConfigModal::load_config() {
     auto& wc = PanelWidgetManager::instance().get_widget_config(panel_id_);
@@ -141,10 +135,9 @@ void FavoriteMacroConfigModal::tab_options_cb(lv_event_t* e) {
 }
 
 void FavoriteMacroConfigModal::close_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] close_cb");
-    if (s_active_)
-        s_active_->hide();
+    if (auto* self = Modal::from_event<FavoriteMacroConfigModal>(e))
+        self->hide();
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -155,8 +148,8 @@ void FavoriteMacroConfigModal::require_confirm_cb(lv_event_t* e) {
     // The switch owns its own checked state; push it back to the subject so the
     // bound consequence hint in the Options tab follows the toggle.
     lv_subject_set_int(&s_require_confirm_subject, enabled ? 1 : 0);
-    if (s_active_)
-        s_active_->select_require_confirmation(enabled);
+    if (auto* self = Modal::from_event<FavoriteMacroConfigModal>(e))
+        self->select_require_confirmation(enabled);
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -165,27 +158,25 @@ IMoonrakerAPI* FavoriteMacroConfigModal::get_api() const {
 }
 
 void FavoriteMacroConfigModal::refresh_param_defaults_visible() {
-    const bool has_params = macro_name_.empty()
-                                ? false
-                                : helix::MacroParamCache::instance().get(macro_name_).knowledge ==
-                                      helix::MacroParamKnowledge::KNOWN_PARAMS;
+    const bool has_params =
+        !macro_name_.empty() && helix::macro_takes_saved_defaults(
+                                    helix::MacroParamCache::instance().get(macro_name_).knowledge);
     lv_subject_set_int(&s_has_param_defaults_subject, has_params ? 1 : 0);
 }
 
 void FavoriteMacroConfigModal::defaults_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] defaults_cb");
-    if (s_active_)
-        s_active_->open_defaults_editor();
+    if (auto* self = Modal::from_event<FavoriteMacroConfigModal>(e))
+        self->open_defaults_editor();
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void FavoriteMacroConfigModal::open_defaults_editor() {
     auto cached = helix::MacroParamCache::instance().get(macro_name_);
-    if (cached.knowledge != helix::MacroParamKnowledge::KNOWN_PARAMS) {
+    if (!helix::macro_takes_saved_defaults(cached.knowledge)) {
         // The Options row is hidden for these macros; this guards a stale
         // subject value after the configured macro changed.
-        spdlog::debug("[FavoriteMacroConfigModal] No defaults editor for '{}' (no known params)",
+        spdlog::debug("[FavoriteMacroConfigModal] No defaults editor for '{}' (no parameters)",
                       macro_name_);
         return;
     }
@@ -221,9 +212,9 @@ void FavoriteMacroConfigModal::populate_macro_list() {
 
         lv_obj_t* row =
             helix::ui::create_picker_option_row(macro_list_, display.c_str(), is_selected,
-                                                [macro]() {
-                                                    if (s_active_) {
-                                                        s_active_->select_macro(macro);
+                                                [this, tok = lifetime_.token(), macro]() {
+                                                    if (!tok.expired()) {
+                                                        select_macro(macro);
                                                     }
                                                 },
                                                 {"pad_all", "#space_xs", "pad_gap", "#space_xxs"});
@@ -307,8 +298,9 @@ void FavoriteMacroConfigModal::select_require_confirmation(bool enabled) {
 void FavoriteMacroConfigModal::color_swatch_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] color_swatch_cb");
     const int index = helix::ui::event_user_int(e).value_or(-1);
-    if (s_active_ && index >= 0 && index < static_cast<int>(tile_color::palette_size())) {
-        s_active_->select_color(tile_color::palette_at(index));
+    auto* self = Modal::from_event<FavoriteMacroConfigModal>(e);
+    if (self && index >= 0 && index < static_cast<int>(tile_color::palette_size())) {
+        self->select_color(tile_color::palette_at(index));
     }
     LVGL_SAFE_EVENT_CB_END();
 }

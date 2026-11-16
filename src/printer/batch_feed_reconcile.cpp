@@ -7,6 +7,8 @@
 #include "snapmaker_channel_state.h"
 #include "spdlog/spdlog.h"
 
+#include "hv/json.hpp"
+
 namespace helix::batch_feeding {
 
 namespace {

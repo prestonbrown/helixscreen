@@ -15,7 +15,6 @@ namespace helix {
 AssetExtractionResult extract_assets_if_needed(const std::string& source_dir,
                                                const std::string& target_dir,
                                                const std::string& current_version) {
-    // Check if target already has matching version
     fs::path version_file = fs::path(target_dir) / "VERSION";
     if (fs::exists(version_file)) {
         std::ifstream ifs(version_file);
@@ -29,7 +28,6 @@ AssetExtractionResult extract_assets_if_needed(const std::string& source_dir,
                      existing_version, current_version);
     }
 
-    // Create target directory if needed
     std::error_code ec;
     fs::create_directories(target_dir, ec);
     if (ec) {
@@ -37,13 +35,11 @@ AssetExtractionResult extract_assets_if_needed(const std::string& source_dir,
         return AssetExtractionResult::FAILED;
     }
 
-    // Verify source directory exists
     if (!fs::exists(source_dir) || !fs::is_directory(source_dir)) {
         spdlog::error("Source directory '{}' does not exist or is not a directory", source_dir);
         return AssetExtractionResult::FAILED;
     }
 
-    // Copy all files recursively from source to target
     fs::copy(source_dir, target_dir,
              fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
     if (ec) {
@@ -52,7 +48,6 @@ AssetExtractionResult extract_assets_if_needed(const std::string& source_dir,
         return AssetExtractionResult::FAILED;
     }
 
-    // Write version marker
     {
         std::ofstream ofs(version_file, std::ios::trunc);
         if (!ofs) {
@@ -134,7 +129,8 @@ bool is_non_shippable_config_file(const std::string& filename) {
            filename == "user_filaments.json" || filename == "filament_slot_overrides.json" ||
            filename == "telemetry_device.json" || filename == "telemetry_queue.json" ||
            filename == "settings.json" || filename == "settings-test.json" ||
-           filename.rfind("helixconfig", 0) == 0 || filename == ".helix-screen.lock";
+           filename.rfind("helixconfig", 0) == 0 || filename == "pending_remap.json" ||
+           filename == ".helix-screen.lock";
 }
 
 /// Whether an APK asset directory extracts into the user's config layer.
@@ -223,12 +219,10 @@ struct DirExtractResult {
     bool opened = true; ///< false if the directory itself could not be enumerated
 };
 
-// Extract every file from an APK asset directory to the filesystem
 static DirExtractResult extract_asset_dir(AAssetManager* mgr, const std::string& asset_path,
                                           const std::string& target_path) {
     DirExtractResult result;
 
-    // Create target directory
     std::error_code ec;
     fs::create_directories(target_path, ec);
     if (ec) {
@@ -244,7 +238,6 @@ static DirExtractResult extract_asset_dir(AAssetManager* mgr, const std::string&
         return result;
     }
 
-    // List and copy all files in this directory
     const char* filename;
     while ((filename = AAssetDir_getNextFileName(dir)) != nullptr) {
         std::string asset_file =
@@ -389,8 +382,7 @@ void android_extract_assets_if_needed() {
     // one written at the end of the last extraction makes every install
     // re-extract, so iterating on XML/assets on a connected device always
     // picks up edits, while a stable install still skips the copy at launch.
-    // The version-number gate this replaces silently served stale XML for
-    // same-version dev rebuilds.
+    // A version-number gate would serve stale XML for same-version dev rebuilds.
     const std::string raw_stamp = read_asset_text(mgr, "BUILD_STAMP");
     const std::string apk_stamp = resolve_asset_build_stamp(raw_stamp, helix_version());
     if (trim_build_stamp(raw_stamp).empty()) {
@@ -415,9 +407,8 @@ void android_extract_assets_if_needed() {
     spdlog::info("[AndroidAssets] Build stamp differs: apk='{}' disk='{}' - re-extracting",
                  apk_stamp, disk_stamp);
 
-    // Remove pre-split stale seeds under {target_dir}/config/. Before bfeba7c26
-    // these paths held the shipped RO seeds; after the split they moved to
-    // assets/config/, but an upgrade-in-place leaves the old copies on disk
+    // Remove stale seeds under {target_dir}/config/. The shipped RO seeds live
+    // under assets/config/, but an upgrade-in-place leaves older copies here
     // where find_readable() would return them first and shadow the new seeds.
     // Safe to delete: all entries here are RO shipped content, not user state.
     {

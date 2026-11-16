@@ -27,6 +27,7 @@
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 namespace fs = std::filesystem;
 

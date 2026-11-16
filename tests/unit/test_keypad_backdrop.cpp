@@ -2,10 +2,11 @@
 
 #include "ui_component_keypad.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <array>
@@ -68,7 +69,7 @@ lv_obj_t* recycle_address(lv_obj_t* freed, const lv_obj_class_t* cls, lv_obj_t* 
 
 // The backdrop hangs off the screen, so anything clearing the screen takes it along
 // without the keypad being told. Its address is then free for the next allocation, and
-// lv_obj_is_valid() cannot tell a recycled address from the original object.
+// helix::test::widget_in_tree() cannot tell a recycled address from the original object.
 TEST_CASE_METHOD(KeypadBackdropFixture,
                  "Keypad: closing after the backdrop died leaves its recycled address alone",
                  "[keypad]") {
@@ -108,7 +109,7 @@ TEST_CASE_METHOD(KeypadBackdropFixture,
     process_lvgl(100);
 
     // A deferred delete would have moved it to the top layer and then freed it.
-    REQUIRE(lv_obj_is_valid(victim));
+    REQUIRE(helix::test::widget_in_tree(victim));
     CHECK(lv_obj_get_parent(victim) == screen);
     lv_obj_delete(victim);
 }
@@ -198,5 +199,51 @@ TEST_CASE_METHOD(KeypadBackdropFixture,
     if (victim != nullptr) {
         CHECK(lv_obj_get_child_count(victim) == 0);
         lv_obj_delete(victim);
+    }
+}
+
+TEST_CASE_METHOD(KeypadBackdropFixture,
+                 "Keypad: an address field prefills, types dots and hands back its text",
+                 "[keypad]") {
+    std::vector<std::string> texts;
+    int numbers = 0;
+    ui_keypad_config_t cfg{};
+    cfg.title_label = "Address";
+    cfg.mode = helix::ui::KeypadInput::Mode::Ipv4;
+    cfg.on_confirm_text = [&texts](const std::string& t) { texts.push_back(t); };
+    cfg.on_confirm = [&numbers](float) { numbers++; };
+    auto display = []() {
+        return std::string(lv_subject_get_string(ui_keypad_get_display_subject()));
+    };
+    auto tap = [](const char* name) {
+        lv_obj_t* btn = lv_obj_find_by_name(lv_screen_active(), name);
+        REQUIRE(btn != nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    };
+
+    SECTION("a prefill the keys could not type starts empty") {
+        cfg.initial_text = "fe80::1";
+        ui_keypad_show(&cfg);
+        CHECK(display().empty());
+    }
+    SECTION("an address prefill is kept and edited key by key") {
+        cfg.initial_text = "192.168.1.5";
+        ui_keypad_show(&cfg);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(display() == "192.168.1.5");
+        CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "keypad_allow_decimal")) == 1);
+        CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "keypad_allow_negative")) == 0);
+        tap("btn_backspace");
+        tap("btn_backspace");
+        tap("btn_dot");
+        tap("btn_7");
+        CHECK(display() == "192.168.1.7");
+
+        tap("action_button"); // the header's Set
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(600);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(texts == std::vector<std::string>{"192.168.1.7"});
+        CHECK(numbers == 0);
     }
 }

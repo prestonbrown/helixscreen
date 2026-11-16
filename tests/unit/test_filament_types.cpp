@@ -4,7 +4,7 @@
 // The material-type table: shipped rows come from assets/filaments.json's
 // `types`, and the user overlay's `types` patches or extends them.
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "helix_test_fixture.h"

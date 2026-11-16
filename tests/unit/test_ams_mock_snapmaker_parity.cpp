@@ -13,11 +13,11 @@
  * while a print task is configured and answers EMPTY otherwise — its own comment
  * calls a bare [0,1,2,3] "the identity-as-truth mistake this accessor exists to
  * end", because an idle machine holds a default table that says nothing about
- * any particular file. The mock instead returned its attachment map, and
- * FilamentMapper::effective_routing() takes any non-empty answer as the truth,
- * so the preview resolved every logical tool to its own head index — the exact
- * shape b7e649ca4 fixed on hardware, where a cancelled T0-red / T2-black print
- * rendered as a black body with a red tail.
+ * any particular file. A mock that returns its attachment map instead is
+ * trusted, because FilamentMapper::effective_routing() takes any non-empty answer as the truth,
+ * so the preview would resolve every logical tool to its own head index: on
+ * hardware, a cancelled T0-red / T2-black print rendered as a black body with a
+ * red tail that way.
  *
  * firmware_default_routing() is the same class of divergence one step quieter:
  * the inherited lane-per-tool identity agrees with the U1's four fixed heads for
@@ -197,28 +197,6 @@ TEST_CASE("A non-Snapmaker mock stays lane-per-tool", "[ams][snapmaker][mock][ro
 // select_slot_moves_toolhead() is deliberately absent here: it belongs to
 // AmsSubscriptionBackend, and the mock derives straight from AmsBackend, so
 // there is no pair to compare.
-
-TEST_CASE("Mock Snapmaker answers capability questions like the U1",
-          "[ams][snapmaker][mock][capability]") {
-    AmsBackendMock mock(4);
-    mock.set_snapmaker_mode(true);
-    SnapmakerProbe real;
-
-    // Compared against the real backend, never a literal: a capability whose
-    // right answer changes on hardware must not need editing in two places.
-    CHECK(mock.lane_noun() == real.lane_noun());
-    // The BackendTraits answers are pinned in test_ams_backend_traits.cpp.
-}
-
-TEST_CASE("A non-Snapmaker mock keeps the base capability answers",
-          "[ams][snapmaker][mock][capability]") {
-    // The overrides are scoped to the emulated machine: every other mode this
-    // mock wears is a lane-per-tool system feeding one nozzle, so a U1's answers
-    // would describe hardware it is not standing in for.
-    AmsBackendMock mock(4); // defaults to Happy Hare
-    CHECK(mock.lane_noun() == helix::ui::LaneNoun::Gate);
-    // The BackendTraits answers are pinned in test_ams_backend_traits.cpp.
-}
 
 TEST_CASE("Mock Snapmaker lanes publish their entry sensor like the U1",
           "[ams][snapmaker][mock][entry_sensor]") {

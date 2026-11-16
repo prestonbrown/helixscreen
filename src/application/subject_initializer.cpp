@@ -4,6 +4,7 @@
 #include "subject_initializer.h"
 
 #include "ui_bed_drying_modal.h"
+#include "ui_chamber_air_notices.h"
 #include "ui_component_keypad.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
@@ -18,6 +19,7 @@
 #include "ui_panel_advanced.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -29,6 +31,7 @@
 #include "ui_panel_home.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_motion.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_screws_tilt.h"
@@ -37,7 +40,6 @@
 #include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
 #include "ui_stepper_resonance_cal_modal.h"
-#include "ui_update_queue.h"
 #include "ui_wizard.h"
 
 #include "abort_manager.h"
@@ -47,6 +49,8 @@
 #include "bed_drying_controller.h"
 #include "bed_mesh_state.h"
 #include "chamber_stall_prompt.h"
+#include "cold_pull_runner.h"
+#include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
@@ -58,6 +62,7 @@
 #include "panel_widget_manager.h"
 #include "plr_offer_controller.h"
 #include "plugin_status_refresh.h"
+#include "post_op_cooldown_manager.h"
 #include "preset_materials.h"
 #include "print_completion.h"
 #include "print_control_buttons.h"
@@ -99,15 +104,35 @@ SubjectInitializer::~SubjectInitializer() {
     widgets.unregister_shared_resource<helix::BedDryingController>(m_bed_drying.get());
     widgets.unregister_shared_resource<helix::TemperatureController>(m_temp_controller.get());
     widgets.unregister_shared_resource<helix::ui::FilamentOpHeater>(m_filament_op_heater.get());
+    widgets.unregister_shared_resource<helix::ui::ColdPullRunner>(m_cold_pull_runner.get());
+}
+
+void SubjectInitializer::before_disconnect() {
+    if (m_cold_pull_runner) {
+        m_cold_pull_runner->before_disconnect();
+    }
+    if (m_filament_op_heater) {
+        m_filament_op_heater->before_disconnect();
+    }
+    if (auto* pa_panel = helix::lazy_global_if_exists<helix::ui::PACalibrationPanel>()) {
+        pa_panel->before_disconnect();
+    }
+    if (auto* mesh_panel = helix::lazy_global_if_exists<BedMeshPanel>()) {
+        mesh_panel->before_disconnect();
+    }
+    if (auto* zoffset_panel = helix::lazy_global_if_exists<ZOffsetCalibrationPanel>()) {
+        zoffset_panel->before_disconnect();
+    }
+    PostOpCooldownManager::instance().flush_before_disconnect();
 }
 
 void SubjectInitializer::init_core_and_state() {
     spdlog::debug("[SubjectInitializer] Initializing core and state subjects...");
 
-    // Phase 1: Core subjects (must be first)
+    // Core subjects: must be first.
     init_core_subjects();
 
-    // Phase 2: PrinterState subjects (panels depend on these)
+    // PrinterState subjects: panels depend on these.
     init_printer_state_subjects();
 
     // Settings subjects next: panels built from here on observe the language
@@ -131,7 +156,6 @@ void SubjectInitializer::init_core_and_state() {
     // warm_orca_tables() above — see FILAMENT_MANAGEMENT.md § "User overlay format".
     filament::merge_user_orca_overrides(helix::printer::FilamentCatalog::load_user_orca_type_map());
 
-    // Phase 3: AMS and filament sensor subjects
     init_ams_subjects();
 
     // Z-offset save availability. Derived from PrinterState's strategy and
@@ -143,7 +167,7 @@ void SubjectInitializer::init_core_and_state() {
     // exist from here, so neither depends on the panel having been opened.
     helix::BedMeshState::instance().init_subjects();
 
-    // Phase 4: Navigation subjects — MUST register AFTER PrinterState/AmsState
+    // Navigation subjects: MUST register AFTER PrinterState/AmsState
     // so that in reverse deinit order, NavigationManager cleans up its observers
     // on PrinterState subjects BEFORE PrinterState deinits those subjects.
     NavigationManager::instance().init();
@@ -156,20 +180,18 @@ void SubjectInitializer::init_panels(helix::IMoonrakerAPI* api,
     spdlog::debug("[SubjectInitializer] Initializing panel subjects (api={})...",
                   api ? "valid" : "nullptr");
 
-    // Phase 4: Panel subjects
     init_panel_subjects(api);
 }
 
-void SubjectInitializer::init_post(const RuntimeConfig& runtime_config) {
+void SubjectInitializer::init_post(helix::IMoonrakerAPI* api, const RuntimeConfig& runtime_config) {
     spdlog::debug("[SubjectInitializer] Initializing post-panel subjects...");
 
-    // Phase 5: Observers (depend on subjects being ready)
-    init_observers();
+    // Observers depend on the subjects being ready.
+    init_observers(api);
 
-    // Phase 6: Utility subjects
     init_utility_subjects();
 
-    // Phase 7: USB manager (needs notification system)
+    // The USB manager needs the notification system.
     init_usb_manager(runtime_config);
 
     m_initialized = true;
@@ -271,8 +293,8 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     // SpoolmanPanel uses lazy initialization via get_global_spoolman_panel()
     // and is initialized on first access in AdvancedPanel::handle_spoolman_clicked()
 
-    // HistoryDashboardPanel is now lazy-initialized (OverlayBase pattern)
-    // HistoryListPanel is now lazy-initialized by HistoryDashboardPanel (OverlayBase pattern)
+    // HistoryDashboardPanel is lazy-initialized (OverlayBase pattern)
+    // HistoryListPanel is lazy-initialized by HistoryDashboardPanel (OverlayBase pattern)
 
     // Timelapse state (event-driven, not a panel)
     helix::TimelapseState::instance().init_subjects();
@@ -297,7 +319,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_global_retraction_settings(api);
     get_global_retraction_settings().init_subjects();
 
-    // ConsolePanel is now lazy-initialized by AdvancedPanel (OverlayBase pattern)
+    // ConsolePanel is lazy-initialized by AdvancedPanel (OverlayBase pattern)
 
     // Row handlers for advanced features
     init_screws_tilt_row_handler();
@@ -306,14 +328,14 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_zoffset_row_handler();
     helix::ui::init_tool_offset_row_handler();
     helix::ui::init_stepper_resonance_cal_row_handler();
+    helix::ui::init_motor_ripple_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
+    helix::ui::init_chamber_air_notices();
 
     // Wizard and keypad — cleanup self-registered inside init_subjects()
     ui_wizard_init_subjects();
     ui_keypad_init_subjects();
-
-    // PrinterStatusIcon and StatusBar subjects — cleanup self-registered inside init_subjects()
 
     // Note: PrintSelectPanel registers its own deinit+destroy callback in get_print_select_panel()
     m_print_select_panel = get_print_select_panel(get_printer_state(), api);
@@ -321,7 +343,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     if (api)
         m_print_select_panel->set_api(api);
 
-    // Shared print-control buttons own the renamed pause/resume/stop subjects +
+    // Shared print-control buttons own the pause/resume/stop subjects +
     // shared callbacks; register before the print-status panel (and any home
     // widget) XML binds them.
     auto& print_controls = helix::ui::PrintControlButtons::instance();
@@ -347,6 +369,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     // (LoadProhibited). Nothing on ESP navigates to them; skip boot init.
     // m_bed_mesh_panel stays nullptr — its getter is never called on ESP.
     m_bed_mesh_panel = &get_global_bed_mesh_panel();
+    m_bed_mesh_panel->set_api(api);
     m_bed_mesh_panel->init_subjects();
 
     // Panel initialization via global instances
@@ -389,6 +412,14 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
     helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::FilamentOpHeater>(
         m_filament_op_heater.get());
 
+    // The guided cold pull: here for the same reason, the overlay can close while
+    // the nozzle is hot.
+    m_cold_pull_runner = std::make_unique<helix::ui::ColdPullRunner>(get_printer_state());
+    m_cold_pull_runner->init_subjects();
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::ColdPullRunner>(
+        m_cold_pull_runner.get());
+    helix::ui::register_cold_pull_flow();
+
     // Drying on the heated bed (prestonbrown/helixscreen#1730). restore() brings
     // back a persisted spools-on-the-bed latch before any panel can move the
     // printer.
@@ -430,7 +461,7 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
     }
 }
 
-void SubjectInitializer::init_observers() {
+void SubjectInitializer::init_observers(helix::IMoonrakerAPI* api) {
     spdlog::trace("[SubjectInitializer] Initializing observers");
 
     // Print completion notification observer
@@ -451,7 +482,7 @@ void SubjectInitializer::init_observers() {
 
     // Standing print options: kept in Moonraker for the plugin's print hooks,
     // and sent by this screen at a foreign job start when the plugin cannot.
-    m_standing_print_options = std::make_unique<helix::StandingPrintOptionsController>();
+    m_standing_print_options = std::make_unique<helix::StandingPrintOptionsController>(api);
 
     // Filament accounting: the spool map the plugin switches the active spool
     // from, and this screen's switch at a tool change when the plugin cannot.

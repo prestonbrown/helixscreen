@@ -13,7 +13,7 @@
       <ui_button name="btn_more_timelapse"
                  height="#button_height_sm" bind_icon="timelapse_button_icon" text="Timelapse" variant="ghost"
                  style_flex_main_place="start">
-        <bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="0"/>
+        <bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="print_status_more_timelapse_cb"/>
       </ui_button>
       <ui_button name="btn_more_light"

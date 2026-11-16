@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "console_filter_engine.h"
+#include "core/subject.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"
 
@@ -81,7 +82,7 @@ class GCodeConsoleWidget : public TiledPanelWidget {
     helix::AsyncLifetimeGuard lifetime_;
 
     std::string view_name_{"gcode_console_tail_view"};
-    lv_subject_t view_subject_{};
+    helix::Subject view_subject_{};
     SubjectManager subjects_;
     std::vector<std::string> attr_storage_;
     std::vector<const char*> attrs_;

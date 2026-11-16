@@ -7,14 +7,15 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
-#include "ui_timer_guard.h"
 
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "subject_debug_registry.h"
@@ -35,7 +36,7 @@ static constexpr uint32_t kTipRotationIntervalMs = 60000;
 static constexpr uint32_t kTipFadeDurationMs = 300;
 
 // Subject owned by TipsWidget module — created before XML bindings resolve
-static lv_subject_t s_status_subject;
+static helix::Subject s_status_subject;
 static HELIX_PSRAM_BSS char s_status_buffer[512];
 static helix::WidgetSubjects s_subjects{"TipsWidgetSubjects"};
 
@@ -69,11 +70,10 @@ static int tips_component_px(const char* name) {
 
 static void tips_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_string(&s_status_subject, s_status_buffer, nullptr, sizeof(s_status_buffer),
-                               "Welcome to HelixScreen");
+        s_status_subject.init_string(s_status_buffer, nullptr, sizeof(s_status_buffer),
+                                     "Welcome to HelixScreen");
         s_subjects.publish("status_text", &s_status_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING);
 
         spdlog::debug("[TipsWidget] Subjects initialized (status_text)");
     });
@@ -107,8 +107,6 @@ void TipsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto* tip_container = lv_obj_find_by_name(widget_obj_, "tip_container");
     if (tip_container) {
         lv_obj_set_user_data(tip_container, this);
-        // Pressed feedback: dim on touch
-        lv_obj_set_style_opa(tip_container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
     // Cache tip label for fade animation
@@ -154,6 +152,7 @@ void TipsWidget::detach() {
 void TipsWidget::on_activate() {
     // Reset label opacity in case deactivation interrupted a mid-fade animation
     if (tip_label_) {
+        // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
     }
 
@@ -259,7 +258,7 @@ void TipsWidget::update_tip_of_day() {
             // Fallback: instant update (initial load or animation in progress)
             current_tip_ = tip;
             std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
-            lv_subject_copy_string(&s_status_subject, s_status_buffer);
+            lv_subject_set_string(&s_status_subject, s_status_buffer);
             spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
         }
     } else {
@@ -282,7 +281,8 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         current_tip_ = pending_tip_;
         std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-        lv_subject_copy_string(&s_status_subject, s_status_buffer);
+        lv_subject_set_string(&s_status_subject, s_status_buffer);
+        // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         tip_animating_ = false;
         spdlog::debug("[TipsWidget] Animations disabled - applied tip instantly");
@@ -301,6 +301,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
     lv_anim_set_exec_cb(&anim, [](void* var, int32_t value) {
         auto* self = static_cast<TipsWidget*>(var);
         if (self->tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(self->tip_label_, static_cast<lv_opa_t>(value), LV_PART_MAIN);
         }
     });
@@ -318,13 +319,14 @@ void TipsWidget::apply_pending_tip() {
     // Apply the pending tip text
     current_tip_ = pending_tip_;
     std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-    lv_subject_copy_string(&s_status_subject, s_status_buffer);
+    lv_subject_set_string(&s_status_subject, s_status_buffer);
 
     spdlog::debug("[TipsWidget] Applied pending tip: {}", pending_tip_.title);
 
     // Skip animation if disabled — show at full opacity immediately
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         if (tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         }
         tip_animating_ = false;
@@ -343,6 +345,7 @@ void TipsWidget::apply_pending_tip() {
     lv_anim_set_exec_cb(&anim, [](void* var, int32_t value) {
         auto* self = static_cast<TipsWidget*>(var);
         if (self->tip_label_) {
+            // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
             lv_obj_set_style_opa(self->tip_label_, static_cast<lv_opa_t>(value), LV_PART_MAIN);
         }
     });

@@ -7,6 +7,31 @@
 
 #include <lvgl.h>
 
+namespace helix {
+/// Which zones a jog pad offers. The defaults are the full pad: a centre home
+/// button and eight directional wedges.
+struct JogPadZoneOptions {
+    /// false leaves the centre an inert hub with no home button.
+    bool home_zone = true;
+    /// true splits the rings into four 90 degree wedges, so every jog moves one
+    /// axis and no diagonal can be pressed.
+    bool cardinal_only = false;
+};
+
+/// Which zone one point lands in: off the pad, the home button, or a directional
+/// wedge in the inner or outer ring. The single source for every zone decision.
+struct JogPadZone {
+    bool on_pad;
+    bool home;
+    JogDirection direction;
+    bool inner;
+};
+
+/// Classify a point at (@p dx, @p dy) pixels from the centre of a pad of radius
+/// @p radius. A point on an inert hub is not on the pad.
+JogPadZone jog_pad_zone_for_offset(int dx, int dy, int radius, const JogPadZoneOptions& options);
+} // namespace helix
+
 // Jog pad event callbacks
 // The jog callback returns whether a hold-to-repeat under way may keep
 // repeating this zone (false = the jog was refused or fully clamped).
@@ -83,6 +108,16 @@ void ui_jog_pad_set_mode(lv_obj_t* obj, helix::JogMode mode);
 helix::JogMode ui_jog_pad_get_mode(lv_obj_t* obj);
 
 /**
+ * Choose which zones the pad offers. A pad that never calls this keeps the full
+ * set.
+ *
+ * @param obj Jog pad object
+ * @param options Zones to offer
+ */
+// NAMESPACE_OK: joins this header's global ui_jog_pad_* free-function API
+void ui_jog_pad_set_zone_options(lv_obj_t* obj, const helix::JogPadZoneOptions& options);
+
+/**
  * Refresh colors from theme (call when theme changes)
  *
  * @param obj Jog pad object
@@ -112,6 +147,11 @@ void ui_jog_pad_set_enabled(lv_obj_t* obj, bool enabled);
  */
 void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed);
 
+namespace helix::ui {
+/// Whether the pad currently draws its home button as homed
+bool jog_pad_is_homed(lv_obj_t* obj);
+} // namespace helix::ui
+
 /**
  * Layout box for the home glyph inside its ring.
  *
@@ -128,6 +168,6 @@ void ui_jog_pad_set_homed(lv_obj_t* obj, bool homed);
  * @return the label box to pass to lv_draw_label
  */
 namespace helix {
-lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_coord_t home_radius,
+lv_area_t jog_pad_home_icon_area(int32_t center_x, int32_t center_y, int32_t home_radius,
                                  const lv_font_t* font);
 } // namespace helix

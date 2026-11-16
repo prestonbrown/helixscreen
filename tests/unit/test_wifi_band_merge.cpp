@@ -5,11 +5,10 @@
  * @file test_wifi_band_merge.cpp
  * @brief Band preservation across scan-result deduplication (helixscreen#1189)
  *
- * Before the fix, deduplicate_by_ssid() keyed on SSID alone and kept the
- * strongest signal. A dual-band router broadcasting one SSID on both radios
- * therefore lost its 5GHz BSS entirely: at any normal distance 2.4GHz wins on
- * RSSI, the 5GHz struct was discarded, and nothing recorded that the band had
- * ever been seen. These tests pin the replacement behaviour — one row per SSID,
+ * Keying deduplicate_by_ssid() on SSID alone and keeping the strongest signal
+ * would lose a dual-band router's 5GHz BSS entirely: at any normal distance
+ * 2.4GHz wins on RSSI, the 5GHz struct is discarded, and nothing records that
+ * the band was ever seen. These tests pin the behaviour: one row per SSID,
  * carrying the union of every band it was observed on.
  */
 

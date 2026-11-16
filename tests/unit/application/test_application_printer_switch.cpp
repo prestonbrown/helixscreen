@@ -36,11 +36,10 @@
  * against recorders that log their order and snapshot what had been arranged by then.
  */
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "application_test_fixture.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_cache_registry.h"
 #include "test_helpers/application_test_access.h"
 #include "test_helpers/config_test_access.h"
@@ -400,7 +399,7 @@ TEST_CASE_METHOD(PrinterSwitchFixture,
     CHECK(events_.empty());
 
     const auto exceptions_before = helix::ui::UpdateQueueTestAccess::callback_exception_count();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(events_.empty());
     lv_timer_handler();
 

@@ -13,7 +13,7 @@
  * housekeeping, an LED change) then hit the busy branch and toasted the user
  * about the very operation they had just started themselves.
  *
- * The fix is scoped to the TOAST DECISION only. Neither blocking-op predicate
+ * Only the TOAST DECISION changes. Neither blocking-op predicate
  * moves: motion must keep refusing a late jog during a filament op (#1108
  * toolhead-collision hazard). MoonrakerAPI::execute_gcode stamps
  * PrinterState::app_macro_activity() around every non-discretionary send, and
@@ -45,8 +45,8 @@ namespace {
 
 /// A macro/filament op — non-discretionary, so execute_gcode stamps it.
 constexpr const char* MACRO = "UNLOAD_FILAMENT";
-/// A benign discretionary command — never stamped, and the thing that used to
-/// trigger the spurious toast.
+/// A benign discretionary command: never stamped, and the one that must not
+/// trigger a spurious toast.
 constexpr const char* kDiscretionary = "M106 S128";
 /// A light tap: discretionary, and on its own enough to read idle_timeout
 /// "Printing" for most of a second.

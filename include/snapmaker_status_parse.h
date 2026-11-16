@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
 #include "snapmaker_print_preferences.h"
 
 #include <array>
@@ -9,8 +10,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_status_parse.h
@@ -33,6 +32,9 @@ struct ExtruderDelta {
     std::optional<int> switch_count;
     std::optional<int> retry_count;
     std::optional<int> error_count;
+    /// The fitted nozzle, which the firmware keeps outside the config.
+    std::optional<double> nozzle_diameter;         ///< mm
+    std::optional<std::string> nozzle_volume_type; ///< "standard" | "high_flow"
 };
 
 /// Per-extruder tool state from Snapmaker custom Klipper fields
@@ -45,6 +47,9 @@ struct ExtruderToolState {
     int switch_count = 0;                             ///< Total tool changes for this extruder
     int retry_count = 0;                              ///< Tool change retries
     int error_count = 0;                              ///< Tool change errors
+    /// The fitted nozzle as the head reports it; unset until it has.
+    std::optional<double> nozzle_diameter;
+    std::optional<std::string> nozzle_volume_type;
 
     /// Overlays the fields @p delta carries; an omitted field keeps its value.
     void apply(const ExtruderDelta& delta);

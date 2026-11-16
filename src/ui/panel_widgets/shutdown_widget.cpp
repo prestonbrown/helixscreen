@@ -8,10 +8,10 @@
 #include "ui_shutdown_modal.h"
 #include "ui_split_button.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "host_identity.h"
@@ -236,8 +236,6 @@ void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         [tok, api]() {
             spdlog::info("[ShutdownDialog] Printer shutdown ack'd — now shutting down screen");
             schedule_host_down_verification(api, /*is_reboot=*/false);
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_shutdown(); });
         },
         [tok](const MoonrakerError& err) {
@@ -247,8 +245,6 @@ void execute_both_shutdown(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             helix::ui::run_on_main("ShutdownDialog::shutdown_failed", []() {
                 ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Shutdown failed"), 6000);
             });
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_shutdown(); });
         });
 }
@@ -262,8 +258,6 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
         [tok, api]() {
             spdlog::info("[ShutdownDialog] Printer reboot ack'd — now rebooting screen");
             schedule_host_down_verification(api, /*is_reboot=*/true);
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_reboot(); });
         },
         [tok](const MoonrakerError& err) {
@@ -273,8 +267,6 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
             helix::ui::run_on_main("ShutdownDialog::reboot_failed", []() {
                 ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Reboot failed"), 6000);
             });
-            if (tok.expired())
-                return;
             tok.defer([]() { execute_screen_reboot(); });
         });
 }
@@ -360,11 +352,6 @@ void ShutdownWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
 
-    shutdown_btn_ = lv_obj_find_by_name(widget_obj_, "shutdown_button");
-    if (shutdown_btn_) {
-        lv_obj_add_event_cb(shutdown_btn_, shutdown_clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
     install_delete_hook(widget_obj_);
 }
 
@@ -376,7 +363,6 @@ void ShutdownWidget::detach() {
         shutdown_modal_.hide();
     }
 
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -387,7 +373,6 @@ void ShutdownWidget::on_hooked_root_deleted() {
     // than in this tile tree, so it is still alive here and hiding it needs a
     // non-delete context. detach() still runs later and does that.
     lifetime_.invalidate();
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -539,7 +524,7 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
 
 void ShutdownWidget::shutdown_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownWidget] shutdown_clicked_cb");
-    auto* self = static_cast<ShutdownWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<ShutdownWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_click();

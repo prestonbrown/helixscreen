@@ -385,7 +385,9 @@ TEST_CASE_METHOD(XMLTestFixture, "unload releases a plugin's canvases", "[plugin
             if i >= 64 then break end
         end
     )";
-    HostRig rig(enabled("canvas-fill", {}));
+    // Filling a whole budget's worth of canvas is far more work than a plugin
+    // entry is sized for, and a sanitizer build multiplies it.
+    HostRig rig(enabled("canvas-fill", {}), size_t(64) << 20, kSanitizerSlowdown);
     rig.host->load_from(tmp.path.string());
     REQUIRE(rig.info("canvas-fill")->status == PluginStatus::Loaded);
     auto filled = [&] {

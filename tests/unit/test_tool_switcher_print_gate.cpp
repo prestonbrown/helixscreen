@@ -33,10 +33,10 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
@@ -63,7 +63,7 @@ struct ToolSwitcherGateFixture : public LVGLTestFixture {
     /// A host-side pre-print block: the wire still reads standby.
     void set_preprint_phase(helix::PrintStartPhase phase) {
         printer_state.print_state().set_print_start_state(phase, "", 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::PrinterState printer_state;
@@ -174,7 +174,7 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture, "PAUSED refuses on a self-homing backe
     const AmsError refusal = ToolSwitcherTestAccess::refusal(widget);
     REQUIRE_FALSE(refusal.success());
     CHECK(refusal.user_msg == "Can't move filament while the print is paused");
-    // "while printing" on a paused job reads as a bug (bundle JX2FVRB9).
+    // "while printing" on a paused job reads as a bug.
     CHECK(refusal.user_msg.find("printing") == std::string::npos);
 
     ToolSwitcherTestAccess::select_tool(widget, 1);
@@ -203,9 +203,7 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture,
 
     // observe<int>() defers through the UpdateQueue, so the gate lands on
     // the next tick — drain before asserting.
-    auto tick = [] {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    };
+    auto tick = [] { helix::ui::UpdateQueue::instance().drain_until_empty(); };
 
     set_print_state(helix::PrintJobState::PRINTING);
     tick();

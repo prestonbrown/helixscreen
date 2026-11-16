@@ -238,3 +238,86 @@ EOF
     grep -q 'force-apply-patches HELIX_PATCHES_FROM_CLEAN=1' mk/patches.mk
     grep -q '^export HELIX_PATCHES_FROM_CLEAN' mk/patches.mk
 }
+
+# A source tarball unpacks the submodules as plain directories. The fixture
+# submodule loses its .git, and the superproject keeps or loses its own.
+untar_fixture() {
+    rm -rf "$SUB/.git"
+    if [ "${1:-}" = "in-superproject" ]; then
+        git -C "$ROOT" init -q
+    fi
+}
+
+@test "a submodule with no .git inside a git superproject is patched, not skipped" {
+    # git answers from the nearest enclosing repository, where every path in
+    # the patch is outside the submodule directory: `git apply` then skips
+    # them all and exits 0, which would print "applied" over an untouched file.
+    untar_fixture in-superproject
+    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+
+    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch already applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+}
+
+@test "a submodule with no repository anywhere is patched once" {
+    untar_fixture
+    GIT_CEILING_DIRECTORIES="$(dirname "$ROOT")" \
+        run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    GIT_CEILING_DIRECTORIES="$(dirname "$ROOT")" \
+        run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch already applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+}
+
+# A PATH holding every tool the helper uses except git.
+path_without_git() {
+    local bin="$BATS_TEST_TMPDIR/nogit-bin" tool
+    mkdir -p "$bin"
+    for tool in bash env sed sort grep cat dirname basename python3 patch; do
+        ln -sf "$(command -v "$tool")" "$bin/$tool"
+    done
+    printf '%s' "$bin"
+}
+
+@test "without git installed the patch still applies, once" {
+    untar_fixture
+    local nogit
+    nogit="$(path_without_git)"
+    PATH="$nogit" run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    PATH="$nogit" run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch already applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+    # No backup or reject files beside the patched one.
+    [ "$(ls "$SUB")" = "one.txt" ]
+}
+
+@test "without git a dead patch still reads as neither, never applied" {
+    untar_fixture
+    PATH="$(path_without_git)" run "$HELPER" "$SUB" "$ROOT/patches/dead.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'not verifiable in place' <<<"$output"
+    ! grep -q '✓.*fixture patch' <<<"$output"
+    [ "$(cat "$SUB/one.txt")" = "one" ]
+}
+
+@test "a submodule with no .git cannot back the from-clean claim" {
+    # Nothing can show such a tree is pristine, so the fatal stays holstered
+    # even where the enclosing repository would call the files clean.
+    untar_fixture in-superproject
+    git -C "$ROOT" add lib/fake/one.txt
+    git -C "$ROOT" -c user.email=t@example.invalid -c user.name=Fixture commit -qm vendored
+    HELIX_PATCHES_FROM_CLEAN=1 run "$HELPER" "$SUB" "$ROOT/patches/dead.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'not verifiable in place' <<<"$output"
+}

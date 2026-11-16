@@ -4,7 +4,7 @@
 
 #include "wifi_backend_macos.h"
 
-#include "log_redact.h"
+#include "core/log_redact.h"
 #include "safe_log.h"
 
 #include <spdlog/spdlog.h>

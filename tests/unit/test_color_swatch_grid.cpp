@@ -2,17 +2,22 @@
 
 #include "ui_color_picker.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
+#include "theme_manager.h"
 
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -48,7 +53,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "color_swatch_grid: a tap reports the tapped
         const auto& expected = helix::ui::swatch_palette(palette);
         // The palette follows the grid's hidden custom-colour lead tile.
         REQUIRE(lv_obj_get_child_count(grid) == expected.size() + 1);
-        CHECK(lv_obj_has_flag(lv_obj_get_child(grid, 0), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(lv_obj_get_child(grid, 0)));
 
         g_tapped.clear();
         for (uint32_t i = 0; i < expected.size(); ++i) {
@@ -66,20 +71,22 @@ TEST_CASE("swatch_needs_edge: a swatch too close to its surface gets an edge, in
     constexpr uint32_t kDarkDialog = 0x4C566A;
     constexpr uint32_t kLightScreen = 0xECEFF4;
     constexpr uint32_t kLightDialog = 0xEDEFF6;
-    // Dark-on-dark.
-    CHECK(helix::ui::swatch_needs_edge(0x000000, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x1A1A1A, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x4A4A4A, kDarkScreen));
-    CHECK(helix::ui::swatch_needs_edge(0x4A4A4A, kDarkDialog));
-    // Light-on-light.
-    CHECK(helix::ui::swatch_needs_edge(0xFFFFFF, kLightScreen));
-    CHECK(helix::ui::swatch_needs_edge(0xE8E8E8, kLightDialog));
-    CHECK(helix::ui::swatch_needs_edge(0xE0D5C7, kLightScreen));
-    // Plenty of contrast: no edge.
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0xFFFFFF, kDarkScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0x808080, kDarkScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0x1A1A1A, kLightScreen));
-    CHECK_FALSE(helix::ui::swatch_needs_edge(0xE53935, kLightDialog));
+    // Dark-on-dark and light-on-light get an edge; plenty of contrast does not.
+    for (const auto& [color, surface, edge] :
+         std::vector<std::tuple<uint32_t, uint32_t, bool>>{{0x000000, kDarkScreen, true},
+                                                           {0x1A1A1A, kDarkScreen, true},
+                                                           {0x4A4A4A, kDarkScreen, true},
+                                                           {0x4A4A4A, kDarkDialog, true},
+                                                           {0xFFFFFF, kLightScreen, true},
+                                                           {0xE8E8E8, kLightDialog, true},
+                                                           {0xE0D5C7, kLightScreen, true},
+                                                           {0xFFFFFF, kDarkScreen, false},
+                                                           {0x808080, kDarkScreen, false},
+                                                           {0x1A1A1A, kLightScreen, false},
+                                                           {0xE53935, kLightDialog, false}}) {
+        CAPTURE(color, surface);
+        CHECK(helix::ui::swatch_needs_edge(color, surface) == edge);
+    }
 }
 
 namespace {
@@ -116,7 +123,7 @@ std::map<std::string, int> read_px_tokens(const char* xml_path) {
 }
 
 /// The tier fallback chain the runtime resolver applies
-/// (src/ui/theme_responsive.cpp theme_manager_pick_px_tier): micro falls to
+/// (src/ui/theme/theme_responsive.cpp theme_manager_pick_px_tier): micro falls to
 /// tiny then small, tiny to small, and xlarge/xxlarge walk back down to large.
 /// Mirrored here so the test asserts the values a screen of each class
 /// actually resolves, not just the tiers that define their own entries.
@@ -196,7 +203,7 @@ namespace {
 
 bool shown(lv_obj_t* obj) {
     for (; obj; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN))
+        if (lv_obj_is_hidden(obj))
             return false;
     }
     return true;
@@ -276,4 +283,80 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         }
     }
     display.set_animations_enabled(animations);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The compact picker's tabs swap content and the open pill stays readable",
+                 "[color_picker]") {
+    const lv_color_t primary = theme_manager_get_color("primary");
+    const lv_color_t text = theme_manager_get_color("text");
+    REQUIRE(wcag::contrast(text, primary) < 4.0);
+
+    helix::test::ScopedBreakpoint bp(UiBreakpoint::Tiny);
+    helix::ui::ColorPicker picker;
+    picker.show_with_color(test_screen(), 0xFF0000);
+    auto settle = [] { helix::ui::UpdateQueue::instance().drain(); }; // deferred contrast pass
+    settle();
+    lv_obj_t* root =
+        lv_obj_find_by_name(lv_layer_top(), "btn_tab_presets") ? lv_layer_top() : test_screen();
+    auto find = [root](const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        return obj;
+    };
+    // The open tab is the filled pill, its label readable on primary.
+    auto open_tab_is = [&](const char* open, const char* closed) {
+        lv_obj_t* label = lv_obj_get_child(find(open), 0);
+        CHECK(lv_obj_get_style_bg_opa(find(open), LV_PART_MAIN) == LV_OPA_COVER);
+        CHECK(lv_obj_get_style_bg_opa(find(closed), LV_PART_MAIN) == LV_OPA_TRANSP);
+        CHECK(wcag::contrast(lv_obj_get_style_text_color(label, LV_PART_MAIN), primary) >= 4.0);
+    };
+
+    open_tab_is("btn_tab_presets", "btn_tab_custom");
+    CHECK_FALSE(lv_obj_is_hidden(find("presets_content")));
+    CHECK(lv_obj_is_hidden(find("custom_content")));
+
+    lv_obj_send_event(find("btn_tab_custom"), LV_EVENT_CLICKED, nullptr);
+    settle();
+    open_tab_is("btn_tab_custom", "btn_tab_presets");
+    CHECK(lv_obj_is_hidden(find("presets_content")));
+    CHECK_FALSE(lv_obj_is_hidden(find("custom_content")));
+
+    // A hex field that does not parse turns danger until it does.
+    lv_obj_t* hex = find("hex_input_tiny");
+    auto hex_is = [hex](const char* token) {
+        return lv_color_eq(lv_obj_get_style_text_color(hex, LV_PART_MAIN),
+                           theme_manager_get_color(token));
+    };
+    CHECK_FALSE(hex_is("danger"));
+    lv_textarea_set_text(hex, "#12");
+    CHECK(hex_is("danger"));
+    // Leaving the field puts the selected colour back untinted; the next bad entry tints again.
+    lv_obj_send_event(hex, LV_EVENT_DEFOCUSED, nullptr);
+    CHECK(std::string(lv_textarea_get_text(hex)) == "#FF0000");
+    CHECK_FALSE(hex_is("danger"));
+    lv_textarea_set_text(hex, "#12");
+    CHECK(hex_is("danger"));
+    lv_textarea_set_text(hex, "#123456");
+    CHECK_FALSE(hex_is("danger"));
+    picker.hide();
+}
+
+TEST_CASE("the general palette leads with the filament colours people load",
+          "[color_swatch_grid][palette]") {
+    // The spool editor shows only the palette's first row or two, so the core
+    // colours have to be in front: black, white, grey and every main hue.
+    const auto& palette = helix::ui::swatch_palette(helix::ui::ColorPicker::Palette::General);
+    REQUIRE(palette.size() == 30);
+    const std::vector<uint32_t> lead(palette.begin(), palette.begin() + 15);
+    auto has = [&](uint32_t c) { return std::find(lead.begin(), lead.end(), c) != lead.end(); };
+    for (uint32_t core : {0x1A1A1Au, 0xFFFFFFu, 0x7F7F7Fu, 0xE53935u, 0xFF9800u, 0xFFEB3Bu,
+                          0x43A047u, 0x1E88E5u, 0x7B1FA2u, 0xE91E63u}) {
+        CAPTURE(core);
+        CHECK(has(core));
+    }
+    // No two swatches alike.
+    std::vector<uint32_t> sorted(palette.begin(), palette.end());
+    std::sort(sorted.begin(), sorted.end());
+    CHECK(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
 }

@@ -2,7 +2,7 @@
 #pragma once
 #include "ams_standing_fault.h"
 #include "async_lifetime_guard.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "recovery_modal_presenter.h"
 
 #include <string>

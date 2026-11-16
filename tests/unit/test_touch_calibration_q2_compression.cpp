@@ -30,6 +30,7 @@
 #include "../test_helpers/touch_calibration_overlay_test_access.h"
 #include "../test_helpers/touch_calibration_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "misc/lv_event_private.h" // lv_event_dsc_t::filter — no public accessor
 #include "touch_calibration.h"
@@ -206,7 +207,7 @@ class Q2CompressionFixture : public XMLTestFixture {
 
         root_ = overlay_->create(screen_);
         REQUIRE(root_ != nullptr);
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root_, false);
 
         // The runtime overlay_width_transient token is not registered in the
         // unit-test XML scope; pin full-screen geometry deterministically.
@@ -258,7 +259,7 @@ class Q2CompressionFixture : public XMLTestFixture {
         for (int step = 0; step < 3; ++step) {
             const helix::Point target = panel_->get_target_position(step);
             const helix::Point raw{static_cast<int>(target.x * s), static_cast<int>(target.y * s)};
-            for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+            for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
                 panel_->on_press(raw);
             }
         }
@@ -368,7 +369,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     for (int step = 0; step < 3; ++step) {
         const helix::Point t = panel_->get_target_position(step);
         const helix::Point raw{t.x, (kMicroH - 1) - t.y}; // Y inverted at capture
-        for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
             panel_->on_press(raw);
         }
     }
@@ -466,7 +467,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     lv_obj_t* capture = lv_obj_find_by_name(screen_, "touch_capture_overlay");
     REQUIRE(capture != nullptr);
     // The capture surface MUST stay hidden in VERIFY or it covers Accept/Retry.
-    CHECK(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(capture));
 
     lv_obj_t* content = lv_obj_find_by_name(screen_, "calibration_content");
     REQUIRE(content != nullptr);
@@ -497,7 +498,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     lv_obj_t* chip = lv_obj_find_by_name(screen_, "cancel_chip");
     REQUIRE(chip != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
 
     lv_area_t a{};
     lv_obj_get_coords(chip, &a);
@@ -563,8 +564,8 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     // The exit was requested...
     CHECK_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(q));
     // ...but nothing has been destroyed or moved yet.
-    CHECK(lv_obj_is_valid(root_));
-    CHECK(lv_obj_is_valid(capture));
+    CHECK(helix::test::widget_in_tree(root_));
+    CHECK(helix::test::widget_in_tree(capture));
     CHECK(lv_obj_get_parent(capture) == capture_parent);
 
     // Drop the deferred pop rather than running it: it closes over this
@@ -585,7 +586,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     lv_obj_t* hint = lv_obj_find_by_name(screen_, "hold_hint");
     REQUIRE(hint != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(hint, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(hint));
 
     lv_area_t h{};
     lv_obj_get_coords(hint, &h);
@@ -616,7 +617,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     CHECK_FALSE(overlaps_chip);
 
     // It must not eat touches meant for the capture surface.
-    CHECK_FALSE(lv_obj_has_flag(hint, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(hint));
 
     // Visible exactly during active capture, like the Cancel chip.
     struct StateVis {
@@ -628,7 +629,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
         lv_subject_set_int(state_, sv.st);
         lv_obj_update_layout(screen_);
         INFO("hold hint in state " << sv.st << " expected hidden=" << sv.hidden);
-        CHECK(lv_obj_has_flag(hint, LV_OBJ_FLAG_HIDDEN) == sv.hidden);
+        CHECK(lv_obj_is_hidden(hint) == sv.hidden);
     }
 }
 
@@ -716,7 +717,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     REQUIRE(capture != nullptr);
     // The surface that carried the VERIFY press handler is hidden in VERIFY (it
     // has to be, or it covers Accept), which is why the counters never moved.
-    REQUIRE(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(capture));
 
     REQUIRE(helix::TouchCalibrationPanelTestAccess::verify_raw_touch_count(*panel_) == 0);
 
@@ -726,14 +727,14 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     // report_verify_touch() and the fast-revert net's counters stayed at zero.
     lv_obj_t* content = lv_obj_find_by_name(screen_, "calibration_content");
     REQUIRE(content != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(content, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(content));
 
     INFO("calibration_content event count = " << lv_obj_get_event_count(content));
     CHECK(lv_obj_get_event_count(content) > 0);
     CHECK(has_event_for(content, LV_EVENT_PRESSED));
     CHECK(has_event_for(content, LV_EVENT_RELEASED));
     // ...and it must be clickable, or LVGL never hit-tests it in the first place.
-    CHECK(lv_obj_has_flag(content, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(content));
 
     // --- Counting: a delivered VERIFY press arms the fast-revert heuristic ----
     overlay_->handle_screen_touched(nullptr);
@@ -863,7 +864,7 @@ void capture_with_raw(helix::TouchCalibrationPanel& panel, double shear) {
         const helix::Point raw{target.x + static_cast<int>(target.y * shear), target.y};
         const helix::Point touch{evdev_scale(raw.x, kMicroW - 1, kMicroW - 1),
                                  evdev_scale(raw.y, kDeclaredMaxY, kMicroH - 1)};
-        for (int i = 0; i < helix::TouchCalibrationPanelTestAccess::samples_required(); ++i) {
+        for (int i = 0; i < panel.get_progress().total_samples; ++i) {
             panel.add_sample(touch, &raw);
         }
     }
@@ -902,5 +903,35 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     CHECK(sink_.live.range.max_y == kDeclaredMaxY);
     CHECK(sink_.live.source == helix::TouchRangeSource::Declared);
+    CHECK(sink_.affine_enabled);
+}
+
+// ============================================================================
+// Screensaver: a suspend keeps the capture session
+// ============================================================================
+
+TEST_CASE_METHOD(Q2CompressionFixture,
+                 "Touch calibration: a screensaver wake resumes the capture session",
+                 "[touch][calibration][suspend]") {
+    sink_.stored = identity_cal();
+    helix::ui::TouchCalibrationOverlayTestAccess::begin_session(*overlay_);
+    activate_at_idle();
+    panel_->start();
+    const helix::Point first = panel_->get_target_position(0);
+    for (int i = 0; i < panel_->get_progress().total_samples; ++i) {
+        panel_->on_press(first);
+    }
+    REQUIRE(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    REQUIRE_FALSE(sink_.affine_enabled);
+
+    overlay_->on_deactivate(DeactivateReason::Suspended);
+    overlay_->on_activate();
+
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::POINT_2);
+    CHECK_FALSE(sink_.affine_enabled);
+
+    // Dismissing the overlay still ends the session and re-arms touch.
+    overlay_->on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(panel_->get_state() == helix::TouchCalibrationPanel::State::IDLE);
     CHECK(sink_.affine_enabled);
 }

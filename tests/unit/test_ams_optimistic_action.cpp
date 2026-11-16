@@ -17,10 +17,11 @@
  */
 
 #include "ui_ams_sidebar.h"
-#include "ui_update_queue.h"
+#include "ui_obj_flags.h"
 
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/armed_timers.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
@@ -28,14 +29,16 @@
 #include "ams_state.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "core/timer_guard.h"
+#include "core/update_queue.h"
 #include "filament_op_heater.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "moonraker_client_mock.h"
 #include "post_op_cooldown_manager.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/ams_sidebar_xml.h"
 #include "test_helpers/ams_state_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/gcode_recording_api.h"
 #include "test_helpers/happy_hare_test_access.h"
@@ -156,11 +159,10 @@ class AfcOptimisticBackend : public AmsBackendAfc {
 /// Snapmaker U1, running, sending through @p api. The firmware publishes
 /// nothing for an AUTO_FEEDING it has accepted until its channel_state moves,
 /// and the AUTO_FEEDING answer arrives only when the feed is over.
-class U1OptimisticBackend : public AmsBackendSnapmaker {
+class U1OptimisticBackend : public test::StartedBackend<AmsBackendSnapmaker> {
   public:
-    explicit U1OptimisticBackend(IMoonrakerAPI* api) : AmsBackendSnapmaker(api, nullptr) {
-        running_.store(true);
-    }
+    explicit U1OptimisticBackend(IMoonrakerAPI* api)
+        : test::StartedBackend<AmsBackendSnapmaker>(api) {}
 
     /// One head's filament_feed channel and motion sensor through the real
     /// status parser: a fitted module in automatic mode with its sensor armed,
@@ -177,7 +179,7 @@ class U1OptimisticBackend : public AmsBackendSnapmaker {
                 {"disable_auto", !auto_mode}}}}},
             {"filament_motion_sensor e" + std::to_string(extruder) + "_filament",
              {{"enabled", true}}}};
-        SnapmakerTestAccess::handle_status(*this, status);
+        fire_status(status);
     }
 
     /// Head @p extruder loaded to its nozzle and active.
@@ -193,9 +195,7 @@ namespace printer {
 /// CFS, running, with the action script captured instead of sent.
 class CfsOptimisticBackend : public AmsBackendCfs {
   public:
-    CfsOptimisticBackend() : AmsBackendCfs(nullptr, nullptr) {
-        running_ = true;
-    }
+    using AmsBackendCfs::AmsBackendCfs;
     bool toolhead_homed() const override {
         return true;
     }
@@ -236,7 +236,7 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
 
     ~OptimisticSidebarFixture() override {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         helix::ui::UpdateQueue::instance().drain();
@@ -253,15 +253,10 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     /// found by its owner and fired directly.
     void let_watchdog_run() {
         // A deferred callback can queue another, so drain until quiet.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-        int fired = 0;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (lv_timer_get_user_data(t) == sidebar_.get()) {
-                t->timer_cb(t);
-                ++fired;
-            }
-        }
-        REQUIRE(fired == 1);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        const auto armed = helix::test::armed_timers_for(sidebar_.get());
+        REQUIRE(armed.size() == 1);
+        armed[0]->timer_cb(armed[0]);
     }
 
     [[nodiscard]] helix::HhOptimisticBackend& build_hh() {
@@ -275,7 +270,7 @@ struct OptimisticSidebarFixture : public XMLTestFixture {
     [[nodiscard]] bool steps_shown() const {
         lv_obj_t* container = lv_obj_find_by_name(panel_, "progress_stepper_container");
         REQUIRE(container != nullptr);
-        return !lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(container);
     }
 
     /// The step bar widget the sidebar has built, or null.
@@ -382,7 +377,8 @@ TEST_CASE_METHOD(OptimisticSidebarFixture, "AFC unload: AFC's own dispatch actio
 
 TEST_CASE_METHOD(OptimisticSidebarFixture, "CFS unload: CFS's own dispatch action holds the window",
                  "[ams][optimistic_action][cfs]") {
-    auto& cfs = build<helix::printer::CfsOptimisticBackend>();
+    auto& cfs = build<helix::test::WiredBackend<helix::printer::CfsOptimisticBackend>>();
+    REQUIRE(cfs.start().success());
     helix::CfsTestAccess::set_loaded_state(cfs, true, 1);
     AmsState::instance().sync_from_backend();
 
@@ -391,9 +387,9 @@ TEST_CASE_METHOD(OptimisticSidebarFixture, "CFS unload: CFS's own dispatch actio
     REQUIRE(cfs.dispatched.size() == 1);
 
     // The K2 streams extruder temperatures while it heats for the cut.
-    helix::CfsTestAccess::handle_status(
-        cfs, {{"params", nlohmann::json::array(
-                             {{{"extruder", {{"temperature", 180.0}, {"target", 220.0}}}}, 0.0})}});
+    cfs.fire_status(
+        {{"params", nlohmann::json::array(
+                        {{{"extruder", {{"temperature", 180.0}, {"target", 220.0}}}}, 0.0})}});
     let_watchdog_run();
     CHECK(shown_action() != AmsAction::IDLE);
 }
@@ -765,6 +761,10 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     sidebar_->handle_load_with_preheat(2);
     REQUIRE(api_.sent == std::vector<std::string>{"AUTO_FEEDING EXTRUDER=2 LOAD=1"});
 
+    // A cancelled, not yet reaped timer at the sidebar's address is not its
+    // watchdog.
+    lv_timer_t* reused = lv_timer_create([](lv_timer_t*) {}, 1000, sidebar_.get());
+    helix::ui::lv_timer_cancel_safe(reused);
     let_watchdog_run();
     CHECK(shown_action() != AmsAction::IDLE);
     CHECK(steps_shown());
@@ -844,7 +844,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     // Mark the bar, so a rebuilt one cannot pass for it at a reused address.
     lv_obj_t* bar = stepper();
     REQUIRE(bar != nullptr);
-    lv_obj_add_flag(bar, LV_OBJ_FLAG_USER_1);
+    helix::ui::obj_set_flags(bar, LV_OBJ_FLAG_USER_1, true);
 
     for (const char* phase : {"unload_heating", "unload_doing"}) {
         u1.feed(0, phase);
@@ -853,7 +853,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
         CHECK(shown_steps() == helix::StepOperationType::UNLOAD);
         CHECK(steps_shown());
         REQUIRE(stepper() == bar);
-        CHECK(lv_obj_has_flag(bar, LV_OBJ_FLAG_USER_1));
+        CHECK(helix::ui::obj_has_flags(bar, LV_OBJ_FLAG_USER_1));
         CHECK(lv_obj_get_child_count(lv_obj_find_by_name(panel_, "progress_stepper_container")) ==
               1);
     }

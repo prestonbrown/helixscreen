@@ -23,13 +23,13 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "pre_print_option.h"
 #include "printer_detector.h"
@@ -227,9 +227,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                 lv_obj_t* const row = lv_obj_find_by_name(root, name);
                 REQUIRE(row != nullptr);
                 if (compact) {
-                    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+                    CHECK(lv_obj_is_hidden(row));
                 } else {
-                    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+                    CHECK_FALSE(lv_obj_is_hidden(row));
                 }
             }
         }
@@ -343,11 +343,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* const card = lv_obj_find_by_name(root, "options_card");
     REQUIRE(card != nullptr);
-    CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(card));
 
     lv_obj_t* const print = lv_obj_find_by_name(root, "print_button");
     REQUIRE(print != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(print, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(print));
     const Rect r = coords_of(print);
     CHECK(r.x1 >= 0);
     CHECK(r.y1 >= 0);
@@ -423,11 +423,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(skeleton != nullptr);
         lv_subject_set_int(ready, 1);
         lv_obj_update_layout(root);
-        REQUIRE_FALSE(lv_obj_has_flag(chips, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(chips));
         const Rect chips_r = coords_of(chips);
         lv_subject_set_int(ready, 0);
         lv_obj_update_layout(root);
-        REQUIRE_FALSE(lv_obj_has_flag(skeleton, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(skeleton));
         const Rect skel_r = coords_of(skeleton);
         CHECK(skel_r.x1 == chips_r.x1);
         CHECK(skel_r.y1 == chips_r.y1);
@@ -445,6 +445,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         ps, PrinterDetector::get_pre_print_option_set("Snapmaker U1"));
     PrinterStateTestAccess::refresh_option_visibility(ps);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "has_any_preprint_options")) == 1);
+
+    // The scene is measured with AmsState's subjects unpublished, as this file's
+    // ScopedAmsBackend leaves them; a test that published them and walked away
+    // would bind the bypass card hidden and shorten the column.
+    helix::AmsState::instance().deinit_subjects();
+    // A name published through register_xml_subject_names() survives the deinit.
+    lv_xml_unregister_subject(nullptr, "ams_bypass_active");
+    REQUIRE(lv_xml_get_subject(nullptr, "ams_bypass_active") == nullptr);
 
     // No filament card: the options column is short enough to fit whole
     // above the width/3 floor at a micro portrait canvas.

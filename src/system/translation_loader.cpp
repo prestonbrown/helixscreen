@@ -3,7 +3,7 @@
 
 #include "translation_loader.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "helix_regex.h"
 #include "lvgl/src/misc/lv_text_private.h"
 

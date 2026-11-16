@@ -20,31 +20,26 @@ All actual frame capture, rendering, and video storage is handled by the moonrak
 
 ---
 
-## Graduation from Beta
-
-Timelapse was initially a beta feature. As of v0.99, it is available to all users without enabling beta features. The `<beta_feature>` XML wrappers have been removed, and `PrinterCapabilitiesState` no longer gates timelapse behind `Config::is_beta_features_enabled()`.
-
----
-
 ## Plugin Detection
 
-Detection happens during printer hardware discovery in `PrinterDiscovery`. Moonraker reports `timelapse` as a registered component when the plugin is loaded:
-
-```
-PrinterDiscovery::parse_objects() -> name == "timelapse" -> has_timelapse_ = true
-```
+moonraker-timelapse is a Moonraker component (`moonraker.conf`), not a Klipper object, so it never appears in `printer.objects.list`. The discovery sequence detects it in Moonraker's component list (`src/api/moonraker_discovery_sequence.cpp`): it calls `PrinterState::set_timelapse_available(false)` first, so switching to a printer without the plugin clears it, then `set_timelapse_available(true)` when `timelapse` is listed.
 
 This flows through:
-1. `PrinterDiscovery::has_timelapse()` -- raw detection result
-2. `PrinterCapabilitiesState::set_hardware()` -- gates behind beta, sets `printer_has_timelapse` subject
-3. XML bindings react: timelapse settings row shown (plugin installed) or setup row shown (plugin missing + webcam present)
+1. `PrinterCapabilitiesState::set_hardware()` -- ORs `PrinterDiscovery::has_timelapse()` (a Klipper `[timelapse]` object, if one ever exists) with the component-detected value, so the hardware batch never clears a detected plugin, and sets the `printer_has_timelapse` subject
+2. XML bindings react: timelapse settings row shown (plugin installed) or setup row shown (plugin missing + webcam present)
 
 The advanced panel uses dual visibility binding for the setup row:
 ```xml
-<bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="1"/>
+<bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="0"/>
 <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
 ```
-This means "show when timelapse is NOT installed AND webcam IS available."
+This means "show when nothing records timelapses AND webcam IS available."
+
+### Firmware-owned timelapse
+
+A printer whose database entry declares a pre-print option with `"capability": "timelapse"` records timelapses in its firmware (Snapmaker U1: `u1_timelapse`, which writes `time_lapse_camera`). That firmware can also register a stub `timelapse` Moonraker component that answers `/machine/timelapse/settings` with `{"enabled": false}` and ignores writes, so `printer_has_timelapse` alone does not mean the plugin works.
+
+The `timelapse_owner` subject (`TimelapseOwner`: 0 none, 1 plugin, 2 firmware) carries the decision. Firmware outranks the plugin. The plugin settings row and the Print Status button need owner 1, and the install row needs owner 0. On a firmware-owned printer the pre-print option is the only control. The Timelapse Videos row, the printer manager chip and `has_any_preprint_options` still read `printer_has_timelapse`.
 
 ---
 
@@ -58,13 +53,13 @@ This means "show when timelapse is NOT installed AND webcam IS available."
 | 2. Check plugin | `api->get_timelapse_settings()` -- skip to done if already responding |
 | 3. SSH instructions | Show git clone + make install commands; user taps "Check Again" |
 | 4. Configure Moonraker | Download `moonraker.conf`, check/append `[timelapse]` + `[update_manager timelapse]` sections, upload |
-| 5. Restart Moonraker | `api->restart_moonraker()` with 15s disconnect suppression |
+| 5. Restart Moonraker | `api->restart_moonraker()` with 20 s disconnect suppression |
 | 6. Verify | Re-query `get_timelapse_settings()` after 8s delay, update capability state on success |
 
 Key patterns:
 - **Alive guard**: `std::shared_ptr<bool>` captures prevent callbacks from touching destroyed overlay
-- **Config modification**: `has_timelapse_section()` / `append_timelapse_config()` are pure static functions (public for testability, 23 unit tests)
-- **Disconnect suppression**: `EmergencyStopOverlay::instance().suppress_recovery_dialog(15000)` prevents the disconnect modal during intentional Moonraker restart
+- **Config modification**: `has_timelapse_section()` / `append_timelapse_config()` are pure static functions, public for testability (`tests/unit/test_timelapse_install.cpp`)
+- **Disconnect suppression**: `EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG)` prevents the disconnect modal during intentional Moonraker restart
 
 ---
 
@@ -86,8 +81,9 @@ Settings are read via `GET /machine/timelapse/settings` and saved via `POST /mac
 ## Print Status Toggle
 
 `PrintLightTimelapseControls` manages the timelapse toggle button on the print status panel. It:
-- Shows a video/video-off icon with On/Off label via string subjects (`timelapse_button_icon`, `timelapse_button_label`)
+- Shows a video/video-off icon via the `timelapse_button_icon` string subject, from the `timelapse_enabled` subject: the plugin's global setting, seeded at discovery and refreshed by every successful write from this button, the settings overlay and the pre-print toggle
 - Calls `api->set_timelapse_enabled(bool)` on click
+- Is hidden unless `timelapse_owner` is 1 (plugin), because firmware-owned timelapse is set per print and a plugin write does nothing there
 - Uses `ui_queue_update()` to marshal UI updates from API callback thread to LVGL thread
 
 This class also manages the light button (LED toggle) -- they share the same helper since both appear as action buttons on the print status panel.
@@ -96,7 +92,7 @@ This class also manages the light button (LED toggle) -- they share the same hel
 
 ## Moonraker API Methods
 
-All timelapse API methods are in `MoonrakerAPI` (declared in `moonraker_api.h`, implemented in `moonraker_timelapse_api.cpp`):
+The timelapse methods are on the `ITimelapseAPI` sub-API (`api->timelapse()`, declared in `include/i_moonraker_sub_apis.h`, implemented in `src/api/moonraker_timelapse_api.cpp`); `restart_moonraker()` is on `IMoonrakerAPI` and the file calls are on the files sub-API:
 
 | Method | HTTP | Endpoint |
 |--------|------|----------|
@@ -113,9 +109,7 @@ All timelapse API methods are in `MoonrakerAPI` (declared in `moonraker_api.h`, 
 
 ---
 
-## Phase 2: Event Handling & Video Management
-
-Phase 2 adds real-time timelapse event handling, render progress tracking, and video management to the settings overlay.
+## Event Handling & Video Management
 
 ### TimelapseState
 
@@ -132,15 +126,7 @@ Subjects are initialized in `subject_initializer.cpp` and frame count resets whe
 
 ### Event Handling
 
-The moonraker-timelapse plugin emits `notify_timelapse_event` WebSocket notifications. HelixScreen subscribes to these in `application.cpp`:
-
-```cpp
-// On connect:
-register_method_callback("notify_timelapse_event", "timelapse_handler", callback);
-
-// On shutdown:
-unregister_method_callback("notify_timelapse_event", "timelapse_handler");
-```
+The moonraker-timelapse plugin emits `notify_timelapse_event` WebSocket notifications. `TimelapseState::attach(client)` registers the `timelapse_state` handler for them and `detach(client)` removes it (`src/printer/timelapse_state.cpp`).
 
 `TimelapseState::handle_timelapse_event()` dispatches based on the `action` field:
 
@@ -161,7 +147,7 @@ On render success, the frame count resets to 0 and the render section hides auto
 
 ### Video Management
 
-The timelapse settings overlay (Phase 1) was extended with video management capabilities:
+The timelapse settings overlay manages videos:
 
 | Action | API Call | Description |
 |--------|----------|-------------|
@@ -176,13 +162,13 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 `TimelapseVideosOverlay` provides a dedicated overlay for browsing, rendering, and playing timelapse videos. Accessed from the **Advanced > Timelapse Videos** row.
 
 **Features:**
-- **Responsive thumbnail grid** — cards auto-size to fit 2 rows on screen using `calculate_card_dimensions()` (same pattern as print file selection)
-- **Companion thumbnails** — extracted from video first frame via ffmpeg, stored as `.thumb.jpg` alongside videos
-- **Thumbnail caching** — uses the shared `ThumbnailCache` with `tl_` prefixed cache keys
-- **Render controls** — frame count with capture info (filename + date), progress bar with inline status text, Render Now button
-- **Video playback** — detects available player (mpv preferred, ffplay fallback), launches fullscreen with auto-exit
-- **Delete with confirmation** — long-press card for delete option, confirmation dialog before removal
-- **Generation-based stale rejection** — `nav_generation_` and `thumb_generation_` counters prevent stale async callbacks from modifying UI after navigation changes
+- **Responsive thumbnail grid** - cards auto-size to fit 2 rows on screen using `calculate_card_dimensions()` (same pattern as print file selection)
+- **Companion thumbnails** - the preview moonraker-timelapse renders as `<name>.jpg` beside each video (`<name>.thumb.jpg` is also accepted), fetched from the `timelapse` root
+- **Thumbnail caching** - uses the shared `ThumbnailCache` (`get_thumbnail_cache()`, keyed by `thumbnail_cache_id()`)
+- **Render controls** - frame count with capture info (filename + date), progress bar with inline status text, Render Now button
+- **Video playback** - detects available player (mpv preferred, ffplay fallback), launches fullscreen with auto-exit
+- **Delete with confirmation** - long-press card for delete option, confirmation dialog before removal
+- **Generation-based stale rejection** - `nav_generation_` and `thumb_generation_` counters prevent stale async callbacks from modifying UI after navigation changes
 
 **Playback arguments:**
 | Player | Arguments |
@@ -197,18 +183,17 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 
 ### Timelapse Thumbnailer
 
-`TimelapseThumbnailer` (in `src/print/timelapse_thumbnailer.cpp`) provides utility functions:
+`include/timelapse_thumbnailer.h` (namespace `helix::timelapse`, implemented in `src/print/timelapse_thumbnailer.cpp`) provides utility functions:
 
 | Function | Purpose |
 |----------|---------|
-| `cache_key(filename)` | Generates `tl_` prefixed hash key for thumbnail cache |
-| `companion_filename(video)` | Converts `video.mp4` → `video.thumb.jpg` |
+| `find_companion_thumbnail(video, listing)` | The preview beside a video: moonraker-timelapse's `video.jpg`, else `video.thumb.jpg` |
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
 | `build_player_args(player, path)` | Builds player-specific argument list |
 
 Local vs remote playback is decided by the `moonraker_is_remote` subject
-(`PrinterState::is_moonraker_remote()`) — the live websocket endpoint's verdict —
+(`PrinterState::is_moonraker_remote()`) - the live websocket endpoint's verdict -
 not by a hostname check in the thumbnailer.
 
 ---
@@ -218,27 +203,26 @@ not by a hostname check in the thumbnailer.
 | File | Purpose |
 |------|---------|
 | `include/ui_overlay_timelapse_install.h` | Install wizard overlay class |
-| `src/ui/ui_overlay_timelapse_install.cpp` | Wizard step implementation |
+| `src/ui/print/ui_overlay_timelapse_install.cpp` | Wizard step implementation |
 | `ui_xml/timelapse_install_overlay.xml` | Install wizard layout (step progress, SSH instructions, action button) |
 | `include/ui_overlay_timelapse_settings.h` | Settings overlay class |
-| `src/ui/ui_overlay_timelapse_settings.cpp` | Settings fetch/save, event handlers |
+| `src/ui/print/ui_overlay_timelapse_settings.cpp` | Settings fetch/save, event handlers |
 | `ui_xml/timelapse_settings_overlay.xml` | Settings layout (toggles, dropdowns) |
 | `include/ui_print_light_timelapse.h` | Print status light + timelapse button helper |
-| `src/ui/ui_print_light_timelapse.cpp` | Toggle handlers, subject management |
+| `src/ui/print/ui_print_light_timelapse.cpp` | Toggle handlers, subject management |
 | `include/printer_capabilities_state.h` | `printer_has_timelapse` subject |
 | `src/printer/printer_capabilities_state.cpp` | Capability-gated setter (`printer_has_timelapse`) |
 | `include/printer_discovery.h` | `has_timelapse()` detection from Moonraker objects |
 | `include/moonraker_types.h` | `TimelapseSettings` struct |
 | `src/api/moonraker_timelapse_api.cpp` | HTTP API methods for timelapse |
 | `src/api/moonraker_api_controls.cpp` | Contains `restart_moonraker()` |
-| `tests/unit/test_timelapse_install.cpp` | 23 tests for config parsing |
+| `tests/unit/test_timelapse_install.cpp` | Config parsing tests |
 | `ui_xml/advanced_panel.xml` | Timelapse/Setup rows (capability-gated on `printer_has_timelapse`) |
-| `ui_xml/beta_feature.xml` | Beta feature wrapper component |
 | `include/timelapse_state.h` | TimelapseState singleton class |
 | `src/printer/timelapse_state.cpp` | Event dispatch, subject management, render notifications |
 | `tests/unit/test_timelapse_state.cpp` | Unit tests for TimelapseState event handling and notifications |
 | `include/ui_overlay_timelapse_videos.h` | Video browser overlay class |
-| `src/ui/ui_overlay_timelapse_videos.cpp` | Video grid, thumbnails, playback, render controls |
+| `src/ui/print/ui_overlay_timelapse_videos.cpp` | Video grid, thumbnails, playback, render controls |
 | `ui_xml/timelapse_videos_overlay.xml` | Video browser layout (render section, grid, empty state) |
 | `ui_xml/timelapse_video_card.xml` | Individual video card component (thumbnail, gradient, labels) |
 | `include/timelapse_thumbnailer.h` | Thumbnail extraction and playback utilities |
@@ -246,4 +230,3 @@ not by a hostname check in the thumbnailer.
 | `tests/unit/test_timelapse_videos.cpp` | Playback argument construction tests |
 | `include/ui_format_utils.h` | `format_short_date()` for smart date display |
 | `src/ui/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |
-| Archived timelapse design doc (no longer in-tree) | Future phases |

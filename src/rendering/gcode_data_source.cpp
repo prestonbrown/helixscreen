@@ -43,7 +43,6 @@ std::optional<std::string> GCodeDataSource::read_line(uint64_t offset, size_t ma
         return ""; // At end of file
     }
 
-    // Find newline
     auto newline_pos = std::find(data.begin(), data.end(), '\n');
     size_t line_len = std::distance(data.begin(), newline_pos);
 

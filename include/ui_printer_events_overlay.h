@@ -3,10 +3,11 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "printer_event_journal.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
@@ -41,6 +42,9 @@ class PrinterEventsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "printer_events_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     /// Fill the list from @p entries, which came from @p source.
     void show_entries(JournalSource source, std::vector<JournalEntry> entries);
@@ -53,11 +57,11 @@ class PrinterEventsOverlay : public OverlayBase {
 
     bool ui_alive_ = false;
     SubjectManager subjects_;
-    lv_subject_t count_subject_{};
-    lv_subject_t source_subject_{};
+    helix::Subject count_subject_{};
+    helix::Subject source_subject_{};
     char source_buf_[96] = {};
     /// 1 when there is no source at all (JournalSource::None)
-    lv_subject_t unavailable_subject_{};
+    helix::Subject unavailable_subject_{};
 
     helix::xml::IndexedSubjectPool severity_pool_{"printer_event_severity",
                                                   helix::xml::IndexedSubjectPool::Type::Int};

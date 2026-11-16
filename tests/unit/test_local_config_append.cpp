@@ -11,8 +11,8 @@
  * the result with a rename rather than an in-place rewrite.
  */
 
+#include "core/text_io.h"
 #include "system/moonraker_local_probe.h"
-#include "text_io.h"
 
 #include <filesystem>
 #include <fstream>

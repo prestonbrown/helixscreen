@@ -22,7 +22,6 @@
 
 #include "ui_modal.h"
 #include "ui_panel_advanced.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/advanced_panel_test_access.h"
@@ -30,6 +29,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <string>
@@ -136,6 +136,12 @@ struct PluginUninstallFixture : LVGLUITestFixture {
         return lv_label_get_text(message);
     }
 
+    /// Whether the open dialog shows its part named @p name.
+    bool shown(const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(ModalStack::instance().top_dialog(), name);
+        return obj && !lv_obj_is_hidden(obj) && !lv_obj_is_hidden(lv_obj_get_parent(obj));
+    }
+
     /// A backdrop tap: the dismissal path no button answers.
     void dismiss_modal() {
         lv_obj_t* dialog = ModalStack::instance().top_dialog();
@@ -229,6 +235,7 @@ TEST_CASE_METHOD(PluginUninstallFixture,
 
     CHECK(restarts == 1);
     CHECK(message.find("restarting") != std::string::npos);
+    CHECK((shown("result_title") && !shown("result_title_failed") && !shown("local_button_row")));
     // Files on disk are not a loaded plugin: the reconnect's check decides.
     CHECK(plugin_installed() == 0);
 }
@@ -242,6 +249,7 @@ TEST_CASE_METHOD(PluginUninstallFixture, "a failed install restarts nothing",
 
     CHECK(restarts == 0);
     CHECK(message.find("restarting") == std::string::npos);
+    CHECK((shown("result_title_failed") && !shown("result_title") && shown("btn_ok")));
     CHECK(plugin_installed() == 0);
 }
 
@@ -313,12 +321,41 @@ TEST_CASE_METHOD(PluginUninstallFixture, "the plugin overview row shows only whi
     REQUIRE(root != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(root, "row_helix_plugin_overview");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     get_printer_state().set_helix_plugin_installed(false);
     UpdateQueue::instance().drain();
     REQUIRE(plugin_installed() != 1);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_obj_delete(root);
+}
+
+// The phase-tracking toggle stays out of the app (#1234). Each case first proves
+// its setup ran, so the absence assertions cannot pass on a setup that did nothing.
+TEST_CASE_METHOD(PluginUninstallFixture, "advanced panel builds without a phase tracking row",
+                 "[advanced][plugin][1234]") {
+    lv_obj_t* root =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "advanced_panel", nullptr));
+    REQUIRE(root != nullptr);
+
+    // Positive controls: the panel's plugin and macro rows all built.
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_plugin_install") != nullptr);
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_macros_install") != nullptr);
+    REQUIRE(lv_obj_find_by_name(root, "row_helix_macros_update") != nullptr);
+
+    CHECK(lv_obj_find_by_name(root, "row_phase_tracking") == nullptr);
+    CHECK(lv_obj_find_by_name(root, "container_phase_tracking") == nullptr);
+
+    lv_obj_delete(root);
+}
+
+TEST_CASE_METHOD(PluginUninstallFixture, "no phase_tracking_enabled subject is registered",
+                 "[plugin][1234]") {
+    // The scope is live and holds the plugin subjects...
+    REQUIRE(lv_xml_get_subject(nullptr, "helix_plugin_installed") != nullptr);
+    REQUIRE(lv_xml_get_subject(nullptr, "helix_macros_status") != nullptr);
+
+    // ...and the phase-tracking subject is not among them.
+    CHECK(lv_xml_get_subject(nullptr, "phase_tracking_enabled") == nullptr);
 }

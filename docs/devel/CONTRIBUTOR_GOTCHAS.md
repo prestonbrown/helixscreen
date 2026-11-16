@@ -96,7 +96,7 @@ Reference: lesson **L046**.
 **Fix:** Register in one of two places:
 
 - **Global / reusable callbacks:** `register_xml_components()` in `src/xml_registration.cpp`.
-- **Panel / modal-specific callbacks:** In the class's `register_callbacks()` method or constructor. Example: `src/ui/ui_panel_macros.cpp#register_callbacks`.
+- **Panel / modal-specific callbacks:** In the class's `register_callbacks()` method or constructor. Example: `src/ui/controls/ui_panel_macros.cpp#register_callbacks`.
 
 ```cpp
 lv_xml_register_event_cb(nullptr, "on_my_button_clicked", on_my_button_clicked);
@@ -120,13 +120,10 @@ lv_xml_register_event_cb(nullptr, "on_my_button_clicked", on_my_button_clicked);
 
 **Cause:** You added a codepoint to `include/ui_icon_codepoints.h` but didn't regenerate the icon fonts.
 
-**Fix:** Three steps, all required:
-
-1. Add the icon name + codepoint to `include/ui_icon_codepoints.h`.
-2. Add the icon to `scripts/regen_mdi_fonts.sh` (one line in the codepoints list).
-3. Run `make regen-fonts`, then rebuild.
-
-Skipping step 2 is the most common mistake — the codepoint is defined but the font file doesn't contain the glyph.
+**Fix:** Run `make regen-fonts`, then rebuild. The fonts' glyph list is computed from
+`include/ui_icon_codepoints.h` and the `ICON_*` macros in `include/ui_fonts.h`
+(`scripts/mdi_icon_codepoints.py`), so adding the entry there is the only edit; the
+regeneration is the step that gets skipped.
 
 Reference: lesson **L009**.
 
@@ -168,7 +165,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 **Cause:** LVGL ellipsizes only when the wrapped text is taller than the label. A bare `<lv_label>` at content height grows to fit and wraps instead. A label with no width bound (no `width`, or `width="content"` without `style_max_width`) never wraps at all, so it runs past its parent and is clipped.
 
-**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `helix::ui::label_hold_one_line(label)` after setting `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
+**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `lv_label_set_max_lines(label, 1)` with `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
 
 ---
 
@@ -188,7 +185,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 That is exactly what happened in `ui_xml/components/panel_widget_print_status.xml` - `print_card_idle` and `print_card_idle_compact` were the only two containers in the file missing the attribute (the other nine had it), and the chevrons landed on top of the thumbnail on an 800x480 panel.
 
-Page scroll is a *page-level* affordance, so home panel widget tiles are now excluded outright: the auto-inject walk stops at any tile (`src/ui/page_scroll_auto_inject.cpp#walk_and_attach`, flag set in `src/ui/panel_widget_manager.cpp#populate_widgets`). A tile is sized by the home grid and scrolled by dragging it, and the gutter is 172px tall at the medium tier - most of a tile at 800x480. If you are seeing chevrons *inside* a home widget, that is a bug in the walk, not something to work around in XML. Full picture: `PAGE_SCROLL_BUTTONS.md`.
+Page scroll is a *page-level* affordance, so home panel widget tiles are now excluded outright: the auto-inject walk stops at any tile (`src/ui/home/page_scroll_auto_inject.cpp#walk_and_attach`, flag set in `src/ui/home/panel_widget_manager.cpp#populate_widgets`). A tile is sized by the home grid and scrolled by dragging it, and the gutter is 172px tall at the medium tier - most of a tile at 800x480. If you are seeing chevrons *inside* a home widget, that is a bug in the walk, not something to work around in XML. Full picture: `PAGE_SCROLL_BUTTONS.md`.
 
 **Why silent?** Nothing is wrong from LVGL's point of view. The container is scrollable, the gutter is doing its job, and neither logs anything. You only find out by looking at the screen.
 
@@ -290,9 +287,9 @@ Reference: lesson **L008**.
 
 ### My `#token` resolves to nothing / the widget comes out 0px.
 
-**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory — `ui_xml/components/`, `ui_xml/portrait/`, `ui_xml/micro/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
+**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory such as `ui_xml/components/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
 
-**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was — referencing a global token from a variant file is exactly what variants are for. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a portrait-only `nav_width_small` would shadow the base token globally instead of only while the portrait variant is active.
+**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a component's `nav_width_small` would shadow the top-level token globally.
 
 Gate: `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
 
@@ -357,7 +354,7 @@ Reference: lesson **L064**.
 
 ### The app crashes on reconnect, or on panel rebuild, in an observer callback.
 
-**Cause:** You're observing a **dynamic** subject (per-fan, per-sensor, per-extruder) and its `SubjectLifetime` token never reached the `observe_*` factory. The factory's `lifetime` parameter is required, but nothing stops you passing `{}` (or `subject_never_freed()`) instead of the token you fetched, and then the guard has no way to learn the subject was freed, so `reset()` calls `lv_observer_remove()` on freed memory.
+**Cause:** You're observing a **dynamic** subject (per-fan, per-sensor, per-extruder) and its `SubjectLifetime` token never reached the `observe_*` factory. The factory's `lifetime` parameter is required, but nothing stops you passing `{}` (or `subject_never_freed()`) instead of the token you fetched, and then the guard has no way to learn the subject was freed, so `reset()` calls `lv_observer_delete()` on freed memory.
 
 **Fix:**
 
@@ -375,7 +372,7 @@ auto* s = tsm.get_temp_subject(name, temp_lifetime_);
 temp_observer_ = observe<int>(s, this, handler, temp_lifetime_);  // <- token, not omitted
 ```
 
-Reference: lessons **L077**, **L084**, `include/ui_observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
+Reference: lessons **L077**, **L084**, `include/core/observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
 
 ---
 
@@ -450,7 +447,7 @@ Run through this before opening a PR:
 - [ ] **Modified translation YAML?** Rebuild, then `git add` the regenerated `ui_xml/translations/translations.xml`.
 - [ ] **Added an observer on a dynamic subject?** The `SubjectLifetime` you fetched is passed to the `observe<V>` factory, not swapped for `{}` or `subject_never_freed()`.
 - [ ] **Tested at multiple sizes?** At minimum: `480x320`, `800x480`, `1024x600`. See `docs/devel/UI_CONTRIBUTOR_GUIDE.md` § Screen Breakpoints.
-- [ ] **`make test-run` passes.**
+- [ ] **`make full-test-run` passes.**
 
 ---
 

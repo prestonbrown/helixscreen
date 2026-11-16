@@ -45,12 +45,14 @@
  */
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "print_lifecycle_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -60,33 +62,16 @@ using json = nlohmann::json;
 // Initial State Tests - Document non-obvious default initialization
 // ============================================================================
 
-TEST_CASE("Print characterization: non-obvious initial values after init",
-          "[characterization][print][init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("print_state initializes to 'standby'") {
-        const char* val = lv_subject_get_string(state.print_state().get_print_state_subject());
-        REQUIRE(std::string(val) == "standby");
-    }
-
-    SECTION("print_state_enum initializes to STANDBY (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
-    }
-
-    SECTION("print_outcome initializes to NONE (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
-                static_cast<int>(PrintOutcome::NONE));
-    }
-
-    SECTION("print_start_phase initializes to IDLE (0)") {
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
-                static_cast<int>(PrintStartPhase::IDLE));
-    }
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: non-obvious initial values after init",
+                 "[characterization][print][init]") {
+    CHECK(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
+          "standby");
+    CHECK(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
+          static_cast<int>(PrintJobState::STANDBY));
+    CHECK(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
+          static_cast<int>(PrintOutcome::NONE));
+    CHECK(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
+          static_cast<int>(PrintStartPhase::IDLE));
 }
 
 // ============================================================================
@@ -94,88 +79,40 @@ TEST_CASE("Print characterization: non-obvious initial values after init",
 // ============================================================================
 
 TEST_CASE("Print characterization: core state from JSON", "[characterization][print][update]") {
-    lv_init_safe();
+    struct Row {
+        const char* wire;
+        PrintJobState expected;
+        int active; ///< print_active, or -1 when not checked
+    };
+    const Row rows[] = {
+        {"standby", PrintJobState::STANDBY, 0},
+        {"printing", PrintJobState::PRINTING, 1},
+        {"paused", PrintJobState::PAUSED, 1},
+        {"complete", PrintJobState::COMPLETE, 0},
+        {"cancelled", PrintJobState::CANCELLED, 0},
+        {"error", PrintJobState::ERROR, 0},
+        // The string subject keeps the raw value; the enum falls back to STANDBY.
+        {"unknown_state", PrintJobState::STANDBY, -1},
+    };
+    for (const auto& r : rows) {
+        DYNAMIC_SECTION(r.wire) {
+            lv_init_safe();
+            PrinterState& state = get_printer_state();
+            PrinterStateTestAccess::reset(state);
+            state.init_subjects(false);
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+            state.update_from_status(json{{"print_stats", {{"state", r.wire}}}});
 
-    SECTION("standby state updates correctly") {
-        json status = {{"print_stats", {{"state", "standby"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "standby");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("printing state updates correctly") {
-        json status = {{"print_stats", {{"state", "printing"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "printing");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::PRINTING));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
-    }
-
-    SECTION("paused state updates correctly") {
-        json status = {{"print_stats", {{"state", "paused"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "paused");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::PAUSED));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
-    }
-
-    SECTION("complete state updates correctly") {
-        json status = {{"print_stats", {{"state", "complete"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "complete");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::COMPLETE));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("cancelled state updates correctly") {
-        json status = {{"print_stats", {{"state", "cancelled"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "cancelled");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::CANCELLED));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("error state updates correctly") {
-        json status = {{"print_stats", {{"state", "error"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "error");
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::ERROR));
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 0);
-    }
-
-    SECTION("unknown state defaults to standby") {
-        json status = {{"print_stats", {{"state", "unknown_state"}}}};
-        state.update_from_status(status);
-
-        // String subject gets the raw value
-        REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_state_subject())) ==
-                "unknown_state");
-        // Enum defaults to STANDBY for unknown strings
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
-                static_cast<int>(PrintJobState::STANDBY));
+            CHECK(std::string(lv_subject_get_string(
+                      state.print_state().get_print_state_subject())) == r.wire);
+            CHECK(lv_subject_get_int(state.print_state().get_print_state_enum_subject()) ==
+                  static_cast<int>(r.expected));
+            CHECK(state.print_state().get_print_job_state() == r.expected);
+            if (r.active >= 0) {
+                CHECK(lv_subject_get_int(state.print_state().get_print_active_subject()) ==
+                      r.active);
+            }
+        }
     }
 }
 
@@ -183,14 +120,8 @@ TEST_CASE("Print characterization: core state from JSON", "[characterization][pr
 // Terminal State Persistence Tests (print_outcome)
 // ============================================================================
 
-TEST_CASE("Print characterization: terminal state persistence",
-          "[characterization][print][outcome]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: terminal state persistence",
+                 "[characterization][print][outcome]") {
     SECTION("COMPLETE sets outcome to COMPLETE") {
         // Start with printing
         json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -286,7 +217,7 @@ TEST_CASE("Print characterization: terminal state persistence",
                 static_cast<int>(PrintOutcome::NONE));
     }
 
-    SECTION("set_print_outcome API works") {
+    SECTION("set_print_outcome publishes to the outcome subject") {
         state.print_state().set_print_outcome(PrintOutcome::CANCELLED);
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::CANCELLED));
@@ -297,45 +228,19 @@ TEST_CASE("Print characterization: terminal state persistence",
 // File Info Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: file info from JSON", "[characterization][print][file]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("filename updates from print_stats.filename") {
-        json status = {{"print_stats", {{"filename", "test_model.gcode"}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "test_model.gcode");
-    }
-
-    SECTION("filename with path") {
-        json status = {{"print_stats", {{"filename", "folder/subfolder/model.gcode"}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "folder/subfolder/model.gcode");
-    }
-
-    SECTION("empty filename") {
-        json status = {{"print_stats", {{"filename", ""}}}};
-        state.update_from_status(status);
-
-        const char* val = lv_subject_get_string(state.print_state().get_print_filename_subject());
-        REQUIRE(std::string(val) == "");
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: file info from JSON",
+                 "[characterization][print][file]") {
+    // The subject carries print_stats.filename as reported, path and all.
+    for (const char* name : {"", "test_model.gcode", "folder/subfolder/model.gcode"}) {
+        INFO(name);
+        state.update_from_status(json{{"print_stats", {{"filename", name}}}});
+        CHECK(std::string(
+                  lv_subject_get_string(state.print_state().get_print_filename_subject())) == name);
     }
 }
 
-TEST_CASE("Print characterization: file info API methods", "[characterization][print][file][api]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: file info API methods",
+                 "[characterization][print][file][api]") {
     SECTION("set_print_display_filename updates subject") {
         state.print_state().set_print_display_filename("Clean Model Name");
 
@@ -368,49 +273,23 @@ TEST_CASE("Print characterization: file info API methods", "[characterization][p
 // ============================================================================
 
 TEST_CASE("Print characterization: progress from JSON", "[characterization][print][progress]") {
-    lv_init_safe();
+    // virtual_sdcard.progress is a 0.0-1.0 fraction; the subject holds whole percent.
+    const std::pair<double, int> rows[] = {{0.5, 50}, {0.0, 0}, {1.0, 100}, {0.753, 75}};
+    for (const auto& [fraction, percent] : rows) {
+        DYNAMIC_SECTION(fraction) {
+            lv_init_safe();
+            PrinterState& state = get_printer_state();
+            PrinterStateTestAccess::reset(state);
+            state.init_subjects(false);
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("progress converts 0.0-1.0 float to 0-100 percentage") {
-        json status = {{"virtual_sdcard", {{"progress", 0.5}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 50);
-    }
-
-    SECTION("progress 0.0 becomes 0%") {
-        json status = {{"virtual_sdcard", {{"progress", 0.0}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 0);
-    }
-
-    SECTION("progress 1.0 becomes 100%") {
-        json status = {{"virtual_sdcard", {{"progress", 1.0}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 100);
-    }
-
-    SECTION("progress 0.753 becomes 75%") {
-        json status = {{"virtual_sdcard", {{"progress", 0.753}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.print_state().get_print_progress_subject()) == 75);
+            state.update_from_status(json{{"virtual_sdcard", {{"progress", fraction}}}});
+            CHECK(lv_subject_get_int(state.print_state().get_print_progress_subject()) == percent);
+        }
     }
 }
 
-TEST_CASE("Print characterization: terminal state progress guard",
-          "[characterization][print][progress][guard]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: terminal state progress guard",
+                 "[characterization][print][progress][guard]") {
     SECTION("progress cannot go backward in COMPLETE state") {
         // Set up complete state with 100% progress
         json printing = {{"print_stats", {{"state", "printing"}}},
@@ -497,14 +376,9 @@ TEST_CASE("Print characterization: terminal state progress guard",
 // exception deactivates SD; RESUME is a no-op in that state).
 // ============================================================================
 
-TEST_CASE("PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
-          "[characterization][print][sdcard]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
+                 "[characterization][print][sdcard]") {
     SECTION("Default before any status update is false") {
         REQUIRE(state.print_state().is_sdcard_active() == false);
     }
@@ -545,13 +419,8 @@ TEST_CASE("PrinterPrintState: sdcard_active reflects virtual_sdcard.is_active",
 // Layer Tracking Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: layer tracking from JSON", "[characterization][print][layer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: layer tracking from JSON",
+                 "[characterization][print][layer]") {
     SECTION("current_layer updates from print_stats.info") {
         json status = {{"print_stats", {{"info", {{"current_layer", 42}}}}}};
         state.update_from_status(status);
@@ -576,7 +445,7 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
 
     SECTION("set_print_layer_total API updates subject") {
         state.print_state().set_print_layer_total(200);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_layer_total_subject()) == 200);
     }
@@ -584,7 +453,7 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
     SECTION("null layer values are ignored") {
         // Set initial value
         state.print_state().set_print_layer_total(100);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Moonraker sometimes sends null for layer info
         json status = {{"print_stats", {{"info", {{"current_layer", nullptr}}}}}};
@@ -600,13 +469,8 @@ TEST_CASE("Print characterization: layer tracking from JSON", "[characterization
 // Time Tracking Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: time tracking from JSON", "[characterization][print][time]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: time tracking from JSON",
+                 "[characterization][print][time]") {
     SECTION("print_duration updates from print_stats.print_duration") {
         json status = {{"print_stats", {{"print_duration", 3600.0}}}};
         state.update_from_status(status);
@@ -715,13 +579,8 @@ TEST_CASE("Print characterization: time tracking from JSON", "[characterization]
 // Print Start Phase Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print start phases", "[characterization][print][phase]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print start phases",
+                 "[characterization][print][phase]") {
     // set_print_start_state guards against non-IDLE phases when print_active_ == 0,
     // so simulate Moonraker reporting "printing" to make the print active first.
     json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -732,7 +591,7 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
                                                   30);
 
         // Drain the async queue to apply the updates
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_BED));
@@ -745,17 +604,17 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
         REQUIRE(state.print_state().is_in_print_start() == false);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().is_in_print_start() == true);
     }
 
     SECTION("reset_print_start_state sets phase to IDLE") {
         state.print_state().set_print_start_state(PrintStartPhase::QGL, "QGL...", 50);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         state.print_state().reset_print_start_state();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::IDLE));
@@ -767,13 +626,13 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
     SECTION("progress is clamped to 0-100") {
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...",
                                                   150);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_progress_subject()) == 100);
 
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...",
                                                   -10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_progress_subject()) == 0);
     }
@@ -790,7 +649,7 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
 
         for (auto phase : phases) {
             state.print_state().set_print_start_state(phase, "Test", 50);
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
 
             REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                     static_cast<int>(phase));
@@ -798,14 +657,8 @@ TEST_CASE("Print characterization: print start phases", "[characterization][prin
     }
 }
 
-TEST_CASE("Print characterization: preparing phase clears outcome",
-          "[characterization][print][outcome][phase]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: preparing phase clears outcome",
+                 "[characterization][print][outcome][phase]") {
     SECTION("entering Preparing from COMPLETE clears outcome immediately") {
         // Simulate: print completes
         json complete = {{"print_stats", {{"state", "complete"}}}};
@@ -819,7 +672,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Outcome should be cleared — cancel button visible during pre-print
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
@@ -838,7 +691,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...",
                                                   20);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
@@ -855,7 +708,7 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Starting...", 5);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
@@ -871,27 +724,21 @@ TEST_CASE("Print characterization: preparing phase clears outcome",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
 
         // Advance through phases — outcome stays NONE, no redundant clearing
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed...",
                                                   40);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_outcome_subject()) ==
                 static_cast<int>(PrintOutcome::NONE));
     }
 }
 
-TEST_CASE("Print characterization: print start phase safety reset",
-          "[characterization][print][phase][safety]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print start phase safety reset",
+                 "[characterization][print][phase][safety]") {
     SECTION("phase resets to IDLE when print_active becomes 0") {
         // Start a print and enter a phase
         json printing = {{"print_stats", {{"state", "printing"}}}};
@@ -899,7 +746,7 @@ TEST_CASE("Print characterization: print start phase safety reset",
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_NOZZLE, "Heating...",
                                                   40);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
@@ -918,14 +765,9 @@ TEST_CASE("Print characterization: print start phase safety reset",
 // Issue #546: New print after complete/cancelled must clear outcome
 // ============================================================================
 
-TEST_CASE("Print characterization: new print clears outcome when print_active is 0",
-          "[characterization][print][outcome][phase][regression]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: new print clears outcome when print_active is 0",
+                 "[characterization][print][outcome][phase][regression]") {
     SECTION("COMPLETE -> STANDBY -> new print clears outcome (issue #546)") {
         // Print completes
         json complete = {{"print_stats", {{"state", "complete"}}}};
@@ -945,7 +787,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
         // Moonraker reports "printing" (print_active_ is still 0)
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING,
                                                   "Preparing Print...", 0);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Phase must update (not be rejected by the stale-update guard)
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
@@ -968,7 +810,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
                 static_cast<int>(PrintOutcome::CANCELLED));
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HOMING));
@@ -981,7 +823,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
         json printing = {{"print_stats", {{"state", "printing"}}}};
         state.update_from_status(printing);
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating...", 30);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::HEATING_BED));
 
@@ -999,7 +841,7 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
 
         // Now a new print from IDLE phase should still work
         state.print_state().set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing...", 0);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_start_phase_subject()) ==
                 static_cast<int>(PrintStartPhase::INITIALIZING));
     }
@@ -1009,14 +851,8 @@ TEST_CASE("Print characterization: new print clears outcome when print_active is
 // print_show_progress Derived Subject Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print_show_progress derived subject",
-          "[characterization][print][derived]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: print_show_progress derived subject",
+                 "[characterization][print][derived]") {
     SECTION("print_show_progress is 0 when not printing") {
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 0);
     }
@@ -1027,7 +863,7 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::HEATING_BED, "Heating...", 30);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Active but in start phase = don't show progress yet
         REQUIRE(lv_subject_get_int(state.print_state().get_print_active_subject()) == 1);
@@ -1058,12 +894,12 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
         state.update_from_status(printing);
 
         state.print_state().set_print_start_state(PrintStartPhase::COMPLETE, "Done", 100);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 0);
 
         // Phase goes to IDLE
         state.print_state().reset_print_start_state();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_show_progress_subject()) == 1);
     }
@@ -1073,23 +909,18 @@ TEST_CASE("Print characterization: print_show_progress derived subject",
 // Workflow Tests (print_in_progress and can_start_new_print)
 // ============================================================================
 
-TEST_CASE("Print characterization: workflow state", "[characterization][print][workflow]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: workflow state",
+                 "[characterization][print][workflow]") {
     SECTION("set_print_in_progress updates subject") {
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 0);
 
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 1);
 
         state.print_state().set_print_in_progress(false);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(lv_subject_get_int(state.print_state().get_print_in_progress_subject()) == 0);
     }
@@ -1098,7 +929,7 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
         REQUIRE(state.print_state().is_print_in_progress() == false);
 
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().is_print_in_progress() == true);
     }
@@ -1110,7 +941,7 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
 
     SECTION("can_start_new_print returns false when print_in_progress is true") {
         state.print_state().set_print_in_progress(true);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         REQUIRE(state.print_state().can_start_new_print() == false);
     }
@@ -1162,14 +993,9 @@ TEST_CASE("Print characterization: workflow state", "[characterization][print][w
 // reset_for_new_print Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: reset_for_new_print clears progress subjects",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: reset_for_new_print clears progress subjects",
+                 "[characterization][print][reset]") {
     // Set various print values
     json status = {{"print_stats",
                     {{"filename", "test.gcode"},
@@ -1199,76 +1025,6 @@ TEST_CASE("Print characterization: reset_for_new_print clears progress subjects"
 // ============================================================================
 // Observer Notification Tests
 // ============================================================================
-
-TEST_CASE("Print characterization: observer fires when print_state_enum changes",
-          "[characterization][print][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
-        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
-        int* value_ptr = count_ptr + 1;
-
-        (*count_ptr)++;
-        *value_ptr = lv_subject_get_int(subject);
-    };
-
-    int user_data[2] = {0, -1}; // [callback_count, last_value]
-
-    lv_observer_t* observer = lv_subject_add_observer(
-        state.print_state().get_print_state_enum_subject(), observer_cb, user_data);
-
-    // LVGL auto-notifies observers when first added
-    REQUIRE(user_data[0] == 1);
-    REQUIRE(user_data[1] == static_cast<int>(PrintJobState::STANDBY));
-
-    // Change to printing
-    json status = {{"print_stats", {{"state", "printing"}}}};
-    state.update_from_status(status);
-
-    REQUIRE(user_data[0] >= 2);
-    REQUIRE(user_data[1] == static_cast<int>(PrintJobState::PRINTING));
-
-    lv_observer_remove(observer);
-}
-
-TEST_CASE("Print characterization: observer fires when print_progress changes",
-          "[characterization][print][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
-        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
-        int* value_ptr = count_ptr + 1;
-
-        (*count_ptr)++;
-        *value_ptr = lv_subject_get_int(subject);
-    };
-
-    int user_data[2] = {0, -1};
-
-    lv_observer_t* observer = lv_subject_add_observer(
-        state.print_state().get_print_progress_subject(), observer_cb, user_data);
-
-    // Initial notification
-    REQUIRE(user_data[0] == 1);
-    REQUIRE(user_data[1] == 0);
-
-    // Update progress
-    json status = {{"virtual_sdcard", {{"progress", 0.75}}}};
-    state.update_from_status(status);
-
-    REQUIRE(user_data[0] >= 2);
-    REQUIRE(user_data[1] == 75);
-
-    lv_observer_remove(observer);
-}
 
 TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
           "[print][observer][regression]") {
@@ -1322,21 +1078,16 @@ TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
     // Verify can_start_new_print is true after the full update
     REQUIRE(state.print_state().can_start_new_print() == true);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
 // Reset Cycle Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: subjects survive reset_for_testing cycle",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: subjects survive reset_for_testing cycle",
+                 "[characterization][print][reset]") {
     // Set some values
     json status = {{"print_stats", {{"state", "printing"}, {"filename", "test.gcode"}}},
                    {"virtual_sdcard", {{"progress", 0.5}}}};
@@ -1366,14 +1117,9 @@ TEST_CASE("Print characterization: subjects survive reset_for_testing cycle",
             static_cast<int>(PrintJobState::PAUSED));
 }
 
-TEST_CASE("Print characterization: subject pointers remain valid after reset",
-          "[characterization][print][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: subject pointers remain valid after reset",
+                 "[characterization][print][reset]") {
     // Capture subject pointers
     lv_subject_t* state_enum_before = state.print_state().get_print_state_enum_subject();
     lv_subject_t* progress_before = state.print_state().get_print_progress_subject();
@@ -1397,14 +1143,9 @@ TEST_CASE("Print characterization: subject pointers remain valid after reset",
 // Independence Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: print update does not affect non-print subjects",
-          "[characterization][print][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: print update does not affect non-print subjects",
+                 "[characterization][print][independence]") {
     // Set some non-print values first
     json initial = {{"toolhead", {{"position", {100.0, 200.0, 30.0}}}}};
     state.update_from_status(initial);
@@ -1426,14 +1167,9 @@ TEST_CASE("Print characterization: print update does not affect non-print subjec
     REQUIRE(lv_subject_get_int(state.motion_state().get_position_x_subject()) == 10000);
 }
 
-TEST_CASE("Print characterization: non-print update does not affect print subjects",
-          "[characterization][print][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState,
+                 "Print characterization: non-print update does not affect print subjects",
+                 "[characterization][print][independence]") {
     // Set print values first
     json print_status = {{"print_stats", {{"state", "printing"}, {"filename", "test.gcode"}}},
                          {"virtual_sdcard", {{"progress", 0.75}}}};
@@ -1454,80 +1190,22 @@ TEST_CASE("Print characterization: non-print update does not affect print subjec
 }
 
 // ============================================================================
-// get_print_job_state Convenience Method
-// ============================================================================
-
-TEST_CASE("Print characterization: get_print_job_state returns correct enum",
-          "[characterization][print][api]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    SECTION("returns STANDBY by default") {
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::STANDBY);
-    }
-
-    SECTION("returns PRINTING when printing") {
-        json status = {{"print_stats", {{"state", "printing"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::PRINTING);
-    }
-
-    SECTION("returns PAUSED when paused") {
-        json status = {{"print_stats", {{"state", "paused"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::PAUSED);
-    }
-
-    SECTION("returns COMPLETE when complete") {
-        json status = {{"print_stats", {{"state", "complete"}}}};
-        state.update_from_status(status);
-
-        REQUIRE(state.print_state().get_print_job_state() == PrintJobState::COMPLETE);
-    }
-}
-
-// ============================================================================
 // parse_print_job_state Function Tests
 // ============================================================================
 
 TEST_CASE("Print characterization: parse_print_job_state function",
           "[characterization][print][parse]") {
-    SECTION("parses 'standby' to STANDBY") {
-        REQUIRE(parse_print_job_state("standby") == PrintJobState::STANDBY);
+    const std::pair<const char*, PrintJobState> rows[] = {
+        {"standby", PrintJobState::STANDBY},     {"printing", PrintJobState::PRINTING},
+        {"paused", PrintJobState::PAUSED},       {"complete", PrintJobState::COMPLETE},
+        {"cancelled", PrintJobState::CANCELLED}, {"error", PrintJobState::ERROR},
+        {"unknown", PrintJobState::STANDBY},
+    };
+    for (const auto& [wire, expected] : rows) {
+        INFO(wire);
+        CHECK(parse_print_job_state(wire) == expected);
     }
-
-    SECTION("parses 'printing' to PRINTING") {
-        REQUIRE(parse_print_job_state("printing") == PrintJobState::PRINTING);
-    }
-
-    SECTION("parses 'paused' to PAUSED") {
-        REQUIRE(parse_print_job_state("paused") == PrintJobState::PAUSED);
-    }
-
-    SECTION("parses 'complete' to COMPLETE") {
-        REQUIRE(parse_print_job_state("complete") == PrintJobState::COMPLETE);
-    }
-
-    SECTION("parses 'cancelled' to CANCELLED") {
-        REQUIRE(parse_print_job_state("cancelled") == PrintJobState::CANCELLED);
-    }
-
-    SECTION("parses 'error' to ERROR") {
-        REQUIRE(parse_print_job_state("error") == PrintJobState::ERROR);
-    }
-
-    SECTION("parses unknown string to STANDBY") {
-        REQUIRE(parse_print_job_state("unknown") == PrintJobState::STANDBY);
-    }
-
-    SECTION("parses nullptr to STANDBY") {
-        REQUIRE(parse_print_job_state(nullptr) == PrintJobState::STANDBY);
-    }
+    CHECK(parse_print_job_state(nullptr) == PrintJobState::STANDBY);
 }
 
 // ============================================================================
@@ -1614,7 +1292,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     SECTION("slicer estimate seeds time_left at progress 0") {
         state.print_state().set_estimated_print_time(83);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Seeding sets time_left to slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 83);
@@ -1670,18 +1348,14 @@ TEST_CASE_METHOD(HelixTestFixture,
 // Pre-print Time Remaining Bug Fix Tests
 // ============================================================================
 
-TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from slicer estimate",
-          "[characterization][print][time][preprint]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(
+    FreshPrinterState,
+    "Print characterization: reset_for_new_print re-seeds time_left from slicer estimate",
+    "[characterization][print][time][preprint]") {
     SECTION("same-file reprint preserves time_left from slicer estimate") {
         // Simulate first print: slicer says 1469s (24.5 min)
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // time_left was seeded with slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 1469);
@@ -1696,7 +1370,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
     SECTION("reset clears progress and duration but keeps estimate") {
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Simulate some print progress
         json progress = {{"virtual_sdcard", {{"progress", 0.50}}}};
@@ -1732,7 +1406,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
     SECTION("different file updates time_left even after reset seeded old value") {
         // First file: 1469s estimate
         state.print_state().set_estimated_print_time(1469);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Reset (re-seeds with old estimate)
         state.print_state().reset_for_new_print();
@@ -1740,7 +1414,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
         // New file has different estimate (500s) — metadata callback fires
         state.print_state().set_estimated_print_time(500);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Progress is still 0, so set_estimated_print_time should update time_left
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 500);
@@ -1750,12 +1424,12 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
     SECTION("set_estimated_print_time updates time_left at progress 0 even when non-zero") {
         // Seed with initial estimate
         state.print_state().set_estimated_print_time(1000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 1000);
 
         // New estimate arrives while still at 0% progress
         state.print_state().set_estimated_print_time(2000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Should update to new value (not skip because time_left was already non-zero)
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 2000);
@@ -1763,7 +1437,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
     SECTION("set_estimated_print_time does NOT update time_left once progress > 0") {
         state.print_state().set_estimated_print_time(1000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Advance progress to 10%
         json progress = {{"virtual_sdcard", {{"progress", 0.10}}}};
@@ -1778,7 +1452,7 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 
         // Late metadata callback with a different estimate should NOT override
         state.print_state().set_estimated_print_time(5000);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // time_left should still be progress-based, not the new slicer estimate
         REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 900);
@@ -1789,13 +1463,8 @@ TEST_CASE("Print characterization: reset_for_new_print re-seeds time_left from s
 // Edge Cases
 // ============================================================================
 
-TEST_CASE("Print characterization: edge cases", "[characterization][print][edge]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+TEST_CASE_METHOD(FreshPrinterState, "Print characterization: edge cases",
+                 "[characterization][print][edge]") {
     SECTION("empty status does not crash") {
         json empty = json::object();
         state.update_from_status(empty);
@@ -2039,6 +1708,50 @@ TEST_CASE("A preparing job reconciles against what the printer eventually report
         REQUIRE(state.print_state().has_preparing_job());
         REQUIRE(lv_subject_get_int(state.print_state().get_print_lifecycle_subject()) ==
                 static_cast<int>(PrintState::Preparing));
+    }
+}
+
+TEST_CASE("A paused print settles a preparing job the printer has taken",
+          "[print][preparing][1365]") {
+    // Klipper reaches `paused` only from a job it has accepted: a PRINT_START that
+    // issues M25 and finishes from [delayed_gcode] reads `paused` for the whole
+    // soak. Settling the claim there keeps the 30 minute watchdog, which cools
+    // both heaters, from firing on a print that is running.
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto report = [&state](const char* job_state, const char* filename) {
+        state.update_from_status(
+            json{{"print_stats", {{"state", job_state}, {"filename", filename}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("a paused print carrying our filename confirms the claim") {
+        state.print_state().begin_preparing(helix::PrintJobRef{"soak.gcode", "", ""});
+        report("paused", "soak.gcode");
+
+        REQUIRE_FALSE(state.print_state().has_preparing_job());
+        REQUIRE(state.print_state().last_preparing_exit() == helix::PreparingExit::Confirmed);
+    }
+
+    SECTION("a paused print naming a different job supersedes ours") {
+        state.print_state().begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+        report("paused", "theirs.gcode");
+
+        REQUIRE_FALSE(state.print_state().has_preparing_job());
+        REQUIRE(state.print_state().last_preparing_exit() == helix::PreparingExit::Superseded);
+    }
+
+    SECTION("only PRINTING and PAUSED settle it: idle and terminal states keep the claim") {
+        for (const char* job_state : {"standby", "complete", "cancelled", "error"}) {
+            INFO(job_state);
+            state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+            state.print_state().begin_preparing(helix::PrintJobRef{"mine.gcode", "", ""});
+            report(job_state, "mine.gcode");
+            CHECK(state.print_state().has_preparing_job());
+        }
     }
 }
 

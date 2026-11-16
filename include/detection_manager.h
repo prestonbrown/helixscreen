@@ -2,16 +2,17 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "detection_source.h"
+#include "json_fwd.h"
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerClient;
@@ -97,6 +98,12 @@ class DetectionManager {
         return &bed_check_switchable_subject_;
     }
 
+    /// The Spaghetti Detection switch: store the setting and hand it to every
+    /// capable source, so a printer whose firmware detects by itself stops (or
+    /// resumes) detecting too. Every caller that changes the switch goes
+    /// through here. Main thread.
+    void set_detection_enabled(bool enabled);
+
     /// Switch the printer's bed check. The subject follows at once and goes
     /// back, with a toast carrying the printer's reason, if the printer
     /// refuses. @p on_accepted runs on the main thread once it accepts.
@@ -153,16 +160,22 @@ class DetectionManager {
     /// settings, the first start where a capable source exists.
     void maybe_seed_settings();
 
+    /// Ask every capable source for its printer's own detection switch and
+    /// send the stored setting only to one that differs: a resend rewrites
+    /// the printer's config, and on some printers lights the chamber mid-print.
+    void reconcile_detection_enabled();
+
     /// The capable source with a bed check, or nullptr.
     DetectionSource* bed_check_source() const;
 
     static void show_bed_check_refusal(const std::string& refusal);
 
-    lv_subject_t detection_available_subject_{};
-    lv_subject_t detection_pause_applicable_subject_{};
-    lv_subject_t bed_check_available_subject_{};
-    lv_subject_t bed_check_enabled_subject_{};
-    lv_subject_t bed_check_switchable_subject_{};
+    SubjectManager subjects_;
+    helix::Subject detection_available_subject_{};
+    helix::Subject detection_pause_applicable_subject_{};
+    helix::Subject bed_check_available_subject_{};
+    helix::Subject bed_check_enabled_subject_{};
+    helix::Subject bed_check_switchable_subject_{};
     bool availability_subject_ready_ = false;
 
     helix::IMoonrakerClient* client_ = nullptr;
@@ -175,5 +188,11 @@ class DetectionManager {
     helix::AsyncLifetimeGuard lifetime_;
     bool connect_observer_registered_ = false;
 };
+
+/// The Spaghetti Detection switch on the settings screen: stores the setting
+/// and tells any printer whose own detector follows it
+/// (DetectionManager::set_detection_enabled). A free function so the screen
+/// links on builds that leave detection out, where it only stores the setting.
+void apply_detection_switch(bool enabled);
 
 } // namespace helix::detection

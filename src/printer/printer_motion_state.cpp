@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_motion_state.cpp
- * @brief Motion state management extracted from PrinterState
+ * @brief Motion state management (a PrinterState sub-state)
  *
  * Manages position, speed/flow factors, and Z-offset subjects.
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_motion_state.h"
 
 #include "state/subject_macros.h"
-#include "unit_conversions.h"
+#include "unit_conversions_json.h"
 #include "z_offset_persistence.h"
 
 #include <spdlog/spdlog.h>
@@ -79,7 +78,6 @@ void PrinterMotionState::deinit_subjects() {
 }
 
 void PrinterMotionState::update_from_status(const nlohmann::json& status) {
-    // Update toolhead position
     if (status.contains("toolhead")) {
         const auto& toolhead = status["toolhead"];
 
@@ -129,9 +127,9 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
         if (toolhead.contains("homed_axes") && toolhead["homed_axes"].is_string()) {
             std::string axes = toolhead["homed_axes"].get<std::string>();
             if (strcmp(lv_subject_get_string(&homed_axes_), axes.c_str()) != 0) {
-                lv_subject_copy_string(&homed_axes_, axes.c_str());
+                lv_subject_set_string(&homed_axes_, axes.c_str());
             }
-            // Note: Derived homing subjects (xy_homed, z_homed, all_homed) are now
+            // Note: Derived homing subjects (xy_homed, z_homed, all_homed) are
             // panel-local in ControlsPanel, which observes this homed_axes string.
         }
     }

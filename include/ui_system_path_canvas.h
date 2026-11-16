@@ -136,8 +136,7 @@ bool ui_system_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, 
  * @brief Set per-unit hub sensor state
  *
  * Each unit can have its own hub sensor, drawn on that unit's line near
- * the merge area. The system-level hub sensor concept is replaced by
- * per-unit hub sensors.
+ * the merge area.
  *
  * @param obj The system_path_canvas widget
  * @param unit_index Unit index (0-7)
@@ -223,7 +222,7 @@ void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_g
  * @param first_tool First tool index for this unit (e.g., 0 for BT, 4 for OpenAMS)
  */
 void ui_system_path_canvas_set_unit_tools(lv_obj_t* obj, int unit_index, int tool_count,
-                                          int first_tool);
+                                          int first_tool, int hub_lanes = 0);
 
 /**
  * @brief Mark a unit column as a box that is not on the bus

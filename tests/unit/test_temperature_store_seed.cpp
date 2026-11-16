@@ -21,14 +21,15 @@
  * The original set was authored BEFORE the implementation (TDD).
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../include/temperature_history_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <chrono>
@@ -41,25 +42,7 @@
 using namespace helix;
 using namespace helix::ui;
 
-// ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
 namespace {
-struct LVGLInitializerStoreSeed {
-    LVGLInitializerStoreSeed() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerStoreSeed lvgl_init;
 
 // A fixed wall-clock base (Unix ms) so timestamp math is deterministic.
 constexpr int64_t kNow = 1700000000000LL;
@@ -69,7 +52,7 @@ constexpr int64_t kNow = 1700000000000LL;
 // Test Fixture
 // ============================================================================
 
-class TempStoreSeedTestFixture {
+class TempStoreSeedTestFixture : public LVGLTestFixture {
     static bool queue_initialized;
 
   public:
@@ -84,7 +67,7 @@ class TempStoreSeedTestFixture {
 
     ~TempStoreSeedTestFixture() {
         manager_.reset();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
         helix::ui::update_queue_shutdown();
         queue_initialized = false;
     }

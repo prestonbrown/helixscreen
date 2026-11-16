@@ -1,0 +1,766 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "ui_touch_calibration_overlay.h"
+
+#include "ui_callback_helpers.h"
+#include "ui_effects.h"
+#include "ui_nav.h"
+#include "ui_panel_common.h"
+#include "ui_toast_manager.h"
+
+#include "config.h"
+#include "display_manager.h"
+#include "lvgl.h"
+#include "touch_calibration.h"
+#include "touch_calibration_layout.h"
+#include "touch_calibration_wrapper.h"
+#include "ui/ui_widget_helpers.h"
+
+#include <spdlog/spdlog.h>
+
+#include <cstring>
+
+namespace helix::ui {
+
+void register_touch_calibration_overlay_callbacks() {
+    get_touch_calibration_overlay().register_callbacks();
+}
+
+// ============================================================================
+// Constructor / Destructor
+// ============================================================================
+
+TouchCalibrationOverlay::TouchCalibrationOverlay() {
+    controller_.attach(*this);
+    // Zero-initialize instruction buffer
+    std::memset(instruction_buffer_, 0, sizeof(instruction_buffer_));
+
+    // The controller owns the panel. Screen size is (re)sampled in begin(): the
+    // overlay is a singleton constructed early in startup, before the display has
+    // finished rotating/sizing, so constructor-time dimensions can be stale.
+
+    controller_.panel()->set_completion_callback(
+        [this](const TouchCalibration* cal) { on_calibration_complete(cal); });
+
+    // Set failure callback to notify user of degenerate points
+    controller_.panel()->set_failure_callback([this](const char* reason) {
+        spdlog::warn("[{}] Calibration failed: {}", get_name(), reason);
+        ToastManager::instance().show(ToastSeverity::WARNING, reason, 3000);
+        // State subject will be updated by capture_point flow
+        update_state_subject();
+        update_instruction_text();
+        update_crosshair_position();
+    });
+
+    // Set up countdown callback to update Accept button text
+    controller_.panel()->set_countdown_callback([this](int remaining) {
+        snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept (%d)", remaining);
+        lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
+        spdlog::debug("[{}] Countdown: {} seconds remaining", get_name(), remaining);
+    });
+
+    // Set up timeout callback to revert and restart
+    controller_.panel()->set_timeout_callback([this]() {
+        spdlog::info("[{}] Calibration timeout - reverting to previous", get_name());
+
+        // Revert to the pre-session calibration and disable affine for the next
+        // capture attempt.
+        controller_.revert_candidate();
+
+        // Restarting forever is the trap: a user who cannot press Accept under
+        // this panel's mapping will not be able to press it on the next pass
+        // either, and the countdown put them straight back into capture with no
+        // way out (#943).
+        if (++unattended_verify_rounds_ >= kMaxUnattendedVerifyRounds) {
+            abort_session(lv_tr("Calibration kept timing out. Your previous settings were kept."));
+            return;
+        }
+
+        // Reset accept button text
+        snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
+        lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
+
+        lv_subject_set_string(&instruction_subject_,
+                              lv_tr("Calibration timed out. Please try again."));
+
+        // Restart calibration from POINT_1
+        controller_.panel()->start();
+
+        update_state_subject();
+        update_crosshair_position();
+    });
+
+    // Set up sample progress callback for UI updates
+    controller_.panel()->set_sample_progress_callback([this]() { update_instruction_text(); });
+
+    // Install the JUST-CAPTURED calibration the instant the panel enters VERIFY.
+    //
+    // Fires on the actual state transition (from the release-commit, the stall
+    // timer, or legacy sample-on-press), so it cannot be defeated by which input
+    // edge happened to trigger the commit.
+    //
+    // VERIFY exists to test the new matrix, so the new matrix is what has to be
+    // active: Accept and Retry sit at bottom-center, and only the transform the
+    // user just captured can put a finger there. Re-installing the PRE-SESSION
+    // matrix instead inverts the assumption the screen is built on — the stored
+    // matrix being wrong is the sole reason anyone opens recalibration. On a
+    // digitizer that over-reports its ABS range every tap collapses into a
+    // top-left sub-rectangle under the stored matrix, so the buttons could never
+    // be pressed and the session could only ever time out (#943, Qidi Q2).
+    //
+    // This also covers the case the previous behaviour was written for (#943/#986,
+    // AD5M): a resistive panel whose raw Y runs opposite to screen Y. The new
+    // matrix is precisely the one that un-inverts Y, so Accept is reachable under
+    // it as well.
+    //
+    // The session backup stays armed, so Retry, a timeout, a fast-revert, and a
+    // plain dismiss all still revert to the pre-session calibration; only Accept
+    // commits through the controller and keeps this matrix.
+    controller_.panel()->set_verify_entry_callback([this]() {
+        helix::ICalibrationSink* sink = controller_.sink();
+        const TouchCalibration* fresh =
+            controller_.panel() ? controller_.panel()->get_calibration() : nullptr;
+        if (sink && fresh && fresh->valid &&
+            helix::apply_calibration_result(sink, *fresh, controller_.panel()->get_range_fit())) {
+            spdlog::info("[{}] Entered VERIFY under the newly captured calibration "
+                         "(a={:.4f} e={:.4f}); reverts unless accepted",
+                         get_name(), fresh->a, fresh->e);
+        } else if (sink) {
+            // No usable new matrix to test. The install may have re-programmed the
+            // range before its affine was refused, so put the whole pre-session
+            // mapping back (range and matrix, backup kept armed) and re-enable it,
+            // leaving the screen at least as usable as it was on entry.
+            controller_.revert_candidate();
+            sink->enable_affine();
+            spdlog::warn("[{}] Entered VERIFY without a usable new calibration; "
+                         "kept the pre-session one",
+                         get_name());
+        }
+        update_state_subject();
+        update_instruction_text();
+        update_crosshair_position();
+    });
+
+    // Set up fast-revert callback for broken matrix detection during verify
+    controller_.panel()->set_fast_revert_callback([this]() {
+        spdlog::warn("[{}] Fast-revert: broken matrix detected, reverting", get_name());
+
+        // Revert to the pre-session calibration and disable affine for retry.
+        controller_.revert_candidate();
+
+        // Shares the timeout's budget: a fast-revert also sends the user back
+        // into capture without them asking, so on its own it is the same loop.
+        if (++unattended_verify_rounds_ >= kMaxUnattendedVerifyRounds) {
+            abort_session(lv_tr("Touch input did not track the new calibration. "
+                                "Your previous settings were kept."));
+            return;
+        }
+
+        controller_.panel()->retry();
+
+        update_state_subject();
+        update_instruction_text();
+        update_crosshair_position();
+    });
+
+    spdlog::debug("[{}] Instance created", get_name());
+}
+
+TouchCalibrationOverlay::~TouchCalibrationOverlay() {
+    // Clean up managers before widget destruction
+    if (controller_.panel()) {
+        controller_.panel()->set_completion_callback(nullptr);
+    }
+
+    // Deinitialize subjects to disconnect observers
+    if (subjects_initialized_) {
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
+    }
+
+    // Clear widget pointers (owned by LVGL)
+    overlay_root_ = nullptr;
+    crosshair_ = nullptr;
+}
+
+// ============================================================================
+// Subject Initialization
+// ============================================================================
+
+void TouchCalibrationOverlay::init_subjects() {
+    if (subjects_initialized_) {
+        spdlog::debug("[{}] Subjects already initialized", get_name());
+        return;
+    }
+
+    spdlog::debug("[{}] Initializing subjects", get_name());
+
+    // State subject: 0=IDLE, 1=POINT_1, 2=POINT_2, 3=POINT_3, 4=VERIFY, 5=COMPLETE
+    UI_MANAGED_SUBJECT_INT(state_subject_, kStateIdle, "touch_cal_state", subjects_);
+
+    // Instruction text subject
+    UI_MANAGED_SUBJECT_STRING(instruction_subject_, instruction_buffer_, "Tap anywhere to begin",
+                              "touch_cal_instruction", subjects_);
+
+    // Accept button text subject (for countdown display)
+    UI_MANAGED_SUBJECT_STRING(accept_button_text_, accept_text_buffer_, "Accept",
+                              "touch_cal_accept_text", subjects_);
+
+    subjects_initialized_ = true;
+    spdlog::debug("[{}] Subjects initialized", get_name());
+}
+
+// ============================================================================
+// Callback Registration
+// ============================================================================
+
+void TouchCalibrationOverlay::register_callbacks() {
+    spdlog::debug("[{}] Registering event callbacks", get_name());
+
+    register_xml_callbacks({
+        {"on_touch_cal_accept_clicked",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_accept_clicked(); }},
+        {"on_touch_cal_retry_clicked",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_retry_clicked(); }},
+        {"on_touch_cal_overlay_touched",
+         [](lv_event_t* e) { get_touch_calibration_overlay().handle_screen_touched(e); }},
+        {"on_touch_cal_overlay_released",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_screen_released(); }},
+        {"on_touch_cal_back_clicked",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_back_clicked(); }},
+        {"on_touch_cal_cancel_clicked",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_cancel_clicked(); }},
+        {"on_touch_cal_hold_abort",
+         [](lv_event_t*) { get_touch_calibration_overlay().handle_hold_abort(); }},
+    });
+
+    spdlog::debug("[{}] Event callbacks registered", get_name());
+}
+
+// ============================================================================
+// Screen Creation
+// ============================================================================
+
+lv_obj_t* TouchCalibrationOverlay::create(lv_obj_t* parent) {
+    spdlog::debug("[{}] Creating overlay from XML", get_name());
+
+    if (!parent) {
+        spdlog::error("[{}] Cannot create: null parent", get_name());
+        return nullptr;
+    }
+
+    // Reset cleanup flag when (re)creating
+    cleanup_called_ = false;
+
+    // Create overlay from XML
+    overlay_root_ = helix::ui::create_xml_hidden(parent, "touch_calibration_overlay");
+
+    if (!overlay_root_) {
+        spdlog::error("[{}] Failed to create overlay from XML", get_name());
+        return nullptr;
+    }
+
+    // Find crosshair and touch capture widgets. Reparenting to screen root
+    // is deferred to show() so z-order lands above the pushed overlay panel.
+    crosshair_ = helix::ui::find_required(overlay_root_, "crosshair", get_name());
+
+    spdlog::info("[{}] Overlay created successfully", get_name());
+    return overlay_root_;
+}
+
+// ============================================================================
+// Show/Hide
+// ============================================================================
+
+bool TouchCalibrationOverlay::show(lv_obj_t* parent_screen, CompletionCallback callback) {
+    completion_callback_ = std::move(callback);
+    callback_invoked_ = false;
+    return OverlayBase::show(parent_screen);
+}
+
+void TouchCalibrationOverlay::before_show() {
+    // Open the session: re-sample the screen, reset every per-session counter,
+    // snapshot the live calibration and disable the affine so capture sees raw
+    // coordinates. Re-sampling matters because this overlay is a singleton built
+    // early in startup - a display rotated since then would put every crosshair
+    // at the wrong ratio and bias the solve. end() unwinds it however this
+    // session finishes.
+    controller_.begin();
+    unattended_verify_rounds_ = 0;
+    hold_repeat_count_ = 0;
+
+    lv_subject_set_int(&state_subject_, kStateIdle);
+    update_instruction_text();
+    update_crosshair_position();
+
+    // on_activate() lifts the crosshair and capture surface onto the screen root
+    // after push_overlay() moves the root to the foreground; lifting any earlier
+    // would land them below it in z-order.
+}
+
+void TouchCalibrationOverlay::on_ui_destroyed() {
+    // on_deactivating() put the lifted widgets back under the root, which is gone
+    // with them: nothing may reach any of it.
+    crosshair_ = nullptr;
+    crosshair_orig_parent_ = nullptr;
+    capture_overlay_ = nullptr;
+    capture_orig_parent_ = nullptr;
+    raised_cancel_ = {};
+}
+
+void TouchCalibrationOverlay::hide() {
+    if (!overlay_root_) {
+        return;
+    }
+
+    spdlog::debug("[{}] Hiding overlay", get_name());
+
+    // Pop from navigation stack - on_deactivate() will be called by NavigationManager
+    helix::nav::go_back();
+
+    spdlog::info("[{}] Overlay hidden", get_name());
+}
+
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+
+void TouchCalibrationOverlay::on_activate() {
+    // Call base class first
+    OverlayBase::on_activate();
+
+    spdlog::debug("[{}] on_activate()", get_name());
+
+    // Lift the crosshair AND the touch capture surface onto the screen root,
+    // AFTER push_overlay moves overlay_root_ to foreground. The capture surface
+    // must cover the FULL screen — header included — so that an uncalibrated tap
+    // on a top-edge target (affine is disabled during capture) can't report a
+    // coordinate that lands in the header strip and route to the header Back
+    // button (which is clickable + full-width). LVGL hit-tests by widget geometry,
+    // so a capture surface confined to the content area below the header leaves
+    // that top strip owned by the Back button. Shared with the first-run wizard —
+    // see touch_calibration_layout.h.
+    helix::ui::CaptureSurfaceWidgets cap =
+        helix::ui::reparent_capture_surface_fullscreen(overlay_root_);
+    crosshair_ = cap.crosshair;
+    if (cap.crosshair && !crosshair_orig_parent_) {
+        crosshair_orig_parent_ = cap.crosshair_original_parent;
+    }
+    if (cap.capture_overlay) {
+        capture_overlay_ = cap.capture_overlay;
+        if (!capture_orig_parent_) {
+            capture_orig_parent_ = cap.capture_original_parent;
+        }
+    }
+
+    // The header Back button is now covered by the full-screen capture surface,
+    // so provide an abort affordance that does NOT sit under any calibration
+    // target: the Cancel chip lives in the bottom-left corner (targets occupy
+    // top-left, top-right and bottom-center). Lift it above the capture surface
+    // so it stays clickable, then pin it to the screen's bottom-left corner
+    // (independent of content layout — the capture surface is screen-absolute).
+    raised_cancel_ = helix::ui::raise_control_above_capture(overlay_root_, "cancel_chip");
+    if (raised_cancel_.obj) {
+        constexpr int32_t kCancelChipInset = 12;
+        lv_obj_t* scr = lv_screen_active();
+        lv_obj_update_layout(scr);
+        int32_t chip_h = lv_obj_get_height(raised_cancel_.obj);
+        // Absolute screen-corner placement (align is TOP_LEFT so set_pos is
+        // absolute, not an offset from an alignment anchor).
+        lv_obj_set_align(raised_cancel_.obj, LV_ALIGN_TOP_LEFT);
+        lv_obj_set_pos(raised_cancel_.obj, kCancelChipInset,
+                       lv_obj_get_height(scr) - chip_h - kCancelChipInset);
+    }
+
+    // Initialize crosshair position if calibrating
+    update_crosshair_position();
+}
+
+void TouchCalibrationOverlay::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
+
+    // Reparent the capture surface + Cancel chip back into the overlay subtree
+    // BEFORE the slide-out, so a live full-screen touch target doesn't linger on
+    // the screen behind the dismissed overlay. (crosshair too.)
+    restore_reparented_widgets();
+
+    // A suspended session stays open: the wake re-lifts the widgets in
+    // on_activate() and the user carries on from the same crosshair.
+    if (reason == DeactivateReason::Suspended) {
+        return;
+    }
+
+    // Cancel any in-progress calibration
+    if (controller_.panel()) {
+        controller_.panel()->cancel();
+    }
+
+    // Restore the pre-session calibration and re-enable the affine transform.
+    // The navigation stack calls on_deactivating() — NOT cleanup() — on a plain
+    // dismiss, so this is the path that must re-arm touch. Without it, aborting
+    // recalibration before accepting left the affine disabled until the next
+    // reboot, so touch reverted to raw/unscaled coordinates (#943).
+    controller_.end();
+}
+
+// ============================================================================
+// Cleanup
+// ============================================================================
+
+void TouchCalibrationOverlay::cleanup() {
+    spdlog::debug("[{}] Cleaning up", get_name());
+
+    // Unregister from NavigationManager before cleaning up
+    if (overlay_root_) {
+        helix::nav::unregister_overlay(overlay_root_);
+    }
+
+    // Call base class to set cleanup_called_ flag
+    OverlayBase::cleanup();
+
+    // Cancel any in-progress calibration
+    if (controller_.panel()) {
+        controller_.panel()->set_completion_callback(nullptr);
+        controller_.panel()->cancel();
+    }
+
+    // Restore the crosshair, capture surface, and Cancel chip to their original
+    // XML parents so the overlay can be re-shown cleanly and nothing lingers on
+    // screen when hidden. Clears the FLOATING flags added in on_activate() so
+    // layout matches the XML default on next show.
+    restore_reparented_widgets();
+    crosshair_orig_parent_ = nullptr;
+    capture_orig_parent_ = nullptr;
+
+    // Clear widget pointers
+    crosshair_ = nullptr;
+
+    // Clear callback
+    completion_callback_ = nullptr;
+    callback_invoked_ = false;
+
+    // Restore the pre-session calibration and re-enable the affine transform.
+    // (on_deactivate() already does this on a normal dismiss; this covers
+    // teardown/destruction paths that bypass it.)
+    controller_.end();
+
+    spdlog::debug("[{}] Cleanup complete", get_name());
+}
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
+
+void TouchCalibrationOverlay::handle_accept_clicked() {
+    spdlog::info("[{}] Accept calibration clicked", get_name());
+
+    if (!controller_.panel()) {
+        return;
+    }
+
+    // Persist and install. The controller decides between the affine-only shape and
+    // the evdev-range shape, clears the other, and rejects a matrix the residual check
+    // fails - one predicate, shared with the wizard step (#1259, #1276).
+    const helix::ui::CommitOutcome outcome = controller_.commit();
+    if (outcome == helix::ui::CommitOutcome::NoCalibration) {
+        spdlog::error("[{}] No valid calibration to accept", get_name());
+        return;
+    }
+
+    if (outcome == helix::ui::CommitOutcome::Applied) {
+        spdlog::info("[{}] Calibration applied to touch input", get_name());
+    } else {
+#ifndef HELIX_DISPLAY_FBDEV
+        // Show warning on SDL that calibration cannot be applied at runtime
+        ToastManager::instance().show(ToastSeverity::WARNING,
+                                      lv_tr("Calibration saved but cannot apply on SDL display"),
+                                      3000);
+#endif
+        spdlog::debug("[{}] Could not apply calibration immediately (may require restart)",
+                      get_name());
+    }
+
+    unattended_verify_rounds_ = 0;
+
+    // Reset accept button text for next calibration
+    snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
+    lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
+
+    // Accept in panel (transitions to COMPLETE state)
+    controller_.panel()->accept();
+    lv_subject_set_int(&state_subject_, kStateComplete);
+
+    // Invoke completion callback with success
+    if (completion_callback_ && !callback_invoked_) {
+        callback_invoked_ = true;
+        completion_callback_(true);
+    }
+
+    hide();
+}
+
+void TouchCalibrationOverlay::handle_retry_clicked() {
+    spdlog::info("[{}] Retry calibration clicked", get_name());
+
+    if (!controller_.panel()) {
+        return;
+    }
+
+    // A pressed Retry is proof the user can reach the buttons, so the
+    // unattended-round budget starts over rather than counting toward an abort
+    // they did not ask for.
+    unattended_verify_rounds_ = 0;
+
+    // Reverts to the pre-session calibration, disables affine for raw capture and
+    // restarts the point sequence, then calls back into on_progress().
+    controller_.retry();
+}
+
+void TouchCalibrationOverlay::handle_screen_touched(lv_event_t* e) {
+    (void)e; // The controller reads the position from the active input device
+    if (!overlay_root_) {
+        return;
+    }
+    hold_repeat_count_ = 0;
+    controller_.on_press();
+}
+
+void TouchCalibrationOverlay::handle_screen_released() {
+    // Lifting the finger ends any hold in progress.
+    hold_repeat_count_ = 0;
+    controller_.on_release();
+}
+
+void TouchCalibrationOverlay::on_progress() {
+    update_state_subject();
+    update_instruction_text();
+    update_crosshair_position();
+}
+
+void TouchCalibrationOverlay::on_capture_feedback(helix::Point landed) {
+    if (crosshair_) {
+        flash_object(crosshair_, 200, true);
+    }
+    // A lingering dot at the landing point, so the user can compare where they
+    // actually touched against the target crosshair (#1082). Drawn on the top
+    // layer, so its coordinates are screen-absolute.
+    create_touch_marker(lv_layer_top(), landed.x, landed.y);
+}
+
+void TouchCalibrationOverlay::on_verify_feedback(helix::Point p) {
+    // A transient ripple is enough here: the user is checking that touches
+    // track, and a lingering dot only helps during the alignment phase (#1082).
+    create_ripple(lv_layer_top(), p.x, p.y);
+}
+
+void TouchCalibrationOverlay::handle_back_clicked() {
+    spdlog::info("[{}] Back button clicked", get_name());
+
+    // Invoke completion callback with cancelled
+    if (completion_callback_ && !callback_invoked_) {
+        callback_invoked_ = true;
+        completion_callback_(false);
+    }
+
+    hide();
+}
+
+void TouchCalibrationOverlay::handle_hold_abort() {
+    if (++hold_repeat_count_ < kHoldAbortRepeats) {
+        return;
+    }
+    hold_repeat_count_ = 0;
+    spdlog::info("[{}] Press-and-hold abort", get_name());
+    abort_session(lv_tr("Calibration canceled."));
+}
+
+// Reached from three places that all run inside an LVGL dispatch: the Cancel
+// chip's `clicked` callback, the capture surface's LONG_PRESSED_REPEAT callback,
+// and the panel's countdown / fast-revert lv_timer callbacks. Nothing here
+// destroys a widget synchronously, which is what threading rule 3 forbids:
+//
+//   - The exit is handle_back_clicked() -> hide() -> NavigationManager::go_back(),
+//     whose entire body is a queue_update() lambda. UpdateQueue::queue() only
+//     pushes onto pending_ — it has no same-thread fast path — so go_back()
+//     returns having merely enqueued. on_deactivate(), restore_reparented_widgets()
+//     (which moves the very object a long press is dispatching on) and the
+//     slide-out all run on a later process_pending tick, after LVGL's event and
+//     timer dispatch have unwound.
+//   - handle_back_clicked() is the LAST statement here, and abort_session() is
+//     the last statement in each of its callers, so no path touches `this`, the
+//     overlay root, or the pressed object after the enqueue.
+//   - The widget tree is deleted on a later tick, after the slide-out and the close
+//     callback, so no event or timer dispatch is still running on it. The panel's
+//     timers and callbacks reach only members, subjects and null-guarded widget
+//     pointers, which on_ui_destroyed() clears.
+//
+// Ordering guarantee for the timer paths: controller_.panel()->reset() below runs BEFORE
+// handle_back_clicked(), and reset() stops the countdown, fast-revert and stall
+// timers. All three are therefore cancelled before anything is enqueued.
+// Cancelling the countdown timer from inside its own callback is safe —
+// lv_timer_delete() sets state.timer_deleted, which makes lv_timer_handler
+// restart its walk, and lv_timer_exec() touches the timer only before the
+// callback, never after.
+void TouchCalibrationOverlay::abort_session(const char* reason) {
+    spdlog::warn("[{}] Aborting session: {}", get_name(), reason);
+
+    // Put the device back on the calibration it had on entry and re-arm the
+    // affine, so an abort never leaves touch running on an unaccepted matrix or
+    // on raw coordinates.
+    controller_.end();
+
+    // Silent fresh baseline: reset() does not fire the completion callback, so
+    // handle_back_clicked() below stays the single "cancelled" report.
+    if (controller_.panel()) {
+        controller_.panel()->reset();
+    }
+    unattended_verify_rounds_ = 0;
+    hold_repeat_count_ = 0;
+
+    snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
+    lv_subject_set_string(&accept_button_text_, accept_text_buffer_);
+
+    update_state_subject();
+    update_instruction_text();
+    update_crosshair_position();
+
+    ToastManager::instance().show(ToastSeverity::WARNING, reason, 4000);
+
+    handle_back_clicked();
+}
+
+void TouchCalibrationOverlay::handle_cancel_clicked() {
+    // Same abort path as Back: the Cancel chip only exists because the header
+    // Back button is covered by the full-screen capture surface during capture.
+    spdlog::info("[{}] Cancel chip clicked", get_name());
+    handle_back_clicked();
+}
+
+// ============================================================================
+// UI Update Helpers
+// ============================================================================
+
+void TouchCalibrationOverlay::update_state_subject() {
+    if (!controller_.panel()) {
+        return;
+    }
+
+    auto state = controller_.panel()->get_state();
+    int state_value = kStateIdle;
+
+    switch (state) {
+    case helix::TouchCalibrationPanel::State::IDLE:
+        state_value = kStateIdle;
+        break;
+    case helix::TouchCalibrationPanel::State::POINT_1:
+        state_value = kStatePoint1;
+        break;
+    case helix::TouchCalibrationPanel::State::POINT_2:
+        state_value = kStatePoint2;
+        break;
+    case helix::TouchCalibrationPanel::State::POINT_3:
+        state_value = kStatePoint3;
+        break;
+    case helix::TouchCalibrationPanel::State::VERIFY:
+        state_value = kStateVerify;
+        break;
+    case helix::TouchCalibrationPanel::State::COMPLETE:
+        state_value = kStateComplete;
+        break;
+    }
+
+    lv_subject_set_int(&state_subject_, state_value);
+}
+
+void TouchCalibrationOverlay::update_instruction_text() {
+    if (!controller_.panel()) {
+        return;
+    }
+
+    auto p = controller_.panel()->get_progress();
+
+    switch (p.state) {
+    case helix::TouchCalibrationPanel::State::IDLE:
+        lv_subject_set_string(&instruction_subject_, lv_tr("Tap anywhere to begin"));
+        return;
+    case helix::TouchCalibrationPanel::State::VERIFY:
+        lv_subject_set_string(&instruction_subject_, lv_tr("Touch anywhere to verify accuracy"));
+        return;
+    case helix::TouchCalibrationPanel::State::COMPLETE:
+        lv_subject_set_string(&instruction_subject_, lv_tr("Calibration complete"));
+        return;
+    default:
+        break;
+    }
+
+    // POINT states — show which touch is next (1-indexed)
+    // current_sample=0 → "touch 1 of 7" (waiting for first), current_sample=1 → "touch 2 of 7",
+    // etc. After the last sample (7), state advances so we never show "touch 8 of 7" TRANSLATORS:
+    // %1$d = point number (1-3), %2$d = next touch number (1-7), %3$d = total
+    snprintf(instruction_buffer_, sizeof(instruction_buffer_),
+             lv_tr("Tap the crosshair (point %1$d of 3) \xe2\x80\x94 touch %2$d of %3$d"),
+             p.point_num, p.current_sample + 1, p.total_samples);
+    lv_subject_set_string(&instruction_subject_, instruction_buffer_);
+}
+
+void TouchCalibrationOverlay::restore_reparented_widgets() {
+    // Cancel chip back into the overlay subtree.
+    helix::ui::restore_raised_control(raised_cancel_);
+    raised_cancel_ = {};
+
+    // Capture surface back into its content parent. It is 100%x100% by XML, so the
+    // parent re-lays it out once FLOATING is cleared.
+    if (capture_overlay_ && capture_orig_parent_) {
+        lv_obj_set_parent(capture_overlay_, capture_orig_parent_);
+        lv_obj_set_floating(capture_overlay_, false);
+        lv_obj_set_size(capture_overlay_, LV_PCT(100), LV_PCT(100));
+        lv_obj_set_pos(capture_overlay_, 0, 0);
+    }
+    capture_overlay_ = nullptr;
+
+    // Crosshair back into its content parent (hidden until the next capture).
+    if (crosshair_ && crosshair_orig_parent_) {
+        lv_obj_set_parent(crosshair_, crosshair_orig_parent_);
+        lv_obj_set_floating(crosshair_, false);
+        lv_obj_set_hidden(crosshair_, true);
+    }
+}
+
+void TouchCalibrationOverlay::update_crosshair_position() {
+    if (!crosshair_ || !controller_.panel()) {
+        return;
+    }
+
+    // Visibility belongs to the XML: touch_cal_state drives a bind_flag_if on the
+    // crosshair, hidden outside states 1-3. Setting the flag here too would be the
+    // same decision written twice, in two languages.
+    const int step = controller_.active_target_index();
+    if (step < 0) {
+        return;
+    }
+
+    const helix::Point target = controller_.active_target_position();
+
+    // Center crosshair on target
+    lv_obj_set_pos(crosshair_, target.x - kCrosshairHalfSize, target.y - kCrosshairHalfSize);
+
+    spdlog::debug("[{}] Crosshair positioned at ({}, {}) for step {}", get_name(), target.x,
+                  target.y, step);
+}
+
+void TouchCalibrationOverlay::on_calibration_complete(const TouchCalibration* cal) {
+    // Guard against callback during cleanup
+    if (cleanup_called_ || !overlay_root_) {
+        spdlog::debug("[{}] Ignoring callback during cleanup", get_name());
+        return;
+    }
+
+    if (cal && cal->valid) {
+        spdlog::info("[{}] Calibration accepted", get_name());
+    } else {
+        spdlog::debug("[{}] Calibration cancelled or invalid", get_name());
+    }
+}
+
+} // namespace helix::ui

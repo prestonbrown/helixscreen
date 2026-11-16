@@ -17,9 +17,9 @@
 #include "ui_panel_macros.h"
 
 #include "../lvgl_test_fixture.h"
+#include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it
-#include "static_panel_registry.h"
-#include "static_subject_registry.h"
 
 #include <memory>
 

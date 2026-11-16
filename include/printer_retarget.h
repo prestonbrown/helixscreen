@@ -22,6 +22,14 @@ std::string active_printer_http_url(const std::string& default_host = "");
 /// same host and port active_printer_ws_url() connects to, so the key matches it.
 moonraker_auth::Credential active_printer_credential(const std::string& default_host = "");
 
+/// Sets the API key in @p printer_id's settings entry, trimmed; a blank @p api_key
+/// stores `false`, the value a printer with no key has.
+/// The caller saves the config. The key never leaves that entry.
+void set_printer_api_key(const std::string& printer_id, const std::string& api_key);
+
+/// set_printer_api_key() for the active printer.
+void set_active_printer_api_key(const std::string& api_key);
+
 /// Connects @p manager to a Moonraker with what every connection has: the print-start
 /// collector, created first. False when the transport could not start (e.g. no internal
 /// RAM for its task); there is no collector then.

@@ -32,7 +32,7 @@ class WizardWifiStepTestAccess {
     /// The wifi_connecting subject (0/1). The deferred connect result clears it
     /// as its first statement, which makes it the observable for whether that
     /// body ran at all.
-    static lv_subject_t& wifi_connecting(WizardWifiStep& step) {
+    static helix::Subject& wifi_connecting(WizardWifiStep& step) {
         return step.wifi_connecting_;
     }
     /// The SSID the password modal is about. The handler reads it rather than
@@ -44,6 +44,10 @@ class WizardWifiStepTestAccess {
     /// The production handler behind the password modal's Connect button.
     static void password_connect_clicked(WizardWifiStep& step) {
         step.handle_modal_connect_clicked();
+    }
+    /// The production handler behind the Add Hidden Network button.
+    static void add_hidden_clicked(WizardWifiStep& step) {
+        step.handle_add_hidden_clicked();
     }
 
     /// The status-read paths: the backend-state apply, a list refresh after a
@@ -59,7 +63,7 @@ class WizardWifiStepTestAccess {
         step.announce_connected();
     }
 
-    static std::string text(lv_subject_t& subject) {
+    static std::string text(helix::Subject& subject) {
         return lv_subject_get_string(&subject);
     }
     static std::string status(WizardWifiStep& step) {
@@ -71,7 +75,7 @@ class WizardWifiStepTestAccess {
     static std::string mac(WizardWifiStep& step) {
         return text(step.wifi_mac_);
     }
-    static lv_subject_t& wifi_enabled(WizardWifiStep& step) {
+    static helix::Subject& wifi_enabled(WizardWifiStep& step) {
         return step.wifi_enabled_;
     }
     static void clear_list(WizardWifiStep& step) {

@@ -3,14 +3,15 @@
 
 #pragma once
 
+#include "cleanup_hold.h"
+#include "json_fwd.h"
+
 #include <array>
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file snapmaker_nozzle_offset.h
@@ -274,6 +275,7 @@ class Runner {
     Hooks hooks_;
     std::vector<Step> steps_;
     Phase phase_ = Phase::Idle;
+    helix::CleanupHold heater_hold_;
     size_t index_ = 0;
     std::string error_;
     /// Bumped by every start and cancel, so a completion from an abandoned run

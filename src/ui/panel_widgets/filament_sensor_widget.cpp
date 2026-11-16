@@ -11,15 +11,16 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "print_control_buttons.h"
 #include "printer_state.h"
-#include "subject_managed_panel.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -29,7 +30,7 @@ namespace helix {
 
 namespace {
 /// Owns the XML-published static subjects shared by every FilamentSensorWidget.
-SubjectManager s_static_subjects;
+helix::WidgetSubjects s_static_subjects{"FilamentSensorWidget"};
 } // namespace
 
 void register_filament_sensor_widget() {
@@ -56,42 +57,31 @@ static_assert(static_cast<int>(helix::ui::FilamentTileSource::Auto) == 0 &&
               "FilamentTileSource enum order must match filament_source_picker.xml's row values");
 
 void FilamentSensorWidget::init_static_subjects() {
-    if (subjects_initialized_) {
-        return;
-    }
-    subjects_initialized_ = true;
+    s_static_subjects.ensure_init([] {
+        // -1 = no sensor, matching FilamentSensorManager's encoding, so the tile
+        // reads "hidden" until the first real value arrives rather than "empty".
+        tile_state_subject_.init_int(-1);
+        source_subject_.init_int(static_cast<int>(ui::FilamentTileSource::Auto));
 
-    // -1 = no sensor, matching FilamentSensorManager's encoding, so the tile
-    // reads "hidden" until the first real value arrives rather than "empty".
-    lv_subject_init_int(&tile_state_subject_, -1);
-    lv_subject_init_int(&source_subject_, static_cast<int>(ui::FilamentTileSource::Auto));
+        // Global scope (not the "panel_widget_filament" component scope): the
+        // mirror is also read as a `subject`-type prop by the nested
+        // <filament_sensor_indicator> component, which resolves that prop via
+        // lv_xml_get_subject() against its OWN scope, falling back only to
+        // "globals" - never to the parent component's private scope. A
+        // component-scoped registration here left that lookup unresolved (8x "No
+        // subject was found" warnings) despite the same-component label bindings
+        // resolving it fine, since those short-circuit against the local scope
+        // before ever needing the fallback. lv_xml_register_subject(nullptr, ...)
+        // routes to "globals" (lib/helix-xml/src/xml/lv_xml.c:689).
+        s_static_subjects.publish("filament_tile_state", &tile_state_subject_);
 
-    // Global scope (not the "panel_widget_filament" component scope): the
-    // mirror is also read as a `subject`-type prop by the nested
-    // <filament_sensor_indicator> component, which resolves that prop via
-    // lv_xml_get_subject() against its OWN scope, falling back only to
-    // "globals" - never to the parent component's private scope. A
-    // component-scoped registration here left that lookup unresolved (8x "No
-    // subject was found" warnings) despite the same-component label bindings
-    // resolving it fine, since those short-circuit against the local scope
-    // before ever needing the fallback. lv_xml_register_subject(nullptr, ...)
-    // routes to "globals" (lib/helix-xml/src/xml/lv_xml.c:689).
-    s_static_subjects.publish("filament_tile_state", &tile_state_subject_);
-
-    // Same reasoning, same fallback trap: the check icons that bind this live in
-    // filament_source_row, a different component from filament_source_picker, and
-    // lv_xml_get_subject() only falls back from a component scope to "globals" -
-    // never into another component's private scope
-    // (lib/helix-xml/src/xml/lv_xml.c:689,757-778). Register globally or the
-    // check icons silently never resolve it.
-    s_static_subjects.publish("filament_tile_source", &source_subject_);
-
-    StaticSubjectRegistry::instance().register_deinit("FilamentSensorWidget", []() {
-        if (!subjects_initialized_) {
-            return;
-        }
-        s_static_subjects.deinit_all();
-        subjects_initialized_ = false;
+        // Same reasoning, same fallback trap: the check icons that bind this live in
+        // filament_source_row, a different component from filament_source_picker, and
+        // lv_xml_get_subject() only falls back from a component scope to "globals" -
+        // never into another component's private scope
+        // (lib/helix-xml/src/xml/lv_xml.c:689,757-778). Register globally or the
+        // check icons silently never resolve it.
+        s_static_subjects.publish("filament_tile_source", &source_subject_);
     });
 }
 
@@ -189,7 +179,7 @@ void FilamentSensorWidget::clicked_cb(lv_event_t* e) {
 
 void FilamentSensorWidget::handle_click() {
     const int sensor_state = lv_subject_get_int(&tile_state_subject_);
-    // Lifecycle, not the raw wire enum (check_raw_print_job_state). The tap
+    // Lifecycle, not the raw wire enum (check_source_rules raw-print-state). The tap
     // policy only asks whether a print is running right now; Paused keeps the
     // full modal on purpose (Load/Unload are safe then), so this is exactly
     // Printing rather than job_holds_machine().
@@ -302,7 +292,7 @@ void FilamentSensorWidget::show_tap_modal(bool status_only) {
             // Raises a confirmation and sends nothing until it is accepted; the
             // dialog lives in dispatch_cancel_print() so this surface and the
             // runout guidance dialog cannot diverge on a destructive action.
-            // This modal stays up behind it — on_tertiary() no longer hides, so
+            // This modal stays up behind it — on_tertiary() does not hide it, so
             // declining returns here — and closes only once the cancel is real.
             helix::ui::dispatch_cancel_print(get_moonraker_api(), "[FilamentSensorWidget]",
                                              [this, token]() {

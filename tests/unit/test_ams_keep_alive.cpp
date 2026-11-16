@@ -16,7 +16,6 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -24,12 +23,14 @@
 #include "../test_helpers/draw_buf_alloc_spy.h"
 #include "../test_helpers/memory_monitor_test_access.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "memory_monitor.h"
-#include "src/ui/ui_filament_path_internal.h"
-#include "static_panel_registry.h"
+#include "src/ui/filament/ui_filament_path_internal.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -138,7 +139,7 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a second open reuses the built 
     flag_on_delete(slot, &slot_deleted);
 
     close();
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
 
     open();
     CHECK(panel_obj() == root);
@@ -224,7 +225,7 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: a printer switch still drops th
     // tree to its caller to free; what matters here is that the panel lets go.
     helix::ui::destroy_static_panels();
     CHECK(get_existing_ams_panel() == nullptr);
-    CHECK(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(root));
 
     open();
     CHECK(panel_obj() != root);

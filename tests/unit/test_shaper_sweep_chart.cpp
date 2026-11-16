@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_frequency_response_chart.h"
 #include "ui_shaper_sweep_chart.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/sweep_preview_fakes.h"
+#include "core/update_queue.h"
 
 #include <cmath>
 #include <vector>

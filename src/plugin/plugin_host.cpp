@@ -11,6 +11,7 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
+#include "core/text_io.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -23,7 +24,6 @@
 #include "plugin_settings_overlay.h"
 #include "plugin_table.h"
 #include "plugin_xml_policy.h"
-#include "text_io.h"
 #include "translation_loader.h"
 #include "version.h"
 
@@ -408,6 +408,7 @@ bool PluginHost::load(PluginInfo& info) {
     auto [it, inserted] = loaded_.try_emplace(id);
     Loaded& l = it->second;
     l.gen = next_load_gen_++;
+    l.manifest = m;
     l.consts = std::move(consts);
     for (size_t i = 0; i < xmls.size(); ++i) {
         if (lv_xml_register_component_from_data(stems[i].c_str(), buffers[i].c_str()) !=
@@ -448,14 +449,16 @@ bool PluginHost::load(PluginInfo& info) {
     l.memory_bytes = static_cast<size_t>(m.memory_mb) << 20;
     LuaRuntime::Limits limits;
     limits.memory_bytes = l.memory_bytes;
+    limits.time_budget = deps_.entry_time_budget;
+    limits.wall_ceiling = deps_.entry_wall_ceiling;
     LifetimeToken token = guard_.token();
     l.rt = std::make_unique<LuaRuntime>(
         id, root.string(), limits, [this, token, id, gen = l.gen](const std::string& reason) {
             token.defer("plugin_fault", [this, id, gen, reason] { on_fault(id, gen, reason); });
         });
-    l.ctx = std::make_unique<PluginContext>(
-        PluginContext{*l.rt, deps_.backend, m, &l.settings, [this, id] { save_settings(id); },
-                      plugin_storage_path(deps_.settings_path, id)});
+    l.ctx = std::make_unique<PluginContext>(PluginContext{
+        *l.rt, deps_.backend, l.manifest, &l.settings, [this, id] { save_settings(id); },
+        plugin_storage_path(deps_.settings_path, id)});
     l.ctx->setting_changed = [this, id, gen = l.gen](const std::string& key, const json& value) {
         for (auto& screen : settings_screens_) {
             if (screen->plugin_id() == id && screen->load_gen() == gen)

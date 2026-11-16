@@ -3,6 +3,7 @@
 #include "hardware_object_table.h"
 
 #include "accel_sensor_types.h"
+#include "core/text_io.h"
 #include "filament_sensor_types.h"
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
@@ -10,6 +11,8 @@
 #include "width_sensor_types.h"
 
 #include <cctype>
+
+#include "hv/json.hpp"
 
 namespace helix::hw {
 
@@ -57,13 +60,21 @@ constexpr Row kRows[] = {
     {Match::Prefix, "heater_generic ", ObjectKind::GenericHeater, 0, Scope::Both},
     {Match::Prefix, "temperature_sensor ", ObjectKind::TemperatureSensor, 0, Scope::Both},
     {Match::Prefix, "temperature_fan ", ObjectKind::TemperatureFan, 0, Scope::Both},
+    // Of Klipper's TMC drivers only the TMC2240 reports a die temperature; every
+    // one reports its overtemperature flags in drv_status.
     {Match::Prefix, "tmc2240 ", ObjectKind::DriverTemperature, 0, Scope::Both},
-    {Match::Prefix, "tmc5160 ", ObjectKind::DriverTemperature, 0, Scope::Both},
+    {Match::Prefix, "tmc2130 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2208 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2209 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc2660 ", ObjectKind::StepperDriver, 0, Scope::Both},
+    {Match::Prefix, "tmc5160 ", ObjectKind::StepperDriver, 0, Scope::Both},
     {Match::BareOrPrefix, "mcu", ObjectKind::Mcu, 0, Scope::Both},
 
     {Match::Exact, "fan_feedback", ObjectKind::FanFeedback, 0, Scope::Both},
     {Match::Exact, "fan", ObjectKind::Fan, 0, Scope::Both},
     {Match::Prefix, "heater_fan ", ObjectKind::HeaterFan, 0, Scope::Both},
+    // OpenCreator's Kalico variant of heater_fan; its heater drives it the same way.
+    {Match::Prefix, "heater_fan_throttled ", ObjectKind::HeaterFan, 0, Scope::Both},
     {Match::Prefix, "controller_fan ", ObjectKind::ControllerFan, 0, Scope::Both},
     {Match::Prefix, "fan_generic ", ObjectKind::GenericFan, 0, Scope::Both},
 
@@ -97,6 +108,10 @@ constexpr Row kRows[] = {
     {Match::Exact, "load_cell_probe", ObjectKind::Probe, chip_of(ProbeSensorType::LOADCELL),
      Scope::SectionOnly},
     {Match::Exact, "dockable_probe", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD),
+     Scope::SectionOnly},
+    // Snapmaker U1: one eddy-current coil section per head, behind the generic
+    // probe object. Its z_offset lives here; the probe object publishes none.
+    {Match::Prefix, "inductance_coil ", ObjectKind::Probe, chip_of(ProbeSensorType::EDDY_CURRENT),
      Scope::SectionOnly},
 
     {Match::Prefix, "gcode_button ", ObjectKind::Input, 0, Scope::Both},
@@ -148,11 +163,8 @@ bool row_matches(const Row& row, std::string_view name, std::string_view& instan
 /// Whether @p name contains any of @p words (lowercase), ignoring case.
 template <size_t N>
 bool contains_word_ci(std::string_view name, const std::string_view (&words)[N]) {
-    std::string lower(name);
-    for (char& ch : lower)
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
     for (const auto& w : words) {
-        if (lower.find(w) != std::string::npos)
+        if (text_io::contains_ignore_case(name, w))
             return true;
     }
     return false;
@@ -237,8 +249,10 @@ bool resonance_tester_names_beacon(const nlohmann::json& body) {
 
 constexpr std::string_view kHeater[] = {"temperature", "target", "power"};
 constexpr std::string_view kTemperatureHumidity[] = {"temperature", "humidity"};
-constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed"};
-constexpr std::string_view kSpeed[] = {"speed"};
+constexpr std::string_view kDriverTemperature[] = {"temperature", "drv_status"};
+constexpr std::string_view kDriverStatus[] = {"drv_status"};
+constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed", "rpm"};
+constexpr std::string_view kSpeed[] = {"speed", "rpm"};
 constexpr std::string_view kValue[] = {"value"};
 constexpr std::string_view kColorData[] = {"color_data"};
 constexpr std::string_view kEnabled[] = {"enabled"};
@@ -289,8 +303,11 @@ FieldList status_fields(ObjectKind kind) {
         return fields(kHeater);
     case ObjectKind::TemperatureSensor:
     case ObjectKind::HumidityChip:
-    case ObjectKind::DriverTemperature:
         return fields(kTemperatureHumidity);
+    case ObjectKind::DriverTemperature:
+        return fields(kDriverTemperature);
+    case ObjectKind::StepperDriver:
+        return fields(kDriverStatus);
     case ObjectKind::TemperatureFan:
         return fields(kTemperatureFan);
     case ObjectKind::Fan:
@@ -364,6 +381,10 @@ bool is_temperature(ObjectKind kind) {
     default:
         return false;
     }
+}
+
+bool is_stepper_driver(ObjectKind kind) {
+    return kind == ObjectKind::DriverTemperature || kind == ObjectKind::StepperDriver;
 }
 
 bool is_filament_sensor(ObjectKind kind) {

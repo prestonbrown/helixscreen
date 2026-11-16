@@ -3,15 +3,14 @@
 
 #pragma once
 
-#include "ui_filename_utils.h"
-
+#include "core/gcode_filename.h"
+#include "core/text_io.h"
 #include "helix_plugin_features.h"
-#include "json_fwd.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -123,10 +122,10 @@ struct SafetyLimits {
     /// discovery name carries it through untouched - `heater_generic CHAMBER`
     /// is a real shape, pinned by tests/unit/test_chamber_temperature.cpp. So
     /// the two sides of the map cannot be allowed to disagree about casing:
-    /// lower-casing only the lookup made a ceiling stored under an upper-cased
-    /// header unreachable, and an unreachable ceiling falls back to the global
-    /// sanity net - which is #1355 again, on the one heater (a chamber) most
-    /// likely to sit far below it.
+    /// lower-casing only the lookup would make a ceiling stored under an
+    /// upper-cased header unreachable, and an unreachable ceiling falls back to
+    /// the global sanity net (#1355), on the one heater (a chamber) most likely
+    /// to sit far below it.
     static std::string normalize_heater_key(std::string heater) {
         heater = helix::text_io::to_lower(heater);
         return heater;
@@ -378,6 +377,11 @@ struct FileMetadata {
     uint64_t gcode_end_byte = 0;
     std::string uuid;                      // Slicer-generated UUID (for history matching)
     std::vector<ThumbnailInfo> thumbnails; // Thumbnails with dimensions
+    /// A .3mf's sliced plates (`sliced_plates`), as a Moonraker that starts a plate
+    /// it is given reports them; nullopt when the metadata has no such list.
+    std::optional<std::vector<int>> sliced_plates;
+    /// The plate the rest of this metadata describes (`plate_index`); 0 when absent.
+    int plate_index = 0;
 };
 
 // ============================================================================
@@ -452,9 +456,6 @@ struct PowerDevice {
 // Print Control Types
 // ============================================================================
 
-/**
- * @brief Result from start_modified_print() API call
- */
 namespace helix {
 /// What the HelixPrint plugin's status says about itself (server.helix.status).
 struct HelixPluginInfo {
@@ -466,6 +467,9 @@ struct HelixPluginInfo {
 };
 } // namespace helix
 
+/**
+ * @brief Result from start_modified_print() API call
+ */
 struct ModifiedPrintResult {
     std::string original_filename; ///< Original file path
     std::string print_filename;    ///< Symlink path used for printing
@@ -477,19 +481,8 @@ struct ModifiedPrintResult {
 // REST API Types (for Moonraker extensions like ACE backend)
 // ============================================================================
 
-/**
- * @brief Response from a generic REST API call
- *
- * Used for communicating with Moonraker extension plugins that expose
- * REST endpoints (e.g., ACE backend via ValgACE's Moonraker bridge at /server/ace/). Encapsulates
- * both success and error cases in a single structure.
- */
-struct RestResponse {
-    bool success = false; ///< true if HTTP 2xx response
-    int status_code = 0;  ///< HTTP status code
-    json data; ///< Parsed JSON response. If response isn't JSON, contains {"_raw_body": "..."}
-    std::string error; ///< Error message (empty on success)
-};
+/// Defined in rest_response.h, for the code that reads or builds one.
+struct RestResponse; // NAMESPACE_OK: declared at global scope in rest_response.h
 
 // ============================================================================
 // G-code Store Types

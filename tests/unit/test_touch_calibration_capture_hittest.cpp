@@ -8,13 +8,12 @@
 // drifts UP into the header strip, where the full-width, clickable header Back
 // button lives (its hit area is further widened by ext_click_area = header/2).
 //
-// The fix lifts the invisible touch_capture_overlay onto the active screen at
+// The panel lifts the invisible touch_capture_overlay onto the active screen at
 // 100%x100% so it covers the ENTIRE screen — header included. This test asserts
 // that during POINT_1 capture no screen location (header strip or target) routes
 // to back_button, and that the corner Cancel chip is hittable and clear of every
-// target. Before the fix the header strip resolved to back_button (the leak).
-//
-// Regression: Q2 recalibrate back-leak (fix/q2-touch-recalibrate-back-leak)
+// target. The header strip must not resolve to back_button (the Q2
+// recalibrate back-leak).
 
 #include "ui_component_header_bar.h"
 #include "ui_touch_calibration_overlay.h"
@@ -96,7 +95,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_t* root = overlay.create(screen);
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     // Force full-screen geometry (the runtime overlay_width_transient token is not
     // registered in the unit-test XML scope; pin it deterministically).
@@ -122,7 +121,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_update_layout(screen);
 
-    // The fix: lifts crosshair + capture surface full-screen and raises the chip.
+    // Lifts crosshair + capture surface full-screen and raises the chip.
     overlay.on_activate();
     lv_obj_update_layout(screen);
 
@@ -140,8 +139,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // --- LEAK: header-strip points above the top targets -----------------------
     // These land where an uncalibrated top-target tap drifts to (y inside the 40px
-    // header). Before the fix they resolve to back_button; after, to the capture
-    // surface. This is the load-bearing regression assertion.
+    // header). They must resolve to the capture surface, not back_button. This is
+    // the load-bearing regression assertion.
     {
         lv_obj_t* got = hit_at(screen, t0.x, 10);
         INFO("header strip above target-0 (" << t0.x << ",10) -> " << name_of(got));
@@ -195,7 +194,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         lv_subject_set_int(state, sv.st);
         lv_obj_update_layout(screen);
         INFO("cancel chip in state " << sv.st << " hidden=expected " << sv.hidden);
-        CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN) == sv.hidden);
+        CHECK(lv_obj_is_hidden(chip) == sv.hidden);
     }
     // --- VERIFY: capture surface is hidden and Accept is reachable -------------
     // In VERIFY (state 4) the full-screen capture surface must hide so its taps
@@ -208,8 +207,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     {
         lv_subject_set_int(state, 4); // kStateVerify
         lv_obj_update_layout(screen);
-        INFO("capture surface in VERIFY hidden=" << lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+        INFO("capture surface in VERIFY hidden=" << lv_obj_is_hidden(capture));
+        CHECK(lv_obj_is_hidden(capture));
 
         lv_obj_t* accept = lv_obj_find_by_name(screen, "btn_accept");
         REQUIRE(accept != nullptr);

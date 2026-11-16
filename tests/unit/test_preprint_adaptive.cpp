@@ -37,11 +37,10 @@ class PrePrintOptionsRendererTestAccess {
 };
 } // namespace helix::ui
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/print_preparation_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "macro_param_cache.h"
 #include "pre_print_option.h"
 #include "preprint_skip_wrappers.h"
@@ -176,7 +175,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -194,7 +192,6 @@ TEST_CASE_METHOD(HelixTestFixture, "PrePrint adaptive: honors custom adaptive pa
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -218,7 +215,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -243,7 +239,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -271,7 +266,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -297,7 +291,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -323,7 +316,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][1269]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
 
     MockOptionState state;
@@ -362,12 +354,12 @@ TEST_CASE("PrePrint adaptive: AD5M database entry forwards ADAPTIVE", "[adaptive
 // Full-chain regression guard: the AD5M mock's reported identity (hostname) must
 // resolve, via PrinterDetector, to a DB entry whose bed_mesh option carries a
 // resolvable adaptive_param. Guards against silently shipping a demo that shows
-// no options (the mock previously reported a generic hostname that matched
-// nothing, leaving the printer type empty and the options card bare).
+// no options (a generic mock hostname matches nothing, leaving the printer type
+// empty and the options card bare).
 TEST_CASE("PrePrint adaptive: AD5M mock identity resolves to adaptive-capable options",
           "[adaptive][preprint]") {
     // EXACT hostname the FLASHFORGE_AD5M mock reports from printer.info
-    // (src/api/moonraker_client_mock_server.cpp). If that string changes, this
+    // (src/mock/moonraker_client_mock_server.cpp). If that string changes, this
     // test must be updated in lockstep — that coupling is the point.
     PrinterHardwareData hardware{};
     hardware.heaters = {"extruder", "heater_bed"};
@@ -391,7 +383,6 @@ TEST_CASE_METHOD(HelixTestFixture,
                  "[adaptive][preprint][skip_wrappers]") {
     lv_init_safe();
     PrinterState& ps = get_printer_state();
-    PrinterStateTestAccess::reset(ps);
     ps.init_subjects(false);
     // The toggle's line is live: its _HELIX_PREP gate is open.
     helix::MacroParamCache::instance().populate_from_configfile(

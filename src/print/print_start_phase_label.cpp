@@ -2,7 +2,8 @@
 
 #include "print_start_phase_label.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
+#include "pre_print_option.h"
 #include "translation_loader.h"
 
 namespace helix {
@@ -11,10 +12,14 @@ const char* print_start_phase_step_key(PrintStartPhase phase) {
     switch (phase) {
     case PrintStartPhase::HOMING:
         return TR_NOOP("Homing");
+    case PrintStartPhase::MOTOR_SYNC:
+        return TR_NOOP("Motor sync");
     case PrintStartPhase::HEATING_BED:
         return TR_NOOP("Heating bed");
     case PrintStartPhase::SOAKING:
         return TR_NOOP("Heat soak");
+    case PrintStartPhase::HEATING_CHAMBER:
+        return TR_NOOP("Heating chamber");
     case PrintStartPhase::HEATING_NOZZLE:
         return TR_NOOP("Heating nozzle");
     case PrintStartPhase::QGL:
@@ -49,10 +54,14 @@ const char* print_start_phase_signal_message(PrintStartPhase phase) {
         return lv_tr("Preparing Print...");
     case PrintStartPhase::HOMING:
         return lv_tr("Homing...");
+    case PrintStartPhase::MOTOR_SYNC:
+        return lv_tr("Syncing Motors...");
     case PrintStartPhase::HEATING_BED:
         return lv_tr("Heating Bed...");
     case PrintStartPhase::SOAKING:
         return lv_tr("Heat Soaking...");
+    case PrintStartPhase::HEATING_CHAMBER:
+        return lv_tr("Heating Chamber...");
     case PrintStartPhase::HEATING_NOZZLE:
         return lv_tr("Heating Nozzle...");
     case PrintStartPhase::QGL:
@@ -75,7 +84,7 @@ const std::vector<PhaseOption>& print_start_phase_options() {
     static const std::vector<PhaseOption> kOptions = {
         {"bed_mesh", PrintStartPhase::BED_MESH},  {"qgl", PrintStartPhase::QGL},
         {"z_tilt", PrintStartPhase::Z_TILT},      {"nozzle_clean", PrintStartPhase::CLEANING},
-        {"purge_line", PrintStartPhase::PURGING},
+        {"purge_line", PrintStartPhase::PURGING}, {kHeatSoakOptionId, PrintStartPhase::SOAKING},
     };
     return kOptions;
 }
@@ -105,6 +114,8 @@ std::optional<PrintStartPhase> phase_of_category(OperationCategory category) {
         return PrintStartPhase::HOMING;
     case OperationCategory::CHAMBER_SOAK:
         return PrintStartPhase::SOAKING;
+    case OperationCategory::MOTOR_SYNC:
+        return PrintStartPhase::MOTOR_SYNC;
     case OperationCategory::BED_LEVEL:
     case OperationCategory::SKEW_CORRECT:
     case OperationCategory::START_PRINT:

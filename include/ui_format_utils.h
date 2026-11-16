@@ -182,4 +182,16 @@ std::string format_time_with_seconds(const struct tm* tm_info);
  */
 std::string format_relative_time(uint64_t elapsed_ms);
 
+/**
+ * @brief Format system uptime for the clock widget
+ *
+ * Translatable via lv_tr(). Under a day it reads as a duration
+ * (helix::format::duration), from a day on as days and hours.
+ * Examples: "Up: 42m", "Up: 3h 12m", "Up: 3d 14h", "Up: --"
+ *
+ * @param total_seconds Uptime in seconds; negative when it could not be read
+ * @return Formatted uptime string
+ */
+std::string format_uptime(int total_seconds);
+
 } // namespace helix::ui

@@ -3,9 +3,9 @@
 
 #include "moonraker_api.h"
 
-#include "ui_update_queue.h"
-
 #include "bed_mesh_presence.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"
 #include "runtime_config.h"
@@ -38,7 +38,7 @@ MoonrakerAPI::MoonrakerAPI(IMoonrakerClient& client, PrinterState& state)
     timelapse_api_ = std::make_unique<MoonrakerTimelapseAPI>(client, http_base_url_);
 
     // Initialize build_volume_version subject for change notifications
-    lv_subject_init_int(&build_volume_version_, 0);
+    build_volume_version_.init_int(0);
 
     // Wire up bed mesh callback: Client pushes data to advanced API when it arrives from WebSocket
     client_.set_bed_mesh_callback([this](const json& bed_mesh) {
@@ -77,7 +77,7 @@ MoonrakerAPI::~MoonrakerAPI() {
 
     // Deinit LVGL subject before destruction to prevent dangling observer crashes
     // (same pattern as StaticSubjectRegistry — observers must be disconnected before lv_deinit)
-    lv_subject_deinit(&build_volume_version_);
+    build_volume_version_.reset();
 
     // HTTP work runs on process-wide HttpExecutor::fast()/slow() singletons,
     // which are stopped in Application::shutdown() after MoonrakerManager is

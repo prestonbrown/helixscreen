@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "hann_windowed_signal.h"
+
+#include <array>
 #include <cstddef>
 #include <functional>
 #include <string>
@@ -192,35 +195,6 @@ struct AccelSample {
 /// Parse Klipper raw CSV accelerometer data
 /// Format: #time,accel_x,accel_y,accel_z
 std::vector<AccelSample> parse_accel_csv(const std::string& csv_data);
-
-/**
- * @brief A signal ready for single-bin DFTs: mean removed, Hann windowed, in double
- *
- * The window is the symmetric w[i] = 0.5 - 0.5 cos(2 pi i / (n - 1)). Every
- * spectrum the accelerometer paths compute reads its bins off one of these and
- * applies its own scale: compute_psd() divides |X|^2 by n * rate, a relative
- * scale its peak searches only compare with itself; goertzel_psd()
- * (sweep_response_estimator.h) scales to a one-sided density,
- * 2 |X|^2 / (rate * sum(w^2)), the units Klipper's calibration CSV carries.
- * Empty for n < 2.
- */
-class HannWindowedSignal {
-  public:
-    HannWindowedSignal(const float* x, size_t n);
-
-    /// |X|^2 at `omega` radians per sample.
-    [[nodiscard]] double power(double omega) const;
-    [[nodiscard]] double sum_w2() const {
-        return sum_w2_;
-    }
-    [[nodiscard]] size_t size() const {
-        return v_.size();
-    }
-
-  private:
-    std::vector<double> v_;
-    double sum_w2_ = 0.0;
-};
 
 /// Compute PSD via DFT from accelerometer samples.
 ///

@@ -16,7 +16,7 @@
  * 133MB file. None of that is reproducible here, and wall-clock on a desktop
  * says nothing about it. What IS reproducible, and is the quantity that made
  * the device unusable, is the number of seek-and-parses the pass performs —
- * hardware-independent, and the thing the fix changes. These measure that
+ * hardware-independent, and the thing the sampling bounds. These measure that
  * directly by counting read_range() calls through an injected data source.
  */
 
@@ -306,10 +306,10 @@ TEST_CASE("ghost pass does not drive the prefetch worker across the file",
     const auto plan = plan_ghost_sampling(layer_count, /*streaming=*/true, kCanvasH);
     INFO("layers=" << layer_count << " reads=" << reads << " planned=" << plan.count);
 
-    // Each get_layer_segments() used to schedule a prefetch of radius 3 around
-    // the layer it loaded — up to 7 layers touched per layer visited. A strided
-    // pass never reads those, so they are pure cost; this pins that they are no
-    // longer paid.
+    // A get_layer_segments() that scheduled a prefetch of radius 3 around the
+    // layer it loaded would touch up to 7 layers per layer visited. A strided
+    // pass never reads those, so they are pure cost; this pins that they are
+    // not paid.
     CHECK(reads <= static_cast<size_t>(plan.count) * 4);
 }
 

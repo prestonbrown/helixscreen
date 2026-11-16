@@ -4,9 +4,9 @@
 #include "remote_screen_settings_manager.h"
 
 #include "config.h"
+#include "core/static_subject_registry.h"
 #include "printer_cache_registry.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 
 #include <iterator>
 
@@ -134,7 +134,7 @@ void RemoteScreenSettingsManager::set_pair_code(const std::string& code) {
     config->set<std::string>("/remote_screen/pair_secret", code);
     config->save();
     if (subjects_initialized_) {
-        lv_subject_copy_string(&pair_code_subject_, code.c_str());
+        lv_subject_set_string(&pair_code_subject_, code.c_str());
     }
 }
 

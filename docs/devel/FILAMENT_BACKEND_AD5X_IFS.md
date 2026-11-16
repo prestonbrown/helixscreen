@@ -4,7 +4,8 @@ The FlashForge Adventurer 5X 4-lane Intelligent Filament Switching (IFS) system 
 a separate STM32 MCU and is supported on two firmwares: ZMOD (v1.7.0+) and the
 standalone IFS module extracted from it (ships in Forge-X — see "The standalone IFS
 module" below). Topology is
-`PathTopology::LINEAR` - the four ports merge at a single combiner before the toolhead.
+`PathTopology::LINEAR` - the ports merge at a single combiner before the toolhead. An IFS
+Jacker raises the port count past four (see "IFS Jacker" below).
 
 ## AD5X IFS (FlashForge Adventurer 5X)
 
@@ -21,6 +22,16 @@ The AD5X has a 4-lane Intelligent Filament Switching (IFS) system controlled by 
 IFS is detected via `filament_switch_sensor _ifs_port_sensor_{1-4}` or `filament_motion_sensor _ifs_motion_sensor_{1-4}` in `printer.objects.list`. The leading space in sensor names is intentional — it's a Klipper object naming convention.
 
 Detection is gated by `!has_mmu_` — if Happy Hare or AFC is already detected, IFS sensors are ignored (priority: HH > AFC > IFS).
+
+Z-Mod's built-in AFC emulation (mod setting `AFC=1`) publishes `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..N` beside `zmod_color`. Those are Z-Mod's own lane picker in AFC's shape, not the AFC project, so `PrinterDiscovery::parse_objects` hands the printer back to this backend (`has_zmod_afc()` without the Creator 5 changer fingerprint): `zmod_color` and the IFS sensors are there whatever `AFC` says, so the setting changes nothing on screen. Its lane count follows `zmod_color.color_limit`, the same number this backend reads (below).
+
+### IFS Jacker: more than four ports
+
+[IFS Jacker](https://github.com/ninjamida/ifs-jacker) is an RS-485 splitter that joins two or more IFS units on the AD5X's one IFS port. The firmware talks to it as one IFS with 8, 12 or 16 channels: its F13 answer carries `channel_count`, the [ifs_jacker plugin](https://github.com/ninjamida/ifs_jacker_plugin) hands that to `zmod_ifs.update_color_limit()` about 30 s after Klipper starts (a `color_limit` line in `[zmod_ifs]` does the same by hand), and from then on Z-Mod sizes everything by it: `zmod_ifs.Ports` and `zmod_color.slots` carry one entry per port, `ffmColor<N>`/`ffmType<N>` run to N, and every lane command (`INSERT_PRUTOK_IFS PRUTOK=`, `A_CHANGE_FILAMENT CHANNEL=`, `IFS_F11/F24/F39 PRUTOK=`, the print start's `tools`) takes the port number past four unchanged, bounded by `color_limit` ([zmod_ifs.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_ifs.py), [zmod_color.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_color.py)).
+
+The backend follows that count. Both objects publish `color_limit`; `AmsBackendAd5xIfs::apply_port_count_locked()` clamps it to 4..16 (`ad5x::clamp_port_count`: never fewer than one IFS, never more than the 16-tool table) and regroups the slot registry four ports to a unit, `IFS 1`, `IFS 2`, ..., which is how Z-Mod's own AFC panel groups them ([zmod_afc.py](https://github.com/ghzserg/z_ad5x/blob/1.7/.shell/zmod_afc.py), `_units`). Slot names are the port numbers, so a lane keeps its state across the regroup; a shrinking count clears the lanes it drops. Until the count arrives the backend has four ports, so lanes 5+ appear when the jacker is detected, not at connect. The count only arrives through the status objects: Z-Mod drives more than four channels from 1.7.1 (z_ad5x#10) but publishes `zmod_ifs` / `zmod_color` (and with them `color_limit`) from 1.7.3 (z_ad5x#12), so a Jacker on 1.7.1 or 1.7.2 stays at four lanes here. A remembered seated lane is kept up to lane 16 at start and checked against the count when it is used, since the count arrives after the restore.
+
+What stays four wide: the lessWaste/bambufy `_tools` table (its "no port" value is 5, so it cannot name lane 5; a pick past lane 4 is stored unmapped there), the plugins' `_ifs_port_sensor_<N>` sensors and colour arrays, and the Forge-X `[ifs]` module path (one IFS). Native Z-Mod with its status objects is the supported jacker setup.
 
 ### The standalone IFS module (Forge-X)
 
@@ -43,7 +54,7 @@ unchanged. `ifs_loaded` overwrites `seated_chan_` directly, and once the module 
 published it, it stays the seated lane on every module frame (`active_channel` included),
 unless a lessWaste/bambufy plugin runs beside the module: its swaps need not run
 `IFS_LOAD`, so that rig keeps following `active_channel`.
-The remembered seated lane (the `lane_data` DB `seated` key) mirrors it instead of
+The remembered seated lane (the `ifs_seated` key in the `helix-screen` namespace) mirrors it instead of
 feeding the cold-boot floor: on the module, `active_channel=0` with a loaded head is the
 normal idle state, not a firmware that forgot its lane (#1897).
 
@@ -115,11 +126,11 @@ On native ZMOD (no lessWaste / bambufy plugin) the backend reconciles **two** in
 | Source | Transport | Question it answers | Code |
 |--------|-----------|---------------------|------|
 | `Adventurer5M.json` `FFMInfo` | Moonraker `download_file("config", "Adventurer5M.json")`, 5s content-compare poll, or the HelixPrint plugin's push | What **color / material** is *assigned* to each channel (persisted metadata) | `parse_adventurer_json()`, `poll_adventurer_json()`, `apply_json_content()`, `note_json_content()` |
-| `GET_ZCOLOR SILENT=1` (and, future, `IFS_STATUS`) | gcode console, on-demand | Which lanes **physically have filament** (RS-485 silk sensor) + the active lane | `query_zcolor_silent()`, `parse_zcolor_silent()`, `apply_zcolor_result()` |
+| `GET_ZCOLOR SILENT=1` and `IFS_STATUS` | gcode console, on-demand | Which lanes **physically have filament** (RS-485 silk sensor) + the active lane | `query_zcolor_silent()`, `src/printer/ad5x_status_parse.cpp#parse_zcolor_silent`, `apply_zcolor_result()` |
 
 **`Adventurer5M.json` `FFMInfo` has NO per-channel presence field.** It carries `ffmColor{1-4}` / `ffmType{1-4}` plus an active `channel`, and those colors **persist across unload/eject** — zmod never blanks `ffmColorN` when a lane is emptied. So a non-empty `ffmColorN` means "this channel was *assigned* this color", **not** "filament is loaded here". (Field-proven on raza616's hardware: he ejected *and* unloaded channel 1, yet `ffmColor1` stayed populated; a live `IFS_STATUS` reported `Ports:[F,T,T,T]` while the JSON still had `ffmColor1` set — the JSON simply does not track presence.)
 
-**`GET_ZCOLOR SILENT=1`** is the silk-sensor truth. Text format (every line `// `-prefixed), parsed by `parse_zcolor_silent()`:
+**`GET_ZCOLOR SILENT=1`** is the silk-sensor truth. Text format (every line `// `-prefixed), parsed by `src/printer/ad5x_status_parse.cpp#parse_zcolor_silent`:
 
 ```
 // Extruder: 3: PLA/2750E0 | IFS: True   <- summary: active lane, its mat/hex, IFS-mode flag
@@ -132,29 +143,42 @@ On native ZMOD (no lessWaste / bambufy plugin) the backend reconciles **two** in
 - Slot body is `MATERIAL`, `MATERIAL/HEX`, or `MATERIAL/NAME/HEX`. Material is everything before the first `/`; hex is everything after the **last** `/`. A response with slot rows but no `/HEX` is flagged `is_old_format` (pre-zmod-`ad2802ab`, Apr 2026) — presence only, colors still come from JSON.
 - A response whose lines contain `action:prompt_` means **old zmod returned the interactive dialog instead of silent text** → `is_prompt_fallback` (see presence-ownership rule below).
 
-**`IFS_STATUS`** (zmod_ifs.py `cmd_IFS_STATUS` → `ifs_data.get_values()`) is a cleaner, structured alternative that ships in zmod 1.7.1 but is **not yet consumed** by HelixScreen. It returns clean JSON:
+**`IFS_STATUS`** (zmod_ifs.py `cmd_IFS_STATUS` → `ifs_data.get_values()`) ships in zmod 1.7.1 and is sent beside every `GET_ZCOLOR` query (`query_zcolor_silent()`); its line lands in the same response buffer and `parse_zcolor_silent` reads it. It returns clean JSON:
 
 ```json
 {"State": 4, "Ports": [false, true, true, true], "Silk": 14,
  "Chan": 4, "Insert": 0, "NeedInsert": false, "Stall": false, "stall_state": 0}
 ```
 
-`Ports[i]` is `(silk_state >> i) & 1` — the same RS-485 bits `GET_ZCOLOR` filters on, but already decoded to booleans. `Chan` is the active port. **This is the future presence source**: it would let the backend drop both the `GET_ZCOLOR` text-scrape *and* the 5s JSON poll. Tracked as the firmware-integration headline; the upstream wishlist below (`get_status()` on `zmod_ifs`) would close the gap entirely.
+`Ports[i]` is `(silk_state >> i) & 1`: the same RS-485 bits `GET_ZCOLOR` filters on, but already decoded to booleans. `Chan` is the seated port, and it persists at the loaded port while idle, unlike `GET_ZCOLOR`'s `Extruder:` view. Once a `Ports` array has been seen (`ifs_status_ports_seen_`), it is the presence authority on native ZMOD (plugin installs keep their per-port sensors), and it works even where `GET_ZCOLOR SILENT` degrades to a prompt. The upstream wishlist below (`get_status()` on `zmod_ifs`) would replace the console round trip with a subscription.
 
-#### Presence ownership rule (and the resurrection bug)
+#### Presence ownership rule
 
-> **Presence is owned SOLELY by `GET_ZCOLOR` on modern zmod.** `parse_adventurer_json()` must NOT infer presence from `ffmColorN`. This is the fix for the channel-resurrection bug (commits `35dfcb765`, `2081e5757`).
+> **`Adventurer5M.json` never owns presence while a live source exists.** zmod persists
+> `ffmColorN` / `ffmTypeN` across unload and eject and never blanks them, so "non-empty colour
+> == present" would resurrect an emptied lane on every content-changed poll (raza616's report:
+> editing channel 4's colour in zmod brought back emptied channel 1 with its stale colour, #981).
 
-**The bug.** Earlier code in `parse_adventurer_json()` treated a non-empty `ffmColorN` as `port_presence_[idx] = true` with no guard. Because zmod persists `ffmColorN` across unload/eject, an emptied lane was **resurrected as loaded on every content-changed poll**. The exact field report (raza616, v0.99.78): he externally unloaded channel 1 (Helix failed to clear it), then a `FIRMWARE_RESTART` fixed it (a fresh `GET_ZCOLOR` set `port_presence_[0]=false`), but then **editing channel 4's color in zmod changed the JSON content → triggered a reparse → the persisted `ffmColor1` resurrected channel 1 with its stale color**. One edit resurrected an unrelated emptied lane.
+`parse_adventurer_json()` infers presence from the file only when nothing live competes: no
+per-port sensors (`has_per_port_sensors_`), no `IFS_STATUS` `Ports` seen
+(`ifs_status_ports_seen_`), and `GET_ZCOLOR SILENT=1` known not to work
+(`zcolor_silent_supported_` latched false, which happens on pre-SILENT zmod where the query
+returns a prompt dialog; `apply_zcolor_result()` sees `is_prompt_fallback`). That is the
+`if (!has_per_port_sensors_ && !zcolor_silent_supported_.load() && !ifs_status_ports_seen_.load())`
+block: a non-empty colour is present, an empty colour while IDLE is an eject.
 
-**The fix.** On modern zmod (where `GET_ZCOLOR SILENT=1` works), `parse_adventurer_json()` refreshes `colors_[]` / `materials_[]` only and leaves `port_presence_` untouched. `apply_zcolor_result()` (the silk-sensor read) is the sole presence authority, and it now also drives the `present→absent` override-clear (`clear_override_locked`) that used to ride on the JSON inference. Every JSON content change already schedules a `GET_ZCOLOR` immediately after the parse (`poll_adventurer_json()` calls `schedule_zcolor_query()`), so silk-truth presence re-establishes on the same event — the JSON setting presence was both **wrong and redundant**.
+Otherwise `apply_zcolor_result()` (the RS-485 silk read) or the `Ports` bits own presence, and
+the JSON parse refreshes colours and materials only, and not even those for a lane the live
+source holds present once a SILENT reply is confirmed (`zcolor_silent_confirmed_`). Every JSON
+content change schedules a `GET_ZCOLOR` right after the parse (`poll_adventurer_json()` calls
+`schedule_zcolor_query()`), so silk-truth presence re-establishes on the same event.
 
-**The pre-SILENT regression (caught in review → commit `2081e5757`).** Making `GET_ZCOLOR` the sole authority breaks presence *entirely* on **old zmod**, where `GET_ZCOLOR SILENT=1` returns a prompt dialog instead of silent text. There, `apply_zcolor_result()` sees `is_prompt_fallback`, latches `zcolor_silent_supported_ = false`, and every subsequent `schedule_zcolor_query()` / `query_zcolor_silent()` no-ops forever. With JSON inference removed, every channel would be stuck EMPTY. The fix **gates the legacy `ffmColorN` inference on `!zcolor_silent_supported_`** (`parse_adventurer_json()`, the `if (!has_per_port_sensors_ && !zcolor_silent_supported_.load())` block):
+A present-to-absent transition drops presence only: the lane-to-Spoolman link is kept across an
+empty lane, as on AFC and Happy Hare (#1071).
 
-- **Modern zmod** (`SILENT` works): `GET_ZCOLOR` owns presence; JSON never touches it → resurrection fixed.
-- **Pre-SILENT zmod** (`zcolor_silent_supported_` latched false): no silk query exists, so JSON inference is the only fallback — `non-empty color == present`, `empty color while IDLE == eject + override-clear`. The resurrection bug can't bite here because no `GET_ZCOLOR` competes for ownership.
-
-> **Known minor edge (accepted):** on modern zmod, an external color edit that arrives via the JSON poll *before* `GET_ZCOLOR` has confirmed presence won't sync to `lane_data` (the baseline moves without syncing). Rare, and far preferable to the constant resurrection. Confirmed acceptable in review.
+> **Known minor edge (accepted):** on modern zmod, an external colour edit that arrives via the
+> JSON poll *before* `GET_ZCOLOR` has confirmed presence does not sync to `lane_data` (the
+> baseline moves without syncing).
 
 **save_variables keys** (all prefixed `less_waste_`):
 
@@ -166,7 +190,7 @@ On native ZMOD (no lessWaste / bambufy plugin) the backend reconciles **two** in
 | `less_waste_current_tool` | int | `0` (T0), `-1` (none) |
 | `less_waste_external` | int | `0` (IFS mode), `1` (bypass/external) |
 
-Tool mapping: array index = tool number (T0-T15), value = physical port (1-4, 5=unmapped).
+Tool mapping: array index = tool number (T0-T15), value = physical port (1-4, 5=unmapped). The backend holds an unmapped tool as `ad5x::kUnmappedPort` (0) and translates the plugin's 5 at the parse and in `build_tool_map_value()`.
 
 #### Polling caution: IFS contention and print-time backoff
 
@@ -237,9 +261,11 @@ the colours stale.
 
 On a raise: `runout_active_ = true`, `system_info_.filament_runout = true`, and `system_info_.action = AmsAction::ERROR`. **ERROR is not decorative** — it is the only edge `AmsErrorBridge` watches, so it is the only route to `current_error()` and the recovery modal. `check_action_timeout()` early-returns on ERROR, so the fault cannot be re-timed-out on top of itself. It clears when filament returns to the switch, when the print leaves PAUSED (which is what dismisses the modal), or via `recover()` / `reset()` / `cancel()`.
 
-**Recovery actions** (`build_recovery_actions()` branches on `runout_active_`): `RESUME` (primary, hot), a plain `M83` + `G1 E50 F600` purge (hot), and `IFS_UNLOCK` (danger, cold-safe). The operation-timeout fault keeps its historical lone `IFS_UNLOCK`.
+**Recovery actions** (`build_recovery_actions()` branches on `runout_active_`; the runout set is `runout_recovery_actions()`): while the head switch reads empty, Load (`INSERT_PRUTOK_IFS PRUTOK=<lane that ran out>`, primary, `requires_homed`) when `print_blocks_filament_load()` allows it, then `RESUME` (hot, not primary: zMod's RESUME refuses on an empty head switch), a Purge (hot): `_GOTO_TRASH` + `PURGE_FILAMENT` over the bin when the printer defines zMod's `_G28`, `_GOTO_TRASH` and `PURGE_FILAMENT`, else a plain `M83` + `G1 E50 F600` in place (`runout_purge_gcode()`), and `IFS_UNLOCK` (danger, cold-safe). With filament at the head, `RESUME` is primary and there is no Load. The detail text tells the user to load filament to the toolhead, then Resume. The operation-timeout fault keeps its lone `IFS_UNLOCK`.
 
-> **There is deliberately NO "Load slot N" recovery button**, even though a runout is exactly when the user wants one. Every AD5X load path runs `INSERT_PRUTOK_IFS`, whose macro homes itself and then moves the toolhead on its own authority (`_GOTO_TRASH`, `_SBROS_TRASH`, `_CLEAR_REZINA` nozzle wipe) — this is what `filament_ops_self_home()` is about. On the loadcell-Z AD5X that motion reaches **down into the part**; with a job owning the toolhead it trips ZMOD's `ZCONTROL_AUTO` and shuts Klipper down, recoverable only by a firmware restart (bundle `XWPBR2DX`, commit `329e731e9`). A runout state is PAUSED by construction, so the button would fire straight into that. Note the leading `_G28` is *conditional* on `homed_axes` (see `FLASHFORGE_AD5X_IFS_ANALYSIS.md` §12) and usually no-ops mid-print — that is not a reason to relax this: `homed_axes` is cleared by a Klipper error, an `M84`, or a cold resume, and the trash/wipe moves happen either way. `refuse_if_printing()` protects `load_filament()`; it does **not** protect a recovery button, which hands its gcode directly to `MoonrakerAPI::execute_gcode`, and the `_G28` is buried inside the macro where `reject_homing_during_active_print()` never sees it. The purge is a bare extruder move for the same reason — no homing, so it cannot reach the `_G28`. If a verified non-homing load-to-toolhead command ever turns up, that is the time to add the button.
+**Purge over the bin.** Every user Purge surface asks the active backend for `IPrintRouting::purge_preamble_gcode(job_holds_machine)` and sends it before the purge macro or raw fallback (`helix::ui::run_after_purge_preamble()`, `src/ui/filament/filament_op_execute.cpp`). The AD5X answers `_G28` + `_GOTO_TRASH` when idle and `_GOTO_TRASH` alone while a job holds the machine, only when discovery saw both `gcode_macro _G28` and `gcode_macro _GOTO_TRASH` (stock zMod); otherwise nothing, so Forge-X and other firmware purge exactly as before. zMod's `PURGE_FILAMENT` purges in place on the AD5X because the `_T_IN` it calls is an empty stub there.
+
+> **Load while paused needs a homed toolhead.** Every AD5X load path runs `INSERT_PRUTOK_IFS`, whose macro opens with `_G28` and then moves the toolhead on its own authority (`_GOTO_TRASH`, `_SBROS_TRASH`, `_CLEAR_REZINA` nozzle wipe). On the loadcell-Z AD5X a home with a job on the bed probes the nozzle **down into the part**, trips ZMOD's `ZCONTROL_AUTO` and shuts Klipper down (bundle `XWPBR2DX`). zMod's `_G28` is *conditional* on `homed_axes` (`FLASHFORGE_AD5X_IFS_ANALYSIS.md` §12), so `self_home_skipped_when_homed()` answers true on zMod and `print_blocks_filament_load()` lets a PAUSED job load only while `homed_axes` reads `xyz`; `homed_axes` is cleared by a Klipper error, an `M84` or a cold resume, and then the load is refused again. The macro's `_G28` condition is evaluated in Klipper when the macro runs, not when the user taps, so an `idle_timeout` `M84` landing between the tap and execution still homes. A paused load also needs an empty head: `INSERT_PRUTOK_IFS` first unloads whatever the head switch reads present (`_IFS_REMOVE_CURRENT_PRUTOK`: heat, cut, retract), so `load_unloads_toolhead_now()` makes a loaded head refuse a paused load as it refuses an unload. That rule gates the backend (`refuse_load_if_printing()`), every Load button, and the runout dialog's Load, which is built only when homed and re-checked on the tap (`RecoveryAction::requires_homed`), because a recovery button hands its gcode straight to `execute_gcode` where `reject_homing_during_active_print()` never sees the buried `_G28`. The standalone module's `IFS_LOAD` is unverified and keeps the paused refusal. Unload, tool change and Purge are unchanged: Purge never sends `_G28`, and on zMod it parks over the bin with `_GOTO_TRASH`, the same park zMod's own pause uses.
 
 > **Unverified, flagged rather than assumed:** whether a firmware tool change can make the job read PAUSED with the head still empty. The reasoning above (Klipper queues `PAUSE` behind the running macro) is first-principles, not a device observation, and the fleet's AD5X rig (commissioned 2026-08-23) has not yet been exercised for this case, nor is there an `ad5x` mock profile. If a false runout ever shows up mid-swap, the fix is to lengthen `kRunoutConfirmDelay` past a full swap (~2 min measured in bundle `NJB2U558`), not to loosen the PAUSED gate.
 
@@ -273,14 +299,12 @@ exists), not a code restriction.
 | `AmsBackendAd5xIfs::plugin_backup_enabled()` | `std::optional<bool>` — `nullopt` means the macro dict never carried the key (or no plugin is installed), which is **not** the same as off |
 | `AmsBackendAd5xIfs::backup_state_locked()` | The live switchover state as a tri-state, `kBackupUnknown` (-1) / `kBackupOff` (0) / `kBackupOn` (1). Stock zMod reports `kBackupOn` (ANALOG_PRUTOK is always-on); the plugin path mirrors `variable_backup` with `kBackupUnknown` when the key was never read. Feeds both the runout warning log and `get_endless_spool_capabilities()`' `enabled` axis, so the number in the log and the sentence on screen cannot disagree |
 
-**There are no AD5X-specific XML subjects.** `ams_ifs_plugin` and `ams_ifs_backup_enabled`
-existed for one release as this backend's own publication path and are gone: they never
-acquired a reader, and a per-firmware subject can only ever describe one printer's answer.
+**There are no AD5X-specific XML subjects**, since a per-firmware subject can only ever describe one printer's answer.
 The state reaches the UI through `get_endless_spool_capabilities()`, which `AmsState` turns
 into the backend-neutral `ams_endless_state` / `ams_endless_text` subjects for every backend
 — see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model) § "The status line".
 
-**`variable_backup`.** `gcode_macro _ifs_vars`'s `get_status()` dict used to be reduced to a single "does the macro exist" bool at the `on_started()` probe and thrown away. It now flows into `parse_ifs_vars_macro_locked()`, which reads `variable_backup` (accepting the jinja int form and a bool). Note this object is **not** in the standing `objects.subscribe` set — the `on_started()` query and `recheck_ifs_vars_macro()` (fired on `notify_klippy_ready`) are the only two places it ever reaches us.
+**`variable_backup`.** `gcode_macro _ifs_vars`'s `get_status()` dict flows into `ad5x::parse_ifs_vars_macro()`, which reads `variable_backup` (accepting the jinja int form and a bool). Note this object is **not** in the standing `objects.subscribe` set: the `on_started()` query and `recheck_ifs_vars_macro()` (fired on `notify_klippy_ready`) are the only two places it ever reaches us.
 
 Per `printers/FLASHFORGE_AD5X_SUPPORT.md` § "lessWaste-Specific Variables" and the source
 variable dumps in `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md`, lessWaste ships
@@ -314,6 +338,8 @@ marker) as the same kind of direct signal.
 
 - **Forge-X port:** the `[ifs]` module's wire table (see State Sources). `set_tool_mapping()` validates the parameters and emits `IFS_MAP_TOOL`; it does **not** write the map locally — the module owns the table and the `printer.ifs.tool_map` echo is what promotes a mapping, so a refused write (a lane with no filament) leaves `get_tool_mapping()` reporting what the printer actually has. `reset_tool_mappings()` emits `IFS_MAP_TOOL RESET=1` the same way.
 - **ZMOD + lessWaste/bambufy:** the plugin's `save_variables.<prefix>_tools` table. `set_tool_mapping()` applies the mapping locally and persists it with `_IFS_VARS tools=…` (`build_tool_map_value()` emits the whole 16-entry array — the macro replaces, not merges). This is the long-standing path, unchanged. The plugin contract has no reset verb; `reset_tool_mappings()` answers not supported there.
+
+- **Z-Mod's print start:** where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`: its `server.info` lists `print_start_tools`, or, on builds from before that flag, the built-in AFC is on), it takes the print's map as `printer.print.start`'s `tools` (`"2,,1"`: index the G-code tool, value the 1-based port) and, without it, opens its own colour prompt. `print_start_params()` answers it from the print's full map (`helix::print_start`, `include/print_start_params.h`), and it alone readies `remap_ready()`: a pick lands in that print, with no table to write, so `owns_tool_mapping_table()` stays with the two adapters above. With the built-in AFC on (`has_zmod_afc()`) each pick also sends `SET_MAP LANE=lane<port> MAP=T<n>`, which keeps Z-Mod's AFC lane map (what Fluidd and Mainsail show) in step; it does not route the print, and with `AFC=0` there is no `SET_MAP` to send. A Z-Mod build that advertises neither keeps its own prompt.
 
 When both signals exist (stale plugin rows surviving a firmware swap), the wire table wins — it is live firmware state — and the detection logs that precedence rather than silently dropping the plugin signal.
 
@@ -380,7 +406,7 @@ sensor; `unload_lane_decision_locked()` feeds it the live state. Top-down:
 
 | # | State | Verdict | What happens |
 |---|---|---|---|
-| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `lane_data` DB `seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
+| 1 | A record names the lane: the active slot, the seated channel (`ifs_loaded` on the module, Chan/`FFMInfo.channel` on ZMOD), ZMOD's `FFMInfo.channel` alone, or the remembered lane (`remembered_unload_lane_locked()`, the `helix-screen` `ifs_seated` key, only while that port reads present; on native ZMOD only once Adventurer5M.json has been read) | `UnloadLane` | Unload it, no question |
 | 2 | Module only: `ifs_at_hub = n` and port n reads present | `UnloadLane` | `IFS_UNLOAD SLOT=n`, no question. Only one lane fits in the shared path, and `IFS_LOAD` claims it before the feed, so a load that failed after the feed leaves exactly this record |
 | 3 | Exactly one lane reads present | `ConfirmLane` | The lane picker with that one lane. Never dispatched on the inference alone: a runout tail or filament fed from outside the IFS breaks it |
 | 4 | Several lanes read present | `PickLane` | The lane picker |
@@ -439,14 +465,14 @@ it bare, so it works on a module without that fallback too.
 
 The UI asks before any of this. `AmsBackend::unload_lane_question()` asks nothing by default;
 on this backend it returns the lanes to offer (rows 3-4) or `confirm_clear_toolhead` (row 5).
-The AMS sidebar's Unload (`src/ui/ui_ams_sidebar.cpp#"void AmsOperationSidebar::handle_unload()"`)
-and the Filament panel's Unload (`src/ui/ui_panel_filament.cpp#handle_unload_button`) both call
-`src/ui/ui_unload_lane_choice.cpp#choose_unload_lane` first. Every other slotless unload asks
-through `src/ui/ui_unload_lane_choice.cpp#ask_lane_then_unload`, which sends the answer straight
+The AMS sidebar's Unload (`src/ui/filament/ui_ams_sidebar.cpp#"void AmsOperationSidebar::handle_unload()"`)
+and the Filament panel's Unload (`src/ui/filament/ui_panel_filament.cpp#handle_unload_button`) both call
+`src/ui/filament/ui_unload_lane_choice.cpp#choose_unload_lane` first. Every other slotless unload asks
+through `src/ui/filament/ui_unload_lane_choice.cpp#ask_lane_then_unload`, which sends the answer straight
 to `execute_filament_unload()`: the runout dialog's Unload
-(`src/ui/ui_filament_runout_handler.cpp#dispatch_unload`) and the filament sensor tile's
+(`src/ui/filament/ui_filament_runout_handler.cpp#dispatch_unload`) and the filament sensor tile's
 (`src/ui/panel_widgets/filament_sensor_widget.cpp#dispatch_unload`) when the runout names no
-lane, and bed drying's unload-first (`src/ui/ui_bed_drying_modal.cpp#unload_before_drying`),
+lane, and bed drying's unload-first (`src/ui/filament/ui_bed_drying_modal.cpp#unload_before_drying`),
 where a Cancel leaves the drying unstarted. The lane context menus name their lane and withdraw
 Unload in this state; the bypass toggle and the external spool unload only with a lane active
 or for the bypass spool, neither of which reaches the question. Lanes open the slot picker titled
@@ -482,13 +508,29 @@ Positive switch evidence is required to claim empty, because the errors are not 
 
 > **The switch pair is a proxy for a sensor we do not read.** The firmware's actual gate is `get_extruder_sensor()` (zmod_ifs.py:1149), an ADC read of `temperature_sensor filamentValue` (`result = value >= 0.72` when `value > 0.3`, `True` otherwise — a missing reading counts as loaded, zmod_ifs.py:353-361). HelixScreen subscribes to it nowhere. Subscribing is the proper fix; it needs a session on the fleet's AD5X rig (commissioned 2026-08-23) to confirm the object is published — no `ad5x` mock profile exists.
 
+#### Lane identity: what the firmware holds and what `lane_data` holds
+
+Colour and type are the firmware's: `IFS_SET_MATERIAL` on the module, otherwise
+`Adventurer5M.json` (`write_adventurer_json`) plus the plugin's `_IFS_VARS colors=`/`types=`
+on a lessWaste/bambufy rig. HelixScreen is the `lane_data` writer here (`lane<n>`, writer
+`helixscreen`): an edit puts brand, spool name and id, weights, colour name and
+temperatures in the record, and never the edit's colour or type. The record copies colour
+and type from the firmware when a firmware reading changes on a present lane
+(`check_external_color_change` / `check_external_type_change` →
+`sync_override_to_firmware_locked`), for OrcaSlicer and other `lane_data` readers; that
+copy also triggers the `_IFS_VARS` push that keeps the plugin in step with an LCD edit.
+Nothing is copied before the first record read lands. The lane shows the edit (a pending
+write) until the firmware echoes it; a type the firmware spells its own way (`Silk PLA`
+→ `SILK`) waits for that spelling. An LCD, Mainsail or `CHANGE_ZCOLOR` edit is simply
+the firmware's new reading and wins. A weight persist writes only the record.
+
 #### External-change triggers (the gcode-response listener)
 
-`register_zcolor_listener()` subscribes to `notify_gcode_response`; `on_gcode_response_line()` schedules a `GET_ZCOLOR` re-read when it sees an externally-driven change (commit `cafcff3ad` added the bare-`Extruder:` trigger). The watched signals:
+`register_zcolor_listener()` subscribes to `notify_gcode_response`; `on_gcode_response_line()` schedules a `GET_ZCOLOR` re-read when it sees an externally-driven change. The watched signals:
 
 | Token in stream | Why it fires | Notes |
 |-----------------|--------------|-------|
-| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | `CHANGE_ZCOLOR SLOT=N` carrying a real locked override also clears that stale override so the new firmware color wins (#981). |
+| `RUN_ZCOLOR` / `CHANGE_ZCOLOR` | Deliberate external color/material edit (AD5X LCD, Mainsail, zmod COLOR macro). HelixScreen persists colors by writing `Adventurer5M.json` directly and **never** emits these — so they can only be external. | The firmware holds colour and type, so the edit is the lane's truth (#981): its `TYPE=`/`HEX=` land in the firmware caches at once and the `lane_data` record copies them. |
 | bare `Extruder: <N>` | zmod's `_SET_EXTRUDER_SLOT` (zmod_color.py `cmd_SET_EXTRUDER_SLOT`) emits `Extruder: {zslot}` via `respond_raw` at the channel-commit step near the **end** of an operation. This is the marker that catches **external unloads/loads done via zmod's own color macro**, where the stream carries no `RUN_ZCOLOR`/`CHANGE_ZCOLOR`. | Matched by a **strict** regex (`^\s*(?://\s*)?Extruder:\s*\d+\s*$`). |
 
 **Why `IN_ZCOLOR` is NOT watched.** An external unload via zmod's color macro emits `IN_ZCOLOR SLOT=N NAPR=0/1` (load/unload) — but the literal `IN_ZCOLOR` token only appears in the **dialog button *definition* echo** (`action:prompt_button Unload|IN_ZCOLOR SLOT=N NAPR=1…`) at *prompt-render* time, **not** when the unload actually runs. Watching it would false-fire on dialog-open and still miss the real unload. The bare `Extruder: <N>` channel-commit marker is the reliable terminal signal instead.
@@ -508,7 +550,7 @@ The raw IFS commands (zmod_ifs.py registrations + docs/en/AD5X.md). `F##` number
 | `IFS_F39 PRUTOK=N` | Unclamp one lane (filament free to pull) |
 | `IFS_F18` | Unclamp **all** lanes at once — no `PRUTOK` needed. ⚠️ zmod's docs/en/AD5X.md mistranslates this as "Filament purge everywhere"; the actual handler (`cmd_IFS_F18`) responds *"Unlocking all filaments"*. Handy for recovery when you don't know which lane is clamped (community tip, ninjamida) |
 | `IFS_F112` | Stop filament feed |
-| `IFS_STATUS` | Structured JSON state (`State`/`Ports`/`Silk`/`Chan`/…) — clean future presence source |
+| `IFS_STATUS` | Structured JSON state (`State`/`Ports`/`Silk`/`Chan`/…); sent with every `GET_ZCOLOR` query, `Ports` is the presence authority once seen |
 | `GET_ZCOLOR SILENT=1` | Per-slot loaded state + active lane as `// `-prefixed text (silk-sensor truth) |
 | `REMOVE_PRUTOK_IFS PRUTOK=N` | Toolhead unload (heat + retract); **not** a per-lane jog |
 | `IN_ZCOLOR SLOT=N NAPR=0/1` | zmod color-macro load (`NAPR=0`) / unload (`NAPR=1`) — emitted on the AD5X LCD / Mainsail path |
@@ -523,7 +565,7 @@ The raw IFS commands (zmod_ifs.py registrations + docs/en/AD5X.md). `F##` number
   Port 4 ──┘
 ```
 
-`PathTopology::LINEAR` — 4 independent lanes merge at a single combiner before the toolhead.
+`PathTopology::LINEAR` — the lanes merge at a single combiner before the toolhead (4 on one IFS; 8, 12 or 16 behind an IFS Jacker, drawn as one unit per IFS).
 
 ### Capabilities
 

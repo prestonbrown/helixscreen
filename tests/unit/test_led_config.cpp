@@ -1,12 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "color_utils.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "printer_discovery.h"
@@ -23,7 +21,7 @@ using namespace helix;
 /// subjects are still alive, before HelixTestFixture's own teardown.
 struct LedConfigFixture : public HelixTestFixture {
     ~LedConfigFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -226,134 +224,58 @@ TEST_CASE_METHOD(LedConfigFixture,
     ctrl.deinit();
 }
 
-TEST_CASE_METHOD(LedConfigFixture, "LedController config: legacy /printer/leds/selected migration",
-                 "[led][config]") {
-    auto* cfg = Config::get_instance();
-
-    // Simulate old SettingsManager data at df()+"leds/selected" (JSON array)
-    nlohmann::json legacy_selected = nlohmann::json::array({"neopixel legacy_led"});
-    cfg->set(cfg->df() + "leds/selected", legacy_selected);
-
-    // Make sure new-style selected_strips is empty
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
-    cfg->save();
-
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    // The legacy leds/selected array is the selection the migration reads
-    REQUIRE(migrated_legacy_selection() == std::vector<std::string>{"neopixel legacy_led"});
-
-    // Cleanup
-    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
-    cfg->save();
-
-    ctrl.deinit();
-}
-
 TEST_CASE_METHOD(LedConfigFixture,
-                 "LedController config: legacy /printer/leds/strip string migration",
+                 "LedController config: the selection migrates from whichever path holds it",
                  "[led][config]") {
+    using json = nlohmann::json;
+    using Strips = std::vector<std::string>;
+    struct Row {
+        const char* name;
+        std::string strip;    ///< oldest format: one string at leds/strip
+        json selected;        ///< legacy array at leds/selected
+        json selected_strips; ///< canonical array
+        Strips expected;
+    };
+    const Row rows[] = {
+        {"legacy leds/selected array",
+         "",
+         json::array({"neopixel legacy_led"}),
+         json(),
+         {"neopixel legacy_led"}},
+        {"oldest leds/strip string",
+         "neopixel oldest_led",
+         json(),
+         json(),
+         {"neopixel oldest_led"}},
+        {"wizard writes strip and selected_strips alike",
+         "output_pin LED",
+         json(),
+         json::array({"output_pin LED"}),
+         {"output_pin LED"}},
+        {"selected_strips wins over a different legacy strip",
+         "neopixel old_led",
+         json(),
+         json::array({"output_pin NEW_LED"}),
+         {"output_pin NEW_LED"}},
+        {"wizard None: empty string and empty array", "", json(), json::array(), {}},
+    };
     auto* cfg = Config::get_instance();
-
-    // Simulate oldest format: single string at df()+"leds/strip"
-    cfg->set<std::string>(cfg->df() + "leds/strip", "neopixel oldest_led");
-
-    // Make sure newer formats are empty
-    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json());
-    cfg->save();
-
     auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
+    for (const auto& row : rows) {
+        INFO(row.name);
+        cfg->set<std::string>(cfg->df() + "leds/strip", row.strip);
+        cfg->set(cfg->df() + "leds/selected", row.selected);
+        cfg->set(cfg->df() + "leds/selected_strips", row.selected_strips);
+        cfg->save();
+        ctrl.deinit();
+        ctrl.init(nullptr, nullptr);
 
-    // The single leds/strip string is the selection the migration reads
-    REQUIRE(migrated_legacy_selection() == std::vector<std::string>{"neopixel oldest_led"});
-
-    // Cleanup
+        CHECK(migrated_legacy_selection() == row.expected);
+    }
     cfg->set<std::string>(cfg->df() + "leds/strip", "");
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
+    cfg->set(cfg->df() + "leds/selected", json());
+    cfg->set(cfg->df() + "leds/selected_strips", json::array());
     cfg->save();
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedConfigFixture,
-                 "LedController config: wizard saves both strip and selected_strips",
-                 "[led][config]") {
-    auto* cfg = Config::get_instance();
-
-    // Simulate wizard behavior: saves to both leds/strip (string for dropdown
-    // restore) and leds/selected_strips (array for LedController)
-    cfg->set<std::string>(cfg->df() + "leds/strip", "output_pin LED");
-    nlohmann::json strips = nlohmann::json::array();
-    strips.push_back("output_pin LED");
-    cfg->set(cfg->df() + "leds/selected_strips", strips);
-    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
-    cfg->save();
-
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    // The canonical array path is the one read
-    REQUIRE(migrated_legacy_selection() == std::vector<std::string>{"output_pin LED"});
-
-    // Cleanup
-    cfg->set<std::string>(cfg->df() + "leds/strip", "");
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
-    cfg->save();
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedConfigFixture,
-                 "LedController config: selected_strips takes priority over legacy strip",
-                 "[led][config]") {
-    auto* cfg = Config::get_instance();
-
-    // Both paths set with different values — selected_strips should win
-    cfg->set<std::string>(cfg->df() + "leds/strip", "neopixel old_led");
-    nlohmann::json strips = nlohmann::json::array();
-    strips.push_back("output_pin NEW_LED");
-    cfg->set(cfg->df() + "leds/selected_strips", strips);
-    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
-    cfg->save();
-
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    // leds/selected_strips is read, NOT the legacy strip value
-    REQUIRE(migrated_legacy_selection() == std::vector<std::string>{"output_pin NEW_LED"});
-
-    // Cleanup
-    cfg->set<std::string>(cfg->df() + "leds/strip", "");
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
-    cfg->save();
-
-    ctrl.deinit();
-}
-
-TEST_CASE_METHOD(LedConfigFixture, "LedController config: wizard None selection saves empty array",
-                 "[led][config]") {
-    auto* cfg = Config::get_instance();
-
-    // Simulate wizard saving "None" — empty string and empty array
-    cfg->set<std::string>(cfg->df() + "leds/strip", "");
-    cfg->set(cfg->df() + "leds/selected_strips", nlohmann::json::array());
-    cfg->set(cfg->df() + "leds/selected", nlohmann::json());
-    cfg->save();
-
-    auto& ctrl = helix::led::LedController::instance();
-    ctrl.deinit();
-    ctrl.init(nullptr, nullptr);
-
-    REQUIRE(migrated_legacy_selection().empty());
-
     ctrl.deinit();
 }
 
@@ -866,11 +788,40 @@ TEST_CASE_METHOD(LedConfigFixture, "apply_startup_preference with no targets def
     clear_led_config_paths();
     ctrl.init(nullptr, nullptr);
     ctrl.set_led_on_at_start(true);
-    ctrl.apply_startup_preference({});
-    // Still armed: the next call with a target applies (last_brightness follows the preference).
     ctrl.set_startup_brightness(40);
     ctrl.set_last_brightness(100);
+    ctrl.apply_startup_preference({});
+    // TEST_TAUTOLOGY_OK: the call between set and check must leave the value alone
+    CHECK(ctrl.last_brightness() == 100);
+    // Still armed: the next call with a target applies (last_brightness follows the preference).
     ctrl.apply_startup_preference({"neopixel a"});
     CHECK(ctrl.last_brightness() == 40);
     ctrl.deinit();
+}
+
+TEST_CASE_METHOD(LedConfigFixture,
+                 "LedController: disabled lights publish no controllable light or device",
+                 "[led][config]") {
+    auto& ctrl = helix::led::LedController::instance();
+    ctrl.deinit();
+    clear_led_config_paths();
+    ctrl.init(nullptr, nullptr);
+    helix::PrinterDiscovery discovery;
+    discovery.parse_objects(nlohmann::json::array({"led chamber_light", "extruder"}));
+    ctrl.discover_from_hardware(discovery);
+    REQUIRE(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 1);
+    lv_subject_t* has_devices = ctrl.get_led_has_devices_subject();
+    REQUIRE(lv_subject_get_int(has_devices) == 1);
+
+    ctrl.set_lights_disabled(true);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 0);
+    CHECK(lv_subject_get_int(has_devices) == 0);
+    ctrl.discover_from_hardware(discovery);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 0);
+
+    ctrl.set_lights_disabled(false);
+    CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 1);
+    CHECK(lv_subject_get_int(has_devices) == 1);
+    ctrl.deinit();
+    clear_led_config_paths();
 }

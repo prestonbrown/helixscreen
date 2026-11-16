@@ -2,7 +2,7 @@
 
 #include "capability_chip_text.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -48,9 +48,9 @@ std::string filament_system_text(const std::vector<FilamentSystemFact>& systems)
             out += ", ";
         }
         out += sys.name;
-        if (sys.slots > 0) {
+        if (!sys.slot_count.empty()) {
             out += kSep;
-            out += std::to_string(sys.slots);
+            out += sys.slot_count;
         }
     }
     return out;
@@ -132,7 +132,7 @@ std::string base_text(CapChip chip, const CapabilityChipFacts& f) {
             return f.mcus.front();
         }
         return f.mcus.empty() ? std::string()
-                              : fmt::format(fmt::runtime(lv_tr("{} MCUs")), f.mcus.size());
+                              : with_detail(TR_NOOP("MCUs"), std::to_string(f.mcus.size()));
     case CapChip::Power:
         return with_detail(TR_NOOP("Power"), count_detail(f.power_device_count, 1));
     case CapChip::Leds:

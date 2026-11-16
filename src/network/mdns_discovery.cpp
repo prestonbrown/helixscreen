@@ -14,8 +14,7 @@
 #define MDNS_IMPLEMENTATION
 #include "mdns_discovery.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "mdns/mdns.h"
 
@@ -180,7 +179,6 @@ class MdnsDiscovery::Impl {
     void discovery_loop() {
         spdlog::debug("[MdnsDiscovery] Discovery thread started");
 
-        // Open mDNS socket
         int sock = mdns_socket_open_ipv4(nullptr);
         if (sock < 0) {
             spdlog::warn("[MdnsDiscovery] Failed to open mDNS socket - network may be unavailable");

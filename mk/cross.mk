@@ -923,7 +923,7 @@ SUBMODULE_CXXFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 # Size flags for device builds
 # =============================================================================
 # -fno-rtti  on every non-native target. The codebase is RTTI-free by policy
-#            and lint-enforced (tests/shell/test_code_lint.bats); a grep for
+#            and lint-enforced (scripts/code_lint.sh); a grep for
 #            non-comment typeid/dynamic_cast across src/ and include/ returns
 #            zero. The ESP32 firmware builds the same way via ESP-IDF's
 #            CONFIG_COMPILER_CXX_RTTI. Applied to our C++ only, NOT to
@@ -1142,7 +1142,7 @@ DOCKER_REMOTE_CONTROL = ENABLE_REMOTE_CONTROL=$(if $(filter-out default file und
 
 # Forwards ENABLE_SCREENSAVER into a Docker build when it was given on the command line, for
 # measurement builds on boards that do not ship screensavers.
-DOCKER_SCREENSAVER = $(if $(filter command line,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
+DOCKER_SCREENSAVER = $(if $(filter command line override,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
 
 # Same forwarding for the diagnostic-upload gate (see the
 # ENABLE_DIAGNOSTIC_UPLOADS block in Makefile). Inside the container only the
@@ -1717,7 +1717,7 @@ DEPLOY_RSYNC_FLAGS := -avzz --delete --checksum
 # target's real state with dev-machine state — or worse, leaves a stale
 # crash_report.txt on a healthy device that triggers the "previously crashed"
 # modal on next boot. These are gitignored but gitignore doesn't affect rsync.
-DEPLOY_RUNTIME_EXCLUDES := --exclude='crash.txt' --exclude='crash_*.txt' --exclude='crash_report.txt' --exclude='.crash_restart_count' --exclude='telemetry_*.json' --exclude='tool_spools.json' --exclude='filament_slot_overrides.json' --exclude='user_filaments.json' --exclude='crash_history.json' --exclude='.helix-screen.lock'
+DEPLOY_RUNTIME_EXCLUDES := --exclude='crash.txt' --exclude='crash_*.txt' --exclude='crash_report.txt' --exclude='.crash_restart_count' --exclude='telemetry_*.json' --exclude='tool_spools.json' --exclude='filament_slot_overrides.json' --exclude='user_filaments.json' --exclude='crash_history.json' --exclude='pending_remap.json' --exclude='.helix-screen.lock'
 DEPLOY_ASSET_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' --exclude='settings*.json' --exclude='helixconfig*.json' --exclude='helixscreen.env' --exclude='._*' \
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
 	--exclude='*.icns' --exclude='mdi-icon-metadata.json.gz' --exclude='moonraker-plugin/tests' \
@@ -2905,7 +2905,11 @@ define release-clean-assets
 	@# takes whatever build/ happens to hold, so this is the step that bounds the
 	@# payload. A platform whose panel is unbounded keeps every size class and the
 	@# source PNGs; one whose manifest names candidate boards ships their union.
-	$(if $(2),@$(PLATFORM_MANIFEST) prune-assets $(2) $(1))
+	@# The CJK bins go by the build's HELIX_MAX_FONT_TIER, asked of this Makefile
+	@# for that target so this file stays its only definition: a bin for a face
+	@# the build does not link is one CjkFontManager never loads.
+	$(if $(2),@tier="$$($(MAKE) -s --no-print-directory PLATFORM_TARGET=$(2) print-var-HELIX_MAX_FONT_TIER | tail -n1)" && \
+		$(PLATFORM_MANIFEST) prune-assets $(2) $(1) "$$tier")
 endef
 
 # PII / runtime-state files that must NEVER ship in a release tarball.
@@ -2923,6 +2927,7 @@ define release-strip-pii
 	       $(1)/config/crash*.txt \
 	       $(1)/config/.crash_restart_count \
 	       $(1)/config/crash_history.json \
+	       $(1)/config/pending_remap.json \
 	       $(1)/config/.helix-screen.lock \
 	       2>/dev/null || true
 endef

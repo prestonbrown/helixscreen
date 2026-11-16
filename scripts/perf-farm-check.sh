@@ -9,7 +9,13 @@
 # difference between a print finishing and an MCU timer shutdown. This measures
 # that number on the hardware where it decides outcomes.
 #
-# Run it from a host that reaches the fleet and stays up (zeus).
+# Run it from a host that reaches the fleet and stays up. PERF_SSH_OPTS adds ssh options,
+# such as -o ProxyJump=user@host from off the printers' network. A device whose budget row
+# names password_env uses sshpass with that variable; every other device uses keys.
+#
+# PERF_RESULTS names a file to append one JSON record per device to: its status, the raw
+# samples of each phase, its budgets and the version the device reported.
+# perf-farm-scheduled.sh keeps those records across runs.
 #
 #   0  every device inside budget
 #   1  a device over budget
@@ -64,7 +70,9 @@ SETTLE="${SETTLE:-30}"
 SAMPLES="${SAMPLES:-2}"
 ONLY="${ONLY:-}"
 IDLE_ONLY="${IDLE_ONLY:-false}"
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=no)
+SSH_OPTS=(-o ConnectTimeout=15 -o StrictHostKeyChecking=no)
+# shellcheck disable=SC2206
+SSH_OPTS+=(${PERF_SSH_OPTS:-})
 
 RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'
 CYAN=$'\033[0;36m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
@@ -88,18 +96,32 @@ UP=$(awk '{print $1}' /proc/uptime)
 TJ=$(awk '/^cpu0 /{s=0; for(i=2;i<=8;i++) s+=$i; print s}' /proc/stat)
 HZ=$(awk -v t="$TJ" -v u="$UP" 'BEGIN{r=t/u; if(r<160) print 100; else if(r<400) print 250; else print 1000}')
 
-# Never disturb a machine that is mid-print.
-STATE=$(curl -s --max-time 5 "http://127.0.0.1:7125/printer/objects/query?print_stats" 2>/dev/null \
-        | sed 's/.*"state"[[:space:]]*:[[:space:]]*"//' | sed 's/".*//')
-case "$STATE" in
-    printing|paused) say "SKIPPED the printer is busy (print_stats.state=$STATE)"; exit 0 ;;
-esac
+# Never disturb a machine that is mid-print, so only a state known to be idle passes: a
+# state it cannot read or does not know is a refusal too. Not every board has curl.
+# Asked again right before the stop and before each phase, since a print can start at any
+# time. A refusal after the stop ends the run, and the EXIT trap brings the UI back. A print
+# started inside a phase stays without its UI until that phase ends. Called at the top level
+# only: inside $(measure ...) its exit would end just the subshell.
+QUERY="http://127.0.0.1:7125/printer/objects/query?print_stats"
+refuse_unless_idle() {
+    STATE=$( { curl -s --max-time 5 "$QUERY" 2>/dev/null || wget -q -T 5 -O - "$QUERY" 2>/dev/null; } \
+            | sed -n 's/.*"state"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p')
+    case "$STATE" in
+        standby|complete|cancelled|error) return 0 ;;
+        printing|paused) say "SKIPPED the printer is busy (print_stats.state=$STATE)" ;;
+        "") say "SKIPPED could not read print_stats.state from Moonraker" ;;
+        *) say "SKIPPED unknown print_stats.state=$STATE" ;;
+    esac
+    exit 0
+}
+refuse_unless_idle
 
 [ -n "$STOP" ] && [ -n "$START" ] && [ -n "$BIN" ] || { say "SKIPPED no service control configured"; exit 0; }
 
 # Does this build carry the mock? CC1 ships without it and cannot do the print phase.
 HAS_MOCK=0
 strings -a "$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
+echo "VERSION $("$BIN" --version 2>/dev/null | head -n 1)"
 
 WORK=/tmp/.hsperf
 rm -rf "$WORK"; mkdir -p "$WORK/gc" "$WORK/cfg"
@@ -112,6 +134,7 @@ restore() {
     sleep 4
     if [ -n "$(find_pid)" ]; then echo "RESTORED ok"; else echo "RESTORED FAILED"; fi
 }
+refuse_unless_idle
 trap restore EXIT HUP INT TERM
 
 sh -c "$STOP" >/dev/null 2>&1
@@ -143,6 +166,7 @@ measure() {
     return 0
 }
 
+refuse_unless_idle
 IDLE=$(measure "" true 0) || { say "INCONCLUSIVE idle instance died within ${SETTLE}s"; exit 0; }
 
 if [ "$IDLE_ONLY" = "true" ] || [ "$HAS_MOCK" = "0" ]; then
@@ -152,16 +176,25 @@ if [ "$IDLE_ONLY" = "true" ] || [ "$HAS_MOCK" = "0" ]; then
 fi
 
 # A long name is the point: overflow is what starts the scroll animation.
-GC=$(ls /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
-        /usr/data/printer_data/gcodes/**/*.gcode 2>/dev/null | head -n 1)
+# First match in this order: the printer's own files, then the install's test gcode.
+# ls sorts its operands, so the order is kept by testing each candidate in turn.
+GC=""
+for _gc in /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
+        /usr/data/printer_data/gcodes/**/*.gcode /usr/data/gcodes/*.gcode \
+        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
+    [ -f "$_gc" ] && { GC="$_gc"; break; }
+done
 if [ -z "$GC" ]; then
     say "MEASURED hz=$HZ idle=$IDLE print= printoff= (no gcode on device for the print phase)"
     exit 0
 fi
 LONG="$WORK/gc/Delta_filament_barrel_base_Hyper_PLA_49m_overflowing_name.gcode"
-cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
+# A link, not a copy: /tmp is RAM, and a large gcode copied there squeezes a small board.
+ln -s "$GC" "$LONG" 2>/dev/null || cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
 
+refuse_unless_idle
 PRINT=$(measure "--sim-speed 3 --gcode-file $LONG" true 1)  || PRINT=""
+refuse_unless_idle
 PRINTOFF=$(measure "--sim-speed 3 --gcode-file $LONG" false 1) || PRINTOFF=""
 say "MEASURED hz=$HZ idle=$IDLE print=$PRINT printoff=$PRINTOFF"
 REMOTE_EOF
@@ -170,6 +203,24 @@ median() { printf '%s\n' "$@" | sort -n | awk '{a[NR]=$1} END{print a[int((NR+1)
 
 overall=0
 declare -a SUMMARY=()
+PERF_RESULTS="${PERF_RESULTS:-}"
+RUN_TS="${PERF_RUN_TS:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
+samples_json() { # "3.6 3.5" -> [3.6,3.5]
+    jq -cn --arg v "$1" '$v | split(" ") | map(select(length > 0) | tonumber)'
+}
+
+# record <device index> <name> <status> [detail version idle print printoff]
+record() {
+    [[ -n "$PERF_RESULTS" ]] || return 0
+    jq -cn --arg ts "$RUN_TS" --arg device "$2" --arg status "$3" --arg detail "${4:-}" \
+        --arg version "${5:-}" --argjson idle "$(samples_json "${6:-}")" \
+        --argjson print "$(samples_json "${7:-}")" --argjson poff "$(samples_json "${8:-}")" \
+        --argjson budget "$(jq -c ".devices[$1] | {idle: .idle_budget_pct, print: .print_budget_pct,
+                                    print_anim_off: .print_anim_off_budget_pct}" "$BUDGETS")" \
+        '{ts: $ts, device: $device, status: $status, version: $version, detail: $detail,
+          idle: $idle, print: $print, print_anim_off: $poff, budget: $budget}' >>"$PERF_RESULTS"
+}
 
 score() { # name phase values budget
     local name="$1" phase="$2" vals="$3" budget="$4" med
@@ -196,44 +247,54 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     b_print=$(jq -r ".devices[$i].print_budget_pct // empty" "$BUDGETS")
     b_poff=$(jq -r  ".devices[$i].print_anim_off_budget_pct // empty" "$BUDGETS")
 
-    printf '%s%-6s%s\n' "$BOLD" "$name" "$RESET"
-    if ! ssh "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
-        printf '    %sUNREACHABLE%s (%s)\n' "$RED" "$RESET" "$host"
-        SUMMARY+=("$name UNREACHABLE"); overall=2; continue
+    pass_env=$(jq -r ".devices[$i].password_env // \"\"" "$BUDGETS")
+    device_ssh=(ssh -o BatchMode=yes)
+    if [[ -n "$pass_env" && -n "${!pass_env:-}" ]]; then
+        device_ssh=(env "SSHPASS=${!pass_env}" sshpass -e ssh -o PubkeyAuthentication=no)
     fi
 
-    out=$(ssh "${SSH_OPTS[@]}" "$host" \
+    printf '%s%-6s%s\n' "$BOLD" "$name" "$RESET"
+    if ! "${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
+        printf '    %sUNREACHABLE%s (%s)\n' "$RED" "$RESET" "$host"
+        SUMMARY+=("$name UNREACHABLE"); overall=2; record "$i" "$name" unreachable "$host"; continue
+    fi
+
+    out=$("${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" \
           "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY" \
           <<<"$REMOTE" 2>/dev/null)
     res=$(grep '^RESULT ' <<<"$out" | head -n 1 | sed 's/^RESULT //')
     restored=$(grep '^RESTORED ' <<<"$out" | head -n 1 | sed 's/^RESTORED //')
+    version=$(grep '^VERSION ' <<<"$out" | head -n 1 | sed 's/^VERSION //')
 
     if [[ -n "$restored" && "$restored" != "ok" ]]; then
         printf '    %sSERVICE DID NOT RESTART%s - fix this device by hand before anything else\n' "$RED" "$RESET"
-        SUMMARY+=("$name SERVICE-DOWN"); overall=2; continue
+        SUMMARY+=("$name SERVICE-DOWN"); overall=2
+        record "$i" "$name" service_down "$res" "$version"; continue
     fi
 
     case "$res" in
         MEASURED*)
             idle=$(sed 's/.*idle=//;   s/ print=.*//'    <<<"$res")
             pr=$(sed   's/.*[^f]print=//; s/ printoff=.*//' <<<"$res")
-            poff=$(sed 's/.*printoff=//' <<<"$res")
+            poff=$(sed 's/.*printoff=//; s/(.*//' <<<"$res")
             worst=0
             score "$name" idle     "$idle" "$b_idle";                     r=$?; [[ $r -gt $worst ]] && worst=$r
-            if [[ -n "$b_print" ]]; then
+            if [[ -n "$b_print" && "$IDLE_ONLY" != "true" ]]; then
                 score "$name" print    "$pr"   "$b_print";                r=$?; [[ $r -gt $worst ]] && worst=$r
                 score "$name" print-off "$poff" "$b_poff";                r=$?; [[ $r -gt $worst ]] && worst=$r
             fi
             case $worst in
-                0) SUMMARY+=("$name ok") ;;
-                1) SUMMARY+=("$name OVER BUDGET"); [[ $overall -eq 0 ]] && overall=1 ;;
-                *) SUMMARY+=("$name INCOMPLETE"); overall=2 ;;
-            esac ;;
+                0) SUMMARY+=("$name ok"); status=ok ;;
+                1) SUMMARY+=("$name OVER BUDGET"); status=over; [[ $overall -eq 0 ]] && overall=1 ;;
+                *) SUMMARY+=("$name INCOMPLETE"); status=incomplete; overall=2 ;;
+            esac
+            record "$i" "$name" "$status" "$res" "$version" "$idle" "$pr" "$poff" ;;
         SKIPPED*|INCONCLUSIVE*|"")
             printf '    %s%s%s\n' "$YELLOW" "${res:-NO RESPONSE}" "$RESET"
-            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2 ;;
+            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2
+            status=$(tr '[:upper:]' '[:lower:]' <<<"${res%% *}"); record "$i" "$name" "${status:-no_response}" "$res" "$version" ;;
         *)  printf '    %sUNPARSED:%s %s\n' "$YELLOW" "$RESET" "$res"
-            SUMMARY+=("$name UNPARSED"); overall=2 ;;
+            SUMMARY+=("$name UNPARSED"); overall=2; record "$i" "$name" unparsed "$res" "$version" ;;
     esac
 done
 

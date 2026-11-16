@@ -4,6 +4,7 @@
 #pragma once
 
 #include "completion_alert_mode.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
@@ -32,7 +33,6 @@ class AudioSettingsManager {
     /// The static PersistedSetting table this manager is built from.
     static settings::TableView persisted_table();
 
-    // Non-copyable
     AudioSettingsManager(const AudioSettingsManager&) = delete;
     AudioSettingsManager& operator=(const AudioSettingsManager&) = delete;
 
@@ -117,7 +117,8 @@ class AudioSettingsManager {
      * @brief Refresh the subjects that describe the live sound backend
      *
      * `settings_audio_device_available` (an ALSA device picker applies) and
-     * `settings_music_available` (the backend plays music) cannot be seeded in
+     * `settings_music_available` (the backend plays music and the tracker that
+     * plays it is built in) cannot be seeded in
      * init_subjects() because subjects are initialized before SoundManager
      * picks its backend. Called once after SoundManager::initialize() so the
      * values are correct before any overlay binds to them. A later M300
@@ -158,8 +159,8 @@ class AudioSettingsManager {
 
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
-    lv_subject_t audio_device_available_subject_{};
-    lv_subject_t music_available_subject_{};
+    helix::Subject audio_device_available_subject_{};
+    helix::Subject music_available_subject_{};
 
     bool subjects_initialized_ = false;
 };

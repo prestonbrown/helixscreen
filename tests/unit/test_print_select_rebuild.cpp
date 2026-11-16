@@ -29,8 +29,7 @@ int visible_cards() {
     REQUIRE(container != nullptr);
     int shown = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
-        if (!lv_obj_has_flag(lv_obj_get_child(container, static_cast<int32_t>(i)),
-                             LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(container, static_cast<int32_t>(i)))) {
             shown++;
         }
     }

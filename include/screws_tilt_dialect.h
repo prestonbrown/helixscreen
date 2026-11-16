@@ -6,11 +6,10 @@
 #include "calibration_types.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file screws_tilt_dialect.h

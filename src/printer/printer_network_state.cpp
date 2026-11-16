@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_network_state.cpp
- * @brief Network and connection state management extracted from PrinterState
+ * @brief Network and connection state, one of PrinterState's domain sub-states
  *
  * Manages WebSocket connection state, network connectivity, and Klipper firmware
  * state. Maintains a derived nav_buttons_enabled subject for UI gating.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_network_state.h"
@@ -48,8 +46,35 @@ const char* klippy_state_name(KlippyState state) {
     return "error";
 }
 
+bool is_klippy_config_error(std::string_view state_message) {
+    // Klipper's configfile/pins errors, verbatim. Each one names the option,
+    // section, pin or file at fault, so the message itself says where to look.
+    static constexpr std::string_view kConfigErrorPhrases[] = {
+        "in section '", // Option 'x' in section 'y' must .../is not valid ...
+        "is not a valid config section",
+        "Unable to open config file",
+        "Unable to parse option",
+        "Error loading template", // gcode_macro templates are config too
+        "Unknown pin chip name",
+        "used multiple times in config",
+    };
+    for (std::string_view phrase : kConfigErrorPhrases) {
+        if (state_message.find(phrase) != std::string_view::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_klippy_mcu_connect_error(std::string_view state_message) {
+    if (state_message.find("mcu '") == std::string_view::npos) {
+        return false;
+    }
+    return state_message.find("Unable to connect") != std::string_view::npos ||
+           state_message.find("Timeout on connect") != std::string_view::npos;
+}
+
 PrinterNetworkState::PrinterNetworkState() {
-    // Initialize string buffer
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
     std::strcpy(printer_connection_message_buf_, "Disconnected");
 }
@@ -74,6 +99,10 @@ void PrinterNetworkState::init_subjects(bool register_xml) {
     // Klipper firmware state subject (default to SHUTDOWN until confirmed ready)
     INIT_SUBJECT_INT(klippy_state, static_cast<int>(KlippyState::SHUTDOWN), subjects_,
                      register_xml);
+    // A fresh subject has heard from no printer, so no reason describes it yet.
+    klippy_state_reported_ = false;
+    klippy_state_message_.clear();
+    klippy_state_message_describes_.reset();
 
     // Combined nav button enabled subject (connected AND klippy ready)
     // Starts disabled (0) - will be updated when connection/klippy state changes
@@ -110,7 +139,6 @@ void PrinterNetworkState::deinit_subjects() {
 }
 
 void PrinterNetworkState::set_printer_connection_state_internal(int state, const char* message) {
-    // Called from main thread via ui_queue_update()
     // Log "Connected" at info level, transitional states at debug to reduce noise
     if (state == static_cast<int>(ConnectionState::CONNECTED)) {
         spdlog::info("[PrinterNetworkState] Printer connection state: Connected");
@@ -119,7 +147,6 @@ void PrinterNetworkState::set_printer_connection_state_internal(int state, const
                       message);
     }
 
-    // Track if we've ever successfully connected
     if (state == static_cast<int>(ConnectionState::CONNECTED) && !was_ever_connected_) {
         was_ever_connected_ = true;
         spdlog::debug(
@@ -132,7 +159,7 @@ void PrinterNetworkState::set_printer_connection_state_internal(int state, const
     lv_subject_set_int(&printer_connection_state_, state);
     spdlog::trace("[PrinterNetworkState] Subject value now: {}",
                   lv_subject_get_int(&printer_connection_state_));
-    lv_subject_copy_string(&printer_connection_message_, message);
+    lv_subject_set_string(&printer_connection_message_, message);
     update_nav_buttons_enabled();
     spdlog::trace("[PrinterNetworkState] Printer connection state update complete, observers "
                   "should be notified");
@@ -257,14 +284,22 @@ void PrinterNetworkState::reset_klippy_state_freshness() {
 bool PrinterNetworkState::set_klippy_state_internal(KlippyState state) {
     const char* state_names[] = {"READY", "STARTUP", "SHUTDOWN", "ERROR"};
     int state_int = static_cast<int>(state);
-    if (lv_subject_get_int(&klippy_state_) == state_int)
+    const bool first_report = !klippy_state_reported_;
+    klippy_state_reported_ = true;
+    if (lv_subject_get_int(&klippy_state_) == state_int) {
+        // The subject's placeholder is SHUTDOWN, so a printer that really is shut
+        // down when first heard from sets no new value. Observers that ignore the
+        // placeholder still have to learn it has become the reported state.
+        if (first_report) {
+            lv_subject_notify(&klippy_state_);
+        }
         return false;
+    }
     spdlog::debug("[PrinterNetworkState] Klippy state changed: {} ({})", state_names[state_int],
                   state_int);
     lv_subject_set_int(&klippy_state_, state_int);
     update_nav_buttons_enabled();
 
-    // Clear state message when returning to READY (error is resolved)
     if (state == KlippyState::READY) {
         set_klippy_state_message("", state);
     }
@@ -295,7 +330,6 @@ void PrinterNetworkState::set_klippy_state_message(const std::string& message,
 }
 
 void PrinterNetworkState::update_nav_buttons_enabled() {
-    // Compute combined state: enabled when connected AND klippy ready
     int connection = lv_subject_get_int(&printer_connection_state_);
     int klippy = lv_subject_get_int(&klippy_state_);
     bool connected = (connection == static_cast<int>(ConnectionState::CONNECTED));

@@ -11,14 +11,16 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_executor.h"
 #include "material_settings_manager.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "preset_materials.h"
 #include "printer_state.h"
@@ -39,9 +41,6 @@
 // assigned to the slot.
 static constexpr int kPresetCount = helix::presets::kPresetCount;
 
-// Static instance for callback dispatch (one preheat widget at a time)
-static helix::PreheatWidget* s_active_instance = nullptr;
-
 namespace helix {
 
 void register_preheat_widget() {
@@ -58,7 +57,13 @@ void register_preheat_widget() {
     lv_xml_register_event_cb(nullptr, "preheat_tool_target_cb", PreheatWidget::tool_target_cb);
 }
 
-PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {}
+PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {
+    // Published before the manager parses the component, which drops a binding
+    // whose subject is missing at parse time.
+    tool_target_text_.init_string(tool_target_text_buf_, nullptr, sizeof(tool_target_text_buf_),
+                                  "");
+    subjects_.publish("preheat_tool_target_text", &tool_target_text_);
+}
 
 PreheatWidget::~PreheatWidget() {
     detach();
@@ -77,56 +82,40 @@ void PreheatWidget::set_config(const nlohmann::json& config) {
 void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-    s_active_instance = this;
 
     split_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_split_btn");
     if (split_btn_) {
-        lv_obj_set_user_data(split_btn_, this);
         ui_split_button_set_selected(split_btn_, static_cast<uint32_t>(selected_material_));
         update_button_label();
-    }
-
-    // Clamp tool_target_ to prevent a stale index when the printer's extruder
-    // count changes between sessions. PanelWidget instances are recycled across
-    // home-panel rebuilds, so tool_target_ outlives any one attach.
-    if (tool_target_ >= static_cast<int>(ToolState::instance().heated_heads().size())) {
-        tool_target_ = -1; // Reset to "all" if stale
     }
 
     // Update label when widget resizes (e.g. breakpoint change, initial layout)
     lv_obj_add_event_cb(
         widget_obj_,
         [](lv_event_t* e) {
-            (void)e;
-            if (s_active_instance) {
-                s_active_instance->update_button_label();
+            if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+                self->update_button_label();
             }
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Tool target button - only visible when the printer has more than one
-    // nozzle to aim a preheat at. Counts extruders, not tools: an AMS expands
-    // ToolState's tool list to one entry per filament lane, and every lane on a
-    // single-hotend printer shares the one heater, so "T0 / T1 / T2 / T3" would
-    // offer four names for the same thing.
-    tool_target_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_tool_target");
-    tool_target_label_ = lv_obj_find_by_name(widget_obj_, "tool_target_label");
-    if (tool_target_btn_) {
-        if (!ToolState::instance().has_multiple_extruders()) {
-            lv_obj_add_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-            update_tool_target_label();
-        }
-    }
-
-    // Set user_data on temp tap rows for callback recovery
-    lv_obj_t* nozzle_row = lv_obj_find_by_name(widget_obj_, "preheat_nozzle_row");
-    if (nozzle_row)
-        lv_obj_set_user_data(nozzle_row, this);
-    lv_obj_t* bed_row = lv_obj_find_by_name(widget_obj_, "preheat_bed_row");
-    if (bed_row)
-        lv_obj_set_user_data(bed_row, this);
+    // The tool target button shows only when the printer has more than one
+    // nozzle to aim a preheat at: the component binds ToolState's
+    // extruder_count. Extruders, not tools: an AMS expands ToolState's tool
+    // list to one entry per filament lane, and every lane on a single-hotend
+    // printer shares the one heater, so "T0 / T1 / T2 / T3" would offer four
+    // names for the same thing. The target and caption follow both the tool
+    // list and the nozzle count: a shared-heater flip changes the count
+    // without a new tool list.
+    sync_tool_target();
+    tools_version_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_tools_version_subject(), this,
+        [](PreheatWidget* self, int /*version*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
+    extruder_count_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_extruder_count_subject(), this,
+        [](PreheatWidget* self, int /*count*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
 
     // Tint the two heater glyphs. The numbers beside them already carry the
     // 4-state thermal color, so leaving the icons flat made them disagree
@@ -161,10 +150,6 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void PreheatWidget::detach() {
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
-
     nozzle_icon_binder_.unbind();
     bed_icon_binder_.unbind();
 
@@ -173,23 +158,10 @@ void PreheatWidget::detach() {
     bed_target_lifetime_.reset();
     bed_target_obs_.reset();
     language_obs_.reset();
+    tools_version_obs_.reset();
+    extruder_count_obs_.reset();
 
-    if (split_btn_) {
-        lv_obj_set_user_data(split_btn_, nullptr);
-        split_btn_ = nullptr;
-    }
-
-    tool_target_btn_ = nullptr;
-    tool_target_label_ = nullptr;
-
-    lv_obj_t* nozzle_row =
-        widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_nozzle_row") : nullptr;
-    if (nozzle_row)
-        lv_obj_set_user_data(nozzle_row, nullptr);
-    lv_obj_t* bed_row = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "preheat_bed_row") : nullptr;
-    if (bed_row)
-        lv_obj_set_user_data(bed_row, nullptr);
-
+    split_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -247,10 +219,16 @@ void PreheatWidget::update_heater_state() {
     }
 }
 
-void PreheatWidget::update_tool_target_label() {
-    if (!tool_target_label_)
-        return;
+void PreheatWidget::sync_tool_target() {
+    // tool_target_ outlives any one attach and any one head list, so a head it
+    // names can be gone: aim at all of them again.
+    if (tool_target_ >= ToolState::instance().extruder_count()) {
+        tool_target_ = -1;
+    }
+    update_tool_target_label();
+}
 
+void PreheatWidget::update_tool_target_label() {
     // Holds ToolInfo::display_label, a translated noun plus a number:
     // Russian renders LaneNoun::Toolhead as "Печатающая головка 16" at 40 bytes.
     char label[64];
@@ -266,7 +244,7 @@ void PreheatWidget::update_tool_target_label() {
     } else {
         label[0] = '\0';
     }
-    lv_label_set_text(tool_target_label_, label);
+    lv_subject_set_string(&tool_target_text_, label);
 }
 
 void PreheatWidget::handle_selection_changed() {
@@ -294,11 +272,13 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
         return;
     c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle),
                   {.toast = true, .on_success = [nozzle]() {
-                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), nozzle);
+                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                      helix::units::format_display_temp(nozzle));
                    }});
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
                   {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
+                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                      helix::units::format_display_temp(bed));
                    }});
 }
 
@@ -434,7 +414,8 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
 
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
                   {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
+                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                      helix::units::format_display_temp(bed));
                    }});
 
     if (*refused) {
@@ -484,10 +465,9 @@ void PreheatWidget::cycle_tool_target() {
 
 void PreheatWidget::tool_target_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] tool_target_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->cycle_tool_target();
-        s_active_instance->update_tool_target_label();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->cycle_tool_target();
+        self->update_tool_target_label();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -495,37 +475,33 @@ void PreheatWidget::tool_target_cb(lv_event_t* e) {
 // Static callbacks
 void PreheatWidget::preheat_apply_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] preheat_apply_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->record_interaction();
-        s_active_instance->handle_apply();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->record_interaction();
+        self->handle_apply();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::preheat_changed_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] preheat_changed_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_selection_changed();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_selection_changed();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::nozzle_tap_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] nozzle_tap_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_nozzle_tap();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_nozzle_tap();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void PreheatWidget::bed_tap_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PreheatWidget] bed_tap_cb");
-    (void)e;
-    if (s_active_instance) {
-        s_active_instance->handle_bed_tap();
+    if (auto* self = panel_widget_from_event<PreheatWidget>(e)) {
+        self->handle_bed_tap();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

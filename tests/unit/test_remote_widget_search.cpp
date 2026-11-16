@@ -49,10 +49,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl search: hidden subtrees are skipped unles
     lv_obj_t* root = lv_obj_create(lv_screen_active());
     lv_obj_t* shown = named_child(root, "target");
     lv_obj_t* hidden_parent = named_child(root, "wrapper");
-    lv_obj_add_flag(hidden_parent, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hidden_parent, true);
     lv_obj_t* inside_hidden = named_child(hidden_parent, "target");
     lv_obj_t* hidden_self = named_child(root, "target");
-    lv_obj_add_flag(hidden_self, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hidden_self, true);
 
     std::vector<lv_obj_t*> visible;
     helix::collect_widgets(root, named("target"), visible);

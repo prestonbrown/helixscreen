@@ -11,16 +11,16 @@
  * covered or the printer runs out of jobs.
  */
 
+#include "../../include/core/gcode_filename.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/print_history_data.h"
 #include "../../include/print_history_manager.h"
 #include "../../include/printer_state.h"
-#include "../../include/ui_filename_utils.h"
-#include "../../include/ui_update_queue.h"
 #include "../test_helpers/history_call_counting_api.h"
 #include "../test_helpers/print_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <memory>
@@ -68,14 +68,14 @@ class PagingFixture {
         manager_.reset();
         api_.reset();
         client_.disconnect();
-        UpdateQueueTestAccess::drain(UpdateQueue::instance());
+        UpdateQueue::instance().drain();
         update_queue_shutdown();
     }
 
   protected:
     void pump() {
         for (int i = 0; i < 5; ++i) {
-            UpdateQueueTestAccess::drain(UpdateQueue::instance());
+            UpdateQueue::instance().drain();
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
     }

@@ -220,6 +220,17 @@ list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/bluetooth/.*\\.cpp$")
 # never defines HELIX_ENABLE_REMOTE_CONTROL, so every call site is #ifdef'd out and these
 # translation units are dead weight — remote_client.cpp additionally needs lib/linenoise.
 list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/remote/.*\\.cpp$")
+# PCM piped to a rootfs aplay exists for K1-family boards only (HELIX_HAS_PCM_PIPE,
+# which Android never defines), and its posix_spawn needs API 28.
+list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/system/pcm_pipe_sound_backend\\.cpp$")
+# Mock backends build only where HELIX_ENABLE_MOCKS is defined (Debug, below): the
+# same files the Makefile drops when ENABLE_MOCKS is off.
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/(mock|network|platform/usb)/[^/]*_mock[^/]*\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/printer/ams_backend_mock\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/mock/moonraker_api_mock\\.cpp$")
+    list(FILTER HELIX_SOURCES EXCLUDE REGEX ".*/system/mock_performance_source\\.cpp$")
+endif()
 
 # Also exclude Objective-C++ files (.mm) - they're macOS only
 # (CMake won't glob them with *.cpp anyway, but be explicit)
@@ -351,10 +362,15 @@ target_compile_options(main PRIVATE
     -Wno-unused-function
 )
 
-# Use the same precompiled header as the Makefile build — it force-includes
-# lvgl.h, helix_xml.h, spdlog, and common STL headers into every TU.
+# Use the same forced-include header as the Makefile build: lvgl.h, helix_xml.h
+# and common STL headers in every TU. spdlog and json stay out of that header so
+# the Makefile build parses them only where a source includes them; a PCH parses
+# them once, so here they are listed beside it. A generator expression ends at
+# its first '>', so the bracketed name closes with $<ANGLE-R>.
 target_precompile_headers(main PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_ROOT}/include/lvgl_pch.h>"
+    "$<$<COMPILE_LANGUAGE:CXX>:<spdlog/spdlog.h$<ANGLE-R>>"
+    "$<$<COMPILE_LANGUAGE:CXX>:\"hv/json.hpp\">"
 )
 # A PCH that records its inputs' mtimes differs on every checkout, so ccache
 # could never reuse an object compiled against it.
@@ -371,7 +387,7 @@ target_compile_options(main PRIVATE
 if(CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(HELIX_LFS_SOURCES
         "${PROJECT_ROOT}/src/rendering/gcode_data_source.cpp"
-        "${PROJECT_ROOT}/src/system/text_io.cpp"
+        "${PROJECT_ROOT}/src/core/text_io.cpp"
         "${PROJECT_ROOT}/src/system/helix_fs.cpp"
     )
     set_source_files_properties(${HELIX_LFS_SOURCES} PROPERTIES

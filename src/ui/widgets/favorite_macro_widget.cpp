@@ -10,12 +10,13 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/subject.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "favorite_macro_config_modal.h"
 #include "home_macro_run.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -58,7 +59,17 @@ FavoriteMacroWidget::FavoriteMacroWidget(const std::string& widget_id)
     : TiledPanelWidget(widget_id,
                        TileSizing::Content{"", "", "Macro", false, "", /*label_always_drawn=*/false,
                                            TileSizing::IconBox::Disc}),
-      widget_id_(widget_id) {}
+      widget_id_(widget_id) {
+    // Published before the manager parses the component, which drops a
+    // binding whose subject is missing at parse time.
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
+    named_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
+    badge_color_subject_.init_color(theme_manager_get_color("secondary"));
+    sizing_.publish_instance_subject(subjects_, &badge_color_subject_, "badge_color_subject",
+                                     "badge_color");
+}
 
 FavoriteMacroWidget::~FavoriteMacroWidget() {
     detach();
@@ -89,15 +100,9 @@ void FavoriteMacroWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) 
         lv_obj_set_style_opa(widget_obj_, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
-    // Cache label pointers from XML
-    icon_badge_ = lv_obj_find_by_name(widget_obj_, "fav_macro_badge");
     icon_label_ = lv_obj_find_by_name(widget_obj_, "fav_macro_icon");
-    name_label_ = lv_obj_find_by_name(widget_obj_, "fav_macro_name");
-
-    if (!icon_label_ || !name_label_) {
-        spdlog::warn("[FavoriteMacroWidget] XML child lookup failed: icon={} name={} badge={} — "
-                     "widget will appear blank",
-                     icon_label_ != nullptr, name_label_ != nullptr, icon_badge_ != nullptr);
+    if (!icon_label_) {
+        spdlog::warn("[FavoriteMacroWidget] XML child lookup failed: no fav_macro_icon");
     }
 
     update_display();
@@ -114,9 +119,7 @@ void FavoriteMacroWidget::detach() {
         widget_obj_ = nullptr;
     }
     parent_screen_ = nullptr;
-    icon_badge_ = nullptr;
     icon_label_ = nullptr;
-    name_label_ = nullptr;
 
     spdlog::debug("[FavoriteMacroWidget] Detached");
 }
@@ -159,15 +162,13 @@ void FavoriteMacroWidget::update_display() {
         tile_color::paint_for(icon_color_, unconfigured ? tile_color::TileState::Unconfigured
                                                         : tile_color::TileState::Active);
 
-    if (name_label_) {
-        if (unconfigured) {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            lv_label_set_translation_tag(name_label_, "Configure");
-        } else {
-            std::string display = helix::get_display_name(macro_name_, helix::DeviceType::MACRO);
-            lv_label_set_text(name_label_, display.c_str());
-        }
+    // Unconfigured shows the component's own "Configure" label, which
+    // re-translates itself.
+    if (!unconfigured) {
+        lv_subject_set_string(
+            &name_subject_, helix::get_display_name(macro_name_, helix::DeviceType::MACRO).c_str());
     }
+    lv_subject_set_int(&named_subject_, unconfigured ? 0 : 1);
 
     if (icon_label_) {
         // Unconfigured: script_text icon. Configured: custom icon or "play" default.
@@ -183,13 +184,9 @@ void FavoriteMacroWidget::update_display() {
         }
     }
 
-    if (icon_badge_) {
-        lv_obj_set_style_bg_color(icon_badge_,
-                                  paint == tile_color::Paint::Custom
-                                      ? lv_color_hex(icon_color_)
-                                      : theme_manager_get_color("secondary"),
-                                  0);
-    }
+    lv_subject_set_color(&badge_color_subject_, paint == tile_color::Paint::Custom
+                                                    ? lv_color_hex(icon_color_)
+                                                    : theme_manager_get_color("secondary"));
 }
 
 void FavoriteMacroWidget::save_config() {

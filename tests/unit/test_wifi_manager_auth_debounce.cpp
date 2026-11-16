@@ -18,11 +18,11 @@
  * threaded mock backend.
  */
 
-#include "ui_update_queue.h"
-
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
 
@@ -40,16 +40,13 @@ namespace {
 
 // Enables test mode (→ idle mock WiFi backend, no wpa_supplicant probing) and a
 // headless LVGL display for the duration of the test. Restores test_mode on exit.
-struct WifiDebounceFixture {
+struct WifiDebounceFixture : LVGLTestFixture {
     ScopedRuntimeConfig scoped_config;
 
     WifiDebounceFixture() {
         auto* rc = get_runtime_config();
         rc->test_mode = true;      // should_mock_wifi() → true
         rc->use_real_wifi = false; // pick the idle mock backend
-        lv_init_safe();
-        ensure_headless_display();
-        helix::ui::UpdateQueue::instance().init();
     }
 
     std::shared_ptr<WiFiManager> make_manager() {

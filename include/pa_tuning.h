@@ -15,14 +15,14 @@
 // Everything here is pure: no LVGL, no network. The overlay feeds it events
 // and sends the commands it asks for.
 
+#include "json_fwd.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::pa {
 

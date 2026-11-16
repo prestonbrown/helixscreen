@@ -297,12 +297,6 @@ EOF
     contains "exceeds baseline" "$output"
 }
 
-@test "the tree itself is clean" {
-    run python3 "$GATE"
-    contains "assertion(s) examined across" "$output"
-    [ "$status" -eq 0 ]
-}
-
 # ------------------------------------------------------------------- wiring
 #
 # A gate nobody runs is a file. The pre-commit hook, the pre-push hook and the

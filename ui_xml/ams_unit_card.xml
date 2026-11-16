@@ -25,9 +25,6 @@
     <prop name="drying_active" type="subject" default="ams_env_ind_0_drying_active"/>
     <prop name="drying_text" type="subject" default="ams_env_ind_0_drying_text"/>
   </api>
-  <styles>
-    <style name="unit_offline" opa="128"/>
-  </styles>
   <view name="ams_unit_card"
         extends="lv_obj" height="content" scrollable="false" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
@@ -44,15 +41,19 @@
             width="100%" height="content" scrollable="false" clickable="false" event_bubble="true" flex_flow="row"
             style_flex_main_place="center" style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_xs"
             style_bg_opa="0" style_border_width="0">
-      <bind_style_if_eq name="unit_offline" subject="$disconnected" ref_value="1"/>
+      <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
       <!-- The logo is the first thing to go when the cards are width-starved: on a
            5-unit rig it costs ~28px of a ~102px card, and the unit's NAME is what
            the row is for. No inline hidden="" here - an inline attr would outrank
            the binding. -->
-      <lv_image name="unit_logo" width="#ams_logo_size" height="#ams_logo_size" inner_align="contain">
+      <lv_obj name="unit_logo_slot"
+              width="#ams_logo_size" height="#ams_logo_size" style_pad_all="0" scrollable="false" clickable="false"
+              event_bubble="true" style_bg_opa="0" style_border_width="0">
         <bind_flag_if_eq subject="ams_cards_compact" flag="hidden" ref_value="1"/>
-        <bind_style_if_eq name="styles.ams_logo_mono" subject="$logo_color" ref_value="0"/>
-      </lv_image>
+        <lv_image name="unit_logo" width="100%" height="100%" align="center" inner_align="contain">
+          <bind_style_if_eq name="styles.ams_logo_mono" subject="$logo_color" ref_value="0"/>
+        </lv_image>
+      </lv_obj>
       <!-- width="1"+flex_grow so the label is sized by the row rather than by its
            own content: a name longer than the card used to size to content, overflow
            the centered row, and get clipped at BOTH ends ("HTLF Claymore 1" read as
@@ -80,7 +81,7 @@
                 width="100%" height="#ams_bars_height" scrollable="false" clickable="false" event_bubble="true"
                 flex_flow="row" style_flex_main_place="center" style_flex_cross_place="end" style_pad_all="0"
                 style_pad_column="#space_xxs" style_bg_opa="0" style_border_width="0">
-          <bind_style_if_eq name="unit_offline" subject="$disconnected" ref_value="1"/>
+          <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
         </lv_obj>
         <!-- Slot count label: bounded by the column so it can never run under the
              environment box beside it; a noun too long for the column ellipsizes. -->
@@ -106,7 +107,7 @@
                                  humidity="$humidity" humidity_status="$humidity_status"
                                  humidity_visible="$humidity_visible" visible="$visible" drying_active="$drying_active"
                                  drying_text="$drying_text">
-        <bind_style_if_eq name="unit_offline" subject="$disconnected" ref_value="1"/>
+        <bind_style_if_eq name="styles.unit_offline" subject="$disconnected" ref_value="1"/>
       </ams_environment_indicator>
     </lv_obj>
   </view>

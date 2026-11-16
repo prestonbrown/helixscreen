@@ -3,6 +3,7 @@
 #include "filament_mapper.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@ struct ToolCheck {
     uint32_t intended_color = 0;
     std::string intended_material;
     int mapped_slot = -1;
+    int mapped_backend = 0; ///< Backend holding mapped_slot
     bool slot_present = false;
     bool color_ok = true;
     bool material_ok = true;
@@ -20,10 +22,23 @@ struct ToolCheck {
     Severity severity = Severity::Ok;
 };
 
+/// A material the file names for a slot that has none set, which one tap can
+/// write to the slot.
+struct MaterialFix {
+    int tool_index = -1;
+    int slot = -1;
+    std::string material;
+};
+
 struct PreflightResult {
     std::vector<ToolCheck> checks;
-    bool has_block() const;    // any EmptySlot
+    bool has_block() const;    // any EmptySlot or UnknownMaterial
     bool has_advisory() const; // any MaterialMismatch
+    /// The first UnknownMaterial check on the primary backend whose file names a
+    /// material for its tool. None when the file names none (guessing would
+    /// calibrate and print the slot at another material's settings), and for a
+    /// secondary backend's slot, which AmsState::commit_slot_edit cannot write.
+    std::optional<MaterialFix> material_fix() const;
 };
 
 class PreflightValidator {
@@ -39,11 +54,16 @@ class PreflightValidator {
      *        rather than the slot system, so no tool can be satisfied by a slot
      *        and the slot-based checks do not apply. Required rather than
      *        defaulted: a caller that forgets it re-introduces a false block.
+     * @param material_needed The print enables an option that refuses a slot
+     *        with no material set (PrePrintOption::needs_material), so such a
+     *        slot is a block (UnknownMaterial). Without one it prints as is.
+     *        Required for the same reason as @p bypass_active.
      */
     static PreflightResult validate(const std::vector<GcodeToolInfo>& tools,
                                     const std::vector<AvailableSlot>& slots,
                                     const std::vector<ToolMapping>& mapping,
-                                    const FirmwareRouting& routing, bool bypass_active);
+                                    const FirmwareRouting& routing, bool bypass_active,
+                                    bool material_needed);
 };
 
 } // namespace helix

@@ -3,11 +3,10 @@
 
 #include "moonraker_file_transfer_api.h"
 
-#include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
-#include "ui_notification.h"
-
-#include "http_executor.h"
+#include "core/error_reporting.h"
+#include "core/gcode_filename.h"
+#include "core/http_executor.h"
+#include "core/text_io.h"
 #include "http_request_epoch.h"
 #include "hv/hfile.h"
 #include "hv/hurl.h"
@@ -15,7 +14,6 @@
 #include "memory_monitor.h"
 #include "moonraker_api_internal.h"
 #include "spdlog/spdlog.h"
-#include "text_io.h"
 #include "thumbnail_rules.h"
 
 #include <algorithm>
@@ -41,7 +39,6 @@ MoonrakerFileTransferAPI::~MoonrakerFileTransferAPI() = default;
 void MoonrakerFileTransferAPI::download_file(const std::string& root, const std::string& path,
                                              StringCallback on_success, ErrorCallback on_error) {
     on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_file");
-    // Validate inputs
     if (reject_invalid_path(path, "download_file", on_error))
         return;
 
@@ -333,7 +330,6 @@ void MoonrakerFileTransferAPI::download_thumbnail(const std::string& thumbnail_p
                                                   StringCallback on_success,
                                                   ErrorCallback on_error) {
     on_success = helix::http_epoch::guard_reply(on_success, on_error, "download_thumbnail");
-    // Validate inputs
     if (thumbnail_path.empty()) {
         spdlog::warn("[Moonraker API] Empty thumbnail path");
         report_error(on_error, MoonrakerErrorType::VALIDATION_ERROR, "download_thumbnail",
@@ -421,7 +417,7 @@ void MoonrakerFileTransferAPI::upload_file_with_name(const std::string& root,
     // The filename is the part that reaches the multipart form verbatim, and it
     // is never legitimately empty. Validating it here is what keeps
     // upload_file(root, "", content) - which forwards path as the filename -
-    // rejected now that an empty `path` no longer is.
+    // rejected, since an empty `path` on its own is accepted.
     if (reject_invalid_path(filename, "upload_file", on_error))
         return;
 
@@ -445,7 +441,6 @@ void MoonrakerFileTransferAPI::upload_file_with_name(const std::string& root,
     auto& executor = lane == UploadLane::Bulk ? helix::http::HttpExecutor::slow()
                                               : helix::http::HttpExecutor::fast();
     executor.submit([url, root, path, filename, content, on_success, on_error]() {
-        // Create multipart form request
         auto req = std::make_shared<HttpRequest>();
         req->method = HTTP_POST;
         req->url = url;
@@ -468,7 +463,6 @@ void MoonrakerFileTransferAPI::upload_file_with_name(const std::string& root,
         req->form["file"] = file_data;
         helix::MemoryMonitor::log_now("moonraker_upload_start");
 
-        // Send request
         auto resp = requests::request(req);
 
         // Upload accepts 200 or 201
@@ -487,7 +481,6 @@ void MoonrakerFileTransferAPI::upload_file_with_name(const std::string& root,
 void MoonrakerFileTransferAPI::upload_file_from_path(
     const std::string& root, const std::string& dest_path, const std::string& local_path,
     SuccessCallback on_success, ErrorCallback on_error, ProgressCallback on_progress) {
-    // Validate inputs
     if (reject_invalid_path(dest_path, "upload_file_from_path", on_error))
         return;
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -15,21 +16,16 @@
  * @file ui_wizard_fan_select.h
  * @brief Wizard fan selection step - configures hotend, part, chamber, and exhaust fans
  *
- * Uses hardware discovery from MoonrakerClient to populate dropdowns.
+ * Uses hardware discovery from IMoonrakerAPI::hardware() to populate dropdowns.
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * Migrated from function-based to class-based design with:
- * - Instance members instead of static globals
- * - Static trampolines for LVGL callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (4 total):
+ * ## Subject Bindings (6 total):
  *
  * - hotend_fan_selected (int) - Selected hotend fan index
  * - part_fan_selected (int) - Selected part cooling fan index
  * - chamber_fan_selected (int) - Selected chamber fan index (optional)
  * - exhaust_fan_selected (int) - Selected exhaust fan index (optional)
+ * - fan_select_duplicate (int) - 1 while two roles name the same fan
+ * - fan_select_optional_visible (int) - 1 when the chamber/exhaust row shows (more than 2 fans)
  */
 
 /**
@@ -55,7 +51,7 @@ class WizardFanSelectStep : public helix::wizard::Step {
     WizardFanSelectStep();
     ~WizardFanSelectStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardFanSelectStep(const WizardFanSelectStep&) = delete;
     WizardFanSelectStep& operator=(const WizardFanSelectStep&) = delete;
@@ -88,7 +84,7 @@ class WizardFanSelectStep : public helix::wizard::Step {
     /**
      * @brief Check if step is validated
      *
-     * @return true (always validated for baseline)
+     * @return false while two roles name the same fan ("None" excepted)
      */
     bool is_validated() const override;
 
@@ -126,11 +122,9 @@ class WizardFanSelectStep : public helix::wizard::Step {
         return exhaust_fan_items_;
     }
 
-    /**
-     * @brief Get the screen root widget (for status text updates)
-     */
-    lv_obj_t* get_screen_root() const {
-        return screen_root_;
+    /// 1 while two roles name the same fan: the status line shows
+    lv_subject_t* get_duplicate_subject() {
+        return &duplicate_;
     }
 
   private:
@@ -139,10 +133,13 @@ class WizardFanSelectStep : public helix::wizard::Step {
 
     // Subjects
     SubjectManager subjects_;
-    lv_subject_t hotend_fan_selected_{};
-    lv_subject_t part_fan_selected_{};
-    lv_subject_t chamber_fan_selected_{};
-    lv_subject_t exhaust_fan_selected_{};
+    helix::Subject hotend_fan_selected_{};
+    helix::Subject part_fan_selected_{};
+    helix::Subject chamber_fan_selected_{};
+    helix::Subject exhaust_fan_selected_{};
+    helix::Subject duplicate_{};
+    /// 1 when the printer has more than two fans: the chamber and exhaust row shows
+    helix::Subject optional_visible_{};
 
     // Dynamic options storage
     std::vector<std::string> hotend_fan_items_;

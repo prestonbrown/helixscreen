@@ -20,7 +20,16 @@ class ZOffsetCalibrationTestAccess {
 
     /// Arms the "we warmed the bed" latch so turn_off_bed() actually sends.
     static void mark_bed_warmed(ZOffsetCalibrationPanel& panel) {
-        panel.bed_was_warmed_ = true;
+        panel.heat_.own("heater_bed", 0);
+    }
+
+    static helix::CalibrationOwnedHeat& heat(ZOffsetCalibrationPanel& panel) {
+        return panel.heat_;
+    }
+
+    /// The warm-up path a run takes with the warm-bed toggle on.
+    static void begin_calibration(ZOffsetCalibrationPanel& panel) {
+        panel.begin_calibration();
     }
 
     /// Sends M140 S0 when the latch above is armed.
@@ -39,6 +48,16 @@ class ZOffsetCalibrationTestAccess {
     /// (widget pointers are null-guarded).
     static void send_accept(ZOffsetCalibrationPanel& panel) {
         panel.send_accept();
+    }
+
+    /// The API the panel sends through; null until something opens it.
+    static helix::IMoonrakerAPI* api(ZOffsetCalibrationPanel& panel) {
+        return panel.api_;
+    }
+
+    /// The Start button's path: the reference-tool check, then warm-up or probing.
+    static void start_calibration(ZOffsetCalibrationPanel& panel) {
+        panel.start_calibration();
     }
 
     /// Sends the strategy's start sequence (approach move plus calibrate

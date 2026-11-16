@@ -10,7 +10,8 @@
  * Moonraker able to load the plugin, which takes a Moonraker restart, because
  * install.sh always runs with --no-restart. It never opens while a job holds the
  * machine, and at most once a session: not again after it was answered, and not
- * after the user uninstalled the plugin from Advanced. These cases drive the
+ * after the user uninstalled the plugin from Advanced. Closing it snoozes it for
+ * seven days; Don't ask again and an uninstall stop it for good. These cases drive the
  * real panels' observers over a mock Moonraker client, with install.sh replaced
  * by a stub.
  */
@@ -31,9 +32,9 @@
 #include "../test_helpers/scoped_env.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/observer_factory.h"
 #include "discovery_steps.h"
-#include "http_executor.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 
 #include <chrono>
@@ -50,14 +51,15 @@ using namespace helix;
 
 namespace {
 
-/// The prompt's preferences open: beta features on, the wizard done, never
-/// declined. The whole config is put back afterwards.
+/// The prompt's preferences open: the wizard done, never declined. The whole
+/// config is put back afterwards.
 struct PromptConfigScope {
     PromptConfigScope() : cfg(Config::get_instance()), saved(ConfigTestAccess::data(*cfg)) {
-        cfg->set<bool>("/beta_features", true);
         cfg->set<bool>("/wizard_completed", true);
         cfg->set<bool>(cfg->df() + "wizard_completed", true);
         cfg->set<bool>("/plugin_install_declined", false);
+        cfg->set<int64_t>("/plugin_prompt_snoozed_at", 0);
+        cfg->set<int>("/plugin_prompt_unmeasured_starts", 0);
     }
     ~PromptConfigScope() {
         ConfigTestAccess::data(*cfg) = saved;
@@ -73,8 +75,14 @@ struct PromptFixture : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
     PromptConfigScope prefs;
     test::PluginScriptSandbox scripts{PrintSelectPanelTestAccess::plugin_installer(*panel_)};
 
+    static constexpr int64_t kDay = 24 * 60 * 60;
+    static constexpr int64_t kReal = 1800000000;
+    static inline int64_t sim_now = kReal;
+
     PromptFixture() {
-        HelixPluginInstallerTestAccess::reset_prompt_session();
+        reset_session();
+        sim_now = kReal;
+        HelixPluginInstaller::set_prompt_clock([] { return sim_now; });
         // The startup check of the plugin would run install.sh --relink on
         // every report; its own cases below turn it back on.
         PluginSelfHealTestAccess::set_ran_this_start(true);
@@ -82,13 +90,27 @@ struct PromptFixture : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
     }
 
     ~PromptFixture() override {
-        HelixPluginInstallerTestAccess::reset_prompt_session();
+        reset_session();
+        HelixPluginInstaller::set_prompt_clock(nullptr);
+        HelixPluginInstaller::set_addon_check(nullptr);
         PluginSelfHealTestAccess::set_ran_this_start(true);
     }
 
     void set_plugin_installed(bool installed) {
         get_printer_state().set_helix_plugin_installed(installed);
         drain();
+    }
+
+    static void reset_session() {
+        HelixPluginInstallerTestAccess::reset_prompt_session();
+    }
+
+    /// The app starting again @p at, and discovery reporting the plugin absent.
+    void start_at(int64_t at) {
+        reset_session();
+        sim_now = at;
+        set_plugin_installed(true);
+        set_plugin_installed(false);
     }
 
     /// The open install prompt, or null.
@@ -153,7 +175,8 @@ TEST_CASE_METHOD(PromptFixture, "the install prompt opens only when the plugin i
         set_plugin_installed(true);
         CHECK(prompt() == nullptr);
     }
-    SECTION("absent: the prompt opens") {
+    SECTION("absent, never answered: the prompt opens") {
+        prefs.cfg->get_json("").erase("plugin_install_declined");
         set_plugin_installed(false);
         CHECK(prompt() != nullptr);
     }
@@ -166,11 +189,110 @@ TEST_CASE_METHOD(PromptFixture, "the install prompt stays closed once declined",
     CHECK(prompt() == nullptr);
 }
 
-TEST_CASE_METHOD(PromptFixture, "the install prompt stays closed with beta features off",
+TEST_CASE_METHOD(PromptFixture, "the install prompt opens with beta features off",
                  "[plugin_installer][print_select]") {
     prefs.cfg->set<bool>("/beta_features", false);
     set_plugin_installed(false);
+    CHECK(prompt() != nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "closing the install prompt snoozes it for seven days",
+                 "[plugin_installer][print_select]") {
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+
+    SECTION("Not Now") {
+        click("btn_cancel");
+    }
+    SECTION("Done") {
+        click("btn_done");
+    }
+    SECTION("a tap on the backdrop") {
+        lv_obj_t* backdrop = ModalStack::instance().backdrop_for(prompt());
+        REQUIRE(backdrop != nullptr);
+        lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    SECTION("the result of a failed install") {
+        scripts.write_script("exit 1");
+        click("btn_install");
+        click("btn_ok");
+    }
+    REQUIRE(prompt() == nullptr);
+
+    start_at(kReal + 7 * kDay - 1);
     CHECK(prompt() == nullptr);
+    start_at(kReal + 7 * kDay);
+    CHECK(prompt() != nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "an install prompt the app closed is not snoozed",
+                 "[plugin_installer][print_select]") {
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    Modal::hide(prompt(), ModalCloseReason::External);
+    drain();
+    REQUIRE(prompt() == nullptr);
+
+    start_at(kReal + kDay);
+    CHECK(prompt() != nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "Don't ask again outlasts the snooze",
+                 "[plugin_installer][print_select]") {
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    lv_obj_t* checkbox = lv_obj_find_by_name(prompt(), "dont_ask_checkbox");
+    REQUIRE(checkbox != nullptr);
+    lv_obj_add_state(checkbox, LV_STATE_CHECKED);
+
+    SECTION("Not Now") {
+        click("btn_cancel");
+    }
+    SECTION("a tap on the backdrop") {
+        lv_obj_send_event(ModalStack::instance().backdrop_for(prompt()), LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    SECTION("ESC") {
+        uint32_t key = LV_KEY_ESC;
+        lv_obj_send_event(ModalStack::instance().backdrop_for(prompt()), LV_EVENT_KEY, &key);
+        drain();
+    }
+    REQUIRE(prompt() == nullptr);
+
+    start_at(kReal + 365 * kDay);
+    CHECK(prompt() == nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "the install prompt is not offered where the plugin cannot load",
+                 "[plugin_installer][print_select]") {
+    HelixPluginInstaller::set_addon_check([] { return false; });
+    HelixPluginInstaller& installer = PrintSelectPanelTestAccess::plugin_installer(*panel_);
+
+    SECTION("on this machine: closed") {
+        installer.set_websocket_url("ws://127.0.0.1:7125/websocket");
+        set_plugin_installed(false);
+        CHECK(prompt() == nullptr);
+    }
+    SECTION("a remote Moonraker's processes say nothing: offered") {
+        installer.set_websocket_url("ws://203.0.113.9:7125/websocket");
+        set_plugin_installed(false);
+        CHECK(prompt() != nullptr);
+    }
+}
+
+TEST_CASE_METHOD(PromptFixture, "a prompt dismissed with no clock waits seven starts, not forever",
+                 "[plugin_installer][print_select]") {
+    start_at(30);
+    REQUIRE(prompt() != nullptr);
+    click("btn_cancel");
+
+    for (int start = 1; start < kPluginPromptMaxUnmeasuredStarts; ++start) {
+        start_at(30);
+        CHECK(prompt() == nullptr);
+    }
+    start_at(30);
+    CHECK(prompt() != nullptr);
 }
 
 TEST_CASE_METHOD(PromptFixture, "an install from the prompt restarts Moonraker to load the plugin",
@@ -198,6 +320,10 @@ TEST_CASE_METHOD(PromptFixture, "a failed install from the prompt restarts nothi
 
     CHECK(moonraker_restarts() == restarts_before);
     CHECK(result_message().find("restarting") == std::string::npos);
+
+    // The failure shows its own icon in place of the success one.
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon_failed")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon")));
 }
 
 TEST_CASE_METHOD(PromptFixture,
@@ -280,6 +406,9 @@ TEST_CASE_METHOD(PromptFixture, "uninstalling from Advanced does not open the in
     drain();
 
     REQUIRE(get_printer_state().plugin_status_state().helix_plugin_state() == 0);
+    CHECK(prompt() == nullptr);
+
+    start_at(kReal + 365 * kDay);
     CHECK(prompt() == nullptr);
 }
 
@@ -732,6 +861,57 @@ TEST_CASE_METHOD(SelfHealFixture,
     REQUIRE(messages.size() == 1);
     CHECK(messages[0].find("updated") != std::string::npos);
     CHECK(messages[0].find("restarting") == std::string::npos);
+}
+
+// Z-Mod's Moonraker names no service of its own, and a Snapmaker U1's accepts
+// a service restart it cannot carry out, so install.sh cannot restart it and
+// nothing in a web UI can either: only a reboot loads the new plugin
+// (prestonbrown/helixscreen#2086, #2090).
+TEST_CASE_METHOD(SelfHealFixture,
+                 "a Moonraker with no service of its own is advised a reboot, kept in the history",
+                 "[plugin_installer][print_select][self_heal][2086][2090]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(8);
+    // A ui_notification_* call is the path that leaves a history row, and the
+    // toast it shows carries the same text.
+    std::vector<helix::ui::NotificationEvent> events;
+    helix::ui::set_test_notification_event_hook(
+        [&](const helix::ui::NotificationEvent& event) { events.push_back(event); });
+
+    run_plugin_probe();
+    settle();
+
+    REQUIRE(restarts() == 1);
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].severity == ToastSeverity::WARNING);
+    CHECK(events[0].message == "Reboot the printer to finish the plugin update.");
+
+    // Nothing restarted, so the next start tries again and advises again
+    // until a reboot loads the plugin.
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 2);
+    CHECK(events.size() == 2);
+}
+
+TEST_CASE_METHOD(SelfHealFixture, "a restart Moonraker refused is tried again on the next start",
+                 "[plugin_installer][print_select][self_heal][2090]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(9);
+
+    run_plugin_probe();
+    settle();
+    REQUIRE(restarts() == 1);
+
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 2);
 }
 
 TEST_CASE_METHOD(SelfHealFixture,

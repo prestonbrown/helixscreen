@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <algorithm>
 #include <cctype>
@@ -42,6 +42,7 @@ enum class OperationCategory {
     HOMING,       ///< Homing axes (G28)
     CHAMBER_SOAK, ///< Chamber heat soak (HEAT_SOAK)
     SKEW_CORRECT, ///< Skew correction (SKEW_PROFILE, SET_SKEW)
+    MOTOR_SYNC,   ///< AWD belt motor sync (motors-sync's SYNC_MOTORS)
     START_PRINT,  ///< The print start macro itself (PRINT_START, START_PRINT)
     UNKNOWN,      ///< Unrecognized operation
 };
@@ -106,6 +107,12 @@ inline const OperationKeyword kOperationKeywords[] = {
     {"SKEW_PROFILE",         OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
     {"SET_SKEW",             OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
     {"SKEW",                 OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
+
+    // === Motor Sync ===
+    // Exact: SYNC_MOTORS_CALIBRATE and SYNC_MOTORS_STATS are not a sync.
+    // motors-sync has no skip parameter; a macro skips the command behind
+    // printer.motors_sync.applied instead.
+    {"SYNC_MOTORS",          OperationCategory::MOTOR_SYNC,   "",                  true},
 };
 // clang-format on
 
@@ -276,6 +283,8 @@ inline const char* category_name(OperationCategory cat) {
         return "Chamber heat soak";
     case OperationCategory::SKEW_CORRECT:
         return "Skew correction";
+    case OperationCategory::MOTOR_SYNC:
+        return "Motor sync";
     case OperationCategory::START_PRINT:
         return "Start print";
     case OperationCategory::UNKNOWN:
@@ -307,6 +316,8 @@ inline const char* category_key(OperationCategory cat) {
         return "chamber_soak";
     case OperationCategory::SKEW_CORRECT:
         return "skew_correct";
+    case OperationCategory::MOTOR_SYNC:
+        return "motor_sync";
     case OperationCategory::START_PRINT:
         return "start_print";
     case OperationCategory::UNKNOWN:
@@ -393,60 +404,8 @@ inline std::vector<std::string> get_all_perform_variations(OperationCategory cat
 }
 
 // ============================================================================
-// String Utilities (LT3)
+// Keyword Lookup (LT3)
 // ============================================================================
-
-/**
- * @brief Case-insensitive substring search (pure ASCII).
- *
- * Folds only A-Z/a-z, so it is locale-independent and leaves every other byte
- * (including high-bit-set and UTF-8 continuation bytes) untouched. That matches
- * the earlier ::toupper-based fold under the "C" locale this process keeps
- * (only LC_TIME is ever setlocale'd, so LC_CTYPE stays "C"), without the two
- * per-call std::string allocations or the ::toupper-on-negative-char UB.
- *
- * Empty needle returns false rather than the std::string::find "found at 0"
- * convention: every call site searches for a concrete token, and an empty
- * needle matching everything is a foot-gun the former local copies guarded
- * against explicitly. Verified equivalent over all real needles across every
- * byte 0x01-0xFF plus UTF-8 in de/fr/ru/ja.
- *
- * Accepts std::string_view, so std::string and string literals convert without
- * allocating.
- */
-inline bool contains_ci(std::string_view haystack, std::string_view needle) {
-    if (needle.empty() || needle.size() > haystack.size()) {
-        return false;
-    }
-    for (size_t i = 0; i + needle.size() <= haystack.size(); ++i) {
-        bool match = true;
-        for (size_t j = 0; j < needle.size(); ++j) {
-            char hc = haystack[i + j];
-            char nc = needle[j];
-            if (hc >= 'A' && hc <= 'Z') {
-                hc = static_cast<char>(hc + 32);
-            }
-            if (nc >= 'A' && nc <= 'Z') {
-                nc = static_cast<char>(nc + 32);
-            }
-            if (hc != nc) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * @brief Case-insensitive string equality
- */
-inline bool equals_ci(std::string_view a, std::string_view b) {
-    return helix::text_io::to_upper(a) == helix::text_io::to_upper(b);
-}
 
 /**
  * @brief Find keyword entry by pattern string (substring match, case-insensitive)
@@ -522,14 +481,14 @@ match_parameter_to_category(const std::string& param_name, bool include_slicer_p
 
         // Check perform variations (OPT_IN) first - they're more specific
         for (const auto& var : get_all_perform_variations(cat)) {
-            if (equals_ci(param_name, var)) {
+            if (helix::text_io::equals_ignore_case(param_name, var)) {
                 return ParamMatchResult{cat, ParameterSemantic::OPT_IN, std::string(var)};
             }
         }
 
         // Check skip variations (OPT_OUT)
         for (const auto& var : get_all_skip_variations(cat)) {
-            if (equals_ci(param_name, var)) {
+            if (helix::text_io::equals_ignore_case(param_name, var)) {
                 return ParamMatchResult{cat, ParameterSemantic::OPT_OUT, std::string(var)};
             }
         }
@@ -537,7 +496,7 @@ match_parameter_to_category(const std::string& param_name, bool include_slicer_p
         // Check slicer-style short params (OPT_IN semantics: value=1 means do it)
         if (include_slicer_params) {
             for (const auto& var : get_slicer_param_variations(cat)) {
-                if (equals_ci(param_name, var)) {
+                if (helix::text_io::equals_ignore_case(param_name, var)) {
                     return ParamMatchResult{cat, ParameterSemantic::OPT_IN, std::string(var)};
                 }
             }

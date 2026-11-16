@@ -4,28 +4,29 @@
 #include "print_completion.h"
 
 #include "ui_confetti.h"
-#include "ui_error_reporting.h"
-#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
-#include "ui_heater_config.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
-#include "ui_nav.h"
-#include "ui_panel_print_status.h"
 #include "ui_toast_manager.h"
+#include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "audio_settings_manager.h"
+#include "core/error_reporting.h"
+#include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "heater_type.h"
 #include "moonraker_api.h"
 #include "moonraker_manager.h"
+#include "print_completion_alert.h"
 #include "printer_state.h"
+#include "screensaver.h"
 #include "sound_manager.h"
-#include "static_subject_registry.h"
-#include "subject_managed_panel.h"
 #include "temperature_controller.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -36,66 +37,59 @@ using helix::gcode::resolve_gcode_filename;
 
 namespace helix {
 
+static PrintStatusShownQuery s_print_status_shown = nullptr;
+
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query) {
+    PrintStatusShownQuery previous = s_print_status_shown;
+    s_print_status_shown = query;
+    return previous;
+}
+
 // --- Subjects for declarative XML bindings in print_completion_modal.xml ---
-static bool s_subjects_initialized = false;
-static SubjectManager s_subjects;
+static helix::WidgetSubjects s_subjects{"PrintCompletion"};
 
 // String subjects with backing buffers
 static char s_title_buf[64];
-static lv_subject_t s_title_subject;
+static helix::Subject s_title_subject;
 
 static char s_filename_buf[256];
-static lv_subject_t s_filename_subject;
+static helix::Subject s_filename_subject;
 
 static char s_duration_buf[64];
-static lv_subject_t s_duration_subject;
+static helix::Subject s_duration_subject;
 
 static char s_estimate_buf[64];
-static lv_subject_t s_estimate_subject;
+static helix::Subject s_estimate_subject;
 
 static char s_layers_buf[64];
-static lv_subject_t s_layers_subject;
+static helix::Subject s_layers_subject;
 
 static char s_filament_buf[64];
-static lv_subject_t s_filament_subject;
+static helix::Subject s_filament_subject;
 
 // Int subjects for visibility flags (1=visible, 0=hidden)
-static lv_subject_t s_has_estimate_subject;
-static lv_subject_t s_has_filament_subject;
+static helix::Subject s_has_estimate_subject;
+static helix::Subject s_has_filament_subject;
 
 static void init_completion_subjects() {
-    if (s_subjects_initialized)
-        return;
+    s_subjects.ensure_init([] {
+        s_title_subject.init_string(s_title_buf, nullptr, sizeof(s_title_buf), "");
+        s_filename_subject.init_string(s_filename_buf, nullptr, sizeof(s_filename_buf), "");
+        s_duration_subject.init_string(s_duration_buf, nullptr, sizeof(s_duration_buf), "");
+        s_estimate_subject.init_string(s_estimate_buf, nullptr, sizeof(s_estimate_buf), "");
+        s_layers_subject.init_string(s_layers_buf, nullptr, sizeof(s_layers_buf), "");
+        s_filament_subject.init_string(s_filament_buf, nullptr, sizeof(s_filament_buf), "");
+        s_has_estimate_subject.init_int(1);
+        s_has_filament_subject.init_int(1);
 
-    lv_subject_init_string(&s_title_subject, s_title_buf, nullptr, sizeof(s_title_buf), "");
-    lv_subject_init_string(&s_filename_subject, s_filename_buf, nullptr, sizeof(s_filename_buf),
-                           "");
-    lv_subject_init_string(&s_duration_subject, s_duration_buf, nullptr, sizeof(s_duration_buf),
-                           "");
-    lv_subject_init_string(&s_estimate_subject, s_estimate_buf, nullptr, sizeof(s_estimate_buf),
-                           "");
-    lv_subject_init_string(&s_layers_subject, s_layers_buf, nullptr, sizeof(s_layers_buf), "");
-    lv_subject_init_string(&s_filament_subject, s_filament_buf, nullptr, sizeof(s_filament_buf),
-                           "");
-    lv_subject_init_int(&s_has_estimate_subject, 1);
-    lv_subject_init_int(&s_has_filament_subject, 1);
-
-    s_subjects.publish("print_completion_title", &s_title_subject);
-    s_subjects.publish("print_completion_filename", &s_filename_subject);
-    s_subjects.publish("print_completion_duration", &s_duration_subject);
-    s_subjects.publish("print_completion_estimate", &s_estimate_subject);
-    s_subjects.publish("print_completion_layers", &s_layers_subject);
-    s_subjects.publish("print_completion_filament", &s_filament_subject);
-    s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
-    s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
-
-    s_subjects_initialized = true;
-
-    StaticSubjectRegistry::instance().register_deinit("PrintCompletion", []() {
-        if (!s_subjects_initialized)
-            return;
-        s_subjects.deinit_all();
-        s_subjects_initialized = false;
+        s_subjects.publish("print_completion_title", &s_title_subject);
+        s_subjects.publish("print_completion_filename", &s_filename_subject);
+        s_subjects.publish("print_completion_duration", &s_duration_subject);
+        s_subjects.publish("print_completion_estimate", &s_estimate_subject);
+        s_subjects.publish("print_completion_layers", &s_layers_subject);
+        s_subjects.publish("print_completion_filament", &s_filament_subject);
+        s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
+        s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
     });
 }
 
@@ -135,7 +129,6 @@ bool started_new_job(PrintState lifecycle) {
     return lifecycle == PrintState::Preparing || lifecycle == PrintState::Printing;
 }
 
-// Helper to show the rich print completion modal
 bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome outcome) {
     const bool is_terminal = (current == PrintState::Complete || current == PrintState::Cancelled ||
                               current == PrintState::Error);
@@ -149,8 +142,8 @@ bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome
     // A print that dies INSIDE PRINT_START never passes through Printing: a live
     // pre-print phase outranks the job state, so the lifecycle holds at Preparing
     // while print_stats already reads printing, and when the phase clears it goes
-    // straight Preparing -> terminal. Nothing reported those - not here, and not
-    // the preparing-exit observer either, because the preparing job was retired
+    // straight Preparing -> terminal. This arm is the only report of those: the
+    // preparing-exit observer stays silent, because the preparing job was retired
     // as Confirmed the moment the printer took it.
     //
     // The outcome is what makes this safe to accept. It is recorded on the
@@ -158,8 +151,7 @@ bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome
     // begin_preparing(), so during a HOST-side block - where print_stats still
     // holds the previous job's terminal state and clearing the phase would also
     // derive Preparing -> Complete - it reads NONE. Without that term this arm
-    // would announce "Print Complete!" for a print that ended minutes ago, which
-    // is the stale-badge report this whole branch started from.
+    // would announce "Print Complete!" for a print that ended minutes ago.
     return prev == PrintState::Preparing && outcome != PrintOutcome::NONE;
 }
 
@@ -206,18 +198,12 @@ CompletionStats build_completion_stats(int duration_secs, int estimated_secs, in
 
 // The completion modal currently on screen, if any. Only one can be up: all
 // three outcomes share print_completion_modal and it is shown from one place,
-// so a single handle is enough where the fault registry needs a vector.
-static lv_obj_t* s_completion_modal = nullptr;
-
-// Drop the handle whenever the dialog dies by ANY route — the user's OK, a
-// backdrop tap, ESC, our own dismissal, teardown. A freed address can be
-// reused by a later allocation, so a stale handle could eventually name an
-// unrelated live widget and we would "dismiss" that instead.
-static void forget_completion_modal(lv_event_t* e) {
-    if (static_cast<lv_obj_t*>(lv_event_get_target(e)) == s_completion_modal) {
-        s_completion_modal = nullptr;
-    }
-}
+// so a single handle is enough where the fault registry needs a vector. A
+// handle, not a pointer: it reads nullptr once the dialog dies by any route
+// (the user's OK, a backdrop tap, ESC, our own dismissal, teardown), and a
+// freed address can be reused by a later allocation, so a stale pointer could
+// name an unrelated live widget and we would "dismiss" that instead.
+static helix::ui::WidgetRef s_completion_modal;
 
 // A completion modal is a statement about the job that just ended. Starting
 // another job makes that statement false, so the dialog has outlived its
@@ -282,27 +268,27 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     }
 
     // Set all subjects BEFORE showing modal so XML bindings resolve immediately
-    lv_subject_copy_string(&s_title_subject, lv_tr(title));
-    lv_subject_copy_string(&s_filename_subject, filename);
+    lv_subject_set_string(&s_title_subject, lv_tr(title));
+    lv_subject_set_string(&s_filename_subject, filename);
 
     const CompletionStats stats =
         build_completion_stats(duration_secs, estimated_secs, total_layers, filament_mm);
 
-    lv_subject_copy_string(&s_duration_subject, stats.duration.c_str());
-    lv_subject_copy_string(&s_layers_subject, stats.layers.c_str());
+    lv_subject_set_string(&s_duration_subject, stats.duration.c_str());
+    lv_subject_set_string(&s_layers_subject, stats.layers.c_str());
 
     if (!stats.estimate.empty()) {
-        lv_subject_copy_string(&s_estimate_subject, stats.estimate.c_str());
+        lv_subject_set_string(&s_estimate_subject, stats.estimate.c_str());
     }
     lv_subject_set_int(&s_has_estimate_subject, stats.estimate.empty() ? 0 : 1);
 
     if (!stats.filament.empty()) {
-        lv_subject_copy_string(&s_filament_subject, stats.filament.c_str());
+        lv_subject_set_string(&s_filament_subject, stats.filament.c_str());
     }
     lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
-    lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
 
     if (!dialog) {
         spdlog::error("[PrintComplete] Failed to create print_completion_modal");
@@ -310,8 +296,6 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     }
 
     s_completion_modal = dialog;
-    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup has no declarative equivalent.
-    lv_obj_add_event_cb(dialog, forget_completion_modal, LV_EVENT_DELETE, nullptr);
 
     // Icon src/variant must be set imperatively (no XML binding support for icon properties)
     lv_obj_t* icon_widget = lv_obj_find_by_name(dialog, "status_icon");
@@ -338,9 +322,8 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                                                     lv_subject_t* subject) {
     (void)observer;
     // Both halves of the transition come from PrinterPrintState, which computes
-    // it once. This module used to keep its own previous-state variable and an
-    // arming latch; the latch is unnecessary now because the published previous
-    // value starts at Idle, so booting straight into a terminal state reads as
+    // it once. No arming latch is needed: the published previous value starts
+    // at Idle, so booting straight into a terminal state reads as
     // Idle -> Complete and correctly does not notify.
     (void)subject; // the lifecycle subject; read through the typed accessor
     const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
@@ -398,24 +381,31 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             break;
         }
 
-        // Check if user is on print status panel
-        lv_obj_t* print_status_panel = get_global_print_status_panel().get_panel();
-        bool on_print_status = helix::nav::is_in_stack(print_status_panel);
+        const bool on_print_status = s_print_status_shown && s_print_status_shown();
 
         auto mode = AudioSettingsManager::instance().get_completion_alert_mode();
 
-        spdlog::debug("[PrintComplete] Print {} - on_print_status={}, mode={}",
+#if HELIX_ENABLE_SCREENSAVER
+        const bool saver_running = ScreensaverManager::instance().shows_print_end();
+#else
+        const bool saver_running = false;
+#endif
+        const helix::PrintEnding ending =
+            (current == PrintJobState::COMPLETE)    ? helix::PrintEnding::COMPLETE
+            : (current == PrintJobState::CANCELLED) ? helix::PrintEnding::CANCELLED
+                                                    : helix::PrintEnding::ERROR;
+        const helix::CompletionAlertPlan plan =
+            helix::plan_completion_alert(ending, mode, on_print_status, saver_running);
+
+        spdlog::debug("[PrintComplete] Print {} - on_print_status={}, mode={}, saver={}, "
+                      "wake={}, modal={}, toast={}",
                       (current == PrintJobState::COMPLETE)    ? "complete"
                       : (current == PrintJobState::CANCELLED) ? "cancelled"
                                                               : "failed",
-                      on_print_status, static_cast<int>(mode));
+                      on_print_status, static_cast<int>(mode), saver_running, plan.wake, plan.modal,
+                      plan.toast);
 
-        // 1. Errors ALWAYS get a modal (high visibility needed)
-        if (current == PrintJobState::ERROR) {
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
-
+        if (ending == helix::PrintEnding::ERROR) {
             // Proactively turn off heaters on print error to prevent
             // indefinite heating (Klipper doesn't auto-off on error)
             if (auto* mgr = get_moonraker_manager()) {
@@ -424,27 +414,14 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                     client->gcode_script("TURN_OFF_HEATERS");
                 }
             }
-
-            show_rich_completion_modal(current, display_name.c_str());
-            return;
         }
 
-        // 2. On print status panel - no notification needed (panel shows state)
-        if (on_print_status) {
-            spdlog::debug("[PrintComplete] On print status panel - skipping notification");
-            return;
-        }
-
-        // 3. On other panels - respect the completion alert mode setting
-        switch (mode) {
-        case CompletionAlertMode::OFF:
-            spdlog::debug("[PrintComplete] Notification disabled by setting");
-            break;
-
-        case CompletionAlertMode::NOTIFICATION: {
+        if (plan.wake) {
             if (auto* dm = DisplayManager::instance()) {
                 dm->wake_display();
             }
+        }
+        if (plan.toast) {
             ToastSeverity severity = (current == PrintJobState::COMPLETE) ? ToastSeverity::SUCCESS
                                                                           : ToastSeverity::WARNING;
             std::string message = std::string("Print ") +
@@ -457,15 +434,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                 message += std::string(" - ") + reason;
             }
             ToastManager::instance().show(severity, message.c_str(), 5000);
-            break;
         }
-
-        case CompletionAlertMode::ALERT:
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
+        if (plan.modal) {
             show_rich_completion_modal(current, display_name.c_str());
-            break;
         }
     }
 }

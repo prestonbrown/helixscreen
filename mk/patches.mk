@@ -9,87 +9,85 @@
 # submodule, edited and pushed directly rather than patched.
 LVGL_PATCHED_FILES := \
 	src/drivers/sdl/lv_sdl_window.c \
+	src/drivers/sdl/lv_sdl_sw.c \
 	src/themes/default/lv_theme_default.c \
-	src/drivers/display/fb/lv_linux_fbdev.c \
-	src/drivers/display/fb/lv_linux_fbdev.h \
-	src/core/lv_refr.c \
 	src/core/lv_observer.c \
-	src/core/lv_observer.h \
-	src/widgets/span/lv_span.c \
+	src/display/lv_display.c \
+	src/widgets/canvas/lv_canvas.c \
 	src/widgets/slider/lv_slider.c \
-	src/widgets/image/lv_image.c \
-	src/stdlib/clib/lv_string_clib.c \
 	src/stdlib/builtin/lv_string_builtin.c \
+	src/stdlib/clib/lv_string_clib.c \
 	src/draw/sw/blend/lv_draw_sw_blend.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_a8.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_al88.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_i1.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_l8.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c \
 	src/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_a8.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_l8.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_al88.c \
-	src/draw/sw/blend/lv_draw_sw_blend_to_i1.c \
-	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
+	src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c \
 	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c \
+	src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c \
 	src/draw/lv_draw.c \
 	src/draw/lv_draw_private.h \
-	src/draw/lv_draw_buf.c \
-	src/draw/sw/lv_draw_sw_mask_rect.c \
 	src/draw/sw/lv_draw_sw_letter.c \
-	src/draw/sw/lv_draw_sw_img.c \
-	src/draw/sw/lv_draw_sw_blur.c \
+	include/lvgl/drivers/display/lv_linux_drm.h \
+	include/lvgl/drivers/display/lv_linux_fbdev.h \
+	src/drivers/display/fb/lv_linux_fbdev.c \
 	src/drivers/display/drm/lv_linux_drm.c \
-	src/drivers/display/drm/lv_linux_drm.h \
 	src/drivers/display/drm/lv_linux_drm_egl.c \
-	src/drivers/display/drm/lv_linux_drm_egl_private.h \
+	src/core/lv_refr.c \
+	src/draw/sw/lv_draw_sw_img.c \
+	src/widgets/image/lv_image.c \
+	src/draw/sw/lv_draw_sw_blur.c \
+	src/core/lv_obj_pos.c \
+	src/core/lv_obj_style.c \
+	src/layouts/grid/lv_grid.c \
+	src/draw/lv_draw_buf.c \
+	include/lvgl/drivers/indev/lv_evdev.h \
+	src/drivers/evdev/lv_evdev.c \
 	src/drivers/opengles/lv_opengles_egl.c \
 	src/drivers/opengles/lv_opengles_egl.h \
-	src/drivers/opengles/lv_opengles_driver.c \
-	src/drivers/opengles/lv_opengles_driver.h \
+	src/drivers/display/drm/lv_linux_drm_egl_private.h \
+	src/drivers/display/drm/lv_linux_drm_egl_upload.h \
 	src/drivers/opengles/lv_opengles_texture.c \
 	src/drivers/opengles/lv_opengles_texture_private.h \
+	include/lvgl/drivers/opengles/lv_opengles_driver.h \
 	src/drivers/opengles/assets/lv_opengles_shader.c \
-	src/drivers/evdev/lv_evdev.c \
-	src/drivers/evdev/lv_evdev.h \
-	src/draw/lv_draw_arc.c \
-	src/widgets/arc/lv_arc.c \
-	src/draw/opengles/lv_draw_opengles.c \
+	src/drivers/opengles/lv_opengles_driver.c \
 	src/draw/sdl/lv_draw_sdl.c \
-	src/display/lv_display.c \
-	src/display/lv_display.h \
-	src/display/lv_display_private.h \
-	src/lv_conf_internal.h \
-	src/misc/lv_event.c \
-	src/misc/lv_event.h \
-	src/core/lv_obj_event.c \
-	src/core/lv_obj_pos.c \
-	src/core/lv_obj_tree.c \
 	src/core/lv_obj.c \
-	src/core/lv_obj.h \
-	src/core/lv_obj_style.c \
-	src/draw/sw/lv_draw_sw.c \
-	src/layouts/flex/lv_flex.c \
-	src/layouts/grid/lv_grid.c \
-	src/misc/lv_assert.h \
-	src/drivers/sdl/lv_sdl_sw.c \
-	src/core/lv_global.h \
-	src/misc/lv_event_private.h \
-	src/widgets/label/lv_label.c \
-	src/widgets/label/lv_label.h \
-	src/widgets/label/lv_label_private.h \
-	src/libs/lodepng/lodepng.c \
-	src/libs/lodepng/lv_lodepng.c \
-	src/libs/bin_decoder/lv_bin_decoder.c \
+	src/core/lv_obj_tree.c \
 	src/others/translation/lv_translation.c \
-	src/others/translation/lv_translation.h \
+	include/lvgl/core/lv_translation.h \
+	include/lvgl/widgets/lv_label.h \
+	src/widgets/label/lv_label.c \
+	src/widgets/label/lv_label_private.h \
+	src/draw/sw/lv_draw_sw.c \
+	src/image/lv_bin_decoder.c \
+	src/image/lv_lodepng.c \
+	src/libs/lodepng/lodepng.c \
+	src/core/lv_obj_event.c \
+	src/misc/lv_event.c \
+	src/misc/lv_event_private.h \
 	src/indev/lv_indev.c \
 	src/indev/lv_indev_private.h \
 	src/indev/lv_indev_scroll.c \
-	lv_conf_template.h
-# NOTE: src/misc/lv_check_arg.h is deliberately absent — the backport patch
-# CREATES it, so it is untracked upstream and `git checkout` cannot restore it.
-# reset-patches removes it explicitly instead.
+	src/core/lv_global.h \
+	include/lvgl/core/lv_observer.h \
+	src/widgets/span/lv_span.c \
+	include/lvgl/core/lv_obj.h \
+	src/misc/lv_helix_thread_check.h \
+	src/misc/lv_timer.c \
+	include/lvgl/config/lv_conf_internal.h \
+	include/lvgl/debugging/lv_check_arg.h \
+	src/logging/lv_log.c
+# Every file a patch touches belongs in its submodule's list, the files a patch
+# creates included: reset_submodule_patches restores the tracked ones and deletes
+# the untracked ones, so a file left off survives a reset and the drift check
+# then refuses the tree. tests/shell/test_reset_patches.bats holds the lists to
+# the patches.
 
 # Files modified by libhv patches
 LIBHV_PATCHED_FILES := \
@@ -308,13 +306,17 @@ PATCH_EXEMPT := libnl-socket-time-include.patch
 # lib/lvgl rev-parse` would then answer with the superproject's git dir, whose
 # HEAD moves on every commit. Scrub them so the question is answered by the -C
 # path.
-# In Docker/non-git contexts (rsync'd source), there is no git dir — that's fine,
-# patches will be re-checked based on patch file changes only.
+# In Docker/non-git contexts (rsync'd source, a source tarball), there is no git
+# dir — that's fine, patches will be re-checked based on patch file changes only.
+# A plain submodule directory inside some other repository has none either:
+# OWN_GIT_DIR names a git dir only for a directory that is its own checkout's
+# top, never the enclosing repository's.
 GIT_NOENV := env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY git
+OWN_GIT_DIR := bash scripts/own_git_dir.sh
 GIT_DIR := $(shell git rev-parse --git-dir 2>/dev/null || echo ".git")
-LVGL_GIT_DIR := $(shell $(GIT_NOENV) -C $(LVGL_DIR) rev-parse --absolute-git-dir 2>/dev/null)
-LIBHV_GIT_DIR := $(shell $(GIT_NOENV) -C $(LIBHV_DIR) rev-parse --absolute-git-dir 2>/dev/null)
-LUA_GIT_DIR := $(shell $(GIT_NOENV) -C $(LUA_DIR) rev-parse --absolute-git-dir 2>/dev/null)
+LVGL_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LVGL_DIR) 2>/dev/null)
+LIBHV_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LIBHV_DIR) 2>/dev/null)
+LUA_GIT_DIR := $(shell $(OWN_GIT_DIR) $(LUA_DIR) 2>/dev/null)
 LVGL_HEAD := $(if $(LVGL_GIT_DIR),$(wildcard $(LVGL_GIT_DIR)/HEAD))
 LIBHV_HEAD := $(if $(LIBHV_GIT_DIR),$(wildcard $(LIBHV_GIT_DIR)/HEAD))
 LUA_HEAD := $(if $(LUA_GIT_DIR),$(wildcard $(LUA_GIT_DIR)/HEAD))
@@ -376,6 +378,8 @@ define record_applied_stamp_id
 		|| printf "%s" "$$id_now" > $(APPLIED_STAMP_ID)
 endef
 
+CHECK_PATCH_DRIFT := python3 scripts/check_patch_drift.py
+
 # Restore one submodule's patched files to upstream state.
 #   $(1) submodule dir, $(2) file list (paths relative to it)
 #
@@ -383,8 +387,30 @@ endef
 # patch that CREATES a file leaves that file untracked, where checkout fails with
 # "did not match any file(s) known to git". It has to be deleted instead, or the
 # re-apply then fails the other way with "already exists".
+#
+# The list is this commit's, but the hunks in the checkout are those of the
+# commit that last applied here. Once the superproject moves to a commit whose
+# patch set differs, the old set's files are in no list here, `git submodule
+# update` refuses to overwrite them, and the tree is stuck. The drift stamp in
+# the submodule's git dir records every file the applied set touched, so those
+# are restored too; trackedness is judged against the submodule's own HEAD,
+# which has not moved yet, so a file the old set created is deleted by name.
+# No stamp (never applied, or applied by a build that predates stamping) leaves
+# just the list.
+#
+# A submodule that is not its own git checkout (a source tarball) has no
+# upstream bytes to restore from, and git asked about it answers from the
+# enclosing repository, which calls every upstream file untracked and would
+# delete it. Such a tree is left as it is; re-extracting the source is the reset.
 define reset_submodule_patches
-	$(Q)for file in $(2); do \
+	$(Q)if ! $(OWN_GIT_DIR) $(1) >/dev/null 2>&1; then \
+		echo "$(YELLOW)⚠ $(1) is not a git checkout, so there is no upstream copy to reset to - left as it is. Re-extract the source to reset it.$(RESET)"; \
+	else \
+	files="$(2)"; \
+	if command -v python3 >/dev/null 2>&1; then \
+		files="$$files $$($(CHECK_PATCH_DRIFT) --stamped-files $(1) 2>/dev/null)"; \
+	fi; \
+	for file in $$(printf '%s\n' $$files | sort -u); do \
 		if ! git -C $(1) ls-files --error-unmatch "$$file" >/dev/null 2>&1; then \
 			if [ -e "$(1)/$$file" ]; then \
 				echo "$(YELLOW)→ Removing (patch-created):$(RESET) $$file"; \
@@ -398,7 +424,8 @@ define reset_submodule_patches
 		else \
 			echo "$(DIM)  (clean) $$file$(RESET)"; \
 		fi \
-	done
+	done; \
+	fi
 endef
 
 # Reset all patched files in every patched submodule to upstream state.
@@ -416,11 +443,6 @@ endef
 reset-patches:
 	$(ECHO) "$(YELLOW)Resetting LVGL patches to upstream state...$(RESET)"
 	$(call reset_submodule_patches,$(LVGL_DIR),$(LVGL_PATCHED_FILES))
-	@# Not in LVGL_PATCHED_FILES: the backport patch creates it, so there is no
-	@# tracked version to compare against.
-	$(Q)rm -f $(LVGL_DIR)/src/misc/lv_check_arg.h
-	@# Same for the header the EGL partial upload patch creates.
-	$(Q)rm -f $(LVGL_DIR)/src/drivers/display/drm/lv_linux_drm_egl_upload.h
 	$(ECHO) "$(YELLOW)Resetting libhv patches to upstream state...$(RESET)"
 	$(call reset_submodule_patches,$(LIBHV_DIR),$(LIBHV_PATCHED_FILES))
 	$(ECHO) "$(YELLOW)Resetting Lua patches to upstream state...$(RESET)"
@@ -430,7 +452,7 @@ reset-patches:
 	@# in place it would report every restored file as "changed since apply" and
 	@# block the force-apply-patches half of reapply-patches.
 	$(Q)if command -v python3 >/dev/null 2>&1; then \
-		python3 scripts/check_patch_drift.py --clear-stamp || true; \
+		$(CHECK_PATCH_DRIFT) --clear-stamp || true; \
 	fi
 	$(ECHO) "$(GREEN)✓ All patches reset$(RESET)"
 
@@ -536,11 +558,12 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	@# downgrades rather than fail the build.
 	$(Q)if [ "$(HELIX_PATCHES_FROM_CLEAN)" = "1" ]; then \
 		ok=1; \
-		for pair in "$(LVGL_DIR)|$(LVGL_PATCHED_FILES) src/misc/lv_check_arg.h" \
+		for pair in "$(LVGL_DIR)|$(LVGL_PATCHED_FILES)" \
 		            "$(LIBHV_DIR)|$(LIBHV_PATCHED_FILES)" \
 		            "$(LUA_DIR)|$(LUA_PATCHED_FILES)"; do \
 			dir=$${pair%%|*}; files=$${pair#*|}; \
-			if [ -n "$$($(GIT_NOENV) -C "$$dir" status --porcelain -- $$files 2>/dev/null)" ] || \
+			if ! $(OWN_GIT_DIR) "$$dir" >/dev/null 2>&1 || \
+			   [ -n "$$($(GIT_NOENV) -C "$$dir" status --porcelain -- $$files 2>/dev/null)" ] || \
 			   ! $(GIT_NOENV) -C "$$dir" status --porcelain -- $$files >/dev/null 2>&1; then \
 				ok=0; \
 				echo "$(YELLOW)⚠ $$dir is not pristine, so this run cannot judge patches from clean — using in-place verdicts. Run 'make reapply-patches' to reset and judge from clean.$(RESET)"; \
@@ -552,10 +575,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_sdl_window.patch "LVGL SDL window patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_sdl_sw_android_debug.patch "LVGL SDL SW android debug + blendmode fix patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_theme_breakpoints.patch "LVGL theme breakpoints patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_stride_bpp.patch "LVGL fbdev stride bpp detection patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_skip_unblank.patch "LVGL fbdev skip-unblank patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-bgr-swap.patch "LVGL fbdev BGR swap patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-buffer-align.patch "LVGL fbdev buffer alignment patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_debug.patch "LVGL observer debug info patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_remove_null_guard.patch "LVGL observer remove NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_observer_null_guards.patch "LVGL observer subject NULL guards patch"
@@ -564,7 +583,6 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_null_guard.patch "LVGL blend NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_buf_bounds_clip.patch "LVGL blend buffer bounds clip patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blend_color_null_guard.patch "LVGL blend color NULL guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fix-signed-unsigned-draw-coords.patch "LVGL draw-area clip patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_render_thread_acquire.patch "LVGL render-thread acquire/release barrier patch (ARM64 layer-buffer UAF)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sw_label_null_guard.patch "LVGL label draw NULL font guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-drm-flush-rotation.patch "LVGL DRM flush rotation patch"
@@ -574,28 +592,25 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-drm-mmap64.patch "LVGL DRM 64-bit mmap offset patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_refr_reshape_null_guard.patch "LVGL refr reshape NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_img_null_guard.patch "LVGL img goto_xy NULL guard patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_invalidate_drawn_only.patch "LVGL style change skips never-drawn widgets"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_display_matrix_rotation_getter.patch "LVGL matrix-rotation getter without matrix transforms"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_canvas_destructor_cache_drop.patch "LVGL canvas destructor cache drop"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_img_warn_obj_name.patch "LVGL image-warn obj-name patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_blur_null_guard.patch "LVGL blur goto_xy NULL guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_pos_null_guards.patch "LVGL obj_pos NULL guards patch (blur_walk_cb + layout_update_core)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_layout_dirty_refr_request_once.patch "LVGL layout-dirty refresh request once per layout pass"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_grid_update_guard.patch "LVGL grid_update freed-container guard patch (#973)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_grid_update_guard.patch "LVGL grid_update descriptor guards patch (#983)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_buf_oom_guard.patch "LVGL draw_buf OOM guard patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-evdev-protocol-a.patch "LVGL evdev Protocol-A touch release patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_arc_draw_guard.patch "LVGL arc draw guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_arc_subject_null_guard.patch "LVGL arc subject NULL guard patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sw_img_buf_height_guard.patch "LVGL draw_sw_img buf_h guard patch (upstream ca18403)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_lodepng_bpp_guard.patch "LVGL lodepng bit-depth guard (16-bit PNG heap overflow)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_drm_egl_render_mode_fix.patch "LVGL DRM EGL render mode fix (upstream ce112eb)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-vsync.patch "LVGL EGL vsync setter patch"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-fbdev-vsync-runtime.patch "LVGL fbdev runtime vsync setter patch (#2111)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-partial-upload.patch "LVGL EGL partial upload patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-egl-xrgb-shader.patch "LVGL EGL XRGB display shader patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-texture-align.patch "LVGL OpenGL ES texture buffer alignment patch"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl-opengles-quarter-turn-direction.patch "LVGL OpenGL ES quarter-turn direction patch"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_texture_cache_null_guard.patch "LVGL texture cache NULL guard patch (upstream ec053a0)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_draw_sdl_stride_fix.patch "LVGL draw_sdl aligned stride fix"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_display_sync_cb.patch "LVGL display sync callback patch (upstream 4170bcb)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_delete_null_guards.patch "LVGL obj destructor NULL guard patch (obj_destructor_null telemetry)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_delete_async_dedup.patch "LVGL obj delete async dedup patch (dedup + UAF guard + diagnostics)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_delete_async_dedup.patch "LVGL obj delete async dedup patch (dedup + diagnostics)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_get_screen_cycle_guard.patch "LVGL obj_get_screen cycle guard patch (cap parent-walk depth to 128)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_async_del_crumb.patch "LVGL async-delete breadcrumb patch (#840/#906 sync+async diagnostic)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_translation_warn_once.patch "LVGL translation warn-once patch (missing-language warning once per language)"
@@ -618,9 +633,9 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_null_guards.patch "LVGL style NULL guards patch (null style pointers in transitions/cache)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_subject_deinit_refuses_observers.patch "LVGL subject deinit refuses observers patch (#1279)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_flag_screen_parent_null_guard.patch "LVGL obj flag screen-parent NULL guard (hide/unhide a screen)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_flex_hidden_grow_gap.patch "LVGL flex hidden+grow gap fix (upstream #9897 backport)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_backport.patch "LVGL LV_CHECK_ARG backport patch (master macro for v9.5.0; drop at upgrade)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_fbdev_arg_guards.patch "LVGL fbdev arg-guard + log-order patch (uses backported LV_CHECK_ARG)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_thread_check_hook.patch "LVGL thread-check hook patch (subject/timer/delete entry points, #1942)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_site_logger.patch "LVGL check-arg SITE log mode (one cold file:line logger; ESP32 flash)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_report_refreshes_every_part.patch "LVGL style report refreshes every part's cache mask"
 	$(ECHO) "$(CYAN)Checking libhv patches...$(RESET)"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-openssl-static-link.patch "libhv OpenSSL/static build hook patch"
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-streaming-upload.patch "libhv streaming upload patch"

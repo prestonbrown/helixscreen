@@ -7,7 +7,7 @@
 # mk/implib.mk runs this against the generated <lib>.init.c tables (the
 # functions) and the libraries' own headers in the toolchain sysroot (their
 # return types), and compiles the C table it writes into the binary.
-# helix_gpu_lib_symbol() (src/api/gpu_libs.cpp) looks each function up there.
+# helix_gpu_lib_symbol() (src/platform/display/gpu_libs.cpp) looks each function up there.
 #
 # Kinds:
 #   i  -1 with errno = ENOSYS: a signed integer from libdrm or libinput, where

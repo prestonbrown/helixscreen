@@ -24,19 +24,19 @@ TEST_CASE("heater climbing shows target, bar and Active", "[print_status_chips]"
     CHECK(c.progress_pct == 81);
     CHECK(c.tone == ChipTone::Active);
     CHECK(c.glow);
+    CHECK(c.heat == ui::temperature::HeatState::Heating);
+    CHECK(heater(2050, 2200, true).tone == ChipTone::Warn); // past pre-print
 }
 
 TEST_CASE("heater ready shows value only", "[print_status_chips]") {
     auto c = heater(2200, 2200);
     CHECK(c.text == "220°");
+    CHECK_FALSE(c.glow);
+    CHECK(c.heat == ui::temperature::HeatState::AtTemp);
+    CHECK_FALSE(heater(2600, 2200).glow); // cooling toward its target
+    CHECK(heater(2200, 2200, false, false, 0, "T1").text == "T1 220°");
     CHECK(c.tone == ChipTone::Normal);
     CHECK(c.progress_pct == -1);
-}
-
-TEST_CASE("heater off target mid-print warns", "[print_status_chips]") {
-    auto c = heater(2050, 2200, true);
-    CHECK(c.tone == ChipTone::Warn);
-    CHECK(c.text == "205 / 220°");
 }
 
 TEST_CASE("power appended only when asked", "[print_status_chips]") {
@@ -48,13 +48,18 @@ TEST_CASE("power appended only when asked", "[print_status_chips]") {
 TEST_CASE("off and cold heater hidden", "[print_status_chips]") {
     CHECK_FALSE(heater(300, 0).shown);
     CHECK(heater(600, 0).shown);
-    CHECK_FALSE(
-        heater_chip(false, 2200, 2200, classify_heater_status(2200, 2200, 0), false, false, "", 300)
-            .shown);
 }
 
-TEST_CASE("heater_chip carries tool badge text", "[print_status_chips]") {
-    CHECK(heater(2200, 2200, false, false, 0, "T1").text == "T1 220°");
+TEST_CASE("a chamber reading with its heater off still shows", "[print_status_chips]") {
+    const auto idle = classify_heater_status(350, 0, 0);
+    auto c = heater_chip(true, 350, 0, idle, true, false, "", 300, true);
+    REQUIRE(c.shown);
+    CHECK(c.text == "35°");
+    CHECK_FALSE(c.glow);
+    CHECK(c.tone == ChipTone::Normal);
+    CHECK(c.progress_pct == -1);
+    CHECK_FALSE(heater_chip(true, 350, 0, idle, false, false, "", 300, false).shown);
+    CHECK_FALSE(heater_chip(false, 350, 0, idle, true, false, "", 300, true).shown);
 }
 
 TEST_CASE("part fan spinning is Active and glows", "[print_status_chips]") {
@@ -106,6 +111,13 @@ TEST_CASE("speed and flow 100 is expendable", "[print_status_chips]") {
     auto c = speed_flow_chip(100, 100, "187 mm/s");
     CHECK(c.tone == ChipTone::Normal);
     CHECK(c.expendable);
+}
+
+TEST_CASE("a warm chamber's glow takes over from the light's", "[print_status_chips]") {
+    ChipContent chamber;
+    CHECK_FALSE(light_glow_yields(chamber));
+    chamber.glow = 1;
+    CHECK(light_glow_yields(chamber));
 }
 
 TEST_CASE("light off is expendable, on glows", "[print_status_chips]") {
@@ -170,7 +182,7 @@ TEST_CASE("phase budget expendable table", "[print_status_chips]") {
         {CalloutKind::Chamber, false, false},  {CalloutKind::Fan, false, true},
         {CalloutKind::HotendFan, true, true},  {CalloutKind::AuxFan, true, true},
         {CalloutKind::Light, true, true},      {CalloutKind::SpeedFlow, true, true},
-        {CalloutKind::Toolhead, false, false},
+        {CalloutKind::Toolhead, false, false}, {CalloutKind::OtherTools, false, false},
     };
     STATIC_REQUIRE(std::size(rows) == kCalloutKindCount);
     for (const Row& r : rows) {

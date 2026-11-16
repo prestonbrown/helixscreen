@@ -2,6 +2,7 @@
 #pragma once
 
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 
 #include <array>
 #include <cstdint>
@@ -9,8 +10,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /// What fills the printer's disks, by consumer: the HelixPrint plugin's
 /// `storage` report when it is ready, else the same breakdown summed from the

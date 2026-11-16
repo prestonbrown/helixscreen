@@ -4,9 +4,10 @@
 #include "ace_slot_parse.h"
 
 #include "ams_status_json.h"
+#include "core/temperature_units.h"
 #include "json_utils.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -131,9 +132,28 @@ std::optional<uint32_t> parse_slot_color(const json& color_val) {
     return std::nullopt;
 }
 
-void apply_dryer_state(const json& data, DryerInfo& out) {
+void DryerDelta::apply(DryerInfo& dryer) const {
+    if (active) {
+        dryer.active = *active;
+    }
+    if (current_temp_c) {
+        dryer.current_temp_c = *current_temp_c;
+    }
+    if (target_temp_c) {
+        dryer.target_temp_c = *target_temp_c;
+    }
+    if (duration_min) {
+        dryer.duration_min = *duration_min;
+    }
+    if (remaining_min) {
+        dryer.remaining_min = *remaining_min;
+    }
+}
+
+DryerDelta read_dryer_state(const json& data) {
+    DryerDelta d;
     if (!data.is_object()) {
-        return;
+        return d;
     }
     // ACE states its temperature top-level (`temp`, the hub's ambient reading
     // near the dryer) - the only reading the Klipper-object spellings carry -
@@ -141,7 +161,7 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
     // states a current temp inside the dryer object is the more specific
     // reading and wins.
     if (auto v = ams::read_field<float>(data, "temp")) {
-        out.current_temp_c = *v;
+        d.current_temp_c = *v;
     }
 
     const json* dryer = nullptr;
@@ -151,38 +171,43 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
         dryer = &data["dryer_status"];
     }
     if (dryer == nullptr) {
-        return;
+        return d;
     }
 
     // Klipper-object spelling: {status, target_temp, duration, remain_time}
     if (dryer->contains("status") && (*dryer)["status"].is_string()) {
         const std::string ds = (*dryer)["status"].get<std::string>();
-        out.active = (ds != "stop" && ds != "idle" && !ds.empty());
+        d.active = (ds != "stop" && ds != "idle" && !ds.empty());
     }
     if (dryer->contains("target_temp") && (*dryer)["target_temp"].is_number()) {
-        out.target_temp_c = (*dryer)["target_temp"].get<float>();
+        d.target_temp_c = (*dryer)["target_temp"].get<float>();
     }
     if (dryer->contains("duration") && (*dryer)["duration"].is_number()) {
-        out.duration_min = (*dryer)["duration"].get<int>();
+        d.duration_min = (*dryer)["duration"].get<int>();
     }
     if (dryer->contains("remain_time") && (*dryer)["remain_time"].is_number()) {
-        out.remaining_min = (*dryer)["remain_time"].get<int>();
+        d.remaining_min = (*dryer)["remain_time"].get<int>();
     }
 
     // REST-bridge spelling: {active, current_temp, remaining_minutes,
     // duration_minutes}
     if (dryer->contains("active") && (*dryer)["active"].is_boolean()) {
-        out.active = (*dryer)["active"].get<bool>();
+        d.active = (*dryer)["active"].get<bool>();
     }
     if (dryer->contains("current_temp") && (*dryer)["current_temp"].is_number()) {
-        out.current_temp_c = (*dryer)["current_temp"].get<float>();
+        d.current_temp_c = (*dryer)["current_temp"].get<float>();
     }
     if (dryer->contains("remaining_minutes") && (*dryer)["remaining_minutes"].is_number_integer()) {
-        out.remaining_min = (*dryer)["remaining_minutes"].get<int>();
+        d.remaining_min = (*dryer)["remaining_minutes"].get<int>();
     }
     if (dryer->contains("duration_minutes") && (*dryer)["duration_minutes"].is_number_integer()) {
-        out.duration_min = (*dryer)["duration_minutes"].get<int>();
+        d.duration_min = (*dryer)["duration_minutes"].get<int>();
     }
+    return d;
+}
+
+void apply_dryer_state(const json& data, DryerInfo& out) {
+    read_dryer_state(data).apply(out);
 }
 
 std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c,
@@ -191,8 +216,9 @@ std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c
         return AmsError(
             AmsResult::COMMAND_FAILED, "Temperature out of range: " + std::to_string(temp_c),
             lv_tr("Invalid temperature"),
-            fmt::format(lv_tr("Set temperature between {}°C and {}°C"),
-                        static_cast<int>(dryer.min_temp_c), static_cast<int>(dryer.max_temp_c)));
+            fmt::format(lv_tr("Set temperature between {} and {}"),
+                        units::format_display_temp(static_cast<int>(dryer.min_temp_c)),
+                        units::format_display_temp(static_cast<int>(dryer.max_temp_c))));
     }
     if (duration_min <= 0 || duration_min > dryer.max_duration_min) {
         return AmsError(
@@ -211,6 +237,21 @@ std::pair<float, int> restart_request(const DryerInfo& dryer, float temp_c, int 
                              ? duration_min
                              : (dryer.remaining_min > 0 ? dryer.remaining_min : dryer.duration_min);
     return {temp, duration};
+}
+
+void yield_to_record(ams::Observation& hub, const std::optional<ams::Observation>& record) {
+    if (!record) {
+        return;
+    }
+    if (record->color_rgb) {
+        hub.color_rgb.reset();
+    }
+    if (record->material) {
+        hub.material.reset();
+    }
+    if (record->brand) {
+        hub.brand.reset();
+    }
 }
 
 } // namespace helix::ace

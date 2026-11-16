@@ -14,14 +14,14 @@
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "i_moonraker_api.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
 #include "platform_table.h"
 #include "system/update_checker.h"
-#include "text_io.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>

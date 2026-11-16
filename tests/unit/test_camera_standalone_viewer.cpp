@@ -17,18 +17,18 @@
 #if HELIX_HAS_CAMERA
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/camera_stream_test_access.h"
 #include "../test_helpers/camera_view_test_access.h"
 #include "../test_helpers/camera_widget_test_access.h"
 #include "../test_helpers/navigation_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "camera_view.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
-#include "http_executor.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
 #include <atomic>
@@ -67,7 +67,7 @@ class StandaloneViewerFixture : public LVGLUITestFixture {
         DisplaySettingsManager::instance().set_animations_enabled(animations_were_enabled_);
     }
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void close_viewer() {
         helix::nav::go_back();
@@ -102,12 +102,28 @@ TEST_CASE_METHOD(StandaloneViewerFixture,
     REQUIRE(view != nullptr);
     CHECK(view->has_stream());
     CHECK(view->feed().stream_url == kStreamUrl);
-    CHECK(CameraWidgetTestAccess::standalone_overlay() != nullptr);
+    auto spinner_hidden = [] {
+        lv_obj_t* s =
+            lv_obj_find_by_name(CameraWidgetTestAccess::standalone_overlay(), "fullscreen_spinner");
+        REQUIRE(s != nullptr);
+        return lv_obj_is_hidden(s);
+    };
+    CHECK_FALSE(spinner_hidden());
+    // What the first frame does: with no camera tile placed, the viewer owns the binding.
+    lv_subject_t* connecting = lv_xml_get_subject(nullptr, "camera_fullscreen_connecting");
+    REQUIRE(connecting != nullptr);
+    lv_subject_set_int(connecting, 0);
+    CHECK(spinner_hidden());
 
     CHECK_FALSE(open_standalone_camera_fullscreen(test_screen()));
 
     close_viewer();
     CHECK(CameraWidgetTestAccess::standalone_view() == nullptr);
+    // A reopen waits for its own first frame.
+    REQUIRE(open_standalone_camera_fullscreen(test_screen()));
+    drain();
+    CHECK_FALSE(spinner_hidden());
+    close_viewer();
 }
 
 TEST_CASE_METHOD(StandaloneViewerFixture,

@@ -25,11 +25,12 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/script_lines.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <array>
@@ -359,25 +360,6 @@ TEST_CASE("BeltTensionCalibrator State enum values are distinct", "[belt_tension
 // 5b. One-Path Measurement (mock client end to end)
 // ============================================================================
 
-namespace {
-
-struct LVGLInitializerBeltCal {
-    LVGLInitializerBeltCal() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerBeltCal lvgl_init_belt_cal;
-
-} // namespace
-
 /**
  * @brief Calibrator over the mock client, with the printer already homed
  *
@@ -388,7 +370,7 @@ static LVGLInitializerBeltCal lvgl_init_belt_cal;
  * homed_axes subject, so that one is seeded "xyz" and the sweep starts
  * without a G28.
  */
-class BeltCalibratorFixture {
+class BeltCalibratorFixture : public LVGLTestFixture {
   public:
     BeltCalibratorFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
         state_.init_subjects(false); // Don't register XML bindings in tests
@@ -399,7 +381,7 @@ class BeltCalibratorFixture {
 
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         calibrator_ = std::make_unique<BeltTensionCalibrator>(api_.get());
     }
@@ -408,7 +390,7 @@ class BeltCalibratorFixture {
         // Cancel and invalidate the guard before the test-local callback
         // targets die, then run whatever is still queued.
         calibrator_.reset();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         api_.reset();
         MoonrakerClientMock::remove_belt_csvs();
     }
@@ -526,7 +508,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "measure_path forwards its window",
 
 TEST_CASE_METHOD(BeltCalibratorFixture, "cancel while homing never starts the sweep",
                  "[belt_tension][calibrator]") {
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     mock_client_.clear_gcode_script_history();
     bool called = false;
     calibrator_->measure_path(
@@ -534,7 +516,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "cancel while homing never starts the sw
         [&](const std::string&) { called = true; });
     calibrator_->cancel();
     for (int i = 0; i < 500; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(10);
         lv_timer_handler_safe();
     }
@@ -601,7 +583,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "settle sends the planned laps and repor
 
 TEST_CASE_METHOD(BeltCalibratorFixture, "settle homes first when XY is not homed",
                  "[belt_tension][calibrator][settle]") {
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     const auto inputs = voron_settle_inputs();
     const auto plan = plan_belt_settle(inputs);
     REQUIRE(plan.refusal == BeltSettleRefusal::NONE);
@@ -640,7 +622,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "settle sends the laps with the plan's t
 TEST_CASE_METHOD(BeltCalibratorFixture, "a refused settle sends nothing",
                  "[belt_tension][calibrator][settle]") {
     // Unhomed too: a refusal known before homing must not home either.
-    lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     auto inputs = voron_settle_inputs();
     inputs.probe_point.reset();
     mock_client_.clear_gcode_script_history();
@@ -651,7 +633,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "a refused settle sends nothing",
         inputs, [&]() { other = true; }, [&](BeltSettleRefusal r) { refusal = r; },
         [&](const std::string&) { other = true; });
     for (int i = 0; i < 50; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(10);
         lv_timer_handler_safe();
     }
@@ -692,7 +674,7 @@ TEST_CASE_METHOD(BeltCalibratorFixture, "cancel during settle silences its ack",
     calibrator_->cancel();
     CHECK(calibrator_->get_state() == BeltTensionCalibrator::State::IDLE);
     for (int i = 0; i < 500; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(2);
         lv_timer_handler_safe();
     }
@@ -1096,11 +1078,10 @@ TEST_CASE("compute_psd clamps a pathologically large bandwidth before the size_t
           "[belt_tension][fft][edge_case]") {
     // FLT_MAX (~3.4e38) exceeds SIZE_MAX on both 32-bit and 64-bit targets, so
     // casting an unclamped bandwidth*n/sample_rate product to size_t at this
-    // magnitude is undefined behaviour - the pre-fix code could have produced
-    // any result, not a specific known-bad one. This exercises the clamp on an
-    // input that was previously UB; it verifies that an absurd bandwidth
-    // request still yields a Nyquist-bounded bin count rather than reading
-    // past the array, not that it reproduces any particular old failure.
+    // magnitude is undefined behaviour, so an unclamped version could produce
+    // any result, not a specific known-bad one. This exercises the clamp on
+    // that input; it verifies that an absurd bandwidth request still yields a
+    // Nyquist-bounded bin count rather than reading past the array.
     const float sr = 1000.0f;
     const int n = 1000;
     std::vector<AccelSample> samples(static_cast<size_t>(n));

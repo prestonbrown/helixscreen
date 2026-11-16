@@ -16,7 +16,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <unistd.h>
 #include <unordered_map>

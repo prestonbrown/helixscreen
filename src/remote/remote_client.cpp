@@ -90,6 +90,8 @@ static const HelpEntry HELP[] = {
      "runtime dir. --target crops to a widget's bounds; --stable polls\n"
      "until pixels stop changing (see `freeze`)"},
     {nullptr, "status", "Show panel, connection state, printer status", nullptr},
+    {nullptr, "perf", "UI cost since start: frames, render time, peak RSS, overlay open times",
+     nullptr},
     {nullptr, "wake", "Reset idle timer / dismiss the screensaver", nullptr},
     {nullptr, "screensaver <name|off>", "Preview a screensaver by name, as Test Screensaver does",
      "toasters, starfield, pipes, bounce, fireworks, logo, maze,\n"
@@ -163,6 +165,8 @@ static const HelpEntry HELP[] = {
      "skips the update-queue and display-refresh timers so the channel\n"
      "stays alive"},
     {nullptr, "unfreeze", "Reverse freeze: resume paused timers, re-enable animations", nullptr},
+    {nullptr, "resize <w> <h>", "Resize the display, as a window resize does",
+     "the views follow once the 250ms resize debounce settles"},
     {nullptr, "log [-n N]", "Tail the app's in-memory log ring", "default 50 lines"},
     {nullptr, "shutdown, quit", "Ask the running app to exit", nullptr},
     {nullptr, "reset", "Return to home with no overlays/modals",
@@ -544,6 +548,8 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
         return build_request("list_components");
     } else if (cmd == "list_callbacks") {
         return build_request("list_callbacks");
+    } else if (cmd == "perf") {
+        return build_request("perf");
     } else if (cmd == "current" || cmd == "pwd") {
         return build_request("get_current");
     } else if (cmd == "screenshot") {
@@ -634,6 +640,13 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
         return build_request("freeze");
     } else if (cmd == "unfreeze") {
         return build_request("unfreeze");
+    } else if (cmd == "resize") {
+        if (tokens.size() < 3 || !is_int(tokens[1]) || !is_int(tokens[2])) {
+            fprintf(stderr, "Error: resize requires a width and a height\n");
+            return {};
+        }
+        return build_request("resize", {{"width", std::atoi(tokens[1].c_str())},
+                                        {"height", std::atoi(tokens[2].c_str())}});
     } else if (cmd == "tap" ||
                (cmd == "click" && tokens.size() >= 3 && is_int(tokens[1]) && is_int(tokens[2]))) {
         if (tokens.size() < 3) {
@@ -846,6 +859,7 @@ static const char* kReplCommands[] = {"ping",
                                       "resolve",
                                       "screenshot",
                                       "status",
+                                      "perf",
                                       "wake",
                                       "screensaver",
                                       "demo",
@@ -856,6 +870,7 @@ static const char* kReplCommands[] = {"ping",
                                       "wait_idle",
                                       "freeze",
                                       "unfreeze",
+                                      "resize",
                                       "ls",
                                       "describe_screen",
                                       "click",

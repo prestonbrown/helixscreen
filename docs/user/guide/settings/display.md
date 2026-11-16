@@ -2,7 +2,7 @@
 
 **Settings > Display** controls the screen itself. Use it to turn the picture to match how the screen is mounted, make the interface bigger or smaller, set the brightness, and choose when the screen dims, sleeps or shows a screensaver.
 
-On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 10 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 10 min* on a screen that can't change its brightness.
+On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 20 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 20 min* on a screen that can't change its brightness.
 
 ![Display settings, top of the page](../../../images/user/settings-display.png)
 
@@ -16,7 +16,7 @@ Turns the picture to match how the screen is mounted: **Normal**, **90° Clockwi
 
 The new rotation applies the next time HelixScreen starts. When you pick one, HelixScreen offers to restart right away. Touch follows the new orientation on its own.
 
-This row is hidden on the desktop simulator. There you rotate the window from your operating system instead.
+This row is hidden on the Linux desktop build, where you rotate the window from your operating system instead.
 
 > If taps land in the wrong place after rotating, the screen needs touch calibration, not a different rotation. See the [Touch Calibration guide](../touch-calibration.md).
 
@@ -42,7 +42,7 @@ Each size keeps its own home screen layout, because a different size fits a diff
 
 A slider from 10% to 100% (80% to start with). Only shown on screens whose backlight HelixScreen can control. Android handles brightness itself, so the slider is hidden there.
 
-On the Creality K2, the bottom of the slider stays a little brighter than the number suggests. The K2 panel turns fully off below about 20% of its range, so HelixScreen never dims it that far.
+On a Creality K2 running community firmware, the bottom of the slider stays a little brighter than the number suggests. That panel turns fully off below about 20% of its range, so HelixScreen never dims it that far. A K2 on stock firmware has no such limit.
 
 ---
 
@@ -83,25 +83,39 @@ The ESP32 firmware (the BigTreeTech K-Touch and other ESP32-S3 panels) has no sc
 | Option | What you see |
 |--------|--------------|
 | **Off** | No screensaver. The screen just dims and sleeps |
-| **Flying Toasters** | The classic flying toasters |
-| **Starfield** | Stars streaming past |
-| **3D Pipes** | The old Windows pipes: shiny shaded pipes in sixteen materials grow through the screen, turning at elbows and ball joints (and, once in a while, a teapot). When the screen fills it dissolves away in blocks and starts again from a slightly turned view |
-| **Bouncing Printer** | Your printer drifts around and bounces off the edges, changing color at every wall. Land a corner and it celebrates |
-| **Fireworks** | Fireworks over hills at night |
-| **Bouncing Logo** | The HelixScreen logo drifts around a black screen and bounces off the edges, in its own colors |
+| **Flying Toasters** | The classic flying toasters. During a print the toast browns from light to dark as the print goes; when it finishes, a toaster pops up a slice every few seconds, and a failed or canceled print burns the toast black |
+| **Starfield** | Stars streaming past. During a print a planet appears ahead and grows as the print goes; the stars slow while it is paused, you arrive at the planet when it finishes, and it shrinks away if the print fails or is canceled |
+| **3D Pipes** | The old Windows pipes: shiny shaded pipes in sixteen materials grow through the screen, turning at elbows and ball joints (and, once in a while, a teapot). When the screen fills it dissolves away in blocks and starts again from a slightly turned view. During a print the pipes fill one screen as the print goes and stop growing while it is paused; a finished print sets a green teapot on the full screen, and a failed or canceled one turns the pipes grey |
+| **Bouncing Printer** | Your printer drifts around and bounces off the edges, changing color at every wall. Land a corner and it celebrates. During a print it starts grey and fills with color from the bottom as the print goes; when the print finishes it throws confetti on every bounce, and a failed or canceled print turns it red |
+| **Fireworks** | Fireworks over hills at night. During a print the rockets go up faster and burst bigger as the print goes, and none go up while it is paused; a finished print gets a finale that keeps repeating, and a failed or canceled one a single small red burst before the sky goes quiet |
+| **Bouncing Logo** | The HelixScreen logo drifts around a black screen and bounces off the edges, in its own colors. A print shows on it as on the Bouncing Printer |
 | **3D Maze** | A walk through a brick maze, as in the old Windows screensaver, with its wide view, a few loops and small rooms, and halls that fade into the dark. Pictures of your own prints hang on the walls, taken from thumbnails your printer screen has already shown, along with your printer. Spinning HelixScreen icons, rocks that flip the view upside down, and a smiley at the exit |
-| **Hyperspace** | A flight through glowing rainbow space: star flares stream past, a shimmering wormhole sweeps in and out, and now and then a shell of flares bursts ahead |
-| **Flip Clock** (default) | A split-flap clock in the 12- or 24-hour format you chose under Time Format, one card per digit; only the digits that change flip. While a print runs it counts down the time left as hours, minutes and seconds, with the finish time and progress underneath. A paused print freezes the count under PAUSED; a finished one shows DONE for a minute, then the clock comes back |
-| **Fireflies** | Colored swarms of glowing fireflies chase each other through the dark, trailing long tails that drift in the wind; now and then a swarm stops, circles, splits in two or joins another |
-| **Aqua Surface** | Dark, glassy water sloshing in slow motion, seen through the side of a tank, with crisp highlights, bubbles rising below the surface and the odd droplet flung from a crest. A clock of three rings sits in the water: the hour, the minute, and a small ring for the seconds, with the date underneath. While a print runs, the small ring shows its progress and the date line shows when it ends and how long is left |
-| **High Fly** | A flight just above sunlit clouds under a deep blue sky, with tall clouds drifting past and, every minute or two, a flight through a cloud. A large, thin clock sits at the cloud line with the seconds and AM/PM beside it and the date on the left. While a print runs, the date shows when it ends and how long is left |
+| **Hyperspace** | A flight through glowing rainbow space: star flares stream past, a shimmering wormhole sweeps in and out, and now and then a shell of flares bursts ahead. During a print a light at the end of the tunnel grows as the print goes, and the flight slows while it is paused; a finished print drops out of hyperspace into still stars, and a failed or canceled one dims the light and closes the tunnel |
+| **Flip Clock** (default) | A split-flap clock in the 12- or 24-hour format you chose under Time Format, one card per digit; only the digits that change flip. While a print runs it counts down the time left as hours, minutes and seconds, with a row of small cards underneath showing when it will finish and how far along it is. Before the printer has worked out a time it shows the percentage instead. A paused print spells PAUSE in amber with the time left underneath; at the end the cards spell DONE in green, or FAIL or STOP in red, until someone touches the screen |
+| **Fireflies** | Colored swarms of glowing fireflies chase each other through the dark, trailing long tails that drift in the wind; now and then a swarm stops, circles, splits in two or joins another. During a print the fireflies gather into the percentage for a few seconds every minute; when the print finishes they spell DONE (a check mark in languages other than English) and glow, and a failed or canceled print turns them red and scatters them |
+| **Aqua Surface** | Dark, glassy water sloshing in slow motion, seen through the side of a tank, with crisp highlights, bubbles rising below the surface and the odd droplet flung from a crest. A clock of three rings sits in the water: the hour, the minute, and a small ring for the seconds, with the date underneath. While a print runs, the small ring shows its progress and the date line shows when it ends and how long is left. The tank fills as the print goes, up toward the brim when it finishes, with a burst of bubbles; while a print is paused the water calms; a failed or canceled print drains back down |
+| **High Fly** | A flight just above sunlit clouds under a deep blue sky, with tall clouds drifting past and, every minute or two, a flight through a cloud. A large, thin clock sits at the cloud line with the seconds and AM/PM beside it and the date on the left. While a print runs, the date shows when it ends and how long is left. During a print the big numbers count down the time left, the sky warms toward golden hour as the print goes, and at the end you fly through a cloud into a sunset; a paused print circles slowly, and a failed one turns overcast |
 | **Random** | A different screensaver each time the screen goes idle, chosen from the ones your printer can run, and never the same one twice in a row while another can play. It is last in the list |
 
-Each screensaver checks how much processor time it takes on your printer. If it would slow the printer down, it lowers its frame rate or detail, and once it has run comfortably for a while it steps back up again. A step down taken while a print runs lasts only for that print. If even its lowest setting is too much, your printer can't run it: it disappears from the list, and the Flip Clock (or the next screensaver your printer can run) plays in its place. The list then shows the one that plays. Your choice is still saved, so moving your settings to a faster printer brings it back. Only if no screensaver fits does the screen go black instead. The check runs again after an update.
+Each screensaver checks how much processor time it takes on your printer. If it would slow the printer down, it lowers its frame rate or detail, and once it has run comfortably for a while it steps back up again. A step down taken while a print runs lasts only for that print. If even its lowest setting is too much, your printer can't run it: it disappears from the list, and the Flip Clock (or the next screensaver your printer can run) plays in its place. If that happens during a print, the Flip Clock takes over for the rest of the print so you can still see its progress. The list then shows the one that plays. Your choice is still saved, so moving your settings to a faster printer brings it back. Only if no screensaver fits does the screen go black instead. The check runs again after an update.
+
+### Print progress on the screensaver
+
+Every screensaver shows how a print is going. The Flip Clock, Aqua Surface and High Fly show it in their own way. The others show a small card that drifts slowly around the screen: a ring that fills as the print goes, and the time left in large numbers (**1h05**, **23m**), or the percentage before the printer has worked out a time. All of them except the 3D Maze also show the print in their scene, as the table above describes.
+
+The ring turns amber while a print is paused and shows a pause mark. When a print ends the card shows a check mark in green, or a cross (failed) or a square (canceled) in red, and it stays until someone touches the screen, even if the print finished hours ago. While a screensaver is running, the end of a print doesn't wake the screen: the screensaver shows the result, and the usual print-finished message is waiting when you touch it.
+
+**Show Print Progress** (under the Screensaver row, **On** by default) turns the card off during a running print. A paused or finished print still shows it.
 
 ### Test Screensaver
 
 Appears under the Screensaver row when a screensaver is selected. Tap it to see the screensaver right away instead of waiting for the screen to go idle; it plays what the idle screen would. Touch the screen to stop it; like any wake touch, that touch presses nothing.
+
+---
+
+## Prompts That Wake the Screen
+
+A sleeping screen wakes by itself for two things that need you: a prompt from one of your macros (a Klipper action prompt) and the recovery dialog Klipper raises when the printer shuts down or reports an error. The dialog is then on screen when you look, instead of waiting behind a dark display. A lost connection to the printer does not wake the screen, because it usually clears by itself.
 
 ---
 

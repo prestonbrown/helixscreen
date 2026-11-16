@@ -48,12 +48,12 @@ Rules that hold throughout:
 
 | File | Role |
 |------|------|
-| `include/grid_edit_mode.h`, `src/ui/grid_edit_mode.cpp` | `GridEditMode`: session, selection, grab rules, drag and resize, shield, gesture end, drop commit, pruning, the catalog session |
-| `include/grid_edit_cross_page.h`, `src/ui/grid_edit_cross_page.cpp` | `cross_page_step()` and the cross-page constants |
-| `include/grid_edit_drop.h`, `src/ui/grid_edit_drop.cpp` | `resolve_drop()`: move, create a page, return to the origin page, or snap back |
-| `include/grid_edit_page_set.h`, `src/ui/grid_edit_page_set.cpp` | `page_set_landing()` and `page_set_focus()`: where a page-set rebuild comes up, and the page it and the session end on |
-| `include/ui_panel_home.h`, `src/ui/ui_panel_home.cpp` | `HomePanel`: carousel build, grid event handlers, `show_edit_page()`, swipe policy, page subjects, adding and deleting pages |
-| `include/ui_carousel.h`, `src/ui/ui_carousel.cpp` | `helix::ui::carousel_set_swipe`, `carousel_set_bubble_events`, `carousel_goto_tile`, `carousel_set_trailing_tiles_reachable` |
+| `include/grid_edit_mode.h`, `src/ui/home/grid_edit_mode.cpp` | `GridEditMode`: session, selection, grab rules, drag and resize, shield, gesture end, drop commit, pruning, the catalog session |
+| `include/grid_edit_cross_page.h`, `src/ui/home/grid_edit_cross_page.cpp` | `cross_page_step()` and the cross-page constants |
+| `include/grid_edit_drop.h`, `src/ui/home/grid_edit_drop.cpp` | `resolve_drop()`: move, create a page, return to the origin page, or snap back |
+| `include/grid_edit_page_set.h`, `src/ui/home/grid_edit_page_set.cpp` | `page_set_landing()` and `page_set_focus()`: where a page-set rebuild comes up, and the page it and the session end on |
+| `include/ui_panel_home.h`, `src/ui/home/ui_panel_home.cpp` | `HomePanel`: carousel build, grid event handlers, `show_edit_page()`, swipe policy, page subjects, adding and deleting pages |
+| `include/ui_carousel.h`, `src/ui/components/ui_carousel.cpp` | `helix::ui::carousel_set_swipe`, `carousel_set_bubble_events`, `carousel_goto_tile`, `carousel_set_trailing_tiles_reachable` |
 | `include/panel_widget_config.h`, `src/system/panel_widget_config.cpp` | Page operations: `page_entries`, `place_entry`, `page_is_populated`, `can_add_page`, `add_page`, `remove_page` |
 | `ui_xml/home_panel.xml` | `carousel_host` with the grid event callbacks, and the page badge |
 | `ui_xml/components/home_page_container.xml` | A page's grid container |
@@ -68,7 +68,7 @@ Rules that hold throughout:
 
 ### Entering
 
-A hold on the home grid enters edit mode (`src/ui/ui_panel_home.cpp#on_home_grid_long_press`).
+A hold on the home grid enters edit mode (`src/ui/home/ui_panel_home.cpp#on_home_grid_long_press`).
 The handler does nothing when `should_suppress_edit_mode()` refuses (the Touch & Input kill
 switch, the lock screen, a scroll in progress, a drag surface under the finger), when the
 carousel is not resting on the page the handlers act on (`carousel_on_scoped_page()`), or when
@@ -83,7 +83,7 @@ the finger drifted from where it landed (`finger_drifted_since_press()`). Otherw
 
 A drag surface is a control the user drags for a value or a position, so a hold on it is the
 start of a drag, not a request to edit. `helix::ui::is_drag_surface_hit()`
-(`src/ui/ui_drag_surface.cpp#is_drag_surface_hit`) walks from the press target up to the
+(`src/ui/components/ui_drag_surface.cpp#is_drag_surface_hit`) walks from the press target up to the
 widget and answers true for an `lv_arc`, an `lv_slider`, or any object a widget marked with
 `helix::ui::mark_drag_surface()` (`include/ui_drag_surface.h`). Marking sets
 `kDragSurfaceFlag` (`LV_OBJ_FLAG_USER_1`) and the input flags a drag needs: clickable, not
@@ -92,7 +92,7 @@ lock and no gesture bubbling. A widget opts in by marking the object from `attac
 toolhead plate is the worked example (`src/ui/panel_widgets/toolhead_widget.cpp#attach`). To
 make a surface inert, clear its `clickable` flag: the press then lands on the tile, and a hold
 there enters edit mode as anywhere else. The fan control overlay asks the same question
-(`src/ui/ui_fan_control_overlay.cpp#press_consumed_by_value_widget`).
+(`src/ui/controls/ui_fan_control_overlay.cpp#press_consumed_by_value_widget`).
 
 `enter()` sets `home_edit_mode` to 1, marks the entering hold inert (`gesture_inert_`, see below)
 when it runs inside a pointer read, and runs `attach_to_current_page()`: it disarms the
@@ -102,7 +102,7 @@ positions from the laid-out widgets.
 ### Switching pages
 
 `GridEditMode::switch_page(container, page)` re-scopes a live session, and decides itself what
-travels, so no caller can choose wrong (`src/ui/grid_edit_mode.cpp#switch_page`):
+travels, so no caller can choose wrong (`src/ui/home/grid_edit_mode.cpp#switch_page`):
 
 - The scope already held is a no-op.
 - While the widget catalog is open the session keeps its page: the catalog places onto the page
@@ -121,16 +121,16 @@ travels, so no caller can choose wrong (`src/ui/grid_edit_mode.cpp#switch_page`)
 
 HomePanel reaches it only through `rescope_edit_page()`: from the page subject's observer on every
 change of the carousel's page to a config page, a settled swipe and an arrow button's goto alike
-(`src/ui/ui_panel_home.cpp#on_page_changed`), and from
+(`src/ui/home/ui_panel_home.cpp#on_page_changed`), and from
 `show_edit_page()`, the one way edit mode shows a page, used for drag flips, a drag returned to
 its origin, the catalog closing, and the focus of a rebuilt page set
-(`src/ui/ui_panel_home.cpp#show_edit_page`). `edit_container(page)` resolves config pages and,
+(`src/ui/home/ui_panel_home.cpp#show_edit_page`). `edit_container(page)` resolves config pages and,
 one past the last, the next-page slot.
 
 ### Leaving
 
 `HomePanel::exit_grid_edit_mode()` is the one exit, used by the navbar Done button, deactivation
-and page deletion (`src/ui/ui_panel_home.cpp#exit_grid_edit_mode`). A live gesture ends
+and page deletion (`src/ui/home/ui_panel_home.cpp#exit_grid_edit_mode`). A live gesture ends
 uncommitted first. `GridEditMode::exit()` then closes the widget catalog the session opened,
 clears the gesture state, cancels a resize snap animation, forgets its pointers into the
 container, sets `home_edit_mode` to 0, saves the config, and schedules the rebuild that restores
@@ -156,9 +156,13 @@ swipeable: a swipe that starts on a widget must still flip the page.
   press landed on a resizable widget's edge. Any other press selects the widget under the finger
   on that first cycle, and no later cycle of the gesture selects again: a finger moving on is a
   swipe, never a new selection.
-- **A hold grabs.** LONG_PRESSED in a session (`src/ui/grid_edit_mode.cpp#handle_long_press`)
-  grabs the selected widget, or selects the widget under the finger and grabs it. A hold on empty
-  grid with nothing selected opens the widget catalog at that cell. A swipe never gets here: once
+- **A hold raises the tile callout and arms a grab.** LONG_PRESSED in a session
+  (`src/ui/home/grid_edit_mode.cpp#handle_long_press`) acts on the selected widget, or selects the
+  widget under the finger. Inside the tile it arms the grab and opens the callout at that moment,
+  with the finger down (`hold_raises_callout`). Travel past `kDragThresholdPx` closes the callout
+  and starts the drag; lifting without that travel leaves the callout open. On a resizable tile's
+  edge band the hold starts the resize at once and raises no callout. A hold on empty grid with
+  nothing selected opens the widget catalog at that cell. A swipe never gets here: once
   a scroll owns the gesture, LVGL sends no LONG_PRESSED.
 - **An inert gesture takes no further grid action** (`gesture_inert_`): its pressing cycles
   neither arm nor select, and its holds neither grab nor open the catalog. Two gestures are
@@ -168,14 +172,48 @@ swipeable: a swipe that starts on a widget must still flip the page.
   (`finish_resize_snap()`), whose rebuild replaces the objects under it on the next tick.
 - **While the widget catalog is open, grid input takes no action** (see
   [The widget catalog](#the-widget-catalog)).
+- **A tap on the selected tile opens the tile callout**
+  (`src/ui/home/grid_edit_mode.cpp#release_opens_callout`). The release opens it when the press
+  landed inside the tile selected before it, no resize ran, the drop committed nothing, the pointer
+  never got more than `kDragThresholdPx` from the press, the gesture was not inert, and grid input
+  acts. It opens on the next tick, and only if no press has begun since. The first tap on an
+  unselected tile only selects it, and a drag or a resize never opens the callout.
+- **The finger that raised the callout is not a press on it.** The shield keeps the press lock
+  under the backdrop, so a hold's RELEASED reaches the grid and leaves the callout open. The hold
+  that enters edit mode raises it on the next tick (`open_tile_callout_next_tick`). That hold ended
+  its press, so its release arrives as PRESS_LOST
+  (`src/ui/home/grid_edit_mode.cpp#handle_press_cancelled`), and lifting past `kDragThresholdPx`
+  closes the callout there.
+- **The tile callout** (`include/ui_tile_edit_callout.h`, `ui_xml/tile_edit_callout.xml`) is a
+  `ContextMenu` placed with `AnchorMode::AroundAnchor`: below the tile, else above, else right,
+  else left, else over it, clamped to the screen. A ring on its backdrop outlines the tile. Its
+  rows are Configure (only for a widget whose `has_edit_configure()` is true) and Remove, which
+  run `configure_selected_widget()` and `remove_selected_widget()` after the callout closes, and
+  only while the selection is still the tile it was raised for. The backdrop takes every press
+  while it is open, the navbar's included, and a tap on it closes the callout and does nothing
+  else. `grid_input_acts()` is false while it is open. It closes without acting on `exit()`,
+  `switch_page()`, `forget_scope()`, a selection change, a deferred rebuild and the catalog
+  opening.
+- **A callout row ignores a tap whose press lands within `TapLockout::kDefaultMs` (300 ms) of the
+  frame that first draws the card** (`include/tap_lockout.h`). The press decides, not the lift:
+  a second press at 240 ms that lifts at 310 ms is refused. The clock starts at the card's first
+  `LV_EVENT_DRAW_POST`, not its creation, because a slow board reads no input until that frame is
+  out, and it runs again when the finger that raised the callout lifts, so a bounce of that lift
+  is no tap. A click with no input device behind it (`helix-screen ctl click <name>`, tests) skips the
+  lockout; a dropped tap logs `Row tap ignored` at info.
+- **Known limit: the entering hold's travel is measured from its press to its lift only.** That
+  hold ends its press (`helix::ui::end_press`), and LVGL sends no PRESSING while it waits for the
+  release (`lib/lvgl/src/indev/lv_indev.c#"if(indev->wait_until_release != 0) return;"`). The callout it raised stays up while
+  the finger moves and closes at the lift, and a finger that wanders past `kDragThresholdPx` and
+  comes back before lifting leaves it open.
 - **A click is a release that lands where its press did.** LVGL sends CLICKED after any release no
   scroll took, a drag's included. `on_home_grid_clicked` selects under the pointer only when
-  `finger_drifted_since_press()` is false (`src/ui/ui_panel_home.cpp#on_home_grid_clicked`): a drag
+  `finger_drifted_since_press()` is false (`src/ui/home/ui_panel_home.cpp#on_home_grid_clicked`): a drag
   or a resize settles the selection at its own end, so a drop the grid rejects keeps the dragged
   widget selected. `lv_indev_get_press_moved()` is not that test: LVGL sets it only when a single
   read moves past the scroll limit, which a slow drag never does.
 
-The latch, from `src/ui/grid_edit_mode.cpp#handle_pressing`:
+The latch, from `src/ui/home/grid_edit_mode.cpp#handle_pressing`:
 
 ```cpp
     if (!press_armed_) {
@@ -223,8 +261,8 @@ first moment that gesture's latch can clear.
 `GridEditMode::owns_gesture()` is true while an armed press, a drag or a resize holds the pointer.
 Every change that can flip it, and the widget catalog opening or closing, calls
 `notify_gesture_ownership()`, which reaches HomePanel through the `GestureOwnershipCallback` it
-installs at construction (`src/ui/ui_panel_home.cpp#"set_gesture_ownership_callback"`) and states
-the swipe policy (`src/ui/ui_panel_home.cpp#apply_edit_swipe_policy`):
+installs at construction (`src/ui/home/ui_panel_home.cpp#"set_gesture_ownership_callback"`) and states
+the swipe policy (`src/ui/home/ui_panel_home.cpp#apply_edit_swipe_policy`):
 
 ```cpp
 void HomePanel::apply_edit_swipe_policy() {
@@ -232,12 +270,17 @@ void HomePanel::apply_edit_swipe_policy() {
         return;
     }
     using helix::ui::CarouselSwipe;
-    // A gesture or the open widget catalog holds the page; otherwise the pages
-    // swipe by their count, in edit mode as out of it.
+    // A gesture or the open widget catalog holds the page. Outside edit mode,
+    // shown paging arrows are the only way to turn a page, so a press on a
+    // tile never drifts into a page change (prestonbrown/helixscreen#1978).
+    // Otherwise the pages swipe by their count.
     const bool edit_holds_page =
         grid_edit_mode_.owns_gesture() || grid_edit_mode_.is_catalog_open();
-    helix::ui::carousel_set_swipe(carousel_,
-                                  edit_holds_page ? CarouselSwipe::Disabled : CarouselSwipe::Auto);
+    const bool arrows_page = arrow_left_ != nullptr && pages_.size() > 1 &&
+                             !grid_edit_mode_.is_active();
+    helix::ui::carousel_set_swipe(carousel_, edit_holds_page || arrows_page
+                                                 ? CarouselSwipe::Disabled
+                                                 : CarouselSwipe::Auto);
     // The next-page slot carries the + that adds a page and stays a drag's drop
     // target, so its tile is within reach whenever the slot exists. A drop that
     // creates a page leaves the session scoped to it, and the carousel resting
@@ -249,13 +292,14 @@ void HomePanel::apply_edit_swipe_policy() {
 | State | Policy | Why |
 |-------|--------|-----|
 | Outside edit mode | `Auto` | Swipe when there is more than one page, or a next-page slot to swipe to |
+| Outside edit mode, the paging arrows shown (more than one page) | `Disabled` | The arrows turn the page, so a press on a tile cannot drift into a page change. `build_carousel()` creates them in test mode and on resistive panels (`DisplayManager::needs_touch_calibration()`) |
 | Edit mode, no gesture owns the pointer | `Auto` | As outside edit mode: the slot's tile is somewhere to swipe to even on a single-page home, since its + adds a page |
 | An edit gesture owns the pointer | `Disabled` | Otherwise the carousel adopts the drag as a scroll |
 | Edit mode, the widget catalog is open | `Disabled` | The session holds its page for the catalog |
 
 The carousel owns the flags. `helix::ui::carousel_set_swipe()` stores the policy and writes the
 scroll container's `LV_OBJ_FLAG_SCROLLABLE` and scroll direction from it, and the carousel applies
-the stored policy again at every page-count change (`src/ui/ui_carousel.cpp#apply_input_flags`),
+the stored policy again at every page-count change (`src/ui/components/ui_carousel.cpp#apply_input_flags`),
 where a swipe counts the reachable tiles: the pages plus the slot's tile while the slot exists, so
 a single-page home with a slot still swipes over to it. It writes input flags only, so it is safe
 inside input dispatch. The lock has to engage on the arming cycle, before any movement, because
@@ -275,7 +319,7 @@ to show it, and focus moves on by itself when the focused object is hidden or de
 edit mode hides the navbar's Done, which the tap on it focused, and the next control in the
 default input group can sit on another page. So the carousel keeps its page itself: an animated
 scroll of its scroll container that no goto started and no pointer swipe drives is aimed at the
-current page (`src/ui/ui_carousel.cpp#carousel_scroll_begin_cb`). That covers everything the
+current page (`src/ui/components/ui_carousel.cpp#carousel_scroll_begin_cb`). That covers everything the
 carousel holds, whenever it was created: the pages' widgets, the next-page slot, and whatever
 population and rebuilds add. Scrollables inside a page still bring a focused control into view.
 
@@ -301,12 +345,12 @@ container and the tile. Each link is owned in one place:
 
 - Page containers bubble by their XML component (`ui_xml/components/home_page_container.xml`),
   and `populate_page()` flags every descendant of the container once its widgets are placed,
-  widget roots included (`src/ui/ui_panel_home.cpp#populate_page`).
+  widget roots included (`src/ui/home/ui_panel_home.cpp#populate_page`).
 - The next-page slot's view bubbles by its XML component
   (`ui_xml/components/home_next_page_slot.xml`).
 - The carousel, its scroll container and its tiles bubble because `build_carousel()` calls
   `helix::ui::carousel_set_bubble_events(carousel_, true)`
-  (`src/ui/ui_carousel.cpp#carousel_set_bubble_events`). It is a carousel property, so the
+  (`src/ui/components/ui_carousel.cpp#carousel_set_bubble_events`). It is a carousel property, so the
   page-count changes that rewrite the tiles' input flags keep it.
 
 Which handlers act, and when:
@@ -322,7 +366,7 @@ Which handlers act, and when:
 - `on_home_grid_pressed` records where every press lands and begins a press in a session.
 - `on_home_grid_released` ends a gesture unless `should_suppress_edit_mode()` refuses, as it does
   while a scroll owns the input.
-- `on_home_grid_press_cancelled` is ungated (`src/ui/ui_panel_home.cpp#on_home_grid_press_cancelled`):
+- `on_home_grid_press_cancelled` is ungated (`src/ui/home/ui_panel_home.cpp#on_home_grid_press_cancelled`):
 
 ```cpp
 void HomePanel::on_home_grid_press_cancelled(lv_event_t* e) {
@@ -337,9 +381,8 @@ void HomePanel::on_home_grid_press_cancelled(lv_event_t* e) {
 
 **The shield** is a full-grid, clickable, bubbling child of the scoped container, created by
 `GridEditMode::ensure_shield()`. As the topmost full-grid child it is the press target of every
-edit gesture, so no widget underneath is ever pressed. Its children are the lattice dots and the
-delete-page button. The selection's configure and remove buttons are its siblings, created after
-it, which puts them above it. The shield carries no callback: a shield that outlives the session,
+edit gesture, so no widget underneath is ever pressed. It draws the lattice dots and has no
+children. The shield carries no callback: a shield that outlives the session,
 because the rebuild that would delete it never runs once the session's lifetime token expired,
 holds nothing that calls into the session.
 
@@ -355,7 +398,7 @@ Therefore:
 
 - A selection change redraws only the lattice children (`rebuild_lattice`).
 - A page switch moves the same shield with `lv_obj_set_parent`, which keeps it the press target,
-  even inside that press's own dispatch (`src/ui/grid_edit_mode.cpp#ensure_shield`).
+  even inside that press's own dispatch (`src/ui/home/grid_edit_mode.cpp#ensure_shield`).
 - The shield dies with the container's other children in a deferred rebuild on the next tick,
   and `rebuild_then_select()` creates the next shield after it. A commit schedules that rebuild
   after its release; a cancel schedules it once it ended the gesture, with the finger possibly
@@ -377,7 +420,7 @@ Three events on the shield end every gesture, each bubbling to a grid handler:
 | `LV_EVENT_INDEV_RESET` | `lv_indev_reset()` takes the press | `on_home_grid_press_cancelled` -> `handle_press_cancelled()` -> `end_gesture_uncommitted()` |
 
 `end_gesture_uncommitted()` is the single cancel path, shared with `begin_press()` and
-`HomePanel::exit_grid_edit_mode()` (`src/ui/grid_edit_mode.cpp#end_gesture_uncommitted`):
+`HomePanel::exit_grid_edit_mode()` (`src/ui/home/grid_edit_mode.cpp#end_gesture_uncommitted`):
 
 ```cpp
 void GridEditMode::end_gesture_uncommitted() {
@@ -427,12 +470,12 @@ objects while a press may be in flight on them: reset input through
 `helix::ui::reset_input_within(subtree)` (`src/ui/ui_utils.cpp#reset_input_within`), which resets
 only a pointer whose press or scroll target lies inside the subtree, and never call an unscoped
 `lv_indev_reset()` unless the point is to end every press. Toast teardown is the model
-(`src/ui/ui_toast_manager.cpp#detach_from_input`): the "Not enough room" toast edit mode raises
+(`src/ui/notify/ui_toast_manager.cpp#detach_from_input`): the "Not enough room" toast edit mode raises
 can time out while the user rearranges, as it asks, without ending the drag.
 
 ## Cross-page drag
 
-Every drag move (`src/ui/grid_edit_mode.cpp#handle_drag_move`) gathers one
+Every drag move (`src/ui/home/grid_edit_mode.cpp#handle_drag_move`) gathers one
 `helix::CrossPageInput`, asks `helix::cross_page_step()`, and applies the step:
 
 ```cpp
@@ -483,7 +526,7 @@ The zone width and the push speed derive from the column track (`cross_page_edge
 `cross_page_push_px_per_s` in `include/grid_edit_cross_page.h`), the way the resize grab band
 derives from the cell size. Both flips run from one-shot LVGL timers (`crossing_flip_timer_`,
 `dwell_flip_timer_`), and ask HomePanel for page `page_index_ + dir` through `ShowPageCallback`
-(`src/ui/grid_edit_mode.cpp#request_page_flip`). HomePanel ignores a page it has no container for.
+(`src/ui/home/grid_edit_mode.cpp#request_page_flip`). HomePanel ignores a page it has no container for.
 `clear_gesture_state()` cancels both timers, so no flip outlives its drag.
 
 Whether a release creates a page is not decided per move: the drop asks
@@ -494,7 +537,7 @@ Whether a release creates a page is not decided per move: the drop asks
 
 `handle_drag_end` gathers the release into a `helix::DropInput` (`drop_input()`), asks
 `helix::resolve_drop()` against the scoped page's occupancy, commits the result, prunes the page
-the move emptied, and saves once (`src/ui/grid_edit_mode.cpp#handle_drag_end`). A commit that adds
+the move emptied, and saves once (`src/ui/home/grid_edit_mode.cpp#handle_drag_end`). A commit that adds
 or removes a page describes that as a `helix::PageSetChange` for `notify_pages_changed()` (see
 [Page lifecycle](#page-lifecycle)):
 
@@ -557,7 +600,7 @@ void GridEditMode::handle_drag_end(lv_event_t* /*e*/) {
 | Outcome | When `resolve_drop()` returns it | What commits |
 |---------|----------------------------------|--------------|
 | `Move` | On a config page, the previewed cell or the page differs from the origin and the span fits the occupancy there | `commit_drop()` -> `PanelWidgetConfig::place_entry` |
-| `CreatePage` | `cross_page_drop_creates_page()` holds for the scope the release lands in: on the next-page slot, the entry lands at the previewed cell; on the last page with the widget's majority past its right border, in the rightmost columns its span allows, on the previewed row; on the first page with the widget's majority past its left border, in the leftmost column, on the previewed row, and `prepend_page` is set so the page lands before it. A landing cell that does not fit an empty page creates nothing | `commit_drop()` -> `add_page` (appends, or inserts at 0 when `prepend_page`), then `place_entry` |
+| `CreatePage` | `cross_page_drop_creates_page()` holds for the scope the release lands in: on the next-page slot, the entry lands at the previewed cell; on the last page with the widget's majority past its right border, in the rightmost columns its span allows, on the previewed row; on the first page with the widget's majority past its left border, in the leftmost column, on the previewed row, and `prepend_page` is set so the page lands before it. A landing cell that does not fit an empty page creates nothing. While a crossing flip waits, `drop_input()` reports neither border, so the release resolves on the visible page | `commit_drop()` -> `add_page` (appends, or inserts at 0 when `prepend_page`), then `place_entry` |
 | `ReturnToOrigin` | Nothing commits, and the release landed off the origin page | Nothing; `return_drag_to_origin()` carries the drag home first |
 | `Cancel` | Nothing commits, on the origin page | Nothing; the widget snaps back |
 
@@ -568,7 +611,7 @@ Occupancy comes from `page_occupancy(exclude_id, occupants)`, the one builder ev
 check uses. `Occupants::OnScreen` (drag preview, drop, catalog placement) counts a placed entry
 only when the scoped container holds a laid-out object named by its id. `populate_widgets()`
 creates that object for every entry it places, a hardware-gated widget included, dimmed and named
-like any other (`src/ui/panel_widget_manager.cpp#populate_widgets`), so a gated widget holds its
+like any other (`src/ui/home/panel_widget_manager.cpp#populate_widgets`), so a gated widget holds its
 cell. A placed entry has no object only when its widget failed to configure or to create, and
 OnScreen leaves that entry's cell free. `Occupants::AllPlaced` (resize) counts every placed entry,
 so a resize never grows over a cell another entry holds in config.
@@ -578,12 +621,13 @@ so a resize never grows over a cell another entry holds in config.
 The catalog opens from a hold on empty grid with nothing selected, at the cell the hold measured
 (`handle_long_press` records `catalog_origin_col_` and `catalog_origin_row_`), or from the navbar
 "+" (`HomePanel::open_widget_catalog`), and is placed through `GridEditMode::open_widget_catalog`
-(`src/ui/grid_edit_mode.cpp#open_widget_catalog`). While it is open:
+(`src/ui/home/grid_edit_mode.cpp#open_widget_catalog`). While it is open:
 
 - `is_catalog_open()` is true, `switch_page()` keeps the session's page, and the swipe policy is
   `Disabled`.
 - Grid input takes no action: `grid_input_acts()` is false, so no press, hold or click the grid
-  handlers pass on, and no tap on the configure, remove or delete-page button, acts.
+  handlers pass on, no tile callout action, and no tap on the navbar's delete-page button,
+  acts. Opening the catalog closes the tile callout.
   Navigation's dismiss backdrop normally takes every press beside the catalog; the gate holds
   when that backdrop could not be created.
 - The shield and its lattice stay drawn. The catalog is a later child of the screen than the
@@ -604,7 +648,7 @@ once, and rebuilds with the new widget selected.
 
 `HomePanel::build_carousel(shown)` creates one `home_page_container` per config page and, while
 the config is below the page cap, a `home_next_page_slot` tile after them
-(`src/ui/ui_panel_home.cpp#build_carousel`), states the swipe policy, goes to `shown` unanimated,
+(`src/ui/home/ui_panel_home.cpp#build_carousel`), states the swipe policy, goes to `shown` unanimated,
 populates every page, and observes the page subject last, so the observer's first notification
 re-scopes nothing into a container the population has just cleared. The indicator dots count
 config pages only. `ui_carousel_goto_page()` clamps to config pages;
@@ -631,6 +675,7 @@ the cap guard, the page ids and the landing rules are the same either way.
   the widget in the rightmost columns its span allows; a drop on the first page with the
   widget's majority past its left border sets `prepend_page`, and the page lands at index 0 with
   everything after it shifted one page later.
+  Neither border counts while a crossing flip waits: that release stays on the visible page.
 - A release on the slot that creates nothing carries the drag back to its origin page first
   (`return_drag_to_origin`), where it resolves as a cancelled move.
 - At the page cap there is no slot: no + tile, `has_next_page_slot()` is false, and a drop past
@@ -661,19 +706,21 @@ by the ordinary cross-page flip, and the session scopes to the slot's container 
 | A drop creates a page | `GridEditMode::commit_drop` -> `PanelWidgetConfig::add_page` and `place_entry` | Next tick, through `PagesChangedCallback` -> `HomePanel::on_edit_pages_changed` |
 | A cross-page move, or removing a page's last widget, empties the page | `GridEditMode::prune_empty_page` -> `PanelWidgetConfig::remove_page` | Next tick, the same path |
 | The delete-page button is confirmed | `HomePanel::delete_edit_page`: remove the page, save, leave edit mode | Next tick, the same path, through `run_next_tick` |
+| Undo puts back a removal that pruned its page | `GridEditMode::undo_last_removal` -> `PanelWidgetConfig::add_page` at the page's old index, then `restore_entry` | Next tick, through `PagesChangedCallback`, with `inserted_page` set |
 
 A page is empty when it holds no placed entry (`page_is_populated`), so a page whose
 remaining widgets are dimmed because their hardware is missing still counts as populated and
 stays. `remove_page()` refuses the main page, the last remaining page and an index past the end,
 and pruning relies on those guards rather than repeating them. When a commit changes the page
 set, the grid skips its own deferred rebuild: HomePanel rebuilds the whole carousel and shows the
-focus page with the session re-scoped (`src/ui/ui_panel_home.cpp#on_edit_pages_changed`).
+focus page with the session re-scoped (`src/ui/home/ui_panel_home.cpp#on_edit_pages_changed`).
 
 **Where a page-set rebuild lands.** Every change to the page set from edit mode describes itself
 as a `helix::PageSetChange`, numbered as the carousel was before it, with the next-page slot's
 tile at `page_count` and the phantom tile a prepend creates at `-1`: how many pages there were,
 whether a page was added, on the slot's tile or before the first page, which page was removed,
-and the page the change asks to end on. `on_edit_pages_changed(change)`
+which page Undo put back (`inserted_page`, numbered after the change: it and every later page
+move one later, and the change ends on it), and the page the change asks to end on. `on_edit_pages_changed(change)`
 asks `helix::page_set_landing(change, shown)` with the carousel's page before the rebuild
 (`include/grid_edit_page_set.h#page_set_landing`), builds the carousel on the landing's `shown`,
 and shows its `focus` with `show_edit_page()`, which re-scopes a live session there:
@@ -694,36 +741,65 @@ shifted. Where each change lands:
 | Change | The rebuilt carousel comes up on | And ends on |
 |--------|----------------------------------|-------------|
 | A drop on the next-page slot | The new page, on the tile the slot held, or one tile before it when the move pruned its origin page | The same page, with no slide |
-| A drop past the last page's border, released before a flip, that keeps its origin page | The origin page, the page on screen | The new page, one slide on |
-| The same drop when it prunes its origin page | The new page, which takes the origin's index | The same page |
+| A drop past the last page's border, with no crossing flip waiting | The last page, the page on screen | The new page, one slide on |
+| A release past a border while a crossing flip waits | The page on screen, no page created | The same page |
 | A drop past the first page's left border | The page the drag left, one page later than before | The new page 0, one slide back |
 | A tap on the slot's + | The appended page, on the tile the slot held, with no slide; the page on screen, one slide on, when the tap came from a page | The appended page |
 | A move that prunes a page before its landing page | The landing page at its shifted index, the page already on screen | The same page |
 | Removing a page's last widget | The page that takes the removed page's index, or the new last page: the page on screen is gone | The same page, where the session already is |
 | The delete-page button | The page that takes the deleted page's index, or the new last page. Edit mode has ended | The same page |
+| Undo of a removal that pruned its page | The page on screen, one later when it sits at or after the page put back | The page put back, one slide on when it is another page |
 
-The delete-page button is drawn on the shield on a config page other than the main page while
-more than one page exists, and never on the next-page slot
-(`src/ui/grid_edit_mode.cpp#rebuild_lattice`). Its click asks first, through the confirmation
-`HomePanel::wire_grid_edit_page_callbacks()` installs, and the confirmation's action is
-`delete_edit_page()`.
+The delete-page button sits in the navbar beside + and Done, off the grid, so it never covers a
+tile. It shows while `home_edit_page_deletable` is 1: on a config page other than the main page
+while more than one page exists, and never on the next-page slot
+(`src/ui/home/grid_edit_mode.cpp#page_deletable`, published from `rebuild_lattice`, which every
+page switch and rebuild runs). Its click (`GridEditMode::request_delete_page`) withdraws a held
+Undo, then asks first, through the confirmation
+`HomePanel::wire_grid_edit_page_callbacks()` installs. The confirmation's action is
+`delete_edit_page(page_id)`, with the id of the session's page taken when the confirmation opens
+(`HomePanel::delete_page_action`), so the page deleted is the page asked about.
+
+### Undoing a removal
+
+A removal from the tile callout's Remove row shows a "Widget removed" toast with Undo for the toast's default 5 s
+(`src/ui/home/grid_edit_mode.cpp#offer_undo`). The session holds one removal: the entry as it was
+(config, cell and span), its page's id and index, its list position, and whether the removal
+pruned the page. A second removal replaces it and restarts the same toast.
+
+Undo (`src/ui/home/grid_edit_mode.cpp#undo_last_removal`) finds the page by id, re-creates it at its
+old index when the removal pruned it, and falls back to the page on screen when the page is gone
+another way. It restores the entry with `restore_entry` at its own cell when that is free in
+config (`Occupants::AllPlaced`), else where a catalog placement from that cell would land it
+(`find_catalog_placement`, shrinking to the widget's minimum span); with no room a warning toast
+says the widget stays removed. It saves, shows the page (always, since the carousel may rest on
+the next-page slot), and rebuilds with the widget selected.
+
+The toast's action is a bare function pointer, so it reaches the session through a static slot
+holding a token from `undo_lifetime_`. `withdraw_undo()` expires the token and dismisses the
+toast. It runs when the catalog opens (placing, Reset and Copy Layout change the layout an Undo
+would restore into), when the delete-page button is tapped, and in `exit()`; the destructor
+expires the token too. A late tap is a no-op.
 
 ## Subjects
 
 | Subject | Type | Owner | Meaning |
 |---------|------|-------|---------|
 | `home_edit_mode` | int | App globals (`src/app_globals.cpp#app_globals_init_subjects`) | 1 while a session is live, written only by `enter()` and `exit()` |
+| `home_edit_page_deletable` | int | App globals (`src/app_globals.cpp#app_globals_init_subjects`) | 1 while the session's page may be deleted, written by `rebuild_lattice()` and `exit()` |
 | `home_page_badge` | string | HomePanel | "N / M": the active page among config pages |
 | `home_populated_pages` | int | HomePanel | Pages holding a placed widget (`page_is_populated`) |
 
 `home_edit_mode` has several readers. The navbar's + and Done buttons show only while it is 1
-(`ui_xml/navigation_bar.xml#nav_btn_edit_add`, `nav_btn_edit_done`), and its Home, Controls,
-Filament, Settings and Advanced buttons and the printer badge are disabled while it is 1. The page
+(`ui_xml/navigation_bar.xml#nav_btn_edit_add`, `nav_btn_edit_done`), and its delete-page button
+only while `home_edit_page_deletable` is 1 as well (`nav_btn_edit_delete_page`). Its Home,
+Controls, Filament, Settings and Advanced buttons and the printer badge are disabled and hidden
+while it is 1, leaving the bar to the edit buttons. The page
 badge binds it, and `CameraWidget` observes it to cut its stream's frame rate during edit mode
 (`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`).
 
 The two HomePanel subjects are registered at construction in their own `SubjectManager`
-(`src/ui/ui_panel_home.cpp#init_panel_subjects`), not in `subjects_`: `rebuild_carousel()` deinits
+(`src/ui/home/ui_panel_home.cpp#init_panel_subjects`), not in `subjects_`: `rebuild_carousel()` deinits
 `subjects_`, which holds the per-build page subject, and these outlive every carousel rebuild.
 The badge label sits outside `carousel_host`. The badge shows only in edit mode with more than one
 populated page (`ui_xml/home_panel.xml`):
@@ -740,14 +816,19 @@ populated page (`ui_xml/home_panel.xml`):
   means the page holds a placed entry. The badge count and pruning share it.
 - `place_entry(id, page, col, row, colspan, rowspan)` leaves exactly one entry named `id` across all
   pages and carries its per-widget config along. Drag commit and catalog placement both use it.
+- `restore_entry(page, index, entry)` undoes `remove_from_page`: it erases an entry named
+  `entry.id` on that page only (the disabled one a built-in's removal leaves; an unplaced twin
+  `load()` keeps on the main page stays) and inserts `entry` at `index`, clamped. It refuses a page
+  past the last one and an id already placed on any page.
 - `can_add_page()` is the page cap (`helix::kMaxPages`); `add_page()` returns -1 at the cap. Its
   `position` parameter is the one creation seam: `-1` appends, `0` inserts before the first page
   (shifting the main page index with it), and any other position clamps into the page list. The
   slot's + and a right-border drop append; a left-border drop inserts at 0.
 - Saves. Each commit saves once: a drop (`handle_drag_end`, with the page it created and the page
   it emptied), a resize (`commit_resize_with_snap`, before its snap animation starts), a removal
-  (`remove_selected_widget`, with the page it emptied), and a catalog placement
-  (`place_widget_from_catalog`). `exit()` saves. HomePanel saves when a page deletion is
+  (`remove_selected_widget`, with the page it emptied), its Undo (`undo_last_removal`, with the
+  page it put back), and a catalog placement (`place_widget_from_catalog`). A removal is saved
+  before its Undo, so a restart during the toast reads a whole layout either way. `exit()` saves. HomePanel saves when a page deletion is
   confirmed. `sync_config_from_screen()` saves only when a laid-out widget has drifted from its
   config cell, and runs only in `enter()`, never per page change. A page flip, a
   cancelled gesture and `prune_empty_page()` itself save nothing.
@@ -770,7 +851,7 @@ populated page (`ui_xml/home_panel.xml`):
   `handle_drag_end()` stays gather, resolve, commit.
 - **A widget that refuses sizes**: the resize clamp asks the selected widget through
   `PanelWidget::fits_at()` after the registry limits, both inside
-  `src/ui/grid_edit_mode.cpp#handle_resize_move`, walking with
+  `src/ui/home/grid_edit_mode.cpp#handle_resize_move`, walking with
   `helix::grow_span_to_fit()` (`include/grid_layout.h`). A size the widget refuses
   clamps the span and turns the pixel-following preview red exactly as a registry
   limit does. Keep `fits_at` monotonic (fits at a size means fits at every larger

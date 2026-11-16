@@ -3,6 +3,7 @@
 // Synthetic fixtures built from the shapes in Bondtech's upstream macros
 // (BondtechAB/INDX macros/indx.cfg, indx-tc-macros.cfg, indx-cal.cfg).
 
+#include "ams_types.h" // ams_type_from_string, is_tool_changer
 #include "display_numbering.h"
 #include "indx_contract.h"
 #include "macro_param_cache.h"
@@ -259,11 +260,7 @@ TEST_CASE("INDX: non-int values are ignored", "[ams][indx][status]") {
     auto r = indx::read_status(
         json{{"save_variables", {{"variables", {{"active_tool", "two"}, {"seat_suspect", 1.5}}}}},
              {"gcode_macro TOOL_POSITIONS", {{"tool_count", "many"}}}});
-    if (r) {
-        CHECK_FALSE(r->active_tool.has_value());
-        CHECK_FALSE(r->seat_suspect.has_value());
-        CHECK_FALSE(r->tool_count.has_value());
-    }
+    CHECK_FALSE(r.has_value());
 }
 
 TEST_CASE("INDX: filament presets keep the printer's own keys", "[ams][indx][status]") {
@@ -350,12 +347,6 @@ TEST_CASE("INDX: heating needs a mounted tool with a hotend", "[ams][indx][heat]
     CHECK_FALSE(indx::heat_blocked_reason(3, {3}).empty());
     CHECK(indx::heat_blocked_reason(2, {3}).empty());
     CHECK(indx::heat_blocked_reason(0, {}).empty());
-}
-
-TEST_CASE("INDX: the type parses from its names and is a tool changer", "[ams][indx][detect]") {
-    CHECK(ams_type_from_string("indx") == AmsType::INDX);
-    CHECK(ams_type_from_string("INDX") == AmsType::INDX);
-    CHECK(is_tool_changer(AmsType::INDX));
 }
 
 // ============================================================================
@@ -470,9 +461,9 @@ TEST_CASE("INDX contract: calibration gates", "[ams][indx][contract]") {
 
 TEST_CASE("INDX contract: tools are named the app's way", "[ams][indx][contract]") {
     CHECK(indx::tool_text(2) == "Tool 3 (T2)");
-    CHECK(indx::tool_text(2) == helix::ui::tool_label_in_form(helix::ui::LaneNoun::Tool,
-                                                              helix::ui::tool_label(2), 2,
-                                                              helix::ui::ToolLabelForm::Full));
+    CHECK(indx::tool_text(2) == helix::ui::tool_label_in_form(
+                                    helix::ui::LaneNoun::Tool, helix::ui::ToolNumberStyle::Physical,
+                                    helix::ui::tool_label(2), 2, helix::ui::ToolLabelForm::Full));
     CHECK_THAT(indx::seat_confirm_message(2), Catch::Matchers::ContainsSubstring("Tool 3 (T2)"));
     CHECK_THAT(indx::remove_confirm_message(2), Catch::Matchers::ContainsSubstring("Tool 3 (T2)"));
 

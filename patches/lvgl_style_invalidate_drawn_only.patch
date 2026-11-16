@@ -1,0 +1,88 @@
+Skip the "invalidate the old area first" step of a style change for a widget
+that has never been rendered. LVGL 9.6 runs it while a new widget applies its
+theme, so every widget created invalidates a 1x1 area at the screen origin,
+and creating a hidden overlay redraws and flushes an unchanged frame. A widget
+that has never been drawn has no old pixels to clear.
+
+diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
+--- a/src/core/lv_obj_style.c
++++ b/src/core/lv_obj_style.c
+@@ -74,6 +74,7 @@
+ static void refresh_children_style(lv_obj_t * obj);
+ static bool remove_trans_styles(lv_obj_t * obj, lv_part_t part, lv_style_prop_t prop, trans_t * tr_limit);
+ static void trans_anim_cb(void * _tr, int32_t v);
++static void invalidate_drawn_area(lv_obj_t * obj);
+ static void trans_anim_start_cb(lv_anim_t * a);
+ static void trans_anim_completed_cb(lv_anim_t * a);
+ static lv_layer_type_t calculate_layer_type(lv_obj_t * obj);
+@@ -128,7 +129,7 @@
+ 
+     /*If the draw size changes invalidate the old area first*/
+     if(part == LV_PART_MAIN && style_has_flag(style, DRAW_AREA_FLAGS)) {
+-        lv_obj_invalidate(obj);
++        invalidate_drawn_area(obj);
+     }
+ 
+     bool trans_removed = remove_trans_styles(obj, selector, LV_STYLE_PROP_ANY, NULL);
+@@ -199,7 +200,7 @@
+     /*If the draw size changes invalidate the old area first*/
+     if((part == LV_PART_MAIN || part == LV_PART_ANY) &&
+        (style_has_flag(old_style, DRAW_AREA_FLAGS) || style_has_flag(new_style, DRAW_AREA_FLAGS))) {
+-        lv_obj_invalidate(obj);
++        invalidate_drawn_area(obj);
+     }
+ 
+     /*Similar to lv_obj_add_style, delete transition*/
+@@ -339,7 +340,7 @@
+ 
+     /*If the draw size changes invalidate the old area first*/
+     if((part == LV_PART_MAIN || part == LV_PART_ANY) && style_has_flag(style, DRAW_AREA_FLAGS)) {
+-        lv_obj_invalidate(obj);
++        invalidate_drawn_area(obj);
+     }
+ 
+     obj_style->is_disabled = !en;
+@@ -443,7 +444,7 @@
+ 
+     /*If the draw size changes invalidate the old area first*/
+     if(lv_obj_style_get_selector_part(selector) == LV_PART_MAIN && lv_style_prop_has_flag(prop, DRAW_AREA_FLAGS)) {
+-        lv_obj_invalidate(obj);
++        invalidate_drawn_area(obj);
+     }
+ 
+     /*Stop running transitions with this property */
+@@ -1332,7 +1333,7 @@
+         /*If the draw size changes invalidate the old area first*/
+         lv_part_t part = lv_obj_style_get_selector_part(tr->selector);
+         if(part == LV_PART_MAIN && lv_style_prop_has_flag(tr->prop, DRAW_AREA_FLAGS)) {
+-            lv_obj_invalidate(tr->obj);
++            invalidate_drawn_area(tr->obj);
+         }
+         lv_style_set_prop((lv_style_t *)obj->styles[i].style, tr->prop, value_final);
+ 
+@@ -1642,6 +1643,16 @@
+     return LV_STYLE_RES_NOT_FOUND;
+ }
+ 
++/**
++ * Invalidate the area a widget has drawn, before a style change moves it.
++ * A widget that has never been rendered has drawn nothing there, and a widget
++ * still being constructed has no real area yet, so it is skipped.
++ */
++static void invalidate_drawn_area(lv_obj_t * obj)
++{
++    if(obj->rendered) lv_obj_invalidate(obj);
++}
++
+ static void remove_style_core(lv_obj_t * obj, const lv_style_t * style, lv_style_selector_t selector, bool theme_only)
+ {
+     LV_ASSERT(obj != NULL);
+@@ -1652,7 +1663,7 @@
+      *`style == NULL` means "any style" (e.g. `lv_obj_remove_style_all()`) so it can't be checked for flags.*/
+     if((part == LV_PART_MAIN || part == LV_PART_ANY) &&
+        (style == NULL || style_has_flag(style, DRAW_AREA_FLAGS))) {
+-        lv_obj_invalidate(obj);
++        invalidate_drawn_area(obj);
+     }
+ 
+     uint32_t style_count = 0;

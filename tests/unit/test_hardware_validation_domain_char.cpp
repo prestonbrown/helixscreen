@@ -28,6 +28,7 @@
  * - String formatting respects pluralization
  */
 
+#include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -86,14 +87,9 @@ TEST_CASE("Hardware validation characterization: initial values after init",
 // Empty Result Tests - Verify behavior with no issues
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: empty result (no issues)",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: empty result (no issues)",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult empty_result;
     state.hardware_validation_state().set_hardware_validation_result(empty_result);
 
@@ -125,14 +121,9 @@ TEST_CASE("Hardware validation characterization: empty result (no issues)",
 // Critical Issues Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: critical issues only",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: critical issues only",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult result;
     result.critical_missing.push_back(make_critical("extruder", "Extruder not responding"));
     result.critical_missing.push_back(make_critical("heater_bed", "Bed heater missing"));
@@ -169,14 +160,9 @@ TEST_CASE("Hardware validation characterization: critical issues only",
 // Warning Issues Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: warning issues only",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: warning issues only",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult result;
     result.expected_missing.push_back(make_warning("temperature_sensor chamber"));
     state.hardware_validation_state().set_hardware_validation_result(result);
@@ -206,14 +192,9 @@ TEST_CASE("Hardware validation characterization: warning issues only",
 // Info Issues Tests (newly discovered)
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: info issues only (newly discovered)",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: info issues only (newly discovered)",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult result;
     result.newly_discovered.push_back(make_info("neopixel toolhead_lights"));
     result.newly_discovered.push_back(make_info("fan_generic exhaust_fan"));
@@ -240,14 +221,9 @@ TEST_CASE("Hardware validation characterization: info issues only (newly discove
 // Session Changed Issues Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: session changed issues only",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: session changed issues only",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult result;
     // Session changes are warnings that hardware was present last session but is now missing
     HardwareIssue session_issue;
@@ -272,14 +248,8 @@ TEST_CASE("Hardware validation characterization: session changed issues only",
 // Mixed Issues Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: mixed issues",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState, "Hardware validation characterization: mixed issues",
+                 "[characterization][hardware-validation][setter]") {
     HardwareValidationResult result;
     result.critical_missing.push_back(make_critical("extruder"));
     result.expected_missing.push_back(make_warning("probe"));
@@ -318,15 +288,10 @@ TEST_CASE("Hardware validation characterization: mixed issues",
 // get_hardware_validation_result Tests
 // ============================================================================
 
-TEST_CASE(
+TEST_CASE_METHOD(
+    FreshRegisteredPrinterState,
     "Hardware validation characterization: get_hardware_validation_result returns stored result",
     "[characterization][hardware-validation][getter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
     SECTION("after setting empty result, returns empty result") {
         // Note: The stored HardwareValidationResult is NOT cleared by reset_for_testing()
         // (unlike subjects which are reset to defaults). To ensure empty state, we must
@@ -362,14 +327,9 @@ TEST_CASE(
 // remove_hardware_issue Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: remove_hardware_issue",
-          "[characterization][hardware-validation][remove]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: remove_hardware_issue",
+                 "[characterization][hardware-validation][remove]") {
     SECTION("removes issue from expected_missing") {
         HardwareValidationResult result;
         result.expected_missing.push_back(make_warning("probe"));
@@ -442,14 +402,9 @@ TEST_CASE("Hardware validation characterization: remove_hardware_issue",
 // String Formatting Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: string formatting and pluralization",
-          "[characterization][hardware-validation][format]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: string formatting and pluralization",
+                 "[characterization][hardware-validation][format]") {
     SECTION("singular issue label: '1 Hardware Issue'") {
         HardwareValidationResult result;
         result.critical_missing.push_back(make_critical("extruder"));
@@ -499,14 +454,9 @@ TEST_CASE("Hardware validation characterization: string formatting and pluraliza
 // has_hardware_issues() Convenience Method Test
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: has_hardware_issues() method",
-          "[characterization][hardware-validation][convenience]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: has_hardware_issues() method",
+                 "[characterization][hardware-validation][convenience]") {
     SECTION("has_hardware_issues() returns false initially") {
         REQUIRE(state.hardware_validation_state().has_hardware_issues() == false);
     }
@@ -524,14 +474,9 @@ TEST_CASE("Hardware validation characterization: has_hardware_issues() method",
 // Observer Notification Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: observer fires when validation changes",
-          "[characterization][hardware-validation][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: observer fires when validation changes",
+                 "[characterization][hardware-validation][observer]") {
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* /*subject*/) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
         (*count_ptr)++;
@@ -556,14 +501,9 @@ TEST_CASE("Hardware validation characterization: observer fires when validation 
 // Reset Cycle Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: subjects survive a reset cycle",
-          "[characterization][hardware-validation]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: subjects survive a reset cycle",
+                 "[characterization][hardware-validation]") {
     HardwareValidationResult result;
     result.critical_missing.push_back(make_critical("extruder"));
     state.hardware_validation_state().set_hardware_validation_result(result);
@@ -582,14 +522,9 @@ TEST_CASE("Hardware validation characterization: subjects survive a reset cycle"
 // Headline Badge Level Tests
 // ============================================================================
 
-TEST_CASE("Hardware validation characterization: status_level drives the headline badge",
-          "[characterization][hardware-validation][setter]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(true);
-
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: status_level drives the headline badge",
+                 "[characterization][hardware-validation][setter]") {
     lv_subject_t* level = get_subject_by_name("hardware_status_level");
     REQUIRE(level != nullptr);
 

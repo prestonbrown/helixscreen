@@ -235,7 +235,10 @@
                     event_bubble="true">
               <lv_image name="print_card_active_thumb"
                         width="100%" height="100%" src="A:assets/images/benchy_thumbnail_white.png"
-                        inner_align="contain" clickable="false" event_bubble="true"/>
+                        inner_align="contain" clickable="false" event_bubble="true">
+                <!-- No picture for a print without a thumbnail of its own. -->
+                <bind_flag_if_eq subject="print_has_thumbnail" flag="hidden" ref_value="0"/>
+              </lv_image>
             </lv_obj>
             <!-- PREPARING info (visible when print_start_phase != 0) -->
             <print_start_preparing_info name="print_card_preparing_info"/>

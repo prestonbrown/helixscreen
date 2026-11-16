@@ -105,13 +105,6 @@ run_gate() {
     [ "$status" -eq 0 ]
 }
 
-# ---------------------------------------------------------------- whole tree
-
-@test "the committed ui_xml/ tree is clean" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-}
-
 # ------------------------------------------------------- --staged-only content
 #
 # --staged-only picks its file SET from `git diff --cached`, but must read

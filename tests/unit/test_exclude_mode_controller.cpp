@@ -7,9 +7,11 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "printer_excluded_objects_state.h"
 
 #include <string>
@@ -27,7 +29,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
     ExcludeModeFixture() {
         objects.init_subjects(false);
         objects.set_defined_objects({"A", "B", "C"});
-        lv_subject_init_int(&map_active, 0);
+        map_active.init_int(0);
 
         columns = lv_obj_create(test_screen());
         lv_obj_set_size(columns, 800, 400);
@@ -50,7 +52,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
         controller.hide();
         settle();
         objects.deinit_subjects();
-        lv_subject_deinit(&map_active);
+        map_active.reset();
     }
 
     void settle() {
@@ -77,7 +79,7 @@ class ExcludeModeFixture : public LVGLUITestFixture {
     }
 
     PrinterExcludedObjectsState objects;
-    lv_subject_t map_active{};
+    helix::Subject map_active{};
     lv_obj_t* columns = nullptr;
     lv_obj_t* card = nullptr;
     lv_obj_t* controls = nullptr;
@@ -125,7 +127,7 @@ TEST_CASE_METHOD(ExcludeModeFixture, "In toggle mode a picked row still reaches 
     settle();
     const auto r = rows();
     REQUIRE(r.size() == 3);
-    CHECK(lv_obj_has_flag(r[1], LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(r[1]));
     lv_obj_send_event(r[1], LV_EVENT_CLICKED, nullptr);
     REQUIRE(taps.size() == 1);
     CHECK(taps[0] == "B");
@@ -138,7 +140,7 @@ TEST_CASE_METHOD(ExcludeModeFixture, "In exclude-only mode an excluded row takes
     settle();
     const auto r = rows();
     REQUIRE(r.size() == 3);
-    CHECK_FALSE(lv_obj_has_flag(r[1], LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(r[1]));
 }
 
 TEST_CASE_METHOD(ExcludeModeFixture,
@@ -223,7 +225,7 @@ TEST_CASE_METHOD(ExcludeModeFixture,
 
     list.destroy();
     settle();
-    CHECK(lv_obj_is_valid(fresh));
+    CHECK(helix::test::widget_in_tree(fresh));
     objects.set_excluded_objects({"A"}); // no observer may reach the deleted rows
     settle();
 }
@@ -246,7 +248,7 @@ TEST_CASE_METHOD(ExcludeModeFixture,
 
     map.destroy();
     settle();
-    CHECK(lv_obj_is_valid(fresh));
+    CHECK(helix::test::widget_in_tree(fresh));
     objects.set_defined_objects({"A", "B"}); // no observer may reach the deleted rects
     settle();
 }

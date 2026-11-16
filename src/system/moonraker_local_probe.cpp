@@ -336,6 +336,13 @@ std::vector<ProcMatch> select_moonraker_processes(const std::vector<ProcMatch>& 
     return out;
 }
 
+bool moonraker_loads_python_addons(const std::vector<ProcMatch>& procs) {
+    return std::none_of(procs.begin(), procs.end(), [](const ProcMatch& proc) {
+        const std::string argv0 = proc.cmdline.substr(0, proc.cmdline.find(' '));
+        return argv0.substr(argv0.find_last_of('/') + 1) == "moonruster";
+    });
+}
+
 std::vector<ProcMatch> read_process_table(const std::string& proc_root) {
     std::vector<ProcMatch> candidates;
     std::error_code ec;

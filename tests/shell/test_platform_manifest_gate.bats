@@ -32,8 +32,9 @@ setup() {
 make_tree() {
     TREE="$WORK/tree"
     rm -rf "$TREE"
-    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system" "$TREE/include"
+    mkdir -p "$TREE/mk" "$TREE/assets/config" "$TREE/scripts/lib/installer" "$TREE/src/system" "$TREE/include" "$TREE/config"
     cp assets/config/platforms.json "$TREE/assets/config/"
+    cp config/restore-user-config.sh "$TREE/config/"
     cp mk/cross.mk mk/images.mk "$TREE/mk/"
     cp scripts/lib/installer/common.sh scripts/lib/installer/platform.sh "$TREE/scripts/lib/installer/"
     cp src/system/log_collector.cpp src/system/update_checker.cpp \
@@ -235,6 +236,48 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json"
     run python3 "$GATE" --quiet --root "$TREE"
     contains "[cache-rungs]" "$output"
     contains "/brand-new-mount/helixscreen-state/cache" "$output"
+}
+
+# Edit one storage field of the scratch tree's manifest: platform, key, JSON value
+# (null deletes the key).
+set_storage() {
+    python3 -c 'import json,sys; p,pid,k,v=sys.argv[1:]; d=json.load(open(p)); \
+st=d["platforms"][pid]["storage"]; v=json.loads(v); \
+st.pop(k,None) if v is None else st.__setitem__(k,v); \
+json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json" "$@"
+}
+
+@test "check_user_config_outside_payload reports a config dir inside the payload root" {
+    make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    lacks "[config-in-payload]" "$output"
+
+    set_storage ad5x user_config_dir '"/srv/helixscreen/config"'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "[config-in-payload]" "$output"
+    contains "ad5x: user_config_dir /srv/helixscreen/config is inside the payload root" "$output"
+}
+
+@test "check_user_config_outside_payload reports a platform that names no config dir" {
+    make_tree
+    set_storage ad5x user_config_dir null
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "ad5x: no user_config_dir, so user config stays in /srv/helixscreen/config" "$output"
+}
+
+@test "check_user_config_outside_payload checks each firmware's root" {
+    make_tree
+    set_storage ad5m user_config_dir_by_firmware \
+        '{"klipper_mod": "/root/printer_data/config/helixscreen", "zmod": "/srv/helixscreen/config", "forge_x": "/root/printer_data/config/helixscreen"}'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "ad5m (zmod): user_config_dir /srv/helixscreen/config is inside the payload root /srv/helixscreen" "$output"
+}
+
+@test "check_user_config_outside_payload reports a config dir the device never resolves" {
+    make_tree
+    set_storage k1 user_config_dir '"/brand-new-mount/printer_data/config/helixscreen"'
+    run python3 "$GATE" --quiet --root "$TREE"
+    contains "k1: config/restore-user-config.sh never resolves user_config_dir /brand-new-mount" "$output"
 }
 
 @test "gate: reports a platform whose panel is not hardware-verified" {
@@ -521,35 +564,11 @@ print(' '.join(pm.splash_3d_classes_for(m, 'mips')), pm.printer_image_sizes_for(
 # --------------------------------------------------------------------------
 # Assets that reach no screen
 # --------------------------------------------------------------------------
-
-# release-clean-assets deletes this outright. That is only safe while nothing
-# registers it, so this is the tripwire: if someone starts using it, the test
-# fails and points at the strip rather than letting a release ship a reference
-# to a file it removed.
-@test "the stripped test fixture has no consumer" {
-    run grep -rIl --fixed-strings "orcaslicer test cube.PNG" src/ include/ ui_xml/ assets/config/
-    [ -z "$output" ] || fail "the orcaslicer cube is stripped from releases but referenced by: $output"
-}
-
-@test "printer.png is gone and nothing reaches for it" {
-    # A 2 MB 1024x1536 source nothing displayed: the app registers
-    # printer_400.png and printer art renders at 300px. Deleted rather than
-    # stripped, so a reference to it would now be a broken path, not a big one.
-    [ ! -f assets/images/printer.png ] || fail "assets/images/printer.png is back"
-    run grep -rIl --fixed-strings "assets/images/printer.png" src/ include/ ui_xml/ assets/config/ tests/unit/
-    [ -z "$output" ] || fail "assets/images/printer.png no longer exists but is referenced by: $output"
-}
-
-@test "the image the app actually registers survives" {
-    # printer_400.png is the registered one, and three unit tests now use its
-    # path as their distinguishable thumbnail token. Stripping it would be the
-    # mistake the cases above exist to prevent, in the other direction.
-    run grep -rIl --fixed-strings "printer_400.png" src/
-    [ -n "$output" ] || fail "printer_400.png is no longer registered; revisit the strip list"
-    [ -f assets/images/printer_400.png ] || fail "printer_400.png is missing from the tree"
-    run grep -cE "(rm -f|-delete).*printer_400" mk/cross.mk
-    [ "$output" = "0" ] || fail "mk/cross.mk deletes printer_400.png, which the app registers"
-}
+#
+# Whether the tree still references an image the release strips, or loses the
+# one the app registers, is lint_stripped_assets_unreferenced in
+# scripts/code_lint.sh, run by qc_code_lint; its fixture test is in
+# test_code_lint.bats.
 
 # --------------------------------------------------------------------------
 # Generator and gate wiring
@@ -559,15 +578,19 @@ print(' '.join(pm.splash_3d_classes_for(m, 'mips')), pm.printer_image_sizes_for(
     # prerender_size_class.cpp says "Must match SCREEN_SIZES in gen_splash_3d.py",
     # which is an instruction to a human rather than a check. This is the check:
     # every class the generator builds must be one the manifest knows, at the
-    # same composited height, or the app asks for a file the generator never made.
+    # same composited width and height, or the app asks for a file the generator
+    # never made, or measures one it did make wrongly.
     run python3 - <<'EOF'
 import json, re, sys
 src = open("scripts/gen_splash_3d.py").read()
 block = re.search(r"SCREEN_SIZES = \[(.*?)\]", src, re.S).group(1)
-gen = {m[0]: int(m[2]) for m in re.findall(r'\("([a-z_]+)",\s*(\d+),\s*(\d+),', block)}
-heights = json.load(open("assets/config/platforms.json"))["size_classes"]["splash_composite_height"]
-bad = [f"{k}: generator {v}px, manifest {heights.get(k)}px" for k, v in gen.items() if heights.get(k) != v]
-missing = [k for k in heights if k not in gen]
+gen = {m[0]: (int(m[1]), int(m[2])) for m in re.findall(r'\("([a-z_-]+)",\s*(\d+),\s*(\d+),', block)}
+classes = json.load(open("assets/config/platforms.json"))["size_classes"]
+widths = classes["splash_composite_width"]
+heights = classes["splash_composite_height"]
+bad = [f"{k}: generator {w}x{h}, manifest {widths.get(k)}x{heights.get(k)}"
+       for k, (w, h) in gen.items() if (widths.get(k), heights.get(k)) != (w, h)]
+missing = [k for k in set(heights) | set(widths) if k not in gen]
 if bad or missing:
     print("MISMATCH " + "; ".join(bad + [f"manifest class {k} has no canvas" for k in missing]))
     sys.exit(1)
@@ -596,7 +619,7 @@ EOF
 import re
 src = open('scripts/gen_splash_3d.py').read()
 block = re.search(r'SCREEN_SIZES = \[(.*?)\]', src, re.S).group(1)
-print(' '.join(re.findall(r'\(\"([a-z_]+)\",', block)))")"
+print(' '.join(re.findall(r'\(\"([a-z_-]+)\",', block)))")"
     for p in $output; do
         run python3 "$DERIVE" splash-3d-sizes "$p"
         for cls in $output; do
@@ -657,4 +680,127 @@ io.open(p, "w", encoding="utf-8").write(s)
 EOF
     run python3 "$GATE" --quiet --root "$TREE"
     contains "/unswept/helixscreen is searched by the app as a payload root" "$output"
+}
+
+# --------------------------------------------------------------------------
+# prune-assets: CJK filename glyphs (sizes from scripts/translations/cjk_filename_fonts.py)
+# --------------------------------------------------------------------------
+
+make_font_stage() {
+    make_stage
+    mkdir -p "$STAGE/assets/fonts/cjk/filename"
+    for px in 10 11 12 14 16 18 20 24 26 28 32 40 48 64; do
+        echo x > "$STAGE/assets/fonts/cjk/filename/noto_sans_cjk_filename_$px.bin"
+    done
+}
+
+@test "prune: a fixed panel keeps only the filename glyph sizes its tier reaches at any UI scale" {
+    # 800x480 in a font tier 4 build: font_body 18 steps up to 26 (28 registers
+    # only from LARGE), font_small light_16 and font_xs light_12 to light_16.
+    make_ui_font_stage
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/fonts/cjk/filename"
+    [ "$(echo "$output" | tr '\n' ' ')" = "$(printf 'noto_sans_cjk_filename_%s.bin ' 12 16 18 20 24 26)" ] \
+        || fail "800x480 at tier 4 kept: $output"
+}
+
+@test "prune: an unbounded panel keeps every filename glyph size" {
+    make_font_stage
+    run python3 "$DERIVE" prune-assets pi "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE/assets/fonts/cjk/filename" | wc -l)" -eq 14 ] || fail "pruned a pi filename font"
+}
+
+@test "prune: refuses a package missing a filename glyph size its panel draws" {
+    make_font_stage
+    rm "$STAGE/assets/fonts/cjk/filename/noto_sans_cjk_filename_16.bin"
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -ne 0 ] || fail "pruned a package that cannot draw 16px filenames: $output"
+    contains "noto_sans_cjk_filename_16.bin" "$output"
+}
+
+# --------------------------------------------------------------------------
+# prune-assets: translation CJK bins by the build's HELIX_MAX_FONT_TIER,
+# evaluated from include/cjk_font_faces.inc's own guards
+# --------------------------------------------------------------------------
+
+make_ui_font_stage() {
+    make_font_stage
+    git ls-files 'assets/fonts/cjk/*.bin' | grep -v '/filename/' | while read -r f; do
+        echo x > "$STAGE/assets/fonts/cjk/$(basename "$f")"
+    done
+}
+
+@test "prune: a font tier 4 build keeps exactly the CJK bins its face table maps" {
+    make_ui_font_stage
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    run ls "$STAGE/assets/fonts/cjk"
+    contains "noto_sans_cjk_28.bin" "$output"
+    contains "noto_sans_cjk_light_18.bin" "$output"
+    contains "noto_sans_cjk_bold_28.bin" "$output"
+    lacks "noto_sans_cjk_32.bin" "$output"
+    lacks "noto_sans_cjk_bold_48.bin" "$output"
+    lacks "noto_sans_cjk_light_20.bin" "$output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq 23 ] || fail "tier 4 kept: $output"
+}
+
+@test "prune: a font tier 6 build keeps every CJK bin" {
+    make_ui_font_stage
+    before=$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)
+    run python3 "$DERIVE" prune-assets pi "$STAGE" 6
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq "$before" ] || fail "pruned a tier 6 CJK bin"
+}
+
+@test "prune: refuses a package missing a CJK bin its build loads" {
+    make_ui_font_stage
+    rm "$STAGE/assets/fonts/cjk/noto_sans_cjk_28.bin"
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE" 4
+    [ "$status" -ne 0 ] || fail "pruned a package its build cannot draw 28px CJK from: $output"
+    contains "noto_sans_cjk_28.bin" "$output"
+}
+
+@test "prune: without a font tier the translation CJK bins are left alone" {
+    make_ui_font_stage
+    before=$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)
+    run python3 "$DERIVE" prune-assets ad5m "$STAGE"
+    [ "$status" -eq 0 ] || fail "prune failed: $output"
+    [ "$(ls "$STAGE"/assets/fonts/cjk/*.bin | wc -l)" -eq "$before" ] || fail "pruned without a tier"
+}
+
+@test "prune: every filename size a label reaches at any UI scale ships in every package" {
+    for platform in pi pi32 ad5m cc1 mips k1-dynamic k2 snapmaker-u1 x86 x86-desktop; do
+        tier=$(scratch_make -s PLATFORM_TARGET="$platform" print-var-HELIX_MAX_FONT_TIER | tail -n1)
+        make_ui_font_stage
+        run python3 "$DERIVE" prune-assets "$platform" "$STAGE" "$tier"
+        [ "$status" -eq 0 ] || fail "$platform prune failed: $output"
+        run python3 - "$platform" "$tier" "$STAGE" <<'PY'
+import os, re, sys
+sys.path.insert(0, "scripts"); sys.path.insert(0, "scripts/translations")
+import platform_manifest as pm, cjk_filename_fonts as cf
+platform, tier, stage = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+m = pm.load()
+panels = pm.candidate_panels(m, platform)
+tiers = {pm.font_breakpoint(m, *pm.effective_resolution(e)) for e in panels} or set(cf.TIERS)
+text = open("ui_xml/globals.xml", encoding="utf-8").read()
+reach = {l.split(":")[0]: l.split(":")[1].split()
+         for l in open("scripts/translations/font_scale_reach.txt") if ":" in l}
+linked = {f: px for f, _b, px in cf.face_rows(tier)}
+registered = {cf.TIERS[int(l.split(":")[0])]: set(l.split(":")[1].split())
+              for l in open("scripts/translations/registered_text_fonts.txt") if ":" in l}
+missing = []
+for t in tiers:
+    for token in cf.FILENAME_FONT_TOKENS:
+        face = re.search(f'name="{token}_{t}" value="([a-z0-9_]+)"', text).group(1)
+        for f in reach[face]:
+            usable = f in linked and (f == face or f in registered[t])
+            path = f"{stage}/assets/fonts/cjk/filename/noto_sans_cjk_filename_{linked[f]}.bin" if usable else None
+            if path and not os.path.isfile(path):
+                missing.append(f"{t}:{token}->{f}")
+print(" ".join(missing))
+PY
+        [ -z "$output" ] || fail "$platform (tier $tier) lacks bins for: $output"
+    done
 }

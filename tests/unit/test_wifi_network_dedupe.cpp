@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/config_dir_guard.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "wifi_backend_mock.h"
 #include "wifi_backend_wpa_supplicant.h"
 #include "wifi_saved_config.h"
@@ -272,4 +272,18 @@ TEST_CASE("forget_network on a stopped mock backend reports not-initialized", "[
     WiFiError result = backend.forget_network("AnySSID");
     CHECK_FALSE(result.success());
     CHECK(result.result == WiFiResult::NOT_INITIALIZED);
+}
+
+TEST_CASE("is_hidden_scan_ssid treats zero-byte SSIDs as hidden", "[wifi][hidden_ssid]") {
+    using helix::wifi::detail::is_hidden_scan_ssid;
+    CHECK(is_hidden_scan_ssid(""));
+    CHECK(is_hidden_scan_ssid("\\x00"));
+    CHECK(is_hidden_scan_ssid("\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00"));
+
+    CHECK_FALSE(is_hidden_scan_ssid("HomeNet"));
+    // A real name that merely contains the escape is still a name.
+    CHECK_FALSE(is_hidden_scan_ssid("\\x00Lab"));
+    CHECK_FALSE(is_hidden_scan_ssid("Lab\\x00"));
+    CHECK_FALSE(is_hidden_scan_ssid("\\x01"));
+    CHECK_FALSE(is_hidden_scan_ssid("\\x0"));
 }

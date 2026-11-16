@@ -65,8 +65,10 @@ inline constexpr size_t kCapChipCount = static_cast<size_t>(CapChip::Count);
 /// One filament system the printer runs, as its owning backend names it.
 struct FilamentSystemFact {
     std::string name;
-    int slots = 0;
     bool is_tool_changer = false;
+    /// The count in the backend's own noun ("4 slots", "8 gates"), translated by
+    /// the UI that gathers the facts; empty when the system reports no positions.
+    std::string slot_count;
 };
 
 /// Everything the chip texts read. Gathered on the main thread by the overlay.

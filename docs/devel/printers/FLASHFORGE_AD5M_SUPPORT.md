@@ -39,6 +39,28 @@ HelixScreen preinstalled is unmaintained; installs from it are Forge-X installs.
 
 ZMOD stores the z-offset outside `gcode_move`; see [`../Z_OFFSET_PERSISTENCE.md`](../Z_OFFSET_PERSISTENCE.md).
 
+Z-Mod 1.7.5 prints .3mf files natively and takes a per-print plate and tool map on
+`printer.print.start`. Its Moonraker fork is shared with the AD5X and Creator 5, so the details
+are on the AD5X page
+([FLASHFORGE_AD5X_SUPPORT.md § "Z-Mod 1.7.5"](FLASHFORGE_AD5X_SUPPORT.md#z-mod-175-native-3mf-and-the-print-start-tool-map)).
+
+### Z-Mod on the 5M Pro: the stock preset's fans
+
+A Z-Mod AD5M Pro is saved as "FlashForge Adventurer 5M Pro", and the installer applies the
+`ad5m_pro_zmod` preset. The stock `ad5m_pro` preset names fans that Z-Mod does not have
+(`fan_generic external_fan` as exhaust, `fan_generic internal_fan` as aux), while
+`ad5m_pro_zmod` uses Z-Mod's own names (`heater_fan heat_fan`, `fan_generic fanM106`,
+`fan_generic chamber_fan`). The post-wizard preset migration that runs at every boot
+(`src/system/config.cpp#apply_preset_file`) seeds a fan role only when its key is absent, so a
+role the user declined in the Fans wizard, which is stored as an empty value, stays declined
+([#2040](https://github.com/prestonbrown/helixscreen/issues/2040)).
+
+The boot migration reads the preset the printer was installed with when that preset belongs
+to the saved type's variant family, and the base preset otherwise, so a Z-Mod 5M Pro migrates
+against `ad5m_pro_zmod` and gains no stock-only object names in `hardware/expected`. The same
+rule covers every printer whose firmware variant has its own preset (`_zmod`, `_opencreator`,
+`_forgex`) ([#2064](https://github.com/prestonbrown/helixscreen/issues/2064)).
+
 ## Build targets
 
 | Target | Toolchain | Linking | Use |
@@ -96,7 +118,7 @@ endef
 `bin/` (`helix-screen`, plus `helix-splash` and `helix-watchdog` when built), `ui_xml/`,
 `assets/` (fonts, images, sounds, config including every preset and platform hook) and, after a
 Docker build, `certs/ca-certificates.crt`. Writable state is not installed.
-`src/application/data_root_resolver.cpp`
+`src/core/data_root_resolver.cpp`
 strips `/bin` from the binary's path to find `/opt/helixscreen/`, so no environment variables
 are needed.
 
@@ -137,7 +159,7 @@ Forge-X runs Moonraker (v0.9.3, Python 3.11) and HelixScreen inside its chroot a
 Moonraker's argv names paths inside the chroot (`<chroot>/root/moonraker-env/moonraker/moonraker.py`
 is its script), so every lookup goes through `/proc/<pid>/root`: `running_moonraker_package_dir` in
 `scripts/lib/installer/moonraker.sh` and `running_moonraker_root` in
-`moonraker-plugin/install.sh`. The chroot binds `/opt/config` at the same path, so the
+`moonraker-plugin/helix_print_conf.sh` (sourced by the plugin's `install.sh`). The chroot binds `/opt/config` at the same path, so the
 plugin under `/opt/config/mod_data/helixscreen/moonraker-plugin` is linked by that path.
 
 - `moonraker.conf` is a symlink to the mod's git-tracked `/opt/config/mod/moonraker.conf`, which
@@ -157,7 +179,7 @@ plugin under `/opt/config/mod_data/helixscreen/moonraker-plugin` is linked by th
 
 ## Backlight
 
-`BacklightBackendAllwinner` (`src/api/backlight_backend.cpp`) drives `/dev/disp` with the DISP2
+`BacklightBackendAllwinner` (`src/platform/display/backlight_backend.cpp`) drives `/dev/disp` with the DISP2
 ioctls `SET_BRIGHTNESS` (0x102), `GET_BRIGHTNESS` (0x103), `BACKLIGHT_ENABLE` (0x104) and
 `BACKLIGHT_DISABLE` (0x105), range 0-255. Two quirks shape it:
 
@@ -186,7 +208,7 @@ dim is blocked, and the 20 s timer restores the configured brightness.
 | `scripts/lib/installer/main.sh` | `configure_platform`: the install-time order of the Forge-X steps |
 | `scripts/lib/installer/forgex.sh` | Forge-X display, launcher and screen-script changes, and `uninstall_forgex` |
 | `assets/config/platform/hooks-ad5m-*.sh` | Per-firmware platform hooks |
-| `src/api/backlight_backend.cpp` | `BacklightBackendAllwinner` |
+| `src/platform/display/backlight_backend.cpp` | `BacklightBackendAllwinner` |
 | `src/application/display_manager.cpp` | Startup brightness and the 20 s override |
 
 ## Related

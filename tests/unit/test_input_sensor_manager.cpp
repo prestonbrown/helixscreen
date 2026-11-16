@@ -11,7 +11,6 @@
 
 #include "ui_print_start_controller.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -22,6 +21,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "input_sensor_manager.h"
 #include "input_sensor_types.h"
 #include "printer_discovery.h"

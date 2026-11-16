@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One maintenance meter's task page: its ring and hours, what the job is and why, the
+     steps, and Mark done. Binds the maintenance_task_* subjects
+     (src/ui/panel_widgets/maintenance_model.h). -->
+<component>
+  <view name="maintenance_task_overlay" extends="overlay_panel" title="Maintenance Task" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_top="0" style_pad_hor="#space_lg" style_pad_bottom="#space_lg"
+            style_pad_row="#space_md" scrollable="true" flex_flow="column">
+      <ui_card name="mt_task_head"
+               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_column="#space_md"
+               style_flex_cross_place="center" scrollable="false">
+        <pass_through name="mt_task_dial" width="#button_height_lg" height="#button_height_lg">
+          <helix_progress_arc name="mt_task_ring"
+                              width="100%" height="100%" align="center" bind_value="maintenance_task_pct"
+                              bg_start_angle="270" bg_end_angle="269" start_angle="270" end_angle="270"
+                              style_arc_width="#space_xs" style_arc_width-indicator="#space_xs">
+            <bind_style_if_eq name="styles.maint_arc_warn"
+                              subject="maintenance_task_status" ref_value="1" selector="indicator"/>
+            <bind_style_if_eq name="styles.maint_arc_danger"
+                              subject="maintenance_task_status" ref_value="2" selector="indicator"/>
+          </helix_progress_arc>
+          <text_tiny name="mt_task_left" align="center" bind_text="maintenance_task_left">
+            <bind_style_if_eq name="styles.maint_text_warn" subject="maintenance_task_status" ref_value="1"/>
+            <bind_style_if_eq name="styles.maint_text_danger" subject="maintenance_task_status" ref_value="2"/>
+          </text_tiny>
+        </pass_through>
+        <pass_through width="0" height="content" flex_grow="1" flex_flow="column" style_pad_row="#space_xxs">
+          <text_body name="mt_task_name" width="100%" bind_text="maintenance_task_name" long_mode="wrap"/>
+          <text_small name="mt_task_line"
+                      width="100%" bind_text="maintenance_task_line" style_text_color="#text_muted" long_mode="wrap"/>
+          <text_small name="mt_task_last"
+                      width="100%" bind_text="maintenance_task_last" style_text_color="#text_muted" long_mode="wrap"/>
+        </pass_through>
+      </ui_card>
+      <text_body name="mt_task_what" width="100%" bind_text="maintenance_task_what" long_mode="wrap"/>
+      <text_small name="mt_task_steps" width="100%" bind_text="maintenance_task_steps" long_mode="wrap"/>
+      <ui_button name="mt_task_done" width="content" height="#button_height_sm" variant="primary" text="Mark done">
+        <event_cb trigger="clicked" callback="maintenance_mark_done_cb"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

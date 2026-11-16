@@ -10,6 +10,7 @@
 | Find XML widget docs | `devel/LVGL9_XML_GUIDE.md` |
 | Understand modal patterns | `devel/MODAL_SYSTEM.md` |
 | Work on a screensaver | `devel/SCREENSAVERS.md` |
+| Know or measure what the UI costs a board (CPU, RAM) | `devel/PERFORMANCE.md` |
 | Work on the HelixPrint Moonraker plugin or a feature that uses it | `devel/HELIXPRINT_PLUGIN.md` (framework, decisions, per-feature); endpoints in `../moonraker-plugin/README.md` |
 | Check a feature's architecture | `devel/ARCHITECTURE.md` → the right chapter in `devel/architecture/` |
 | Work on one printer's support | `devel/printers/README.md` (build target, deploy, quirks); reverse-engineering and the status matrix in `devel/printer-research/README.md` |

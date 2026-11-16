@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "filament_accounting.h"
 #include "fit_check.h"
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 #include "pa_calibration.h"
 #include "plr_backend.h"
 #include "print_photos.h"
+#include "signal_macro_names.h"
 #include "standing_print_options.h"
 #include "storage_report.h"
 #include "subject_managed_panel.h"
@@ -14,6 +17,7 @@
 #include <array>
 #include <functional>
 #include <lvgl.h>
+#include <memory>
 #include <optional>
 
 namespace helix {
@@ -94,10 +98,9 @@ enum class HelixMacrosStatus {
  */
 class PrinterPluginStatusState {
   public:
-    PrinterPluginStatusState() = default;
-    ~PrinterPluginStatusState() = default;
+    PrinterPluginStatusState();
+    ~PrinterPluginStatusState();
 
-    // Non-copyable
     PrinterPluginStatusState(const PrinterPluginStatusState&) = delete;
     PrinterPluginStatusState& operator=(const PrinterPluginStatusState&) = delete;
 
@@ -173,13 +176,7 @@ class PrinterPluginStatusState {
     /// Forget what the plugin's status reported, touching no subject. For
     /// PrinterStateTestAccess::clear_data, so one test's probe does not decide
     /// the next one's plugin features on the shared singleton.
-    void clear_data() {
-        set_link_dir("");
-        version_.clear();
-        disabled_ = false;
-        features_.clear();
-        stored_opt_ins_ = nlohmann::json::object();
-    }
+    void clear_data();
 
     /// Whether plugin feature @p name, at contract @p min_version or newer, is
     /// usable now. Gate plugin-backed behaviour on this, never on version().
@@ -239,6 +236,17 @@ class PrinterPluginStatusState {
         return &helix_macros_status_;
     }
 
+    /// signal_macros::SignalNamesLine value the helper-macros row binds against
+    lv_subject_t* get_helix_macros_signal_names_subject() {
+        return &helix_macros_signal_names_;
+    }
+
+    /// The discovery's scan of the loaded config; nullopt until it was read.
+    void set_signal_macro_scan(std::optional<signal_macros::SignalMacroScan> scan);
+
+    /// What the plugin's last signal macro migration report says it does.
+    void set_signal_migration_report(signal_macros::SignalMigrationReport report);
+
     /// PluginFeatureState of the power-loss recovery feature (`plr`), as an
     /// int: 0 Absent, 1 Disabled, 2 Ready. The settings row binds it.
     lv_subject_t* get_plr_feature_state_subject() {
@@ -275,13 +283,8 @@ class PrinterPluginStatusState {
 
     /// The helix-screen/plugin_features record as last read: the opt-ins a
     /// fallback switch shows while no plugin reports the feature. Main thread.
-    void set_stored_opt_ins(nlohmann::json record) {
-        stored_opt_ins_ = std::move(record);
-        publish_features();
-    }
-    const nlohmann::json& stored_opt_ins() const {
-        return stored_opt_ins_;
-    }
+    void set_stored_opt_ins(nlohmann::json record);
+    const nlohmann::json& stored_opt_ins() const;
 
     /// PluginSwitchMode of kPluginSwitchFeatures[@p index], as an int.
     lv_subject_t* get_switch_mode_subject(size_t index) {
@@ -338,21 +341,29 @@ class PrinterPluginStatusState {
     PluginFeatureMap features_;
 
     // Plugin status subjects (tri-state: -1=unknown, 0=no, 1=yes)
-    lv_subject_t helix_plugin_installed_{}; // HelixPrint Klipper plugin
+    helix::Subject helix_plugin_installed_{}; // HelixPrint Klipper plugin
 
-    lv_subject_t plr_feature_state_{};
-    lv_subject_t helix_plugin_probe_seq_{};
-    lv_subject_t plr_saving_enabled_{};
-    lv_subject_t plr_mesh_include_{};
+    helix::Subject plr_feature_state_{};
+    helix::Subject helix_plugin_probe_seq_{};
+    helix::Subject plr_saving_enabled_{};
+    helix::Subject plr_mesh_include_{};
     std::function<bool()> is_local_;
-    nlohmann::json stored_opt_ins_ = nlohmann::json::object();
-    std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_mode_{};
-    std::array<lv_subject_t, kPluginSwitchFeatures.size()> switch_on_{};
+    /// Never null. Held by pointer so printer_state.h, which holds this class by
+    /// value, compiles against json_fwd.h instead of the whole json library.
+    std::unique_ptr<nlohmann::json> stored_opt_ins_;
+    std::array<helix::Subject, kPluginSwitchFeatures.size()> switch_mode_{};
+    std::array<helix::Subject, kPluginSwitchFeatures.size()> switch_on_{};
     /// Republish the feature subjects from the plugin state and features map.
     void publish_features();
 
     /// Composed HelixMacrosStatus; see publish_helix_macros_status()
-    lv_subject_t helix_macros_status_{};
+    helix::Subject helix_macros_status_{};
+    helix::Subject helix_macros_signal_names_{};
+    std::optional<signal_macros::SignalMacroScan> signal_macro_scan_;
+    signal_macros::SignalMigrationReport signal_migration_report_ =
+        signal_macros::SignalMigrationReport::Unknown;
+    /// Republish helix_macros_signal_names from the scan and the plugin's features.
+    void publish_signal_names_line();
     int macros_base_status_ = static_cast<int>(HelixMacrosStatus::Unknown);
     bool macros_restart_pending_ = false;
 

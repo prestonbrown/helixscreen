@@ -43,7 +43,7 @@ flowchart TD
 | [`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml) | Reusable wrapper component most overlay panels extend |
 | [`ui_xml/history_dashboard_panel.xml`](../../../ui_xml/history_dashboard_panel.xml) | A representative panel: consts, styles, bindings, event callbacks |
 | [`ui_xml/app_layout.xml`](../../../ui_xml/app_layout.xml) | Root layout, created once at startup |
-| [`src/ui/ui_card.cpp`](../../../src/ui/ui_card.cpp) | Representative custom widget (one of the `lv_xml_register_widget` files) |
+| [`src/ui/components/ui_card.cpp`](../../../src/ui/components/ui_card.cpp) | Representative custom widget (one of the `lv_xml_register_widget` files) |
 | [`include/ui_callback_helpers.h`](../../../include/ui_callback_helpers.h) | `register_xml_callbacks()`: the table every panel uses to publish its XML event callbacks |
 | [`include/ui/ui_widget_helpers.h`](../../../include/ui/ui_widget_helpers.h) | `find_required()` / `find_optional()`: the sanctioned way C++ looks up a named widget |
 | `lib/helix-xml/src/xml/lv_xml.c` | Engine core: create dispatch, subject lookup, binding elements |
@@ -61,12 +61,12 @@ At boot, `Application` runs the phases in a fixed order (phase numbers and lines
 
 1. Phase 7 - `register_widgets()` (`src/application/application.cpp#register_widgets`): registers the first wave of C++ widget types so the engine knows tags like `ui_card` and `ui_dialog`.
 2. Phase 8a - translations, before any UI exists.
-3. Phase 8b - rotation probe and layout-manager init, so per-display XML variant directories are known.
+3. Phase 8b - rotation probe and layout-manager init, so the layout class `ui_is_portrait` and `ui_is_ultrawide` publish is known.
 4. Phase 8c - `register_xml_components()` (`src/application/application.cpp#register_xml_components`): registers `styles.xml`, installs the first-use loader, and registers the second wave of widgets (`ui_button`, `ui_text_input`, `ui_markdown`, ...) and the app-wide event callbacks.
 5. Phase 9a - subject initialization, so every binding can resolve.
 6. Phase 10 - `PrinterSession::init_ui()` calls `create_app_layout()` (`src/application/session_wiring.cpp#create_app_layout`), whose `lv_xml_create(screen, "app_layout", nullptr)` instantiates the root layout.
 
-`register_xml_components()` in [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp) registers only `styles.xml` eagerly (its theme-token consts resolve at registration, after theme init) and installs a component loader with `lv_xml_set_component_loader()` ([`src/xml_registration.cpp#register_xml_on_first_use`](../../../src/xml_registration.cpp)). Whenever `lv_xml_component_get_scope()` misses a name (every tag in a view, every `extends=` base, every `lv_xml_create()` and every C++ scope lookup goes through it), the loader registers `ui_xml/<name>.xml` or else `ui_xml/components/<name>.xml`, so no component needs a registration line and none has to be registered before the one that nests or extends it. A name with no file fails loudly: `lv_xml_create` returns NULL and logs an error. The path resolves through `LayoutManager::resolve_xml_path()` ([`src/layout_manager.cpp#resolve_xml_path`](../../../src/layout_manager.cpp)) - which prefers a per-display variant subdirectory when one is active - prefixes an LVGL filesystem drive letter, and hands it to `lv_xml_register_component_from_file()`. The result is a growing table of component templates: named XML fragments like
+`register_xml_components()` in [`src/xml_registration.cpp#register_xml_components`](../../../src/xml_registration.cpp) registers only `styles.xml` eagerly (its theme-token consts resolve at registration, after theme init) and installs a component loader with `lv_xml_set_component_loader()` ([`src/xml_registration.cpp#register_xml_on_first_use`](../../../src/xml_registration.cpp)). Whenever `lv_xml_component_get_scope()` misses a name (every tag in a view, every `extends=` base, every `lv_xml_create()` and every C++ scope lookup goes through it), the loader registers `ui_xml/<name>.xml` or else `ui_xml/components/<name>.xml`, so no component needs a registration line and none has to be registered before the one that nests or extends it. A name with no file fails loudly: `lv_xml_create` returns NULL and logs an error. The loader resolves the path under the asset root (`helix::asset_path()`), prefixes an LVGL filesystem drive letter, and hands it to `lv_xml_register_component_from_file()`. The result is a growing table of component templates: named XML fragments like
 
 ```xml
 <component>
@@ -83,7 +83,7 @@ At boot, `Application` runs the phases in a fixed order (phase numbers and lines
 
 (excerpted from [`ui_xml/history_dashboard_panel.xml`](../../../ui_xml/history_dashboard_panel.xml); comments removed). A template is not yet widgets - just a parsed definition waiting to be instantiated.
 
-Creation happens later, on demand. When navigation needs a panel, its owner calls `lv_xml_create(parent, "history_dashboard_panel", attrs)` ([`src/ui/ui_panel_history_dashboard.cpp#create`](../../../src/ui/ui_panel_history_dashboard.cpp)). The engine (`lib/helix-xml/src/xml/lv_xml.c#lv_xml_create`) first looks the name up in the widget-processor table - the built-in `lv_label`/`lv_slider` types plus our custom `ui_*` widgets. If that misses, it looks up a registered component scope and instantiates the template: recursively creating child widgets, applying attributes, and resolving bindings as it goes.
+Creation happens later, on demand. When navigation needs a panel, its owner calls `lv_xml_create(parent, "history_dashboard_panel", attrs)` ([`src/ui/print/ui_panel_history_dashboard.cpp#create`](../../../src/ui/print/ui_panel_history_dashboard.cpp)). The engine (`lib/helix-xml/src/xml/lv_xml.c#lv_xml_create`) first looks the name up in the widget-processor table - the built-in `lv_label`/`lv_slider` types plus our custom `ui_*` widgets. If that misses, it looks up a registered component scope and instantiates the template: recursively creating child widgets, applying attributes, and resolving bindings as it goes.
 
 Components compose. A panel's `<view extends="overlay_panel">` inherits a wrapper template ([`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml), loaded on first use) instead of a bare `lv_obj`; the `extends` link is resolved at instantiation time through the same widget/component tables (`lib/helix-xml/src/xml/lv_xml_component.c#extended_proc`). A component file may also declare `<consts>` - named values visible to that component's bindings and styles - which is where per-panel colors and sizes live when they are not global theme tokens.
 
@@ -112,7 +112,7 @@ Two binding vocabularies exist, and both end at the same lookup.
   <bind_style_if_ge name="pad_standard" subject="ui_breakpoint" ref_value="1"/>
   ```
 
-  (The first is from [`ui_xml/power_panel.xml`](../../../ui_xml/power_panel.xml). `bind_style*` targets a named style instead of a raw property - the style itself is declared elsewhere in the file. The two binding elements are verbatim from [`ui_xml/components/buffer_status_modal.xml#hh_section`](../../../ui_xml/components/buffer_status_modal.xml) and [`ui_xml/setting_group_header.xml#"<bind_style_if_ge name=\"pad_standard\" subject=\"ui_breakpoint\" ref_value=\"1\"/>"`](../../../ui_xml/setting_group_header.xml).)
+  (The first is from [`ui_xml/power_panel.xml`](../../../ui_xml/power_panel.xml). `bind_style*` targets a named style instead of a raw property - the style itself is declared elsewhere in the file. The two binding elements are verbatim from [`ui_xml/components/buffer_status_modal.xml#espooler_row`](../../../ui_xml/components/buffer_status_modal.xml) and [`ui_xml/setting_group_header.xml#"<bind_style_if_ge name=\"pad_standard\" subject=\"ui_breakpoint\" ref_value=\"1\"/>"`](../../../ui_xml/setting_group_header.xml).)
 
   These are implemented as pseudo-widgets registered by the engine itself (`lib/helix-xml/src/xml/lv_xml.c#lv_xml_init` - names like `lv_obj-bind_flag_if_eq`), which is why they appear in the widget table but never in layouts as `lv_*` tags. The tree uses them by the hundreds; `<bind_flag_if_eq>` and `bind_text=` are the two you will meet first.
 
@@ -138,14 +138,14 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
       "preset_material_0_name", "preset_material_1_name", "preset_material_2_name",
       "preset_material_3_name"};
   // ...
-  lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
-                         s.name_bufs[i].size(), s.name_bufs[i].data());
+  s.name_subjects[i].init_string(s.name_bufs[i].data(), nullptr, s.name_bufs[i].size(),
+                                 s.name_bufs[i].data());
   s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
   ```
 
   (verbatim from [`src/system/preset_materials.cpp#init_subjects`](../../../src/system/preset_materials.cpp)). `SubjectManager::publish()` ([`include/subject_managed_panel.h#publish`](../../../include/subject_managed_panel.h)) registers the name in the current XML scope, globals at boot, and remembers it so teardown can withdraw the name before freeing the subject. When preset names load from settings, C++ writes the subject once and every bound button across every panel updates.
 
-- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations, here the overlay's own table in [`src/ui/ui_overlay_temp_graph.cpp#register_callbacks`](../../../src/ui/ui_overlay_temp_graph.cpp):
+- `<event_cb ... callback="on_temp_graph_preset_clicked"/>` resolves the name against C++ registrations, here the overlay's own table in [`src/ui/controls/ui_overlay_temp_graph.cpp#register_callbacks`](../../../src/ui/controls/ui_overlay_temp_graph.cpp):
 
   ```cpp
   register_xml_callbacks({
@@ -154,7 +154,7 @@ Structural conditionals avoid building both branches: `<if cond="expr">...</if>`
   });
   ```
 
-  The handler at [`src/ui/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`](../../../src/ui/ui_overlay_temp_graph.cpp) receives the click with the button's user data.
+  The handler at [`src/ui/controls/ui_overlay_temp_graph.cpp#on_temp_graph_preset_clicked`](../../../src/ui/controls/ui_overlay_temp_graph.cpp) receives the click with the button's user data.
 
 Three files, no direct references between them. The XML names a subject and a callback; C++ publishes both by name; the engine ties them at instantiation. This is the shape essentially every interactive element in the app takes.
 
@@ -172,13 +172,13 @@ The ownership split matters at teardown: XML-declared subjects are owned by the 
 
 ### Custom widgets and the engine that runs them
 
-The widget-processor table is not only built-ins. About thirty-five files under `src/` call `lv_xml_register_widget()` to teach the engine new tags - the visual vocabulary of the app: `ui_card`, `ui_button`, `ui_dialog`, `ui_icon`, `ui_markdown`, `ui_spinner`, `ui_switch`, `ui_text_input`, `ui_temp_display`, `ui_carousel`, `helix_sparkline`, canvas widgets like `ui_bed_mesh` and `ui_gcode_viewer`, and more (full list: `rg -l 'lv_xml_register_widget' src/`). Each file pairs a *create* handler (runs once per instance, sets defaults) with an *apply* handler (runs on attribute application, may run again). [`src/ui/ui_card.cpp`](../../../src/ui/ui_card.cpp) is the cleanest example and a tour stop below.
+The widget-processor table is not only built-ins. About forty-five files under `src/` call `lv_xml_register_widget()` to teach the engine new tags - the visual vocabulary of the app: `ui_card`, `ui_button`, `ui_dialog`, `ui_icon`, `ui_markdown`, `ui_spinner`, `ui_switch`, `ui_text_input`, `ui_temp_display`, `ui_carousel`, `helix_sparkline`, canvas widgets like `ui_bed_mesh` and `ui_gcode_viewer`, and more (full list: `rg -l 'lv_xml_register_widget' src/`). Each file pairs a *create* handler (runs once per instance, sets defaults) with an *apply* handler (runs on attribute application, may run again). [`src/ui/components/ui_card.cpp`](../../../src/ui/components/ui_card.cpp) is the cleanest example and a tour stop below.
 
 The engine those files register into is not LVGL's code. `lib/helix-xml/` is a permanent hard fork of the XML engine LVGL removed from core in v9.5. It is MIT-licensed, lives in its own repository (prestonbrown/helix-xml), and upstream is us: there is no LVGL-side upstream to track. Engine changes are committed directly in the submodule, then the bumped pointer is committed here; the `patches/*.patch` workflow applies only to third-party submodules, never to this one. Because LVGL now sells an XML-based product (LVGL Pro / SquareLine), there is a clean-room rule for anything their commercial offering also has - read [`HELIX_XML_FORK.md`](../HELIX_XML_FORK.md) (listed below) before touching the engine.
 
 ## Patterns & gotchas
 
-- **The rules are a ratchet.** New code must be fully declarative - no `lv_obj_add_event_cb()`, no `lv_label_set_text()` on XML-owned widgets, no imperative visibility flips, no C++ styling. The tree still carries a few hundred known violations, tracked in prestonbrown/helixscreen#1140. Run `scripts/check_imperative_ui.py --list` to see them by category (visibility, text, style, event). The count may fall, never rise. Existing imperative sites are debt, not precedent. Chapter 15 covers the payoff plan.
+- **The rules are a ratchet.** New code must be fully declarative - no `lv_obj_add_event_cb()`, no `lv_label_set_text()` on XML-owned widgets, no imperative visibility flips, no C++ styling. The tree still carries a couple of dozen known violations, tracked in prestonbrown/helixscreen#1140. Run `scripts/check_imperative_ui.py --list` to see them by category (visibility, text, style, event). The count may fall, never rise. Existing imperative sites are debt, not precedent. Chapter 15 covers the payoff plan.
 - **Name every component instantiation, and look widgets up by name.** Instance names beat `<view>` names, but a `<view name>` is shared by *every* instance of the component - fine for a singleton panel, useless for a repeated row. C++ finds a widget with `helix::ui::find_required(root, name, owner)` when the XML must contain it (a miss logs once, and aborts under strict UI checks) or `find_optional(root, name)` when it may be absent (inside `<if>`, omitted by a layout variant, plugin XML) ([`include/ui/ui_widget_helpers.h#find_required`](../../../include/ui/ui_widget_helpers.h)). [`scripts/check_required_names.py`](../../../scripts/check_required_names.py) checks every literal `find_required` name against each layout variant of the component. Child-index access breaks the moment a layout changes.
 - **XML callbacks are table entries, not member pointers.** A `register_xml_callbacks` lambda cannot capture (a `static_assert` says so); per-instance state comes from `lv_event_get_user_data()` or the owner's `get_global_*()` accessor. `event_user_int()`, `event_checked()` and `event_selected()` in the same header read the common payloads.
 - **A dead binding is a WARN, not an error.** Misspelled subject names surface as `No subject was found with name` in the log. Debug with `-vv` and grep for that line before suspecting the data layer.
@@ -187,7 +187,7 @@ The engine those files register into is not LVGL's code. `lib/helix-xml/` is a p
 - **Choose visibility mechanics by cost.** `<bind_flag_if_eq flag="hidden">` toggles an *already-built* subtree - right for cheap show/hide. `<if cond="...">` builds only the matching branch - right when the subtree is expensive to create (a whole card, an alternate layout). Do not build both and hide one.
 - **Expression word forms, not operators.** `cond` and `<subject_expr>` use word forms (`or`, `and`, `gt`, `lt`) because `&&` and `<` need XML escaping; the evaluator is integer-only, so string formatting stays in C++ formatters.
 - **C++ may not touch LVGL from background threads, and subject writes count.** `lv_subject_set_*()` fires observers that call widget APIs. Background code routes through `ui_queue_update()`. Chapter 3 and [`THREADING.md`](../THREADING.md) own the details; the rule is absolute here because the XML engine's observers run on whatever thread sets the subject.
-- **Custom widgets are the sanctioned escape hatch.** The files calling `lv_xml_register_widget` implement widget *types*; there is no XML beneath them to bind to, so imperative code inside them is correct by definition (see [`src/ui/ui_card.cpp#ui_card_xml_create`](../../../src/ui/ui_card.cpp)). If your genuinely un-declarative site does not fit an escape hatch, annotate it `// DECLARATIVE_OK: <reason>` so audits skip it.
+- **Custom widgets are the sanctioned escape hatch.** The files calling `lv_xml_register_widget` implement widget *types*; there is no XML beneath them to bind to, so imperative code inside them is correct by definition (see [`src/ui/components/ui_card.cpp#ui_card_xml_create`](../../../src/ui/components/ui_card.cpp)). If your genuinely un-declarative site does not fit an escape hatch, annotate it `// DECLARATIVE_OK: <reason>` so audits skip it.
 
 ## Going deeper
 
@@ -209,5 +209,5 @@ Read in this order; about 25 minutes total.
 5. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create` - `lv_xml_create`: widget-processor table first, component scope second. Then `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create/"Set a default indexed name"` - the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_get_subject` - `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_init` - the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.
-8. [`src/ui/ui_card.cpp#ui_card_xml_create`](../../../src/ui/ui_card.cpp) - one custom widget end to end: the create handler (runs once), theme style attach, and `ui_card_register()` at [`src/ui/ui_card.cpp#ui_card_register`](../../../src/ui/ui_card.cpp) calling `lv_xml_register_widget("ui_card", ...)`.
+8. [`src/ui/components/ui_card.cpp#ui_card_xml_create`](../../../src/ui/components/ui_card.cpp) - one custom widget end to end: the create handler (runs once), theme style attach, and `ui_card_register()` at [`src/ui/components/ui_card.cpp#ui_card_register`](../../../src/ui/components/ui_card.cpp) calling `lv_xml_register_widget("ui_card", ...)`.
 9. [`src/application/xml_hot_reloader.cpp`](../../../src/application/xml_hot_reloader.cpp) - the non-reloadable component list and why; read down through the polling loop for the expat pre-check and the silent-skip behavior.

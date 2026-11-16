@@ -3,13 +3,13 @@
 #include "indx_contract.h"
 
 #include "ams_backend.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -178,8 +178,12 @@ std::optional<Reading> read_status(const nlohmann::json& status) {
         } else if (macro == kLoadFilament) {
             saw |= read_presets(value, r);
         } else if (auto tool = tool_macro_index(macro)) {
-            if (auto id = strict_int(value, "spool_id")) {
-                r.tool_spool_ids[*tool] = *id;
+            // None (Mainsail's "no spool", the variable's usual default), 0 and
+            // a negative id all mean the tool holds no spool.
+            const auto it = value.find("spool_id");
+            if (it != value.end() && (it->is_null() || it->is_number_integer())) {
+                const int id = it->is_null() ? 0 : it->get<int>();
+                r.tool_spool_ids[*tool] = id > 0 ? id : 0;
                 saw = true;
             }
         }
@@ -363,8 +367,12 @@ std::string motion_blocked_reason(const Contract& contract, const Reading& state
 }
 
 std::string tool_text(int tool) {
-    return helix::ui::tool_label_in_form(helix::ui::LaneNoun::Tool, helix::ui::tool_label(tool),
-                                         tool, helix::ui::ToolLabelForm::Full);
+    // INDX heads are labeled from 1 (AmsBackendIndx::kIndxTraits) unless the
+    // per-printer setting says otherwise.
+    return helix::ui::tool_label_in_form(
+        helix::ui::LaneNoun::Tool,
+        helix::ui::tool_number_style_with_setting(helix::ui::ToolNumberStyle::Physical),
+        helix::ui::tool_label(tool), tool, helix::ui::ToolLabelForm::Full);
 }
 
 const char* speed_mode_option(SpeedMode mode) {

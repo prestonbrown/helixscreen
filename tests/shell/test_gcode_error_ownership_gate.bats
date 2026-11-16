@@ -243,12 +243,3 @@ void Thing::go() {
     run python3 "$GATE" "$FIXTURE_DIR/ratchet.cpp" --max-allowed 1
     [ "$status" -eq 0 ] || fail "ratchet must pass at the baseline, got status $status"
 }
-
-@test "the real tree stays at or under its recorded baseline" {
-    # Guards the gate against its own bugs as much as the tree: if a refactor
-    # makes the scanner stop seeing call sites, this notices the count moving.
-    run python3 "$GATE" --summary
-    [ "$status" -eq 0 ] || fail "gate errored on the real tree: $output"
-    printf '%s\n' "$output" | grep -qE "gcode error-ownership: [0-9]+ site" \
-        || fail "unexpected summary format: $output"
-}

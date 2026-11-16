@@ -3,8 +3,8 @@
 
 #include "ui_filament_mapping_modal.h"
 #include "ui_filament_slot_picker.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
 #include "filament_mapper.h"
 
 #include <lvgl.h>

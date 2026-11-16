@@ -14,7 +14,7 @@
 # toolchain sysroot, so they always match what the binary is compiled against.
 # Every caller asks include/gpu_libs.h first. A call that gets past it into a
 # library that is not installed does not abort, as upstream's loader would: the
-# callbacks in src/api/gpu_libs.cpp log it and hand back a function returning 0.
+# callbacks in src/platform/display/gpu_libs.cpp log it and hand back a function returning 0.
 # scripts/check_gpu_lib_callers.py keeps the callers to a reviewed list.
 
 IMPLIB_OBJS :=
@@ -49,7 +49,7 @@ $(IMPLIB_DIR)/%.init.o: $(IMPLIB_DIR)/%.init.c
 	$(Q)$(CC) $(TARGET_CFLAGS) -w -c $< -o $@
 
 # What each function returns, so the stand-in for a missing library fails the
-# way its caller expects (src/api/gpu_libs.cpp#helix_gpu_lib_symbol).
+# way its caller expects (src/platform/display/gpu_libs.cpp#helix_gpu_lib_symbol).
 $(IMPLIB_RETURNS).c: $(IMPLIB_INIT_C) $(IMPLIB_HEADERS) scripts/gpu_lib_return_kinds.py
 	$(Q)python3 scripts/gpu_lib_return_kinds.py --out $@ --init-c $(IMPLIB_INIT_C) --header $(IMPLIB_HEADERS)
 

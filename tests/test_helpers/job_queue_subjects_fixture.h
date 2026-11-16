@@ -3,9 +3,9 @@
 #pragma once
 
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_state.h"
-#include "static_subject_registry.h"
 
 #include <string>
 #include <vector>
@@ -21,6 +21,7 @@ struct ScopedJobQueueSubjects {
     ~ScopedJobQueueSubjects() {
         StaticSubjectRegistry::instance().deinit_one("JobQueueState");
         lv_xml_unregister_subject(nullptr, "job_queue_count");
+        lv_xml_unregister_subject(nullptr, "job_queue_loaded");
         lv_xml_unregister_subject(nullptr, "job_queue_run_state");
         lv_xml_unregister_subject(nullptr, "job_queue_up_next_text");
         lv_xml_unregister_subject(nullptr, "job_queue_start_next_text");

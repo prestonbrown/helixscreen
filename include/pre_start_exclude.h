@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "gcode_parser.h"
+#include "helix_shared_callback.h"
 #include "printer_excluded_objects_state.h"
 
 #include <functional>
@@ -52,7 +53,7 @@ void send_pre_start_exclusions(IMoonrakerAPI* api, std::vector<std::string> name
 /// @p on_confirmed, followed by the exclusions for @p names on the main
 /// thread. Callable from any thread. It holds only the names and reads the
 /// current API when it fires, so the view that started the print may be gone.
-std::function<void()> with_pre_start_exclusions(std::function<void()> on_confirmed,
-                                                std::vector<std::string> names);
+helix::SharedCallback<void()> with_pre_start_exclusions(helix::SharedCallback<void()> on_confirmed,
+                                                        std::vector<std::string> names);
 
 } // namespace helix::ui

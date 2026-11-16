@@ -2,13 +2,15 @@
 
 #include "macro_param_cache.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
 #include <string_view>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -205,14 +207,12 @@ void MacroParamCache::populate_from_configfile(
         std::string macro_name_lower = key.substr(PREFIX.size());
         to_lower_inplace(macro_name_lower);
 
-        // Extract gcode template for param parsing
         std::string gcode_template;
         if (it.value().is_object() && it.value().contains("gcode") &&
             it.value()["gcode"].is_string()) {
             gcode_template = it.value()["gcode"].get<std::string>();
         }
 
-        // Extract description if present
         std::string description;
         if (it.value().is_object() && it.value().contains("description") &&
             it.value()["description"].is_string()) {

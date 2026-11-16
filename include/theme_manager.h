@@ -22,7 +22,7 @@
 #include "theme_loader.h"
 
 // ============================================================================
-// Table-Driven Style System Types (ThemeManager refactor Phase 1)
+// Table-Driven Style System Types
 // ============================================================================
 
 /// Style roles - each represents a semantic style in the theme system.
@@ -332,9 +332,8 @@ class ThemeManager {
 //   space_xxs, space_xs, space_sm, space_md, space_lg, space_xl
 //
 // The values are NOT listed here on purpose. They live in ui_xml/globals.xml as
-// <px name="space_*_<tier>"> and a copy in this header drifts silently: the list
-// that used to sit here named three tiers of the seven that exist, so the value
-// it gave for a 480x272 screen was wrong by more than half.
+// <px name="space_*_<tier>"> and a copy in this header drifts silently, giving
+// wrong values for whichever tiers it misses.
 //
 // Tiers come from breakpoint_for() in include/ui_breakpoint.h - micro, tiny,
 // small, medium, large, xlarge, xxlarge - keyed on the SMALLER screen dimension,
@@ -530,8 +529,19 @@ void theme_manager_register_responsive_spacing(lv_display_t* display);
  * to override previously-registered values.
  *
  * @param display LVGL display instance
+ * @return true when a px token or a breakpoint moved: widgets built before the
+ *         refresh still carry the old values. The overlay widths, which follow
+ *         every pixel, do not count.
  */
-void theme_manager_refresh_layout_constants(lv_display_t* display);
+bool theme_manager_refresh_layout_constants(lv_display_t* display);
+
+/**
+ * @brief Re-point the theme's default text font at the display's breakpoint
+ *
+ * Labels without a font of their own inherit it. Called by
+ * theme_manager_refresh_layout_constants() once the tier's fonts are registered.
+ */
+void theme_manager_refresh_base_font(lv_display_t* display); // NAMESPACE_OK: theme_manager C API
 
 /**
  * @brief Republish ui_is_portrait and ui_is_ultrawide from the override-aware source.

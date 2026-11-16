@@ -11,19 +11,18 @@
  * - PrintSelectUsbSource symlink detection and tab hiding
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/moonraker_file_api.h"
 #include "../../include/ui_print_select_usb_source.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_file_api_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_try_reserve_failure.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
 #include <chrono>
@@ -32,26 +31,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerMetadataUSB {
-    LVGLInitializerMetadataUSB() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerMetadataUSB lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -60,7 +39,7 @@ static LVGLInitializerMetadataUSB lvgl_init;
 /**
  * @brief Test fixture for MoonrakerAPI metadata operations
  */
-class MetadataAPITestFixture {
+class MetadataAPITestFixture : public LVGLTestFixture {
   public:
     MetadataAPITestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         // Initialize printer state
@@ -79,7 +58,7 @@ class MetadataAPITestFixture {
     ~MetadataAPITestFixture() {
         // Drain while `state` is still alive — discover_printer() in the ctor
         // leaves PrinterCapabilitiesState's deferred setters queued (#1166).
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         mock_client.stop_temperature_simulation();
         mock_client.disconnect();
@@ -680,4 +659,27 @@ TEST_CASE_METHOD(MetadataAPITestFixture,
 
     // Cleanup
     mock_set_usb_symlink_active(false);
+}
+
+TEST_CASE_METHOD(MetadataAPITestFixture, "Metadata carries a .3mf's sliced plates where listed",
+                 "[metadata][api][native_3mf]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {
+        {"filename", "Set.gcode.3mf"}, {"sliced_plates", {2, "5", 0, "x"}}, {"plate_index", 2}};
+    FileMetadata m = probe.parse_file_metadata(response);
+    REQUIRE(m.sliced_plates);
+    CHECK(*m.sliced_plates == std::vector<int>{2, 5});
+    CHECK(m.plate_index == 2);
+
+    // An empty list is still a list; no list at all is none.
+    response["result"]["sliced_plates"] = json::array();
+    m = probe.parse_file_metadata(response);
+    REQUIRE(m.sliced_plates);
+    CHECK(m.sliced_plates->empty());
+    response["result"].erase("sliced_plates");
+    response["result"].erase("plate_index");
+    m = probe.parse_file_metadata(response);
+    CHECK_FALSE(m.sliced_plates);
+    CHECK(m.plate_index == 0);
 }

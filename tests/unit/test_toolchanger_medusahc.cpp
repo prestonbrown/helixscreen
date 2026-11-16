@@ -31,14 +31,15 @@
  * button already sends. Its feeder is a [servo my_servo] driven by OPEN/CLOSE.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/step_operation_helpers.h"
+#include "../test_helpers/toast_log.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -77,73 +78,42 @@ PrinterDiscovery plain_toolchanger_discovery() {
 
 } // namespace
 
-// ============================================================================
-// Init states
-// ============================================================================
-
-TEST_CASE("A cold-boot toolchanger refuses the tool tap", "[ams][toolchanger][coldstart]") {
-    ToolChangerHelper h(4);
-    h.feed_status("uninitialized", -1);
-
-    // Refusing is the lesser evil, not a clean answer. On the default
-    // initialize_on: first-use, select_tool() would have auto-initialized and
-    // this tap is what would have cleared the state, so the refusal costs the
-    // user a Reset they should not have needed.
-    //
-    // Letting it through is worse. On initialize_on: manual (what MedusaHC
-    // ships) Klipper raises "Cannot select tool, toolchanger status is
-    // uninitialized". That rejection reaches execute_gcode()'s error callback,
-    // which only logs: on_complete never fires, so the optimistic SELECTING that
-    // dispatch_operation() stamped is never unwound, and execute_gcode() returns
-    // success() so the `if (!result)` net misses it too. is_busy() would then
-    // refuse every later op, and Moonraker only republishes CHANGED fields, so
-    // no second 'uninitialized' frame arrives to reset it. A latched SELECTING
-    // is unrecoverable without a restart; a refusal clears with Reset, which
-    // sends INITIALIZE_TOOLCHANGER.
-    CHECK(h.get_system_info().is_busy());
-    CHECK(h.get_current_action() == AmsAction::RESETTING);
-
-    auto err = h.change_tool(2);
-    CHECK_FALSE(err.success());
-    CHECK(h.sent().empty());
-}
-
-TEST_CASE("An initializing toolchanger IS busy", "[ams][toolchanger][coldstart]") {
-    ToolChangerHelper h(4);
-    h.feed_status("initializing", -1);
-
-    // STATUS_INITIALIZING was unmapped and fell through to IDLE, so a tap landed
-    // mid-initialization while the carriage was moving.
-    CHECK(h.get_system_info().is_busy());
-    CHECK(h.get_current_action() == AmsAction::RESETTING);
-
-    auto err = h.change_tool(1);
-    CHECK_FALSE(err.success());
-    CHECK(h.sent().empty());
-}
-
-TEST_CASE("The settled toolchanger states are unchanged", "[ams][toolchanger][coldstart]") {
-    // Regression guard: the two fixes above must not disturb the states that
-    // already worked.
-    ToolChangerHelper h(4);
-
-    h.feed_status("ready", 0);
-    CHECK(h.get_current_action() == AmsAction::IDLE);
-
-    h.feed_status("changing", 0);
-    CHECK(h.get_current_action() == AmsAction::SELECTING);
-
-    h.feed_status("error", -1);
-    CHECK(h.get_current_action() == AmsAction::ERROR);
-}
-
-TEST_CASE("The raw toolchanger status survives as operation detail",
+// An uninitialized changer refuses a tool tap rather than letting it through.
+// On initialize_on: manual (what MedusaHC ships) Klipper rejects the select,
+// that rejection only logs, and the optimistic SELECTING dispatch stamped is
+// never unwound: is_busy() would refuse every later op until a restart, since
+// Moonraker republishes only changed fields. The refusal clears with Reset,
+// which sends INITIALIZE_TOOLCHANGER. An initializing changer is moving the
+// carriage, so it is busy too. The detail is a catalog key for a word we know,
+// empty where the translated action says it, and the raw word otherwise.
+TEST_CASE("A toolchanger's status maps to an action, and the unready ones refuse a tap",
           "[ams][toolchanger][coldstart]") {
-    // IDLE alone cannot tell the user why a tap was rejected by Klipper. The
-    // status string is what names the state.
-    ToolChangerHelper h(4);
-    h.feed_status("uninitialized", -1);
-    CHECK(h.get_system_info().operation_detail == "uninitialized");
+    struct Row {
+        const char* status;
+        int tool;
+        AmsAction action;
+        bool refuses_tap;
+        const char* detail;
+    };
+    const Row rows[] = {
+        {"uninitialized", -1, AmsAction::RESETTING, true, "Not Initialized"},
+        {"initializing", -1, AmsAction::RESETTING, true, "Initializing..."},
+        {"ready", 0, AmsAction::IDLE, false, ""},
+        {"changing", 0, AmsAction::SELECTING, false, "Tool swap"},
+        {"error", -1, AmsAction::ERROR, false, ""},
+    };
+    for (const auto& row : rows) {
+        INFO(row.status);
+        ToolChangerHelper h(4);
+        h.feed_status(row.status, row.tool);
+        CHECK(h.get_current_action() == row.action);
+        CHECK(h.get_system_info().operation_detail == row.detail);
+        if (row.refuses_tap) {
+            CHECK(h.get_system_info().is_busy());
+            CHECK_FALSE(h.change_tool(2).success());
+            CHECK(h.sent().empty());
+        }
+    }
 }
 
 // ============================================================================
@@ -467,19 +437,6 @@ TEST_CASE("A swap reported only as 'changing' still reads as busy",
 // Step model
 // ============================================================================
 
-namespace {
-
-std::vector<std::string> step_labels(const AmsBackend::OperationStepModel& model) {
-    std::vector<std::string> out;
-    out.reserve(model.steps.size());
-    for (const auto& s : model.steps) {
-        out.push_back(s.label);
-    }
-    return out;
-}
-
-} // namespace
-
 TEST_CASE("A controller that names the direction gets the four-step bar",
           "[ams][toolchanger][steps]") {
     ToolChangerHelper tc(4);
@@ -603,8 +560,10 @@ TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",
     CHECK(generic->detail == unreported.unload_blocked_reason(1));
 }
 
-TEST_CASE("A last_error with no failed operation behind it is a controller error",
-          "[ams][toolchanger][medusahc][last_error]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A last_error with no failed operation behind it is a controller error",
+                 "[ams][toolchanger][medusahc][last_error][toast]") {
+    helix::test::ToastLog toasts;
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
     // What the controller publishes after a failed initialization.
@@ -616,7 +575,9 @@ TEST_CASE("A last_error with no failed operation behind it is a controller error
                    {"last_error", "Initialization failed; see klippy.log"}}}});
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
           "Tool changer error: Initialization failed; see klippy.log");
-    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
+    toasts.expect_one(ToastSeverity::ERROR,
+                      "Tool changer error: Initialization failed; see klippy.log", 4000);
+    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == helix::NoticeSeverity::ERROR);
     // Not a fault on the carriage: the docks agree.
     CHECK_FALSE(tc.current_error().has_value());
 
@@ -657,7 +618,8 @@ TEST_CASE("A failed swap names the tool it was changing to",
                        {"last_error", failure}}}});
         CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
               "Tool change to Tool 4 (T3) failed: " + failure);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
     }
 
     SECTION("a failed park names the tool it was parking") {
@@ -724,7 +686,8 @@ TEST_CASE("A controller failure the screen is not showing toasts once",
         tc.feed(json{{"medusahc", {{"current_tool", -1}}}});
         REQUIRE(tc.get_system_info().action == AmsAction::IDLE);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc).find(failure) != std::string::npos);
-        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) ==
+              helix::NoticeSeverity::WARNING);
 
         // Further frames under the same latched failure say nothing more.
         ToolChangerTestAccess::clear_feed_last_toast(tc);
@@ -852,9 +815,9 @@ TEST_CASE("The step index stays pinned to the model actually on screen",
     // (by the sidebar, at operation start) while the index is recomputed on
     // EVERY frame from whatever feeder_state_reported_/direction_reported_
     // read right then. A machine whose early frames carry `operation` without
-    // `feeder_open` gets a 2-step model (Dock/Pick); before the fix, the
-    // moment a later frame reported feeder_open for the FIRST time, the index
-    // computation would silently start resolving against the 4-step
+    // `feeder_open` gets a 2-step model (Dock/Pick). When a later frame
+    // reports feeder_open for the FIRST time, the index computation must not
+    // silently start resolving against the 4-step
     // Release/Dock/Pick/Grip sequence instead - landing "dropping" on index 1
     // (Pick, on the model actually rendered) instead of 0 (Dock).
     ToolChangerHelper tc(4);
@@ -911,8 +874,8 @@ TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
     // A real firmware unmount can end with the carriage empty and nothing to
     // re-grip, so the gripper stays open on the swap's LAST idle frame too -
     // the other helpers in this file always close it before ending, so this
-    // drives the backend through a real dropping frame first. Before the fix,
-    // the hold in apply_tool_sensor_locked() re-armed itself forever:
+    // drives the backend through a real dropping frame first. A hold in
+    // apply_tool_sensor_locked() can re-arm itself forever:
     // was_mid_operation is partly derived from the action the hold itself
     // sets, so every later idle+open frame satisfied the same condition that
     // created it and the backend never reached IDLE again.
@@ -936,7 +899,7 @@ TEST_CASE("An aborted swap that ends with the head empty does not latch busy",
     CHECK_FALSE(tc.get_system_info().is_busy());
 
     // A later swap must still get the ordinary hold on ITS OWN opening frame -
-    // the fix must not have removed the hold outright, and the bound must have
+    // the hold must not be removed outright, and the bound must have
     // reset rather than staying latched true from the aborted swap above.
     REQUIRE(tc.change_tool(1).success());
     tc.feed(

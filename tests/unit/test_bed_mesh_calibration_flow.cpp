@@ -11,9 +11,9 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_mesh_panel_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -25,6 +25,7 @@
 #include "temperature_controller.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,7 +38,7 @@ using json = nlohmann::json;
 namespace {
 
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 32);
+    helix::ui::UpdateQueue::instance().drain_until_empty(32);
 }
 
 bool mentions(const std::string& haystack, const char* needle) {
@@ -124,13 +125,14 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
 
     BedMeshPanelFlowFixture() {
         state.init_subjects(false);
-        set_moonraker_api(&api);
+        set_moonraker_api(nullptr); // only panel.set_api() reaches the mock
         client.clear_gcode_script_history();
         // The panel reads bed temperatures and homing from the process-wide state,
         // whose subjects no base fixture creates.
         helix::PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
         get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
+        set_link(true);
         helix::ui::set_test_notification_error_hook(
             [this](const std::string& m) { errors.push_back(m); });
         helix::ui::set_test_notification_success_hook([this](const std::string& m) {
@@ -141,7 +143,6 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
     ~BedMeshPanelFlowFixture() override {
         helix::ui::set_test_notification_error_hook(nullptr);
         helix::ui::set_test_notification_success_hook(nullptr);
-        set_moonraker_api(nullptr);
         StandardMacros::instance().init(helix::PrinterDiscovery{}, "");
         drain();
     }
@@ -152,6 +153,19 @@ class BedMeshPanelFlowFixture : public LVGLTestFixture {
 
     static void detect_macros(const json& objects) {
         detect_macros_in(objects);
+    }
+
+    static void set_link(bool up) {
+        lv_subject_set_int(
+            get_printer_state().network_state().get_printer_connection_state_subject(),
+            static_cast<int>(up ? helix::ConnectionState::CONNECTED
+                                : helix::ConnectionState::DISCONNECTED));
+        drain();
+    }
+
+    static void set_nozzle(double target) {
+        get_printer_state().update_from_status(
+            {{"extruder", {{"temperature", 25.0}, {"target", target}}}});
     }
 
     static void set_bed(double temperature, double target) {
@@ -248,6 +262,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "start_calibration moves an initialized panel into naming", "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     REQUIRE(helix::ui::BedMeshPanelTestAccess::calibrate_state_type(panel) ==
             static_cast<int>(LV_SUBJECT_TYPE_INT));
@@ -264,6 +279,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "the mesh is named before any calibrat
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
 
     panel.start_calibration();
@@ -281,6 +297,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     use_printer("");
     set_bed(24.0, 0.0);
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "default");
 
@@ -298,6 +315,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a named mesh is probed straight into 
                  "[bed_mesh_flow]") {
     use_printer("");
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -324,6 +342,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                     get_printer_state().temperature_state().get_bed_target_subject()) == 700);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -336,6 +355,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(100.4, 60.0);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -349,6 +369,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                     get_printer_state().temperature_state().get_bed_temp_subject()) == 874);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -360,6 +381,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         set_bed(24.0, 0.0);
 
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
 
@@ -382,6 +404,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("bed and nozzle both off") {
         set_bed(24.0, 0.0);
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -394,6 +417,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("a bed the user was heating stays on") {
         set_bed(24.0, 70.0);
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
 
@@ -401,6 +425,36 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         CHECK(first_sent(sent(), "HEATER=extruder TARGET=0") > 0);
         CHECK_FALSE(any_sent(sent(), "HEATER=heater_bed TARGET=0"));
     }
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture,
+                 "a mesh that finishes behind the screensaver still cools down and saves",
+                 "[bed_mesh_flow][1516]") {
+    use_printer("Elegoo Centauri Carbon");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    get_printer_state().update_from_status(
+        {{"extruder", {{"temperature", 25.0}, {"target", 0.0}}}});
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+
+    client.defer_next("printer.gcode.script");
+    calibrate_as(panel, "default");
+    REQUIRE(client.call_count("printer.gcode.script") == 1); // the mesh command, held
+    REQUIRE(successes.empty());
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    client.fire_deferred("printer.gcode.script");
+    drain();
+    panel.on_activate();
+    drain();
+
+    CHECK(any_sent(sent(), "HEATER=extruder TARGET=0"));
+    CHECK(any_sent(sent(), "HEATER=heater_bed TARGET=0"));
+    CHECK(errors.empty());
+    REQUIRE(successes.size() == 1);
+    CHECK(mentions(successes[0], "'default'"));
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
@@ -412,6 +466,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     set_bed(24.0, 0.0);
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "default");
 
@@ -425,6 +480,165 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     CHECK(home < mesh);
 }
 
+namespace {
+constexpr const char* kNozzleOff = "HEATER=extruder TARGET=0";
+constexpr const char* kBedOff = "HEATER=heater_bed TARGET=0";
+} // namespace
+
+/// A preheat in progress: both heaters were off and the wait never answers.
+class BedMeshHeatFixture : public BedMeshPanelFlowFixture {
+  public:
+    ScopedTemperatureController heaters{get_printer_state(), &api};
+    std::unique_ptr<BedMeshPanel> panel = std::make_unique<BedMeshPanel>();
+
+    BedMeshHeatFixture() {
+        use_printer("");
+        set_nozzle(0.0);
+        set_bed(24.0, 0.0);
+        panel->set_api(&api);
+        panel->init_subjects();
+        client.force_next_gcode_dropped_response("TEMPERATURE_WAIT");
+        calibrate_as(*panel, "default");
+        REQUIRE(any_sent(sent(), "TEMPERATURE_WAIT"));
+        REQUIRE_FALSE(any_sent(sent(), "G28"));
+    }
+};
+
+TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    REQUIRE(panel->holds_owned_heat());
+    CHECK(helix::CleanupHold::any_held_signal_safe());
+
+    SECTION("shutdown sends both offs and nothing that moves") {
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(any_sent(sent(), "G28"));
+        CHECK_FALSE(any_sent(sent(), "G1 "));
+        CHECK_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+        CHECK_FALSE(panel->holds_owned_heat());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+
+    SECTION("shutdown leaves a bed someone has retargeted since") {
+        set_bed(24.0, 80.0);
+        client.clear_gcode_script_history();
+        panel->before_disconnect();
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("an error ending clears both and releases") {
+        client.clear_gcode_script_history();
+        panel->on_calibration_error("Preheat failed");
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("emergency stop releases without a send of its own") {
+        client.clear_gcode_script_history();
+        panel->handle_emergency_stop();
+        drain();
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+
+    SECTION("leaving for another view gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::NavigateAway);
+        drain();
+        CHECK(any_sent(sent(), kNozzleOff));
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(any_sent(sent(), "G28"));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("a hot-reload gives the heat back") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Rebuild);
+        drain();
+        CHECK(any_sent(sent(), kBedOff));
+        CHECK_FALSE(panel->holds_owned_heat());
+    }
+
+    SECTION("the screensaver keeps the heat") {
+        client.clear_gcode_script_history();
+        panel->on_deactivating(DeactivateReason::Suspended);
+        drain();
+        CHECK_FALSE(any_sent(sent(), kBedOff));
+        CHECK(panel->holds_owned_heat());
+    }
+
+    SECTION("destroying the panel releases") {
+        panel.reset();
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh wrapper's own target is still this run's heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    client.force_next_gcode_dropped_response("BED_MESH_CALIBRATE");
+    calibrate_as(panel, "default");
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    REQUIRE(panel.holds_owned_heat());
+
+    set_bed(24.0, 70.0);
+    client.clear_gcode_script_history();
+    panel.on_calibration_error("probe failed");
+    drain();
+
+    CHECK(any_sent(sent(), kBedOff));
+    CHECK_FALSE(panel.holds_owned_heat());
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a finished mesh holds nothing for its heat",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    calibrate_as(panel, "default");
+
+    CHECK(any_sent(sent(), kBedOff));
+    CHECK_FALSE(panel.holds_owned_heat());
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a mesh on heaters already running holds nothing",
+                 "[bed_mesh_flow][heater_hold]") {
+    use_printer("");
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(180.0);
+    set_bed(24.0, 70.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    client.force_next_gcode_dropped_response("BED_MESH_CALIBRATE");
+    calibrate_as(panel, "default");
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+
+    CHECK_FALSE(panel.holds_owned_heat());
+    panel.before_disconnect();
+    drain();
+    CHECK_FALSE(any_sent(sent(), kBedOff));
+}
+
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a command that cannot be named is copied into the chosen profile afterwards",
                  "[bed_mesh_flow]") {
@@ -433,6 +647,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("G29", "default");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -460,6 +675,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [cold], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -477,6 +693,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "default");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
 
@@ -498,6 +715,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     SECTION("the copy plan, whose default did not change") {
         detect_macros({"gcode_macro G29"});
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "G29"));
@@ -509,6 +727,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         detect_macros({"gcode_macro BED_MESH_CALIBRATE"});
         client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "adaptive");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "cold");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -531,6 +750,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     client.force_next_gcode_dropped_response("G29");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     calibrate_as(panel, "cold");
     const long mesh = first_sent(sent(), "G29");
@@ -580,6 +800,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -591,6 +812,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         client.force_next_gcode_console_reply("BED_MESH_CALIBRATE",
                                               "// Unknown command:\"CLEAN_NOZZLE\"");
         BedMeshPanel panel;
+        panel.set_api(&api);
         panel.init_subjects();
         calibrate_as(panel, "default");
         REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
@@ -603,6 +825,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote its name",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
 
     SECTION("load") {
@@ -625,6 +848,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture, "loading and deleting a profile quote 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a name Klipper would cut short is refused before probing", "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.start_calibration();
     drain();
@@ -637,6 +861,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "renaming a profile to default is refused before anything is sent",
                  "[bed_mesh_flow]") {
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("default");
@@ -654,6 +879,7 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         "// Unable to save to profile [warm], the bed has not been probed");
 
     BedMeshPanel panel;
+    panel.set_api(&api);
     panel.init_subjects();
     panel.show_rename_modal("cold");
     panel.rename_profile_checked("warm");
@@ -678,7 +904,8 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
     BedMeshPanel panel;
 
     BedMeshDialogFixture() {
-        set_moonraker_api(&api);
+        panel.set_api(&api);
+        set_moonraker_api(nullptr); // only panel.set_api() reaches the mock
         StandardMacros::instance().init(helix::PrinterDiscovery{}, "");
         // The dialog binds the panel's calibration subjects by name.
         panel.init_subjects();
@@ -690,7 +917,6 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
             settle();
         }
         settle();
-        set_moonraker_api(nullptr);
     }
 
     /// Let a close finish: the deferred widget delete and any dismissal report.
@@ -745,6 +971,33 @@ class BedMeshDialogFixture : public LVGLUITestFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(BedMeshDialogFixture, "an open panel reads the printer it was handed",
+                 "[bed_mesh_flow]") {
+    store_profiles_on_printer({});
+    REQUIRE(panel.create(test_screen()) != nullptr);
+    auto row = [](const char* field) {
+        const std::string key = std::string("bed_mesh_profile_0_") + field;
+        return lv_xml_get_subject(nullptr, key.c_str());
+    };
+    auto name = [&] { return std::string(lv_subject_get_string(row("name"))); };
+
+    // Opening fills the list from the panel's API, ranges included.
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+    CHECK(std::string(lv_subject_get_string(row("range"))) != "0.000");
+
+    // A printer update refills it through the panel's subscription.
+    lv_subject_set_string(row("name"), "");
+    api.execute_gcode("BED_MESH_PROFILE SAVE=late", nullptr, nullptr);
+    settle();
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+
+    // Coming back to the panel does too.
+    lv_subject_set_string(row("name"), "");
+    panel.on_activate();
+    settle();
+    CHECK(name() == api.advanced().get_bed_mesh_profiles()[0]);
+}
 
 TEST_CASE_METHOD(BedMeshDialogFixture, "dismissing the naming dialog leaves Probe working",
                  "[bed_mesh_flow][bed_mesh_dialog]") {

@@ -13,7 +13,7 @@
  */
 
 #include "../../test_helpers/scoped_env.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 
 #include <cstdlib>
 #include <filesystem>

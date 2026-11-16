@@ -5,21 +5,23 @@
 
 #include "ui_belt_names_modal.h"
 #include "ui_belt_retest_menu.h"
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "belt_gating.h"
 #include "belt_settle.h"
 #include "belt_tension_calibrator.h"
 #include "belt_tension_types.h"
 #include "belt_tune_session.h"
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "live_sweep_preview.h"
 #include "memory_utils.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "platform_capabilities.h"
 #include "resonance_console.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <cstdint>
@@ -125,6 +127,9 @@ class BeltTensionPanel : public OverlayBase {
 
     const char* xml_component() const override {
         return "panel_belt_tension";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     const char* get_name() const override {
@@ -375,6 +380,8 @@ class BeltTensionPanel : public OverlayBase {
     /// path's own series again.
     void clear_previews();
     void run_after_ram_check(std::function<void()> go);
+    /// run_after_ram_check() once the bed is known clear.
+    void run_ram_checked(std::function<void()> go);
     /// Re-check the gate before any sweep starts; false (logged) when it is
     /// shut. `action` names the button in the log.
     [[nodiscard]] bool gate_allows_sweep(const char* action);
@@ -383,101 +390,101 @@ class BeltTensionPanel : public OverlayBase {
     SubjectManager subjects_;
 
     // View state subject lives in the .cpp (static) but registers here.
-    lv_subject_t can_start_subject_{};
-    lv_subject_t gate_message_subject_{};
+    helix::Subject can_start_subject_{};
+    helix::Subject gate_message_subject_{};
     char gate_message_buf_[128] = {};
 
-    lv_subject_t hw_kinematics_subject_{};
+    helix::Subject hw_kinematics_subject_{};
     char hw_kinematics_buf_[64] = {};
-    lv_subject_t hw_accel_subject_{};
+    helix::Subject hw_accel_subject_{};
     char hw_accel_buf_[64] = {};
-    lv_subject_t hw_sweep_subject_{};
+    helix::Subject hw_sweep_subject_{};
     char hw_sweep_buf_[64] = {};
 
-    lv_subject_t run_title_subject_{};
+    helix::Subject run_title_subject_{};
     char run_title_buf_[96] = {};
-    lv_subject_t run_detail_subject_{};
+    helix::Subject run_detail_subject_{};
     char run_detail_buf_[96] = {};
-    lv_subject_t running_path_subject_{};
+    helix::Subject running_path_subject_{};
 
     // Which belt is which: the Identify status in the names dialog
     /// 0 idle, 1 a motor is buzzing, 2 the buzz failed
-    lv_subject_t identify_state_subject_{};
-    lv_subject_t identify_status_subject_{};
+    helix::Subject identify_state_subject_{};
+    helix::Subject identify_status_subject_{};
     char identify_status_buf_[192] = {};
 
     // RESULTS header slots, left then right (helix::ui::belt_path_in_slot)
-    lv_subject_t slot_note_subject_[2]{};
+    helix::Subject slot_note_subject_[2]{};
     char slot_note_buf_[2][64] = {};
-    lv_subject_t slot_name_subject_[2]{};
+    helix::Subject slot_name_subject_[2]{};
     char slot_name_buf_[2][48] = {};
     /// 1 when the left slot shows Path B
-    lv_subject_t slots_swapped_subject_{};
+    helix::Subject slots_swapped_subject_{};
 
-    lv_subject_t verdict_subject_{};
-    lv_subject_t verdict_text_subject_{};
+    helix::Subject verdict_subject_{};
+    helix::Subject verdict_text_subject_{};
     char verdict_text_buf_[128] = {};
-    lv_subject_t facts_subject_{};
+    helix::Subject facts_subject_{};
     char facts_buf_[256] = {};
-    lv_subject_t unpaired_subject_{};
+    helix::Subject unpaired_subject_{};
     char unpaired_buf_[256] = {};
-    lv_subject_t has_unpaired_subject_{};
-    lv_subject_t similarity_subject_{};
+    helix::Subject has_unpaired_subject_{};
+    helix::Subject similarity_subject_{};
     char similarity_buf_[16] = {};
-    lv_subject_t similarity_was_subject_{};
+    helix::Subject similarity_was_subject_{};
     char similarity_was_buf_[32] = {};
-    lv_subject_t has_similarity_was_subject_{};
-    lv_subject_t chart_available_subject_{};
-    lv_subject_t error_message_subject_{};
+    helix::Subject has_similarity_was_subject_{};
+    helix::Subject chart_available_subject_{};
+    helix::Subject error_message_subject_{};
     char error_message_buf_[256] = {};
 
     // Tuning loop
-    lv_subject_t tune_cta_subject_{};
+    helix::Subject tune_cta_subject_{};
     char tune_cta_buf_[32] = {};
-    lv_subject_t tune_phase_subject_{};
-    lv_subject_t tune_kind_subject_{};
-    lv_subject_t tune_dir_subject_{};
-    lv_subject_t tune_path_subject_{};
-    lv_subject_t tune_severity_subject_{};
-    lv_subject_t tune_baseline_subject_{};
-    lv_subject_t tune_has_zone_subject_{};
-    lv_subject_t tune_has_next_zone_subject_{};
-    lv_subject_t tune_shape_warning_subject_{};
-    lv_subject_t tune_instruction_subject_{};
+    helix::Subject tune_phase_subject_{};
+    helix::Subject tune_kind_subject_{};
+    helix::Subject tune_dir_subject_{};
+    helix::Subject tune_path_subject_{};
+    helix::Subject tune_severity_subject_{};
+    helix::Subject tune_baseline_subject_{};
+    helix::Subject tune_has_zone_subject_{};
+    helix::Subject tune_has_next_zone_subject_{};
+    helix::Subject tune_shape_warning_subject_{};
+    helix::Subject tune_instruction_subject_{};
     char tune_instruction_buf_[160] = {};
-    lv_subject_t tune_amount_subject_{};
+    helix::Subject tune_amount_subject_{};
     char tune_amount_buf_[32] = {};
-    lv_subject_t tune_gap_subject_{};
+    helix::Subject tune_gap_subject_{};
     char tune_gap_buf_[24] = {};
-    lv_subject_t tune_gap_caption_subject_{};
+    helix::Subject tune_gap_caption_subject_{};
     char tune_gap_caption_buf_[128] = {};
-    lv_subject_t tune_round_subject_{};
+    helix::Subject tune_round_subject_{};
     char tune_round_buf_[32] = {};
-    lv_subject_t tune_zone_subject_{};
+    helix::Subject tune_zone_subject_{};
     char tune_zone_buf_[48] = {};
-    lv_subject_t tune_rate_subject_{};
+    helix::Subject tune_rate_subject_{};
     char tune_rate_buf_[32] = {};
-    lv_subject_t tune_last_subject_{};
+    helix::Subject tune_last_subject_{};
     char tune_last_buf_[384] = {};
-    lv_subject_t tune_has_last_subject_{};
-    lv_subject_t tune_hint_subject_{};
+    helix::Subject tune_has_last_subject_{};
+    helix::Subject tune_hint_subject_{};
     char tune_hint_buf_[256] = {};
-    lv_subject_t tune_power_hint_subject_{};
+    helix::Subject tune_power_hint_subject_{};
     char tune_power_hint_buf_[512] = {};
-    lv_subject_t tune_has_power_hint_subject_{};
-    lv_subject_t tune_has_gap_subject_{};
-    lv_subject_t tune_unrepeatable_subject_{};
-    lv_subject_t tune_can_swap_subject_{};
-    lv_subject_t tune_range_known_subject_{};
-    lv_subject_t tune_measure_short_label_subject_{};
+    helix::Subject tune_has_power_hint_subject_{};
+    helix::Subject tune_has_gap_subject_{};
+    helix::Subject tune_unrepeatable_subject_{};
+    helix::Subject tune_can_swap_subject_{};
+    helix::Subject tune_range_known_subject_{};
+    helix::Subject tune_measure_short_label_subject_{};
     char tune_measure_short_label_buf_[32] = {};
-    lv_subject_t tune_tensioner_subject_{};
+    helix::Subject tune_tensioner_subject_{};
     char tune_tensioner_buf_[96] = {};
-    lv_subject_t tune_measure_label_subject_{};
+    helix::Subject tune_measure_label_subject_{};
     char tune_measure_label_buf_[48] = {};
-    lv_subject_t tune_confirm_label_subject_{};
+    helix::Subject tune_confirm_label_subject_{};
     char tune_confirm_label_buf_[64] = {};
-    lv_subject_t tune_next_zone_label_subject_{};
+    helix::Subject tune_next_zone_label_subject_{};
     char tune_next_zone_label_buf_[64] = {};
 
     // Gate observers. Every one carries PrinterState's own SubjectLifetime -
@@ -544,13 +551,10 @@ class BeltTensionPanel : public OverlayBase {
     float similarity_percent_ = 0.0f;
     float was_similarity_percent_ = 0.0f;
     std::optional<helix::MemoryInfo> mem_override_;
-    lv_obj_t* low_ram_dialog_ = nullptr;
+    helix::ui::WidgetRef low_ram_dialog_;
     /// The low-RAM warning was accepted in this tuning session; later rounds
     /// do not ask again.
     bool tune_low_ram_accepted_ = false;
-    /// Deactivated for the screensaver: the next activation is a wake, which
-    /// keeps the view, the run and the tuning session.
-    bool suspended_ = false;
     /// RESULTS's Re-test menu on compact layouts.
     helix::ui::BeltRetestMenu retest_menu_;
     /// "Which belt is which?", reshown on each open.

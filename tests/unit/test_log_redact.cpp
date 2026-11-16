@@ -16,7 +16,7 @@
  * punctuation, a vendor-style name with a hex suffix, and non-ASCII bytes.
  */
 
-#include "../../include/log_redact.h"
+#include "../../include/core/log_redact.h"
 
 #include <set>
 #include <string>

@@ -29,6 +29,7 @@
 #include "test_helpers/ace_test_access.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/happy_hare_test_access.h"
 #include "test_helpers/qidi_box_test_access.h"
@@ -76,7 +77,7 @@ namespace {
 /// ties them. A field added to that struct has no name here, so the
 /// static_assert below stops the build and whoever added it has to say which
 /// backends are expected to file it.
-constexpr std::array<const char*, 14> kFieldNames = {"present",
+constexpr std::array<const char*, 15> kFieldNames = {"present",
                                                      "tool_docked",
                                                      "color_rgb",
                                                      "color_name",
@@ -88,6 +89,7 @@ constexpr std::array<const char*, 14> kFieldNames = {"present",
                                                      "spoolman_id",
                                                      "spoolman_filament_id",
                                                      "spoolman_vendor_id",
+                                                     "spoolman_orca_filament_id",
                                                      "remaining_weight_g",
                                                      "total_weight_g"};
 
@@ -126,10 +128,10 @@ std::vector<std::string> filed_on(LaneId lane) {
         name_observed(*sources.sensed, "sensed.", out);
     if (sources.spoolman)
         name_observed(*sources.spoolman, "spoolman.", out);
-    if (sources.local_user)
-        name_observed(*sources.local_user, "local_user.", out);
-    if (sources.vendor_cache)
-        name_observed(*sources.vendor_cache, "vendor_cache.", out);
+    if (sources.pending)
+        name_observed(*sources.pending, "local_user.", out);
+    if (sources.firmware)
+        name_observed(*sources.firmware, "firmware.", out);
     if (sources.metered)
         name_observed(*sources.metered, "metered.", out);
     return out;
@@ -194,25 +196,22 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendAd5xIfs> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendAd5xIfs> harness;
         // The standalone IFS module's own objects. loaded_channels is the
         // decoded silk bitmask (1-based), and ifs_materials is the module's
         // slot table; between them this is everything an AD5X states.
-        Ad5xIfsTestAccess::handle_status(
-            *harness, nlohmann::json{{"ifs",
-                                      {{"connected", true},
-                                       {"channel_count", 4},
-                                       {"activity", "ready"},
-                                       {"active_channel", 1},
-                                       {"loaded_channels", nlohmann::json::array({1})}}}});
-        Ad5xIfsTestAccess::handle_status(
-            *harness,
-            nlohmann::json{
-                {"ifs_materials",
-                 {{"available", true},
-                  {"channel_count", 4},
-                  {"enabled", true},
-                  {"slots", {{"1", {{"type", "PETG"}, {"color", "#ED2C2C"}, {"temp", 250.0}}}}}}}});
+        harness->fire_status(nlohmann::json{{"ifs",
+                                             {{"connected", true},
+                                              {"channel_count", 4},
+                                              {"activity", "ready"},
+                                              {"active_channel", 1},
+                                              {"loaded_channels", nlohmann::json::array({1})}}}});
+        harness->fire_status(nlohmann::json{
+            {"ifs_materials",
+             {{"available", true},
+              {"channel_count", 4},
+              {"enabled", true},
+              {"slots", {{"1", {{"type", "PETG"}, {"color", "#ED2C2C"}, {"temp", 250.0}}}}}}}});
         out.push_back({"AD5X IFS", filed_on(harness.lane(0))});
     }
 
@@ -236,19 +235,18 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendCfs> harness(nullptr, nullptr);
-        CfsTestAccess::handle_status(
-            *harness,
-            status_frame("box", nlohmann::json{{"api_version", 1},
-                                               {"slots", nlohmann::json::array({nlohmann::json{
-                                                             {"index", 0},
-                                                             {"material", "PLA"},
-                                                             {"brand", "Creality"},
-                                                             {"name", "Hyper PLA"},
-                                                             {"color", "#ED2C2C"},
-                                                             {"present", true},
-                                                             {"loaded", false},
-                                                             {"spoolman_id", 7}}})}}));
+        helix::test::RegisteredWired<AmsBackendCfs> harness;
+        harness->fire_status(status_frame(
+            "box", nlohmann::json{
+                       {"api_version", 1},
+                       {"slots", nlohmann::json::array({nlohmann::json{{"index", 0},
+                                                                       {"material", "PLA"},
+                                                                       {"brand", "Creality"},
+                                                                       {"name", "Hyper PLA"},
+                                                                       {"color", "#ED2C2C"},
+                                                                       {"present", true},
+                                                                       {"loaded", false},
+                                                                       {"spoolman_id", 7}}})}}));
         out.push_back({"CFS", filed_on(harness.lane(0))});
     }
 
@@ -272,23 +270,23 @@ std::vector<BackendCensus> census_of_every_backend() {
     }
 
     {
-        RegisteredBackend<AmsBackendQidi> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendQidi> harness;
         QidiBoxTestAccess::apply_filas_list(*harness, kQidiFilasList);
         // The Box states identity as ids into its own tables and presence as a
         // per-slot state word, both in save_variables. Unwrapped rather than
         // enveloped because this backend's handler reads the object directly.
-        QidiBoxTestAccess::handle_status(*harness, nlohmann::json{{"save_variables",
-                                                                   {{"variables",
-                                                                     {{"box_count", 1},
-                                                                      {"slot0", 1},
-                                                                      {"filament_slot0", 12},
-                                                                      {"color_slot0", 5},
-                                                                      {"vendor_slot0", 3}}}}}});
+        harness->fire_status(nlohmann::json{{"save_variables",
+                                             {{"variables",
+                                               {{"box_count", 1},
+                                                {"slot0", 1},
+                                                {"filament_slot0", 12},
+                                                {"color_slot0", 5},
+                                                {"vendor_slot0", 3}}}}}});
         out.push_back({"Qidi", filed_on(harness.lane(0))});
     }
 
     {
-        RegisteredBackend<AmsBackendSnapmaker> harness(nullptr, nullptr);
+        helix::test::RegisteredWired<AmsBackendSnapmaker> harness;
         nlohmann::json frame = status_frame(
             "filament_detect",
             nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
@@ -305,7 +303,7 @@ std::vector<BackendCensus> census_of_every_backend() {
         // for sensed.present to be filed.
         frame["params"][0]["filament_feed left"] =
             nlohmann::json{{"extruder0", nlohmann::json{{"filament_detected", true}}}};
-        SnapmakerTestAccess::handle_status(*harness, frame);
+        harness->fire_status(frame);
         out.push_back({"Snapmaker", filed_on(harness.lane(0))});
     }
 
@@ -335,27 +333,27 @@ const std::vector<BackendCensus>& expected_census() {
     static const std::vector<BackendCensus> table = {
         // The hub reports an occupancy status and its own memory of a bay's
         // colour and type. It reads no tag and weighs nothing.
-        {"ACE", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        {"ACE", {"sensed.present", "firmware.color_rgb", "firmware.material"}},
         // Adventurer5M.json remembers colour and type across an eject; the silk
         // sensors answer presence.
-        {"AD5X IFS", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        {"AD5X IFS", {"sensed.present", "firmware.color_rgb", "firmware.material"}},
         // The widest producer in the fleet, and the only one that meters: AFC's
         // own store keeps four identity fields and a Spoolman binding, and its
         // weight is a second source rather than more of the same record.
         {"AFC",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.spool_name", "vendor_cache.spoolman_id", "metered.remaining_weight_g",
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.spool_name", "firmware.spoolman_id", "metered.remaining_weight_g",
           "metered.total_weight_g"}},
         // The CFS reads a tag that names a PRODUCT, which is a different
         // question from what a spool is called.
         {"CFS",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.product_name", "vendor_cache.spoolman_id"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.product_name", "firmware.spoolman_id"}},
         // mmu_vars.cfg remembers a declaration somebody made once. Gate status
         // is the only thing Happy Hare senses.
         {"Happy Hare",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material",
-          "vendor_cache.spool_name", "vendor_cache.spoolman_id"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.spool_name",
+          "firmware.spoolman_id"}},
         // Bounded to what real firmware states: the simulated population carries
         // a brand, a spool name, a colour name, a Spoolman id and a weight, and
         // files none of them, because no machine in the fleet reports them.
@@ -366,19 +364,19 @@ const std::vector<BackendCensus>& expected_census() {
         // where no edit has landed yet: it files once, at the tail of start(),
         // and its presence reading does not follow the simulated load. The
         // single call site is what holds that, and a lint gate in
-        // tests/shell/test_code_lint.bats holds the single call site.
-        {"Mock", {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material"}},
+        // scripts/code_lint.sh holds the single call site.
+        {"Mock",
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.spool_name",
+          "firmware.spoolman_id"}},
         // Saved ids resolved against the Box's own tables. A jam still reports
         // filament, so presence comes from the state word.
-        {"Qidi",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material",
-          "vendor_cache.brand"}},
+        {"Qidi", {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand"}},
         // The one firmware in the fleet whose tag states a weight, which makes
         // this the only total_weight_g filed as identity rather than as a meter
         // reading. AFC's total is the meter's.
         {"Snapmaker",
-         {"sensed.present", "vendor_cache.color_rgb", "vendor_cache.material", "vendor_cache.brand",
-          "vendor_cache.product_name", "vendor_cache.total_weight_g"}},
+         {"sensed.present", "firmware.color_rgb", "firmware.material", "firmware.brand",
+          "firmware.product_name", "firmware.total_weight_g"}},
         // klipper-toolchanger senses docking and states nothing else. A lane
         // here carries no identity record at all, and no filament-presence
         // reading either: the dock answer is a toolhead, not a spool, so it
@@ -453,56 +451,53 @@ TEST_CASE_METHOD(LVGLTestFixture, "a firmware name reaches the field its own ven
                                         {"gate_name", nlohmann::json::array({"Galaxy Black"})}}));
 
         const auto lane = lane_sources(harness.lane(0));
-        REQUIRE(lane.vendor_cache.has_value());
-        CHECK(lane.vendor_cache->spool_name == "Galaxy Black");
-        CHECK_FALSE(lane.vendor_cache->product_name.has_value());
+        REQUIRE(lane.firmware.has_value());
+        CHECK(lane.firmware->spool_name == "Galaxy Black");
+        CHECK_FALSE(lane.firmware->product_name.has_value());
     }
 
     {
         // The CFS tag's `name` is which PRODUCT the bay holds.
-        RegisteredBackend<AmsBackendCfs> harness(nullptr, nullptr);
-        CfsTestAccess::handle_status(
-            *harness,
-            status_frame("box", nlohmann::json{{"api_version", 1},
-                                               {"slots", nlohmann::json::array({nlohmann::json{
-                                                             {"index", 0},
-                                                             {"material", "PLA"},
-                                                             {"name", "Hyper PLA"},
-                                                             {"present", true},
-                                                             {"loaded", false}}})}}));
+        helix::test::RegisteredWired<AmsBackendCfs> harness;
+        harness->fire_status(status_frame(
+            "box",
+            nlohmann::json{{"api_version", 1},
+                           {"slots", nlohmann::json::array({nlohmann::json{{"index", 0},
+                                                                           {"material", "PLA"},
+                                                                           {"name", "Hyper PLA"},
+                                                                           {"present", true},
+                                                                           {"loaded", false}}})}}));
 
         const auto lane = lane_sources(harness.lane(0));
-        REQUIRE(lane.vendor_cache.has_value());
-        CHECK(lane.vendor_cache->product_name == "Hyper PLA");
-        CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+        REQUIRE(lane.firmware.has_value());
+        CHECK(lane.firmware->product_name == "Hyper PLA");
+        CHECK_FALSE(lane.firmware->spool_name.has_value());
     }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Snapmaker's observation and its SlotInfo part over SUB_TYPE",
                  "[lane][ingest][census]") {
-    RegisteredBackend<AmsBackendSnapmaker> harness(nullptr, nullptr);
+    helix::test::RegisteredWired<AmsBackendSnapmaker> harness;
 
-    SnapmakerTestAccess::handle_status(
-        *harness,
-        status_frame(
-            "filament_detect",
-            nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
-                           {"info", nlohmann::json::array({nlohmann::json{
-                                        {"MAIN_TYPE", "PLA"},
-                                        {"SUB_TYPE", "Silk"},
-                                        {"MANUFACTURER", "Snapmaker"},
-                                        {"ARGB_COLOR", 0xFFED2C2C},
-                                        {"CARD_UID", nlohmann::json::array({144, 32, 196, 2})},
-                                    }})}}));
+    harness->fire_status(status_frame(
+        "filament_detect",
+        nlohmann::json{{"state", nlohmann::json::array({1, 0, 0, 0})},
+                       {"info", nlohmann::json::array({nlohmann::json{
+                                    {"MAIN_TYPE", "PLA"},
+                                    {"SUB_TYPE", "Silk"},
+                                    {"MANUFACTURER", "Snapmaker"},
+                                    {"ARGB_COLOR", 0xFFED2C2C},
+                                    {"CARD_UID", nlohmann::json::array({144, 32, 196, 2})},
+                                }})}}));
 
     // One parse, two destinations, and they deliberately disagree: the record
     // calls SUB_TYPE the product line it is, while SlotInfo keeps the spelling
     // the UI has always read. Reading one and expecting the other is the
     // mistake this case exists to catch.
     const auto lane = lane_sources(harness.lane(0));
-    REQUIRE(lane.vendor_cache.has_value());
-    CHECK(lane.vendor_cache->product_name == "Silk");
-    CHECK_FALSE(lane.vendor_cache->spool_name.has_value());
+    REQUIRE(lane.firmware.has_value());
+    CHECK(lane.firmware->product_name == "Silk");
+    CHECK_FALSE(lane.firmware->spool_name.has_value());
     CHECK(harness->get_slot_info(0).spool_name == "Silk");
 }
 
@@ -562,7 +557,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a tool changer's presence reading is a dock, 
 
     // A consumer treating tool_docked as an identity statement has nothing
     // here: no identity record exists on any of the three lanes.
-    CHECK_FALSE(docked.vendor_cache.has_value());
-    CHECK_FALSE(carriage.vendor_cache.has_value());
-    CHECK_FALSE(removed.vendor_cache.has_value());
+    CHECK_FALSE(docked.firmware.has_value());
+    CHECK_FALSE(carriage.firmware.has_value());
+    CHECK_FALSE(removed.firmware.has_value());
 }

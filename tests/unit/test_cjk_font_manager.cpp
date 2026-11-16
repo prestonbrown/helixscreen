@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "cjk_filename_glyphs.h"
 #include "cjk_font_manager.h"
+#include "core/gcode_filename.h"
+#include "theme_manager.h"
 
 #include <filesystem>
 
@@ -129,9 +133,9 @@ TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: unload clears fallback 
     REQUIRE(noto_sans_14.fallback == nullptr);
 }
 
-// The bake (scripts/regen_text_fonts.sh) and the mapping tables
-// (kRegularFonts/kBoldFonts/kLightFonts in cjk_font_manager.cpp) are two
-// hand-maintained lists that must name the same faces. A face compiled with
+// The bake (scripts/regen_text_fonts.sh) and the face table
+// (include/cjk_font_faces.inc) are two hand-maintained lists that must name
+// the same faces. A face compiled with
 // no mapping entry renders CJK text as tofu; a mapping entry naming a bin
 // that was never baked (or has since been removed) silently loads nothing
 // for that face. Both failures leave loaded_font_count() short of the number
@@ -185,4 +189,88 @@ TEST_CASE_METHOD(CjkFontManagerFixture,
     // Double shutdown is safe
     mgr.shutdown();
     REQUIRE_FALSE(mgr.is_loaded());
+}
+
+// 猫 is in the filename bins and not in the translation set, so only the
+// filename glyphs can draw it; 测 is in the translation bins only.
+constexpr uint32_t kFilenameOnlyGlyph = 0x732b;
+constexpr uint32_t kTranslationGlyph = 0x6d4b;
+
+class CjkFilenameFixture : public LVGLUITestFixture {
+  public:
+    ~CjkFilenameFixture() override {
+        helix::gcode::set_displayed_filename_hook(nullptr);
+        CjkFontManager::instance().shutdown();
+    }
+
+    static bool filename_fonts_draw(uint32_t codepoint) {
+        for (const char* token : {"font_body", "font_small", "font_xs"}) {
+            lv_font_glyph_dsc_t dsc;
+            if (!lv_font_get_glyph_dsc(theme_manager_get_font(token), &dsc, codepoint, 0))
+                return false;
+        }
+        return true;
+    }
+};
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: a CJK filename loads filename glyphs, an ASCII one does not",
+                 "[cjk_font][cjk_filename]") {
+    auto& mgr = CjkFontManager::instance();
+    helix::init_cjk_fonts("en");
+
+    helix::gcode::get_display_filename("models/benchy_v2.gcode");
+    REQUIRE(mgr.filename_glyph_sizes().empty());
+    REQUIRE_FALSE(filename_fonts_draw(kFilenameOnlyGlyph));
+
+    helix::gcode::get_display_filename("models/猫测试.gcode");
+    CHECK_FALSE(mgr.filename_glyph_sizes().empty());
+    CHECK_FALSE(mgr.is_loaded());
+    CHECK(filename_fonts_draw(kFilenameOnlyGlyph));
+    CHECK(filename_fonts_draw(kTranslationGlyph));
+}
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: filename glyphs survive a switch to zh and back",
+                 "[cjk_font][cjk_filename]") {
+    auto& mgr = CjkFontManager::instance();
+    helix::init_cjk_fonts("en");
+    helix::gcode::get_display_filename("猫.gcode");
+    REQUIRE(filename_fonts_draw(kFilenameOnlyGlyph));
+
+    mgr.on_language_changed("zh");
+    CHECK(filename_fonts_draw(kFilenameOnlyGlyph));
+    CHECK(filename_fonts_draw(kTranslationGlyph));
+
+    mgr.on_language_changed("en");
+    CHECK_FALSE(mgr.is_loaded());
+    CHECK(filename_fonts_draw(kFilenameOnlyGlyph));
+    CHECK(filename_fonts_draw(kTranslationGlyph));
+
+    mgr.shutdown();
+    CHECK(theme_manager_get_font("font_body")->fallback == nullptr);
+    CHECK_FALSE(filename_fonts_draw(kFilenameOnlyGlyph));
+}
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: a label laid out before the load is measured again after it",
+                 "[cjk_font][cjk_filename]") {
+    const lv_font_t* body = theme_manager_get_font("font_body");
+    auto make_label = [body]() {
+        lv_obj_t* label = lv_label_create(lv_screen_active());
+        lv_obj_set_style_text_font(label, body, 0);
+        lv_label_set_text(label, "猫猫猫猫");
+        return label;
+    };
+    lv_obj_t* early = make_label();
+    lv_obj_update_layout(early);
+    const int32_t placeholder_width = lv_obj_get_width(early);
+
+    helix::init_cjk_fonts("en");
+    helix::gcode::get_display_filename("猫.gcode");
+
+    lv_obj_t* fresh = make_label();
+    lv_obj_update_layout(lv_screen_active());
+    REQUIRE(lv_obj_get_width(fresh) != placeholder_width);
+    CHECK(lv_obj_get_width(early) == lv_obj_get_width(fresh));
 }

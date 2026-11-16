@@ -54,3 +54,17 @@ age_stamp() {
     [ "$status" -eq 0 ]
     grep -qx '\.PHONY: .*'"$STAMP"'.*' <<<"$output"
 }
+
+@test "a parse writes its own temp file, never one a concurrent parse is comparing" {
+    parse
+    age_stamp
+    # Another make in the same tree, mid-write of a different flag set.
+    echo "another parse's flags" >"$STAMP.new"
+    parse
+    [ "$(cat "$STAMP.new")" = "another parse's flags" ]
+    [ "$(stat -c %Y "$STAMP")" = "$(date -d '2000-01-01 00:00:00' +%s)" ]
+    # Its own temp is gone, whichever way the compare went.
+    parse ENABLE_REMOTE_CONTROL=no
+    [ "$(stat -c %Y "$STAMP")" != "$(date -d '2000-01-01 00:00:00' +%s)" ]
+    [ -z "$(find "$OBJ" -maxdepth 1 -name '.build-flags.new.*')" ]
+}

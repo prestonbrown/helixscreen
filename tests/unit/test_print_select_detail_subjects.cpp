@@ -6,15 +6,9 @@
  * @brief Unit tests for print select detail view subject initialization
  *
  * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option heap
- * subjects — the six fixed preprint_* subjects this file used to name were
- * retired in Phase 3.5 (ui_print_select_detail_view.h:618). What is pinned here
- * is the re-show reset: populate() re-initializes every option from
- * default_enabled, so opening a second file cannot inherit the first file's
- * toggles.
- *
- * Bug context for the defaults themselves: switches once defaulted to OFF in
- * XML, so is_option_disabled() returned true even when the user hadn't touched
- * them, triggering false modification warnings when printing without the plugin.
+ * subjects. What is pinned here is the re-show reset: populate() re-initializes
+ * every option from default_enabled, so opening a second file cannot inherit
+ * the first file's toggles.
  *
  * Also covers the detail_mapping_ready skeleton-latch subject: 0 = chips not
  * authoritative (XML skeletons visible), 1 = authoritative chip state rendered.
@@ -29,11 +23,14 @@
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -49,6 +46,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "gcode_ops_detector.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -84,17 +82,6 @@ using helix::test::make_skip_and_addon_set;
 // Pre-print Option Subject Default Tests
 // ============================================================================
 
-// This used to be three TEST_CASEs that each declared their own local
-// lv_subject_t, initialized it, and read the value back — asserting LVGL's own
-// getter and nothing of ours. They named `preprint_bed_mesh` / `preprint_qgl` /
-// `preprint_timelapse`, the six fixed subjects retired in Phase 3.5
-// (ui_print_select_detail_view.h:618); toggle state has lived in
-// PrePrintOptionsRenderer's per-option heap subjects ever since, so the cases
-// could not have gone red no matter what the panel did.
-//
-// The default_enabled -> initial state rule is covered against the real renderer
-// in test_pre_print_options_renderer.cpp:142. What was NOT covered anywhere, and
-// is what these cases claimed to be about, is the reset-on-re-show contract:
 // populate() re-initializes every state subject from default_enabled, so opening
 // a second file cannot inherit the first file's toggles
 // (ui_pre_print_options_renderer.h:105).
@@ -138,6 +125,18 @@ namespace {
 /// at create() time; the handlers themselves don't matter to this subject.
 void detail_noop_cb(lv_event_t* /*e*/) {}
 
+void register_detail_callbacks() {
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_select_more_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+}
+
 using CacheDirGuard = helix::test::ScopedCacheDir;
 
 } // namespace
@@ -155,15 +154,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail_view][subjects][pre_print_options][job_queue]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), make_skip_and_addon_set());
 
@@ -214,15 +205,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "rows come from the macro analysis when the 
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
 
@@ -267,15 +250,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     const bool local_copies = GENERATE(true, false);
     CAPTURE(local_copies);
@@ -322,7 +297,40 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* const row = lv_obj_find_by_name(root, "option_tile_qgl");
     REQUIRE(row != nullptr);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == !local_copies);
+    CHECK(lv_obj_is_hidden(row) == !local_copies);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the detail view observes the printer it was handed",
+                 "[print_select][detail_view]") {
+    CacheDirGuard guard;
+    MockPrinter device;
+    device.state.set_helix_plugin_installed(false);
+    // One drain applies the setter, the next runs the observer it queued.
+    auto settle = [] {
+        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    get_printer_state().set_helix_plugin_installed(true);
+    settle();
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_subject_t* const available = lv_xml_get_subject(nullptr, "detail_gcode_rewrite_available");
+    REQUIRE(available != nullptr);
+    // No printer handed over yet reads as the plugin absent, whatever the app's says.
+    const int plugin_absent = lv_subject_get_int(available);
+    CHECK(plugin_absent == 0);
+
+    view.set_dependencies(&device.api, &device.state);
+    settle();
+    CHECK(lv_subject_get_int(available) == plugin_absent);
+
+    device.state.set_helix_plugin_installed(true);
+    settle();
+    CHECK(lv_subject_get_int(available) != plugin_absent);
+
+    get_printer_state().set_helix_plugin_installed(false);
+    settle();
 }
 
 // An open view follows the analysis as it lands, adding rows and dropping stale ones.
@@ -330,15 +338,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an open detail view rebuilds its rows when 
                  "[print_select][detail_view][pre_print_options][macro_rows]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     PrinterStateTestAccess::set_option_set(get_printer_state(), PrePrintOptionSet{});
 
@@ -393,15 +393,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
 
     // The fixture doesn't init PrintSelectPanel, so the panel's XML callbacks
     // aren't registered — install no-ops before creating the detail view.
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -454,14 +446,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
     }
 
     SECTION("cache hit with NO palette keeps the skeleton until colors settle") {
-        // The K2 Plus regression. Moonraker reports filament_type for an
-        // OrcaSlicer file and no filament_colors at all, so show() gets an
-        // empty palette. The tools-used cache answers the OTHER question
-        // instantly, and readiness used to key off that alone — so the chips
-        // were published built from neutral stand-ins, rendering a grey dot
-        // pointing at the real lane color.
+        // Moonraker reports filament_type for an OrcaSlicer file and no
+        // filament_colors at all, so show() gets an empty palette, while the
+        // tools-used cache answers instantly. Chips published then would be
+        // neutral stand-ins, a grey dot pointing at the real lane color.
         //
-        // Readiness must now wait for the palette question too. "Settled", not
+        // Readiness waits for the palette question too. "Settled", not
         // "non-empty": with no API nothing can ever read the file, so the
         // degrade path settles it and the latch still opens rather than
         // hanging on the skeleton forever.
@@ -530,7 +520,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Sliced colors toggle sits on the preview it
 
     lv_obj_t* const toggle = lv_obj_find_by_name(root, "sliced_colors_toggle");
     REQUIRE(toggle != nullptr);
-    CHECK(lv_obj_has_flag(toggle, LV_OBJ_FLAG_CHECKABLE));
+    CHECK(lv_obj_is_checkable(toggle));
 
     lv_obj_t* const preview = lv_obj_find_by_name(root, "detail_card");
     lv_obj_t* const column = lv_obj_find_by_name(root, "options_section");
@@ -560,15 +550,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Built through the real view rather than make_detail_root(): the two
     // subjects below are registered by PrintSelectDetailView::init_subjects(),
     // so a bare lv_xml_create() finds the toggle but not the subjects driving it.
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -593,16 +575,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // these three: a binding that is wrong in that direction hides the row
     // forever and would still pass a hidden-only test.
     set_state(0, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     set_state(1, 0); // viewer is the preview, but the thumbnail still covers it
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     set_state(0, 1); // a frame exists, but the viewer is not the active preview
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     // Both: the live viewer is what is on screen, the toggle recolours something
     // visible, so the toggle is offered.
     set_state(1, 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // Its checked state follows the preference both ways, so a reopened view
     // (which resets the preference) never shows a stale "on".
@@ -618,16 +600,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // And it goes away again when the viewer does - the binding is reactive, not
     // a one-shot evaluated when the tree was built.
     set_state(0, 1);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     view.hide();
     helix::ui::UpdateQueue::instance().drain();
     lv_timer_handler(); // the close callback runs on the next tick
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "History row sits in the metadata strip and shows the file's last outcome",
                  "[print_select][detail][xml]") {
-    lv_obj_t* const root = make_detail_root(test_screen());
+    register_detail_callbacks();
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
     lv_obj_t* const row = lv_obj_find_by_name(root, "history_status_row");
     lv_obj_t* const strip = lv_obj_find_by_name(root, "detail_metadata_overlay");
@@ -639,6 +625,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
     }
     CHECK(inside);
     CHECK(std::string(lv_obj_get_name(lv_obj_get_parent(row))) == "detail_history_wrap");
+
+    CHECK(lv_obj_is_hidden(row));
+    const struct {
+        FileHistoryStatus status;
+        const char* icon;
+        const char* text;
+    } outcomes[] = {
+        {FileHistoryStatus::CURRENTLY_PRINTING, "history_status_printing", "Currently printing"},
+        {FileHistoryStatus::COMPLETED, "history_status_completed", "Printed 3 times"},
+        {FileHistoryStatus::FAILED, "history_status_failed", "Last print failed"},
+        {FileHistoryStatus::CANCELLED, "history_status_canceled", "Last print canceled"},
+    };
+    for (const auto& o : outcomes) {
+        view.update_history_status(o.status, 3);
+        INFO(o.icon);
+        CHECK_FALSE(lv_obj_is_hidden(row));
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "history_status_label"))) ==
+              o.text);
+        for (const auto& other : outcomes) {
+            CHECK(lv_obj_is_hidden(lv_obj_find_by_name(row, other.icon)) == (&other != &o));
+        }
+    }
+    view.update_history_status(FileHistoryStatus::NEVER_PRINTED, 0);
+    CHECK(lv_obj_is_hidden(row));
+
+    view.hide();
+    helix::ui::UpdateQueue::instance().drain();
+    lv_timer_handler(); // the close callback runs on the next tick
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scroll area",
@@ -652,11 +666,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scrol
     for (lv_obj_t* p = lv_obj_get_parent(print); p; p = lv_obj_get_parent(p)) {
         CHECK(p != scroll);
     }
-    CHECK(lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_scrollable(scroll));
     // The fade must never take touches from the tiles under it.
     lv_obj_t* const cue = lv_obj_find_by_name(root, "detail_options_cue");
     REQUIRE(cue != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(cue, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(cue));
 }
 
 // ============================================================================
@@ -677,15 +691,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // pairing it set up rather than one the seeding chose.
     ScopedAmsBackend ams(1);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -715,14 +721,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const std::vector<std::string> colors{"#FF0000"};
     const std::vector<std::string> materials{"PLA"};
 
-    // sync_external_identity deliberately drops SlotStatus (no real backend accepts a
+    // A slot write deliberately drops SlotStatus (no real backend accepts a
     // user-written status), so the empty case has to go through
     // force_slot_status - see ams_backend_mock.cpp:999.
     auto load_lane = [&ams](uint32_t rgb, const char* material, helix::SlotStatus status) {
         auto slot = ams.backend->get_slot_info(0);
         slot.color_rgb = rgb;
         slot.material = material;
-        ams.backend->sync_external_identity(0, slot);
+        helix::test::apply_edit(*ams.backend, 0, slot);
         ams.backend->force_slot_status(0, status);
     };
 
@@ -806,33 +812,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "One filament card, titled FILAMENTS, with t
     CHECK(lv_obj_find_by_name(rows, "filament_chips") != nullptr);
 }
 
-// The two surfaces used to disagree about exactly one state.
 // FilamentMappingCard::should_show() hides the card for a single-lane print
-// with bypass engaged - a K2 Plus user read a chip as "this maps to lane 2",
-// tapped it to confirm, and printed off the bypass spool. But
-// render_authoritative_chips() computed the SECOND surface as
-// `!mapping_visible && swatches_card_visible_for(...)`, and that rule is TRUE
-// for one tool on any multi-slot printer. Hiding one surface therefore SHOWED
-// the other, and the chips the incident was about stayed on screen anyway.
-// One card behind one predicate leaves nothing to disagree with.
+// with bypass engaged: a chip there reads as "this maps to lane 2", and the job
+// prints off the bypass spool.
 TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no filament chip at all",
                  "[print_select][detail_view][subjects][bypass]") {
     CacheDirGuard guard;
-    // FOUR lanes on purpose. The retired rule asked only "multi-slot printer
-    // AND at least one tool referenced", so a multi-slot backend is what made
-    // the second surface appear for this one-tool file. A single-slot backend
-    // would hide it for an unrelated reason and prove nothing about bypass.
+    // FOUR lanes on purpose: a single-slot backend would hide the card for an
+    // unrelated reason and prove nothing about bypass.
     ScopedAmsBackend ams(4);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -885,7 +875,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
 
         CHECK(lv_subject_get_int(visible) == 0);
         CHECK(lv_subject_get_int(remappable) == 0);
-        CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(card));
         // The teeth. "filament_chip_0" is the first chip the card's repeat
         // builds, so finding one anywhere under the detail root means a chip
         // was drawn.
@@ -900,7 +890,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
         view.show("bypass_one.gcode", "sub", "PLA", palette, materials, kSize, kMtime);
 
         CHECK(lv_subject_get_int(visible) == 1);
-        CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(card));
         CHECK(lv_obj_find_by_name(root, "filament_chip_0") != nullptr);
     }
 }
@@ -911,15 +901,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
 TEST_CASE_METHOD(LVGLUITestFixture, "AMS slots landing after show() reveal the mapping card",
                  "[print_select][detail_view][subjects][filament_mapping]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     // The view observes AmsState's slots version from init_subjects(), so the
     // subjects exist before any backend does.
@@ -955,7 +937,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slots landing after show() reveal the m
 
     // A four-lane backend comes up: one used tool is now worth mapping.
     ams.emplace(4);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(helix::AmsState::instance().get_slot_count_subject()) == 4);
     CHECK(lv_subject_get_int(visible) == 1);
     CHECK(lv_obj_find_by_name(root, "filament_chip_0") != nullptr);
@@ -971,16 +953,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
                  "[print_select][detail_view][subjects][filament_mapping][bypass]") {
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1006,19 +980,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Bypass engaging after show() hides the mapp
 
     REQUIRE(helix::test::unload_for_bypass(*ams.backend));
     REQUIRE(ams.backend->enable_bypass().success());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(helix::AmsState::instance().any_bypass_active());
     CHECK(lv_subject_get_int(visible) == 0);
     CHECK(lv_obj_find_by_name(root, "filament_chip_0") == nullptr);
 }
 
 // The chevron and the card's clickable flag both read color_card_remappable,
-// and it is now published from the same call that publishes the card's
-// visibility. This walks the whole `card_visible && remap available`
-// truth table, because each half fails in its own way: without the first, a
-// hidden card lights a chevron pointing at chips nobody can see (the state the
-// retired second surface used to draw); without the second, a card on a backend
-// with no remap picker cues a tap it would silently drop.
+// published with the card's visibility. This walks the whole `card_visible &&
+// remap available` truth table: without the first, a hidden card lights a chevron
+// pointing at chips nobody can see; without the second, a card on a backend with
+// no remap picker cues a tap it would silently drop.
 TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the backend",
                  "[print_select][detail_view][subjects][remap]") {
     CacheDirGuard guard;
@@ -1026,18 +998,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     // so a one-tool file is not what decides visibility in any section below.
     ScopedAmsBackend ams(4);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
+    view.set_analysis_dependencies(nullptr, &get_printer_state());
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
 
@@ -1096,8 +1061,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         REQUIRE(help != nullptr);
         CHECK_FALSE(lv_obj_has_state(card, LV_STATE_DISABLED));
         CHECK_FALSE(lv_obj_has_state(help, LV_STATE_DISABLED));
-        CHECK(lv_obj_has_flag(help, LV_OBJ_FLAG_CLICKABLE));
-        CHECK_FALSE(lv_obj_has_flag(help, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_clickable(help));
+        CHECK_FALSE(lv_obj_is_hidden(help));
     }
 
     SECTION("GcodeRewrite with the plugin: chevron lit, nothing greyed or explained") {
@@ -1173,6 +1138,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
             get_printer_state().versions_state().get_moonraker_history_degraded_subject(), 0);
     }
 
+    SECTION("a job-file rewrite warns from the handed printer's Moonraker, not the app's") {
+        MockPrinter device;
+        device.state.set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        lv_subject_set_int(device.state.versions_state().get_moonraker_history_degraded_subject(),
+                           1);
+        view.set_analysis_dependencies(&device.api, &device.state);
+        ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+        view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
+
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK(lv_subject_get_int(help_visible) == 1);
+
+        view.hide();
+        helix::ui::UpdateQueue::instance().drain();
+        view.set_analysis_dependencies(nullptr, &get_printer_state());
+    }
+
     SECTION("card shown on a backend with a picker: chevron lit") {
         // Snapmaker U1 shape - mapping not editable inline, but the backend has
         // a native remap picker, so current_remap_block() is None. The known
@@ -1203,11 +1186,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         // single-extruder printer with no AMS - still makes the card worth
         // showing, because the chips say which lane each tool resolves to. A tap
         // opens nothing and must not be advertised.
-        //
-        // Declared explicitly. The plain mock used to answer RemapStrategy::None
-        // for every non-Snapmaker mode, which is what made this case free - and
-        // also what left the picker unreachable under --test for the five
-        // backends that really do declare Native.
         ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::None);
         view.show("two_tools.gcode", "sub", "PLA", two_colors, two_materials, kSize, kMtime);
 
@@ -1220,13 +1198,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
     }
 }
 
-// One tap, one picker. The merged card inherits FilamentMappingCard::create()'s
-// own CLICKED handler; the retired second card carried its own
-// lv_obj_add_event_cb, and moving THAT onto this widget as well would leave two
-// handlers on one object. LVGL fires every matching handler, so a single tap
-// would call the remap opener twice - which on a live screen is the picker
-// opening over itself. Pinned because the obvious way to "move the tap handler
-// to the surviving card" is exactly the way that breaks it.
+// One tap, one picker. The card inherits FilamentMappingCard::create()'s CLICKED
+// handler; LVGL fires every matching handler, so a second one on this widget
+// would open the picker over itself.
 TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap picker once",
                  "[print_select][detail_view][remap]") {
     CacheDirGuard guard;
@@ -1236,15 +1210,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
     // remap strategy).
     ams.backend->set_snapmaker_mode(true);
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1284,18 +1250,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
                  "[print_select][detail_view][remap][filament_mapping][chip_tap]") {
     CacheDirGuard guard;
     ScopedAmsBackend ams(4);
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
+    view.set_analysis_dependencies(nullptr, &get_printer_state());
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
     struct CloseOnExit {
@@ -1393,15 +1352,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
 TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used tools",
                  "[print_select][detail_view][filament_chip]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
     lv_obj_t* const root = view.create(test_screen());
@@ -1415,9 +1366,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
         }
     } closer{view};
 
-    lv_subject_t material{};
+    helix::Subject material{};
     char material_buf[64] = "ABS";
-    lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf), "ABS");
+    material.init_string(material_buf, nullptr, sizeof(material_buf), "ABS");
     view.set_material_text_subject(&material);
     const auto text = [&material] { return std::string(lv_subject_get_string(&material)); };
 
@@ -1432,27 +1383,18 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
     CHECK(text() == "ABS-GF");
 
     // The panel's own write (a late metadata fetch) does not outlast the view.
-    lv_subject_copy_string(&material, "ABS");
+    lv_subject_set_string(&material, "ABS");
     view.publish_material_text();
     CHECK(text() == "ABS-GF");
 
     view.set_material_text_subject(nullptr);
-    lv_subject_deinit(&material);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "No filament system: the loaded chip shows and a tap opens nothing",
                  "[print_select][detail_view][filament_mapping][chip_tap][loaded]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     auto& ams = helix::AmsState::instance();
     ams.init_subjects(true);
     ams.clear_backends();
@@ -1461,10 +1403,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed", "gcode_move"}));
     helix::ToolState::instance().init_tools(hw);
-    helix::SlotInfo spool;
-    spool.material = "PLA";
-    spool.color_rgb = 0xFF0000;
-    ams.set_external_spool_info_in_memory(spool);
     get_printer_state().set_helix_plugin_installed(true);
 
     // A backend that presents no filament system (a K2 with no CFS) still has
@@ -1490,6 +1428,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(ams.get_backend() != nullptr);
     }
     REQUIRE_FALSE(ams.is_available());
+    // Seeded after the backend: registering one starts its lanes, the bypass
+    // lane included, from nothing.
+    helix::SlotInfo spool;
+    spool.material = "PLA";
+    spool.color_rgb = 0xFF0000;
+    helix::AmsStateTestAccess::seed_external_spool(spool);
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1536,7 +1480,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // A spool edit re-judges the chip while the view is open.
     spool.material = "PETG";
-    ams.set_external_spool_info_in_memory(spool);
+    helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 0);
 }
@@ -1559,18 +1503,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // bindings resolve these production names in whatever test builds that
     // view next. A stack subject here dangles for that test (SIGSEGV adding
     // an observer to the dead subject).
-    static lv_subject_t can_print;
-    lv_subject_init_int(&can_print, 0);
+    static helix::Subject can_print;
+    can_print.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_can_print", &can_print);
 
-    static lv_subject_t button_mode;
-    lv_subject_init_int(&button_mode, 0);
+    static helix::Subject button_mode;
+    button_mode.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &button_mode);
 
     static char reason_buf[96];
-    static lv_subject_t reason;
-    lv_subject_init_string(&reason, reason_buf, nullptr, sizeof(reason_buf),
-                           "Printing: start after this job");
+    static helix::Subject reason;
+    reason.init_string(reason_buf, nullptr, sizeof(reason_buf), "Printing: start after this job");
     lv_xml_register_subject(nullptr, "print_select_blocked_reason", &reason);
 
     lv_obj_t* const root = make_detail_root(test_screen());
@@ -1581,7 +1524,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     struct RootDelete {
         lv_obj_t* r;
         ~RootDelete() {
-            if (r && lv_obj_is_valid(r)) {
+            if (r && helix::test::widget_in_tree(r)) {
                 lv_obj_delete(r);
             }
         }
@@ -1594,32 +1537,24 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Blocked: disabled button, reason on screen carrying the subject's text.
     REQUIRE(lv_obj_has_state(print_button, LV_STATE_DISABLED));
-    CHECK_FALSE(lv_obj_has_flag(reason_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason_label));
     CHECK(std::string(lv_label_get_text(reason_label)) == "Printing: start after this job");
 
     // Printable: enabled button, reason gone.
     lv_subject_set_int(&can_print, 1);
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_has_state(print_button, LV_STATE_DISABLED));
-    CHECK(lv_obj_has_flag(reason_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason_label));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scroll area",
                  "[print_select][detail][xml]") {
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     struct CloseOnExit {
         helix::ui::PrintSelectDetailView& v;
@@ -1668,15 +1603,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // toggled and no direct subject write.
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.init_subjects();
@@ -1693,7 +1620,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Before the view is shown there is no estimate: 0 and hidden.
     CHECK(lv_subject_get_int(visible) == 0);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     // First open. show() defers the push; the drain runs on_activate()
     // -> update_prep_time_label() -> recalculate_estimate(), with no metadata.
@@ -1701,7 +1628,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(20);
     CHECK(lv_subject_get_int(visible) == 0);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     FileMetadata metadata;
     metadata.filename = "prep.gcode";
@@ -1711,13 +1638,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(20);
 
     CHECK(lv_subject_get_int(visible) == 1);
-    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(line));
     CHECK(std::string(lv_label_get_text(line)).find("prep time") != std::string::npos);
 
     // The binding is reactive in both directions, not a one-shot at build.
     lv_subject_set_int(visible, 0);
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     // Micro and tiny give the line's row to the options column, estimate or
     // not; small and up keep it.
@@ -1729,11 +1656,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         INFO("breakpoint " << tier);
         lv_subject_set_int(bp, tier);
         process_lvgl(20);
-        CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(line));
     }
     lv_subject_set_int(bp, 2);
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(line));
     lv_subject_set_int(bp, real_bp);
     process_lvgl(20);
 
@@ -1761,6 +1688,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a file's late metadata never lands on the n
     REQUIRE(root != nullptr);
     view.set_dependencies(nullptr, &get_printer_state());
     lv_subject_t* const estimate = view.get_prep_manager()->get_preprint_estimate_subject();
+    // A second view: the estimate belongs to the view whose metadata arrived.
+    helix::ui::PrintSelectDetailView other;
+    other.init_subjects();
+    REQUIRE(other.create(test_screen()) != nullptr);
+    other.set_dependencies(nullptr, &get_printer_state());
 
     FileMetadata a;
     a.filename = "sub/a.gcode";
@@ -1783,6 +1715,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a file's late metadata never lands on the n
     process_lvgl(20);
     const int shown = lv_subject_get_int(estimate);
     REQUIRE(shown > 0);
+    CHECK(lv_subject_get_int(other.get_prep_manager()->get_preprint_estimate_subject()) == 0);
 
     // A's fetch answers last, carrying a hotter bed and nozzle than B's.
     PrintSelectDetailViewTestAccess::apply_file_metadata(view, "sub/a.gcode", a);
@@ -1842,15 +1775,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_select][detail][xml][estimate]") {
     CacheDirGuard guard;
 
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -2068,42 +1993,40 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Picks clear when the user leaves the file, 
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Picks held for a start survive the hide and a same-file re-show",
+                 "Picks held for a start survive the hide for the same file only, never a shutdown",
                  "[print_select][detail_view][pre_start_exclude]") {
     ExcludeObjectHardware hw(true);
     OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
     d.view.toggle_exclude_pick("Cube_id_1");
-
     d.view.hold_picks_for_start(true);
     CHECK(d.view.picks_held_for_start());
-    d.close();
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
 
-    // The start failed: details comes back for the same file with the pick intact.
-    d.view.show("parts.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
-    // The hold is spent by that show; leaving the file now clears.
-    CHECK_FALSE(d.view.picks_held_for_start());
-    d.close();
-    CHECK(d.view.exclude_picks().empty());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "A held pick does not carry over to another file",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-
-    d.view.hold_picks_for_start(true);
-    d.close();
-    d.view.show("other.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK(d.view.exclude_objects().get_excluded_objects().empty());
-    CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
-    CHECK_FALSE(d.view.picks_held_for_start());
+    SECTION("the same file re-shown") {
+        d.close();
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+        // The start failed: details comes back for the same file with the pick intact.
+        d.view.show("parts.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK(d.view.exclude_objects().get_defined_objects().size() == 3);
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+        CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 1);
+        // The hold is spent by that show; leaving the file now clears.
+        CHECK_FALSE(d.view.picks_held_for_start());
+        d.close();
+        CHECK(d.view.exclude_picks().empty());
+    }
+    SECTION("another file") {
+        d.close();
+        d.view.show("other.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK(d.view.exclude_objects().get_excluded_objects().empty());
+        CHECK(OpenDetail::subject_int("detail_exclude_pick_count") == 0);
+        CHECK_FALSE(d.view.picks_held_for_start());
+    }
+    SECTION("leaving for shutdown") {
+        d.view.on_deactivating(DeactivateReason::Shutdown);
+        CHECK(d.view.exclude_picks().empty());
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Every object picked is reported, and dropping picks says so",
@@ -2122,17 +2045,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Every object picked is reported, and droppi
     CHECK(d.view.exclude_picks().empty());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details for shutdown clears picks even while held",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-    d.view.hold_picks_for_start(true);
-
-    d.view.on_deactivating(DeactivateReason::Shutdown);
-    CHECK(d.view.exclude_picks().empty());
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "The details skip button sits in the preview's top-left corner with a pick count",
                  "[print_select][detail_view][pre_start_exclude]") {
@@ -2144,10 +2056,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(btn != nullptr);
     REQUIRE(card != nullptr);
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
     // The row around the button leaves taps in its gaps to the preview.
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(root, "detail_top_left_row"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(lv_obj_find_by_name(root, "detail_top_left_row")));
 
     lv_obj_update_layout(root);
     lv_area_t b, c;
@@ -2161,13 +2072,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* count = lv_obj_find_by_name(btn, "objects_pick_count");
     REQUIRE(count != nullptr);
-    CHECK(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(count));
 
     d.view.toggle_exclude_pick("Cube_id_1");
     d.view.toggle_exclude_pick("Cone_id_0");
     OpenDetail::settle();
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(count));
     CHECK(std::string(lv_label_get_text(lv_obj_get_child(count, 0))) == "2");
 }
 
@@ -2178,7 +2089,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details skip button hides for a single-
     process_lvgl(20);
     lv_obj_t* btn = lv_obj_find_by_name(d.view.get_widget(), "btn_detail_objects");
     REQUIRE(btn != nullptr);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -2199,7 +2110,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
     OpenDetail::settle();
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(lv_obj_get_child(rows, 1), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(lv_obj_get_child(rows, 1)));
 
     lv_obj_send_event(lv_obj_get_child(rows, 1), LV_EVENT_CLICKED, nullptr);
     CHECK(d.view.exclude_picks().empty());
@@ -2231,35 +2142,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Leaving details closes exclude mode",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.close();
-    process_lvgl(50);
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "A suspend closes exclude mode and keeps the picks",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_pick("Cube_id_1");
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.view.on_deactivating(DeactivateReason::Suspended);
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude mode",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Exclude mode closes on leaving, a suspend, a viewer clear or another file",
                  "[print_select][detail_view][pre_start_exclude]") {
     ExcludeObjectHardware hw(true);
     OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
@@ -2270,24 +2154,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude 
     OpenDetail::settle();
     REQUIRE(d.view.is_exclude_mode_open());
 
-    // What the memory-pressure responder does to every live viewer.
-    helix::ui::gcode_viewer_clear_all_active();
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
-    CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Showing the open view for another file closes exclude mode",
-                 "[print_select][detail_view][pre_start_exclude]") {
-    ExcludeObjectHardware hw(true);
-    OpenDetail d(test_screen(), "parts.gcode", kThreeParts);
-    d.view.toggle_exclude_mode();
-    OpenDetail::settle();
-    REQUIRE(d.view.is_exclude_mode_open());
-
-    d.view.show("other.gcode", "", "PLA");
-    OpenDetail::settle();
-    CHECK_FALSE(d.view.is_exclude_mode_open());
+    SECTION("leaving details") {
+        d.close();
+        process_lvgl(50);
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+    }
+    SECTION("a suspend keeps the picks") {
+        d.view.on_deactivating(DeactivateReason::Suspended);
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    }
+    SECTION("a viewer clear keeps the picks") {
+        // What the memory-pressure responder does to every live viewer.
+        helix::ui::gcode_viewer_clear_all_active();
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+        CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
+    }
+    SECTION("showing another file") {
+        d.view.show("other.gcode", "", "PLA");
+        OpenDetail::settle();
+        CHECK_FALSE(d.view.is_exclude_mode_open());
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Picks the skip option no longer offers are never sent",
@@ -2439,7 +2328,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
     lv_obj_t* viewer = lv_obj_find_by_name(d.view.get_widget(), "detail_gcode_viewer");
     REQUIRE(viewer != nullptr);
     auto& queue = helix::ui::UpdateQueue::instance();
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
 
     int loaded = 0;
     PrintSelectDetailViewTestAccess::begin_viewer_load(
@@ -2456,7 +2345,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
     REQUIRE(loaded == 0);
 
     d.view.cleanup();
-    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    queue.drain_until_empty();
     // What was queued was the parse result: the viewer installed it.
     REQUIRE(helix::ui::gcode_viewer_has_content(viewer));
     CHECK(loaded == 0);
@@ -2483,15 +2372,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A scan answering after cleanup never reache
 TEST_CASE_METHOD(LVGLUITestFixture, "cleanup after the tree is deleted forgets the dead viewer",
                  "[print_select][detail_view]") {
     CacheDirGuard guard;
-    register_xml_callbacks({
-        {"on_print_select_detail_backdrop", detail_noop_cb},
-        {"on_print_select_print_button", detail_noop_cb},
-        {"on_print_select_delete_button", detail_noop_cb},
-        {"on_print_select_more_button", detail_noop_cb},
-        {"on_print_detail_back_clicked", detail_noop_cb},
-        {"on_toggle_sliced_colors", detail_noop_cb},
-        {"on_print_select_detail_objects", detail_noop_cb},
-    });
+    register_detail_callbacks();
 
     helix::ui::PrintSelectDetailView view;
     view.set_dependencies(nullptr, &get_printer_state());
@@ -2527,7 +2408,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show after the tree is deleted externally r
     OpenDetail::settle();
     lv_obj_t* const root = d.view.get_widget();
     REQUIRE(root != nullptr);
-    CHECK(lv_obj_is_valid(root));
+    CHECK(helix::test::widget_in_tree(root));
     CHECK(lv_obj_find_by_name(root, "print_button") != nullptr);
     CHECK(PrintSelectDetailViewTestAccess::gcode_viewer(d.view) != nullptr);
 }
@@ -2605,59 +2486,56 @@ struct ShownDetail {
 };
 
 bool hidden(lv_obj_t* obj) {
-    return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj == nullptr || lv_obj_is_hidden(obj);
 }
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "No plugin item leaves the print row unchanged",
+TEST_CASE_METHOD(LVGLUITestFixture, "A plugin print_file item, and only one, adds the more button",
                  "[print_select][detail_view][plugin_menu]") {
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    CHECK(hidden(d.find("more_button")));
-    CHECK_FALSE(hidden(ui_button_get_label(d.find("print_button"))));
-    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_detail_has_plugin_items")) == 0);
+    SECTION("no plugin item leaves the print row unchanged") {
+        ShownDetail d(test_screen());
+        process_lvgl(20);
+        CHECK(hidden(d.find("more_button")));
+        CHECK_FALSE(hidden(ui_button_get_label(d.find("print_button"))));
+        CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "print_detail_has_plugin_items")) ==
+              0);
+    }
+    SECTION("an item adds the more button and drops the print label") {
+        PluginMenuHost host(kFileItem);
+        ShownDetail d(test_screen());
+        process_lvgl(20);
+        CHECK_FALSE(hidden(d.find("more_button")));
+        CHECK(hidden(ui_button_get_label(d.find("print_button"))));
+    }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "A plugin print_file item adds the more button",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The more button passes a printer file's path, a USB file's none",
                  "[print_select][detail_view][plugin_menu]") {
+    struct Row {
+        const char* local_path; // "": a printer file
+        const char* source;
+        const char* path;
+        const char* local;
+    };
+    const Row row =
+        GENERATE(Row{"/media/usb0/benchy.gcode", "usb", "nil", "/media/usb0/benchy.gcode"},
+                 Row{"", "printer", "boats/benchy.gcode", "nil"});
+    CAPTURE(row.source);
     PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    CHECK_FALSE(hidden(d.find("more_button")));
-    CHECK(hidden(ui_button_get_label(d.find("print_button"))));
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "The more button on a USB file passes no path",
-                 "[print_select][detail_view][plugin_menu]") {
-    PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen(), "/media/usb0/benchy.gcode");
+    ShownDetail d(test_screen(), row.local_path);
     process_lvgl(20);
     d.view.show_plugin_actions();
     lv_obj_t* label = d.find("item_label");
     REQUIRE(label);
     CHECK(std::string(lv_label_get_text(label)) == "Do the thing");
     lv_obj_send_event(lv_obj_get_parent(lv_obj_get_parent(label)), LV_EVENT_CLICKED, nullptr);
-    CHECK(host.global("seen_source") == "usb");
-    CHECK(host.global("seen_path") == "nil");
-    CHECK(host.global("seen_local") == "/media/usb0/benchy.gcode");
+    CHECK(host.global("seen_source") == row.source);
+    CHECK(host.global("seen_path") == row.path);
+    CHECK(host.global("seen_local") == row.local);
     // Metadata had not arrived: absent, never 0.
     CHECK(host.global("seen_time") == "nil");
-    process_lvgl(20);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "The more button on a printer file passes its path",
-                 "[print_select][detail_view][plugin_menu]") {
-    PluginMenuHost host(kFileItem);
-    ShownDetail d(test_screen());
-    process_lvgl(20);
-    d.view.show_plugin_actions();
-    lv_obj_t* label = d.find("item_label");
-    REQUIRE(label);
-    lv_obj_send_event(lv_obj_get_parent(lv_obj_get_parent(label)), LV_EVENT_CLICKED, nullptr);
-    CHECK(host.global("seen_source") == "printer");
-    CHECK(host.global("seen_path") == "boats/benchy.gcode");
-    CHECK(host.global("seen_local") == "nil");
     process_lvgl(20);
 }
 #endif // HELIX_HAS_PLUGINS

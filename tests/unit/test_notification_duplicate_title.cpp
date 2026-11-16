@@ -21,10 +21,10 @@
 // must agree with it.
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "action_prompt_modal.h"
+#include "core/update_queue.h"
 #include "recovery_modal_presenter.h"
 
 #include <string>

@@ -8,7 +8,7 @@
 #include "ui_swatch.h"
 
 #include "ams_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 #include "panel_widget_registry.h"
 
 #include <spdlog/spdlog.h>

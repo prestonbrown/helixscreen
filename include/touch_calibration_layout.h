@@ -17,8 +17,8 @@
  * target reports a coordinate that lands in the header strip, where a clickable
  * control (e.g. the header Back button) absorbs the press.
  *
- * These free functions factor out the reparent-to-screen logic the two callers
- * previously duplicated, plus a small "lift a control above the capture surface"
+ * These free functions hold the reparent-to-screen logic both callers share,
+ * plus a small "lift a control above the capture surface"
  * helper used to keep an escape affordance (Next/Skip group, Cancel chip)
  * clickable while the full-screen capture surface is armed.
  */
@@ -61,8 +61,8 @@ CaptureSurfaceWidgets reparent_capture_surface_fullscreen(lv_obj_t* screen_root)
 struct RaisedControl {
     lv_obj_t* obj = nullptr;
     lv_obj_t* original_parent = nullptr;
-    lv_coord_t orig_w = 0;
-    lv_coord_t orig_h = 0;
+    int32_t orig_w = 0;
+    int32_t orig_h = 0;
 };
 
 /**

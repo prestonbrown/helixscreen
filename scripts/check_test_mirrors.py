@@ -103,6 +103,8 @@ import re
 import sys
 from pathlib import Path
 
+from source_strip import blank_cxx
+
 OPT_OUT = re.compile(r'//\s*TEST_MIRROR_OK\s*:')
 
 # "Mirrors Foo::bar()", "replicated from baz.cpp", "same logic as X", ...
@@ -193,13 +195,6 @@ def same_symbol(a: str, b: str) -> bool:
     return long_ == short or long_.endswith('::' + short)
 
 
-def strip_comments_and_strings(code: str) -> str:
-    code = re.sub(r'//[^\n]*', '', code)
-    code = re.sub(r'/\*.*?\*/', '', code, flags=re.S)
-    code = re.sub(r"'(?:\\.|[^'\\])'", "''", code)
-    return re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
-
-
 def scan_stub_logic(root: Path):
     """Signal 4: branching stubs standing in for objects filtered out of the test link."""
     stubbed = set()
@@ -230,7 +225,7 @@ def scan_stub_logic(root: Path):
             name = m.group('name')
             if not any(same_symbol(qual, q) for q in by_name.get(name, ())):
                 continue
-            body = strip_comments_and_strings(function_body(text, m.end() - 1))
+            body = blank_cxx(function_body(text, m.end() - 1), strings="body")
             if not CONTROL_FLOW.search(body):
                 continue
             i = text[:m.start()].count('\n') + 1

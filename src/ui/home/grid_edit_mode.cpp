@@ -1,0 +1,3248 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "grid_edit_mode.h"
+
+#include "ui_next_tick.h"
+#include "ui_tile_edit_callout.h"
+#include "ui_toast_manager.h"
+#include "ui_utils.h"
+#include "ui_widget_catalog_overlay.h"
+
+#include "app_globals.h"
+#include "core/timer_guard.h"
+#include "display_settings_manager.h"
+#include "grid_layout.h"
+#include "lvgl.h"
+#include "panel_widget.h"
+#include "panel_widget_config.h"
+#include "panel_widget_manager.h"
+#include "panel_widget_registry.h"
+#include "panel_widget_size.h"
+#include "theme_manager.h"
+
+#include <spdlog/spdlog.h>
+
+#include <algorithm>
+#include <cmath>
+#include <unordered_set>
+
+namespace helix {
+
+// Edit previews: the grid-snapped landing preview and the pixel-following
+// resize outline. Both are four bars on lv_layer_top() rather than one bordered
+// box in the page: LVGL repaints an object's whole area when it moves, and a
+// child of the page dirties the page's grid layout, which lays out the whole
+// screen on the next refresh. A bar on the top layer repaints only its strip
+// and lays out only the top layer.
+static constexpr int kSnapPreviewWidth = 3;
+static constexpr int kResizeOutlineWidth = 2;
+
+/// Create the four bars of an outline on the top layer, if they do not exist.
+static void ensure_outline(std::array<helix::ui::WeakWidget, 4>& bars, lv_obj_t* screen_obj) {
+    if (bars[0]) {
+        return;
+    }
+    lv_obj_t* layer = lv_display_get_layer_top(lv_obj_get_display(screen_obj));
+    for (helix::ui::WeakWidget& bar : bars) {
+        bar = lv_obj_create(layer);
+        lv_obj_set_clickable(bar, false);
+        lv_obj_set_scrollable(bar, false);
+        lv_obj_set_style_border_width(bar, 0, 0);
+        lv_obj_set_style_radius(bar, 0, 0);
+        lv_obj_set_style_pad_all(bar, 0, 0);
+    }
+}
+
+/// Lay the four bars of an outline (top, bottom, left, right), @p t thick,
+/// around the box at screen point (@p x, @p y), @p w by @p h.
+static void place_outline(const std::array<helix::ui::WeakWidget, 4>& bars, int t, int x, int y,
+                          int w, int h) {
+    const int rects[4][4] = {
+        {x, y, w, t}, {x, y + h - t, w, t}, {x, y, t, h}, {x + w - t, y, t, h}};
+    for (size_t i = 0; i < bars.size(); ++i) {
+        lv_obj_set_pos(bars[i], rects[i][0], rects[i][1]);
+        lv_obj_set_size(bars[i], rects[i][2], rects[i][3]);
+    }
+}
+
+/// Paint every bar of an outline @p color at @p opa, leaving a bar already
+/// painted that way untouched: a style set repaints the bar.
+static void color_outline(const std::array<helix::ui::WeakWidget, 4>& bars, lv_color_t color,
+                          lv_opa_t opa) {
+    for (lv_obj_t* bar : bars) {
+        if (!lv_color_eq(lv_obj_get_style_bg_color(bar, LV_PART_MAIN), color)) {
+            lv_obj_set_style_bg_color(bar, color, 0);
+        }
+        if (lv_obj_get_style_bg_opa(bar, LV_PART_MAIN) != opa) {
+            lv_obj_set_style_bg_opa(bar, opa, 0);
+        }
+    }
+}
+
+/// Retire every bar of @p bars, leaving it all null.
+static void delete_outline(std::array<helix::ui::WeakWidget, 4>& bars) {
+    for (helix::ui::WeakWidget& bar : bars) {
+        helix::ui::safe_delete_deferred(bar);
+    }
+}
+
+// Resize edge detection. The grab band is derived from the grid's cell size in
+// edge_hit_band_for_cell() so the target scales with the panel. The fallback
+// applies before a grid exists, when no cell size is known.
+static constexpr int kEdgeHitFallback = 18;
+static constexpr int kEdgeHitMin = 14;
+static constexpr int kEdgeHitMax = 32;
+static constexpr float kEdgeHitCellDivisor = 6.0f;
+// The touch_target_min token's value, for a theme that has not registered it.
+static constexpr int kMinDragTargetFallback = 48;
+
+static bool point_in_area(lv_point_t p, const lv_area_t& a) {
+    return p.x >= a.x1 && p.x <= a.x2 && p.y >= a.y1 && p.y <= a.y2;
+}
+
+// disable_widget_clicks_recursive() is in ui_utils.h (helix::ui namespace)
+using helix::ui::disable_widget_clicks_recursive;
+
+GridEditMode::GridEditMode() = default;
+
+GridEditMode::~GridEditMode() {
+    if (active_) {
+        exit();
+    }
+    // Unconditional, not just when active_: the snap animation's completion
+    // callback holds a raw `this`, and Application::shutdown() only reaches
+    // lv_anim_delete_all() after the owning panel has been destroyed.
+    cancel_snap_animation();
+}
+
+bool GridEditMode::cancel_snap_animation() {
+    // Drop our handle BEFORE cancelling. lv_anim_delete() runs the animation's
+    // deleted_cb synchronously and that callback writes this same member, so
+    // the order keeps it from racing us back to a stale value.
+    ResizeOutline outline = snap_anim_outline_;
+    lv_obj_t* target = outline[0];
+    const std::string widget_id = snap_anim_widget_id_;
+    const ResizeResult cell = snap_anim_cell_;
+    lv_obj_t* page = snap_anim_page_;
+    snap_anim_outline_ = {};
+    snap_anim_widget_id_.clear();
+    snap_anim_page_ = nullptr;
+    if (target && lv_is_initialized()) {
+        // The resize committed at its release, and the rebuild the snap's
+        // completion runs is what lays the widget out at that cell. A stop
+        // that no rebuild follows, a page change, would leave the widget at
+        // its old size, so it goes to its cell here, in place, as population
+        // places it. A grid cell write creates and deletes nothing: it is safe
+        // inside input dispatch and under a live gesture, and touches neither
+        // the shield nor any other page. The widget's own content follows its
+        // new size at the next rebuild. The page the resize ran on may have
+        // been deleted since; the outline lives on the top layer and outlives it.
+        lv_obj_t* widget = (page && !widget_id.empty())
+                               ? lv_obj_get_child_by_name(page, widget_id.c_str())
+                               : nullptr;
+        if (widget) {
+            lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, cell.col, cell.colspan,
+                                 LV_GRID_ALIGN_STRETCH, cell.row, cell.rowspan);
+        }
+        lv_anim_delete(target, nullptr);
+        // The animating outline was handed off from resize_outline_ and no
+        // other owner remains; retire it or it stays drawn wherever the
+        // interruption left it.
+        delete_outline(outline);
+        return widget != nullptr;
+    }
+    return false;
+}
+
+void GridEditMode::finish_resize_snap() {
+    if (!snap_anim_outline_[0]) {
+        return;
+    }
+    // Copied first: the cancel clears it.
+    std::string widget_id = snap_anim_widget_id_;
+    cancel_snap_animation();
+    std::vector<std::string> changed{widget_id};
+    relayout_then_select(std::move(widget_id), std::move(changed), /*resized=*/true);
+}
+
+void GridEditMode::stop_page_flip_timers() {
+    cancel_crossing_flip();
+    if (dwell_flip_timer_) {
+        helix::ui::lv_timer_cancel_safe(dwell_flip_timer_);
+        dwell_flip_timer_ = nullptr;
+    }
+}
+
+// Both flip timers are one-shots: each trigger asks for exactly one flip.
+void GridEditMode::cancel_crossing_flip() {
+    crossing_flip_dir_ = 0;
+    if (crossing_flip_timer_) {
+        helix::ui::lv_timer_cancel_safe(crossing_flip_timer_);
+        crossing_flip_timer_ = nullptr;
+    }
+}
+
+void GridEditMode::start_crossing_flip(int dir, uint32_t delay_ms) {
+    cancel_crossing_flip();
+    crossing_flip_dir_ = dir;
+    crossing_flip_timer_ = lv_timer_create(crossing_flip_cb, delay_ms, this);
+    lv_timer_set_repeat_count(crossing_flip_timer_, 1);
+}
+
+void GridEditMode::restart_dwell_flip(int dir) {
+    if (dwell_flip_timer_) {
+        helix::ui::lv_timer_cancel_safe(dwell_flip_timer_);
+        dwell_flip_timer_ = nullptr;
+    }
+    if (dir == 0) {
+        return;
+    }
+    dwell_flip_timer_ = lv_timer_create(dwell_flip_cb, helix::kCrossPageDwellMs, this);
+    lv_timer_set_repeat_count(dwell_flip_timer_, 1);
+}
+
+void GridEditMode::crossing_flip_cb(lv_timer_t* timer) {
+    auto* self = static_cast<GridEditMode*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+    self->crossing_flip_timer_ = nullptr; // one-shot: the runner retires it
+    const int dir = self->crossing_flip_dir_;
+    self->crossing_flip_dir_ = 0;
+    helix::cross_page_note_crossing_flip(self->cross_page_);
+    self->request_page_flip("crossing", dir);
+}
+
+void GridEditMode::dwell_flip_cb(lv_timer_t* timer) {
+    auto* self = static_cast<GridEditMode*>(lv_timer_get_user_data(timer));
+    if (!self) {
+        return;
+    }
+    self->dwell_flip_timer_ = nullptr; // one-shot: the runner retires it
+    const int dir = self->cross_page_.dwell_dir;
+    // The flip spends this zone stay, so the push's later crossing in the same
+    // zone does not chain a second page.
+    helix::cross_page_note_dwell_flip(self->cross_page_);
+    self->request_page_flip("dwell", dir);
+}
+
+void GridEditMode::request_page_flip(const char* trigger, int dir) {
+    if (dir == 0 || !active_ || !dragging_ || !show_page_cb_) {
+        return;
+    }
+    spdlog::debug("[GridEditMode] Page flip request: trigger={} dir={} page={}", trigger, dir,
+                  page_index_);
+    // The owner clamps: a page it has no container for is not shown.
+    show_page_cb_(page_index_ + dir);
+}
+
+bool GridEditMode::has_next_page_slot() const {
+    if (next_page_slot_cb_) {
+        return next_page_slot_cb_();
+    }
+    return config_ && config_->can_add_page();
+}
+
+bool GridEditMode::on_next_page_slot() const {
+    return config_ && page_index_ >= static_cast<int>(config_->page_count());
+}
+
+void GridEditMode::return_drag_to_origin() {
+    if (!dragging_ || drag_orig_page_ < 0 || drag_orig_page_ == page_index_ || !show_page_cb_) {
+        return;
+    }
+    spdlog::debug("[GridEditMode] Returning the drag from page {} to its origin page {}",
+                  page_index_, drag_orig_page_);
+    show_page_cb_(drag_orig_page_);
+}
+
+bool GridEditMode::prune_empty_page(int page) {
+    if (!config_ || page < 0 || config_->page_is_populated(static_cast<size_t>(page))) {
+        return false;
+    }
+    // remove_page refuses the last page, the main page and an index past the end.
+    if (!config_->remove_page(static_cast<size_t>(page))) {
+        return false;
+    }
+    spdlog::info("[GridEditMode] Removed empty page {}", page);
+    return true;
+}
+
+void GridEditMode::notify_gesture_ownership() {
+    if (gesture_ownership_cb_) {
+        gesture_ownership_cb_();
+    }
+}
+
+bool GridEditMode::enter(lv_obj_t* container, PanelWidgetConfig* config, int page_index) {
+    if (active_) {
+        spdlog::debug("[GridEditMode] Already active, ignoring enter()");
+        return true;
+    }
+    if (PanelWidgetManager::refuse_layout_edit()) {
+        return false;
+    }
+    active_ = true;
+    container_ = container;
+    config_ = config;
+    if (config_) {
+        config_->set_edit_session_open(true);
+    }
+    page_index_ = page_index;
+    lv_subject_set_int(&get_home_edit_mode_subject(), 1);
+    // Called inside a pointer gesture, that gesture is the hold entering edit
+    // mode. It makes its one selection after this returns and takes no other
+    // grid action however long it lasts: a hold that outlasts a second long
+    // press neither grabs nor opens the catalog. Its release, or the next
+    // press, clears it.
+    if (lv_indev_t* indev = lv_indev_active()) {
+        gesture_inert_ = true;
+        gesture_entered_ = true;
+        lv_indev_get_point(indev, &gesture_start_);
+        gesture_start_known_ = true;
+        gesture_max_travel_px_ = 0;
+    }
+
+    attach_to_current_page(/*sync_config=*/true);
+
+    spdlog::info("[GridEditMode] Entered edit mode (page {})", page_index_);
+    return true;
+}
+
+void GridEditMode::attach_to_current_page(bool sync_config) {
+    // Disable clickability on all widget descendants so their individual
+    // click handlers and press animations don't fire during edit mode. First,
+    // before anything below becomes a child: the walk would strip the shield's
+    // and the chrome buttons' CLICKABLE too.
+    disable_widget_clicks_recursive(container_);
+
+    // The event shield and its lattice
+    ensure_shield();
+
+    // Carried chrome goes in above the shield. A carried drag's widget and its
+    // outline stay on the top layer until the drop.
+    if (selection_overlay_ && !lifted_ && lv_obj_get_parent(selection_overlay_) != container_) {
+        lv_obj_set_parent(selection_overlay_, container_);
+    }
+
+    // Sync config grid positions from actual screen positions. Enter() needs
+    // this: populate_widgets() may have been called many times during startup
+    // (hardware gates firing), and config positions may not match the final
+    // visual layout. A page flip skips it — the incoming page's layout came
+    // from the same config moments ago, and the sync's drift path writes the
+    // config to disk, which must not happen per swipe.
+    if (sync_config) {
+        sync_config_from_screen();
+    }
+}
+
+void GridEditMode::switch_page(lv_obj_t* container, int page_index) {
+    if (!active_ || !container) {
+        return;
+    }
+    if (container == container_ && page_index == page_index_) {
+        return;
+    }
+    // The widget catalog places onto the page it was opened from, at the cell
+    // the hold measured there, so the session keeps that page while it is open.
+    if (catalog_open_) {
+        spdlog::debug("[GridEditMode] Keeping page {} while the widget catalog is open",
+                      page_index_);
+        return;
+    }
+    close_tile_callout();
+    // A resize snap animation in flight stops here: its completion re-seats the
+    // page this session is about to leave. The stop lays the resized widget out
+    // at its committed cell in place, and exit() rebuilds its content.
+    if (cancel_snap_animation()) {
+        rebuild_on_exit_ = true;
+    }
+    const bool carry = dragging_;
+    if (carry) {
+        // The dragged widget is on the top layer and stays under the pointer;
+        // the drop puts it into the page the session is scoped to then. The
+        // origin page's preview goes; the landing page draws its own once the
+        // session is scoped there.
+        destroy_snap_preview();
+    } else {
+        // Outside a drag no widget floats: an armed press's widget is still
+        // laid out in its own page's grid, so it stays on that page and the
+        // selection drops with the gesture.
+        destroy_selection_chrome();
+        selected_ = nullptr;
+        tear_down_gesture();
+    }
+    container_ = container;
+    page_index_ = page_index;
+    attach_to_current_page(/*sync_config=*/false);
+    if (carry) {
+        // The landing page may still be sliding in: the widget keeps its place
+        // under the pointer, not its place in the old container. A release
+        // before the next move drops on the page now on screen.
+        place_dragged_widget(drag_widget_pos_);
+        update_drag_snap_target(drag_widget_pos_);
+    } else {
+        notify_gesture_ownership();
+    }
+    spdlog::trace("[GridEditMode] Switched edit scope to page {} ({})", page_index_,
+                  carry ? "drag carried" : "gesture dropped");
+}
+
+void GridEditMode::forget_scope() {
+    close_tile_callout();
+    forget_container_children();
+    container_ = nullptr;
+}
+
+void GridEditMode::exit() {
+    if (!active_) {
+        return;
+    }
+    close_tile_callout();
+    active_ = false;
+
+    // The catalog places into this session, so it does not outlive it. Its
+    // closed callback runs inside the close and, with the session inactive,
+    // shows no page.
+    if (catalog_open_) {
+        WidgetCatalogOverlay::close();
+    }
+
+    // The owner ends a live gesture before exiting
+    // (HomePanel::exit_grid_edit_mode), so what is left of one here is its
+    // state and a dragged widget still on the top layer.
+    settle_dragged_widget();
+    clear_gesture_state();
+    // Before config_ is nulled below: the snap animation's completion callback
+    // dereferences it unconditionally.
+    // A relayout still waiting for its tick never runs once the session is
+    // gone, and a page whose widget list is unchanged is not repopulated, so
+    // the rebuild has to lay the committed cells out instead.
+    const bool rebuild = cancel_snap_animation() || rebuild_on_exit_ || relayout_pending_;
+    rebuild_on_exit_ = false;
+    relayout_pending_ = false;
+
+    // A removal is undone inside the session that made it.
+    withdraw_undo();
+
+    // The widgets stay as they are; only the session's own objects go: the
+    // shield (it draws the lattice), the
+    // selection chrome and both previews. Deferred, since an exit can run
+    // inside input dispatch (#814). Restoring the widgets' clicks is the
+    // owner's, which disarmed every page.
+    if (lv_is_initialized()) {
+        destroy_selection_chrome();
+        destroy_snap_preview();
+        delete_outline(resize_outline_);
+        helix::ui::safe_delete_deferred(shield_);
+    }
+    forget_container_children();
+
+    lv_subject_set_int(&get_home_edit_page_deletable_subject(), 0);
+    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+
+    // Every change the session made (a drop, a resize, a removal, a catalog
+    // placement, the entry's position sync) asked for a save once edits
+    // settle; the session ending is the latest that save can wait.
+    if (config_) {
+        config_->set_edit_session_open(false);
+        config_->flush_pending_save();
+    }
+    if (rebuild) {
+        // On the next tick, outside indev_proc_release (#814).
+        schedule_deferred_rebuild();
+    }
+
+    container_ = nullptr;
+    config_ = nullptr;
+    spdlog::info("[GridEditMode] Exited edit mode");
+}
+
+void GridEditMode::select_widget(lv_obj_t* widget) {
+    if (!active_) {
+        return;
+    }
+    if (widget == selected_) {
+        return;
+    }
+    close_tile_callout();
+    destroy_selection_chrome();
+    selected_ = widget;
+    // The lattice shows the boundaries this selection can snap to, so it is
+    // rebuilt for every selection change, before create_selection_chrome():
+    // shield_ is a full-grid clickable event shield, so it must be the
+    // older sibling for the chrome buttons created below to receive clicks at
+    // all (lv_indev_search_obj walks a parent's children newest-first and
+    // returns the first clickable hit, per ensure_shield()'s ordering
+    // note).
+    rebuild_lattice();
+    if (widget && container_) {
+        create_selection_chrome(widget);
+    }
+    spdlog::debug("[GridEditMode] Selected widget: {}", static_cast<void*>(widget));
+}
+
+void GridEditMode::handle_click(lv_event_t* /*e*/) {
+    if (!grid_input_acts() || !container_) {
+        return;
+    }
+
+    // Get click point in screen coordinates
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        return;
+    }
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    // Ensure layout is up-to-date (enter() may have just modified the container)
+    lv_obj_update_layout(container_);
+
+    // Hit-test child widgets (skip floating overlays like shield_ and selection_overlay_)
+    lv_obj_t* hit = nullptr;
+    uint32_t child_count = lv_obj_get_child_count(container_);
+    for (uint32_t i = 0; i < child_count; ++i) {
+        lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
+        if (!child) {
+            continue;
+        }
+        // Skip our overlay objects
+        if (child == shield_ || child == selection_overlay_) {
+            continue;
+        }
+        // Skip floating objects (they are overlays, not grid widgets)
+        if (lv_obj_is_floating(child)) {
+            continue;
+        }
+        // Skip decoration objects (merged card backgrounds have no name)
+        if (!lv_obj_get_name(child)) {
+            continue;
+        }
+
+        lv_area_t coords;
+        lv_obj_get_coords(child, &coords);
+        if (point.x >= coords.x1 && point.x <= coords.x2 && point.y >= coords.y1 &&
+            point.y <= coords.y2) {
+            hit = child;
+            // Keep searching — later children are drawn on top, so prefer last match
+        }
+    }
+
+    if (hit) {
+        lv_area_t pre_coords;
+        lv_obj_get_coords(hit, &pre_coords);
+        const char* wname = lv_obj_get_name(hit);
+        spdlog::trace("[GridEditMode] Hit widget '{}' at ({},{})->({},{}) for a press at ({},{})",
+                      wname ? wname : "?", pre_coords.x1, pre_coords.y1, pre_coords.x2,
+                      pre_coords.y2, point.x, point.y);
+
+        select_widget(hit);
+
+        // The chrome floats above the grid, so creating it must not move the
+        // widget it outlines.
+        lv_area_t post_coords;
+        lv_obj_get_coords(hit, &post_coords);
+        if (pre_coords.x1 != post_coords.x1 || pre_coords.y1 != post_coords.y1) {
+            spdlog::warn("[GridEditMode] WIDGET SHIFTED after select! "
+                         "before=({},{}) after=({},{}) delta=({},{})",
+                         pre_coords.x1, pre_coords.y1, post_coords.x1, post_coords.y1,
+                         post_coords.x1 - pre_coords.x1, post_coords.y1 - pre_coords.y1);
+        }
+    } else {
+        // Before deselecting, check if the click is within the edge resize zone
+        // of the currently selected widget. If so, keep the selection — the user
+        // is clicking in the outer grab band to start a resize drag.
+        bool in_edge_zone = false;
+        if (selected_) {
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            if (press_owns_widget(point, sel_area)) {
+                in_edge_zone = true;
+                spdlog::trace("[GridEditMode] handle_click: no widget at ({},{}) but within "
+                              "edge zone of selected widget — keeping selection",
+                              point.x, point.y);
+            }
+        }
+        if (!in_edge_zone) {
+            spdlog::trace("[GridEditMode] handle_click: no widget at ({},{}) — {} children checked",
+                          point.x, point.y, child_count);
+            select_widget(nullptr);
+        }
+    }
+}
+
+void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
+    if (!container_) {
+        return;
+    }
+
+    // Get widget coordinates (screen-absolute)
+    lv_area_t widget_area;
+    lv_obj_get_coords(widget, &widget_area);
+
+    // Get container's outer coords (selection overlay is positioned relative to these,
+    // since it uses LV_OBJ_FLAG_FLOATING which ignores content padding)
+    lv_area_t container_area;
+    lv_obj_get_coords(container_, &container_area);
+
+    // LVGL adds parent padding even for FLOATING objects (see lv_obj_move_to),
+    // so subtract it to get the correct screen position.
+    int pad_left = lv_obj_get_style_space_left(container_, LV_PART_MAIN);
+    int pad_top = lv_obj_get_style_space_top(container_, LV_PART_MAIN);
+    int rel_x1 = widget_area.x1 - container_area.x1 - pad_left;
+    int rel_y1 = widget_area.y1 - container_area.y1 - pad_top;
+    int widget_w = lv_area_get_width(&widget_area);
+    int widget_h = lv_area_get_height(&widget_area);
+
+    spdlog::trace("[GridEditMode] Chrome coords: widget_screen=({},{})→({},{}) "
+                  "container_screen=({},{}) pad=({},{}) rel=({},{}) size={}x{}",
+                  widget_area.x1, widget_area.y1, widget_area.x2, widget_area.y2, container_area.x1,
+                  container_area.y1, pad_left, pad_top, rel_x1, rel_y1, widget_w, widget_h);
+
+    // Create floating overlay container for selection chrome.
+    // The overlay itself draws the connecting border (rounded, muted).
+    lv_color_t accent = theme_get_accent_color();
+    int radius = theme_manager_get_spacing("border_radius");
+
+    selection_overlay_ = lv_obj_create(container_);
+    lv_obj_set_pos(selection_overlay_, rel_x1, rel_y1);
+    lv_obj_set_size(selection_overlay_, widget_w, widget_h);
+    lv_obj_set_floating(selection_overlay_, true);
+    lv_obj_set_scrollable(selection_overlay_, false);
+    // Let touch events pass through to the container for long-press drag detection.
+    // The X button child is independently clickable.
+    lv_obj_set_clickable(selection_overlay_, false);
+    lv_obj_set_style_bg_opa(selection_overlay_, LV_OPA_TRANSP, 0);
+    // No overlay border — edge bars provide the visual for resizable widgets,
+    // non-resizable get just corner brackets with no connecting lines.
+    lv_obj_set_style_border_width(selection_overlay_, 0, 0);
+    lv_obj_set_style_radius(selection_overlay_, radius, 0);
+    lv_obj_set_style_pad_all(selection_overlay_, 0, 0);
+    // Corner bracket styling: two bars per corner forming a square L-bracket
+    constexpr int kBarLen = 16;
+    constexpr int kBarThick = 3;
+
+    int bar_count = 0;
+    auto make_bar = [&](int x, int y, int w, int h) {
+        lv_obj_t* bar = lv_obj_create(selection_overlay_);
+        lv_obj_set_pos(bar, x, y);
+        lv_obj_set_size(bar, w, h);
+        lv_obj_set_style_bg_color(bar, accent, 0);
+        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(bar, 0, 0);
+        lv_obj_set_style_radius(bar, 0, 0);
+        lv_obj_set_style_pad_all(bar, 0, 0);
+        lv_obj_set_clickable(bar, false);
+        lv_obj_set_scrollable(bar, false);
+        bar_count++;
+    };
+
+    // Top-left
+    make_bar(0, 0, kBarLen, kBarThick);
+    make_bar(0, 0, kBarThick, kBarLen);
+    // Top-right
+    make_bar(widget_w - kBarLen, 0, kBarLen, kBarThick);
+    make_bar(widget_w - kBarThick, 0, kBarThick, kBarLen);
+    // Bottom-left
+    make_bar(0, widget_h - kBarThick, kBarLen, kBarThick);
+    make_bar(0, widget_h - kBarLen, kBarThick, kBarLen);
+    // Bottom-right
+    make_bar(widget_w - kBarLen, widget_h - kBarThick, kBarLen, kBarThick);
+    make_bar(widget_w - kBarThick, widget_h - kBarLen, kBarThick, kBarLen);
+
+    // Add resize edge handles for scalable widgets: thinner, lower opacity than corners
+    if (is_selected_widget_resizable()) {
+        constexpr int kEdgeThick = 1;
+        constexpr int kHandleInset = kBarLen + 4; // Start after corner brackets
+
+        auto make_edge_bar = [&](int x, int y, int w, int h) {
+            lv_obj_t* bar = lv_obj_create(selection_overlay_);
+            lv_obj_set_pos(bar, x, y);
+            lv_obj_set_size(bar, w, h);
+            lv_obj_set_style_bg_color(bar, accent, 0);
+            lv_obj_set_style_bg_opa(bar, LV_OPA_20, 0);
+            lv_obj_set_style_border_width(bar, 0, 0);
+            lv_obj_set_style_radius(bar, 0, 0);
+            lv_obj_set_style_pad_all(bar, 0, 0);
+            lv_obj_set_clickable(bar, false);
+            lv_obj_set_scrollable(bar, false);
+            bar_count++;
+        };
+
+        // Right edge handle
+        if (widget_h > 2 * kHandleInset) {
+            make_edge_bar(widget_w - kEdgeThick, kHandleInset, kEdgeThick,
+                          widget_h - 2 * kHandleInset);
+        }
+
+        // Left edge handle
+        if (widget_h > 2 * kHandleInset) {
+            make_edge_bar(0, kHandleInset, kEdgeThick, widget_h - 2 * kHandleInset);
+        }
+
+        // Bottom edge handle
+        if (widget_w > 2 * kHandleInset) {
+            make_edge_bar(kHandleInset, widget_h - kEdgeThick, widget_w - 2 * kHandleInset,
+                          kEdgeThick);
+        }
+
+        // Top edge handle
+        if (widget_w > 2 * kHandleInset) {
+            make_edge_bar(kHandleInset, 0, widget_w - 2 * kHandleInset, kEdgeThick);
+        }
+    }
+
+    // Pulse animation on corner brackets ONLY (not edge bars) when animations enabled.
+    // Corner brackets are the first children (2 bars x 4 corners).
+    static constexpr uint32_t kCornerBarCount = 8;
+    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+        lv_anim_t anim;
+        lv_anim_init(&anim);
+        lv_anim_set_var(&anim, selection_overlay_);
+        lv_anim_set_values(&anim, LV_OPA_COVER, LV_OPA_20);
+        lv_anim_set_duration(&anim, 1000);
+        lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
+        lv_anim_set_reverse_duration(&anim, 1000);
+        lv_anim_set_exec_cb(&anim, [](void* obj, int32_t val) {
+            auto* overlay = static_cast<lv_obj_t*>(obj);
+            // Only pulse the corner brackets, skip edge bars
+            uint32_t count = std::min(lv_obj_get_child_count(overlay), kCornerBarCount);
+            for (uint32_t i = 0; i < count; ++i) {
+                lv_obj_t* child = lv_obj_get_child(overlay, static_cast<int32_t>(i));
+                lv_obj_set_style_bg_opa(child, static_cast<lv_opa_t>(val), 0);
+            }
+        });
+        lv_anim_start(&anim);
+    }
+}
+
+void GridEditMode::destroy_selection_chrome() {
+    if (!selection_overlay_) {
+        return;
+    }
+    // Reparent to lv_layer_top() + async delete.  This is called during
+    // input event processing where synchronous lv_obj_delete corrupts
+    // LVGL's child iteration.  Reparenting ensures lv_obj_clean(container_)
+    // in a subsequent rebuild won't double-free these objects.
+    helix::ui::safe_delete_deferred(selection_overlay_);
+}
+
+int GridEditMode::find_config_index_for_widget(lv_obj_t* widget) const {
+    if (!widget || !container_ || !config_) {
+        return -1;
+    }
+
+    // Look up the widget's name (set by populate_widgets via lv_obj_set_name)
+    const char* name = lv_obj_get_name(widget);
+    if (!name || name[0] == '\0') {
+        spdlog::debug("[GridEditMode] find_config: widget {} has no name",
+                      static_cast<void*>(widget));
+        return -1;
+    }
+
+    // Find the config entry with this widget ID
+    const auto& entries = config_->page_entries(static_cast<size_t>(page_index_));
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (entries[i].id == name) {
+            return static_cast<int>(i);
+        }
+    }
+
+    spdlog::debug("[GridEditMode] find_config: no config entry for name '{}'", name);
+    return -1;
+}
+
+std::string GridEditMode::selected_widget_id() const {
+    // The object's name is its config id (populate_widgets sets it). Resolving
+    // through page_entries(page_index_) would pin the answer to the page the
+    // session is scoped to, which is wrong after a cross-page drag flips: the
+    // entry still lives on the origin page until the drop commits.
+    if (!selected_) {
+        return {};
+    }
+    const char* name = lv_obj_get_name(selected_);
+    return name ? std::string(name) : std::string{};
+}
+
+helix::CellMetrics GridEditMode::current_metrics(lv_area_t* out_content) const {
+    lv_area_t content{};
+    if (!container_) {
+        if (out_content) {
+            *out_content = content;
+        }
+        return {};
+    }
+    lv_obj_get_content_coords(container_, &content);
+    if (out_content) {
+        *out_content = content;
+    }
+
+    lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
+    UiBreakpoint breakpoint =
+        bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
+
+    // Prefer the descriptor the container is actually laid out with, and fall back
+    // to the breakpoint table only when it is absent. The two agree today, but the
+    // descriptor is what the widgets were placed against, so reading it keeps the
+    // hit-testing correct even if a panel is ever laid out on a grid it did not
+    // get from GridLayout.
+    //
+    // Safe here because GridEditMode is only ever entered from a user long-press,
+    // long after populate_widgets() installed the descriptor. During a rebuild the
+    // manager drops LV_LAYOUT_GRID while these style properties still point at
+    // buffers it is about to reallocate; nothing in this class runs then.
+    int cols = grid_count_tracks(lv_obj_get_style_grid_column_dsc_array(container_, LV_PART_MAIN));
+    int rows = grid_count_tracks(lv_obj_get_style_grid_row_dsc_array(container_, LV_PART_MAIN));
+    if (cols <= 0) {
+        cols = GridLayout::get_cols(breakpoint, lv_area_get_width(&content),
+                                    lv_area_get_height(&content));
+    }
+    if (rows <= 0) {
+        rows = GridLayout::get_rows(breakpoint, lv_area_get_width(&content),
+                                    lv_area_get_height(&content));
+    }
+    return grid_cell_metrics(lv_area_get_width(&content), lv_area_get_height(&content), cols, rows,
+                             GridLayout::gutter_px());
+}
+
+lv_area_t GridEditMode::settled_content_area() const {
+    lv_area_t area{};
+    if (!container_) {
+        return area;
+    }
+    if (page_frame_cb_ && page_frame_cb_(area)) {
+        area.x1 += lv_obj_get_style_space_left(container_, LV_PART_MAIN);
+        area.x2 -= lv_obj_get_style_space_right(container_, LV_PART_MAIN);
+        area.y1 += lv_obj_get_style_space_top(container_, LV_PART_MAIN);
+        area.y2 -= lv_obj_get_style_space_bottom(container_, LV_PART_MAIN);
+        return area;
+    }
+    lv_obj_get_content_coords(container_, &area);
+    return area;
+}
+
+GridLayout GridEditMode::page_occupancy(const std::string& exclude_id, Occupants occupants,
+                                        int page) const {
+    const helix::CellMetrics m = current_metrics();
+    GridLayout occupancy(helix::widget_size::current_breakpoint(), {m.cols, m.rows});
+    if (!config_) {
+        return occupancy;
+    }
+    std::unordered_set<std::string> on_screen;
+    if (occupants == Occupants::OnScreen && container_) {
+        const uint32_t count = lv_obj_get_child_count(container_);
+        for (uint32_t i = 0; i < count; ++i) {
+            lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
+            // Floating children are the shield, the chrome, the previews and a
+            // dragged widget, none of which holds a cell.
+            if (!child || lv_obj_is_floating(child)) {
+                continue;
+            }
+            const char* name = lv_obj_get_name(child);
+            if (name && name[0] != '\0') {
+                on_screen.insert(name);
+            }
+        }
+    }
+    for (const auto& entry :
+         config_->page_entries(static_cast<size_t>(page < 0 ? page_index_ : page))) {
+        if (!entry.is_placed() || entry.id == exclude_id) {
+            continue;
+        }
+        if (occupants == Occupants::OnScreen && on_screen.count(entry.id) == 0) {
+            continue;
+        }
+        occupancy.place({entry.id, entry.col, entry.row, entry.colspan, entry.rowspan});
+    }
+    return occupancy;
+}
+
+void GridEditMode::sync_config_from_screen() {
+    if (!container_ || !config_) {
+        return;
+    }
+
+    lv_obj_update_layout(container_);
+
+    lv_area_t content_area;
+    helix::CellMetrics m = current_metrics(&content_area);
+    int ncols = m.cols;
+    int nrows = m.rows;
+    int cw = lv_area_get_width(&content_area);
+    int ch = lv_area_get_height(&content_area);
+
+    if (cw <= 0 || ch <= 0) {
+        return;
+    }
+
+    auto& mut_entries = config_->page_entries_mut(static_cast<size_t>(page_index_));
+    bool any_changed = false;
+
+    // Walk container children and match by name (widget_id) set during populate_widgets.
+    uint32_t total_children = lv_obj_get_child_count(container_);
+    for (uint32_t i = 0; i < total_children; ++i) {
+        lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
+        if (!child || child == shield_ || child == selection_overlay_) {
+            continue;
+        }
+        if (lv_obj_is_floating(child)) {
+            continue;
+        }
+
+        // Look up config entry by widget name
+        const char* name = lv_obj_get_name(child);
+        if (!name || name[0] == '\0') {
+            continue;
+        }
+
+        auto it = std::find_if(mut_entries.begin(), mut_entries.end(),
+                               [name](const PanelWidgetEntry& e) { return e.id == name; });
+        if (it == mut_entries.end()) {
+            continue;
+        }
+
+        // Use the widget's top-left corner (center of the widget's first cell)
+        lv_area_t widget_area;
+        lv_obj_get_coords(child, &widget_area);
+
+        // Compute which cell the top-left corner falls in
+        int cell_w = static_cast<int>(m.cell_w);
+        int cell_h = static_cast<int>(m.cell_h);
+        int cx = widget_area.x1 + cell_w / 2; // center of first cell
+        int cy = widget_area.y1 + cell_h / 2;
+
+        auto [col, row] = screen_to_grid_cell(cx, cy, content_area.x1, content_area.y1, cw, ch,
+                                              ncols, nrows, m.gutter);
+
+        if (it->col != col || it->row != row) {
+            spdlog::debug("[GridEditMode] sync_config: '{}' config ({},{}) -> screen ({},{})",
+                          it->id, it->col, it->row, col, row);
+            it->col = col;
+            it->row = row;
+            any_changed = true;
+        }
+    }
+
+    if (any_changed) {
+        config_->save_soon();
+        spdlog::info("[GridEditMode] Synced config positions from screen layout");
+    }
+}
+
+void GridEditMode::schedule_deferred_rebuild(std::function<void()> post_rebuild) {
+    // The rebuild replaces the tile the callout is anchored to.
+    close_tile_callout();
+    if (!rebuild_cb_) {
+        if (post_rebuild)
+            post_rebuild();
+        return;
+    }
+    if (post_rebuild) {
+        rebuild_posts_.push_back(std::move(post_rebuild));
+    }
+    // The rebuild restores every page from config, so a request made while one
+    // is pending joins it instead of repopulating twice.
+    if (rebuild_pending_) {
+        return;
+    }
+    rebuild_pending_ = true;
+    // On the next tick, safely outside any indev_proc_release call stack (#814).
+    helix::ui::run_next_tick(lifetime_.token(), [this, rebuild = rebuild_cb_]() {
+        rebuild_pending_ = false;
+        std::vector<std::function<void()>> posts;
+        posts.swap(rebuild_posts_);
+        rebuild();
+        // The rebuild deletes every child of the container, chrome a tap
+        // re-created since the request included: forget them, so a post step's
+        // select_widget() starts clean instead of destroying freed chrome.
+        forget_container_children();
+        for (auto& post : posts) {
+            post();
+        }
+    });
+}
+
+void GridEditMode::notify_pages_changed(const helix::PageSetChange& change) {
+    // From the commit on, the session's page is the one the rebuilt carousel
+    // ends on, so it never names a page the change removed or shifted.
+    page_index_ = helix::page_set_focus(change);
+    helix::ui::run_next_tick(lifetime_.token(), [this, change]() {
+        if (pages_changed_cb_) {
+            pages_changed_cb_(change);
+        }
+    });
+}
+
+struct GridEditMode::RemovedWidget {
+    PanelWidgetEntry entry;
+    std::string page_id;
+    /// The page's index and the entry's list position when it was removed.
+    size_t page_index = 0;
+    size_t entry_index = 0;
+    /// The removal emptied the page and removed it with the entry.
+    bool page_pruned = false;
+};
+
+namespace {
+
+/// The session whose removal the undo toast offers. The toast's callback is a
+/// bare function pointer, and the toast can outlive the session, so the
+/// callback reaches it only through a token its undo_lifetime_ expires.
+struct UndoToastTarget {
+    GridEditMode* owner;
+    helix::LifetimeToken token;
+};
+
+std::optional<UndoToastTarget>& undo_toast_target() {
+    static std::optional<UndoToastTarget> target;
+    return target;
+}
+
+} // namespace
+
+void GridEditMode::remove_selected_widget() {
+    if (!grid_input_acts()) {
+        return;
+    }
+    if (!selected_ || !config_) {
+        spdlog::warn("[GridEditMode] remove_selected_widget: no selection or config");
+        return;
+    }
+
+    int config_index = find_config_index_for_widget(selected_);
+    if (config_index < 0) {
+        spdlog::warn("[GridEditMode] Selected widget not found in config");
+        select_widget(nullptr);
+        return;
+    }
+
+    const size_t page = static_cast<size_t>(page_index_);
+    auto removed = std::make_unique<RemovedWidget>();
+    removed->entry = config_->page_entries(page)[static_cast<size_t>(config_index)];
+    removed->page_id = config_->page_id(page);
+    removed->page_index = page;
+    removed->entry_index = static_cast<size_t>(config_index);
+    spdlog::info("[GridEditMode] Removing widget '{}' (config index {})", removed->entry.id,
+                 config_index);
+
+    config_->remove_from_page(page, static_cast<size_t>(config_index));
+
+    // Deselect before rebuild, and forget the container's other children:
+    // lv_obj_clean in the rebuild deletes them.
+    select_widget(nullptr);
+    forget_container_children();
+
+    // A page that just lost its last widget removes itself; the removal and
+    // the prune save once.
+    helix::PageSetChange change;
+    change.page_count = static_cast<int>(config_->page_count());
+    change.focus_page = page_index_;
+    const bool pruned = prune_empty_page(page_index_);
+    config_->save_soon();
+    removed->page_pruned = pruned;
+    offer_undo(std::move(removed));
+    if (pruned) {
+        // The owner rebuilds the page set: rebuilding this container would lay
+        // out a page index the prune just shifted. The session's page goes, so
+        // the change lands on its index, clamped to the last page.
+        change.removed_page = change.focus_page;
+        notify_pages_changed(change);
+        return;
+    }
+
+    // Rebuild on the next tick (#814), selecting nothing.
+    rebuild_then_select("");
+}
+
+void GridEditMode::offer_undo(std::unique_ptr<RemovedWidget> removed) {
+    undo_lifetime_.invalidate();
+    removed_ = std::move(removed);
+    undo_toast_target() = UndoToastTarget{this, undo_lifetime_.token()};
+    // The same message, callback and user_data as the toast an earlier removal
+    // showed, so a second removal restarts that toast rather than stacking one.
+    ToastManager::instance().show_with_action(ToastSeverity::INFO, lv_tr("Widget removed"),
+                                              lv_tr("Undo"), on_undo_toast, nullptr);
+}
+
+void GridEditMode::cancel_undo() {
+    undo_lifetime_.invalidate();
+    removed_.reset();
+}
+
+void GridEditMode::withdraw_undo() {
+    const bool offered = removed_ != nullptr;
+    cancel_undo();
+    if (offered && lv_is_initialized()) {
+        ToastManager::instance().hide(on_undo_toast, nullptr);
+    }
+}
+
+void GridEditMode::on_undo_toast(void* /*user_data*/) {
+    auto& target = undo_toast_target();
+    if (!target || target->token.expired()) {
+        spdlog::debug("[GridEditMode] Undo tapped after its removal was spent; ignoring");
+        return;
+    }
+    GridEditMode* owner = target->owner;
+    target.reset();
+    owner->undo_last_removal();
+}
+
+void GridEditMode::undo_last_removal() {
+    std::unique_ptr<RemovedWidget> removed = std::move(removed_);
+    undo_lifetime_.invalidate();
+    if (!removed || !active_ || !config_) {
+        return;
+    }
+    if (catalog_open_) {
+        spdlog::info("[GridEditMode] Undo of '{}' ignored: the widget catalog is open",
+                     removed->entry.id);
+        return;
+    }
+    PanelWidgetEntry entry = std::move(removed->entry);
+    const std::string id = entry.id;
+
+    // The entry's own page, by id: page indexes move as pages come and go.
+    int page = -1;
+    for (size_t p = 0; p < config_->page_count(); ++p) {
+        if (config_->page_id(p) == removed->page_id) {
+            page = static_cast<int>(p);
+            break;
+        }
+    }
+    const int page_count_before = static_cast<int>(config_->page_count());
+    bool page_restored = false;
+    if (page < 0 && removed->page_pruned && config_->can_add_page()) {
+        page = config_->add_page(removed->page_id, static_cast<int>(removed->page_index));
+        page_restored = page >= 0;
+    }
+    if (page < 0) {
+        // The page went another way (deleted, or no room for it back): the
+        // widget comes back on the page on screen instead.
+        page = page_index_;
+    }
+
+    // Its own rectangle when that is still free, else where the catalog would
+    // put it on that page, from its own cell outward.
+    const GridLayout occupancy = page_occupancy(id, Occupants::AllPlaced, page);
+    if (!occupancy.can_place(entry.col, entry.row, entry.colspan, entry.rowspan)) {
+        const PanelWidgetDef* def = find_widget_def(id);
+        std::optional<CatalogPlacement> spot;
+        if (def) {
+            PanelWidgetDef span = *def;
+            span.colspan = entry.colspan;
+            span.rowspan = entry.rowspan;
+            const auto [col_step, row_step] = snap_step_for(id);
+            spot = helix::find_catalog_placement(occupancy, span, entry.col, entry.row, col_step,
+                                                 row_step);
+        }
+        if (!spot) {
+            spdlog::warn("[GridEditMode] Cannot undo the removal of '{}': no room on page {}", id,
+                         page);
+            if (page_restored) {
+                config_->remove_page(static_cast<size_t>(page));
+            }
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("Not enough room to put the widget back. It stays removed."));
+            return;
+        }
+        spdlog::info("[GridEditMode] Undo: '{}' spot ({},{}) is taken; placing at ({},{}) {}x{}",
+                     id, entry.col, entry.row, spot->col, spot->row, spot->colspan, spot->rowspan);
+        entry.col = spot->col;
+        entry.row = spot->row;
+        entry.colspan = spot->colspan;
+        entry.rowspan = spot->rowspan;
+    }
+
+    if (!config_->restore_entry(static_cast<size_t>(page), removed->entry_index, entry)) {
+        // Placed again since the removal (from the catalog): it is on a grid.
+        spdlog::info("[GridEditMode] Undo of '{}' skipped: it is placed again", id);
+        if (page_restored) {
+            config_->remove_page(static_cast<size_t>(page));
+        }
+        return;
+    }
+    spdlog::info("[GridEditMode] Undid the removal of '{}' on page {} at ({},{}) {}x{}", id, page,
+                 entry.col, entry.row, entry.colspan, entry.rowspan);
+    config_->save_soon();
+
+    select_widget(nullptr);
+    forget_container_children();
+    if (page_restored) {
+        // The owner rebuilds the page set, ending on the page put back.
+        helix::PageSetChange change;
+        change.page_count = page_count_before;
+        change.inserted_page = page;
+        change.focus_page = page;
+        notify_pages_changed(change);
+        return;
+    }
+    if (show_page_cb_) {
+        // The carousel may rest on another page or on the next-page slot,
+        // where the session stays scoped to the last page: show the page, and
+        // re-scope the session there so the rebuild selects on it.
+        show_page_cb_(page);
+    }
+    rebuild_then_select(id);
+}
+
+void GridEditMode::configure_selected_widget() {
+    if (!grid_input_acts() || !selected_) {
+        return;
+    }
+
+    auto* raw = lv_obj_get_user_data(selected_);
+    if (!raw) {
+        return;
+    }
+
+    auto* widget = static_cast<PanelWidget*>(raw);
+    if (!widget->on_edit_configure()) {
+        return;
+    }
+
+    // Save widget ID so we can re-select it after rebuild
+    const char* name = lv_obj_get_name(selected_);
+    std::string widget_id = name ? name : "";
+
+    spdlog::info("[GridEditMode] Widget '{}' configured, rebuilding", widget_id);
+
+    // Deselect and rebuild; the widget comes back selected.
+    select_widget(nullptr);
+    forget_container_children();
+    rebuild_then_select(widget_id);
+}
+
+// ---------------------------------------------------------------------------
+// screen_to_grid_cell
+// ---------------------------------------------------------------------------
+
+std::pair<int, int> GridEditMode::screen_to_grid_cell(int screen_x, int screen_y, int container_x,
+                                                      int container_y, int container_w,
+                                                      int container_h, int ncols, int nrows,
+                                                      int gutter) {
+    CellMetrics m = grid_cell_metrics(container_w, container_h, ncols, nrows, gutter);
+
+    // Convert to container-relative, then divide by the track pitch (track plus
+    // one gutter). A point landing in a gutter belongs to the track before it.
+    float rel_x = static_cast<float>(screen_x - container_x);
+    float rel_y = static_cast<float>(screen_y - container_y);
+
+    float pitch_x = m.cell_w + static_cast<float>(m.gutter);
+    float pitch_y = m.cell_h + static_cast<float>(m.gutter);
+
+    int col = (pitch_x > 0.0f) ? static_cast<int>(rel_x / pitch_x) : 0;
+    int row = (pitch_y > 0.0f) ? static_cast<int>(rel_y / pitch_y) : 0;
+
+    col = std::clamp(col, 0, ncols - 1);
+    row = std::clamp(row, 0, nrows - 1);
+
+    return {col, row};
+}
+
+// ---------------------------------------------------------------------------
+// clamp_span
+// ---------------------------------------------------------------------------
+
+std::pair<int, int> GridEditMode::clamp_span(const std::string& widget_id, int desired_colspan,
+                                             int desired_rowspan) {
+    const auto* def = find_widget_def(widget_id);
+    if (!def) {
+        // Unknown widget — default to 1x1
+        return {std::max(desired_colspan, 1), std::max(desired_rowspan, 1)};
+    }
+
+    int min_c = def->effective_min_colspan();
+    int max_c = def->effective_max_colspan();
+    int min_r = def->effective_min_rowspan();
+    int max_r = def->effective_max_rowspan();
+
+    int clamped_c = std::clamp(desired_colspan, min_c, max_c);
+    int clamped_r = std::clamp(desired_rowspan, min_r, max_r);
+
+    return {clamped_c, clamped_r};
+}
+
+// ---------------------------------------------------------------------------
+// Resize helpers
+// ---------------------------------------------------------------------------
+
+int GridEditMode::edge_hit_band_for_cell(float cell_px) {
+    if (!(cell_px > 0.0f)) {
+        return kEdgeHitFallback;
+    }
+    return std::clamp(static_cast<int>(cell_px / kEdgeHitCellDivisor), kEdgeHitMin, kEdgeHitMax);
+}
+
+int GridEditMode::inward_edge_reach(int band, int widget_px, int min_drag_px) {
+    return std::clamp((widget_px - min_drag_px) / 2, 0, band);
+}
+
+bool GridEditMode::page_deletable() const {
+    return config_ && !on_next_page_slot() &&
+           static_cast<size_t>(page_index_) != config_->main_page_index() &&
+           config_->page_count() > 1;
+}
+
+void GridEditMode::request_delete_page() {
+    if (!grid_input_acts() || !delete_page_cb_ || !page_deletable()) {
+        return;
+    }
+    // An Undo under the confirmation would move or re-add pages.
+    withdraw_undo();
+    delete_page_cb_();
+}
+
+int GridEditMode::edge_hit_band() const {
+    helix::CellMetrics m = current_metrics();
+    return edge_hit_band_for_cell(std::min(m.cell_w, m.cell_h));
+}
+
+bool GridEditMode::press_owns_widget(lv_point_t origin, const lv_area_t& area) const {
+    const int band = edge_hit_band();
+    return origin.x >= area.x1 - band && origin.x <= area.x2 + band && origin.y >= area.y1 - band &&
+           origin.y <= area.y2 + band;
+}
+
+GridEditMode::ResizeEdge GridEditMode::detect_resize_edge(int px, int py,
+                                                          const lv_area_t& widget_area) const {
+    const int band = edge_hit_band();
+
+    // The outward reach is always the full band: it lands outside the widget,
+    // where there is nothing to run out of. The inward reach yields to a
+    // finger-sized drag interior, so a half-cell widget drags from anywhere
+    // inside it and resizes from just outside its edges.
+    int min_drag = static_cast<int>(theme_manager_get_spacing("touch_target_min"));
+    if (min_drag <= 0) {
+        min_drag = kMinDragTargetFallback;
+    }
+    const int inward_x =
+        inward_edge_reach(band, static_cast<int>(lv_area_get_width(&widget_area)), min_drag);
+    const int inward_y =
+        inward_edge_reach(band, static_cast<int>(lv_area_get_height(&widget_area)), min_drag);
+
+    bool near_right = (px >= widget_area.x2 - inward_x && px <= widget_area.x2 + band);
+    bool near_left = (px >= widget_area.x1 - band && px <= widget_area.x1 + inward_x);
+    bool near_bottom = (py >= widget_area.y2 - inward_y && py <= widget_area.y2 + band);
+    bool near_top = (py >= widget_area.y1 - band && py <= widget_area.y1 + inward_y);
+
+    // Must be within widget bounds on the perpendicular axis (with outward tolerance)
+    bool within_x = (px >= widget_area.x1 - band && px <= widget_area.x2 + band);
+    bool within_y = (py >= widget_area.y1 - band && py <= widget_area.y2 + band);
+
+    // Collect candidate edges with their perpendicular distance
+    struct Candidate {
+        ResizeEdge edge;
+        int dist; // Perpendicular distance to the edge (lower = closer)
+    };
+    Candidate candidates[4];
+    int n = 0;
+
+    if (near_right && within_y) {
+        candidates[n++] = {ResizeEdge::Right, std::abs(px - widget_area.x2)};
+    }
+    if (near_left && within_y) {
+        candidates[n++] = {ResizeEdge::Left, std::abs(px - widget_area.x1)};
+    }
+    if (near_bottom && within_x) {
+        candidates[n++] = {ResizeEdge::Bottom, std::abs(py - widget_area.y2)};
+    }
+    if (near_top && within_x) {
+        candidates[n++] = {ResizeEdge::Top, std::abs(py - widget_area.y1)};
+    }
+
+    if (n == 0) {
+        return ResizeEdge::None;
+    }
+
+    // Pick the closest edge (corner disambiguation)
+    int best = 0;
+    for (int i = 1; i < n; ++i) {
+        if (candidates[i].dist < candidates[best].dist) {
+            best = i;
+        }
+    }
+    return candidates[best].edge;
+}
+
+int GridEditMode::round_to_grid_cell(int px, int content_origin, int content_size, int ncells,
+                                     int gutter, int step) {
+    if (ncells <= 0 || step <= 0) {
+        return 0;
+    }
+    // LVGL distributes LV_GRID_FR(1) tracks as (content - (n-1)*gutter)/n, so
+    // the track-to-track pitch reduces exactly to (content + gutter)/n. Working
+    // from the pitch keeps the arithmetic exact for any track count; dividing
+    // the count instead only doubles the pitch when the count is even, and is
+    // 8% wrong on the 13- and 17-column grids.
+    const float pitch = (static_cast<float>(content_size) + static_cast<float>(gutter)) /
+                        static_cast<float>(ncells);
+    if (pitch <= 0.0f) {
+        return 0;
+    }
+    const float tracks = static_cast<float>(px - content_origin) / pitch;
+    const int snapped = static_cast<int>(std::round(tracks / static_cast<float>(step))) * step;
+    return std::clamp(snapped, 0, (ncells / step) * step);
+}
+
+int GridEditMode::dot_count(int ncols, int nrows, int col_step, int row_step) {
+    if (ncols <= 0 || nrows <= 0 || col_step <= 0 || row_step <= 0) {
+        return 0;
+    }
+    return (ncols / col_step + 1) * (nrows / row_step + 1);
+}
+
+std::pair<int, int> GridEditMode::snap_step_for(const std::string& widget_id) {
+    const auto* def = find_widget_def(widget_id);
+    if (!def) {
+        return {GridLayout::TRACKS_PER_CELL, GridLayout::TRACKS_PER_CELL};
+    }
+    return {def->supports_half_col ? 1 : GridLayout::TRACKS_PER_CELL,
+            def->supports_half_row ? 1 : GridLayout::TRACKS_PER_CELL};
+}
+
+GridEditMode::ResizeResult GridEditMode::compute_resize_result(ResizeEdge edge, int orig_col,
+                                                               int orig_row, int orig_colspan,
+                                                               int orig_rowspan, int new_edge_cell,
+                                                               int ncells, int step) {
+    ResizeResult r;
+    r.col = orig_col;
+    r.row = orig_row;
+    r.colspan = orig_colspan;
+    r.rowspan = orig_rowspan;
+
+    // Clamp new_edge_cell to valid range
+    new_edge_cell = std::clamp(new_edge_cell, 0, ncells);
+
+    switch (edge) {
+    case ResizeEdge::Right: {
+        int new_colspan = new_edge_cell - orig_col;
+        r.colspan = std::max((new_colspan / step) * step, step);
+        r.rowspan = orig_rowspan;
+        break;
+    }
+    case ResizeEdge::Left: {
+        int right_edge = orig_col + orig_colspan;
+        int new_col = std::min(new_edge_cell, right_edge - step);
+        new_col = std::max(new_col, 0);
+        r.col = new_col;
+        r.colspan = right_edge - new_col;
+        r.rowspan = orig_rowspan;
+        break;
+    }
+    case ResizeEdge::Bottom: {
+        int new_rowspan = new_edge_cell - orig_row;
+        r.rowspan = std::max((new_rowspan / step) * step, step);
+        r.colspan = orig_colspan;
+        break;
+    }
+    case ResizeEdge::Top: {
+        int bottom_edge = orig_row + orig_rowspan;
+        int new_row = std::min(new_edge_cell, bottom_edge - step);
+        new_row = std::max(new_row, 0);
+        r.row = new_row;
+        r.rowspan = bottom_edge - new_row;
+        r.colspan = orig_colspan;
+        break;
+    }
+    case ResizeEdge::None:
+        break;
+    }
+
+    return r;
+}
+
+bool GridEditMode::is_selected_widget_resizable() const {
+    if (!selected_) {
+        return false;
+    }
+    const auto* def = find_widget_def(selected_widget_id());
+    return def && def->is_scalable();
+}
+
+// ---------------------------------------------------------------------------
+// Drag lifecycle — public entry points
+// ---------------------------------------------------------------------------
+
+void GridEditMode::handle_long_press(lv_event_t* e) {
+    if (!grid_input_acts() || !container_ || gesture_inert_) {
+        return;
+    }
+
+    spdlog::debug("[GridEditMode] handle_long_press: selected_={}", (void*)selected_);
+
+    // If no widget is selected, try to select the one under the finger
+    if (!selected_) {
+        handle_click(e);
+    }
+
+    // If still no widget selected, check if we're on empty area for catalog
+    if (!selected_) {
+        lv_indev_t* indev = lv_indev_active();
+        if (!indev) {
+            return;
+        }
+        lv_point_t point;
+        lv_indev_get_point(indev, &point);
+
+        // Long-press on empty area — open the widget catalog
+        lv_area_t content_area;
+        helix::CellMetrics m = current_metrics(&content_area);
+        int ncols = m.cols;
+        int nrows = m.rows;
+        int cw = lv_area_get_width(&content_area);
+        int ch = lv_area_get_height(&content_area);
+
+        auto [col, row] = screen_to_grid_cell(point.x, point.y, content_area.x1, content_area.y1,
+                                              cw, ch, ncols, nrows, m.gutter);
+        catalog_origin_col_ = col;
+        catalog_origin_row_ = row;
+
+        lv_obj_t* screen = lv_obj_get_screen(container_);
+        if (screen) {
+            open_widget_catalog(screen);
+        }
+        return;
+    }
+
+    // A hold arms a grab, however the selection arose: a hold that found the
+    // widget already selected AND a hold that selected it mid-gesture both
+    // latch the gesture. A swipe never gets here - scroll adoption suppresses
+    // LONG_PRESSED - so a quick drag on an unselected widget still flips the
+    // page.
+    press_armed_ = false;
+    if (selected_) {
+        gesture_can_arm_ = true;
+        // This hold is the grab's press: drag_start classifies against
+        // press_origin_, which no arming cycle set for this gesture.
+        lv_indev_t* grab_indev = lv_indev_active();
+        if (grab_indev) {
+            lv_indev_get_point(grab_indev, &press_origin_);
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            gesture_on_selected_ = point_in_area(press_origin_, sel_area);
+        }
+        if (hold_raises_callout()) {
+            // The shield stays press-locked under the backdrop, so this finger's
+            // release still reaches the grid and is no tap on the callout.
+            press_armed_ = true;
+            open_tile_callout();
+        } else {
+            handle_drag_start(e);
+        }
+    }
+    notify_gesture_ownership();
+}
+
+void GridEditMode::handle_pressing(lv_event_t* e) {
+    (void)e;
+    if (lv_indev_t* travel_indev = lv_indev_active()) {
+        lv_point_t at;
+        lv_indev_get_point(travel_indev, &at);
+        track_gesture_travel(at);
+        // Only the hold that raised it can be pressing while it is open: its
+        // backdrop takes every later press. Closing lets the grab below proceed.
+        if (press_armed_ && is_callout_open() && past_drag_threshold(at)) {
+            close_tile_callout();
+        }
+    }
+    if (!grid_input_acts() || gesture_inert_) {
+        return;
+    }
+    if (resizing_) {
+        handle_resize_move(e);
+        return;
+    }
+    if (dragging_) {
+        handle_drag_move(e);
+        return;
+    }
+
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        return;
+    }
+    lv_point_t pt;
+    lv_indev_get_point(indev, &pt);
+
+    // Two-step interaction: a press on an UNselected widget only selects it.
+    // Arming a drag (or resize, via the selected widget's edge band) requires
+    // the widget to have been selected BEFORE this press landed, so a swipe
+    // that begins anywhere - widget or empty cell - still flips the page on a
+    // fully packed grid. The latch is decided once per gesture, on the first
+    // pressing cycle, from the pre-gesture selection, and a gesture that
+    // cannot arm selects on that cycle only: the widget the press landed on
+    // stays selected however the finger moves on, and a press that selects
+    // and keeps moving is a swipe.
+    if (!press_armed_) {
+        if (gesture_press_seen_ && !gesture_can_arm_) {
+            return;
+        }
+        bool owns_selected = false;
+        if (selected_) {
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            owns_selected = press_owns_widget(pt, sel_area);
+        }
+        if (!gesture_press_seen_) {
+            gesture_press_seen_ = true;
+            gesture_can_arm_ = owns_selected;
+            if (!gesture_can_arm_) {
+                handle_click(e); // select what is under the finger (or deselect)
+                return;
+            }
+        }
+        if (!owns_selected) {
+            return;
+        }
+        press_armed_ = true;
+        press_origin_ = pt;
+        {
+            // The grab band reaches outside the tile; only a press inside it
+            // is a tap on the tile.
+            lv_area_t sel_area;
+            lv_obj_get_coords(selected_, &sel_area);
+            gesture_on_selected_ = point_in_area(pt, sel_area);
+        }
+        notify_gesture_ownership();
+        return;
+    }
+
+    // Drag threshold check: start real drag when finger moves enough
+    if (press_armed_ && selected_) {
+        if (past_drag_threshold(pt)) {
+            press_armed_ = false;
+            handle_drag_start(e);
+            // After the call: its guard rejections return with nothing armed,
+            // and without this notify the swipe policy set at arming would
+            // outlive the gesture that earned it.
+            notify_gesture_ownership();
+        }
+    }
+}
+
+void GridEditMode::handle_released(lv_event_t* e) {
+    if (!active_) {
+        return;
+    }
+    if (lv_indev_t* indev = lv_indev_active()) {
+        lv_point_t at;
+        lv_indev_get_point(indev, &at);
+        track_gesture_travel(at);
+    }
+    // Taken before the end handlers, which clear the gesture state.
+    CalloutReleaseFacts facts;
+    facts.press_on_selected = gesture_on_selected_ && selected_ != nullptr;
+    facts.resized = resizing_;
+    facts.max_travel_px = gesture_max_travel_px_;
+    facts.inert = gesture_inert_;
+    facts.input_acts = grid_input_acts();
+    last_drop_committed_ = false;
+    // Only the hold that raised it can be armed while it is open.
+    if (press_armed_) {
+        restart_callout_lockout();
+    }
+    if (resizing_) {
+        handle_resize_end(e);
+    } else if (dragging_) {
+        handle_drag_end(e);
+    }
+    facts.committed = last_drop_committed_;
+    // After the end handler, which reads the drag or resize state it commits.
+    // A release before the drag threshold was a tap and ends the same way.
+    clear_gesture_state();
+    notify_gesture_ownership();
+    if (release_opens_callout(facts)) {
+        open_tile_callout_next_tick();
+    }
+}
+
+bool GridEditMode::release_opens_callout(const CalloutReleaseFacts& f) {
+    return f.press_on_selected && !f.resized && !f.committed &&
+           f.max_travel_px <= kDragThresholdPx && !f.inert && f.input_acts;
+}
+
+bool GridEditMode::past_drag_threshold(lv_point_t pt) const {
+    const int dx = pt.x - press_origin_.x;
+    const int dy = pt.y - press_origin_.y;
+    return dx * dx + dy * dy > kDragThresholdPx * kDragThresholdPx;
+}
+
+bool GridEditMode::hold_raises_callout() const {
+    if (!gesture_on_selected_ || dragging_ || resizing_) {
+        return false;
+    }
+    lv_area_t sel_area;
+    lv_obj_get_coords(selected_, &sel_area);
+    return !press_starts_resize(sel_area);
+}
+
+bool GridEditMode::press_starts_resize(const lv_area_t& sel_area) const {
+    return detect_resize_edge(press_origin_.x, press_origin_.y, sel_area) != ResizeEdge::None &&
+           is_selected_widget_resizable();
+}
+
+void GridEditMode::restart_callout_lockout() {
+    if (is_callout_open()) {
+        callout_->restart_lockout(lv_tick_get());
+    }
+}
+
+void GridEditMode::track_gesture_travel(lv_point_t pt) {
+    if (!gesture_start_known_) {
+        return;
+    }
+    const int dx = pt.x - gesture_start_.x;
+    const int dy = pt.y - gesture_start_.y;
+    const int travel =
+        static_cast<int>(std::lround(std::sqrt(static_cast<double>(dx * dx + dy * dy))));
+    gesture_max_travel_px_ = std::max(gesture_max_travel_px_, travel);
+}
+
+bool GridEditMode::is_callout_open() const {
+    return callout_ && callout_->is_visible();
+}
+
+void GridEditMode::open_tile_callout() {
+    if (!grid_input_acts() || !selected_ || !container_) {
+        return;
+    }
+    lv_obj_t* screen = lv_obj_get_screen(container_);
+    if (!screen) {
+        return;
+    }
+    const std::string id = selected_widget_id();
+    auto* pw = static_cast<PanelWidget*>(lv_obj_get_user_data(selected_));
+    const PanelWidgetDef* def = id.empty() ? nullptr : find_widget_def(id);
+    const std::string title = def && def->display_name ? lv_tr(def->display_name) : id;
+    if (!callout_) {
+        callout_ = std::make_unique<helix::ui::TileEditCallout>();
+    }
+    callout_widget_id_ = id;
+    spdlog::debug("[GridEditMode] Opening the tile callout for '{}'", id);
+    callout_->show_for(screen, selected_, title,
+                       helix::ui::tile_callout_rows(pw && pw->has_edit_configure()),
+                       [this, token = lifetime_.token()](helix::ui::TileCalloutAction action) {
+                           if (token.expired()) {
+                               return;
+                           }
+                           on_callout_action(action);
+                       });
+}
+
+void GridEditMode::close_tile_callout() {
+    if (callout_) {
+        callout_->hide();
+    }
+}
+
+void GridEditMode::open_tile_callout_next_tick() {
+    const std::string id = selected_widget_id();
+    if (id.empty()) {
+        return;
+    }
+    // After the gesture has settled the selection. A press since then cancels
+    // it: that gesture decides anew.
+    const uint32_t gesture = gesture_serial_;
+    helix::ui::run_next_tick(lifetime_.token(), [this, id, gesture]() {
+        if (!active_ || !selected_ || gesture != gesture_serial_ || selected_widget_id() != id) {
+            return;
+        }
+        open_tile_callout();
+    });
+}
+
+void GridEditMode::on_callout_action(helix::ui::TileCalloutAction action) {
+    if (!active_ || !selected_ || selected_widget_id() != callout_widget_id_) {
+        spdlog::debug("[GridEditMode] Callout action for '{}' ignored: no longer the selection",
+                      callout_widget_id_);
+        return;
+    }
+    switch (action) {
+    case helix::ui::TileCalloutAction::Configure:
+        configure_selected_widget();
+        break;
+    case helix::ui::TileCalloutAction::Remove:
+        remove_selected_widget();
+        break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Drag start
+// ---------------------------------------------------------------------------
+
+void GridEditMode::end_gesture_uncommitted() {
+    if (!active_ || !owns_gesture()) {
+        return;
+    }
+    // A drag past the last page goes home while still live: the session must
+    // not stay scoped to a page that does not exist.
+    if (on_next_page_slot()) {
+        return_drag_to_origin();
+    }
+    // No release will clear this gesture's state: the dragged widget's float
+    // and both previews go as a release would take them.
+    tear_down_gesture();
+    cancel_snap_animation();
+    // Selection goes too: an aborted gesture has no meaningful selection,
+    // and dropping it here (not in the deferred rebuild) keeps the tail
+    // self-sufficient when no rebuild callback is wired.
+    select_widget(nullptr);
+    notify_gesture_ownership();
+    // Restore the world from config: widget positions (an aborted move leaves
+    // the widget at its drop point), selection chrome, lattice. The rebuild
+    // deletes the shield with the container's other children, so the next
+    // gesture needs the one rebuild_then_select creates after it.
+    rebuild_then_select("");
+}
+
+void GridEditMode::begin_press() {
+    if (!active_) {
+        return;
+    }
+    if (owns_gesture()) {
+        spdlog::warn("[GridEditMode] A press began with a gesture still owning the pointer "
+                     "(armed={} dragging={} resizing={}): its end event was lost, ending it "
+                     "uncommitted",
+                     press_armed_, dragging_, resizing_);
+        end_gesture_uncommitted();
+    }
+    clear_gesture_state();
+    ++gesture_serial_;
+    if (lv_indev_t* indev = lv_indev_active()) {
+        lv_indev_get_point(indev, &gesture_start_);
+        gesture_start_known_ = true;
+    }
+    // A resize still easing into its cell owes the relayout that gives the
+    // widget its new span, and when the relayout falls back to a full rebuild
+    // that replaces the objects this press lands on, its target among them.
+    // The press finishes the snap, which schedules the relayout for the next
+    // tick, and takes no grid action, so no gesture owns the pointer when it
+    // runs.
+    if (snap_anim_outline_[0]) {
+        finish_resize_snap();
+        gesture_inert_ = true;
+    }
+}
+
+void GridEditMode::handle_drag_start(lv_event_t* /*e*/) {
+    spdlog::trace("[GridEditMode] handle_drag_start: dragging_={} resizing_={} selected_={}",
+                  dragging_, resizing_, (void*)selected_);
+    if (dragging_ || resizing_ || !selected_) {
+        return;
+    }
+
+    // Verify the gesture started on the selected widget.
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        spdlog::trace("[GridEditMode] handle_drag_start: no active indev");
+        return;
+    }
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    lv_area_t sel_area;
+    lv_obj_get_coords(selected_, &sel_area);
+    spdlog::trace("[GridEditMode] handle_drag_start: origin=({},{}) point=({},{}) "
+                  "sel=({},{})→({},{}) band={}",
+                  press_origin_.x, press_origin_.y, point.x, point.y, sel_area.x1, sel_area.y1,
+                  sel_area.x2, sel_area.y2, edge_hit_band());
+    // Anchored at the press origin, not the live pointer: a resize that grows the
+    // widget drags away from it, so by the time the drag threshold is met the
+    // pointer is legitimately off-widget. Testing the live pointer here rejects
+    // exactly the gestures the edge classification below is meant to catch.
+    if (!press_owns_widget(press_origin_, sel_area)) {
+        spdlog::debug("[GridEditMode] handle_drag_start: press did not start on selected widget");
+        return;
+    }
+
+    // Look up config entry for the selected widget
+    int cfg_idx = find_config_index_for_widget(selected_);
+    if (cfg_idx < 0) {
+        spdlog::warn("[GridEditMode] Drag start: widget not in config");
+        return;
+    }
+
+    const auto& entry =
+        config_->page_entries(static_cast<size_t>(page_index_))[static_cast<size_t>(cfg_idx)];
+    spdlog::debug("[GridEditMode] handle_drag_start: cfg_idx={} id='{}' col={} row={} "
+                  "colspan={} rowspan={} has_grid={}",
+                  cfg_idx, entry.id, entry.col, entry.row, entry.colspan, entry.rowspan,
+                  entry.has_grid_position());
+    drag_orig_col_ = entry.col;
+    drag_orig_row_ = entry.row;
+    drag_orig_colspan_ = entry.colspan;
+    drag_orig_rowspan_ = entry.rowspan;
+
+    // Check if the INITIAL press point (not current pointer) was near an edge.
+    // By the time drag threshold is met, the pointer may have moved beyond the
+    // edge tolerance — use press_origin_ which is where the finger first touched.
+    if (press_starts_resize(sel_area)) {
+        const ResizeEdge edge = detect_resize_edge(press_origin_.x, press_origin_.y, sel_area);
+        // Start resize mode instead of drag
+        resizing_ = true;
+        resize_edge_ = edge;
+
+        // Hide selection chrome during resize (will rebuild after)
+        destroy_selection_chrome();
+
+        // Show initial resize preview at current widget size
+        {
+            helix::CellMetrics m = current_metrics();
+            update_resize_preview_px(
+                static_cast<int>(grid_track_origin(m.cell_w, m.gutter, drag_orig_col_)),
+                static_cast<int>(grid_track_origin(m.cell_h, m.gutter, drag_orig_row_)),
+                static_cast<int>(grid_track_extent(m.cell_w, m.gutter, drag_orig_colspan_)),
+                static_cast<int>(grid_track_extent(m.cell_h, m.gutter, drag_orig_rowspan_)), true);
+        }
+
+        spdlog::info("[GridEditMode] Resize started: widget '{}' at ({},{}) span {}x{} edge={}",
+                     entry.id, drag_orig_col_, drag_orig_row_, drag_orig_colspan_,
+                     drag_orig_rowspan_, static_cast<int>(edge));
+        return;
+    }
+
+    // Record drag offset: distance from pointer to widget top-left
+    drag_offset_.x = point.x - sel_area.x1;
+    drag_offset_.y = point.y - sel_area.y1;
+
+    // The widget, and the selection outline that moves with it, leave the page
+    // for the top layer at the screen position they were laid out at.
+    lift_dragged_widget();
+    drag_widget_pos_ = {sel_area.x1, sel_area.y1};
+    place_dragged_widget(drag_widget_pos_);
+
+    dragging_ = true;
+    drag_step_tick_ = lv_tick_get();
+    drag_orig_page_ = page_index_;
+    snap_preview_col_ = -1;
+    snap_preview_row_ = -1;
+
+    spdlog::info("[GridEditMode] Drag started: widget '{}' from ({},{}) span {}x{}", entry.id,
+                 drag_orig_col_, drag_orig_row_, drag_orig_colspan_, drag_orig_rowspan_);
+    notify_gesture_ownership();
+}
+
+// ---------------------------------------------------------------------------
+// Drag move
+// ---------------------------------------------------------------------------
+
+void GridEditMode::handle_drag_move(lv_event_t* /*e*/) {
+    if (!selected_ || !container_) {
+        return;
+    }
+
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        return;
+    }
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    const uint32_t elapsed_ms = lv_tick_elaps(drag_step_tick_);
+    drag_step_tick_ = lv_tick_get();
+
+    const helix::CellMetrics m = current_metrics();
+    lv_area_t widget_area;
+    lv_obj_get_coords(selected_, &widget_area);
+
+    // Edge push, majority crossing, dwell and drop-creates-page, measured
+    // against the page at rest: during an animated flip the container slides,
+    // and rules read off its live position would see the widget leave and
+    // re-enter the page under a pointer that has not moved.
+    const lv_area_t frame = settled_content_area();
+    helix::CrossPageInput cross;
+    cross.frame_x1 = frame.x1;
+    cross.frame_x2 = frame.x2;
+    cross.cell_w = m.cell_w;
+    cross.pointer_x = point.x;
+    cross.widget_left = point.x - drag_offset_.x;
+    cross.widget_width = lv_area_get_width(&widget_area);
+    cross.elapsed_ms = elapsed_ms;
+    cross.page_index = page_index_;
+    cross.page_count = static_cast<int>(config_->page_count());
+    cross.has_next_page_slot = has_next_page_slot();
+    const helix::CrossPageStep step = helix::cross_page_step(cross_page_, cross);
+
+    // Both flips wait on timers, since both are deadlines: the dwell runs out
+    // while the pointer may rest, and a crossing flips only if the finger is
+    // still down, with the widget still past the line, when its delay runs out.
+    if (step.cancel_crossing) {
+        cancel_crossing_flip();
+    }
+    if (step.flip_dir != 0) {
+        start_crossing_flip(step.flip_dir, step.flip_delay_ms);
+    }
+    if (step.dwell_changed) {
+        restart_dwell_flip(step.dwell_dir);
+    }
+    // Widget top-left in screen coords: pointer minus grab offset, plus any
+    // edge push the step accumulated.
+    drag_widget_pos_ = {step.widget_left, point.y - drag_offset_.y};
+    place_dragged_widget(drag_widget_pos_);
+    update_drag_snap_target(drag_widget_pos_);
+}
+
+void GridEditMode::place_dragged_widget(lv_point_t widget_pos) {
+    // On the top layer, whose origin is the screen's, widget_pos is the
+    // position itself: the screen position the snap target and the drop
+    // measure, so the widget stays under the finger while a page slides.
+    lv_obj_set_pos(selected_, widget_pos.x, widget_pos.y);
+    if (selection_overlay_ && lifted_) {
+        lv_obj_set_pos(selection_overlay_, widget_pos.x, widget_pos.y);
+    }
+}
+
+void GridEditMode::lift_dragged_widget() {
+    if (!selected_ || lifted_) {
+        return;
+    }
+    // A child of the page dirties the page's grid each time it moves, and the
+    // next refresh lays out the whole screen for it; on the top layer it lays
+    // out only itself. Its laid-out size is pinned, since outside the grid
+    // nothing stretches it to its cell.
+    lv_area_t area;
+    lv_obj_get_coords(selected_, &area);
+    lifted_had_w_ = lv_obj_get_local_style_prop(selected_, LV_STYLE_WIDTH, &lifted_w_,
+                                                LV_PART_MAIN) == LV_STYLE_RES_FOUND;
+    lifted_had_h_ = lv_obj_get_local_style_prop(selected_, LV_STYLE_HEIGHT, &lifted_h_,
+                                                LV_PART_MAIN) == LV_STYLE_RES_FOUND;
+    lv_obj_t* layer = lv_display_get_layer_top(lv_obj_get_display(selected_));
+    lv_obj_set_floating(selected_, true);
+    lv_obj_set_parent(selected_, layer);
+    lv_obj_set_size(selected_, lv_area_get_width(&area), lv_area_get_height(&area));
+    if (selection_overlay_) {
+        lv_obj_set_parent(selection_overlay_, layer);
+    }
+    lifted_ = true;
+}
+
+void GridEditMode::settle_dragged_widget() {
+    if (!lifted_) {
+        return;
+    }
+    lifted_ = false;
+    if (!selected_) {
+        return;
+    }
+    // Back into the scoped page, just below the shield as it sat in its own
+    // page, so the shield stays the press target over it; its grid cell, which
+    // never changed, lays it out. The outline goes back with it until the
+    // selection redraws it.
+    lv_obj_t* page = container_;
+    if (page) {
+        lv_obj_set_parent(selected_, page);
+        if (shield_ && lv_obj_get_parent(shield_) == page) {
+            lv_obj_move_to_index(selected_, static_cast<int32_t>(lv_obj_get_index(shield_)));
+        }
+        if (selection_overlay_) {
+            lv_obj_set_parent(selection_overlay_, page);
+        }
+    }
+    if (lifted_had_w_) {
+        lv_obj_set_local_style_prop(selected_, LV_STYLE_WIDTH, lifted_w_, LV_PART_MAIN);
+    } else {
+        lv_obj_remove_local_style_prop(selected_, LV_STYLE_WIDTH, LV_PART_MAIN);
+    }
+    if (lifted_had_h_) {
+        lv_obj_set_local_style_prop(selected_, LV_STYLE_HEIGHT, lifted_h_, LV_PART_MAIN);
+    } else {
+        lv_obj_remove_local_style_prop(selected_, LV_STYLE_HEIGHT, LV_PART_MAIN);
+    }
+    lv_obj_set_floating(selected_, false);
+    if (!page) {
+        // No page left to take it back: the one it came from was deleted.
+        helix::ui::safe_delete_deferred(selection_overlay_);
+        helix::ui::safe_delete_deferred(selected_);
+    }
+}
+
+void GridEditMode::update_drag_snap_target(lv_point_t widget_pos) {
+    if (!selected_ || !container_ || !config_) {
+        return;
+    }
+    const helix::CellMetrics m = current_metrics();
+    const lv_area_t content_area = settled_content_area();
+
+    // Target grid cell from the widget's top-left position. The widget follows
+    // the pointer with drag_offset_ preserving the grab point, so using top-left
+    // gives natural anchored behavior - the widget stays under the finger
+    // exactly where grabbed, and the snap target reflects that.
+    int ncols = m.cols;
+    int nrows = m.rows;
+    int cw = lv_area_get_width(&content_area);
+    int ch = lv_area_get_height(&content_area);
+
+    // Round the top-left to the nearest grid cell for snap target
+    const std::string dragged_id = selected_widget_id();
+    const auto [col_step, row_step] = snap_step_for(dragged_id);
+    int target_col =
+        round_to_grid_cell(widget_pos.x, content_area.x1, cw, ncols, m.gutter, col_step);
+    int target_row =
+        round_to_grid_cell(widget_pos.y, content_area.y1, ch, nrows, m.gutter, row_step);
+
+    // Clamp so the widget span doesn't extend past the grid
+    target_col = std::min(target_col, ncols - drag_orig_colspan_);
+    target_row = std::min(target_row, nrows - drag_orig_rowspan_);
+
+    // Only update preview if target cell changed
+    if (target_col == snap_preview_col_ && target_row == snap_preview_row_) {
+        return;
+    }
+
+    // Skip if hovering over the original position
+    if (target_col == drag_orig_col_ && target_row == drag_orig_row_) {
+        destroy_snap_preview();
+        snap_preview_col_ = target_col;
+        snap_preview_row_ = target_row;
+        return;
+    }
+
+    // The dragged widget is left out by id: after a flip the session reads the
+    // landing page, where an index into the origin page names another entry.
+    const GridLayout occupancy = page_occupancy(dragged_id, Occupants::OnScreen);
+    bool valid =
+        occupancy.can_place(target_col, target_row, drag_orig_colspan_, drag_orig_rowspan_);
+    int preview_col = target_col;
+    int preview_row = target_row;
+    if (!valid) {
+        // A drop that swaps previews where the dragged widget lands.
+        helix::DropInput in = drop_input();
+        in.target_col = target_col;
+        in.target_row = target_row;
+        const helix::DropResolution drop = helix::resolve_drop(in, occupancy);
+        if (drop.outcome == helix::DropOutcome::Swap) {
+            valid = true;
+            preview_col = drop.col;
+            preview_row = drop.row;
+        }
+    }
+    update_snap_preview(preview_col, preview_row, drag_orig_colspan_, drag_orig_rowspan_, valid);
+    snap_preview_col_ = target_col;
+    snap_preview_row_ = target_row;
+}
+
+// ---------------------------------------------------------------------------
+// Drag end
+// ---------------------------------------------------------------------------
+
+helix::DropInput GridEditMode::drop_input() const {
+    lv_area_t widget_area;
+    lv_obj_get_coords(selected_, &widget_area);
+    helix::DropInput in;
+    in.page_index = page_index_;
+    in.page_count = static_cast<int>(config_->page_count());
+    in.origin_page = drag_orig_page_;
+    in.origin_col = drag_orig_col_;
+    in.origin_row = drag_orig_row_;
+    in.colspan = drag_orig_colspan_;
+    in.rowspan = drag_orig_rowspan_;
+    // The cell the drag last previewed, which is what the user saw highlighted:
+    // the release point can differ by the finger's lift.
+    in.target_col = snap_preview_col_;
+    in.target_row = snap_preview_row_;
+    in.has_next_page_slot = has_next_page_slot();
+    // A flip can change the scope after the last drag step, so the widget is
+    // measured against the border of the page the release lands in.
+    in.past_right_border = helix::cross_page_past_right_border(
+        settled_content_area().x2, drag_widget_pos_.x, lv_area_get_width(&widget_area));
+    in.past_left_border = helix::cross_page_past_left_border(
+        settled_content_area().x1, drag_widget_pos_.x, lv_area_get_width(&widget_area));
+    // A release while a crossing flip waits stays on the visible page (#2070).
+    if (crossing_flip_timer_) {
+        in.past_right_border = false;
+        in.past_left_border = false;
+    }
+    return in;
+}
+
+int GridEditMode::commit_drop(const std::string& widget_id, const helix::DropResolution& drop) {
+    int page = page_index_;
+    if (drop.outcome == helix::DropOutcome::CreatePage) {
+        page = config_->add_page(config_->generate_page_id(), drop.prepend_page ? 0 : -1);
+        if (page < 0) {
+            return -1;
+        }
+        spdlog::info("[GridEditMode] Drop on a page border: created page {} at ({},{})", page,
+                     drop.col, drop.row);
+    } else if (drop.outcome != helix::DropOutcome::Move &&
+               drop.outcome != helix::DropOutcome::Swap) {
+        return -1;
+    }
+    spdlog::info("[GridEditMode] Moving '{}' from page {} ({},{}) to page {} ({},{})", widget_id,
+                 drag_orig_page_, drag_orig_col_, drag_orig_row_, page, drop.col, drop.row);
+    if (config_->place_entry(widget_id, static_cast<size_t>(page), drop.col, drop.row,
+                             drag_orig_colspan_, drag_orig_rowspan_) < 0) {
+        return -1;
+    }
+    if (drop.outcome == helix::DropOutcome::Swap) {
+        const helix::GridPlacement& other = drop.swapped;
+        spdlog::info("[GridEditMode] Swapping '{}' to ({},{})", other.widget_id, other.col,
+                     other.row);
+        if (config_->place_entry(other.widget_id, static_cast<size_t>(page), other.col, other.row,
+                                 other.colspan, other.rowspan) < 0) {
+            // Never leave the page half-swapped: the dragged entry goes home.
+            config_->place_entry(widget_id, static_cast<size_t>(drag_orig_page_), drag_orig_col_,
+                                 drag_orig_row_, drag_orig_colspan_, drag_orig_rowspan_);
+            return -1;
+        }
+    }
+    return page;
+}
+
+void GridEditMode::handle_drag_end(lv_event_t* /*e*/) {
+    if (!selected_ || !container_ || !config_) {
+        tear_down_gesture();
+        return;
+    }
+
+    // Taken from the object before the commit, which can move the entry to
+    // another page; the rebuild selects the widget again by it.
+    const std::string moved_id = selected_widget_id();
+    const helix::DropResolution drop =
+        helix::resolve_drop(drop_input(), page_occupancy(moved_id, Occupants::OnScreen));
+    const int origin_page = drag_orig_page_;
+    const int pages_before = static_cast<int>(config_->page_count());
+    const int landed_page = commit_drop(moved_id, drop);
+    last_drop_committed_ = landed_page >= 0;
+    spdlog::debug("[GridEditMode] Drag end: outcome {} at ({},{}), landed on page {}",
+                  static_cast<int>(drop.outcome), drop.col, drop.row, landed_page);
+
+    if (landed_page < 0) {
+        // A drop that commits nothing resolves on its origin page as a
+        // cancelled move: a drag off its origin page is carried home while
+        // still live, so the widget, the session and the carousel end where its
+        // entry still is. A commit the config refused goes home the same way.
+        if (drop.outcome != helix::DropOutcome::Cancel) {
+            return_drag_to_origin();
+        }
+        lv_obj_t* dragged = selected_;
+        tear_down_gesture();
+        reselect_in_place(dragged);
+        return;
+    }
+
+    tear_down_gesture();
+    helix::PageSetChange change;
+    change.page_count = pages_before;
+    change.page_added = drop.outcome == helix::DropOutcome::CreatePage && !drop.prepend_page;
+    change.page_prepended = drop.outcome == helix::DropOutcome::CreatePage && drop.prepend_page;
+    // A prepended page is numbered -1 before the change, the tile the drag sat
+    // on past the first page's left border; every other landing names the page
+    // it landed on.
+    change.focus_page = drop.prepend_page ? -1 : landed_page;
+    // A page created before the first shifts the origin page one later, so the
+    // prune that empties it reads it after the shift.
+    const int origin_after = drop.prepend_page ? origin_page + 1 : origin_page;
+    if (landed_page != origin_after && prune_empty_page(origin_after)) {
+        change.removed_page = origin_page;
+    }
+    // One save for the whole commit: the move, a page it created and a page it
+    // emptied. Deferred until edits settle; exit() writes it at the latest.
+    config_->save_soon();
+    if (change.page_added || change.page_prepended || change.removed_page >= 0) {
+        // The panel rebuilds the carousel on the next tick, and the session goes
+        // with the entry; the grid's own deferred rebuild would run against
+        // containers that rebuild replaces.
+        notify_pages_changed(change);
+        return;
+    }
+    // A move that leaves the page set alone lands on the scoped page. Within
+    // its own page only cells changed; a move onto another page takes the
+    // widget out of its origin page too, which the full rebuild restores.
+    if (landed_page == origin_page) {
+        std::vector<std::string> changed{moved_id};
+        if (drop.outcome == helix::DropOutcome::Swap) {
+            changed.push_back(drop.swapped.widget_id);
+        }
+        relayout_then_select(moved_id, std::move(changed), /*resized=*/false);
+        return;
+    }
+    forget_container_children();
+    rebuild_then_select(moved_id);
+}
+
+void GridEditMode::reselect_in_place(lv_obj_t* widget) {
+    selected_ = nullptr;
+    if (!widget || !container_) {
+        return;
+    }
+    // Layout puts the widget back in its cell, repainting where it was and where
+    // it lands; nothing else on the page changed.
+    lv_obj_update_layout(container_);
+    // Only while it is still a child of the scoped container: a rebuild since
+    // the gesture began deleted the objects it held.
+    const uint32_t count = lv_obj_get_child_count(container_);
+    for (uint32_t i = 0; i < count; ++i) {
+        if (lv_obj_get_child(container_, static_cast<int32_t>(i)) == widget) {
+            select_widget(widget);
+            return;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Resize move
+// ---------------------------------------------------------------------------
+
+void GridEditMode::handle_resize_move(lv_event_t* /*e*/) {
+    if (!selected_ || !container_ || !config_) {
+        return;
+    }
+
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev) {
+        return;
+    }
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    // Get container content area for coordinate mapping
+    lv_area_t content_area;
+    helix::CellMetrics m = current_metrics(&content_area);
+    int ncols = m.cols;
+    int nrows = m.rows;
+    int cw = lv_area_get_width(&content_area);
+    int ch = lv_area_get_height(&content_area);
+
+    // Registry entry for the widget being resized — needed up front for its
+    // per-axis snap step.
+    const std::string resize_id = selected_widget_id();
+    if (resize_id.empty()) {
+        return;
+    }
+    const auto [col_step, row_step] = snap_step_for(resize_id);
+
+    // Original widget pixel bounds (from grid config)
+    int orig_x1 =
+        content_area.x1 + static_cast<int>(grid_track_origin(m.cell_w, m.gutter, drag_orig_col_));
+    int orig_y1 =
+        content_area.y1 + static_cast<int>(grid_track_origin(m.cell_h, m.gutter, drag_orig_row_));
+    int orig_x2 =
+        orig_x1 + static_cast<int>(grid_track_extent(m.cell_w, m.gutter, drag_orig_colspan_));
+    int orig_y2 =
+        orig_y1 + static_cast<int>(grid_track_extent(m.cell_h, m.gutter, drag_orig_rowspan_));
+
+    // Compute pixel preview bounds based on which edge is being dragged.
+    // The dragged edge follows the pointer; the opposite edge stays fixed.
+    int preview_x1 = orig_x1;
+    int preview_y1 = orig_y1;
+    int preview_x2 = orig_x2;
+    int preview_y2 = orig_y2;
+
+    // Minimum size in pixels: one snap step, so a whole-cell widget can never
+    // be dragged down to a half cell.
+    int min_w = static_cast<int>(grid_track_extent(m.cell_w, m.gutter, col_step));
+    int min_h = static_cast<int>(grid_track_extent(m.cell_h, m.gutter, row_step));
+
+    switch (resize_edge_) {
+    case ResizeEdge::Right:
+        preview_x2 = std::clamp<int32_t>(point.x, preview_x1 + min_w, content_area.x2);
+        break;
+    case ResizeEdge::Left:
+        preview_x1 = std::clamp<int32_t>(point.x, content_area.x1, preview_x2 - min_w);
+        break;
+    case ResizeEdge::Bottom:
+        preview_y2 = std::clamp<int32_t>(point.y, preview_y1 + min_h, content_area.y2);
+        break;
+    case ResizeEdge::Top:
+        preview_y1 = std::clamp<int32_t>(point.y, content_area.y1, preview_y2 - min_h);
+        break;
+    case ResizeEdge::None:
+        return;
+    }
+
+    // Round current pixel position to grid to check validity
+    int ncells_axis =
+        (resize_edge_ == ResizeEdge::Left || resize_edge_ == ResizeEdge::Right) ? ncols : nrows;
+    int edge_cell;
+    if (resize_edge_ == ResizeEdge::Right) {
+        edge_cell = round_to_grid_cell(preview_x2, content_area.x1, cw, ncols, m.gutter, col_step);
+    } else if (resize_edge_ == ResizeEdge::Left) {
+        edge_cell = round_to_grid_cell(preview_x1, content_area.x1, cw, ncols, m.gutter, col_step);
+    } else if (resize_edge_ == ResizeEdge::Bottom) {
+        edge_cell = round_to_grid_cell(preview_y2, content_area.y1, ch, nrows, m.gutter, row_step);
+    } else {
+        edge_cell = round_to_grid_cell(preview_y1, content_area.y1, ch, nrows, m.gutter, row_step);
+    }
+
+    const int resize_step = (resize_edge_ == ResizeEdge::Left || resize_edge_ == ResizeEdge::Right)
+                                ? col_step
+                                : row_step;
+    auto result =
+        compute_resize_result(resize_edge_, drag_orig_col_, drag_orig_row_, drag_orig_colspan_,
+                              drag_orig_rowspan_, edge_cell, ncells_axis, resize_step);
+
+    // Apply registry min/max clamping and detect if at limit
+    int pre_clamp_c = result.colspan;
+    int pre_clamp_r = result.rowspan;
+    auto [clamped_c, clamped_r] = clamp_span(resize_id, result.colspan, result.rowspan);
+    result.colspan = clamped_c;
+    result.rowspan = clamped_r;
+
+    // Re-anchor origin for top/left edges so the opposite edge stays fixed
+    if (resize_edge_ == ResizeEdge::Top) {
+        result.row = drag_orig_row_ + drag_orig_rowspan_ - result.rowspan;
+    } else if (resize_edge_ == ResizeEdge::Left) {
+        result.col = drag_orig_col_ + drag_orig_colspan_ - result.colspan;
+    }
+
+    // Detect if the dragged axis hit its max constraint
+    bool at_limit = false;
+    if (resize_edge_ == ResizeEdge::Right || resize_edge_ == ResizeEdge::Left) {
+        at_limit = (pre_clamp_c != clamped_c); // Colspan was clamped
+    } else if (resize_edge_ == ResizeEdge::Bottom || resize_edge_ == ResizeEdge::Top) {
+        at_limit = (pre_clamp_r != clamped_r); // Rowspan was clamped
+    }
+
+    // Registry limits first, then the tile's own answer: a size it cannot draw
+    // its icon and widest value in is refused the same way a limit is, so the
+    // preview turns red there too.
+    if (auto* live =
+            selected_ ? static_cast<PanelWidget*>(lv_obj_get_user_data(selected_)) : nullptr) {
+        const auto [fit_c, fit_r] = grow_span_to_fit(
+            [live](int w, int h) { return live->fits_at(w, h); }, result.colspan, result.rowspan,
+            clamp_span(resize_id, GridLayout::kMaxTracks, GridLayout::kMaxTracks).first,
+            clamp_span(resize_id, GridLayout::kMaxTracks, GridLayout::kMaxTracks).second, col_step,
+            row_step, m);
+        if (fit_c != result.colspan || fit_r != result.rowspan) {
+            at_limit = true;
+            result.colspan = fit_c;
+            result.rowspan = fit_r;
+            if (resize_edge_ == ResizeEdge::Top) {
+                result.row = drag_orig_row_ + drag_orig_rowspan_ - result.rowspan;
+            } else if (resize_edge_ == ResizeEdge::Left) {
+                result.col = drag_orig_col_ + drag_orig_colspan_ - result.colspan;
+            }
+        }
+    }
+
+    // Check collision with other widgets
+    const bool valid = page_occupancy(resize_id, Occupants::AllPlaced)
+                           .can_place(result.col, result.row, result.colspan, result.rowspan);
+
+    // Convert preview coords to container-relative (content area relative)
+    int px = preview_x1 - content_area.x1;
+    int py = preview_y1 - content_area.y1;
+    int pw = preview_x2 - preview_x1;
+    int ph = preview_y2 - preview_y1;
+
+    // Pixel-following preview: danger color when at max size or invalid placement
+    update_resize_preview_px(px, py, pw, ph, valid && !at_limit);
+
+    // Grid-snapped preview (shows where widget will land on release)
+    update_snap_preview(result.col, result.row, result.colspan, result.rowspan, valid);
+
+    spdlog::trace("[GridEditMode] Resize preview: px=({},{} {}x{}) → grid ({},{} {}x{}) valid={}",
+                  px, py, pw, ph, result.col, result.row, result.colspan, result.rowspan, valid);
+}
+
+// ---------------------------------------------------------------------------
+// Resize end
+// ---------------------------------------------------------------------------
+
+void GridEditMode::handle_resize_end(lv_event_t* /*e*/) {
+    if (!selected_ || !container_ || !config_) {
+        delete_outline(resize_outline_);
+        clear_gesture_state();
+        return;
+    }
+
+    // Get the pointer's final position and compute the rounded grid result
+    lv_indev_t* indev = lv_indev_active();
+    lv_point_t point = {0, 0};
+    if (indev) {
+        lv_indev_get_point(indev, &point);
+    }
+
+    lv_area_t content_area;
+    helix::CellMetrics m = current_metrics(&content_area);
+    int ncols = m.cols;
+    int nrows = m.rows;
+    int cw = lv_area_get_width(&content_area);
+    int ch = lv_area_get_height(&content_area);
+
+    // Registry entry for the widget being resized — needed up front for its
+    // per-axis snap step.
+    const std::string resize_id = selected_widget_id();
+    const int cfg_idx = resize_id.empty() ? -1 : find_config_index_for_widget(selected_);
+    const auto [col_step, row_step] = snap_step_for(resize_id);
+
+    // Round the dragged edge to the nearest grid cell boundary
+    int edge_cell;
+    int ncells_axis;
+    int resize_step;
+    if (resize_edge_ == ResizeEdge::Right) {
+        edge_cell = round_to_grid_cell(point.x, content_area.x1, cw, ncols, m.gutter, col_step);
+        ncells_axis = ncols;
+        resize_step = col_step;
+    } else if (resize_edge_ == ResizeEdge::Left) {
+        edge_cell = round_to_grid_cell(point.x, content_area.x1, cw, ncols, m.gutter, col_step);
+        ncells_axis = ncols;
+        resize_step = col_step;
+    } else if (resize_edge_ == ResizeEdge::Bottom) {
+        edge_cell = round_to_grid_cell(point.y, content_area.y1, ch, nrows, m.gutter, row_step);
+        ncells_axis = nrows;
+        resize_step = row_step;
+    } else {
+        edge_cell = round_to_grid_cell(point.y, content_area.y1, ch, nrows, m.gutter, row_step);
+        ncells_axis = nrows;
+        resize_step = row_step;
+    }
+
+    auto result =
+        compute_resize_result(resize_edge_, drag_orig_col_, drag_orig_row_, drag_orig_colspan_,
+                              drag_orig_rowspan_, edge_cell, ncells_axis, resize_step);
+
+    // Apply registry clamping
+    bool did_resize = false;
+
+    if (cfg_idx >= 0) {
+        auto [clamped_c, clamped_r] = clamp_span(resize_id, result.colspan, result.rowspan);
+        result.colspan = clamped_c;
+        result.rowspan = clamped_r;
+
+        // Re-anchor origin for top/left edges so the opposite edge stays fixed
+        if (resize_edge_ == ResizeEdge::Top) {
+            result.row = drag_orig_row_ + drag_orig_rowspan_ - result.rowspan;
+        } else if (resize_edge_ == ResizeEdge::Left) {
+            result.col = drag_orig_col_ + drag_orig_colspan_ - result.colspan;
+        }
+
+        // Reject if the span didn't actually change — this prevents a top/left
+        // edge drag at max size from silently moving the widget origin instead
+        // of snapping back (the user saw a red/at-limit preview and expects no change).
+        bool span_changed =
+            (result.colspan != drag_orig_colspan_ || result.rowspan != drag_orig_rowspan_);
+        bool changed =
+            (result.col != drag_orig_col_ || result.row != drag_orig_row_ || span_changed);
+
+        if (changed && span_changed) {
+            did_resize = page_occupancy(resize_id, Occupants::AllPlaced)
+                             .can_place(result.col, result.row, result.colspan, result.rowspan);
+        }
+    }
+
+    if (did_resize) {
+        commit_resize_with_snap(result);
+    } else {
+        // Snap back: clean up previews and restore selection
+        lv_obj_t* was_selected = selected_;
+        delete_outline(resize_outline_);
+        destroy_snap_preview();
+        clear_gesture_state();
+        reselect_in_place(was_selected);
+    }
+}
+
+void GridEditMode::update_resize_preview_px(int x, int y, int w, int h, bool valid) {
+    if (!container_) {
+        return;
+    }
+
+    // Pixel-following outline. The grid-snapped snap preview is the primary
+    // indicator of where the widget lands.
+    ensure_outline(resize_outline_, container_);
+    lv_area_t content;
+    lv_obj_get_content_coords(container_, &content);
+    const int sx = content.x1 + x;
+    const int sy = content.y1 + y;
+    place_outline(resize_outline_, kResizeOutlineWidth, sx, sy, w, h);
+    lv_area_set(&resize_outline_box_, sx, sy, sx + w - 1, sy + h - 1);
+    color_outline(resize_outline_,
+                  valid ? theme_get_accent_color() : ThemeManager::instance().get_color("danger"),
+                  LV_OPA_40);
+}
+
+void GridEditMode::commit_resize_with_snap(const ResizeResult& result) {
+    if (!container_ || !config_) {
+        return;
+    }
+
+    int cfg_idx = find_config_index_for_widget(selected_);
+    if (cfg_idx < 0) {
+        return;
+    }
+
+    // The snap animation's target, in screen coordinates like the outline.
+    lv_area_t content;
+    helix::CellMetrics m = current_metrics(&content);
+
+    int target_x = content.x1 + static_cast<int>(grid_track_origin(m.cell_w, m.gutter, result.col));
+    int target_y = content.y1 + static_cast<int>(grid_track_origin(m.cell_h, m.gutter, result.row));
+    int target_w = static_cast<int>(grid_track_extent(m.cell_w, m.gutter, result.colspan));
+    int target_h = static_cast<int>(grid_track_extent(m.cell_h, m.gutter, result.rowspan));
+
+    // Update config
+    auto& entries = config_->page_entries_mut(static_cast<size_t>(page_index_));
+    auto& entry = entries[static_cast<size_t>(cfg_idx)];
+    std::string resized_id = entry.id;
+
+    spdlog::info("[GridEditMode] Resized '{}' from ({},{} {}x{}) to ({},{} {}x{})", entry.id,
+                 drag_orig_col_, drag_orig_row_, drag_orig_colspan_, drag_orig_rowspan_, result.col,
+                 result.row, result.colspan, result.rowspan);
+
+    entry.col = result.col;
+    entry.row = result.row;
+    entry.colspan = result.colspan;
+    entry.rowspan = result.rowspan;
+    // Persist at commit, not at the animation's end: the deferred completion
+    // below can be interrupted (a page flip during the ease, a session exit)
+    // and the committed span must not depend on the animation finishing.
+    config_->save_soon();
+
+    // Clean up resize state. The snap preview goes now; the outline eases into
+    // the committed cell first.
+    destroy_snap_preview();
+    clear_gesture_state();
+
+    // Animate the outline to its final grid position, then re-seat the page on
+    // completion, which gives the resized widget its new span.
+    if (resize_outline_[0] && DisplaySettingsManager::instance().get_animations_enabled()) {
+        struct SnapData {
+            int target_x, target_y, target_w, target_h;
+            int start_x, start_y, start_w, start_h;
+            ResizeOutline outline;
+            GridEditMode* self;
+        };
+
+        lv_obj_t* preview = resize_outline_[0];
+
+        auto* data = new SnapData();
+        data->target_x = target_x;
+        data->target_y = target_y;
+        data->target_w = target_w;
+        data->target_h = target_h;
+        data->start_x = resize_outline_box_.x1;
+        data->start_y = resize_outline_box_.y1;
+        data->start_w = lv_area_get_width(&resize_outline_box_);
+        data->start_h = lv_area_get_height(&resize_outline_box_);
+        data->outline = resize_outline_;
+        data->self = this;
+
+        lv_anim_t anim;
+        lv_anim_init(&anim);
+        // `var` must be the widget being animated, not the heap context.
+        // lv_obj_destructor cancels animations by `var == obj`
+        // (lib/lvgl/src/core/lv_obj.c), so an animation keyed on anything else
+        // keeps running — and keeps writing — after its target is freed. The
+        // context rides along in user_data, which custom_exec_cb can reach
+        // because it receives the lv_anim_t rather than the bare var.
+        lv_anim_set_var(&anim, preview);
+        lv_anim_set_user_data(&anim, data);
+        lv_anim_set_values(&anim, 0, 255);
+        lv_anim_set_duration(&anim, 150);
+        lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+        lv_anim_set_custom_exec_cb(&anim, [](lv_anim_t* a, int32_t val) {
+            auto* d = static_cast<SnapData*>(a->user_data);
+            int t = val; // 0..255
+            int x = d->start_x + (d->target_x - d->start_x) * t / 255;
+            int y = d->start_y + (d->target_y - d->start_y) * t / 255;
+            int w = d->start_w + (d->target_w - d->start_w) * t / 255;
+            int h = d->start_h + (d->target_h - d->start_h) * t / 255;
+            place_outline(d->outline, kResizeOutlineWidth, x, y, w, h);
+        });
+        // Frees SnapData on EVERY exit path. anim_completed_handler() and
+        // remove_anim() both call deleted_cb (lib/lvgl/src/misc/lv_anim.c), so
+        // this covers normal completion, cancel_snap_animation(), the widget's
+        // own destructor, and Application::shutdown()'s lv_anim_delete_all().
+        // completed_cb runs first and must not free it.
+        lv_anim_set_deleted_cb(&anim, [](lv_anim_t* a) {
+            auto* d = static_cast<SnapData*>(a->user_data);
+            if (!d) {
+                return;
+            }
+            if (d->self && d->self->snap_anim_outline_[0] == a->var) {
+                d->self->snap_anim_outline_ = {};
+                d->self->snap_anim_page_ = nullptr;
+                d->self->snap_anim_widget_id_.clear();
+            }
+            delete d;
+        });
+        lv_anim_set_completed_cb(&anim, [](lv_anim_t* a) {
+            auto* d = static_cast<SnapData*>(a->user_data);
+            // SnapData is freed by deleted_cb, which LVGL calls right after
+            // this returns. The span was saved at commit.
+            std::string widget_id = d->self->snap_anim_widget_id_;
+            delete_outline(d->outline);
+            std::vector<std::string> changed{widget_id};
+            d->self->relayout_then_select(std::move(widget_id), std::move(changed),
+                                          /*resized=*/true);
+        });
+        lv_anim_start(&anim);
+        // The exec callback writes every bar, so the death of any bar ends the
+        // animation, not only that of bar 0, its `var`. LVGL cancels by var
+        // pointer without dereferencing it, so the order the bars die in does
+        // not matter. DECLARATIVE_OK: LV_EVENT_DELETE cleanup.
+        for (size_t i = 1; i < resize_outline_.size(); ++i) {
+            lv_obj_add_event_cb(
+                resize_outline_[i],
+                [](lv_event_t* e) { lv_anim_delete(lv_event_get_user_data(e), nullptr); },
+                LV_EVENT_DELETE, preview);
+        }
+        snap_anim_outline_ = resize_outline_;
+        snap_anim_page_ = container_;
+        snap_anim_widget_id_ = resized_id;
+        snap_anim_cell_ = result;
+
+        // The animation drives the outline from here on; snap_anim_outline_ is
+        // the handle now. The bars live on the top layer, so nothing deletes
+        // them but the animation's end or cancel_snap_animation().
+        resize_outline_ = {};
+    } else {
+        delete_outline(resize_outline_);
+        relayout_then_select(resized_id, {resized_id}, /*resized=*/true);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Drag visual helpers
+// ---------------------------------------------------------------------------
+
+void GridEditMode::update_snap_preview(int col, int row, int colspan, int rowspan, bool valid) {
+    if (!container_) {
+        destroy_snap_preview();
+        return;
+    }
+    // A resize asks on every pointer step, while the snapped cell changes only
+    // at a cell boundary, so an unchanged preview is left alone.
+    const auto rect = std::make_tuple(col, row, colspan, rowspan, valid);
+    if (snap_preview_[0] && rect == snap_preview_rect_) {
+        return;
+    }
+    snap_preview_rect_ = rect;
+
+    // Measured against the page at rest, where a page still sliding in settles.
+    const lv_area_t content = settled_content_area();
+    helix::CellMetrics m = current_metrics();
+    const int px = content.x1 + static_cast<int>(grid_track_origin(m.cell_w, m.gutter, col));
+    const int py = content.y1 + static_cast<int>(grid_track_origin(m.cell_h, m.gutter, row));
+    const int pw = static_cast<int>(grid_track_extent(m.cell_w, m.gutter, colspan));
+    const int ph = static_cast<int>(grid_track_extent(m.cell_h, m.gutter, rowspan));
+
+    ensure_outline(snap_preview_, container_);
+    place_outline(snap_preview_, kSnapPreviewWidth, px, py, pw, ph);
+    color_outline(snap_preview_,
+                  valid ? theme_get_accent_color() : ThemeManager::instance().get_color("danger"),
+                  valid ? LV_OPA_70 : LV_OPA_50);
+}
+
+void GridEditMode::destroy_snap_preview() {
+    if (snap_preview_[0]) {
+        delete_outline(snap_preview_);
+    }
+    snap_preview_col_ = -1;
+    snap_preview_row_ = -1;
+}
+
+void GridEditMode::tear_down_gesture() {
+    settle_dragged_widget();
+    if (dragging_ || resizing_) {
+        destroy_snap_preview();
+        delete_outline(resize_outline_);
+    }
+    clear_gesture_state();
+}
+
+void GridEditMode::clear_gesture_state() {
+    press_armed_ = false;
+    dragging_ = false;
+    resizing_ = false;
+    resize_edge_ = ResizeEdge::None;
+    gesture_press_seen_ = false;
+    gesture_can_arm_ = false;
+    gesture_inert_ = false;
+    gesture_entered_ = false;
+    gesture_on_selected_ = false;
+    gesture_start_known_ = false;
+    gesture_max_travel_px_ = 0;
+    // A stale zone would make the next drag's zone entry look like a
+    // continuation, and a gesture that ended past the border must not leave
+    // the next one unable to cross.
+    cross_page_ = {};
+    stop_page_flip_timers();
+    drag_orig_page_ = -1;
+    drag_orig_col_ = -1;
+    drag_orig_row_ = -1;
+    drag_orig_colspan_ = 1;
+    drag_orig_rowspan_ = 1;
+    drag_offset_ = {0, 0};
+    drag_widget_pos_ = {0, 0};
+}
+
+void GridEditMode::forget_container_children() {
+    if (lifted_) {
+        // A dragged widget on the top layer belongs to a page this rebuild
+        // replaces, and the top layer would keep it on screen.
+        lifted_ = false;
+        helix::ui::safe_delete_deferred(selection_overlay_);
+        helix::ui::safe_delete_deferred(selected_);
+    }
+    selected_ = nullptr;
+    selection_overlay_ = nullptr;
+    shield_ = nullptr;
+    lattice_spec_ = nullptr;
+    // The previews live on the top layer, so the page going away does not
+    // take them with it.
+    delete_outline(snap_preview_);
+    delete_outline(resize_outline_);
+    snap_preview_col_ = -1;
+    snap_preview_row_ = -1;
+}
+
+void GridEditMode::rebuild_then_select(std::string widget_id) {
+    schedule_deferred_rebuild([this, widget_id = std::move(widget_id)]() {
+        if (!active_ || !container_) {
+            return;
+        }
+        ensure_shield();
+        if (widget_id.empty()) {
+            return;
+        }
+        // Layout first: the rebuilt widget has no coordinates until it runs,
+        // and the selection chrome is placed from them.
+        lv_obj_update_layout(container_);
+        if (lv_obj_t* widget = lv_obj_get_child_by_name(container_, widget_id.c_str())) {
+            select_widget(widget);
+        }
+    });
+}
+
+void GridEditMode::relayout_then_select(std::string widget_id, std::vector<std::string> changed_ids,
+                                        bool resized) {
+    // The chrome outlines the widget where it was; it is drawn again around
+    // where the relayout leaves it.
+    destroy_selection_chrome();
+    selected_ = nullptr;
+    relayout_pending_ = true;
+    helix::ui::run_next_tick(lifetime_.token(), [this, widget_id = std::move(widget_id),
+                                                 changed_ids = std::move(changed_ids), resized]() {
+        relayout_pending_ = false;
+        if (!active_ || !container_) {
+            return;
+        }
+        if (!relayout_cb_ || !relayout_cb_(changed_ids, resized ? widget_id : std::string{})) {
+            forget_container_children();
+            rebuild_then_select(widget_id);
+            return;
+        }
+        if (!shield_) {
+            ensure_shield();
+        }
+        // Layout first: the selection chrome is placed from the widget's
+        // coordinates, which the new cell changes only once it runs.
+        lv_obj_update_layout(container_);
+        if (lv_obj_t* widget = lv_obj_get_child_by_name(container_, widget_id.c_str())) {
+            select_widget(widget);
+        }
+    });
+}
+
+/// What the shield draws as the lattice: the intersections a selection can snap
+/// to. Owned by the shield (freed on its LV_EVENT_DELETE), so a draw never
+/// reaches a GridEditMode that is gone.
+struct GridLatticeSpec {
+    int ncols = 0;
+    int nrows = 0;
+    int col_step = 0;
+    int row_step = 0;
+    helix::CellMetrics metrics{};
+    lv_color_t color{};
+};
+
+namespace {
+
+constexpr int kDotSizeMajor = 4;
+constexpr int kDotSizeMinor = 3;
+
+/// Draw the lattice on the shield. One draw hook rather than an object per dot:
+/// a fine lattice is a hundred-odd dots, which a slow board takes ~200 ms to
+/// create. DECLARATIVE_OK: draw hooks have no declarative equivalent.
+void draw_lattice(lv_event_t* e) {
+    const auto* spec = static_cast<const GridLatticeSpec*>(lv_event_get_user_data(e));
+    lv_obj_t* shield = lv_event_get_current_target_obj(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    if (!spec || !layer || spec->ncols <= 0 || spec->nrows <= 0 || spec->col_step <= 0 ||
+        spec->row_step <= 0) {
+        return;
+    }
+    lv_area_t content;
+    lv_obj_get_content_coords(shield, &content);
+    const helix::CellMetrics& m = spec->metrics;
+    // c/r run 0..ncols/0..nrows inclusive to draw both edges of the lattice.
+    // grid_track_origin() only knows track starts (0..n-1); the final boundary
+    // is the right/bottom edge of the last track, not a further track start
+    // (which would land one gutter past the content edge).
+    auto track_x = [&](int c) {
+        return static_cast<int>(
+            c < spec->ncols
+                ? helix::grid_track_origin(m.cell_w, m.gutter, c)
+                : helix::grid_track_origin(m.cell_w, m.gutter, std::max(spec->ncols - 1, 0)) +
+                      m.cell_w);
+    };
+    auto track_y = [&](int r) {
+        return static_cast<int>(
+            r < spec->nrows
+                ? helix::grid_track_origin(m.cell_h, m.gutter, r)
+                : helix::grid_track_origin(m.cell_h, m.gutter, std::max(spec->nrows - 1, 0)) +
+                      m.cell_h);
+    };
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_color = spec->color;
+    dsc.radius = LV_RADIUS_CIRCLE;
+    const lv_area_t clip = layer->_clip_area;
+    const int cell = helix::GridLayout::TRACKS_PER_CELL;
+    // Whole-cell intersections are always legal drop targets; the half-cell
+    // intersections between them are legal only for a widget selected on an
+    // axis it supports, so they are drawn smaller and fainter to read as a
+    // finer, secondary lattice rather than a change to the base grid.
+    for (int r = 0; r <= spec->nrows; r += spec->row_step) {
+        const int cy = content.y1 + track_y(r);
+        if (cy + kDotSizeMajor < clip.y1 || cy - kDotSizeMajor > clip.y2) {
+            continue;
+        }
+        for (int c = 0; c <= spec->ncols; c += spec->col_step) {
+            const bool major = (c % cell == 0) && (r % cell == 0);
+            const int size = major ? kDotSizeMajor : kDotSizeMinor;
+            const int x = content.x1 + track_x(c) - size / 2;
+            const int y = cy - size / 2;
+            lv_area_t dot = {x, y, x + size - 1, y + size - 1};
+            if (dot.x2 < clip.x1 || dot.x1 > clip.x2) {
+                continue;
+            }
+            dsc.bg_opa = major ? LV_OPA_30 : LV_OPA_10;
+            lv_draw_rect(layer, &dsc, &dot);
+        }
+    }
+}
+
+} // namespace
+
+void GridEditMode::ensure_shield() {
+    if (!container_)
+        return;
+
+    if (shield_ && lv_obj_get_parent(shield_) != container_) {
+        // A page change moved the session to a new container; re-home the same
+        // shield instead of destroying it. During a carried drag the shield is
+        // the indev's live press target, and the move may run inside that
+        // press's own dispatch (a flip, a release or a cancel carrying the drag
+        // home). Both are safe: lv_obj_set_parent only moves the object between
+        // the two child lists and sends CHILD_CHANGED, CHILD_DELETED and
+        // CHILD_CREATED to the parents
+        // (lib/lvgl/src/core/lv_obj_tree.c#lv_obj_set_parent), the indev keeps
+        // the same object as its press target, a bubbling event reads each
+        // parent only once the handlers below it have run, and the shield's
+        // bubble chain now runs through the new container to the same handlers.
+        lv_obj_set_parent(shield_, container_);
+    } else if (!shield_) {
+        // A transparent overlay floating above the grid children, with two
+        // jobs: it draws the lattice, and it is the event shield. It takes every touch, so no
+        // widget underneath receives a press or click during edit mode, and the events bubble up to
+        // the grid handlers on carousel_host.
+        //
+        // The shield OBJECT persists for the session (across selection changes
+        // and page flips): the indev glues a gesture to its press target
+        // (PRESS_LOCK is the constructor default), so destroying that target
+        // mid-gesture ends the press with no event reaching the grid handlers.
+        // A rebuild moves the shield off its page before deleting it
+        // (helix::ui::safe_clean_children), so the INDEV_RESET that delete
+        // sends never bubbles to carousel_host. Only the lattice CHILDREN are
+        // rebuilt while a gesture may own the pointer. The object dies with
+        // the container's other children in a deferred rebuild, which a commit
+        // schedules after its release and a cancel after it ended the gesture.
+        shield_ = lv_obj_create(container_);
+        lv_obj_set_size(shield_, LV_PCT(100), LV_PCT(100));
+        lv_obj_set_floating(shield_, true);
+        // CLICKABLE + EVENT_BUBBLE makes this a genuine event shield: as the
+        // top-most full-grid child it becomes the hit target for every touch,
+        // so no widget underneath ever receives a press/click while editing
+        // (only sizing and moving, handled geometrically by the bubbled
+        // press/click handlers). A non-clickable overlay would let touches
+        // fall through to widgets that re-add CLICKABLE on async updates (e.g.
+        // the AMS mini-status), launching them mid-edit. The selection's
+        // configure and remove buttons are created after this overlay, so
+        // they stay on top.
+        lv_obj_set_clickable(shield_, true);
+        lv_obj_set_event_bubble(shield_, true);
+        lv_obj_set_scrollable(shield_, false);
+        lv_obj_set_style_bg_opa(shield_, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(shield_, 0, 0);
+        lv_obj_set_style_pad_all(shield_, 0, 0);
+        // The lattice it draws. DECLARATIVE_OK: draw hook and LV_EVENT_DELETE
+        // cleanup.
+        auto* spec = new GridLatticeSpec();
+        lv_obj_add_event_cb(shield_, draw_lattice, LV_EVENT_DRAW_MAIN, spec);
+        lv_obj_add_event_cb(
+            shield_,
+            [](lv_event_t* e) { delete static_cast<GridLatticeSpec*>(lv_event_get_user_data(e)); },
+            LV_EVENT_DELETE, spec);
+        lattice_spec_ = spec;
+        lattice_key_ = {};
+    }
+    rebuild_lattice();
+}
+
+void GridEditMode::handle_press_cancelled(lv_event_t* e) {
+    // Both events go to the press target, the shield for every gesture that
+    // owns the pointer, and bubble to the grid handlers as its RELEASED does.
+    // INDEV_RESET: lv_indev_reset clears the press target whatever object it
+    // names, sending this to the target as it does
+    // (lib/lvgl/src/indev/lv_indev.c#indev_reset_core).
+    // PRESS_LOST: the release that follows lv_indev_wait_release sends this in
+    // place of RELEASED (lib/lvgl/src/indev/lv_indev.c#indev_proc_release).
+    if (active_ && gesture_entered_ && lv_event_get_code(e) == LV_EVENT_PRESS_LOST) {
+        // The hold that entered edit mode ended its press, so its release
+        // arrives as this and no PRESSING reports the finger moving. The
+        // callout it raised closes here if the finger left the tile's hold.
+        if (lv_indev_t* indev = lv_indev_active()) {
+            lv_point_t at;
+            lv_indev_get_point(indev, &at);
+            track_gesture_travel(at);
+        }
+        if (gesture_max_travel_px_ > kDragThresholdPx) {
+            close_tile_callout();
+        } else {
+            restart_callout_lockout();
+        }
+        clear_gesture_state();
+        return;
+    }
+    if (!active_ || !owns_gesture()) {
+        return;
+    }
+    spdlog::debug("[GridEditMode] {} on {} ends the gesture uncommitted "
+                  "(armed={} dragging={} resizing={})",
+                  lv_event_get_code(e) == LV_EVENT_PRESS_LOST ? "PRESS_LOST" : "INDEV_RESET",
+                  lv_event_get_target_obj(e) == shield_ ? "the event shield" : "a grid object",
+                  press_armed_, dragging_, resizing_);
+    end_gesture_uncommitted();
+}
+
+int GridEditMode::drawn_dot_count() const {
+    if (!lattice_spec_ || lattice_spec_->col_step <= 0 || lattice_spec_->row_step <= 0) {
+        return 0;
+    }
+    return dot_count(lattice_spec_->ncols, lattice_spec_->nrows, lattice_spec_->col_step,
+                     lattice_spec_->row_step);
+}
+
+void GridEditMode::rebuild_lattice() {
+    if (!container_ || !shield_ || !lattice_spec_)
+        return;
+
+    lv_area_t content_area;
+    helix::CellMetrics m = current_metrics(&content_area);
+    int ncols = m.cols;
+    int nrows = m.rows;
+
+    int w = lv_area_get_width(&content_area);
+    int h = lv_area_get_height(&content_area);
+
+    const int cell = GridLayout::TRACKS_PER_CELL;
+    auto [col_step, row_step] =
+        selected_ ? snap_step_for(selected_widget_id()) : std::pair<int, int>{cell, cell};
+    // Every page switch, page-set change and rebuild redraws the lattice, so
+    // the navbar's delete-page button follows the session's page from here.
+    lv_subject_set_int(&get_home_edit_page_deletable_subject(), page_deletable() ? 1 : 0);
+
+    // A lattice change repaints the whole page, so a selection change, a drop
+    // or a resize that asks for the lattice already drawn leaves it alone.
+    const LatticeKey key{shield_, container_, ncols, nrows, col_step, row_step, w, h};
+    if (key == lattice_key_) {
+        return;
+    }
+    lattice_key_ = key;
+
+    if (w <= 0 || h <= 0) {
+        spdlog::warn("[GridEditMode] Container content area {}x{}, skipping dots", w, h);
+        *lattice_spec_ = {};
+        return;
+    }
+
+    // Use contrast text color so dots are visible on both light and dark backgrounds
+    lv_color_t screen_bg = ThemeManager::instance().current_palette().screen_bg;
+    lattice_spec_->ncols = ncols;
+    lattice_spec_->nrows = nrows;
+    lattice_spec_->col_step = col_step;
+    lattice_spec_->row_step = row_step;
+    lattice_spec_->metrics = m;
+    lattice_spec_->color = theme_manager_get_contrast_color(screen_bg);
+    lv_obj_invalidate(shield_);
+
+    spdlog::trace("[GridEditMode] Drew the lattice: {}x{} grid, {}x{} area (page {})", ncols, nrows,
+                  w, h, page_index_);
+}
+
+// ---------------------------------------------------------------------------
+// Widget catalog integration
+// ---------------------------------------------------------------------------
+
+std::optional<CatalogPlacement> find_catalog_placement(const GridLayout& occupancy,
+                                                       const PanelWidgetDef& def, int origin_col,
+                                                       int origin_row, int col_step, int row_step) {
+    int colspan = def.colspan;
+    int rowspan = def.rowspan;
+
+    int place_col = -1;
+    int place_row = -1;
+
+    // Boundaries this widget may occupy. The search, the shrink steps below and
+    // the origin the catalog remembered all have to agree with it, or a
+    // whole-cell widget added from the catalog lands straddling a cell (#1126).
+    const bool origin_on_step = origin_col >= 0 && origin_row >= 0 && origin_col % col_step == 0 &&
+                                origin_row % row_step == 0;
+
+    // Try the catalog origin cell first
+    if (origin_on_step && occupancy.can_place(origin_col, origin_row, colspan, rowspan)) {
+        place_col = origin_col;
+        place_row = origin_row;
+    } else {
+        // Fall back to first available position
+        auto pos = occupancy.find_available(colspan, rowspan, col_step, row_step);
+        if (pos) {
+            place_col = pos->first;
+            place_row = pos->second;
+        }
+    }
+
+    // If default size doesn't fit, try progressively smaller sizes down to the minimum
+    if (place_col < 0 || place_row < 0) {
+        int min_c = def.effective_min_colspan();
+        int min_r = def.effective_min_rowspan();
+
+        if (min_c < colspan || min_r < rowspan) {
+            // Try shrinking rowspan first (wider but shorter), then colspan.
+            // One step at a time, not one track: shrinking a whole-cell widget
+            // by a single track produces a size edit mode would refuse to give
+            // it back.
+            for (int try_r = rowspan; try_r >= min_r && place_col < 0; try_r -= row_step) {
+                for (int try_c = colspan; try_c >= min_c && place_col < 0; try_c -= col_step) {
+                    if (try_c == colspan && try_r == rowspan)
+                        continue; // Already tried
+
+                    if (origin_on_step &&
+                        occupancy.can_place(origin_col, origin_row, try_c, try_r)) {
+                        place_col = origin_col;
+                        place_row = origin_row;
+                        colspan = try_c;
+                        rowspan = try_r;
+                    } else {
+                        auto pos = occupancy.find_available(try_c, try_r, col_step, row_step);
+                        if (pos) {
+                            place_col = pos->first;
+                            place_row = pos->second;
+                            colspan = try_c;
+                            rowspan = try_r;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (place_col < 0 || place_row < 0) {
+        return std::nullopt;
+    }
+    return CatalogPlacement{place_col, place_row, colspan, rowspan};
+}
+
+std::optional<CatalogPlacement>
+GridEditMode::find_catalog_placement(const PanelWidgetDef& def) const {
+    const GridLayout occupancy = page_occupancy("", Occupants::OnScreen);
+    const auto [col_step, row_step] = snap_step_for(def.id);
+    return helix::find_catalog_placement(occupancy, def, catalog_origin_col_, catalog_origin_row_,
+                                         col_step, row_step);
+}
+
+void GridEditMode::open_widget_catalog(lv_obj_t* screen) {
+    if (!config_) {
+        spdlog::warn("[GridEditMode] Cannot open catalog: no config");
+        return;
+    }
+
+    spdlog::info("[GridEditMode] Opening widget catalog (origin cell: {}, {})", catalog_origin_col_,
+                 catalog_origin_row_);
+
+    close_tile_callout();
+    // The catalog places, resets and copies layouts: an Undo over it would
+    // restore into a layout it has since changed.
+    withdraw_undo();
+    // The session keeps its page and takes no grid input until the catalog
+    // closes (grid_input_acts), and the carousel does not swipe beside it.
+    catalog_open_ = true;
+    notify_gesture_ownership();
+
+    WidgetCatalogOverlay::show(
+        screen, *config_,
+        [this](const std::string& widget_id) { place_widget_from_catalog(widget_id); },
+        [this]() {
+            catalog_open_ = false;
+            notify_gesture_ownership();
+            // The carousel follows the session, and it may have paged while the
+            // catalog held the session to its page.
+            if (active_ && show_page_cb_) {
+                show_page_cb_(page_index_);
+            }
+        },
+        [this](const PanelWidgetDef& def) { return find_catalog_placement(def).has_value(); });
+}
+
+void GridEditMode::place_widget_from_catalog(const std::string& widget_id) {
+    if (!config_ || !container_) {
+        spdlog::warn("[GridEditMode] place_widget_from_catalog: no config or container");
+        return;
+    }
+
+    const auto* def = find_widget_def(widget_id);
+    if (!def) {
+        spdlog::warn("[GridEditMode] Unknown widget ID: {}", widget_id);
+        return;
+    }
+
+    const auto placement = find_catalog_placement(*def);
+    if (!placement) {
+        spdlog::warn("[GridEditMode] No available grid position for widget '{}' ({}x{})", widget_id,
+                     def->colspan, def->rowspan);
+        ToastManager::instance().show(
+            ToastSeverity::WARNING,
+            lv_tr("Not enough room for this widget. Rearrange or remove widgets to make space."));
+        return;
+    }
+
+    // The search shrinks only when the default span fits nowhere, so a span
+    // smaller than the def's means the widget really landed shrunk.
+    if (placement->colspan != def->colspan || placement->rowspan != def->rowspan) {
+        spdlog::info("[GridEditMode] Widget '{}' shrunk to {}x{} to fit", widget_id,
+                     placement->colspan, placement->rowspan);
+    }
+
+    // The catalog offers a widget that holds no cell on any page
+    // (PanelWidgetConfig::is_placed), so its entry may sit on another page,
+    // disabled or enabled at (-1,-1); place_entry moves it here with its config.
+    if (config_->place_entry(widget_id, static_cast<size_t>(page_index_), placement->col,
+                             placement->row, placement->colspan, placement->rowspan) < 0) {
+        spdlog::warn("[GridEditMode] Cannot place '{}': page {} does not exist", widget_id,
+                     page_index_);
+        return;
+    }
+
+    spdlog::info("[GridEditMode] Placed widget '{}' at ({},{}) {}x{}", widget_id, placement->col,
+                 placement->row, placement->colspan, placement->rowspan);
+
+    // Reset catalog origin
+    catalog_origin_col_ = -1;
+    catalog_origin_row_ = -1;
+
+    // Deselect, save, and rebuild; the new widget comes back selected so its
+    // chrome is visible immediately.
+    select_widget(nullptr);
+    forget_container_children();
+    config_->save_soon();
+    rebuild_then_select(widget_id);
+}
+
+} // namespace helix

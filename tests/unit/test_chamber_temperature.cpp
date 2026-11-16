@@ -18,6 +18,7 @@
 #include "printer_temperature_state.h"
 #include "settings_manager.h"
 #include "temperature_sensor_manager.h"
+#include "unit_conversions_json.h"
 
 #include <array>
 #include <cstdio>

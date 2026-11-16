@@ -3,7 +3,7 @@
 
 #include "../../src/led/led_wled_json.h"
 #include "../helix_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
 #include "moonraker_api_mock.h"
@@ -366,7 +366,7 @@ struct WledMockFixture : public HelixTestFixture {
     ~WledMockFixture() override {
         helix::led::LedController::instance().set_on_wled_settled(nullptr);
         helix::led::LedController::instance().deinit();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -379,7 +379,7 @@ TEST_CASE_METHOD(WledMockFixture, "WledBackend: poll_status keys state by strip 
     //                enclosure_led off / brightness 128 / preset -1.
     bool completed = false;
     backend.poll_status([&]() { completed = true; });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(completed);
 
     auto printer = backend.get_strip_state("printer_led");
@@ -392,8 +392,8 @@ TEST_CASE_METHOD(WledMockFixture, "WledBackend: poll_status keys state by strip 
     REQUIRE(enclosure.brightness == 128);
     REQUIRE(enclosure.active_preset == -1);
 
-    // The regression: everything used to land under the literal key "strips",
-    // which then defaulted to off/255/-1 for every real strip id.
+    // Nothing may land under the literal key "strips"; a real strip id would
+    // then default to off/255/-1.
     auto bogus = backend.get_strip_state("strips");
     REQUIRE(!bogus.is_on);
     REQUIRE(bogus.brightness == 255);
@@ -407,7 +407,7 @@ TEST_CASE_METHOD(WledMockFixture, "LedController: WLED discovery uses real strip
     ctrl.init(mock_api.get(), &mock_client);
 
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     const auto& strips = ctrl.wled().strips();
     REQUIRE(strips.size() == 2);
@@ -432,7 +432,7 @@ TEST_CASE_METHOD(WledMockFixture,
     REQUIRE(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 0);
 
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(lv_subject_get_int(ctrl.get_led_controllable_subject()) == 1);
 }
@@ -452,19 +452,19 @@ TEST_CASE_METHOD(WledMockFixture,
     REQUIRE(ctrl.chamber_light().empty());
 
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     const std::string light = ctrl.chamber_light();
     REQUIRE_FALSE(light.empty());
     CHECK(ctrl.device_state(light).power == helix::led::PowerState::On);
 
     // The user switches it off; a later discovery (a Klipper restart) leaves it off.
     ctrl.set_power({light}, false);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ctrl.device_state(light).power == helix::led::PowerState::Off);
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     helix::settle_light_buttons();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(ctrl.device_state(light).power == helix::led::PowerState::Off);
 }
 
@@ -477,7 +477,7 @@ TEST_CASE_METHOD(WledMockFixture, "LedController: WLED strips arriving notify th
     ctrl.set_on_wled_settled([&settled]() { ++settled; });
 
     ctrl.discover_wled_strips();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(settled == 1);
     CHECK_FALSE(ctrl.wled().strips().empty());
 }

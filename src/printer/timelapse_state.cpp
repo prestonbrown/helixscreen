@@ -3,21 +3,23 @@
 
 #include "timelapse_state.h"
 
-#include "ui_error_reporting.h"
 #include "ui_format_utils.h"
-#include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
-#include "observer_factory.h"
+#include "core/error_reporting.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
+#include "notice.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
 #include "state/subject_macros.h"
-#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -135,7 +137,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         return;
     }
 
-    // Safely extract action
     auto action_it = event.find("action");
     if (action_it == event.end() || !action_it->is_string()) {
         spdlog::debug("[TimelapseState] Event missing or invalid 'action' field");
@@ -151,7 +152,6 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
             int current = lv_subject_get_int(&timelapse_frame_count_);
             lv_subject_set_int(&timelapse_frame_count_, current + 1);
 
-            // On first frame, set capture info with print filename and timestamp
             if (current == 0) {
                 auto* fn_subject = get_printer_state().print_state().get_print_filename_subject();
                 const char* filename = fn_subject ? lv_subject_get_string(fn_subject) : "";
@@ -162,14 +162,13 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 } else {
                     info = date_str;
                 }
-                lv_subject_copy_string(&timelapse_capture_info_, info.c_str());
+                lv_subject_set_string(&timelapse_capture_info_, info.c_str());
             }
         });
 
         spdlog::debug("[TimelapseState] New frame captured");
 
     } else if (action == "render") {
-        // Extract render status and progress
         std::string status;
         int progress = 0;
         std::string error_msg;
@@ -189,16 +188,14 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         }
 
         if (status == "running") {
-            // Show start toast on first progress event
             if (last_notified_progress_ < 0) {
-                ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Rendering timelapse..."),
-                                              3000);
+                publish_notice({NoticeSeverity::INFO, lv_tr("Rendering timelapse..."), 3000});
             }
             last_notified_progress_ = progress;
 
             async_lifetime_.defer("TimelapseState::render_progress", [this, progress]() {
                 lv_subject_set_int(&timelapse_render_progress_, progress);
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("rendering"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("rendering"));
             });
 
             spdlog::debug("[TimelapseState] Render progress: {}%", progress);
@@ -215,22 +212,22 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 "TimelapseState::render_complete", [this, filename, cb = std::move(cb)]() {
                     lv_subject_set_int(&timelapse_render_progress_, 0);
                     lv_subject_set_int(&timelapse_frame_count_, 0);
-                    lv_subject_copy_string(&timelapse_render_status_, lv_tr("complete"));
-                    lv_subject_copy_string(&timelapse_capture_info_, "");
+                    lv_subject_set_string(&timelapse_render_status_, lv_tr("complete"));
+                    lv_subject_set_string(&timelapse_capture_info_, "");
                     if (cb) {
                         cb(filename);
                     }
                 });
 
             last_notified_progress_ = -1;
-            ToastManager::instance().show(ToastSeverity::SUCCESS,
-                                          lv_tr("Timelapse rendered successfully"), 5000);
+            publish_notice(
+                {NoticeSeverity::SUCCESS, lv_tr("Timelapse rendered successfully"), 5000});
 
             spdlog::info("[TimelapseState] Render complete: {}", filename);
 
         } else if (status == "error") {
             async_lifetime_.defer("TimelapseState::render_error", [this]() {
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("error"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("error"));
             });
 
             last_notified_progress_ = -1;
@@ -256,8 +253,8 @@ void TimelapseState::reset() {
     async_lifetime_.defer("TimelapseState::reset", [this]() {
         lv_subject_set_int(&timelapse_frame_count_, 0);
         lv_subject_set_int(&timelapse_render_progress_, 0);
-        lv_subject_copy_string(&timelapse_render_status_, lv_tr("idle"));
-        lv_subject_copy_string(&timelapse_capture_info_, "");
+        lv_subject_set_string(&timelapse_render_status_, lv_tr("idle"));
+        lv_subject_set_string(&timelapse_capture_info_, "");
     });
 
     last_notified_progress_ = -1;

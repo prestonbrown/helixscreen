@@ -1384,14 +1384,20 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd rows with no scan outstanding are dro
 // ============================================================================
 TEST_CASE_METHOD(NetdBackendFixture, "netd unowned 5GHz row still proves band support",
                  "[netd][wifi]") {
+    // Band edges: 4.9 GHz and UNII-4 are 5 GHz, Wi-Fi 6E (5925+) is not
+    // (prestonbrown/helixscreen#1985).
+    const auto [frequency_mhz, is_5ghz] = GENERATE(
+        table<int, bool>({{5180, true}, {4900, true}, {5895, true}, {4899, false}, {5925, false}}));
+    CAPTURE(frequency_mhz);
     REQUIRE(start_and_settle());
     REQUIRE_FALSE(backend_->supports_5ghz());
 
-    server_->push_line("FREQUENCY=5180 SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Foreign 5G"));
+    server_->push_line("FREQUENCY=" + std::to_string(frequency_mhz) +
+                       " SIGNAL=-61 SECURITY=WPA2-PSK NETWORK=" + b64("Foreign"));
     server_->push_line("SSID=" + b64("probe"));
     REQUIRE(wait_until([&] { return backend_->get_status().ssid == "probe"; }));
 
-    REQUIRE(backend_->supports_5ghz());
+    REQUIRE(backend_->supports_5ghz() == is_5ghz);
 }
 
 // ============================================================================
@@ -1480,6 +1486,15 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd unreachable daemon admits the wpa_sup
     // The connect itself could not be made, so the radio, the supplicant and
     // DHCP are free and the manager may swap wpa_supplicant in.
     REQUIRE(backend_->supports_wpa_supplicant_fallback());
+
+    // An installed daemon that is not answering is not an absent one: netd loads
+    // the WiFi driver, so with it down there is no interface for wpa_supplicant
+    // to take, and swapping abandons the reconnect that would recover it.
+    bin_env_.set("/bin/sh");
+    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
+    // An install path that names nothing readmits it.
+    bin_env_.set("/nonexistent/netd");
+    REQUIRE(backend_->supports_wpa_supplicant_fallback());
 }
 
 TEST_CASE_METHOD(NetdBackendFixture,
@@ -1507,68 +1522,39 @@ TEST_CASE_METHOD(NetdBackendFixture,
 //    still reach the wire while Ethernet holds the link. The backend only
 //    ADVISES that the wired link is about to go.
 // ============================================================================
-TEST_CASE_METHOD(NetdBackendFixture, "netd sends a Wi-Fi join while Ethernet holds the link",
+TEST_CASE_METHOD(NetdBackendFixture, "netd sends a Wi-Fi join whatever holds the link",
                  "[1542][1398][netd][wifi]") {
-    register_standard_events();
-    REQUIRE(start_and_settle());
+    struct Row {
+        const char* name;
+        const char* mode;
+        const char* state;
+        bool displaces_wired; // the advisory: the join will take the wired link down
+    };
+    const Row rows[] = {
+        // The snapshot merges into ETHERNET/CONNECTED; no WIFI event fires for it
+        {"Ethernet holds the link", "MODE=ETHERNET", "STATE=CONNECTED", true},
+        {"Wi-Fi already owns the link", "MODE=WIFI", "STATE=CONNECTED", false},
+        {"Ethernet holds no link", "MODE=ETHERNET", "STATE=DISCONNECTED", false},
+    };
+    for (const Row& r : rows) {
+        DYNAMIC_SECTION(r.name) {
+            register_standard_events();
+            REQUIRE(start_and_settle());
+            server_->push_line(r.mode);
+            server_->push_line(r.state);
+            REQUIRE(drain_wire());
 
-    // The snapshot merges into ETHERNET/CONNECTED (never a WIFI event: the
-    // backend only fires CONNECTED for mode WIFI).
-    server_->push_line("MODE=ETHERNET");
-    server_->push_line("STATE=CONNECTED");
-    REQUIRE(drain_wire());
+            CHECK(backend_->join_displaces_wired_link() == r.displaces_wired);
 
-    // The wired link is what the join will displace, so the advisory is on.
-    REQUIRE(backend_->join_displaces_wired_link());
-
-    WiFiError result{WiFiResult::UNKNOWN_ERROR};
-    std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    helix::test::JoinOnExit caller_join(caller);
-    caller.join();
-    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
-    REQUIRE(result.success());
-    REQUIRE(wait_until([&] { return line_recorded(want); }));
-}
-
-TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds once Wi-Fi owns the link",
-                 "[1542][netd][wifi]") {
-    register_standard_events();
-    REQUIRE(start_and_settle());
-
-    server_->push_line("MODE=WIFI");
-    server_->push_line("STATE=CONNECTED");
-    REQUIRE(drain_wire());
-
-    // Nothing wired to displace once the radio already owns the link.
-    REQUIRE_FALSE(backend_->join_displaces_wired_link());
-
-    WiFiError result{WiFiResult::UNKNOWN_ERROR};
-    std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    helix::test::JoinOnExit caller_join(caller);
-    caller.join();
-    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
-    REQUIRE(result.success());
-    REQUIRE(wait_until([&] { return line_recorded(want); }));
-}
-
-TEST_CASE_METHOD(NetdBackendFixture, "netd join proceeds when Ethernet holds no link",
-                 "[1542][netd][wifi]") {
-    register_standard_events();
-    REQUIRE(start_and_settle());
-
-    server_->push_line("MODE=ETHERNET");
-    server_->push_line("STATE=DISCONNECTED");
-    REQUIRE(drain_wire());
-
-    REQUIRE_FALSE(backend_->join_displaces_wired_link());
-
-    WiFiError result{WiFiResult::UNKNOWN_ERROR};
-    std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
-    helix::test::JoinOnExit caller_join(caller);
-    caller.join();
-    const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
-    REQUIRE(result.success());
-    REQUIRE(wait_until([&] { return line_recorded(want); }));
+            WiFiError result{WiFiResult::UNKNOWN_ERROR};
+            std::thread caller([&] { result = backend_->connect_network("WifiNet", "pw"); });
+            helix::test::JoinOnExit caller_join(caller);
+            caller.join();
+            const std::string want = "CONNECT_WIFI ssid=" + b64("WifiNet") + " psk=" + b64("pw");
+            REQUIRE(result.success());
+            REQUIRE(wait_until([&] { return line_recorded(want); }));
+        }
+    }
 }
 
 TEST_CASE_METHOD(NetdBackendFixture, "netd advises displacement only while the daemon is live",
@@ -1588,29 +1574,6 @@ TEST_CASE_METHOD(NetdBackendFixture, "netd advises displacement only while the d
     // warn about a consequence that cannot happen. Polled, because the loop
     // thread has to notice the closed socket first.
     REQUIRE(wait_until([&] { return !backend_->join_displaces_wired_link(); }));
-}
-
-// An installed daemon that is not answering is not an absent one. netd loads the
-// WiFi driver, so with it down there is no interface for wpa_supplicant to take:
-// swapping to it trades an accurate failure for a misleading one and abandons the
-// reconnect that would recover when the daemon returns.
-TEST_CASE_METHOD(NetdBackendFixture,
-                 "netd installed but not answering withholds the wpa_supplicant fallback",
-                 "[netd][wifi]") {
-    // Start from the answer that admits the fallback, so a flag that is never
-    // written cannot satisfy this case.
-    server_.reset();
-    REQUIRE_FALSE(backend_->start().success());
-    REQUIRE(backend_->supports_wpa_supplicant_fallback());
-
-    // Same unreachable socket, but the daemon binary is installed: this is a
-    // netd firmware whose daemon is down, not a machine that never had one.
-    bin_env_.set("/bin/sh");
-    REQUIRE_FALSE(backend_->supports_wpa_supplicant_fallback());
-
-    // And an install path that names nothing readmits it.
-    bin_env_.set("/nonexistent/netd");
-    REQUIRE(backend_->supports_wpa_supplicant_fallback());
 }
 
 // With the daemon up, the radio genuinely is the daemon's to manage and there is

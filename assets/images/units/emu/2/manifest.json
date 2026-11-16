@@ -1,0 +1,36 @@
+{
+  "id": "emu",
+  "lanes": 2,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png"
+        }
+      ]
+    }
+  }
+}

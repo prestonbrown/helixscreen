@@ -1,11 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/holding_motion_api.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "toolhead_move_sender.h"
@@ -47,7 +45,7 @@ class SenderFixture : public LVGLTestFixture {
                    [this](const helix::JogCoalescer::CoalescedMove&) { return may_flush_; }}) {}
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void ack(size_t i) {

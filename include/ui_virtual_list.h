@@ -94,6 +94,27 @@ inline void sync_list_spacers(lv_obj_t* container, lv_obj_t* leading, lv_obj_t* 
     }
 }
 
+/// Pool slots that cover every window compute_window() can return for this viewport, at
+/// any scroll position, capped at `total_rows` and `cap`. Sizing the pool once from this,
+/// when the list is populated, keeps row creation out of scroll events.
+inline size_t pool_rows_for_viewport(int viewport_h, int row_stride, int total_rows, int overscan,
+                                     size_t cap) {
+    const int stride = std::max(1, row_stride);
+    const int rows_in_view = (std::max(0, viewport_h) + stride - 1) / stride;
+    const int widest = rows_in_view + 1 + 2 * std::max(0, overscan);
+    return std::min(
+        {cap, static_cast<size_t>(std::max(0, total_rows)), static_cast<size_t>(widest)});
+}
+
+/// Grows a slot pool to `want` slots. `make_slot()` builds one and returns false when it
+/// cannot; `slot_items` gains a -1 entry per slot built, so it always matches the pool.
+template <typename MakeSlot>
+void grow_pool_to(size_t want, std::vector<ssize_t>& slot_items, MakeSlot make_slot) {
+    while (slot_items.size() < want && make_slot()) {
+        slot_items.push_back(-1);
+    }
+}
+
 /// Which pool slot shows each item of [first, last), at most one per slot. A slot already
 /// showing one of them keeps it, so scrolling a row out and another in touches two slots,
 /// not all of them. `slot_items[s]` is the item slot `s` shows (-1 for none) and is updated;

@@ -7,6 +7,7 @@
 // measures chip widths in the fonts the chips render and feeds them here.
 
 #include "printer_image_regions.h"
+#include "sort_small.h"
 
 #include <algorithm>
 #include <array>
@@ -29,9 +30,10 @@ enum class CalloutKind {
     Toolhead = 5,
     HotendFan = 6,
     AuxFan = 7,
-    SpeedFlow = 8
+    SpeedFlow = 8,
+    OtherTools = 9 ///< every head but the printing one, on a multi-head printer
 };
-inline constexpr size_t kCalloutKindCount = 9;
+inline constexpr size_t kCalloutKindCount = 10;
 
 /// The `printer_callout_mode` subject ints; XML ref_values read these.
 enum class CalloutMode { ImageOnly = 0, Pinned = 1, Docked = 2, BothSides = 3, OneSide = 4 };
@@ -122,6 +124,7 @@ struct CalloutLayout {
         return r.light;
     case CalloutKind::AuxFan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         return std::nullopt;
     }
     return std::nullopt;
@@ -249,8 +252,8 @@ inline std::vector<std::vector<size_t>> x_columns(const std::vector<CalloutChipO
     std::vector<size_t> by_x(n);
     for (size_t i = 0; i < n; ++i)
         by_x[i] = i;
-    std::sort(by_x.begin(), by_x.end(),
-              [&](size_t a, size_t b) { return chips[a].rect.x < chips[b].rect.x; });
+    sort_small(by_x.begin(), by_x.end(),
+               [&](size_t a, size_t b) { return chips[a].rect.x < chips[b].rect.x; });
     std::vector<std::vector<size_t>> cols;
     for (size_t b = 0; b < by_x.size();) {
         size_t e = b + 1;
@@ -258,8 +261,8 @@ inline std::vector<std::vector<size_t>> x_columns(const std::vector<CalloutChipO
         for (; e < by_x.size() && chips[by_x[e]].rect.x < right; ++e)
             right = std::max(right, chips[by_x[e]].rect.x + chips[by_x[e]].rect.w);
         std::vector<size_t> col(by_x.begin() + long(b), by_x.begin() + long(e));
-        std::sort(col.begin(), col.end(),
-                  [&](size_t p, size_t q) { return chips[p].rect.y < chips[q].rect.y; });
+        sort_small(col.begin(), col.end(),
+                   [&](size_t p, size_t q) { return chips[p].rect.y < chips[q].rect.y; });
         cols.push_back(std::move(col));
         b = e;
     }
@@ -277,6 +280,7 @@ inline int dock_rank(CalloutKind k) {
         return 0;
     case CalloutKind::Fan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         return 1;
     case CalloutKind::Chamber:
         return 2;
@@ -459,7 +463,7 @@ inline bool stack(const CalloutLayoutInput& in, const CalloutRect& img, bool hor
     const auto key = [&](const CalloutChipIn& c) {
         return horizontal_band ? c.anchor->y : c.anchor->x;
     };
-    std::sort(chips.begin(), chips.end(), [&](auto& a, auto& b) { return key(a) < key(b); });
+    sort_small(chips.begin(), chips.end(), [&](auto& a, auto& b) { return key(a) < key(b); });
     std::vector<int> start, size;
     for (const auto& c : chips) {
         const int a =
@@ -590,7 +594,7 @@ inline std::vector<BandUnit> band_units(const CalloutLayoutInput& in, const Call
         }
     }
     if (!group.empty()) {
-        std::sort(group.begin(), group.end(), [&](const CalloutChipIn& a, const CalloutChipIn& b) {
+        sort_small(group.begin(), group.end(), [&](const CalloutChipIn& a, const CalloutChipIn& b) {
             return py(a) != py(b) ? py(a) < py(b) : rank(a.kind) < rank(b.kind);
         });
         BandUnit u;
@@ -624,8 +628,8 @@ inline bool band_slots(const CalloutLayoutInput& in, std::vector<BandUnit>& unit
     std::vector<BandUnit> anchored, loose;
     for (auto& u : units)
         (u.y ? anchored : loose).push_back(std::move(u));
-    std::stable_sort(anchored.begin(), anchored.end(),
-                     [](const BandUnit& a, const BandUnit& b) { return *a.y < *b.y; });
+    sort_small(anchored.begin(), anchored.end(),
+               [](const BandUnit& a, const BandUnit& b) { return *a.y < *b.y; });
     const auto spread = [&](const std::vector<BandUnit>& order) {
         std::vector<int> t;
         const float step = n > 1 ? float(room - sum) / float(n - 1) : 0.0f;
@@ -860,8 +864,8 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
         for (const auto& c : base.budget)
             if (c.expendable)
                 by_rank.push_back(c.kind);
-        std::sort(by_rank.begin(), by_rank.end(),
-                  [](CalloutKind a, CalloutKind b) { return dock_rank(a) < dock_rank(b); });
+        sort_small(by_rank.begin(), by_rank.end(),
+                   [](CalloutKind a, CalloutKind b) { return dock_rank(a) < dock_rank(b); });
         for (const int one_side_pct : {kMaxImageShrinkPctBothSides, kMaxImageShrinkPctOneSide}) {
             if (try_line_modes(in, out, one_side_pct))
                 return out;

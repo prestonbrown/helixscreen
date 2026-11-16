@@ -3,7 +3,7 @@
 
 #include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/log_capture.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "wifi_saved_config.h"
 
 #include <fstream>

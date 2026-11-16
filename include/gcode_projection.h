@@ -283,10 +283,10 @@ constexpr float kBrightnessFloor = kMinBrightness * kBackFadeMin;
  *   - white has almost none, so the term is worth a few levels and its existing
  *     tonal range is preserved intact
  *
- * A previous attempt re-centred the factor and split it evenly between darken
- * and lighten. That fixed black and quietly wrecked white, whose 75 distinct
- * luminances collapsed to 17 as the highlight half compressed into the 15
- * levels it had left. Proportional-to-headroom has no such trade.
+ * Re-centring the factor and splitting it evenly between darken and lighten
+ * would fix black but wreck white, whose 75 distinct luminances collapse to 17
+ * as the highlight half compresses into the 15 levels it has left.
+ * Proportional-to-headroom has no such trade.
  */
 inline uint8_t apply_shading(uint8_t c, float brightness) {
     constexpr float floor_b = depth_shading::kBrightnessFloor;

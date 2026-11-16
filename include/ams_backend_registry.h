@@ -38,6 +38,11 @@ class AmsBackendRegistry {
     /// consumption sink per slot. A null backend still takes an index.
     int add(std::unique_ptr<AmsBackend> backend, EventCallback on_event);
 
+    /// Register a consumption sink for each of backend @p index's first
+    /// @p slot_count slots that has none yet. A backend can report slots after
+    /// add() (an ACE frame announcing its bays), and those consume like the rest.
+    void ensure_sinks(int index, int slot_count);
+
     /// Unregister every sink, then stop and destroy every backend.
     void clear();
 

@@ -85,6 +85,12 @@ class SlotRegistry {
 
     int tool_for_slot(int global_index) const;
     int slot_for_tool(int tool_number) const;
+
+    /// Put an edit's filament fields and tool mapping on slot @p global_index
+    /// at once, so the slot reads the edit before the next frame. The mapping
+    /// goes through set_tool_mapping() so the reverse map stays consistent.
+    /// True when anything moved; false too for an unknown slot.
+    bool write_edit(int global_index, const SlotInfo& info);
     void set_tool_mapping(int global_index, int tool_number,
                           MappingSource source = MappingSource::Optimistic);
 

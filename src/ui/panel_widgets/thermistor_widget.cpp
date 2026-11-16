@@ -12,14 +12,19 @@
 #include "ui_icon_picker.h"
 #include "ui_temperature_utils.h"
 #include "ui_text.h"
+#include "ui_text_entry_modal.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
@@ -33,6 +38,8 @@
 #include <cstring>
 #include <set>
 #include <utility>
+
+#include "hv/json.hpp"
 
 namespace helix {
 void thermistor_widget_init_subjects();
@@ -49,19 +56,23 @@ void register_thermistor_widget() {
     lv_xml_register_event_cb(nullptr, "thermistor_picker_row_cb", ThermistorWidget::picker_row_cb);
     lv_xml_register_event_cb(nullptr, "thermistor_carousel_page_cb",
                              ThermistorWidget::carousel_page_cb);
+    lv_xml_register_event_cb(nullptr, "thermistor_unit_row_cb", ThermistorWidget::unit_row_cb);
+    lv_xml_register_event_cb(nullptr, "thermistor_unit_reset_cb", ThermistorWidget::unit_reset_cb);
 }
 } // namespace helix
 
 using namespace helix;
 using helix::ui::temperature::deci_to_degrees_f;
-using helix::ui::temperature::format_temperature_f;
 
 /// Strip redundant " Temperature" suffix — the widget context already implies it
+/// "Chamber Temperature" -> "Chamber", "Chamber Temperature (BME280)" -> "Chamber (BME280)".
 static void strip_temperature_suffix(std::string& name) {
-    const std::string suffix = " Temperature";
-    if (name.size() > suffix.size() &&
-        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        name.erase(name.size() - suffix.size());
+    const std::string word = " Temperature";
+    const size_t chip =
+        name.size() > 0 && name.back() == ')' ? name.rfind(" (") : std::string::npos;
+    const size_t end = chip == std::string::npos ? name.size() : chip;
+    if (end > word.size() && name.compare(end - word.size(), word.size(), word) == 0) {
+        name.erase(end - word.size(), word.size());
     }
 }
 
@@ -78,6 +89,28 @@ static const char* const kThermistorIcons[] = {
 };
 static constexpr size_t kThermistorIconCount = std::size(kThermistorIcons);
 static constexpr const char* kDefaultIcon = "thermometer";
+
+/// The widest unit a reading carries with no override, for sizing the tile.
+constexpr const char* kDefaultUnit = "\u00B0C";
+constexpr const char* kUnitOverrideKey = "unit_override";
+/// Longest unit text the dialog accepts, in characters.
+constexpr uint32_t kMaxUnitChars = 8;
+/// Longest unit text stored, in bytes: kMaxUnitChars of four-byte UTF-8, and
+/// within the subject buffers that draw it.
+constexpr size_t kMaxUnitBytes = kMaxUnitChars * 4;
+
+/// What the tile measures: its widest reading, carrying @p unit.
+helix::TileSizing::Content sizing_content(const std::string& unit) {
+    return {"110.0 / 888" + unit,
+            "110.0" + unit,
+            "Sensor",
+            true,
+            "",
+            /*label_always_drawn=*/true,
+            helix::TileSizing::IconBox::Glyph,
+            /*icon_animates=*/false,
+            /*label_is_identity=*/true};
+}
 
 // Icons with distinct on/off glyphs. Config stores the ON variant;
 // resolve_icon_for_state() derives the OFF variant from this table.
@@ -126,8 +159,12 @@ struct PickerRowSubjects {
 
 PickerRowSubjects s_sel_rows{"thermistor_sel"}; ///< single-select sensor picker
 PickerRowSubjects s_cfg_rows{"thermistor_cfg"}; ///< multi-select configure picker
-HELIX_PSRAM_BSS lv_subject_t s_sel_count_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_sel_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_count_subject{};
+/// The configure card's Unit row: the text it shows, and 1 while an override is set.
+HELIX_PSRAM_BSS helix::Subject s_cfg_unit_subject{};
+char s_cfg_unit_buf[48] = {};
+HELIX_PSRAM_BSS helix::Subject s_cfg_unit_custom_subject{};
 helix::WidgetSubjects s_subjects{"ThermistorWidgetSubjects"};
 
 /// A sensor's reading as a picker row shows it.
@@ -140,8 +177,7 @@ std::string sensor_temp_text(const std::string& klipper_name) {
                                                    sizeof(buf));
         return buf;
     }
-    return "--\xC2\xB0"
-           "C";
+    return std::string("--") + helix::units::display_temp_symbol();
 }
 
 /// Fill a picker's row subjects from the sensor list, then publish the row
@@ -172,10 +208,14 @@ namespace helix {
 void thermistor_widget_init_subjects() {
     s_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_sel_count_subject, 0);
+            s_sel_count_subject.init_int(0);
             s_subjects.publish("thermistor_sel_rows", &s_sel_count_subject);
-            lv_subject_init_int(&s_cfg_count_subject, 0);
+            s_cfg_count_subject.init_int(0);
             s_subjects.publish("thermistor_cfg_rows", &s_cfg_count_subject);
+            s_cfg_unit_subject.init_string(s_cfg_unit_buf, nullptr, sizeof(s_cfg_unit_buf), "");
+            s_subjects.publish("thermistor_cfg_unit", &s_cfg_unit_subject);
+            s_cfg_unit_custom_subject.init_int(0);
+            s_subjects.publish("thermistor_cfg_unit_custom", &s_cfg_unit_custom_subject);
         },
         [] {
             s_sel_rows.reclaim();
@@ -185,35 +225,33 @@ void thermistor_widget_init_subjects() {
 } // namespace helix
 
 ThermistorWidget::ThermistorWidget(const std::string& instance_id)
-    : TiledPanelWidget(instance_id,
-                       TileSizing::Content{"110.0 / 888\u00B0C", "110.0\u00B0C", "Sensor", true, "",
-                                           /*label_always_drawn=*/true, TileSizing::IconBox::Glyph,
-                                           /*icon_animates=*/false, /*label_is_identity=*/true}),
-      instance_id_(instance_id), temp_subject_name_(instance_id + "_thermistor_temp"),
-      target_subject_name_(instance_id + "_thermistor_target"),
-      available_subject_name_(instance_id + "_thermistor_available"),
+    : TiledPanelWidget(instance_id, sizing_content(kDefaultUnit)), instance_id_(instance_id),
       page_prefix_(instance_id + "_thermistor_page"),
       page_temp_(std::make_unique<IndexedSubjectPool>(
-          page_prefix_.c_str(), IndexedSubjectPool::Type::String, 16, "_temp")),
+          page_prefix_.c_str(), IndexedSubjectPool::Type::String, 48, "_temp")),
       page_name_(std::make_unique<IndexedSubjectPool>(
           page_prefix_.c_str(), IndexedSubjectPool::Type::String, 96, "_name")) {
     // A widget built outside the panel-subject phase still publishes into live
     // subjects. A no-op once they exist.
     thermistor_widget_init_subjects();
-    UI_MANAGED_SUBJECT_INT(temp_subject_, 0, temp_subject_name_.c_str(), subjects_);
-    UI_MANAGED_SUBJECT_INT(target_subject_, 0, target_subject_name_.c_str(), subjects_);
-    UI_MANAGED_SUBJECT_INT(available_subject_, 0, available_subject_name_.c_str(), subjects_);
-
-    for (const char** a = sizing_.subject_attrs(); *a != nullptr; ++a) {
-        attr_storage_.emplace_back(*a);
-    }
-    attr_storage_.insert(attr_storage_.end(),
-                         {"temp_subject", temp_subject_name_, "target_subject",
-                          target_subject_name_, "available_subject", available_subject_name_});
-    for (const auto& s : attr_storage_) {
-        attrs_.push_back(s.c_str());
-    }
-    attrs_.push_back(nullptr);
+    temp_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &temp_subject_, "temp_subject", "thermistor_temp");
+    target_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &target_subject_, "target_subject",
+                                     "thermistor_target");
+    available_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &available_subject_, "available_subject",
+                                     "thermistor_available");
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "thermistor_name");
+    named_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject",
+                                     "thermistor_named");
+    unit_subject_.init_string(unit_buffer_, nullptr, sizeof(unit_buffer_),
+                              helix::units::display_temp_symbol());
+    sizing_.publish_instance_subject(subjects_, &unit_subject_, "unit_subject", "thermistor_unit");
+    raw_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &raw_subject_, "raw_subject", "thermistor_raw");
 }
 
 ThermistorWidget::~ThermistorWidget() {
@@ -233,9 +271,6 @@ void ThermistorWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void ThermistorWidget::attach_single() {
-    // Cache label pointers
-    name_label_ = lv_obj_find_by_name(widget_obj_, "thermistor_name");
-
     // Apply custom icon
     lv_obj_t* icon_obj = lv_obj_find_by_name(widget_obj_, "thermistor_icon");
     if (icon_obj) {
@@ -279,6 +314,13 @@ void ThermistorWidget::attach_carousel() {
         },
         tsm.subjects_lifetime());
 
+    // The page readings carry the display unit (unless the user overrode it).
+    temp_unit_observer_ =
+        helix::ui::observe_temp_unit_change(this, [token](ThermistorWidget* self) {
+            if (!token.expired())
+                self->reformat_pages();
+        });
+
     // Bind immediately (deferred observer fire may be dropped during populate_widgets freeze)
     bind_carousel_sensors();
 
@@ -302,13 +344,14 @@ void ThermistorWidget::bind_carousel_sensors() {
     }
 
     // Lifetimes must clear BEFORE observers so weak_ptr-tracked subject-death
-    // detection in ObserverGuard::reset() correctly skips lv_observer_remove()
+    // detection in ObserverGuard::reset() correctly skips lv_observer_delete()
     // on a recreated subject (#705 ordering rule). Clearing the observers drops
     // their queued callbacks, so none reaches the pages cleaned below.
     {
         carousel_lifetimes_.clear();
         carousel_observers_.clear();
         carousel_page_count_ = 0;
+        page_deci_.clear();
 
         auto* state_ptr = ui_carousel_get_state(carousel);
         if (state_ptr && state_ptr->scroll_container) {
@@ -355,8 +398,8 @@ void ThermistorWidget::bind_carousel_sensors() {
         page_temp_->ensure_size(page_idx + 1);
         page_name_->ensure_size(page_idx + 1);
         page_name_->set_string(page_idx, display_name);
-        page_temp_->set_string(page_idx, "--\xC2\xB0"
-                                         "C");
+        page_temp_->set_string(page_idx, "--" + unit_text(unit_override_));
+        page_deci_.emplace_back();
 
         // Per-page lifetime is stored in a parallel member vector so the token
         // outlives the local stack frame ([L084]).
@@ -385,7 +428,7 @@ void ThermistorWidget::bind_carousel_sensors() {
         // DECLARATIVE_OK: ui_carousel_add_item() owns its pages' scroll container and indicators,
         // so a <repeat> cannot build them.
         auto* page = static_cast<lv_obj_t*>(
-            lv_xml_create(lv_scr_act(), "thermistor_carousel_page", page_attrs));
+            lv_xml_create(lv_screen_active(), "thermistor_carousel_page", page_attrs));
         if (!page) {
             spdlog::error("[ThermistorWidget] thermistor_carousel_page not registered");
             continue;
@@ -407,6 +450,7 @@ void ThermistorWidget::detach() {
     configure_picker_.hide();
     {
         version_observer_.reset();
+        temp_unit_observer_.reset();
         // Lifetimes reset BEFORE observers (#705 ordering rule).
         carousel_lifetimes_.clear();
         carousel_observers_.clear();
@@ -432,7 +476,6 @@ void ThermistorWidget::on_hooked_root_deleted() {
 }
 
 void ThermistorWidget::forget_tile_widgets() {
-    name_label_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -536,11 +579,12 @@ void ThermistorWidget::open_target_keypad() {
         .min_value = 0.0f,
         .max_value = max_value,
         .title_label = display_name_.c_str(),
-        .unit_label = "\u00B0C",
+        .unit_label = "",
         .allow_decimal = false,
         .allow_negative = false,
         .callback = target_keypad_cb,
         .user_data = nullptr,
+        .temperature = true,
     };
     ui_keypad_show(&config);
 }
@@ -575,6 +619,62 @@ void ThermistorWidget::select_icon(const std::string& name) {
                  icon_name_.empty() ? "thermometer (default)" : icon_name_);
 }
 
+std::string ThermistorWidget::unit_text(const std::optional<std::string>& unit_override) {
+    return unit_override ? *unit_override : std::string(helix::units::display_temp_symbol());
+}
+
+void ThermistorWidget::set_unit_override(std::optional<std::string> unit) {
+    if (unit) {
+        unit = std::string(text_io::utf8_prefix(*unit, kMaxUnitBytes));
+    }
+    unit_override_ = std::move(unit);
+    save_config();
+    apply_unit();
+    configure_picker_.fill_unit_row();
+    spdlog::info("[ThermistorWidget] {} unit: {}", instance_id_,
+                 unit_override_ ? "\"" + *unit_override_ + "\"" : std::string("default"));
+}
+
+void ThermistorWidget::apply_unit() {
+    const std::string unit = unit_text(unit_override_);
+    lv_subject_set_string(&unit_subject_, unit.c_str());
+    lv_subject_set_int(&raw_subject_, unit_override_ ? 1 : 0);
+    // The widest reading changes with the unit, so the rung it fits at may too.
+    sizing_.set_content(sizing_content(unit));
+    sizing_.remeasure();
+    // Carousel pages carry the unit in their reading text; rebuilding them
+    // re-renders every reading from its sensor.
+    if (widget_obj_ && is_carousel_mode()) {
+        bind_carousel_sensors();
+    }
+}
+
+void ThermistorWidget::show_unit_entry(ThermistorWidget* self, LifetimeToken token,
+                                       std::string panel, std::string instance_id,
+                                       std::string initial) {
+    helix::ui::TextEntryModal::Config entry;
+    entry.title = lv_tr("Unit text");
+    entry.initial = std::move(initial);
+    entry.placeholder = lv_tr("Leave empty for no unit");
+    entry.accept_text = lv_tr("Save");
+    entry.max_length = kMaxUnitChars;
+    // A rebuild retires the token; the edit then goes straight to the stored
+    // config and the rebuilt tile reads it from there.
+    entry.on_accept = [self, token, panel = std::move(panel),
+                       id = std::move(instance_id)](const std::string& text) {
+        if (!token.expired()) { // L081_OK: on_accept runs on the UI thread, from the OK button
+            self->set_unit_override(text);
+            return;
+        }
+        auto& mgr = PanelWidgetManager::instance();
+        nlohmann::json config = mgr.get_widget_config(panel).get_widget_config(id);
+        config[kUnitOverrideKey] = std::string(text_io::utf8_prefix(text, kMaxUnitBytes));
+        mgr.get_widget_config(panel).set_widget_config(id, config);
+        mgr.notify_config_changed(panel);
+    };
+    helix::ui::TextEntryModal::show_owned(std::move(entry));
+}
+
 void ThermistorWidget::on_temp_changed(int decidegrees) {
     lv_subject_set_int(&temp_subject_, decidegrees);
     spdlog::trace("[ThermistorWidget] {} = {:.1f}°C", display_name_,
@@ -592,14 +692,12 @@ void ThermistorWidget::update_display() {
     lv_subject_set_int(&temp_subject_, temp ? lv_subject_get_int(temp) : 0);
     lv_subject_set_int(&target_subject_, target ? lv_subject_get_int(target) : 0);
 
-    if (name_label_) {
-        if (selected_sensor_.empty()) {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            lv_label_set_translation_tag(name_label_, "Select sensor");
-        } else {
-            lv_label_set_text(name_label_, display_name_.c_str());
-        }
+    // No sensor shows the component's own "Select sensor" label, which
+    // re-translates itself.
+    if (!selected_sensor_.empty()) {
+        lv_subject_set_string(&name_subject_, display_name_.c_str());
     }
+    lv_subject_set_int(&named_subject_, selected_sensor_.empty() ? 0 : 1);
 }
 
 void ThermistorWidget::set_config(const nlohmann::json& config) {
@@ -609,6 +707,13 @@ void ThermistorWidget::set_config(const nlohmann::json& config) {
     if (config.contains("icon") && config["icon"].is_string()) {
         icon_name_ = config["icon"].get<std::string>();
     }
+
+    unit_override_.reset();
+    if (config.contains(kUnitOverrideKey) && config[kUnitOverrideKey].is_string()) {
+        unit_override_ = std::string(
+            text_io::utf8_prefix(config[kUnitOverrideKey].get<std::string>(), kMaxUnitBytes));
+    }
+    apply_unit();
 
     // Migrate old format: {"sensor": "x"} -> sensors_ vector
     if (config.contains("sensor") && config["sensor"].is_string()) {
@@ -667,6 +772,11 @@ void ThermistorWidget::save_config() {
         config["icon"] = icon_name_;
     } else {
         config.erase("icon");
+    }
+    if (unit_override_) {
+        config[kUnitOverrideKey] = *unit_override_;
+    } else {
+        config.erase(kUnitOverrideKey);
     }
     config_ = config;
     save_widget_config(config);
@@ -756,6 +866,32 @@ void ThermistorWidget::ConfigurePicker::fill_rows() {
     }
     const std::set<std::string> selected_set(owner_.sensors_.begin(), owner_.sensors_.end());
     publish_picker_rows(s_cfg_rows, &s_cfg_count_subject, sensors, &selected_set, "");
+    fill_unit_row();
+}
+
+void ThermistorWidget::ConfigurePicker::fill_unit_row() {
+    const auto& unit = owner_.unit_override_;
+    const std::string shown = unit && unit->empty() ? std::string(lv_tr("None")) : unit_text(unit);
+    lv_subject_set_string(&s_cfg_unit_subject, shown.c_str());
+    lv_subject_set_int(&s_cfg_unit_custom_subject, unit ? 1 : 0);
+}
+
+void ThermistorWidget::ConfigurePicker::edit_unit() {
+    // The dialog needs the keyboard and the screen, so the card closes first,
+    // applying its checkboxes as Done would.
+    // commit() can rebuild the widget, taking this card with it: everything the
+    // dialog needs is copied out first.
+    ThermistorWidget* owner = &owner_;
+    LifetimeToken token = owner_.lifetime_.token();
+    std::string panel = owner_.panel_id();
+    std::string id = owner_.instance_id_;
+    std::string initial = unit_text(owner_.unit_override_);
+    commit();
+    show_unit_entry(owner, std::move(token), std::move(panel), std::move(id), std::move(initial));
+}
+
+void ThermistorWidget::ConfigurePicker::reset_unit() {
+    owner_.set_unit_override(std::nullopt);
 }
 
 void ThermistorWidget::ConfigurePicker::row_tapped(size_t row) {
@@ -798,7 +934,7 @@ void ThermistorWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_gap(icon_grid, theme_manager_get_spacing("space_xxs"), 0);
         lv_obj_set_style_bg_opa(icon_grid, 0, 0);
         lv_obj_set_style_border_width(icon_grid, 0, 0);
-        lv_obj_remove_flag(icon_grid, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(icon_grid, false);
 
         std::string effective_icon =
             owner_.icon_name_.empty() ? std::string(kDefaultIcon) : owner_.icon_name_;
@@ -923,10 +1059,48 @@ void ThermistorWidget::carousel_page_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void ThermistorWidget::unit_row_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] unit_row_cb");
+    (void)e;
+    if (auto* config = helix::ui::ContextMenu::active_as<ConfigurePicker>()) {
+        config->edit_unit();
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ThermistorWidget::unit_reset_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ThermistorWidget] unit_reset_cb");
+    (void)e;
+    if (auto* config = helix::ui::ContextMenu::active_as<ConfigurePicker>()) {
+        config->reset_unit();
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void ThermistorWidget::show_page_temp(size_t page, int decidegrees) {
     if (page >= page_temp_->size())
         return;
-    char buf[16];
-    format_temperature_f(deci_to_degrees_f(decidegrees), buf, sizeof(buf));
-    page_temp_->set_string(page, buf);
+    char number[16];
+    // An override is text only: the reading shows as the sensor reports it.
+    if (unit_override_) {
+        helix::ui::temperature::format_number_compact(deci_to_degrees_f(decidegrees), number,
+                                                      sizeof(number));
+    } else {
+        helix::ui::temperature::format_temp_number(deci_to_degrees_f(decidegrees), number,
+                                                   sizeof(number));
+    }
+    page_temp_->set_string(page, number + unit_text(unit_override_));
+    if (page < page_deci_.size()) {
+        page_deci_[page] = decidegrees;
+    }
+}
+
+void ThermistorWidget::reformat_pages() {
+    for (size_t page = 0; page < page_deci_.size() && page < page_temp_->size(); ++page) {
+        if (page_deci_[page]) {
+            show_page_temp(page, *page_deci_[page]);
+        } else {
+            page_temp_->set_string(page, "--" + unit_text(unit_override_));
+        }
+    }
 }

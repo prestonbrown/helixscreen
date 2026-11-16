@@ -3,9 +3,9 @@
 #include "toolchanger_addon.h"
 
 #include "color_utils.h"
+#include "core/text_io.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 #include "zmod_color_status.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cctype>
 #include <string_view>
+
+#include "hv/json.hpp"
 
 namespace helix::toolchanger_addon {
 namespace {
@@ -158,12 +160,13 @@ std::string zmod_c5_unselect_gcode(const PrinterDiscovery& /*hw*/) {
 }
 
 std::vector<std::string> zmod_c5_status_objects(const PrinterDiscovery& hw) {
-    // The afclite shim carries the firmware's own fault flag and activity word
-    // on zmod 1.7.4+; subscribing it on a build that does not publish the
-    // object is harmless (the frame simply never arrives).
+    // Z-Mod's AFC objects carry the firmware's own fault flag and activity
+    // word: the afclite shim's on zmod 1.7.4+, `AFC` on the built-in
+    // emulation. Subscribing one on a build that does not publish it is
+    // harmless (the frame simply never arrives).
     std::vector<std::string> objects = {kZmodColorObject};
-    if (hw.has_zmod_afclite()) {
-        objects.emplace_back("zmod_afclite");
+    if (hw.has_zmod_afclite() || hw.has_zmod_afc()) {
+        objects.emplace_back(hw.has_zmod_afclite() ? "zmod_afclite" : "AFC");
         // Each lane's spool_id: a tool that binds a spool to a head from
         // outside (SET_SPOOL_ID) restates nothing zmod_color shows when the
         // new spool's colour matches the old one's.
@@ -183,17 +186,24 @@ std::string zmod_c5_material_write(int slot_index, const std::string& type, std:
                        rgb & 0xFFFFFFu, type);
 }
 
-/// Z-Mod's afclite shim runs `CHANGE_TOOL LANE=<lane>` as the same load the
-/// COLOR dialog starts: it heats only that head and feeds it. The lane is named
-/// by the shim's own `AFC_lane` object, which is the only thing sent, so
-/// `_T_IN_ZCOLOR` and its SLOT/NAPR arguments stay the shim's business. The
-/// head-to-lane relation is the lane name: head n is lane `E<n>`, and a lane
-/// the shim did not publish yields no command.
+/// Z-Mod's AFC objects run `CHANGE_TOOL LANE=<lane>` as the same load the
+/// COLOR dialog starts: it heats only that head and feeds it. Only the lane is
+/// sent, so `_T_IN_ZCOLOR` and its SLOT/NAPR arguments stay the firmware's
+/// business. The head-to-lane relation is the lane name: head n is `E<n>` on
+/// the afclite shim and `lane<n+1>` on the built-in emulation, and a lane the
+/// firmware did not publish yields no command.
 std::string zmod_c5_feed_gcode(const PrinterDiscovery& hw, int head) {
-    if (!hw.has_zmod_afclite() || head < 0) {
+    if (head < 0) {
         return {};
     }
-    const std::string lane = fmt::format("E{}", head);
+    std::string lane;
+    if (hw.has_zmod_afclite()) {
+        lane = fmt::format("E{}", head);
+    } else if (hw.has_zmod_afc()) {
+        lane = fmt::format("lane{}", head + 1); // DISPLAY_NUMBERING_OK: the firmware's lane name
+    } else {
+        return {};
+    }
     const auto& lanes = hw.afc_lane_names();
     if (std::find(lanes.begin(), lanes.end(), lane) == lanes.end()) {
         return {};
@@ -393,6 +403,19 @@ bool present(const PrinterDiscovery& hw) {
     return match(hw) != nullptr;
 }
 
+bool tools_named_by_gcode(const std::vector<std::string>& tool_names) {
+    return !tool_names.empty() &&
+           std::all_of(tool_names.begin(), tool_names.end(),
+                       [](const std::string& n) { return helix::ui::is_generated_tool_name(n); });
+}
+
+helix::ui::ToolNumberStyle tool_number_style(const PrinterDiscovery& hw) {
+    if (hw.has_tool_changer() && !present(hw) && tools_named_by_gcode(hw.tool_names())) {
+        return helix::ui::ToolNumberStyle::Gcode;
+    }
+    return helix::ui::ToolNumberStyle::Physical;
+}
+
 bool zmod_c5_present(const PrinterDiscovery& hw) {
     return zmod_c5_detect(hw);
 }
@@ -472,8 +495,8 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
     if (!status.is_object()) {
         return std::nullopt;
     }
-    // The extra registers itself as `zmod_afclite` and aliases `AFC`; either
-    // can carry a delta.
+    // The afclite shim registers itself as `zmod_afclite` and aliases `AFC`;
+    // either can carry a delta. The built-in emulation publishes `AFC` alone.
     const auto it = status.find("zmod_afclite");
     const auto alias = status.find("AFC");
     const nlohmann::json* obj = nullptr;
@@ -505,9 +528,18 @@ std::optional<AfcStateReading> read_afc_state(const nlohmann::json& status) {
             if (lane == status.end() || !lane->is_object()) {
                 continue;
             }
+            // The afclite shim sends one "Tn"; the built-in emulation a list of them.
             const auto map = lane->find("map");
             if (map != lane->end() && map->is_string()) {
                 r.lane_maps.push_back(map->get<std::string>());
+            } else if (map != lane->end() && map->is_array()) {
+                std::string joined;
+                for (const auto& tool : *map) {
+                    if (tool.is_string()) {
+                        joined += (joined.empty() ? "" : ",") + tool.get<std::string>();
+                    }
+                }
+                r.lane_maps.push_back(joined);
             }
         }
     }

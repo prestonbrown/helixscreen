@@ -47,6 +47,13 @@ esac'
     contains "local shell suite: passed" "$output"
 }
 
+@test "TEST_HOST=1: the sweep does not wait behind the test host load" {
+    mock_command_script fake-test-host-run 'echo "max-load ${HELIX_TEST_MAX_LOAD-unset}" >> "$CALLS"'
+    unset HELIX_TEST_MAX_LOAD
+    TEST_HOST=1 run "$GATE"
+    grep -qx "max-load 0" "$CALLS"
+}
+
 @test "TEST_HOST=1: a red test-host sweep with green bats fails the gate" {
     TEST_HOST=1 HOST_SWEEP_RC=1 run "$GATE"
     [ "$status" -ne 0 ]

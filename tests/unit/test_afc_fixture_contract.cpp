@@ -29,10 +29,9 @@
  *   the new schema, do not weaken the assertion.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_afc.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "test_helpers/afc_test_access.h"
 
 #include <algorithm>
@@ -113,7 +112,7 @@ class AfcFixtureHelper : public AmsBackendAfc {
 TEST_CASE("AFC fixtures carry every field our parsers read", "[ams][afc][1154][fixture]") {
     SECTION("AFC global state") {
         auto j = load_fixture("afc_state.json");
-        // parse_afc_state reads these; current_load/current_lane drive the
+        // apply_afc_state reads these; current_load/current_lane drive the
         // aggregate slot pointer, error_state gates current_error() (#1171),
         // message drives fault text and the drain budget (#1186).
         require_keys(j, "AFC",
@@ -123,12 +122,12 @@ TEST_CASE("AFC fixtures carry every field our parsers read", "[ams][afc][1154][f
         REQUIRE(j["message"].is_object());
         require_keys(j["message"], "AFC.message", {"message", "type"});
 
-        // ABSENCE is part of the contract here (#1200). parse_afc_state() still
+        // ABSENCE is part of the contract here (#1200). apply_afc_state() still
         // reads AFC.system for num_extruders and per-extruder tool_stn, but
         // get_status() has never published it — the only writers upstream are
         // _webhooks_status() (GET /printer/afc/status, which we do not call) and
         // save_vars(). Toolchanger discovery therefore has to come from the flat
-        // `extruders` array, and it silently did not until 6bcfb067b.
+        // `extruders` array.
         //
         // If a refreshed capture makes this fail, upstream started publishing
         // `system` on the status object: keep the flat-array derivation as the
@@ -147,7 +146,7 @@ TEST_CASE("AFC fixtures carry every field our parsers read", "[ams][afc][1154][f
         auto j = load_fixture("afc_stepper_lane1.json");
         // tool_loaded is the per-lane load authority (#1194); prep/load are the
         // lane sensors; spool_id/material/color/weight drive slot identity.
-        // NB: the wire key is "extruder", which parse_afc_stepper reads into our
+        // NB: the wire key is "extruder", which apply_lane_status reads into our
         // slot.extruder_name member (AFC_lane.py: response['extruder']). Assert
         // the key AFC sends, never our C++ field name.
         // extruder_temp is the spool's recommended print temperature (#1149);
@@ -248,7 +247,7 @@ TEST_CASE("AFC parses its real captured payloads into the expected state",
 
     SECTION("spool_id parses as the integer AFC actually emits") {
         // AFC_lane.py emits `int(self.spool_id) if self.spool_id else None` —
-        // never a string. parse_afc_stepper guards on is_number_integer(), so a
+        // never a string. apply_lane_status guards on is_number_integer(), so a
         // fixture carrying a string would be silently dropped (#1154).
         auto lane1 = load_fixture("afc_stepper_lane1.json");
         REQUIRE((lane1["spool_id"].is_number_integer() || lane1["spool_id"].is_null()));

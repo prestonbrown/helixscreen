@@ -30,6 +30,8 @@
 
 #include "async_lifetime_guard.h"
 
+#include <utility>
+
 /**
  * @enum DeactivateReason
  * @brief Why a view is being deactivated
@@ -186,8 +188,9 @@ class IPanelLifecycle {
  *
  * - `lifetime_` — the screen. The result only matters while the user is
  *   looking at this view: a fetch that populates visible widgets, a debounced
- *   repaint, an animation step. Dropped on every deactivation; on_activate()
- *   re-arms whatever still matters.
+ *   repaint, an animation step. Dropped on every deactivation but a
+ *   screensaver suspend, which leaves the view on the stack to wake into;
+ *   on_activate() re-arms whatever still matters.
  * - `object_lifetime_` — the object. The view owes the completion to the
  *   machine rather than to the screen: an abort the printer must acknowledge,
  *   a settings write, a power-off handshake. It survives navigation and dies
@@ -201,9 +204,9 @@ class IPanelLifecycle {
  *
  * on_deactivate() is final. It calls on_deactivating(reason) — the subclass's
  * one chance to act while its in-flight work is still live — and only then
- * invalidates `lifetime_`. A subclass that wants to schedule work from inside
- * the hook must park it on `object_lifetime_`, or the invalidation that
- * follows will drop it.
+ * invalidates `lifetime_`, for every reason but Suspended. A subclass that wants to schedule work
+ * from inside the hook must park it on `object_lifetime_`, or the invalidation that follows will
+ * drop it.
  *
  * @threading Main thread only
  */
@@ -211,8 +214,13 @@ class IPanelLifecycle {
 class ViewLifecycleBase : public IPanelLifecycle {
   public:
     void on_deactivate(DeactivateReason reason) final {
+        suspended_ = reason == DeactivateReason::Suspended;
         on_deactivating(reason);
-        lifetime_.invalidate();
+        // A suspended view is still on the stack and wakes into on_activate():
+        // work it started is still the screen's, so its results must land.
+        if (!suspended_) {
+            lifetime_.invalidate();
+        }
         on_view_hidden();
     }
 
@@ -236,7 +244,26 @@ class ViewLifecycleBase : public IPanelLifecycle {
     /// @see ViewLifecycleBase class docs — object-scoped.
     helix::AsyncLifetimeGuard object_lifetime_;
 
+    /// Behind the screensaver now: deactivated with Suspended and not yet
+    /// woken. Work that would draw waits for the wake.
+    [[nodiscard]] bool suspended() const {
+        return suspended_;
+    }
+
+    /**
+     * @brief Whether this on_activate() is a wake from the screensaver
+     *
+     * Call once, from on_activate(): it answers and clears. A wake resumes what
+     * the view showed - an in-flight run, a half-filled form, a result - where
+     * any other activation may start fresh.
+     */
+    [[nodiscard]] bool take_wake() {
+        return std::exchange(suspended_, false);
+    }
+
   private:
+    bool suspended_ = false;
+
     /**
      * @brief Base-class bookkeeping, after the subclass hook and the invalidate
      *

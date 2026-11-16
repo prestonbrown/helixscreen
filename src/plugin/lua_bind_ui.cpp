@@ -7,11 +7,13 @@
 #include "ui_modal.h"
 #include "ui_text_entry_modal.h"
 #include "ui_toast_manager.h"
+#include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "helix/ui/text_metrics.h"
 #include "lua_bindings.h"
+#include "lvgl.h"
 #include "lvgl/src/misc/lv_text_private.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "plugin_canvas.h"
 #include "plugin_overlay_host.h"
 #include "plugin_xml_policy.h"
@@ -31,7 +33,7 @@ namespace helix::plugin {
 namespace {
 
 const char kSubjectMeta[] = "helix.subject";
-const char kUiStateKey = 0;
+RegistryKey g_ui_state_key{"ui_state"};
 constexpr size_t kMaxString = 1024;
 constexpr size_t kMaxSubjects = 128;
 constexpr size_t kMaxOpenConfirms = 1;
@@ -52,7 +54,7 @@ struct ObserverCtx {
 
 struct SubjectEntry {
     std::string full_name;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     std::vector<char> buf;
     std::vector<char> prev;
     bool is_string = false;
@@ -65,7 +67,7 @@ struct Editor {
     bool done = false;
     bool keypad = false;
     bool shown = false;
-    lv_obj_t* dialog = nullptr; ///< the text entry dialog while shown
+    helix::ui::WidgetRef dialog; ///< the text entry dialog while shown
 };
 
 // Everything one runtime registered here. Freed by the runtime's closer.
@@ -81,7 +83,7 @@ struct UiState {
 };
 
 UiState& ui_state(lua_State* L) {
-    lua_rawgetp(L, LUA_REGISTRYINDEX, &kUiStateKey);
+    lua_rawgetp(L, LUA_REGISTRYINDEX, &g_ui_state_key);
     auto* s = static_cast<UiState*>(lua_touserdata(L, -1));
     lua_pop(L, 1);
     return *s;
@@ -98,8 +100,8 @@ std::vector<std::unique_ptr<SubjectEntry>>& retired_subjects() {
     return *list;
 }
 
-bool unobserved(lv_subject_t& s) {
-    return lv_ll_get_head(&s.subs_ll) == nullptr;
+bool unobserved(const helix::Subject& s) {
+    return lv_ll_get_head(&s.get()->subs_ll) == nullptr;
 }
 
 void on_subject_change(lv_observer_t* obs, lv_subject_t* subject) {
@@ -138,7 +140,7 @@ int subject_set(lua_State* L) {
         size_t len = 0;
         const char* v = luaL_checklstring(L, 2, &len);
         luaL_argcheck(L, len < kMaxString, 2, "string longer than 1023 bytes");
-        lv_subject_copy_string(&s.subject, v);
+        lv_subject_set_string(&s.subject, v);
     } else {
         lua_Integer v = luaL_checkinteger(L, 2);
         luaL_argcheck(L, v >= INT32_MIN && v <= INT32_MAX, 2, "integer out of range");
@@ -191,12 +193,11 @@ int make_subject(lua_State* L, bool is_string) {
                               full.c_str());
         entry->buf.assign(kMaxString, 0);
         entry->prev.assign(kMaxString, 0);
-        lv_subject_init_string(&entry->subject, entry->buf.data(), entry->prev.data(), kMaxString,
-                               init);
+        entry->subject.init_string(entry->buf.data(), entry->prev.data(), kMaxString, init);
     } else {
         lua_Integer init = luaL_optinteger(L, 2, 0);
         luaL_argcheck(L, init >= INT32_MIN && init <= INT32_MAX, 2, "integer out of range");
-        lv_subject_init_int(&entry->subject, static_cast<int32_t>(init));
+        entry->subject.init_int(static_cast<int32_t>(init));
     }
     lv_xml_register_subject(nullptr, full.c_str(), &entry->subject);
 
@@ -852,7 +853,7 @@ void sweep_retired_subjects() {
     auto& list = retired_subjects();
     for (auto it = list.begin(); it != list.end();) {
         if (unobserved((*it)->subject)) {
-            lv_subject_deinit(&(*it)->subject);
+            (*it)->subject.reset();
             it = list.erase(it);
         } else {
             ++it;
@@ -868,7 +869,7 @@ void install_ui_bindings(PluginContext& ctx) {
     lua_State* L = ctx.rt.state();
     auto* state = new UiState;
     lua_pushlightuserdata(L, state);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, &kUiStateKey);
+    lua_rawsetp(L, LUA_REGISTRYINDEX, &g_ui_state_key);
     ctx.rt.on_close([state] {
         // The plugin is going away; take its still-unanswered question off screen. A
         // dialog the user already closed cleared the pointer on its close path.
@@ -884,7 +885,7 @@ void install_ui_bindings(PluginContext& ctx) {
         }
         for (auto& o : state->observers) {
             if (o->handle)
-                lv_observer_remove(o->handle);
+                lv_observer_delete(o->handle);
         }
         for (auto& s : state->subjects) {
             // A later registration under the same name replaced the record's pointer, so
@@ -892,7 +893,7 @@ void install_ui_bindings(PluginContext& ctx) {
             if (lv_xml_find_subject(nullptr, s->full_name.c_str()) == &s->subject)
                 lv_xml_unregister_subject(nullptr, s->full_name.c_str());
             if (unobserved(s->subject))
-                lv_subject_deinit(&s->subject);
+                s->subject.reset();
             else
                 retired_subjects().push_back(std::move(s));
         }

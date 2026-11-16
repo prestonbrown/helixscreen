@@ -3,8 +3,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 
@@ -34,8 +35,12 @@ class MaterialTempsOverlay : public OverlayBase {
     const char* get_name() const override {
         return "Material Temperatures";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
-    /// Custom create(): caches the list and edit views and intercepts the back button.
+    /// Custom create(): caches the list and edit views. The back button's handler comes
+    /// from the XML root's back_button_callback (on_material_back_clicked).
     lv_obj_t* create(lv_obj_t* parent) override;
 
     void on_activate() override;
@@ -66,13 +71,13 @@ class MaterialTempsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Subject for toggling between list/edit views (0=list, 1=edit)
-    lv_subject_t editing_subject_{};
+    helix::Subject editing_subject_{};
 
     // Subjects for edit view text bindings
-    lv_subject_t edit_name_subject_{};
+    helix::Subject edit_name_subject_{};
     char edit_name_buf_[64];
 
-    lv_subject_t edit_defaults_subject_{};
+    helix::Subject edit_defaults_subject_{};
     char edit_defaults_buf_[128];
 
     // Currently edited material name
@@ -83,10 +88,17 @@ class MaterialTempsOverlay : public OverlayBase {
     lv_obj_t* edit_view_ = nullptr;
 
     // Macro dropdown state
-    lv_subject_t has_macro_subject_{}; // 0=no macro, 1=has macro (controls toggle visibility)
-    lv_subject_t shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
+    helix::Subject has_macro_subject_{}; // 0=no macro, 1=has macro (controls toggle visibility)
+    helix::Subject shipped_subject_{};   // 1=editing a shipped type (has a default to reset to)
     lv_obj_t* macro_dropdown_ = nullptr;
     lv_obj_t* macro_heating_switch_ = nullptr;
+
+    void on_ui_destroyed() override {
+        list_view_ = nullptr;
+        edit_view_ = nullptr;
+        macro_dropdown_ = nullptr;
+        macro_heating_switch_ = nullptr;
+    }
     std::vector<std::string> macro_names_; // Parallel to dropdown options (index 0 = "None")
 
     void populate_macro_dropdown();

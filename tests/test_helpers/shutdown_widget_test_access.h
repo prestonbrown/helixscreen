@@ -17,10 +17,6 @@ class ShutdownWidgetTestAccess {
         return widget.widget_obj_;
     }
 
-    static lv_obj_t* shutdown_btn(const ShutdownWidget& widget) {
-        return widget.shutdown_btn_;
-    }
-
     static lv_obj_t* parent_screen(const ShutdownWidget& widget) {
         return widget.parent_screen_;
     }

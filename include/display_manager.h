@@ -4,10 +4,10 @@
 #pragma once
 
 #include "ui_coalesced_timer.h"
-#include "ui_timer_guard.h"
 
 #include "backlight_backend.h"
 #include "color_transform.h"
+#include "core/timer_guard.h"
 #include "display_backend.h"
 #include "display_sleep_controller.h"
 #include "indev_delete_watch.h"
@@ -61,6 +61,14 @@ namespace helix::ui {
 struct SaverHost;
 }
 #endif
+
+/**
+ * The one LVGL teardown order: lv_deinit(), then the XML engine. Every path that ends LVGL
+ * goes through it, and helix::Subject learns here that its nodes are gone.
+ */
+namespace helix::ui {
+void teardown_lvgl();
+} // namespace helix::ui
 
 class DisplayManager : public helix::ICalibrationSink {
   public:
@@ -314,6 +322,11 @@ class DisplayManager : public helix::ICalibrationSink {
      */
     void register_sleep_callback(std::function<void(bool sleeping)> cb) {
         m_sleep.register_callback(std::move(cb));
+    }
+
+    /// What runs before the first frame after a sleep (DisplaySleepHost::settle_for_wake_frame).
+    void set_wake_frame_settle(std::function<void()> settle) {
+        m_settle_for_wake_frame = std::move(settle);
     }
 
     /**
@@ -652,8 +665,10 @@ class DisplayManager : public helix::ICalibrationSink {
     // input devices exist, since new devices start at LVGL's default read period.
     helix::RefreshTiming m_refresh_timing;
 
-    // Dim, screensaver, sleep and wake. Reads m_backend, m_backlight and m_display through
-    // references, so it must be declared after them.
+    std::function<void()> m_settle_for_wake_frame;
+
+    // Dim, screensaver, sleep and wake. Reads m_backend, m_backlight, m_display and
+    // m_settle_for_wake_frame through references, so it must be declared after them.
     helix::DisplaySleepController m_sleep;
 
     bool m_touch_calibration_active = false; // suppresses the debug-touches ripple (#943)
@@ -677,6 +692,14 @@ class DisplayManager : public helix::ICalibrationSink {
     lv_obj_t* m_resize_screen = nullptr;
     // Its callback dereferences this manager, so it must not outlive it.
     helix::ui::LvglTimerGuard m_brightness_reassert_timer;
+    // Armed while the pointer device is gone, retrying the backend's reopen
+    // every kPointerReopenPeriodMs (#2069). Its callback dereferences this
+    // manager, so it must not outlive it.
+    helix::ui::LvglTimerGuard m_pointer_reopen_timer;
+    static constexpr uint32_t kPointerReopenPeriodMs = 1000;
+    // The scroll setup init() gave the pointer, for a reopened one to get the same.
+    int m_scroll_throw = 0;
+    int m_scroll_limit = 0;
 
     static void resize_event_cb(lv_event_t* e);
     void on_screen_size_changed(lv_obj_t* screen);
@@ -698,6 +721,13 @@ class DisplayManager : public helix::ICalibrationSink {
     /// the device is created.
     void watch_pointer();
     void watch_keyboard();
+
+    /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
+    /// except while shutting down, when lv_deinit() is deleting every indev.
+    static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// One reopen attempt; on success adopts the device with init()'s pointer
+    /// setup and stops the retry. Named so a test can run it directly.
+    static void pointer_reopen_tick(lv_timer_t* t);
 
     /**
      * @brief Create the debug-touch ripple timer

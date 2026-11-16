@@ -16,11 +16,12 @@
 #pragma once
 
 #include "ui_bypass_toggle_controller.h"
-#include "ui_observer_guard.h"
 
 #include "ams_types.h"
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 
@@ -97,6 +98,9 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "ams_device_operations";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     //
     // === Public API ===
@@ -142,7 +146,7 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     //
 
     /// Alias for overlay_root_ to match existing pattern
-    lv_obj_t*& overlay_ = overlay_root_;
+    helix::ui::WidgetRef& overlay_ = overlay_root_;
 
     /// Container for section list rows
     lv_obj_t* section_list_container_ = nullptr;
@@ -156,69 +160,68 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// Subject for system info text (e.g. "System: AFC · v1.2.3")
-    lv_subject_t system_info_subject_{};
+    helix::Subject system_info_subject_{};
 
     /// Buffer for system info text
     char system_info_buf_[128] = {};
 
     /// Subject for bypass support (0=not supported, 1=supported).
     /// Folds in the force-bypass override, so this is what gates the controls.
-    lv_subject_t supports_bypass_subject_{};
+    helix::Subject supports_bypass_subject_{};
 
     /// Subject for the firmware's own bypass report, override NOT applied
     /// (0=firmware says none, 1=firmware reports one). Gates the override row:
     /// it appears only when the firmware says no, and stays visible once the
     /// user turns the override on so they can turn it back off.
-    lv_subject_t fw_supports_bypass_subject_{};
+    helix::Subject fw_supports_bypass_subject_{};
 
     /// Subject for hardware bypass sensor (0=virtual toggle, 1=hardware sensor)
-    lv_subject_t hw_bypass_sensor_subject_{};
+    helix::Subject hw_bypass_sensor_subject_{};
 
     /// Subject for auto-heat support (0=not supported, 1=supported)
-    lv_subject_t supports_auto_heat_subject_{};
+    helix::Subject supports_auto_heat_subject_{};
 
     /// Subject for backend presence (0=no backend, 1=has backend)
-    lv_subject_t has_backend_subject_{};
+    helix::Subject has_backend_subject_{};
 
     /// 1 when the bypass lane is virtual (no physical bypass sensor); gates
     /// the always-show-bypass row.
-    lv_subject_t bypass_is_virtual_subject_{};
+    helix::Subject bypass_is_virtual_subject_{};
 
-    /// Subject gating the keep-spool-info-on-eject row (0=hidden, 1=shown).
-    /// Set from AmsBackend::printer_reports_spool_ids(), so the row appears
-    /// only on systems whose firmware reports spool ids per lane (AFC, Happy
-    /// Hare); no backend means hidden.
-    lv_subject_t reports_spool_ids_subject_{};
-    lv_subject_t tags_name_spools_subject_{};
+    /// Subject gating HelixScreen's keep-spool-info-on-eject row (0=hidden,
+    /// 1=shown): AmsBackend::lane_record_is_only_identity(); no backend means
+    /// hidden.
+    helix::Subject record_only_identity_subject_{};
+    helix::Subject tags_name_spools_subject_{};
 
-    /// Subject disabling the keep-spool-info-on-eject toggle (0=enabled,
-    /// 1=firmware retention owns it). Set from
-    /// AmsBackend::printer_retains_spool_info(): with AFC's per-lane
-    /// remember_spool true everywhere, the toggle has no observable effect,
-    /// so it is shown disabled with a note instead of silently lying.
-    lv_subject_t printer_retains_spool_info_subject_{};
+    /// The firmware's own Keep Spool Info value on every lane
+    /// (AmsBackend::printer_retains_spool_info()), shown by the switch when
+    /// the firmware owns the setting.
+    helix::Subject printer_retains_spool_info_subject_{};
+    /// AmsBackend::firmware_owns_spool_retention(): which Keep Spool Info row shows.
+    helix::Subject firmware_owns_spool_retention_subject_{};
 
     /// Subject gating the "Reset Endless Spool" row (0=hidden, 1=shown).
     /// Set from EndlessSpoolCapabilities::editable(), so the row lights up for
     /// any backend whose endless-spool mapping the UI may write — AFC (per-slot
     /// edges), single-unit Happy Hare (groups) and the mock — and stays hidden
     /// for read-only systems (CFS, AD5X IFS) and backends with no endless spool.
-    lv_subject_t can_reset_endless_spool_subject_{};
+    helix::Subject can_reset_endless_spool_subject_{};
 
     /// Subject enabling Abort (0=disabled, 1=enabled). Set from
     /// AmsBackend::can_cancel_operation() on refresh and on every AMS action
     /// change, since what the backend can cancel follows what it is running.
-    lv_subject_t can_abort_subject_{};
+    helix::Subject can_abort_subject_{};
 
     /// Subjects enabling Home and Recover (0=disabled, 1=enabled), from
     /// AmsBackend::reset_available() / recover_available() on refresh.
-    lv_subject_t can_home_subject_{};
-    lv_subject_t can_recover_subject_{};
+    helix::Subject can_home_subject_{};
+    helix::Subject can_recover_subject_{};
 
     /// ams_device_detail_rows() as "Label: value" lines, "" when there are none.
-    lv_subject_t details_subject_{};
+    helix::Subject details_subject_{};
     char details_buf_[512] = {};
-    lv_subject_t has_details_subject_{}; ///< 1 when details_subject_ is non-empty
+    helix::Subject has_details_subject_{}; ///< 1 when details_subject_ is non-empty
 
     /// AMS action and can-cancel observers that keep can_abort_subject_
     /// current while the overlay exists.

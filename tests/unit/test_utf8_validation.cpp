@@ -6,6 +6,7 @@
 #include "utf8_validation.h"
 
 #include <string>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -45,8 +46,11 @@ TEST_CASE("decode_utf8 refuses every malformed shape", "[utf8]") {
 }
 
 TEST_CASE("both validators reject what the decoder rejects", "[utf8]") {
-    for (const std::string bad : {"x\xC0\xAF", "x\xED\xA0\x80", "x\xC3"}) {
-        INFO(bad);
+    // A label, not the bytes: Catch2 passes a surrogate into its XML report verbatim.
+    const std::pair<const char*, std::string> kBad[] = {
+        {"overlong", "x\xC0\xAF"}, {"surrogate", "x\xED\xA0\x80"}, {"truncated", "x\xC3"}};
+    for (const auto& [label, bad] : kBad) {
+        INFO(label);
         CHECK_FALSE(is_valid_utf8(bad));
         CHECK_FALSE(is_safe_object_name(bad));
     }

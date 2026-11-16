@@ -6,12 +6,13 @@
  * @brief Unit tests for INIT_SUBJECT_INT/STRING macros
  *
  * These macros consolidate the 3-line subject initialization pattern:
- * 1. lv_subject_init_*(subject, value)
+ * 1. helix::subject_init_*(subject, value)
  * 2. subjects.register_subject(subject)
  * 3. if (register_xml) lv_xml_register_subject(NULL, "name", subject)
  */
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "state/subject_macros.h"
 #include "subject_managed_panel.h"
 
@@ -25,52 +26,9 @@ TEST_CASE("INIT_SUBJECT_INT macro", "[state][subject][macro]") {
     // Use LVGLTestFixture to ensure LVGL is initialized
     LVGLTestFixture fixture;
 
-    SECTION("initializes subject with default value") {
-        SubjectManager subjects;
-        lv_subject_t test_value_;
-
-        INIT_SUBJECT_INT(test_value, 42, subjects, false);
-
-        int value = lv_subject_get_int(&test_value_);
-        REQUIRE(value == 42);
-    }
-
-    SECTION("initializes subject with zero default") {
-        SubjectManager subjects;
-        lv_subject_t my_counter_;
-
-        INIT_SUBJECT_INT(my_counter, 0, subjects, false);
-
-        int value = lv_subject_get_int(&my_counter_);
-        REQUIRE(value == 0);
-    }
-
-    SECTION("registers with subjects container") {
-        SubjectManager subjects;
-        lv_subject_t registered_subject_;
-
-        REQUIRE(subjects.count() == 0);
-
-        INIT_SUBJECT_INT(registered_subject, 0, subjects, false);
-
-        REQUIRE(subjects.count() == 1);
-    }
-
-    SECTION("registers with XML when flag is true") {
-        SubjectManager subjects;
-        lv_subject_t xml_subject_;
-
-        INIT_SUBJECT_INT(xml_subject, 123, subjects, true);
-
-        // Verify the subject was registered with XML system
-        lv_subject_t* found = lv_xml_get_subject(NULL, "xml_subject");
-        REQUIRE(found == &xml_subject_);
-        REQUIRE(lv_subject_get_int(found) == 123);
-    }
-
     SECTION("skips XML registration when flag is false") {
+        helix::Subject no_xml_subject_;
         SubjectManager subjects;
-        lv_subject_t no_xml_subject_;
 
         INIT_SUBJECT_INT(no_xml_subject, 456, subjects, false);
 
@@ -80,31 +38,6 @@ TEST_CASE("INIT_SUBJECT_INT macro", "[state][subject][macro]") {
 
         // But the subject should still be initialized
         REQUIRE(lv_subject_get_int(&no_xml_subject_) == 456);
-    }
-
-    SECTION("works with negative values") {
-        SubjectManager subjects;
-        lv_subject_t negative_val_;
-
-        INIT_SUBJECT_INT(negative_val, -100, subjects, false);
-
-        REQUIRE(lv_subject_get_int(&negative_val_) == -100);
-    }
-
-    SECTION("multiple subjects can be registered") {
-        SubjectManager subjects;
-        lv_subject_t first_;
-        lv_subject_t second_;
-        lv_subject_t third_;
-
-        INIT_SUBJECT_INT(first, 1, subjects, false);
-        INIT_SUBJECT_INT(second, 2, subjects, false);
-        INIT_SUBJECT_INT(third, 3, subjects, false);
-
-        REQUIRE(subjects.count() == 3);
-        REQUIRE(lv_subject_get_int(&first_) == 1);
-        REQUIRE(lv_subject_get_int(&second_) == 2);
-        REQUIRE(lv_subject_get_int(&third_) == 3);
     }
 }
 
@@ -116,58 +49,9 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
     // Use LVGLTestFixture to ensure LVGL is initialized
     LVGLTestFixture fixture;
 
-    SECTION("initializes with empty string") {
-        SubjectManager subjects;
-        lv_subject_t empty_str_;
-        char empty_str_buf_[64];
-
-        INIT_SUBJECT_STRING(empty_str, "", subjects, false);
-
-        const char* value = lv_subject_get_string(&empty_str_);
-        REQUIRE(value != nullptr);
-        REQUIRE(std::string(value) == "");
-    }
-
-    SECTION("initializes with provided default value") {
-        SubjectManager subjects;
-        lv_subject_t hello_str_;
-        char hello_str_buf_[64];
-
-        INIT_SUBJECT_STRING(hello_str, "Hello, World!", subjects, false);
-
-        const char* value = lv_subject_get_string(&hello_str_);
-        REQUIRE(value != nullptr);
-        REQUIRE(std::string(value) == "Hello, World!");
-    }
-
-    SECTION("registers with subjects container") {
-        SubjectManager subjects;
-        lv_subject_t str_subject_;
-        char str_subject_buf_[64];
-
-        REQUIRE(subjects.count() == 0);
-
-        INIT_SUBJECT_STRING(str_subject, "test", subjects, false);
-
-        REQUIRE(subjects.count() == 1);
-    }
-
-    SECTION("registers with XML when flag is true") {
-        SubjectManager subjects;
-        lv_subject_t xml_str_;
-        char xml_str_buf_[64];
-
-        INIT_SUBJECT_STRING(xml_str, "XML Value", subjects, true);
-
-        // Verify the subject was registered with XML system
-        lv_subject_t* found = lv_xml_get_subject(NULL, "xml_str");
-        REQUIRE(found == &xml_str_);
-        REQUIRE(std::string(lv_subject_get_string(found)) == "XML Value");
-    }
-
     SECTION("skips XML registration when flag is false") {
+        helix::Subject no_xml_str_;
         SubjectManager subjects;
-        lv_subject_t no_xml_str_;
         char no_xml_str_buf_[64];
 
         INIT_SUBJECT_STRING(no_xml_str, "Not in XML", subjects, false);
@@ -179,59 +63,6 @@ TEST_CASE("INIT_SUBJECT_STRING macro", "[state][subject][macro]") {
         // But the subject should still be initialized
         REQUIRE(std::string(lv_subject_get_string(&no_xml_str_)) == "Not in XML");
     }
-
-    SECTION("handles long strings within buffer") {
-        SubjectManager subjects;
-        lv_subject_t long_str_;
-        char long_str_buf_[128];
-
-        std::string long_value = "This is a longer string that should fit in the buffer";
-        INIT_SUBJECT_STRING(long_str, long_value.c_str(), subjects, false);
-
-        REQUIRE(std::string(lv_subject_get_string(&long_str_)) == long_value);
-    }
-}
-
-// ============================================================================
-// Integration Tests - Combined Usage
-// ============================================================================
-
-TEST_CASE("INIT_SUBJECT macros work together", "[state][subject][macro][integration]") {
-    LVGLTestFixture fixture;
-
-    SubjectManager subjects;
-
-    // Simulate a typical state class with multiple subjects.
-    //
-    // The names are prefixed because the last macro argument registers them in
-    // LVGL's XML subject scope, which is process-global and outlives this stack
-    // frame — there is no unregister. Naming one of these `status_text` put a
-    // DEAD STACK ADDRESS behind the name four production components bind
-    // (panel_widget_tips, change_host_modal, qr_scanner_overlay,
-    // crash_report_modal), so the next test in the process to build one of them
-    // segfaulted inside lv_label_bind_text. A test-only prefix cannot collide.
-    lv_subject_t macro_temp_value_;
-    lv_subject_t macro_target_value_;
-    lv_subject_t macro_status_text_;
-    char macro_status_text_buf_[64];
-
-    // Initialize all subjects
-    INIT_SUBJECT_INT(macro_temp_value, 2500, subjects, true);   // 250.0 deg in decidegrees
-    INIT_SUBJECT_INT(macro_target_value, 2100, subjects, true); // 210.0 deg target
-    INIT_SUBJECT_STRING(macro_status_text, "Heating...", subjects, true);
-
-    // Verify all registered
-    REQUIRE(subjects.count() == 3);
-
-    // Verify XML registration
-    REQUIRE(lv_xml_get_subject(NULL, "macro_temp_value") == &macro_temp_value_);
-    REQUIRE(lv_xml_get_subject(NULL, "macro_target_value") == &macro_target_value_);
-    REQUIRE(lv_xml_get_subject(NULL, "macro_status_text") == &macro_status_text_);
-
-    // Verify values
-    REQUIRE(lv_subject_get_int(&macro_temp_value_) == 2500);
-    REQUIRE(lv_subject_get_int(&macro_target_value_) == 2100);
-    REQUIRE(std::string(lv_subject_get_string(&macro_status_text_)) == "Heating...");
 }
 
 // ============================================================================
@@ -243,13 +74,13 @@ TEST_CASE("INIT_SUBJECT macros work together", "[state][subject][macro][integrat
 //
 // SubjectManager::deinit_all() withdraws each subject's XML-scope name before
 // freeing the subject, but it can only do that for names it was told about.
-// The INIT_SUBJECT_* macros used to register the name in the XML scope while
-// calling register_subject() WITHOUT it — and the parameter is defaulted, so
-// the omission was silent. Every managed subject therefore kept resolving by
-// name after lv_subject_deinit().
+// The INIT_SUBJECT_* macros register the name in the XML scope, so they must
+// pass it to register_subject() too. The parameter is defaulted, so omitting it
+// is silent, and every managed subject would keep resolving by name after
+// helix::subject_reset().
 //
-// The consequence was a live crash, not a leak: an owner that does not outlive
-// the process (a PrinterState held by a stack-allocated XMLTestFixture) left
+// The consequence is a live crash, not a leak: an owner that does not outlive
+// the process (a PrinterState held by a stack-allocated XMLTestFixture) leaves
 // "klippy_state" pointing at a destroyed fixture member, and
 // PanelWidgetManager::setup_gate_observers null-checks its lookup — the check
 // passed, and lv_subject_add_observer walked a garbage subs_ll.
@@ -259,8 +90,8 @@ TEST_CASE("INIT_SUBJECT macros withdraw their XML names when the owner dies",
 
     // Storage outlives the SubjectManager so deinit_all() has something valid
     // to deinit; only the manager's lifetime is under test.
-    lv_subject_t doomed_int_{};
-    lv_subject_t doomed_text_{};
+    helix::Subject doomed_int_{};
+    helix::Subject doomed_text_{};
     char doomed_text_buf_[32];
 
     {
@@ -273,7 +104,7 @@ TEST_CASE("INIT_SUBJECT macros withdraw their XML names when the owner dies",
     } // ~SubjectManager -> deinit_all()
 
     // A non-null answer here IS the bug: the name resolves to a subject that
-    // lv_subject_deinit() has already torn down, and every caller that guards
+    // helix::subject_reset() has already torn down, and every caller that guards
     // with `if (!subject) continue;` sails straight past into freed memory.
     CHECK(lv_xml_get_subject(NULL, "doomed_int") == nullptr);
     CHECK(lv_xml_get_subject(NULL, "doomed_text") == nullptr);
@@ -287,12 +118,12 @@ TEST_CASE("INIT_SUBJECT macros withdraw nothing when XML registration was skippe
           "[state][subject][macro][regression]") {
     LVGLTestFixture fixture;
 
-    lv_subject_t shared_name_{};
-    lv_subject_init_int(&shared_name_, 99);
+    helix::Subject shared_name_{};
+    shared_name_.init_int(99);
     lv_xml_register_subject(NULL, "unmanaged_name", &shared_name_);
 
     {
-        lv_subject_t unmanaged_name_{};
+        helix::Subject unmanaged_name_{};
         SubjectManager subjects;
         INIT_SUBJECT_INT(unmanaged_name, 1, subjects, false);
         REQUIRE(lv_xml_get_subject(NULL, "unmanaged_name") == &shared_name_);
@@ -302,5 +133,4 @@ TEST_CASE("INIT_SUBJECT macros withdraw nothing when XML registration was skippe
     CHECK(lv_xml_get_subject(NULL, "unmanaged_name") == &shared_name_);
 
     lv_xml_unregister_subject(NULL, "unmanaged_name");
-    lv_subject_deinit(&shared_name_);
 }

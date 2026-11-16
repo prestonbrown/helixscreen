@@ -882,6 +882,7 @@ setup_hook_fixture() {
     init_root_repo
     mkdir -p "$ROOT/scripts"
     cp "$GATE" "$ROOT/scripts/check_patch_drift.py"
+    cp "$(dirname "$GATE")/own_git_dir.sh" "$ROOT/scripts/own_git_dir.sh"
     printf '#!/bin/sh\necho "qc-sweep skip-drift=${HELIX_QC_SKIP_PATCH_DRIFT:-unset}"\n' \
         > "$ROOT/scripts/quality-checks.sh"
     chmod +x "$ROOT/scripts/quality-checks.sh"

@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 SensorState::Options SensorState::make_options() {

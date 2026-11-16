@@ -2,7 +2,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "k2_stock_detection_source.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -102,13 +102,13 @@ struct PollHarness {
 
     void poll() {
         src.poll_tick();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
 void set_print_state(helix::PrinterState& state, const char* s) {
     state.update_from_status(json{{"print_stats", {{"state", s}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 } // namespace
@@ -133,7 +133,7 @@ TEST_CASE_METHOD(XMLTestFixture, "K2StockSource gates polling on the detection t
                  "[detection][k2]") {
     // SettingsManager subjects start uninitialized in the unit suite (an
     // uninitialized subject reads as the true fallback and ignores setters),
-    // so rebuild them from Config the way test_detection_settings.cpp does.
+    // so rebuild them from Config.
     ConfigTestAccess::data(*Config::get_instance()).erase("detection");
     SettingsManager::instance().deinit_subjects();
     SettingsManager::instance().init_subjects();

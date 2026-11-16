@@ -3,6 +3,7 @@
 
 #include "pa_result_store.h"
 
+#include "ams_state.h"
 #include "i_moonraker_api.h"
 
 #include <spdlog/spdlog.h>
@@ -13,6 +14,11 @@ namespace helix::pa {
 
 SpoolLookup classify_spool(const std::optional<SpoolInfo>& spool) {
     return spool && spool->filament_id > 0 ? SpoolLookup::Found : SpoolLookup::NoSpool;
+}
+
+int spool_feeding_tool(int tool) {
+    const auto lane = AmsState::instance().lane_feeding_tool(tool);
+    return lane && lane->info.spoolman_id > 0 ? lane->info.spoolman_id : 0;
 }
 
 namespace {

@@ -27,6 +27,7 @@
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
+#include "test_helpers/backend_harness.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -82,10 +83,10 @@ TEST_CASE("remap warning: a declared route that is not READY still warns",
     // the user's pick is dropped in silence. Warning is correct here, and was
     // correct before only because a SECOND capability query happened to answer
     // "not supported".
-    Ad5xIfsProbe ad5x;
+    helix::test::StartedBackend<Ad5xIfsProbe> ad5x;
     CHECK(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 
     // A printer.ifs frame carrying tool_map arms the gate.
-    helix::Ad5xIfsTestAccess::deliver_identity_tool_map(ad5x);
+    ad5x.fire_status(helix::test::ad5x_identity_tool_map_frame());
     CHECK_FALSE(PrintStartControllerTestAccess::should_warn_remap_unsupported(ad5x));
 }

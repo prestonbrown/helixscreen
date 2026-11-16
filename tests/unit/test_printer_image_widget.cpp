@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025-2026 356C LLC
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/process_async_timers.h"
@@ -10,15 +8,22 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
+#include "lvgl/lvgl_private.h"
+#include "lvgl_image_writer.h"
 #include "misc/lv_timer_private.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "prerendered_images.h"
+#include "printer_image_manager.h"
+#include "printer_images.h"
 #include "src/ui/panel_widgets/printer_image_widget.h"
 #include "wizard_config_paths.h"
 
 #include <filesystem>
 #include <string>
+#include <unistd.h>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -44,7 +49,223 @@ bool fire_one_async_call() {
     return false;
 }
 
+/// Fire the one-shot timers that lv_timer_handler() would run at the current
+/// tick, without advancing it: what lands before the display's next refresh in
+/// the same timer pass.
+void fire_due_one_shots() {
+    for (int safety = 0; safety < 100; ++safety) {
+        bool fired = false;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            if (t->repeat_count > 0 && t->timer_cb && !t->paused &&
+                lv_tick_elaps(t->last_run) >= t->period) {
+                t->repeat_count--;
+                t->last_run = lv_tick_get();
+                t->timer_cb(t);
+                if (timer_is_live(t) && t->repeat_count == 0) {
+                    lv_timer_delete(t);
+                }
+                fired = true;
+                break; // the callback may have changed the list
+            }
+        }
+        if (!fired)
+            return;
+    }
+}
+
 } // namespace
+
+TEST_CASE("classify_printer_image_change: a refresh redoes only what changed",
+          "[panel_widget][printer_image]") {
+    using helix::ui::classify_printer_image_change;
+    using helix::ui::PrinterImageChange;
+    using helix::ui::PrinterImageStamp;
+    const PrinterImageStamp shown{"A:/img/voron-v2.bin", "1700000000-478824", 220, 195};
+
+    SECTION("same source, same file, same area: nothing to redo") {
+        CHECK(classify_printer_image_change(shown, shown) == PrinterImageChange::None);
+    }
+    SECTION("another area width or height: relayout only") {
+        PrinterImageStamp next = shown;
+        next.area_w = 300;
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::Resized);
+        next = shown;
+        next.area_h = 120;
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::Resized);
+    }
+    SECTION("another source: new pixels") {
+        PrinterImageStamp next = shown;
+        next.source = "A:/img/voron-trident.bin";
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+    }
+    SECTION("the same path rewritten: new pixels") {
+        PrinterImageStamp next = shown;
+        next.fingerprint = "1700000999-478824";
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+        next.area_w = 300; // a rewrite outranks a resize
+        CHECK(classify_printer_image_change(shown, next) == PrinterImageChange::NewPixels);
+    }
+    SECTION("nothing shown yet: new pixels") {
+        CHECK(classify_printer_image_change(PrinterImageStamp{}, shown) ==
+              PrinterImageChange::NewPixels);
+    }
+}
+
+// A move or removal in grid edit mode rebuilds the page from XML, and the
+// recycled widget gets a fresh tree. Its picture must be on that tree, at the
+// exact-size copy, before the first frame draws it, or the tile visibly
+// re-lays itself out though nothing about it changed.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget shows its exact-size picture on a rebuilt tree's first frame",
+                 "[panel_widget][printer_image][cache]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+
+    // The XML component's shape: a fixed tile, the image filling it.
+    auto build_tree = [&](lv_obj_t*& widget_obj, lv_obj_t*& img) {
+        lv_obj_t* container = lv_obj_create(test_screen());
+        lv_obj_set_size(container, 200, 200);
+        widget_obj = lv_obj_create(container);
+        lv_obj_set_size(widget_obj, 180, 160);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
+    };
+    auto src_of = [](lv_obj_t* img) {
+        const auto* s = static_cast<const char*>(lv_image_get_src(img));
+        return std::string(s ? s : "");
+    };
+
+    lv_obj_t* widget_obj = nullptr;
+    lv_obj_t* img = nullptr;
+    build_tree(widget_obj, img);
+    process_lvgl(5);
+
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+    const std::string source = src_of(img);
+    REQUIRE_FALSE(source.empty());
+    const int32_t img_w = lv_obj_get_width(img);
+    const int32_t img_h = lv_obj_get_height(img);
+    REQUIRE(img_w > 0);
+    REQUIRE(img_h > 0);
+    const std::string cache_src = "A:" + helix::get_cached_printer_image_path(source, img_w, img_h);
+    if (!wait_until([&]() { return src_of(img) == cache_src; })) {
+        w.detach();
+        SKIP("no cacheable printer image in this tree (source '" + source + "')");
+    }
+
+    // The rebuild: the old tree goes, a new one is built and attached, and no
+    // layout pass has run on it yet.
+    w.detach();
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    REQUIRE(src_of(img).empty()); // still deferred out of attach() (#1025)
+
+    fire_due_one_shots();
+    INFO("the picture must land in the timer pass that follows the rebuild, ahead of "
+         "the display refresh, and at its exact-size copy rather than the scaled source");
+    CHECK(src_of(img) == cache_src);
+
+    // A tree deleted under the widget, with no detach first: the next tree
+    // has shown nothing, so the exact-size copy must be set on it again.
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    fire_due_one_shots();
+    INFO("a tree deleted without a detach must not leave the next one blank");
+    CHECK(src_of(img) == cache_src);
+
+    w.detach();
+}
+
+// A custom image can be rewritten under its own path while the home grid is
+// being rebuilt. The recycled widget's fresh tree has shown nothing yet, so the
+// decoded copy it must drop is the one named by what it showed last.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget drops a rewritten source's decoded copy across a rebuild",
+                 "[panel_widget][printer_image][cache]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+
+    // The header cache is the decoded state a read can observe; it ships at 0.
+    struct ScopedHeaderCache {
+        ScopedHeaderCache() {
+            lv_image_header_cache_resize(8, false);
+        }
+        ~ScopedHeaderCache() {
+            lv_image_header_cache_drop(nullptr);
+            lv_image_header_cache_resize(0, true);
+        }
+    } header_cache;
+
+    auto& pim = helix::PrinterImageManager::instance();
+    const std::string saved_custom_dir = pim.get_custom_dir();
+    const std::filesystem::path config_dir =
+        std::filesystem::temp_directory_path() /
+        ("helix_printer_image_rewrite_" + std::to_string(::getpid()));
+    std::filesystem::remove_all(config_dir);
+    pim.init(config_dir.string());
+
+    auto write_custom = [&](int w, int h) {
+        const std::vector<uint8_t> px(static_cast<size_t>(w) * h * 4, 0xFF);
+        for (const char* size : {"150", "300"}) {
+            REQUIRE(helix::write_lvgl_bin(pim.get_custom_dir() + "rewritten-" + size + ".bin", w, h,
+                                          LV_COLOR_FORMAT_ARGB8888, px.data(), px.size()));
+        }
+    };
+    write_custom(40, 30);
+    Config* cfg = Config::get_instance();
+    cfg->set<std::string>(cfg->df() + helix::PRINTER_IMAGE, "custom:rewritten");
+
+    auto build_tree = [&](lv_obj_t*& widget_obj, lv_obj_t*& img) {
+        lv_obj_t* container = lv_obj_create(test_screen());
+        lv_obj_set_size(container, 200, 200);
+        widget_obj = lv_obj_create(container);
+        lv_obj_set_size(widget_obj, 180, 160);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
+        process_lvgl(2);
+    };
+    auto decoded_width = [](const std::string& src) {
+        lv_image_header_t hdr{};
+        REQUIRE(lv_image_decoder_get_info(src.c_str(), &hdr) == LV_RESULT_OK);
+        return static_cast<int>(hdr.w);
+    };
+
+    lv_obj_t* widget_obj = nullptr;
+    lv_obj_t* img = nullptr;
+    build_tree(widget_obj, img);
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+    const std::string source = pim.get_displayed_image_path(printer_images::current_screen_width());
+    REQUIRE(source.find("rewritten-") != std::string::npos);
+    REQUIRE(decoded_width(source) == 40);
+
+    // The rebuild: the old tree goes, the file is rewritten with another size,
+    // and the new tree is attached.
+    w.detach();
+    lv_obj_delete(lv_obj_get_parent(widget_obj));
+    write_custom(20, 50);
+    build_tree(widget_obj, img);
+    w.attach(widget_obj, test_screen());
+    process_async_timers();
+
+    INFO("a source rewritten across a rebuild must not keep its stale decoded copy");
+    CHECK(decoded_width(source) == 20);
+
+    w.detach();
+    process_async_timers();
+    cfg->set<std::string>(cfg->df() + helix::PRINTER_IMAGE, "");
+    if (!saved_custom_dir.empty())
+        pim.init(std::filesystem::path(saved_custom_dir).parent_path().parent_path().string());
+    std::error_code ec;
+    std::filesystem::remove_all(config_dir, ec);
+}
 
 // Regression test for #1025 (grid walk-off crash family, #983). PrinterImageWidget
 // forced a SYNCHRONOUS LVGL layout from inside attach() -> reload_from_config() ->
@@ -289,7 +510,7 @@ TEST_CASE_METHOD(XMLTestFixture, "PrinterState type subject fires only when the 
     REQUIRE(std::string(lv_subject_get_string(
                 state().profile_state().get_printer_type_subject())) == "Creality K1C");
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 // On a fresh install auto-detection settles AFTER the home panel is built, so
@@ -394,50 +615,60 @@ TEST_CASE_METHOD(XMLTestFixture,
     helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
 }
 
+namespace {
+
+/// A PrinterImageWidget attached for a printer of @p type, with the image it shows.
+struct VariantScene {
+    lv_obj_t* img = nullptr;
+    helix::PrinterImageWidget widget;
+
+    VariantScene(lv_obj_t* screen, const char* type) {
+        helix::init_widget_registrations();
+        helix::PanelWidgetManager::instance().init_widget_subjects();
+        get_printer_state().init_subjects(false);
+        AmsState::instance().clear_backends();
+        AmsState::instance().init_subjects(true);
+        Config* cfg = Config::get_instance();
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, type);
+
+        lv_obj_t* widget_obj = lv_obj_create(screen);
+        lv_obj_set_size(widget_obj, 200, 200);
+        img = lv_image_create(widget_obj);
+        lv_obj_set_name(img, "printer_image");
+        lv_refr_now(nullptr);
+        widget.attach(widget_obj, screen);
+    }
+    ~VariantScene() {
+        widget.detach();
+        process_async_timers();
+        Config* cfg = Config::get_instance();
+        cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    }
+    /// The image shown once every queued refresh has run.
+    std::string source() const {
+        helix::ui::UpdateQueue::instance().drain();
+        process_async_timers();
+        return static_cast<const char*>(lv_image_get_src(img));
+    }
+};
+
+} // namespace
+
 // A filament system registers after connect, after the home panel is built. A
 // database entry's image_variants can pick another image for it, so the widget
 // re-resolves when the detected filament systems change, and back when they go.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget switches to an image variant when a filament system registers",
                  "[panel_widget][printer_image][printer_image_variants]") {
-    helix::init_widget_registrations();
-    helix::PanelWidgetManager::instance().init_widget_subjects();
-    get_printer_state().init_subjects(false);
-    AmsState& ams = AmsState::instance();
-    ams.clear_backends();
-    ams.init_subjects(false);
-
-    Config* cfg = Config::get_instance();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Creality K2");
-
-    lv_obj_t* widget_obj = lv_obj_create(test_screen());
-    lv_obj_set_size(widget_obj, 200, 200);
-    lv_obj_t* img = lv_image_create(widget_obj);
-    lv_obj_set_name(img, "printer_image");
-    process_lvgl(2);
-
-    helix::PrinterImageWidget w;
-    w.attach(widget_obj, test_screen());
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    auto source = [&]() { return std::string(static_cast<const char*>(lv_image_get_src(img))); };
-    const std::string plain = source();
+    VariantScene scene(test_screen(), "Creality K2");
+    const std::string plain = scene.source();
     REQUIRE(plain.find("creality-k2") != std::string::npos);
     REQUIRE(plain.find("creality-k2-cfs") == std::string::npos);
 
-    ams.add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("creality-k2-cfs") != std::string::npos);
-
-    ams.clear_backends();
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
-    w.detach();
-    process_async_timers();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    AmsState::instance().add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
+    CHECK(scene.source().find("creality-k2-cfs") != std::string::npos);
+    AmsState::instance().clear_backends();
+    CHECK(scene.source() == plain);
 }
 
 // The top can be fitted or lifted off while connected, so the widget follows the
@@ -445,57 +676,22 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget switches to the with-top image when the top is fitted",
                  "[panel_widget][printer_image][printer_image_variants][enclosure_top]") {
-    helix::init_widget_registrations();
-    helix::PanelWidgetManager::instance().init_widget_subjects();
-    get_printer_state().init_subjects(false);
-    AmsState& ams = AmsState::instance();
-    ams.clear_backends();
-    ams.init_subjects(false);
     auto& caps = get_printer_state().capabilities_state();
     caps.set_enclosure_top_fitted(false);
     caps.set_has_chamber_heater(false);
-
-    Config* cfg = Config::get_instance();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Snapmaker U1");
-
-    lv_obj_t* widget_obj = lv_obj_create(test_screen());
-    lv_obj_set_size(widget_obj, 200, 200);
-    lv_obj_t* img = lv_image_create(widget_obj);
-    lv_obj_set_name(img, "printer_image");
-    process_lvgl(2);
-
-    helix::PrinterImageWidget w;
-    w.attach(widget_obj, test_screen());
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    auto source = [&]() { return std::string(static_cast<const char*>(lv_image_get_src(img))); };
-    const std::string plain = source();
+    VariantScene scene(test_screen(), "Snapmaker U1");
+    const std::string plain = scene.source();
     REQUIRE(plain.find("snapmaker-u1") != std::string::npos);
     REQUIRE(plain.find("snapmaker-u1-tophat") == std::string::npos);
 
     caps.set_enclosure_top_fitted(true);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("snapmaker-u1-tophat") != std::string::npos);
-
+    CHECK(scene.source().find("snapmaker-u1-tophat") != std::string::npos);
     caps.set_enclosure_top_fitted(false);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
+    CHECK(scene.source() == plain);
     caps.set_has_chamber_heater(true);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source().find("snapmaker-u1-tophat") != std::string::npos);
-
+    CHECK(scene.source().find("snapmaker-u1-tophat") != std::string::npos);
     caps.set_has_chamber_heater(false);
-    helix::ui::UpdateQueue::instance().drain();
-    process_async_timers();
-    CHECK(source() == plain);
-
-    w.detach();
-    process_async_timers();
-    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+    CHECK(scene.source() == plain);
 }
 
 // A chamber with only a sensor still has a reading worth showing, so the home

@@ -8,7 +8,7 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "http_request_epoch.h"
 #include "mock_http_file_server.h"
 #include "moonraker_api_mock.h"

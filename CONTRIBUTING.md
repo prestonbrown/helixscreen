@@ -72,7 +72,7 @@ And the single best debugging move: find the closest-shaped sibling in `src/ui/`
 
 1. **Branch** from `main`: `git switch -c feature/short-name` (or `fix/short-name` for bugs).
 2. **Worktree** if the change spans many files: `scripts/setup-worktree.sh feature/short-name`.
-3. **Build and test** locally. `make test-run` for the full suite. Test at multiple breakpoints for UI changes (see [UI Contributor Guide § Screen Breakpoints](docs/devel/UI_CONTRIBUTOR_GUIDE.md)).
+3. **Build and test** locally. `make t F='[tag]'` for the area you touched, `make full-test-run` for the C++ and shell suites once the change is finished. Test at multiple breakpoints for UI changes (see [UI Contributor Guide § Screen Breakpoints](docs/devel/UI_CONTRIBUTOR_GUIDE.md)).
 4. **Commit** using the `type(scope): summary` format — `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`. The pre-commit hook will auto-format via clang-format.
 5. **Open a PR** against `main`. Describe what changed and why. Include screenshots for UI work at multiple breakpoints. Link any related issues.
 

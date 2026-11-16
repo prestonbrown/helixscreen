@@ -55,6 +55,10 @@
       "output_pin ptc_power",
       "temperature_sensor mcu_temp",
       "heater_fan chamber_heater_fan",
+      "belt_mdl mdlx",
+      "belt_mdl mdly",
+      "gcode_macro BELT_TENSION",
+      "gcode_macro CALIBRATE_CUT_POS",
       "exclude_object",
       "gcode_macro START_PRINT",
       "gcode_macro END_PRINT",
@@ -190,7 +194,8 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_feedback": [
       "fan0_speed",
@@ -241,10 +246,12 @@
       "power"
     ],
     "heater_fan chamber_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan chamber_heater_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_generic chamber_heater": [
       "temperature",
@@ -302,7 +309,8 @@
     "temperature_fan chamber_fan": [
       "temperature",
       "target",
-      "speed"
+      "speed",
+      "rpm"
     ],
     "temperature_sensor chamber_temp": [
       "temperature",

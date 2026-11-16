@@ -212,6 +212,16 @@ TEST_CASE("parse_screws_tilt_line reads Klipper console output",
         REQUIRE_FALSE(helix::parse_screws_tilt_line("ok", r));
         REQUIRE_FALSE(helix::parse_screws_tilt_line("// Klipper state: Ready", r));
     }
+
+    SECTION("A macro's action:prompt line is not a screw") {
+        // COSMOS's SCREWS_TILT_CALCULATE wrapper narrates its own measurement
+        // through a prompt dialog while Klipper's result lines arrive.
+        ScrewTiltResult r;
+        REQUIRE_FALSE(helix::parse_screws_tilt_line(
+            "// action:prompt_text Front right screw : x=231.0, y=24.0, z=0.000 : adjust CW 02:16",
+            r));
+        REQUIRE_FALSE(helix::parse_screws_tilt_line("//action:prompt_begin Manual Leveling", r));
+    }
 }
 
 TEST_CASE("evaluate_screw_level judges the spread, not each screw's magnitude",

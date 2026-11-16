@@ -3,13 +3,12 @@
 #pragma once
 
 #include "config.h"
+#include "json_fwd.h"
 #include "thermal_rate_model.h"
 #include "wizard_config_paths.h"
 
 #include <map>
 #include <string>
-
-#include "hv/json.hpp"
 
 /**
  * @brief Scopes the Config a pre-print estimate reads, and puts it back after

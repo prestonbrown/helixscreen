@@ -13,15 +13,16 @@
  * protection for an outside observer is the death token handed out by
  * AmsState::get_subjects_lifetime(). An observer created without it — the
  * guards fetch their subject by XML name, so there is no token'd accessor to
- * route through — calls lv_observer_remove() on a freed node when the panel
+ * route through — calls lv_observer_delete() on a freed node when the panel
  * is destroyed, a double free of that node.
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <lvgl.h>
@@ -61,7 +62,7 @@ class PrintStatusAmsLifetimeFixture : public LVGLUITestFixture {
     }
 
     ~PrintStatusAmsLifetimeFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -112,7 +113,7 @@ TEST_CASE_METHOD(
     CHECK(lv_ll_get_len(&subject_->subs_ll) == 0);
 
     // Destroying the panel resets its guards. With the death token the reset
-    // skips lv_observer_remove(); without it this is a double free of a node
+    // skips lv_observer_delete(); without it this is a double free of a node
     // lv_subject_deinit() already freed.
     panel_release();
 

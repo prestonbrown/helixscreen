@@ -668,24 +668,25 @@ TEST_CASE("every accept-case capture is measured at every window alignment",
         size_t phases = 0;
         float worst_concentration = 1.0f;
         size_t worst_lead = 0;
-        // The three temporal shape margins. Each constant's comment used to
-        // cite this sweep as its source while the sweep never computed it, so
-        // all three could erode to zero silently. Seeded at the value that
-        // makes the first alignment set them.
+        // The three temporal shape margins, seeded so the first alignment sets them.
         float worst_onset_rise = std::numeric_limits<float>::infinity();
         float best_onset_rise = 0.0f;
         float worst_decay_rise = 0.0f;
         float worst_end_ratio = 0.0f;
 
         constexpr size_t kBatch = 340;
+        // Every alignment's first 1000 samples are the same quiet lead-in, so each session
+        // starts as a copy of one that learned its floor from them.
+        BeltListenSession learned(kSpanMm, fx.rate_hz);
+        const auto quiet = splice_live_window(fx);
+        REQUIRE(learned.learn_noise_floor(
+            std::vector<AccelSample>(quiet.begin(), quiet.begin() + 1000)));
         for (size_t lead = BeltListenSession::kDetectionWindowSamples;
              lead < BeltListenSession::kDetectionWindowSamples + kBatch; ++lead) {
             ++phases;
             auto live = splice_live_window(fx, lead);
 
-            BeltListenSession s(kSpanMm, fx.rate_hz);
-            REQUIRE(
-                s.learn_noise_floor(std::vector<AccelSample>(live.begin(), live.begin() + 1000)));
+            BeltListenSession s = learned;
             std::vector<AccelSample> resolved;
             stream_through(s, live, &resolved);
 

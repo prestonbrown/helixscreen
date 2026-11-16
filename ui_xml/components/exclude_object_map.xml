@@ -1,5 +1,11 @@
 <?xml version="1.0"?>
 <component>
+  <api>
+    <!-- ExcludeObjectMapView's per-view subjects: the plate size line, and 1
+         while the map has object rects (which hides the empty message). -->
+    <prop name="dims_subject" type="string" default=""/>
+    <prop name="has_objects_subject" type="string" default=""/>
+  </api>
   <!-- ignore_layout: the only parent is print_status_panel's thumbnail_section,
        which is a flex column (preview above, metadata strip below). The map
        covers the whole card instead of taking a slot in that column. -->
@@ -14,14 +20,15 @@
             style_pad_all="0" clickable="false">
 
       <text_tiny name="plate_dims_label"
-                 style_text_color="#text_muted" align="top_left" style_pad_left="#space_xs" style_pad_top="#space_xs"
-                 clickable="false" event_bubble="true"/>
+                 bind_text="$dims_subject" style_text_color="#text_muted" align="top_left" style_pad_left="#space_xs"
+                 style_pad_top="#space_xs" clickable="false" event_bubble="true"/>
 
-      <!-- Empty state message: hidden imperatively in C++ after build_object_rects().
-           Starts hidden; C++ calls lv_obj_remove_flag(HIDDEN) when no rects exist. -->
+      <!-- Empty state message: shown when the map built no object rects. -->
       <text_body name="empty_message"
                  text="Object positions unavailable" style_text_color="#text_muted" align="center" hidden="true"
-                 clickable="false" event_bubble="true"/>
+                 clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$has_objects_subject" flag="hidden" ref_value="1"/>
+      </text_body>
 
       <!-- Close button — top right of plate area (must be inside non-flex parent for align to work) -->
       <lv_obj name="close_btn"

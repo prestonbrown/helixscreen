@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "filament_sensor_types.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -62,14 +63,7 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
     WizardFilamentSensorSelectStep(WizardFilamentSensorSelectStep&&) = delete;
     WizardFilamentSensorSelectStep& operator=(WizardFilamentSensorSelectStep&&) = delete;
 
-    /**
-     * @brief Initialize reactive subjects
-     */
     void init_subjects() override;
-
-    /**
-     * @brief Register event callbacks
-     */
     void register_callbacks() override;
 
     /**
@@ -121,13 +115,10 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
     /**
      * @brief Check if step is validated
      *
-     * @return true (always validated for baseline)
+     * @return true (always validated)
      */
     bool is_validated() const override;
 
-    /**
-     * @brief Get step name for logging
-     */
     const char* get_name() const {
         return "Wizard Filament Sensor";
     }
@@ -185,7 +176,6 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
      */
     std::string get_klipper_name_for_index(int dropdown_index) const;
 
-    // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // Deferred refresh one-shot; owned and cancelled by this step
@@ -193,18 +183,13 @@ class WizardFilamentSensorSelectStep : public helix::wizard::Step {
 
     // Subject (dropdown selection index)
     SubjectManager subjects_;
-    lv_subject_t runout_sensor_selected_{};
+    helix::Subject runout_sensor_selected_{};
 
     // Dynamic options storage
     std::vector<std::string> sensor_items_;                       // Klipper names for dropdown
     std::vector<helix::FilamentSensorConfig> standalone_sensors_; // Filtered sensors
 
-    // Track initialization
     bool subjects_initialized_ = false;
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 WizardFilamentSensorSelectStep* get_wizard_filament_sensor_select_step();

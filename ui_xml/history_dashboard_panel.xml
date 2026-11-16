@@ -4,7 +4,7 @@
 <!-- Print History Dashboard Panel -->
 <!-- Overlay panel showing aggregated print statistics with time filtering -->
 <!-- Entry point: Advanced Panel → Print History action row -->
-<!-- Navigation: Back → Advanced Panel, View Full History → History List Panel -->
+<!-- Navigation: Back → Advanced Panel, View Full History (header) → History List Panel -->
 <component>
   <consts>
     <!-- Layout dimensions for side-by-side stats + chart -->
@@ -16,7 +16,11 @@
     <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
     <style name="filter_btn_unselected" bg_color="#primary" bg_opa="40"/>
   </styles>
-  <view name="history_dashboard_panel" extends="overlay_panel" title="Print History">
+  <!-- View Full History rides in the header so it is on screen at every size,
+       however tall the stats and charts below grow. -->
+  <view name="history_dashboard_panel"
+        extends="overlay_panel" title="Print History" hide_action_button="false" action_button_text="View Full History"
+        action_button_callback="history_view_full_clicked">
     <!-- Content Area - scrollable to fit all content on small screens -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="true" flex_flow="column">
@@ -127,14 +131,6 @@
         <text_muted width="100%" text="No print history yet" style_text_align="center"/>
         <text_small width="100%" text="Your completed prints will appear here" style_text_align="center"/>
       </centered_column>
-      <!-- Flex shim to push button to bottom (hidden when empty state is shown) -->
-      <lv_obj name="flex_shim" width="100%" style_pad_all="0" flex_grow="1" scrollable="false">
-        <bind_flag_if_eq subject="history_has_jobs" flag="hidden" ref_value="0"/>
-      </lv_obj>
-      <!-- View Full History Button (at bottom) -->
-      <ui_button name="btn_view_history" width="100%" icon="list" text="View Full History">
-        <event_cb trigger="clicked" callback="history_view_full_clicked"/>
-      </ui_button>
     </lv_obj>
     <!-- End overlay_content -->
   </view>

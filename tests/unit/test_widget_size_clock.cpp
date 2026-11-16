@@ -70,13 +70,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
           theme_manager_get_font("font_body"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_body"));
-    CHECK(lv_obj_has_flag(uptime_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(uptime_label));
 
     // Mode 1 below the normal width band: the date shows wherever it fits,
     // not only from w_normal() up.
     h.resize(3, 2, w_normal() - 1, h_tall() - 1);
     CHECK(clock_size_mode() == 1);
-    CHECK_FALSE(lv_obj_has_flag(date_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(date_label));
 
     // Mode 1 (normal, time+date): height below threshold, width AT/OVER
     // w_wide(). Isolates "height below threshold" from the width axis --
@@ -89,7 +89,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
           theme_manager_get_font("font_heading"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_body"));
-    CHECK(lv_obj_has_flag(uptime_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(uptime_label));
 
     // Mode 2 (expanded): height at/over threshold, width below w_wide().
     // Contradicting span: 1x1 (old predicate -> mode 0).
@@ -99,7 +99,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
           theme_manager_get_font("font_heading"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_body"));
-    CHECK_FALSE(lv_obj_has_flag(uptime_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(uptime_label));
 
     // Mode 3 (large): both axes at/over threshold. Contradicting span: 1x1
     // (old predicate -> mode 0).
@@ -109,5 +109,5 @@ TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not
           theme_manager_get_font("font_xl"));
     CHECK(lv_obj_get_style_text_font(date_label, LV_PART_MAIN) ==
           theme_manager_get_font("font_heading"));
-    CHECK_FALSE(lv_obj_has_flag(uptime_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(uptime_label));
 }

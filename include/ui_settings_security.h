@@ -23,9 +23,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -40,6 +40,9 @@ class SecuritySettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "security_settings_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void register_callbacks() override;

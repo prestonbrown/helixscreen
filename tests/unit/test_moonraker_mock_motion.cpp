@@ -1077,9 +1077,9 @@ TEST_CASE("MoonrakerClientMock multi-line script surfaces the failing line's err
           "[api][movement][errors][mock_fidelity]") {
     // Every jog the app sends is multi-line: "G91\nG0 X..\nG90". The RPC handler
     // splits the script and calls gcode_script() once per line, and gcode_script()
-    // clears the error latch on entry — so the trailing G90 used to wipe the G0's
-    // error and the caller received an EMPTY message, which user_message() then
-    // rendered as "An unknown error occurred.".
+    // clears the error latch on entry, so the trailing G90 must not wipe the
+    // G0's error: the caller would receive an EMPTY message, which
+    // user_message() renders as "An unknown error occurred.".
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     mock.connect("ws://mock/websocket", []() {}, []() {});
     helix::rpc_error_correlation::clear_for_test();

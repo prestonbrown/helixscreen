@@ -10,8 +10,6 @@
  * that changes are detected and the correct component names are derived.
  */
 
-#include "../test_helpers/layout_manager_test_access.h"
-#include "layout_manager.h"
 #include "xml_hot_reloader.h"
 #include "xml_registration.h"
 
@@ -665,98 +663,6 @@ TEST_CASE_METHOD(HotReloadFixture, "empty file is deferred (editor mid-write)", 
     overwrite_xml(temp_dir_ / "home_panel.xml", "<component><view/></component>");
     hr.scan_and_reload();
     REQUIRE(reload_count.load() == 1);
-
-    hr.stop();
-}
-
-// ============================================================================
-// Breakpoint-variant resolution [hot-reload]
-// ============================================================================
-
-/// Stands up a miniature ui_xml/ tree holding both a base component and a
-/// micro/ override of it, and makes the temp root the process CWD.
-/// LayoutManager resolves variant paths relative to the CWD, so the reloader
-/// and the layout resolver must be looking at the same tree for these tests to
-/// mean anything.
-class HotReloadVariantFixture {
-  public:
-    HotReloadVariantFixture() {
-        prev_cwd_ = fs::current_path();
-        root_ = fs::temp_directory_path() /
-                ("helix_hot_reload_variant_" +
-                 std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        fs::create_directories(root_ / "ui_xml" / "micro");
-        overwrite_xml(base_path(), "<component><view name=\"controls_panel\"/></component>");
-        overwrite_xml(micro_path(), "<component><view name=\"controls_panel\"/></component>");
-        fs::current_path(root_);
-        LayoutManagerTestAccess::reset(helix::LayoutManager::instance());
-    }
-
-    ~HotReloadVariantFixture() {
-        LayoutManagerTestAccess::reset(helix::LayoutManager::instance());
-        std::error_code ec;
-        fs::current_path(prev_cwd_, ec);
-        fs::remove_all(root_, ec);
-    }
-
-    fs::path base_path() const {
-        return root_ / "ui_xml" / "controls_panel.xml";
-    }
-    fs::path micro_path() const {
-        return root_ / "ui_xml" / "micro" / "controls_panel.xml";
-    }
-
-    fs::path root_;
-    fs::path prev_cwd_;
-};
-
-TEST_CASE_METHOD(HotReloadVariantFixture,
-                 "micro layout reloads the micro copy and ignores the shadowed base",
-                 "[hot-reload]") {
-    helix::LayoutManager::instance().init(480, 272); // MICRO
-
-    std::vector<std::string> reloaded;
-    helix::XmlHotReloader hr;
-    hr.set_reload_callback(
-        [&](const std::string& name, const std::string&) { reloaded.push_back(name); });
-    hr.start({"ui_xml"}, 10000);
-
-    // The base copy is shadowed by micro/ — reloading it would swap the live
-    // component for a layout this display is not using.
-    overwrite_xml(base_path(), "<component><view name=\"controls_panel\"/><!--base--></component>");
-    hr.scan_and_reload();
-    REQUIRE(reloaded.empty());
-
-    // The micro copy is the one in effect, so it reloads.
-    overwrite_xml(micro_path(),
-                  "<component><view name=\"controls_panel\"/><!--micro--></component>");
-    hr.scan_and_reload();
-    REQUIRE(reloaded.size() == 1);
-    REQUIRE(reloaded[0] == "controls_panel");
-
-    hr.stop();
-}
-
-TEST_CASE_METHOD(HotReloadVariantFixture,
-                 "standard layout reloads the base copy and ignores the micro override",
-                 "[hot-reload]") {
-    helix::LayoutManager::instance().init(800, 480); // STANDARD
-
-    std::vector<std::string> reloaded;
-    helix::XmlHotReloader hr;
-    hr.set_reload_callback(
-        [&](const std::string& name, const std::string&) { reloaded.push_back(name); });
-    hr.start({"ui_xml"}, 10000);
-
-    overwrite_xml(micro_path(),
-                  "<component><view name=\"controls_panel\"/><!--micro--></component>");
-    hr.scan_and_reload();
-    REQUIRE(reloaded.empty());
-
-    overwrite_xml(base_path(), "<component><view name=\"controls_panel\"/><!--base--></component>");
-    hr.scan_and_reload();
-    REQUIRE(reloaded.size() == 1);
-    REQUIRE(reloaded[0] == "controls_panel");
 
     hr.stop();
 }

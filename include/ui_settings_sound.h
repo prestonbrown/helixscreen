@@ -13,8 +13,8 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 
 namespace helix::settings {
 
@@ -25,6 +25,9 @@ class SoundSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "settings_sound_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void register_callbacks() override;
@@ -45,9 +48,6 @@ class SoundSettingsOverlay : public OverlayBase {
     void init_volume_slider();
     void init_sound_theme_dropdown();
     void init_audio_device_dropdown();
-
-    /// Volume value label text
-    char volume_value_buf_[8]; // e.g., "100%"
 };
 
 inline SoundSettingsOverlay& get_sound_settings_overlay() {

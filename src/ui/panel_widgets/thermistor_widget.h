@@ -4,16 +4,20 @@
 #pragma once
 
 #include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
@@ -33,9 +37,6 @@ class ThermistorWidget : public TiledPanelWidget {
     void attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) override;
     void detach() override;
     std::string get_component_name() const override;
-    const char** xml_attrs() const override {
-        return const_cast<const char**>(attrs_.data());
-    }
     const char* id() const override {
         return instance_id_.c_str();
     }
@@ -53,12 +54,28 @@ class ThermistorWidget : public TiledPanelWidget {
     /// Select icon for this widget instance
     void select_icon(const std::string& name);
 
+    /// Replace the unit text after this tile's readings, or restore the default
+    /// with nullopt. An empty string draws no unit. Text only: the reading is
+    /// never converted. Persists in the widget's config as "unit_override".
+    void set_unit_override(std::optional<std::string> unit);
+    const std::optional<std::string>& unit_override() const {
+        return unit_override_;
+    }
+
+    /// The unit text a tile draws for @p unit_override: the override itself
+    /// when set, else the default unit.
+    static std::string unit_text(const std::optional<std::string>& unit_override);
+
     // Static event callbacks (XML-registered)
     static void thermistor_clicked_cb(lv_event_t* e);
     /// A tap on a picker row; the row index is the event's user_data.
     static void picker_row_cb(lv_event_t* e);
     /// A tap on a carousel page.
     static void carousel_page_cb(lv_event_t* e);
+    /// The configure card's Unit row: edit the unit text.
+    static void unit_row_cb(lv_event_t* e);
+    /// The configure card's Default button: drop the unit override.
+    static void unit_reset_cb(lv_event_t* e);
 
   private:
     /// Keypad confirm: sends the value to the heater the keypad was opened for.
@@ -113,6 +130,13 @@ class ThermistorWidget : public TiledPanelWidget {
         /// No-op when the card is not on screen.
         void refresh_icon_highlights();
 
+        /// Publish the Unit row's text and whether an override is set.
+        void fill_unit_row();
+        /// Close the card, committing the checkboxes, and ask for the unit text.
+        void edit_unit();
+        /// Drop the widget's unit override.
+        void reset_unit();
+
       protected:
         const char* xml_component_name() const override {
             return "thermistor_configure_picker";
@@ -150,11 +174,11 @@ class ThermistorWidget : public TiledPanelWidget {
 
     /// this tile's component.
 
-    std::string icon_name_; // Custom icon, empty = "thermometer" default
+    std::string icon_name_;                    // Custom icon, empty = "thermometer" default
+    std::optional<std::string> unit_override_; ///< nullopt = the default unit
 
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* name_label_ = nullptr;
 
     nlohmann::json config_;
     std::vector<std::string> sensors_; // klipper_names for carousel mode
@@ -169,14 +193,18 @@ class ThermistorWidget : public TiledPanelWidget {
     // per-instance subjects the tile's temp_display binds to. The manager's
     // own per-sensor subjects are not XML-registered.
     SubjectManager subjects_;
-    lv_subject_t temp_subject_{};
-    lv_subject_t target_subject_{};
-    lv_subject_t available_subject_{}; ///< 1 while the selected sensor is reported
-    std::string temp_subject_name_;
-    std::string target_subject_name_;
-    std::string available_subject_name_;
-    std::vector<std::string> attr_storage_;
-    std::vector<const char*> attrs_;
+    helix::Subject temp_subject_{};
+    helix::Subject target_subject_{};
+    helix::Subject available_subject_{}; ///< 1 while the selected sensor is reported
+    /// The sensor's name, and 1 while one is selected (0 draws "Select sensor").
+    helix::Subject name_subject_{};
+    char name_buffer_[96] = {};
+    helix::Subject named_subject_{};
+    /// The unit text drawn after the reading (unit_text()).
+    helix::Subject unit_subject_{};
+    char unit_buffer_[40] = {};
+    /// 1 while a unit override is set: the reading then shows as reported, unconverted.
+    helix::Subject raw_subject_{};
 
     // Carousel mode: each page binds the reading and name subjects of its slot
     // in these pools (thermistor_carousel_page). Declared before the observers
@@ -188,7 +216,10 @@ class ThermistorWidget : public TiledPanelWidget {
     size_t carousel_page_count_ = 0;
     std::vector<ObserverGuard> carousel_observers_;
     std::vector<SubjectLifetime> carousel_lifetimes_;
+    /// Each page's last reading (decidegrees), so a unit switch re-formats it.
+    std::vector<std::optional<int>> page_deci_;
     ObserverGuard version_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // MUST stay declared LAST: reverse-declaration destruction makes this the
     // first member torn down, invalidating every captured token before any
@@ -215,6 +246,7 @@ class ThermistorWidget : public TiledPanelWidget {
     void bind_carousel_sensors();
     /// Show @p decidegrees on carousel page @p page.
     void show_page_temp(size_t page, int decidegrees);
+    void reformat_pages(); ///< every carousel page again, in the current unit
 
     /// Null every cached widget pointer (single-mode labels, carousel page
     /// labels, tile root) without touching observers or the widget tree.
@@ -224,6 +256,13 @@ class ThermistorWidget : public TiledPanelWidget {
     void on_hooked_root_deleted() override;
 
     void show_configure_picker();
+    /// Push the unit text to the tile, its carousel pages and its sizing.
+    void apply_unit();
+    /// Ask for the unit text in a text-entry dialog. @p self is used only while
+    /// @p token lives; otherwise the answer goes to the stored config of
+    /// @p instance_id on @p panel and the panel rebuilds.
+    static void show_unit_entry(ThermistorWidget* self, LifetimeToken token, std::string panel,
+                                std::string instance_id, std::string initial);
     void apply_sensor_selection(const std::vector<std::string>& selected);
     void resolve_display_name();
     void on_temp_changed(int decidegrees);

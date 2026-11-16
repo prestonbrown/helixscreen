@@ -5,7 +5,9 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "preflight_validator.h"
+#include "subject_managed_panel.h"
 
 #include <functional>
 #include <vector>
@@ -40,12 +42,16 @@ class PreflightCheckModal : public Modal {
   public:
     using Action = std::function<void()>;
 
+    PreflightCheckModal();
+    ~PreflightCheckModal() override;
+
     const char* get_name() const override {
         return "Preflight Check";
     }
     const char* component_name() const override {
         return "preflight_check_modal";
     }
+    HELIX_KIND_TAG(PreflightCheckModal)
 
     /// Copy in the check data to render.
     void set_checks(const helix::PreflightResult& result) {
@@ -89,12 +95,26 @@ class PreflightCheckModal : public Modal {
     }
 
   private:
+    /// Write the file's material to the slot material_fix() names, then close:
+    /// the next Print checks again against what the slot now holds.
+    void apply_material_fix();
+    static void on_set_material_cb(lv_event_t* e);
+
     void build_rows(lv_obj_t* list);
     lv_obj_t* create_tool_row(lv_obj_t* list, const helix::ToolCheck& check,
                               const std::vector<helix::AvailableSlot>& slots);
 
     helix::PreflightResult result_;
     Action on_force_, on_remap_, on_closed_;
+
+    SubjectManager subjects_;
+    helix::Subject fix_shown_subject_{};
+    helix::Subject fix_text_subject_{};
+    char fix_text_buf_[96] = {0};
+    /// 1 when a remap can be carried out: Map Filament shows
+    helix::Subject remap_shown_subject_{};
+    helix::Subject explanation_subject_{};
+    char explanation_buf_[256] = {0};
 };
 
 } // namespace helix::ui

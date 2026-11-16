@@ -29,6 +29,14 @@ def test_descend_into_an_overlay_and_back(helix_app):
     assert helix_app.current()["overlays"] == []
 
 
+def test_bed_mesh_panel_opens_on_the_apps_printer(helix_app):
+    # Only a panel holding the app's Moonraker API can fill its profile list.
+    helix_app.navigate("controls")
+    helix_app.click("btn_bed_mesh")
+    helix_app.wait_idle()
+    assert helix_app.get("bed_mesh_profile_0_name")["value"]
+
+
 def test_navigate_pops_an_open_overlay_stack(helix_app):
     # navigate used to call set_active(), which deliberately preserves the
     # overlay stack so the base panel can be swapped underneath an open

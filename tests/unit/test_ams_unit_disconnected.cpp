@@ -8,12 +8,11 @@
  *        whole-system subjects, and the unit card that binds them.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 
@@ -136,12 +135,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A disconnected unit publishes its own subje
         CHECK(lv_obj_get_style_opa(header, LV_PART_MAIN) < LV_OPA_COVER);
         lv_obj_t* chip = lv_obj_find_by_name(card, "unit_disconnected_chip");
         REQUIRE(chip != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(chip));
         CHECK(lv_obj_get_style_opa(chip, LV_PART_MAIN) == LV_OPA_COVER);
         CHECK(lv_obj_get_style_opa(lv_obj_get_parent(chip), LV_PART_MAIN) == LV_OPA_COVER);
         lv_obj_t* count = lv_obj_find_by_name(card, "slot_count");
         REQUIRE(count != nullptr);
-        CHECK(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(count));
         lv_obj_delete(card);
     }
 
@@ -159,7 +158,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A disconnected unit publishes its own subje
         CHECK(lv_obj_get_style_opa(bars, LV_PART_MAIN) == LV_OPA_COVER);
         lv_obj_t* chip = lv_obj_find_by_name(card, "unit_disconnected_chip");
         REQUIRE(chip != nullptr);
-        CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(chip));
         lv_obj_delete(card);
     }
 

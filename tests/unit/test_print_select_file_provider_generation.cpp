@@ -18,11 +18,11 @@
  * of sending, letting us deliver them out of order deterministically.
  */
 
-#include "ui_filename_utils.h"
 #include "ui_print_select_file_provider.h"
 
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_try_reserve_failure.h"
+#include "core/gcode_filename.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_file_api.h"

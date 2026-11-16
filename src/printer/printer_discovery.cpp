@@ -2,15 +2,19 @@
 
 #include "printer_discovery.h"
 
-#include "ui_update_queue.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
+#include "audio_settings_manager.h"
+#include "core/data_root_resolver.h"
+#include "core/update_queue.h"
+#include "helix_fs.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
+#include "legacy_spool_import.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
+#include "printer_state.h"
 #include "runtime_config.h"
 #include "sensor_manager.h"
 #include "spdlog/spdlog.h"
@@ -21,13 +25,6 @@
 #include <vector>
 
 namespace helix {
-
-PrinterDiscovery::PrinterDiscovery() = default;
-PrinterDiscovery::PrinterDiscovery(const PrinterDiscovery&) = default;
-PrinterDiscovery::PrinterDiscovery(PrinterDiscovery&&) noexcept = default;
-PrinterDiscovery& PrinterDiscovery::operator=(const PrinterDiscovery&) = default;
-PrinterDiscovery& PrinterDiscovery::operator=(PrinterDiscovery&&) noexcept = default;
-PrinterDiscovery::~PrinterDiscovery() = default;
 
 void remember_printer_hostname(const std::string& hostname) {
     if (hostname.empty() || hostname == "unknown") {
@@ -41,17 +38,17 @@ void remember_printer_hostname(const std::string& hostname) {
     }
 }
 
-void reload_sensor_roles_after_preset() {
+void reload_settings_after_preset() {
     for (auto* m : helix::sensors::sensor_managers()) {
         m->load_settings();
     }
+    AudioSettingsManager::instance().reload_from_config();
 }
 
 void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,
                                    IMoonrakerClient* client) {
     spdlog::debug("[PrinterDiscovery] Initializing subsystems from hardware discovery");
 
-    // Initialize AMS backend (AFC, Happy Hare, ACE, Tool Changer)
     AmsState::instance().init_backend_from_hardware(hardware, api, client);
 
     // Sensor discovery is unconditional: an empty list is what clears the
@@ -62,11 +59,9 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
         m->load_settings();
     }
 
-    // Initialize multi-extruder temperature tracking
     auto& printer_state = get_printer_state();
     printer_state.temperature_state().init_extruders(hardware.heaters());
 
-    // Initialize tool changer state from discovered hardware
     helix::ToolState::instance().init_tools(hardware);
     // init_tools() mounts T0 and drops any backend topology. A backend started
     // above, or still running from the last discovery, already said which head
@@ -79,15 +74,16 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // republishes only what changes afterwards.
     helix::ToolState::instance().query_tool_offsets(client, hardware);
 
-    // Restore persisted spool assignments (Moonraker DB primary, local JSON fallback)
-    helix::ToolState::instance().load_spool_assignments(api);
+    // HelixScreen 1.0 kept per-tool and bypass spool links locally; they go
+    // into the lane records once those are read.
+    AmsState::instance().start_legacy_spool_import(
+        helix::fs::join_path(helix::get_user_config_dir(), helix::ams::legacy::kToolSpoolsFile));
 
     // Sync printer name from Mainsail/Fluidd DB (seeds local config on first connect)
     helix::PrinterNameSync::resolve(api, hardware.hostname());
 
     remember_printer_hostname(hardware.hostname());
 
-    // Initialize standard macros
     // Type from Config, NOT PrinterState: this callback runs before
     // auto_detect_and_save sets PrinterState's copy, so reading that one hands
     // StandardMacros an empty string and the shipped tier never fills. Same trap
@@ -101,6 +97,8 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // api_/client_ + backend api pointers, and the subject path is idempotent).
     auto& led_ctrl = helix::led::LedController::instance();
     led_ctrl.init(api, client);
+    led_ctrl.set_lights_disabled(printer_state.get_capability_overrides().get_override(
+                                     capability::LED) == OverrideState::DISABLE);
     led_ctrl.discover_from_hardware(hardware);
     // Wire up auto-state LED control. init() reloads the per-printer auto-state
     // config and (re)subscribes to PrinterState subjects. Because switch_printer()

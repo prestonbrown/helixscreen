@@ -112,10 +112,9 @@ class ALSASoundBackend : public SoundBackend {
     /// resume() is a synchronous handoff: it does not return until the render
     /// thread has completed a full render pass (or the handoff times out /
     /// the thread is gone). The sequencer starts its step clock the instant
-    /// resume() returns; when resume() was fire-and-forget, notes published
-    /// in the gap before the thread woke were overwritten un-rendered —
-    /// short sounds never played and longer ones lost their beginning
-    /// (v0.99.114 field regression, Raspberry Pi). This mirrors
+    /// resume() returns; a fire-and-forget resume() would let notes published
+    /// in the gap before the thread wakes be overwritten un-rendered, so short
+    /// sounds never play and longer ones lose their beginning. This mirrors
     /// SDLSoundBackend::resume(), which opens and unpauses the device on the
     /// caller's thread for the same reason.
     void suspend() override;

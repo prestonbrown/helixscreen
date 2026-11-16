@@ -13,11 +13,10 @@
  *   prompt_button_group_start/end, prompt_show, prompt_end, notify
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "action_prompt_manager.h"
 #include "color_utils.h"
+#include "core/update_queue.h"
 
 #include <functional>
 #include <memory>
@@ -160,10 +159,9 @@ TEST_CASE("parse_action_line: Whitespace handling", "[action_prompt][parser]") {
 
 // FlashForge/ZMOD emits its runout abort with no space after the command:
 //   `// action:prompt_beginResumption interrupted!!!`
-// The parser used to hand "prompt_beginResumption" to the dispatcher, which fell
-// through to `unknown command` — so prompt_begin never ran, the state machine
-// never opened, and the following prompt_text/prompt_show landed on nothing
-// (bundle JX2FVRB9, AD5X v0.99.103).
+// Handing "prompt_beginResumption" to the dispatcher would fall through to
+// `unknown command`: prompt_begin never runs, the state machine never opens,
+// and the following prompt_text/prompt_show land on nothing (AD5X v0.99.103).
 //
 // Mutation check: delete the glued_command_length() call in parse_action_line and
 // the first SECTION fails with command == "prompt_beginResumption".

@@ -12,9 +12,3 @@
 #ifdef HV_EVENT_LOOP_THREAD_HPP_
 #error "a header the ESP32 build parses includes hv/EventLoopThread.h"
 #endif
-
-#include "../catch_amalgamated.hpp"
-
-TEST_CASE("the live preview's headers stay off libhv", "[sweep_preview][compile]") {
-    SUCCEED("compiled without hv/EventLoopThread.h");
-}

@@ -29,8 +29,7 @@ struct SsaoDecision {
  * and Aa::On for every extrusion stroke, and those cost:
  *
  *   - outline pass:  ~2 ms per cache revalidation, measured on an AD5M
- *   - antialiasing:  ~6x the aliased rasterization cost, measured by
- *                    tests/unit/test_gcode_raster_bench.cpp
+ *   - antialiasing:  ~6x the aliased rasterization cost
  *
  * The second is what makes a preview take about 2.2x as long to appear on a
  * constrained device; the first is nearly free and is where most of the visible
@@ -76,11 +75,11 @@ inline SsaoDecision decide_ssao_enabled(bool constrained_device, const char* ssa
         return SsaoDecision{true, SsaoReason::EnvForcedOn};
     }
     if (constrained_device) {
-        // The outline pass STAYS ON here, which reverses the previous answer.
+        // The outline pass STAYS ON here.
         //
-        // It was switched off for these devices because it cost a full-canvas
-        // ARGB8888 buffer they could not spare. That buffer is gone: the pass
-        // records only the pixels it darkens, about 6KB against the old 427KB.
+        // It needs no full-canvas ARGB8888 buffer, which these devices could
+        // not spare: the pass records only the pixels it darkens, about 6KB
+        // where a full canvas is 427KB.
         // What remains is roughly 2ms per cache revalidation, measured on a real
         // AD5M, which buys most of the visible quality.
         //

@@ -12,17 +12,17 @@
  * printer.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/breadcrumb_capture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/printer_capture.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/zoffset_calibration_test_access.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "filament_sensor_manager.h"
 #include "filament_temperature_source.h"
@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <unistd.h>
 #include <vector>
@@ -124,9 +125,11 @@ TEST_CASE("the core discovery steps run in this order", "[discovery_steps]") {
         core.emplace_back(step.name);
     }
     const std::vector<std::string> expected = {
-        "set_hardware",       "zoffset_persistence", "temp_graph_seed",      "status_dispatch",
-        "software_versions",  "auto_detect_printer", "heal_heater_roles",    "safety_limits",
-        "helix_plugin_check", "job_queue_fetch",     "settle_light_buttons",
+        "set_hardware",         "zoffset_persistence", "pa_run_recovery",
+        "temp_graph_seed",      "status_dispatch",     "software_versions",
+        "auto_detect_printer",  "heal_heater_roles",   "safety_limits",
+        "helix_plugin_check",   "job_queue_fetch",     "pending_remap_recovery",
+        "settle_light_buttons",
     };
     CHECK(core == expected);
 }
@@ -416,4 +419,61 @@ TEST_CASE_METHOD(StepFixture, "the plugin probe publishes the plugin's features 
         run_probe();
     }
     CHECK(plugin.features().empty());
+}
+
+TEST_CASE_METHOD(
+    StepFixture,
+    "a manual probe at connect does not open Z calibration where heads keep their own offset",
+    "[discovery_steps][per_head]") {
+    auto& ps = get_printer_state();
+    auto& panel = get_global_zoffset_cal_panel();
+    panel.set_api(nullptr);
+    lv_subject_set_int(ps.calibration_state().get_manual_probe_active_subject(), 1);
+    ps.profile_state().set_z_offset_per_head(true);
+    struct Restore {
+        ~Restore() {
+            get_printer_state().profile_state().set_z_offset_per_head(false);
+            lv_subject_set_int(
+                get_printer_state().calibration_state().get_manual_probe_active_subject(), 0);
+        }
+    } restore;
+
+    auto ctx = context(/*hw_changed=*/true);
+    bool found = false;
+    for (const DiscoveryStep& step : helix::discovery_tail_steps()) {
+        if (std::string(step.name) == "manual_probe_autoopen") {
+            found = true;
+            step.run(ctx);
+        }
+    }
+    REQUIRE(found);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Opening it hands the panel the discovery's API first.
+    CHECK(ZOffsetCalibrationTestAccess::api(panel) == nullptr);
+}
+
+// The set_hardware step hands discovery's tachometer map to the fan state, so a
+// separately published RPM reaches the fan it measures.
+TEST_CASE_METHOD(StepFixture, "set_hardware hands the tachometer map to the fan state",
+                 "[discovery_steps][fan_tach]") {
+    api.hardware().parse_objects(json::array({"fan", "output_pin fan2", "fan_feedback"}));
+    api.hardware().set_fan_tachometers({{"fan_feedback", "fan2_speed", "fan"}});
+    auto ctx = context(/*hw_changed=*/true);
+    bool ran_step = false;
+    for (const DiscoveryStep& step : helix::discovery_core_steps()) {
+        if (std::string(step.name) == "set_hardware") {
+            step.run(ctx);
+            ran_step = true;
+        }
+    }
+    REQUIRE(ran_step);
+
+    get_printer_state().update_from_status({{"fan_feedback", {{"fan2_speed", 6857}}}});
+    std::optional<int> part, pin2;
+    for (const auto& fan : get_printer_state().fan_state().get_fans()) {
+        (fan.object_name == "fan" ? part : pin2) = fan.rpm;
+    }
+    CHECK(part == std::optional<int>(6857));
+    CHECK_FALSE(pin2.has_value());
 }

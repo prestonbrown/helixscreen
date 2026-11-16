@@ -11,8 +11,8 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "hardware_object_table.h"
 #include "printer_discovery.h"
 #include "width_sensor_manager.h"
@@ -39,7 +39,7 @@ class WidthSensorManagerTestAccess {
         obj.set_sync_mode(true);
         if (obj.subjects_initialized()) {
             lv_subject_set_int(&obj.diameter_, -1);
-            lv_subject_copy_string(&obj.diameter_text_, "--");
+            lv_subject_set_string(&obj.diameter_text_, "--");
         }
     }
 };
@@ -441,12 +441,12 @@ TEST_CASE_METHOD(WidthSensorTestFixture, "WidthSensorManager - status refresh is
 
     update_sensor_state(kTsl, 1.75f, 100.0f);
     CHECK(diameter() == 0);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(diameter() == 1750);
 
     update_sensor_state(kTsl, 1.80f, 100.0f);
     mgr().deinit_subjects();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr().init_subjects();
     mgr().set_sync_mode(true);
     CHECK(diameter() == -1);

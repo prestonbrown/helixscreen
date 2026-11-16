@@ -3,10 +3,10 @@
 
 #include "printer_recovery_service.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/run_after.h"
+#include "core/update_queue.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "spool_latch_gate.h"
@@ -46,20 +46,6 @@ std::atomic<bool> g_chain_running{false};
 
 void end_chain() {
     g_chain_running.store(false);
-}
-
-/// Run @p fn on the main thread once @p delay_ms has passed. Captures nothing
-/// of a caller's object, so it outlives whatever started it.
-void run_after_ms(uint32_t delay_ms, std::function<void()> fn) {
-    auto* holder = new std::function<void()>(std::move(fn));
-    lv_timer_t* timer = lv_timer_create(
-        [](lv_timer_t* t) {
-            std::unique_ptr<std::function<void()>> owned(
-                static_cast<std::function<void()>*>(lv_timer_get_user_data(t)));
-            (*owned)();
-        },
-        delay_ms, holder);
-    lv_timer_set_repeat_count(timer, 1);
 }
 
 } // namespace
@@ -194,11 +180,8 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
     if (script.empty() || ::access(script.c_str(), X_OK) != 0) {
         spdlog::info("[Recovery] local script not present ({}) — skipping local exec",
                      script.empty() ? "no install root" : script);
-        on_error(MoonrakerError{MoonrakerErrorType::VALIDATION_ERROR,
-                                -1,
-                                "Local recovery script not installed",
-                                "helix_recover_local",
-                                {}});
+        on_error(MoonrakerError{MoonrakerErrorType::VALIDATION_ERROR, -1,
+                                "Local recovery script not installed", "helix_recover_local"});
         return;
     }
 
@@ -212,11 +195,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
             spdlog::error("[Recovery] fork() for helix-recover.sh failed: {}", strerror(e));
             ui::queue_update("PrinterRecoveryService::run_local_recovery(fork-fail)", [on_error,
                                                                                        e]() {
-                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                        -1,
+                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, -1,
                                         std::string("Local recovery fork failed: ") + strerror(e),
-                                        "helix_recover_local",
-                                        {}});
+                                        "helix_recover_local"});
             });
             return;
         }
@@ -243,12 +224,10 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
                           timeout_ms);
             ui::queue_update(
                 "PrinterRecoveryService::run_local_recovery(timeout)", [on_error, timeout_ms]() {
-                    on_error(MoonrakerError{MoonrakerErrorType::TIMEOUT,
-                                            -1,
+                    on_error(MoonrakerError{MoonrakerErrorType::TIMEOUT, -1,
                                             "Local recovery script timed out after " +
                                                 std::to_string(timeout_ms / 1000) + "s",
-                                            "helix_recover_local",
-                                            {}});
+                                            "helix_recover_local"});
                 });
             return;
         }
@@ -257,11 +236,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
             spdlog::error("[Recovery] waitpid() failed: {}", strerror(e));
             ui::queue_update("PrinterRecoveryService::run_local_recovery(wait-fail)", [on_error,
                                                                                        e]() {
-                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                        -1,
+                on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, -1,
                                         std::string("Local recovery wait failed: ") + strerror(e),
-                                        "helix_recover_local",
-                                        {}});
+                                        "helix_recover_local"});
             });
             return;
         }
@@ -276,11 +253,9 @@ void PrinterRecoveryService::run_local_recovery(uint32_t timeout_ms, SuccessCall
                     on_success(RecoveryOutcome::RESTART_ISSUED);
                 } else {
                     on_error(MoonrakerError{
-                        MoonrakerErrorType::UNKNOWN,
-                        rc,
+                        MoonrakerErrorType::UNKNOWN, rc,
                         "Local recovery script returned non-zero (rc=" + std::to_string(rc) + ")",
-                        "helix_recover_local",
-                        {}});
+                        "helix_recover_local"});
                 }
             });
     });

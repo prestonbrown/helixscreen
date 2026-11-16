@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ams_types.h"
 #include "color_utils.h"
 #include "filament_display_name.h"
+#include "filament_variants.h" // FilamentFinish, filament_finish_of
 #include "lane_observation.h"
 
 #include <cstdint>
@@ -31,6 +31,31 @@
 /// filament: K belongs to the material and the extruder, not to one spool.
 namespace helix {
 inline constexpr const char* kSpoolmanPaExtraKey = "pressure_advance";
+
+/// Spoolman filament extra field that names the OrcaSlicer preset the filament
+/// is (its `filament_id`, e.g. "OGFL99"). The convention spoolman-lane-sync
+/// and AFC read, and the one lane-status-spec RFC 0001 §6 names.
+inline constexpr const char* kSpoolmanOrcaIdExtraKey = "orca_filament_id";
+
+/// True when @p id can go out as a lane's OrcaSlicer `filament_id`: one token of
+/// ASCII letters, digits, `_` and `-` with at least one letter. All digits is a
+/// Spoolman record id typed into the field, a space means a preset's display
+/// name, and a `GF` id is a Bambu catalog code that only Orca's Bambu agent
+/// translates: on the Moonraker path none of them matches a preset.
+inline bool is_usable_orca_filament_id(const std::string& id) {
+    bool has_letter = false;
+    for (const char c : id) {
+        const bool letter = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        if (!letter && !(c >= '0' && c <= '9') && c != '_' && c != '-') {
+            return false;
+        }
+        has_letter = has_letter || letter;
+    }
+    return has_letter && id.rfind("GF", 0) != 0;
+}
+
+// apply_spool_to_slot() writes a slot, out of line: its callers include ams_types.h.
+struct SlotInfo;
 } // namespace helix
 
 /**
@@ -129,6 +154,11 @@ struct SpoolInfo {
     /// Pressure advance K saved on the filament (extra field
     /// kSpoolmanPaExtraKey), nullopt when none is saved.
     std::optional<float> pressure_advance;
+
+    /// OrcaSlicer preset id saved on the filament (extra field
+    /// kSpoolmanOrcaIdExtraKey), empty when none is saved or the saved one is
+    /// not usable (is_usable_orca_filament_id).
+    std::string orca_filament_id;
 
     /**
      * @brief Get remaining percentage
@@ -322,7 +352,9 @@ namespace helix::ams {
  * A field the record leaves empty or zero is not observed. A spool with no
  * vendor says nothing about a lane's brand, which is a different statement
  * from the brand being blank, so a weaker source's brand is left to stand. The
- * colour is observed only when the hex parses.
+ * colour is observed only when the hex parses. The Orca preset id is the
+ * exception: a linked record states it always, empty meaning "none", so an id
+ * the user removes in Spoolman leaves the lane instead of outliving the link.
  *
  * Identity only: an unknown weight needs a different answer on a slot, which
  * has no "not observed", than on a lane, which does.
@@ -337,6 +369,9 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
     }
     if (spool.vendor_id > 0) {
         stated.spoolman_vendor_id = spool.vendor_id;
+    }
+    if (spool.id > 0) {
+        stated.spoolman_orca_filament_id = spool.orca_filament_id;
     }
     if (!spool.vendor.empty()) {
         stated.brand = spool.vendor;
@@ -381,41 +416,7 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
  * @param info Target SlotInfo to populate
  * @param spool Source SpoolInfo from Spoolman
  */
-inline void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
-    // A link replaces the slot's identity whole, so a field the spool does not
-    // state lands blank rather than leaving the previous spool's value behind.
-    const helix::ams::Observation stated = helix::ams::spool_identity_observation(spool);
-    info.spoolman_id = stated.spoolman_id.value_or(0);
-    info.spoolman_filament_id = spool.filament_id;
-    info.spoolman_vendor_id = stated.spoolman_vendor_id.value_or(0);
-    info.material = stated.material.value_or(std::string{});
-    info.brand = stated.brand.value_or(std::string{});
-    info.spool_name = stated.spool_name.value_or(std::string{});
-    info.multi_color_hexes = spool.multi_color_hexes;
-    info.remaining_weight_g = static_cast<float>(spool.remaining_weight_g);
-    info.total_weight_g = static_cast<float>(spool.initial_weight_g);
-    info.nozzle_temp_min = spool.nozzle_temp_min;
-    info.nozzle_temp_max = spool.nozzle_temp_max;
-    info.bed_temp = spool.bed_temp_recommended;
-
-    // A Spoolman spool record has no colour-name field, so there is nothing
-    // truthful to put in SlotInfo::color_name — the field docs/specs/filament_slots.md
-    // defines as "human-readable COLOUR label, distinct from the `color` hex" and
-    // publishes to the lane_data namespace that OrcaSlicer and Happy Hare read.
-    // Deriving one from the hex would freeze a value that is recomputable for
-    // free from the `color` we already publish, and that goes stale the moment
-    // an override changes the hex; the display path already calls
-    // helix::get_color_name_from_hex() as its own fallback.
-    //
-    // Blank is therefore the answer, but only when Spoolman actually replaces
-    // the colour: an existing user-entered colour label describes the colour it
-    // was entered against, so it survives a link that carries no colour and is
-    // dropped by one that does.
-    if (stated.color_rgb.has_value()) {
-        info.color_rgb = *stated.color_rgb;
-        info.color_name.clear();
-    }
-}
+void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool);
 
 // ============================================================================
 // Spoolman Callback Types

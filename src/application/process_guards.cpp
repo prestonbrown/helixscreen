@@ -9,7 +9,7 @@
 #include "process_guards.h"
 
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>

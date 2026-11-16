@@ -3,10 +3,10 @@
 #include "print_photos_controller.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "fallback_sender.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "thumbnail_rules.h"
 #include "webcam_selection.h"

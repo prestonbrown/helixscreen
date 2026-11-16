@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
@@ -40,11 +41,22 @@ class WizardTelemetryStep : public helix::wizard::Step {
     }
     bool should_skip() const;
 
+    /**
+     * @brief Register the privacy text as the `telemetry_info_text` subject
+     *
+     * The one owner of that subject: the summary step's info modal binds to it
+     * too, so both steps call this before creating their screens.
+     */
+    void init_info_text_subject();
+    lv_subject_t* info_text_subject() {
+        return &telemetry_info_text_;
+    }
+
   private:
     lv_obj_t* root_ = nullptr;
 
     // Telemetry info modal text subject
-    lv_subject_t telemetry_info_text_{};
+    helix::Subject telemetry_info_text_{};
     char telemetry_info_text_buffer_[2048];
     bool subjects_initialized_ = false;
 

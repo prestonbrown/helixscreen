@@ -6,19 +6,20 @@
 // plugin_feature state, the edit list the plugin path sends, and the editor
 // taking the plugin path when the feature is ready and the file API otherwise.
 
-#include "ui_update_queue.h"
+#include "ui_panel_calibration_pid.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "helix_plugin_features.h"
-#include "http_executor.h"
 #include "klipper_config_editor.h"
 #include "klipper_config_includes.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -249,6 +250,21 @@ TEST_CASE("plan_plugin_config_edits carries each option's current value",
         CHECK(plan.edits[0]["expect"].is_null());
     }
 
+    SECTION("ADD_IF_ABSENT adds an absent key and leaves a present one") {
+        auto plan =
+            plan_plugin_config_edits("extruder",
+                                     {{ConfigEdit::Type::ADD_IF_ABSENT, "control", "mpc"},
+                                      {ConfigEdit::Type::ADD_IF_ABSENT, "cooling_fan", "fan"}},
+                                     config);
+        REQUIRE(plan.kind == Kind::Edits);
+        REQUIRE(plan.edits.size() == 1);
+        CHECK(plan.edits[0] == json{{"section", "extruder"},
+                                    {"option", "cooling_fan"},
+                                    {"action", "set"},
+                                    {"value", "fan"},
+                                    {"expect", nullptr}});
+    }
+
     SECTION("REMOVE_KEY comments out a present key and skips an absent one") {
         auto plan = plan_plugin_config_edits("extruder",
                                              {{ConfigEdit::Type::REMOVE_KEY, "pid_kp", ""},
@@ -260,6 +276,30 @@ TEST_CASE("plan_plugin_config_edits carries each option's current value",
                                     {"option", "pid_kp"},
                                     {"action", "remove"},
                                     {"expect", "26.2"}});
+    }
+
+    SECTION("the PID migration removes cooling_fan only where the section has one") {
+        const auto to_pid = PIDCalibrationPanel::build_control_migration_edits(
+            PIDCalibrationPanel::CalibMethod::PID, 50);
+        auto touches_fan = [](const PluginConfigEditPlan& plan) {
+            return std::any_of(plan.edits.begin(), plan.edits.end(),
+                               [](const json& e) { return e["option"] == "cooling_fan"; });
+        };
+
+        auto absent = plan_plugin_config_edits("extruder", to_pid, config);
+        REQUIRE(absent.kind == Kind::Edits);
+        CHECK_FALSE(touches_fan(absent));
+
+        const json mpc = read_result("extruder", {{"control", option("mpc")},
+                                                  {"heater_power", option("50")},
+                                                  {"cooling_fan", option("fan")}});
+        auto present = plan_plugin_config_edits("extruder", to_pid, mpc);
+        REQUIRE(present.kind == Kind::Edits);
+        CHECK(std::count(present.edits.begin(), present.edits.end(),
+                         json{{"section", "extruder"},
+                              {"option", "cooling_fan"},
+                              {"action", "remove"},
+                              {"expect", "fan"}}) == 1);
     }
 
     SECTION("a key edited twice expects its own earlier edit") {
@@ -340,7 +380,7 @@ void run_multi_edit(LVGLTestFixture& fixture, KlipperConfigEditor& editor, Moonr
     editor.safe_multi_edit(
         api, section, edits, [&run]() { run.succeeded = true; },
         [&run](const std::string& err) { run.error = err; }, restart_timeout_ms);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     // The health monitor holds `api` and `editor` by reference: never leave it running.
     REQUIRE(fixture.wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; },
                                15000));
@@ -491,7 +531,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_edit_value takes the plugin path when it
     editor.safe_edit_value(
         api, "probe", "z_offset", "1.3", [&]() { succeeded = true; }, [](const std::string&) {},
         300);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(1200);

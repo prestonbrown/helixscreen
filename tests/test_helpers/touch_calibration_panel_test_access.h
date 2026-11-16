@@ -54,10 +54,6 @@ class TouchCalibrationPanelTestAccess {
         return TouchCalibrationPanel::kStallCommitMs;
     }
 
-    static int samples_required() {
-        return TouchCalibrationPanel::kSamplesRequired;
-    }
-
     /// Fire the VERIFY countdown-expiry callback directly. The production path
     /// runs it off a 1s-period lv_timer, which a test would have to pump
     /// `verify_timeout_seconds_` worth of virtual ticks to reach — once per

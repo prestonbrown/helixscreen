@@ -14,6 +14,27 @@
 using namespace helix::ui::temperature;
 
 // ============================================================================
+// deci_to_degrees() Tests
+// ============================================================================
+
+TEST_CASE("Temperature Utils: deci_to_degrees truncates decidegrees to whole degrees",
+          "[temp_utils][characterization][observer][temperature]") {
+    REQUIRE(deci_to_degrees(2100) == 210);
+    REQUIRE(deci_to_degrees(2105) == 210); // 210.5C truncates
+    REQUIRE(deci_to_degrees(2450) == 245);
+    REQUIRE(deci_to_degrees(600) == 60);
+    REQUIRE(deci_to_degrees(0) == 0);
+    REQUIRE(deci_to_degrees(5) == 0); // 0.5C truncates to 0
+}
+
+TEST_CASE("Temperature Utils: deci_to_degrees_f preserves decimals",
+          "[temp_utils][characterization][observer][temperature]") {
+    REQUIRE(deci_to_degrees_f(2100) == Catch::Approx(210.0f));
+    REQUIRE(deci_to_degrees_f(2105) == Catch::Approx(210.5f));
+    REQUIRE(deci_to_degrees_f(2109) == Catch::Approx(210.9f));
+}
+
+// ============================================================================
 // validate_and_clamp() Tests
 // ============================================================================
 
@@ -569,6 +590,40 @@ TEST_CASE("Temperature Utils: the status word never contradicts the number shown
     }
 }
 
+TEST_CASE("heater_display: a zero target renders the reading alone",
+          "[temp_utils][heater_display]") {
+    SECTION("cold nozzle, heater off") {
+        auto r = heater_display(/*current_deci=*/250, /*target_deci=*/0);
+        CHECK(r.temp == "25°C");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
+        CHECK(r.pct == 0);
+    }
+
+    SECTION("hot nozzle cooling down after the print, heater off") {
+        // The dangerous read: 180°C with no setpoint must not print "180 / 0°C",
+        // which looks like an active command to crash-cool the hotend.
+        auto r = heater_display(/*current_deci=*/1800, /*target_deci=*/0);
+        CHECK(r.temp == "180°C");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
+    }
+
+    SECTION("a negative target is off too, not a pair") {
+        auto r = heater_display(/*current_deci=*/250, /*target_deci=*/-10);
+        CHECK(r.temp == "25°C");
+        CHECK(r.state == helix::ui::temperature::HeatState::Off);
+    }
+}
+
+TEST_CASE("heater_display: any positive target renders the pair", "[temp_utils][heater_display]") {
+    // The boundary itself: 0.1°C is still a commanded target.
+    auto r = heater_display(/*current_deci=*/250, /*target_deci=*/1);
+    CHECK(r.temp == "25 / 0°C");
+
+    // And the ordinary case, so the branch above is not the only shape asserted.
+    auto hot = heater_display(/*current_deci=*/2100, /*target_deci=*/2200);
+    CHECK(hot.temp == "210 / 220°C");
+}
+
 TEST_CASE("Temperature Utils: format_temperature_f - float formatting", "[temp_utils][format]") {
     char buf[16];
 
@@ -831,6 +886,16 @@ TEST_CASE("Temperature Utils: default cooldown turns off every extruder heater",
         const std::string edited = std::string(kDefaultCooldownGcode) + "\nM107";
         CHECK(build_cooldown_gcode(edited, {"extruder", "extruder1"}, "") == edited);
     }
+}
+
+TEST_CASE("Temperature Utils: unset values read the one placeholder", "[temp_utils]") {
+    char buf[32];
+    CHECK(std::string(format_target_or_off(0, buf, sizeof(buf))) == "—°C");
+    CHECK(std::string(format_target_or_off(245, buf, sizeof(buf))) == "245°C");
+    CHECK(std::string(format_temperature_pair(210, 0, buf, sizeof(buf))) == "210 / —°C");
+    CHECK(std::string(format_temperature_pair(210, 245, buf, sizeof(buf))) == "210 / 245°C");
+    CHECK(heater_display(2100, 2450).temp == "210 / 245°C");
+    CHECK(heater_display(2100, 0).temp == "210°C");
 }
 
 TEST_CASE("Temperature Utils: format_target_or_off treats a negative target as unset",

@@ -321,6 +321,21 @@ inline int rotation_for_launch(int cli_rotation, ReadSaved read_saved) {
     return cli_rotation != 0 ? cli_rotation : read_saved();
 }
 
+// =============================================================================
+// Crash-loop dialog deadline
+// =============================================================================
+
+/// How long the crash-loop dialog waits before starting Safe Mode by itself. A
+/// tap does not extend it: the panel may be showing a screen nobody can use.
+inline constexpr unsigned kCrashLoopDialogDeadlineMs = 120000;
+
+/// Whether the crash dialog should stop waiting and start Safe Mode.
+/// Unsigned subtraction keeps this right across a tick counter wrap.
+inline bool crash_loop_deadline_passed(bool crash_loop_detected, unsigned shown_at_ms,
+                                       unsigned now_ms) {
+    return crash_loop_detected && now_ms - shown_at_ms >= kCrashLoopDialogDeadlineMs;
+}
+
 } // namespace helix::watchdog
 
 #endif // HELIX_WATCHDOG_RESTART_POLICY_H

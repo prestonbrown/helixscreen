@@ -23,11 +23,11 @@ struct LaneSources;
 /// UI shows is computed from these by resolve(), never stored back into them.
 struct LaneSources {
     std::optional<Observation> sensed;
+    std::optional<Observation> firmware;
+    std::optional<Observation> record;
     std::optional<Observation> spoolman;
-    std::optional<Observation> local_user;
-    std::optional<Observation> vendor_cache;
     std::optional<Observation> metered;
-    std::optional<Observation> remembered;
+    std::optional<Observation> pending;
 
     /// Replace this source's record with @p obs. Whole-record replacement, so a
     /// field a source stops reporting stops contributing.
@@ -35,11 +35,7 @@ struct LaneSources {
         record_for(*this, obs.source) = obs;
     }
 
-    /// Drop one source's record entirely. This covers a clear that discards
-    /// what that source knew. It is not by itself the editor's unlink that
-    /// keeps the slot's identity: AmsBackend::commit_user_edit() (ams_backend.h)
-    /// drops the declaring records and then files what the slot kept at the
-    /// rungs its stored record reloads it on.
+    /// Drop one source's record entirely.
     void drop(ObservationSource s) {
         record_for(*this, s).reset();
     }
@@ -50,17 +46,18 @@ inline const std::optional<Observation>& record_for(const LaneSources& lane,
     switch (source) {
     case ObservationSource::Sensed:
         return lane.sensed;
+    case ObservationSource::Firmware:
+        return lane.firmware;
+    case ObservationSource::Record:
+        return lane.record;
     case ObservationSource::Spoolman:
         return lane.spoolman;
-    case ObservationSource::LocalUser:
-        return lane.local_user;
-    case ObservationSource::VendorCache:
-        return lane.vendor_cache;
     case ObservationSource::Metered:
         return lane.metered;
-    case ObservationSource::Remembered:
-        return lane.remembered;
+    case ObservationSource::Pending:
+        return lane.pending;
     }
+    return lane.sensed;
 }
 
 inline std::optional<Observation>& record_for(LaneSources& lane, ObservationSource source) {

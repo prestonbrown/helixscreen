@@ -4,12 +4,11 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file printer_image_variants.h

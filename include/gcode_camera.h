@@ -225,7 +225,7 @@ class GCodeCamera {
      * @brief Set projection type
      * @param type ORTHOGRAPHIC or PERSPECTIVE
      *
-     * Note: PERSPECTIVE not fully implemented in Phase 1
+     * Note: PERSPECTIVE is not fully implemented
      */
     void set_projection_type(ProjectionType type);
 

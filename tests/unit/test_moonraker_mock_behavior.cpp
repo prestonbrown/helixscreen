@@ -57,13 +57,13 @@
  */
 
 #include "../../include/app_globals.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_api_mock.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_hardware.h"
 #include "../../include/printer_state.h"
 #include "../../include/runtime_config.h"
-#include "../../include/ui_update_queue.h"
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_runtime_config.h"
@@ -71,6 +71,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <mutex>
 #include <set>
@@ -200,6 +201,18 @@ class MockBehaviorTestFixture {
     std::atomic<bool> callback_invoked_{false};
     std::vector<json> notifications_;
 };
+
+namespace {
+
+/// The status object of a notify_status_update frame, or an empty object for any
+/// other frame, so a predicate's own contains() checks reject it.
+const json& frame_status(const json& n) {
+    static const json kNone = json::object();
+    return n.contains("params") && n["params"].is_array() && !n["params"].empty() ? n["params"][0]
+                                                                                  : kNone;
+}
+
+} // namespace
 
 /**
  * @brief Test helper that exposes protected methods for unit testing
@@ -384,10 +397,7 @@ TEST_CASE("MoonrakerClientMock initial state dispatch", "[connection][slow][init
         // Wait for notification with proper extruder and heater_bed structure
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object()) {
                     return false;
                 }
@@ -549,10 +559,7 @@ TEST_CASE("MoonrakerClientMock status frames report the persona's kinematics aft
     std::string kinematics = "<none>";
     REQUIRE(fixture.wait_for_matching(
         [&kinematics](const json& n) {
-            if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                return false;
-            }
-            const json& status = n["params"][0];
+            const json& status = frame_status(n);
             if (!status.is_object() || !status.contains("toolhead") ||
                 !status["toolhead"].contains("kinematics")) {
                 return false;
@@ -756,10 +763,7 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
     auto verify_extruder_target = [&fixture](double expected_target) {
         return fixture.wait_for_matching(
             [expected_target](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("extruder")) {
                     return false;
                 }
@@ -777,10 +781,7 @@ TEST_CASE("MoonrakerClientMock G-code temperature parsing", "[connection][slow][
     auto verify_bed_target = [&fixture](double expected_target) {
         return fixture.wait_for_matching(
             [expected_target](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("heater_bed")) {
                     return false;
                 }
@@ -1192,10 +1193,7 @@ TEST_CASE("MoonrakerClientMock temperature simulation", "[connection][slow]") {
         // Wait for notification with extruder temperature around room temp
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("extruder") ||
                     !status["extruder"].contains("temperature")) {
                     return false;
@@ -1475,6 +1473,81 @@ TEST_CASE("MoonrakerClientMock bed mesh", "[slow][mock][calibration]") {
     }
 }
 
+namespace {
+
+/// Element-wise mesh comparison: dimensions plus every height within @p tolerance.
+bool meshes_equal(const BedMeshProfile& a, const BedMeshProfile& b, float tolerance = 0.001f) {
+    if (a.x_count != b.x_count || a.y_count != b.y_count ||
+        a.probed_matrix.size() != b.probed_matrix.size()) {
+        return false;
+    }
+    for (size_t row = 0; row < a.probed_matrix.size(); row++) {
+        if (a.probed_matrix[row].size() != b.probed_matrix[row].size()) {
+            return false;
+        }
+        for (size_t col = 0; col < a.probed_matrix[row].size(); col++) {
+            if (std::fabs(a.probed_matrix[row][col] - b.probed_matrix[row][col]) > tolerance) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+// Mesh heights follow the profile: test_mock_gcode_dispatch pins names and shapes
+// but masks the heights, so these are the cases that see the data itself.
+TEST_CASE("MoonrakerClientMock bed mesh profiles store their heights", "[bed_mesh][mock]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+
+    SECTION("default and adaptive have different mesh data") {
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        BedMeshProfile default_mesh = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=adaptive");
+        BedMeshProfile adaptive_mesh = mock.get_active_bed_mesh();
+
+        REQUIRE(!meshes_equal(default_mesh, adaptive_mesh));
+    }
+
+    SECTION("LOAD restores actual mesh data") {
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        BedMeshProfile default_mesh = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=adaptive");
+        REQUIRE(mock.get_active_bed_mesh().name == "adaptive");
+        REQUIRE(!meshes_equal(mock.get_active_bed_mesh(), default_mesh));
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        REQUIRE(mock.get_active_bed_mesh().name == "default");
+        REQUIRE(meshes_equal(mock.get_active_bed_mesh(), default_mesh));
+    }
+
+    SECTION("SAVE stores current mesh data") {
+        mock.gcode_script("BED_MESH_CALIBRATE PROFILE=test_save");
+        BedMeshProfile calibrated = mock.get_active_bed_mesh();
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=default");
+        REQUIRE(mock.get_active_bed_mesh().name == "default");
+
+        mock.gcode_script("BED_MESH_PROFILE LOAD=test_save");
+        REQUIRE(mock.get_active_bed_mesh().name == "test_save");
+        REQUIRE(meshes_equal(mock.get_active_bed_mesh(), calibrated));
+    }
+
+    SECTION("multiple calibrations produce different results") {
+        std::vector<BedMeshProfile> meshes;
+        for (int i = 0; i < 5; i++) {
+            mock.gcode_script("BED_MESH_CALIBRATE PROFILE=multi_" + std::to_string(i));
+            meshes.push_back(mock.get_active_bed_mesh());
+        }
+        for (size_t i = 1; i < meshes.size(); i++) {
+            REQUIRE(!meshes_equal(meshes[i], meshes[i - 1]));
+        }
+    }
+}
+
 // ============================================================================
 // send_jsonrpc Tests
 // ============================================================================
@@ -1602,10 +1675,7 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
         // Wait for notification with updated homed_axes
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("toolhead") && status["toolhead"].contains("homed_axes") &&
                        status["toolhead"]["homed_axes"] == "xyz";
             },
@@ -1616,10 +1686,7 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
         // Verify position is at 0,0,0 after homing
         bool found_zero_position = fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1644,10 +1711,7 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
         // Wait for notification - homed_axes should contain 'x'
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("homed_axes")) {
                     return false;
                 }
@@ -1671,10 +1735,7 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
         // Wait for notification - homed_axes should contain 'x' and 'y'
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("homed_axes")) {
                     return false;
                 }
@@ -1698,10 +1759,7 @@ TEST_CASE("MoonrakerClientMock G28 homing updates homed_axes", "[api][homing][sl
         // Wait for notification - homed_axes should contain 'z'
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("homed_axes")) {
                     return false;
                 }
@@ -1732,10 +1790,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement updates position", "[api][movement
         // Wait for notification with updated position
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1763,10 +1818,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement updates position", "[api][movement
         // Wait for notification with updated position
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1800,10 +1852,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement updates position", "[api][movement
         // Position should now be 110, 120, 15
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1843,10 +1892,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement updates position", "[api][movement
         // Position should now be 50, 50, 5 (absolute)
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1875,10 +1921,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement updates position", "[api][movement
         // Position should be 50, 100, 10 (only X changed)
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1904,10 +1947,7 @@ TEST_CASE("MoonrakerClientMock homed_axes in notifications", "[api][notification
         // Initial state should have empty homed_axes
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("toolhead") && status["toolhead"].contains("homed_axes") &&
                        status["toolhead"]["homed_axes"] == "";
             },
@@ -1928,10 +1968,7 @@ TEST_CASE("MoonrakerClientMock homed_axes in notifications", "[api][notification
         // Wait for a notification showing homed_axes="xyz"
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("toolhead") && status["toolhead"].contains("homed_axes") &&
                        status["toolhead"]["homed_axes"] == "xyz";
             },
@@ -1953,10 +1990,7 @@ TEST_CASE("MoonrakerClientMock homed_axes in notifications", "[api][notification
         // Wait for a notification showing the correct position
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("toolhead") || !status["toolhead"].contains("position")) {
                     return false;
                 }
@@ -1989,10 +2023,7 @@ TEST_CASE("MoonrakerClientMock SDCARD_PRINT_FILE starts print", "[slow][print][s
         // Wait for notification with print_stats showing "printing" state and filename
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("print_stats")) {
                     return false;
                 }
@@ -2022,10 +2053,7 @@ TEST_CASE("MoonrakerClientMock SDCARD_PRINT_FILE starts print", "[slow][print][s
 
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("print_stats")) {
                     return false;
                 }
@@ -2052,10 +2080,7 @@ TEST_CASE("MoonrakerClientMock SDCARD_PRINT_FILE starts print", "[slow][print][s
         // Wait for notification with virtual_sdcard showing progress near 0
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("virtual_sdcard") ||
                     !status["virtual_sdcard"].contains("progress")) {
                     return false;
@@ -2085,10 +2110,7 @@ TEST_CASE("MoonrakerClientMock PAUSE/RESUME state transitions", "[print][pause_r
         // Wait for printing state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") &&
                        status["print_stats"]["state"] == "printing";
             },
@@ -2102,10 +2124,7 @@ TEST_CASE("MoonrakerClientMock PAUSE/RESUME state transitions", "[print][pause_r
         // Wait for paused state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") && status["print_stats"]["state"] == "paused";
             },
             2000));
@@ -2126,10 +2145,7 @@ TEST_CASE("MoonrakerClientMock PAUSE/RESUME state transitions", "[print][pause_r
         // Wait for paused state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") && status["print_stats"]["state"] == "paused";
             },
             2000));
@@ -2142,10 +2158,7 @@ TEST_CASE("MoonrakerClientMock PAUSE/RESUME state transitions", "[print][pause_r
         // Wait for printing state again
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") &&
                        status["print_stats"]["state"] == "printing";
             },
@@ -2193,10 +2206,7 @@ TEST_CASE("MoonrakerClientMock CANCEL_PRINT resets to standby", "[print][cancel]
         // Wait for printing state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") &&
                        status["print_stats"]["state"] == "printing";
             },
@@ -2210,10 +2220,7 @@ TEST_CASE("MoonrakerClientMock CANCEL_PRINT resets to standby", "[print][cancel]
         // Wait for standby state (after brief delay from cancelled)
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") &&
                        status["print_stats"]["state"] == "standby";
             },
@@ -2285,10 +2292,7 @@ TEST_CASE("MoonrakerClientMock print progress increments during printing",
         // Wait for paused state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") && status["print_stats"]["state"] == "paused";
             },
             2000));
@@ -2352,10 +2356,7 @@ TEST_CASE("MoonrakerClientMock print completion triggers complete state", "[prin
         // Wait for print_stats notification with printing or preheat state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("print_stats")) {
                     return false;
                 }
@@ -2372,10 +2373,7 @@ TEST_CASE("MoonrakerClientMock print completion triggers complete state", "[prin
         // Wait for paused state notification
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("print_stats")) {
                     return false;
                 }
@@ -2391,10 +2389,7 @@ TEST_CASE("MoonrakerClientMock print completion triggers complete state", "[prin
         // Wait for printing state notification
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("print_stats")) {
                     return false;
                 }
@@ -2410,10 +2405,7 @@ TEST_CASE("MoonrakerClientMock print completion triggers complete state", "[prin
         // Wait for cancelled state notification
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("print_stats")) {
                     return false;
                 }
@@ -2440,10 +2432,7 @@ TEST_CASE("MoonrakerClientMock M112 emergency stop sets error state", "[print][e
         // Wait for printing state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") &&
                        status["print_stats"]["state"] == "printing";
             },
@@ -2457,10 +2446,7 @@ TEST_CASE("MoonrakerClientMock M112 emergency stop sets error state", "[print][e
         // Wait for error state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") && status["print_stats"]["state"] == "error";
             },
             2000));
@@ -2480,10 +2466,7 @@ TEST_CASE("MoonrakerClientMock M112 emergency stop sets error state", "[print][e
         // Wait for error state
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("print_stats") && status["print_stats"]["state"] == "error";
             },
             2000));
@@ -2557,10 +2540,7 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CALIBRATE generates new mesh",
         // Wait for bed mesh notification
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("bed_mesh");
             },
             2000));
@@ -2585,10 +2565,7 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CALIBRATE generates new mesh",
         // Wait for bed mesh notification with the custom profile
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("bed_mesh"))
                     return false;
                 const json& bed_mesh = status["bed_mesh"];
@@ -2626,10 +2603,7 @@ TEST_CASE("MoonrakerClientMock BED_MESH_PROFILE LOAD changes active profile",
         // Wait for notification with default profile
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.contains("bed_mesh"))
                     return false;
                 const json& bed_mesh = status["bed_mesh"];
@@ -2663,10 +2637,7 @@ TEST_CASE("MoonrakerClientMock BED_MESH_CLEAR clears active mesh", "[mock][calib
         // Wait for bed mesh notification
         REQUIRE(fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 return status.contains("bed_mesh");
             },
             2000));
@@ -2830,7 +2801,7 @@ namespace {
  * @brief True when a status notification reports @p fan_key at @p expected speed.
  *
  * The simulation loop emits full-status notifications, and those always carry a
- * "fan" entry (moonraker_client_mock.cpp builds it unconditionally) plus every
+ * "fan" entry (moonraker_client_mock_temperature.cpp builds it unconditionally) plus every
  * fan already present in fan_speeds_. So the FIRST notification mentioning a fan
  * is not necessarily the one the gcode under test produced — it is just as
  * likely a periodic update carrying the pre-command value. Matching on the
@@ -2838,10 +2809,7 @@ namespace {
  * deterministic.
  */
 bool reports_fan_speed(const json& n, const char* fan_key, double expected) {
-    if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-        return false;
-    }
-    const json& status = n["params"][0];
+    const json& status = frame_status(n);
     if (!status.is_object() || !status.contains(fan_key)) {
         return false;
     }
@@ -2924,12 +2892,12 @@ TEST_CASE("MoonrakerClientMock fan control", "[slow][mock][fan]") {
 namespace {
 /// True when `n` is a gcode_move notification whose Z homing_origin equals `want`.
 ///
-/// These sections used to call wait_for_callback(), which returns on the FIRST
-/// notification of any kind, and then scanned for the first notification carrying
-/// homing_origin and broke on it. The mock emits more than one notification per
-/// command and the gcode_move snapshot is not necessarily the one that woke the
-/// wait, so a pre-update snapshot could be the first match and the assertion read
-/// 0.0 against the expected offset — roughly 3 runs in 40. Waiting on the VALUE
+/// wait_for_callback() returns on the FIRST notification of any kind, and
+/// scanning for the first notification carrying homing_origin is not enough:
+/// the mock emits more than one notification per command and the gcode_move
+/// snapshot is not necessarily the one that woke the wait, so a pre-update
+/// snapshot can be the first match and the assertion reads 0.0 against the
+/// expected offset (roughly 3 runs in 40). Waiting on the VALUE
 /// removes the race instead of widening a timeout.
 bool has_z_offset(const nlohmann::json& n, double want) {
     if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
@@ -3307,10 +3275,7 @@ TEST_CASE("MoonrakerClientMock idle_timeout simulation", "[mock][idle_timeout][s
         // Look for a notification with idle_timeout state = "Idle"
         bool found_idle_notification = fixture.wait_for_matching(
             [](const json& n) {
-                if (!n.contains("params") || !n["params"].is_array() || n["params"].empty()) {
-                    return false;
-                }
-                const json& status = n["params"][0];
+                const json& status = frame_status(n);
                 if (!status.is_object() || !status.contains("idle_timeout")) {
                     return false;
                 }
@@ -3601,9 +3566,9 @@ TEST_CASE("MoonrakerClientMock: M117 sets display_status.message", "[mock][displ
         REQUIRE(captured["message"].get<std::string>() == "Hello World");
     }
 
-    // Regression: the M117 branch used to fall through the rest of
-    // gcode_script() instead of returning, so message TEXT containing other
-    // command substrings ("G28", "G1"/"G0") re-triggered those handlers. A
+    // The M117 branch must return rather than fall through the rest of
+    // gcode_script(), or message TEXT containing other command substrings
+    // ("G28", "G1"/"G0") re-triggers those handlers. A
     // user M117 message that merely mentions "G28" must not home the axes.
     SECTION("M117 text containing G28 does not trigger homing") {
         json toolhead_captured;
@@ -3631,12 +3596,32 @@ TEST_CASE("MoonrakerClientMock: print-start steps show the macro chatter a print
     CHECK(std::string(Mock::print_start_display_message(0)) == "Heating...");
     CHECK(std::string(Mock::print_start_display_message(1)) == "Homing...");
     CHECK(std::string(Mock::print_start_display_message(2)) == "Homing...");
-    CHECK(std::string(Mock::print_start_display_message(3)) == "Heating bed...");
-    CHECK(std::string(Mock::print_start_display_message(4)) == "Heating nozzle...");
-    CHECK(std::string(Mock::print_start_display_message(5)) == "Leveling Gantry...");
-    CHECK(std::string(Mock::print_start_display_message(6)) == "Calibrating bed mesh...");
-    CHECK(std::string(Mock::print_start_display_message(7)) == "Purging nozzle");
+    CHECK(std::string(Mock::print_start_display_message(3)) == "Syncing motors...");
+    CHECK(std::string(Mock::print_start_display_message(4)) == "Heating bed...");
+    CHECK(std::string(Mock::print_start_display_message(5)) == "Heating nozzle...");
+    CHECK(std::string(Mock::print_start_display_message(6)) == "Leveling Gantry...");
+    CHECK(std::string(Mock::print_start_display_message(7)) == "Calibrating bed mesh...");
     CHECK(std::string(Mock::print_start_display_message(8)) == "Purging nozzle");
+    CHECK(std::string(Mock::print_start_display_message(9)) == "Purging nozzle");
+}
+
+TEST_CASE("MoonrakerClientMock: HELIX_MOCK_OBJECTS adds motors-sync to a persona",
+          "[mock][motor_sync]") {
+    SECTION("without it the printer has no motors_sync object") {
+        helix::ScopedEnv env("HELIX_MOCK_OBJECTS", nullptr);
+        TestableMoonrakerMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+        CHECK_FALSE(mock.has_motors_sync());
+        mock.disconnect();
+    }
+
+    SECTION("with it the printer reports motors_sync") {
+        helix::ScopedEnv env("HELIX_MOCK_OBJECTS", "motors_sync");
+        TestableMoonrakerMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+        CHECK(mock.has_motors_sync());
+        mock.disconnect();
+    }
 }
 
 TEST_CASE("MoonrakerClientMock: HELIX_MOCK_DISPLAY_MESSAGE presets the display message",

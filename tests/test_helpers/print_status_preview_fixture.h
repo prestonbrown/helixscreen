@@ -9,13 +9,13 @@
 
 #include "ui_gcode_viewer.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/delayed_file_transfers.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -144,7 +144,7 @@ class PrintStatusPreviewFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     // A cache directory of this fixture's own. A copy left by an earlier load of

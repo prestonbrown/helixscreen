@@ -1,5 +1,34 @@
+diff --git a/include/lvgl/drivers/indev/lv_evdev.h b/include/lvgl/drivers/indev/lv_evdev.h
+index ef604c262..f5e0f664b 100644
+--- a/include/lvgl/drivers/indev/lv_evdev.h
++++ b/include/lvgl/drivers/indev/lv_evdev.h
+@@ -91,6 +91,24 @@ void lv_evdev_set_swap_axes(lv_indev_t * indev, bool swap_axes);
+  */
+ void lv_evdev_set_calibration(lv_indev_t * indev, int min_x, int min_y, int max_x, int max_y);
+ 
++/**
++ * Read back the last coordinate pair the driver received from the kernel,
++ * BEFORE the axis swap and before the linear ABS-range scale.
++ *
++ * The scale clamps to the display, so a wrong declared ABS range is lossy: the
++ * mapped coordinate no longer carries enough information to recover the true
++ * range. A calibration routine that wants to solve for the range (and for
++ * whether the axes are transposed) needs the untouched reading, which is what
++ * this returns. Pre-swap, because the swap is one of the unknowns.
++ *
++ * @param indev evdev input device
++ * @param x     receives the raw x reading, or NULL
++ * @param y     receives the raw y reading, or NULL
++ * @return true if a pointer coordinate has been seen and the outputs were
++ *         written; false otherwise (outputs untouched)
++ */
++bool lv_evdev_get_last_raw(lv_indev_t * indev, int * x, int * y);
++
+ /**
+  * Returns the status indicating whether an LV_KEY could not be processed.
+  * @param e         pointer to an event
 diff --git a/src/drivers/evdev/lv_evdev.c b/src/drivers/evdev/lv_evdev.c
-index 1b8319e04..732058244 100644
+index 518d400c1..ab3627847 100644
 --- a/src/drivers/evdev/lv_evdev.c
 +++ b/src/drivers/evdev/lv_evdev.c
 @@ -12,6 +12,7 @@
@@ -10,7 +39,7 @@ index 1b8319e04..732058244 100644
  #include <string.h>
  #include <sys/types.h>
  #include <dirent.h>
-@@ -46,6 +47,15 @@
+@@ -38,6 +39,15 @@
  #define ABS_XY_MASK ((1 << ABS_X) | (1 << ABS_Y))
  #define MAX_TOUCH_POINTS 5
  
@@ -26,7 +55,7 @@ index 1b8319e04..732058244 100644
  /**********************
   *      TYPEDEFS
   **********************/
-@@ -68,12 +78,53 @@ typedef struct {
+@@ -60,12 +70,53 @@ typedef struct {
      int key;
      lv_indev_state_t state;
      bool deleting;
@@ -80,9 +109,9 @@ index 1b8319e04..732058244 100644
  #endif
  } lv_evdev_t;
  
-@@ -136,6 +187,14 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
+@@ -129,6 +180,14 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
      lv_evdev_t * dsc = lv_indev_get_driver_data(indev);
-     LV_ASSERT_NULL(dsc);
+     LV_ASSERT(dsc != NULL);
  
 +    /* Record the pre-swap, pre-scale reading before anything lossy happens to it.
 +     * Written here rather than at the call sites so every path that produces a
@@ -95,7 +124,7 @@ index 1b8319e04..732058244 100644
      int swapped_x = dsc->swap_axes ? y : x;
      int swapped_y = dsc->swap_axes ? x : y;
  
-@@ -147,9 +206,60 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
+@@ -140,9 +199,60 @@ static lv_point_t _evdev_process_pointer(lv_indev_t * indev, int x, int y)
      lv_point_t p;
      p.x = _evdev_calibrate(swapped_x, dsc->min_x, dsc->max_x, offset_x, offset_x + width - 1);
      p.y = _evdev_calibrate(swapped_y, dsc->min_y, dsc->max_y, offset_y, offset_y + height - 1);
@@ -156,7 +185,7 @@ index 1b8319e04..732058244 100644
  static void _evdev_async_delete_cb(void * user_data)
  {
      lv_indev_t * indev = user_data;
-@@ -190,6 +300,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -185,6 +295,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
  #if LV_USE_GESTURE_RECOGNITION
                      if(in.code == ABS_MT_POSITION_X && dsc->current_slot < MAX_TOUCH_POINTS) {
                          dsc->touch_data[dsc->current_slot].point.x = in.value;
@@ -164,7 +193,7 @@ index 1b8319e04..732058244 100644
                          dsc->touch_data_changed = true;
                          LV_LOG_TRACE("MT_X update: slot=%d, x=%d", dsc->current_slot, in.value);
                      }
-@@ -200,6 +311,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -195,6 +306,7 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
  #if LV_USE_GESTURE_RECOGNITION
                      if(in.code == ABS_MT_POSITION_Y && dsc->current_slot < MAX_TOUCH_POINTS) {
                          dsc->touch_data[dsc->current_slot].point.y = in.value;
@@ -172,59 +201,11 @@ index 1b8319e04..732058244 100644
                          dsc->touch_data_changed = true;
                          LV_LOG_TRACE("MT_Y update: slot=%d, y=%d", dsc->current_slot, in.value);
                      }
-@@ -221,6 +333,18 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
-                                     dsc->touch_count = i + 1;
-                                 }
-                             }
-+                            /* The slot released this SYN cycle must remain within
-+                             * touch_count so its RELEASED state is still fed to the
-+                             * gesture recogniser (the SYN_REPORT loop below iterates
-+                             * i < touch_count).  Without this, lifting the
-+                             * highest-indexed finger first shrinks touch_count below
-+                             * that slot's index, dropping its release: finger_cnt never
-+                             * decrements and a pinch gesture stays stuck RECOGNIZED, so
-+                             * a subsequent single-finger drag keeps zooming instead of
-+                             * rotating. */
-+                            if(dsc->current_slot + 1 > dsc->touch_count) {
-+                                dsc->touch_count = dsc->current_slot + 1;
-+                            }
-                         }
-                     }
-                     else {
-@@ -251,10 +375,24 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
-         }
- #if LV_USE_GESTURE_RECOGNITION
-         else if(in.type == EV_SYN && in.code == SYN_REPORT) {
-+            /* Protocol-A release: BTN_TOUCH=0 arrived without ABS_MT_TRACKING_ID=-1.
-+             * Synthesise RELEASED for pressed slots so gesture recogniser and
-+             * pointer output both observe the lift. Protocol-B is unaffected:
-+             * TRACKING_ID=-1 already sets touch_data_changed=true. */
-+            if(dsc->state == LV_INDEV_STATE_RELEASED && !dsc->touch_data_changed) {
-+                for(int i = 0; i < dsc->touch_count; i++) {
-+                    if(dsc->touch_data[i].state == LV_INDEV_STATE_PRESSED) {
-+                        dsc->touch_data[i].state = LV_INDEV_STATE_RELEASED;
-+                        dsc->touch_data_changed = true;
-+                        LV_LOG_TRACE("evdev: Protocol-A release synthesised for slot %d", i);
-+                    }
-+                }
-+            }
-+
-             /* Handle gesture recognition at sync event */
--            if(dsc->touch_count > 0 && dsc->touch_data_changed) {
-+            if(dsc->touch_data_changed) {
-                 LV_LOG_TRACE("=== SYN_REPORT: touch_count=%d ===", dsc->touch_count);
--                for(int i = 0; i < MAX_TOUCH_POINTS; i++) {
-+                for(int i = 0; i < dsc->touch_count; i++) {
-                     if(dsc->touch_data[i].state == LV_INDEV_STATE_PRESSED || dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
-                         LV_LOG_TRACE("Slot %d: state=%s, raw(%d, %d)",
-                                      i,
-@@ -268,8 +406,15 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
- 
+@@ -283,7 +395,14 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
                  int active_touches = 0;
  
--                for(int i = 0; i < MAX_TOUCH_POINTS; i++) {
+                 for(int i = 0; i < dsc->touch_count; i++) {
 -                    if(dsc->touch_data[i].state == LV_INDEV_STATE_PRESSED || dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
-+                for(int i = 0; i < dsc->touch_count; i++) {
 +                    /* Skip a PRESSED slot that has never received a coordinate: its
 +                     * point is still (0,0) and would enter the recognizer as a
 +                     * corner contact. RELEASED slots are always forwarded so lifts
@@ -236,30 +217,7 @@ index 1b8319e04..732058244 100644
                          calibrated_touch_data[active_touches] = dsc->touch_data[i];
  
                          lv_point_t calib_point = _evdev_process_pointer(indev, dsc->touch_data[i].point.x, dsc->touch_data[i].point.y);
-@@ -288,18 +433,10 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
-                 lv_indev_gesture_recognizers_update(indev, calibrated_touch_data, active_touches);
-                 lv_indev_gesture_recognizers_set_data(indev, data);
- 
--                /* Clear RELEASED touch points after gesture recognition to prevent duplicate processing */
--                for(int i = 0; i < MAX_TOUCH_POINTS; i++) {
--                    if(dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
--                        /* Mark touch point as invalid by zeroing out the data */
--                        dsc->touch_data[i].point.x = 0;
--                        dsc->touch_data[i].point.y = 0;
--                        dsc->touch_data[i].id = -1; /* Mark as invalid */
--                        /* Note: We keep the RELEASED state for this frame, it will be naturally
--                         * cleared when new touch events come in or when all touches end */
--                        LV_LOG_TRACE("Cleared released touch point slot %d", i);
--                    }
--                }
-+                /* NOTE: Do NOT clear touch_data[] coordinates here — the switch-case
-+                 * below reads touch_data[0].point after this block and must receive the
-+                 * correct release position.  Slot invalidation is deferred until after
-+                 * the switch-case to avoid sending (0,0) to LVGL on Protocol-A release. */
- 
-                 dsc->touch_data_changed = false;
-             }
-@@ -324,14 +461,46 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -330,14 +449,46 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
              data->state = dsc->state;
              data->key = dsc->key;
              break;
@@ -309,7 +267,7 @@ index 1b8319e04..732058244 100644
                  data->point = _evdev_process_pointer(indev, dsc->root_x, dsc->root_y);
              }
  #else
-@@ -339,9 +508,36 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
+@@ -345,27 +496,38 @@ static void _evdev_read(lv_indev_t * indev, lv_indev_data_t * data)
              data->point = _evdev_process_pointer(indev, dsc->root_x, dsc->root_y);
  #endif
              break;
@@ -317,13 +275,17 @@ index 1b8319e04..732058244 100644
          default:
              break;
      }
-+
-+#if LV_USE_GESTURE_RECOGNITION
+ 
+ #if LV_USE_GESTURE_RECOGNITION
+-    /* Invalidate RELEASED touch slots AFTER the switch-case has read the final
+-     * coordinates.  This prevents stale RELEASED slots from being re-fed into
+-     * the gesture recognizer on subsequent frames while preserving correct
 +    /* Retire RELEASED touch slots AFTER the switch-case has read the final
 +     * coordinates.  Clearing the contact id prevents stale RELEASED slots from
 +     * being re-fed into the gesture recognizer as live contacts on subsequent
 +     * frames, while deferring it until after the switch-case preserves correct
-+     * release coordinates for pointer output (fixes dropdown mis-selection on
+      * release coordinates for pointer output (fixes dropdown mis-selection on
+-     * Protocol-A devices like GT9xx). */
 +     * Protocol-A devices like GT9xx).
 +     *
 +     * The coordinates themselves are deliberately NOT zeroed. MT protocol B
@@ -331,22 +293,29 @@ index 1b8319e04..732058244 100644
 +     * omits an axis whose value has not changed, and it does not reset a slot's
 +     * stored coordinates when a contact is destroyed. A slot's last reported
 +     * position is therefore the correct value for the next contact that reuses
-+     * the slot on an axis the kernel elects not to resend. Zeroing here made
-+     * that suppressed axis read back 0, emitting the press at a screen edge
-+     * (missing Y -> top edge, missing X -> left edge) — the phantom edge taps
-+     * reported on Holtek 04d9:8030 / BTT-HDMI5. */
-+    for(int i = 0; i < dsc->touch_count; i++) {
-+        if(dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
-+            dsc->touch_data[i].id = -1;
++     * the slot on an axis the kernel elects not to resend. Zeroing here would
++     * make that suppressed axis read back 0, emitting the press at a screen edge
++     * (missing Y -> top edge, missing X -> left edge): phantom edge taps on
++     * Holtek 04d9:8030 / BTT-HDMI5. */
+     for(int i = 0; i < dsc->touch_count; i++) {
+         if(dsc->touch_data[i].state == LV_INDEV_STATE_RELEASED) {
+-            dsc->touch_data[i].point.x = 0;
+-            dsc->touch_data[i].point.y = 0;
+             dsc->touch_data[i].id = UINT8_MAX;   /*invalid sentinel*/
+-            LV_LOG_TRACE("Cleared released touch point slot %d", i);
 +            LV_LOG_TRACE("Retired released touch point slot %d, keeping last position (%d, %d)",
 +                         i, dsc->touch_data[i].point.x, dsc->touch_data[i].point.y);
-+        }
-+    }
-+#endif
- }
+         }
+     }
  
- static void _evdev_indev_delete_cb(lv_event_t * e)
-@@ -562,6 +758,36 @@ lv_indev_t * lv_evdev_create_fd(lv_indev_type_t indev_type, int fd)
+-    /* Recompute touch_count so cleared slots are excluded from subsequent reads.
+-     * Count any slot that is still active (PRESSED or RELEASED but not yet invalidated). */
++    /* Recompute touch_count so retired slots are excluded from subsequent reads.
++     * Count any slot that is still active (PRESSED or RELEASED but not yet retired). */
+     {
+         int new_count = 0;
+         for(int i = 0; i < dsc->touch_count; i++) {
+@@ -597,6 +759,36 @@ lv_indev_t * lv_evdev_create_fd(lv_indev_type_t indev_type, int fd)
          else {
              LV_LOG_INFO("ioctl EVIOCGABS(ABS_Y) failed: %s", strerror(errno));
          }
@@ -383,8 +352,8 @@ index 1b8319e04..732058244 100644
      }
  
      lv_indev_t * indev = lv_indev_create();
-@@ -668,6 +894,16 @@ void lv_evdev_set_calibration(lv_indev_t * indev, int min_x, int min_y, int max_
-     dsc->max_y = max_y;
+@@ -732,6 +924,16 @@ uint16_t lv_evdev_get_raw_key(lv_event_t * e)
+     return 0;
  }
  
 +bool lv_evdev_get_last_raw(lv_indev_t * indev, int * x, int * y)
@@ -400,32 +369,3 @@ index 1b8319e04..732058244 100644
  void lv_evdev_delete(lv_indev_t * indev)
  {
      lv_indev_delete(indev);
-diff --git a/src/drivers/evdev/lv_evdev.h b/src/drivers/evdev/lv_evdev.h
-index ed00bb1e6..b7235e352 100644
---- a/src/drivers/evdev/lv_evdev.h
-+++ b/src/drivers/evdev/lv_evdev.h
-@@ -91,6 +91,24 @@ void lv_evdev_set_swap_axes(lv_indev_t * indev, bool swap_axes);
-  */
- void lv_evdev_set_calibration(lv_indev_t * indev, int min_x, int min_y, int max_x, int max_y);
- 
-+/**
-+ * Read back the last coordinate pair the driver received from the kernel,
-+ * BEFORE the axis swap and before the linear ABS-range scale.
-+ *
-+ * The scale clamps to the display, so a wrong declared ABS range is lossy: the
-+ * mapped coordinate no longer carries enough information to recover the true
-+ * range. A calibration routine that wants to solve for the range (and for
-+ * whether the axes are transposed) needs the untouched reading, which is what
-+ * this returns. Pre-swap, because the swap is one of the unknowns.
-+ *
-+ * @param indev evdev input device
-+ * @param x     receives the raw x reading, or NULL
-+ * @param y     receives the raw y reading, or NULL
-+ * @return true if a pointer coordinate has been seen and the outputs were
-+ *         written; false otherwise (outputs untouched)
-+ */
-+bool lv_evdev_get_last_raw(lv_indev_t * indev, int * x, int * y);
-+
- /**
-  * Remove evdev input device.
-  * @param indev evdev input device to close and free

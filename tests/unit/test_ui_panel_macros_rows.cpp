@@ -7,16 +7,15 @@
 
 #include "ui_panel_macros.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/macros_panel_test_access.h"
 #include "../test_helpers/scoped_pointer_indev.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "macro_param_cache.h"
 #include "moonraker_api_mock.h"
@@ -104,7 +103,7 @@ class MacrosRowsFixture : public XMLTestFixture {
         MacrosPanelTestAccess::seed(panel, macros);
         root = panel.create(parent ? parent : test_screen());
         REQUIRE(root != nullptr);
-        lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root, false);
         lv_obj_set_size(root, lv_pct(100), lv_pct(100));
         panel.on_activate();
         settle();
@@ -112,7 +111,7 @@ class MacrosRowsFixture : public XMLTestFixture {
 
     void settle() {
         for (int i = 0; i < 4; i++) {
-            helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+            UpdateQueue::instance().drain_until_empty();
             lv_obj_update_layout(test_screen());
         }
     }
@@ -139,7 +138,7 @@ class MacrosRowsFixture : public XMLTestFixture {
         settle();
         std::vector<Row> out;
         for (lv_obj_t* c : cards()) {
-            if (lv_obj_has_flag(c, LV_OBJ_FLAG_HIDDEN))
+            if (lv_obj_is_hidden(c))
                 continue;
             Row r{c, lv_label_get_text(lv_obj_find_by_name(c, "macro_label")), {}};
             lv_obj_get_coords(c, &r.area);
@@ -187,7 +186,7 @@ class MacrosRowsFixture : public XMLTestFixture {
     }
 
     bool checked(lv_obj_t* card) {
-        return !lv_obj_has_flag(lv_obj_find_by_name(card, "chk_mark"), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(lv_obj_find_by_name(card, "chk_mark"));
     }
 };
 
@@ -200,7 +199,7 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros rows list the visible macros in orde
     // The first-run hidden set holds the _-prefixed macros.
     CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("LOAD_FILAMENT"),
                                                shown("PRINT_START")});
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(root, "empty_state"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(root, "empty_state")));
 }
 
 TEST_CASE_METHOD(MacrosRowsFixture, "Macros with nothing to show reach the empty state",
@@ -208,8 +207,8 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros with nothing to show reach the empty
     open({"_ONLY_SYSTEM"});
 
     CHECK(labels().empty());
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(root, "empty_state"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(list(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(root, "empty_state")));
+    CHECK(lv_obj_is_hidden(list()));
 }
 
 TEST_CASE_METHOD(MacrosRowsFixture, "Tapping a Macros row runs the macro it names",
@@ -244,6 +243,26 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros edit mode toggles a row and Save hid
     settle();
 
     CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("PRINT_START")});
+}
+
+TEST_CASE_METHOD(MacrosRowsFixture, "A screensaver wake keeps an unsaved Macros edit",
+                 "[macros][macros_rows][suspend]") {
+    open({"CLEAN_NOZZLE", "LOAD_FILAMENT", "_HOME_Z"});
+    long_press(row_named("CLEAN_NOZZLE"));
+    tap(row_named("LOAD_FILAMENT"));
+    REQUIRE_FALSE(checked(row_named("LOAD_FILAMENT")));
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+    settle();
+    REQUIRE(labels().size() == 3); // still in edit mode, which lists _HOME_Z
+    CHECK_FALSE(checked(row_named("LOAD_FILAMENT")));
+
+    // Leaving the panel discards the edit.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    panel.on_activate();
+    settle();
+    CHECK(labels() == std::vector<std::string>{shown("CLEAN_NOZZLE"), shown("LOAD_FILAMENT")});
 }
 
 namespace {

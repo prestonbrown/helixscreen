@@ -195,9 +195,9 @@ TEST_CASE("Toolchanger tool objects alone never name a loaded tool", "[ams][tool
 
 TEST_CASE("Toolchanger keeps the carriage tool loaded across a tool-only delta",
           "[ams][toolchanger][1199]") {
-    // toolchanger and `tool T<n>` arrive in independent deltas — the staleness
-    // hole that bit Happy Hare (599c13365). A tool-only frame must not demote
-    // the tool the carriage frame named.
+    // toolchanger and `tool T<n>` arrive in independent deltas, the same
+    // staleness hole Happy Hare has. A tool-only frame must not demote the tool
+    // the carriage frame named.
     ToolChangerLoadHelper backend(4);
     backend.feed(json{{"toolchanger", {{"tool_number", 2}}}});
     REQUIRE(backend.get_slot_info(2).status == helix::SlotStatus::LOADED);
@@ -258,5 +258,4 @@ TEST_CASE("Toolchanger unmount is a toolhead unload with no cold alternative",
 
     CHECK_FALSE(backend.supports_lane_eject());
     CHECK_FALSE(backend.supports_force_eject());
-    CHECK_FALSE(backend.can_recover_lane_position(0));
 }

@@ -17,12 +17,16 @@
  * });
  * @endcode
  *
- * @pattern Singleton lifecycle; static XML callbacks route through g_active_modal
+ * @pattern One pad open at a time; static XML callbacks find their pad by the widget that fired
  * @threading Main thread only
  */
 
 #pragma once
 
+#include "ui_pin_utils.h"
+#include "ui_widget_ref.h"
+
+#include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
 
 #include <functional>
@@ -37,7 +41,7 @@ namespace helix::ui {
  * it can stack above the security settings overlay without conflicting with
  * the standard Modal backdrop click-to-close behaviour.
  *
- * Only one instance can be active at a time (enforced by g_active_modal).
+ * Only one pad is open at a time: show_pin_entry() closes any open pad first.
  */
 class PinEntryModal {
   public:
@@ -77,34 +81,41 @@ class PinEntryModal {
     // ========================================================================
     static void register_callbacks();
 
+    /// The backdrop the pad's widgets live under, for OpenInstances::owner_of().
+    lv_obj_t* root() const {
+        return backdrop_;
+    }
+
   private:
     PinEntryModal(const std::string& heading, PinCallback on_complete);
     ~PinEntryModal();
 
-    void create();
-    void destroy();
+    bool create();
     void destroy_async();
     void update_dots();
     void clear_digits();
-    void show_error(const char* text = nullptr);
+    void show_error(const char* text);
     void hide_error();
     void cover_chrome();
     void uncover_chrome();
+    static PinEntryModal* from_event(lv_event_t* e);
 
     // State
     std::string heading_;
     PinCallback on_complete_;
     std::string digit_buffer_;
 
-    lv_obj_t* backdrop_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
     bool covering_chrome_ = false;
-    lv_obj_t* dialog_ = nullptr;
+    helix::ui::WidgetRef dialog_;
+    PinDisplay pin_display_{"pin_pad"};
 
     static constexpr int kMinDigits = 4;
     static constexpr int kMaxDigits = 6;
 
-    // Singleton active instance — only one PIN modal at a time
-    static PinEntryModal* g_active_modal;
+    /// Set once the pad is closing; a closing pad no longer answers its callbacks.
+    bool closing_ = false;
+    helix::AsyncLifetimeGuard lifetime_;
 
     // Static XML event callbacks (registered globally)
     static void on_digit_clicked(lv_event_t* e);

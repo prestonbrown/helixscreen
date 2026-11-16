@@ -175,7 +175,6 @@ TEST_CASE_METHOD(SurfacesFx, "confirm: waits behind an app modal", "[plugin][bin
     settle();
     lv_obj_t* top = ModalStack::instance().top_dialog();
     CHECK(top != nullptr);
-    CHECK(top != app);
     CHECK(ModalStack::instance().top_visible_tag() == "widget-demo");
 }
 

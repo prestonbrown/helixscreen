@@ -1,0 +1,1979 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file ui_frequency_response_chart.cpp
+ * @brief Frequency response chart widget implementation
+ *
+ * Displays frequency domain data from accelerometer measurements during input
+ * shaper calibration. Supports multiple data series, peak marking, and automatic
+ * hardware adaptation based on platform tier.
+ */
+
+#include "ui_frequency_response_chart.h"
+
+#include "display_settings_manager.h"
+#include "lvgl/src/misc/lv_text_private.h" // lv_text_get_width
+#include "theme_manager.h"
+
+#include <spdlog/spdlog.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <string>
+#include <vector>
+
+/// Left padding of the chart: the amplitude gutter when its labels show.
+static int32_t y_label_pad(bool labels_visible) {
+    if (!labels_visible) {
+        return theme_manager_get_spacing("space_sm");
+    }
+    return ui_frequency_response_chart_y_gutter_width(theme_manager_get_font("font_small")) +
+           theme_manager_get_spacing("space_xs");
+}
+
+/// Size the label gutters (left: amplitude, bottom: frequency) from the current
+/// font_small. Runs again on every resize, since a breakpoint change swaps the
+/// font under a live chart. Writes a pad only when it differs, so the layout
+/// pass it triggers settles at once.
+static void apply_axis_pads(lv_obj_t* chart_obj, bool y_labels_visible) {
+    const int32_t left = y_label_pad(y_labels_visible);
+    const int32_t bottom = theme_manager_get_spacing("space_sm") +
+                           theme_manager_get_font_height(theme_manager_get_font("font_small")) +
+                           theme_manager_get_spacing("space_xs");
+    if (lv_obj_get_style_pad_left(chart_obj, LV_PART_MAIN) != left) {
+        lv_obj_set_style_pad_left(chart_obj, left, LV_PART_MAIN);
+    }
+    if (lv_obj_get_style_pad_bottom(chart_obj, LV_PART_MAIN) != bottom) {
+        lv_obj_set_style_pad_bottom(chart_obj, bottom, LV_PART_MAIN);
+    }
+}
+
+// Maximum number of series supported: raw PSD + every fitted shaper curve the
+// panel can overlay (kMaxShapers = 11) + the live-before "was" curve. Fitted
+// CSVs from Kalico carry up to 11 columns; too few slots here silently drops
+// the last-added series (chips without curves, no "was" overlay).
+static constexpr int kMaxSeries = 13;
+/// Horizontal grid divisions; the Y-axis labels sit on their lines.
+static constexpr int kHDivisions = 4;
+
+// Maximum series name length
+static constexpr size_t kMaxNameLen = 32;
+
+/**
+ * @brief What a tier may draw (pure)
+ *
+ * Glow is the only tier-gated effect: it survives only on STANDARD hardware
+ * that also supports animations. Fill and line width pass through untouched.
+ */
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+FrChartSeriesStyle fr_chart_effective_style(const FrChartSeriesStyle& requested,
+                                            helix::PlatformTier tier, bool supports_animations) {
+    FrChartSeriesStyle effective = requested;
+    const bool animations_ok = tier == helix::PlatformTier::STANDARD && supports_animations;
+    if (!animations_ok) {
+        effective.glow = false;
+    }
+    return effective;
+}
+
+/**
+ * @brief Internal series data structure
+ */
+struct FrequencySeriesData {
+    int id = -1;                  ///< Series ID (-1 = unused slot)
+    char name[kMaxNameLen] = {0}; ///< Series name
+    lv_color_t color = {};        ///< Line color
+    bool visible = true;          ///< Visibility state
+    bool muted = false;           ///< Draw thin/translucent instead of via the LVGL series
+    FrChartSeriesStyle requested_style = {}; ///< Style the caller asked for
+    FrChartSeriesStyle style = {};           ///< Effective draw style (muted series ignore it)
+    lv_chart_series_t* lv_series = nullptr;  ///< LVGL chart series (chart mode only)
+
+    // Peak marker data
+    bool has_peak = false;
+    float peak_freq = 0.0f;
+    float peak_amplitude = 0.0f;
+    size_t peak_idx = 0; ///< Cached index into frequencies/amplitudes for draw alignment
+
+    // Numbered dots and hollow rings drawn on the curve (draw_markers_cb)
+    std::vector<FrChartMarker> markers;
+
+    // Stored data (for table mode or re-rendering)
+    std::vector<float> frequencies;
+    std::vector<float> amplitudes;
+};
+
+/**
+ * @brief Main chart structure
+ */
+struct ui_frequency_response_chart_t {
+    lv_obj_t* root = nullptr;  ///< Container widget
+    lv_obj_t* chart = nullptr; ///< LVGL chart widget (nullptr in table mode)
+
+    helix::PlatformTier tier = helix::PlatformTier::EMBEDDED;
+    size_t max_points = 0;
+    bool chart_mode = false;
+    bool supports_animations = false; ///< Captured once at configure time; gates glow
+    bool show_y_labels = true;        ///< Amplitude labels in a left gutter
+    bool y_labels_percent = false;    ///< Gridline labels read as percentages
+
+    // Sweep cursor: vertical line at cursor_freq tinting [freq_min, cursor_freq]
+    bool cursor_active = false;
+    float cursor_freq = 0.0f;
+    lv_color_t cursor_color = {};
+
+    float freq_min = 0.0f;
+    float freq_max = 200.0f;
+    std::string x_unit = "Hz";
+    std::vector<FrChartBand> bands; ///< shaded behind the series
+    float amp_min = 0.0f;
+    float amp_max = 1e9f;
+
+    // Y-axis label text for the (amp_min, amp_max, y_labels_percent) it was
+    // built from, rebuilt only when one of them changes. Per chart because
+    // LVGL may draw a label after the draw callback returns.
+    char y_label_text[kHDivisions + 1][12] = {};
+    bool y_labels_built = false;
+    float y_labels_min = 0.0f;
+    float y_labels_max = 0.0f;
+    bool y_labels_built_percent = false;
+
+    FrequencySeriesData series[kMaxSeries];
+    int next_series_id = 0;
+
+    // Peak dot pulse animation state (0-255 opacity cycle)
+    int32_t pulse_phase = 255; ///< Current glow opacity (animated)
+    lv_anim_t pulse_anim = {};
+    bool pulse_active = false;
+};
+
+// ============================================================================
+// Internal helpers
+// ============================================================================
+
+/**
+ * @brief Find series by ID
+ * @return Pointer to series data or nullptr if not found
+ */
+static FrequencySeriesData* find_series(ui_frequency_response_chart_t* chart, int series_id) {
+    if (!chart || series_id < 0) {
+        return nullptr;
+    }
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        if (chart->series[i].id == series_id) {
+            return &chart->series[i];
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * @brief Whether the chart's own draw pass renders this series
+ *
+ * Muted series and series whose effective style has glow or fill bypass their
+ * built-in LVGL series (it stays hidden); every other series is drawn by
+ * lv_chart itself.
+ */
+static bool series_uses_custom_draw(const FrequencySeriesData* series) {
+    return series->muted || series->style.glow || series->style.fill;
+}
+
+/**
+ * @brief Re-derive a series' effective style from its requested one and the
+ *        chart's configured tier
+ */
+static void restyle_series(ui_frequency_response_chart_t* chart, FrequencySeriesData* series) {
+    series->style =
+        fr_chart_effective_style(series->requested_style, chart->tier, chart->supports_animations);
+
+    if (chart->chart && series->lv_series) {
+        // Glow and fill must be layered under the series line, which the
+        // built-in renderer cannot do (user draw callbacks run after it), so
+        // a styled series is drawn entirely by draw_styled_series_cb() and its
+        // built-in series stays hidden exactly like a muted one.
+        lv_chart_hide_series(chart->chart, series->lv_series,
+                             series_uses_custom_draw(series) ? true : !series->visible);
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+/**
+ * @brief Find first available series slot
+ * @return Slot index or -1 if none available
+ */
+static int find_empty_slot(ui_frequency_response_chart_t* chart) {
+    if (!chart) {
+        return -1;
+    }
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        if (chart->series[i].id == -1) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Downsample data arrays to fit within max_points
+ *
+ * Uses simple linear interpolation, preserving first and last points
+ * to maintain frequency range endpoints.
+ */
+static void downsample_data(const float* src_freqs, const float* src_amps, size_t src_count,
+                            std::vector<float>& dst_freqs, std::vector<float>& dst_amps,
+                            size_t max_points) {
+    if (src_count == 0 || max_points == 0) {
+        dst_freqs.clear();
+        dst_amps.clear();
+        return;
+    }
+
+    if (src_count <= max_points) {
+        // No downsampling needed
+        dst_freqs.assign(src_freqs, src_freqs + src_count);
+        dst_amps.assign(src_amps, src_amps + src_count);
+        return;
+    }
+
+    // Handle edge case: single output point
+    if (max_points == 1) {
+        dst_freqs.resize(1);
+        dst_amps.resize(1);
+        // Take last point to preserve frequency range endpoint
+        dst_freqs[0] = src_freqs[src_count - 1];
+        dst_amps[0] = src_amps[src_count - 1];
+        return;
+    }
+
+    // Downsample by selecting evenly spaced points
+    dst_freqs.resize(max_points);
+    dst_amps.resize(max_points);
+
+    for (size_t i = 0; i < max_points; i++) {
+        // Map output index to input index
+        size_t src_idx;
+        if (i == max_points - 1) {
+            // Ensure last point is exactly the last source point
+            src_idx = src_count - 1;
+        } else {
+            src_idx = (i * (src_count - 1)) / (max_points - 1);
+        }
+
+        dst_freqs[i] = src_freqs[src_idx];
+        dst_amps[i] = src_amps[src_idx];
+    }
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::vector<FrChartRun> fr_chart_finite_runs(const float* amps, size_t count) {
+    std::vector<FrChartRun> runs;
+    size_t i = 0;
+    while (i < count) {
+        while (i < count && !std::isfinite(amps[i])) {
+            ++i;
+        }
+        const size_t begin = i;
+        while (i < count && std::isfinite(amps[i])) {
+            ++i;
+        }
+        if (i - begin >= 2) {
+            runs.push_back(FrChartRun{begin, i});
+        }
+    }
+    return runs;
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+FrFillSegmentOpa fr_chart_fill_segment_opa(int32_t top_a_y, int32_t top_b_y, int32_t bottom_y) {
+    const int32_t ramp_top = std::min(top_a_y, top_b_y);
+    if (bottom_y <= ramp_top) {
+        return {LV_OPA_TRANSP, LV_OPA_TRANSP};
+    }
+    const int32_t row = std::clamp(top_b_y, ramp_top, bottom_y);
+    const auto second = static_cast<lv_opa_t>(static_cast<int32_t>(kFrFillTopOpa) *
+                                              (bottom_y - row) / (bottom_y - ramp_top));
+    return {kFrFillTopOpa, second};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::vector<std::string> fr_chart_amplitude_labels(float amp_min, float amp_max, int divisions,
+                                                   bool percent) {
+    std::vector<std::string> labels;
+    if (divisions < 1) {
+        return labels;
+    }
+    std::vector<float> values;
+    for (int i = 0; i <= divisions; ++i) {
+        values.push_back(amp_max - (amp_max - amp_min) * static_cast<float>(i) /
+                                       static_cast<float>(divisions));
+    }
+    char buf[24];
+    if (percent) {
+        for (float v : values) {
+            snprintf(buf, sizeof(buf), "%.0f%%", v);
+            labels.emplace_back(buf);
+        }
+        return labels;
+    }
+
+    struct Unit {
+        float scale;
+        const char* suffix;
+    };
+    const float magnitude = std::max(std::abs(amp_max), std::abs(amp_min));
+    const Unit unit = magnitude >= 1e9f    ? Unit{1e9f, "e9"}
+                      : magnitude >= 1e6f  ? Unit{1e6f, "M"}
+                      : magnitude >= 1e3f  ? Unit{1e3f, "k"}
+                      : magnitude >= 1.0f  ? Unit{1.0f, ""}
+                      : magnitude >= 1e-3f ? Unit{1e-3f, "m"}
+                                           : Unit{1e-6f, "u"};
+
+    // The fewest decimals that keep every label distinct and within 5% of a
+    // division of its true value; trailing zeros are dropped ("22m", not "22.0m").
+    const float step = std::abs(amp_max - amp_min) / static_cast<float>(divisions) / unit.scale;
+    for (int decimals = 0; decimals <= 2; ++decimals) {
+        labels.clear();
+        bool close = true;
+        for (float v : values) {
+            if (v == 0.0f) {
+                labels.emplace_back("0");
+                continue;
+            }
+            const float scaled = v / unit.scale;
+            snprintf(buf, sizeof(buf), "%.*f", decimals, scaled);
+            close = close && std::abs(std::strtof(buf, nullptr) - scaled) <= 0.05f * step;
+            std::string text(buf);
+            if (text.find('.') != std::string::npos) {
+                text.erase(text.find_last_not_of('0') + 1);
+                if (text.back() == '.') {
+                    text.pop_back();
+                }
+            }
+            labels.push_back(text + unit.suffix);
+        }
+        std::vector<std::string> sorted = labels;
+        std::sort(sorted.begin(), sorted.end());
+        if (close && std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end()) {
+            break;
+        }
+    }
+    return labels;
+}
+
+/**
+ * @brief Update LVGL chart with series data
+ */
+static void update_chart_series(ui_frequency_response_chart_t* chart, FrequencySeriesData* series) {
+    if (!chart || !series || !chart->chart || !series->lv_series) {
+        return;
+    }
+
+    // Match chart point count to actual data size so SHIFT mode fills all slots
+    size_t count = series->frequencies.size();
+    uint32_t current_points = lv_chart_get_point_count(chart->chart);
+    if (count > 0 && static_cast<uint32_t>(count) != current_points) {
+        lv_chart_set_point_count(chart->chart, static_cast<uint32_t>(count));
+    }
+
+    // Clear existing data
+    lv_chart_set_all_values(chart->chart, series->lv_series, LV_CHART_POINT_NONE);
+    for (size_t i = 0; i < count; i++) {
+        // Scale amplitude to chart range (LVGL chart uses int32_t)
+        float amp = series->amplitudes[i];
+        if (!std::isfinite(amp)) {
+            lv_chart_set_next_value(chart->chart, series->lv_series, LV_CHART_POINT_NONE);
+            continue;
+        }
+        float amp_range = chart->amp_max - chart->amp_min;
+        int32_t scaled;
+        if (amp_range > 0) {
+            scaled = static_cast<int32_t>(((amp - chart->amp_min) / amp_range) * 1000.0f);
+        } else {
+            scaled = 0;
+        }
+        lv_chart_set_next_value(chart->chart, series->lv_series, scaled);
+    }
+
+    lv_chart_refresh(chart->chart);
+}
+
+// ============================================================================
+// Creation/Destruction
+// ============================================================================
+
+ui_frequency_response_chart_t* ui_frequency_response_chart_create(lv_obj_t* parent) {
+    if (!parent) {
+        spdlog::error("[FreqChart] NULL parent");
+        return nullptr;
+    }
+
+    auto chart_ptr = std::make_unique<ui_frequency_response_chart_t>();
+    if (!chart_ptr) {
+        spdlog::error("[FreqChart] Failed to allocate chart structure");
+        return nullptr;
+    }
+
+    ui_frequency_response_chart_t* chart = chart_ptr.get();
+
+    // Initialize all series slots to unused
+    for (int i = 0; i < kMaxSeries; i++) {
+        chart->series[i].id = -1;
+    }
+
+    chart->root = lv_obj_create(parent);
+    if (!chart->root) {
+        spdlog::error("[FreqChart] Failed to create root container");
+        return nullptr;
+    }
+
+    // Basic styling for container
+    lv_obj_set_size(chart->root, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_pad_all(chart->root, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(chart->root, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(chart->root, LV_OPA_TRANSP, LV_PART_MAIN);
+
+    // Store pointer in user data for retrieval
+    lv_obj_set_user_data(chart->root, chart);
+
+    // Default to EMBEDDED tier (configure_for_platform will set up properly)
+    chart->tier = helix::PlatformTier::EMBEDDED;
+    chart->max_points = 0;
+    chart->chart_mode = false;
+    chart->chart = nullptr;
+
+    spdlog::debug("[FreqChart] Created frequency response chart");
+
+    return chart_ptr.release();
+}
+
+void ui_frequency_response_chart_destroy(ui_frequency_response_chart_t* chart) {
+    if (!chart) {
+        return;
+    }
+
+    // Stop pulse animation before cleanup
+    if (chart->pulse_active) {
+        lv_anim_delete(chart, nullptr);
+        chart->pulse_active = false;
+    }
+
+    // Transfer to RAII wrapper for automatic cleanup
+    std::unique_ptr<ui_frequency_response_chart_t> chart_ptr(chart);
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        if (chart_ptr->series[i].id != -1 && chart_ptr->series[i].lv_series && chart_ptr->chart) {
+            lv_chart_remove_series(chart_ptr->chart, chart_ptr->series[i].lv_series);
+        }
+        chart_ptr->series[i].frequencies.clear();
+        chart_ptr->series[i].amplitudes.clear();
+    }
+
+    // Delete root widget (also deletes chart if present)
+    if (chart_ptr->root) {
+        lv_obj_delete(chart_ptr->root);
+    }
+
+    spdlog::trace("[FreqChart] Destroyed");
+}
+
+// ============================================================================
+// Series Management
+// ============================================================================
+
+int ui_frequency_response_chart_add_series(ui_frequency_response_chart_t* chart, const char* name,
+                                           lv_color_t color) {
+    if (!chart) {
+        spdlog::error("[FreqChart] NULL chart");
+        return -1;
+    }
+
+    if (!name) {
+        spdlog::error("[FreqChart] NULL name");
+        return -1;
+    }
+
+    int slot = find_empty_slot(chart);
+    if (slot == -1) {
+        spdlog::error("[FreqChart] No available series slots");
+        return -1;
+    }
+
+    FrequencySeriesData* series = &chart->series[slot];
+    series->id = chart->next_series_id++;
+    series->color = color;
+    series->visible = true;
+    // A slot previously used by a muted series (the live-before overlay) must
+    // not stay muted: the new series would be double-drawn (1px copy over its
+    // LVGL series) and could never be hidden by a chip toggle.
+    series->muted = false;
+    series->requested_style = FrChartSeriesStyle{};
+    series->style = FrChartSeriesStyle{};
+    series->has_peak = false;
+    series->markers.clear();
+    series->lv_series = nullptr;
+    series->frequencies.clear();
+    series->amplitudes.clear();
+
+    // Copy name with truncation
+    strncpy(series->name, name, kMaxNameLen - 1);
+    series->name[kMaxNameLen - 1] = '\0';
+
+    // Create LVGL series if in chart mode
+    if (chart->chart_mode && chart->chart) {
+        series->lv_series = lv_chart_add_series(chart->chart, color, LV_CHART_AXIS_PRIMARY_Y);
+        if (series->lv_series) {
+            lv_chart_set_all_values(chart->chart, series->lv_series, LV_CHART_POINT_NONE);
+        }
+    }
+
+    spdlog::trace("[FreqChart] Added series {} '{}' (slot {}, color 0x{:06X})", series->id,
+                  series->name, slot, lv_color_to_u32(color) & 0xFFFFFF);
+
+    return series->id;
+}
+
+void ui_frequency_response_chart_remove_series(ui_frequency_response_chart_t* chart,
+                                               int series_id) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    // Remove LVGL series if present
+    if (series->lv_series && chart->chart) {
+        lv_chart_remove_series(chart->chart, series->lv_series);
+    }
+
+    // Clear data
+    series->frequencies.clear();
+    series->amplitudes.clear();
+
+    // Mark slot as unused
+    series->id = -1;
+    series->lv_series = nullptr;
+
+    spdlog::debug("[FreqChart] Removed series {}", series_id);
+}
+
+void ui_frequency_response_chart_show_series(ui_frequency_response_chart_t* chart, int series_id,
+                                             bool visible) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->visible = visible;
+
+    // Update LVGL series visibility if in chart mode. Muted and styled series
+    // never use their LVGL series (the draw-post pass renders them), so theirs
+    // stays hidden regardless of the visibility flag.
+    if (chart->chart && series->lv_series && !series_uses_custom_draw(series)) {
+        lv_chart_hide_series(chart->chart, series->lv_series, !visible);
+        lv_obj_invalidate(chart->chart);
+    } else if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Series {} visibility: {}", series_id, visible);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_series_color(ui_frequency_response_chart_t* chart,
+                                                  int series_id, lv_color_t color) {
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+    series->color = color;
+    if (chart->chart) {
+        if (series->lv_series) {
+            lv_chart_set_series_color(chart->chart, series->lv_series, color);
+        }
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+lv_color_t ui_frequency_response_chart_get_series_color(ui_frequency_response_chart_t* chart,
+                                                        int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->color : lv_color_black();
+}
+
+void ui_frequency_response_chart_set_series_muted(ui_frequency_response_chart_t* chart,
+                                                  int series_id, bool muted) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->muted = muted;
+
+    if (chart->chart && series->lv_series) {
+        // Muted series are drawn by draw_muted_series_cb(); keep the built-in
+        // LVGL series hidden so the curve is not drawn twice.
+        lv_chart_hide_series(chart->chart, series->lv_series, muted ? true : !series->visible);
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Series {} muted: {}", series_id, muted);
+}
+
+bool ui_frequency_response_chart_is_series_muted(ui_frequency_response_chart_t* chart,
+                                                 int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->muted : false;
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_y_labels_visible(
+    ui_frequency_response_chart_t* chart, // NAMESPACE_OK: matches this file's C-style chart API
+    bool visible) {
+    if (!chart) {
+        return;
+    }
+    chart->show_y_labels = visible;
+    if (chart->chart) {
+        apply_axis_pads(chart->chart, visible);
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_y_labels_percent(ui_frequency_response_chart_t* chart,
+                                                      bool percent) {
+    if (!chart) {
+        return;
+    }
+    chart->y_labels_percent = percent;
+    if (chart->chart) {
+        // Normalised data peaks exactly at the top gridline; leave a marker's
+        // radius above it so a dot on a 100% peak is not clipped.
+        const int32_t marker_room =
+            theme_manager_get_font_height(theme_manager_get_font("font_small")) / 2 + 2;
+        lv_obj_set_style_pad_top(
+            chart->chart, theme_manager_get_spacing("space_sm") + (percent ? marker_room : 0),
+            LV_PART_MAIN);
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_markers(ui_frequency_response_chart_t* chart, int series_id,
+                                             const FrChartMarker* markers, size_t count) {
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+    series->markers.assign(markers, markers + (markers ? count : 0));
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::vector<FrChartMarker>
+ui_frequency_response_chart_get_markers(ui_frequency_response_chart_t* chart, int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->markers : std::vector<FrChartMarker>{};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::vector<float>
+ui_frequency_response_chart_get_series_amplitudes(ui_frequency_response_chart_t* chart,
+                                                  int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->amplitudes : std::vector<float>{};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::pair<float, float>
+ui_frequency_response_chart_get_freq_range(ui_frequency_response_chart_t* chart) {
+    return chart ? std::pair{chart->freq_min, chart->freq_max} : std::pair{0.0f, 0.0f};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+std::pair<float, float>
+ui_frequency_response_chart_get_amplitude_range(ui_frequency_response_chart_t* chart) {
+    return chart ? std::pair{chart->amp_min, chart->amp_max} : std::pair{0.0f, 0.0f};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+bool ui_frequency_response_chart_is_series_visible(
+    ui_frequency_response_chart_t* chart, // NAMESPACE_OK: matches this file's C-style chart API
+    int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->visible : false;
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_series_style(ui_frequency_response_chart_t* chart,
+                                                  int series_id, const FrChartSeriesStyle& style) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->requested_style = style;
+    restyle_series(chart, series);
+
+    spdlog::debug("[FreqChart] Series {} style: width={} glow={} fill={}", series_id,
+                  series->style.line_width, series->style.glow, series->style.fill);
+}
+
+FrChartSeriesStyle
+ui_frequency_response_chart_get_series_style(ui_frequency_response_chart_t* chart, int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series->style : FrChartSeriesStyle{};
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+bool ui_frequency_response_chart_series_uses_custom_draw(ui_frequency_response_chart_t* chart,
+                                                         int series_id) {
+    const FrequencySeriesData* series = find_series(chart, series_id);
+    return series ? series_uses_custom_draw(series) : false;
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_set_cursor(ui_frequency_response_chart_t* chart, float freq_hz,
+                                            lv_color_t color) {
+    if (!chart) {
+        return;
+    }
+
+    chart->cursor_active = true;
+    chart->cursor_freq = freq_hz;
+    chart->cursor_color = color;
+
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Sweep cursor at {:.1f} Hz", freq_hz);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_clear_cursor(ui_frequency_response_chart_t* chart) {
+    if (!chart || !chart->cursor_active) {
+        return;
+    }
+
+    chart->cursor_active = false;
+
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Sweep cursor cleared");
+}
+
+// ============================================================================
+// Data Management
+// ============================================================================
+
+void ui_frequency_response_chart_set_data(ui_frequency_response_chart_t* chart, int series_id,
+                                          const float* frequencies, const float* amplitudes,
+                                          size_t count) {
+    if (!chart) {
+        return;
+    }
+
+    if (!frequencies || !amplitudes || count == 0) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    // Store data (possibly downsampled) for chart rendering
+    if (chart->max_points > 0 && count > chart->max_points) {
+        downsample_data(frequencies, amplitudes, count, series->frequencies, series->amplitudes,
+                        chart->max_points);
+        spdlog::debug("[FreqChart] Downsampled series {} from {} to {} points", series_id, count,
+                      series->frequencies.size());
+    } else if (chart->max_points > 0) {
+        series->frequencies.assign(frequencies, frequencies + count);
+        series->amplitudes.assign(amplitudes, amplitudes + count);
+    } else {
+        // EMBEDDED mode (max_points = 0): store all data for table view
+        series->frequencies.assign(frequencies, frequencies + count);
+        series->amplitudes.assign(amplitudes, amplitudes + count);
+    }
+
+    // Update LVGL chart if in chart mode
+    if (chart->chart_mode && chart->chart && series->lv_series) {
+        update_chart_series(chart, series);
+    }
+
+    spdlog::debug("[FreqChart] Set data for series {}: {} points", series_id, count);
+}
+
+void ui_frequency_response_chart_clear(ui_frequency_response_chart_t* chart) {
+    if (!chart) {
+        return;
+    }
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        if (chart->series[i].id != -1) {
+            chart->series[i].frequencies.clear();
+            chart->series[i].amplitudes.clear();
+            chart->series[i].has_peak = false;
+            chart->series[i].markers.clear();
+
+            if (chart->chart && chart->series[i].lv_series) {
+                lv_chart_set_all_values(chart->chart, chart->series[i].lv_series,
+                                        LV_CHART_POINT_NONE);
+            }
+        }
+    }
+
+    // Stop pulse animation since all data is cleared
+    if (chart->pulse_active) {
+        lv_anim_delete(chart, nullptr);
+        chart->pulse_active = false;
+    }
+
+    if (chart->chart) {
+        lv_chart_refresh(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Cleared all data");
+}
+
+// ============================================================================
+// Peak Marking
+// ============================================================================
+
+void ui_frequency_response_chart_mark_peak(ui_frequency_response_chart_t* chart, int series_id,
+                                           float peak_freq, float peak_amplitude) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->has_peak = true;
+    series->peak_freq = peak_freq;
+    series->peak_amplitude = peak_amplitude;
+
+    // Cache the data point index closest to peak frequency for draw alignment
+    series->peak_idx = 0;
+    float best_dist = std::numeric_limits<float>::max();
+    for (size_t j = 0; j < series->frequencies.size(); j++) {
+        float d = std::abs(series->frequencies[j] - peak_freq);
+        if (d < best_dist) {
+            best_dist = d;
+            series->peak_idx = j;
+        }
+    }
+
+    // Start pulse animation if animations are enabled
+    if (!chart->pulse_active &&
+        helix::DisplaySettingsManager::instance().get_animations_enabled()) {
+        lv_anim_init(&chart->pulse_anim);
+        lv_anim_set_var(&chart->pulse_anim, chart);
+        lv_anim_set_values(&chart->pulse_anim, 80, 255);
+        lv_anim_set_duration(&chart->pulse_anim, 1200);
+        lv_anim_set_reverse_duration(&chart->pulse_anim, 1200);
+        lv_anim_set_repeat_count(&chart->pulse_anim, LV_ANIM_REPEAT_INFINITE);
+        lv_anim_set_path_cb(&chart->pulse_anim, lv_anim_path_ease_in_out);
+        lv_anim_set_exec_cb(&chart->pulse_anim, [](void* var, int32_t val) {
+            auto* c = static_cast<ui_frequency_response_chart_t*>(var);
+            c->pulse_phase = val;
+            if (c->chart) {
+                lv_obj_invalidate(c->chart);
+            }
+        });
+        lv_anim_start(&chart->pulse_anim);
+        chart->pulse_active = true;
+    }
+
+    // Invalidate chart to redraw with peak marker
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Marked peak for series {}: {:.1f} Hz @ {:.2e}", series_id, peak_freq,
+                  peak_amplitude);
+}
+
+void ui_frequency_response_chart_clear_peak(ui_frequency_response_chart_t* chart, int series_id) {
+    if (!chart) {
+        return;
+    }
+
+    FrequencySeriesData* series = find_series(chart, series_id);
+    if (!series) {
+        return;
+    }
+
+    series->has_peak = false;
+
+    // Stop pulse animation if no series have peaks remaining
+    if (chart->pulse_active) {
+        bool any_peak = false;
+        for (int j = 0; j < kMaxSeries; j++) {
+            if (chart->series[j].id != -1 && chart->series[j].has_peak) {
+                any_peak = true;
+                break;
+            }
+        }
+        if (!any_peak) {
+            lv_anim_delete(chart, nullptr);
+            chart->pulse_active = false;
+        }
+    }
+
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+
+    spdlog::debug("[FreqChart] Cleared peak for series {}", series_id);
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+void ui_frequency_response_chart_set_freq_range(ui_frequency_response_chart_t* chart, float min,
+                                                float max) {
+    if (!chart) {
+        return;
+    }
+
+    chart->freq_min = min;
+    chart->freq_max = max;
+
+    // Update chart X-axis range if in chart mode
+    // Note: LVGL charts don't have a direct X-axis range for line charts,
+    // but we store it for potential custom drawing/labels
+
+    spdlog::debug("[FreqChart] Frequency range: {:.1f} - {:.1f} Hz", min, max);
+}
+
+void ui_frequency_response_chart_set_amplitude_range(ui_frequency_response_chart_t* chart,
+                                                     float min, float max) {
+    if (!chart) {
+        return;
+    }
+
+    chart->amp_min = min;
+    chart->amp_max = max;
+
+    // Update chart Y-axis range if in chart mode
+    if (chart->chart) {
+        // Scale to internal range (0-1000) for LVGL chart
+        lv_chart_set_axis_range(chart->chart, LV_CHART_AXIS_PRIMARY_Y, 0, 1000);
+    }
+
+    spdlog::debug("[FreqChart] Amplitude range: {:.2e} - {:.2e}", min, max);
+}
+
+lv_obj_t* ui_frequency_response_chart_get_obj(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->root : nullptr;
+}
+
+// ============================================================================
+// Draw Callbacks
+// ============================================================================
+
+/**
+ * @brief Draw subtle grid lines behind chart data
+ *
+ * Renders horizontal amplitude divisions and vertical frequency markers
+ * at round Hz values (25, 50, 75, 100 Hz) within the chart content area.
+ */
+static void draw_freq_grid_lines_cb(lv_event_t* e) {
+    lv_obj_t* chart_obj = lv_event_get_target_obj(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart) {
+        return;
+    }
+
+    // Get chart bounds and calculate content area (inside padding)
+    lv_area_t coords;
+    lv_obj_get_coords(chart_obj, &coords);
+
+    int32_t pad_top = lv_obj_get_style_pad_top(chart_obj, LV_PART_MAIN);
+    int32_t pad_left = lv_obj_get_style_pad_left(chart_obj, LV_PART_MAIN);
+    int32_t pad_right = lv_obj_get_style_pad_right(chart_obj, LV_PART_MAIN);
+    int32_t pad_bottom = lv_obj_get_style_pad_bottom(chart_obj, LV_PART_MAIN);
+
+    int32_t content_x1 = coords.x1 + pad_left;
+    int32_t content_x2 = coords.x2 - pad_right;
+    int32_t content_y1 = coords.y1 + pad_top;
+    int32_t content_y2 = coords.y2 - pad_bottom;
+    int32_t content_width = content_x2 - content_x1;
+    int32_t content_height = content_y2 - content_y1;
+
+    if (content_width <= 0 || content_height <= 0) {
+        return;
+    }
+
+    // Subtle grid line style
+    lv_draw_line_dsc_t line_dsc;
+    lv_draw_line_dsc_init(&line_dsc);
+    line_dsc.color = theme_manager_get_color("elevated_bg");
+    line_dsc.width = 1;
+    line_dsc.opa = static_cast<lv_opa_t>(38); // ~15% opacity
+
+    // Horizontal grid lines: 4 divisions (amplitude)
+    for (int i = 1; i < kHDivisions; i++) {
+        int32_t y = content_y1 + (content_height * i) / kHDivisions;
+        line_dsc.p1.x = content_x1;
+        line_dsc.p1.y = y;
+        line_dsc.p2.x = content_x2;
+        line_dsc.p2.y = y;
+        lv_draw_line(layer, &line_dsc);
+    }
+
+    // Vertical grid lines at round frequency values: 25, 50, 75, 100 Hz
+    float freq_range = chart->freq_max - chart->freq_min;
+    if (freq_range <= 0.0f) {
+        return;
+    }
+
+    static constexpr float kGridFreqs[] = {25.0f, 50.0f, 75.0f, 100.0f};
+    for (float freq : kGridFreqs) {
+        if (freq <= chart->freq_min || freq >= chart->freq_max) {
+            continue;
+        }
+        float frac = (freq - chart->freq_min) / freq_range;
+        int32_t x = content_x1 + static_cast<int32_t>(frac * content_width);
+        line_dsc.p1.x = x;
+        line_dsc.p1.y = content_y1;
+        line_dsc.p2.x = x;
+        line_dsc.p2.y = content_y2;
+        lv_draw_line(layer, &line_dsc);
+    }
+}
+
+/**
+ * @brief Draw peak frequency dots with glow effect on top of chart data
+ *
+ * For each series with a marked peak, draws a semi-transparent glow circle
+ * behind a solid filled dot at the peak frequency position.
+ */
+static void draw_peak_dots_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart || !chart->chart) {
+        return;
+    }
+
+    // Get chart content area (inside padding) for manual position calculation
+    lv_area_t chart_coords;
+    lv_obj_get_coords(chart->chart, &chart_coords);
+
+    int32_t pad_top = lv_obj_get_style_pad_top(chart->chart, LV_PART_MAIN);
+    int32_t pad_left = lv_obj_get_style_pad_left(chart->chart, LV_PART_MAIN);
+    int32_t pad_right = lv_obj_get_style_pad_right(chart->chart, LV_PART_MAIN);
+    int32_t pad_bottom = lv_obj_get_style_pad_bottom(chart->chart, LV_PART_MAIN);
+
+    int32_t content_x1 = chart_coords.x1 + pad_left;
+    int32_t content_x2 = chart_coords.x2 - pad_right;
+    int32_t content_y1 = chart_coords.y1 + pad_top;
+    int32_t content_y2 = chart_coords.y2 - pad_bottom;
+    int32_t content_width = content_x2 - content_x1;
+    int32_t content_height = content_y2 - content_y1;
+
+    if (content_width <= 0 || content_height <= 0) {
+        return;
+    }
+
+    float freq_range = chart->freq_max - chart->freq_min;
+    float amp_range = chart->amp_max - chart->amp_min;
+
+    if (freq_range <= 0.0f || amp_range <= 0.0f) {
+        return;
+    }
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        FrequencySeriesData* series = &chart->series[i];
+        if (series->id == -1 || !series->has_peak || !series->visible || !series->lv_series) {
+            continue;
+        }
+
+        // Use cached peak index to align dot with LVGL's evenly-spaced points
+        size_t total_pts = series->frequencies.size();
+        if (total_pts == 0) {
+            continue;
+        }
+
+        // X: match LVGL's evenly-spaced point positioning
+        float x_frac = (total_pts > 1) ? static_cast<float>(series->peak_idx) /
+                                             static_cast<float>(total_pts - 1)
+                                       : 0.5f;
+        x_frac = std::max(0.0f, std::min(1.0f, x_frac));
+        int32_t abs_x = content_x1 + static_cast<int32_t>(x_frac * content_width);
+
+        // Y: use the actual amplitude at the peak point for correct vertical position
+        float peak_amp = (series->peak_idx < series->amplitudes.size())
+                             ? series->amplitudes[series->peak_idx]
+                             : series->peak_amplitude;
+        if (!std::isfinite(peak_amp)) {
+            continue;
+        }
+        float amp_frac = (peak_amp - chart->amp_min) / amp_range;
+        amp_frac = std::max(0.0f, std::min(1.0f, amp_frac));
+        int32_t abs_y = content_y2 - static_cast<int32_t>(amp_frac * content_height);
+
+        // Glow circle: larger, semi-transparent, lighter tint, pulsing opacity
+        constexpr int32_t kGlowRadius = 10;
+        lv_draw_rect_dsc_t glow_dsc;
+        lv_draw_rect_dsc_init(&glow_dsc);
+        glow_dsc.bg_color = lv_color_mix(series->color, lv_color_white(), LV_OPA_40);
+        glow_dsc.bg_opa = static_cast<lv_opa_t>(chart->pulse_phase * 30 / 255);
+        glow_dsc.radius = LV_RADIUS_CIRCLE;
+        glow_dsc.border_width = 0;
+
+        lv_area_t glow_area;
+        glow_area.x1 = abs_x - kGlowRadius;
+        glow_area.y1 = abs_y - kGlowRadius;
+        glow_area.x2 = abs_x + kGlowRadius;
+        glow_area.y2 = abs_y + kGlowRadius;
+        lv_draw_rect(layer, &glow_dsc, &glow_area);
+
+        // Solid dot: smaller, fully opaque, series color
+        constexpr int32_t kDotRadius = 5;
+        lv_draw_rect_dsc_t dot_dsc;
+        lv_draw_rect_dsc_init(&dot_dsc);
+        dot_dsc.bg_color = series->color;
+        dot_dsc.bg_opa = LV_OPA_COVER;
+        dot_dsc.radius = LV_RADIUS_CIRCLE;
+        dot_dsc.border_width = 0;
+
+        lv_area_t dot_area;
+        dot_area.x1 = abs_x - kDotRadius;
+        dot_area.y1 = abs_y - kDotRadius;
+        dot_area.x2 = abs_x + kDotRadius;
+        dot_area.y2 = abs_y + kDotRadius;
+        lv_draw_rect(layer, &dot_dsc, &dot_area);
+
+        spdlog::trace("[FreqChart] Drew peak dot for series {} at ({}, {})", series->id, abs_x,
+                      abs_y);
+    }
+}
+
+// ============================================================================
+// Custom Draw Helpers (muted and styled series, sweep cursor)
+// ============================================================================
+
+/**
+ * @brief Chart plot area: the content box inside the chart widget's padding
+ */
+// NAMESPACE_OK: file-local draw-helper type for this widget's callbacks
+struct ChartPlotArea {
+    int32_t x1 = 0;
+    int32_t x2 = 0;
+    int32_t y1 = 0;
+    int32_t y2 = 0;
+    bool valid = false;
+};
+
+static ChartPlotArea chart_plot_area(lv_obj_t* chart_obj) {
+    ChartPlotArea plot;
+    if (!chart_obj) {
+        return plot;
+    }
+
+    lv_area_t coords;
+    lv_obj_get_coords(chart_obj, &coords);
+
+    plot.x1 = coords.x1 + lv_obj_get_style_pad_left(chart_obj, LV_PART_MAIN);
+    plot.x2 = coords.x2 - lv_obj_get_style_pad_right(chart_obj, LV_PART_MAIN);
+    plot.y1 = coords.y1 + lv_obj_get_style_pad_top(chart_obj, LV_PART_MAIN);
+    plot.y2 = coords.y2 - lv_obj_get_style_pad_bottom(chart_obj, LV_PART_MAIN);
+    plot.valid = (plot.x2 - plot.x1) > 0 && (plot.y2 - plot.y1) > 0;
+    return plot;
+}
+
+/**
+ * @brief Map one data point to plot coordinates the way the built-in renderer
+ * places points
+ *
+ * X comes from the point index spread over the content width, Y from the
+ * stored amplitude over the amplitude range (clamped), matching the lv_chart
+ * series and draw_peak_dots_cb().
+ */
+static lv_point_precise_t plot_point(const ChartPlotArea& plot,
+                                     const ui_frequency_response_chart_t* chart, size_t idx,
+                                     size_t total_pts, float amp) {
+    const float x_frac =
+        (total_pts > 1) ? static_cast<float>(idx) / static_cast<float>(total_pts - 1) : 0.5f;
+    float amp_frac = (amp - chart->amp_min) / (chart->amp_max - chart->amp_min);
+    amp_frac = std::max(0.0f, std::min(1.0f, amp_frac));
+
+    lv_point_precise_t p;
+    p.x = plot.x1 + static_cast<int32_t>(x_frac * (plot.x2 - plot.x1));
+    p.y = plot.y2 - static_cast<int32_t>(amp_frac * (plot.y2 - plot.y1));
+    return p;
+}
+
+/**
+ * @brief Stroke a series' polyline with the given descriptor
+ *
+ * The descriptor is taken by value so glow passes can vary width/opa per
+ * stroke while sharing the point mapping.
+ */
+static void stroke_polyline(lv_layer_t* layer, lv_draw_line_dsc_t dsc, const ChartPlotArea& plot,
+                            const ui_frequency_response_chart_t* chart,
+                            const FrequencySeriesData* series) {
+    const size_t total_pts = series->amplitudes.size();
+    for (const FrChartRun& run : fr_chart_finite_runs(series->amplitudes.data(), total_pts)) {
+        for (size_t j = run.begin + 1; j < run.end; j++) {
+            dsc.p1 = plot_point(plot, chart, j - 1, total_pts, series->amplitudes[j - 1]);
+            dsc.p2 = plot_point(plot, chart, j, total_pts, series->amplitudes[j]);
+            lv_draw_line(layer, &dsc);
+        }
+    }
+}
+
+// ============================================================================
+// Muted Series Drawing
+// ============================================================================
+
+/**
+ * @brief Draw muted series as thin translucent polylines on top of chart data
+ *
+ * Muted series carry reference curves that must stay visually secondary to
+ * the fitted curves, so they bypass their LVGL chart series (kept hidden) and
+ * are drawn here at 1px with reduced opacity. Point placement mirrors the
+ * built-in renderer and draw_peak_dots_cb(): X from the point index over the
+ * content width, Y from the stored amplitude over the amplitude range.
+ */
+static void draw_muted_series_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart || !chart->chart) {
+        return;
+    }
+
+    const ChartPlotArea plot = chart_plot_area(chart->chart);
+    if (!plot.valid) {
+        return;
+    }
+
+    const float amp_range = chart->amp_max - chart->amp_min;
+    if (!(amp_range > 0.0f)) {
+        return;
+    }
+
+    lv_draw_line_dsc_t line_dsc;
+    lv_draw_line_dsc_init(&line_dsc);
+    line_dsc.width = 1;
+    line_dsc.opa = 170; // ~66% - present but behind the 2px fitted curves
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        const FrequencySeriesData* series = &chart->series[i];
+        if (series->id == -1 || !series->muted || !series->visible) {
+            continue;
+        }
+
+        const size_t total_pts = series->amplitudes.size();
+        if (total_pts < 2) {
+            continue;
+        }
+
+        line_dsc.color = series->color;
+        stroke_polyline(layer, line_dsc, plot, chart, series);
+
+        spdlog::trace("[FreqChart] Drew muted series '{}' ({} points)", series->name, total_pts);
+    }
+}
+
+// ============================================================================
+// Styled Series and Sweep Cursor Drawing
+// ============================================================================
+
+/**
+ * @brief Draw the sweep cursor and glow/fill-styled series in the draw-post pass
+ *
+ * LVGL user draw callbacks run after lv_chart has drawn its own series, so
+ * nothing can be layered under a built-in series line. A series whose
+ * effective style has glow or fill is therefore drawn entirely here (its
+ * built-in series is hidden, exactly like a muted one): the fill first, then
+ * the glow strokes, then the line itself. The cursor is drawn before the
+ * series so lines land on top of the tint; peak dots are registered after
+ * this callback and stay on top.
+ */
+static void draw_styled_series_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart || !chart->chart) {
+        return;
+    }
+
+    const ChartPlotArea plot = chart_plot_area(chart->chart);
+    if (!plot.valid) {
+        return;
+    }
+
+    const float freq_range = chart->freq_max - chart->freq_min;
+
+    // Bands first, so the cursor tint and every line land on top of them.
+    if (!chart->bands.empty() && freq_range > 0.0f) {
+        lv_draw_rect_dsc_t band_dsc;
+        lv_draw_rect_dsc_init(&band_dsc);
+        band_dsc.bg_color = theme_manager_get_color("warning");
+        band_dsc.bg_opa = LV_OPA_20;
+        for (const FrChartBand& band : chart->bands) {
+            const auto px = ui_frequency_response_chart_band_pixels(
+                band, chart->freq_min, chart->freq_max, plot.x1, plot.x2);
+            if (px) {
+                lv_area_t area = {px->first, plot.y1, px->second, plot.y2};
+                lv_draw_rect(layer, &band_dsc, &area);
+            }
+        }
+    }
+
+    // Sweep cursor: tint from the plot's left edge to the cursor, then a 2px
+    // vertical line in the cursor color.
+    if (chart->cursor_active && freq_range > 0.0f) {
+        float frac = (chart->cursor_freq - chart->freq_min) / freq_range;
+        frac = std::max(0.0f, std::min(1.0f, frac));
+        const int32_t cursor_x = plot.x1 + static_cast<int32_t>(frac * (plot.x2 - plot.x1));
+
+        lv_draw_rect_dsc_t tint_dsc;
+        lv_draw_rect_dsc_init(&tint_dsc);
+        tint_dsc.bg_color = chart->cursor_color;
+        tint_dsc.bg_opa = 40;
+        tint_dsc.radius = 0;
+        tint_dsc.border_width = 0;
+
+        lv_area_t tint_area = {plot.x1, plot.y1, cursor_x, plot.y2};
+        lv_draw_rect(layer, &tint_dsc, &tint_area);
+
+        lv_draw_line_dsc_t cursor_dsc;
+        lv_draw_line_dsc_init(&cursor_dsc);
+        cursor_dsc.color = chart->cursor_color;
+        cursor_dsc.width = 2;
+        cursor_dsc.opa = LV_OPA_COVER;
+        cursor_dsc.p1.x = cursor_x;
+        cursor_dsc.p1.y = plot.y1;
+        cursor_dsc.p2.x = cursor_x;
+        cursor_dsc.p2.y = plot.y2;
+        lv_draw_line(layer, &cursor_dsc);
+    }
+
+    const float amp_range = chart->amp_max - chart->amp_min;
+    if (!(amp_range > 0.0f)) {
+        return;
+    }
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        const FrequencySeriesData* series = &chart->series[i];
+        // Muted series keep their 1px treatment in draw_muted_series_cb().
+        if (series->id == -1 || !series->visible || series->muted) {
+            continue;
+        }
+        if (!series->style.glow && !series->style.fill) {
+            continue;
+        }
+
+        const size_t total_pts = series->amplitudes.size();
+        if (total_pts < 2) {
+            continue;
+        }
+
+        if (series->style.fill) {
+            lv_draw_triangle_dsc_t tri_dsc;
+            lv_draw_triangle_dsc_init(&tri_dsc);
+            tri_dsc.opa = LV_OPA_COVER;
+            // Each segment's tint runs from the curve down to the plot bottom;
+            // fr_chart_fill_segment_opa() keeps its two triangles in step.
+            tri_dsc.grad.dir = LV_GRAD_DIR_VER;
+            tri_dsc.grad.stops_count = 2;
+            tri_dsc.grad.stops[0].color = series->color;
+            tri_dsc.grad.stops[0].frac = 0;
+            tri_dsc.grad.stops[1].color = series->color;
+            tri_dsc.grad.stops[1].opa = LV_OPA_TRANSP;
+            tri_dsc.grad.stops[1].frac = 255;
+
+            for (const FrChartRun& run :
+                 fr_chart_finite_runs(series->amplitudes.data(), total_pts)) {
+                for (size_t j = run.begin + 1; j < run.end; j++) {
+                    const lv_point_precise_t top_a =
+                        plot_point(plot, chart, j - 1, total_pts, series->amplitudes[j - 1]);
+                    const lv_point_precise_t top_b =
+                        plot_point(plot, chart, j, total_pts, series->amplitudes[j]);
+
+                    // One quad per segment down to the plot bottom, split into
+                    // two triangles.
+                    const FrFillSegmentOpa opa = fr_chart_fill_segment_opa(
+                        static_cast<int32_t>(top_a.y), static_cast<int32_t>(top_b.y), plot.y2);
+
+                    tri_dsc.p[0] = top_a;
+                    tri_dsc.p[1] = top_b;
+                    tri_dsc.p[2].x = top_a.x;
+                    tri_dsc.p[2].y = plot.y2;
+                    tri_dsc.grad.stops[0].opa = opa.first;
+                    lv_draw_triangle(layer, &tri_dsc);
+
+                    tri_dsc.p[0] = top_b;
+                    tri_dsc.p[1].x = top_b.x;
+                    tri_dsc.p[1].y = plot.y2;
+                    tri_dsc.grad.stops[0].opa = opa.second;
+                    lv_draw_triangle(layer, &tri_dsc);
+                }
+            }
+        }
+
+        if (series->style.glow) {
+            lv_draw_line_dsc_t glow_dsc;
+            lv_draw_line_dsc_init(&glow_dsc);
+            glow_dsc.color = series->color;
+            glow_dsc.opa = 25;
+            glow_dsc.width = series->style.line_width + 6;
+            stroke_polyline(layer, glow_dsc, plot, chart, series);
+            glow_dsc.opa = 60;
+            glow_dsc.width = series->style.line_width + 3;
+            stroke_polyline(layer, glow_dsc, plot, chart, series);
+        }
+
+        lv_draw_line_dsc_t line_dsc;
+        lv_draw_line_dsc_init(&line_dsc);
+        line_dsc.color = series->color;
+        line_dsc.opa = LV_OPA_COVER;
+        line_dsc.width = series->style.line_width;
+        stroke_polyline(layer, line_dsc, plot, chart, series);
+
+        spdlog::trace("[FreqChart] Drew styled series '{}' ({} points, glow={} fill={})",
+                      series->name, total_pts, series->style.glow, series->style.fill);
+    }
+}
+
+// ============================================================================
+// Axis Label Draw Callbacks
+// ============================================================================
+
+/**
+ * @brief Draw X-axis frequency labels below the chart content area
+ *
+ * Renders frequency values (0, 50, 100, 150, 200 Hz) at evenly spaced
+ * positions below the chart. Uses the same font/color styling pattern
+ * as ui_temp_graph.cpp axis labels.
+ */
+/**
+ * @brief Draw each series' markers on top of its curve
+ *
+ * A numbered marker is a filled dot in the series color with its number in
+ * the screen background color; an unnumbered one is a hollow ring. Placement
+ * matches the curve: the data point nearest the marker frequency, by index.
+ */
+static void draw_markers_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+    if (!layer || !chart || !chart->chart) {
+        return;
+    }
+    const ChartPlotArea plot = chart_plot_area(chart->chart);
+    if (!plot.valid || chart->amp_max <= chart->amp_min) {
+        return;
+    }
+
+    // String literals, not buffers: LVGL may draw the label after this returns.
+    static const char* const kDigits[] = {"", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+    const lv_font_t* font = theme_manager_get_font("font_small");
+    const int32_t radius = theme_manager_get_font_height(font) / 2 + 2;
+    const lv_color_t ink = theme_manager_get_color("screen_bg");
+
+    for (int i = 0; i < kMaxSeries; i++) {
+        const FrequencySeriesData* series = &chart->series[i];
+        const size_t total_pts = series->amplitudes.size();
+        if (series->id == -1 || !series->visible || series->markers.empty() || total_pts == 0) {
+            continue;
+        }
+        for (const FrChartMarker& marker : series->markers) {
+            size_t idx = 0;
+            float best = std::numeric_limits<float>::max();
+            for (size_t j = 0; j < series->frequencies.size(); j++) {
+                const float d = std::abs(series->frequencies[j] - marker.freq_hz);
+                if (d < best) {
+                    best = d;
+                    idx = j;
+                }
+            }
+            if (idx >= total_pts || !std::isfinite(series->amplitudes[idx])) {
+                continue;
+            }
+            const lv_point_precise_t p =
+                plot_point(plot, chart, idx, total_pts, series->amplitudes[idx]);
+            const bool numbered = marker.number > 0 && marker.number <= 9;
+
+            lv_draw_rect_dsc_t dot;
+            lv_draw_rect_dsc_init(&dot);
+            dot.radius = LV_RADIUS_CIRCLE;
+            if (numbered) {
+                dot.bg_color = series->color;
+                dot.bg_opa = LV_OPA_COVER;
+                dot.border_width = 0;
+            } else {
+                dot.bg_opa = LV_OPA_TRANSP;
+                dot.border_color = series->color;
+                dot.border_width = 2;
+                dot.border_opa = LV_OPA_COVER;
+            }
+            const int32_t r = numbered ? radius : radius - 2;
+            const lv_area_t area = {static_cast<int32_t>(p.x) - r, static_cast<int32_t>(p.y) - r,
+                                    static_cast<int32_t>(p.x) + r, static_cast<int32_t>(p.y) + r};
+            lv_draw_rect(layer, &dot, &area);
+
+            if (numbered) {
+                lv_draw_label_dsc_t label;
+                lv_draw_label_dsc_init(&label);
+                label.font = font;
+                label.color = ink;
+                label.align = LV_TEXT_ALIGN_CENTER;
+                label.text = kDigits[marker.number];
+                const int32_t font_h = theme_manager_get_font_height(font);
+                const lv_area_t text_area = {area.x1, static_cast<int32_t>(p.y) - font_h / 2,
+                                             area.x2, static_cast<int32_t>(p.y) + font_h / 2};
+                lv_draw_label(layer, &label, &text_area);
+            }
+        }
+    }
+}
+
+namespace {
+
+int32_t text_width(const lv_font_t* font, const char* text) {
+    if (!font) {
+        return 0;
+    }
+    lv_text_attributes_t attributes = {};
+    attributes.max_width = LV_COORD_MAX;
+    return lv_text_get_width(text, static_cast<uint32_t>(std::strlen(text)), font, &attributes);
+}
+
+} // namespace
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+int32_t ui_frequency_response_chart_y_gutter_width(const lv_font_t* font) {
+    // The 36 px floor is the gutter the smaller tiers are laid out against.
+    constexpr int32_t kMinGutter = 36;
+    int32_t widest = 0;
+    // Every shape the amplitude formatter emits, at its widest.
+    for (const char* sample : {"100%", "99.5k", "99.5m", "99.5u", "100e9", "9.95e9"}) {
+        widest = std::max(widest, text_width(font, sample));
+    }
+    return std::max(kMinGutter, widest);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+int32_t ui_frequency_response_chart_x_label_half_width(const lv_font_t* font) {
+    constexpr int32_t kMinHalf = 32;
+    return std::max(kMinHalf, text_width(font, "100 Hz") / 2 + 2);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+int32_t ui_frequency_response_chart_x_label_center(int32_t tick_x, int32_t half_w, int32_t x_min,
+                                                   int32_t x_max) {
+    if (x_max - x_min < 2 * half_w) {
+        return tick_x;
+    }
+    return std::clamp(tick_x, x_min + half_w, x_max - half_w);
+}
+
+static void draw_x_axis_labels_cb(lv_event_t* e) {
+    lv_obj_t* chart_obj = lv_event_get_target_obj(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart) {
+        return;
+    }
+
+    // Get chart bounds and content area
+    lv_area_t coords;
+    lv_obj_get_coords(chart_obj, &coords);
+
+    int32_t pad_left = lv_obj_get_style_pad_left(chart_obj, LV_PART_MAIN);
+    int32_t pad_right = lv_obj_get_style_pad_right(chart_obj, LV_PART_MAIN);
+    int32_t pad_bottom = lv_obj_get_style_pad_bottom(chart_obj, LV_PART_MAIN);
+
+    int32_t content_x1 = coords.x1 + pad_left;
+    int32_t content_x2 = coords.x2 - pad_right;
+    int32_t content_width = content_x2 - content_x1;
+
+    if (content_width <= 0) {
+        return;
+    }
+
+    // Label style: small, muted text
+    const lv_font_t* label_font = theme_manager_get_font("font_small");
+    int32_t label_height = theme_manager_get_font_height(label_font);
+    int32_t space_xs = theme_manager_get_spacing("space_xs");
+
+    lv_draw_label_dsc_t label_dsc;
+    lv_draw_label_dsc_init(&label_dsc);
+    label_dsc.base.obj = chart_obj; // owner, so LV_EVENT_DRAW_TASK_ADDED can see the task
+    label_dsc.color = theme_manager_get_color("text_muted");
+    label_dsc.font = label_font;
+    label_dsc.align = LV_TEXT_ALIGN_CENTER;
+    label_dsc.opa = LV_OPA_COVER;
+
+    // Position labels just below the chart content area
+    int32_t label_y = coords.y2 - pad_bottom + space_xs;
+
+    // Draw labels at round frequency values
+    float freq_range = chart->freq_max - chart->freq_min;
+    if (freq_range <= 0.0f) {
+        return;
+    }
+
+    // Choose frequency tick interval based on range; a zoomed range (a belt
+    // tuning zone is 20-40 Hz wide) still needs a few ticks to read.
+    float tick_interval = 50.0f;
+    if (freq_range <= 40.0f) {
+        tick_interval = 5.0f;
+    } else if (freq_range <= 80.0f) {
+        tick_interval = 10.0f;
+    } else if (freq_range <= 150.0f) {
+        tick_interval = 25.0f;
+    }
+
+    // Wide enough that "100 Hz" stays on one line at this font.
+    const int32_t half_w = ui_frequency_response_chart_x_label_half_width(label_font);
+
+    // Persistent label buffers (LVGL may defer drawing)
+    static char freq_labels[8][16];
+    int label_idx = 0;
+
+    // Ticks sit on round multiples of the interval, so a band starting at
+    // 5 Hz reads 25, 50, ... rather than 5, 30, 55. The first carries the unit.
+    const float first_tick = std::ceil(chart->freq_min / tick_interval) * tick_interval;
+    for (float freq = first_tick; freq <= chart->freq_max && label_idx < 8; freq += tick_interval) {
+        float frac = (freq - chart->freq_min) / freq_range;
+        int32_t x = content_x1 + static_cast<int32_t>(frac * content_width);
+
+        // Format label
+        char* buf = freq_labels[label_idx];
+        snprintf(
+            buf, sizeof(freq_labels[0]), "%s",
+            ui_frequency_response_chart_format_x_label(freq, label_idx == 0, chart->x_unit.c_str())
+                .c_str());
+        ++label_idx;
+
+        // Center label on tick position, kept inside the chart's own box
+        const int32_t cx =
+            ui_frequency_response_chart_x_label_center(x, half_w, coords.x1, coords.x2);
+        lv_area_t label_area;
+        label_area.x1 = cx - half_w;
+        label_area.y1 = label_y;
+        label_area.x2 = cx + half_w;
+        label_area.y2 = label_y + label_height;
+
+        label_dsc.text = buf;
+        lv_draw_label(layer, &label_dsc, &label_area);
+    }
+}
+
+/**
+ * @brief Draw Y-axis amplitude labels along the left side of the chart
+ *
+ * Renders amplitude values at horizontal grid division positions. Values
+ * are formatted in scientific notation for large amplitudes or as decimals
+ * for small values.
+ */
+static void draw_y_axis_labels_cb(lv_event_t* e) {
+    lv_obj_t* chart_obj = lv_event_get_target_obj(e);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    auto* chart = static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+
+    if (!layer || !chart || !chart->show_y_labels) {
+        return;
+    }
+
+    // Get chart bounds and content area
+    lv_area_t coords;
+    lv_obj_get_coords(chart_obj, &coords);
+
+    int32_t pad_top = lv_obj_get_style_pad_top(chart_obj, LV_PART_MAIN);
+    int32_t pad_bottom = lv_obj_get_style_pad_bottom(chart_obj, LV_PART_MAIN);
+
+    int32_t content_y1 = coords.y1 + pad_top;
+    int32_t content_y2 = coords.y2 - pad_bottom;
+    int32_t content_height = content_y2 - content_y1;
+
+    if (content_height <= 0) {
+        return;
+    }
+
+    // Label style: small, muted text, right-aligned to sit left of chart area
+    const lv_font_t* label_font = theme_manager_get_font("font_small");
+    int32_t label_height = theme_manager_get_font_height(label_font);
+
+    lv_draw_label_dsc_t label_dsc;
+    lv_draw_label_dsc_init(&label_dsc);
+    label_dsc.base.obj = chart_obj; // owner, so LV_EVENT_DRAW_TASK_ADDED can see the task
+    label_dsc.color = theme_manager_get_color("text_muted");
+    label_dsc.font = label_font;
+    label_dsc.align = LV_TEXT_ALIGN_RIGHT;
+    label_dsc.opa = LV_OPA_COVER;
+
+    // Y-axis label area: left padding area of the chart
+    int32_t label_width = lv_obj_get_style_pad_left(chart_obj, LV_PART_MAIN) - 2;
+    if (label_width <= 0) {
+        return;
+    }
+
+    if (!chart->y_labels_built || chart->y_labels_min != chart->amp_min ||
+        chart->y_labels_max != chart->amp_max ||
+        chart->y_labels_built_percent != chart->y_labels_percent) {
+        const auto labels = fr_chart_amplitude_labels(chart->amp_min, chart->amp_max, kHDivisions,
+                                                      chart->y_labels_percent);
+        for (int i = 0; i <= kHDivisions; i++) {
+            snprintf(chart->y_label_text[i], sizeof(chart->y_label_text[i]), "%s",
+                     labels[static_cast<size_t>(i)].c_str());
+        }
+        chart->y_labels_built = true;
+        chart->y_labels_min = chart->amp_min;
+        chart->y_labels_max = chart->amp_max;
+        chart->y_labels_built_percent = chart->y_labels_percent;
+    }
+
+    // Draw labels at each horizontal division (matching grid lines)
+    for (int i = 0; i <= kHDivisions; i++) {
+        int32_t y = content_y1 + (content_height * i) / kHDivisions;
+
+        char* buf = chart->y_label_text[i];
+
+        // Position label centered vertically on the grid line
+        lv_area_t label_area;
+        label_area.x1 = coords.x1;
+        label_area.y1 = y - label_height / 2;
+        label_area.x2 = coords.x1 + label_width;
+        label_area.y2 = y + label_height / 2;
+
+        label_dsc.text = buf;
+        lv_draw_label(layer, &label_dsc, &label_area);
+    }
+}
+
+// ============================================================================
+// Hardware Adaptation
+// ============================================================================
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_chart_t* chart,
+                                                        helix::PlatformTier tier) {
+    ui_frequency_response_chart_configure_for_platform(
+        chart, tier, helix::PlatformCapabilities::detect().supports_animations);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_chart_t* chart,
+                                                        helix::PlatformTier tier,
+                                                        bool supports_animations) {
+    if (!chart) {
+        return;
+    }
+
+    chart->tier = tier;
+    chart->supports_animations = supports_animations;
+
+    // Determine capabilities based on tier
+    switch (tier) {
+    case helix::PlatformTier::STANDARD:
+        chart->max_points = helix::PlatformCapabilities::kStandardChartPoints;
+        chart->chart_mode = true;
+        break;
+    case helix::PlatformTier::BASIC:
+        chart->max_points = helix::PlatformCapabilities::kBasicChartPoints;
+        chart->chart_mode = true;
+        break;
+    case helix::PlatformTier::EMBEDDED:
+    default:
+        chart->max_points = helix::PlatformCapabilities::kBasicChartPoints;
+        chart->chart_mode = true;
+        break;
+    }
+
+    // Create or destroy LVGL chart widget based on mode
+    if (chart->chart_mode && !chart->chart) {
+        // Create LVGL chart
+        chart->chart = lv_chart_create(chart->root);
+        if (chart->chart) {
+            lv_obj_set_size(chart->chart, LV_PCT(100), LV_PCT(100));
+            lv_chart_set_type(chart->chart, LV_CHART_TYPE_LINE);
+            lv_chart_set_update_mode(chart->chart, LV_CHART_UPDATE_MODE_SHIFT);
+            lv_chart_set_point_count(chart->chart, static_cast<uint32_t>(chart->max_points));
+            lv_chart_set_axis_range(chart->chart, LV_CHART_AXIS_PRIMARY_Y, 0, 1000);
+
+            // Padding for axis labels, re-measured on resize
+            int32_t space_sm = theme_manager_get_spacing("space_sm");
+            apply_axis_pads(chart->chart, chart->show_y_labels);
+            lv_obj_add_event_cb(
+                chart->chart,
+                [](lv_event_t* e) {
+                    auto* c =
+                        static_cast<ui_frequency_response_chart_t*>(lv_event_get_user_data(e));
+                    apply_axis_pads(lv_event_get_target_obj(e), c->show_y_labels);
+                },
+                LV_EVENT_SIZE_CHANGED, chart);
+            // Small top/right padding for visual breathing room
+            lv_obj_set_style_pad_top(chart->chart, space_sm, LV_PART_MAIN);
+            lv_obj_set_style_pad_right(chart->chart, space_sm, LV_PART_MAIN);
+
+            // Style
+            lv_obj_set_style_bg_opa(chart->chart, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_set_style_border_width(chart->chart, 0, LV_PART_MAIN);
+            lv_obj_set_style_line_width(chart->chart, 2, LV_PART_ITEMS);
+            lv_obj_set_style_width(chart->chart, 0, LV_PART_INDICATOR);
+            lv_obj_set_style_height(chart->chart, 0, LV_PART_INDICATOR);
+
+            // Register draw callbacks for grid lines, axis labels, styled
+            // series + sweep cursor, peak dots, and muted reference curves.
+            // draw_styled_series_cb runs before draw_peak_dots_cb so peak dots
+            // stay on top of styled series.
+            lv_obj_add_event_cb(chart->chart, draw_freq_grid_lines_cb, LV_EVENT_DRAW_MAIN, chart);
+            lv_obj_add_event_cb(chart->chart, draw_x_axis_labels_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_y_axis_labels_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_styled_series_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_peak_dots_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_markers_cb, LV_EVENT_DRAW_POST, chart);
+            lv_obj_add_event_cb(chart->chart, draw_muted_series_cb, LV_EVENT_DRAW_POST, chart);
+
+            // Create LVGL series for existing series data
+            for (int i = 0; i < kMaxSeries; i++) {
+                if (chart->series[i].id != -1 && !chart->series[i].lv_series) {
+                    chart->series[i].lv_series = lv_chart_add_series(
+                        chart->chart, chart->series[i].color, LV_CHART_AXIS_PRIMARY_Y);
+                    if (chart->series[i].lv_series) {
+                        if (series_uses_custom_draw(&chart->series[i])) {
+                            lv_chart_hide_series(chart->chart, chart->series[i].lv_series, true);
+                        }
+                        lv_chart_set_all_values(chart->chart, chart->series[i].lv_series,
+                                                LV_CHART_POINT_NONE);
+                        if (!chart->series[i].frequencies.empty()) {
+                            update_chart_series(chart, &chart->series[i]);
+                        }
+                    }
+                }
+            }
+        }
+    } else if (!chart->chart_mode && chart->chart) {
+        // Remove existing chart series
+        for (int i = 0; i < kMaxSeries; i++) {
+            if (chart->series[i].lv_series) {
+                lv_chart_remove_series(chart->chart, chart->series[i].lv_series);
+                chart->series[i].lv_series = nullptr;
+            }
+        }
+        lv_obj_delete(chart->chart);
+        chart->chart = nullptr;
+    } else if (chart->chart_mode && chart->chart) {
+        // Update point count if chart exists and mode is chart
+        lv_chart_set_point_count(chart->chart, static_cast<uint32_t>(chart->max_points));
+    }
+
+    for (auto& series : chart->series) {
+        if (series.id != -1) {
+            restyle_series(chart, &series);
+        }
+    }
+
+    spdlog::debug("[FreqChart] Configured for {} tier: max_points={}, chart_mode={}",
+                  helix::platform_tier_to_string(tier), chart->max_points, chart->chart_mode);
+}
+
+size_t ui_frequency_response_chart_get_max_points(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->max_points : 0;
+}
+
+bool ui_frequency_response_chart_is_chart_mode(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->chart_mode : false;
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+void ui_frequency_response_chart_set_x_unit(ui_frequency_response_chart_t* chart,
+                                            const char* unit) {
+    if (!chart || !unit) {
+        return;
+    }
+    chart->x_unit = unit;
+    if (chart->root) {
+        lv_obj_invalidate(chart->root);
+    }
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+const char* ui_frequency_response_chart_get_x_unit(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->x_unit.c_str() : "";
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+void ui_frequency_response_chart_set_bands(ui_frequency_response_chart_t* chart,
+                                           const FrChartBand* bands, size_t count) {
+    if (!chart) {
+        return;
+    }
+    chart->bands.assign(bands, bands ? bands + count : bands);
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+size_t ui_frequency_response_chart_get_band_count(ui_frequency_response_chart_t* chart) {
+    return chart ? chart->bands.size() : 0;
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+std::string ui_frequency_response_chart_format_x_label(float value, bool first, const char* unit) {
+    char buf[24];
+    if (first && unit && *unit) {
+        snprintf(buf, sizeof(buf), "%.0f %s", value, unit);
+    } else {
+        snprintf(buf, sizeof(buf), "%.0f", value);
+    }
+    return buf;
+}
+
+// NAMESPACE_OK: extends this file's file-scope C chart API
+std::optional<std::pair<int32_t, int32_t>>
+ui_frequency_response_chart_band_pixels(FrChartBand band, float min, float max, int32_t x1,
+                                        int32_t x2) {
+    const float range = max - min;
+    if (!(range > 0.0f) || band.x_hi <= min || band.x_lo >= max) {
+        return std::nullopt;
+    }
+    const auto at = [&](float v) {
+        const float frac = (std::clamp(v, min, max) - min) / range;
+        return x1 + static_cast<int32_t>(frac * static_cast<float>(x2 - x1));
+    };
+    return std::make_pair(at(band.x_lo), at(band.x_hi));
+}

@@ -9,12 +9,15 @@
 #include "ui_utils.h"
 
 #include "ams_error.h"
+#include "ams_feeder_control.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
 #include "helix/ui/text_metrics.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "print_lifecycle_state.h"
@@ -30,6 +33,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <memory>
 #include <utility>
 
 namespace {
@@ -42,63 +46,63 @@ using helix::xml::IndexedSubjectPool;
 // registration rides SubjectInitializer's panel-subject phase so they exist
 // before any XML that binds them is parsed. Mode and label form are the
 // ToolSwitcherMode and ToolLabelForm enum values.
-HELIX_PSRAM_BSS lv_subject_t s_mode_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cols_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_rows_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cell_w_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cell_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_rail_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_rail_w_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_detail_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_detail_rows_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_label_form_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_park_supported_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_feeder_supported_subject{};
+HELIX_PSRAM_BSS helix::Subject s_mode_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cols_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cell_w_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cell_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rail_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rail_w_subject{};
+HELIX_PSRAM_BSS helix::Subject s_detail_subject{};
+HELIX_PSRAM_BSS helix::Subject s_detail_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_label_form_subject{};
+HELIX_PSRAM_BSS helix::Subject s_park_supported_subject{};
+HELIX_PSRAM_BSS helix::Subject s_feeder_supported_subject{};
 // The rail feeder cell's FeederLabelForm.
-HELIX_PSRAM_BSS lv_subject_t s_feeder_label_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_change_blocked_subject{};
+HELIX_PSRAM_BSS helix::Subject s_feeder_label_subject{};
+HELIX_PSRAM_BSS helix::Subject s_change_blocked_subject{};
 // The mounted head as the Pair and Single faces read it.
-HELIX_PSRAM_BSS lv_subject_t s_face_label_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_label_subject{};
 HELIX_PSRAM_BSS char s_face_label_buf[48] = {};
-HELIX_PSRAM_BSS lv_subject_t s_face_sub_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_sub_subject{};
 HELIX_PSRAM_BSS char s_face_sub_buf[16] = {};
-HELIX_PSRAM_BSS lv_subject_t s_face_color_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_face_has_color_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_face_colors_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_color_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_has_color_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_colors_subject{};
 HELIX_PSRAM_BSS char s_face_colors_buf[96] = {};
-HELIX_PSRAM_BSS lv_subject_t s_face_finish_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_finish_subject{};
 HELIX_PSRAM_BSS char s_face_finish_buf[160] = {};
-HELIX_PSRAM_BSS lv_subject_t s_face_material_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_material_subject{};
 HELIX_PSRAM_BSS char s_face_material_buf[24] = {};
-HELIX_PSRAM_BSS lv_subject_t s_face_band_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_band_text_subject{};
 // The face's size: its cell along the long axis, the whole view across it.
-HELIX_PSRAM_BSS lv_subject_t s_face_w_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_face_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_w_subject{};
+HELIX_PSRAM_BSS helix::Subject s_face_h_subject{};
 // The tile's filament band (rail segments and the face): its height and
 // whether it carries the material name (tool_switcher_band()).
-HELIX_PSRAM_BSS lv_subject_t s_band_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_band_labelled_subject{};
+HELIX_PSRAM_BSS helix::Subject s_band_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_band_labelled_subject{};
 // 1 where every cell shown holds its second line (a segment's sub, the face's
 // temperature) below its label, on both axes.
-HELIX_PSRAM_BSS lv_subject_t s_two_line_subject{};
+HELIX_PSRAM_BSS helix::Subject s_two_line_subject{};
 // The physical heads (ToolState::physical_heads()): every one, which the
 // picker lays out, and the rail's share, which is all of them where the rail
 // can draw them and none where the tile shows the face instead.
-HELIX_PSRAM_BSS lv_subject_t s_heads_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_rail_heads_subject{};
+HELIX_PSRAM_BSS helix::Subject s_heads_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rail_heads_subject{};
 // The picker: its grid (fit_tool_picker_grid()) and its cells' band and second
 // line.
-HELIX_PSRAM_BSS lv_subject_t s_picker_cell_w_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_cell_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_grid_w_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_grid_max_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_band_h_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_band_labelled_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_two_line_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_picker_feeder_label_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_cell_w_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_cell_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_grid_w_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_grid_max_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_band_h_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_band_labelled_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_two_line_subject{};
+HELIX_PSRAM_BSS helix::Subject s_picker_feeder_label_subject{};
 // The picker footer's buttons grow to their content, so their labels always
 // show: the second-line subject they bind is constantly 1.
-HELIX_PSRAM_BSS lv_subject_t s_footer_labels_subject{};
+HELIX_PSRAM_BSS helix::Subject s_footer_labels_subject{};
 helix::WidgetSubjects s_subjects{"ToolSwitcherWidgetSubjects"};
 
 // Per head, indexed by tool: tool_switcher_seg_<i>_label and so on.
@@ -147,94 +151,95 @@ IndexedSubjectPool* const s_pools[] = {
 void tool_switcher_widget_init_subjects() {
     s_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_mode_subject, static_cast<int>(helix::ToolSwitcherMode::Single));
+            s_mode_subject.init_int(static_cast<int>(helix::ToolSwitcherMode::Single));
             s_subjects.publish("tool_switcher_mode",
                                &s_mode_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_cols_subject, 0);
+            s_cols_subject.init_int(0);
             s_subjects.publish("tool_switcher_cols",
                                &s_cols_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_rows_subject, 0);
+            s_rows_subject.init_int(0);
             s_subjects.publish("tool_switcher_rows",
                                &s_rows_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_cell_w_subject, 0);
+            s_cell_w_subject.init_int(0);
             s_subjects.publish("tool_switcher_cell_w",
                                &s_cell_w_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_cell_h_subject, 0);
+            s_cell_h_subject.init_int(0);
             s_subjects.publish("tool_switcher_cell_h",
                                &s_cell_h_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_rail_h_subject, 0);
+            s_rail_h_subject.init_int(0);
             s_subjects.publish("tool_switcher_rail_h",
                                &s_rail_h_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_rail_w_subject, 0);
+            s_rail_w_subject.init_int(0);
             s_subjects.publish("tool_switcher_rail_w",
                                &s_rail_w_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_detail_subject, 0);
+            s_detail_subject.init_int(0);
             s_subjects.publish("tool_switcher_detail",
                                &s_detail_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_detail_rows_subject, 0);
+            s_detail_rows_subject.init_int(0);
             s_subjects.publish(
                 "tool_switcher_detail_rows",
                 &s_detail_rows_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_label_form_subject, 0);
+            s_label_form_subject.init_int(0);
             s_subjects.publish(
                 "tool_switcher_label_form",
                 &s_label_form_subject); // SUBJECT_OK: published for the rail XML (#1784)
-            lv_subject_init_int(&s_park_supported_subject, 0);
+            s_park_supported_subject.init_int(0);
             s_subjects.publish("tool_switcher_park_supported", &s_park_supported_subject);
-            lv_subject_init_int(&s_feeder_supported_subject, 0);
+            s_feeder_supported_subject.init_int(0);
             s_subjects.publish("tool_switcher_feeder_supported", &s_feeder_supported_subject);
-            lv_subject_init_int(&s_feeder_label_subject, 0);
+            s_feeder_label_subject.init_int(0);
             s_subjects.publish("tool_switcher_feeder_label", &s_feeder_label_subject);
-            lv_subject_init_int(&s_change_blocked_subject, 0);
+            s_change_blocked_subject.init_int(0);
             s_subjects.publish("tool_switcher_change_blocked", &s_change_blocked_subject);
-            lv_subject_init_string(&s_face_label_subject, s_face_label_buf, nullptr,
-                                   sizeof(s_face_label_buf), "");
+            s_face_label_subject.init_string(s_face_label_buf, nullptr, sizeof(s_face_label_buf),
+                                             "");
             s_subjects.publish("tool_switcher_face_label", &s_face_label_subject);
-            lv_subject_init_string(&s_face_sub_subject, s_face_sub_buf, nullptr,
-                                   sizeof(s_face_sub_buf), "");
+            s_face_sub_subject.init_string(s_face_sub_buf, nullptr, sizeof(s_face_sub_buf), "");
             s_subjects.publish("tool_switcher_face_sub", &s_face_sub_subject);
-            lv_subject_init_color(&s_face_color_subject, lv_color_hex(0));
+            s_face_color_subject.init_color(lv_color_hex(0));
             s_subjects.publish("tool_switcher_face_color", &s_face_color_subject);
-            lv_subject_init_int(&s_face_has_color_subject, 0);
+            s_face_has_color_subject.init_int(0);
             s_subjects.publish("tool_switcher_face_has_color", &s_face_has_color_subject);
-            lv_subject_init_string(&s_face_colors_subject, s_face_colors_buf, nullptr,
-                                   sizeof(s_face_colors_buf), "");
+            s_face_colors_subject.init_string(s_face_colors_buf, nullptr, sizeof(s_face_colors_buf),
+                                              "");
             s_subjects.publish("tool_switcher_face_colors", &s_face_colors_subject);
-            lv_subject_init_string(&s_face_finish_subject, s_face_finish_buf, nullptr,
-                                   sizeof(s_face_finish_buf), "");
+            s_face_finish_subject.init_string(s_face_finish_buf, nullptr, sizeof(s_face_finish_buf),
+                                              "");
             s_subjects.publish("tool_switcher_face_finish", &s_face_finish_subject);
-            lv_subject_init_string(&s_face_material_subject, s_face_material_buf, nullptr,
-                                   sizeof(s_face_material_buf), "");
+            s_face_material_subject.init_string(s_face_material_buf, nullptr,
+                                                sizeof(s_face_material_buf), "");
             s_subjects.publish("tool_switcher_face_material", &s_face_material_subject);
-            lv_subject_init_color(&s_face_band_text_subject, lv_color_hex(0));
+            s_face_band_text_subject.init_color(lv_color_hex(0));
             s_subjects.publish("tool_switcher_face_band_text", &s_face_band_text_subject);
-            lv_subject_init_int(&s_face_w_subject, LV_PCT(100));
+            s_face_w_subject.init_int(LV_PCT(100));
             s_subjects.publish("tool_switcher_face_w", &s_face_w_subject);
-            lv_subject_init_int(&s_face_h_subject, LV_PCT(100));
+            s_face_h_subject.init_int(LV_PCT(100));
             s_subjects.publish("tool_switcher_face_h", &s_face_h_subject);
-            lv_subject_init_int(&s_band_h_subject, helix::tool_switcher_strip_px(0));
+            s_band_h_subject.init_int(helix::tool_switcher_strip_px(0));
             s_subjects.publish("tool_switcher_band_h", &s_band_h_subject);
-            lv_subject_init_int(&s_band_labelled_subject, 0);
+            s_band_labelled_subject.init_int(0);
             s_subjects.publish("tool_switcher_band_labelled", &s_band_labelled_subject);
-            lv_subject_init_int(&s_two_line_subject, 0);
+            s_two_line_subject.init_int(0);
             s_subjects.publish("tool_switcher_two_line", &s_two_line_subject);
-            const std::pair<lv_subject_t*, const char*> picker_ints[] = {
-                {&s_heads_subject, "tool_switcher_heads"},
-                {&s_rail_heads_subject, "tool_switcher_rail_heads"},
-                {&s_picker_cell_w_subject, "tool_switcher_picker_cell_w"},
-                {&s_picker_cell_h_subject, "tool_switcher_picker_cell_h"},
-                {&s_picker_grid_w_subject, "tool_switcher_picker_grid_w"},
-                {&s_picker_grid_max_h_subject, "tool_switcher_picker_grid_max_h"},
-                {&s_picker_band_h_subject, "tool_switcher_picker_band_h"},
-                {&s_picker_band_labelled_subject, "tool_switcher_picker_band_labelled"},
-                {&s_picker_two_line_subject, "tool_switcher_picker_two_line"},
-                {&s_picker_feeder_label_subject, "tool_switcher_picker_feeder_label"},
+            const std::pair<helix::Subject*, const char*> picker_ints[] = {
+                {std::addressof(s_heads_subject), "tool_switcher_heads"},
+                {std::addressof(s_rail_heads_subject), "tool_switcher_rail_heads"},
+                {std::addressof(s_picker_cell_w_subject), "tool_switcher_picker_cell_w"},
+                {std::addressof(s_picker_cell_h_subject), "tool_switcher_picker_cell_h"},
+                {std::addressof(s_picker_grid_w_subject), "tool_switcher_picker_grid_w"},
+                {std::addressof(s_picker_grid_max_h_subject), "tool_switcher_picker_grid_max_h"},
+                {std::addressof(s_picker_band_h_subject), "tool_switcher_picker_band_h"},
+                {std::addressof(s_picker_band_labelled_subject),
+                 "tool_switcher_picker_band_labelled"},
+                {std::addressof(s_picker_two_line_subject), "tool_switcher_picker_two_line"},
+                {std::addressof(s_picker_feeder_label_subject),
+                 "tool_switcher_picker_feeder_label"},
             };
             for (const auto& [subject, name] : picker_ints) {
-                lv_subject_init_int(subject, 0);
-                s_subjects.publish(name, subject);
+                subject->init_int(0);
+                s_subjects.publish(name, subject->get());
             }
-            lv_subject_init_int(&s_footer_labels_subject, 1);
+            s_footer_labels_subject.init_int(1);
             s_subjects.publish("tool_switcher_footer_labels", &s_footer_labels_subject);
             // Every slot a rail row can bind exists before any XML is parsed;
             // publish_heads() grows the pools past this before it publishes
@@ -366,9 +371,6 @@ std::string detail_line(const std::string& head, const std::string& material,
 
 namespace helix {
 
-// Static instance for event callback routing
-ToolSwitcherWidget* ToolSwitcherWidget::s_active_instance = nullptr;
-
 void register_tool_switcher_widget() {
     register_widget_factory("tool_switcher", [](const std::string&) {
         auto& ps = get_printer_state();
@@ -397,24 +399,20 @@ std::string ToolSwitcherWidget::tool_text(const ToolInfo& tool, ui::ToolLabelFor
 }
 
 std::string ToolSwitcherWidget::name_text(const ToolInfo& tool) {
-    return ui::tool_name_label(ui::active_tool_noun(), tool.name, tool.index);
+    return ui::tool_name_label(ui::active_tool_noun(), ui::active_tool_number_style(), tool.name,
+                               tool.index);
 }
 
 std::string ToolSwitcherWidget::short_text(const ToolInfo& tool) {
     return tool_text(tool, ui::ToolLabelForm::Code);
 }
 
-ToolSwitcherWidget::~ToolSwitcherWidget() {
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
-}
+ToolSwitcherWidget::~ToolSwitcherWidget() = default;
 
 void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
     install_delete_hook(widget_obj);
-    s_active_instance = this;
 
     auto& tool_state = ToolState::instance();
     auto token = lifetime_.token();
@@ -441,6 +439,16 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         tool_state.get_subjects_lifetime());
 
+    // The head readings carry the display unit.
+    temp_unit_observer_ =
+        helix::ui::observe_temp_unit_change(this, [token](ToolSwitcherWidget* self) {
+            if (token.expired())
+                return;
+            for (size_t i = 0; i < self->head_temps_.size(); ++i) {
+                self->publish_head_temp(static_cast<int>(i));
+            }
+        });
+
     // Re-publish the gate on every print-state transition. PanelWidget
     // instances are RECYCLED across home-panel rebuilds, so registering here
     // (rather than only reacting to on_size_changed) is what keeps a reused
@@ -450,7 +458,7 @@ void ToolSwitcherWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     //
     // Takes the lifetime token. print_lifecycle is one of PrinterPrintState's
     // static subjects, torn down by deinit_subjects() between test cases, and an
-    // ObserverGuard that outlives that cycle calls lv_observer_remove() on freed
+    // ObserverGuard that outlives that cycle calls lv_observer_delete() on freed
     // memory (#705).
     print_state_observer_ = helix::ui::observe<int>(
         printer_state_.print_state().get_print_lifecycle_subject(), this,
@@ -522,6 +530,7 @@ void ToolSwitcherWidget::detach() {
     picker_.hide();
     active_tool_observer_.reset();
     tools_observer_.reset();
+    temp_unit_observer_.reset();
     print_state_observer_.reset();
     spool_latch_observer_.reset();
     slots_observer_.reset();
@@ -530,9 +539,6 @@ void ToolSwitcherWidget::detach() {
     head_temps_.clear();
     uninstall_delete_hook();
     forget_tile_widgets();
-    if (s_active_instance == this) {
-        s_active_instance = nullptr;
-    }
 }
 
 void ToolSwitcherWidget::on_hooked_root_deleted() {
@@ -733,9 +739,12 @@ void ToolSwitcherWidget::publish_heads() {
         // the temperature, shown where the segment is tall enough.
         std::string label = short_text(tool);
         std::string sub = head_temp_text(i);
+        // A generated name in G-code style is its code already: one line says it.
         if (label_form_ == ui::ToolLabelForm::Full) {
-            label = name_text(tool);
-            sub = short_text(tool);
+            if (std::string name = name_text(tool); name != label) {
+                sub = std::move(label);
+                label = std::move(name);
+            }
         }
         ui::copy_string_if_changed(s_seg_label.at(i), label.c_str());
         ui::copy_string_if_changed(s_seg_sub.at(i), sub.c_str());
@@ -873,12 +882,13 @@ std::pair<std::string, std::string> ToolSwitcherWidget::picker_lines(int i,
                                                                      ui::ToolLabelForm form) const {
     const ToolInfo tool = head_tool(ToolState::instance().physical_heads(), i);
     const std::string temp = head_temp_text(i);
-    if (form == ui::ToolLabelForm::Code)
-        return {short_text(tool), temp};
-    std::string sub = short_text(tool);
+    std::string code = short_text(tool);
+    std::string name = name_text(tool);
+    if (form == ui::ToolLabelForm::Code || name == code)
+        return {std::move(code), temp};
     if (!temp.empty())
-        sub = fmt::format(lv_tr("{} · {}"), sub, temp);
-    return {name_text(tool), sub};
+        code = fmt::format(lv_tr("{} · {}"), code, temp);
+    return {std::move(name), std::move(code)};
 }
 
 void ToolSwitcherWidget::publish_two_line() {
@@ -1061,7 +1071,8 @@ ToolSwitcherActions ToolSwitcherWidget::actions_offered() {
     ToolSwitcherActions actions;
     if (const AmsBackend* backend = AmsState::instance().get_backend()) {
         actions.park = backend->supports_tool_park();
-        actions.feeder = backend->supports_feeder_control();
+        const IFeederControl* const feeder = backend->as<IFeederControl>();
+        actions.feeder = feeder && feeder->supports_feeder_control();
     }
     return actions;
 }
@@ -1113,7 +1124,8 @@ void ToolSwitcherWidget::handle_park_requested() {
 
 void ToolSwitcherWidget::handle_feeder_toggled() {
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend || !backend->supports_feeder_control()) {
+    IFeederControl* const feeder = backend ? backend->as<IFeederControl>() : nullptr;
+    if (!feeder || !feeder->supports_feeder_control()) {
         return;
     }
 
@@ -1124,9 +1136,9 @@ void ToolSwitcherWidget::handle_feeder_toggled() {
         return;
     }
 
-    const bool open = !backend->feeder_open();
+    const bool open = !feeder->feeder_open();
     spdlog::info("[ToolSwitcher] {} the feeder", open ? "Opening" : "Closing");
-    const AmsError err = backend->set_feeder_open(open);
+    const AmsError err = feeder->set_feeder_open(open);
     if (!err.success()) {
         helix::ui::notify_ams_error(err);
     }
@@ -1151,13 +1163,9 @@ void ToolSwitcherWidget::handle_tool_selected(int head_index) {
     // The published heads follow ToolState's active-tool subject, so a refused
     // change never moved the highlight. Resync anyway: a backend that got
     // partway before failing leaves the subject as the only truth.
-    hooks.on_failed = [] {
-        helix::ui::queue_update("ToolSwitcherWidget::resync_after_error", []() {
-            if (s_active_instance) {
-                s_active_instance->on_active_tool_changed(
-                    ToolState::instance().active_tool_index());
-            }
-        });
+    hooks.on_failed = [this, tok = lifetime_.token()] {
+        tok.defer("ToolSwitcherWidget::resync_after_error",
+                  [this] { on_active_tool_changed(ToolState::instance().active_tool_index()); });
     };
     helix::ui::offer_tool_change(printer_state_, tool_index, std::move(hooks));
 }
@@ -1166,25 +1174,32 @@ void ToolSwitcherWidget::handle_tool_selected(int head_index) {
 // Static XML event callbacks (registered at startup, used in XML if needed)
 // ============================================================================
 
+ToolSwitcherWidget* ToolSwitcherWidget::from_event(lv_event_t* e) {
+    if (auto* self = panel_widget_from_event<ToolSwitcherWidget>(e)) {
+        return self;
+    }
+    auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>();
+    return picker ? &picker->owner() : nullptr;
+}
+
 void ToolSwitcherWidget::tool_park_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_park_cb");
+    auto* self = from_event(e);
     // The picker's Park row closes the picker like any other row.
     if (auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>()) {
         picker->hide();
     }
-    if (s_active_instance) {
-        s_active_instance->handle_park_requested();
+    if (self) {
+        self->handle_park_requested();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void ToolSwitcherWidget::tool_feeder_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_feeder_cb");
     // The picker stays open, so its feeder button shows the state it reaches.
-    if (s_active_instance) {
-        s_active_instance->handle_feeder_toggled();
+    if (auto* self = from_event(e)) {
+        self->handle_feeder_toggled();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -1203,24 +1218,24 @@ void ToolSwitcherWidget::tool_segment_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_segment_cb");
     // XML event user_data is the segment's index as a string.
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
-    if (s_active_instance && index) {
+    auto* self = from_event(e);
+    if (self && index) {
         // A picker cell closes the picker like any other choice; a rail cell
         // raises it when its head is the mounted one.
         if (auto* picker = helix::ui::ContextMenu::active_as<ToolPicker>()) {
             picker->hide();
-            s_active_instance->handle_tool_selected(std::atoi(index));
+            self->handle_tool_selected(std::atoi(index));
         } else {
-            s_active_instance->handle_segment_tapped(std::atoi(index));
+            self->handle_segment_tapped(std::atoi(index));
         }
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 void ToolSwitcherWidget::tool_face_cb(lv_event_t* e) {
-    (void)e;
     LVGL_SAFE_EVENT_CB_BEGIN("[ToolSwitcher] tool_face_cb");
-    if (s_active_instance) {
-        s_active_instance->show_tool_picker();
+    if (auto* self = from_event(e)) {
+        self->show_tool_picker();
     }
     LVGL_SAFE_EVENT_CB_END();
 }

@@ -22,10 +22,15 @@
     "power",
     "pressure_advance",
     "nozzle_diameter",
-    "nozzle_volume_type"
+    "nozzle_volume_type",
+    "state",
+    "park_pin",
+    "active_pin",
+    "activating_move"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_detect": null,
   "filament_feed left": null,

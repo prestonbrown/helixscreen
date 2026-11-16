@@ -16,7 +16,7 @@ namespace helix::ui {
 
 /// Lets the user tell the filament system its true state (which slot is
 /// selected, whether filament is loaded) and sends it through
-/// AmsBackend::recover_with_state(). Opened only for a backend that answers
+/// IGateSelector::recover_with_state(). Opened only for a backend that answers
 /// supports_recover_with_state(). Tool remapping is the tool map's job, not
 /// this dialog's.
 class AmsRecoverStateModal : public Modal {

@@ -21,6 +21,7 @@
  * migration exists to fix, so tests must reach it by naming the enum value.
  */
 
+#include "json_fwd.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 

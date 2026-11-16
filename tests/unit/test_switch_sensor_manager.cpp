@@ -15,14 +15,15 @@
  * - Missing sensor handling
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/golden_json.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
-#include "observer_factory.h"
 #include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
@@ -43,25 +44,9 @@ using namespace helix;
 // Test Fixture
 // ============================================================================
 
-class FilamentSensorTestFixture {
+class FilamentSensorTestFixture : public LVGLTestFixture {
   public:
     FilamentSensorTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                    });
-            display_created_ = true;
-        }
-
         // Reset state for test isolation first (clears subjects)
         FilamentSensorManagerTestAccess::reset(mgr());
 
@@ -96,13 +81,9 @@ class FilamentSensorTestFixture {
     }
 
   private:
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* FilamentSensorTestFixture::display_ = nullptr;
-bool FilamentSensorTestFixture::display_created_ = false;
 
 // ============================================================================
 // Type Helper Tests (filament_sensor_types.h)
@@ -379,8 +360,8 @@ TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - state updat
                    static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
 
     SECTION("Updates filament_detected from status JSON") {
-        // Initial state defaults to filament_detected=true (commit c176470bb)
-        // so pre-Moonraker reads don't render as false runouts.
+        // Initial state defaults to filament_detected=true so pre-Moonraker
+        // reads don't render as false runouts.
         auto state = FilamentSensorManagerTestAccess::role_state(mgr(), FilamentSensorRole::RUNOUT);
         REQUIRE(state.has_value());
         REQUIRE(state->filament_detected == true);
@@ -547,9 +528,9 @@ TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - subject val
         mgr().set_role("filament_switch_sensor runout",
                        static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
 
-        // After assignment, should show 1 (loaded) — FilamentSensorState now
-        // defaults filament_detected=true (commit c176470bb) so pre-Moonraker
-        // reads don't render as false runouts.
+        // After assignment, should show 1 (loaded): FilamentSensorState
+        // defaults filament_detected=true so pre-Moonraker reads don't render
+        // as false runouts.
         REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 1);
 
         // Update state to empty
@@ -614,18 +595,17 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
                    static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
 
     // set_role() publishes, which moves subjects
-    // from -1 to 1 (the post-c176470bb optimistic default is filament_detected=true).
-    // The bug this case guards against: update_from_status() with a value matching
-    // the in-memory default would NOT refresh the subjects because no state change
-    // was detected. The fix: always refresh the subjects on the first status
-    // update — even when the observed value happens to equal the default.
+    // from -1 to 1 (the optimistic default is filament_detected=true).
+    // update_from_status() with a value matching the in-memory default sees no
+    // state change, so the first status update must refresh the subjects
+    // anyway, even when the observed value happens to equal the default.
 
     SECTION("First update with true (matching default) still updates subjects") {
         // Subjects should be 1 after role assignment (default detected=true)
         REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 1);
 
         // Simulate what happens on first Moonraker status — sensor reports true
-        // (matching default). Before the fix, this was a no-op because any_changed=false.
+        // (matching default). This must not be a no-op just because any_changed=false.
         update_sensor_state("filament_switch_sensor runout", true);
 
         // Subject should still be 1 (not -1)
@@ -962,10 +942,16 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
         },
         mgr().subjects_lifetime(), helix::ui::Dispatch::Immediate);
 
+    // Deferred publishing keeps the worker's refresh off LVGL: it queues, and the
+    // main thread runs it after the join.
+    mgr().set_sync_mode(false);
     update_sensor_state("filament_switch_sensor runout", false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     if (probe.worker.joinable()) {
         probe.worker.join();
     }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    mgr().set_sync_mode(true);
     observer.reset();
 
     REQUIRE(probe.fired);
@@ -1007,15 +993,15 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
     update_sensor_state("filament_switch_sensor runout", false);
     mgr().deinit_subjects();
     // The refresh queued above runs with no subjects to land on.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr().init_subjects();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == -1);
     // init_subjects() publishes the current reading.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 0);
 
     update_sensor_state("filament_switch_sensor runout", true);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(lv_subject_get_int(mgr().get_runout_detected_subject()) == 1);
     mgr().set_sync_mode(true);
 }

@@ -15,8 +15,8 @@ namespace helix {
 // own version of the class would be an ODR violation.
 //
 //  - cycle(): the real cycle_tool_target(). Production calls it from
-//    tool_target_cb(), which needs an attached widget tree, a live split
-//    button and s_active_instance set. The function itself reads nothing but
+//    tool_target_cb(), which needs an attached widget tree and a live split
+//    button. The function itself reads nothing but
 //    ToolState, so a test that calls it directly still exercises every branch.
 //  - tool_target() / set_tool_target(): the value the cycle walks. It is also
 //    what handle_apply() hands collect_preheat_heaters() and what
@@ -53,13 +53,11 @@ class PreheatWidgetTestAccess {
         widget.handle_apply();
     }
 
-    /// The tool-target caption update_tool_target_label() writes into @p label,
-    /// standing in for the attached tile's own label.
-    static std::string tool_target_caption(PreheatWidget& widget, lv_obj_t* label) {
-        widget.tool_target_label_ = label;
+    /// The tool-target caption update_tool_target_label() publishes for the
+    /// tile's label to bind.
+    static std::string tool_target_caption(PreheatWidget& widget) {
         widget.update_tool_target_label();
-        widget.tool_target_label_ = nullptr;
-        return lv_label_get_text(label);
+        return lv_subject_get_string(&widget.tool_target_text_);
     }
 };
 

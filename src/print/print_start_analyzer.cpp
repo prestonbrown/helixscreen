@@ -3,19 +3,25 @@
 
 #include "print_start_analyzer.h"
 
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "helix_regex.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_includes.h"
 #include "macro_params.h"
 #include "moonraker_types.h"
 #include "operation_patterns.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
+#include <memory>
+#include <mutex>
+#include <optional>
 #include <set>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -184,6 +190,42 @@ MacroDefinitions collect_macro_definitions(const std::map<std::string, std::stri
     return definitions;
 }
 
+/// Every gcode_macro section in Klipper's configfile.config: the config Klipper
+/// loaded, merged across its includes, whatever Moonraker lets a client read.
+MacroDefinitions configfile_macro_definitions(const json& config) {
+    static constexpr std::string_view kPrefix = "gcode_macro ";
+    MacroDefinitions definitions;
+    if (!config.is_object()) {
+        return definitions;
+    }
+    for (const auto& [key, section] : config.items()) {
+        if (key.size() <= kPrefix.size() ||
+            helix::text_io::to_lower(std::string_view(key).substr(0, kPrefix.size())) != kPrefix ||
+            !section.is_object()) {
+            continue;
+        }
+        auto gcode = section.find("gcode");
+        if (gcode == section.end() || !gcode->is_string() ||
+            gcode->get_ref<const std::string&>().empty()) {
+            continue;
+        }
+        std::string name = helix::text_io::to_upper(
+            helix::text_io::trim(std::string_view(key).substr(kPrefix.size())));
+        definitions[name] = {gcode->get<std::string>(), std::string()};
+    }
+    return definitions;
+}
+
+/// A file Moonraker will never serve: forbidden (a reserved path, such as a
+/// symlink into Moonraker's own source tree) or gone. A refused login is not one:
+/// no file would read.
+bool is_unreadable_file(const MoonrakerError& err) {
+    if (err.type == MoonrakerErrorType::FILE_NOT_FOUND || err.is_not_found()) {
+        return true;
+    }
+    return err.type == MoonrakerErrorType::PERMISSION_DENIED && err.code != 401;
+}
+
 /// The command a gcode line starts with, uppercased. Jinja {% %} tags are removed
 /// first, so a call inside an inline conditional still counts. Empty for comments
 /// and lines that start with an expression.
@@ -305,6 +347,7 @@ PrintStartAnalysis analyze_chain(const std::string& name, const std::string& gco
 
         PrintStartAnalysis parsed =
             PrintStartAnalyzer::parse_macro(visits[index].name, *visits[index].gcode);
+        result.declares_plan = result.declares_plan || parsed.declares_plan;
         if (index == 0) {
             result.known_params = std::move(parsed.known_params);
         }
@@ -358,6 +401,95 @@ PrintStartAnalysis analyze_chain(const std::string& name, const std::string& gco
     return result;
 }
 
+/// The first print start macro `definitions` holds, analyzed with every macro it calls.
+std::optional<PrintStartAnalysis> analyze_start_macro(const MacroDefinitions& definitions) {
+    for (size_t i = 0; i < PrintStartAnalyzer::kMacroNamesCount; ++i) {
+        const char* name = PrintStartAnalyzer::kMacroNames[i];
+        auto def_it = definitions.find(name);
+        if (def_it == definitions.end()) {
+            continue;
+        }
+        const MacroDefinition& definition = def_it->second;
+        std::vector<std::string> contributing;
+        PrintStartAnalysis result =
+            analyze_chain(name, definition.gcode, definitions, contributing);
+        result.found = true;
+        result.macro_name = name;
+        result.source_file = definition.file;
+        std::string sources;
+        for (const auto& macro : contributing) {
+            sources += (sources.empty() ? "" : ", ") + macro;
+        }
+        spdlog::info("[PrintStartAnalyzer] Found macro '{}' in {} ({} chars), operations from: {}",
+                     name, definition.file.empty() ? "Klipper's configfile" : definition.file,
+                     definition.gcode.size(), sources.empty() ? "none" : sources);
+        spdlog::debug("[PrintStartAnalyzer] Analyzed {}", chain_text(result));
+        return result;
+    }
+    return std::nullopt;
+}
+
+/// Analyze the config files printer.cfg's include chain reaches. A file Moonraker
+/// will never serve is read as empty, so the rest still count; any other failure
+/// fails the analysis with that failure's type.
+void analyze_config_files(IMoonrakerAPI& api, PrintStartAnalyzer::AnalysisCallback on_complete,
+                          PrintStartAnalyzer::ErrorCallback on_error) {
+    struct Reads {
+        std::mutex mutex;
+        std::vector<std::string> unreadable;
+        std::optional<MoonrakerError> failure;
+    };
+    auto reads = std::make_shared<Reads>();
+    auto download = helix::system::api_config_download(
+        api, {}, [reads](const std::string& path, const MoonrakerError& err) {
+            std::lock_guard<std::mutex> lock(reads->mutex);
+            if (is_unreadable_file(err)) {
+                reads->unreadable.push_back(path);
+                return true;
+            }
+            reads->failure = err;
+            return false;
+        });
+    helix::system::download_config_include_graph(
+        api, PrintStartAnalyzer::kRootConfigFile, ".cfg",
+        [reads, on_complete](const std::set<std::string>& /* active_files */,
+                             const std::map<std::string, std::string>& file_contents) {
+            std::vector<std::string> unreadable;
+            {
+                std::lock_guard<std::mutex> lock(reads->mutex);
+                unreadable = reads->unreadable;
+            }
+            if (!unreadable.empty()) {
+                std::string names;
+                for (const auto& path : unreadable) {
+                    names += (names.empty() ? "" : ", ") + path;
+                }
+                spdlog::warn("[PrintStartAnalyzer] Could not read {} config file(s), analyzing "
+                             "the rest: {}",
+                             unreadable.size(), names);
+            }
+            PrintStartAnalyzer analyzer;
+            analyzer.analyze(file_contents, on_complete);
+        },
+        [reads, on_error](const std::string& error_msg) {
+            if (!on_error) {
+                return;
+            }
+            MoonrakerError err;
+            {
+                std::lock_guard<std::mutex> lock(reads->mutex);
+                if (reads->failure) {
+                    err = *reads->failure;
+                } else {
+                    err.type = MoonrakerErrorType::CONNECTION_LOST;
+                }
+            }
+            err.message = error_msg;
+            on_error(err);
+        },
+        download);
+}
+
 } // anonymous namespace
 
 void PrintStartAnalyzer::analyze(const std::map<std::string, std::string>& file_contents,
@@ -365,40 +497,14 @@ void PrintStartAnalyzer::analyze(const std::map<std::string, std::string>& file_
     spdlog::debug("[PrintStartAnalyzer] Searching {} cached config files for macro...",
                   file_contents.size());
 
-    const MacroDefinitions definitions = collect_macro_definitions(file_contents, kRootConfigFile);
-
-    for (size_t i = 0; i < kMacroNamesCount; ++i) {
-        auto def_it = definitions.find(kMacroNames[i]);
-        if (def_it == definitions.end()) {
-            continue;
-        }
-        const MacroDefinition& definition = def_it->second;
-        std::vector<std::string> contributing;
-        PrintStartAnalysis result =
-            analyze_chain(kMacroNames[i], definition.gcode, definitions, contributing);
-        result.found = true;
-        result.macro_name = kMacroNames[i];
-        result.source_file = definition.file;
-        std::string sources;
-        for (const auto& macro : contributing) {
-            sources += (sources.empty() ? "" : ", ") + macro;
-        }
-        spdlog::info("[PrintStartAnalyzer] Found macro '{}' in {} ({} chars), operations from: {}",
-                     kMacroNames[i], definition.file, definition.gcode.size(),
-                     sources.empty() ? "none" : sources);
-        spdlog::debug("[PrintStartAnalyzer] Analyzed {}", chain_text(result));
-        if (on_complete) {
-            on_complete(result);
-        }
-        return;
+    std::optional<PrintStartAnalysis> result =
+        analyze_start_macro(collect_macro_definitions(file_contents, kRootConfigFile));
+    if (!result) {
+        spdlog::debug("[PrintStartAnalyzer] No PRINT_START macro found in any cached config file");
+        result.emplace();
     }
-
-    // Searched all files, macro not found
-    spdlog::debug("[PrintStartAnalyzer] No PRINT_START macro found in any cached config file");
-    PrintStartAnalysis result;
-    result.found = false;
     if (on_complete) {
-        on_complete(result);
+        on_complete(*result);
     }
 }
 
@@ -414,32 +520,75 @@ void PrintStartAnalyzer::analyze(IMoonrakerAPI* api, AnalysisCallback on_complet
         return;
     }
 
-    spdlog::debug("[PrintStartAnalyzer] Resolving active config files to find macro location...");
-
-    // Resolve active config files WITH content to avoid re-downloading each file
-    helix::system::resolve_active_config_files_with_content(
-        *api,
-        [on_complete](const std::set<std::string>& /* active_files */,
-                      const std::map<std::string, std::string>& file_contents) {
-            // Use the synchronous cached analyze path
-            PrintStartAnalyzer analyzer;
-            analyzer.analyze(file_contents, on_complete);
-        },
-        [on_error](const std::string& error_msg) {
-            if (on_error) {
-                MoonrakerError err;
-                err.type = MoonrakerErrorType::CONNECTION_LOST;
-                err.message = error_msg;
-                on_error(err);
+    // The reply arrives off the main thread; the file walk starts from the main
+    // thread, where the lifetime token proves the API still alive.
+    auto read_files = [api, tok = api->lifetime_token(), on_complete, on_error]() {
+        helix::ui::queue_update(
+            "PrintStartAnalyzer::read_config_files", [api, tok, on_complete, on_error]() {
+                if (tok.expired()) {
+                    if (on_error) {
+                        on_error(MoonrakerError::connection_lost("print_start_analysis",
+                                                                 "the printer disconnected"));
+                    }
+                    return;
+                }
+                analyze_config_files(*api, on_complete, on_error);
+            });
+    };
+    api->query_configfile(
+        [on_complete, read_files](const json& config) {
+            std::optional<PrintStartAnalysis> result =
+                analyze_start_macro(configfile_macro_definitions(config));
+            if (!result) {
+                spdlog::debug("[PrintStartAnalyzer] configfile carries no print start macro; "
+                              "reading the config files");
+                read_files();
+                return;
             }
+            if (on_complete) {
+                on_complete(*result);
+            }
+        },
+        [read_files](const MoonrakerError& err) {
+            spdlog::debug("[PrintStartAnalyzer] configfile query failed ({}); reading the config "
+                          "files",
+                          err.message);
+            read_files();
         });
 }
+
+namespace {
+
+bool is_macro_name_char(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
+}
+
+/// A code line of @p gcode calls _HELIX_PLAN, as a whole word and in any case.
+bool gcode_calls_plan_macro(const std::string& gcode) {
+    static const std::string kPlanMacro = "_HELIX_PLAN";
+    for (std::string_view raw : helix::text_io::lines(gcode)) {
+        std::string line = helix::text_io::to_upper(std::string(raw));
+        line = line.substr(0, line.find_first_of("#;"));
+        for (size_t pos = line.find(kPlanMacro); pos != std::string::npos;
+             pos = line.find(kPlanMacro, pos + 1)) {
+            const size_t end = pos + kPlanMacro.size();
+            if ((pos == 0 || !is_macro_name_char(line[pos - 1])) &&
+                (end == line.size() || !is_macro_name_char(line[end]))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 PrintStartAnalysis PrintStartAnalyzer::parse_macro(const std::string& macro_name,
                                                    const std::string& gcode) {
     PrintStartAnalysis result;
     result.found = true;
     result.macro_name = macro_name;
+    result.declares_plan = gcode_calls_plan_macro(gcode);
 
     // Detect operations
     result.operations = detect_operations(gcode);

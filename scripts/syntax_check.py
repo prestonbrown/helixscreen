@@ -4,21 +4,31 @@
 """Compile one file the way the build compiles it, without building anything.
 
 `make test` re-links the whole test binary, so asking "does this file compile"
-costs minutes. This pulls the file's own flags out of compile_commands.json and
-runs the compiler with -fsyntax-only, which answers the same question in a few
-seconds. It proves nothing about behaviour: run the suite for that.
+costs minutes. This takes the file's own flags and runs the compiler with
+-fsyntax-only, which answers the same question in a few seconds. It proves
+nothing about behaviour: run the suite for that.
 
     scripts/syntax_check.py tests/unit/test_wifi_backend_netd.cpp
     scripts/syntax_check.py src/ui/*.cpp
+    scripts/syntax_check.py --jobs 8 src/ui/*.cpp
 
-A file with no entry in the database (a file the build has never seen, which is
-every brand-new source) borrows the flags of a sibling in the same directory,
-and says so. A file no native build compiles at all - firmware/, android/ - is
-reported as skipped rather than failed: there are no flags to borrow, and the
-cross build in CI is what gates it.
+--jobs compiles that many files at once and still reports them in the order given.
+It defaults to 1. A caller sizes it the way it sizes any non-make work: under
+`scripts/helix-claim hold`, from JOBPOOL_SLOTS.
+
+The flags come from scripts/compile_command.py, the helper the clang gate
+(check_clang_diagnostics.py) uses, so the two agree on every file: a current
+compile-database entry, else the command `make print-compile-command` prints for
+it (which needs no prior build; the first such file makes `compile-prereqs`),
+else, with no make rule, a neighbour's flags borrowed, which it says. An entry
+recorded by another version is the last resort and is named as stale. A file no
+native build compiles at all - firmware/, android/ - is reported as skipped
+rather than failed: there are no flags to borrow, and the cross build in CI is
+what gates it.
 """
 
-import json
+import argparse
+import concurrent.futures
 import os
 import pathlib
 import subprocess
@@ -26,9 +36,16 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from merge_compile_commands import entry_argv  # noqa: E402
-
-DB_NAME = "compile_commands.json"
+from compile_command import (  # noqa: E402
+    IGNORE_CLAIM_ENV,
+    SIBLING,
+    STALE,
+    PrereqsFailed,
+    PrereqsRefused,
+    load_db,
+    resolve,
+)
+from merge_compile_commands import entry_argv, recorded_version  # noqa: E402
 
 
 def flags_for(entry: dict) -> list[str]:
@@ -79,8 +96,61 @@ def leading_guard(path: str) -> str | None:
     return guard
 
 
+def check_unit(rel: str, choice, root: pathlib.Path) -> tuple[str, str, str]:
+    """Compile one file. Returns (outcome, its status line, the compiler's stderr)."""
+    if choice is None:
+        return "skipped", f"{rel}: skipped, no native build compiles it", ""
+    entry = choice.entry
+    borrowed = ""
+    if choice.source == SIBLING:
+        borrowed = f" (flags borrowed from {choice.borrowed_from})"
+    elif choice.source == STALE:
+        borrowed = f" (stale compile command, recorded at {recorded_version(entry)})"
+
+    flags = flags_for(entry)
+    # A file wholly inside a guard the native build never defines would
+    # otherwise compile as an empty translation unit and pass regardless of
+    # its contents. Turn the guard on so the code is what gets checked.
+    guard = leading_guard(os.path.join(root, rel))
+    forced = ""
+    if guard and not any(f == f"-D{guard}" or f.startswith(f"-D{guard}=") for f in flags):
+        flags = flags + [f"-D{guard}"]
+        # Guarded code often includes headers the native build has no
+        # reason to put on the search path. mk/cross.mk adds the same
+        # directory for the device builds that do compile these files.
+        for extra in ("/usr/include/libdrm",):
+            if os.path.isdir(extra):
+                flags = flags + ["-I" + extra]
+        forced = f" (forced -D{guard})"
+
+    cmd = flags + ["-fsyntax-only", rel]
+    started = time.monotonic()
+    result = subprocess.run(
+        cmd, cwd=entry.get("directory", root), capture_output=True, text=True, check=False
+    )
+    elapsed = time.monotonic() - started
+
+    # A guard that is off natively often gates headers this host has no
+    # reason to carry. That is "not checked here", which is worth saying;
+    # it is not a pass and it is not a defect in the file.
+    missing_header = result.returncode != 0 and (
+        "No such file or directory" in result.stderr or "file not found" in result.stderr
+    )
+    if forced and missing_header:
+        return "skipped", (f"{rel}: UNCHECKED ({elapsed:.1f}s) - {guard} is off natively "
+                           f"and its headers are unavailable here"), ""
+
+    if result.returncode != 0:
+        return "failed", f"{rel}: FAILED ({elapsed:.1f}s){borrowed}{forced}", result.stderr
+    return "ok", f"{rel}: ok ({elapsed:.1f}s){borrowed}{forced}", ""
+
+
 def main() -> int:
-    if len(sys.argv) < 2:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--jobs", type=int, default=1)
+    parser.add_argument("files", nargs="*")
+    args = parser.parse_args()
+    if not args.files:
         print(__doc__)
         return 2
 
@@ -90,78 +160,45 @@ def main() -> int:
         ).stdout.strip()
         or "."
     )
-    db_path = root / DB_NAME
-    if not db_path.exists():
-        print(f"{DB_NAME} not found: run 'make compile_commands' (or a build) first", file=sys.stderr)
-        return 2
-
-    db = json.loads(db_path.read_text())
-    by_file = {os.path.relpath(e["file"], e.get("directory", root)): e for e in db}
-    by_dir: dict[str, dict] = {}
-    for rel, entry in by_file.items():
-        by_dir.setdefault(os.path.dirname(rel), entry)
-
+    db = load_db(str(root))
+    targets = {}
     failures = 0
-    checked = 0
-    skipped = 0
-    for target in sys.argv[1:]:
+    for target in args.files:
         rel = os.path.relpath(os.path.abspath(target), root)
         if not os.path.exists(os.path.join(root, rel)):
             print(f"{rel}: no such file", file=sys.stderr)
             failures += 1
             continue
+        targets[rel] = os.path.realpath(os.path.join(root, rel))
+    try:
+        choices = resolve(sorted(set(targets.values())), db, str(root))
+    except PrereqsRefused as exc:
+        print(f"another session is building in this tree, so make compile-prereqs did not run "
+              f"(set {IGNORE_CLAIM_ENV}=1 to run it anyway):\n{exc}", file=sys.stderr)
+        return 2
+    except PrereqsFailed as exc:
+        print(f"make compile-prereqs failed, so no make-derived command can run:\n{exc}",
+              file=sys.stderr)
+        return 2
 
-        entry = by_file.get(rel)
-        borrowed = ""
-        if entry is None:
-            entry = by_dir.get(os.path.dirname(rel))
-            if entry is None:
-                print(f"{rel}: skipped, no native build compiles it")
+    checked = 0
+    skipped = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(args.jobs, 1)) as pool:
+        # map yields in submission order, so a run's report reads the same at any --jobs.
+        results = pool.map(
+            lambda item: check_unit(item[0], choices.get(item[1]), root), targets.items()
+        )
+        for outcome, line, stderr in results:
+            # Flushed so a unit's stderr lands under its own line when both share a log.
+            print(line, flush=True)
+            if outcome == "skipped":
                 skipped += 1
                 continue
-            borrowed = f" (flags borrowed from {os.path.relpath(entry['file'], root)})"
-
-        flags = flags_for(entry)
-        # A file wholly inside a guard the native build never defines would
-        # otherwise compile as an empty translation unit and pass regardless of
-        # its contents. Turn the guard on so the code is what gets checked.
-        guard = leading_guard(os.path.join(root, rel))
-        forced = ""
-        if guard and not any(f == f"-D{guard}" or f.startswith(f"-D{guard}=") for f in flags):
-            flags = flags + [f"-D{guard}"]
-            # Guarded code often includes headers the native build has no
-            # reason to put on the search path. mk/cross.mk adds the same
-            # directory for the device builds that do compile these files.
-            for extra in ("/usr/include/libdrm",):
-                if os.path.isdir(extra):
-                    flags = flags + ["-I" + extra]
-            forced = f" (forced -D{guard})"
-
-        cmd = flags + ["-fsyntax-only", rel]
-        started = time.monotonic()
-        result = subprocess.run(
-            cmd, cwd=entry.get("directory", root), capture_output=True, text=True, check=False
-        )
-        elapsed = time.monotonic() - started
-
-        # A guard that is off natively often gates headers this host has no
-        # reason to carry. That is "not checked here", which is worth saying;
-        # it is not a pass and it is not a defect in the file.
-        missing_header = result.returncode != 0 and (
-            "No such file or directory" in result.stderr or "file not found" in result.stderr
-        )
-        if forced and missing_header:
-            print(f"{rel}: UNCHECKED ({elapsed:.1f}s) - {guard} is off natively "
-                  f"and its headers are unavailable here")
-            skipped += 1
-            continue
-
-        status = "ok" if result.returncode == 0 else "FAILED"
-        print(f"{rel}: {status} ({elapsed:.1f}s){borrowed}{forced}")
-        checked += 1
-        if result.returncode != 0:
-            sys.stderr.write(result.stderr)
-            failures += 1
+            checked += 1
+            if outcome == "failed":
+                sys.stderr.write(stderr)
+                sys.stderr.flush()
+                failures += 1
 
     print(f"summary: {checked} compiled, {skipped} skipped, {failures} failed")
     return 1 if failures else 0

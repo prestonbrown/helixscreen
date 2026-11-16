@@ -10,16 +10,16 @@
  * DisplayManager feeds it the service's viewer signal.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../test_helpers/config_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "lvgl_test_fixture.h"
 #include "remote_screen_server_sink.h"
 #include "remote_screen_service.h"
 #include "remote_screen_settings_manager.h"
+#include "screensaver.h"
 #include "test_helpers/display_manager_test_access.h"
 
 #include "../../catch_amalgamated.hpp"
@@ -59,6 +59,11 @@ class RemoteViewerSleepFixture : public LVGLTestFixture {
     }
 
     ~RemoteViewerSleepFixture() override {
+        // A display held out of sleep runs the screensaver; it outlives the case's
+        // DisplayManager, and the next start() would take it for its own.
+#if HELIX_ENABLE_SCREENSAVER
+        ScreensaverManager::instance().stop();
+#endif
         auto& ds = DisplaySettingsManager::instance();
         ds.set_display_dim_sec(prev_dim_sec_);
         ds.set_display_sleep_sec(prev_sleep_sec_);

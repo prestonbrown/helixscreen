@@ -10,15 +10,14 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_widget_catalog_overlay.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "home_layout_share.h"
 #include "home_layout_sync.h"
 #include "moonraker_api_mock.h"
@@ -169,11 +168,11 @@ class CopyLayoutFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(CopyLayoutFixture, "copy layout action hidden when Local or Unknown",
                  "[widget_catalog][copy_layout]") {
     // Unknown until the connection's verdict lands.
-    CHECK(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row_));
     set_locality(false);
-    CHECK(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row_));
     set_locality(true);
-    CHECK_FALSE(lv_obj_has_flag(row_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row_));
 }
 
 TEST_CASE_METHOD(CopyLayoutFixture, "copy layout confirm imports and notifies",

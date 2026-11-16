@@ -9,12 +9,13 @@
 #include "ui_subject_registry.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "locale_formats.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "print_activity.h"
@@ -40,18 +41,18 @@ namespace {
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
 struct Subjects {
-    lv_subject_t rung{};
-    lv_subject_t content{};
-    lv_subject_t support{};
-    lv_subject_t show_bars{};
-    lv_subject_t show_day_labels{};
-    lv_subject_t side_by_side{};
-    lv_subject_t strip_text{};
-    lv_subject_t hero{};
-    lv_subject_t hero_label{};
-    lv_subject_t support_text{};
-    lv_subject_t day[helix::kActivityDays]{};
-    lv_subject_t day_label[helix::kActivityDays]{};
+    helix::Subject rung{};
+    helix::Subject content{};
+    helix::Subject support{};
+    helix::Subject show_bars{};
+    helix::Subject show_day_labels{};
+    helix::Subject side_by_side{};
+    helix::Subject strip_text{};
+    helix::Subject hero{};
+    helix::Subject hero_label{};
+    helix::Subject support_text{};
+    helix::Subject day[helix::kActivityDays]{};
+    helix::Subject day_label[helix::kActivityDays]{};
     char hero_buf[24]{};
     char hero_label_buf[96]{};
     char support_text_buf[160]{};

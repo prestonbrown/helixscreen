@@ -24,6 +24,8 @@ namespace helix::ui {
  */
 class FilamentMappingModal : public Modal {
   public:
+    HELIX_KIND_TAG(FilamentMappingModal)
+
     FilamentMappingModal();
 
     const char* get_name() const override {
@@ -65,6 +67,7 @@ class FilamentMappingModal : public Modal {
     void rebuild_rows();
     lv_obj_t* create_tool_row(int tool_index);
     void on_row_tapped(int tool_index);
+    static void row_clicked_cb(lv_event_t* e);
     void on_slot_selected(int tool_index, const FilamentSlotPicker::Selection& sel);
     std::string get_slot_display_text(const helix::ToolMapping& mapping) const;
 

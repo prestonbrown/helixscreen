@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <glm/vec2.hpp>
@@ -13,8 +14,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "hv/json.hpp"
-
 namespace helix {
 
 /**
@@ -24,7 +23,7 @@ namespace helix {
  * Uses a version-based notification pattern since LVGL subjects don't
  * natively support set types.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * Usage pattern:
  * 1. Observer subscribes to excluded_objects_version_ subject
@@ -55,7 +54,6 @@ class PrinterExcludedObjectsState {
     PrinterExcludedObjectsState() = default;
     ~PrinterExcludedObjectsState() = default;
 
-    // Non-copyable
     PrinterExcludedObjectsState(const PrinterExcludedObjectsState&) = delete;
     PrinterExcludedObjectsState& operator=(const PrinterExcludedObjectsState&) = delete;
 
@@ -235,7 +233,7 @@ class PrinterExcludedObjectsState {
     ///
     /// deinit_subjects() frees every observer node on them without bumping
     /// the ObserverGuard invalidation epoch, so outside observers must pass
-    /// this to observe_*(), or their guards call lv_observer_remove() on a
+    /// this to observe_*(), or their guards call lv_observer_delete() on a
     /// freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();
@@ -248,7 +246,7 @@ class PrinterExcludedObjectsState {
     bool subjects_initialized_ = false;
 
     // Excluded objects version subject (incremented when excluded_objects_ changes)
-    lv_subject_t excluded_objects_version_{};
+    helix::Subject excluded_objects_version_{};
 
     // Set of excluded object names (NOT a subject - sets aren't natively supported)
     std::unordered_set<std::string> excluded_objects_;
@@ -260,11 +258,11 @@ class PrinterExcludedObjectsState {
     std::string current_object_;
 
     // Version subject for defined objects list (incremented when list changes)
-    lv_subject_t defined_objects_version_{};
+    helix::Subject defined_objects_version_{};
 
     // Count of defined objects (held in sync with defined_objects_.size()) — used for
     // declarative XML visibility gating of list/empty-state widgets.
-    lv_subject_t defined_objects_count_{};
+    helix::Subject defined_objects_count_{};
 
     // Geometry map: object name -> ObjectInfo (center + bbox)
     // Populated by set_defined_objects_with_geometry(); empty if only names are known

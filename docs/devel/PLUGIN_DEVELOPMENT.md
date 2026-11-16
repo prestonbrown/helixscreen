@@ -195,7 +195,7 @@ A PNG that is missing, unreadable, over 64 KB or over 256 x 256 pixels, or that 
 places outside the plugin folder, draws the `fallback` icon instead and logs a warning
 naming the icon; the plugin still loads. Icons are registered when the plugin loads and
 withdrawn when it unloads, reloads or is disabled: anything still showing one then draws
-its fallback (`src/ui/ui_icon_image.cpp#register_image_icon`). An XML `icon` whose `src`
+its fallback (`src/ui/components/ui_icon_image.cpp#register_image_icon`). An XML `icon` whose `src`
 carries the `__` separator must name one of the plugin's own icons (§7); `menu_items`
 icons are app icon names only. That check reads literal values only: a `src` filled
 through a component prop is not checked, so it keeps names tidy and is not a security
@@ -321,7 +321,7 @@ variant (`font_heading_medium`, `font_body_large`) names a face the theme regist
 from its breakpoint tier upward, so on most screens the XML engine silently substitutes the
 default font - a trap an author cannot see on an oversized dev display. The policy rejects
 a suffixed token on `style_text_font`, and `helix.canvas` text enforces the same rule
-(`src/ui/theme_fonts.cpp#theme_manager_font_token_is_base`).
+(`src/ui/theme/theme_fonts.cpp#theme_manager_font_token_is_base`).
 
 ### Responsive sizing
 
@@ -348,7 +348,7 @@ A plugin component sizes itself the way an app component does.
   `_medium`) fails the load with the constant and the missing tier named. `int`,
   `percentage`, `color` and `string` constants, and `px` without a tier suffix, register
   as written. The resolver is the app's own
-  (`helix::theme_manager_resolve_px_tables` in `src/ui/theme_responsive.cpp`), and it runs
+  (`helix::theme_manager_resolve_px_tables` in `src/ui/theme/theme_responsive.cpp`), and it runs
   again when the screen changes size, so a component created afterwards gets the new tier.
 - **Layout switches** read `ui_breakpoint` (narrow axis), `ui_breakpoint_v` (vertical) or
   `ui_is_portrait` in a conditional bind, for example

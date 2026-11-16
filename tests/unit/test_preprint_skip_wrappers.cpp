@@ -11,9 +11,9 @@
  */
 
 #include "bed_mesh_presence.h"
+#include "core/text_io.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_discovery.h"
-#include "text_io.h"
 
 #include <sstream>
 #include <string>

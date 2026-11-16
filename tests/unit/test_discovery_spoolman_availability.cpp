@@ -25,11 +25,9 @@
  * EDGES.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
@@ -64,7 +62,7 @@ struct FallingEdgeCounter {
 /// PrinterCapabilitiesState writes the flag through AsyncLifetimeGuard::defer(),
 /// so it lands on a later process_pending tick, not the current one.
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 /// The capability subjects must exist before the flag can be read back — a bare
@@ -117,7 +115,7 @@ TEST_CASE("Discovery does not flap Spoolman availability when the component is p
     CHECK(get_printer_state().is_spoolman_available());
     CHECK(counter.falls == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE("Discovery still clears Spoolman availability when the component is gone",

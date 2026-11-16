@@ -289,6 +289,9 @@ class WifiBackendNetd : public WifiBackend, private hv::EventLoopThread {
 
     // start()/start_async() synchronization (same shape as the wpa backend).
     std::mutex init_mutex_;
+    /// Serializes start(): the boot-time start_async() worker and a radio-on
+    /// bringup from WiFiManager can both call it.
+    std::mutex start_mutex_;
     std::condition_variable init_cv_;
     std::atomic<bool> init_complete_{false};  ///< An init attempt finished.
     std::atomic<bool> init_succeeded_{false}; ///< The connection is live.

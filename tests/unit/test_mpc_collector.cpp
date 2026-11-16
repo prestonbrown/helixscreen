@@ -19,12 +19,11 @@
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
-#include <chrono>
-#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -32,31 +31,10 @@ using namespace helix;
 using MPCResult = MoonrakerAdvancedAPI::MPCResult;
 
 // ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerMPCCal {
-    LVGLInitializerMPCCal() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerMPCCal lvgl_init;
-} // namespace
-
-// ============================================================================
 // Test Fixture
 // ============================================================================
 
-class MPCCalibrateTestFixture {
+class MPCCalibrateTestFixture : public LVGLTestFixture {
   public:
     MPCCalibrateTestFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
         state_.init_subjects(false);
@@ -68,7 +46,7 @@ class MPCCalibrateTestFixture {
         // Run what the collectors queued while this fixture's PrinterState is
         // still alive: the idle-fallback callbacks close over state_, so leaving
         // them for the next fixture's drain reaches a dead object.
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         api_.reset();
     }
@@ -91,91 +69,42 @@ class MPCCalibrateTestFixture {
 // Tests
 // ============================================================================
 
-TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector parses complete result block",
+// Kalico sends the result as one respond_info: one message of "// " lines. The fan
+// list is empty without a cooling_fan, and its %.6g can print exponents.
+TEST_CASE_METHOD(MPCCalibrateTestFixture,
+                 "MPC calibrate collector parses Kalico's single multi-line result message",
                  "[mpc_collector]") {
+    const auto [fan_breakpoints, fan_list, expected] =
+        GENERATE(table<int, std::string, std::string>({
+            {0, "0.0892993", "0.0892993"},
+            {7, "0.0892993, 0.0940654, 0.114036", "0.0892993, 0.0940654, 0.114036"},
+            {3, "", ""},
+            {3, "0.0892993, 1e-05, 2.5e+01", "0.0892993, 1e-05, 2.5e+01"},
+        }));
     api_->advanced().start_mpc_calibrate(
-        "extruder", 200, 3,
+        "extruder", 220, fan_breakpoints,
         [this](const MPCResult& result) {
             captured_result_ = result;
             result_received_.store(true);
         },
-        [this](const MoonrakerError& err) {
-            captured_error_ = err.message;
-            error_received_.store(true);
-        });
+        [this](const MoonrakerError&) { error_received_.store(true); });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.5432 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.123456 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.078901 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]");
+    mock_client_.dispatch_gcode_response("// Finished MPC calibration of heater 'extruder'\n"
+                                         "// Measured:\n"
+                                         "// block_heat_capacity=17.9784 [J/K]\n"
+                                         "// sensor_responsiveness=0.0971234 [K/s/K]\n"
+                                         "// ambient_transfer=0.0892993 [W/K]\n"
+                                         "// fan_ambient_transfer=" +
+                                         fan_list + " [W/K]");
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
-    REQUIRE(captured_result_.block_heat_capacity == Catch::Approx(18.5432f).margin(0.001f));
-    REQUIRE(captured_result_.sensor_responsiveness == Catch::Approx(0.123456f).margin(0.0001f));
-    REQUIRE(captured_result_.ambient_transfer == Catch::Approx(0.078901f).margin(0.0001f));
-    REQUIRE(captured_result_.fan_ambient_transfer == "0.12, 0.18, 0.25");
-}
-
-TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector parses floats accurately",
-                 "[mpc_collector]") {
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 220, 0,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) { error_received_.store(true); });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=25.1000 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.500000 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.100000 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    REQUIRE(result_received_.load());
-    REQUIRE(captured_result_.block_heat_capacity == Catch::Approx(25.1f).margin(0.01f));
-    REQUIRE(captured_result_.sensor_responsiveness == Catch::Approx(0.5f).margin(0.001f));
-    REQUIRE(captured_result_.ambient_transfer == Catch::Approx(0.1f).margin(0.001f));
-    // No fan_ambient_transfer line sent — should remain empty
-    REQUIRE(captured_result_.fan_ambient_transfer.empty());
-}
-
-TEST_CASE_METHOD(MPCCalibrateTestFixture,
-                 "MPC calibrate collector parses fan_ambient_transfer string", "[mpc_collector]") {
-    api_->advanced().start_mpc_calibrate(
-        "extruder", 200, 5,
-        [this](const MPCResult& result) {
-            captured_result_ = result;
-            result_received_.store(true);
-        },
-        [this](const MoonrakerError& err) { error_received_.store(true); });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=20.0000 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.200000 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("fan_ambient_transfer=0.05, 0.10, 0.15, 0.20, 0.25 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    REQUIRE(result_received_.load());
-    REQUIRE(captured_result_.fan_ambient_transfer == "0.05, 0.10, 0.15, 0.20, 0.25");
+    CHECK(captured_result_.block_heat_capacity == Catch::Approx(17.9784f).margin(0.0001f));
+    CHECK(captured_result_.sensor_responsiveness == Catch::Approx(0.0971234f).margin(0.00001f));
+    CHECK(captured_result_.ambient_transfer == Catch::Approx(0.0892993f).margin(0.00001f));
+    CHECK(captured_result_.fan_ambient_transfer == (fan_breakpoints > 0 ? expected : ""));
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector reports progress phases",
@@ -193,35 +122,25 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector reports progr
             progress_descriptions_.push_back(desc);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("Waiting for heater to settle");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("Performing heatup test");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("measuring power usage with 50% fan");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("measuring power usage with 100% fan");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(progress_phases_.size() == 4);
     REQUIRE(progress_phases_[0] == 1);
     REQUIRE(progress_phases_[1] == 2);
-    REQUIRE(progress_phases_[2] == 3);
-    REQUIRE(progress_phases_[3] == 3);
+    REQUIRE(progress_phases_[2] == 4);
+    REQUIRE(progress_phases_[3] == 4);
     REQUIRE(progress_descriptions_[0] == "Waiting for heater to settle");
     REQUIRE(progress_descriptions_[1] == "Performing heatup test");
     REQUIRE(progress_descriptions_[2].find("50%") != std::string::npos);
     REQUIRE(progress_descriptions_[3].find("100%") != std::string::npos);
 
     // Complete the collector to avoid dangling callback in mock client destruction
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector handles unknown command error",
@@ -233,9 +152,7 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector handles unkno
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("Unknown command: \"MPC_CALIBRATE\"");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
@@ -251,9 +168,7 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate collector handles Klipp
             error_received_.store(true);
         });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("!! Error: heater extruder not heating at expected rate");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());
@@ -266,26 +181,17 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
         "extruder", 200, 3, [this](const MPCResult&) { result_received_.store(true); },
         [this](const MoonrakerError& err) { error_received_.store(true); });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("ok");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("T:200.0 /200.0 B:60.0 /60.0");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("echo: M104 S200");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE_FALSE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
 
     // Complete the collector to clean up
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 }
 
 TEST_CASE_METHOD(MPCCalibrateTestFixture,
@@ -297,23 +203,14 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
         "extruder", 200, 3, [&](const MPCResult&) { ++success_count; },
         [&](const MoonrakerError&) { ++error_count; });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
     // Send first complete result
-    mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("block_heat_capacity=18.0000 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.100000 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    mock_client_.dispatch_gcode_response("ambient_transfer=0.050000 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    mock_client_.dispatch_gcode_response(
+        "Finished MPC calibration\nblock_heat_capacity=18 [J/K]\n"
+        "sensor_responsiveness=0.1 [K/s/K]\nambient_transfer=0.05 [W/K]");
 
     // Try to send a second result or error — should be ignored
     mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("!! Error: something went wrong");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(success_count == 1);
     REQUIRE(error_count == 0);
@@ -340,17 +237,11 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture,
         });
 
     // The RPC has already "timed out" synchronously above. Klipper finishes afterwards.
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     mock_client_.dispatch_gcode_response("Finished MPC calibration heater=extruder");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("block_heat_capacity=18.5432 [J/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("sensor_responsiveness=0.123456 [K/s/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("ambient_transfer=0.078901 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     mock_client_.dispatch_gcode_response("fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]");
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(result_received_.load());
     REQUIRE_FALSE(error_received_.load());
@@ -370,8 +261,6 @@ TEST_CASE_METHOD(MPCCalibrateTestFixture, "MPC calibrate non-timeout RPC error s
             captured_error_ = err.message;
             error_received_.store(true);
         });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     REQUIRE(error_received_.load());
     REQUIRE_FALSE(result_received_.load());

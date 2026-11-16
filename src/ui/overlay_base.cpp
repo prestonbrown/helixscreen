@@ -4,20 +4,61 @@
 #include "overlay_base.h"
 
 #include "ui_nav_manager.h"
+#include "ui_next_tick.h"
+#include "ui_open_instances.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "core/update_queue.h"
 #include "system/crash_handler.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <string>
 #include <utility>
 
+namespace {
+
+/// Every overlay with a widget tree, for from_event(). Never freed: an overlay
+/// destroyed on the static-destruction path still removes itself here.
+helix::ui::OpenInstances<OverlayBase>& open_overlays() {
+    static auto* overlays = new helix::ui::OpenInstances<OverlayBase>();
+    return *overlays;
+}
+
+} // namespace
+
+OverlayBase* OverlayBase::from_event(lv_event_t* e) {
+    if (!e) {
+        return nullptr;
+    }
+    // Children stay clickable through a slide-out, and a callback must not act on an
+    // overlay that has already run its deactivate hooks.
+    OverlayBase* overlay = open_overlays().owner_of(lv_event_get_current_target_obj(e));
+    return overlay && overlay->is_visible() ? overlay : nullptr;
+}
+
+OverlayBase* OverlayBase::from_event_of_kind(lv_event_t* e, std::size_t kind) {
+    OverlayBase* overlay = from_event(e);
+    if (!overlay) {
+        return nullptr;
+    }
+    if (overlay->kind_tag() == helix::kUndeclaredKind) {
+        spdlog::warn("[OverlayBase] from_event<T>: '{}' declares no kind (HELIX_KIND_TAG), so "
+                     "no typed lookup can resolve it",
+                     overlay->get_name());
+        return nullptr;
+    }
+    return overlay->kind_tag() == kind ? overlay : nullptr;
+}
+
 OverlayBase::~OverlayBase() {
+    open_overlays().remove(this);
+
     // Fallback unregister in case cleanup() wasn't called. A no-op once
     // NavigationManager is destroyed (static destruction order at shutdown).
     if (overlay_root_) {
@@ -54,6 +95,7 @@ void OverlayBase::on_view_hidden() {
 
 void OverlayBase::cleanup() {
     spdlog::trace("[OverlayBase] cleanup() - {}", get_name());
+    open_overlays().remove(this);
     lifetime_.invalidate();
     object_lifetime_.invalidate();
     cleanup_called_ = true;
@@ -70,6 +112,10 @@ lv_obj_t* OverlayBase::create(lv_obj_t* parent) {
 }
 
 bool OverlayBase::show(lv_obj_t* parent_screen) {
+    const auto requested_at = std::chrono::steady_clock::now();
+    // One tree at a time: a page hosting this overlay gives it up, and builds it
+    // again the next time that page is shown.
+    release_embed();
     if (parent_screen) {
         parent_screen_ = parent_screen;
     }
@@ -81,14 +127,15 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     auto& nav = NavigationManager::instance();
 
     // The tree this object last pushed was deleted out from under it (its
-    // screen went away): overlay_root_ still holds the freed address.
-    if (overlay_root_ && overlay_root_ == shown_root_ && !shown_root_ref_) {
+    // screen went away): the owner never heard, so its child pointers are stale.
+    if (shown_root_ && !shown_root_ref_ && !overlay_root_) {
         spdlog::debug("[{}] shown root was deleted externally - re-creating", get_name());
-        overlay_root_ = nullptr;
+        shown_root_ = nullptr;
         on_ui_destroyed();
     }
 
-    if (!overlay_root_) {
+    const bool builds_tree = !overlay_root_;
+    if (builds_tree) {
         register_callbacks(); // every create: XML callback slots are last-write-wins
         lv_obj_t* root = parent_screen_ ? create(parent_screen_) : nullptr;
         if (!root) {
@@ -98,6 +145,7 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
             return false;
         }
         overlay_root_ = root;
+        open_overlays().add(this);
         if (destroy_on_close()) {
             if (nav.has_overlay_close_callback(overlay_root_)) {
                 report_foreign_close_callback();
@@ -114,11 +162,86 @@ bool OverlayBase::show(lv_obj_t* parent_screen) {
     }
 
     shown_root_ = overlay_root_;
-    shown_root_ref_ = overlay_root_;
+    shown_root_ref_ = overlay_root_.get();
     before_show();
     helix::nav::register_overlay(overlay_root_, this);
+    helix::nav::overlay_open_requested(overlay_root_, get_name(), builds_tree, requested_at);
     helix::nav::push_overlay(overlay_root_);
     return true;
+}
+
+bool OverlayBase::embed(lv_obj_t* container) {
+    if (!container) {
+        return false;
+    }
+    if (overlay_root_) {
+        spdlog::debug("[{}] embed refused: its tree is built ({})", get_name(),
+                      embedded_ ? "embedded" : "on the stack");
+        return false;
+    }
+    if (!subjects_initialized_) {
+        init_subjects();
+        subjects_initialized_ = true;
+    }
+    screen_before_embed_ = parent_screen_;
+    register_callbacks(); // XML callback slots are last-write-wins
+    lv_obj_t* root = create(container);
+    // create() points parent_screen_ at its parent. Anything the overlay opens from
+    // here (keypads, modals) belongs on the screen, not clipped inside the page.
+    parent_screen_ = screen_before_embed_ ? screen_before_embed_.get() : lv_screen_active();
+    if (!root) {
+        spdlog::error("[{}] embed: create() failed", get_name());
+        return false;
+    }
+    overlay_root_ = root;
+    embedded_ = true;
+    open_overlays().add(this);
+
+    // The root is authored as a screen-anchored overlay; in a page it fills its host.
+    lv_obj_set_align(root, LV_ALIGN_TOP_LEFT); // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_pos(root, 0, 0);                // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_size(root, LV_PCT(100),
+                    LV_PCT(100));   // DECLARATIVE_OK: overlay root reused in a page host
+    lv_obj_set_hidden(root, false); // DECLARATIVE_OK: create() builds every overlay hidden
+    if (!embed_keeps_header()) {
+        if (lv_obj_t* header = lv_obj_find_by_name(root, "overlay_header")) {
+            lv_obj_set_hidden(header, true); // DECLARATIVE_OK: a page drops a title-only header
+        }
+    }
+    if (lv_obj_t* back = lv_obj_find_by_name(root, "back_button")) {
+        lv_obj_set_clickable(back, false); // DECLARATIVE_OK: a page has no back
+        if (lv_obj_t* icon = lv_obj_find_by_name(back, "back_icon")) {
+            lv_obj_set_hidden(icon, true); // DECLARATIVE_OK: a page has no back
+        }
+    }
+    spdlog::debug("[{}] embedded in a page host", get_name());
+    on_activate();
+    return true;
+}
+
+void OverlayBase::release_embed() {
+    if (!embedded_) {
+        return;
+    }
+    embedded_ = false;
+    on_deactivate(DeactivateReason::NavigateAway);
+    if (overlay_root_) {
+        destroy_overlay_ui();
+    } else {
+        // The host deleted the tree with its page: drop what pointed into it.
+        open_overlays().remove(this);
+        on_ui_destroyed();
+    }
+    spdlog::debug("[{}] released its page host", get_name());
+}
+
+void OverlayBase::host_deleting() {
+    // A tree embedded again before the tick is someone else's to release.
+    helix::ui::run_next_tick(object_lifetime_.token(), [this]() {
+        if (!is_embedded()) {
+            release_embed();
+        }
+    });
 }
 
 void OverlayBase::report_foreign_close_callback() const {
@@ -135,13 +258,18 @@ void OverlayBase::close() {
 }
 
 void OverlayBase::destroy_overlay_ui(lv_obj_t*& cached_panel) {
-    auto hooks = helix::ui::TeardownHooks::after([this]() { on_ui_destroyed(); });
+    auto hooks = helix::ui::TeardownHooks::after([this]() {
+        shown_root_ = nullptr;
+        shown_root_ref_ = nullptr;
+        open_overlays().remove(this);
+        on_ui_destroyed();
+    });
     hooks.owner = teardown_owner_.token();
     helix::ui::teardown_overlay_ui(overlay_root_, get_name(), helix::ui::TeardownDelete::Deferred,
                                    &cached_panel, std::move(hooks));
 }
 
-bool helix::ui::teardown_overlay_ui(lv_obj_t*& root, const char* owner_name, TeardownDelete how,
+bool helix::ui::teardown_overlay_ui(WidgetRef& root, const char* owner_name, TeardownDelete how,
                                     lv_obj_t** cached_panel, TeardownHooks hooks) {
     if (!root) {
         return false;
@@ -284,9 +412,9 @@ bool OverlayBase::rebuild() {
     overlay_root_ = new_root;
 
     if (was_visible) {
-        lv_obj_remove_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, false);
     } else {
-        lv_obj_add_flag(new_root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(new_root, true);
     }
 
     NavigationManager::instance().rekey_overlay_widget(old_root, new_root);

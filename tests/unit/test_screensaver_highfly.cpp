@@ -5,12 +5,14 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/screensaver_sim_kit.h"
 #include "../test_helpers/screensaver_test_access.h"
+#include "screensaver_clock.h"
 #include "screensaver_highfly.h"
 #include "screensaver_highfly_sim.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_registry.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <random>
@@ -98,6 +100,49 @@ namespace {
 
 float luminance(Rgb c) {
     return 0.299f * c.r + 0.587f * c.g + 0.114f * c.b;
+}
+
+float red_over_blue(Rgb c) {
+    return static_cast<float>(c.r) / static_cast<float>(std::max<int>(c.b, 1));
+}
+
+float saturation(Rgb c) {
+    const int hi = std::max({c.r, c.g, c.b});
+    const int lo = std::min({c.r, c.g, c.b});
+    return hi == 0 ? 0.0f : static_cast<float>(hi - lo) / static_cast<float>(hi);
+}
+
+/// Hue in degrees, 0 to 360.
+float hue(Rgb c) {
+    const float r = c.r / 255.0f;
+    const float g = c.g / 255.0f;
+    const float b = c.b / 255.0f;
+    const float hi = std::max({r, g, b});
+    const float d = hi - std::min({r, g, b});
+    if (d <= 0.0f) {
+        return 0.0f;
+    }
+    float h = hi == r   ? std::fmod((g - b) / d, 6.0f)
+              : hi == g ? (b - r) / d + 2.0f
+                        : (r - g) / d + 4.0f;
+    h *= 60.0f;
+    return h < 0.0f ? h + 360.0f : h;
+}
+
+float hue_apart(float a, float b) {
+    const float d = std::fabs(a - b);
+    return std::min(d, 360.0f - d);
+}
+
+/// A print's reading at 14:00 in 12-hour time, `mode` at `pct`, an hour and two minutes left.
+ClockReading print_reading(ClockMode mode, int32_t pct) {
+    ClockReading r = reading_at(14 * 3600);
+    r.mode = mode;
+    r.progress_pct = pct;
+    r.has_countdown = mode == ClockMode::COUNTDOWN || mode == ClockMode::PAUSED;
+    r.countdown_s = r.has_countdown ? 3725 : 0;
+    r.eta_minute_of_day = 15 * 60 + 2;
+    return r;
 }
 
 } // namespace
@@ -342,11 +387,13 @@ TEST_CASE("every pixel a high fly frame changes lies in one of its dirty boxes",
 TEST_CASE("each frame repaints where the towers and the clock just were, through a busy drift",
           "[screensaver][highfly]") {
     const ClockReading r = reading_at(10 * 3600);
+    constexpr int32_t kW = 100;
+    constexpr int32_t kH = 60;
     // Find a drift step with both towers up; the towers' schedule does not depend on when the
     // fly-through comes, so a probe run with none finds it.
     double drift_at = -1.0;
     {
-        TestFrame probe_frame(400, 240, PixelFormat::RGB565);
+        TestFrame probe_frame(kW, kH, PixelFormat::RGB565);
         std::minstd_rand rng(3);
         HighFlySim probe;
         probe.init(probe_frame.target, rng, 0, r);
@@ -365,7 +412,7 @@ TEST_CASE("each frame repaints where the towers and the clock just were, through
     }
     REQUIRE(drift_at > 0.0);
 
-    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    TestFrame frame(kW, kH, PixelFormat::XRGB8888);
     std::minstd_rand rng(3);
     HighFlySim sim;
     sim.init(frame.target, rng, 0, r);
@@ -392,8 +439,8 @@ TEST_CASE("each frame repaints where the towers and the clock just were, through
             busy_drift = busy_drift || (sim.towers_visible() == 2 && sim.next_fly_s() < 32.0f);
         }
         for (const DirtyRect& w : was) {
-            for (int32_t y = std::max(0, w.y1); y <= std::min(239, w.y2); y++) {
-                for (int32_t x = std::max(0, w.x1); x <= std::min(399, w.x2); x++) {
+            for (int32_t y = std::max(0, w.y1); y <= std::min(kH - 1, w.y2); y++) {
+                for (int32_t x = std::max(0, w.x1); x <= std::min(kW - 1, w.x2); x++) {
                     missed += covers(dirty, x, y) ? 0 : 1;
                 }
             }
@@ -417,7 +464,7 @@ TEST_CASE("the sun glows at the top centre", "[screensaver][highfly]") {
 
 TEST_CASE("towers come every 13 to 14 seconds, at most two at once, in more than one shape",
           "[screensaver][highfly]") {
-    TestFrame frame(200, 120, PixelFormat::RGB565);
+    TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
@@ -643,7 +690,7 @@ TEST_CASE("a fly-through renders its interior 62% of the way over the scene",
 }
 
 TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly]") {
-    TestFrame frame(200, 120, PixelFormat::RGB565);
+    TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
@@ -656,7 +703,7 @@ TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly
         const float since = sim.fly_since_s();
         if (since > 1.1f && since < 1.4f) {
             // At the hold the whole screen is at least 62% of the way to the interior.
-            const Rgb top = w.get(100, 2);
+            const Rgb top = w.get(50, 2);
             CHECK(top.g >= 140);
             whitened = true;
         }
@@ -674,36 +721,44 @@ TEST_CASE("a fly-through comes every one to two minutes", "[screensaver][highfly
 }
 
 TEST_CASE("wisps sample smoothly, without radial seams", "[screensaver][highfly]") {
-    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    // Wide, so the clock on the middle row leaves columns clear either side of it.
+    constexpr int32_t kW = 800;
+    constexpr int32_t kH = 240;
+    TestFrame frame(kW, kH, PixelFormat::XRGB8888);
     std::minstd_rand rng(3);
     HighFlySim sim;
     const ClockReading r = reading_at(10 * 3600);
     sim.init(frame.target, rng, 0, r);
     std::vector<DirtyRect> dirty;
-    const PixelWriter w(frame.target);
-    bool checked = false;
-    for (int i = 0; i < 2600 && !checked; i++) {
-        sim.step(50, frame.target, rng, r, dirty);
-        const float since = sim.fly_since_s();
-        if (since > 1.1f && since < 1.4f) {
-            const auto grey = [&](int32_t x, int32_t y) {
-                const Rgb c = w.get(x, y);
-                return (c.r + c.g + c.b) / 3;
-            };
-            // Rows through the centre, clear of the clock's numerals.
-            const DirtyRect& clock = sim.clock_layout().bounds;
-            for (const int32_t y : {30, 60, 120}) {
-                for (int32_t x = 1; x < 400; x++) {
-                    if (y >= clock.y1 && y <= clock.y2 && x >= clock.x1 - 1 && x <= clock.x2 + 1) {
-                        continue;
-                    }
-                    CHECK(std::abs(grey(x, y) - grey(x - 1, y)) <= 24);
-                }
-            }
-            checked = true;
-        }
+    // Whole seconds up to the cloud ahead, then frames, to the hold of the fly-through.
+    while (sim.next_fly_s() > 2.0f) {
+        sim.step(1000, frame.target, rng, r, dirty);
     }
-    CHECK(checked);
+    while (sim.fly_since_s() < 1.2f) {
+        sim.step(50, frame.target, rng, r, dirty);
+    }
+    REQUIRE(sim.fly_since_s() < 1.4f);
+    const PixelWriter w(frame.target);
+    const auto grey = [&](int32_t x, int32_t y) {
+        const Rgb c = w.get(x, y);
+        return (c.r + c.g + c.b) / 3;
+    };
+    // The wisps' angle wraps on the ray left of the centre, along the middle row, so the rows
+    // either side of it sample opposite ends of the wisp table. Over the interior the scene
+    // there is flat: smooth sampling moves a pixel 1 grey level between them, a seam 5 or more.
+    const DirtyRect& clock = sim.clock_layout().bounds;
+    int most = 0;
+    int columns = 0;
+    for (int32_t x = 8; x < kW / 2 - 8; x++) {
+        if (x >= clock.x1 - 1 && x <= clock.x2 + 1 && clock.y1 <= kH / 2 + 1 &&
+            clock.y2 >= kH / 2 - 1) {
+            continue;
+        }
+        most = std::max(most, std::abs(grey(x, kH / 2 - 1) - grey(x, kH / 2 + 1)));
+        columns++;
+    }
+    REQUIRE(columns >= 32);
+    CHECK(most <= 3);
 }
 
 TEST_CASE("the ladder drops layers before coarsening the deck, slows, and ends standing still",
@@ -794,6 +849,182 @@ TEST_CASE(
 }
 
 // ============================================================================
+// Print progress
+// ============================================================================
+
+TEST_CASE("the big numerals count down during a print", "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_numerals;
+    using Six = std::array<int, 6>;
+    ClockReading r = reading_at(14 * 3600 + 25 * 60 + 7, true);
+    CHECK(highfly_numerals(r) == Six{1, 4, 2, 5, 0, 7});
+    r.mode = ClockMode::PROGRESS;
+    CHECK(highfly_numerals(r) == Six{1, 4, 2, 5, 0, 7});
+    r.mode = ClockMode::COUNTDOWN;
+    r.has_countdown = true;
+    r.countdown_s = 3725;
+    CHECK(highfly_numerals(r) == Six{-1, 1, 0, 2, 0, 5});
+    r.countdown_s = 10 * 3600;
+    CHECK(highfly_numerals(r) == Six{1, 0, 0, 0, 0, 0});
+    // Over 99 hours the hours stop at 99; under a minute no hour shows its zero.
+    r.countdown_s = 999 * 3600;
+    CHECK(highfly_numerals(r) == Six{9, 9, 5, 9, 5, 9});
+    r.countdown_s = 59;
+    CHECK(highfly_numerals(r) == Six{-1, 0, 0, 0, 5, 9});
+    r.mode = ClockMode::PAUSED;
+    CHECK(highfly_numerals(r) == Six{-1, 0, 0, 0, 5, 9});
+    r.has_countdown = false;
+    CHECK(highfly_numerals(r) == Six{1, 4, 2, 5, 0, 7});
+    r.has_countdown = true;
+    for (const ClockMode end : {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+        r.mode = end;
+        CHECK(highfly_numerals(r) == Six{1, 4, 2, 5, 0, 7});
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the countdown numerals carry no AM/PM",
+                 "[screensaver][highfly][clock]") {
+    using helix::ui::clock_minute_text;
+    using helix::ui::highfly_clock_lines;
+    const ClockReading counting = print_reading(ClockMode::COUNTDOWN, 40);
+    REQUIRE(counting.time.meridiem != helix::ui::ClockMeridiem::NONE);
+    const auto lines = highfly_clock_lines(counting);
+    CHECK(lines.first.rfind("ETA ", 0) == 0);
+    CHECK(lines.second == clock_minute_text(14 * 60));
+    CHECK(lines.meridiem.empty());
+    const auto paused = highfly_clock_lines(print_reading(ClockMode::PAUSED, 40));
+    CHECK(paused.first == helix::ui::clock_print_text(print_reading(ClockMode::PAUSED, 40)).eta);
+    CHECK(paused.second == clock_minute_text(14 * 60));
+    CHECK(paused.meridiem.empty());
+    // Numerals that show the time of day keep their AM/PM.
+    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::DONE}) {
+        CHECK_FALSE(highfly_clock_lines(print_reading(m, 40)).meridiem.empty());
+    }
+}
+
+TEST_CASE("the palette is today's sky without a print and warms with progress",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_palette;
+    using helix::ui::HighflyPalette;
+    using helix::ui::kHighflyDay;
+    const ClockReading idle = reading_at(10 * 3600);
+    CHECK(highfly_palette(idle) == kHighflyDay);
+    CHECK(highfly_palette(print_reading(ClockMode::PROGRESS, 0)) == kHighflyDay);
+    const HighflyPalette p0 = highfly_palette(print_reading(ClockMode::COUNTDOWN, 0));
+    const HighflyPalette p50 = highfly_palette(print_reading(ClockMode::COUNTDOWN, 50));
+    const HighflyPalette p100 = highfly_palette(print_reading(ClockMode::COUNTDOWN, 100));
+    for (const auto pick : {+[](const HighflyPalette& p) { return p.top; },
+                            +[](const HighflyPalette& p) { return p.glow; }}) {
+        CHECK(red_over_blue(pick(p0)) < red_over_blue(pick(p50)));
+        CHECK(red_over_blue(pick(p50)) < red_over_blue(pick(p100)));
+    }
+    // Stepped, not per percent; a pause keeps the sky it reached.
+    CHECK(highfly_palette(print_reading(ClockMode::COUNTDOWN, 54)) == p50);
+    CHECK(highfly_palette(print_reading(ClockMode::PAUSED, 50)) == p50);
+    const HighflyPalette done = highfly_palette(print_reading(ClockMode::DONE, 100));
+    CHECK_FALSE(done == p100);
+    for (const ClockMode m : {ClockMode::FAILED, ClockMode::CANCELLED}) {
+        const HighflyPalette grey = highfly_palette(print_reading(m, 60));
+        CHECK(saturation(grey.top) < saturation(kHighflyDay.top));
+        CHECK(saturation(grey.glow) < saturation(kHighflyDay.glow) + 0.01f);
+        CHECK(luminance(grey.glow) < luminance(kHighflyDay.glow));
+    }
+}
+
+TEST_CASE("the sky repaints per palette step, not per frame", "[screensaver][highfly][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    HighFlySim sim;
+    ClockReading r = print_reading(ClockMode::COUNTDOWN, 0);
+    sim.init(frame.target, rng, kHighflyLevelCount - 1, r);
+    const PixelWriter w(frame.target);
+    const Rgb start = w.get(200, 2);
+    std::vector<DirtyRect> dirty;
+    const DirtyRect whole = DirtyRect::whole(400, 240);
+    size_t full = 0;
+    for (int pct = 0; pct <= 100; pct++) {
+        r.progress_pct = pct;
+        for (int i = 0; i < 3; i++) {
+            sim.step(250, frame.target, rng, r, dirty);
+            full += std::count(dirty.begin(), dirty.end(), whole) > 0 ? 1 : 0;
+        }
+    }
+    CHECK(full >= static_cast<size_t>(helix::ui::kHighflyPaletteSteps));
+    CHECK(full <= static_cast<size_t>(helix::ui::kHighflyPaletteSteps) + 3);
+    CHECK(red_over_blue(w.get(200, 2)) > red_over_blue(start) + 0.5f);
+}
+
+TEST_CASE("the end of a print flies through a cloud into the sunset",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::kHighflyGolden;
+    using helix::ui::kHighflySunset;
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    HighFlySim sim;
+    const ClockReading printing = print_reading(ClockMode::COUNTDOWN, 100);
+    sim.init(frame.target, rng, 3, printing);
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 20; i++) {
+        sim.step(100, frame.target, rng, printing, dirty);
+    }
+    REQUIRE(sim.fly_since_s() < 0.0f);
+    const ClockReading done = print_reading(ClockMode::DONE, 100);
+    sim.step(100, frame.target, rng, done, dirty);
+    CHECK(sim.fly_since_s() >= 0.0f);
+    CHECK(sim.fly_since_s() < 0.2f);
+    for (int i = 0; i < 100 && sim.fly_since_s() >= 0.0f; i++) {
+        sim.step(100, frame.target, rng, done, dirty);
+    }
+    REQUIRE(sim.fly_since_s() < 0.0f);
+    const PixelWriter w(frame.target);
+    const float h = hue(w.get(200, 2));
+    CAPTURE(h, hue(kHighflySunset.glow), hue(kHighflyGolden.glow));
+    CHECK(hue_apart(h, hue(kHighflySunset.glow)) < 12.0f);
+    CHECK(hue_apart(h, hue(kHighflySunset.glow)) < hue_apart(h, hue(kHighflyGolden.glow)));
+}
+
+TEST_CASE("a saver started during a print opens in the print's state",
+          "[screensaver][highfly][clock]") {
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::vector<DirtyRect> dirty;
+    const PixelWriter w(frame.target);
+    const auto start = [&](HighFlySim& sim, const ClockReading& r) {
+        std::minstd_rand rng(3);
+        sim.init(frame.target, rng, 3, r);
+        return red_over_blue(w.get(200, 2));
+    };
+    HighFlySim sim;
+    const float first_light = start(sim, print_reading(ClockMode::COUNTDOWN, 0));
+    CHECK(start(sim, print_reading(ClockMode::COUNTDOWN, 100)) > first_light + 0.5f);
+
+    start(sim, print_reading(ClockMode::PAUSED, 40));
+    std::minstd_rand rng(3);
+    sim.step(100, frame.target, rng, print_reading(ClockMode::PAUSED, 40), dirty);
+    CHECK(sim.elapsed_s() == Catch::Approx(0.1 * helix::ui::kHighflyPausedSpeed).margin(0.002));
+
+    // Already finished before it started: no finish to fly through a cloud for.
+    start(sim, print_reading(ClockMode::DONE, 100));
+    sim.step(100, frame.target, rng, print_reading(ClockMode::DONE, 100), dirty);
+    CHECK(sim.fly_since_s() < 0.0f);
+}
+
+TEST_CASE("a paused print slows the flight to a quarter", "[screensaver][highfly][clock]") {
+    TestFrame frame(100, 60, PixelFormat::RGB565);
+    std::minstd_rand rng(3);
+    HighFlySim sim;
+    const ClockReading paused = print_reading(ClockMode::PAUSED, 40);
+    sim.init(frame.target, rng, 3, print_reading(ClockMode::COUNTDOWN, 40));
+    std::vector<DirtyRect> dirty;
+    for (int i = 0; i < 100; i++) {
+        sim.step(100, frame.target, rng, paused, dirty);
+    }
+    const double from = sim.elapsed_s();
+    for (int i = 0; i < 100; i++) {
+        sim.step(100, frame.target, rng, paused, dirty);
+    }
+    CHECK(sim.elapsed_s() - from == Catch::Approx(10.0 * helix::ui::kHighflyPausedSpeed));
+}
+
+// ============================================================================
 // HighFlyScreensaver
 // ============================================================================
 
@@ -812,8 +1043,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the high fly saver shows the print its source
     const std::string date = HighFlyScreensaverTestAccess::date_line(ss).text();
     const std::string day = HighFlyScreensaverTestAccess::day_line(ss).text();
     CHECK(date.rfind("ETA ", 0) == 0);
-    REQUIRE(day.size() > 5);
-    CHECK(day.compare(day.size() - 5, 5, " left") == 0);
+    CHECK(day == helix::ui::clock_minute_text(14 * 60));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

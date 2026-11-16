@@ -210,7 +210,6 @@ AutoFitResult compute_auto_fit(const AABB& raw_bb, ViewMode view_mode, int canva
         return result;
     }
 
-    // Add padding
     range_x *= (1.0f + 2.0f * padding);
     range_y *= (1.0f + 2.0f * padding);
 

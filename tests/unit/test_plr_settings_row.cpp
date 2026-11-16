@@ -16,10 +16,11 @@
 #include "ui_modal.h"
 #include "ui_panel_settings.h"
 #include "ui_settings_printing.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -57,7 +58,7 @@ struct PlrSettingsRowFixture : LVGLUITestFixture {
         auto& plugin = get_printer_state().plugin_status_state();
         plugin.set_features({});
         plugin.set_installed(false);
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         helix::ui::UpdateQueue::instance().drain();
@@ -79,7 +80,7 @@ struct PlrSettingsRowFixture : LVGLUITestFixture {
 
     static bool visible(lv_obj_t* obj) {
         for (; obj != nullptr; obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return false;
             }
         }

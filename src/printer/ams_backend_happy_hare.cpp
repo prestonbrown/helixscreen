@@ -3,29 +3,26 @@
 
 #include "ams_backend_happy_hare.h"
 
-#include "ui_insert_notice.h"
-#include "ui_update_queue.h"
-
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "happy_hare_status_parse.h"
 #include "hh_defaults.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lane_apply.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "operation_patterns.h"    // helix::contains_ci
+#include "notice.h"
 #include "print_lifecycle_state.h" // job_holds_machine
 #include "printer_discovery.h"
 #include "printer_state.h" // PrinterState: mid-print clear guard
 #include "settings_manager.h"
-#include "text_io.h"
 #include "translation_loader.h" // TR_NOOP
 
 #include <spdlog/fmt/fmt.h>
@@ -76,35 +73,6 @@ int unit_index_for_gate(const AmsSystemInfo& info, int gate) {
     return -1;
 }
 
-/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
-SpoolMotorAction hh_spool_motor_action(const std::string& state) {
-    if (state.empty()) {
-        return SpoolMotorAction::None;
-    }
-    if (state == "rewind") {
-        return SpoolMotorAction::Rewinding;
-    }
-    if (state == "assist") {
-        return SpoolMotorAction::Assisting;
-    }
-    return SpoolMotorAction::Other;
-}
-
-/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
-/// when sync feedback is absent or "disabled"; "compressed" advances,
-/// "tension" trails, anything else ("neutral") has no direction.
-std::optional<BufferMotion> hh_sync_feedback_motion(const std::string& state) {
-    if (state.empty() || state == "disabled") {
-        return std::nullopt;
-    }
-    if (state == "compressed") {
-        return BufferMotion::Advancing;
-    }
-    if (state == "tension") {
-        return BufferMotion::Trailing;
-    }
-    return BufferMotion::Unknown;
-}
 } // namespace
 
 // ============================================================================
@@ -152,6 +120,8 @@ nlohmann::json AmsBackendHappyHare::required_status_objects(const helix::Printer
                                             "sync_feedback_bias_modelled",
                                             "sync_feedback_bias_raw",
                                             "sync_feedback_flow_rate",
+                                            "sync_feedback_enabled",
+                                            "fans",
                                             "sync_drive",
                                             "spoolman_support",
                                             "pending_spool_id",
@@ -216,22 +186,9 @@ AmsBackendHappyHare::~AmsBackendHappyHare() {
 // ============================================================================
 
 void AmsBackendHappyHare::on_started() {
-    // Load the user's attached slot identity before any of the queries below,
-    // so the first gate-map frame they provoke already has something to layer.
-    // Outside mutex_, because the DB round-trip blocks and the status
-    // subscription is already live. Publish under it so the parse path reads a
-    // whole map.
-    auto loaded = helix::ams::make_loaded_override_store(api_, "happyhare", get_type(),
-                                                         backend_log_tag(), kOverrideNamespace);
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-    }
-    if (override_store_) {
-        helix::ams::ingest_legacy_records(*override_store_, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
+    // Private namespace: Happy Hare's own plugin writes lane_data, so
+    // HelixScreen keeps only what the gate map cannot hold in its own.
+    open_lane_record_store("happyhare", kOverrideNamespace);
 
     // Tip method (cutter vs tip-forming), selector type (topology), filament heater
     // and the speed/distance defaults all come from one configfile query.
@@ -470,7 +427,8 @@ void AmsBackendHappyHare::handle_status(const nlohmann::json& params) {
         // on the UI thread.
         for (const int gate : frame.unverified_insert_gates) {
             helix::ui::queue_update("AmsBackendHappyHare::handle_status", [gate] {
-                helix::ui::offer_clear_after_unverified_insert(gate);
+                helix::publish_ui_request(
+                    {helix::UiRequestKind::OfferClearAfterUnverifiedInsert, gate});
             });
         }
     }
@@ -503,16 +461,17 @@ void AmsBackendHappyHare::apply_mmu_status_locked(const happy_hare::MmuStatusDel
     frame.was_faulted = !reason_for_pause_.empty();
     // Only v4 publishes tangle_prevention: the frame names the layout before
     // the connect-time query answers.
-    if (delta.telemetry.v4_marker) {
+    if (delta.telemetry.v4_marker && !machine_layout_.v4) {
         machine_layout_.v4 = true;
+        sync_extras_fields_locked();
     }
 
     apply_mmu_selector_locked(delta.core);
     apply_mmu_path_locked(delta.core);
     apply_mmu_topology_locked(delta.topology);
     apply_gate_status_locked(delta.identity);
-    apply_gate_appearance_locked(delta.identity, frame);
-    apply_gate_binding_locked(delta, frame);
+    apply_gate_appearance_locked(delta.identity);
+    apply_gate_binding_locked(delta);
     apply_mmu_telemetry_locked(delta.telemetry);
     apply_mmu_sensors_locked(delta);
     converge_mmu_locked(frame);
@@ -524,8 +483,7 @@ ams::Observation& AmsBackendHappyHare::gate_reading_locked(int gate) {
     // files it once, because one ingest replaces that source's record whole.
     auto it = gate_readings_.find(gate);
     if (it == gate_readings_.end()) {
-        it = gate_readings_.emplace(gate, ams::Observation(ams::ObservationSource::VendorCache))
-                 .first;
+        it = gate_readings_.emplace(gate, ams::Observation(ams::ObservationSource::Firmware)).first;
     }
     return it->second;
 }
@@ -556,11 +514,11 @@ void AmsBackendHappyHare::apply_mmu_selector_locked(const happy_hare::MmuCoreDel
         spdlog::trace("[AMS HappyHare] Reason for pause: {}", reason_for_pause_);
     }
 
-    // printer.mmu.action: "Idle", "Loading", "Unloading", "Forming Tip",
-    // "Heating", "Checking", etc.
+    // printer.mmu.action: a known word leaves the detail empty so AmsState shows it translated.
     if (core.action) {
-        system_info_.action = ams_action_from_string(*core.action);
-        system_info_.operation_detail = *core.action;
+        bool recognized = true;
+        system_info_.action = ams_action_from_string(*core.action, &recognized);
+        system_info_.operation_detail = recognized ? std::string() : *core.action;
         spdlog::trace("[AMS HappyHare] Action: {} ({})", ams_action_to_string(system_info_.action),
                       *core.action);
 
@@ -689,7 +647,7 @@ void AmsBackendHappyHare::apply_gate_status_locked(const happy_hare::GateIdentit
 }
 
 void AmsBackendHappyHare::apply_gate_appearance_locked(
-    const happy_hare::GateIdentityDelta& identity, MmuFrame& frame) {
+    const happy_hare::GateIdentityDelta& identity) {
     // gate_color_rgb wins over the gate_color hex fallback whenever it painted
     // a gate.
     bool colors_parsed = false;
@@ -703,7 +661,6 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             const uint32_t rgb = *colors[i];
             entry->info.color_rgb = rgb;
             gate_reading_locked(static_cast<int>(i)).color_rgb = rgb;
-            frame.stated_for(static_cast<int>(i)).color_rgb = rgb;
             colors_parsed = true;
         }
     }
@@ -725,11 +682,9 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             if (color.kind == ams::ColorReadingKind::Observed) {
                 entry->info.color_rgb = color.rgb;
                 gate_reading_locked(gate).color_rgb = color.rgb;
-                frame.stated_for(gate).color_rgb = color.rgb;
             } else if (color.kind == ams::ColorReadingKind::Cleared) {
                 entry->info.color_rgb = kAmsDefaultSlotColor;
                 gate_reading_locked(gate).color_rgb.reset();
-                frame.cleared_for(gate).color_rgb = 0u;
             }
         }
     }
@@ -748,10 +703,8 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             auto& reading = gate_reading_locked(gate);
             if (material.empty()) {
                 reading.material.reset();
-                frame.cleared_for(gate).material = std::string{};
             } else {
                 reading.material = material;
-                frame.stated_for(gate).material = material;
             }
         }
     }
@@ -769,17 +722,14 @@ void AmsBackendHappyHare::apply_gate_appearance_locked(
             auto& reading = gate_reading_locked(gate);
             if (vendor.empty()) {
                 reading.brand.reset();
-                frame.cleared_for(gate).brand = std::string{};
             } else {
                 reading.brand = vendor;
-                frame.stated_for(gate).brand = vendor;
             }
         }
     }
 }
 
-void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta,
-                                                    MmuFrame& frame) {
+void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusDelta& delta) {
     const auto& identity = delta.identity;
 
     // gate_spool_id (v4): per-gate Spoolman spool IDs, which enable weight
@@ -794,40 +744,18 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
             const int id = *spool_ids[i];
             entry->info.spoolman_id = (id > 0) ? id : 0;
             auto& reading = gate_reading_locked(static_cast<int>(i));
+            // A gate moved to another spool keeps nothing the previous one's
+            // details stated.
+            const int previous = reading.spoolman_id.value_or(0);
+            if (previous > 0 && previous != std::max(id, 0)) {
+                retire_departed_weights_locked(static_cast<int>(i));
+            }
             // Happy Hare writes 0 for a gate with no spool, which unlinks the
             // gate rather than naming a spool numbered zero.
             if (id > 0) {
                 reading.spoolman_id = id;
             } else {
                 reading.spoolman_id.reset();
-            }
-        }
-        // The gate map is the one thing Happy Hare states about a gate's
-        // binding, so this is where a binding that has stopped holding is
-        // found. The id compared is the gate's own accumulated reading rather
-        // than entry->info, which carries the resolved record's id back.
-        //
-        // Runs BEFORE the lane is painted at the tail: a binding this drops must
-        // be gone from the model before anything reads it, or the gate paints
-        // the spool that just stopped describing it for one more frame.
-        for (size_t i = 0; i < spool_ids.size(); ++i) {
-            const int gate = static_cast<int>(i);
-            if (!slots_.get(gate)) {
-                continue;
-            }
-            // find(), not gate_reading_locked(): looking a gate up must not
-            // create a cache record for one that has none.
-            auto it = gate_readings_.find(gate);
-            const int firmware_id =
-                it != gate_readings_.end() ? it->second.spoolman_id.value_or(0) : 0;
-            if (reconcile_lane_binding(gate, firmware_id) != ams::BindingVerdict::Holds) {
-                helix::ams::clear_persisted_override(override_store_.get(), overrides_, gate,
-                                                     backend_log_tag());
-                retire_departed_identity_locked(gate);
-                // Another writer moved the gate to a different spool, which is
-                // this backend's auto-clear signal: what the gate map states
-                // from here on is that spool's own reading, not our echo.
-                own_write_echoes_.abandon(gate);
             }
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_spool_id for {} gates", spool_ids.size());
@@ -938,12 +866,12 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         espooler_active_ = system_info_.espooler_state;
         spdlog::trace("[AMS HappyHare] eSpooler state: {}", system_info_.espooler_state);
     }
-    system_info_.spool_motor = hh_spool_motor_action(system_info_.espooler_state);
+    system_info_.spool_motor = happy_hare::spool_motor_action(system_info_.espooler_state);
 
     if (t.sync_feedback_state) {
         system_info_.sync_feedback_state = *t.sync_feedback_state;
         system_info_.system_buffer_motion =
-            hh_sync_feedback_motion(system_info_.sync_feedback_state);
+            happy_hare::sync_feedback_motion(system_info_.sync_feedback_state);
         spdlog::trace("[AMS HappyHare] Sync feedback: {}", system_info_.sync_feedback_state);
     }
 
@@ -967,6 +895,15 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
     }
     if (t.sync_feedback_bias_raw_null) {
         system_info_.sync_feedback_bias_raw = kBiasUnavailable;
+    }
+    // Null while the selected unit has no buffer: its controls go with it.
+    if (t.sync_feedback_enabled) {
+        sync_feedback_enabled_ = *t.sync_feedback_enabled;
+    } else if (t.sync_feedback_enabled_null) {
+        sync_feedback_enabled_.reset();
+    }
+    if (t.fans) {
+        fan_units_ = *t.fans;
     }
 
     if (t.sync_drive) {
@@ -994,7 +931,8 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         const auto& encoder = *t.encoder;
         if (encoder.flow_rate) {
             system_info_.encoder_info.flow_rate = *encoder.flow_rate;
-            // Keep legacy field in sync
+            // encoder_flow_rate mirrors encoder_info.flow_rate for readers of the top-level
+            // field, such as the buffer status modal.
             system_info_.encoder_flow_rate = system_info_.encoder_info.flow_rate;
             spdlog::trace("[AMS HappyHare] Encoder flow rate: {}", system_info_.encoder_flow_rate);
         }
@@ -1157,7 +1095,6 @@ void AmsBackendHappyHare::apply_mmu_sensors_locked(const happy_hare::MmuStatusDe
                 }
             }
 
-            // Set the current gate's actual reading
             if (system_info_.current_slot >= 0) {
                 auto* gate = gate_sensor_mut(system_info_.current_slot);
                 if (gate) {
@@ -1347,38 +1284,7 @@ void AmsBackendHappyHare::file_gate_readings_locked(MmuFrame& frame) {
         }
     }
     for (const auto& [gate, reading] : gate_readings_) {
-        // The echo guard: a value repeating the user's own MMU_GATE_MAP write
-        // is not a reading, and ingest files the record whole, so a withheld
-        // field goes absent rather than back to its pre-edit value. The copy
-        // is what gets filed because strip_standing also removes fields the
-        // frame was silent about but the accumulator still carries - for an
-        // echoed field that standing value is our own write, and filing it
-        // would put the abandoned edit back as the machine's word one frame
-        // after the echo was withheld. No boundary token: no tag names the
-        // spool a gate-map write was made against, so a differing value, a
-        // key published empty, or the re-bind verdict ends the suppression.
-        ams::Observation stated{ams::ObservationSource::VendorCache};
-        ams::Observation cleared{ams::ObservationSource::VendorCache};
-        if (const auto it = frame.stated.find(gate); it != frame.stated.end()) {
-            stated = it->second;
-        }
-        if (const auto it = frame.cleared.find(gate); it != frame.cleared.end()) {
-            cleared = it->second;
-        }
-        const ams::Observation judged = stated;
-        own_write_echoes_.withhold(gate, std::string{}, stated, cleared);
-        ams::Observation filed = reading;
-        if (judged.color_rgb && !stated.color_rgb) {
-            filed.color_rgb.reset();
-        }
-        if (judged.material && !stated.material) {
-            filed.material.reset();
-        }
-        if (judged.brand && !stated.brand) {
-            filed.brand.reset();
-        }
-        own_write_echoes_.strip_standing(gate, filed);
-        ams::ingest(lane_id(gate), filed);
+        ams::ingest(lane_id(gate), reading);
     }
 }
 
@@ -1402,17 +1308,11 @@ void AmsBackendHappyHare::apply_fault_edge_locked(const MmuFrame& frame) {
     }
 }
 
-void AmsBackendHappyHare::retire_departed_identity_locked(int gate) {
+void AmsBackendHappyHare::retire_departed_weights_locked(int gate) {
     auto* entry = slots_.get_mut(gate);
     if (!entry) {
         return;
     }
-    entry->info.brand.clear();
-    entry->info.spool_name.clear();
-    entry->info.catalog_id.clear();
-    entry->info.product_name.clear();
-    entry->info.spoolman_vendor_id = 0;
-    entry->info.spoolman_filament_id = 0;
     entry->info.remaining_weight_g = -1.0F;
     entry->info.total_weight_g = -1.0F;
 }
@@ -1519,7 +1419,7 @@ AmsBackendHappyHare::classify_error(const std::string& raw_line,
 
     const std::string detail = display_reason(reason);
     return helix::make_ams_fault_event(helix::ErrorSource::HAPPY_HARE,
-                                       helix::contains_ci(detail, "runout")
+                                       helix::text_io::contains_ignore_case(detail, "runout")
                                            ? lv_tr("Filament runout")
                                            : lv_tr("Filament System Error"),
                                        detail, recovery_actions_locked(ctx.is_paused));
@@ -1633,7 +1533,6 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
     }
     if (unit_counts.empty() && !per_unit_gate_counts_.empty() &&
         static_cast<int>(per_unit_gate_counts_.size()) == num_units_) {
-        // Verify total matches
         int total = 0;
         for (int c : per_unit_gate_counts_)
             total += c;
@@ -1667,6 +1566,11 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                                      : std::string("MMU");
     };
 
+    auto unit_model = [this](int u) {
+        return u < static_cast<int>(machine_units_.size()) ? machine_units_[u].vendor
+                                                           : std::string{};
+    };
+
     // The split mmu_machine names usually matches the one already built; only
     // the topologies can still change then.
     if (resplit && static_cast<int>(system_info_.units.size()) == num_units_) {
@@ -1676,6 +1580,8 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                    system_info_.units[u].name == unit_name(u);
         }
         if (same) {
+            for (int u = 0; u < num_units_; ++u)
+                system_info_.units[u].model = unit_model(u);
             update_unit_topologies();
             return;
         }
@@ -1698,6 +1604,7 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
         AmsUnit unit;
         unit.unit_index = u;
         unit.name = unit_name(u);
+        unit.model = unit_model(u);
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
         unit.connected = true;
@@ -2077,6 +1984,12 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
         parse_int("clog_detection", config_defaults_.clog_detection);
         config_defaults_.detection_length = happy_hare::read_config_number(
             happy_hare::find_config_param(settings, layout, "detection_length"));
+        if (const auto v = happy_hare::read_config_number(
+                happy_hare::find_config_param(settings, layout, "autotune_rotation_distance"))) {
+            config_defaults_.autotune_rotation_distance = *v != 0.0f;
+        }
+        // A Klipper restart dropped any AUTOTUNE= sent before it.
+        sync_feedback_autotune_sent_.reset();
 
         config_defaults_.loaded = true;
 
@@ -2092,7 +2005,6 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
     }
 
     load_persisted_overrides();
-    reapply_overrides();
 }
 
 void AmsBackendHappyHare::query_config_from_printer() {
@@ -2142,6 +2054,7 @@ void AmsBackendHappyHare::query_config_from_printer() {
                     machine_layout_ = layout;
                     system_info_.version = layout.version;
                     apply_bypass_support_locked();
+                    sync_extras_fields_locked();
                 }
                 spdlog::info("[AMS HappyHare] Happy Hare {} ({} layout)",
                              layout.version.empty() ? "version unknown" : layout.version,
@@ -2160,25 +2073,72 @@ void AmsBackendHappyHare::query_config_from_printer() {
 }
 
 void AmsBackendHappyHare::load_persisted_overrides() {
+    if (!api_) {
+        adopt_hh_tuning(nlohmann::json::object(), /*writable=*/false);
+        return;
+    }
+    hh_tuning_reading_ = true;
+    auto token = lifetime_.token();
+    api_->database_get_item(
+        kHhTuningNamespace, kHhTuningKey,
+        [this, token](const nlohmann::json& value) {
+            token.defer("AmsBackendHappyHare::hh_tuning_read", [this, value]() {
+                adopt_hh_tuning(value.is_object() ? value : nlohmann::json::object(), true);
+            });
+        },
+        [this, token](const MoonrakerError& err) {
+            // Nothing stored yet reads as an empty document; any other
+            // failure keeps what is stored there untouched.
+            const bool absent = err.is_not_found();
+            if (!absent) {
+                spdlog::warn("[AMS HappyHare] Couldn't read the tuning values: {}", err.message);
+            }
+            token.defer("AmsBackendHappyHare::hh_tuning_unread",
+                        [this, absent]() { adopt_hh_tuning(nlohmann::json::object(), absent); });
+        });
+}
+
+void AmsBackendHappyHare::adopt_hh_tuning(nlohmann::json doc, bool writable) {
+    bool changed = false;
+    hh_tuning_reading_ = false;
+    // Tuning kept in the local config before it lived in Moonraker belongs to
+    // the printer this screen drives: it moves there, once.
     auto* config = helix::Config::get_instance();
+    if (const nlohmann::json* local = config->try_get_json("/hh_overrides");
+        writable && doc.empty() && local && local->is_object()) {
+        doc = *local;
+        config->get_json("").erase("hh_overrides");
+        config->save();
+        changed = true;
+    }
+    // A change made before the read lands on what the read found.
+    for (const auto& [key, entry] : hh_tuning_unsaved_.items()) {
+        doc[key] = entry;
+        changed = true;
+    }
+    if (writable) {
+        hh_tuning_read_ = true;
+        hh_tuning_unsaved_ = nlohmann::json::object();
+    }
     // An override saved against the built-in default, not the printer's own,
     // still applies: the built-ins stood in whenever the printer's config
     // could not be read. Its record is re-pointed at the real default.
     const ConfigDefaults builtin;
-    bool migrated = false;
-
-    // Helper: load an override if its saved config_default still matches.
+    UserOverrides loaded;
     auto load = [&](const std::string& key, auto& field, auto current_default,
                     auto builtin_default) {
         using T = decltype(current_default);
-        std::string base = "/hh_overrides/" + key;
+        std::string name = key;
         // Records saved under the action id selector_speed load too.
-        if (!config->exists(base + "/value") && key == "selector_move_speed") {
-            base = "/hh_overrides/selector_speed";
+        if (!doc.contains(name) && key == "selector_move_speed") {
+            name = "selector_speed";
         }
-        if (!config->exists(base + "/value"))
+        const auto entry = doc.find(name);
+        if (entry == doc.end() || !entry->is_object()) {
             return;
-        const T saved_default = config->get<T>(base + "/config_default", T(-999));
+        }
+        const T saved_default =
+            static_cast<T>(helix::json_util::safe_double(*entry, "config_default", -999.0));
         auto same = [](T a, T b) { return std::abs(static_cast<float>(a - b)) < 0.01f; };
         if (!same(saved_default, current_default)) {
             if (!same(saved_default, builtin_default)) {
@@ -2190,11 +2150,11 @@ void AmsBackendHappyHare::load_persisted_overrides() {
             spdlog::info("[AMS HappyHare] Keeping override {} saved against the built-in "
                          "default {} (printer's default {})",
                          key, saved_default, current_default);
-            config->set<T>(base + "/config_default", current_default);
-            migrated = true;
+            (*entry)["config_default"] = current_default;
+            changed = true;
         }
-        const nlohmann::json* value = config->try_get_json(base + "/value");
-        if (!value || !(value->is_number() || value->is_boolean())) {
+        const auto value = entry->find("value");
+        if (value == entry->end() || !(value->is_number() || value->is_boolean())) {
             spdlog::warn("[AMS HappyHare] Failed to load override {}", key);
             return;
         }
@@ -2203,23 +2163,50 @@ void AmsBackendHappyHare::load_persisted_overrides() {
     };
 
     // clang-format off
-    load("gear_from_buffer_speed", user_overrides_.gear_from_buffer_speed, config_defaults_.gear_from_buffer_speed, builtin.gear_from_buffer_speed);
-    load("gear_from_spool_speed", user_overrides_.gear_from_spool_speed, config_defaults_.gear_from_spool_speed, builtin.gear_from_spool_speed);
-    load("gear_unload_speed", user_overrides_.gear_unload_speed, config_defaults_.gear_unload_speed, builtin.gear_unload_speed);
-    load("selector_move_speed", user_overrides_.selector_move_speed, config_defaults_.selector_move_speed, builtin.selector_move_speed);
-    load("extruder_load_speed", user_overrides_.extruder_load_speed, config_defaults_.extruder_load_speed, builtin.extruder_load_speed);
-    load("extruder_unload_speed", user_overrides_.extruder_unload_speed, config_defaults_.extruder_unload_speed, builtin.extruder_unload_speed);
-    load("toolhead_sensor_to_nozzle", user_overrides_.toolhead_sensor_to_nozzle, config_defaults_.toolhead_sensor_to_nozzle, builtin.toolhead_sensor_to_nozzle);
-    load("toolhead_extruder_to_nozzle", user_overrides_.toolhead_extruder_to_nozzle, config_defaults_.toolhead_extruder_to_nozzle, builtin.toolhead_extruder_to_nozzle);
-    load("toolhead_entry_to_extruder", user_overrides_.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
-    load("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
-    load("sync_to_extruder", user_overrides_.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
-    load("clog_detection", user_overrides_.clog_detection, config_defaults_.clog_detection, builtin.clog_detection);
+    load("gear_from_buffer_speed", loaded.gear_from_buffer_speed, config_defaults_.gear_from_buffer_speed, builtin.gear_from_buffer_speed);
+    load("gear_from_spool_speed", loaded.gear_from_spool_speed, config_defaults_.gear_from_spool_speed, builtin.gear_from_spool_speed);
+    load("gear_unload_speed", loaded.gear_unload_speed, config_defaults_.gear_unload_speed, builtin.gear_unload_speed);
+    load("selector_move_speed", loaded.selector_move_speed, config_defaults_.selector_move_speed, builtin.selector_move_speed);
+    load("extruder_load_speed", loaded.extruder_load_speed, config_defaults_.extruder_load_speed, builtin.extruder_load_speed);
+    load("extruder_unload_speed", loaded.extruder_unload_speed, config_defaults_.extruder_unload_speed, builtin.extruder_unload_speed);
+    load("toolhead_sensor_to_nozzle", loaded.toolhead_sensor_to_nozzle, config_defaults_.toolhead_sensor_to_nozzle, builtin.toolhead_sensor_to_nozzle);
+    load("toolhead_extruder_to_nozzle", loaded.toolhead_extruder_to_nozzle, config_defaults_.toolhead_extruder_to_nozzle, builtin.toolhead_extruder_to_nozzle);
+    load("toolhead_entry_to_extruder", loaded.toolhead_entry_to_extruder, config_defaults_.toolhead_entry_to_extruder, builtin.toolhead_entry_to_extruder);
+    load("toolhead_ooze_reduction", loaded.toolhead_ooze_reduction, config_defaults_.toolhead_ooze_reduction, builtin.toolhead_ooze_reduction);
+    load("sync_to_extruder", loaded.sync_to_extruder, config_defaults_.sync_to_extruder, builtin.sync_to_extruder);
     // clang-format on
 
-    if (migrated) {
-        config->save();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        user_overrides_ = loaded;
     }
+    hh_tuning_ = std::move(doc);
+    if (changed && writable) {
+        write_hh_tuning();
+    }
+    reapply_overrides();
+}
+
+void AmsBackendHappyHare::store_hh_tuning_entry(const std::string& key, nlohmann::json entry) {
+    if (hh_tuning_read_) {
+        hh_tuning_[key] = std::move(entry);
+        write_hh_tuning();
+        return;
+    }
+    hh_tuning_unsaved_[key] = std::move(entry);
+    if (api_ && !hh_tuning_reading_) {
+        load_persisted_overrides();
+    }
+}
+
+void AmsBackendHappyHare::write_hh_tuning() {
+    if (!api_ || !hh_tuning_read_) {
+        return;
+    }
+    api_->database_post_item(
+        kHhTuningNamespace, kHhTuningKey, hh_tuning_, nullptr, [](const MoonrakerError& err) {
+            spdlog::warn("[AMS HappyHare] Couldn't save the tuning values: {}", err.message);
+        });
 }
 
 /// Helper to get the config default float for a given action key
@@ -2251,15 +2238,12 @@ float AmsBackendHappyHare::get_config_default_float(const std::string& key) cons
 int AmsBackendHappyHare::get_config_default_int(const std::string& key) const {
     if (key == "sync_to_extruder")
         return config_defaults_.sync_to_extruder;
-    if (key == "clog_detection")
-        return config_defaults_.clog_detection;
     return 0;
 }
 
 void AmsBackendHappyHare::save_override(const std::string& key, float value) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        // Update in-memory override
         if (key == "gear_from_buffer_speed")
             user_overrides_.gear_from_buffer_speed = value;
         else if (key == "gear_from_spool_speed")
@@ -2282,12 +2266,8 @@ void AmsBackendHappyHare::save_override(const std::string& key, float value) {
             user_overrides_.toolhead_ooze_reduction = value;
     } // end mutex scope
 
-    // Persist to Config JSON (outside lock — disk I/O)
-    auto* config = helix::Config::get_instance();
-    std::string base = "/hh_overrides/" + key;
-    config->set<float>(base + "/value", value);
-    config->set<float>(base + "/config_default", get_config_default_float(key));
-    config->save();
+    store_hh_tuning_entry(key,
+                          {{"value", value}, {"config_default", get_config_default_float(key)}});
 }
 
 void AmsBackendHappyHare::save_override(const std::string& key, int value) {
@@ -2295,16 +2275,9 @@ void AmsBackendHappyHare::save_override(const std::string& key, int value) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (key == "sync_to_extruder")
             user_overrides_.sync_to_extruder = value;
-        else if (key == "clog_detection")
-            user_overrides_.clog_detection = value;
     } // end mutex scope
 
-    // Persist to Config JSON (outside lock — disk I/O)
-    auto* config = helix::Config::get_instance();
-    std::string base = "/hh_overrides/" + key;
-    config->set<int>(base + "/value", value);
-    config->set<int>(base + "/config_default", get_config_default_int(key));
-    config->save();
+    store_hh_tuning_entry(key, {{"value", value}, {"config_default", get_config_default_int(key)}});
 }
 
 std::string AmsBackendHappyHare::test_config_param_locked(std::string_view key) const {
@@ -2344,7 +2317,6 @@ void AmsBackendHappyHare::reapply_overrides() {
         add_float("toolhead_ooze_reduction", user_overrides_.toolhead_ooze_reduction, false);
         // Int toggles
         add_int("sync_to_extruder", user_overrides_.sync_to_extruder);
-        add_int("clog_detection", user_overrides_.clog_detection);
 
         // Each override goes alone, to the unit that takes it: v3 refuses a
         // whole MMU_TEST_CONFIG over one name it does not know, and v4 applies
@@ -2381,7 +2353,6 @@ AmsError AmsBackendHappyHare::do_load_filament(int slot_index) {
             return gate_valid;
         }
 
-        // Check if slot has filament available
         const auto* entry = slots_.get(slot_index);
         if (entry && entry->info.status == SlotStatus::EMPTY) {
             return AmsErrorHelper::slot_not_available(lane_noun(), slot_index);
@@ -2703,69 +2674,6 @@ AmsError AmsBackendHappyHare::cancel() {
 // Configuration Operations
 // ============================================================================
 
-void AmsBackendHappyHare::persist_override(int slot_index, const SlotInfo& info,
-                                           const helix::ams::Observation& declared) {
-    // Callers hold mutex_.
-    const helix::ams::FilamentSlotOverride o =
-        helix::ams::stage_user_override(overrides_, slot_index, info, declared);
-
-    if (override_store_) {
-        override_store_->save_async(slot_index, o, [slot_index](bool ok, std::string err) {
-            if (!ok) {
-                spdlog::warn("[AMS HappyHare] override save failed for gate {}: {}", slot_index,
-                             err);
-            }
-        });
-    }
-}
-
-void AmsBackendHappyHare::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        helix::printer::SlotEntry* entry = slots_.get_mut(slot_index);
-        clear_override_locked(slot_index, entry ? &entry->info : nullptr);
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-}
-
-void AmsBackendHappyHare::publish_external_spool_lane(const SlotInfo* spool) {
-    // Same shape as AFC's publish: capability + gate count under the lock,
-    // lazy shared-namespace store from api_, send outside. Lane key style —
-    // HelixScreen's filament-system convention (spec filament_slots.md §4);
-    // Happy Hare's own outer keys differ but the inner 0-based `lane` field is
-    // what readers key off.
-    int lane_index = 0;
-    bool supported = false;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        supported = system_info_.supports_bypass;
-        lane_index = system_info_.total_slots;
-    }
-    if (!supported || lane_index <= 0 || !api_) {
-        return;
-    }
-    if (!lane_publish_store_) {
-        lane_publish_store_ = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-            api_, "happyhare", helix::ams::LaneKeyStyle::Lane);
-    }
-    helix::ams::publish_external_lane(lane_publish_store_.get(), lane_index, spool,
-                                      backend_log_tag());
-}
-
-void AmsBackendHappyHare::write_gate_locked(int slot_index, SlotInfo& slot, const SlotInfo& info) {
-    const int old_mapped_tool = slot.mapped_tool;
-    const bool changed = slot.assign_filament_fields(info) || info.mapped_tool != old_mapped_tool;
-    // Tool mapping change goes through registry so reverse maps stay consistent.
-    if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
-        slots_.set_tool_mapping(slot_index, info.mapped_tool);
-    }
-
-    if (changed) {
-        spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
-                     info.color_name);
-    }
-}
-
 namespace {
 /// The Clear Spool funnel hands the backend a slot with nothing on it: no
 /// material, no declarable colour, no identity text, no spool link. Only that
@@ -2777,18 +2685,33 @@ bool is_full_clear(const SlotInfo& info) {
 }
 
 /// Spoolman pull mode refuses local gate-map writes by logging the refusal
-/// only, so every refusal path reports it here instead: a partial failure
-/// (HelixScreen's own layer is already written) naming Spoolman as the owner.
-AmsError pull_mode_refusal(const char* title, const char* message) {
-    AmsError refused(AmsResult::COMMAND_FAILED, "Happy Hare Spoolman pull mode owns the gate map",
-                     lv_tr(title), lv_tr(message));
-    refused.partially_applied = true;
-    return refused;
+/// only, so an edit there is refused before anything is written: the gate map
+/// is Spoolman's, and HelixScreen keeps no copy of its own.
+AmsError pull_mode_refusal() {
+    return AmsError(AmsResult::COMMAND_FAILED, "Happy Hare Spoolman pull mode owns the gate map",
+                    lv_tr("this printer fills its gates from Spoolman, so change the spool there"),
+                    lv_tr("Make color, material and spool changes in Spoolman."));
+}
+
+/// True when @p info moves anything the gate map holds for the gate @p old
+/// describes. A tool remap or a weight is not a gate-map field.
+bool edits_gate_map(const SlotInfo& old, const SlotInfo& info) {
+    return info.material != old.material || info.color_rgb != old.color_rgb ||
+           info.spool_name != old.spool_name || info.brand != old.brand ||
+           info.spoolman_id != old.spoolman_id;
+}
+
+/// The one nozzle temperature a gate map holds, from a slot's range: the
+/// midpoint of a range, the single value otherwise, 0 for none.
+int gate_map_temperature(const SlotInfo& info) {
+    if (info.nozzle_temp_min > 0 && info.nozzle_temp_max > info.nozzle_temp_min) {
+        return (info.nozzle_temp_min + info.nozzle_temp_max) / 2;
+    }
+    return info.nozzle_temp_min > 0 ? info.nozzle_temp_min : info.nozzle_temp_max;
 }
 } // namespace
 
-AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& info,
-                                              const helix::ams::Observation& declared) {
+AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& info) {
     int old_spoolman_id = 0;
     int old_mapped_tool = -1;
     bool old_had_identity = false;
@@ -2798,6 +2721,8 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     uint32_t old_color_rgb = kAmsDefaultSlotColor;
     SpoolmanMode spoolman_mode = SpoolmanMode::OFF;
     int current_slot = -1;
+    std::string old_name;
+    int old_temp = 0;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2819,13 +2744,28 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         old_brand = entry->info.brand;
         v4 = is_v4_locked();
         old_color_rgb = entry->info.color_rgb;
+        old_name = entry->info.spool_name;
+        old_temp = gate_map_temperature(entry->info);
         spoolman_mode = system_info_.spoolman_mode;
         current_slot = system_info_.current_slot;
-        write_gate_locked(slot_index, entry->info, info);
+        // Spoolman pull mode: Happy Hare refuses local writes to material,
+        // colour, name, vendor and spool id, and logs the refusal rather than
+        // returning it. The gate map is Spoolman's on this printer, so the
+        // edit is refused whole before anything is written.
+        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info)) {
+            spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} edit "
+                         "refused",
+                         slot_index);
+            return pull_mode_refusal();
+        }
+        if (slots_.write_edit(slot_index, info)) {
+            spdlog::info("[AMS HappyHare] Updated slot {} info: {} {}", slot_index, info.material,
+                         info.color_name);
+        }
 
         // Record the user's identity in the override store: the gate map cannot
         // hold brand / spool_name / total weight / colour name at all.
-        persist_override(slot_index, info, declared);
+        persist_user_record_locked(slot_index, info);
     }
 
     // Set when the material could not be expressed as a G-code parameter. Reported
@@ -2833,46 +2773,15 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     // the user only the material rather than the whole save — but is never silent.
     std::string rejected_material;
 
-    // Record our own id write so Rule 1 does not read the in-flight
-    // frames (still reporting old_spoolman_id until the echo lands) as
-    // an external re-bind. An unlink (SPOOLID=-1) erases the pending
-    // expectation instead. The command build runs OUTSIDE mutex_ -
-    // take the lock just for the record, matching every other writer.
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        record_own_spool_write(slot_index, info.spoolman_id, old_spoolman_id);
-    }
-
     // Clear Spool: wipe everything the gate map holds for this gate. Happy
-    // Hare keeps omitted params at their current value, so each writable field
-    // is named with an explicit empty value - the only form that empties
-    // MATERIAL, COLOR, NAME and VENDOR (v2/v3 ignore params they do not fetch;
-    // VENDOR is v4-only). Never RESET: on v2/v3 it ignores GATE and wipes
-    // every gate. Never TEMP=0 (falsy means "keep") or AVAILABLE=0 (that
-    // marks the gate EMPTY, not unknown).
+    // Hare keeps omitted MATERIAL, COLOR, NAME and VENDOR at their current
+    // value, so each is named with an explicit empty value, the only form that
+    // empties it (v2/v3 ignore params they do not fetch; VENDOR is v4-only).
+    // TEMP is omitted: an omitted TEMP is default_extruder_temp, the
+    // temperature of a gate with no spool. Never RESET: on v2/v3 it ignores
+    // GATE and wipes every gate. Never AVAILABLE=0 (that marks the gate EMPTY,
+    // not unknown).
     if (is_full_clear(info) && old_had_identity) {
-        // The gate is being emptied deliberately, so a frame restating the
-        // edit's values afterwards is the machine's own reading, not an echo
-        // to hide - the guard from an earlier edit must not outlive it.
-        // Under the lock: the parse mutates the same map under mutex_.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.abandon(slot_index);
-        }
-
-        // Spoolman pull mode: Happy Hare refuses local writes to material,
-        // colour, name, vendor and spool id, and logs the refusal rather than
-        // returning it - the gate map belongs to Spoolman on this printer.
-        if (spoolman_mode == SpoolmanMode::PULL) {
-            spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} "
-                         "cleared locally only",
-                         slot_index);
-            emit_event(kEventSlotChanged, std::to_string(slot_index));
-            return pull_mode_refusal("Couldn't clear the printer's gate map",
-                                     "This printer fills its gates from Spoolman. HelixScreen "
-                                     "cleared its own copy; remove the spool in Spoolman.");
-        }
-
         // A job on this gate: the print UI refuses clears while a job holds
         // the machine, so one reaching here is a backstop - rewriting the gate
         // map under a running print is the one thing that must not happen.
@@ -2941,17 +2850,30 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 
     // Vendor (v4 only; older Happy Hare has no such gate-map field). Carried
     // as an explicit empty when the user cleared a brand the gate held.
-    bool wrote_vendor = false;
     if (v4) {
         if (!info.brand.empty() && IMoonrakerAPI::is_safe_material_param(info.brand)) {
             cmd += fmt::format(" VENDOR={}", IMoonrakerAPI::gcode_param_value(info.brand));
-            has_changes = wrote_vendor = true;
+            has_changes = true;
         } else if (!info.brand.empty()) {
             spdlog::warn("[AMS HappyHare] Skipping VENDOR - unsafe characters in: {}", info.brand);
         } else if (!old_brand.empty()) {
             cmd += " VENDOR=";
             has_changes = true;
         }
+    }
+
+    // Name: the gate map holds it on every version, and an explicit empty
+    // clears it.
+    if (!info.spool_name.empty() && IMoonrakerAPI::is_safe_material_param(info.spool_name)) {
+        if (info.spool_name != old_name) {
+            cmd += fmt::format(" NAME={}", IMoonrakerAPI::gcode_param_value(info.spool_name));
+            has_changes = true;
+        }
+    } else if (!info.spool_name.empty()) {
+        spdlog::warn("[AMS HappyHare] Skipping NAME - unsafe characters in: {}", info.spool_name);
+    } else if (!old_name.empty()) {
+        cmd += " NAME=";
+        has_changes = true;
     }
 
     // Spoolman ID (-1 to clear)
@@ -2963,64 +2885,17 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         has_changes = true;
     }
 
-    // Only send command if there are actual changes to persist. Spoolman pull
-    // mode refuses local writes to every field this command carries and logs
-    // the refusal rather than returning it - send nothing and report the
-    // partial failure below instead of claiming success. Tool-to-gate remaps
-    // are not gate-map fields and still go out.
-    const bool pull_owns_gate_map = spoolman_mode == SpoolmanMode::PULL;
-    if (has_changes && pull_owns_gate_map) {
-        spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} "
-                     "edit kept locally only",
-                     slot_index);
-        // No write goes out, so no echo is coming: the gate map's next frame
-        // is Spoolman's word, not ours.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.abandon(slot_index);
-        }
+    // Temperature: one per gate, named on every write. Happy Hare reads an
+    // omitted TEMP as default_extruder_temp, which would overwrite the gate's
+    // own, and TEMP=0 as "keep the stored value".
+    if (const int temp = gate_map_temperature(info); temp > 0 && temp != old_temp) {
+        cmd += fmt::format(" TEMP={}", temp);
+        has_changes = true;
     } else if (has_changes) {
-        // Remember what the user declared, pruned to the fields this command
-        // actually carries, so the parse can tell the gate map repeating their
-        // choice back from Happy Hare's own readings. Staged before the
-        // dispatch: the guard has to be standing before any echo can arrive.
-        // A dispatch that failed outright leaves it armed to self-clean the
-        // same way - firmware still holds a value the declaration disagrees
-        // with. Under the lock: the parse mutates the same map under mutex_.
-        // The dispatch itself stays outside it, as every other writer here.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            own_write_echoes_.stage(slot_index, declared);
-            if (auto* staged = own_write_echoes_.staged(slot_index)) {
-                // COLOR= is skipped for the no-colour sentinel and MATERIAL= for
-                // an unsafe or cleared name: a field the write omitted (or asked
-                // firmware to drop) is the gate map's to keep, so its echo is a
-                // reading.
-                if (!ams::is_declarable_color(info.color_rgb)) {
-                    staged->color_rgb.reset();
-                }
-                if (info.material.empty() ||
-                    !IMoonrakerAPI::is_safe_material_param(info.material)) {
-                    staged->material.reset();
-                }
-                // The command carries no name, colour name or product line, and
-                // carries a brand only as VENDOR=, so any other value firmware
-                // reports for them is its own. An inert field left declared
-                // would keep the entry alive after the real fields are all
-                // released.
-                if (!wrote_vendor) {
-                    staged->brand.reset();
-                }
-                staged->spool_name.reset();
-                staged->color_name.reset();
-                staged->product_name.reset();
-            }
-            // No boundary token: no tag names the spool a gate-map write was made
-            // against, so suppression ends on a differing value or a key
-            // published empty rather than on a boundary event.
-            own_write_echoes_.arm(slot_index, std::string{});
-        }
+        cmd += " TEMP=0";
+    }
 
+    if (has_changes) {
         execute_gcode(cmd);
         spdlog::debug("[AMS HappyHare] Sent: {}", cmd);
     }
@@ -3034,12 +2909,6 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks
     emit_event(kEventSlotChanged, std::to_string(slot_index));
-
-    if (has_changes && pull_owns_gate_map) {
-        return pull_mode_refusal("Couldn't save the printer's gate map",
-                                 "This printer fills its gates from Spoolman. Make color, "
-                                 "material and spool changes in Spoolman.");
-    }
 
     if (!rejected_material.empty()) {
         AmsError partial(AmsResult::COMMAND_FAILED,
@@ -3057,40 +2926,8 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendHappyHare::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (!slots_.is_valid_index(slot_index)) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        auto* entry = slots_.get_mut(slot_index);
-        if (!entry) {
-            return AmsErrorHelper::invalid_slot(lane_noun(), slot_index, slots_.slot_count() - 1);
-        }
-
-        write_gate_locked(slot_index, entry->info, info);
-    }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
-void AmsBackendHappyHare::persist_external_identity_impl(int slot_index,
-                                                         const helix::ams::Observation& spoolman) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, "[AMS HappyHare]");
-}
-
-void AmsBackendHappyHare::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                              float total_weight_g) {
-    // The gate map holds no weight, so the stored record is its only durable home.
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, "[AMS HappyHare]");
+SlotInfo* AmsBackendHappyHare::identity_slot_locked(int slot_index) {
+    return cached_slot_locked(slot_index);
 }
 
 uint64_t AmsBackendHappyHare::firmware_tool_mapping_generation() const {
@@ -3270,7 +3107,7 @@ helix::printer::EndlessSpoolConfig AmsBackendHappyHare::get_endless_spool_config
         return {};
     }
     // One group id per gate, straight from mmu.endless_spool_groups. The lossy
-    // "pick the first other member" step that used to happen right here is now a
+    // "pick the first other member" step is not done here; it is a
     // rendering concern (endless_spool_backup_edges), so a 4-gate group survives
     // as one group instead of four arbitrary arrows.
     std::vector<int> group_ids;
@@ -3384,15 +3221,6 @@ AmsError AmsBackendHappyHare::reset_endless_spool() {
     // (_reset_endless_spool overwrites the momentary enable with the config default).
     spdlog::info("[AMS HappyHare] Resetting endless spool groups to config defaults");
     return execute_gcode("MMU_ENDLESS_SPOOL ENABLE=1 RESET=1 QUIET=1");
-}
-
-// ============================================================================
-// Tool Mapping Operations
-// ============================================================================
-
-std::vector<int> AmsBackendHappyHare::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
 }
 
 // ============================================================================
@@ -3561,22 +3389,6 @@ std::optional<happy_hare::UnitFeature> feature_for_param(std::string_view key) {
     return std::nullopt;
 }
 
-/// The unit capability a device action needs.
-std::optional<happy_hare::UnitFeature> feature_for_action(std::string_view id) {
-    using happy_hare::UnitFeature;
-    if (id == "servo_buzz" || id == "servo_up" || id == "servo_move" || id == "servo_down")
-        return UnitFeature::Servo;
-    if (id == "selector_speed")
-        return UnitFeature::SelectorSpeed;
-    if (id == "calibrate_encoder" || id == "calibrate_gates" || id == "clog_detection")
-        return UnitFeature::Encoder;
-    if (id == "sync_to_extruder")
-        return UnitFeature::SyncToExtruder;
-    if (id == "gear_from_buffer_speed")
-        return UnitFeature::FilamentBuffer;
-    return std::nullopt;
-}
-
 } // namespace
 
 std::optional<int> AmsBackendHappyHare::test_config_unit_locked(std::string_view key) const {
@@ -3733,7 +3545,7 @@ AmsError AmsBackendHappyHare::start_drying_to_humidity(float temp_c, int duratio
 
 AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request) {
     if (request.gates.empty() && !request.rotate) {
-        return AmsBackend::start_drying_request(request);
+        return IDryer::start_drying_request(request);
     }
 
     std::vector<int> selected;
@@ -3940,401 +3752,6 @@ AmsError AmsBackendHappyHare::update_drying(float temp_c, int duration_min, int 
     const std::string cmd = fmt::format("MMU_HEATER TEMP={:.0f}", temp_c);
     return gate_targets.empty() ? send_heater_command(cmd, unit)
                                 : send_heater_command(cmd, gate_targets);
-}
-
-// ============================================================================
-// Device Management
-// ============================================================================
-
-std::optional<std::string> AmsBackendHappyHare::clog_detection_mode_gcode(int mode,
-                                                                          float det_length) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    // v4 refuses the encoder mode on a unit with no encoder.
-    const auto unit = test_config_unit_locked("clog_detection");
-    if (!unit) {
-        return std::nullopt;
-    }
-    std::string cmd = fmt::format("MMU_TEST_CONFIG {}={}",
-                                  happy_hare::param_name("clog_detection", machine_layout_), mode);
-    if (mode == 1 && det_length > 0) {
-        cmd += fmt::format(" {}={:.1f}",
-                           happy_hare::param_name("detection_length", machine_layout_), det_length);
-    }
-    return cmd + unit_suffix_locked(*unit);
-}
-
-std::optional<float> AmsBackendHappyHare::clog_detection_length_setting() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return config_defaults_.detection_length;
-}
-
-std::vector<helix::printer::DeviceSection> AmsBackendHappyHare::get_device_sections() const {
-    return helix::printer::hh_default_sections();
-}
-
-std::vector<helix::printer::DeviceAction> AmsBackendHappyHare::get_device_actions() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    using namespace helix::printer;
-    auto actions = hh_default_actions();
-
-    // Status-backed, so it applies before the configfile has loaded.
-    if (system_info_.spoolman_mode == SpoolmanMode::OFF) {
-        for (auto& a : actions) {
-            if (a.id == "spoolman_refresh") {
-                a.enabled = false;
-                a.disable_reason = TR_NOOP("Spoolman support is off in Happy Hare");
-            }
-        }
-    }
-
-    // Settings whose value comes from the configfile (and is written back with
-    // MMU_TEST_CONFIG) wait for it to load; live commands do not.
-    const bool config_loaded = config_defaults_.loaded;
-    auto config_backed = [](const DeviceAction& a) {
-        return a.type == ActionType::SLIDER || a.id == "sync_to_extruder" ||
-               a.id == "clog_detection";
-    };
-    if (!config_loaded) {
-        for (auto& a : actions) {
-            if (config_backed(a)) {
-                a.enabled = false;
-                a.disable_reason = TR_NOOP("Loading configuration...");
-            }
-        }
-    }
-
-    // Helper: effective float value (user override > config default)
-    auto eff_f = [&](const std::optional<float>& ovr, float def) -> double {
-        return static_cast<double>(ovr.value_or(def));
-    };
-    auto eff_i = [&](const std::optional<int>& ovr, int def) -> int { return ovr.value_or(def); };
-
-    // Overlay effective values onto actions
-    for (auto& a : actions) {
-        // Clog detection's value is the encoder mode the mmu status reports,
-        // which needs no config; only its write waits.
-        if (!config_loaded && config_backed(a) && a.id != "clog_detection") {
-            continue;
-        }
-        // --- Speed sliders ---
-        if (a.id == "gear_from_buffer_speed") {
-            a.current_value = eff_f(user_overrides_.gear_from_buffer_speed,
-                                    config_defaults_.gear_from_buffer_speed);
-        } else if (a.id == "gear_from_spool_speed") {
-            a.current_value = eff_f(user_overrides_.gear_from_spool_speed,
-                                    config_defaults_.gear_from_spool_speed);
-        } else if (a.id == "gear_unload_speed") {
-            a.current_value =
-                eff_f(user_overrides_.gear_unload_speed, config_defaults_.gear_unload_speed);
-        } else if (a.id == "selector_speed") {
-            a.current_value =
-                eff_f(user_overrides_.selector_move_speed, config_defaults_.selector_move_speed);
-        } else if (a.id == "extruder_load_speed") {
-            a.current_value =
-                eff_f(user_overrides_.extruder_load_speed, config_defaults_.extruder_load_speed);
-        } else if (a.id == "extruder_unload_speed") {
-            a.current_value = eff_f(user_overrides_.extruder_unload_speed,
-                                    config_defaults_.extruder_unload_speed);
-        }
-        // --- Toolhead sliders ---
-        else if (a.id == "toolhead_sensor_to_nozzle") {
-            a.current_value = eff_f(user_overrides_.toolhead_sensor_to_nozzle,
-                                    config_defaults_.toolhead_sensor_to_nozzle);
-        } else if (a.id == "toolhead_extruder_to_nozzle") {
-            a.current_value = eff_f(user_overrides_.toolhead_extruder_to_nozzle,
-                                    config_defaults_.toolhead_extruder_to_nozzle);
-        } else if (a.id == "toolhead_entry_to_extruder") {
-            a.current_value = eff_f(user_overrides_.toolhead_entry_to_extruder,
-                                    config_defaults_.toolhead_entry_to_extruder);
-        } else if (a.id == "toolhead_ooze_reduction") {
-            a.current_value = eff_f(user_overrides_.toolhead_ooze_reduction,
-                                    config_defaults_.toolhead_ooze_reduction);
-        }
-        // --- Accessories ---
-        else if (a.id == "espooler_mode") {
-            // Status-backed: use live value if available
-            if (!espooler_active_.empty()) {
-                a.current_value = espooler_active_;
-            }
-        } else if (a.id == "clog_detection") {
-            // Status-backed flowguard_encoder_mode_ takes priority, else override/config
-            int mode = (flowguard_encoder_mode_ >= 0)
-                           ? flowguard_encoder_mode_
-                           : eff_i(user_overrides_.clog_detection, config_defaults_.clog_detection);
-            // Map int to display string
-            switch (mode) {
-            case 1:
-                a.current_value = std::string("Manual");
-                break;
-            case 2:
-                a.current_value = std::string("Auto");
-                break;
-            default:
-                a.current_value = std::string("Off");
-                break;
-            }
-        } else if (a.id == "sync_to_extruder") {
-            int val = eff_i(user_overrides_.sync_to_extruder, config_defaults_.sync_to_extruder);
-            a.current_value = (val != 0);
-        }
-        // --- Setup ---
-        else if (a.id == "led_mode") {
-            // Status-backed: use live LED exit_effect if available
-            if (!led_exit_effect_.empty()) {
-                a.current_value = led_exit_effect_;
-            }
-        }
-    }
-
-    // --- Hardware filtering: an action no unit's hardware takes is disabled ---
-    for (auto& a : actions) {
-        if (const auto feature = feature_for_action(a.id); feature && !unit_with_locked(*feature)) {
-            a.enabled = false;
-            switch (*feature) {
-            case happy_hare::UnitFeature::Servo:
-                a.disable_reason = TR_NOOP("No unit has a servo");
-                break;
-            case happy_hare::UnitFeature::SelectorSpeed:
-                a.disable_reason = TR_NOOP("No unit has a moving selector");
-                break;
-            case happy_hare::UnitFeature::Encoder:
-                a.disable_reason = TR_NOOP("No unit has an encoder");
-                break;
-            case happy_hare::UnitFeature::SyncToExtruder:
-                a.disable_reason = TR_NOOP("Every unit keeps its filament gripped");
-                break;
-            case happy_hare::UnitFeature::FilamentBuffer:
-                a.disable_reason = TR_NOOP("No unit has a filament buffer");
-                break;
-            }
-        } else if ((a.id == "toolhead_sensor_to_nozzle" || a.id == "toolhead_entry_to_extruder") &&
-                   !test_config_unit_locked(a.id)) {
-            a.enabled = false;
-            a.disable_reason = TR_NOOP("No sensor fitted for this distance");
-        }
-    }
-
-    return actions;
-}
-
-AmsError AmsBackendHappyHare::do_execute_device_action(const std::string& action_id,
-                                                       const std::any& value) {
-    spdlog::info("[AMS HappyHare] Executing device action: {}", action_id);
-
-    const auto get_action_range = [](const std::string& id) {
-        return helix::printer::hh_default_action_range(id);
-    };
-
-    // --- Simple button actions (no value required) ---
-    // `per_unit`: v4 resolves the unit from UNIT= (MMU_SERVO, MMU_CALIBRATE_GATE
-    // ALL=1) or infers it from a selected gate (MMU_TEST_GRIP), so these name
-    // a unit: the selected one, or for an action only some units' hardware
-    // takes, the first unit that has it. The calibrations that act on the
-    // selected gate's unit read no UNIT.
-    struct ButtonAction {
-        const char* id;
-        const char* gcode;
-        bool per_unit;
-    };
-    // clang-format off
-    static const ButtonAction button_actions[] = {
-        {"calibrate_bowden",    "MMU_CALIBRATE_BOWDEN",            false},
-        {"calibrate_encoder",   "MMU_CALIBRATE_ENCODER",           false},
-        {"calibrate_gear",      "MMU_CALIBRATE_GEAR",              false},
-        {"calibrate_gates",     "MMU_CALIBRATE_GATES",             true},
-        {"test_grip",           "MMU_TEST_GRIP",                   true},
-        {"test_load",           "MMU_TEST_LOAD",                   false},
-        {"test_move",           "MMU_TEST_MOVE",                   false},
-        {"servo_buzz",          "MMU_SERVO",                       true},
-        {"servo_up",            "MMU_SERVO POS=up",                true},
-        {"servo_move",          "MMU_SERVO POS=move",              true},
-        {"servo_down",          "MMU_SERVO POS=down",              true},
-        {"reset_servo_counter", "MMU_STATS COUNTER=servo RESET=1", false},
-        {"reset_blade_counter", "MMU_STATS COUNTER=cutter RESET=1", false},
-    };
-    // clang-format on
-    for (const auto& action : button_actions) {
-        if (action_id != action.id) {
-            continue;
-        }
-        std::string cmd = action.gcode;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            // v4 registers only MMU_CALIBRATE_GATE; MMU_CALIBRATE_GATES is a
-            // config macro alias that sends no UNIT.
-            if (action_id == "calibrate_gates" && is_v4_locked()) {
-                cmd = "MMU_CALIBRATE_GATE ALL=1";
-            }
-            if (action.per_unit) {
-                std::optional<int> unit = active_unit_locked();
-                if (const auto feature = feature_for_action(action_id)) {
-                    unit = unit_with_locked(*feature);
-                }
-                if (!unit) {
-                    return AmsErrorHelper::not_supported(action_id);
-                }
-                cmd += unit_suffix_locked(*unit);
-            }
-        }
-        return execute_gcode(cmd);
-    }
-
-    // Extruder-only moves drive the toolhead extruder, and HH puts no print
-    // check on MMU_LOAD/MMU_UNLOAD; an EXTRUDER_ONLY unload forms a tip and
-    // retracts over the part, so both are moves_machine and the base refuses
-    // them during a print. HH heats the nozzle itself.
-    if (action_id == "load_extruder" || action_id == "unload_extruder") {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            AmsError precondition = check_preconditions();
-            if (!precondition) {
-                return precondition;
-            }
-        }
-        return execute_gcode(action_id == "load_extruder" ? "MMU_LOAD EXTRUDER_ONLY=1"
-                                                          : "MMU_UNLOAD EXTRUDER_ONLY=1");
-    }
-
-    // HH refuses MMU_SPOOLMAN outright while its spoolman_support is off.
-    if (action_id == "spoolman_refresh") {
-        if (!manages_active_spool()) {
-            return AmsErrorHelper::not_supported("Spoolman support is off in Happy Hare");
-        }
-        return execute_gcode("MMU_SPOOLMAN REFRESH=1");
-    }
-
-    // --- LED mode dropdown ---
-    if (action_id == "led_mode") {
-        auto [mode, err] = printer::device_action_value<std::string>(value, "LED mode");
-        if (!err)
-            return err;
-        return execute_gcode("MMU_LED EXIT_EFFECT=" + mode);
-    }
-
-    // MMU_TEST_CONFIG <param>=<value>, the parameter named as this install
-    // spells it.
-    auto test_config = [this](const char* key, const std::string& value) {
-        std::optional<std::string> cmd;
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            cmd = test_config_command_locked(key, value);
-        }
-        if (!cmd) {
-            return AmsErrorHelper::not_supported(std::string("Happy Hare parameter ") + key);
-        }
-        return execute_gcode(*cmd);
-    };
-
-    // --- Speed sliders (integer formatting) ---
-    // clang-format off
-    static const std::pair<const char*, const char*> speed_params[] = {
-        {"gear_from_buffer_speed", "gear_from_buffer_speed"},
-        {"gear_from_spool_speed",  "gear_from_spool_speed"},
-        {"gear_unload_speed",      "gear_unload_speed"},
-        {"selector_speed",         "selector_move_speed"},
-        {"extruder_load_speed",    "extruder_load_speed"},
-        {"extruder_unload_speed",  "extruder_unload_speed"},
-    };
-    // clang-format on
-    for (const auto& [id, key] : speed_params) {
-        if (action_id == id) {
-            auto [speed, err] = printer::device_action_value<double>(value, "speed");
-            if (!err)
-                return err;
-            auto [lo, hi] = get_action_range(id);
-            speed = std::clamp(speed, static_cast<double>(lo), static_cast<double>(hi));
-            auto result = test_config(key, fmt::format("{:.0f}", speed));
-            if (result.success()) {
-                save_override(key, static_cast<float>(speed));
-            }
-            return result;
-        }
-    }
-
-    // --- Toolhead distance sliders (one decimal place) ---
-    static const char* const toolhead_params[] = {
-        "toolhead_sensor_to_nozzle",
-        "toolhead_extruder_to_nozzle",
-        "toolhead_entry_to_extruder",
-        "toolhead_ooze_reduction",
-    };
-    for (const char* key : toolhead_params) {
-        if (action_id == key) {
-            auto [dist, err] = printer::device_action_value<double>(value, "distance");
-            if (!err)
-                return err;
-            auto [lo, hi] = get_action_range(key);
-            dist = std::clamp(dist, static_cast<double>(lo), static_cast<double>(hi));
-            auto result = test_config(key, fmt::format("{:.1f}", dist));
-            if (result.success()) {
-                save_override(action_id, static_cast<float>(dist));
-            }
-            return result;
-        }
-    }
-
-    // --- sync_to_extruder toggle ---
-    if (action_id == "sync_to_extruder") {
-        auto [enable, err] = printer::device_action_value<bool>(value, "sync state");
-        if (!err)
-            return err;
-        int val = enable ? 1 : 0;
-        auto result = test_config("sync_to_extruder", std::to_string(val));
-        if (result.success()) {
-            save_override(action_id, val);
-        }
-        return result;
-    }
-
-    // --- eSpooler mode dropdown ---
-    if (action_id == "espooler_mode") {
-        auto [mode, err] = printer::device_action_value<std::string>(value, "eSpooler mode");
-        if (!err)
-            return err;
-        return execute_gcode("MMU_ESPOOLER OPERATION=" + mode);
-    }
-
-    // --- Clog detection dropdown ---
-    if (action_id == "clog_detection") {
-        auto [mode_str, err] =
-            printer::device_action_value<std::string>(value, "clog detection mode");
-        if (!err)
-            return err;
-        int mode_int = 0;
-        if (mode_str == "Manual")
-            mode_int = 1;
-        else if (mode_str == "Auto")
-            mode_int = 2;
-        auto result = test_config("clog_detection", std::to_string(mode_int));
-        if (result.success()) {
-            save_override(action_id, mode_int);
-        }
-        return result;
-    }
-
-    // --- Runtime gear-motor sync (live action, distinct from config sync_to_extruder) ---
-    if (action_id == "gear_sync") {
-        auto [enable, err] = printer::device_action_value<bool>(value, "gear sync state");
-        if (!err)
-            return err;
-        return execute_gcode(enable ? "MMU_SYNC_GEAR_MOTOR SYNC=1" : "MMU_SYNC_GEAR_MOTOR SYNC=0");
-    }
-
-    // --- Motors toggle ---
-    if (action_id == "motors_toggle") {
-        auto [enable, err] = printer::device_action_value<bool>(value, "motor state");
-        if (!err)
-            return err;
-        std::string cmd = enable ? "MMU_MOTORS_ON" : "MMU_MOTORS_OFF";
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            cmd += unit_suffix_locked(kAllUnits);
-        }
-        return execute_gcode(cmd);
-    }
-
-    return AmsErrorHelper::not_supported("Unknown action: " + action_id);
 }
 
 } // namespace helix

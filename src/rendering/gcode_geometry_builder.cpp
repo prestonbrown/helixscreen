@@ -335,7 +335,6 @@ void RibbonGeometry::clear() {
     prepared_buffers.shrink_to_fit();
     max_layer_index = 0;
 
-    // Clear caches
     if (color_cache) {
         color_cache->clear();
     }
@@ -559,7 +558,6 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     current_gcode_ = &gcode;
     const auto cancelled = [&should_cancel] { return should_cancel && should_cancel(); };
 
-    // Start timing
     auto build_start = std::chrono::high_resolution_clock::now();
 
     RibbonGeometry geometry;
@@ -586,8 +584,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // box drawn to the centre lines alone would quantize the surface out of
     // range. tube_half_diagonal() is the exact reach; kQuantBoundsSlack keeps the
     // historical margin on top of it, because under-expanding here wraps vertices
-    // while over-expanding costs only grid resolution. (The comment here used to
-    // claim a sqrt(2) factor while the code applied 1.5.)
+    // while over-expanding costs only grid resolution.
     const float max_tube_width = std::max(extrusion_width_mm_, travel_width_mm_);
     const float expansion_margin = tube_half_diagonal(max_tube_width) * kQuantBoundsSlack;
     AABB expanded_bbox = gcode.global_bounding_box;
@@ -1009,7 +1006,6 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // Store layer height for Z-offset calculations during LOD rendering
     geometry.layer_height_mm = layer_height_mm_;
 
-    // Update final statistics
     stats_.vertices_generated = geometry.vertices.size();
     // Each TriangleStrip has 4 indices forming 2 triangles
     stats_.triangles_generated = geometry.strips.size() * 2;
@@ -1017,10 +1013,8 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
 
     stats_.log();
 
-    // Validate geometry integrity before returning
     geometry.validate();
 
-    // End timing
     auto build_end = std::chrono::high_resolution_clock::now();
     auto build_duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(build_end - build_start);
@@ -1045,7 +1039,6 @@ GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
     std::vector<ToolpathSegment> simplified;
     simplified.reserve(segments.size()); // Upper bound
 
-    // Start with first segment
     ToolpathSegment current = segments[0];
 
     for (size_t i = 1; i < segments.size(); ++i) {
@@ -1109,7 +1102,6 @@ GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
         current = next;
     }
 
-    // Add final segment
     simplified.push_back(current);
 
     // The reserve above is a worst-case upper bound; give back the unused tail.
@@ -1120,10 +1112,8 @@ GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
 
 bool GeometryBuilder::are_collinear(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3,
                                     float tolerance) const {
-    // Vector from p1 to p2
     glm::vec3 v1 = p2 - p1;
 
-    // Vector from p1 to p3
     glm::vec3 v2 = p3 - p1;
 
     // If either vector is nearly zero-length, points are effectively same point
@@ -1184,7 +1174,6 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     // OrcaSlicer: up = right.cross(dir), NOT cross(dir, up)!
     const glm::vec3 perp_up = glm::normalize(glm::cross(right, dir));
 
-    // Compute color
     uint32_t rgb = compute_segment_color(segment);
 
     uint8_t color_idx = add_to_color_palette(geometry, rgb);
@@ -1275,7 +1264,7 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     std::array<int8_t, 2> cap_normal_enc{};
     PackedVertex::encode_normal(-dir, cap_normal_enc.data());
 
-    // Phase 3: N-based vertex generation (replaces hardcoded N=4 logic)
+    // Vertex generation for an N-sided tube cross-section
     uint32_t idx_start = static_cast<uint32_t>(geometry.vertices.size());
     bool is_first_segment = !prev_start_cap.has_value();
 
@@ -1343,7 +1332,7 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
         end_cap[static_cast<size_t>(i)] = end_cap_base + static_cast<uint32_t>(2 * i);
     }
 
-    // ========== TRIANGLE STRIPS GENERATION (Phase 4: N-based) ==========
+    // Triangle strips for the N-sided tube
 
     // Calculate vertex base indices
     uint32_t base, start_cap_base = 0, prev_faces_base, curr_faces_base;
@@ -1447,7 +1436,6 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 }
 
 glm::vec3 GeometryBuilder::compute_perpendicular(const glm::vec3& direction, float width) const {
-    // Define "up" vector (Z-axis)
     glm::vec3 up(0.0f, 0.0f, 1.0f);
 
     // Compute perpendicular in XY plane
@@ -1467,10 +1455,8 @@ glm::vec3 GeometryBuilder::compute_perpendicular(const glm::vec3& direction, flo
 
 void GeometryBuilder::set_filament_color(const std::string& hex_color) {
     // Same parser as every other color decision: it owns the '#'/0x prefixes,
-    // the accepted digit counts, and the #RRGGBBAA alpha drop. The hand-rolled
-    // strtol this replaced read an 8-digit token one byte to the left, and
-    // turned any unparseable string into 0 - painting the model black rather
-    // than reporting a bad color. An unusable color now keeps the current one.
+    // the accepted digit counts, and the #RRGGBBAA alpha drop. An unusable color
+    // keeps the current one rather than painting the model black.
     uint32_t rgb = 0;
     if (!helix::parse_hex_color(hex_color.c_str(), rgb)) {
         spdlog::warn("[GCode Geometry] Unusable filament color '{}' - keeping current", hex_color);

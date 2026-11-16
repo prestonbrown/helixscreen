@@ -8,7 +8,7 @@
  * Run with: ./build/bin/helix-tests "[exclude_object][long_press]"
  *
  * The four rejections in front of the confirmation modal, driven against the
- * real manager (src/ui/ui_print_exclude_object_manager.cpp:139-199):
+ * real manager (src/ui/print/ui_print_exclude_object_manager.cpp:139-199):
  *
  *   1. empty / null object name          — long-press landed on bare bed
  *   2. defined_objects is empty          — [exclude_object] unconfigured, or the
@@ -31,10 +31,10 @@
  * test_print_exclude_object_manager.cpp.
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_print_exclude_object_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../lvgl_ui_test_fixture.h"
 
 #include <memory>

@@ -195,7 +195,8 @@
           <lv_label name="detail_no_thumbnail_icon"
                     text="#icon_cube_outline" style_text_font="#icon_font_hero" style_text_color="#tertiary"
                     align="center" style_translate_y="-20" hidden="true">
-            <bind_flag_if_eq subject="selected_has_thumbnail" flag="hidden" ref_value="1"/>
+            <!-- The live viewer is the preview while its mode is above 0 -->
+            <bind_flag_if cond="selected_has_thumbnail eq 1 or detail_gcode_viewer_mode gt 0" flag="hidden"/>
           </lv_label>
           <!-- Metadata clip - content-sized, hides top rounded corners of inner overlay -->
           <lv_obj name="detail_metadata_clip"
@@ -224,11 +225,25 @@
                    the history row is one of the three it drops. -->
               <lv_obj name="detail_history_wrap" width="100%" height="content" style_pad_all="0" scrollable="false">
                 <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
+                <!-- detail_history_status is a FileHistoryStatus: 0 never printed,
+                     1 printing, 2 completed, 3 failed, 4 canceled -->
                 <lv_obj name="history_status_row"
                         width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs"
-                        style_flex_cross_place="center" hidden="true">
-                  <icon name="history_status_icon" src="check" size="sm" variant="success"/>
-                  <text_body name="history_status_label" text=""/>
+                        style_flex_cross_place="center">
+                  <bind_flag_if_eq subject="detail_history_status" flag="hidden" ref_value="0"/>
+                  <icon name="history_status_printing" src="clock" size="sm" variant="accent">
+                    <bind_flag_if_not_eq subject="detail_history_status" flag="hidden" ref_value="1"/>
+                  </icon>
+                  <icon name="history_status_completed" src="check" size="sm" variant="success">
+                    <bind_flag_if_not_eq subject="detail_history_status" flag="hidden" ref_value="2"/>
+                  </icon>
+                  <icon name="history_status_failed" src="alert" size="sm" variant="danger">
+                    <bind_flag_if_not_eq subject="detail_history_status" flag="hidden" ref_value="3"/>
+                  </icon>
+                  <icon name="history_status_canceled" src="cancel" size="sm" variant="warning">
+                    <bind_flag_if_not_eq subject="detail_history_status" flag="hidden" ref_value="4"/>
+                  </icon>
+                  <text_body name="history_status_label" bind_text="detail_history_text"/>
                 </lv_obj>
               </lv_obj>
               <!-- Metadata 2x2 grid - minimal gap from filename -->

@@ -4,11 +4,12 @@
 #include "ui_ams_context_menu.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_button.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "core/update_queue.h"
 #include "helix/ui/text_metrics.h"
+#include "test_helpers/backend_harness.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -17,9 +18,11 @@
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
+#include "ams_backend_cfs.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_lane_recovery.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "filament_database.h"
@@ -36,6 +39,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -64,9 +68,11 @@ class AmsContextMenuTestAccess {
     }
 
     static bool decide_can_load(bool system_busy, bool toolhead_unload,
-                                std::optional<bool> slot_has_filament, bool print_active) {
+                                std::optional<bool> slot_has_filament, bool print_active,
+                                std::optional<bool> print_blocks_load = std::nullopt) {
         return AmsContextMenu::decide_can_load(system_busy, toolhead_unload, slot_has_filament,
-                                               print_active);
+                                               print_active, /*load_feeds_filament=*/false,
+                                               print_blocks_load);
     }
 
     static bool decide_unload_enabled(bool system_busy, UnloadMode mode, bool print_active,
@@ -154,71 +160,36 @@ TEST_CASE("AmsContextMenu::should_show_clear_spool ignores whether filament is p
 // outranks Eject, unattributed recovery defers to it.
 using UnloadMode = AmsContextMenuTestAccess::UnloadMode;
 
-TEST_CASE("AmsContextMenu::decide_unload_mode toolhead-loaded wins over everything",
+TEST_CASE("AmsContextMenu::decide_unload_mode picks one action per lane state",
           "[ams][context_menu]") {
-    // Even if the backend also claims recovery is possible and attributed, a
-    // slot that unloads via the heated toolhead path must take Unload.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/true, /*can_recover=*/true, /*recovery_attributed=*/true,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/true,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::Unload);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode attributed strand outranks Eject",
-          "[ams][context_menu]") {
-    // AFC named this exact lane as active (lane_recovery_is_attributed==true).
-    // Even though the lane also has filament present (would otherwise take
-    // Eject), the confident diagnosis wins.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/true,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/false,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::RecoverPosition);
-}
-
-TEST_CASE(
-    "AmsContextMenu::decide_unload_mode unattributed strand does not take Eject from a seated lane",
-    "[ams][context_menu]") {
-    // This is the regression the ruling fixes: an unattributed hub-wide trigger
-    // (can_recover=true, recovery_attributed=false) must NOT preempt Eject on a
-    // lane that is simply seated (slot_has_filament=true).
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/false,
-        /*supports_eject=*/true, /*slot_has_filament=*/true, /*supports_force_eject=*/false,
-        /*slot_empty=*/false);
-    CHECK(mode == UnloadMode::Eject);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode unattributed lane with nothing ejectable still gets "
-          "Recover",
-          "[ams][context_menu]") {
-    // No filament present to eject (slot_has_filament=false), so Eject is not an
-    // option regardless of attribution — the unattributed Recover arm is the
-    // last resort that still offers a way out for a lane with no other option.
-    auto mode = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/true, /*recovery_attributed=*/false,
-        /*supports_eject=*/true, /*slot_has_filament=*/false, /*supports_force_eject=*/false,
-        /*slot_empty=*/true);
-    CHECK(mode == UnloadMode::RecoverPosition);
-}
-
-TEST_CASE("AmsContextMenu::decide_unload_mode falls through to ForceEject and Unavailable",
-          "[ams][context_menu]") {
-    // No toolhead unload, no recovery possible at all, no eject support: an
-    // empty lane with force-eject support gets ForceEject...
-    auto force_eject = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/false, /*recovery_attributed=*/false,
-        /*supports_eject=*/false, /*slot_has_filament=*/false, /*supports_force_eject=*/true,
-        /*slot_empty=*/true);
-    CHECK(force_eject == UnloadMode::ForceEject);
-
-    // ...and with nothing at all supported, there is genuinely nothing to do.
-    auto unavailable = AmsContextMenuTestAccess::decide_unload_mode(
-        /*toolhead_unload=*/false, /*can_recover=*/false, /*recovery_attributed=*/false,
-        /*supports_eject=*/false, /*slot_has_filament=*/false, /*supports_force_eject=*/false,
-        /*slot_empty=*/true);
-    CHECK(unavailable == UnloadMode::Unavailable);
+    struct Row {
+        const char* why;
+        bool toolhead_unload, can_recover, attributed, eject, has_filament, force_eject, empty;
+        UnloadMode want;
+    };
+    const Row rows[] = {
+        // A slot that unloads via the heated toolhead takes Unload whatever else is claimed.
+        {"toolhead-loaded wins", true, true, true, true, true, true, false, UnloadMode::Unload},
+        // The backend named this exact lane, so the confident diagnosis beats Eject.
+        {"attributed strand outranks Eject", false, true, true, true, true, false, false,
+         UnloadMode::RecoverPosition},
+        // An unattributed hub-wide trigger must not preempt Eject on a seated lane.
+        {"unattributed strand keeps Eject", false, true, false, true, true, false, false,
+         UnloadMode::Eject},
+        // Nothing to eject: the unattributed Recover is the last way out.
+        {"unattributed, nothing ejectable", false, true, false, true, false, false, true,
+         UnloadMode::RecoverPosition},
+        {"empty lane with force eject", false, false, false, false, false, true, true,
+         UnloadMode::ForceEject},
+        {"nothing supported", false, false, false, false, false, false, true,
+         UnloadMode::Unavailable},
+    };
+    for (const Row& r : rows) {
+        CAPTURE(r.why);
+        CHECK(AmsContextMenuTestAccess::decide_unload_mode(r.toolhead_unload, r.can_recover,
+                                                           r.attributed, r.eject, r.has_filament,
+                                                           r.force_eject, r.empty) == r.want);
+    }
 }
 
 // decide_can_load() must agree with AmsSubscriptionBackend::refuse_if_printing()
@@ -288,6 +259,24 @@ TEST_CASE("AmsContextMenu::decide_can_load agrees with the backend print guard",
     SECTION("Load is still refused on a paused print when the backend self-homes") {
         // AD5X IFS only.
         CHECK_FALSE(can_load(/*printing=*/false, /*paused=*/true, /*self_homes=*/true));
+    }
+
+    SECTION("A paused self-homing backend loads once homed, when its home is skipped") {
+        // AD5X on zMod: INSERT_PRUTOK_IFS's _G28 no-ops on a homed toolhead.
+        // Unload stays on print_blocks_op, so only Load opens.
+        const bool blocks_op = print_blocks_filament_op(PrintState::Paused, /*self_homes=*/true);
+        auto can_load_homed = [&](bool homed, bool head_loaded) {
+            return AmsContextMenuTestAccess::decide_can_load(
+                false, false, true, blocks_op,
+                helix::ui::print_blocks_filament_load(PrintState::Paused, true, true, homed,
+                                                      head_loaded));
+        };
+        CHECK(can_load_homed(/*homed=*/true, /*head_loaded=*/false));
+        CHECK_FALSE(can_load_homed(/*homed=*/false, /*head_loaded=*/false));
+        // Another lane at the head: the load would unload it mid-job.
+        CHECK_FALSE(can_load_homed(/*homed=*/true, /*head_loaded=*/true));
+        CHECK_FALSE(
+            AmsContextMenuTestAccess::decide_unload_enabled(false, UnloadMode::Unload, blocks_op));
     }
 
     SECTION("The pre-existing terms still hold") {
@@ -390,7 +379,7 @@ TEST_CASE("AmsContextMenu::decide_unload_enabled blocks only the toolhead unload
 // A backend that withdraws its unmount offer has to be able to make it stick.
 //
 // AmsContextMenu composes the loaded signal as an OR
-// (`src/ui/ui_ams_context_menu.cpp#AmsContextMenu::decide_slot_ops`): the
+// (`src/ui/filament/ui_ams_context_menu.cpp#AmsContextMenu::decide_slot_ops`): the
 // snapshot taken when the menu opens (can_unload_from_toolhead) OR the live pair
 // (slot_is_actively_loaded || slot_has_filament_at_toolhead). A rule that lives
 // in only one of those three is put back by the other two, so a withdrawal that
@@ -438,16 +427,14 @@ class DockSensorToolChanger : public AmsBackendToolChanger {
 TEST_CASE("Snapmaker lane menu offers Unload and Load for filament parked in the toolhead",
           "[ams][context_menu][snapmaker][parked]") {
     using UnloadMode = AmsContextMenuTestAccess::UnloadMode;
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> reg(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> reg;
     auto& backend = *reg;
     auto feed = [&](const char* channel_state, bool switch_detected) {
-        helix::SnapmakerTestAccess::handle_status(
-            backend,
-            nlohmann::json{
-                {"toolhead", {{"extruder", "extruder3"}}},
-                {"filament_feed right",
-                 {{"extruder3", {{"filament_detected", true}, {"channel_state", channel_state}}}}},
-                {"filament_motion_sensor e3_filament", {{"filament_detected", switch_detected}}}});
+        backend.fire_status(nlohmann::json{
+            {"toolhead", {{"extruder", "extruder3"}}},
+            {"filament_feed right",
+             {{"extruder3", {{"filament_detected", true}, {"channel_state", channel_state}}}}},
+            {"filament_motion_sensor e3_filament", {{"filament_detected", switch_detected}}}});
     };
 
     SECTION("parked") {
@@ -498,6 +485,48 @@ TEST_CASE("Lane menus withdraw Unload while the toolhead is unaccounted",
     CHECK(d.unload_mode == UnloadMode::Unload);
     CHECK_FALSE(d.unload_enabled);
     unaccounted.stop();
+}
+
+namespace {
+
+/// Ejects lanes and can always recover one; the case sets whether it names the lane.
+class RecoveringMock : public AmsBackendMock, public ILaneRecovery {
+  public:
+    RecoveringMock() : AmsBackendMock(4) {}
+    bool attributed = false;
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<ILaneRecovery>()) {
+            return static_cast<ILaneRecovery*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
+    AmsError recover_lane_position(int) override {
+        return AmsErrorHelper::success();
+    }
+    [[nodiscard]] bool can_recover_lane_position(int) const override {
+        return true;
+    }
+    [[nodiscard]] bool lane_recovery_is_attributed() const override {
+        return attributed;
+    }
+    [[nodiscard]] bool supports_lane_eject() const override {
+        return true;
+    }
+};
+} // namespace
+
+TEST_CASE("A seated lane keeps Eject unless the backend names it for recovery",
+          "[ams][context_menu][recovery]") {
+    RecoveringMock backend;
+    REQUIRE(backend.start());
+    REQUIRE_FALSE(backend.can_unload_from_toolhead(1));
+    for (const auto& [attributed, mode] :
+         {std::pair{false, UnloadMode::Eject}, std::pair{true, UnloadMode::RecoverPosition}}) {
+        backend.attributed = attributed;
+        CAPTURE(attributed);
+        CHECK(ops_for(backend, 1).unload_mode == mode);
+    }
+    backend.stop();
 }
 
 TEST_CASE("A dock-sensor fault disables Unmount and says why", "[ams][context_menu][toolchanger]") {
@@ -640,26 +669,28 @@ TEST_CASE("A no-feed tool changer's menu offers Mount and Park, never a filament
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AmsContextMenu: the slot header uses the backend's own word for a position",
-                 "[ui][ams][context_menu]") {
-    // AmsBackendMock reports Happy Hare, whose noun is Gate. A header reading
-    // "Slot 3" on this backend is the English word for something the firmware,
-    // the macros and every other surface call a gate.
-    auto backend = std::make_unique<AmsBackendMock>(4);
-    REQUIRE(backend->lane_noun() == LaneNoun::Gate);
-
+                 "AmsContextMenu: the slot header names the position as the hardware does",
+                 "[ui][ams][context_menu][cfs]") {
     // ams_context_menu.xml is registered lazily by AmsPanel/AmsOverviewPanel
     // rather than by helix::register_xml_components(), so the fixture's
     // "every component" registration does not cover it.
     REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
-
-    AmsContextMenu menu;
-    REQUIRE(menu.show_near_widget(test_screen(), /*slot_index=*/2, test_screen(),
-                                  /*is_loaded=*/false, backend.get()));
-
-    lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
-    REQUIRE(header != nullptr);
-    CHECK(std::string(lv_label_get_text(header)) == "Gate 3");
+    // AmsBackendMock reports Happy Hare, whose noun is Gate: "Slot 3" would be the
+    // English word for what the firmware and every other surface call a gate.
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->lane_noun() == LaneNoun::Gate);
+    // A CFS prints box number and bay letter on each bay: global slot 5 is 2B.
+    helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+    const std::tuple<AmsBackend*, int, const char*> cases[] = {{mock.get(), 2, "Gate 3"},
+                                                               {&cfs, 5, "2B"}};
+    for (const auto& [backend, slot, want] : cases) {
+        AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), slot, test_screen(), /*is_loaded=*/false,
+                                      backend));
+        lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == want);
+    }
 }
 
 // ============================================================================
@@ -720,7 +751,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(menu.show_near_widget(test_screen(), slot, test_screen(), loaded, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_pa_calibrate");
         REQUIRE(btn != nullptr);
-        return !lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(btn);
     };
 
     SECTION("a printer that measures") {
@@ -774,7 +805,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         // disabled, so the finger cannot fire a clear the dispatch would refuse.
         lv_obj_t* btn_clear = lv_obj_find_by_name(test_screen(), "btn_clear_spool");
         REQUIRE(btn_clear != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn_clear, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn_clear));
         CHECK(lv_obj_has_state(btn_clear, LV_STATE_DISABLED));
     }
 
@@ -873,7 +904,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -885,7 +916,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -896,7 +927,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                       /*is_loaded=*/false, backend.get()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -910,7 +941,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(ext_menu.show_for_external_spool(test_screen(), test_screen()));
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_preload");
         REQUIRE(btn != nullptr);
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
     }
 }
 
@@ -982,7 +1013,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the context menu shows a backend's eject re
 
         lv_obj_t* label = lv_obj_find_by_name(test_screen(), "eject_force_move_hint");
         REQUIRE(label != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(label));
     }
 
     SECTION("no reason hides the hint") {
@@ -996,7 +1027,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the context menu shows a backend's eject re
 
         lv_obj_t* label = lv_obj_find_by_name(test_screen(), "eject_force_move_hint");
         REQUIRE(label != nullptr);
-        CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(label));
     }
 }
 
@@ -1051,7 +1082,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: plugin rows get their own c
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_parent(col) == lv_obj_find_by_name(test_screen(), "menu_columns"));
-    CHECK_FALSE(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(col));
     lv_obj_t* heading = lv_obj_find_by_name(col, "heading_text");
     REQUIRE(heading);
     CHECK(std::string(lv_label_get_text(heading)) == "Slot Plug");
@@ -1117,7 +1148,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: the plugin column hides wit
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_child_count(col) == 0);
-    CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(col));
     menu.hide();
     process_lvgl(20);
 }
@@ -1131,7 +1162,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: the external spool takes no
     lv_obj_t* col = lv_obj_find_by_name(test_screen(), "col_plugins");
     REQUIRE(col);
     CHECK(lv_obj_get_child_count(col) == 0);
-    CHECK(lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(col));
     menu.hide();
     process_lvgl(20);
 }
@@ -1228,18 +1259,18 @@ MenuFit measure_lane_menu(LVGLUITestFixture& fx, int32_t w, int32_t h, bool with
         INFO(name);
         lv_obj_t* btn = lv_obj_find_by_name(card, name);
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
     lv_obj_t* plugins = lv_obj_find_by_name(card, "col_plugins");
     REQUIRE(plugins != nullptr);
-    CHECK(lv_obj_has_flag(plugins, LV_OBJ_FLAG_HIDDEN) == !with_plugins);
+    CHECK(lv_obj_is_hidden(plugins) == !with_plugins);
 
     MenuFit fit;
     lv_obj_t* columns = lv_obj_find_by_name(card, "menu_columns");
     REQUIRE(columns != nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_count(columns); ++i) {
         lv_obj_t* col = lv_obj_get_child(columns, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(col, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(col)) {
             fit.layout += std::string(lv_obj_get_name(col)) + " " +
                           std::to_string(lv_obj_get_width(col)) + "x" +
                           std::to_string(lv_obj_get_height(col)) + "; ";
@@ -1300,7 +1331,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsContextMenu: a lane menu is actions only
         INFO(name);
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), name);
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
     }
     menu.hide();
     process_lvgl(20);
@@ -1385,8 +1416,7 @@ std::vector<lv_obj_t*> column_rows(lv_obj_t* col) {
     std::vector<lv_obj_t*> rows;
     for (uint32_t i = 0; i < lv_obj_get_child_count(col); ++i) {
         lv_obj_t* child = lv_obj_get_child(col, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) &&
-            lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE)) {
+        if (!lv_obj_is_hidden(child) && lv_obj_is_clickable(child)) {
             rows.push_back(child);
         }
     }

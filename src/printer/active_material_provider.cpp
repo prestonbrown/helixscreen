@@ -16,7 +16,6 @@ ActiveMaterial build_active_material(const SlotInfo& slot) {
     result.spoolman_filament_id = slot.spoolman_filament_id;
     result.spoolman_vendor_id = slot.spoolman_vendor_id;
 
-    // Build display name: "Brand Material" or just "Material"
     if (!slot.brand.empty() && !slot.material.empty()) {
         result.display_name = slot.brand + " " + slot.material;
     } else if (!slot.material.empty()) {

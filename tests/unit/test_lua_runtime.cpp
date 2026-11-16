@@ -3,10 +3,9 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "core/update_queue.h"
 #include "lua_runtime.h"
 
 #include <chrono>
@@ -16,21 +15,9 @@
 
 using namespace helix::plugin;
 using helix::plugin::test::TestRuntime;
+using helix::test::kSanitizerSlowdown;
 
-namespace {
-
-// Sanitizer builds instrument the interpreter itself, which runs tens of times
-// slower, so work sized to fit the default budget needs a scaled one there.
-// Both spellings: GCC defines __SANITIZE_*__, clang answers only __has_feature.
-#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__) ||                               \
-    (defined(__has_feature) &&                                                                     \
-     (__has_feature(address_sanitizer) || __has_feature(thread_sanitizer)))
-constexpr int kSanitizerSlowdown = 20;
-#else
-constexpr int kSanitizerSlowdown = 1;
-#endif
-
-} // namespace
+namespace {} // namespace
 
 TEST_CASE("runtime runs code and exposes an empty helix table", "[plugin][lua_runtime]") {
     TestRuntime t;

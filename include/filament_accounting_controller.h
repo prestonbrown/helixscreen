@@ -8,9 +8,8 @@
 // load; this covers the tools that print from their own extruder with a spool
 // assigned to the tool.
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_accounting.h"
 
 #include <optional>
@@ -60,8 +59,8 @@ class FilamentAccountingController {
     static bool backends_manage_active_spool();
     /// Whether the printer's T<n> macros switch the active spool.
     static bool macros_set_active_spool();
-    /// What tool @p tool_index feeds from, by its own spool or its lane's.
-    static FeedEntry feed_for_tool(const ToolInfo& tool, int tool_index);
+    /// What tool @p tool_index feeds from: the spool of the lane that feeds it.
+    static FeedEntry feed_for_tool(int tool_index);
 
     /// The active tool is now @p tool_index. Main thread.
     void on_active_tool_changed(int tool_index);

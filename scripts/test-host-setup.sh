@@ -20,6 +20,12 @@
 # parents of HELIX_TEST_TREES_HOST and HELIX_TEST_TREES. Mirrors, the ccache and
 # the --commit checkout all live under it, so the container holds nothing worth
 # keeping and recreating it loses nothing.
+#
+# The container gets a memory limit with no swap: HELIX_TEST_MEMORY (a docker
+# size such as 96g), else 60% of the host's memory. A build that outgrows it is
+# killed inside the container rather than taking down the host's own services,
+# and test-host-run.sh sizes -j from that limit. Every run applies it, so an
+# existing container picks up a changed value without --recreate.
 set -euo pipefail
 
 # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh
@@ -75,10 +81,14 @@ on_host 'command -v flock >/dev/null && printf "a\0" | sort -z | comm -z -23 - /
     die "$HOST needs flock and GNU sort/comm with -z"
 
 # The build context goes over the ssh connection as a tar, so the host builds
-# exactly this tree's Dockerfile.
+# exactly this tree's Dockerfile. It is unpacked into a directory there first:
+# buildx refuses a stdin context named together with -f ("ambiguous Dockerfile
+# source").
 step "image $IMAGE from docker/Dockerfile.sanitizer"
-tar -C "$(dirname "${BASH_SOURCE[0]}")/../docker" -cf - . |
-    on_host "sudo -n docker build -q -t $IMAGE -f Dockerfile.sanitizer -" >/dev/null ||
+COPYFILE_DISABLE=1 tar -C "$(dirname "${BASH_SOURCE[0]}")/../docker" -cf - . |
+    on_host "set -e; d=\$(mktemp -d); trap 'rm -rf \"\$d\"' EXIT
+tar -xf - -C \"\$d\"
+sudo -n docker build -q -t $IMAGE -f \"\$d/Dockerfile.sanitizer\" \"\$d\"" >/dev/null ||
     die "image build failed on $HOST"
 
 step "container $CONTAINER: $HOST:$WORK_HOST mounted at $WORK"
@@ -103,10 +113,18 @@ if sudo -n docker inspect "$CONTAINER" >/dev/null 2>&1; then
     # anything that walks /proc (the wpa backend's tests do) slows by orders of magnitude.
     [ "\$(sudo -n docker inspect -f '{{.HostConfig.Init}}' "$CONTAINER")" = true ] ||
         echo "⚠ $CONTAINER runs without --init and accumulates zombies; --recreate replaces it" >&2
-else
-    # CMD in the image is sleep infinity, which reaps nothing: --init does.
-    sudo -n docker run -d --init --name "$CONTAINER" -v "\$abs:$WORK" -w "$WORK" "$IMAGE" >/dev/null
 fi
+mem="${HELIX_TEST_MEMORY:-}"
+[ -n "\$mem" ] || mem="\$(awk '/^MemTotal:/ {printf "%dk", \$2 * 0.6}' /proc/meminfo)"
+if ! sudo -n docker inspect "$CONTAINER" >/dev/null 2>&1; then
+    # CMD in the image is sleep infinity, which reaps nothing: --init does.
+    sudo -n docker run -d --init --name "$CONTAINER" -v "\$abs:$WORK" -w "$WORK" \
+        --memory "\$mem" --memory-swap "\$mem" --pids-limit 16384 "$IMAGE" >/dev/null
+else
+    sudo -n docker update --memory "\$mem" --memory-swap "\$mem" --pids-limit 16384 "$CONTAINER" >/dev/null ||
+        echo "⚠ could not set $CONTAINER's memory limit to \$mem" >&2
+fi
+echo "→ $CONTAINER memory limit \$mem, no swap"
 sudo -n docker start "$CONTAINER" >/dev/null
 REMOTE
 

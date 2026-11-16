@@ -9,10 +9,12 @@
 // this header picks the rung and the flags the XML binds, and composes the readings'
 // texts so they never depend on a font.
 
+#include "core/temperature_units.h"
 #include "src/ui/panel_widgets/size_rung.h"
 #include "value_status.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -106,21 +108,18 @@ struct HostHealthReadings {
     return buf;
 }
 
-/// "61°C" at whole degrees, "61.4°C" with a decimal; "--" when the host reports none.
+/// "61°C" at whole degrees, "61.4°C" with a decimal, in the display unit; "--" when
+/// the host reports none.
 [[nodiscard]] inline std::string format_cpu_temp(int c10, int decimals) {
     if (c10 < 0)
         return "--";
     char buf[24];
+    const double shown = helix::units::to_display_temp(c10 / 10.0);
     if (decimals > 0)
-        std::snprintf(buf, sizeof(buf),
-                      "%d.%d\xc2\xb0"
-                      "C",
-                      c10 / 10, c10 % 10);
+        std::snprintf(buf, sizeof(buf), "%.1f%s", shown, helix::units::display_temp_symbol());
     else
-        std::snprintf(buf, sizeof(buf),
-                      "%d\xc2\xb0"
-                      "C",
-                      (c10 + 5) / 10);
+        std::snprintf(buf, sizeof(buf), "%d%s", static_cast<int>(std::lround(shown)),
+                      helix::units::display_temp_symbol());
     return buf;
 }
 

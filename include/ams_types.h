@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_drying_types.h"
+#include "ams_type.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "klipper_extruder_naming.h"
@@ -39,6 +41,9 @@ namespace helix {
 /// Default color for slots without filament info (medium gray)
 constexpr uint32_t kAmsDefaultSlotColor = 0x808080;
 
+/// The paint AmsState::current_color holds while no filament color is known.
+inline constexpr uint32_t kNoFilamentPaint = 0x505050;
+
 /// Units the AMS UI addresses. The overview's path canvas draws this many and
 /// AmsState allocates this many sets of per-unit subjects, so a unit the path
 /// shows always has a badge to bind; both caps derive from this one constant.
@@ -73,28 +78,6 @@ struct UnloadLaneQuestion {
     [[nodiscard]] bool asks() const {
         return !lanes.empty() || confirm_clear_toolhead;
     }
-};
-
-/**
- * @brief Type of AMS system detected
- *
- * Supports both filament-switching systems (MMU/AMS) and physical tool changers.
- * Tool changers differ in that each "slot" is a complete toolhead with its own
- * extruder, rather than a filament path to a shared toolhead.
- */
-enum class AmsType {
-    NONE = 0,         ///< No AMS detected
-    HAPPY_HARE = 1,   ///< Happy Hare MMU (mmu object in Moonraker)
-    AFC = 2,          ///< AFC-Klipper-Add-On (afc object, lane_data database)
-    ACE = 3,          ///< AnyCubic ACE Pro (ValgACE/BunnyACE/DuckACE Klipper drivers)
-    TOOL_CHANGER = 4, ///< Physical tool changer (viesturz/klipper-toolchanger)
-    AD5X_IFS = 5,     ///< FlashForge AD5X IFS (Intelligent Filament Switching)
-    CFS = 6,          ///< Creality Filament System (K2 series, RS-485)
-    SNAPMAKER = 7,    ///< Snapmaker U1 SnapSwap toolchanger
-    QIDI_BOX =
-        8, ///< QIDI Box filament changer (PLUS4, Q2, MAX4 — hub AMS, 4 slots chainable to 16)
-    OPENAMS = 9, ///< klipper_openams through its own versioned oams_manager API
-    INDX = 10    ///< Bondtech INDX: docked passive nozzles, one extruder and heater
 };
 
 /// Which rows of its own a filament system adds to the buffer status modal,
@@ -148,6 +131,10 @@ inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
      nullptr},
     {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
     {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+    // Not a product: the producer names itself in lane_status.producer.name, which
+    // replaces this name on screen once the first status arrives.
+    {AmsType::LANE_STATUS, "Lane Status", "Lane Status Surface", "lane_status", "lane_status",
+     AmsBufferRows::None, nullptr},
 };
 
 /// The row for @p type; the NONE row for a value with none.
@@ -201,47 +188,10 @@ inline AmsType ams_type_for_expected_hardware(std::string_view name) {
 
 /**
  * @brief Parse AMS type from string (for Moonraker responses)
- * @param str String to parse (case-insensitive)
+ * @param str String to parse (exact spelling; see each row's name_aliases)
  * @return Matching AmsType or NONE if not recognized
  */
-inline AmsType ams_type_from_string(std::string_view str) {
-    // Simple comparison - backends will use their own detection
-    if (str == "mmu" || str == "happy_hare" || str == "Happy Hare") {
-        return AmsType::HAPPY_HARE;
-    }
-    if (str == "afc" || str == "AFC") {
-        return AmsType::AFC;
-    }
-    if (str == "valgace" || str == "ValgACE" || str == "bunnyace" || str == "BunnyACE" ||
-        str == "duckace" || str == "DuckACE" || str == "ace" || str == "ACE Pro") {
-        return AmsType::ACE;
-    }
-    if (str == "toolchanger" || str == "tool_changer" || str == "Tool Changer") {
-        return AmsType::TOOL_CHANGER;
-    }
-    if (str == "ad5x_ifs" || str == "ad5x ifs" || str == "ad5x" || str == "ifs") {
-        return AmsType::AD5X_IFS;
-    }
-    if (str == "cfs" || str == "CFS" || str == "box") {
-        return AmsType::CFS;
-    }
-    if (str == "snapmaker" || str == "Snapmaker" || str == "snapswap" || str == "SnapSwap") {
-        return AmsType::SNAPMAKER;
-    }
-    // QIDI Box: QIDI's 4-slot hub-style filament changer (PLUS4 / Q2 / MAX4).
-    // Note: the bare "box" alias is already claimed by CFS above, so QIDI Box
-    // requires the explicit "qidi_box" / "QIDI Box" spelling.
-    if (str == "qidi_box" || str == "QIDI Box" || str == "qidibox") {
-        return AmsType::QIDI_BOX;
-    }
-    if (str == "openams" || str == "OpenAMS" || str == "oams_manager") {
-        return AmsType::OPENAMS;
-    }
-    if (str == "indx" || str == "INDX") {
-        return AmsType::INDX;
-    }
-    return AmsType::NONE;
-}
+AmsType ams_type_from_string(std::string_view str);
 
 /**
  * @brief Check if AMS type is a physical tool changer
@@ -255,9 +205,7 @@ inline AmsType ams_type_from_string(std::string_view str) {
  * @param type The AMS type to check
  * @return true if this is a physical tool changer
  */
-inline bool is_tool_changer(AmsType type) {
-    return type == AmsType::TOOL_CHANGER || type == AmsType::SNAPMAKER || type == AmsType::INDX;
-}
+bool is_tool_changer(AmsType type);
 
 /**
  * @brief Check if AMS type is a filament-switching system
@@ -269,11 +217,7 @@ inline bool is_tool_changer(AmsType type) {
  * @param type The AMS type to check
  * @return true if this is a filament-switching system
  */
-inline bool is_filament_system(AmsType type) {
-    return type == AmsType::HAPPY_HARE || type == AmsType::AFC || type == AmsType::ACE ||
-           type == AmsType::AD5X_IFS || type == AmsType::CFS || type == AmsType::SNAPMAKER ||
-           type == AmsType::QIDI_BOX || type == AmsType::OPENAMS;
-}
+bool is_filament_system(AmsType type);
 
 /**
  * @brief Slot/Lane status
@@ -442,7 +386,7 @@ inline bool ams_action_holds_system(AmsAction action) {
  * and it is deliberately backend-independent: every backend reports these the
  * same way, and a pulse on a slot that turns out not to move is harmless.
  *
- * NOT the same question as AmsBackend::action_tracks_step_operation(), which
+ * NOT the same question as IStepOperation::action_tracks_step_operation(), which
  * asks what the STEP BAR should follow and genuinely differs per backend. This
  * one is the superset.
  */
@@ -464,9 +408,9 @@ inline bool ams_action_is_busy(AmsAction action) {
 /**
  * @brief The filament-system step vocabulary: heat, feed, purge, cut, tip, retract.
  *
- * The default answer to AmsBackend::action_tracks_step_operation(). Lives here
- * so the one caller that has no backend to ask still gets the same rule rather
- * than a fourth copy of the list.
+ * The default answer to IStepOperation::action_tracks_step_operation(). Lives
+ * here so a caller with no backend to ask, or a backend without the capability,
+ * gets the same rule.
  *
  * SELECTING is deliberately absent: a filament system passes through it on the
  * way to a slot, and the step bar is already tracking the load that follows.
@@ -689,23 +633,6 @@ inline const char* tip_method_to_string(TipMethod method) {
         return "Tip Forming";
     }
     return "Unknown";
-}
-
-/**
- * @brief Get user-friendly step label for tip handling
- * @param method The tip method enum value
- * @return Untranslated English key; the display site passes it through lv_tr()
- */
-inline const char* tip_method_step_label(TipMethod method) {
-    switch (method) {
-    case TipMethod::CUT:
-        return TR_NOOP("Cut & retract");
-    case TipMethod::TIP_FORM:
-        return TR_NOOP("Form tip & retract");
-    case TipMethod::NONE:
-    default:
-        return TR_NOOP("Retract");
-    }
 }
 
 // ============================================================================
@@ -1190,6 +1117,13 @@ struct SlotInfo {
     int nozzle_temp_min = 0; ///< Minimum nozzle temp (°C)
     int nozzle_temp_max = 0; ///< Maximum nozzle temp (°C)
     int bed_temp = 0;        ///< Recommended bed temp (°C)
+    /// The catalog product's recommended nozzle temp (°C), staged by the spool
+    /// editor's pick for the Spoolman filament it may create; 0 = none.
+    int nozzle_temp_recommended = 0;
+    /// The printer refuses to print from this slot until a material is set for
+    /// it: the firmware's own record names none, and it stops the job rather
+    /// than guess. A slot whose material is merely unreported stays false.
+    bool material_required = false;
 
     // Tool mapping
     int mapped_tool = -1;               ///< Which tool this slot maps to (-1=none)
@@ -1198,9 +1132,11 @@ struct SlotInfo {
         extruder_name; ///< Physical extruder name (e.g., "extruder2") for shared-extruder dedup
 
     // Spoolman integration
-    int spoolman_id = 0;           ///< Spoolman spool ID (0=not tracked)
-    int spoolman_filament_id = 0;  ///< Spoolman filament definition ID (0=unknown)
-    int spoolman_vendor_id = 0;    ///< Spoolman vendor ID (0=unknown)
+    int spoolman_id = 0;          ///< Spoolman spool ID (0=not tracked)
+    int spoolman_filament_id = 0; ///< Spoolman filament definition ID (0=unknown)
+    int spoolman_vendor_id = 0;   ///< Spoolman vendor ID (0=unknown)
+    /// OrcaSlicer preset id the linked spool's filament names (empty=none)
+    std::string spoolman_orca_filament_id;
     std::string spool_name;        ///< Spool name from Spoolman
     float remaining_weight_g = -1; ///< Remaining filament weight in grams (-1=unknown)
     float total_weight_g = -1;     ///< Total spool weight in grams (-1=unknown)
@@ -1329,7 +1265,8 @@ struct SlotInfo {
     template <class S> static auto identity_fields(S& s) {
         return std::tie(s.color_rgb, s.color_name, s.material, s.brand, s.catalog_id,
                         s.product_name, s.spool_name, s.spoolman_id, s.spoolman_filament_id,
-                        s.spoolman_vendor_id, s.remaining_weight_g, s.total_weight_g);
+                        s.spoolman_vendor_id, s.spoolman_orca_filament_id, s.remaining_weight_g,
+                        s.total_weight_g);
     }
 
     /**
@@ -1355,8 +1292,8 @@ struct SlotInfo {
     /**
      * @brief Drop every Spoolman handle from this slot
      *
-     * Unlink used to zero only spoolman_id, leaving spoolman_filament_id and
-     * spoolman_vendor_id behind. Those stale handles then fed
+     * Zeroing only spoolman_id would leave spoolman_filament_id and
+     * spoolman_vendor_id behind, and those stale handles would feed
      * SpoolmanSlotSaver's repoint comparison against a filament belonging to a
      * spool this lane is no longer linked to.
      *
@@ -1373,6 +1310,7 @@ struct SlotInfo {
         spoolman_id = 0;
         spoolman_filament_id = 0;
         spoolman_vendor_id = 0;
+        spoolman_orca_filament_id.clear();
         spool_name.clear();
     }
 
@@ -1511,6 +1449,7 @@ struct AmsUnit {
     int unit_index = 0;              ///< Unit number (0-based)
     std::string name;                ///< Internal name for matching (e.g., "Box_Turtle Turtle_1")
     std::string display_name;        ///< Pretty name for UI (e.g., "Turtle 1") — empty = use name
+    std::string model;               ///< Hardware the firmware says it is; empty when unreported
     int slot_count = 0;              ///< Number of slots on this unit
     int first_slot_global_index = 0; ///< Global index of first slot
 
@@ -1693,7 +1632,7 @@ struct TanglePreventionInfo {
 /**
  * @brief The state a user tells the filament system it is really in
  *
- * AmsBackend::recover_with_state() re-syncs the firmware's tracking to this.
+ * IGateSelector::recover_with_state() re-syncs the firmware's tracking to this.
  * Anything left unset is not asserted, so the firmware keeps (or detects)
  * its own answer for it.
  */
@@ -1754,7 +1693,10 @@ struct AmsSystemInfo {
     bool filament_runout =
         false; ///< CFS: active path empty (box.filament_useup); UI gates display on paused state
     AmsAction action = AmsAction::IDLE; ///< Current operation
-    std::string operation_detail;       ///< Detailed operation string
+    /// The status line. A fixed phrase is stored as its untranslated catalog
+    /// key (TR_NOOP) and AmsState translates it at display time, so it follows
+    /// a language switch; firmware or composed text is shown as it is.
+    std::string operation_detail;
 
     /// Granular firmware sub-phase of the active load/unload, for backends that
     /// expose one. Used to drive a multi-step progress bar that mirrors the real
@@ -1896,10 +1838,6 @@ struct AmsSystemInfo {
     }
 
     /**
-     * @brief Get the currently active slot info
-     * @return Pointer to active slot or nullptr if none selected
-     */
-    /**
      * @brief Whether @p global_index is a bay some unit actually reported
      *
      * False for an index no unit covers and for one inside an absent unit.
@@ -1953,6 +1891,10 @@ struct AmsSystemInfo {
         return nullptr;
     }
 
+    /**
+     * @brief Get the currently active slot info
+     * @return Pointer to active slot or nullptr if none selected
+     */
     [[nodiscard]] const SlotInfo* get_active_slot() const {
         if (current_slot < 0)
             return nullptr;
@@ -2136,9 +2078,9 @@ struct AmsSystemInfo {
 /**
  * @brief Decide whether enabling bypass must be preceded by an implicit unload.
  *
- * The AMS sidebar's bypass toggle used to unload whenever a slot was loaded,
- * then enable bypass once the unload finished. On backends whose users have a
- * console (AFC, Happy Hare) that ejects filament the user never asked to eject,
+ * Unloading whenever a slot is loaded, then enabling bypass once the unload
+ * finishes, is the chaining. On backends whose users have a console (AFC,
+ * Happy Hare) that ejects filament the user never asked to eject,
  * so those backends report @p allows_implicit_chaining false and the UI sends
  * only the bypass command, letting the firmware refuse it if it wants to
  * (prestonbrown/helixscreen#1229). Backends with no console fallback keep the
@@ -2184,194 +2126,6 @@ struct PrintColorInfo {
     int initial_tool = 0;       ///< First tool used in print
     bool all_satisfied = false; ///< All requirements have mapped slots
 };
-
-// ============================================================================
-// Dryer Types (for AMS systems with integrated drying)
-// ============================================================================
-
-/**
- * @brief Preset drying profile
- *
- * Standard drying profiles for common filament materials.
- * Can be overridden via settings.json "dryer_presets" array.
- */
-struct DryingPreset {
-    std::string name;       ///< Preset name (e.g., "PLA", "PETG", "ABS")
-    float temp_c = 45.0f;   ///< Target temperature in Celsius
-    int duration_min = 240; ///< Drying duration in minutes
-    int fan_pct = 50;       ///< Fan speed percentage (0-100)
-
-    /**
-     * @brief Create a drying preset
-     * @param n Preset name
-     * @param t Temperature in Celsius
-     * @param d Duration in minutes
-     * @param f Fan speed percentage
-     */
-    DryingPreset(std::string n, float t, int d, int f = 50)
-        : name(std::move(n)), temp_c(t), duration_min(d), fan_pct(f) {}
-    DryingPreset() = default;
-};
-
-/**
- * @brief Dryer capability and state information
- *
- * Not all AMS systems have integrated dryers. Currently only ACE Pro
- * has dryer support. This struct provides a generic interface that other
- * backends can implement when dryer hardware becomes available.
- */
-struct DryerInfo {
-    bool supported = false;           ///< Does this AMS have a dryer?
-    bool active = false;              ///< Currently drying?
-    bool allows_during_print = false; ///< Can run while printing? (backend capability)
-
-    // Current state
-    float current_temp_c = 0.0f; ///< Current chamber temperature
-    float target_temp_c = 0.0f;  ///< Target temperature (0 = off)
-    int duration_min = 0;        ///< Total drying duration set
-    int remaining_min = 0;       ///< Minutes remaining
-    int fan_pct = 0;             ///< Current fan speed (0-100)
-
-    // Hardware capabilities
-    float min_temp_c = 35.0f;          ///< Minimum settable temperature
-    float max_temp_c = 70.0f;          ///< Maximum settable temperature
-    int max_duration_min = 720;        ///< Maximum drying time (12h default)
-    int duration_step_min = 1;         ///< Granularity the firmware takes a duration in
-    bool supports_fan_control = false; ///< Can fan speed be set independently?
-
-    /**
-     * Can a running cycle be retargeted without stopping it?
-     *
-     * Two flags because the hardware splits the same way. A backend can retarget the
-     * heater mid-run and still have no way to move the clock: the temperature is a
-     * setpoint it can re-send, while the duration is owned by a firmware timer that
-     * only accepts a fresh cycle. Where a flag is false the caller must stop and
-     * restart, which is a visible interruption and worth warning about, so the two
-     * cases cannot be collapsed into one "adjustable" bool.
-     *
-     * Both default false: a backend that has not been checked against real hardware
-     * should force the stop-and-restart path rather than silently drop an adjustment.
-     */
-    bool supports_live_temp = false;     ///< Target temp re-sends without stopping
-    bool supports_live_duration = false; ///< Remaining time changes without stopping
-
-    /// Can a cycle also end early once the box reads at or below a target relative
-    /// humidity? The duration still bounds the cycle; the target only shortens it.
-    bool supports_humidity_target = false;
-
-    /// The target, in %RH, a start with none applies, when the backend knows it.
-    /// Unset means the dryer either applies no target or does not say which.
-    std::optional<float> default_humidity_target;
-
-    /// Can a cycle be started and stopped on a chosen subset of this dryer's gates? True
-    /// only where each gate has its own heater, so the subset is what actually heats.
-    bool supports_gate_selection = false;
-
-    /// Can a cycle turn the selected spools while it dries? Needs a motor that drives
-    /// the spool itself, and an explicit gate selection to say which ones.
-    bool supports_rotation = false;
-
-    /// Highest humidity target, in %RH, a surface offers.
-    static constexpr float kMaxHumidityTargetPct = 99.0f;
-
-    /// @p pct as a humidity target this dryer takes, or nullopt for none: the dryer
-    /// cannot take one, or @p pct is unset (0 or below). Above the ceiling clamps to it.
-    [[nodiscard]] std::optional<float> humidity_target(float pct) const {
-        if (!supports_humidity_target || !(pct > 0.0f)) {
-            return std::nullopt;
-        }
-        return std::min(pct, kMaxHumidityTargetPct);
-    }
-
-    /// @p temp_c inside this dryer's settable range. A bound of 0 is unset and
-    /// clamps nothing on its side. Every surface offering a preset clamps
-    /// through here, so the value it shows is the value it sends.
-    [[nodiscard]] float clamp_temp(float temp_c) const {
-        if (max_temp_c > 0.0f && temp_c > max_temp_c) {
-            temp_c = max_temp_c;
-        }
-        if (min_temp_c > 0.0f && temp_c < min_temp_c) {
-            temp_c = min_temp_c;
-        }
-        return temp_c;
-    }
-
-    /// @p minutes rounded UP to whole duration steps, at least one step and at
-    /// most max_duration_min. Rounding up keeps a preset from drying for less
-    /// time than it names.
-    [[nodiscard]] int clamp_duration(int minutes) const {
-        const int step = duration_step_min > 0 ? duration_step_min : 1;
-        int steps = (std::max(minutes, 0) + step - 1) / step;
-        steps = std::max(steps, 1);
-        int clamped = steps * step;
-        if (max_duration_min > 0 && clamped > max_duration_min) {
-            clamped = (max_duration_min / step) * step;
-        }
-        return clamped;
-    }
-
-    /**
-     * @brief Get progress as percentage
-     * @return 0-100 percentage, or -1 if not drying
-     */
-    [[nodiscard]] int get_progress_pct() const {
-        if (!active || duration_min <= 0)
-            return -1;
-        int elapsed = duration_min - remaining_min;
-        // Clamp to valid range (handles firmware reporting remaining > duration)
-        if (elapsed < 0)
-            elapsed = 0;
-        if (elapsed > duration_min)
-            elapsed = duration_min;
-        return (elapsed * 100) / duration_min;
-    }
-
-    /**
-     * @brief Check if dryer is at target temperature
-     * @param tolerance_c Temperature tolerance in Celsius (default 2°C)
-     * @return true if within tolerance of target
-     */
-    [[nodiscard]] bool is_at_temp(float tolerance_c = 2.0f) const {
-        if (target_temp_c <= 0)
-            return false;
-        return std::abs(current_temp_c - target_temp_c) <= tolerance_c;
-    }
-};
-
-/**
- * @brief Everything a drying start asks of a backend.
- *
- * Empty @p gates leaves the choice to the dryer, which is the whole unit or whatever
- * the firmware defaults to: exactly the start a backend sends with no selection at all.
- */
-struct DryingRequest {
-    float temp_c = 0.0f;
-    int duration_min = 0;
-    std::optional<float> humidity_pct; ///< Unset leaves the dryer's own target
-    int fan_pct = -1;                  ///< -1 = backend default
-    int unit = 0;
-    std::vector<int> gates; ///< Global gate indices; needs DryerInfo::supports_gate_selection
-    bool rotate = false;    ///< Needs DryerInfo::supports_rotation
-};
-
-/**
- * @brief Get default drying presets
- *
- * Returns presets derived from the filament database, one per compatibility group.
- * Uses filament::get_drying_presets_by_group() as the single source of truth.
- * These can be overridden via settings.json "dryer_presets" array.
- *
- * @return Vector of default DryingPreset structs
- */
-inline std::vector<DryingPreset> get_default_drying_presets() {
-    constexpr int kDefaultFanPct = 50;
-
-    std::vector<DryingPreset> result;
-    for (const auto& fp : filament::get_drying_presets_by_group()) {
-        result.emplace_back(fp.name, static_cast<float>(fp.temp_c), fp.time_min, kDefaultFanPct);
-    }
-    return result;
-}
 
 // ============================================================================
 // Endless Spool Types
@@ -2456,9 +2210,9 @@ enum class EndlessSpoolEditability : int {
 /**
  * @brief Why editing is restricted.
  *
- * An enum, not prose. The old `description` field carried load-bearing state as
- * untranslated English ("Auto-refill enabled", "...read-only on multi-unit"),
- * which no UI could safely display in any language but ours. Display text comes
+ * An enum, not prose: load-bearing state carried as untranslated English
+ * ("Auto-refill enabled", "...read-only on multi-unit") is something no UI
+ * could safely display in any language but ours. Display text comes
  * from endless_spool_restriction_text(), which is where lv_tr() lives.
  */
 enum class EndlessSpoolRestriction : int {
@@ -2490,9 +2244,9 @@ enum class EndlessSpoolRestriction : int {
 /**
  * @brief What a backend can do about endless spool, on three independent axes.
  *
- * Availability, enablement and editability are genuinely orthogonal and the old
- * two-bool struct could not hold them: CFS is available-and-read-only whether
- * auto-refill is on or off, so `supported=true` rendered both states
+ * Availability, enablement and editability are genuinely orthogonal and two
+ * bools cannot hold them: CFS is available-and-read-only whether auto-refill
+ * is on or off, so a single `supported=true` would render both states
  * identically. Every field is either an enum or a proper noun - nothing here is
  * translatable prose, so nothing here can leak English into the UI.
  */
@@ -2513,12 +2267,12 @@ struct EndlessSpoolCapabilities {
     /// free-text field left on the struct.
     std::string provider;
 
-    /// The feature exists and is usable. Replaces the old `supported` bool.
+    /// The feature exists and is usable.
     [[nodiscard]] bool available() const {
         return availability == EndlessSpoolAvailability::Available;
     }
 
-    /// The UI may write. Replaces the old `editable` bool.
+    /// The UI may write.
     [[nodiscard]] bool editable() const {
         return available() && editability != EndlessSpoolEditability::ReadOnly;
     }
@@ -2753,6 +2507,15 @@ struct DeviceAction {
     /// executing the action directly. Empty for an ordinary action.
     std::string guided_flow;
 
+    /// A dropdown option the UI asks about before sending it.
+    struct OptionConfirm {
+        std::string option;        ///< The option, as `options` lists it
+        std::string message;       ///< What picking it does, in English (TR_NOOP it)
+        std::string confirm_label; ///< The confirm button, in English (TR_NOOP it)
+    };
+    /// Dropdown only: options whose pick needs the user's yes first.
+    std::vector<OptionConfirm> option_confirms;
+
     // Factories for the five control types. Argument order is fixed: id, label, section, the
     // type-specific fields, then optional icon and description. scripts/translations/
     // cpp_tables.py reads the label and description positions of each call, so keep them literal.
@@ -2802,10 +2565,10 @@ struct DeviceAction {
         return a;
     }
 
-    /// A read-only row showing @p value as text.
-    static DeviceAction info(std::string id, std::string label, std::string section,
-                             std::string value, std::string icon = {},
-                             std::string description = {}) {
+    /// A read-only row showing @p value as text ((info): see ESP32_PORT.md "Reading the log").
+    static DeviceAction(info)(std::string id, std::string label, std::string section,
+                              std::string value, std::string icon = {},
+                              std::string description = {}) {
         DeviceAction a =
             toggle(std::move(id), std::move(label), std::move(section), std::any(std::move(value)),
                    std::move(icon), std::move(description));
@@ -2825,6 +2588,27 @@ struct DeviceAction {
     [[nodiscard]] DeviceAction with_step(float resolution) && {
         step = resolution;
         return std::move(*this);
+    }
+
+    /// This dropdown, asking the user to confirm @p message (with a button
+    /// reading @p confirm_label) before a pick of @p option is sent. A pick of
+    /// the value it already shows sends without asking.
+    [[nodiscard]] DeviceAction with_option_confirm(std::string option, std::string message,
+                                                   std::string confirm_label) && {
+        option_confirms.push_back(
+            {std::move(option), std::move(message), std::move(confirm_label)});
+        return std::move(*this);
+    }
+
+    /// The confirmation a pick of @p option asks for, or nullptr when it sends
+    /// without asking.
+    [[nodiscard]] const OptionConfirm* option_confirm_for(const std::string& option) const {
+        for (const auto& c : option_confirms) {
+            if (c.option == option) {
+                return &c;
+            }
+        }
+        return nullptr;
     }
 };
 

@@ -42,13 +42,16 @@
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_screws_tilt.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
+#include "ui_wizard_appearance.h"
 #include "ui_wizard_preferences.h"
 
 #include "esp_attr.h"
@@ -61,20 +64,20 @@
 // Global-scope panel / overlay instance accessors (raw-storage references).
 // ===========================================================================
 
-// src/ui/ui_panel_bed_mesh.cpp (DEFINE_GLOBAL_PANEL)
+// src/ui/calibration/ui_panel_bed_mesh.cpp (DEFINE_GLOBAL_PANEL)
 BedMeshPanel& get_global_bed_mesh_panel() {
     alignas(BedMeshPanel) EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(BedMeshPanel)];
     return *reinterpret_cast<BedMeshPanel*>(storage);
 }
 
-// src/ui/ui_panel_calibration_pid.cpp
+// src/ui/calibration/ui_panel_calibration_pid.cpp
 PIDCalibrationPanel& get_global_pid_cal_panel() {
     alignas(PIDCalibrationPanel)
         EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(PIDCalibrationPanel)];
     return *reinterpret_cast<PIDCalibrationPanel*>(storage);
 }
 
-// src/ui/ui_overlay_timelapse_videos.cpp
+// src/ui/print/ui_overlay_timelapse_videos.cpp
 TimelapseVideosOverlay& get_global_timelapse_videos() {
     alignas(TimelapseVideosOverlay)
         EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(TimelapseVideosOverlay)];
@@ -85,11 +88,11 @@ TimelapseVideosOverlay& get_global_timelapse_videos() {
 // Global-scope free functions (no-op wiring).
 // ===========================================================================
 
-// src/ui/ui_overlay_timelapse_videos.cpp
+// src/ui/print/ui_overlay_timelapse_videos.cpp
 void init_global_timelapse_videos(helix::IMoonrakerAPI*) {}
 void open_timelapse_videos() {}
 
-// src/ui/ui_overlay_timelapse_videos.cpp, helix::ui entry points. Kept code calls
+// src/ui/print/ui_overlay_timelapse_videos.cpp, helix::ui entry points. Kept code calls
 // both: ui_panel_history_list.cpp gates a row on the availability query and opens a
 // job's video from it. Returning false is what makes the row inert here.
 namespace helix::ui {
@@ -119,8 +122,10 @@ bool timelapse_viewer_available() {
 // nothing; install registers one event_cb for XML that is never created), so
 // the no-op bodies leave no binding unsatisfied.
 //
-// src/ui/ui_overlay_timelapse_install.cpp
+// src/ui/print/ui_overlay_timelapse_install.cpp
 TimelapseInstallOverlay::TimelapseInstallOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+TimelapseInstallOverlay::~TimelapseInstallOverlay() = default;
+void TimelapseInstallOverlay::init_subjects() {}
 void TimelapseInstallOverlay::register_callbacks() {}
 lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t*) {
     return nullptr;
@@ -136,8 +141,9 @@ TimelapseInstallOverlay& get_global_timelapse_install() {
 void init_global_timelapse_install(helix::IMoonrakerAPI*) {}
 void open_timelapse_install() {}
 
-// src/ui/ui_overlay_timelapse_settings.cpp
+// src/ui/print/ui_overlay_timelapse_settings.cpp
 TimelapseSettingsOverlay::TimelapseSettingsOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+void TimelapseSettingsOverlay::init_subjects() {}
 void TimelapseSettingsOverlay::register_callbacks() {}
 lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t*) {
     return nullptr;
@@ -165,7 +171,7 @@ void TimelapseState::reset() {}
 } // namespace helix
 
 // ===========================================================================
-// PIDCalibrationPanel member methods (src/ui/ui_panel_calibration_pid.cpp).
+// PIDCalibrationPanel member methods (src/ui/calibration/ui_panel_calibration_pid.cpp).
 // ===========================================================================
 
 void PIDCalibrationPanel::set_temp_control_panel(TemperatureService*) {}
@@ -179,20 +185,20 @@ void PIDCalibrationPanel::set_temp_control_panel(TemperatureService*) {}
 // MUST be global (not in namespace helix), or the mangled names won't match.
 // ===========================================================================
 
-// src/ui/ui_panel_input_shaper.cpp (DEFINE_GLOBAL_PANEL)
+// src/ui/calibration/ui_panel_input_shaper.cpp (DEFINE_GLOBAL_PANEL)
 InputShaperPanel& get_global_input_shaper_panel() {
     alignas(InputShaperPanel)
         EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(InputShaperPanel)];
     return *reinterpret_cast<InputShaperPanel*>(storage);
 }
 
-// src/ui/ui_panel_screws_tilt.cpp (DEFINE_GLOBAL_PANEL)
+// src/ui/calibration/ui_panel_screws_tilt.cpp (DEFINE_GLOBAL_PANEL)
 ScrewsTiltPanel& get_global_screws_tilt_panel() {
     alignas(ScrewsTiltPanel) EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(ScrewsTiltPanel)];
     return *reinterpret_cast<ScrewsTiltPanel*>(storage);
 }
 
-// src/ui/ui_panel_calibration_zoffset.cpp (DEFINE_GLOBAL_PANEL)
+// src/ui/calibration/ui_panel_calibration_zoffset.cpp (DEFINE_GLOBAL_PANEL)
 ZOffsetCalibrationPanel& get_global_zoffset_cal_panel() {
     alignas(ZOffsetCalibrationPanel)
         EXT_RAM_BSS_ATTR static unsigned char storage[sizeof(ZOffsetCalibrationPanel)];
@@ -208,39 +214,45 @@ static void esp32_staged_feature_row_cb(lv_event_t* /*e*/) {
     helix::ui::show_feature_unavailable_toast();
 }
 
-// src/ui/ui_panel_belt_tension.cpp
+// src/ui/calibration/ui_panel_belt_tension.cpp
 void init_belt_tension_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_belt_tension_row_clicked", esp32_staged_feature_row_cb);
 }
 
-// src/ui/ui_panel_input_shaper.cpp
+// src/ui/calibration/ui_panel_input_shaper.cpp
 void init_input_shaper_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_input_shaper_row_clicked", esp32_staged_feature_row_cb);
 }
 
-// src/ui/ui_panel_screws_tilt.cpp — the row shows only on printers with
+// src/ui/calibration/ui_panel_screws_tilt.cpp — the row shows only on printers with
 // screws_tilt_adjust (printer_has_screws_tilt), where a tap needs feedback.
 void init_screws_tilt_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_screws_tilt_row_clicked", esp32_staged_feature_row_cb);
 }
 
-// src/ui/ui_panel_calibration_zoffset.cpp
+// src/ui/calibration/ui_panel_calibration_zoffset.cpp
 void init_zoffset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_zoffset_row_clicked", esp32_staged_feature_row_cb);
 }
 void init_zoffset_event_callbacks() {}
 
-// src/ui/ui_panel_calibration_tool_offset.cpp — same staged-row treatment: the
+// src/ui/calibration/ui_panel_calibration_tool_offset.cpp — same staged-row treatment: the
 // row's visibility already tracks a real capability (printer_has_tool_offset_cal
 // is written for real by the KEPT tool_offset_calibration::supported()), so on
 // hardware where it would show, the tap must still give feedback rather than
 // silently doing nothing.
 namespace helix::ui {
+// src/ui/calibration/ui_panel_motor_ripple.cpp — staged row: it tracks
+// printer_supports_ripple_check, written by the KEPT motor_ripple_view.
+void init_motor_ripple_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
+}
+
 void init_tool_offset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
 }
 
-// src/ui/ui_stepper_resonance_cal_modal.cpp — same staged-row treatment: the
+// src/ui/calibration/ui_stepper_resonance_cal_modal.cpp — same staged-row treatment: the
 // row tracks printer_has_stepper_resonance_cal, written by the KEPT
 // stepper_resonance_cal::resolve().
 void init_stepper_resonance_cal_row_handler() {
@@ -248,7 +260,7 @@ void init_stepper_resonance_cal_row_handler() {
                              esp32_staged_feature_row_cb);
 }
 
-// src/ui/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the
+// src/ui/calibration/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the
 // Controls-panel quick-access button (ui_panel_controls.cpp, KEPT) reaches
 // this the same way handle_calibration_zoffset() reaches
 // get_global_zoffset_cal_panel() above: only non-virtual access is safe on
@@ -260,7 +272,7 @@ ToolOffsetCalibrationPanel& get_global_tool_offset_cal_panel() {
 }
 } // namespace helix::ui
 
-// src/api/touch_calibration_wrapper.cpp is not in the cut, but the touch
+// src/platform/input/touch_calibration_wrapper.cpp is not in the cut, but the touch
 // calibration UI that drives it is (ui_touch_calibration_overlay.cpp,
 // touch_calibration_session.cpp). Both entry points below are the wrapper's
 // evdev-facing half: the raw reading only exists behind lv_evdev, and the ABS
@@ -315,10 +327,20 @@ void MacroManager::remove_skips(SuccessCallback, ErrorCallback) {}
 
 } // namespace helix
 
-// The firmware runs no first-run wizard, so the registry's Preferences step
-// never runs; the accessor only has to resolve.
+// The firmware runs no first-run wizard, so the registry's Appearance and Preferences
+// steps never run; the accessors only have to resolve.
 namespace helix::wizard {
+WizardAppearanceStep* get_wizard_appearance_step() {
+    return nullptr;
+}
 WizardPreferencesStep* get_wizard_preferences_step() {
     return nullptr;
 }
 } // namespace helix::wizard
+
+// The firmware cannot build these panels, so no owned calibration heat exists at shutdown.
+void BedMeshPanel::before_disconnect() {}
+void ZOffsetCalibrationPanel::before_disconnect() {}
+namespace helix::ui {
+void PACalibrationPanel::before_disconnect() {}
+} // namespace helix::ui

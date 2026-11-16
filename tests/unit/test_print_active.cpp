@@ -9,6 +9,7 @@
  * into a single boolean for simpler XML bindings.
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "printer_print_state.h"
@@ -17,6 +18,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using json = nlohmann::json;
@@ -25,24 +27,9 @@ using json = nlohmann::json;
 // Test Fixture
 // ============================================================================
 
-class PrintActiveTestFixture {
+class PrintActiveTestFixture : public LVGLTestFixture {
   public:
     PrintActiveTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_, [](lv_display_t* disp, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(disp);
-            });
-            display_created_ = true;
-        }
-
         // Reset PrinterState for test isolation
         PrinterStateTestAccess::reset(state_);
 
@@ -79,12 +66,7 @@ class PrintActiveTestFixture {
 
   private:
     PrinterState state_;
-    static lv_display_t* display_;
-    static bool display_created_;
 };
-
-lv_display_t* PrintActiveTestFixture::display_ = nullptr;
-bool PrintActiveTestFixture::display_created_ = false;
 
 // ============================================================================
 // Test Cases

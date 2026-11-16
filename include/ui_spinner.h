@@ -27,3 +27,14 @@
  * Must be called after lv_xml_init() and after globals.xml is loaded.
  */
 void ui_spinner_init();
+
+/**
+ * @brief Hold every spinner still (remote-control freeze) or let them run again
+ *
+ * A spinner restarts its animations whenever it is drawn without them; while frozen it
+ * stays still instead, so a frozen capture is reproducible. Unfrozen spinners restart on
+ * their next draw.
+ */
+namespace helix::ui {
+void spinner_set_frozen(bool frozen);
+} // namespace helix::ui

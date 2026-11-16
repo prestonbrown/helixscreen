@@ -1,11 +1,11 @@
 diff --git a/src/draw/sw/lv_draw_sw_letter.c b/src/draw/sw/lv_draw_sw_letter.c
-index c57632b7a..c27ad6679 100644
+index 334f14642..7312a8278 100644
 --- a/src/draw/sw/lv_draw_sw_letter.c
 +++ b/src/draw/sw/lv_draw_sw_letter.c
-@@ -29,6 +29,10 @@
+@@ -23,6 +23,10 @@
+ 
  #include "../../core/lv_refr_private.h"
- #include "../../stdlib/lv_string.h"
-
+ 
 +/* Telemetry hook provided by helix_lvgl_anomaly.cpp — reports LVGL anomalies
 + * with backtrace + device context for remote crash diagnostics. */
 +extern void helix_lvgl_anomaly(const char * code, const char * context);
@@ -13,8 +13,8 @@ index c57632b7a..c27ad6679 100644
  /*********************
   *      DEFINES
   *********************/
-@@ -106,8 +110,32 @@ void lv_draw_sw_letter(lv_draw_task_t * t, const lv_draw_letter_dsc_t * dsc, con
-
+@@ -94,8 +98,32 @@ void lv_draw_sw_letter(lv_draw_task_t * t, const lv_draw_letter_dsc_t * dsc, con
+ 
  void lv_draw_sw_label(lv_draw_task_t * t, const lv_draw_label_dsc_t * dsc, const lv_area_t * coords)
  {
 +    if(dsc == NULL) {
@@ -24,7 +24,7 @@ index c57632b7a..c27ad6679 100644
 +    }
 +
      if(dsc->opa <= LV_OPA_MIN) return;
-
+ 
 +    if(dsc->font == NULL) {
 +        LV_LOG_WARN("lv_draw_sw_label: NULL font, skipping");
 +        helix_lvgl_anomaly("label_null_font", "lv_draw_sw_label: NULL font");
@@ -44,9 +44,9 @@ index c57632b7a..c27ad6679 100644
 +#endif
 +
      LV_PROFILER_DRAW_BEGIN;
-
+ 
  #if LV_USE_FREETYPE && LV_USE_VECTOR_GRAPHIC && LV_USE_THORVG
-@@ -150,6 +178,14 @@ static void LV_ATTRIBUTE_FAST_MEM draw_letter_cb(lv_draw_task_t * t, lv_draw_gly
+@@ -138,6 +166,14 @@ static void LV_ATTRIBUTE_FAST_MEM draw_letter_cb(lv_draw_task_t * t, lv_draw_gly
              case LV_FONT_GLYPH_FORMAT_A4:
              case LV_FONT_GLYPH_FORMAT_A8:
              case LV_FONT_GLYPH_FORMAT_IMAGE: {
@@ -60,4 +60,4 @@ index c57632b7a..c27ad6679 100644
 +                    }
                      if(glyph_draw_dsc->rotation % 3600 == 0 && glyph_draw_dsc->format != LV_FONT_GLYPH_FORMAT_IMAGE) {
                          lv_area_t mask_area = *glyph_draw_dsc->letter_coords;
-
+ 

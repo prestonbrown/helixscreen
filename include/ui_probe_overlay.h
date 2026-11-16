@@ -4,11 +4,13 @@
 #pragma once
 
 #include "ui_modal.h"
+#include "ui_widget_ref.h"
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "klipper_config_editor.h"
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -59,6 +61,9 @@ class ProbeOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "probe_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
     void on_activate() override;
 
@@ -73,6 +78,10 @@ class ProbeOverlay : public OverlayBase {
     //
 
     void handle_probe_accuracy();
+
+    /// handle_probe_accuracy() once the bed is known clear.
+
+    void run_probe_accuracy();
     void handle_zoffset_cal();
     void handle_bed_mesh();
 
@@ -113,85 +122,86 @@ class ProbeOverlay : public OverlayBase {
 
     // Display subjects
     char probe_display_name_buf_[48] = {};
-    lv_subject_t probe_display_name_{};
+    helix::Subject probe_display_name_{};
     char probe_type_label_buf_[64] = {};
-    lv_subject_t probe_type_label_{};
+    helix::Subject probe_type_label_{};
     char probe_z_offset_display_buf_[32] = {};
-    lv_subject_t probe_z_offset_display_{};
+    helix::Subject probe_z_offset_display_{};
+    helix::Subject probe_z_offset_known_{}; ///< 1 when the probe's Z offset is known
 
     // State subject for overlay mode
-    lv_subject_t probe_overlay_state_{};
+    helix::Subject probe_overlay_state_{};
 
     // Cartographer subjects
     char probe_carto_coil_temp_buf_[32] = {};
-    lv_subject_t probe_carto_coil_temp_{};
+    helix::Subject probe_carto_coil_temp_{};
 
     // Beacon subjects
     char probe_beacon_temp_buf_[32] = {};
-    lv_subject_t probe_beacon_temp_{};
+    helix::Subject probe_beacon_temp_{};
     char probe_beacon_temp_comp_status_buf_[32] = {};
-    lv_subject_t probe_beacon_temp_comp_status_{};
+    helix::Subject probe_beacon_temp_comp_status_{};
 
     // Klicky subject (1 if klicky type detected, 0 otherwise)
-    lv_subject_t probe_is_klicky_{};
+    helix::Subject probe_is_klicky_{};
 
     // Config display subjects (current values shown in setting rows)
-    lv_subject_t probe_config_loaded_{}; // 1 when config values are loaded
+    helix::Subject probe_config_loaded_{}; // 1 when config values are loaded
     char probe_cfg_x_offset_buf_[32] = {};
-    lv_subject_t probe_cfg_x_offset_{};
+    helix::Subject probe_cfg_x_offset_{};
     char probe_cfg_y_offset_buf_[32] = {};
-    lv_subject_t probe_cfg_y_offset_{};
+    helix::Subject probe_cfg_y_offset_{};
     char probe_cfg_samples_buf_[16] = {};
-    lv_subject_t probe_cfg_samples_{};
+    helix::Subject probe_cfg_samples_{};
     char probe_cfg_speed_buf_[32] = {};
-    lv_subject_t probe_cfg_speed_{};
+    helix::Subject probe_cfg_speed_{};
     char probe_cfg_retract_dist_buf_[32] = {};
-    lv_subject_t probe_cfg_retract_dist_{};
+    helix::Subject probe_cfg_retract_dist_{};
     char probe_cfg_tolerance_buf_[32] = {};
-    lv_subject_t probe_cfg_tolerance_{};
+    helix::Subject probe_cfg_tolerance_{};
 
     // Config edit modal subjects
     char probe_config_edit_title_buf_[64] = {};
-    lv_subject_t probe_config_edit_title_{};
+    helix::Subject probe_config_edit_title_{};
     char probe_config_edit_desc_buf_[128] = {};
-    lv_subject_t probe_config_edit_desc_{};
+    helix::Subject probe_config_edit_desc_{};
     char probe_config_edit_current_buf_[32] = {};
-    lv_subject_t probe_config_edit_current_{};
+    helix::Subject probe_config_edit_current_{};
     char probe_config_edit_value_buf_[32] = {};
-    lv_subject_t probe_config_edit_value_{};
+    helix::Subject probe_config_edit_value_{};
 
     // Probe accuracy state machine: 0=idle, 1=probing, 2=results, 3=error
-    lv_subject_t probe_acc_state_{};
+    helix::Subject probe_acc_state_{};
 
     // Probe accuracy progress (probing state)
-    lv_subject_t probe_acc_progress_{}; // 0-100 percentage
+    helix::Subject probe_acc_progress_{}; // 0-100 percentage
     char probe_acc_progress_text_buf_[64] = {};
-    lv_subject_t probe_acc_progress_text_{};
+    helix::Subject probe_acc_progress_text_{};
 
     // Probe accuracy results subjects
     char probe_acc_maximum_buf_[32] = {};
-    lv_subject_t probe_acc_maximum_{};
+    helix::Subject probe_acc_maximum_{};
     char probe_acc_minimum_buf_[32] = {};
-    lv_subject_t probe_acc_minimum_{};
+    helix::Subject probe_acc_minimum_{};
     char probe_acc_range_buf_[32] = {};
-    lv_subject_t probe_acc_range_{};
+    helix::Subject probe_acc_range_{};
     char probe_acc_average_buf_[32] = {};
-    lv_subject_t probe_acc_average_{};
+    helix::Subject probe_acc_average_{};
     char probe_acc_median_buf_[32] = {};
-    lv_subject_t probe_acc_median_{};
+    helix::Subject probe_acc_median_{};
     char probe_acc_stddev_buf_[32] = {};
-    lv_subject_t probe_acc_stddev_{};
+    helix::Subject probe_acc_stddev_{};
 
     // Quality assessment: 1 = good (range < 0.01), 0 = poor
-    lv_subject_t probe_acc_quality_{};
+    helix::Subject probe_acc_quality_{};
     char probe_acc_quality_text_buf_[64] = {};
-    lv_subject_t probe_acc_quality_text_{};
+    helix::Subject probe_acc_quality_text_{};
 
     // Error message
     char probe_acc_error_msg_buf_[128] = {};
-    lv_subject_t probe_acc_error_msg_{};
+    helix::Subject probe_acc_error_msg_{};
 
-    lv_obj_t* accuracy_modal_ = nullptr;
+    helix::ui::WidgetRef accuracy_modal_;
 
     // Track samples during probing
     int probe_acc_sample_count_ = 0;
@@ -209,7 +219,7 @@ class ProbeOverlay : public OverlayBase {
     std::string probe_section_;     // Config section name (e.g., "probe", "bltouch")
     // printer.cfg value per config row key; a key absent here is not set in printer.cfg
     std::map<std::string, std::string> probe_cfg_configured_;
-    lv_obj_t* edit_modal_ = nullptr;
+    helix::ui::WidgetRef edit_modal_;
 
     // Widget/client references
     friend struct ProbeOverlayTestAccess;
@@ -218,6 +228,10 @@ class ProbeOverlay : public OverlayBase {
 
     // Type-specific panel container
     lv_obj_t* type_panel_container_ = nullptr;
+
+    void on_ui_destroyed() override {
+        type_panel_container_ = nullptr;
+    }
 
     // Transition accuracy modal to error state (call from UI thread only)
     void set_accuracy_error(const std::string& msg);

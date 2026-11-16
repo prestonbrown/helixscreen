@@ -60,14 +60,14 @@ namespace helix {
 /**
  * @brief Test helper for AFC multi-unit parsing
  *
- * Exposes parse_afc_state and initialize_slots for testing multi-unit
+ * Exposes apply_afc_state and initialize_slots for testing multi-unit
  * initialization paths that currently create only 1 unit.
  */
 class AmsBackendAfcMultiUnitHelper : public AmsBackendAfc {
   public:
     AmsBackendAfcMultiUnitHelper() : AmsBackendAfc(nullptr, nullptr) {}
 
-    /// Expose parse_afc_state for testing
+    /// Expose apply_afc_state for testing
     void test_parse_afc_state(const nlohmann::json& data) {
         // Build the full notification format and route through handle_status
         nlohmann::json notification;

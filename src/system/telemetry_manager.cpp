@@ -4,15 +4,17 @@
 #include "system/telemetry_manager.h"
 
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 
 #include "accel_sensor_manager.h"
+#include "ams_backend_row.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "audio_settings_manager.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
@@ -22,6 +24,7 @@
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "install_provenance.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "load_cell_manager.h"
@@ -30,19 +33,21 @@
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "platform_table.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "random_bytes.h"
+#include "runtime_config.h"
 #include "screen_locality.h"
 #include "screensaver_registry.h"
 #include "sensor_manager.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
+#include "system/device_identity.h"
 #include "system/ingest_client.h"
 #include "system/sha256_util.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
-#include "text_io.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -64,6 +69,7 @@
 #include <string_view>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <utility>
 
 // glibc ptmalloc introspection for heap-fragmentation telemetry (#758 class).
 // mallinfo2() (glibc 2.33+) returns size_t fields — preferred.
@@ -83,6 +89,13 @@ namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
+/// A mock printer's sessions describe a printer that does not exist, so counting them would
+/// invent devices in the fleet statistics. The user's choice is still saved as made.
+bool mock_printer_in_use() {
+    const RuntimeConfig* rc = get_runtime_config();
+    return rc != nullptr && rc->should_mock_moonraker();
+}
+
 /// Strip instance suffix for aggregation (e.g., "favorite_macro:2" -> "favorite_macro")
 std::string strip_instance_suffix(const std::string& id) {
     auto colon = id.find(':');
@@ -215,7 +228,7 @@ TelemetryManager::~TelemetryManager() {
 // Lifecycle
 // =============================================================================
 
-void TelemetryManager::init(const std::string& config_dir) {
+void TelemetryManager::init(const std::string& config_dir, const std::string& identity_dir) {
     if (initialized_.load()) {
         spdlog::debug("[TelemetryManager] Already initialized, skipping");
         return;
@@ -224,6 +237,7 @@ void TelemetryManager::init(const std::string& config_dir) {
     spdlog::info("[TelemetryManager] Initializing with config dir: {}", config_dir);
 
     config_dir_ = config_dir;
+    identity_dir_ = identity_dir.empty() ? config_dir : identity_dir;
 
     // Reset in-memory state for clean initialization
     enabled_.store(false);
@@ -266,7 +280,6 @@ void TelemetryManager::init(const std::string& config_dir) {
     pending_settings_changes_.clear();
     is_shutdown_snapshot_ = false;
 
-    // Ensure config directory exists
     try {
         fs::create_directories(config_dir_);
     } catch (const fs::filesystem_error& e) {
@@ -274,28 +287,36 @@ void TelemetryManager::init(const std::string& config_dir) {
                       e.what());
     }
 
-    // Load or generate device identity
+    if (identity_dir_ != config_dir_) {
+        std::error_code ec;
+        fs::create_directories(identity_dir_, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Failed to create identity dir '{}': {}",
+                          identity_dir_, ec.message());
+        }
+    }
+
     ensure_device_id();
 
     // One id per init(); never persisted, so a restart is a new boot.
     boot_id_ = generate_boot_id();
 
-    // Restore persisted event queue
     load_queue();
 
     // Load enabled state from settings.json via Config singleton (the single
-    // source of truth shared with SystemSettingsManager). Previously this
-    // was loaded from a separate telemetry_config.json, and a sync line in
-    // application.cpp clobbered it with SystemSettingsManager's value on
-    // every startup — silently disabling telemetry for any user whose
-    // settings.json didn't have the key set. Legacy file is migrated by
-    // config.cpp's migrate_v13_to_v14(), which runs before Config finishes
-    // loading, so by now /telemetry_enabled is already authoritative.
+    // source of truth shared with SystemSettingsManager). A telemetry_config.json
+    // left by older installs is folded in by config.cpp's migrate_v13_to_v14(),
+    // which runs before Config finishes loading, so by now /telemetry_enabled is
+    // already authoritative. Nothing else may sync this value at startup: a
+    // second writer would disable telemetry for anyone whose settings.json lacks
+    // the key.
     {
         Config* cfg = Config::get_instance();
-        enabled_.store(cfg->get<bool>("/telemetry_enabled", false));
-        spdlog::info("[TelemetryManager] Loaded enabled state: {}",
-                     enabled_.load() ? "true" : "false");
+        const bool user_enabled = cfg->get<bool>("/telemetry_enabled", false);
+        enabled_.store(user_enabled && !mock_printer_in_use());
+        spdlog::info("[TelemetryManager] Loaded enabled state: {}{}",
+                     user_enabled ? "true" : "false",
+                     user_enabled && !enabled_.load() ? " (inactive: mock printer)" : "");
     }
 
     // Send what an unclean exit left unsent (respects opt-in)
@@ -347,14 +368,12 @@ void TelemetryManager::shutdown() {
         settings_debounce_timer_ = nullptr;
     }
 
-    // Persist queue to disk
     save_queue();
 
     // The shutdown deltas above hold everything; nothing is left to recover.
     std::error_code ec;
     fs::remove(fs::path(config_dir_) / kAccumulatorFile, ec);
 
-    // Join background send thread if active
     if (send_thread_.joinable()) {
         spdlog::debug("[TelemetryManager] Joining send thread...");
         send_thread_.join();
@@ -370,16 +389,18 @@ void TelemetryManager::shutdown() {
 // =============================================================================
 
 void TelemetryManager::set_enabled(bool enabled) {
-    enabled_.store(enabled);
-    spdlog::info("[TelemetryManager] Telemetry {}", enabled ? "enabled" : "disabled");
+    const bool active = enabled && !mock_printer_in_use();
+    enabled_.store(active);
+    spdlog::info("[TelemetryManager] Telemetry {}{}", enabled ? "enabled" : "disabled",
+                 enabled && !active ? " (inactive: mock printer)" : "");
 
     // Start/stop auto-send timer based on enabled state.
     // The timer triggers DNS resolution (HTTP request to telemetry.helixscreen.org)
     // which crashes on statically-linked platforms (AD5M/CC1) where glibc NSS
     // modules are dynamically loaded with ABI mismatches. Only run when enabled.
-    if (enabled && discovery_complete_) {
+    if (active && discovery_complete_) {
         start_auto_send();
-    } else if (!enabled) {
+    } else if (!active) {
         stop_auto_send();
     }
 
@@ -389,8 +410,7 @@ void TelemetryManager::set_enabled(bool enabled) {
 
     // Persist to settings.json via Config (single source of truth).
     // SystemSettingsManager::set_telemetry_enabled() also calls this path,
-    // so there is exactly one writer now — application.cpp no longer needs
-    // to clobber our state on every startup.
+    // so this is the one writer of /telemetry_enabled.
     Config* cfg = Config::get_instance();
     cfg->set<bool>("/telemetry_enabled", enabled);
     cfg->save();
@@ -495,7 +515,6 @@ void TelemetryManager::notify_panel_changed(const std::string& panel_name) {
         panel_time_sec_[current_panel_] += static_cast<int>(elapsed);
     }
 
-    // Start tracking the new panel
     current_panel_ = panel_name;
     panel_start_time_ = now;
     panel_visits_[panel_name]++;
@@ -755,7 +774,6 @@ void TelemetryManager::check_previous_update() {
 
     spdlog::info("[TelemetryManager] Found update success flag from previous session");
 
-    // Read and parse the flag file
     json flag;
     {
         std::ifstream ifs(flag_path);
@@ -1165,7 +1183,6 @@ void TelemetryManager::load_queue() {
             queue_.push_back(std::move(event));
         }
 
-        // Enforce max queue size
         while (queue_.size() > kMaxQueueSize) {
             queue_.erase(queue_.begin());
         }
@@ -1483,12 +1500,14 @@ nlohmann::json TelemetryManager::build_session_event() const {
     }();
     app["zip_tool"] = zip_tool;
 
+    app["install_source"] = helix::install_provenance::read_install_source(config_dir_);
+    app["host_mod"] = helix::install_provenance::detect_host_mod();
+
     event["app"] = app;
 
     // ---- host section (always available, doesn't require printer connection) ----
     json host;
 
-    // Architecture from uname
     {
         struct utsname uts;
         if (uname(&uts) == 0) {
@@ -1637,18 +1656,8 @@ nlohmann::json TelemetryManager::build_session_event() const {
         }
 
         // MMU
-        switch (hw.mmu_type()) {
-        case AmsType::HAPPY_HARE:
-            features.push_back("mmu_happy_hare");
-            break;
-        case AmsType::AFC:
-            features.push_back("mmu_afc");
-            break;
-        case AmsType::TOOL_CHANGER:
-            features.push_back("tool_changer");
-            break;
-        default:
-            break;
+        if (const char* feature = ams_backend_row(hw.mmu_type()).telemetry_feature) {
+            features.push_back(feature);
         }
 
         event["features"] = features;
@@ -1748,12 +1757,10 @@ nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& 
     event["timestamp"] = get_timestamp();
     event["trigger"] = trigger;
 
-    // Calculate uptime from init_time_
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
     event["uptime_sec"] = static_cast<int>(uptime.count());
 
-    // Get current memory stats from MemoryMonitor
     auto stats = helix::MemoryMonitor::get_current_stats();
     event["rss_kb"] = static_cast<int>(stats.vm_rss_kb);
     event["vm_size_kb"] = static_cast<int>(stats.vm_size_kb);
@@ -2203,7 +2210,7 @@ nlohmann::json TelemetryManager::build_delta_event(const char* kind,
 }
 
 // =============================================================================
-// Phase 3: Print Start Context + Error Tracking
+// Print Start Context + Error Tracking
 // =============================================================================
 
 void TelemetryManager::record_print_start_context(const std::string& source, bool has_thumbnail,
@@ -2315,7 +2322,6 @@ nlohmann::json TelemetryManager::build_error_event(const std::string& category,
     event["code"] = code;
     event["context"] = context;
 
-    // Uptime from init_time_
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
     event["uptime_sec"] = static_cast<int>(uptime.count());
@@ -2369,50 +2375,98 @@ std::string TelemetryManager::get_timestamp() const {
     return std::string(buf);
 }
 
+namespace {
+
+/// The uuid and salt a device identity document holds, or nullopt when it is
+/// unreadable or lacks either.
+std::optional<std::pair<std::string, std::string>> read_device_identity(const std::string& path) {
+    const json data = json::parse(helix::text_io::read_file(path).value_or(""), nullptr, false);
+    if (!data.is_object()) {
+        return std::nullopt;
+    }
+    std::string uuid = helix::json_util::safe_string(data, "uuid", "");
+    std::string salt = helix::json_util::safe_string(data, "salt", "");
+    if (uuid.empty() || salt.empty()) {
+        return std::nullopt;
+    }
+    return std::make_pair(std::move(uuid), std::move(salt));
+}
+
+} // namespace
+
+void helix::telemetry::move_device_identity(const std::string& from, const std::string& to) {
+    std::error_code ec;
+    if (from == to || !fs::exists(from, ec)) {
+        return;
+    }
+    const auto old_identity = read_device_identity(from);
+    if (old_identity && fs::exists(to, ec) && !read_device_identity(to)) {
+        const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+        const std::string aside = fmt::format("{}.unreadable-{}", to, stamp);
+        fs::rename(to, aside, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Keeping {}: could not set unreadable {} aside: {}",
+                          from, to, ec.message());
+            return;
+        }
+        spdlog::warn("[TelemetryManager] Set unreadable device identity {} aside as {}", to, aside);
+    }
+    if (fs::exists(to, ec)) {
+        if (old_identity && read_device_identity(to) == old_identity) {
+            fs::remove(from, ec);
+            spdlog::info("[TelemetryManager] Removed duplicate device identity {}", from);
+        } else {
+            spdlog::warn("[TelemetryManager] Keeping {}: {} already holds a different identity",
+                         from, to);
+        }
+        return;
+    }
+    if (!old_identity) {
+        spdlog::warn("[TelemetryManager] Not moving unreadable device identity {}", from);
+        return;
+    }
+    const auto bytes = helix::text_io::read_file(from);
+    if (!bytes ||
+        !helix::text_io::write_file_atomic(to, *bytes, helix::text_io::Durability::Fsync)) {
+        spdlog::error("[TelemetryManager] Could not move device identity {} -> {}", from, to);
+        return;
+    }
+    fs::remove(from, ec);
+    spdlog::info("[TelemetryManager] Moved device identity {} -> {}", from, to);
+}
+
 void TelemetryManager::ensure_device_id() {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::string device_path = get_device_id_path();
+    const std::string device_path = get_device_id_path();
+    helix::telemetry::move_device_identity(
+        config_dir_ + "/" + helix::telemetry::kDeviceIdentityFile, device_path);
 
-    // Try to load existing device identity
-    try {
-        std::ifstream file(device_path);
-        if (file.good()) {
-            json data = json::parse(file);
-            if (data.contains("uuid") && data["uuid"].is_string() && data.contains("salt") &&
-                data["salt"].is_string()) {
-                device_uuid_ = data["uuid"].get<std::string>();
-                device_salt_ = data["salt"].get<std::string>();
-                spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
-                return;
-            }
-            spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
-        }
-    } catch (const std::exception& e) {
-        spdlog::warn("[TelemetryManager] Failed to load device identity: {}", e.what());
+    if (const auto identity = read_device_identity(device_path)) {
+        device_uuid_ = identity->first;
+        device_salt_ = identity->second;
+        spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
+        return;
+    }
+    if (std::error_code ec; fs::exists(device_path, ec)) {
+        spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
     }
 
-    // Generate new device identity
     device_uuid_ = generate_uuid_v4();
     device_salt_ = generate_uuid_v4(); // Salt is also a random UUID for simplicity
 
     spdlog::info("[TelemetryManager] Generated new device identity");
 
-    // Persist to disk
-    try {
-        json data;
-        data["uuid"] = device_uuid_;
-        data["salt"] = device_salt_;
-
-        std::ofstream file(device_path);
-        if (file.good()) {
-            file << helix::json_util::safe_dump(data, 2);
-            spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
-        } else {
-            spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
-        }
-    } catch (const std::exception& e) {
-        spdlog::error("[TelemetryManager] Failed to persist device identity: {}", e.what());
+    json data;
+    data["uuid"] = device_uuid_;
+    data["salt"] = device_salt_;
+    if (helix::text_io::write_file_atomic(device_path, helix::json_util::safe_dump(data, 2),
+                                          helix::text_io::Durability::Fsync)) {
+        spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
+    } else {
+        spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
     }
 }
 
@@ -2425,7 +2479,7 @@ std::string TelemetryManager::get_queue_path() const {
 }
 
 std::string TelemetryManager::get_device_id_path() const {
-    return config_dir_ + "/telemetry_device.json";
+    return identity_dir_ + "/" + helix::telemetry::kDeviceIdentityFile;
 }
 
 // =============================================================================
@@ -3007,7 +3061,6 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
     bool is_terminal = job_has_ended(current);
 
     if (was_active && is_terminal) {
-        // Map PrintJobState to telemetry outcome string
         std::string outcome;
         switch (current) {
         case PrintJobState::COMPLETE:
@@ -3024,7 +3077,6 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
             break;
         }
 
-        // Gather data from PrinterState subjects
         int duration_sec = lv_subject_get_int(ps.print_state().get_print_elapsed_subject());
         int phases_completed = s_telemetry_max_phase;
 

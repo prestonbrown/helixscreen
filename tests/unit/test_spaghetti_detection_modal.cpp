@@ -7,7 +7,6 @@
 // helix::register_xml_components()), including spaghetti_detection_modal.xml,
 // so the modal can be created from XML inside the test.
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
@@ -15,6 +14,7 @@
 #include "app_globals.h"
 #include "camera_frame.h"
 #include "camera_stream.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "settings_manager.h"
@@ -116,8 +116,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row 
         lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "div_tertiary");
         REQUIRE(btn != nullptr);
         REQUIRE(div != nullptr);
-        CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(btn));
+        CHECK(lv_obj_is_hidden(div));
         modal->hide();
         process_lvgl(50);
     }
@@ -132,8 +132,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal hides the Tune row 
         lv_obj_t* div = lv_obj_find_by_name(modal->dialog(), "div_tertiary");
         REQUIRE(btn != nullptr);
         REQUIRE(div != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(div, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
+        CHECK_FALSE(lv_obj_is_hidden(div));
         modal->hide();
         process_lvgl(50);
     }
@@ -155,7 +155,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(preview));
         modal->hide();
         process_lvgl(50);
     }
@@ -166,7 +166,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(preview));
         CHECK(lv_image_get_src(preview) != nullptr);
         modal->hide();
         process_lvgl(50);
@@ -179,7 +179,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpaghettiDetectionModal preview follows the
         modal->attach_frame(frame);
         lv_obj_t* preview = lv_obj_find_by_name(modal->dialog(), "detection_preview");
         REQUIRE(preview != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(preview));
         modal->hide();
         process_lvgl(50);
     }
@@ -450,14 +450,14 @@ TEST_CASE_METHOD(BedCheckPresenterFixture, "a dirty bed shows the bed check moda
     CHECK(toasts.empty());
     lv_obj_t* turn_off = lv_obj_find_by_name(dialog, "btn_tertiary");
     REQUIRE(turn_off != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(turn_off, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(turn_off));
 
     // Turn off bed check: the printer is told, the button goes, and the
     // print's Restart/Cancel decision stays on screen.
     click("btn_tertiary");
     CHECK(u1.last_send_script() == "DEFECT_DETECTION_CONFIG CLEAN_BED_ENABLE=0");
     CHECK(ModalStack::instance().top_component_name() == "bed_check_modal");
-    CHECK(lv_obj_has_flag(turn_off, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(turn_off));
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].second == "Bed check turned off");
 
@@ -513,4 +513,40 @@ TEST_CASE_METHOD(BedCheckPresenterFixture, "ESC closes the bed check modal witho
     CHECK(ModalStack::instance().top_component_name() != "bed_check_modal");
     CHECK_FALSE(helix::AbortManager::instance().is_aborting());
     CHECK(mock_client.gcode_script_history().empty());
+}
+
+// "Turn off detection" on a U1 tells the printer too: its firmware pauses on
+// its own, so hiding HelixScreen's dialog alone would leave prints stopping
+// with nothing on screen.
+TEST_CASE_METHOD(PresenterFixture, "Turn off detection switches a U1's own detection off",
+                 "[detection][modal][presenter][detection_switch]") {
+    MoonrakerClientMock u1(MoonrakerClientMock::PrinterType::SNAPMAKER_U1);
+    set_moonraker_client(&u1);
+    auto& m = helix::detection::DetectionManager::instance();
+    m.register_source(std::make_unique<helix::detection::U1StockSource>(nullptr));
+    SettingsManager::instance().set_detection_enabled(true);
+    m.apply_objects_list_for_test(nlohmann::json::array({"defect_detection"}));
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::detection::present_detection(spaghetti_event(true),
+                                        helix::detection::DetectionPolicy::DeferToSource);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ModalStack::instance().top_component_name() == "spaghetti_detection_modal");
+    lv_obj_t* turn_off = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "btn_quaternary");
+    REQUIRE(turn_off != nullptr);
+    u1.clear_gcode_script_history();
+
+    lv_obj_send_event(turn_off, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    CHECK_FALSE(SettingsManager::instance().get_detection_enabled());
+    CHECK(u1.gcode_script_history() ==
+          std::vector<std::string>{"DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0"});
+
+    ModalStack::instance().clear();
+    process_lvgl(20);
+    set_moonraker_client(nullptr);
+    m.reset_for_test();
+    SettingsManager::instance().set_detection_enabled(true);
 }

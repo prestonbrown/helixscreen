@@ -64,6 +64,7 @@ TEST_CASE("hw table: every kitchen-sink name classifies", "[hw_object_table]") {
         {"led_effect rainbow", ObjectKind::LedEffect, "rainbow"},
         {"fan_feedback", ObjectKind::FanFeedback, ""},
         {"heater_fan hotend_fan", ObjectKind::HeaterFan, "hotend_fan"},
+        {"heater_fan_throttled chamber_heat_fan", ObjectKind::HeaterFan, "chamber_heat_fan"},
         {"controller_fan board", ObjectKind::ControllerFan, "board"},
         {"fan_generic aux", ObjectKind::GenericFan, "aux"},
         {"fan", ObjectKind::Fan, ""},
@@ -172,6 +173,12 @@ TEST_CASE("hw table: probe list", "[hw_object_table]") {
     CHECK(classify_section("dockable_probe", nlohmann::json::object()).kind == ObjectKind::Probe);
     CHECK(obj("load_cell_probe").kind == ObjectKind::Unknown);
     CHECK(obj("dockable_probe").kind == ObjectKind::Unknown);
+
+    // A U1 head's inductance coil is a probe config section, never a second probe object.
+    const auto coil = classify_section("inductance_coil extruder", nlohmann::json::object());
+    CHECK(coil.kind == ObjectKind::Probe);
+    CHECK(coil.chip == static_cast<uint8_t>(ProbeSensorType::EDDY_CURRENT));
+    CHECK(obj("inductance_coil extruder").kind == ObjectKind::Unknown);
 }
 
 TEST_CASE("hw table: accelerometer sections", "[hw_object_table]") {
@@ -219,8 +226,16 @@ TEST_CASE("hw table: vendor and unknown names", "[hw_object_table]") {
     CHECK(obj("zmod_ifs_switch_sensor").kind == ObjectKind::Unknown);
     CHECK(obj("power_loss_check e0").kind == ObjectKind::Unknown);
     CHECK(obj("stepper_x").kind == ObjectKind::Stepper);
-    CHECK(obj("tmc5160 stepper_z").kind == ObjectKind::DriverTemperature);
-    CHECK(obj("tmc2209 stepper_x").kind == ObjectKind::Unknown);
+    CHECK(obj("tmc2240 stepper_z").kind == ObjectKind::DriverTemperature);
+    for (const char* flag_only : {"tmc2130 stepper_x", "tmc2208 stepper_x", "tmc2209 stepper_x",
+                                  "tmc2660 stepper_x", "tmc5160 stepper_z"}) {
+        CAPTURE(flag_only);
+        CHECK(obj(flag_only).kind == ObjectKind::StepperDriver);
+    }
+    CHECK(is_stepper_driver(ObjectKind::DriverTemperature));
+    CHECK(is_stepper_driver(ObjectKind::StepperDriver));
+    CHECK_FALSE(is_stepper_driver(ObjectKind::TemperatureSensor));
+    CHECK_FALSE(is_temperature(ObjectKind::StepperDriver));
     CHECK(obj("gcode_macro FOO").kind == ObjectKind::Unknown);
     CHECK(obj("").kind == ObjectKind::Unknown);
     CHECK(obj("temperature_sensor").kind == ObjectKind::Unknown);
@@ -245,8 +260,10 @@ TEST_CASE("hw table: status fields per kind", "[hw_object_table]") {
     CHECK(fields_of(ObjectKind::Heater) == V{"temperature", "target", "power"});
     CHECK(fields_of(ObjectKind::TemperatureSensor) == V{"temperature", "humidity"});
     CHECK(fields_of(ObjectKind::HumidityChip) == V{"temperature", "humidity"});
-    CHECK(fields_of(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed"});
-    CHECK(fields_of(ObjectKind::Fan) == V{"speed"});
+    CHECK(fields_of(ObjectKind::DriverTemperature) == V{"temperature", "drv_status"});
+    CHECK(fields_of(ObjectKind::StepperDriver) == V{"drv_status"});
+    CHECK(fields_of(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed", "rpm"});
+    CHECK(fields_of(ObjectKind::Fan) == V{"speed", "rpm"});
     CHECK(fields_of(ObjectKind::OutputPinFan) == V{"value"});
     CHECK(fields_of(ObjectKind::OutputPinLed) == V{"value"});
     CHECK(fields_of(ObjectKind::Led) == V{"color_data"});

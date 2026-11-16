@@ -1,4 +1,5 @@
 diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv_linux_drm.c
+index e4a84f857..9d3d51f60 100644
 --- a/src/drivers/display/drm/lv_linux_drm.c
 +++ b/src/drivers/display/drm/lv_linux_drm.c
 @@ -3,6 +3,18 @@
@@ -20,7 +21,7 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
  /*********************
   *      INCLUDES
   *********************/
-@@ -50,7 +62,7 @@
+@@ -47,7 +59,7 @@
  typedef struct {
      uint32_t handle;
      uint32_t pitch;
@@ -29,7 +30,7 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
      unsigned long int size;
      uint8_t * map;
      uint32_t fb_handle;
-@@ -899,9 +911,11 @@
+@@ -1124,9 +1136,11 @@ static int drm_allocate_dumb(drm_dev_t * drm_dev, drm_buffer_t * buf)
      }
  
      buf->offset = mreq.offset;
@@ -43,7 +44,7 @@ diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv
      buf->map = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, drm_dev->fd, mreq.offset);
      if(buf->map == MAP_FAILED) {
          LV_LOG_ERROR("mmap fail");
-@@ -967,7 +981,7 @@
+@@ -1192,7 +1206,7 @@ static int create_gbm_buffer(drm_dev_t * drm_dev, drm_buffer_t * buf)
      offsets[0] = buf->offset = gbm_bo_get_offset(gbm_bo, 0);
      buf->size = h * buf->pitch;
  

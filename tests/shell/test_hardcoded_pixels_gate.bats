@@ -266,13 +266,17 @@ run_gate() {
     [[ "$output" == *'== baseline'* ]]
 }
 
-@test "--max-allowed above the count asks for the baseline to be lowered" {
+@test "--max-allowed above the count asks for a lower baseline at commit and fails at a push" {
     printf '%s\n' '<component><view>
   <lv_obj style_pad_all="12"/>
 </view></component>' > "$FIXTURE_DIR/below.xml"
-    run python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
     [ "$status" -eq 0 ]
-    [[ "$output" == *'ratchet the baseline down'* ]]
+    contains 'ratchet the baseline down' "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "scripts/qc/design_pixels.sh" "$output"
+    contains "--max-allowed: 5 -> 1" "$output"
 }
 
 @test "--max-allowed below the count fails: the ratchet only turns one way" {
@@ -291,21 +295,6 @@ tree_count() {
     python3 "$GATE" --summary 2>/dev/null | awk '/^  TOTAL/ { print $2 }'
 }
 
-@test "the committed tree is at or under the baseline recorded in quality-checks.sh" {
-    # The wiring is the thing that actually gates commits, so pin it rather than
-    # a number duplicated here. Converting a site lowers the count; this keeps
-    # passing, and the recorded baseline can be ratcheted down at leisure.
-    #
-    # --staged-only scans the post-commit tree (HEAD when nothing is staged, as
-    # in CI), so a dirty local working tree — another session's WIP — cannot
-    # false-fail this the way a whole-WT scan would.
-    baseline=$(grep -oE 'check_hardcoded_pixels\.py --max-allowed [0-9]+' \
-                 scripts/qc/design_pixels.sh | grep -oE '[0-9]+$')
-    [ -n "$baseline" ]
-    run python3 "$GATE" --staged-only --max-allowed "$baseline" --summary
-    [ "$status" -eq 0 ]
-}
-
 @test "the gate goes red when one more hardcoded pixel is added to the tree" {
     # The proof that the ratchet works on the REAL tree, not just a fixture:
     # one below the current count must fail. Derived, not hardcoded, so a
@@ -319,7 +308,7 @@ tree_count() {
 
 @test "the dev-only and crash-path files are exempt" {
     # ui_fatal_error.cpp renders before theme init, where a token read returns 0.
-    run python3 "$GATE" --list src/ui/ui_fatal_error.cpp
+    run python3 "$GATE" --list src/ui/notify/ui_fatal_error.cpp
     [ "$status" -eq 0 ]
 }
 

@@ -21,10 +21,10 @@
  */
 
 #include "../../include/async_lifetime_guard.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/thumbnail_cache.h"
 #include "../../include/thumbnail_load_context.h"
 #include "../../include/thumbnail_processor.h"
-#include "../../include/ui_update_queue.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/thumbnail_test_png.h"
 

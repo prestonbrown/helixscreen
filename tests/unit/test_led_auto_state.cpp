@@ -3,10 +3,10 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api_mock.h"
@@ -28,7 +28,7 @@ using namespace helix::led;
 /// teardown.
 struct LedAutoStateFixture : public HelixTestFixture {
     ~LedAutoStateFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -360,7 +360,7 @@ TEST_CASE_METHOD(LedAutoStateFixture,
     // Re-evaluation after the soft restart must not crash; drain deferred
     // observer callbacks that subscribe_observers() may have enqueued.
     state.evaluate();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     state.deinit();
     clear_persisted_auto_state();
@@ -402,7 +402,7 @@ struct AutoStateTargetFixture : public LVGLTestFixture {
         }
     }
     ~AutoStateTargetFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::led::LedAutoState::instance().set_strips({});
         auto* cfg = helix::Config::get_instance();
         cfg->set(cfg->df() + "leds/auto_state/strips", nlohmann::json());
@@ -443,7 +443,7 @@ TEST_CASE_METHOD(AutoStateTargetFixture, "LedAutoState: a color action reaches o
     a.color = 0xFF0000;
     a.brightness = 100;
     helix::led::LedAutoStateTestAccess::apply(a);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(ctrl.native().has_strip_color("neopixel sb_leds"));
     CHECK_FALSE(ctrl.native().has_strip_color("neopixel chamber_light"));
 }
@@ -453,7 +453,7 @@ PowerState chamber_power() {
     return LedController::instance().device_state("neopixel chamber_light").power;
 }
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 } // namespace
 

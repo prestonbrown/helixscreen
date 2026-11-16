@@ -28,12 +28,9 @@ TEST_CASE("SSAO: on by default when memory is not constrained", "[gcode_viewer][
 
 TEST_CASE("SSAO: a constrained device keeps the outline and loses antialiasing",
           "[gcode_viewer][ssao]") {
-    // AD5M / K1C tier (< 256MB total RAM). This used to return enabled=false.
-    //
-    // It was off because the outline pass cost a full-canvas ARGB8888 buffer
-    // those devices could not spare. That buffer is gone - the pass records only
-    // the pixels it darkens, ~6KB against 427KB - and what is left measures
-    // about 2ms per cache revalidation on a real AD5M.
+    // AD5M / K1C tier (< 256MB total RAM). The outline stays on: the pass records
+    // only the pixels it darkens, ~6KB against a 427KB full-canvas ARGB8888
+    // buffer, and measures about 2ms per cache revalidation on a real AD5M.
     //
     // The expensive half was never the outline. It was that the same flag also
     // turned on antialiased rasterization, at roughly 6x the aliased cost, which

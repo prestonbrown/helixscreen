@@ -15,7 +15,7 @@
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "async_lifetime_guard.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -247,4 +247,17 @@ TEST_CASE_METHOD(OverlayStatusFixture,
     REQUIRE(toasted);
     CHECK(toasts->front() == "WiFi isn't responding");
     CHECK(Access::pending_forget_ssid(overlay()).empty());
+}
+
+TEST_CASE_METHOD(OverlayStatusFixture,
+                 "network settings: a pending address shows as such and is not an address",
+                 "[network_settings][wifi_dhcp_pending]") {
+    WifiBackend::ConnectionStatus status;
+    status.connected = true;
+    status.ssid = kSsid;
+    status.awaiting_ipv4 = true;
+    Access::apply_wifi_status(overlay(), status);
+    CHECK(Access::ip_display(overlay()) == "Getting address…");
+    // The IPv4 row prefills the static-address form from this.
+    CHECK(Access::ip(overlay()).empty());
 }

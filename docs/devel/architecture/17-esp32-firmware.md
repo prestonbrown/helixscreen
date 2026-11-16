@@ -2,7 +2,8 @@
 
 The BigTreeTech K-Touch is an ESP32-S3 panel: two Xtensa cores at 240MHz, about 512KB of on-chip SRAM, 8MB of octal
 PSRAM, 16MB of flash, an 800x480 RGB panel and a GT911 touch controller. HelixScreen runs on it natively, as a
-remote screen that joins WiFi and talks to a printer's Moonraker. It is not a second app. The firmware in
+remote screen that joins WiFi and talks to a printer's Moonraker. It is not a second app: one UI and one truth,
+because two near-parity codebases drift apart. The firmware in
 `firmware/helixscreen-esp32/` is an ESP-IDF (CMake) project that compiles LVGL, `lib/helix-xml`, all of `ui_xml/`
 and a curated two thirds of `src/` unmodified, then adds what Linux gives the desktop app for free: a boot
 sequence, a display driver, a WebSocket and HTTP transport, storage, WiFi and OTA. Nearly every design decision in
@@ -133,10 +134,10 @@ Everything else is pushed out. A large static in firmware-compiled code carries 
 ([`include/helix_psram_attr.h`](../../../include/helix_psram_attr.h)), which is `EXT_RAM_BSS_ATTR` here and empty
 on every other platform: `AmsState`'s instance
 (`src/printer/ams_state.cpp#"static HELIX_PSRAM_BSS AmsState instance"`), the filament path planner's scratch
-(`src/ui/ui_filament_path_topology.cpp#plan_scratch`), `PrinterState`, `SettingsManager`
+(`src/ui/filament/ui_filament_path_topology.cpp#plan_scratch`), `PrinterState`, `SettingsManager`
 (`src/system/settings_manager.cpp#"static HELIX_PSRAM_BSS SettingsManager instance"`), `TelemetryManager`, `UpdateChecker`, the theme's XML
-subjects (`src/ui/theme_manager.cpp#subjects`), and the subjects and hint buffers of the AMS sidebar and context
-menu (`src/ui/ui_ams_sidebar.cpp`, `src/ui/ui_ams_context_menu.cpp`). The
+subjects (`src/ui/theme/theme_manager.cpp#subjects`), and the subjects and hint buffers of the AMS sidebar and context
+menu (`src/ui/filament/ui_ams_sidebar.cpp`, `src/ui/filament/ui_ams_context_menu.cpp`). The
 home widgets follow the same rule: the module-level subjects and text buffers of the toolhead, host health,
 dryer, bed mesh tile and tool switcher widgets, the dryer model's subjects, and the `BedMeshState` and `PerformanceState` singletons
 they read are `HELIX_PSRAM_BSS` (`src/ui/panel_widgets/toolhead_widget.cpp`, `src/printer/bed_mesh_state.cpp#instance`,
@@ -146,7 +147,7 @@ gets a PSRAM stack through `PsramThreadStackScope`
 ([`include/psram_thread_stack.h`](../../../include/psram_thread_stack.h)), which also bars that thread from storage
 (`helix::fs::forbid_storage_on_this_thread`), because a flash operation on a PSRAM stack faults. The HTTP lane, the
 WebSocket transport worker and the sound sequencer start this way. And `HttpExecutor::start()` is a no-op under
-`ESP_PLATFORM` (`src/system/http_executor.cpp#start`): the desktop worker pools would take internal stacks the boot
+`ESP_PLATFORM` (`src/core/http_executor.cpp#start`): the desktop worker pools would take internal stacks the boot
 cannot spare, so on the firmware a `submit()` to them never runs.
 
 Two numbers in `size_budget.json` hold the line: `dram_bss_max_bytes` and `dram_data_max_bytes` cap the
@@ -160,7 +161,7 @@ Heap telemetry follows one rule: while the panel scans out, read counters, never
 `heap_caps_get_largest_free_block()` on PSRAM walks every block with interrupts masked for 20-30ms, the bounce
 refill misses for the whole walk, and the screen glitches. So steady-state code reads `heap_caps_get_free_size()`,
 `src/system/memory_utils.cpp` reports PSRAM from counters only, and a lint test in
-`tests/shell/test_code_lint.bats` ("per-event ESP32 paths read free PSRAM, never walk the heap") fails a walk in
+`scripts/code_lint.sh#lint_esp32_psram_walk` fails a walk in
 the thumbnail, print-select and print-status paths. Largest-block walks happen only on internal RAM at discrete
 milestones (`firmware/helixscreen-esp32/components/helixapp/app_boot.cpp#log_heap_milestone`) and once at 60s
 steady state.
@@ -270,7 +271,7 @@ XML binds for square overlay corners, and overlays built under the "Loading..." 
 - **Deferred panels.** `ui_xml_overrides/app_layout.xml` replaces the shared layout at staging and instantiates
   only Home; the other five panels are built on first navigation
   (`src/application/panel_factory.cpp#build_deferred_panel`) under the navigation scrim
-  (`src/ui/ui_nav_manager.cpp#"class NavTransitionScrim"`). Building all six at boot costs many seconds of layout.
+  (`include/ui_nav_transitions.h#"class NavTransitionScrim"`). Building all six at boot costs many seconds of layout.
 - **Idle prebuild.** Print Files, the panel a session visits first, is built at the first idle moment once the
   printer is connected and nothing modal is open (`src/application/panel_factory.cpp#tick`).
 - **Thumbnails in PSRAM, never on disk.** There is no thumbnail cache directory on a 128KB settings partition, so a
@@ -279,7 +280,7 @@ XML binds for square overlay corners, and overlays built under the "Loading..." 
   the panel, and G-code header thumbnail extraction is off
   (`include/thumbnail_cache.h#gcode_thumbnail_extraction_available`).
 - **A capped file list.** Print Files keeps the 50 newest files
-  (`src/ui/ui_panel_print_select.cpp#"constexpr size_t kEsp32MaxFileCount"`).
+  (`src/ui/print/ui_panel_print_select.cpp#"constexpr size_t kEsp32MaxFileCount"`).
 
 ### Networking
 

@@ -6,19 +6,19 @@
 // print-select file metadata, each re-rendered on a live language switch.
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/temperature_units.h"
+#include "core/update_queue.h"
 #include "format_utils.h"
 #include "hardware_validator.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i18n_plural.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "system_settings_manager.h"
 #include "tool_state.h"
@@ -36,7 +36,7 @@ using namespace helix;
 namespace {
 
 void drain_all() {
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 std::string subject_text(lv_subject_t* subject) {
@@ -124,8 +124,8 @@ TEST_CASE_METHOD(RussianFixture, "FilamentPanel re-formats its status and safety
     int min_temp = 0;
     REQUIRE(std::sscanf(safety_en.c_str(), "Heat to at least %d", &min_temp) == 1);
     char want[256];
-    std::snprintf(want, sizeof(want), lv_tr("Heat to at least %d°C for filament operations"),
-                  min_temp);
+    std::snprintf(want, sizeof(want), lv_tr("Heat to at least %s for filament operations"),
+                  helix::units::format_display_temp(min_temp).c_str());
     REQUIRE(std::string(want) != safety_en);
     CHECK(subject_text(safety) == want); // whole, not cut off mid-character
 

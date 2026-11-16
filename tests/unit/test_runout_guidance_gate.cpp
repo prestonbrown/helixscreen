@@ -7,7 +7,7 @@
  *
  * Run with: ./build/bin/helix-tests "[runout_guidance][gate]"
  *
- * Drives the real handler (src/ui/ui_filament_runout_handler.cpp:67-125) rather
+ * Drives the real handler (src/ui/filament/ui_filament_runout_handler.cpp:67-125) rather
  * than a model of it. Two coupled decisions:
  *
  *   check_and_show_runout_guidance() — show at most ONCE per pause event, and
@@ -25,19 +25,22 @@
  */
 
 #include "ui_filament_runout_handler.h"
-#include "ui_update_queue.h"
+#include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "detection_manager.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "runtime_config.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 #include "u1_stock_detection_source.h"
 
@@ -55,27 +58,40 @@ using helix::ui::FilamentRunoutHandler;
 
 namespace {
 
+constexpr const char* kRunoutSensor = "filament_switch_sensor runout_sensor";
+
+nlohmann::json sensor_status(bool detected) {
+    return nlohmann::json{{kRunoutSensor, {{"filament_detected", detected}, {"enabled", true}}}};
+}
+
+/// One RUNOUT-roled switch sensor reading present, out of its startup grace.
+void arm_runout_sensor() {
+    helix::AmsState::instance().clear_backends();
+    auto& fsm = FilamentSensorManager::instance();
+    helix::PostUnloadGraceTestAccess::reset(fsm);
+    fsm.set_master_enabled(true);
+    discover_filament_sensors(fsm, {kRunoutSensor});
+    fsm.set_role(kRunoutSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    // Baseline present so the sensor is "available", then let each test choose.
+    fsm.update_from_status(sensor_status(true));
+    helix::PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+}
+
+void disarm_runout_sensor() {
+    helix::PostUnloadGraceTestAccess::reset(FilamentSensorManager::instance());
+    helix::AmsState::instance().clear_backends();
+}
+
 /// A plain single-extruder runout printer: one RUNOUT-roled switch sensor and no
 /// AMS backend. That shape leaves has_real_runout() unscoped (no lane to check
 /// against) and should_show_runout_modal() true, so the guards under test are the
 /// only thing standing between a pause and the dialog.
 class RunoutGuidanceFixture : public LVGLUITestFixture {
   public:
-    static constexpr const char* SENSOR = "filament_switch_sensor runout_sensor";
-
     RunoutGuidanceFixture() {
-        helix::AmsState::instance().clear_backends();
-
-        auto& fsm = FilamentSensorManager::instance();
-        helix::PostUnloadGraceTestAccess::reset(fsm);
-        fsm.set_master_enabled(true);
-        discover_filament_sensors(fsm, {SENSOR});
-        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
-        // Baseline present so the sensor is "available", then let each test choose.
-        fsm.update_from_status(sensor_status(true));
-        helix::PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+        arm_runout_sensor();
         settle();
-        REQUIRE_FALSE(fsm.is_in_startup_grace_period());
+        REQUIRE_FALSE(FilamentSensorManager::instance().is_in_startup_grace_period());
         REQUIRE(get_runtime_config()->should_show_runout_modal());
 
         handler = std::make_unique<FilamentRunoutHandler>(api());
@@ -87,12 +103,7 @@ class RunoutGuidanceFixture : public LVGLUITestFixture {
             handler.reset();
         }
         settle();
-        helix::PostUnloadGraceTestAccess::reset(FilamentSensorManager::instance());
-        helix::AmsState::instance().clear_backends();
-    }
-
-    static nlohmann::json sensor_status(bool detected) {
-        return nlohmann::json{{SENSOR, {{"filament_detected", detected}, {"enabled", true}}}};
+        disarm_runout_sensor();
     }
 
     /// Flip the physical sensor. `false` is the runout the guards look for.
@@ -210,7 +221,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
                  "a pause with only an idle head's switch empty shows no dialog; the fed "
                  "head's does",
                  "[runout_guidance][gate]") {
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> u1(nullptr, nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> u1;
     auto head_switch = [](int head, bool detected) {
         return nlohmann::json{{"filament_motion_sensor e" + std::to_string(head) + "_filament",
                                {{"filament_detected", detected}, {"enabled", true}}}};
@@ -218,13 +229,12 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     auto feed = [](const char* channel_state) {
         return nlohmann::json{{"filament_detected", true}, {"channel_state", channel_state}};
     };
-    helix::SnapmakerTestAccess::handle_status(
-        *u1, nlohmann::json{
-                 {"filament_feed left",
-                  {{"extruder0", feed("load_finish")}, {"extruder1", feed("load_finish")}}},
-                 {"filament_feed right",
-                  {{"extruder2", feed("load_finish")}, {"extruder3", feed("preload_finish")}}},
-                 {"toolhead", {{"extruder", "extruder2"}}}});
+    u1->fire_status(nlohmann::json{
+        {"filament_feed left",
+         {{"extruder0", feed("load_finish")}, {"extruder1", feed("load_finish")}}},
+        {"filament_feed right",
+         {{"extruder2", feed("load_finish")}, {"extruder3", feed("preload_finish")}}},
+        {"toolhead", {{"extruder", "extruder2"}}}});
     REQUIRE((*u1).get_current_slot() == 2);
     REQUIRE((*u1).get_slot_info(3).is_present());
 
@@ -237,7 +247,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     for (int h = 0; h < 4; ++h) {
         fsm.set_role(heads[h], static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         const auto frame = head_switch(h, h != 3);
-        helix::SnapmakerTestAccess::handle_status(*u1, frame);
+        u1->fire_status(frame);
         fsm.update_from_status(frame);
     }
     settle();
@@ -251,7 +261,7 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     // Resumed; then the head being fed runs out and the firmware pauses.
     transition(::PrintState::Paused, ::PrintState::Printing);
     const auto empty = head_switch(2, false);
-    helix::SnapmakerTestAccess::handle_status(*u1, empty);
+    u1->fire_status(empty);
     fsm.update_from_status(empty);
     settle();
     transition(::PrintState::Printing, ::PrintState::Paused);
@@ -378,4 +388,36 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     ps.update_from_status(print_stats({{"state", "standby"}}));
     settle();
     dm.reset_for_test();
+}
+
+TEST_CASE_METHOD(print_status_panel_test::PrintStatusPanelFixture,
+                 "the runout guidance dialog stays up behind the screensaver",
+                 "[runout_guidance][gate][suspend]") {
+    arm_runout_sensor();
+    FilamentSensorManager::instance().update_from_status(sensor_status(false));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(FilamentSensorManager::instance().has_real_runout());
+
+    // The app's global Print Status panel shows its own dialog underneath; this
+    // panel's is the one on top.
+    const auto top_guidance = [] {
+        return ModalStack::instance().dialog_for_component("runout_guidance_modal");
+    };
+    panel().on_activate();
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* dialog = top_guidance();
+    REQUIRE(dialog != nullptr);
+
+    panel().on_deactivate(DeactivateReason::Suspended);
+    CHECK(top_guidance() == dialog);
+    panel().on_activate();
+    CHECK(top_guidance() == dialog);
+
+    // Leaving the panel still closes it.
+    panel().on_deactivate(DeactivateReason::NavigateAway);
+    CHECK(top_guidance() != dialog);
+    disarm_runout_sensor();
 }

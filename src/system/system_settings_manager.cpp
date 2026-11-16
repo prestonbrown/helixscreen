@@ -6,12 +6,13 @@
 #include "app_globals.h"
 #include "cjk_font_manager.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "logging_init.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
@@ -148,16 +149,57 @@ std::string SystemSettingsManager::get_language() const {
     return language_index_to_code(index);
 }
 
+namespace {
+
+void save_string_if_changed(const char* key, const std::string& value) {
+    Config* config = Config::get_instance();
+    if (config->get<std::string>(key, "") == value) {
+        return;
+    }
+    config->set(key, value);
+    config->save();
+}
+
+} // namespace
+
 std::string SystemSettingsManager::get_wifi_country() const {
     return Config::get_instance()->get<std::string>("/wifi_country", "");
 }
 
 void SystemSettingsManager::set_wifi_country(const std::string& code) {
+    save_string_if_changed("/wifi_country", code);
+}
+
+std::string SystemSettingsManager::get_wifi_country_last_seen() const {
+    return Config::get_instance()->get<std::string>("/wifi_country_last_seen", "");
+}
+
+void SystemSettingsManager::set_wifi_country_last_seen(const std::string& code) {
+    save_string_if_changed("/wifi_country_last_seen", code);
+}
+
+bool SystemSettingsManager::get_plugin_install_declined() const {
+    return Config::get_instance()->get<bool>("/plugin_install_declined", false);
+}
+
+void SystemSettingsManager::set_plugin_install_declined() {
     Config* config = Config::get_instance();
-    if (config->get<std::string>("/wifi_country", "") == code) {
-        return;
-    }
-    config->set("/wifi_country", code);
+    config->set<bool>("/plugin_install_declined", true);
+    config->save();
+}
+
+int64_t SystemSettingsManager::get_plugin_prompt_snoozed_at() const {
+    return Config::get_instance()->get<int64_t>("/plugin_prompt_snoozed_at", 0);
+}
+
+int SystemSettingsManager::get_plugin_prompt_unmeasured_starts() const {
+    return Config::get_instance()->get<int>("/plugin_prompt_unmeasured_starts", 0);
+}
+
+void SystemSettingsManager::set_plugin_prompt_snooze(int64_t snoozed_at_s, int unmeasured_starts) {
+    Config* config = Config::get_instance();
+    config->set<int64_t>("/plugin_prompt_snoozed_at", snoozed_at_s);
+    config->set<int>("/plugin_prompt_unmeasured_starts", unmeasured_starts);
     config->save();
 }
 
@@ -193,6 +235,8 @@ void SystemSettingsManager::set_language(const std::string& lang) {
     Config* config = Config::get_instance();
     config->set_language(lang);
     config->save();
+    // An unsaved date order follows the language just saved.
+    DisplaySettingsManager::instance().on_language_changed();
     crash_handler::breadcrumb::note("lang", "set_end", static_cast<long>(index));
 }
 

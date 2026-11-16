@@ -3,7 +3,6 @@
 #include "ui_overlay_temp_graph.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -15,6 +14,8 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
@@ -35,7 +36,6 @@
 #include "src/ui/panel_widgets/callout_chip.h"
 #include "src/ui/panel_widgets/printer_image_widget.h"
 #include "src/ui/panel_widgets/text_measure.h"
-#include "static_panel_registry.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "wizard_config_paths.h"
@@ -66,9 +66,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                           "callout_chip_fan", "callout_chip_light", "callout_chip_toolhead"}) {
         INFO(n);
         REQUIRE(h.child(n));
-        CHECK(lv_obj_has_flag(h.child(n), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(h.child(n)));
     }
-    CHECK(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_IGNORE_LAYOUT));
+    CHECK(lv_obj_is_ignore_layout(h.child("callout_layer")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -144,7 +144,7 @@ bool within_chip(lv_obj_t* chip, lv_obj_t* obj) {
 /// timer they schedule; drain both until nothing is left.
 void settle() {
     for (int i = 0; i < 4; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_async_timers();
     }
 }
@@ -153,7 +153,7 @@ std::string text_of(PanelWidgetHarness<PrinterImageWidget>& h, const char* chip)
     return lv_label_get_text(lv_obj_find_by_name(h.child(chip), "chip_text"));
 }
 bool shown(PanelWidgetHarness<PrinterImageWidget>& h, const char* chip) {
-    return !lv_obj_has_flag(h.child(chip), LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(h.child(chip));
 }
 
 /// Native `chamber_light` and `sb_leds` strips with no known state while the
@@ -202,10 +202,30 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     CHECK(shown(h, "callout_chip_bed"));
     CHECK(text_of(h, "callout_chip_bed") == helix::ui::temperature::heater_display(400, 600).temp);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_heating")) == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a warm chamber glows at its level",
+                 "[printer_image][callouts]") {
+    const auto regions = prepare_tagged_widget();
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    h.resize(8, 4, 480, 160);
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 500);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 2);
+    lv_obj_t* glow = h.child("callout_chamber_glow");
+    CHECK_FALSE(lv_obj_is_hidden(glow));
+    CHECK(lv_image_get_src(glow) != nullptr);
+
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 250);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 0);
+    CHECK(lv_obj_is_hidden(glow));
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: idle cold printer shows no chips",
@@ -348,10 +368,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(has_led, 1);
     const auto lit = [&] {
         lv_obj_t* chip = h.child("callout_chip_light");
-        const bool lit_shown =
-            !lv_obj_has_flag(lv_obj_find_by_name(chip, "callout_light_lit"), LV_OBJ_FLAG_HIDDEN);
-        const bool dark_shown =
-            !lv_obj_has_flag(lv_obj_find_by_name(chip, "callout_light_dark"), LV_OBJ_FLAG_HIDDEN);
+        const bool lit_shown = !lv_obj_is_hidden(lv_obj_find_by_name(chip, "callout_light_lit"));
+        const bool dark_shown = !lv_obj_is_hidden(lv_obj_find_by_name(chip, "callout_light_dark"));
         REQUIRE(lit_shown != dark_shown);
         return lit_shown;
     };
@@ -420,7 +438,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(text_of(h, "callout_chip_bed") == "40 / 60°");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip, "heater_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(chip, "heater_icon")));
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     CHECK(font == theme_manager_get_font("font_xs"));
     // Placed at the width it renders: its text plus chrome, no icon gap.
@@ -438,7 +456,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_update_layout(h.root());
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
     CHECK(text_of(h, "callout_chip_bed") == helix::ui::temperature::heater_display(400, 600).temp);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(chip, "heater_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(chip, "heater_icon")));
     CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) == theme_manager_get_font("font_small"));
     CHECK(lv_obj_get_width(chip) > compact_w);
 }
@@ -450,10 +468,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: single cell hides the whole layer
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
-    REQUIRE_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     h.resize(2, 2, 80, 80);
     settle();
-    CHECK(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_layer")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a chip sits inside the image container",
@@ -499,7 +517,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a chip narrower than its text dot
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
-    REQUIRE_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     REQUIRE(label);
@@ -535,11 +553,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_obj_update_layout(h.root());
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
-    REQUIRE_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(chip));
     const int text_px = helix::ui::measure_text_px(lv_label_get_text(label),
                                                    lv_obj_get_style_text_font(label, LV_PART_MAIN));
     CHECK(lv_obj_get_width(label) >= text_px);
@@ -569,7 +587,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the nozzle chip budgets the tool 
         }
     } tool_subjects;
     auto& tools = ToolState::instance();
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "12");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "12");
     lv_subject_set_int(tools.get_show_tool_badge_subject(), 1);
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(4, 4, 160, 160);
@@ -579,10 +597,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the nozzle chip budgets the tool 
     settle();
     lv_obj_update_layout(h.root());
     lv_obj_t* chip = h.child("callout_chip_nozzle");
-    REQUIRE_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(chip));
     lv_obj_t* badge = lv_obj_find_by_name(chip, "tool_badge");
     REQUIRE(badge);
-    REQUIRE_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(badge));
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(lv_obj_get_width(label) >=
           helix::ui::measure_text_px(lv_label_get_text(label),
@@ -606,8 +624,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     widget.attach(comp1, test_screen());
     lv_obj_update_layout(comp1);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 800);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 600);
     lv_subject_set_int(get_printer_state().fan_state().get_fan_speed_subject(), 60);
     settle();
     REQUIRE(lv_anim_get(lv_obj_find_by_name(comp1, "callout_bed_glow"), nullptr) != nullptr);
@@ -619,14 +637,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     REQUIRE(comp2);
     widget.attach(comp2, test_screen());
     // Until the timer positions its chips, the new tree shows none of them.
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(comp2, "callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(comp2, "callout_layer")));
     lv_obj_update_layout(comp2);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 650);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 850);
     settle();
     lv_obj_update_layout(comp2);
     lv_obj_t* bed = lv_obj_find_by_name(comp2, "callout_chip_bed");
-    CHECK_FALSE(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed));
     CHECK(lv_obj_get_x(bed) > 0);
     CHECK(lv_anim_get(lv_obj_find_by_name(comp2, "callout_bed_glow"), nullptr) != nullptr);
     widget.detach();
@@ -832,7 +850,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(shown(h, "callout_chip_light"));
     lv_obj_t* dark = lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_dark");
     REQUIRE(dark);
-    REQUIRE_FALSE(lv_obj_has_flag(dark, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dark));
     const lv_color_t resting = lv_obj_get_style_text_color(dark, LV_PART_MAIN);
     const lv_color_t lamp = theme_manager_get_color("light_icon_on");
     REQUIRE_FALSE(lv_color_eq(resting, lamp));
@@ -861,7 +879,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ScopedLedStrips::report("neopixel chamber_light", false);
     settle();
     lv_obj_t* dark = lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_dark");
-    REQUIRE_FALSE(lv_obj_has_flag(dark, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dark));
     const lv_color_t resting = lv_obj_get_style_text_color(dark, LV_PART_MAIN);
 
     helix::ui::send_tap(h.child("callout_chip_light"));
@@ -1020,14 +1038,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: wide widget draws a line to the b
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(h.child("callout_line_nozzle"), LV_OBJ_FLAG_HIDDEN));
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(),
-                       600); // at target: glow off, line stays
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_line_bed")));
+    CHECK(lv_obj_is_hidden(h.child("callout_line_nozzle")));
+    // 40°C is too cool to glow, though the bed is climbing.
+    const auto level = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level"));
+    };
+    CHECK(level() == 0);
+    CHECK(lv_obj_is_hidden(h.child("callout_bed_glow")));
+    // At target the plate still glows; the line stays.
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
-    CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(level() == 1);
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_bed_glow")));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_line_bed")));
+    // Cooling from very hot glows strongest, with the target gone.
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 0);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 950);
+    settle();
+    CHECK(level() == 3);
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_bed_glow")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
@@ -1038,7 +1068,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
-    CHECK(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_line_bed")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the bed line runs from the bed point to the chip",
@@ -1183,7 +1213,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Timers only: the refresh shows the source and the cache check hands the
     // full-size generation to a worker. Its result waits in the UpdateQueue.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_async_timers();
     REQUIRE(src_now() == source);
     auto& q = helix::ui::UpdateQueue::instance();
@@ -1281,13 +1311,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the disconnected overlay is centr
     lv_obj_update_layout(h.root());
     lv_obj_t* overlay = h.child("disconnected_overlay");
     lv_obj_t* container = h.child("printer_container");
-    REQUIRE_FALSE(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(overlay));
     CHECK(lv_obj_get_x(overlay) ==
           (lv_obj_get_content_width(container) - lv_obj_get_width(overlay)) / 2);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: the bed glow covers the bed edge and pulses while animations are on",
+                 "callouts: the bed glow covers the plate and pulses while animations are on",
                  "[printer_image][callouts]") {
     const auto regions = prepare_tagged_widget();
     auto& display = DisplaySettingsManager::instance();
@@ -1295,20 +1325,21 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     display.set_animations_enabled(true);
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(8, 4, 480, 160);
-    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 1000);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
     lv_obj_t* glow = h.child("callout_bed_glow");
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
+    // Spans the plate's near edge, ends at it, and rises above it.
     const CalloutRect img = fitted_image(h);
     const int x0 = img.x + int(0.308f * float(img.w));
-    const int w = img.x + int(0.611f * float(img.w)) - x0;
-    const int cy = img.y + int((0.571f + 0.573f) / 2 * float(img.h));
+    const int near_bottom = img.y + int(0.573f * float(img.h));
     CHECK(lv_obj_get_x(glow) == x0);
-    CHECK(lv_obj_get_width(glow) == w);
-    CHECK(lv_obj_get_height(glow) == w / 4);
-    CHECK(lv_obj_get_y(glow) == cy - w / 8);
+    CHECK(lv_obj_get_width(glow) == img.x + int(0.611f * float(img.w)) - x0);
+    CHECK(lv_obj_get_y(glow) + lv_obj_get_height(glow) - 1 == near_bottom);
+    CHECK(lv_obj_get_y(glow) < img.y + int(0.571f * float(img.h)) - 1);
+    CHECK(lv_image_get_src(glow) != nullptr);
     CHECK(lv_anim_get(glow, nullptr) != nullptr);
 
     display.set_animations_enabled(false);
@@ -1330,12 +1361,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: an untagged image draws no bed gl
     const ScopedImageRegions untagged({});
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(8, 4, 480, 160);
-    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 1000);
+    lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Docked));
-    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_heating")) == 1);
-    CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level")) > 0);
+    CHECK(lv_obj_is_hidden(h.child("callout_bed_glow")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

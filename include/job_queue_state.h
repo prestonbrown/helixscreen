@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "job_queue_tile_state.h"
 #include "moonraker_queue_api.h"
 #include "subject_managed_panel.h" // SubjectManager
@@ -66,7 +66,6 @@ class JobQueueState {
     JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~JobQueueState();
 
-    // Non-copyable
     JobQueueState(const JobQueueState&) = delete;
     JobQueueState& operator=(const JobQueueState&) = delete;
 
@@ -91,7 +90,6 @@ class JobQueueState {
     /// the next consumer to ask re-fetches. See observe_connection_staleness().
     void invalidate();
 
-    /// Get cached jobs
     const std::vector<helix::JobQueueEntry>& get_jobs() const {
         return cached_jobs_;
     }
@@ -138,7 +136,7 @@ class JobQueueState {
     /// deinit_subjects() and the destructor both free every observer node on
     /// them without bumping the ObserverGuard invalidation epoch, so outside
     /// observers must pass this to observe_*(), or their guards call
-    /// lv_observer_remove() on a freed node.
+    /// lv_observer_delete() on a freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();
     }
@@ -207,29 +205,32 @@ class JobQueueState {
     // LVGL subjects
     // "Up next: <name> (+N)" for the print-status panel and home widget; the
     // display name of the first queued job, "" when the queue is empty.
-    lv_subject_t job_queue_up_next_text_subject_{};
+    helix::Subject job_queue_up_next_text_subject_{};
     char up_next_text_buffer_[320];
     // "Start next: <name>" for the completion modal's secondary button.
-    lv_subject_t job_queue_start_next_text_subject_{};
+    helix::Subject job_queue_start_next_text_subject_{};
     char start_next_text_buffer_[320];
     // automatic_transition as 0/1, for XML bindings that hide queue-mode UI
     // Moonraker's own start would bypass.
-    lv_subject_t job_queue_automatic_transition_subject_{};
+    helix::Subject job_queue_automatic_transition_subject_{};
     // Queued-job count. The refresh channel for every queue surface: the home
     // panel's job_queue widget, the print-status widget's queue row, and the
     // job-queue modal each observe it and rebuild off a change. Nothing else
     // rebuilds them, so a queue mutation that does not move this subject is
     // invisible until the next resize.
-    lv_subject_t job_queue_count_subject_{};
+    helix::Subject job_queue_count_subject_{};
+    // is_loaded() as 0/1: the count is the last fetch's until the next one, so a
+    // surface that must not show it while disconnected gates on this too.
+    helix::Subject job_queue_loaded_subject_{};
     // helix::QueueRunState as an int. Published before the count so a count
     // observer reads it settled.
-    lv_subject_t job_queue_run_state_subject_{};
+    helix::Subject job_queue_run_state_subject_{};
     // Bumped whenever the queued jobs change, before the count. A reorder, or
     // a remove plus an add, leaves the count where it was, so surfaces that
     // name the jobs observe this.
-    lv_subject_t job_queue_revision_subject_{};
+    helix::Subject job_queue_revision_subject_{};
     // start_in_flight_ as 0/1.
-    lv_subject_t job_queue_start_in_flight_subject_{};
+    helix::Subject job_queue_start_in_flight_subject_{};
     // The first queued job's estimated time (seconds, 0 = unknown) and
     // thumbnail path. The thumbnail is never "": it holds the placeholder
     // until a real image is cached.
@@ -239,8 +240,8 @@ class JobQueueState {
     bool next_media_stale_ = false;
     int next_estimated_s_ = 0;
     std::atomic<uint32_t> next_thumbnail_generation_{0};
-    lv_subject_t job_queue_next_estimate_subject_{};
-    lv_subject_t job_queue_next_thumbnail_subject_{};
+    helix::Subject job_queue_next_estimate_subject_{};
+    helix::Subject job_queue_next_thumbnail_subject_{};
     char next_thumbnail_buf_[256];
     /// Owns every subject above and the death signal
     /// get_subjects_lifetime() hands out.

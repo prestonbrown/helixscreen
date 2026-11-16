@@ -13,7 +13,7 @@
  * fell through to the software overlay — a black LVGL rect over a fully lit,
  * battery-draining panel.
  *
- * The fix maps our Display Sleep setting onto Android's own sleep: at idle we
+ * HelixScreen maps our Display Sleep setting onto Android's own sleep: at idle we
  * clear keep-screen-on and let the OS power the panel off; on wake we re-assert
  * it. Display Sleep = "Never" must NEVER clear the flag (wall-mounted tablets).
  *
@@ -142,8 +142,8 @@ SleepMechanism legacy_mechanism(bool use_hardware_blank, bool can_power_off) {
 TEST_CASE("Android idle sleep hands the panel to the OS instead of painting an overlay",
           "[application][display][sleep][android][1245]") {
     // The shipping Android configuration: SDL backend, no backlight backend, so
-    // neither hardware blank nor panel power-off is available. Before the fix this
-    // landed on SoftwareOverlay (black rect over a lit panel).
+    // neither hardware blank nor panel power-off is available. It must not
+    // land on SoftwareOverlay (black rect over a lit panel).
     REQUIRE(helix::select_sleep_mechanism(/*is_android=*/true,
                                           /*use_hardware_blank=*/false,
                                           /*can_power_off=*/false,

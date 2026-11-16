@@ -11,11 +11,10 @@
  */
 
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -37,7 +36,7 @@ class NavHelpersFixture : public LVGLUITestFixture {
     }
 
     ~NavHelpersFixture() override {
-        ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+        ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Leave the overlay mid-slide, the state a hide path has to clean up.
@@ -68,7 +67,7 @@ TEST_CASE_METHOD(NavHelpersFixture, "A navbar switch resets the transform of the
 
     NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
 
-    CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay_));
     check_resting_transform();
 }
 
@@ -81,7 +80,7 @@ TEST_CASE_METHOD(NavHelpersFixture,
 
     NavigationManagerTestAccess::clear_overlay_stack(nav);
 
-    CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay_));
     check_resting_transform();
 }
 
@@ -91,7 +90,7 @@ TEST_CASE_METHOD(NavHelpersFixture, "close_overlay leaves a main panel on the st
     NavigationManagerTestAccess::set_panel_stack(nav, {home_, controls_});
 
     nav.close_overlay(controls_);
-    ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+    ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(nav.is_panel_on_top(controls_));
     CHECK(nav.is_panel_in_stack(home_));

@@ -3,12 +3,11 @@
 #pragma once
 
 #include "i_moonraker_client.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <string>
 #include <utility>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

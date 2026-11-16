@@ -22,9 +22,11 @@
       <text_input name="theme_name_input"
                   width="100%" height="#input_height" placeholder_text="My Custom Theme"
                   placeholder_tag="My Custom Theme" translation_tag="My Custom Theme" style_margin_top="#space_sm"/>
-      <!-- Status message (hidden by default) -->
+      <!-- Status message: shown while the Theme Editor has an error to report -->
       <text_small name="save_as_status"
-                  width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>
+                  width="100%" bind_text="theme_save_as_status" style_text_align="center" style_text_color="#danger">
+        <bind_flag_if_eq subject="theme_save_as_status_shown" flag="hidden" ref_value="0"/>
+      </text_small>
     </lv_obj>
     <modal_button_row primary_text="Save"
                       secondary_text="Cancel" primary_callback="on_theme_save_as_confirm"

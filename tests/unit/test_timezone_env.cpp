@@ -136,6 +136,61 @@ TEST_CASE("timezone_env: apply() with bundled TZDIR yields correct localtime off
     fs::remove_all(fake_root);
 }
 
+TEST_CASE("timezone_env: a bundled zone resolves without TZDIR, as musl reads it",
+          "[timezone_env][2003]") {
+    TimezoneScope guard;
+    helix::timezone_env::reset_probe_state();
+
+    fs::path temp = make_temp_zoneinfo();
+    fs::path fake_root = temp.parent_path() / ("helix_tz_root3_" + temp.filename().string());
+    fs::create_directories(fake_root);
+    fs::current_path(fake_root);
+    fs::create_directory_symlink(temp, fake_root / "bundled_zi");
+    const fs::path bundled = fs::canonical(fake_root) / "bundled_zi";
+
+    (void)helix::timezone_env::configure_tzdir("/nonexistent/path/UTC", "bundled_zi");
+    helix::timezone_env::apply("America/New_York");
+
+    const char* tz = ::getenv("TZ");
+    REQUIRE(tz != nullptr);
+    CHECK(std::string(tz) == (bundled / "America/New_York").string());
+
+    // musl never reads TZDIR: with it gone the zone must still resolve.
+    ::unsetenv("TZDIR");
+    ::tzset();
+
+    // 2026-06-15 12:00:00 UTC is 08:00 EDT.
+    std::tm utc_tm{};
+    utc_tm.tm_year = 2026 - 1900;
+    utc_tm.tm_mon = 5;
+    utc_tm.tm_mday = 15;
+    utc_tm.tm_hour = 12;
+    std::time_t epoch = ::timegm(&utc_tm);
+    std::tm local_tm{};
+    REQUIRE(::localtime_r(&epoch, &local_tm) != nullptr);
+    CHECK(local_tm.tm_hour == 8);
+
+    fs::remove_all(temp);
+    fs::remove_all(fake_root);
+}
+
+TEST_CASE("timezone_env: with system zoneinfo the zone is applied by name",
+          "[timezone_env][2003]") {
+    TimezoneScope guard;
+    helix::timezone_env::reset_probe_state();
+
+    std::string probe = "/usr/share/zoneinfo/UTC";
+    if (!fs::exists(probe)) {
+        probe = "/etc/hostname";
+    }
+    (void)helix::timezone_env::configure_tzdir(probe.c_str(), "assets/zoneinfo");
+    helix::timezone_env::apply("America/New_York");
+
+    const char* tz = ::getenv("TZ");
+    REQUIRE(tz != nullptr);
+    CHECK(std::string(tz) == "America/New_York");
+}
+
 TEST_CASE("timezone_env: leaves TZDIR untouched when system zoneinfo present", "[timezone_env]") {
     TimezoneScope guard;
     helix::timezone_env::reset_probe_state();

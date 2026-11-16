@@ -7,8 +7,6 @@
 // XML subject name, the round trip through deinit + init, and which settings
 // report a change to telemetry.
 
-#include "ui_update_queue.h"
-
 #include "../../include/settings_manager.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
@@ -17,6 +15,8 @@
 #include "bed_drying.h"
 #include "completion_alert_mode.h"
 #include "config.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "input_settings_manager.h"
 #include "persisted_setting.h"
@@ -201,6 +201,17 @@ const std::vector<Row>& rows() {
         {"settings_glass_effects", Mgr::Display, false, "/display/glass_effects", true, 0, 0, 1,
          "glass_effects", true, SETB(dm().set_glass_effects), GET(dm().get_glass_effects),
          SUBJ(dm().subject_glass_effects)},
+        {"settings_screensaver_print_progress", Mgr::Display, false,
+         "/display/screensaver_print_progress", true, 1, 0, 1, "screensaver_print_progress", true,
+         SETB(dm().set_screensaver_print_progress), GET(dm().get_screensaver_print_progress),
+         SUBJ(dm().subject_screensaver_print_progress)},
+        {"settings_temp_unit", Mgr::Display, false, "/display/temp_unit", false, 0, 0, 1,
+         "temp_unit", false, [](int v) { dm().set_temp_unit(static_cast<helix::units::TempUnit>(v)); },
+         GET(dm().get_temp_unit), SUBJ(dm().subject_temp_unit)},
+        {"settings_date_format", Mgr::Display, false, "/display/date_format", false, 1, 0, 2,
+         "date_format", false,
+         [](int v) { dm().set_date_format(static_cast<helix::DateFormat>(v)); },
+         GET(dm().get_date_format), SUBJ(dm().subject_date_format)},
 
         // SystemSettingsManager
         {"update_channel", Mgr::System, false, "/update/channel", false, 0, 0, 2, "update_channel",
@@ -247,9 +258,15 @@ const std::vector<Row>& rows() {
          "qidi_eject_velocity", true, SETI(sm().set_ams_eject_velocity),
          GET(sm().get_ams_eject_velocity), SUBJ(sm().subject_ams_eject_velocity)},
         {"settings_toolhead_style", Mgr::Settings, true, "appearance/toolhead_style", false, 0, 0,
-         7, "toolhead_style", true,
+         helix::kLastToolheadStyle, "toolhead_style", true,
          [](int v) { sm().set_toolhead_style(static_cast<ToolheadStyle>(v)); },
          GET(sm().get_toolhead_style), SUBJ(sm().subject_toolhead_style)},
+        {"settings_tool_number_style", Mgr::Settings, true, "appearance/tool_number_style", false,
+         0, 0, 2, "tool_number_style", false,
+         [](int v) {
+             sm().set_tool_number_style_setting(static_cast<helix::ui::ToolNumberStyleSetting>(v));
+         },
+         GET(sm().get_tool_number_style_setting), SUBJ(sm().subject_tool_number_style)},
         {"show_printer_switcher", Mgr::Settings, false, "/printers/show_printer_switcher", true, 0,
          0, 1, "show_printer_switcher", true, SETB(sm().set_show_printer_switcher),
          GET(sm().get_show_printer_switcher), SUBJ(sm().subject_show_printer_switcher)},
@@ -285,6 +302,9 @@ const std::vector<Row>& rows() {
         {"filament_auto_open_editor", Mgr::Settings, true, "filament/auto_open_editor", true, 0, 0,
          1, "filament_auto_open_editor", true, SETB(sm().set_filament_auto_open_editor),
          GET(sm().get_filament_auto_open_editor), SUBJ(sm().subject_filament_auto_open_editor)},
+        {"number_lanes_from_zero", Mgr::Settings, true, "ams/number_lanes_from_zero", true, 0, 0, 1,
+         "number_lanes_from_zero", true, SETB(sm().set_number_lanes_from_zero),
+         GET(sm().get_number_lanes_from_zero), SUBJ(sm().subject_number_lanes_from_zero)},
         {"console_filter_temps", Mgr::Settings, false, "/console/filter_temps", true, 1, 0, 1,
          "console_filter_temps", true, SETB(sm().set_console_filter_temps),
          GET(sm().get_console_filter_temps), SUBJ(sm().subject_console_filter_temps)},
@@ -307,6 +327,14 @@ const std::vector<Row>& rows() {
         {"settings_belt_layout", Mgr::Settings, true, "belt_tension/layout", false, 0, 0, 4,
          "belt_layout", true, SETI(sm().set_belt_layout), GET(sm().get_belt_layout),
          SUBJ(sm().subject_belt_layout)},
+        {"temp_graph_show_mcu", Mgr::Settings, true, "temp_graph/show_mcu", true, 0, 0, 1,
+         "temp_graph_show_mcu", true, SETB(sm().set_temp_graph_show_mcu), GET(sm().get_temp_graph_show_mcu), NOSUBJ},
+        {"temp_graph_show_host", Mgr::Settings, true, "temp_graph/show_host", true, 0, 0, 1,
+         "temp_graph_show_host", true, SETB(sm().set_temp_graph_show_host), GET(sm().get_temp_graph_show_host),
+         NOSUBJ},
+        {"temp_graph_show_drivers", Mgr::Settings, true, "temp_graph/show_drivers", true, 0, 0, 1,
+         "temp_graph_show_drivers", true, SETB(sm().set_temp_graph_show_drivers),
+         GET(sm().get_temp_graph_show_drivers), NOSUBJ},
     };
     return r;
 }
@@ -401,6 +429,22 @@ void init_all() {
 }
 
 } // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Persisted settings: a subject not yet initialized reads the row default",
+                 "[persisted_setting][subject]") {
+    const helix::settings::PersistedSetting row{
+        "test_unit_row", "/test/unit_row", helix::settings::Scope::Global, false, 7, 0, 10,
+        nullptr};
+    helix::Subject subject; // built after lv_init: its node exists, holding 0
+    REQUIRE(subject.get() != nullptr);
+    CHECK(helix::settings::detail::get_setting(row, subject) == 7);
+
+    subject.init_int(3);
+    CHECK(helix::settings::detail::get_setting(row, subject) == 3);
+    subject.reset();
+    CHECK(helix::settings::detail::get_setting(row, subject) == 7);
+}
 
 TEST_CASE_METHOD(LVGLTestFixture, "Persisted settings: default when the key is absent",
                  "[persisted_setting]") {

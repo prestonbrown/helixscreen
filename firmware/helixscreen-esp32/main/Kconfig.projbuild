@@ -91,6 +91,31 @@ config HELIX_LOG_STRIP_DEBUG
         this off to get full debug/trace formatting back for on-device
         debugging; info/warn/error/critical are unaffected either way.
 
+config HELIX_LOG_TOKENIZE
+    bool "Tokenize spdlog::info/warn/error/critical on the console"
+    default y
+    help
+        Keep info/warn/error/critical format strings out of the image: each
+        call prints a "$" + base64 record holding a token and its arguments,
+        and scripts/detokenize_log.py turns a captured console log back into
+        text with the token database the build writes next to the ELF
+        (helixscreen_esp32.logtok.json). The strings stay in the ELF's
+        non-loaded .helix_logfmt section. Turn this off for a console that
+        reads as plain text without the host tool.
+
+config HELIX_SUBJECT_DEBUG_STRIP
+    bool "Compile the subject debug registry out of the subject macros"
+    default y
+    help
+        Every UI_SUBJECT_INIT_AND_REGISTER_* and UI_MANAGED_SUBJECT_* site
+        also records its subject in SubjectDebugRegistry (name, type, file,
+        line), which costs two temporary std::strings and a call per site,
+        over a thousand sites in the app core. Nothing on the device reads
+        those records: they feed desktop debug tooling and the name of a
+        subject in an LVGL subject warning. When enabled, the macros skip the
+        registry, and an LVGL subject warning names only the pointer. Turn
+        this off to get subject names back in those warnings.
+
 config HELIX_MOCK_PRINTER
     bool "Compile the mock Moonraker client into the app core"
     default n

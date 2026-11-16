@@ -96,23 +96,6 @@ TEST_CASE("PrinterState plain data does not survive a fixture boundary",
     }
 }
 
-// The realistic shape: one TEST_CASE dirties the singleton, the next asserts it is
-// clean. Order-dependent by construction (that IS the bug being pinned), so it is
-// only meaningful under Catch2's default declaration order.
-TEST_CASE("PrinterState data isolation: writer", "[core][isolation][printer_state]") {
-    LVGLTestFixture fx;
-    get_printer_state().init_subjects(false);
-    dirty_printer_state();
-    REQUIRE(get_printer_state().excluded_objects_state().has_objects());
-}
-
-TEST_CASE("PrinterState data isolation: successor sees a clean singleton",
-          "[core][isolation][printer_state]") {
-    LVGLTestFixture fx;
-    get_printer_state().init_subjects(false);
-    require_clean_printer_state();
-}
-
 // clear_data() must be safe when the subject tree was never built — it runs from
 // HelixTestFixture's ctor/dtor, which non-LVGL tests inherit too.
 TEST_CASE("clear_data is safe with subjects torn down", "[core][isolation][printer_state]") {

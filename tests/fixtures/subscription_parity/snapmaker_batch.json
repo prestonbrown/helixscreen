@@ -22,10 +22,27 @@
     "power",
     "pressure_advance",
     "nozzle_diameter",
-    "nozzle_volume_type"
+    "nozzle_volume_type",
+    "state",
+    "park_pin",
+    "active_pin",
+    "activating_move"
+  ],
+  "extruder1": [
+    "temperature",
+    "target",
+    "power",
+    "pressure_advance",
+    "nozzle_diameter",
+    "nozzle_volume_type",
+    "state",
+    "park_pin",
+    "active_pin",
+    "activating_move"
   ],
   "fan": [
-    "speed"
+    "speed",
+    "rpm"
   ],
   "filament_detect": null,
   "filament_feed left": null,
@@ -38,6 +55,7 @@
   "gcode_macro START_PRINT": [
     "preparation_done"
   ],
+  "gcode_macro _FILAMENT_FEED_VARIABLE": null,
   "gcode_macro _HELIX_STATE": [
     "print_started"
   ],

@@ -9,9 +9,9 @@
  */
 
 #include "ui_filament_slot_picker.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 
 #include <optional>
 #include <string>
@@ -64,7 +64,7 @@ struct SlotPickerFixture : public LVGLUITestFixture {
     }
 
     static bool hidden(lv_obj_t* obj) {
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 
     static void tap(lv_obj_t* obj) {

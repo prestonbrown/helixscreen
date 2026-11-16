@@ -172,7 +172,7 @@ run_gate() { run python3 "$GATE" --baseline "$BASE" "$LOG"; }
     # ceiling would need doubling to stay green — which is how a ratchet quietly
     # stops ratcheting.
     leak "known leaker" 2 "<untagged> x2"
-    printf '[ISOLATION-LEAK-SITES] untagged from: observer_factory.h:371 x2\n' >> "$LOG"
+    printf '[ISOLATION-LEAK-SITES] untagged from: core/observer_factory.h:371 x2\n' >> "$LOG"
     finish_run
     printf 'max-untagged-callbacks: 2\ntest:known leaker\n' > "$BASE"
     run_gate

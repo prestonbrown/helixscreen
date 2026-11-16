@@ -55,8 +55,13 @@ class GateHarness {
         clear_levels();
         unsetenv("HELIX_SCREENSAVER_BUDGET_PCT");
         unsetenv("HELIX_SCREENSAVER_LEVEL");
-        ScreensaverManagerTestAccess::set_cpu_clock(mgr,
-                                                    [this] { return CpuSample{cpu_ns, wall_ns}; });
+        ScreensaverManagerTestAccess::set_cpu_clock(
+            mgr,
+            [this] {
+                ++cpu_reads;
+                return CpuSample{cpu_ns, wall_ns};
+            },
+            [this] { return wall_ns; });
         ScreensaverManagerTestAccess::reset_baseline(mgr);
         mgr.set_host(SaverHost{[this] { return printing; }, "sdl"});
     }
@@ -104,6 +109,7 @@ class GateHarness {
     helix::ScopedEnv level_env{"HELIX_SCREENSAVER_LEVEL"};
     uint64_t cpu_ns = 0;
     uint64_t wall_ns = 1000ULL * 1000000000ULL;
+    int cpu_reads = 0;
     bool printing = false;
 
   private:
@@ -118,6 +124,20 @@ class GateHarness {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "the idle check reads the CPU clock only when a sample is due",
+                 "[screensaver][screensaver_gate]") {
+    GateHarness gate;
+    gate.mgr.on_idle_check_tick();
+    REQUIRE(gate.cpu_reads == 1);
+    for (int i = 0; i < 50; i++) {
+        gate.mgr.on_idle_check_tick();
+    }
+    CHECK(gate.cpu_reads == 1);
+    gate.wall_ns += ScreensaverManager::kSampleIntervalNs;
+    gate.mgr.on_idle_check_tick();
+    CHECK(gate.cpu_reads == 2);
+}
 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the gate subtracts the idle baseline from a running saver's windows",
@@ -432,10 +452,11 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(LVGLTestFixture,
                  "the budget follows the core count and drops when a print starts mid-run",
                  "[screensaver][screensaver_gate]") {
-    GateHarness gate;
+    const auto caps = helix::PlatformCapabilities::detect();
     const double full =
-        helix::ui::saver_budget_share(helix::PlatformCapabilities::detect().cpu_cores, false);
+        helix::ui::saver_budget_share(caps.cpu_cores, caps.efficiency_cores_only, false);
     const double load = full * 0.75;
+    GateHarness gate;
     gate.run(10.0, 0.0);
     gate.mgr.start(ScreensaverType::FLYING_TOASTERS);
     REQUIRE(gate.running() != nullptr);
@@ -471,7 +492,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a step-down taken while printing lasts only f
     CHECK(gate.running()->level() == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and marks nothing",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a saver too heavy during a print gives way to the flip clock and marks nothing",
                  "[screensaver][screensaver_gate]") {
     GateHarness gate;
     setenv("HELIX_SCREENSAVER_BUDGET_PCT", "10", 1);
@@ -484,11 +506,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and 
     run_past_bottom(gate, *maze);
 
     CHECK_FALSE(maze->is_active());
-    CHECK(gate.running() == nullptr);
-    CHECK(gate.mgr.is_active());
-    CHECK(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    REQUIRE(gate.running() != nullptr);
+    CHECK(gate.running()->type() == ScreensaverType::FLIP_CLOCK);
+    CHECK_FALSE(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    CHECK(gate.mgr.shows_print_end());
     CHECK(helix::active_screen_hide_hold().is_held());
-    CHECK_FALSE(helix::active_refresh_period_hold().is_held());
     CHECK_FALSE(gate.stored("maze").has_value());
     CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::MAZE_3D));
 
@@ -499,6 +521,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "too heavy while printing blanks that run and 
     REQUIRE(gate.running() != nullptr);
     CHECK(gate.running()->type() == ScreensaverType::MAZE_3D);
     CHECK(gate.running()->level() == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the flip clock too heavy during a print shows the black screen",
+                 "[screensaver][screensaver_gate]") {
+    GateHarness gate;
+    setenv("HELIX_SCREENSAVER_BUDGET_PCT", "10", 1);
+    gate.run(10.0, 0.0);
+    gate.printing = true;
+    gate.mgr.start(ScreensaverType::FLIP_CLOCK);
+    helix::ui::SaverBase* flip = gate.running();
+    REQUIRE(flip != nullptr);
+
+    run_past_bottom(gate, *flip);
+
+    CHECK(gate.running() == nullptr);
+    CHECK(gate.mgr.is_active());
+    CHECK(ScreensaverManagerTestAccess::showing_black_screen(gate.mgr));
+    CHECK_FALSE(helix::active_refresh_period_hold().is_held());
+    CHECK_FALSE(gate.mgr.too_heavy_here(ScreensaverType::FLIP_CLOCK));
+    // The black screen shows no print: the end of one must still wake the display.
+    CHECK(gate.mgr.is_active());
+    CHECK_FALSE(gate.mgr.shows_print_end());
+    gate.mgr.stop();
 }
 
 namespace {

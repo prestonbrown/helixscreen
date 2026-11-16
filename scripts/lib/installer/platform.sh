@@ -656,15 +656,16 @@ detect_ad5m_firmware() {
 # Detect K1 firmware variant (Simple AF, Guilouz helper-script, or stock)
 # Only called when platform is "k1"
 # Returns: "simple_af", "guilouz", or "stock_klipper"
+#
+# simple_af means the stock Creality stack is already gone, so the installer
+# neither stops S99start_app nor installs S99creality-backend. GuppyScreen is
+# no evidence of it: the Helper Script installs the same /usr/data/guppyscreen
+# and S99guppyscreen while leaving the stock stack in place. Only the Simple
+# AF tree proves Simple AF, and it outranks a helper-script tree on the same
+# box: Simple AF is a full replacement, so a leftover Helper Script directory
+# cannot bring the stock stack back.
 detect_k1_firmware() {
-    # Simple AF (pellcorp/creality) indicators
     if [ -d "/usr/data/pellcorp" ]; then
-        echo "simple_af"
-        return
-    fi
-
-    # Check for GuppyScreen which Simple AF installs
-    if [ -d "/usr/data/guppyscreen" ] && [ -f "/etc/init.d/S99guppyscreen" ]; then
         echo "simple_af"
         return
     fi
@@ -1400,7 +1401,7 @@ resolve_platform_hook_key() {
 # These are the files users may want to edit from Fluidd/Mainsail, and that
 # the app writes to at runtime. All other files in INSTALL_DIR/config/ are
 # static assets reinstalled on each update.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route .install_source"
 
 # User-writable config DIRECTORIES that live in printer_data/config/helixscreen/.
 #
@@ -1432,6 +1433,7 @@ _helix_config_file_seed() {
     case "$1" in
         crash_history.json) printf '[]\n' ;;   # CrashHistory::load() expects a JSON array
         user_filaments.json) printf '[]\n' ;;  # FilamentCatalog reads a bare array as no products
+        pending_remap.json) printf '{}\n' ;;   # PrintStartController reads an empty object as no records
         *) return 1 ;;
     esac
 }

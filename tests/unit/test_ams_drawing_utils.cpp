@@ -297,8 +297,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_transparent_container basic 
     REQUIRE(lv_obj_get_style_bg_opa(c, LV_PART_MAIN) == LV_OPA_TRANSP);
     REQUIRE(lv_obj_get_style_border_width(c, LV_PART_MAIN) == 0);
     REQUIRE(lv_obj_get_style_pad_top(c, LV_PART_MAIN) == 0);
-    REQUIRE(lv_obj_has_flag(c, LV_OBJ_FLAG_EVENT_BUBBLE));
-    REQUIRE_FALSE(lv_obj_has_flag(c, LV_OBJ_FLAG_SCROLLABLE));
+    REQUIRE(lv_obj_is_event_bubble(c));
+    REQUIRE_FALSE(lv_obj_is_scrollable(c));
 }
 
 // ============================================================================
@@ -313,7 +313,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_error_badge creates circle",
     REQUIRE(lv_obj_get_width(badge) == 12);
     REQUIRE(lv_obj_get_height(badge) == 12);
     REQUIRE(lv_obj_get_style_radius(badge, LV_PART_MAIN) == LV_RADIUS_CIRCLE);
-    REQUIRE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN)); // Hidden by default
+    REQUIRE(lv_obj_is_hidden(badge)); // Hidden by default
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::update_error_badge shows on error",
@@ -321,10 +321,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::update_error_badge shows on error",
     lv_obj_t* badge = ams_draw::create_error_badge(test_screen(), 12);
 
     ams_draw::update_error_badge(badge, true, SlotError::ERROR, false);
-    REQUIRE_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(badge));
 
     ams_draw::update_error_badge(badge, false, SlotError::INFO, false);
-    REQUIRE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(badge));
 }
 
 // ============================================================================
@@ -334,7 +334,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::update_error_badge shows on error",
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::start_pulse and stop_pulse don't crash",
                  "[ams_draw][pulse]") {
     lv_obj_t* dot = ams_draw::create_error_badge(test_screen(), 14);
-    lv_obj_remove_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(dot, false);
     process_lvgl(10);
 
     // Start pulse — should set border_color for anim callback reference
@@ -378,11 +378,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::create_slot_column creates all part
 TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::apply_logo hides image when no logo found",
                  "[ams_draw][logo]") {
     lv_obj_t* img = lv_image_create(test_screen());
-    lv_obj_remove_flag(img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(img, false);
 
     // Use a type name that won't match any logo
     ams_draw::apply_logo(img, "NonExistentType12345");
-    REQUIRE(lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(img));
 }
 
 TEST_CASE("AmsState::get_logo_path resolves AFC's composite unit names", "[ams][logo][1156]") {
@@ -423,7 +423,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_draw::apply_logo with unit fallback", "[a
 
     ams_draw::apply_logo(img, unit, info);
     // Both names unknown -> hidden
-    REQUIRE(lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(img));
 }
 
 TEST_CASE("AmsState::get_unit_logo: the unit's own name first, then the system's",

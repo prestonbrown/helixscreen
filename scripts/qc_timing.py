@@ -3,13 +3,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Time every check in quality-checks.sh without editing it.
 
-Each check announces itself on its own line before it starts work, so the gap
-between one announcement and the next is that check's cost. Most checks do not
-report their own elapsed time, which is why the gate's total is the only figure
-anyone has: this fills that in for all of them at once.
+The gate times each check itself and prints the list under QC_PROFILE=1; this
+runs it that way and turns the list into a table with each check's share of
+the wall clock, which is the number a commit waits for.
 
     scripts/qc_timing.py                    # same arguments as quality-checks.sh
-    scripts/qc_timing.py --staged
+    scripts/qc_timing.py --staged-only
     QC_TIMING_CSV=/tmp/qc.csv scripts/qc_timing.py
 
 The gate's own output passes through unchanged and its exit status is this
@@ -25,14 +24,11 @@ import sys
 import time
 from datetime import datetime
 
-# A check header opens with an emoji and carries a gerund. Anything else is a
-# finding, a note, or a blank line, and belongs to the check above it.
-#
-# The gate announces a check with `echo -n`, so the line does not complete until
-# that check has produced its first output: a header therefore ARRIVES at the
-# check's end, and the gap since the previous header is the cost of the check
-# that just announced itself, not of the one before it.
-HEADER = re.compile(r"^[^\w\s\[(]+\s+(Checking|Running|Validating|Verifying|Scanning)\b(.*)$")
+# The checks run in parallel and their output is replayed once all have
+# finished, so the gaps between their headers in the transcript measure nothing.
+# The gate's own per-check clock is the only timing there is.
+PROFILE_HEADER = "gate times (ms), slowest first:"
+PROFILE_ROW = re.compile(r"^\s*(\d+)\s+(qc_\w+)\s*$")
 TOP_N = 8
 
 
@@ -44,34 +40,31 @@ def main() -> int:
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
-        # Every python gate downstream buffers when its stdout is a pipe, which
-        # would time the flush rather than the work.
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        env={**os.environ, "QC_PROFILE": "1"},
     )
 
     spans: list[tuple[float, str]] = []
     started = time.monotonic()
-    t0 = started
+    in_profile = False
 
     assert proc.stdout is not None
     for line in proc.stdout:
         sys.stdout.write(line)
         sys.stdout.flush()
-        match = HEADER.match(line.strip())
-        if not match:
+        if line.strip() == PROFILE_HEADER:
+            in_profile = True
             continue
-        now = time.monotonic()
-        name = re.sub(r"\.{2,}.*$", "", line.strip())
-        spans.append((now - t0, name))
-        t0 = now
+        if in_profile:
+            match = PROFILE_ROW.match(line)
+            if match:
+                spans.append((int(match.group(1)) / 1000.0, match.group(2)))
+            else:
+                in_profile = False
 
     status = proc.wait()
-    now = time.monotonic()
-
-    total = now - started
-    spans.append((now - t0, "(after the last check: summary, cleanup)"))
+    total = time.monotonic() - started
     spans.sort(reverse=True)
-    print(f"\n--- {len(spans)} checks in {total:.1f}s, slowest first ---", file=sys.stderr)
+    print(f"\n--- {len(spans)} checks, {total:.1f}s wall, slowest first ---", file=sys.stderr)
     for seconds, name in spans[:TOP_N]:
         share = 100.0 * seconds / total if total else 0.0
         print(f"  {seconds:6.1f}s  {share:4.1f}%  {name}", file=sys.stderr)

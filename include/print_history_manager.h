@@ -4,9 +4,9 @@
 #pragma once
 
 #include "ui_coalesced_timer.h"
-#include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "helix_callback.h"
 #include "print_history_data.h"
 
@@ -130,7 +130,6 @@ class PrintHistoryManager {
 
     ~PrintHistoryManager();
 
-    // Non-copyable
     PrintHistoryManager(const PrintHistoryManager&) = delete;
     PrintHistoryManager& operator=(const PrintHistoryManager&) = delete;
 
@@ -323,7 +322,7 @@ class PrintHistoryManager {
      */
     void ensure_loaded(helix::HistoryScope scope);
 
-    /// From now on, each connection fetches history only after on_discovery_complete():
+    /// After this call, each connection fetches history only after on_discovery_complete():
     /// a history reply then never competes with discovery, and a reconnect does not ask
     /// for it before anything else. A fetch asked for earlier waits and runs then.
     void hold_until_discovery();
@@ -368,6 +367,16 @@ class PrintHistoryManager {
      * printer's history may show while the new one is fetched or unreachable.
      */
     void forget_printer();
+
+    /**
+     * @brief Drop one job the user deleted, and tell observers
+     *
+     * Moonraker sends no history notification for a deleted job, so without
+     * this the cache keeps serving it until the next full load.
+     *
+     * @param job_id Moonraker job id of the deleted record
+     */
+    void forget_job(const std::string& job_id);
 
     // ========================================================================
     // Observer Pattern
@@ -472,11 +481,6 @@ class PrintHistoryManager {
      */
     void notify_observers();
 
-    /// A job printed from a copy this app rewrote names the rewrite, whose file
-    /// (and thumbnails) are deleted when the print ends. When the name places
-    /// the original (gcode::trusted_original_path()), present the job as the
-    /// original's print: its name, and its existence, mtime and thumbnails from
-    /// one metadata request per original. Otherwise it reads as missing.
     /// Whether the archive @p filename is still listed, for a printer that
     /// keeps no metadata for archives; answers through on_original_answered().
     void look_for_archive(const std::string& filename, uint64_t generation);
@@ -484,6 +488,11 @@ class PrintHistoryManager {
     /// to modified time), or as missing when the listing failed (null).
     void answer_archive_listing(const std::string& dir, uint64_t generation,
                                 const std::unordered_map<std::string, double>* listed);
+    /// A job printed from a copy this app rewrote names the rewrite, whose file
+    /// (and thumbnails) are deleted when the print ends. When the name places
+    /// the original (gcode::trusted_original_path()), present the job as the
+    /// original's print: its name, and its existence, mtime and thumbnails from
+    /// one metadata request per original. Otherwise it reads as missing.
     void adopt_original(PrintHistoryJob& job);
 
     /// What the original's metadata answered. It reads as missing while the

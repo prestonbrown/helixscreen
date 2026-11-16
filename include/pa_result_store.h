@@ -38,6 +38,10 @@ enum class SpoolLookup {
 /// hold the value, which the user experiences the same as having no spool.
 SpoolLookup classify_spool(const std::optional<SpoolInfo>& spool);
 
+/// The Spoolman spool on the lane feeding `tool`, or 0 when no lane feeds it
+/// or the lane names no spool. Main thread.
+int spool_feeding_tool(int tool);
+
 /// The spool a result belongs to: `tool_spool_id` when the printer assigns
 /// spools per tool (> 0), Spoolman's active spool otherwise. `done` gets the
 /// spool whenever Spoolman returned one, even one classify_spool() rejects,

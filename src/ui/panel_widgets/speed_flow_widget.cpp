@@ -11,13 +11,15 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -40,15 +42,15 @@ constexpr int kResetPct = 100;
 // panel_widget_speed_flow.xml. Module-level because the widget is single-instance and
 // registration rides SubjectInitializer's panel-subject phase, so the subjects exist
 // before any XML that binds them is parsed.
-lv_subject_t s_rung_subject{};
-lv_subject_t s_show_measured_subject{};
-lv_subject_t s_show_steppers_subject{};
-lv_subject_t s_speed_status_subject{};
-lv_subject_t s_flow_status_subject{};
-lv_subject_t s_speed_text_subject{};
-lv_subject_t s_flow_text_subject{};
-lv_subject_t s_speed_measured_subject{};
-lv_subject_t s_flow_measured_subject{};
+helix::Subject s_rung_subject{};
+helix::Subject s_show_measured_subject{};
+helix::Subject s_show_steppers_subject{};
+helix::Subject s_speed_status_subject{};
+helix::Subject s_flow_status_subject{};
+helix::Subject s_speed_text_subject{};
+helix::Subject s_flow_text_subject{};
+helix::Subject s_speed_measured_subject{};
+helix::Subject s_flow_measured_subject{};
 char s_speed_text_buf[32];
 char s_flow_text_buf[32];
 char s_speed_measured_buf[32];
@@ -122,20 +124,6 @@ Texts compose_texts(const Readings& r, helix::SizeRung rung, bool value_is_measu
     return t;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* heading;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("font_heading"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 int widest(const std::string& a, const std::string& b, const lv_font_t* font) {
@@ -149,7 +137,7 @@ int widest(const std::string& a, const std::string& b, const lv_font_t* font) {
 helix::RungNeeds measure_needs(const Readings& worst, bool printing, bool measured_values) {
     using helix::rung_box;
     using helix::SizeRung;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -380,7 +368,7 @@ void SpeedFlowWidget::publish_texts() {
     const Texts t = compose_texts(live.readings, verdict_.rung, verdict_.value_is_measured);
     const auto set = [](lv_subject_t* subject, const std::string& text) {
         if (text != lv_subject_get_string(subject))
-            lv_subject_copy_string(subject, text.c_str());
+            lv_subject_set_string(subject, text.c_str());
     };
     set(&s_speed_text_subject, t.speed);
     set(&s_flow_text_subject, t.flow);

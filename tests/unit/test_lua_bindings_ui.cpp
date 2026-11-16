@@ -4,7 +4,6 @@
 #if HELIX_HAS_PLUGINS
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -12,9 +11,12 @@
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_host_test_support.h"
 #include "../test_helpers/plugin_test_support.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/data_root_resolver.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
-#include "layout_manager.h"
 #include "lua_bindings.h"
 #include "lvgl/src/misc/lv_text_private.h"
 #include "lvgl_log_handler.h"
@@ -109,11 +111,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "creating a plugin subject logs no missing-sub
     }
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "test-plugin__quiet")) == 5);
 
-    lv_subject_t app_subject;
-    lv_subject_init_int(&app_subject, 5);
+    helix::Subject app_subject;
+    app_subject.init_int(5);
     helix::ScopeExit cleanup([&app_subject] {
         lv_xml_unregister_subject(nullptr, "test-plugin__taken");
-        lv_subject_deinit(&app_subject);
+        app_subject.reset();
     });
     lv_xml_register_subject(nullptr, "test-plugin__taken", &app_subject);
     CHECK_FALSE(b.t.run(R"(helix.subject.int("taken", 1))"));
@@ -193,12 +195,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "helix.ui.confirm allows one open dialog per
 
 TEST_CASE_METHOD(LVGLTestFixture, "runtime close leaves an app subject that took the name",
                  "[plugin][bindings][ui]") {
-    lv_subject_t app_subject;
-    lv_subject_init_int(&app_subject, 5);
+    helix::Subject app_subject;
+    app_subject.init_int(5);
     helix::ScopeExit cleanup([&app_subject] {
         if (lv_xml_get_subject(nullptr, "test-plugin__x") == &app_subject)
             lv_xml_unregister_subject(nullptr, "test-plugin__x");
-        lv_subject_deinit(&app_subject);
+        app_subject.reset();
     });
     {
         BoundRuntime b({&install_ui_bindings});
@@ -259,8 +261,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a confirm dialog that cannot be shown holds n
         }
         ~HideModalDialog() {
             if (was_registered) {
-                std::string path =
-                    "A:" + helix::LayoutManager::instance().resolve_xml_path("modal_dialog.xml");
+                std::string path = "A:" + helix::asset_path("ui_xml/modal_dialog.xml");
                 lv_xml_register_component_from_file(path.c_str());
             }
             helix::register_xml_on_first_use();
@@ -302,7 +303,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a bound object outlives its plugin's runtime 
     size_t before = retired_subject_count();
     lv_obj_t* root = bind_label_to_doomed_subject();
     helix::ScopeExit cleanup([&root] {
-        if (root && lv_obj_is_valid(root))
+        if (root && helix::test::widget_in_tree(root))
             lv_obj_delete(root);
         lv_xml_component_unregister("test-plugin__bindrow");
     });
@@ -324,7 +325,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a plugin load sweeps retired subjects",
     size_t before = retired_subject_count();
     lv_obj_t* root = bind_label_to_doomed_subject();
     helix::ScopeExit cleanup([&root] {
-        if (root && lv_obj_is_valid(root))
+        if (root && helix::test::widget_in_tree(root))
             lv_obj_delete(root);
         lv_xml_component_unregister("test-plugin__bindrow");
     });

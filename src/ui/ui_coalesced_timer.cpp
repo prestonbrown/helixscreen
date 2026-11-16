@@ -2,7 +2,7 @@
 
 #include "ui_coalesced_timer.h"
 
-#include "ui_timer_guard.h"
+#include "core/timer_guard.h"
 
 namespace helix::ui {
 

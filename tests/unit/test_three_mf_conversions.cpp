@@ -6,6 +6,7 @@
 #include <map>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::three_mf::Conversion;
 using helix::three_mf::converted_archives;

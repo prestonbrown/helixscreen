@@ -4,6 +4,7 @@
 #include "macro_param_cache.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::CachedMacroInfo;
 using helix::find_printer_stop_call;

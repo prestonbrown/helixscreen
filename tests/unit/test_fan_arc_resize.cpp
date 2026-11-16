@@ -42,15 +42,13 @@ static void make_fan_card(lv_obj_t* parent, int card_w, int card_h, int containe
 // fan_arc_resize_to_fit() — sizing math tests
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: null card is safe",
+TEST_CASE_METHOD(LVGLTestFixture, "fan arc resize: a null or empty card is safe",
                  "[fan][arc][resize]") {
-    helix::ui::fan_arc_resize_to_fit(nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: missing children is safe",
-                 "[fan][arc][resize]") {
+    CHECK_NOTHROW(helix::ui::fan_arc_resize_to_fit(nullptr));
     lv_obj_t* card = lv_obj_create(test_screen());
     helix::ui::fan_arc_resize_to_fit(card);
+    CHECK(lv_obj_get_child_count(card) == 0); // nothing to size, and nothing added
+    CHECK_NOTHROW(helix::ui::fan_arc_attach_auto_resize(nullptr));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: arc is square and tracks match",
@@ -138,11 +136,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_resize_to_fit: track scales with arc 
 // ============================================================================
 // fan_arc_attach_auto_resize() — callback attachment tests
 // ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_attach_auto_resize: null is safe",
-                 "[fan][arc][resize]") {
-    helix::ui::fan_arc_attach_auto_resize(nullptr);
-}
 
 TEST_CASE_METHOD(LVGLTestFixture, "fan_arc_attach_auto_resize: triggers initial resize",
                  "[fan][arc][resize]") {

@@ -28,8 +28,9 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "touch_calibration.h"
 #include "touch_calibration_controller.h"
@@ -50,7 +51,7 @@ namespace helix::ui {
  * and capturing touch points for calibration matrix computation. Integrates
  * with TouchCalibrationPanel for state machine logic.
  *
- * Inherits from OverlayBase for lifecycle management (on_activate/on_deactivate).
+ * Inherits from OverlayBase for lifecycle management (on_activate/on_deactivating).
  */
 class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCalibrationView {
   public:
@@ -68,7 +69,6 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     TouchCalibrationOverlay();
     ~TouchCalibrationOverlay() override;
 
-    // Non-copyable
     TouchCalibrationOverlay(const TouchCalibrationOverlay&) = delete;
     TouchCalibrationOverlay& operator=(const TouchCalibrationOverlay&) = delete;
 
@@ -301,12 +301,12 @@ class TouchCalibrationOverlay : public OverlayBase, public helix::ui::ITouchCali
     //
 
     SubjectManager subjects_;
-    lv_subject_t state_subject_{};       ///< int: 0-5 for states
-    lv_subject_t instruction_subject_{}; ///< string: instruction text
+    helix::Subject state_subject_{};       ///< int: 0-5 for states
+    helix::Subject instruction_subject_{}; ///< string: instruction text
     char instruction_buffer_[128];
 
     // Accept button countdown text
-    lv_subject_t accept_button_text_{};
+    helix::Subject accept_button_text_{};
     char accept_text_buffer_[32] = "Accept";
 
     //

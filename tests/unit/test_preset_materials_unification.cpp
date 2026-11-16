@@ -217,7 +217,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PID presets resolve the right material's tem
 
     // The PID panel parses a slot from the button name and resolves it through
     // presets::name(), then looks the temperature up in the filament database —
-    // the same two steps asserted here. Previously slot 2 was hardwired to ABS.
+    // the same two steps asserted here, with no slot hardwired to a material.
     const std::string material = presets::name(2);
     REQUIRE(material == "ASA");
 

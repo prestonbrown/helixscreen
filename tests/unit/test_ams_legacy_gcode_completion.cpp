@@ -13,11 +13,10 @@
  * already run when execute_gcode() returns ran inline.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/mock_printer.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "test_helpers/moonraker_client_mock_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
@@ -53,7 +52,7 @@ class LiveToolChanger : public helix::AmsBackendToolChanger {
     bool drain_on_destroy = true;
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Put tool @p n on the carriage with the toolchanger idle.

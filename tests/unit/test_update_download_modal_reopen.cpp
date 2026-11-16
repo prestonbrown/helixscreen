@@ -13,9 +13,9 @@
 
 #include "ui_modal.h"
 #include "ui_settings_updates.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "system/update_checker.h"
 
 #include <string>
@@ -115,5 +115,64 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update download dialog returns to show a la
     }
 
     overlay.hide_update_download_modal();
+    settle();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A closing modal leaves a markdown widget its own data",
+                 "[update_checker][modal][ui_markdown]") {
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+    checker.show_update_notification();
+    settle();
+    lv_obj_t* markdown = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "changelog_text");
+    REQUIRE(markdown != nullptr);
+    REQUIRE(lv_obj_get_user_data(markdown) != nullptr);
+
+    // A parent hears LV_EVENT_DELETE before its children, so the slot the widget's
+    // own delete handler is about to free through can still be read here.
+    struct Seen {
+        lv_obj_t* markdown;
+        bool ran = false;
+        bool had_data = false;
+    } seen{markdown};
+    lv_obj_add_event_cb(
+        lv_obj_get_parent(markdown),
+        [](lv_event_t* e) {
+            auto* s = static_cast<Seen*>(lv_event_get_user_data(e));
+            s->ran = true;
+            s->had_data = lv_obj_get_user_data(s->markdown) != nullptr;
+        },
+        LV_EVENT_DELETE, &seen);
+
+    checker.hide_update_notification();
+    process_lvgl(400); // the exit animation ends and the tree is deleted
+    settle();
+    REQUIRE(seen.ran);
+    CHECK(seen.had_data);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Update notification shows again after a backdrop dismissal",
+                 "[update_checker][modal][widget_ref]") {
+    // show_update_notification() opens the dialog only while its handle is
+    // empty. A backdrop tap closes the dialog without reaching
+    // hide_update_notification(), so the handle has to notice the delete
+    // itself or the next check's notification never appears.
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+
+    checker.show_update_notification();
+    settle();
+    REQUIRE(ModalStack::instance().top_component_name() == "update_notify_modal");
+
+    dismiss_by_backdrop();
+    process_lvgl(400); // the exit animation ends and the tree is deleted
+    settle();
+    REQUIRE(ModalStack::instance().top_component_name().empty());
+
+    checker.show_update_notification();
+    settle();
+    CHECK(ModalStack::instance().top_component_name() == "update_notify_modal");
+
+    checker.hide_update_notification();
     settle();
 }

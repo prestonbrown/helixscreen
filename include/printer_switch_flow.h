@@ -3,10 +3,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -38,10 +40,10 @@ class PrinterSwitchFlow {
     /// Teardown releases the current printer, rebuild brings up the active one and reports
     /// whether it started connecting, land_home shows the home panel.
     struct Restart {
-        std::function<void()> teardown;
+        helix::SharedCallback<void()> teardown;
         /// Returns whether a connection to the new printer was started.
-        std::function<bool()> rebuild;
-        std::function<void()> land_home;
+        helix::SharedCallback<bool()> rebuild;
+        helix::SharedCallback<void()> land_home;
     };
 
     /// `config` is read through the reference because its owner assigns it after
@@ -63,8 +65,9 @@ class PrinterSwitchFlow {
 
     /// Adds the printer at `host`:`port` and switches to it the way request_switch() does. An
     /// address already in the list switches to that printer instead of adding a duplicate.
-    /// Returns whether it switched before returning.
-    bool add_printer(const std::string& host, int port);
+    /// A non-blank `api_key` becomes the added or found printer's key. Returns whether it
+    /// switched before returning.
+    bool add_printer(const std::string& host, int port, const std::string& api_key = {});
 
     /// The printer the app is connected to. Compared against instead of the config's active
     /// id, which a removal moves to another printer before the switch is requested.
@@ -114,7 +117,7 @@ class PrinterSwitchFlow {
     bool m_soft_restart_in_progress = false;
 
     /// The last "the printer is printing" confirmation shown; may already be closed.
-    lv_obj_t* m_confirm_dialog = nullptr;
+    helix::ui::WidgetRef m_confirm_dialog;
 
     /// Whether that confirmation is still on screen. A hidden one is closed and forgotten.
     bool confirm_pending();
@@ -132,7 +135,7 @@ class PrinterSwitchFlow {
     std::string m_connected_printer_id;
 
     /// The card on the top layer that covers a restart; null when none is up.
-    lv_obj_t* m_interstitial = nullptr;
+    helix::ui::WidgetRef m_interstitial;
     ObserverGuard m_connect_observer;
     ui::LvglTimerGuard m_connect_timeout;
 
@@ -147,7 +150,7 @@ class PrinterSwitchFlow {
     void dismiss_interstitial();
 
     /// The latest switch or add request waiting for the next tick; empty when none is.
-    std::function<void()> m_pending_request;
+    helix::SharedCallback<void()> m_pending_request;
     /// A wizard cancel restored the previous printer and its restart waits for the tick.
     bool m_cancel_restart_pending = false;
     /// The tick that runs the waiting work is already posted.
@@ -159,12 +162,12 @@ class PrinterSwitchFlow {
     /// The tick: a waiting cancel's restart, then the waiting request.
     void run_waiting_restarts();
     /// Makes `request` the one that runs on the next tick, replacing any request waiting.
-    void post_request(std::function<void()> request);
+    void post_request(helix::SharedCallback<void()> request);
 
     /// During an UpdateQueue drain, posts `work` through post_request() and returns true.
     /// Otherwise this call is newer than anything waiting: it runs a waiting cancel's
     /// restart in place, drops a waiting request, and returns false for the caller to go on.
-    bool deferred_out_of_drain(const char* entry, std::function<void()> work);
+    bool deferred_out_of_drain(const char* entry, helix::SharedCallback<void()> work);
 
     /// The teardown hook. Entered inside an UpdateQueue drain it asserts in debug builds and
     /// logs an error in release builds, where the teardown still runs.

@@ -12,12 +12,12 @@
  */
 
 #include "ui_ams_mini_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <memory>

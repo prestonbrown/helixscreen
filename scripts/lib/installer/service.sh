@@ -31,6 +31,36 @@ _template_install_paths() {
     done
 }
 
+# Fill every placeholder an installed helixscreen.service carries: the service
+# user and group, the printer_data config dir it records for
+# restore-user-config.sh, and the install paths (from INSTALL_DIR, as
+# _template_install_paths reads it).
+# Args: UNIT_FILE USER GROUP PD_HELIX_DIR
+_template_service_unit() {
+    _sed_inplace "s|@@HELIX_USER@@|$2|g" "$1"
+    _sed_inplace "s|@@HELIX_GROUP@@|$3|g" "$1"
+    _sed_inplace "s|@@HELIX_PD_HELIX@@|$(sed_escape_replacement "$4")|g" "$1"
+    _template_install_paths "$1"
+}
+
+# The oneshot units an image install leaves behind to finish its setup on the
+# printer's first boot (image.sh). They do nothing once that has run, but they
+# are ours, so an uninstall or a clean reinstall removes them.
+HELIX_FIRST_BOOT_UNIT="helixscreen-firstboot.service"
+HELIX_FIRST_BOOT_MOONRAKER_UNIT="helixscreen-firstboot-moonraker.service"
+
+remove_first_boot_unit() {
+    local unit name
+    for name in "$HELIX_FIRST_BOOT_UNIT" "$HELIX_FIRST_BOOT_MOONRAKER_UNIT"; do
+        unit="${HELIX_SYSTEMD_UNIT_DIR:-/etc/systemd/system}/${name}"
+        [ -f "$unit" ] || continue
+        $SUDO systemctl disable "$name" 2>/dev/null || true
+        $SUDO rm -f "$unit"
+        log_info "Removed $name"
+    done
+    return 0
+}
+
 # Returns true if this process is running under the NoNewPrivileges systemd constraint.
 # When helix-screen self-updates, it spawns install.sh as a child process.  The
 # helixscreen.service unit has NoNewPrivileges=true, so ALL sudo calls in install.sh
@@ -525,17 +555,11 @@ install_service_systemd() {
 
     $SUDO cp "$service_src" "$service_dest"
 
-    # Template placeholders (match SysV pattern in install_service_sysv).
     # KLIPPER_GROUP is the user's actual primary group (resolved via id -gn);
-    # falling back to KLIPPER_USER would re-introduce the QIDI Q2 bug where
-    # `mks` user has no `mks` group and systemd refuses to spawn the unit.
-    local helix_user="${KLIPPER_USER:-root}"
-    local helix_group="${KLIPPER_GROUP:-${KLIPPER_USER:-root}}"
-
-    _sed_inplace "s|@@HELIX_USER@@|${helix_user}|g" "$service_dest"
-    _sed_inplace "s|@@HELIX_GROUP@@|${helix_group}|g" "$service_dest"
-    _sed_inplace "s|@@HELIX_PD_HELIX@@|$(sed_escape_replacement "$(helix_pd_helix_dir)")|g" "$service_dest"
-    _template_install_paths "$service_dest"
+    # falling back to KLIPPER_USER breaks the QIDI Q2, where the `mks` user
+    # has no `mks` group and systemd refuses to spawn the unit.
+    _template_service_unit "$service_dest" "${KLIPPER_USER:-root}" \
+        "${KLIPPER_GROUP:-${KLIPPER_USER:-root}}" "$(helix_pd_helix_dir)"
 
     if ! run_logged $SUDO systemctl daemon-reload; then
         log_error "Failed to reload systemd daemon."
@@ -906,6 +930,14 @@ deploy_platform_hooks() {
     fi
 }
 
+# Run an ownership command without ever failing the install. Tries without sudo
+# first: during self-update under NoNewPrivileges sudo is blocked, but the files
+# are already user-owned so the bare command succeeds. Falls back to sudo for
+# fresh installs where root owns them.
+_run_ownership_cmd() {
+    "$@" 2>/dev/null || $SUDO "$@" 2>/dev/null || true
+}
+
 # Fix ownership of install directory for non-root service users.
 # The entire INSTALL_DIR must be user-owned so that in-app self-updates
 # (which run under NoNewPrivileges=true, blocking sudo) can replace
@@ -926,12 +958,16 @@ fix_install_ownership() {
     # install lands as root; this re-chowns the whole tree regardless.
     log_info "Setting ownership to ${user}:${group}..."
 
-    # Try without sudo first: during self-update under NoNewPrivileges,
-    # sudo is blocked but files are already user-owned so chown succeeds
-    # without it (or is a no-op).  Fall back to sudo for fresh installs
-    # where root may own the directory.
-    chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || \
-        $SUDO chown -Rh "${user}:${group}" "${INSTALL_DIR}" 2>/dev/null || true
+    _run_ownership_cmd chown -Rh "${user}:${group}" "$INSTALL_DIR"
+}
+
+# Hand printer_data/config/helixscreen/ to the service user; the rule lives in
+# the payload's fix-user-config-owner.sh. Call after the last step that writes
+# into that directory.
+fix_user_config_ownership() {
+    local script="${INSTALL_DIR}/config/fix-user-config-owner.sh"
+    [ -f "$script" ] || return 0
+    _run_ownership_cmd sh "$script" "${KLIPPER_USER:-}" "${KLIPPER_GROUP:-${KLIPPER_USER:-}}" "$(helix_pd_helix_dir)"
 }
 
 # Stop service for update

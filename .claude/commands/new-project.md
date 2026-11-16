@@ -13,7 +13,7 @@ handoff that `/continue-project` resumes.
 
 1. **Brainstorm** with `superpowers:brainstorming` until the user approves a design.
 2. **Plan** with `superpowers:writing-plans`, written to the location below.
-3. **Worktree:** `scripts/setup-worktree.sh feature/<name>`, per CLAUDE.md § Worktrees.
+3. **Worktree:** `scripts/setup-worktree.sh feature/<name>`, per the `helix-ops` skill § Worktrees.
    A harness-made worktree has no lib/ symlinks or submodules, so prefer the script.
 4. **Handoff** (below).
 

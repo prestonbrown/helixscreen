@@ -3,13 +3,12 @@
 #pragma once
 
 #include "board_fingerprint.h"
+#include "json_fwd.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;

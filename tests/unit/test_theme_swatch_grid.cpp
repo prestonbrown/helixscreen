@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // TEST_MIRROR_OK: registers and instantiates the shipped
-//                 ui_xml/components/color_swatch_grid.xml (both palettes)
-//                 through lv_xml_create(); every colour asserted on is read back out of
-//                 the real widget tree. The "mirrors that block verbatim" note further
-//                 down describes a probe component built from color_picker.xml's <if> --
-//                 test input, not reimplemented production logic.
+//                 ui_xml/components/color_swatch_grid.xml (both palettes) and the real
+//                 color picker; every colour asserted on is read back out of the real
+//                 widget tree.
 //
 // The theme palette (color_swatch_grid palette="theme") is the theme-editor's
 // presets. Unlike the general palette it is structured: the first 12 swatches are a dark->light
@@ -19,9 +17,14 @@
 #include "ui_swatch.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "draw/lv_draw_buf_private.h" // the handlers the buffer count wraps
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <new>
+#include <set>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -113,7 +116,7 @@ TEST_CASE_METHOD(GridFixture,
                  "[xml][theme][swatch]") {
     lv_obj_t* grid = create();
     REQUIRE(lv_obj_get_child_count(grid) == kTotal + kLead);
-    CHECK(lv_obj_has_flag(lv_obj_get_child(grid, 0), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_get_child(grid, 0)));
     REQUIRE(kTotal % kCols == 0);
 }
 
@@ -123,7 +126,7 @@ TEST_CASE_METHOD(GridFixture, "color_swatch_grid theme palette: every swatch is 
     for (uint32_t i = kLead; i < lv_obj_get_child_count(grid); i++) {
         lv_obj_t* child = lv_obj_get_child(grid, static_cast<int32_t>(i));
         INFO("swatch index " << i);
-        REQUIRE(lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE));
+        REQUIRE(lv_obj_is_clickable(child));
     }
 }
 
@@ -192,73 +195,99 @@ TEST_CASE_METHOD(GridFixture,
 }
 
 // --- palette selection -------------------------------------------------
-// color_picker.xml switches grids with <if cond="color_picker_palette eq 1">.
-// This mirrors that block verbatim (same cond, same two component names) so a
-// typo'd component name or a broken cond fails here rather than at runtime.
+// ColorPicker::set_palette() picks which grid color_picker.xml's <if> builds.
+// These open the real picker, so a typo'd component name or a broken cond in
+// color_picker.xml fails here rather than at runtime.
 
 namespace {
 
 constexpr uint32_t kThemeFirstSwatch = 0x0B0D14;   // theme palette row 1 col 1
 constexpr uint32_t kGeneralFirstSwatch = 0x1A1A1A; // general palette row 1 col 1
 
-constexpr const char* kPaletteSwitchComponent =
-    "<component><view><lv_obj name='host'>"
-    "  <if cond='color_picker_palette eq 1'>"
-    "    <color_swatch_grid palette='theme' swatch_callback='color_swatch_clicked_cb'/>"
-    "    <else/>"
-    "    <color_swatch_grid swatch_callback='color_swatch_clicked_cb'/>"
-    "  </if>"
-    "</lv_obj></view></component>";
-
-struct PaletteSwitchFixture : public LVGLTestFixture {
-    lv_subject_t palette_subject{};
-
-    PaletteSwitchFixture() {
-        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/globals.xml") == LV_RESULT_OK);
-        helix::ui::register_swatch_paint_widget();
-        helix::ui::ensure_swatch_grid_subjects();
-        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/color_swatch.xml") ==
-                LV_RESULT_OK);
-        REQUIRE(lv_xml_register_component_from_file("A:ui_xml/components/color_swatch_grid.xml") ==
-                LV_RESULT_OK);
-        lv_subject_init_int(&palette_subject, 0);
-        lv_xml_register_subject(nullptr, "color_picker_palette", &palette_subject);
-        REQUIRE(lv_xml_register_component_from_data("palette_switch_probe",
-                                                    kPaletteSwitchComponent) == LV_RESULT_OK);
-    }
-
-    ~PaletteSwitchFixture() {
-        lv_xml_component_unregister("palette_switch_probe");
-        lv_subject_deinit(&palette_subject);
-    }
-
-    /// First swatch color of whichever grid the <if> built.
-    uint32_t built_grid_first_swatch() {
-        auto* view = static_cast<lv_obj_t*>(
-            lv_xml_create(lv_screen_active(), "palette_switch_probe", nullptr));
-        REQUIRE(view != nullptr);
-        lv_obj_t* host = lv_obj_find_by_name(view, "host");
-        REQUIRE(host != nullptr);
-        REQUIRE(lv_obj_get_child_count(host) == 1); // exactly one grid, never both
-        lv_obj_t* grid = lv_obj_get_child(host, 0);
-        REQUIRE(lv_obj_get_child_count(grid) == kTotal + kLead);
-        lv_color_t bg = helix::ui::swatch_color_of(lv_obj_get_child(grid, kLead));
-        return lv_color_to_u32(bg) & 0xFFFFFF;
-    }
-};
+/// First swatch colour of the grid the real color picker builds for `palette`.
+uint32_t picker_first_swatch(helix::ui::ColorPicker::Palette palette) {
+    helix::ui::ColorPicker picker;
+    picker.set_palette(palette);
+    REQUIRE(picker.show_with_color(lv_screen_active(), 0x808080));
+    lv_obj_t* grid = lv_obj_find_by_name(picker.dialog(), "color_swatch_grid");
+    REQUIRE(grid != nullptr);
+    REQUIRE(lv_obj_get_child_count(grid) == kTotal + kLead);
+    const uint32_t first =
+        lv_color_to_u32(helix::ui::swatch_color_of(lv_obj_get_child(grid, kLead))) & 0xFFFFFF;
+    picker.hide();
+    return first;
+}
 
 } // namespace
 
-TEST_CASE_METHOD(PaletteSwitchFixture, "color picker palette: Theme selects the theme grid",
+TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: Theme selects the theme grid",
                  "[xml][theme][swatch]") {
-    lv_subject_set_int(&palette_subject, 1); // ColorPicker::Palette::Theme
-    REQUIRE(built_grid_first_swatch() == kThemeFirstSwatch);
+    CHECK(picker_first_swatch(helix::ui::ColorPicker::Palette::Theme) == kThemeFirstSwatch);
 }
 
-TEST_CASE_METHOD(PaletteSwitchFixture, "color picker palette: General selects the shared grid",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "color picker: destroyed while shown, it is no callback's target",
                  "[xml][theme][swatch]") {
-    lv_subject_set_int(&palette_subject, 0); // ColorPicker::Palette::General
-    REQUIRE(built_grid_first_swatch() == kGeneralFirstSwatch);
+    alignas(helix::ui::ColorPicker) unsigned char storage[sizeof(helix::ui::ColorPicker)];
+    auto* doomed = new (storage) helix::ui::ColorPicker;
+    REQUIRE(doomed->show_with_color(lv_screen_active(), 0x808080));
+    doomed->~ColorPicker();
+    std::memset(storage, 0, sizeof(storage));
+
+    // A pointer left at the freed instance dispatches through its zeroed vtable.
+    lv_event_cb_t cancel = lv_xml_get_event_cb(nullptr, "color_picker_cancel_cb");
+    REQUIRE(cancel != nullptr);
+    cancel(nullptr);
+}
+
+namespace {
+// Draw buffers allocated while the picker lives and not yet freed, counted
+// through LVGL's default handlers. Buffers other code made before stay out.
+std::set<void*> g_picker_bufs;
+bool g_tracking = false;
+lv_draw_buf_malloc_cb_t g_real_buf_malloc = nullptr;
+lv_draw_buf_free_cb_t g_real_buf_free = nullptr;
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "color picker: closing it gives back the HSV picker's buffers",
+                 "[xml][theme][swatch]") {
+    process_lvgl(50); // settle what earlier tests left queued before counting starts
+    lv_draw_buf_handlers_t* handlers = lv_draw_buf_get_handlers();
+    g_real_buf_malloc = handlers->buf_malloc_cb;
+    g_real_buf_free = handlers->buf_free_cb;
+    handlers->buf_malloc_cb = [](size_t size, lv_color_format_t cf) -> void* {
+        void* buf = g_real_buf_malloc(size, cf);
+        if (buf && g_tracking) {
+            g_picker_bufs.insert(buf);
+        }
+        return buf;
+    };
+    handlers->buf_free_cb = [](void* buf) {
+        g_picker_bufs.erase(buf);
+        g_real_buf_free(buf);
+    };
+    g_picker_bufs.clear();
+    g_tracking = true;
+
+    {
+        helix::ui::ColorPicker picker;
+        REQUIRE(picker.show_with_color(lv_screen_active(), 0x808080));
+        REQUIRE(g_picker_bufs.size() >= 2); // the SV square and the hue bar
+        picker.hide();                      // disarms the tree, nulling every user_data in it
+        process_lvgl(50);
+    }
+    process_lvgl(50);
+    g_tracking = false;
+    const size_t left = g_picker_bufs.size();
+    handlers->buf_malloc_cb = g_real_buf_malloc;
+    handlers->buf_free_cb = g_real_buf_free;
+
+    CHECK(left == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "color picker palette: General selects the shared grid",
+                 "[xml][theme][swatch]") {
+    CHECK(picker_first_swatch(helix::ui::ColorPicker::Palette::General) == kGeneralFirstSwatch);
 }
 
 TEST_CASE_METHOD(GridFixture,

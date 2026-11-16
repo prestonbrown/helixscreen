@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include "ui_hidden_network_modal.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "platform_info.h"
 #include "subject_managed_panel.h"
@@ -34,15 +36,7 @@ struct WiFiNetwork;
  * - Connection status feedback
  * - Ethernet status display
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Shared pointer WiFiManager for async callback safety
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (7 total):
+ * ## Subject Bindings (13 total):
  *
  * - wifi_enabled (int) - 0=off, 1=on
  * - wifi_status (string) - Status message
@@ -51,6 +45,12 @@ struct WiFiNetwork;
  * - wifi_password_modal_ssid (string) - SSID for password modal
  * - wifi_connecting (int) - 0=idle, 1=connecting
  * - wifi_hardware_available (int) - 0=unavailable, 1=available
+ * - wifi_can_toggle_radio (int) - 1 when the backend can switch the radio on and off
+ * - wifi_ip (string) - WiFi IP address
+ * - wifi_mac (string) - WiFi MAC address
+ * - ethernet_mac (string) - Ethernet MAC address
+ * - wizard_wifi_password_status (string) - Status line in the password modal
+ * - wizard_wifi_password_status_shown (int) - 1 while that status line has text
  *
  * Initialization Order (CRITICAL):
  *   1. Register XML components (wizard_wifi_setup.xml, wifi_password_modal.xml)
@@ -86,7 +86,7 @@ class WizardWifiStep : public helix::wizard::Step {
     WizardWifiStep();
     ~WizardWifiStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardWifiStep(const WizardWifiStep&) = delete;
     WizardWifiStep& operator=(const WizardWifiStep&) = delete;
@@ -144,6 +144,8 @@ class WizardWifiStep : public helix::wizard::Step {
      * @brief Hide password entry modal
      */
     void hide_password_modal();
+    /// The password modal's error line; empty hides it.
+    void show_password_status(const char* text);
 
     /**
      * @brief Get step name for logging
@@ -161,17 +163,19 @@ class WizardWifiStep : public helix::wizard::Step {
     lv_obj_t* network_list_container_ = nullptr;
 
     // Subjects (visibility controlled by Modal system)
-    lv_subject_t wifi_enabled_{};
-    lv_subject_t wifi_status_{};
-    lv_subject_t wifi_ip_{};
-    lv_subject_t wifi_mac_{};
-    lv_subject_t ethernet_status_{};
-    lv_subject_t ethernet_mac_{};
-    lv_subject_t wifi_scanning_{};
-    lv_subject_t wifi_password_modal_ssid_{};
-    lv_subject_t wifi_connecting_{};
-    lv_subject_t wifi_hardware_available_{};
-    lv_subject_t wifi_can_toggle_radio_{}; ///< 1 if the backend can move the radio
+    helix::Subject wifi_enabled_{};
+    helix::Subject wifi_status_{};
+    helix::Subject wifi_ip_{};
+    helix::Subject wifi_mac_{};
+    helix::Subject ethernet_status_{};
+    helix::Subject ethernet_mac_{};
+    helix::Subject wifi_scanning_{};
+    helix::Subject wifi_password_modal_ssid_{};
+    helix::Subject password_status_{};
+    helix::Subject password_status_shown_{};
+    helix::Subject wifi_connecting_{};
+    helix::Subject wifi_hardware_available_{};
+    helix::Subject wifi_can_toggle_radio_{}; ///< 1 if the backend can move the radio
 
     // String buffers (must be persistent)
     char wifi_status_buffer_[64];
@@ -180,6 +184,7 @@ class WizardWifiStep : public helix::wizard::Step {
     char ethernet_status_buffer_[64];
     char ethernet_mac_buffer_[32];
     char wifi_password_modal_ssid_buffer_[64];
+    char password_status_buffer_[256];
 
     // WiFiManager and EthernetManager (shared_ptr for async safety)
     std::shared_ptr<helix::WiFiManager> wifi_manager_;
@@ -208,6 +213,9 @@ class WizardWifiStep : public helix::wizard::Step {
     void handle_network_item_clicked(lv_event_t* e);
     void handle_modal_cancel_clicked();
     void handle_modal_connect_clicked();
+    void handle_add_hidden_clicked();
+    // What a hidden-network join means for the status line and the list.
+    void on_hidden_join_event(helix::ui::HiddenJoin event, const std::string& ssid);
 
     // Helper functions
     void update_wifi_status(const char* status);

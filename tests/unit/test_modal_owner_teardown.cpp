@@ -17,9 +17,10 @@
 
 #include "ui_button.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
+#include "../test_helpers/widget_in_tree.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "logging_init.h"
 
 // LVGLUITestFixture registers ALL XML components, so print_cancel_confirm_modal
@@ -278,6 +279,42 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Hiding an owned modal raises the modal bene
 // Regression: the static (unowned) path is unchanged
 // ============================================================================
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A modal whose backdrop was deleted behind the stack stays inert",
+                 "[modal][1983]") {
+    auto& stack = ModalStack::instance();
+    lv_obj_t* beneath = Modal::show(kTestComponent);
+    lv_obj_t* above = Modal::show(kTestComponent);
+    REQUIRE((beneath && above));
+    lv_obj_t* above_backdrop = stack.backdrop_for(above);
+
+    lv_obj_delete(above_backdrop);
+
+    // The dead entry answers no query, nullptr included, and hides nothing below it.
+    CHECK(stack.top_dialog() == beneath);
+    CHECK(stack.dialog_for_component(kTestComponent) == beneath);
+    CHECK_FALSE(stack.backdrop_for_backdrop(nullptr));
+    CHECK(stack.backdrop_for(nullptr) == nullptr);
+    stack.remove(nullptr);
+    CHECK(stack.backdrop_for(beneath) != nullptr);
+    stack.clear(); // deletes the live backdrop, skips the dead one
+    CHECK(stack.stack_empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A deleted backdrop leaves the stack and uncovers the chrome",
+                 "[modal][1983]") {
+    auto& stack = ModalStack::instance();
+    lv_obj_t* dialog = Modal::show(kTestComponent);
+    REQUIRE(dialog != nullptr);
+    REQUIRE(stack.covers_chrome());
+
+    lv_obj_delete(stack.backdrop_for(dialog));
+
+    CHECK_FALSE(stack.covers_chrome());
+    CHECK(stack.stack_empty());
+    CHECK(stack.top_component_name().empty());
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Static show/hide still tears a modal down", "[modal][1230]") {
     lv_obj_t* dialog = Modal::show(kTestComponent);
     REQUIRE(dialog != nullptr);
@@ -386,12 +423,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Owner-less hide disarms deeply nested butto
         depth++;
     }
     REQUIRE(depth >= 2); // >= 2 ancestors between button and dialog
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(helix::test::widget_in_tree(primary));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
 
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
@@ -492,7 +529,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Disarm preserves ui_button user_data but cl
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     // Still ui_button's own allocation - button_delete_cb can still free it.
     CHECK(ui_button_owns_user_data(primary));
     // The foreign pointer is gone.
@@ -511,12 +548,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
     REQUIRE(dialog != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     modal.hide();
 
-    REQUIRE(lv_obj_is_valid(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(helix::test::widget_in_tree(primary));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
     CHECK(modal.hide_calls == 1);
 
     process_lvgl(50);
@@ -527,9 +564,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Instance hide disarms through the shared pa
 // The confirmation helpers are owned by an instance (#1379)
 // ============================================================================
 
-// modal_confirm()/modal_alert() used to push through the static factory with
-// owner = nullptr, so nothing observed their close: no on_hide(), no lifetime_,
-// and a dismissal reported nothing to the caller. Housing them on an internal
+// modal_confirm()/modal_alert() pushed through the static factory with
+// owner = nullptr would leave nothing observing their close: no on_hide(), no
+// lifetime_, and a dismissal reporting nothing to the caller. Housing them on an internal
 // Modal subclass makes on_hide() the always-fires resolve point.
 TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal instance",
                  "[modal][teardown][1379]") {
@@ -547,6 +584,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A confirmation dialog is owned by a Modal i
     CHECK(ModalStack::instance().stack_empty());
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "A ComponentModal dialog is owned and closes on ESC",
+                 "[modal][teardown][1958]") {
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned(kTestComponent);
+    REQUIRE(dialog != nullptr);
+    Modal* owner = ModalStack::instance().owner_for(dialog);
+    REQUIRE(owner != nullptr);
+    CHECK(owner->kind_tag() == helix::type_tag<helix::ui::ComponentModal>());
+    CHECK(std::string(owner->component_name()) == kTestComponent);
+
+    uint32_t key = LV_KEY_ESC;
+    lv_obj_send_event(ModalStack::instance().backdrop_for(dialog), LV_EVENT_KEY, &key);
+    process_lvgl(50);
+    CHECK(ModalStack::instance().stack_empty());
+
+    CHECK(helix::ui::ComponentModal::show_owned("no_such_component_xyz") == nullptr);
+    CHECK(ModalStack::instance().stack_empty());
+}
+
 // The owner is what makes the static hide() overload run a real teardown, so a
 // helper dialog closed through it now disarms like any instance-backed modal.
 TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",
@@ -558,12 +613,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A helper dialog disarms through its owner",
     REQUIRE(dialog != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(dialog, "btn_primary");
     REQUIRE(primary != nullptr);
-    REQUIRE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(primary));
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(helix::test::widget_in_tree(primary));
+    CHECK_FALSE(lv_obj_is_clickable(primary));
 
     process_lvgl(50);
     CHECK(ModalStack::instance().stack_empty());
@@ -879,7 +934,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Teardown strips the owner's callbacks from 
 
     Modal::hide(dialog);
 
-    REQUIRE(lv_obj_is_valid(primary));
+    REQUIRE(helix::test::widget_in_tree(primary));
     const uint32_t after = lv_obj_get_event_count(primary);
     // Exactly one removed: ours. ui_button's callbacks carry null user_data and
     // are deliberately left alone.
@@ -939,10 +994,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A dismissal callback may close its own dial
 }
 
 // ESC must report a dismissal on EVERY dialog shape, not just the ones whose
-// cancel button carries a caller callback. Previously on_cancel() served double
-// duty as the cancel-button hook, so a confirmation with a cancel button but no
-// cancel callback latched answered_ on ESC and on_dismiss never fired - the
-// #1380 leak surviving on the ESC path while working on a backdrop tap. Routing
+// cancel button carries a caller callback. If on_cancel() doubled as the
+// cancel-button hook, a confirmation with a cancel button but no cancel
+// callback would latch answered_ on ESC and on_dismiss would never fire (the
+// #1380 leak on the ESC path while a backdrop tap works). Routing
 // every button to the class's own handler leaves on_cancel() reachable only
 // from esc_key_cb, which makes "closed with no button pressed" decidable.
 TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel button but no callback",
@@ -958,7 +1013,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ESC reports a dismissal with a cancel butto
         "Delete Page", "Remove this page?", ModalSeverity::Warning, "Delete",
         [&confirmed]() { ++confirmed; }, opts);
     REQUIRE(dialog != nullptr);
-    // The cancel button exists - this is the shape that used to swallow ESC.
+    // The cancel button exists: the shape that could swallow ESC.
     REQUIRE(lv_obj_find_by_name(dialog, "btn_secondary") != nullptr);
 
     lv_obj_t* backdrop = ModalStack::instance().backdrop_for(dialog);
@@ -1137,7 +1192,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "stacked confirmations keep their own captio
     CHECK(text_of(upper, "btn_secondary") == "Nope");
 
     // The warning icon belongs to the lower dialog, the error icon to the upper.
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(lower, "icon_warning"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(lower, "icon_error"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(upper, "icon_error"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_warning")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_error")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(upper, "icon_error")));
 }

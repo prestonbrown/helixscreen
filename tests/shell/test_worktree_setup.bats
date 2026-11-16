@@ -368,6 +368,12 @@ PATCH
     git -C "$main" commit -qm "main-only patch"
     git -C "$main/lib/lvgl" apply "$main/patches/lvgl_main_only.patch"
 
+    # A Mac's sed has no GNU extensions; --posix gives GNU sed the same limits.
+    local real_sed
+    real_sed=$(command -v sed)
+    mock_command_script sed "if \"$real_sed\" --version >/dev/null 2>&1; then exec \"$real_sed\" --posix \"\$@\"; fi
+exec \"$real_sed\" \"\$@\""
+
     run bash "$main/scripts/setup-worktree.sh" --base rel --no-build feat/back
     [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
 
@@ -800,4 +806,19 @@ mark_tree() {
     [ ! -e "$main/.worktrees/pin/build/obj/lvgl_obj.o" ] \
         || fail "objects built against another lvgl revision were seeded"
     rm -rf "$tmp"
+}
+
+@test "every make the script runs picks gmake only on macOS" {
+    # On Linux `make` may be the jobpool shim; /usr/bin/gmake bypasses it and
+    # the worktree's cold build runs its own -j beside every pooled build.
+    # On macOS bare `make` is Apple's 3.81, which the Makefile refuses.
+    lacks 'command -v gmake ||' "$(cat "$SCRIPT")"
+    contains 'MAKE_BIN="gmake"' "$(cat "$SCRIPT")"
+    contains '"$(uname -s)" == Darwin' "$(cat "$SCRIPT")"
+    contains '"$MAKE_BIN" reapply-patches' "$(cat "$SCRIPT")"
+    contains '"$MAKE_BIN" -j' "$(cat "$SCRIPT")"
+    # A make run as a command (not inside echo text or a comment) goes
+    # through MAKE_BIN.
+    run bash -c "grep -nE '^[[:space:]]*(if !? *)?make[[:space:]]' '$SCRIPT'"
+    [ -z "$output" ] || fail "bare make invocation: $output"
 }

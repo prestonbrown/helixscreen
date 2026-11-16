@@ -81,7 +81,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Jog pad label draw tasks own their text", "[j
     std::vector<LabelTaskInfo> tasks;
     // LV_EVENT_DRAW_TASK_ADDED is sent only for objects carrying this flag
     // (lv_draw.c gates on it), and no widget sets it by default.
-    lv_obj_add_flag(pad, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(pad, true);
     lv_obj_add_event_cb(pad, capture_label_tasks, LV_EVENT_DRAW_TASK_ADDED, &tasks);
 
     // Some displays in this suite are created without a flush callback, so a
@@ -132,7 +132,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Jog pad distance labels read on their own r
     ui_jog_pad_set_mode(pad, helix::JogMode::Coarse);
 
     std::vector<LabelTaskInfo> tasks;
-    lv_obj_add_flag(pad, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(pad, true);
     lv_obj_add_event_cb(pad, capture_label_tasks, LV_EVENT_DRAW_TASK_ADDED, &tasks);
     lv_display_t* display = lv_obj_get_display(pad);
     lv_display_set_flush_cb(

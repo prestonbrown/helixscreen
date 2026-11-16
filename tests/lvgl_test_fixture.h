@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix_test_fixture.h"
 #include "lvgl/lvgl.h"
 

@@ -10,11 +10,11 @@
 #include "ui_panel_common.h"
 #include "ui_utils.h"
 
+#include "core/static_panel_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lua_bindings.h"
 #include "plugin_host.h"
 #include "plugin_xml_policy.h"
-#include "static_panel_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -178,7 +178,7 @@ lv_obj_t* PluginSettingsOverlay::create(lv_obj_t* parent) {
     if (!rows) {
         spdlog::error("[PluginSettings] {}: plugin_settings_overlay has no settings_rows",
                       plugin_id_);
-        destroy_overlay_ui(overlay_root_);
+        destroy_overlay_ui();
         return nullptr;
     }
     for (const SettingDecl& d : settings_decls_)
@@ -232,6 +232,7 @@ bool PluginSettingsOverlay::build_row(lv_obj_t* rows, const SettingDecl& d, cons
     if (d.type == SettingType::Int || d.type == SettingType::Float)
         // required-names: setting_slider_row
         if (lv_obj_t* slider = helix::ui::find_required(row, "slider", get_name()))
+            // DECLARATIVE_OK: per-row payload; the RowBinding rides the event, user data is taken
             lv_obj_add_event_cb(slider, slider_value_changed_cb, LV_EVENT_VALUE_CHANGED, &b);
     apply_row_state(b);
     return true;
@@ -344,7 +345,7 @@ void PluginSettingsOverlay::on_row_action(const RowBinding& b) {
 }
 
 void PluginSettingsOverlay::on_nav_closed() {
-    destroy_overlay_ui(overlay_root_);
+    destroy_overlay_ui();
 }
 
 void register_plugin_settings_callbacks() {

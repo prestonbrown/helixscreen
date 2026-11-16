@@ -14,10 +14,12 @@
  * curated and tested) take precedence over dynamically detected ones.
  */
 
+#include "flat_map.h"
 #include "gcode_ops_detector.h"
 #include "operation_patterns.h"
 #include "print_start_analyzer.h"
 #include "printer_detector.h"
+#include "sort_small.h"
 
 #include <algorithm>
 #include <map>
@@ -194,7 +196,7 @@ class CapabilityMatrix {
     static ParameterSemantic infer_semantic(const std::string& param_name);
 
     /// Map of operation category to list of sources
-    std::map<OperationCategory, std::vector<CapabilitySource>> capabilities_;
+    FlatMap<OperationCategory, std::vector<CapabilitySource>> capabilities_;
 };
 
 // =============================================================================
@@ -318,10 +320,10 @@ inline std::vector<CapabilitySource> CapabilityMatrix::get_all_sources(Operation
 
     // Return copy sorted by priority
     std::vector<CapabilitySource> result = it->second;
-    std::sort(result.begin(), result.end(),
-              [](const CapabilitySource& a, const CapabilitySource& b) {
-                  return origin_priority(a.origin) < origin_priority(b.origin);
-              });
+    sort_small(result.begin(), result.end(),
+               [](const CapabilitySource& a, const CapabilitySource& b) {
+                   return origin_priority(a.origin) < origin_priority(b.origin);
+               });
     return result;
 }
 
@@ -397,6 +399,9 @@ inline OperationCategory CapabilityMatrix::category_from_key(const std::string& 
     }
     if (key == "skew_correct") {
         return OperationCategory::SKEW_CORRECT;
+    }
+    if (key == "motor_sync") {
+        return OperationCategory::MOTOR_SYNC;
     }
     return OperationCategory::UNKNOWN;
 }

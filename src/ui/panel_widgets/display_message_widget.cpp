@@ -5,6 +5,7 @@
 
 #include "ui_icon_codepoints.h"
 
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "panel_widget_registry.h"
 #include "src/ui/panel_widgets/content_chrome.h"
@@ -20,8 +21,8 @@ namespace {
 
 // The verdict panel_widget_display_message.xml binds. Module-level because the widget is
 // single-instance and registration runs before any XML that binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_multiline_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_icon_subject{};
+HELIX_PSRAM_BSS helix::Subject s_multiline_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_icon_subject{};
 helix::WidgetSubjects s_subjects{"DisplayMessageWidgetSubjects"};
 // Only the instance bound to the live tile publishes; a rebuild's outgoing instance
 // must not overwrite the tile's verdict.

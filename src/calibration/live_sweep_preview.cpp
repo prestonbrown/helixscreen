@@ -4,12 +4,13 @@
 
 #include "app_globals.h"
 #include "belt_stream_client.h"
+#include "core/text_io.h"
 #include "env_knobs.h"
 #include "helix_thread.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "rest_response.h"
 #include "runtime_config.h"
-#include "text_io.h"
 
 #ifdef HELIX_ENABLE_MOCKS
 #include "moonraker_client_mock.h"

@@ -1,0 +1,85 @@
+{
+  "name": "Creality K2 Plus (Jacobean firmware)",
+  "description": "K2 Plus on Jacobean's replacement firmware (Kalico). Its START_PRINT (config/k2/start_print.cfg in Jacob10383/kalico) narrates each step through STATUS_MSG, which is M117 plus RESPOND PREFIX=\"[START_PRINT]:\", so the same words reach display_status and the console. The bed waits before the chamber, the soak counts down in whole minutes, Z_TILT_ADJUST runs before the adaptive mesh, and the nozzle is cleaned and touched off after the mesh. The opening 'Start print macro called with' line echoes BED_TEMP and EXTRUDER_TEMP, so no pattern keys on those tokens",
+  "progress_mode": "weighted",
+  "adaptive_meshing": true,
+  "phase_object": {
+    "object": "display_status",
+    "field": "message"
+  },
+  "signal_formats": [],
+  "response_patterns": [
+    {
+      "pattern": "G28|Homing",
+      "phase": "HOMING",
+      "message": "Homing...",
+      "weight": 5
+    },
+    {
+      "pattern": "Waiting for bed to reach|Preheating: Nozzle=",
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 20
+    },
+    {
+      "pattern": "Soaking: [0-9]",
+      "phase": "SOAKING",
+      "message": "Heat Soaking...",
+      "weight": 15
+    },
+    {
+      "pattern": "Waiting for chamber to reach|bed-assisted chamber heating",
+      "phase": "HEATING_CHAMBER",
+      "message": "Heating Chamber...",
+      "weight": 15
+    },
+    {
+      "pattern": "Z_TILT_ADJUST|Making the following Z adjustments",
+      "phase": "Z_TILT",
+      "message": "Z Tilt Adjust...",
+      "weight": 10
+    },
+    {
+      "pattern": "Meshing bed|BED_MESH_CALIBRATE(?!_START_PRINT)",
+      "phase": "BED_MESH",
+      "message": "Bed Mesh...",
+      "weight": 15
+    },
+    {
+      "pattern": "NOZZLE_CLEAN|PRTOUCH_SCRUB",
+      "phase": "CLEANING",
+      "message": "Cleaning Nozzle...",
+      "weight": 5
+    },
+    {
+      "pattern": "Waiting for nozzle to reach|Setting extruder to",
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    }
+  ],
+  "status_signals": [
+    {
+      "name": "heating_bed",
+      "object": "heater_bed",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_BED",
+      "message": "Heating Bed...",
+      "weight": 15
+    },
+    {
+      "name": "heating_nozzle",
+      "object": "extruder",
+      "when": [
+        { "field": "target", "op": "gt", "value": 0 },
+        { "field": "temperature", "op": "lt", "ref_field": "target", "offset": -2 }
+      ],
+      "phase": "HEATING_NOZZLE",
+      "message": "Heating Nozzle...",
+      "weight": 15
+    }
+  ]
+}

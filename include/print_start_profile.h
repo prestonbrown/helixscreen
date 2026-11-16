@@ -19,8 +19,8 @@
  * Each profile contains signal format mappings (exact prefix matching) and
  * regex response patterns, loaded from JSON config files.
  *
- * @see config/print_start_profiles/default.json - Generic patterns for unknown printers
- * @see config/print_start_profiles/forge_x.json - FlashForge AD5M Forge-X mod
+ * @see assets/config/print_start_profiles/default.json - Generic patterns for unknown printers
+ * @see assets/config/print_start_profiles/forge_x.json - FlashForge AD5M Forge-X mod
  */
 class PrintStartProfile {
     friend class PrintStartProfileTestAccess;
@@ -81,6 +81,9 @@ class PrintStartProfile {
         /// Phases the step this text begins emits signals for on its own,
         /// such as a nozzle clean that parks at the purge position
         std::vector<helix::PrintStartPhase> owns;
+        /// The firmware prints this text only once it has committed to a print
+        /// (see announces_print_start())
+        bool announces_start = false;
     };
 
     /**
@@ -251,6 +254,16 @@ class PrintStartProfile {
      */
     bool try_match_tag(const std::string& line, MatchResult& result) const;
 
+    /**
+     * @brief Whether a console line is the printer announcing a print start
+     *
+     * True when a tag pattern marked `announces_start` matches: a line the
+     * firmware prints only once it has committed to a print, before print_stats
+     * reports one. The collector arms on it when nothing else has, so a print
+     * started from another app shows Preparing from its first step.
+     */
+    bool announces_print_start(const std::string& line) const;
+
     /// A reported progress value as 0-100: a value at or below 1.5 is a 0-1
     /// fraction, anything larger is already a percent; clamped to 0-100.
     /// -1 for a negative or non-finite value.
@@ -329,8 +342,8 @@ class PrintStartProfile {
     /// phase state. When set, the collector reads the declared field out of
     /// every status frame carrying the object and maps the state string to a
     /// phase through the state_patterns — the same matching pipeline a console
-    /// line takes. Absent declaration means exactly today's behavior: the
-    /// collector never consults status frames for phases.
+    /// line takes. Without a declaration the collector never consults status
+    /// frames for phases.
     bool has_phase_object() const {
         return !phase_object_name_.empty();
     }
@@ -376,7 +389,7 @@ class PrintStartProfile {
     // =========================================================================
 
     /// Rules declared under "status_signals", in file order. Empty for
-    /// profiles that declare none — which is exactly the pre-feature behavior.
+    /// profiles that declare none.
     const std::vector<StatusSignalRule>& status_signals() const {
         return status_signals_;
     }

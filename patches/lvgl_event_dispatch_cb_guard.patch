@@ -1,21 +1,22 @@
 diff --git a/src/core/lv_obj_event.c b/src/core/lv_obj_event.c
+index 49d7e8785..de842cef7 100644
 --- a/src/core/lv_obj_event.c
 +++ b/src/core/lv_obj_event.c
-@@ -19,6 +19,12 @@
- __attribute__((weak)) extern void helix_crash_note_event(const void * target,
+@@ -20,6 +20,12 @@ __attribute__((weak)) extern void helix_crash_note_event(const void * target,
                                                            const void * original_target,
                                                            unsigned int code);
-+
+ 
 +/* HelixScreen 3XNZQB2R: pair the bare-pointer event hook with widget
 + * identity (class name + object name) for crash diagnosis. Weak so
 + * non-helixscreen builds (splash/watchdog/tests) link without it. */
 +__attribute__((weak)) extern void helix_crash_note_event_target_id(const char * class_name,
 +                                                                    const char * obj_name);
-
++
  /*********************
   *      DEFINES
-@@ -422,6 +428,17 @@ static lv_result_t event_send_core(lv_event_t * e)
-
+  *********************/
+@@ -371,6 +377,17 @@ static lv_result_t event_send_core(lv_event_t * e)
+ 
      /* HelixScreen: record innermost dispatch target for crash diagnosis. */
      if(helix_crash_note_event) helix_crash_note_event(e->current_target, e->original_target, (unsigned int)e->code);
 +    /* HelixScreen 3XNZQB2R: pair the bare-pointer hook with widget identity
@@ -29,13 +30,14 @@ diff --git a/src/core/lv_obj_event.c b/src/core/lv_obj_event.c
 +#endif
 +        helix_crash_note_event_target_id(_hx_cls, _hx_nm);
 +    }
-
+ 
      lv_indev_t * indev_act = lv_indev_active();
      if(indev_act) {
 diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
+index 12133463f..80c696a58 100644
 --- a/src/misc/lv_event.c
 +++ b/src/misc/lv_event.c
-@@ -18,6 +18,12 @@
+@@ -15,6 +15,12 @@
   * to TelemetryManager with a hex backtrace. Weak so unit tests link without it. */
  extern void helix_lvgl_anomaly(const char * code, const char * context) __attribute__((weak));
  
@@ -48,7 +50,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
  /*********************
   *      DEFINES
   *********************/
-@@ -196,6 +202,19 @@
+@@ -191,6 +197,19 @@ lv_result_t lv_event_send(lv_event_list_t * list, lv_event_t * e, bool preproces
      const uint32_t size = event_array_size(list);
      for(uint32_t i = 0; i < size && !e->deleted; i++) {
          lv_event_dsc_t * dsc = *event_array_at(list, i);
@@ -68,7 +70,7 @@ diff --git a/src/misc/lv_event.c b/src/misc/lv_event.c
          if(dsc->cb == NULL) continue;
          if(event_is_marked_deleting(dsc)) continue;
          const bool is_preprocessed = (dsc->filter & LV_EVENT_PREPROCESS) != 0;
-@@ -206,7 +225,37 @@
+@@ -201,7 +220,37 @@ lv_result_t lv_event_send(lv_event_list_t * list, lv_event_t * e, bool preproces
  #if LV_USE_EXT_DATA
              e->ext_data.data = dsc->ext_data.data;
  #endif

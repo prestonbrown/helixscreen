@@ -16,12 +16,11 @@
  */
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
-
-// Forward declaration
 
 namespace helix {
 class IMoonrakerAPI;
@@ -185,9 +184,11 @@ class HelixPluginInstaller {
     /**
      * @brief Check if we should prompt for plugin installation
      *
-     * Returns false with beta features off, before the first-run wizard is
-     * done, once the user checked "don't ask again", and once the prompt is
-     * settled for this session.
+     * Returns false before the first-run wizard is done, once the user checked
+     * "don't ask again", once the prompt is settled for this session, on a
+     * Moonraker on this machine that cannot load the plugin, and while a snooze
+     * holds (decide_plugin_prompt_snooze()). A remote Moonraker's processes
+     * cannot be read from here, so it is always offered.
      *
      * @return true if we should show the install prompt
      */
@@ -206,9 +207,28 @@ class HelixPluginInstaller {
     /**
      * @brief Save preference to not prompt again
      *
-     * Called when user dismisses the install dialog with "don't ask again".
+     * Called when the user dismisses the install dialog with "don't ask
+     * again", and when the plugin is uninstalled: removing it is a firmer no
+     * than Not Now. The Advanced Install row still works afterwards.
      */
     void set_install_declined();
+
+    /**
+     * @brief Hold the prompt off for kPluginPromptSnoozeSeconds
+     *
+     * Called when the install dialog closes without "don't ask again".
+     */
+    void snooze_install_prompt();
+
+    /// Where the prompt reads the time. Process-wide, because each panel owns
+    /// its own installer. Null reads the wall clock.
+    using PromptClock = int64_t (*)();
+    static void set_prompt_clock(PromptClock clock);
+
+    /// What answers whether the Moonraker on this machine can load the plugin.
+    /// Process-wide, like the clock. Null reads the process table.
+    using AddonCheck = bool (*)();
+    static void set_addon_check(AddonCheck check);
 
     // === State ===
 
@@ -237,10 +257,64 @@ class HelixPluginInstaller {
 
     // Set by settle_prompt_for_session(); cleared only by a new process.
     static bool prompt_settled_for_session_;
-
-    // Config key for "don't ask again" preference
-    static constexpr const char* kPrefInstallDeclined = "/plugin_install_declined";
+    // Set by the first snooze check of this process, so a reconnect does not
+    // count as another start.
+    static bool snooze_checked_this_start_;
+    static PromptClock prompt_clock_;
+    static AddonCheck addon_check_;
+    static int64_t read_prompt_clock();
 };
+
+struct LocalPluginRecipe;
+
+/**
+ * @brief HelixPrint's recipe for the local plugin installer
+ *
+ * The plugin ships beside install.sh, so there is nothing to fetch; `install.sh
+ * --no-restart --auto` links it and writes its [helix_print] section, and the
+ * caller restarts Moonraker.
+ */
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds);
+
+/// How long closing the install prompt without "don't ask again" holds it off.
+inline constexpr int64_t kPluginPromptSnoozeSeconds = 7 * 24 * 60 * 60;
+
+/// Starts a snooze outlasts while the clock cannot measure it. A printer with
+/// no RTC and no NTP never can, and it still gets asked again eventually.
+inline constexpr int kPluginPromptMaxUnmeasuredStarts = 7;
+
+/// Stored as the snooze time when the clock could not be trusted at dismissal.
+inline constexpr int64_t kPluginPromptStampUnknown = 1;
+
+struct PluginPromptSnooze {
+    int64_t snoozed_at_s = 0; ///< 0: never snoozed
+    int unmeasured_starts = 0;
+};
+
+struct PluginPromptSnoozeTurn {
+    bool open = false;
+    PluginPromptSnooze snooze; ///< what to store
+};
+
+/// The snooze to store for a dismissal at @p now_s.
+[[nodiscard]] PluginPromptSnooze plugin_prompt_snooze_at(int64_t now_s);
+
+/**
+ * @brief Whether a snooze lets the install prompt open at @p now_s
+ *
+ * A printer without an RTC reads 1970 or its build date until NTP reaches it,
+ * so the two readings cannot always be compared:
+ * - Both trusted and in order: open once kPluginPromptSnoozeSeconds passed.
+ * - Dismissed on an untrusted clock, now trusted: the snooze starts now.
+ * - Clock untrusted, or behind the stamp: the stamp stays, since a later NTP
+ *   reading measures it correctly, and this start counts. After
+ *   kPluginPromptMaxUnmeasuredStarts of them the prompt opens, so a stamp from
+ *   a clock that was wrong cannot lock it out.
+ *
+ * @param new_start false for a re-check within one run of the app
+ */
+[[nodiscard]] PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze,
+                                                                 int64_t now_s, bool new_start);
 
 /**
  * @brief The git ref holding the plugin of app version @p version
@@ -253,9 +327,10 @@ std::string plugin_release_ref(std::string_view version);
 /**
  * @brief The shell one-liner that installs the plugin of git ref @p ref
  *
- * Fetches that ref's moonraker-plugin/remote-install.sh and runs it with sh,
- * pinned to the same ref, so the plugin files and the installer that places
- * them both come from it.
+ * A release fetches remote-install.sh from the release CDN, which installs
+ * that release's plugin tarball (or, for a release the CDN has pruned, runs
+ * the release's own copy from GitHub). main fetches main's remote-install.sh
+ * from GitHub. Either way the wrapper is pinned to @p ref.
  */
 std::string plugin_remote_install_command(std::string_view ref);
 
@@ -328,7 +403,9 @@ PluginLinkCheck relink_plugin(const std::string& script_path, int timeout_second
  */
 enum class PluginRestartOutcome {
     Restarted,    ///< Moonraker restarted and runs the plugin this app ships
-    NeedsManual,  ///< Moonraker refused the restart, or still runs the old plugin
+    NeedsManual,  ///< Moonraker restarted but still runs the old plugin, or loaded none
+    NoService,    ///< Moonraker cannot restart its own service, so only a reboot reloads it
+    Refused,      ///< Moonraker refused the restart; nothing restarted
     HeldForPrint, ///< a print is printing or paused
     JobUnknown,   ///< the print state could not be read, so nothing restarted
     NotAnswering, ///< Moonraker does not answer, before the restart or after it
@@ -339,13 +416,14 @@ enum class PluginRestartOutcome {
 /**
  * @brief Whether a restart with @p outcome counts as done for the plugin it was for
  *
- * A restart that finished counts, and so does one Moonraker refused or that
- * left the old plugin running when @p plugin_was_loaded: asking again for the
- * same versions would only repeat the warning. With no plugin loaded, one
- * that did not load it is tried again, as the next start may find what kept
- * it out repaired. The next app start repeats any other (a print hold, an
- * unreadable print state, a Moonraker that did not answer), which can clear
- * by itself.
+ * Only a restart that happened counts: one that finished, and one that left
+ * the old plugin running when @p plugin_was_loaded, since asking again for
+ * the same versions would only restart Moonraker for nothing. With no plugin
+ * loaded, one that did not load it is tried again, as the next start may find
+ * what kept it out repaired. The next app start repeats any other: a refusal,
+ * a Moonraker that cannot restart its own service (whose reboot advice then
+ * comes again until a reboot loads the plugin), a print hold, an unreadable
+ * print state, a Moonraker that did not answer.
  */
 bool plugin_restart_finished(PluginRestartOutcome outcome, bool plugin_was_loaded);
 

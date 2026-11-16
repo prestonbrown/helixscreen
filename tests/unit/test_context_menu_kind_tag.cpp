@@ -5,9 +5,9 @@
  * @file test_context_menu_kind_tag.cpp
  * @brief ContextMenu::active_as<T>() resolves the live menu without RTTI.
  *
- * The firmware builds `-fno-rtti`, so the `dynamic_cast` that used to back
- * active_as<>() is gone; each subclass now declares HELIX_CONTEXT_MENU_KIND and
- * the helper compares kind tags. What has to hold for the ~40 XML callbacks that
+ * The firmware builds `-fno-rtti`, so active_as<>() cannot use `dynamic_cast`;
+ * each subclass declares HELIX_CONTEXT_MENU_KIND and the helper compares kind
+ * tags. What has to hold for the ~40 XML callbacks that
  * downcast through it: the menu on screen answers to its own type, and — the half
  * a broken tag scheme would silently lose — does NOT answer to a sibling's.
  */
@@ -83,16 +83,29 @@ TEST_CASE_METHOD(XMLTestFixture, "context menu: active_as resolves the live menu
         MenuAlpha alpha;
         show(alpha, test_screen());
         alpha.hide();
-        process_lvgl(50);
 
+        // Raised before the outgoing backdrop's deferred delete lands; that delete
+        // must spare it.
         MenuBeta beta;
         show(beta, test_screen());
+        process_lvgl(50);
 
         CHECK(ContextMenu::active_as<MenuBeta>() == &beta);
         CHECK(ContextMenu::active_as<MenuAlpha>() == nullptr);
 
         beta.hide();
         process_lvgl(50);
+    }
+
+    SECTION("a backdrop deleted without hide() leaves no active menu") {
+        MenuAlpha alpha;
+        show(alpha, test_screen());
+        REQUIRE(ContextMenu::active() == &alpha);
+
+        lv_obj_delete(lv_obj_get_child(test_screen(), -1));
+
+        CHECK(ContextMenu::active() == nullptr);
+        CHECK_FALSE(alpha.is_visible());
     }
 }
 

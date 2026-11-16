@@ -8,10 +8,10 @@
 #include "ui_settings_updates.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
 #include "upgrade_nudge.h"
@@ -51,7 +51,7 @@ void UpgradeBanner::init() {
     // Create + register the text subject before the XML is instantiated so
     // the `bind_text="upgrade_banner_text"` binding resolves to our buffer.
     if (!message_subject_initialized_) {
-        lv_subject_init_string(&message_subject_, g_message_buf, nullptr, kMessageBufSize, "");
+        message_subject_.init_string(g_message_buf, nullptr, kMessageBufSize, "");
         subjects_.publish("upgrade_banner_text", &message_subject_);
         message_subject_initialized_ = true;
     }
@@ -156,16 +156,16 @@ void UpgradeBanner::evaluate_visibility() {
     bool should_show = UpgradeNudge::instance().should_show_banner();
     if (should_show) {
         update_message_text();
-        lv_obj_remove_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(banner_, false);
     } else {
-        lv_obj_add_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(banner_, true);
     }
 }
 
 void UpgradeBanner::on_update_clicked(lv_event_t* /*e*/) {
     spdlog::info("[UpgradeBanner] Update clicked - opening Settings > Updates");
     helix::nav::set_active(PanelId::Settings);
-    helix::settings::get_updates_settings_overlay().show(lv_display_get_screen_active(nullptr));
+    helix::settings::get_updates_settings_overlay().show(lv_screen_active());
 }
 
 void UpgradeBanner::on_dismiss_clicked(lv_event_t* e) {

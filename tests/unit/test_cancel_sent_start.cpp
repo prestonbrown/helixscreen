@@ -13,14 +13,13 @@
  */
 
 #include "ui_test_utils.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_control_buttons_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
@@ -75,7 +74,7 @@ struct SentStartFixture : LVGLTestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static helix::PrinterPrintState& ps() {
@@ -201,7 +200,8 @@ TEST_CASE_METHOD(SentStartFixture,
     // behind it. Failing the job instead would drop the cancel and print.
     const int epoch = arm_in_flight();
     stop();
-    REQUIRE(ps().hold_for_requested_cancel(epoch)); // what every start site does
+    // What every start site does with a lost answer.
+    REQUIRE(ps().hold_unanswered_start(epoch, MoonrakerError::timeout("printer.print.start", 1)));
     drain();
 
     CHECK(cancels == 1);
@@ -213,17 +213,62 @@ TEST_CASE_METHOD(SentStartFixture,
     CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
 }
 
-TEST_CASE_METHOD(SentStartFixture, "Only a requested cancel holds a start that lost its answer",
-                 "[print_control][preparing_cancel]") {
+TEST_CASE_METHOD(SentStartFixture, "Only a lost answer holds the preparing job's start",
+                 "[print_control][preparing_cancel][1898]") {
+    // A refusal is the printer's answer: nothing runs, the caller fails it.
     const int epoch = arm_in_flight();
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK_FALSE(ps().hold_unanswered_start(
+        epoch, MoonrakerError::validation_error("printer.print.start", "Spools")));
     CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
-    stop();
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch + 1));
+    CHECK_FALSE(ps().hold_unanswered_start(0, MoonrakerError::timeout("printer.print.start", 1)));
+    CHECK_FALSE(
+        ps().hold_unanswered_start(epoch + 1, MoonrakerError::timeout("printer.print.start", 1)));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
 }
 
 TEST_CASE_METHOD(SentStartFixture,
-                 "A cancel requested on one job does not hold the next one's start",
+                 "A dropped connection holds a start only while a cancel waits for it",
+                 "[print_control][preparing_cancel][1898]") {
+    // A start refused for a link that is down never reached Moonraker: with
+    // no Stop waiting, it fails rather than sit on Preparing.
+    const int epoch = arm_in_flight();
+    const MoonrakerError dropped = MoonrakerError::connection_lost("printer.print.start");
+    CHECK_FALSE(ps().hold_unanswered_start(epoch, dropped));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
+
+    stop();
+    CHECK(ps().hold_unanswered_start(epoch, dropped));
+    CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A start that outlasts its RPC stays preparing with Stop able to cancel it",
+                 "[print_control][preparing_cancel][1898]") {
+    // The start sequence runs inside SDCARD_PRINT_FILE and outlives the RPC
+    // ceiling: the printer is still working on the job.
+    const int epoch = arm_in_flight();
+    REQUIRE(ps().hold_unanswered_start(epoch, MoonrakerError::timeout("printer.print.start", 1)));
+    drain();
+    CHECK(ps().has_preparing_job());
+    CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
+    CHECK(cancels == 0);
+
+    const bool stop_first = GENERATE(true, false);
+    CAPTURE(stop_first);
+    if (stop_first) {
+        // The cancel queues behind the start the printer is running.
+        stop();
+        CHECK(cancels == 1);
+        report("cancelled", "part.gcode");
+        CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
+        return;
+    }
+    report("printing", "part.gcode");
+    CHECK_FALSE(ps().has_preparing_job());
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Confirmed);
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A cancel requested on one job does not carry to the next one",
                  "[print_control][preparing_cancel]") {
     ps().begin_preparing(helix::PrintJobRef{"a.gcode", "", ""});
     ps().note_preparing_cancel_requested();
@@ -234,7 +279,7 @@ TEST_CASE_METHOD(SentStartFixture,
     ps().note_preparing_start_sent();
     const int epoch = lv_subject_get_int(ps().get_preparing_epoch_subject());
     CHECK_FALSE(ps().preparing_cancel_requested());
-    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK(epoch != 0);
     CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
 }
 
@@ -463,4 +508,133 @@ TEST_CASE_METHOD(SentStartFixture, "The start hand-over belongs to one preparing
 
     ps().begin_preparing(helix::PrintJobRef{"next.gcode", "", ""});
     CHECK(ps().preparing_start() == PreparingStart::None);
+}
+
+TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced cancels at once",
+                 "[print_control][preparing_cancel][2054]") {
+    // Another app started it: no preparing job of ours, and print_stats still
+    // reports the previous job. The printer has the start already.
+    report("cancelled", "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    REQUIRE(ps().get_print_lifecycle() == PrintState::Preparing);
+    REQUIRE(stop_enabled() == 1);
+    // The home card opens this print's status, and nothing starts over it.
+    CHECK_FALSE(ps().can_start_new_print());
+
+    stop();
+    CHECK(cancels == 1);
+    CHECK(stop_enabled() == 0);
+
+    // The cancel can answer before the file opens, while print_stats still holds
+    // the previous job's CANCELLED: that is not this start ending.
+    REQUIRE(cancel_ok);
+    cancel_ok(json::object());
+    drain();
+    CHECK(stop_enabled() == 0);
+
+    SECTION("the start ends when the printer takes the job and cancels it") {
+        report("printing", "next.gcode");
+        CHECK(stop_enabled() == 0); // the cancel still covers the job
+        report("cancelled", "next.gcode");
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
+    }
+    SECTION("the start ends when it is abandoned before the file opens") {
+        ps().set_printer_side_pre_start(false);
+        ps().reset_print_start_state();
+        drain();
+        CHECK(stop_enabled() == 0); // no print left to stop
+        // Settled: the next announced start's Stop is live again.
+        ps().set_printer_side_pre_start(true);
+        ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+        drain();
+        CHECK(stop_enabled() == 1);
+    }
+    ps().set_printer_side_pre_start(false);
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced blocks a new start on its own",
+                 "[print_control][preparing_cancel][2054]") {
+    // No phase yet and no job of ours: only the announcement says the printer is busy.
+    report("standby", "previous.gcode");
+    REQUIRE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(true);
+    CHECK_FALSE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().can_start_new_print());
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced names no file before it opens",
+                 "[print_control][preparing_cancel][2054]") {
+    report("complete", "previous.gcode");
+    REQUIRE(ps().get_effective_print_filename() == "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    CHECK(ps().get_effective_print_filename().empty());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().get_effective_print_filename() == "previous.gcode");
+}
+
+TEST_CASE_METHOD(SentStartFixture, "The chamber phase keeps the chamber wait flag",
+                 "[print_control][preparing_cancel][chamber_wait]") {
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    ps().set_print_start_chamber_wait(true);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_CHAMBER, "Heating chamber...", 10);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 1);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_BED, "Heating Bed...", 20);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 0);
+    ps().set_printer_side_pre_start(false);
+    ps().reset_print_start_state();
+    drain();
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A printer switch forgets the start this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    get_printer_state().deinit_subjects();
+    get_printer_state().init_subjects(false);
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A job another client starts is not the one this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    // Same file, started again from elsewhere with nothing of ours preparing.
+    report("complete", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+    report("printing", "part.gcode");
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A printer-announced reprint of the same file is named when it goes active",
+                 "[print_control][preparing_cancel][2054]") {
+    report("cancelled", "benchy.gcode");
+    ps().set_printer_side_pre_start(true);
+    REQUIRE(ps().get_effective_print_filename().empty());
+
+    // The file opens with the name print_stats already held: only the state moves.
+    get_printer_state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    drain();
+    CHECK(ps().get_effective_print_filename() == "benchy.gcode");
+    ps().set_printer_side_pre_start(false);
 }

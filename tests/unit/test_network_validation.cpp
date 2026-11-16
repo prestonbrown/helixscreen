@@ -36,6 +36,7 @@ TEST_CASE("Network validation: Valid hostnames", "[validation][network][hostname
     REQUIRE(is_valid_ip_or_hostname("PRINTER123") == true);
     REQUIRE(is_valid_ip_or_hostname("voron-2.4") == true);
     REQUIRE(is_valid_ip_or_hostname("k1.local") == true);
+    REQUIRE(is_valid_ip_or_hostname("192.168.1.1a") == true); // a hostname that looks like an IP
 }
 
 TEST_CASE("Network validation: Invalid hostnames", "[validation][network][hostname]") {

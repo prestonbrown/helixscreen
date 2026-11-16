@@ -76,6 +76,20 @@ humidity_chip_for_object(const std::string& klipper_name) {
     return nullptr;
 }
 
+/// @brief @p name with the chip's display name appended ("Chamber Temperature (BME280)")
+/// when @p klipper_name is a humidity chip, else @p name unchanged.
+/// A chip's temperature and a thermistor share the instance name ("bme280 chamber",
+/// "temperature_sensor chamber"), so every list naming both must tell them apart.
+[[nodiscard]] inline std::string with_humidity_chip_suffix(std::string name,
+                                                           const std::string& klipper_name) {
+    if (const auto* chip = humidity_chip_for_object(klipper_name)) {
+        name += " (";
+        name += chip->display_name;
+        name += ')';
+    }
+    return name;
+}
+
 inline constexpr EnumName<HumiditySensorRole> kHumiditySensorRoles[] = {
     {HumiditySensorRole::NONE, "none", "Unassigned"},
     {HumiditySensorRole::CHAMBER, "chamber", "Chamber"},

@@ -179,10 +179,10 @@ fi
 # --- Always on the test host -----------------------------------------------
 
 if [ -n "$want_gdb" ]; then
-    emit "gdb against a helix binary takes ~35 min and tens of GB on thelio. \`coredumpctl info <pid>\` symbolizes a core in seconds; anything more goes to the test host: build there (\`scripts/test-host-run.sh test\` mirrors this tree) and run gdb -batch in its container."
+    emit "gdb against a helix binary takes ~35 min and tens of GB on thelio. \`coredumpctl info <pid>\` symbolizes a core in seconds; anything more goes to the test host: build and run gdb there in one go: \`scripts/test-host-run.sh exec --build -- gdb -batch ...\` (it mirrors this tree; \`exec --build -- true\` builds alone)."
 fi
 if [ -n "$want_symbolizer" ]; then
-    emit "addr2line loads the whole DWARF of helix-tests per call (21GB+ RSS on thelio) and ignores SIGTERM. Symbolize on the test host: build there (\`scripts/test-host-run.sh test\` mirrors this tree) and use llvm-symbolizer or one \`gdb -batch -ex 'info symbol 0x..'\` there. For a function name alone, \`nm -C --defined-only\` plus a sorted lookup is seconds."
+    emit "addr2line loads the whole DWARF of helix-tests per call (21GB+ RSS on thelio) and ignores SIGTERM. Symbolize on the test host: build there (\`scripts/test-host-run.sh exec --build -- llvm-symbolizer ...\` mirrors this tree) and use llvm-symbolizer or one \`gdb -batch -ex 'info symbol 0x..'\` there. For a function name alone, \`nm -C --defined-only\` plus a sorted lookup is seconds."
 fi
 if [ -n "$want_mutate" ]; then
     emit "Mutation rebuilds and reruns the suite per hunk. Run it on the test host: \`scripts/test-host-run.sh mutate --tests '[tag]'\` (mutate runs the pushed commit: push the branch, never main)."

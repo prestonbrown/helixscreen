@@ -20,6 +20,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace helix::zoffset_cal {
 
@@ -31,12 +32,55 @@ enum class ReadingPoint {
 
 /// The command a strategy and probe run, and where it reads.
 struct CalibrationCommand {
-    const char* gcode; ///< Empty for FIRMWARE_MANAGED, which runs no calibrate command
+    std::string gcode; ///< Empty for FIRMWARE_MANAGED, which runs no calibrate command
     ReadingPoint point;
 };
 
+/// Whether @p probe_type is a scanning probe whose calibrate command builds its
+/// own height model (Cartographer, Beacon, Klipper's probe_eddy_current).
+bool is_scanning_probe(sensors::ProbeSensorType probe_type);
+
+/**
+ * @brief The strategy a calibration run on the Z-offset panel follows
+ *
+ * A scanning probe has to run its own calibrate command: its paper test and
+ * coil sweep are the calibration, and a gcode offset cannot stand in for them.
+ * ACCEPT stages the new model and SAVE_CONFIG alone keeps it, so the run never
+ * folds the gcode offset into the probe, which is what FIRMWARE_MANAGED guards
+ * against. A scanning probe therefore runs PROBE_CALIBRATE where the printer's
+ * strategy is FIRMWARE_MANAGED (#1994). Every other pairing keeps @p strategy.
+ */
+ZOffsetCalibrationStrategy run_strategy(ZOffsetCalibrationStrategy strategy,
+                                        sensors::ProbeSensorType probe_type);
+
+/// @param chip the probe's sensor name (ProbeSensorConfig::sensor_name), which
+///             names the chip for a probe whose calibrate command takes one
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,
-                                       sensors::ProbeSensorType probe_type);
+                                       sensors::ProbeSensorType probe_type,
+                                       std::string_view chip = {});
+
+/// Whether a calibration may start with the tool on the carriage.
+enum class ToolGate {
+    Proceed,
+    ConfirmFirst, ///< The reference tool is not known to be mounted: ask before starting
+};
+
+/**
+ * @brief Gate a calibration on the reference tool being mounted
+ *
+ * Where the probe's z_offset belongs to one tool (tool_offsets::
+ * probe_reference_tool()), a calibrate command run with another tool mounted
+ * measures the wrong nozzle on a rig with one shared probe. A rig with a probe
+ * per tool, or a tool number remapped by ASSIGN_TOOL, calibrates correctly with
+ * any tool, so the answer is a question for the user, never a refusal. An
+ * unknown mounted tool (-1) asks too. FIRMWARE_MANAGED runs no calibrate command
+ * of ours and always proceeds.
+ *
+ * @param reference_tool the tool number the probe offset belongs to, or nullopt
+ * @param active_tool    the mounted tool number, -1 when none or unknown
+ */
+ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<int> reference_tool,
+                             int active_tool);
 
 /// Approach height: Klipper's minimum clearance for starting a calibration.
 inline constexpr double kApproachZMm = 5.0;

@@ -1,9 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_filename_utils.h"
 #include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
+
+#include "core/gcode_filename.h"
 
 #include <algorithm>
 #include <ctime>
@@ -15,7 +16,6 @@
 using Catch::Approx;
 using helix::ui::format_filament_weight;
 using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
 using helix::ui::format_print_time;
 
 // ============================================================================
@@ -76,7 +76,6 @@ PrintFileData create_test_file(const std::string& name, size_t size_bytes, int d
     file.is_dir = false;
 
     file.size_str = format_file_size(size_bytes);
-    file.modified_str = format_modified_date(file.modified_timestamp);
     file.print_time_str = format_print_time(print_mins);
     file.filament_str = format_filament_weight(filament_g);
 
@@ -94,7 +93,6 @@ PrintFileData create_test_directory(const std::string& name, int days_ago = 1) {
     dir.is_dir = true;
 
     dir.size_str = "";
-    dir.modified_str = format_modified_date(dir.modified_timestamp);
     dir.print_time_str = "";
     dir.filament_str = "";
 
@@ -529,18 +527,6 @@ TEST_CASE("Print Select: Metadata - file size formatting", "[ui][metadata]") {
     }
 }
 
-TEST_CASE("Print Select: Metadata - modified date formatting", "[ui][metadata]") {
-    SECTION("Recent file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 1, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
-    }
-
-    SECTION("Old file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 365, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
-    }
-}
-
 // ============================================================================
 // Large File List Tests
 // ============================================================================
@@ -787,9 +773,9 @@ TEST_CASE("Print Select: Folder type determination", "[ui][folder_type]") {
 TEST_CASE("Print Select: Metadata path construction", "[ui][metadata]") {
     // Calls the production join directly. fetch_metadata_range() and the
     // print-start path beside it build the Moonraker file path with
-    // helix::gcode::join_gcode_path(current_path_, filename); these cases used to
-    // restate that ternary inline, asserting their own expression instead, which
-    // could not go red however the panel changed.
+    // helix::gcode::join_gcode_path(current_path_, filename). Restating that
+    // ternary inline would assert the test's own expression, which could not go
+    // red however the panel changed.
     using helix::gcode::join_gcode_path;
 
     SECTION("Root directory - no path prefix") {
@@ -855,9 +841,9 @@ TEST_CASE("thumbnail_subject_value never publishes an empty buffer",
 // ============================================================================
 // Card column selection (#1208 follow-up)
 //
-// The rule used to walk column counts downward and take the first that fit,
-// which always maximized columns and so always produced the narrowest legal
-// card. choose_card_columns() keeps the count landing nearest kCardWidthTarget.
+// Walking column counts downward and taking the first that fits always
+// maximizes columns and so always produces the narrowest legal card.
+// choose_card_columns() keeps the count landing nearest kCardWidthTarget.
 // ============================================================================
 
 TEST_CASE("choose_card_columns prefers the designed card width", "[print_select][layout]") {

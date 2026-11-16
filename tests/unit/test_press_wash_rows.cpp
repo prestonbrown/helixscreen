@@ -52,7 +52,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Per-item list and picker rows press with th
         INFO("component: " << component);
         lv_obj_t* row = create_row(test_screen(), component);
         REQUIRE(row != nullptr);
-        CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+        CHECK(lv_obj_is_clickable(row));
         CHECK(paints_press_wash(row));
     }
 }
@@ -98,8 +98,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A job queue row starts its job and its tras
     REQUIRE(trash != nullptr);
     CHECK(lv_obj_get_parent(trash) == row);
     CHECK(has_own_click_handler(trash, remove));
-    CHECK(lv_obj_has_flag(trash, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(trash, LV_OBJ_FLAG_EVENT_BUBBLE));
+    CHECK(lv_obj_is_clickable(trash));
+    CHECK_FALSE(lv_obj_is_event_bubble(trash));
 }
 
 namespace {

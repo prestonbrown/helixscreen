@@ -6,9 +6,9 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
-#include "observer_factory.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
 #include "system/crash_handler.h"
 
 #include <spdlog/spdlog.h>
@@ -79,14 +79,12 @@ void FilamentConsumptionTracker::start() {
     // Self-register with StaticSubjectRegistry so stop() runs as part of
     // deinit_all() in proper LIFO order. Because PrinterState registers
     // earlier (during SubjectInitializer::init_core_and_state() at app
-    // startup), our entry deinits FIRST — which means lv_observer_remove()
-    // sees live PrinterState subjects, the same ordering invariant that
-    // Application::shutdown()'s manual call was trying to provide. Closes
-    // #927: the manual shutdown call ran AFTER StaticPanelRegistry::
-    // destroy_all(), and intervening overlay teardown was apparently freeing
-    // our observer struct out from under us — under self-registration that
-    // window goes away because no other deinit step runs between
-    // FilamentConsumptionTracker::stop() and our observers' creation.
+    // startup), our entry deinits FIRST — which means lv_observer_delete()
+    // sees live PrinterState subjects (#927). Deinit running after
+    // StaticPanelRegistry::destroy_all() lets overlay teardown free our
+    // observer struct out from under us; self-registered, no other deinit step
+    // runs between FilamentConsumptionTracker::stop() and our observers'
+    // creation.
     StaticSubjectRegistry::instance().register_deinit(
         "FilamentConsumptionTracker", []() { FilamentConsumptionTracker::instance().stop(); });
 }
@@ -102,7 +100,7 @@ void FilamentConsumptionTracker::stop() {
 
     // [L077] Reset the lifetime FIRST so the weak_ptr inside each extruder
     // ObserverGuard expires before the guard's destructor runs — otherwise
-    // lv_observer_remove() may fire on a PrinterState subject that is about
+    // lv_observer_delete() may fire on a PrinterState subject that is about
     // to be deinit'd.
     extruder_lifetime_.reset();
     for (auto& o : extruder_obs_) {
@@ -221,7 +219,6 @@ void FilamentConsumptionTracker::on_filament_used_changed(int filament_mm) {
             sink->apply_delta(f_mm);
             continue;
         }
-        // SinkKind::AmsSlot
         auto* ams = static_cast<AmsSlotSink*>(sink.get());
         AmsBackend* backend = AmsState::instance().get_backend(ams->backend_index());
         if (!backend) {

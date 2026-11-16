@@ -8,12 +8,12 @@
  * Application::run() appends a timestamp to .crash_restart_count on every start
  * and refuses to boot once three of them land inside 120s. It is cleared by
  * Application::shutdown() — which the SIGTERM handler deliberately skips, since
- * it does a bare _exit(0). Every supervisor stop therefore used to leave its
- * timestamp behind.
+ * it does a bare _exit(0). Without its own clear, every supervisor stop would
+ * leave its timestamp behind.
  *
- * That bit users: on the Elegoo CC1, COSMOS's resonance-calibration macro stops
- * and starts the UI through gui-switcher (SIGTERM by pidfile). Three cycles
- * inside the window and HelixScreen refused to boot with "Crash loop detected".
+ * On the Elegoo CC1, COSMOS's resonance-calibration macro stops and starts the
+ * UI through gui-switcher (SIGTERM by pidfile). Three cycles inside the window
+ * would make HelixScreen refuse to boot with "Crash loop detected".
  *
  * The handler must stay async-signal-safe, so it may not call
  * std::filesystem::remove or construct the path. clear_crash_marker_signal_safe()

@@ -7,7 +7,7 @@
  * Run with: ./build/bin/helix-tests "[print_start_inputs]"
  *
  * A queued job started from the home tile gets its tool info, mapping, remap
- * and empty-slot pre-flight from fill_file_context() and preflight_for(). The
+ * and empty-slot pre-flight from fill_file_context() and preflight_for(, false). The
  * parity case pins that they answer what an open PrintSelectDetailView answers
  * for the same file with no mapping edit; the loader cases pin the metadata,
  * footer and whole-file scan steps the file view shares.
@@ -17,7 +17,6 @@
 #include "ui_filament_mapping_card.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
@@ -27,11 +26,13 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
 #include "tools_used_cache.h"
 
@@ -157,7 +158,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fill_file_context matches the file view",
     CHECK(ctx.filament_materials == view.get_filament_materials());
     CHECK(ctx.available_slots.size() == view.get_available_slots().size());
 
-    const auto ours = helix::preflight_for(facts);
+    const auto ours = helix::preflight_for(facts, false);
     const auto theirs = view.preflight_result();
     REQUIRE(ours.checks.size() == theirs.checks.size());
     REQUIRE_FALSE(ours.checks.empty());
@@ -300,7 +301,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer that names its tools answers without a
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [&downloads](std::function<void(bool, const std::string&)> done) {
+        [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
             ++downloads;
             done(false, {});
         });
@@ -325,7 +326,7 @@ TEST_CASE_METHOD(LoaderFixture, "a failed metadata read still answers",
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [](std::function<void(bool, const std::string&)> done) { done(false, {}); });
+        [](helix::SharedCallback<void(bool, const std::string&)> done) { done(false, {}); });
     drain();
 
     REQUIRE(answer.has_value());
@@ -346,7 +347,7 @@ TEST_CASE_METHOD(LoaderFixture, "a metadata-only load reads nothing of the file"
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [&downloads](std::function<void(bool, const std::string&)> done) {
+        [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
             ++downloads;
             done(false, {});
         },
@@ -380,7 +381,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer-bounded load reads the footer and neve
                  "[print_start_inputs][loader]") {
     FileStartFactsLoader loader(api.get());
     int downloads = 0;
-    auto download = [&downloads](std::function<void(bool, const std::string&)> done) {
+    auto download = [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
         ++downloads;
         done(false, {});
     };
@@ -454,13 +455,12 @@ TEST_CASE_METHOD(LoaderFixture,
                  "a reprint with no tools in hand reads them from the file for the pre-print step",
                  "[print_start_inputs][reprint]") {
     get_printer_state().update_from_status(nlohmann::json{{"webhooks", {{"state", "ready"}}}});
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend_reg(api.get(), nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg(api.get());
     // The last print ran configured (T0, T2 at their own heads), so a reprint
     // has its routing; only the tools are missing.
-    helix::SnapmakerTestAccess::handle_status(
-        *backend_reg, nlohmann::json{{"print_task_config",
-                                      {{"extruders_used", {true, false, true, false}},
-                                       {"extruder_map_table", {0, 1, 2, 3, 0, 0, 0, 0}}}}});
+    backend_reg->fire_status(nlohmann::json{{"print_task_config",
+                                             {{"extruders_used", {true, false, true, false}},
+                                              {"extruder_map_table", {0, 1, 2, 3, 0, 0, 0, 0}}}}});
     helix::PlantedGcode file("reprint_t0t2.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
     client.clear_gcode_script_history();
@@ -487,8 +487,10 @@ namespace {
 class NoResetSnapmaker : public helix::AmsBackendSnapmaker {
   public:
     using AmsBackendSnapmaker::AmsBackendSnapmaker;
-    [[nodiscard]] bool print_routing_resets_to_identity() const override {
-        return false;
+    [[nodiscard]] helix::BackendTraits traits() const override {
+        helix::BackendTraits t = kTraits;
+        t.print_routing_resets_to_identity = false;
+        return t;
     }
 };
 
@@ -513,13 +515,12 @@ nlohmann::json unconfigured_task(const std::vector<int>& map) {
 TEST_CASE_METHOD(LoaderFixture, "an unrouted U1 reprint names the file's heads and writes no map",
                  "[print_start_inputs][reprint]") {
     get_printer_state().update_from_status(nlohmann::json{{"webhooks", {{"state", "ready"}}}});
-    helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend_reg(api.get(), nullptr);
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg(api.get());
     helix::PlantedGcode file("reprint_unrouted.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
 
     SECTION("the firmware map at its default: the heads go, no map") {
-        helix::SnapmakerTestAccess::handle_status(*backend_reg,
-                                                  unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
+        backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
         client.clear_gcode_script_history();
         controller.initiate_reprint(file.name(), "", {}, [] {}, [] {});
         drain();
@@ -527,8 +528,7 @@ TEST_CASE_METHOD(LoaderFixture, "an unrouted U1 reprint names the file's heads a
         CHECK(scripts_containing(client, "SET_PRINT_EXTRUDER_MAP").empty());
     }
     SECTION("a map left pending routes elsewhere: no heads") {
-        helix::SnapmakerTestAccess::handle_status(*backend_reg,
-                                                  unconfigured_task({2, 1, 0, 3, 0, 0, 0, 0}));
+        backend_reg->fire_status(unconfigured_task({2, 1, 0, 3, 0, 0, 0, 0}));
         client.clear_gcode_script_history();
         controller.initiate_reprint(file.name(), "", {}, [] {}, [] {});
         drain();
@@ -536,8 +536,7 @@ TEST_CASE_METHOD(LoaderFixture, "an unrouted U1 reprint names the file's heads a
         CHECK(scripts_containing(client, "SET_PRINT_EXTRUDER_MAP").empty());
     }
     SECTION("a file whose tools cannot be read: no heads") {
-        helix::SnapmakerTestAccess::handle_status(*backend_reg,
-                                                  unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
+        backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
         client.clear_gcode_script_history();
         controller.initiate_reprint("not_on_the_printer.gcode", "", {}, [] {}, [] {});
         drain();
@@ -549,9 +548,8 @@ TEST_CASE_METHOD(LoaderFixture,
                  "an unrouted reprint on firmware that keeps its routing sends no heads",
                  "[print_start_inputs][reprint]") {
     get_printer_state().update_from_status(nlohmann::json{{"webhooks", {{"state", "ready"}}}});
-    helix::test::RegisteredBackend<NoResetSnapmaker> backend_reg(api.get(), nullptr);
-    helix::SnapmakerTestAccess::handle_status(*backend_reg,
-                                              unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
+    helix::test::RegisteredWired<NoResetSnapmaker> backend_reg(api.get());
+    backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
     helix::PlantedGcode file("reprint_noreset.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
     client.clear_gcode_script_history();

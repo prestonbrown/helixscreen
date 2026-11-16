@@ -3,11 +3,10 @@
 
 #include "ams_types.h"
 #include "error_event.h"
+#include "json_fwd.h"
 
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::printer {
 
@@ -17,6 +16,8 @@ struct KlipperErrorAction {
     const char* label;
     const char* gcode; ///< "" when a service, not a gcode, performs it
     const char* log_tag;
+    /// Guided device flow the tap opens instead of a gcode, nullptr for none.
+    const char* guided_flow = nullptr;
 };
 
 /// Tag of the action whose work PrinterRecoveryService does rather than a
@@ -33,8 +34,8 @@ struct KlipperErrorEntry {
     ErrorSeverity severity;
     /// Optional formatter that stringifies the `values` array into a
     /// human-readable locator (" in unit 1 slot B"). Caller appends the
-    /// result to the friendly message. nullptr = no per-error format
-    /// known yet (no regression — message displays unchanged).
+    /// result to the friendly message. nullptr = no per-error format;
+    /// the message displays unchanged.
     std::string (*format_values)(const nlohmann::json&) = nullptr;
     /// True when the firmware's own `msg` names the real cause and the table
     /// text cannot (one code, several causes: key843 fires for a busy box AND

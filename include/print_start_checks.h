@@ -15,6 +15,7 @@
 #include "filament_mapper.h"
 #include "fit_check.h"
 #include "moonraker_types.h"
+#include "motor_ripple_types.h"
 
 #include <cstdint>
 #include <map>
@@ -151,6 +152,10 @@ struct PrintStartContext {
     // ---- enclosure doors (InputSensorManager) ----
     bool door_check_enabled = false;     ///< the user's door check, default on with a Door input
     std::vector<std::string> open_doors; ///< names of Door inputs reading open
+    // ---- motor ripple sweep (RippleResultCache, the file's footer) ----
+    /// The last sweep's bands of speed to avoid, every motor; empty without one.
+    std::vector<calibration::ripple::RippleBand> ripple_bands;
+    std::optional<float> outer_wall_speed_mm_s; ///< from the footer; unset when unknown
 };
 
 struct CheckResult {
@@ -172,6 +177,11 @@ struct PrintStartGate {
 /// check and read the verdict.
 [[nodiscard]] CheckResult gate_printer_stopping_command(const PrintStartContext& ctx);
 
+/// A warning when the file's outer wall speed falls in a band of speed the
+/// printer's last motor ripple sweep found shaky. Never blocks: the slicer can
+/// still slow walls for flow or layer time.
+[[nodiscard]] CheckResult gate_outer_wall_speed(const PrintStartContext& ctx);
+
 /// The dialog for a file that does not fit the printer: a hard stop for a
 /// blocking finding (out of bounds, over a heater limit, a missing tool), a
 /// warning with Start Anyway for a nozzle or model mismatch alone.
@@ -182,8 +192,7 @@ struct PrintStartGate {
 /// Start Anyway naming that material. Pass otherwise.
 [[nodiscard]] CheckResult gate_door_open(const PrintStartContext& ctx);
 
-/// Per-tool material mismatch detail (ported verbatim from
-/// PrintStartController::MaterialMismatchDetail).
+/// Per-tool material mismatch detail.
 struct MaterialMismatchDetail {
     int tool_index = 0;
     /// Same polymer, different filler: the file wants PLA-CF and the lane
@@ -236,8 +245,8 @@ struct LaneWeightShortfall {
  *
  * The lane-fed counterpart to insufficient_spool_weight_in(), which can only
  * ever weigh the single external spool and therefore says nothing useful about
- * an AMS print (it compared the whole file against a spool the print would not
- * touch, and no remap could change either input).
+ * an AMS print (it compares the whole file against a spool the print would not
+ * touch, and no remap can change either input).
  *
  * Silent - deliberately, in every direction where the data does not support an
  * answer:

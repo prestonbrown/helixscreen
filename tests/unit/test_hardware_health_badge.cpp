@@ -13,10 +13,10 @@
  * @see include/hardware_validator.h - HardwareStatusLevel
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
@@ -46,7 +46,7 @@ struct HardwareHealthBadgeFixture : public LVGLUITestFixture {
     }
 
     ~HardwareHealthBadgeFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -64,7 +64,7 @@ struct HardwareHealthBadgeFixture : public LVGLUITestFixture {
     bool badge_hidden(const char* name) const {
         lv_obj_t* badge = lv_obj_find_by_name(root_, name);
         REQUIRE(badge != nullptr);
-        return lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(badge);
     }
 
     lv_obj_t* root_ = nullptr;

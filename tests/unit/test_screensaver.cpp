@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "screensaver.h"
@@ -272,9 +273,9 @@ struct SpriteView {
 std::vector<SpriteView> view_sprites(const FlyingToasterScreensaver& ss) {
     std::vector<SpriteView> out;
     for (const auto& s : ToasterAccess::sprites(ss)) {
-        out.push_back(
-            {lv_obj_has_flag(s.img, LV_OBJ_FLAG_HIDDEN), lv_obj_get_style_x(s.img, LV_PART_MAIN),
-             lv_obj_get_style_y(s.img, LV_PART_MAIN), ToasterAccess::frame_of(ss, s.img)});
+        out.push_back({lv_obj_is_hidden(s.img), lv_obj_get_style_x(s.img, LV_PART_MAIN),
+                       lv_obj_get_style_y(s.img, LV_PART_MAIN),
+                       ToasterAccess::frame_of(ss, s.img)});
     }
     return out;
 }
@@ -320,7 +321,7 @@ SpriteTally check_sprites_at(const FlyingToasterScreensaver& ss, uint32_t elapse
             continue;
         }
         const bool on_screen = pos.x + size > 0 && pos.x < w && pos.y + size > 0 && pos.y < h;
-        CHECK(lv_obj_has_flag(s.img, LV_OBJ_FLAG_HIDDEN) == !on_screen);
+        CHECK(lv_obj_is_hidden(s.img) == !on_screen);
         if (!on_screen) {
             continue;
         }
@@ -626,7 +627,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreensaverManager start/stop lifecycle", "[s
 namespace {
 
 bool is_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Stops the shared manager however the test exits, so a failed assertion cannot
@@ -650,7 +651,7 @@ struct UnhideProbe {
 
 void record_invalidate_while_visible(lv_event_t* e) {
     auto* probe = static_cast<UnhideProbe*>(lv_event_get_user_data(e));
-    if (!lv_obj_has_flag(probe->screen, LV_OBJ_FLAG_HIDDEN)) {
+    if (!lv_obj_is_hidden(probe->screen)) {
         probe->saw_visible = true;
     }
 }
@@ -683,7 +684,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ScreensaverManager leaves an already hidden s
     auto& mgr = ScreensaverManager::instance();
     StopSaverOnExit stop_on_exit;
     REQUIRE_FALSE(helix::active_screen_hide_hold().is_held());
-    lv_obj_add_flag(test_screen(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(test_screen(), true);
 
     mgr.start(ScreensaverType::STARFIELD);
     REQUIRE(mgr.is_active());
@@ -830,13 +831,13 @@ constexpr uint32_t kPipesStepMs = 100;
 class DrawTaskCounter {
   public:
     explicit DrawTaskCounter(lv_obj_t* obj) : obj_(obj) {
-        lv_obj_add_flag(obj_, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+        lv_obj_set_send_draw_task_events(obj_, true);
         lv_obj_add_event_cb(obj_, on_task_added, LV_EVENT_DRAW_TASK_ADDED, this);
     }
     ~DrawTaskCounter() {
-        if (lv_obj_is_valid(obj_)) {
+        if (helix::test::widget_in_tree(obj_)) {
             lv_obj_remove_event_cb_with_user_data(obj_, on_task_added, this);
-            lv_obj_remove_flag(obj_, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+            lv_obj_set_send_draw_task_events(obj_, false);
         }
     }
     DrawTaskCounter(const DrawTaskCounter&) = delete;
@@ -890,8 +891,8 @@ void check_overlay_draws_only_its_canvas(lv_obj_t* overlay, lv_obj_t* canvas) {
 /// lv_refr_now) or a top-layer snapshot (a screenshot) must not draw the canvas, whose
 /// buffer is already freed.
 void check_stopped_canvas_is_not_drawn(lv_obj_t* canvas) {
-    REQUIRE(lv_obj_is_valid(canvas));
-    CHECK(lv_obj_has_flag(canvas, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(helix::test::widget_in_tree(canvas));
+    CHECK(lv_obj_is_hidden(canvas));
 
     DrawTaskCounter canvas_tasks(canvas);
     refresh_top_layer();
@@ -1244,17 +1245,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "Bouncing logo keeps its own colors; the print
     BouncingPrinterScreensaver printer;
     printer.start();
     REQUIRE(printer.is_active());
-    REQUIRE(BounceTestAccess::sprite(printer) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(printer), LV_PART_MAIN) >
-          LV_OPA_TRANSP);
+    REQUIRE(printer.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(printer.sprite(), LV_PART_MAIN) > LV_OPA_TRANSP);
     printer.stop();
 
     BouncingLogoScreensaver logo;
     logo.start();
     REQUIRE(logo.is_active());
-    REQUIRE(BounceTestAccess::sprite(logo) != nullptr);
-    CHECK(lv_obj_get_style_image_recolor_opa(BounceTestAccess::sprite(logo), LV_PART_MAIN) ==
-          LV_OPA_TRANSP);
+    REQUIRE(logo.sprite() != nullptr);
+    CHECK(lv_obj_get_style_image_recolor_opa(logo.sprite(), LV_PART_MAIN) == LV_OPA_TRANSP);
     logo.stop();
 }
 
@@ -1394,23 +1393,21 @@ TEST_CASE("Bouncing printer: sprite leaves room to bounce at every breakpoint",
 TEST_CASE("Bouncing printer: a resize rescales the speed to the screen's narrow axis",
           "[screensaver][bounce_math]") {
     BouncingPrinterScreensaver ss;
+    // The path's speed after a resize to w x h.
+    const auto speed_at = [&ss](int w, int h) {
+        BounceTestAccess::rebase(ss, w, h);
+        return BounceTestAccess::speed(ss);
+    };
 
-    BounceTestAccess::rebase(ss, 480, 320);
-    const float small = BounceTestAccess::speed(ss);
+    const float small = speed_at(480, 320);
     REQUIRE(small > 0.0f);
-
     // The narrow axis sets the speed whichever side of the screen it is on.
-    BounceTestAccess::rebase(ss, 320, 480);
-    CHECK(BounceTestAccess::speed(ss) == Catch::Approx(small).epsilon(0.0001f));
-
+    CHECK(speed_at(320, 480) == Catch::Approx(small).epsilon(0.0001f));
     // A taller narrow axis speeds the path proportionally: 480 over 320.
-    BounceTestAccess::rebase(ss, 800, 480);
-    const float wide = BounceTestAccess::speed(ss);
+    const float wide = speed_at(800, 480);
     CHECK(wide == Catch::Approx(small * (480.0f / 320.0f)).epsilon(0.0001f));
-
     // Growing the long axis alone leaves the speed where it was.
-    BounceTestAccess::rebase(ss, 1024, 480);
-    CHECK(BounceTestAccess::speed(ss) == Catch::Approx(wide).epsilon(0.0001f));
+    CHECK(speed_at(1024, 480) == Catch::Approx(wide).epsilon(0.0001f));
 }
 
 TEST_CASE("Bouncing printer: the sprite box is the shape of the artwork",
@@ -1529,7 +1526,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
             CHECK(SaverTestAccess::timer(ss)->period == 33);
             const size_t kept = ToasterAccess::sprites(ss).size();
             CHECK(kept < previous);
-            CHECK(lv_obj_has_flag(all_sprites[kept].img, LV_OBJ_FLAG_HIDDEN));
+            CHECK(lv_obj_is_hidden(all_sprites[kept].img));
             previous = kept;
         }
         // The bottom rung is the sparsest thing the gate can fall back to.

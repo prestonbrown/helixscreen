@@ -29,6 +29,7 @@
 #include "../../include/platform_capabilities.h"
 #include "../../include/theme_manager.h"
 #include "../../include/ui_frequency_response_chart.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
@@ -56,17 +57,9 @@ using namespace helix;
  *
  * Provides LVGL initialization and a parent screen for widget creation.
  */
-class FrequencyResponseChartTestFixture {
+class FrequencyResponseChartTestFixture : public LVGLTestFixture {
   public:
     FrequencyResponseChartTestFixture() {
-        // Initialize LVGL for testing (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a display for testing (headless)
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
         // Create a screen object to use as parent
         screen = lv_obj_create(NULL);
     }
@@ -1190,13 +1183,13 @@ std::vector<std::string> drawn_label_texts(ui_frequency_response_chart_t* chart)
             out->emplace_back(dsc->text);
         }
     };
-    lv_obj_add_flag(plot, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(plot, true);
     lv_obj_add_event_cb(plot, capture, LV_EVENT_DRAW_TASK_ADDED, &texts);
     if (lv_draw_buf_t* snap = lv_snapshot_take(plot, LV_COLOR_FORMAT_ARGB8888)) {
         lv_draw_buf_destroy(snap);
     }
     lv_obj_remove_event_cb_with_user_data(plot, capture, &texts);
-    lv_obj_remove_flag(plot, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_send_draw_task_events(plot, false);
     return texts;
 }
 

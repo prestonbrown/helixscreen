@@ -15,8 +15,8 @@
 // back to. Spans were already protected from exactly this (#1216, "a property
 // of the current screen, not of the user's layout"); positions were not.
 //
-// The fix keys the layout by grid signature. The active grid's arrangement sits
-// where it always did, so every existing reader is unchanged; the others are
+// The layout is keyed by grid signature. The active grid's arrangement sits
+// where readers expect it, so every existing reader is unchanged; the others are
 // parked alongside it. These tests pin the property that makes it worth doing:
 // an arrangement survives a round trip through another grid untouched.
 

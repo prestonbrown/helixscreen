@@ -1,14 +1,8 @@
 # Standard Macros System - Technical Specification
 
-> **Status: Shipped** — This was the original pre-implementation design spec.
-> The feature is now built and in production: the `StandardMacros` class lives at
-> `src/printer/standard_macros.cpp` (header `include/standard_macros.h`), wired
-> into discovery and the panels described below. The document is retained as
-> as-built reference — the macro/alias tables, slot states, resolution order, and
-> config schema still describe live behavior. The "Implementation Stages",
-> "Files to Create", and "Files to Modify" sections near the end are historical
-> planning artifacts kept for provenance; treat the source tree as the source of
-> truth for current file locations.
+The `StandardMacros` class lives in `src/printer/standard_macros.cpp` (header
+`include/standard_macros.h`) and is initialized from discovery
+(`src/printer/printer_discovery.cpp#init_subsystems_from_hardware`).
 
 ## Overview
 
@@ -28,22 +22,23 @@ The Standard Macros system provides a unified registry that maps semantic operat
 
 | Slot | Purpose | Auto-Detect Patterns | HELIX Fallback |
 |------|---------|---------------------|----------------|
-| `load_filament` | Load filament | LOAD_FILAMENT, M701 | — |
+| `load_filament` | Load filament | LOAD_FILAMENT, M701 | - |
 | `unload_filament` | Unload filament | UNLOAD_FILAMENT, M702, **HELIX_UNLOAD_FILAMENT**, QUIT_MATERIAL | HELIX_UNLOAD_FILAMENT |
 
 > **Unload ordering note:** `QUIT_MATERIAL` (Creality K1 family) is matched
 > LAST and deliberately below `HELIX_UNLOAD_FILAMENT`: the stock macro purges
-> ~100mm forward and retracts only ~62mm — it clears the melt zone for
+> ~100mm forward and retracts only ~62mm - it clears the melt zone for
 > manually-cut filament rather than unloading. A printer's own
 > `UNLOAD_FILAMENT`/`UNLOAD_MATERIAL`/`M702` always outrank the override.
-| `purge` | Purge/prime | PURGE, PURGE_LINE, PRIME_LINE, PURGE_FILAMENT, LINE_PURGE | — |
-| `pause` | Pause print | PAUSE, M601 | — |
-| `resume` | Resume print | RESUME, M602 | — |
-| `cancel` | Cancel print | CANCEL_PRINT | — |
+| `purge` | Purge/prime | PURGE, PURGE_LINE, PRIME_LINE, PURGE_FILAMENT, LINE_PURGE | - |
+| `pause` | Pause print | PAUSE, M601 | - |
+| `resume` | Resume print | RESUME, M602 | - |
+| `cancel` | Cancel print | CANCEL_PRINT | - |
 | `bed_mesh` | Bed mesh calibration | BED_MESH_CALIBRATE, G29 | HELIX_BED_MESH_IF_NEEDED |
-| `bed_level` | Physical bed leveling | QUAD_GANTRY_LEVEL, QGL, Z_TILT_ADJUST | — |
+| `bed_level` | Physical bed leveling | QUAD_GANTRY_LEVEL, QGL, Z_TILT_ADJUST | - |
+| `screws_tilt` | Bed screw adjustment | SCREWS_TILT_CALCULATE, BED_LEVEL_SCREWS_TUNE | - |
 | `clean_nozzle` | Nozzle cleaning | CLEAN_NOZZLE, NOZZLE_WIPE, WIPE_NOZZLE, CLEAR_NOZZLE | HELIX_CLEAN_NOZZLE |
-| `heat_soak` | Chamber/bed soak | HEAT_SOAK, CHAMBER_SOAK, SOAK | — |
+| `heat_soak` | Chamber/bed soak | HEAT_SOAK, CHAMBER_SOAK, SOAK | - |
 | `park_toolhead` | Park the toolhead | PARK, PARK_TOOLHEAD, TOOLHEAD_PARK | HELIX_PARK_TOOLHEAD (not shipped) |
 
 > **Park fallback note:** `HELIX_PARK_TOOLHEAD` is a reserved name with no
@@ -51,7 +46,7 @@ The Standard Macros system provides a unified registry that maps semantic operat
 > resolves for this slot - an undetected, unconfigured `park_toolhead` answers
 > **Empty**. The Motion screen's Park button then falls back to its own move:
 > Z up 10mm (or to the plate's lift floor when a print may still be on the bed), then over
-> the rear of the plate (`src/ui/bed_plate_context.cpp#park_over_plate_target`,
+> the rear of the plate (`src/ui/home/bed_plate_context.cpp#park_over_plate_target`,
 > `helix::plate_rear_park()`). Park is disabled until every axis is homed and never homes by
 > itself. The home Toolhead widget's Park slot takes the same path. Detection is exact-name like every other slot, so underscore-prefixed
 > or suffixed variants (`_PARK`, `PARK_2`, ...) never match; a printer wanting
@@ -69,12 +64,12 @@ Each slot can be in one of four states:
 
 A **Configured** entry is verified against the printer's macro list at
 `init()` (`StandardMacros::validate_configured()`). A name the printer does not
-define — a preset that seeded a template machine's macros, or a Klipper config
-change that retired one — is **demoted**: the name moves out of
+define - a preset that seeded a template machine's macros, or a Klipper config
+change that retired one - is **demoted**: the name moves out of
 `configured_macro` into `missing_macro`, and the slot answers as though it were
 unconfigured. Dispatch then falls through to the detected macro, the HELIX
 fallback, or the caller's own fallback path, instead of sending a command
-Klipper will reject. The name is kept rather than dropped — `save_to_config()`
+Klipper will reject. The name is kept rather than dropped - `save_to_config()`
 round-trips what the user asked for (the printer may just be mid-restart), and
 `requested_macro()` still reports it so Settings can show "you configured this
 and it is broken" as distinct from "nothing is assigned here".
@@ -97,7 +92,7 @@ and it is broken" as distinct from "nothing is assigned here".
 ```
 
 This is the forwarding contract behind the adaptive bed mesh behavior. It is a
-property of the **single** Bed Mesh pre-print toggle — there is no separate
+property of the **single** Bed Mesh pre-print toggle - there is no separate
 sub-row. When the printer's `pre_print_options.bed_mesh` entry declares an
 `adaptive_param`, the firmware exposes `[exclude_object]`, and there is no custom
 `calibration.bed_mesh_gcode` template, `PrinterProfileState::apply_dynamic_options()`
@@ -112,7 +107,7 @@ The param name is per-printer (`ADAPTIVE`, `ADAPTIVE_MESH`, …; see
 `pre_print_option.h` → `PrePrintStrategyMacroParam::adaptive_param`); the
 HelixScreen standard macro uses `ADAPTIVE`. Printers whose `START_PRINT` does NOT
 forward such a param simply omit `adaptive_param`, so the toggle stays "Auto Bed
-Mesh" with unchanged behavior — adaptive can never be a silent no-op.
+Mesh" with unchanged behavior - adaptive can never be a silent no-op.
 
 ---
 
@@ -126,7 +121,8 @@ Mesh" with unchanged behavior — adaptive can never be a silent no-op.
 enum class StandardMacroSlot {
     LoadFilament, UnloadFilament, Purge,
     Pause, Resume, Cancel,
-    BedMesh, BedLevel, CleanNozzle, HeatSoak
+    BedMesh, BedLevel, ScrewsTilt, CleanNozzle, HeatSoak, ParkToolhead,
+    COUNT
 };
 
 struct StandardMacroInfo {
@@ -147,12 +143,17 @@ The shipped tier carries a whole sequence rather than a macro name, so a printer
 that needs pre-probe housekeeping expresses it as data in `printer_database.json`
 instead of a branch in the panel that runs the operation. `resolve_macro_script()`
 turns a slot into something runnable: it substitutes `{profile_arg}` (the bed mesh
-profile argument with its leading space, empty for the firmware's `default` profile)
-and `{bed_temp}` (the whole-degree bed temperature to probe at), reports whether the
+profile argument with its leading space, empty for the firmware's `default` profile),
+`{bed_temp}` (the whole-degree bed temperature to probe at) and `{screws_tilt_builtin}`
+(Klipper's SCREWS_TILT_CALCULATE under the name a `[gcode_macro SCREWS_TILT_CALCULATE]`
+wrapper's `rename_existing` gave it, from `PrinterDiscovery::screws_tilt_builtin()`; a
+shipped sequence naming it on a printer with no such wrapper gives way to the next tier,
+so the stock command runs), reports whether the
 script marks a place for the profile argument, whether the winner is the shipped tier
 (whose commands are all meant to exist), whether it brings its own preparation (only
-a shipped sequence whose entry sets `calibration.bed_mesh_self_prepares`), and
-can be told to refuse the `HELIX_*` fallback — those are "if needed" macros that
+a shipped sequence whose entry sets `calibration.bed_mesh_self_prepares` or
+`calibration.screws_tilt_self_prepares`), and
+can be told to refuse the `HELIX_*` fallback - those are "if needed" macros that
 return without acting, which is wrong for a button that means "do it now".
 
 class StandardMacros {
@@ -160,8 +161,7 @@ public:
     static StandardMacros& instance();
 
     // Initialize with printer hardware discovery (call after discovery)
-    // NOTE: PrinterCapabilities was deleted 2026-01-11, use PrinterDiscovery instead
-    void init(const PrinterDiscovery& discovery);
+    void init(const helix::PrinterDiscovery& hardware, const std::string& printer_type = "");
 
     // Get info for a slot
     const StandardMacroInfo& get(StandardMacroSlot slot) const;
@@ -298,40 +298,11 @@ void FilamentPanel::execute_load() {
 
 ---
 
-## Implementation Stages
-
-| Stage | Scope | Files | Deliverable |
-|-------|-------|-------|-------------|
-| 1 | Core class | `standard_macros.h/cpp` | Compiles, unit tests pass |
-| 2 | Discovery integration | `moonraker_manager.cpp` | Auto-detection logs on connect |
-| 3 | Overlay UI | `macro_buttons_overlay.xml` | UI renders, dropdowns populate |
-| 4 | Settings handler | `ui_panel_settings.cpp/h` | Overlay opens, saves to config |
-| 5 | Controls integration | `ui_panel_controls.cpp/h` | Quick buttons use StandardMacros |
-| 6 | Filament integration | `ui_panel_filament.cpp` | Load/Unload use StandardMacros |
-| 7 | Print status integration | `ui_panel_print_status.cpp` | Pause/Resume/Cancel use StandardMacros |
-| 8 | Testing & polish | — | Feature complete, all tests pass |
-
----
-
 ## Related Files
 
-### Existing Infrastructure
-- `include/printer_discovery.h` - Macro discovery (`has_macro()`, `macros()`)
-  - NOTE: `PrinterCapabilities` was deleted 2026-01-11, replaced by `PrinterDiscovery`
-  - Access via `MoonrakerAPI::hardware_discovery()`
-- `src/printer/macro_manager.cpp` - HELIX_* macro definitions
+- `include/standard_macros.h`, `src/printer/standard_macros.cpp` - The registry
+- `include/printer_discovery.h` - Macro discovery (`has_macro()`, `macros()`), via `IMoonrakerAPI::hardware()`
+- `assets/config/helix_macros.cfg` - HELIX_* macro definitions; `src/printer/macro_manager.cpp` installs and updates them
+- `include/ui_settings_macro_buttons.h`, `src/ui/settings/ui_settings_macro_buttons.cpp`, `ui_xml/macro_buttons_overlay.xml` - The Macro Buttons settings overlay
 - `include/config.h` - `MacroConfig` struct, `get_macro()` method
 - `ui_xml/settings_display_overlay.xml` - Reference overlay pattern
-
-### Files Created (historical planning list; paths updated to as-built locations)
-- `include/standard_macros.h`
-- `src/printer/standard_macros.cpp`
-- `ui_xml/macro_buttons_overlay.xml`
-
-### Files Modified (historical planning list; paths updated to as-built locations)
-- `src/ui/ui_panel_settings.cpp/h` - Add overlay handler
-- `ui_xml/settings_panel.xml` - Add action row
-- `src/application/moonraker_manager.cpp` - Init after discovery
-- `src/ui/ui_panel_controls.cpp/h` - Use StandardMacros
-- `src/ui/ui_panel_filament.cpp` - Use StandardMacros
-- `src/ui/ui_panel_print_status.cpp` - Use StandardMacros

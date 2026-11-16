@@ -5,7 +5,7 @@
  * @file test_thumbnail_pipeline_stress.cpp
  * @brief Concurrent decode/rescale/write against live eviction (#960, #1239).
  *
- * Bundle 6F3QJLFG aborted with `malloc(): unsorted double linked list
+ * One debug bundle aborted with `malloc(): unsorted double linked list
  * corrupted` 347 ms after a print started. The file being printed was a fresh
  * upload with no cached thumbnail, and the cache was already over its 20 MB
  * limit — so the cold-fetch pipeline ran three concurrent decode+rescale jobs

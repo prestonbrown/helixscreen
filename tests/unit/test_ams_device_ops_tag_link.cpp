@@ -6,17 +6,16 @@
 
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 
@@ -62,7 +61,7 @@ class DeviceOpsTagLinkFixture : public LVGLUITestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         process_lvgl(10);
     }
 
@@ -102,12 +101,12 @@ TEST_CASE_METHOD(DeviceOpsTagLinkFixture,
     SECTION("a backend whose tags name spools") {
         show_with(std::make_unique<TagNamingMock>());
         CHECK(capability() == 1);
-        CHECK_FALSE(lv_obj_has_flag(row(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row()));
     }
     SECTION("a backend whose tags cannot") {
         show_with(std::make_unique<AmsBackendMock>(4));
         CHECK(capability() == 0);
-        CHECK(lv_obj_has_flag(row(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(row()));
     }
 }
 

@@ -2,7 +2,7 @@
 
 #include "utils/lan_host.h"
 
-#include "log_redact.h"
+#include "core/log_redact.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>

@@ -14,7 +14,6 @@
 
 #include "ui_modal.h"
 #include "ui_spinner.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
@@ -24,8 +23,11 @@
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "platform_capabilities.h"
 #include "printer_cache_registry.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 
@@ -60,7 +62,7 @@ std::vector<lv_obj_t*> visible_switch_cards() {
         lv_obj_t* child = lv_obj_get_child(top, static_cast<int32_t>(i));
         const char* name = lv_obj_get_name(child);
         if (name && std::string(name) == "printer_switch_interstitial" &&
-            !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            !lv_obj_is_hidden(child)) {
             cards.push_back(child);
         }
     }
@@ -82,6 +84,9 @@ std::string switch_card() {
     };
     return text("switch_interstitial_title") + " / " + text("switch_interstitial_phase");
 }
+
+constexpr const char* kAddedKey = "0123456789abcdef0123456789abcdef";
+constexpr const char* kOtherKey = "ffffffffffffffffffffffffffffffff";
 
 class SwitchFlowFixture : public XMLTestFixture {
   public:
@@ -378,26 +383,37 @@ TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: a failed save stays on the cur
 }
 
 TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: adding a new address creates it and switches",
-                 "[multi-printer][switch_flow]") {
-    CHECK(flow_.add_printer("10.0.0.9", 7125));
+                 "[multi-printer][switch_flow][api-key]") {
+    cfg_->set<std::string>("/printers/alpha/moonraker_api_key", kOtherKey);
+    CHECK(flow_.add_printer("10.0.0.9", 7125, std::string(" ") + kAddedKey));
 
     const std::string id = cfg_->get_active_printer_id();
     CHECK(id != "alpha");
     CHECK(id != "beta");
     CHECK(cfg_->get<std::string>("/printers/" + id + "/moonraker_host") == "10.0.0.9");
     CHECK(cfg_->get<int>("/printers/" + id + "/moonraker_port") == 7125);
+    // The key entered with the address is the new printer's, and the old printer keeps its own.
+    CHECK(helix::active_printer_credential().api_key == kAddedKey);
+    CHECK(cfg_->get<std::string>("/printers/alpha/moonraker_api_key") == kOtherKey);
     CHECK(events_ == kFullRestart);
     CHECK(flow_.connected_printer_id() == id);
 }
 
 TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: adding a known address switches to that printer",
-                 "[multi-printer][switch_flow]") {
+                 "[multi-printer][switch_flow][api-key]") {
     nlohmann::json& data = helix::ConfigTestAccess::data(*cfg_);
     data["printers"]["beta"]["moonraker_host"] = "10.0.0.2";
     data["printers"]["beta"]["moonraker_port"] = 7125;
+    data["printers"]["beta"]["moonraker_api_key"] = kOtherKey;
 
-    CHECK(flow_.add_printer("10.0.0.2", 7125));
-
+    SECTION("an entered key replaces the printer's key") {
+        CHECK(flow_.add_printer("10.0.0.2", 7125, kAddedKey));
+        CHECK(helix::active_printer_credential().api_key == kAddedKey);
+    }
+    SECTION("a blank key leaves the printer's key alone") {
+        CHECK(flow_.add_printer("10.0.0.2", 7125));
+        CHECK(helix::active_printer_credential().api_key == kOtherKey);
+    }
     CHECK(cfg_->get_printer_ids().size() == 2);
     CHECK(cfg_->get_active_printer_id() == "beta");
     CHECK(events_ == kFullRestart);
@@ -649,9 +665,9 @@ TEST_CASE_METHOD(SwitchFlowFixture,
                  "Switch flow: the switch card spinner moves only on full render tiers",
                  "[multi-printer][switch_flow][switch_interstitial]") {
     lv_subject_t* tier = lv_xml_get_subject(nullptr, "platform_tier");
-    static lv_subject_t s_tier;
+    static helix::Subject s_tier;
     if (!tier) {
-        lv_subject_init_int(&s_tier, static_cast<int>(helix::PlatformTier::STANDARD));
+        s_tier.init_int(static_cast<int>(helix::PlatformTier::STANDARD));
         lv_xml_register_subject(nullptr, "platform_tier", &s_tier);
         tier = &s_tier;
     }

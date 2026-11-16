@@ -5,10 +5,9 @@
 
 #include "brother_ql_printer.h"
 
-#include "ui_update_queue.h"
-
 #include "brother_ql_protocol.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "safe_resolve.h"
 
 #include <spdlog/spdlog.h>
@@ -91,7 +90,6 @@ void BrotherQLPrinter::print_label(const std::string& host, int port, const Labe
                 error = fmt::format("DNS resolve failed for {}", host);
                 spdlog::error("Brother QL: {}", error);
             } else {
-                // Connect
                 if (connect(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
                     error = fmt::format("connect to {}:{} failed: {}", host, port, strerror(errno));
                     spdlog::error("Brother QL: {}", error);

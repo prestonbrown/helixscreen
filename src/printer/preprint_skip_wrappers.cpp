@@ -3,7 +3,7 @@
 #include "preprint_skip_wrappers.h"
 
 #include "bed_mesh_presence.h"
-#include "text_io.h"
+#include "core/text_io.h"
 
 namespace helix::skip_wrappers {
 

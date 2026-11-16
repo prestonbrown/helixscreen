@@ -16,11 +16,14 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "qr_decoder.h"
 #include "snapshot_qr_scanner.h"
 #include "spoolman_types.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "usb_scanner_monitor.h"
 
@@ -113,6 +116,7 @@ class QrScannerOverlay : public OverlayBase {
 #if HELIX_HAS_CAMERA
     void on_camera_frame(lv_draw_buf_t* frame);
 #endif
+    /// Main thread: shows the frame and lets the snapshot scanner fetch the next.
     void on_snapshot_frame(lv_draw_buf_t* frame);
 
     // State
@@ -140,12 +144,12 @@ class QrScannerOverlay : public OverlayBase {
 
     // LVGL subjects for XML binding
     SubjectManager subjects_;
-    lv_subject_t status_subject_{};
-    lv_subject_t success_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject success_subject_{};
     char status_buf_[128]{};
 
     // Cached widget pointers
-    lv_obj_t* viewfinder_ = nullptr;
+    helix::ui::WidgetRef viewfinder_;
     lv_obj_t* success_flash_ = nullptr;
 
     // Timers (tracked for cleanup)

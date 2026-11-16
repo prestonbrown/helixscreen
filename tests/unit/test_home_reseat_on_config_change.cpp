@@ -8,13 +8,13 @@
  */
 
 #include "ui_panel_home.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/home_panel_test_access.h"
 #include "../test_helpers/scoped_widget_factory.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "grid_layout.h"
 #include "panel_widget.h"
 #include "panel_widget_manager.h"

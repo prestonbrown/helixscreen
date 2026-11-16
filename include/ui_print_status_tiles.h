@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "preprint_checklist.h"
 #include "print_status_chips.h"
 #include "printer_image_regions.h"
@@ -33,6 +33,8 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace helix {
 class PrinterState;
@@ -50,8 +52,9 @@ enum class PrintStatusChip {
     AuxFan,
     Light,
     SpeedFlow,
+    OtherTools,
 };
-inline constexpr size_t kPrintStatusChipCount = 8;
+inline constexpr size_t kPrintStatusChipCount = 9;
 
 /// The `<key>` in `ps_chip_<key>_*`, `ps_line_<key>` and `ps_glow_<key>`.
 [[nodiscard]] const char* print_status_chip_key(PrintStatusChip chip);
@@ -95,6 +98,10 @@ class PrintStatusTiles {
 
     /// Schedule one chip pass and layout for the next tick.
     void request_update();
+    /// Schedule a pass over the heater chips alone, for a reading such as heater duty
+    /// that changes their text and status every few hundred milliseconds. It reads only
+    /// the heaters again and places the chips from the last full pass's other inputs.
+    void request_heater_update();
     /// Run the pending update now.
     void update_now();
     /// Re-read the collector's checklist and publish the rows.
@@ -116,6 +123,7 @@ class PrintStatusTiles {
         image_stale_ = true;
     }
 
+    /// Full chip passes run; a heater pass is not one.
     [[nodiscard]] int layout_count() const {
         return layout_count_;
     }
@@ -127,19 +135,26 @@ class PrintStatusTiles {
   private:
     static constexpr size_t kChipSubjectCount = 7;
     struct ChipSubjects {
-        lv_subject_t shown{};
-        lv_subject_t text{};
-        lv_subject_t tone{};
-        lv_subject_t glow{};
-        lv_subject_t progress{};
-        lv_subject_t line{};
-        lv_subject_t state{};
-        char text_buf[32] = "";
+        helix::Subject shown{};
+        helix::Subject text{};
+        helix::Subject tone{};
+        helix::Subject glow{};
+        helix::Subject progress{};
+        helix::Subject line{};
+        helix::Subject state{};
+        char text_buf[96] = "";
+        /// What paint_heat_chip() last wrote, so an unchanged reading writes no style.
+        struct {
+            bool valid = false;
+            lv_color_t color{};
+            bool warn = false;
+            bool off_target = false;
+        } painted;
     };
     struct StepSubjects {
-        lv_subject_t name{};
-        lv_subject_t time{};
-        lv_subject_t status{};
+        helix::Subject name{};
+        helix::Subject time{};
+        helix::Subject status{};
         char name_buf[48] = "";
         char time_buf[16] = "";
     };
@@ -150,14 +165,29 @@ class PrintStatusTiles {
     };
 
     void cancel_update_timer();
+    /// `full`: a layout pass; otherwise the heater chips alone. A full request wins.
+    void schedule_update(bool full);
+    void update_heater_chips();
+    /// Lay laid_out_ out, publish every chip from it and the toolhead text.
+    void place_and_publish(const std::string& th_text);
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
+    /// Text, outline, bar and glow take get_heating_state_color() of the chip's heat state;
+    /// a Warn chip keeps the amber its tone binds on text and outline. The other-tools chip
+    /// lists several heads, so it takes the color only while one climbs.
+    void paint_heat_chip(PrintStatusChip chip, const ChipContent& c);
     /// The active tool's badge ("T1") on a multi-tool printer, empty otherwise.
     std::string tool_badge() const;
     ChipContent heater(PrintStatusChip chip, bool show_power);
     int heat_start(PrintStatusChip chip, int current, int target);
+    /// Every head but the printing one, read for the other-tools chip.
+    std::vector<OtherToolReading> other_tool_readings();
+    /// Watches every extruder's reading and target, so a parked head's pre-heat redraws.
+    void watch_extruders();
     ChipContent fan(PrintStatusChip chip, bool labeled);
+    /// The merged toolhead chip's text for the nozzle chip's text and the part fan.
+    std::string toolhead_text(const std::string& nozzle_text);
     Image current_image() const;
 
     PrinterState& printer_state_;
@@ -169,24 +199,26 @@ class PrintStatusTiles {
 
     std::array<ChipSubjects, kPrintStatusChipCount> chips_{};
     std::array<std::string, kChipSubjectCount * kPrintStatusChipCount> chip_names_{};
-    lv_subject_t image_src_{};
+    helix::Subject image_src_{};
     char image_src_buf_[256] = "";
-    lv_subject_t callout_mode_{};
-    lv_subject_t toolhead_merged_{};
-    lv_subject_t toolhead_text_{};
+    helix::Subject callout_mode_{};
+    helix::Subject toolhead_merged_{};
+    helix::Subject toolhead_text_{};
     char toolhead_text_buf_[48] = "";
 
     std::array<StepSubjects, kPreprintChecklistMaxRows> steps_{};
     std::array<std::string, 3 * kPreprintChecklistMaxRows> step_names_{};
-    lv_subject_t step_count_{};
-    lv_subject_t step_position_text_{};
-    lv_subject_t step_current_name_{};
-    lv_subject_t step_current_time_{};
+    helix::Subject step_count_{};
+    helix::Subject step_position_text_{};
+    helix::Subject step_current_name_{};
+    helix::Subject step_current_time_{};
     char step_position_buf_[32] = "";
     char step_current_name_buf_[48] = "";
     char step_current_time_buf_[16] = "";
 
     std::array<HeatStart, 3> heat_starts_{};
+    /// Keyed by extruder name, for the other-tools chip's bar.
+    std::unordered_map<std::string, HeatStart> other_heat_starts_;
     std::string part_fan_;
     std::string hotend_fan_;
     std::string aux_fan_;
@@ -205,7 +237,21 @@ class PrintStatusTiles {
     mutable int natural_h_ = 0;
 
     lv_timer_t* update_timer_ = nullptr;
+    bool pending_full_ = false;
     int layout_count_ = 0;
+    /// The last full pass's layout input and chip content. A heater pass edits the
+    /// heater entries and places the chips again without re-reading the others.
+    struct LaidOut {
+        bool valid = false;
+        lv_obj_t* probe = nullptr;
+        CalloutPresenter::Parts parts;
+        CalloutPresenter::Config cfg;
+        Image image;
+        std::array<ChipContent, kPrintStatusChipCount> contents{};
+        std::array<ChipContent, kPrintStatusChipCount> bare{};
+        int column_w = 0;
+    };
+    LaidOut laid_out_;
     CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 
@@ -216,6 +262,19 @@ class PrintStatusTiles {
     ObserverGuard nozzle_power_observer_;
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
+    ObserverGuard temp_unit_observer_;
+
+    // Lifetimes before observers: members destroy in reverse, so each guard
+    // goes while its lifetime still says whether the subject lives.
+    struct ExtruderWatch {
+        SubjectLifetime temp_lifetime;
+        SubjectLifetime target_lifetime;
+        ObserverGuard temp;
+        ObserverGuard target;
+    };
+    std::vector<ExtruderWatch> extruder_watches_;
+    ObserverGuard extruder_version_observer_;
+    ObserverGuard tools_version_observer_;
 };
 
 } // namespace helix::ui

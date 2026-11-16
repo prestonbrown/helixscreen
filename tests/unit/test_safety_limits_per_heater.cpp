@@ -31,7 +31,6 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
 
 #include "../../src/api/moonraker_api_internal.h"
 #include "../lvgl_test_fixture.h"
@@ -40,6 +39,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_types.h"
@@ -61,7 +61,7 @@ using moonraker_internal::is_safe_temperature;
 namespace {
 
 /// A 290C hotend and a 120C bed - the shape of nearly every real printer, and
-/// both below the 400C default that used to win.
+/// both below the 400C default, which must not win.
 SafetyLimits typical_printer() {
     SafetyLimits limits;
     limits.heater_max_temp_celsius["extruder"] = 290.0;
@@ -255,7 +255,7 @@ struct KeypadCeilingFixture {
         // subjects that died here (#1166, #1146). Drain before each owner dies.
         drain_update_queue();
         // The panel goes first, while the subjects it observes are still alive:
-        // an ObserverGuard whose subject already died skips lv_observer_remove().
+        // an ObserverGuard whose subject already died skips lv_observer_delete().
         panel.reset();
         helix::PanelWidgetManager::instance().clear_shared_resources();
         drain_update_queue();
@@ -273,7 +273,7 @@ struct KeypadCeilingFixture {
             if (helix::ui::UpdateQueueTestAccess::queue_empty(queue)) {
                 break;
             }
-            helix::ui::UpdateQueueTestAccess::drain_all(queue);
+            queue.drain_until_empty();
         }
     }
 
@@ -293,7 +293,7 @@ TEST_CASE("A configured heater max beats the panel's compiled-in fallback",
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Bed, 120);
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Chamber, 60);
 
-    // 150 is the member the panel used to hand the keypad unconditionally.
+    // 150 is a member value the panel must not hand the keypad unconditionally.
     REQUIRE(f.ceiling(HeaterType::Bed, 150) == 120.0f);
     REQUIRE(f.ceiling(HeaterType::Chamber, 150) == 60.0f);
 }

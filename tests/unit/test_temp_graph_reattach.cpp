@@ -16,19 +16,17 @@
  *
  * What makes this easy to get wrong — and what these tests pin — is that the
  * attach fire is not synchronous. observe<int>'s LVGL callback only QUEUES
- * the handler (observer_factory.h), so it runs on a later UpdateQueue tick,
+ * the handler (core/observer_factory.h), so it runs on a later UpdateQueue tick,
  * long after setup_observers() has returned. Any suppression scoped to the
  * body of reattach_observers() is a no-op.
  */
-
-#include "ui_update_queue.h"
 
 #include "../../include/temp_graph_controller.h"
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"
 
@@ -77,7 +75,7 @@ class TempGraphReattachFixture : public LVGLTestFixture {
     /// callbacks queued FROM a callback (the attach fires, then the suppression
     /// clear behind them) land on the following tick.
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Drive a disconnect → reconnect transition past the controller's
@@ -136,9 +134,9 @@ TEST_CASE_METHOD(TempGraphReattachFixture,
 
     reconnect();
 
-    // Nothing new on the chart. Before the fix this was baseline + 1: the
-    // attach fire ran a tick after reattach_observers() had already restored
-    // the suppression flag, so it sailed through and stamped 200.0 C at `now`.
+    // Nothing new on the chart, not baseline + 1: an attach fire that runs a
+    // tick after reattach_observers() restores the suppression flag sails
+    // through and stamps 200.0 C at `now`.
     REQUIRE(controller->graph()->visible_point_count == baseline);
 
     controller.reset();

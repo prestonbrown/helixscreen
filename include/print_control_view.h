@@ -1,4 +1,3 @@
-// include/print_control_view.h
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
@@ -75,6 +74,9 @@ struct ControlButtonInputs {
     bool start_sent = false;
     /// A cancel is on its way to the printer and has not been answered.
     bool cancel_requested = false;
+    /// A start the printer announced itself is running with no preparing job of
+    /// ours (PrinterPrintState::printer_side_pre_start()).
+    bool printer_announced_start = false;
 };
 
 /// Decide both buttons.

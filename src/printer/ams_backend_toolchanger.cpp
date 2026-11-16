@@ -3,8 +3,6 @@
 
 #include "ams_backend_toolchanger.h"
 
-#include "ui_toast_manager.h"
-
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
@@ -12,17 +10,21 @@
 #include "ams_state.h"
 #include "ams_tool_map_sync.h"
 #include "app_constants.h"
+#include "app_globals.h"
 #include "color_utils.h"
+#include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_slot_resolver.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
-#include "lane_legacy_migration.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
+#include "print_start_params.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -30,6 +32,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -39,13 +42,50 @@
 
 namespace helix {
 
+namespace {
+
+/// Shown while the dock sensors cannot name the mounted tool (a catalog key).
+constexpr const char* kSensorErrorDetail = TR_NOOP("Sensor Error");
+
+/// The status line for a toolchanger status or operation word: a catalog key
+/// for a word we know, empty where the translated action already says it, and
+/// the raw word otherwise (it is all we know about an unfamiliar state).
+std::string toolchanger_word_detail(const std::string& word) {
+    if (word == "ready" || word == "idle" || word == "error") {
+        return {};
+    }
+    if (word == "changing") {
+        return TR_NOOP("Tool swap");
+    }
+    if (word == "picking") {
+        return TR_NOOP("Picking up tool");
+    }
+    if (word == "dropping") {
+        return TR_NOOP("Docking tool");
+    }
+    if (word == "initializing") {
+        return TR_NOOP("Initializing...");
+    }
+    if (word == "uninitialized") {
+        return TR_NOOP("Not Initialized");
+    }
+    return word;
+}
+
+/// klipper-toolchanger lists tools by object name ("tool T2"); discovery keeps "T2".
+std::string listed_tool_object_name(const std::string& listed) {
+    static constexpr std::string_view kPrefix = "tool ";
+    return listed.rfind(kPrefix, 0) == 0 ? listed.substr(kPrefix.size()) : listed;
+}
+
+} // namespace
+
 AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClient* client)
     : AmsSubscriptionBackend(api, client) {
     // Initialize system info with tool changer defaults
     system_info_.type = AmsType::TOOL_CHANGER;
-    system_info_.type_name = "Tool Changer";
+    system_info_.type_name = TR_NOOP("Tool Changer");
 
-    // Tool changer capabilities
     system_info_.supports_bypass = false; // No bypass on tool changers
     system_info_.has_hardware_bypass_sensor = false;
 
@@ -55,6 +95,7 @@ AmsBackendToolChanger::AmsBackendToolChanger(IMoonrakerAPI* api, IMoonrakerClien
 void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discovery) {
     namespace addon = helix::toolchanger_addon;
     set_discovered_tools(discovery.tool_names());
+    set_configured_tool_numbers(discovery.configured_tool_numbers());
     set_feeder(addon::resolve_feeder(discovery,
                                      helix::SettingsManager::instance().get_feeder_open_macro(),
                                      helix::SettingsManager::instance().get_feeder_close_macro()));
@@ -62,6 +103,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     set_tool_commands(addon::resolve_tool_commands(discovery));
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
+    tool_number_style_ = addon::tool_number_style(discovery);
     set_resume_rule(addon::resume_rule(discovery));
     set_clean_nozzle_gcode(addon::clean_nozzle_gcode(discovery));
     {
@@ -70,6 +112,30 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     }
     set_material_source(addon::resolve_material_source(discovery));
     tinfo_macro_present_ = discovery.has_macro("T_INFO");
+    // Z-Mod hands `tools` to SET_ZCOLOR whatever its AFC setting, so the map
+    // goes wherever its Moonraker reads it. The afclite plugin opens its own
+    // lane picker at print start, so it keeps the job rewrite.
+    print_start_takes_tool_slots_ = !addon::firmware_picks_lanes_at_print(discovery) &&
+                                    helix::print_start::takes_tool_slots(discovery);
+}
+
+helix::PrintStartParams
+AmsBackendToolChanger::print_start_params(const std::map<int, int>& tool_slots) const {
+    if (!print_start_takes_tool_slots_) {
+        return {};
+    }
+    std::map<int, int> heads;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // A tool or head past the machine's own is left to the firmware.
+        const int head_count = static_cast<int>(tool_names_.size());
+        for (const auto& [tool, slot] : tool_slots) {
+            if (tool < head_count && slot >= 0 && slot < head_count) {
+                heads[tool] = slot + 1; // DISPLAY_NUMBERING_OK: the firmware's 1-based head
+            }
+        }
+    }
+    return helix::print_start::tool_slot_params(heads);
 }
 
 void AmsBackendToolChanger::set_discovered_tools(std::vector<std::string> tool_names) {
@@ -85,7 +151,11 @@ void AmsBackendToolChanger::set_discovered_tools(std::vector<std::string> tool_n
     spdlog::info("[AMS ToolChanger] Set {} discovered tools", tool_names_.size());
 }
 
-// Destructor not needed -- base class handles subscription cleanup
+void AmsBackendToolChanger::set_configured_tool_numbers(
+    std::unordered_map<std::string, int> numbers) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    configured_tool_numbers_ = std::move(numbers);
+}
 
 // ============================================================================
 // Lifecycle Management
@@ -103,11 +173,7 @@ AmsError AmsBackendToolChanger::additional_start_checks() {
 
 void AmsBackendToolChanger::on_started() {
     // Deliberately NOT additional_start_checks(): start() calls that one while
-    // holding mutex_, and load_blocking() both blocks the caller and needs
-    // mutex_ to publish its result. Doing it there self-deadlocks on a
-    // non-recursive mutex the moment a real API is attached - the app hangs at
-    // startup, not just the tests. on_started() runs after start() releases the
-    // lock, which is why AmsBackendSnapmaker loads from here too.
+    // holding mutex_, and opening the store takes mutex_.
     //
     register_mount_feed_listener();
 
@@ -120,27 +186,7 @@ void AmsBackendToolChanger::on_started() {
     if (!api_) {
         return;
     }
-    auto loaded =
-        helix::ams::make_loaded_override_store(api_, "toolchanger", get_type(), backend_log_tag());
-    if (loaded.store) {
-        helix::ams::ingest_legacy_records(*loaded.store, helix::ams::LegacyLockKeys::LaneData,
-                                          backend_index());
-    }
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        override_store_ = std::move(loaded.store);
-        overrides_ = std::move(loaded.overrides);
-        seed_lane_records_seen_locked();
-        // set_discovered_tools() built the slots before start() ran, so they
-        // predate everything just loaded. Layer it on now rather than leaving
-        // the panel grey until the first status frame arrives.
-        if (!system_info_.units.empty()) {
-            auto& slots = system_info_.units[0].slots;
-            for (size_t i = 0; i < slots.size(); ++i) {
-                apply_resolved_lane(slots[i], static_cast<int>(i));
-            }
-        }
-    }
+    open_lane_record_store("toolchanger");
 
     register_zmod_marker_listener();
     query_zmod_tool_state();
@@ -155,6 +201,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
     if (!api_ || !zmod_c5_row_active() || !tinfo_macro_present_) {
         return;
     }
+    // Klipper refuses gcode until it reads READY, and a backend can start
+    // ahead of that (#2091). on_klippy_ready() sends it on the edge instead.
+    if (!get_printer_state().are_subjects_initialized() ||
+        lv_subject_get_int(get_printer_state().network_state().get_klippy_state_subject()) !=
+            static_cast<int>(KlippyState::READY)) {
+        spdlog::debug("[AMS ToolChanger] T_INFO query waits for Klipper to read ready");
+        return;
+    }
     // Captureless callbacks only: the query is fire-and-forget (its answer
     // arrives on the console listener), and a failed probe is log-only —
     // claiming error ownership here would mute Klipper's own `!!` line.
@@ -164,6 +218,14 @@ void AmsBackendToolChanger::query_zmod_tool_state() {
             spdlog::debug("[AMS ToolChanger] T_INFO query refused: {}", err.message);
         },
         0, false, nullptr, /*caller_surfaces_errors=*/false);
+}
+
+void AmsBackendToolChanger::on_klippy_ready() {
+    // FIRMWARE_RESTART reloads the macros, and the first READY of a connect can
+    // land after start(): either way this query re-seeds the carriage reading.
+    if (is_running()) {
+        query_zmod_tool_state();
+    }
 }
 
 void AmsBackendToolChanger::on_stopping() {
@@ -176,7 +238,12 @@ void AmsBackendToolChanger::on_stopped() {
     // goes out while the connection may still carry it, and the run resets.
     // Here and not in on_stopping(): the unwind takes mutex_ and emits, and
     // stop() holds mutex_ across on_stopping().
-    abandon_feed_run_after_disconnect();
+    abandon_feed_run_after_disconnect(carriage_trusted_for_restore());
+}
+
+void AmsBackendToolChanger::before_disconnect() {
+    // A carriage swap would run with nothing left to watch it.
+    abandon_feed_run_after_disconnect(/*restore_carriage=*/false);
 }
 
 void AmsBackendToolChanger::register_zmod_marker_listener() {
@@ -220,14 +287,6 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
             token.defer("AmsBackendToolChanger::zmod_marker_apply",
                         [this, line = std::move(line)]() mutable { on_zmod_marker_line(line); });
         });
-
-    // FIRMWARE_RESTART reloads the macros; the tool-state query is what
-    // re-seeds the carriage reading after klippy comes back.
-    client_->register_method_callback(
-        "notify_klippy_ready", handler_name, [this, token](const json& /*msg*/) {
-            token.defer("AmsBackendToolChanger::zmod_klippy_ready_apply",
-                        [this]() { query_zmod_tool_state(); });
-        });
 }
 
 void AmsBackendToolChanger::unregister_zmod_marker_listener() {
@@ -235,7 +294,6 @@ void AmsBackendToolChanger::unregister_zmod_marker_listener() {
         return;
     }
     client_->unregister_method_callback("notify_gcode_response", "toolchanger_zmod_marker_watcher");
-    client_->unregister_method_callback("notify_klippy_ready", "toolchanger_zmod_marker_watcher");
 }
 
 void AmsBackendToolChanger::on_zmod_marker_line(const std::string& line) {
@@ -307,6 +365,23 @@ AmsSystemInfo AmsBackendToolChanger::get_system_info() const {
 
 AmsType AmsBackendToolChanger::get_type() const {
     return AmsType::TOOL_CHANGER;
+}
+
+void AmsBackendToolChanger::on_lane_records_read_locked() {
+    // The record copies colour and material from the firmware once each read
+    // lands, never from the frame that changed them: that frame schedules a
+    // read because a tag reader may have rewritten the record, and a copy made
+    // before it lands would save over the reader's spool.
+    for (size_t i = 0; i < firmware_identity_.size(); ++i) {
+        if (const auto& stated = firmware_identity_[i]) {
+            mirror_firmware_identity_locked(static_cast<int>(i), stated->second, stated->first);
+        }
+    }
+}
+
+bool AmsBackendToolChanger::firmware_holds_identity_locked() const {
+    return material_source_.present && material_source_.write_gcode && firmware_slots_seen_ &&
+           firmware_palette_ && !firmware_palette_->empty();
 }
 
 SlotInfo* AmsBackendToolChanger::cached_slot_locked(int slot_index) {
@@ -485,8 +560,7 @@ AmsAction tc_step_action(TcStep step) {
 
 } // namespace
 
-AmsBackend::OperationStepModel
-AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
+OperationStepModel AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     // A run of several tools (main thread, like every feed_run_ access) gets a
     // bar with one stride per tool, so the highlight walks forward through the
     // whole batch instead of restarting at each tool.
@@ -512,10 +586,8 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
             if (run_heads.size() < 2 || tool < 0 || static_cast<size_t>(tool) >= run_heads.size()) {
                 return std::string();
             }
-            return fmt::format(
-                "{} ({}/{}): ",
-                helix::ui::lane_label(lane_noun(), run_heads[static_cast<size_t>(tool)]), tool + 1,
-                run_heads.size());
+            return fmt::format("{} ({}/{}): ", head_label(run_heads[static_cast<size_t>(tool)]),
+                               tool + 1, run_heads.size());
         };
         int index = 0;
         for (const auto& row : helix::mount_feed::bar_rows(load, run_tools)) {
@@ -787,10 +859,10 @@ std::string AmsBackendToolChanger::controller_failure_text_locked() const {
                                              tool, controller_failure_);
         // The controller paused the print; its RESUME re-picks this tool.
         if (recovery_target_locked() == target && print_holds_printer()) {
-            text +=
-                ". " + fmt::format(fmt::runtime(lv_tr(
-                                       "Seat the hot ends, heat {} above {}°C, then tap Resume.")),
-                                   tool, resume_rule_.min_nozzle_c);
+            text += ". " +
+                    fmt::format(fmt::runtime(
+                                    lv_tr("Seat the hot ends, heat {} above {}, then tap Resume.")),
+                                tool, units::format_display_temp(resume_rule_.min_nozzle_c));
         }
         return text;
     }
@@ -812,8 +884,9 @@ int AmsBackendToolChanger::recovery_target_locked() const {
 }
 
 std::string AmsBackendToolChanger::target_tool_label_locked(int target) const {
-    return helix::ui::tool_label_in_form(lane_noun(), tool_names_[static_cast<size_t>(target)],
-                                         target, helix::ui::ToolLabelForm::Full);
+    return helix::ui::tool_label_in_form(lane_noun(), display_tool_number_style(),
+                                         tool_names_[static_cast<size_t>(target)], target,
+                                         helix::ui::ToolLabelForm::Full);
 }
 
 void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCallback on_ready) {
@@ -842,8 +915,8 @@ void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCa
                     AmsError(AmsResult::WRONG_STATE,
                              fmt::format("{} at {:.0f}C, at or below {}C", it->first,
                                          it->second.temperature, min_c),
-                             fmt::format(fmt::runtime(lv_tr("Heat {} above {}°C before resuming")),
-                                         tool, min_c)));
+                             fmt::format(fmt::runtime(lv_tr("Heat {} above {} before resuming")),
+                                         tool, units::format_display_temp(min_c))));
             }
             return;
         }
@@ -857,12 +930,11 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     bool state_changed = false;
     bool sensor_fault = false;
     std::string failure_toast;
-    ToastSeverity failure_severity = ToastSeverity::WARNING;
+    NoticeSeverity failure_severity = NoticeSeverity::WARNING;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Check for toolchanger object updates
         if (params.contains("toolchanger")) {
             const auto& tc_data = params["toolchanger"];
             if (tc_data.is_object()) {
@@ -1047,7 +1119,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         }
         sensor_error_ = true;
         system_info_.action = AmsAction::ERROR;
-        system_info_.operation_detail = "sensor error";
+        system_info_.operation_detail = kSensorErrorDetail;
         // A run can no longer trust the carriage. It stops once this frame is
         // applied, outside mutex_.
         if (feed_active_) {
@@ -1064,7 +1136,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     // reading they gave still stands.
     if (!(sensor_error_ && raw_sensor_fault_locked())) {
         if (sensor_error_ && system_info_.action == AmsAction::ERROR &&
-            system_info_.operation_detail == "sensor error") {
+            system_info_.operation_detail == kSensorErrorDetail) {
             system_info_.action = AmsAction::IDLE;
             system_info_.operation_detail.clear();
         }
@@ -1078,7 +1150,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         !failure_already_noticed(controller_failure_, controller_failure_noticed_)) {
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ = controller_failure_text_locked();
-        pending_failure_severity_ = ToastSeverity::WARNING;
+        pending_failure_severity_ = NoticeSeverity::WARNING;
     }
     // A message with no failed operation behind it (the controller's own
     // startup failing) is about the controller, not a tool change.
@@ -1087,7 +1159,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ =
             fmt::format(fmt::runtime(lv_tr("Tool changer error: {}")), controller_failure_);
-        pending_failure_severity_ = ToastSeverity::ERROR;
+        pending_failure_severity_ = NoticeSeverity::ERROR;
     }
 
     // Only when the frame named the carriage. A delta carrying just the gripper
@@ -1154,7 +1226,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     }
     if (const auto busy = operation_word_action(op)) {
         system_info_.action = *busy;
-        system_info_.operation_detail = op;
+        system_info_.operation_detail = toolchanger_word_detail(op);
         operation_confirmed_ = true;
     } else if (op == "idle") {
         // A swap RELEASES the filament before it moves, so its first frame is
@@ -1185,7 +1257,7 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
             // exact moment the bar should light its last one.
             operation_ended = true;
         }
-        system_info_.operation_detail = op;
+        system_info_.operation_detail = toolchanger_word_detail(op);
     }
 
     // Only when the frame actually carried a phase word. Moonraker republishes
@@ -1238,7 +1310,7 @@ void AmsBackendToolChanger::apply_material_reading_locked(
         seen = std::move(value);
         // The firmware's statement of what this head holds, replaced whole each
         // time the frame carries it.
-        helix::ams::Observation vendor(helix::ams::ObservationSource::VendorCache);
+        helix::ams::Observation vendor(helix::ams::ObservationSource::Firmware);
         if (!slot->material.empty()) {
             vendor.material = slot->material;
         }
@@ -1246,6 +1318,15 @@ void AmsBackendToolChanger::apply_material_reading_locked(
             vendor.color_rgb = *slot->rgb;
         }
         helix::ams::ingest(lane_id(static_cast<int>(i)), vendor);
+        // What the record copies at the next read (on_lane_records_read_locked):
+        // a head stating both, and not reported empty.
+        if (i >= firmware_identity_.size()) {
+            firmware_identity_.resize(i + 1);
+        }
+        firmware_identity_[i].reset();
+        if (slot->rgb && !slot->material.empty() && slot->filament_present != false) {
+            firmware_identity_[i] = std::make_pair(slot->material, *slot->rgb);
+        }
         if (slot->filament_present) {
             if (i >= head_filament_.size()) {
                 head_filament_.resize(i + 1);
@@ -1258,7 +1339,7 @@ void AmsBackendToolChanger::apply_material_reading_locked(
         refresh_slot_statuses_locked();
     }
     if (restated) {
-        schedule_lane_record_reread();
+        schedule_lane_refresh();
     }
 }
 
@@ -1275,7 +1356,7 @@ void AmsBackendToolChanger::apply_afc_lane_spools_locked(
         }
     }
     if (changed) {
-        schedule_lane_record_reread();
+        schedule_lane_refresh();
     }
 }
 
@@ -1334,13 +1415,6 @@ std::optional<std::vector<std::string>> AmsBackendToolChanger::get_supported_mat
     return firmware_valid_types_;
 }
 
-bool AmsBackendToolChanger::firmware_stores_color_and_material(int slot_index) const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return material_source_.present && material_source_.write_gcode && firmware_slots_seen_ &&
-           firmware_palette_ && !firmware_palette_->empty() && slot_index >= 0 &&
-           slot_index < static_cast<int>(tool_names_.size());
-}
-
 void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_data) {
     // Parse status: toolchanger.status
     // Values: "ready", "changing", "error", "uninitialized"
@@ -1351,7 +1425,7 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         // nothing about a dock-sensor fault: only the sensors agreeing ends it.
         if (!(sensor_error_ && status_action == AmsAction::IDLE)) {
             system_info_.action = status_action;
-            system_info_.operation_detail = status_str;
+            system_info_.operation_detail = toolchanger_word_detail(status_str);
         }
         spdlog::trace("[AMS ToolChanger] Status: {} -> {}", status_str,
                       ams_action_to_string(system_info_.action));
@@ -1373,43 +1447,130 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
         }
     }
 
+    // Parse the tool listing before tool_number: a frame carrying both must
+    // seat the carriage tool against the listing it brought. Numbers can skip
+    // (T0, T2, T3) and ASSIGN_TOOL rewrites the listing, so it, not a tool's
+    // position, says which tool a number selects.
+    bool listing_changed = false;
+    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
+        std::vector<int> numbers;
+        for (const auto& n : tc_data["tool_numbers"]) {
+            numbers.push_back(n.is_number_integer() ? n.get<int>() : -1);
+        }
+        listing_changed = listing_changed || numbers != listed_tool_numbers_;
+        listed_tool_numbers_ = std::move(numbers);
+        spdlog::trace("[AMS ToolChanger] Tool numbers: {}",
+                      helix::json_util::safe_dump(tc_data["tool_numbers"]));
+    }
+    if (tc_data.contains("tool_names") && tc_data["tool_names"].is_array()) {
+        std::vector<std::string> names;
+        for (const auto& n : tc_data["tool_names"]) {
+            names.push_back(n.is_string() ? n.get<std::string>() : std::string());
+        }
+        listing_changed = listing_changed || names != listed_tool_names_;
+        listed_tool_names_ = std::move(names);
+    }
+    if (!listed_tool_numbers_.empty() && listed_tool_numbers_.size() == listed_tool_names_.size()) {
+        for (size_t i = 0; i < listed_tool_names_.size(); ++i) {
+            home_tool_numbers_.emplace(listed_tool_object_name(listed_tool_names_[i]),
+                                       listed_tool_numbers_[i]);
+        }
+    }
+    if (listing_changed) {
+        apply_listing_to_tool_map_locked();
+    }
+
     // Parse current tool: toolchanger.tool_number
     // -1 = no tool selected
     //
     // With dock sensors this is only what SELECT_TOOL last set, and Moonraker
     // sends it in deltas of its own, so it never names the carriage: the
     // sensors do (apply_tool_sensor_locked()).
-    if (!tool_sensor_.present && tc_data.contains("tool_number") &&
-        tc_data["tool_number"].is_number_integer()) {
-        int tool_num = tc_data["tool_number"].get<int>();
-        system_info_.current_tool = tool_num;
-        // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
-        // tool, which ASSIGN_TOOL can move onto any physical tool — it is only
-        // the slot index while the mapping is identity. Resolve it through the
-        // forward map so the carriage lane is right under a remap too; an
-        // unmapped number falls back to itself, the pre-remap answer.
-        int seated_slot = -1;
-        if (tool_num >= 0) {
-            seated_slot = tool_num < static_cast<int>(system_info_.tool_to_slot_map.size())
-                              ? system_info_.tool_to_slot_map[static_cast<size_t>(tool_num)]
-                              : -1;
-            if (seated_slot < 0) {
-                seated_slot = tool_num;
-            }
+    if (!tool_sensor_.present) {
+        if (tc_data.contains("tool_number") && tc_data["tool_number"].is_number_integer()) {
+            seat_tool_number_locked(tc_data["tool_number"].get<int>());
+        } else if (listing_changed && system_info_.current_tool >= 0) {
+            // A remap of the carriage tool can arrive as a listing alone.
+            seat_tool_number_locked(system_info_.current_tool);
         }
-        system_info_.current_slot = seated_slot;
-        system_info_.filament_loaded = (tool_num >= 0);
-        refresh_slot_statuses_locked();
-        spdlog::trace("[AMS ToolChanger] Current tool: T{} (physical slot {})", tool_num,
-                      seated_slot);
     }
+}
 
-    // Parse tool list: toolchanger.tool_numbers and toolchanger.tool_names
-    // This can be used to dynamically update the tool list
-    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
-        spdlog::trace("[AMS ToolChanger] Tool numbers: {}",
-                      helix::json_util::safe_dump(tc_data["tool_numbers"]));
+void AmsBackendToolChanger::seat_tool_number_locked(int tool_number) {
+    // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
+    // tool. It is a slot index only on a contiguous, unremapped machine.
+    const int seated_slot = slot_for_tool_number_locked(tool_number);
+    system_info_.current_tool = tool_number;
+    system_info_.current_slot = seated_slot;
+    system_info_.filament_loaded = (tool_number >= 0);
+    refresh_slot_statuses_locked();
+    spdlog::trace("[AMS ToolChanger] Current tool: T{} (physical slot {})", tool_number,
+                  seated_slot);
+}
+
+int AmsBackendToolChanger::slot_for_tool_number_locked(int tool_number) const {
+    if (tool_number < 0) {
+        return -1;
     }
+    const bool listed =
+        !listed_tool_numbers_.empty() && listed_tool_numbers_.size() == listed_tool_names_.size();
+    if (listed) {
+        for (size_t i = 0; i < listed_tool_numbers_.size(); ++i) {
+            if (listed_tool_numbers_[i] != tool_number) {
+                continue;
+            }
+            return find_slot_for_tool(listed_tool_object_name(listed_tool_names_[i]));
+        }
+        return -1;
+    }
+    const auto& map = system_info_.tool_to_slot_map;
+    const int slot =
+        tool_number < static_cast<int>(map.size()) ? map[static_cast<size_t>(tool_number)] : -1;
+    return slot >= 0 ? slot : tool_number;
+}
+
+int AmsBackendToolChanger::listed_number_for_slot_locked(int slot_index) const {
+    if (slot_index < 0 || slot_index >= static_cast<int>(tool_names_.size()) ||
+        listed_tool_numbers_.size() != listed_tool_names_.size()) {
+        return -1;
+    }
+    const auto& name = tool_names_[static_cast<size_t>(slot_index)];
+    for (size_t i = 0; i < listed_tool_names_.size(); ++i) {
+        if (listed_tool_object_name(listed_tool_names_[i]) == name) {
+            return listed_tool_numbers_[i];
+        }
+    }
+    return -1;
+}
+
+bool AmsBackendToolChanger::apply_listing_to_tool_map_locked() {
+    if (listed_tool_numbers_.empty() || listed_tool_numbers_.size() != listed_tool_names_.size() ||
+        tool_names_.empty()) {
+        return false;
+    }
+    std::vector<int> forward;
+    for (size_t i = 0; i < listed_tool_numbers_.size(); ++i) {
+        const int number = listed_tool_numbers_[i];
+        const int slot = find_slot_for_tool(listed_tool_object_name(listed_tool_names_[i]));
+        if (number < 0 || slot < 0) {
+            continue;
+        }
+        if (number >= static_cast<int>(forward.size())) {
+            forward.resize(static_cast<size_t>(number) + 1, -1);
+        }
+        forward[static_cast<size_t>(number)] = slot;
+    }
+    system_info_.tool_to_slot_map = std::move(forward);
+    // The listing is the whole truth: a tool it gives no number has no badge.
+    helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/false);
+    return true;
+}
+
+void AmsBackendToolChanger::clear_tool_listing_locked() {
+    // The seat and badges keep what they show until the next listing arrives.
+    listed_tool_numbers_.clear();
+    listed_tool_names_.clear();
+    home_tool_numbers_.clear();
 }
 
 void AmsBackendToolChanger::parse_tool_state(const std::string& tool_name,
@@ -1562,7 +1723,6 @@ void AmsBackendToolChanger::initialize_tools() {
     unit.has_toolhead_sensor = false;
     unit.has_slot_sensors = false;
 
-    // Initialize slots for each tool
     tool_mounted_.clear();
     tool_mounted_.resize(tool_count, false);
 
@@ -1588,7 +1748,9 @@ void AmsBackendToolChanger::initialize_tools() {
     // the badge (mapped_tool) and the op-button lane (tool_to_slot_map) have to
     // move together or they name different toolheads.
     system_info_.tool_to_slot_map.clear();
-    helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/true);
+    if (!apply_listing_to_tool_map_locked()) {
+        helix::printer::sync_tool_map_from_forward(system_info_, /*identity_fallback=*/true);
+    }
 
     // A toolchanger frame may already have named the carriage tool before the
     // tool list arrived; re-derive so the fresh slots match it.
@@ -1664,7 +1826,7 @@ uint64_t AmsBackendToolChanger::begin_dispatch_locked(AmsAction action) {
     // raw toolchanger status string) until the next frame, which for a no-op
     // never comes.
     system_info_.operation_detail =
-        (action == AmsAction::UNLOADING) ? lv_tr("Unloading") : lv_tr("Tool swap");
+        (action == AmsAction::UNLOADING) ? TR_NOOP("Unloading") : TR_NOOP("Tool swap");
 
     spdlog::debug("[AMS ToolChanger] Dispatch #{}: action set optimistically to {}", generation,
                   ams_action_to_string(action));
@@ -1689,7 +1851,7 @@ void AmsBackendToolChanger::abandon_dispatch(uint64_t generation) {
                                      : std::nullopt;
             if (running) {
                 system_info_.action = *running;
-                system_info_.operation_detail = last_operation_word_;
+                system_info_.operation_detail = toolchanger_word_detail(last_operation_word_);
             } else {
                 system_info_.action = AmsAction::IDLE;
                 system_info_.operation_detail.clear();
@@ -1850,7 +2012,7 @@ helix::mount_feed::Request AmsBackendToolChanger::build_feed_request(const std::
     std::vector<int> docked;
     std::vector<int> on_carriage;
     for (const mf::HeadRequest& hr : req.heads) {
-        (hr.mount_gcode.empty() ? on_carriage : docked).push_back(hr.head + 1);
+        (hr.mount_gcode.empty() ? on_carriage : docked).push_back(helix::ui::lane_number(hr.head));
     }
     const auto numbers = [](const std::vector<int>& tools) {
         std::string list;
@@ -1944,6 +2106,7 @@ void AmsBackendToolChanger::send_feed_stage() {
     if (!feed_run_) {
         return;
     }
+    feed_heater_hold_.set(feed_run_->started());
     set_wait_watchdog(false);
     const std::optional<std::string> gcode = feed_run_->current_gcode();
     if (!gcode) {
@@ -2160,7 +2323,7 @@ void AmsBackendToolChanger::on_feed_stage_failed(uint64_t generation, const std:
         const helix::mount_feed::Stage* cleanup = feed_run_->current_stage();
         if (cleanup != nullptr && cleanup->heaters_off) {
             spdlog::error("[AMS ToolChanger] Mount-to-feed cleanup failed to send ({})", message);
-            show_feed_toast(lv_tr("Could not turn the heaters off"), ToastSeverity::ERROR);
+            show_feed_toast(lv_tr("Could not turn the heaters off"), NoticeSeverity::ERROR);
         } else {
             spdlog::warn("[AMS ToolChanger] Mount-to-feed prompt close failed ({})", message);
         }
@@ -2269,7 +2432,7 @@ void AmsBackendToolChanger::toast_partial_run(FeedStopReason why, const std::vec
             req.restore_head >= 0
                 ? fmt::format(fmt::runtime(lv_tr("The tool change under way finished, and {} "
                                                  "was not put back on the carriage")),
-                              helix::ui::lane_label(lane_noun(), req.restore_head))
+                              head_label(req.restore_head))
                 : std::string(lv_tr("The tool change under way finished, and the tool was not "
                                     "parked")));
     }
@@ -2288,8 +2451,8 @@ void AmsBackendToolChanger::toast_partial_run(FeedStopReason why, const std::vec
         text += (text.empty() ? "" : " ") + sentence + ".";
     }
     // A Cancel the run carried out as asked is no error.
-    show_feed_toast(text, why == FeedStopReason::CancelledAfterSwap ? ToastSeverity::WARNING
-                                                                    : ToastSeverity::ERROR);
+    show_feed_toast(text, why == FeedStopReason::CancelledAfterSwap ? NoticeSeverity::WARNING
+                                                                    : NoticeSeverity::ERROR);
 }
 
 std::string AmsBackendToolChanger::still_heating_sentence(const std::vector<int>& heads) const {
@@ -2314,7 +2477,7 @@ void AmsBackendToolChanger::toast_unload_complete() {
     show_feed_toast(
         fmt::format(fmt::runtime(lv_tr("Unload complete. Pull the filament out of {}.")),
                     feed_lane_list(heads)),
-        ToastSeverity::SUCCESS);
+        NoticeSeverity::SUCCESS);
 }
 
 std::string AmsBackendToolChanger::feed_lane_list(const std::vector<int>& heads) const {
@@ -2323,22 +2486,26 @@ std::string AmsBackendToolChanger::feed_lane_list(const std::vector<int>& heads)
         if (!list.empty()) {
             list += ", ";
         }
-        list += helix::ui::lane_label(lane_noun(), head);
+        list += head_label(head);
     }
     return list;
 }
 
-void AmsBackendToolChanger::show_feed_toast(const std::string& message, ToastSeverity severity) {
+std::string AmsBackendToolChanger::head_label(int head) const {
+    return helix::ui::tool_lane_label(lane_noun(), display_tool_number_style(), head);
+}
+
+void AmsBackendToolChanger::show_feed_toast(const std::string& message, NoticeSeverity severity) {
     // Recorded before the guard: unit tests pin the wording without a display.
     feed_last_toast_ = message;
     feed_last_toast_severity_ = severity;
     if (!lv_is_initialized()) {
         return;
     }
-    ToastManager::instance().show(severity, message.c_str());
+    publish_notice({severity, message});
 }
 
-void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
+void AmsBackendToolChanger::abandon_feed_run_after_disconnect(bool restore_carriage) {
     if (!feed_run_) {
         return;
     }
@@ -2347,7 +2514,7 @@ void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
     // reset the run now, rather than leaving a hot nozzle behind bookkeeping.
     spdlog::warn("[AMS ToolChanger] Backend stopping under a mount-to-feed run; sending the "
                  "cleanup and resetting the run");
-    feed_run_->abort(carriage_trusted_for_restore());
+    feed_run_->abort(restore_carriage);
     const std::optional<std::string> cleanup = feed_run_->current_gcode();
     reset_feed_run();
     if (cleanup) {
@@ -2385,7 +2552,7 @@ void AmsBackendToolChanger::stop_feed_run_for_print() {
                           /*carriage_restored=*/false, heating);
     } else if (const std::string sentence = still_heating_sentence(heating); !sentence.empty()) {
         // The run already said why it stopped; what is new is the heat.
-        show_feed_toast(sentence + ".", ToastSeverity::WARNING);
+        show_feed_toast(sentence + ".", NoticeSeverity::WARNING);
     }
     reset_feed_run();
     if (prompt_open) {
@@ -2414,7 +2581,7 @@ void AmsBackendToolChanger::flush_owed_heaters_off() {
         spdlog::info("[AMS ToolChanger] A print holds the printer; dropping the heaters-off a "
                      "stopped mount-to-feed run owed");
         const std::vector<int> heads = std::exchange(owed_heaters_off_, {});
-        show_feed_toast(still_heating_sentence(heads) + ".", ToastSeverity::WARNING);
+        show_feed_toast(still_heating_sentence(heads) + ".", NoticeSeverity::WARNING);
         return;
     }
     std::vector<int> heads = std::exchange(owed_heaters_off_, {});
@@ -2451,6 +2618,7 @@ void AmsBackendToolChanger::owe_heaters_off(const std::vector<int>& heads) {
 
 void AmsBackendToolChanger::reset_feed_run() {
     feed_run_.reset();
+    feed_heater_hold_.set(false);
     feed_swap_check_.reset();
     feed_cancel_after_swap_ = false;
     set_swap_watchdog(false);
@@ -2472,7 +2640,7 @@ void AmsBackendToolChanger::reset_feed_run() {
         if (tool_sensor_.present && raw_sensor_fault_locked()) {
             sensor_error_ = true;
             system_info_.action = AmsAction::ERROR;
-            system_info_.operation_detail = "sensor error";
+            system_info_.operation_detail = kSensorErrorDetail;
         }
     }
     emit_event(EVENT_STATE_CHANGED);
@@ -2762,6 +2930,9 @@ void AmsBackendToolChanger::on_klipper_restarted() {
         ++dispatch_generation_;
         // Whatever the controller was doing died with it.
         last_operation_word_.clear();
+        // A restart may have reloaded a renumbered config and dropped every
+        // ASSIGN_TOOL: the next listing is the tools' numbering from scratch.
+        clear_tool_listing_locked();
     }
     // Everything the run had queued died with the restart. Klippy is ready
     // again, so what the run owes its heaters can go out now.
@@ -2776,6 +2947,7 @@ void AmsBackendToolChanger::on_connection_lost() {
         // the reconnect finds.
         std::lock_guard<std::mutex> lock(mutex_);
         last_operation_word_.clear();
+        clear_tool_listing_locked();
     }
     frame_print_state_current_ = false;
     stop_feed_run_unreachable();
@@ -2828,37 +3000,14 @@ bool AmsBackendToolChanger::can_cancel_operation() const {
 // Configuration Operations
 // ============================================================================
 
-namespace {
-
-/// Put @p info's filament fields on @p slot, so get_slot_info returns them at
-/// once.
-void write_filament_fields(SlotInfo& slot, const SlotInfo& info) {
-    slot.color_rgb = info.color_rgb;
-    slot.color_name = info.color_name;
-    slot.material = info.material;
-    slot.brand = info.brand;
-    // Carry the catalog product identity through a sync too: one that dropped
-    // it would make the editor snap back to a different variant on the next
-    // get_slot_info().
-    slot.catalog_id = info.catalog_id;
-    slot.product_name = info.product_name;
-    slot.spoolman_id = info.spoolman_id;
-    slot.spoolman_filament_id = info.spoolman_filament_id;
-    slot.spool_name = info.spool_name;
-    slot.remaining_weight_g = info.remaining_weight_g;
-    slot.total_weight_g = info.total_weight_g;
-}
-
-} // namespace
-
-AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& info,
-                                                const helix::ams::Observation& declared) {
+AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& info) {
     std::string physical_tool_name;
     bool firmware_edit = false;
     std::vector<std::pair<int, std::uint32_t>> palette;
     std::string (*write_gcode)(int, const std::string&, std::uint32_t) = nullptr;
     std::string firmware_type;
     bool remap_refused = false;
+    bool firmware_holds_identity = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2866,6 +3015,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
         if (!slot_valid) {
             return slot_valid;
         }
+        firmware_holds_identity = firmware_holds_identity_locked();
 
         // Decide the firmware write from the current slot reading. Only the
         // decision inputs are taken here: the material check below has to run
@@ -2873,9 +3023,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
         if (!system_info_.units.empty() &&
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
             const auto& slot = system_info_.units[0].slots[slot_index];
-            firmware_edit = material_source_.present && material_source_.write_gcode &&
-                            firmware_slots_seen_ && firmware_palette_ &&
-                            !firmware_palette_->empty() &&
+            firmware_edit = firmware_holds_identity_locked() &&
                             (slot.color_rgb != info.color_rgb || slot.material != info.material);
             if (firmware_edit) {
                 palette = *firmware_palette_;
@@ -2901,12 +3049,11 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Update local state (for UI display)
         if (!system_info_.units.empty() &&
             slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
             auto& slot = system_info_.units[0].slots[slot_index];
             const int old_mapped_tool = slot.mapped_tool;
-            write_filament_fields(slot, info);
+            slot.assign_filament_fields(info);
 
             // Tool mapping change: persist via ASSIGN_TOOL outside the lock.
             // slot.mapped_tool stores "which G-code tool number activates this physical
@@ -2921,24 +3068,24 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
                 // One pass for both directions, and it EVICTS: the tool being
                 // moved leaves its old lane unmapped, and whatever tool this
                 // lane previously answered to gives it up. Writing the two
-                // fields by hand left both stale halves in place, so a swap
-                // ended with two lanes claiming one tool number.
+                // fields by hand leaves both stale halves in place, so a swap
+                // ends with two lanes claiming one tool number.
                 helix::printer::assign_tool_slot(system_info_, info.mapped_tool, slot_index);
                 physical_tool_name = tool_names_[slot_index];
             }
 
-            // Stage the user's edit. Every field is override-exclusive here:
-            // klipper-toolchanger supplies no material, colour, brand or weight,
-            // so there is nothing underneath for these to fall through to.
-            helix::ams::stage_user_override(overrides_, slot_index, info, declared);
+            // klipper-toolchanger supplies no material, colour, brand or
+            // weight, so the record holds the whole edit. Where the firmware
+            // holds colour and material, those go to it below and the record
+            // copies them from its echo. Saved BEFORE the remap's early
+            // return, or an edit that also moved a tool number would send
+            // ASSIGN_TOOL and drop the metadata.
+            if (firmware_holds_identity) {
+                persist_record_beside_firmware_locked(slot_index, info);
+            } else {
+                persist_user_record_locked(slot_index, info);
+            }
         }
-    }
-
-    // Persist BEFORE the remap's early return, or a slot edit that also moved a
-    // tool number would send ASSIGN_TOOL and silently drop the metadata.
-    if (override_store_) {
-        helix::ams::persist_staged_override(override_store_.get(), mutex_, overrides_, slot_index,
-                                            backend_log_tag(), "Override");
     }
 
     // Emit OUTSIDE the lock to avoid deadlock with callbacks, and ahead of the
@@ -2956,6 +3103,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
                 break;
             }
         }
+        restate_pending_as_stored(slot_index, rgb, firmware_type);
         AmsError sent = execute_gcode(
             write_gcode(slot_index, IMoonrakerAPI::gcode_param_value(firmware_type), rgb));
         if (!sent.success()) {
@@ -2983,57 +3131,11 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     return AmsErrorHelper::success();
 }
 
-void AmsBackendToolChanger::clear_slot_override(int slot_index) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        clear_override_locked(slot_index, system_info_.get_slot_global(slot_index));
-    }
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-}
-
 void AmsBackendToolChanger::clear_override_fields(SlotInfo& slot) const {
     AmsSubscriptionBackend::clear_override_fields(slot);
     slot.material.clear();
     slot.color_rgb = kAmsDefaultSlotColor;
     slot.multi_color_hexes.clear();
-}
-
-AmsError AmsBackendToolChanger::sync_external_identity(int slot_index, const SlotInfo& info) {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        AmsError slot_valid = validate_slot_index_locked(slot_index);
-        if (!slot_valid) {
-            return slot_valid;
-        }
-
-        // The slot keeps the tool number it answers to: only a person's edit moves
-        // the tool map, and moving it sends ASSIGN_TOOL.
-        if (!system_info_.units.empty() &&
-            slot_index < static_cast<int>(system_info_.units[0].slots.size())) {
-            write_filament_fields(system_info_.units[0].slots[slot_index], info);
-        }
-    }
-
-    // Emit OUTSIDE the lock to avoid deadlock with callbacks
-    emit_event(kEventSlotChanged, std::to_string(slot_index));
-    return AmsErrorHelper::success();
-}
-
-void AmsBackendToolChanger::persist_external_identity_impl(
-    int slot_index, const helix::ams::Observation& spoolman) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_external_identity(override_store_.get(), overrides_, slot_index,
-                                                   spoolman, tag);
-}
-
-void AmsBackendToolChanger::persist_slot_weight(int slot_index, float remaining_weight_g,
-                                                float total_weight_g) {
-    const std::string tag = backend_log_tag();
-    std::lock_guard<std::mutex> lock(mutex_);
-    helix::ams::persist_override_weight(override_store_.get(), overrides_, slot_index,
-                                        remaining_weight_g, total_weight_g, tag);
 }
 
 AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_name,
@@ -3059,7 +3161,11 @@ AmsError AmsBackendToolChanger::can_set_tool_mapping(int tool_number, int slot_i
 
 AmsError AmsBackendToolChanger::can_set_tool_mapping_locked(int tool_number, int slot_index) const {
     const int tool_count = static_cast<int>(tool_names_.size());
-    if (tool_number < 0 || tool_number >= tool_count) {
+    // Numbers can have gaps (tools 0, 2, 3), so a number the printer lists is
+    // in range however large it is.
+    const bool listed = std::find(listed_tool_numbers_.begin(), listed_tool_numbers_.end(),
+                                  tool_number) != listed_tool_numbers_.end();
+    if (tool_number < 0 || (tool_number >= tool_count && !listed)) {
         return AmsErrorHelper::tool_out_of_range(tool_number);
     }
     if (slot_index < 0 || slot_index >= tool_count) {
@@ -3082,9 +3188,23 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
         if (auto err = can_set_tool_mapping_locked(tool_number, slot_index); !err.success()) {
             return err;
         }
-        // No ASSIGN_TOOL to send, so the table stays as the firmware has it.
+        // No ASSIGN_TOOL to send. Where the print start carries the map, the
+        // pick is this print's table and lands through print_start_params();
+        // otherwise the table stays as the firmware has it.
         if (tool_commands_.present) {
-            return AmsErrorHelper::not_supported("Tool remapping");
+            if (!print_start_takes_tool_slots_) {
+                return AmsErrorHelper::not_supported("Tool remapping");
+            }
+            helix::printer::assign_tool_slot(system_info_, tool_number, slot_index);
+            // A slot the published table does not hold yet is refused there
+            // silently; nothing was stored, so nothing is owed a restore.
+            const auto& map = system_info_.tool_to_slot_map;
+            if (tool_number >= static_cast<int>(map.size()) ||
+                map[static_cast<size_t>(tool_number)] != slot_index) {
+                return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
+                                                    system_info_.total_slots - 1);
+            }
+            return AmsErrorHelper::success();
         }
 
         // The physical tool to assign (slot_index maps to tool_names_[slot_index])
@@ -3103,19 +3223,36 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
     return assign_tool(physical_tool_name, tool_number);
 }
 
-std::vector<int> AmsBackendToolChanger::get_tool_mapping() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.tool_to_slot_map;
-}
-
 AmsError AmsBackendToolChanger::reset_tool_mappings() {
-    // Restore identity mapping: each tool number maps to its own physical tool.
-    // Sends ASSIGN_TOOL for each tool that was remapped away from identity.
+    // Return every tool to its own number, sending ASSIGN_TOOL for each tool
+    // that answers to another one.
     std::vector<std::pair<int, std::string>> remaps_needed;
+    bool listed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         int tool_count = static_cast<int>(tool_names_.size());
-        for (int i = 0; i < tool_count; ++i) {
+        // A printer that lists its tools may number them with gaps (0, 2, 3),
+        // so a slot index is not its tool's number: each tool goes back to its
+        // configured number, or the one the first listing gave it.
+        listed = !home_tool_numbers_.empty();
+        if (listed) {
+            for (int i = 0; i < tool_count; ++i) {
+                const auto& name = tool_names_[static_cast<size_t>(i)];
+                int home = -1;
+                if (const auto configured =
+                        configured_tool_numbers_.find(helix::text_io::to_lower(name));
+                    configured != configured_tool_numbers_.end()) {
+                    home = configured->second;
+                } else if (const auto first = home_tool_numbers_.find(name);
+                           first != home_tool_numbers_.end()) {
+                    home = first->second;
+                }
+                if (home >= 0 && listed_number_for_slot_locked(i) != home) {
+                    remaps_needed.emplace_back(home, name);
+                }
+            }
+        }
+        for (int i = 0; !listed && i < tool_count; ++i) {
             if (i < static_cast<int>(system_info_.tool_to_slot_map.size()) &&
                 system_info_.tool_to_slot_map[i] != i) {
                 // Tool i is currently mapped to a different slot — restore to identity
@@ -3123,33 +3260,32 @@ AmsError AmsBackendToolChanger::reset_tool_mappings() {
                 system_info_.tool_to_slot_map[i] = i;
             }
         }
-        // Re-derive every slot's mapped_tool from the identity map just
-        // written. The loop above touches only the forward direction, so
-        // without this the lane badges kept showing the remap the user just
-        // reset — the panel and the op buttons disagreeing again, one frame
-        // after we told the user the reset succeeded.
-        if (!remaps_needed.empty()) {
+        // Unlisted, re-derive every slot's mapped_tool from the identity map
+        // just written: the loop touches only the forward direction, and the
+        // lane badges would keep showing the remap being reset. Listed, the
+        // badges follow the listing Klipper sends once the ASSIGN_TOOLs apply.
+        if (!listed && !remaps_needed.empty()) {
             helix::printer::sync_tool_map_from_forward(system_info_,
                                                        /*identity_fallback=*/true);
         }
     }
 
     if (remaps_needed.empty()) {
-        spdlog::debug("[AMS ToolChanger] All tools already at identity mapping");
+        spdlog::debug("[AMS ToolChanger] All tools already on their own numbers");
         return AmsErrorHelper::success();
     }
 
     AmsError last_error = AmsErrorHelper::success();
     for (const auto& [tool_num, tool_name] : remaps_needed) {
-        spdlog::info("[AMS ToolChanger] Resetting T{} -> physical {} (identity)", tool_num,
-                     tool_name);
+        spdlog::info("[AMS ToolChanger] Resetting T{} -> physical {}", tool_num, tool_name);
         auto err = assign_tool(tool_name, tool_num);
         if (err.result != AmsResult::SUCCESS) {
             last_error = err;
         }
     }
 
-    spdlog::info("[AMS ToolChanger] Reset {} tool mapping(s) to identity", remaps_needed.size());
+    spdlog::info("[AMS ToolChanger] Reset {} tool mapping(s) to each tool's own number",
+                 remaps_needed.size());
     return last_error;
 }
 

@@ -59,24 +59,24 @@ UI entry points:
 | `include/printer_excluded_objects_state.h` | State management: excluded/defined/current objects, version subjects |
 | `src/printer/printer_excluded_objects_state.cpp` | Version-based change notification for LVGL observers |
 | `include/ui_print_exclude_object_manager.h` | Orchestrates the exclusion flow: long-press, modal, undo, API call |
-| `src/ui/ui_print_exclude_object_manager.cpp` | Implementation of the exclusion state machine |
+| `src/ui/print/ui_print_exclude_object_manager.cpp` | Implementation of the exclusion state machine |
 | `include/ui_exclude_object_modal.h` | Confirmation dialog ("Exclude Object?") |
 | `ui_xml/exclude_object_modal.xml` | XML layout for the confirmation modal |
 | `include/ui_exclude_object_side_list.h` | Side list of all objects with status indicators |
-| `src/ui/ui_exclude_object_side_list.cpp` | List population, tap-to-exclude |
+| `src/ui/print/ui_exclude_object_side_list.cpp` | List population, tap-to-exclude |
 | `include/ui_exclude_object_map_view.h` | Object map view with 3D selection brackets |
-| `src/ui/ui_exclude_object_map_view.cpp` | Map rendering and hit-testing |
+| `src/ui/print/ui_exclude_object_map_view.cpp` | Map rendering and hit-testing |
 | `include/exclude_map_hatch.h` | `hatch_polygon()`: the diagonal hatching the mini map draws over an excluded object |
 | `ui_xml/components/exclude_object_map_mini.xml` | The mini map's component: a plate in a normal layout slot, no close button or dims label |
-| `src/ui/panel_widgets/exclude_map_widget.cpp` | The home tile: counts by rung, the mini map from Column up, a tap or "Skip objects..." opens the full map in print status (`src/ui/ui_panel_print_status.cpp#push_overlay_with_exclude_map`) and never excludes |
+| `src/ui/panel_widgets/exclude_map_widget.cpp` | The home tile: counts by rung, the mini map from Column up, a tap or "Skip objects..." opens the full map in print status (`src/ui/print/ui_panel_print_status.cpp#push_overlay_with_exclude_map`) and never excludes |
 | `include/ui_exclude_object_badges.h` | `compute_object_badges()`: each object's number, colour, excluded flag and anchor, plus the shared badge styling and draw call |
-| `src/ui/ui_exclude_object_badges.cpp` | Badge decision (pure) and the disc drawn on the map and the 2D/3D render |
+| `src/ui/print/ui_exclude_object_badges.cpp` | Badge decision (pure) and the disc drawn on the map and the 2D/3D render |
 | `src/api/moonraker_api_controls.cpp` | `MoonrakerAPI::exclude_object()` with input validation |
-| `src/api/moonraker_client_mock.cpp` | Mock mode: EXCLUDE_OBJECT handling and status dispatch |
+| `src/mock/moonraker_client_mock.cpp` | Mock mode: EXCLUDE_OBJECT handling and status dispatch |
 | `include/ui_exclude_mode_controller.h` | `ExcludeModeController`: exclude mode over a preview (list, map, render badges), shared by print status and print details |
-| `src/ui/ui_exclude_mode_controller.cpp` | Opens and closes the list and map over the host's card, routes every tap to the host |
+| `src/ui/print/ui_exclude_mode_controller.cpp` | Opens and closes the list and map over the host's card, routes every tap to the host |
 | `include/pre_start_exclude.h` | Pre-start pick rules (availability, upper-case name matching, every-object check) and the after-start send |
-| `src/ui/pre_start_exclude.cpp` | `with_pre_start_exclusions()` / `send_pre_start_exclusions()`: EXCLUDE_OBJECT for each pick once Moonraker confirms the start |
+| `src/ui/print/pre_start_exclude.cpp` | `with_pre_start_exclusions()` / `send_pre_start_exclusions()`: EXCLUDE_OBJECT for each pick once Moonraker confirms the start |
 | `ui_xml/components/exclude_objects_button.xml` | The skip button in the preview's top-left corner, shared by print status and details |
 
 ---
@@ -93,7 +93,7 @@ UI entry points:
 
 2. **Slicer support**: The slicer must emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` comments in the G-code. See the [Slicer Configuration](#slicer-configuration) section below.
 
-3. **Moonraker subscription**: HelixScreen subscribes to `exclude_object` status updates via Moonraker's WebSocket API. This happens automatically in `MoonrakerClient::subscribe_to_status_updates()`.
+3. **Moonraker subscription**: HelixScreen subscribes to `exclude_object` status updates via Moonraker's WebSocket API. `MoonrakerDiscoverySequence::build_subscription_objects()` adds `exclude_object` (`objects`, `excluded_objects`, `current_object`) to the subscription.
 
 ### G-code Commands
 
@@ -183,11 +183,11 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 ### Step-by-step
 
-1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold — `kLongPressThresholdMs` in `src/ui/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
+1. **Initiation**: User long-presses an object in the G-code viewer (1000ms threshold - `kLongPressThresholdMs` in `src/ui/gcode/gcode_viewer_input.cpp#kLongPressThresholdMs`, deliberately double the app-wide 500ms gesture timeout because the gesture cancels printing the object) or taps an object in the Print Objects side list.
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
-3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons. Every close other than Exclude counts as a cancel and clears the pending guard: the Cancel button, ESC, a backdrop tap, a hot-reload rebuild and a programmatic `hide()` all resolve through `ExcludeObjectModal::on_hide()`.
+3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons. Every close other than Exclude counts as a cancel and clears the pending guard: the Cancel button, ESC, a backdrop tap, a hot-reload rebuild and a programmatic `hide()` all resolve as a cancel: Cancel and ESC through `ExcludeObjectModal::on_cancel()`, the rest through `on_dismissed()`.
 
 4. **Visual preview**: On confirm, the object is immediately shown as excluded in the G-code viewer (greyed out with red diagonal stripes) before the API call is made.
 
@@ -225,7 +225,7 @@ therefore never changes as the printing object moves.
 - Tapping a non-excluded row triggers the same `PrintExcludeObjectManager::request_exclude()` confirmation flow as a long-press
 - Excluded rows are non-clickable and displayed at reduced opacity
 - The list auto-refreshes via observers on both `excluded_objects_version_` and `defined_objects_version_`
-- The list is accessed from PrintStatusPanel via `on_objects_clicked()` event callback
+- The list is accessed from PrintStatusPanel via the `on_print_status_objects` XML event callback
 
 ### Object numbers on the map and the render
 
@@ -244,12 +244,12 @@ screen and draw.
   object, so the plate takes the whole card. An object with no bounding box gets no rect
   but keeps its number, so later objects do not renumber.
 - **2D/3D render**: while the side list is open,
-  `src/ui/ui_exclude_mode_controller.cpp#refresh_render_badges` pushes the badges to the
+  `src/ui/print/ui_exclude_mode_controller.cpp#refresh_render_badges` pushes the badges to the
   viewer (`helix::ui::gcode_viewer_set_object_badges()`), and again on every
   `defined_objects_version` / `excluded_objects_version` bump of the host's state, through
   the controller's own version observers (the current object bumps the latter). Closing
   the list pushes an empty set. The viewer draws them in its `LV_EVENT_DRAW_POST`
-  pass after the renderer (`src/ui/ui_gcode_viewer.cpp#draw_object_badges`),
+  pass after the renderer (`src/ui/gcode/ui_gcode_viewer.cpp#draw_object_badges`),
   projecting each anchor through the transform of the image on screen, so they follow pan,
   zoom and rotation. In 2D that is `GCodeLayerRenderer::project_to_screen()`: every 2D
   transform change invalidates both caches, so what is drawn always uses the live transform.
@@ -279,7 +279,7 @@ excluded rect (`object_badge_opa()`). Anchors that project outside the widget ar
 Badges can overlap when objects sit close together; nothing spreads them apart.
 
 A tap inside a drawn (non-excluded) badge picks that badge's object before the renderer's
-own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode_viewer_input.cpp#ui_gcode_viewer_pick_object`), since a badge
+own picker runs, checking badges in reverse paint order so the one on top wins (`src/ui/gcode/gcode_viewer_input.cpp#"static const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {"`), since a badge
 can sit over empty space, e.g. the hole of a ring. Badges are drawn, not widgets, so they
 never take input themselves.
 
@@ -319,22 +319,22 @@ picks the rung.
   deactivate, and calls `resize()` when its slot changes
   (`src/ui/panel_widgets/exclude_map_widget.cpp#sync_map`).
 
-`ExcludeObjectMapView::create()` (`src/ui/ui_exclude_object_map_view.cpp#create`) takes an `ExcludeMapMode`. **Interactive** is the original view:
+`ExcludeObjectMapView::create()` (`src/ui/print/ui_exclude_object_map_view.cpp#create`) takes an `ExcludeMapMode`. **Interactive** is the original view:
 numbered, tappable objects over a preview card, with a close button. **Mini**
 (the `exclude_object_map_mini` component) takes a normal slot in a tile and draws outlines
 alone, with nothing to tap. In Mini the object printing now is drawn in the primary colour,
 heavier and at full strength; every other live object sits back at 70% opacity; an excluded
-object is faded to the badge's excluded opacity and hatched (`src/ui/ui_exclude_object_map_view.cpp#draw_first_layer_outlines`). `hatch_polygon()`
+object is faded to the badge's excluded opacity and hatched (`src/ui/print/ui_exclude_object_map_view.cpp#draw_first_layer_outlines`). `hatch_polygon()`
 (`include/exclude_map_hatch.h#hatch_polygon`)
 (a pure, LVGL-free header under `include/`) is the geometry: lines running up and to the right, one every
 `spacing` pixels along the x + y axis, clipped to the polygon by the even-odd rule so a concave
-outline hatches only its material. The drawing surface is rebuilt by `resize()` (`src/ui/ui_exclude_object_map_view.cpp#resize`) only when the plate
+outline hatches only its material. The drawing surface is rebuilt by `resize()` (`src/ui/print/ui_exclude_object_map_view.cpp#resize`) only when the plate
 area's size differs from the one it was built for. Both modes draw the bed's 50 mm grid and its edge
-under the outlines (`src/ui/ui_exclude_object_map_view.cpp#draw_bed_reference`), from the `helix::BedDimensions` the
+under the outlines (`src/ui/print/ui_exclude_object_map_view.cpp#draw_bed_reference`), from the `helix::BedDimensions` the
 host passes to `create()`.
 
 `PrintStatusPanel::push_overlay_with_exclude_map()`
-(`src/ui/ui_panel_print_status.cpp#push_overlay_with_exclude_map`) is the tile's way in: it pushes print status
+(`src/ui/print/ui_panel_print_status.cpp#push_overlay_with_exclude_map`) is the tile's way in: it pushes print status
 and opens the full map over its preview once the panel is active, so the canvas is sized against a
 laid-out card. The request lives in `exclude_map_requested_`, is armed after the push (an ordinary
 `push_overlay()` clears it, so a request belongs to the push that made it), and is dropped when the
@@ -348,29 +348,29 @@ Print details lets the user pick objects to skip before tapping Print. There is 
 second model for this: details owns a private `PrinterExcludedObjectsState`
 (`init_subjects(false)`, so nothing registers globally) and its excluded set *is* the picks.
 
-- **Objects.** `src/ui/ui_print_select_detail_view.cpp#refresh_exclude_objects`
+- **Objects.** `src/ui/print/ui_print_select_detail_view.cpp#refresh_exclude_objects`
   fills the defined objects from the file scan's `ScanResult::objects` (the first
   `kPrinterStopScanBytes` of the file), merged with any the viewer's full parse found
-  (`src/ui/pre_start_exclude.cpp#merge_defined_objects`).
+  (`src/ui/print/pre_start_exclude.cpp#merge_defined_objects`).
 - **Taps.** Exclude mode is the same `ExcludeModeController` print status uses, opened with
   `ExcludeTapMode::Toggle`: a tap picks or un-picks an object, with no confirmation modal.
   A name the printer cannot be sent is refused at the tap with a toast
-  (`src/ui/ui_print_select_detail_view.cpp#toggle_exclude_pick`).
-- **The button** shows when `src/ui/pre_start_exclude.cpp#pre_start_exclude_available` says
+  (`src/ui/print/ui_print_select_detail_view.cpp#toggle_exclude_pick`).
+- **The button** shows when `src/ui/print/pre_start_exclude.cpp#pre_start_exclude_available` says
   so: the printer has `[exclude_object]`, the file is G-code (not 3MF), and it defines at
   least two objects.
-- **Capture.** `src/ui/ui_panel_print_select.cpp#start_print` reads the
+- **Capture.** `src/ui/print/ui_panel_print_select.cpp#start_print` reads the
   picks with the file at the Print tap, so a USB copy that lands after another file opened
   still sends the tapped file's picks. `PrintStartController::set_exclude_picks` carries
   them to the next start, which consumes them; a reprint never reads them.
 - **Send.** Klipper resets `exclude_object` as a print starts (`virtual_sdcard:reset_file`),
-  so nothing can be sent ahead of the start. `src/ui/pre_start_exclude.cpp#"with_pre_start_exclusions(std::function"`
+  so nothing can be sent ahead of the start. `src/ui/print/pre_start_exclude.cpp#"> with_pre_start_exclusions(helix::SharedCallback"`
   wraps the callback Moonraker's start confirmation fires and sends `EXCLUDE_OBJECT` for each
   pick after it. Every start path from details goes through it: the direct start, the
   plugin-modified start, the pre-start wait and the remap rewrite
-  (`src/ui/ui_panel_print_select.cpp#apply_remap`).
+  (`src/ui/print/ui_panel_print_select.cpp#apply_remap`).
 - **Refusals.** Picking every object refuses the start before anything heats
-  (`src/ui/ui_panel_print_select.cpp#refuse_start_with_every_object_picked`).
+  (`src/ui/print/ui_panel_print_select.cpp#refuse_start_with_every_object_picked`).
   A tap that queues the file queues it without them; once the add succeeds the picks are
   dropped with the toast "Object picks apply only to prints started now". A refused add
   keeps them.
@@ -385,14 +385,14 @@ second model for this: details owns a private `PrinterExcludedObjectsState`
   badges drew from), and when it is shown for another file. The map copies the outlines it
   draws at open, so nothing it holds outlives the viewer's parse.
 - **Offered picks only.** While the skip button is hidden (e.g. after a switch to a printer
-  without `[exclude_object]`), `src/ui/ui_print_select_detail_view.cpp#exclude_picks` returns
+  without `[exclude_object]`), `src/ui/print/ui_print_select_detail_view.cpp#exclude_picks` returns
   none, so hidden picks are never sent or refused on. Both hosts read "has
-  `[exclude_object]`" from one place, `src/ui/pre_start_exclude.cpp#printer_has_exclude_object`
+  `[exclude_object]`" from one place, `src/ui/print/pre_start_exclude.cpp#printer_has_exclude_object`
   (the `printer_has_exclude_object` capability subject), and observe that subject, so a
   printer switch with details open hides or re-offers the picks at once.
 - **Failures.** A failed send is one error toast naming the objects, unless the print ended
   first; a TIMEOUT is advisory, since the command may still run
-  (`src/ui/pre_start_exclude.cpp#send_pre_start_exclusions`).
+  (`src/ui/print/pre_start_exclude.cpp#send_pre_start_exclusions`).
 
 ---
 
@@ -402,7 +402,7 @@ second model for this: details owns a private `PrinterExcludedObjectsState`
 
 The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands on for builds without the GLES 3D renderer (and what `HELIX_GCODE_MODE=2D` / `--render-2d` force everywhere). It supports the full exclude objects feature:
 
-- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`). Stage 1 projects each object's 3D bounding box — accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold — and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins — so a tap over a stack picks what is visually on top.
+- **Object picking**: `pick_object_at()` is a two-stage hit test (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`). Stage 1 projects each object's 3D bounding box - accumulated over the object's whole toolpath, clamped to the drawn Z range (only layers up to the current one are on screen), and inflated by the pick threshold - and returns that object immediately when it is the only candidate whose footprint covers the touch point; no segment is touched. Objects that have not started printing yet, and support objects while supports are hidden, are skipped at this stage. Only when footprints overlap does stage 2 run: it walks layers downward from the current layer, finds the closest segment to the touch point (`PICK_THRESHOLD_PX`, 15px), and the first layer that produces a hit wins - so a tap over a stack picks what is visually on top.
 - **Excluded object rendering**: Excluded objects keep their shading but drain to grey, with red (`gcode_selection_excluded`) 45-degree stripes over them. See the state table below.
 - **Selection brackets**: Highlighted objects show corner bracket wireframes around their 3D bounding box (20% of shortest edge, capped at 5mm). 8 corners x 3 axes = 24 bracket lines per object.
 - **Interaction model**: a press-and-hold excludes the object under the finger; a tap (release with minimal movement, no two-finger gesture, long-press not already fired) toggles single-selection, which is what draws the corner brackets. On the 3D preview, a pinch zooms about the fingers and pans with them and a two-finger drag pans; in 2D and 3D alike, rotate, tap and long-press stay off from the first two-finger frame until every finger lifts. The skip-objects icon (`btn_objects` on the print status panel, visible when `exclude_objects_available` is set) opens the map + side-list panel instead.
@@ -410,7 +410,7 @@ The 2D layer renderer (`GCodeLayerRenderer`) is what the Auto render mode lands 
 
 ### Streaming Mode
 
-In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list — `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp#set_streaming_controller`) — so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap — a hit-test must not freeze the UI to load geometry (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`; a mid-pick load froze the UI for seconds on a 2-core board).
+In streaming mode (`GCodeStreamingController`), the layer renderer operates on per-layer segment data fetched on demand rather than the full parsed file. Streaming has no object list - `set_streaming_controller()` clears the full-file pointer (`src/rendering/gcode_layer_renderer.cpp#set_streaming_controller`) - so stage 1 of picking is skipped and the unfiltered downward segment walk runs against whatever the stream has cached. That walk is cache-only: `try_get_layer_segments()` returns cached layers and skips uncached ones, never seeking and parsing on a tap - a hit-test must not freeze the UI to load geometry (`src/rendering/gcode_layer_renderer.cpp#pick_object_at`; a mid-pick load froze the UI for seconds on a 2-core board).
 
 ---
 
@@ -501,7 +501,7 @@ HELIX_MOCK_AUTO_PRINT=1 SDL_VIDEODRIVER=offscreen ./build/bin/helix-screen --tes
 
 For the exclude objects feature to work, your slicer must output `EXCLUDE_OBJECT` metadata in the G-code. Most modern slicers support this.
 
-> **Slicer support tiers:** HelixScreen is developed and tested primarily against **OrcaSlicer 2.3.2+** — that's the recommended slicer. Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio, etc., most of which are OrcaSlicer/PrusaSlicer forks) and **PrusaSlicer / SuperSlicer** are also supported. **Cura is not a target** — we don't test against it or build features for it, but we also don't deliberately break it; its output generally works with the extra setup noted below.
+> **Slicer support tiers:** HelixScreen is developed and tested primarily against **OrcaSlicer 2.3.2+** - that's the recommended slicer. Manufacturer slicers (Creality Print, FlashForge Orca, Bambu Studio, etc., most of which are OrcaSlicer/PrusaSlicer forks) and **PrusaSlicer / SuperSlicer** are also supported. **Cura is not a target** - we don't test against it or build features for it, but we also don't deliberately break it; its output generally works with the extra setup noted below.
 
 ### OrcaSlicer (recommended)
 
@@ -511,7 +511,7 @@ For the exclude objects feature to work, your slicer must output `EXCLUDE_OBJECT
 **Print Settings > Output options**:
 - Enable **Label objects** (checkbox, listed as **Exclude object** in some versions)
 
-This causes the slicer to emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` commands. OrcaSlicer 2.3.2+ also round-trips filament presets with HelixScreen's filament slots — see `FILAMENT_MANAGEMENT.md`.
+This causes the slicer to emit `EXCLUDE_OBJECT_DEFINE`, `EXCLUDE_OBJECT_START`, and `EXCLUDE_OBJECT_END` commands. OrcaSlicer 2.3.2+ also round-trips filament presets with HelixScreen's filament slots - see `FILAMENT_MANAGEMENT.md`.
 
 ### PrusaSlicer / BambuStudio
 
@@ -584,7 +584,7 @@ Tests are run with:
 |------|-----|---------------|
 | `tests/unit/test_print_exclude_object_manager.cpp` | `[exclude_object]` | Exclusion state machine driven through the real `PrintExcludeObjectManager`: confirm, cancel, undo, timer, API, sync |
 | `tests/unit/test_exclude_object_long_press_gate.cpp` | `[exclude_object]` | Long-press gate: pending object, timer arming, clear; every dismissal of the confirm clears the guard (`[dismiss]`) |
-| `tests/unit/test_excluded_objects_char.cpp` | `[excluded_objects]` | `PrinterExcludedObjectsState`: version subjects, set change detection, observer notification |
+| `tests/unit/test_printer_switch_clears_objects.cpp` | `[exclude_object]` | `PrinterExcludedObjectsState`: a printer switch clears every field and bumps both versions; the excluded set bumps its version only when it changes |
 | `tests/unit/test_moonraker_api_exclude_object.cpp` | `[security]`, `[mock]` | Input validation, injection prevention, mock client integration |
 | `tests/unit/test_exclude_object_badges.cpp` | `[exclude_badges]` | Badge numbering by defined order, flags, anchor fallback chain, map badge numbering with a bbox-less object; the viewer's draw pass (drawn-top Z, off-screen skip, no stale pick targets), pick precedence (badge over geometry, top badge wins, excluded not pickable), equal badges not invalidating, exclusion dropping selection, the 3D shown-image transform |
 | `tests/unit/test_print_status_exclude_badges.cpp` | `[exclude_badges]` | Panel lifecycle: badges appear with the side list, match its chips, follow version bumps, clear on close |
@@ -622,10 +622,10 @@ exclude_mode_.show(targets, &excluded_objects_state, helix::ui::ExcludeTapMode::
 exclude_mode_.hide();                              // on close and on deactivate
 ```
 
-Print status (`src/ui/ui_panel_print_status.cpp#show_exclude_map_view`)
+Print status (`src/ui/print/ui_panel_print_status.cpp#show_exclude_map_view`)
 routes taps through `PrintExcludeObjectManager`'s confirm-and-undo flow against the
 printer's live state. Print details
-(`src/ui/ui_print_select_detail_view.cpp#toggle_exclude_mode`)
+(`src/ui/print/ui_print_select_detail_view.cpp#toggle_exclude_mode`)
 toggles picks in its own state.
 
 ### Observing Excluded Objects State
@@ -666,13 +666,10 @@ theme.
 | Excluded *and* selected | Grey inside the white rim, without stripes: a pixel carries one alpha tag and the selection tag wins, because seeing what you picked matters more |
 | Pending exclusion | Same as excluded (visual preview before API call) |
 
-Two corrections to what this table used to say, both worth knowing if you are
-reading older code or notes:
+Two things the table implies, stated outright:
 
-- **Selection does not brighten the object.** It used to claim a "brightened
-  color", which described a 1.8x `HIGHLIGHT_BRIGHTNESS` bake in the geometry
-  builder that no live caller reached. A selected object deliberately keeps its
-  filament color and is marked by the rim instead, as in OrcaSlicer.
+- **Selection does not brighten the object.** A selected object deliberately
+  keeps its filament color and is marked by the rim instead, as in OrcaSlicer.
 - **Exclusion does not change line width.** Excluded objects draw at the same
   stroke width as everything else.
 

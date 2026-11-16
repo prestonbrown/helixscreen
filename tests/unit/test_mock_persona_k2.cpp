@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_cfs.h"
 #include "app_globals.h"
 #include "cfs_status_parse.h"
+#include "core/update_queue.h"
+#include "fan_tachometers.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/cfs_test_access.h"
 #include "test_helpers/mock_personas.h"
 #include "test_helpers/moonraker_client_mock_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <chrono>
@@ -120,6 +120,7 @@ TEST_CASE("The k2 persona's motor_control and fan_feedback frames parse",
     json frame;
     const auto id =
         mock.register_notify_update([&frame](const json& n) { frame = n["params"][0]; });
+    mock.gcode_script("M106 S128");
     helix::MoonrakerClientMockTestAccess::dispatch_initial_state(mock);
     mock.unsubscribe_notify_update(id);
     REQUIRE(frame.contains("motor_control"));
@@ -133,17 +134,28 @@ TEST_CASE("The k2 persona's motor_control and fan_feedback frames parse",
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
-    state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2"});
+    state.fan_state().init_fans({"fan", "heater_fan chamber_fan", "output_pin fan2"});
+    state.fan_state().set_tachometers(
+        helix::fan_tach::map_from_config(mock.extra_config_settings()));
+    // The bare [fan] carries its own mock rpm; drop it so only the tachometer feeds it.
+    frame.erase("fan");
     state.update_from_status(frame);
+    // The part fan's tachometer is fan2_speed; output_pin fan2 has none.
+    std::optional<int> part, chamber, pin2;
     for (const auto& fan : state.fan_state().get_fans()) {
-        INFO(fan.object_name);
-        CHECK(fan.rpm.has_value());
+        (fan.object_name == "fan"               ? part
+         : fan.object_name == "output_pin fan2" ? pin2
+                                                : chamber) = fan.rpm;
     }
+    CHECK(part.value_or(0) > 0);
+    CHECK(chamber == std::optional<int>(0));
+    CHECK_FALSE(pin2.has_value());
 }
 
 TEST_CASE("The k2 persona reports the declared 350 bed through discovery", "[mock][persona][k2]") {
     helix::test::PersonaEnv env("k2");
     BuildVolume volume;
+    helix::fan_tach::TachMap tachometers;
     {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
         mock.connect("ws://mock/websocket", [] {}, [] {});
@@ -151,12 +163,22 @@ TEST_CASE("The k2 persona reports the declared 350 bed through discovery", "[moc
         mock.discover_printer([&done] { done = true; });
         REQUIRE(done);
         volume = mock.hardware().build_volume();
+        tachometers = mock.hardware().fan_tachometers();
     }
     // Discovery queues UI-thread callbacks; run them before the test ends.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(volume.declared_bed_x == Catch::Approx(350.0f));
     CHECK(volume.declared_bed_y == Catch::Approx(350.0f));
+
+    // Discovery resolves the tachometer map from the persona's configfile.
+    const helix::fan_tach::TachSource part{"fan_feedback", "fan2_speed", "fan"};
+    CHECK(std::find(tachometers.begin(), tachometers.end(), part) != tachometers.end());
+
+    helix::PrinterDiscovery cleared;
+    cleared.set_fan_tachometers(tachometers);
+    cleared.clear();
+    CHECK(cleared.fan_tachometers().empty());
 }
 
 TEST_CASE("The k2 persona pushes a box script's frames before it answers",
@@ -220,7 +242,7 @@ struct K2Cfs {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Run @p script as an @p intent action with the toolhead switch reading
@@ -290,13 +312,14 @@ TEST_CASE("The k2 persona with HELIX_MOCK_CFS_BOXES=none publishes an empty bus"
     };
     // What the backend makes of the frame: the real parse, not the JSON shape.
     auto external_spool_only = [](const json& box) {
-        helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
-        helix::CfsTestAccess::handle_status(cfs,
-                                            json{{"params", json::array({{{"box", box}}, 0})}});
+        helix::test::StartedBackend<helix::printer::AmsBackendCfs> cfs;
+        helix::CfsTestAccess::answer_unit_registration(cfs, json::object());
+        cfs.fire_status(json{{"params", json::array({{{"box", box}}, 0})}});
         return cfs.get_system_info().external_spool_only;
     };
 
     const json empty_bus = frame_for("none");
+    CHECK(empty_bus.value("state", "") == "disconnect");
     for (const char* unit : {"T1", "T2", "T3", "T4"}) {
         CAPTURE(unit);
         CHECK(empty_bus[unit].value("state", "") == "None");

@@ -102,9 +102,9 @@ TEST_CASE_METHOD(XMLTestFixture, "lane_state follows the single-slot update path
                  "[ams][lane_state][subject]") {
     // update_slot() is the EVENT_SLOT_UPDATED fast path — update_slot_for_backend(0, n)
     // delegates straight to it, so a backend that emits per-slot events instead of a
-    // full sync reaches this code and nothing else. It used to write slot_statuses_
-    // without writing slot_lane_states_, leaving every lane rendering surface bound to
-    // a stale classification until the next full sync happened to repair it.
+    // full sync reaches this code and nothing else. Writing slot_statuses_ without
+    // slot_lane_states_ would leave every lane rendering surface bound to a stale
+    // classification until the next full sync happened to repair it.
     auto owned = std::make_unique<AmsBackendMock>(4);
     owned->set_operation_delay(0);
     auto* mock = owned.get();

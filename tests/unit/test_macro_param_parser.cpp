@@ -4,7 +4,7 @@
 #include "../test_helpers/load_filament_expression_default.h"
 #include "../ui_test_utils.h"
 #include "favorite_macro_widget.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -240,6 +240,20 @@ TEST_CASE("parse_raw_macro_params - skips missing equals", "[macro_params]") {
     auto result = helix::parse_raw_macro_params("JUSTVALUE TEMP=200");
     REQUIRE(result.size() == 1);
     CHECK(result["TEMP"] == "200");
+}
+
+TEST_CASE("parse_raw_macro_params - reports the tokens it could not read", "[macro_params]") {
+    std::vector<std::string> rejected;
+    auto result = helix::parse_raw_macro_params("JUSTVALUE temp=200 =5", &rejected);
+    CHECK(result == std::map<std::string, std::string>{{"TEMP", "200"}});
+    CHECK(rejected == std::vector<std::string>{"JUSTVALUE", "=5"});
+}
+
+TEST_CASE("format_raw_macro_params - parses back to the same values", "[macro_params]") {
+    const std::map<std::string, std::string> values{{"PURGE", "1"}, {"LANE", "lane2"}};
+    CHECK(helix::format_raw_macro_params(values) == "LANE=lane2 PURGE=1");
+    CHECK(helix::parse_raw_macro_params(helix::format_raw_macro_params(values)) == values);
+    CHECK(helix::format_raw_macro_params({}).empty());
 }
 
 TEST_CASE("parse_raw_macro_params - extra whitespace", "[macro_params]") {

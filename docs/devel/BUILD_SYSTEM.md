@@ -313,7 +313,7 @@ The K1 dynamic build uses a custom GCC 7.5 toolchain targeting the K1's native g
 |---------|-------------|------------|---------|
 | **`std::from_chars` (integers)** | Not available | Use `std::strtol` / `std::strtod` | `src/util/version.cpp` |
 | **`std::atomic<time_point>`** | Doesn't compile | Store as `std::atomic<int64_t>` (nanoseconds) | `include/gcode_streaming_controller.h` |
-| **C++20 designated initializers** | Not supported (`{.foo = 1}`) | Initialize struct explicitly, then assign fields | `src/ui/ui_fan_control_overlay.cpp` |
+| **C++20 designated initializers** | Not supported (`{.foo = 1}`) | Initialize struct explicitly, then assign fields | `src/ui/controls/ui_fan_control_overlay.cpp` |
 | **`directory_entry` member functions** | `.is_regular_file()`, `.file_size()`, `.last_write_time()` missing | Use free functions: `std::filesystem::is_regular_file(entry.path())` | `src/print/thumbnail_cache.cpp` |
 | **`-lstdc++fs`** | Required for `<experimental/filesystem>` | Added automatically for `k1-dynamic` in `mk/cross.mk` and `mk/watchdog.mk` | — |
 | **LTO (`-flto`)** | GCC 7.5 static toolchain lacks `liblto_plugin.so` | Disabled for `k1-dynamic`; uses plain `ar`/`ranlib` instead of `gcc-ar`/`gcc-ranlib` | `mk/cross.mk` |
@@ -719,7 +719,7 @@ cd .worktrees/my-feature
 make -j && ./build/bin/helix-screen --test -vv
 
 # 3. Run the relevant tests before committing
-make test-run
+make t F='[tag]'
 
 # 4. Commit in the worktree (it's a normal checkout on its own branch)
 git add -A && git commit -m "feat(scope): ..."
@@ -1112,6 +1112,16 @@ The build system automatically applies patches to git submodules before compilat
 verdict for every patch: apply it, recognize it as already applied (reverse
 check), or report that it matches no reachable state of the submodule.
 
+**Building from a source tarball.** A submodule that is not its own git checkout
+(no `.git`, as a distribution package unpacks it) is patched too, with the same
+verdict. `scripts/own_git_dir.sh` decides whether a directory is its own checkout;
+when it is not, the helper runs `git apply` inside the directory with repository
+discovery stopped there, so an enclosing repository cannot claim the paths and
+skip them, and falls back to GNU `patch -p1 --fuzz=0` when git is not installed.
+Such a tree has no drift stamp (there is no git dir to keep it in), never takes the
+from-clean fatal, and `make reset-patches` leaves it alone with a warning:
+re-extract the source to reset it.
+
 **Status Messages**:
 - `✓ <label> applied` - Patch was applied during this build
 - `✓ <label> already applied` - Reverse check recognized it; the tree keeps it
@@ -1323,7 +1333,10 @@ Where it is installed:
   count while the suite runs; bats is handed `scripts/parallel-jobs-file.sh` as
   its parallel, which gives GNU parallel that file (re-read about once a second)
   in place of the number bats insists on. Without it the suite runs at the
-  start-time `JOBPOOL_SLOTS`.
+  start-time `JOBPOOL_SLOTS`. With no GNU parallel installed at all,
+  `make test-shell` stops with the install line rather than run the files one
+  after another, which takes most of an hour; `BATS_ALLOW_SERIAL=1` runs them
+  serially anyway, except under `BATS_REQUIRED=1` (land-gate and CI).
 - Container builds go through `scripts/pool-docker.sh`: a container's make
   joins the pool (state dir mounted, FIFO opened inside, `-j` dropped, kept as
   the fallback when the container cannot open the FIFO). An idf.py or ninja
@@ -1353,7 +1366,7 @@ Where it is installed:
 Two kinds of remote machine help here, and both are optional:
 
 - a **test host** runs the expensive, non-interactive jobs (`sweep`, `asan`,
-  `tsan`, `mutate`) in a container: `scripts/test-host-run.sh`. It mirrors your
+  `tsan`, `mutate`, or any command through `exec`) in a container: `scripts/test-host-run.sh`. It mirrors your
   working tree as it is on disk, uncommitted edits included, into a per-tree
   directory whose `build/` persists, so a warm run rebuilds only what changed.
   A tree's first run copies the nearest warm mirror first, so it starts warm
@@ -1363,6 +1376,12 @@ Two kinds of remote machine help here, and both are optional:
   `TEST_HOST=0` or `HELIX_TEST_HOST_AUTO=0` keeps both local). `make land-gate`
   makes the same choice for its two C++ sweeps (`scripts/lib/sweep_location.sh`
   holds it for both gates).
+  Run ASAN there rather than on thelio: thelio's `/etc/ld.so.preload` makes
+  ASAN's runtime load second, so the binary produces no test output and exits
+  0, a pass that ran nothing. The container has no `ld.so.preload` and its
+  image matches CI's. `test-host-run.sh test` with no arguments runs the
+  suite in one process, where cross-test contamination fails cases no branch
+  touched, so it is not a gate.
 - a **remote build host** builds natively or for the cross targets:
   `make remote-native`, `make remote-test`, `make remote-pi` and siblings
   (`mk/remote.mk`, `scripts/remote-build.sh`).
@@ -1431,10 +1450,14 @@ host simply runs both suites locally, without a word.
 | `HELIX_TEST_CCACHE` | same | ccache dir inside the container (`/work/ccache`) |
 | `HELIX_TEST_CCACHE_SIZE` | `test-host-run.sh`, `test-host-setup.sh` | `max_size` floor for that cache, never lowered (`200G`) |
 | `HELIX_TEST_WORKDIR` | `test-host-run.sh --commit` | the shared git checkout inside the container (`/work/helixscreen`); mutate checkouts copy it |
+| `HELIX_TEST_MAX_LOAD` | `test-host-run.sh` | a run waits until the host's one-minute load is under this, and refuses after `HELIX_TEST_LOAD_WAIT_SECS` (3600); default four fifths of the host's logical CPUs (57 on zeus's 72 threads), `0` never waits |
+| `HELIX_TEST_KILL_GRACE_SECS` | `test-host-run.sh` | stopping a job sends each of its processes TERM, then KILL after this many seconds (`15`) |
+| `HELIX_TEST_CLIENT_GONE_SECS` / `HELIX_TEST_CLIENT_GRACE_SECS` | `test-host-run.sh` | the host-side watchdog stops a job this long after its run's connection closed (`30`), or after its last ping when the link went silent (`HELIX_TEST_RECONNECT_SECS` + 60) |
 | `HELIX_TEST_SEED` | `test-host-run.sh` | `0` starts a new mirror cold instead of copying the nearest warm one (`1`) |
 | `HELIX_TEST_PRUNE_DAYS` | `test-host-run.sh` | creating a mirror or mutate checkout removes those unused this many days; `0` never (`14`) |
 | `HELIX_TEST_LOCK_DIR` | `test-host-run.sh` | lock directory on the host (`/tmp`) |
 | `HELIX_TEST_HOST_AUTO` | `full-test-run`, `land-gate` | `0` keeps an unforced gate local even with a test host configured (`1`) |
+| `HELIX_LAND_GATE_HOSTS` | pre-push | comma-separated hosts whose `make land-gate` passes count here: when no local stamp names the pushed commit, pre-push asks each in order over ssh (BatchMode, 8s each) for its shared record of that SHA and skips the quality sweep on the first yes. For a gate host with no push credentials, such as a build container (none: no lookup, no ssh) |
 | `REMOTE_HOST`, `REMOTE_USER` | `mk/remote.mk`, `remote-build.sh` | remote build host (or a candidate list) and optional user (none) |
 | `REMOTE_DIR` | `mk/remote.mk` | rsync target on the remote for the cross targets (none). `remote-sync` rsyncs `--delete` into it, so give it a directory of its own, never a checkout you work in |
 | `REMOTE_BUILD_DIR` | `remote-build.sh` | its own clone on the remote (`~/helix-remote`), which it hard-resets and cleans every run. It works only in a directory it created (marked `.helix-remote-build`) and refuses any other |
@@ -1458,6 +1481,18 @@ from your own machine:
 scripts/test-host-setup.sh                    # image, container, toolchain checks
 scripts/test-host-setup.sh --commit-checkout  # also clone the checkout --commit and mutate use
 scripts/test-host-run.sh test '[netd]'        # first run: syncs the tree and builds (minutes)
+```
+
+`test` hands every argument to `helix-tests` (`test -# '[#test_foo]'`, `test
+--list-tags`); with none it runs the whole suite in one process. `exec --
+COMMAND [ARG...]` runs any command in the synced mirror inside the container,
+with the same sync, lock and jobpool handling, and `exec --build --` runs
+`make test` first. Both quote each argument with `printf %q` before it crosses
+ssh, so an argument holding a space, a quote or a `;` arrives as one word and is
+never run as shell:
+
+```bash
+scripts/test-host-run.sh exec --build -- bash ./scripts/my_probe.sh 'two words'
 ```
 
 The setup builds the image from `docker/Dockerfile.sanitizer` in your tree,
@@ -1513,6 +1548,28 @@ the checkout beside it (`mutate/.<tree>.mutate-w<i>`) that the run removes when
 it ends; a run killed with SIGKILL leaves them for its tree's next run to
 replace. Its builds and test shards draw from the host's jobpool.
 
+**Stopping a run stops its build.** `docker exec` never stops the process it
+started when its own client dies, so killing the local run, its ssh, or the
+host-side wrapper alone leaves the build compiling in the container. Under the
+host's jobpool that orphan is worse than one stray build: once the wrapper's
+`jobpool exec` is gone the daemon sees no consumer, takes the pool's tokens for
+lost and refills it every five seconds, and the orphaned make takes every
+refill. On 2026-11-07 one orphan reached about 900 concurrent compiles against
+a pool of 70 and drove zeus's load to 700. So every process of a job carries
+`HELIX_TEST_JOB=<job id>` in its environment, and one function
+(`helix_job_kill`) stops a job: TERM to every process with that tag or with its
+cwd in the job's directory or a mutate worker copy, KILL after
+`HELIX_TEST_KILL_GRACE_SECS`, and it returns only once none is left. An INT,
+TERM or HUP to the run calls it before killing the wrapper; the wrapper calls it
+on its own exit; and a watchdog on the host calls it when the run is gone. The
+run pings its log follow every two seconds; the watchdog stops the job 30s
+after the run's end of that connection closes (a run killed with SIGKILL), or
+`HELIX_TEST_RECONNECT_SECS` + 60 after the last ping when the link went silent,
+by which time the run itself has stopped reconnecting. A pooled job's watchdog
+also holds a jobpool consumer for as long as any process of the job lives, so
+the pool never refills under it. A tree on an older branch runs that branch's
+copy of the script, which may lack all of this.
+
 **Cleanup.** `scripts/test-host-run.sh --prune [DAYS]` removes mirrors and
 mutate checkouts nobody has run for DAYS (14); a run that creates either one
 does the same pass with `HELIX_TEST_PRUNE_DAYS` (14, `0` never), so the copies
@@ -1527,10 +1584,10 @@ The build system uses `lv_font_conv` to convert TrueType fonts into LVGL-compati
 ### Font Types
 
 **Material Design Icons (MDI):**
-- Source: `scripts/regen_mdi_fonts.sh` (single source of truth)
+- Source: `scripts/regen_mdi_fonts.sh`, fed the codepoint list by `scripts/mdi_icon_codepoints.py`
 - Font: `assets/fonts/materialdesignicons-webfont.ttf`
 - Output: `mdi_icons_16.c`, `mdi_icons_24.c`, `mdi_icons_32.c`, `mdi_icons_48.c`, `mdi_icons_64.c`
-- Codepoint mapping: `include/ui_icon_codepoints.h`
+- Codepoint mapping: `include/ui_icon_codepoints.h` (name -> glyph) and the `ICON_*` macros in `include/ui_fonts.h` (glyphs C++ writes directly). Together they are the font's glyph list: nothing else names one
 
 **Noto Sans Text Fonts:**
 - Source: `package.json` npm scripts
@@ -1558,15 +1615,13 @@ To add new Material Design Icons:
 
 1. **Find the icon** at https://pictogrammers.com/library/mdi/
 2. **Get the codepoint** (e.g., `wifi-strength-4` = `0xF0928`)
-3. **Edit `scripts/regen_mdi_fonts.sh`** and add the codepoint:
-   ```bash
-   MDI_ICONS+=",0xF0928"    # wifi-strength-4
-   ```
-4. **Add to codepoints header** (`include/ui_icon_codepoints.h`):
+3. **Add to codepoints header** (`include/ui_icon_codepoints.h`, kept sorted by name):
    ```cpp
    {"wifi_strength_4",    "\xF3\xB0\xA4\xA8"},  // F0928 wifi-strength-4
    ```
-5. **Regenerate fonts:**
+   The comment's codepoint must match the bytes: `scripts/mdi_icon_codepoints.py`,
+   which turns both headers into the font list, refuses a mismatch.
+4. **Regenerate fonts** (the desktop faces and the ESP32 firmware's twins):
    ```bash
    make regen-fonts
    make -j
@@ -1789,7 +1844,10 @@ The build system has 30+ test targets by feature area; see **[TESTING.md](TESTIN
 | Target | What it does |
 |--------|--------------|
 | `make test` | Build tests (does **not** run them) |
-| `make test-run` | Build **and** run tests in parallel (recommended, ~4–8× faster) |
+| `make t F='[tag]'` | Build, then run one tag or case |
+| `make unit-sweep` | Build **and** run the C++ suite in parallel shards |
+| `make full-test-run` | `unit-sweep` plus the bats shell suite |
+| `make test-run` | Runs nothing: prints which of the targets above fits and exits non-zero |
 | `make test-serial` | Run sequentially (debugging thread issues) |
 | `make test-smoke` | Quick smoke subset (~30s) for rapid iteration |
 | `make test-all` | All tests incl. `[slow]` |
@@ -1872,7 +1930,7 @@ These get their own deep section above — see **[Cross-Compilation](#cross-comp
 | `make demo` | Build LVGL demo widgets (LVGL API testing) |
 | `make symbols` | Extract `.sym` + `.debug` (crash-backtrace resolution) |
 | `make strip` | Strip the binary for release |
-| `make screenshots` | Generate documentation screenshots |
+| `make doc-screenshots [ONLY=<glob>]` | Regenerate every doc image from `docs/images/doc-screenshots.yml`, headless (`make screenshots` is an alias) |
 | `make print-cxxflags` / `print-ldflags` | Dump resolved flags (build debugging) |
 
 ## Dependency Checking
@@ -2064,14 +2122,14 @@ The build compiles ~566 app source files. The dominant cost is **template instan
 | Header | Files affected |
 |--------|---------------|
 | `theme_manager.h` | ~144 |
-| `ui_update_queue.h` | ~144 |
+| `core/update_queue.h` | ~144 |
 | `moonraker_api.h` | ~122 |
 | `app_globals.h` | ~121 |
 | `printer_state.h` | ~104 |
 
 With ccache installed, touching these headers without content changes costs ~8s (direct cache hit). Actual content changes recompile all dependents (~2 min at `-O2`, ~1 min at `-O0`).
 
-**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml, spdlog, nlohmann JSON, and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
+**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. spdlog and nlohmann JSON stay out: a source that logs or builds a json includes them itself, and a header that only names `json` by reference, pointer or return type includes `json_fwd.h` (`scripts/code_lint.sh json_hpp_in_headers`; a header that needs the complete type says why with `// JSON_HPP_OK: <reason>`). LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
 
 #### ccache across worktrees and Docker cross-builds
 

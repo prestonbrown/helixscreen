@@ -13,6 +13,8 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
 #include "../test_helpers/registered_backend.h"
+#include "../test_helpers/scoped_language.h"
+#include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
 #include "ams_error_bridge.h"
@@ -164,6 +166,10 @@ TEST_CASE_METHOD(IndxFixture,
     CHECK_FALSE(b.change_tool(1).success());
     REQUIRE(b.current_error().has_value());
     CHECK(b.current_error()->recovery_actions.empty());
+    // The fault names its tool, so a language switch re-words it with no new frame.
+    ScopedLanguage fr("fr");
+    b.refresh_translated_texts();
+    CHECK(b.get_system_info().operation_detail.find("mal engagé") != std::string::npos);
 
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", -1}}}}},
                 {"gcode_macro TOOL_POSITIONS", {{"docks_calibrated", false}}}});
@@ -215,7 +221,6 @@ TEST_CASE_METHOD(IndxFixture, "INDX backend: heating needs a mounted tool", "[am
     CHECK(b.nozzle_heat_blocked_reason().empty());
     b.feed(json{{"gcode_macro TOOL_POSITIONS", {{"no_heat_tools", json::array({1})}}}});
     CHECK_FALSE(b.nozzle_heat_blocked_reason().empty());
-    CHECK(b.heads_share_heater());
 }
 
 TEST_CASE_METHOD(IndxFixture, "INDX backend: per-extruder usage is never charged to a slot",
@@ -1023,4 +1028,87 @@ TEST_CASE_METHOD(IndxFixture, "INDX device: a new offset beside an unchanged rea
     const int after_first = events;
     b.feed(json{{"save_variables", {{"variables", {{"active_tool", 1}, {"t1_offset_z", 0.03}}}}}});
     CHECK(events == after_first + 1);
+}
+
+// ============================================================================
+// Lane truth: T<n>.spool_id is the firmware's link for the tool.
+// ============================================================================
+
+TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a link is written to the tool's spool_id variable",
+                 "[ams][indx][lane_truth]") {
+    test::RegisteredBackend<IndxHelper> harness;
+    IndxHelper& b = *harness;
+    b.set_discovery(discover(indx_objects()));
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 7}}}});
+    REQUIRE(b.get_slot_info(0).spoolman_id == 7);
+
+    SlotInfo linked = b.get_slot_info(0);
+    linked.spoolman_id = 42;
+    test::edit_slot_as_user(b, 0, linked);
+    REQUIRE_FALSE(b.sent().empty());
+    CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=42\n"
+                             "SAVE_VARIABLE VARIABLE=t0__spool_id VALUE=42");
+    CHECK(b.get_slot_info(0).spoolman_id == 42);
+
+    // The echo ends the edit; a macro or another client changing the
+    // variable afterwards is what the lane shows.
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 42}}}});
+    CHECK_FALSE(helix::ams::lane_sources(b.lane_id(0)).pending.has_value());
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 9}}}});
+    CHECK(b.get_slot_info(0).spoolman_id == 9);
+
+    SECTION("an unlink writes None, as Mainsail's spool dialog reads it") {
+        SlotInfo unlinked = b.get_slot_info(0);
+        unlinked.spoolman_id = 0;
+        test::edit_slot_as_user(b, 0, unlinked);
+        CHECK(b.sent().back() == "SET_GCODE_VARIABLE MACRO=T0 VARIABLE=spool_id VALUE=None\n"
+                                 "SAVE_VARIABLE VARIABLE=t0__spool_id VALUE=None");
+    }
+}
+
+TEST_CASE_METHOD(IndxFixture, "INDX lane truth: None, 0 and a negative spool_id all mean no spool",
+                 "[ams][indx][lane_truth]") {
+    test::RegisteredBackend<IndxHelper> harness;
+    IndxHelper& b = *harness;
+    b.set_discovery(discover(indx_objects()));
+    const json unlinked = GENERATE(json(nullptr), json(0), json(-1));
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 7}}}});
+    REQUIRE(b.get_slot_info(0).spoolman_id == 7);
+
+    b.feed(json{{"gcode_macro T0", {{"spool_id", unlinked}}}});
+    CHECK(b.get_slot_info(0).spoolman_id == 0);
+
+    // Already unlinked: an unlink edit writes nothing.
+    const size_t before = b.sent().size();
+    SlotInfo unlink = b.get_slot_info(0);
+    unlink.spoolman_id = 0;
+    unlink.material = "PETG";
+    test::edit_slot_as_user(b, 0, unlink);
+    for (size_t i = before; i < b.sent().size(); ++i) {
+        CHECK(b.sent()[i].find("SET_GCODE_VARIABLE") == std::string::npos);
+    }
+}
+
+TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a tool with no spool_id variable gets no write",
+                 "[ams][indx][lane_truth]") {
+    test::RegisteredBackend<IndxHelper> harness;
+    IndxHelper& b = *harness;
+    b.set_discovery(discover(indx_objects()));
+    b.feed(json{{"gcode_macro T0", {{"spool_id", 7}}}});
+
+    SlotInfo linked = b.get_slot_info(1);
+    linked.spoolman_id = 42;
+    const auto variable_writes = [&b] {
+        return std::count_if(b.sent().begin(), b.sent().end(), [](const std::string& g) {
+            return g.find("SET_GCODE_VARIABLE") != std::string::npos;
+        });
+    };
+    test::edit_slot_as_user(b, 1, linked);
+    CHECK(variable_writes() == 0);
+
+    // An edit that keeps the link sends nothing either.
+    SlotInfo petg = b.get_slot_info(0);
+    petg.material = "PETG";
+    test::edit_slot_as_user(b, 0, petg);
+    CHECK(variable_writes() == 0);
 }

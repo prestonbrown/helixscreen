@@ -19,12 +19,11 @@
  */
 
 #include "ui_panel_power.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "moonraker_types.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -64,7 +63,7 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Build the panel with a null API so setup()'s device fetch is a no-op and
@@ -82,11 +81,9 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
     /// Tear the widget tree down before the panel, so nothing observes a
     /// subject the panel's destructor is about to deinit.
     ///
-    /// Drain first, belt-and-braces. This used to be load-bearing: the deferred
-    /// chip rebuild read chip_container_ raw and nothing nulled it when the tree
-    /// died, so draining after the delete dereferenced freed memory. Fixed on
-    /// main by 13db7c92e (PowerPanel drops its cached widget pointers on tree
-    /// delete), so the ordering is now belt-and-braces rather than a workaround.
+    /// Drain first, belt-and-braces: PowerPanel drops its cached widget pointers
+    /// on tree delete, so a deferred chip rebuild drained after the delete is
+    /// safe too.
     void teardown(PowerPanel& panel, lv_obj_t* obj) {
         settle();
         process_lvgl(20);
@@ -96,11 +93,14 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
         panel.deinit_subjects();
     }
 
-    /// Is the freshly built row's toggle refusing input?
+    /// Is the freshly built row's toggle refusing input? Its lock and note show exactly then.
     static bool toggle_disabled(lv_obj_t* panel_obj) {
         lv_obj_t* toggle = lv_obj_find_by_name(panel_obj, "device_toggle");
         REQUIRE(toggle != nullptr);
-        return lv_obj_has_state(toggle, LV_STATE_DISABLED);
+        const bool disabled = lv_obj_has_state(toggle, LV_STATE_DISABLED);
+        CHECK(lv_obj_is_hidden(lv_obj_find_by_name(panel_obj, "lock_icon")) == !disabled);
+        CHECK(lv_obj_is_hidden(lv_obj_find_by_name(panel_obj, "device_status")) == !disabled);
+        return disabled;
     }
 
     static std::vector<PowerDevice> one_locked_device() {
@@ -126,6 +126,12 @@ TEST_CASE_METHOD(PowerPanelLockFixture, "Power device toggle is live when nothin
     lv_obj_update_layout(test_screen());
 
     CHECK_FALSE(toggle_disabled(obj));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(obj, "empty_state")));
+
+    // No devices swaps the list for the empty state.
+    helix::ui::PowerPanelTestAccess::populate_device_list(panel, {});
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(obj, "device_list")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(obj, "empty_state")));
 
     teardown(panel, obj);
 }
@@ -150,6 +156,12 @@ TEST_CASE_METHOD(PowerPanelLockFixture, "Power device toggle locks while a print
 
     CHECK(toggle_disabled(obj));
 
+    // The flag is what gates the lock, not the print state on its own.
+    auto devices = one_locked_device();
+    devices[0].locked_while_printing = false;
+    helix::ui::PowerPanelTestAccess::populate_device_list(panel, devices);
+    CHECK_FALSE(toggle_disabled(obj));
+
     teardown(panel, obj);
 }
 
@@ -172,26 +184,6 @@ TEST_CASE_METHOD(PowerPanelLockFixture,
     lv_obj_update_layout(test_screen());
 
     CHECK(toggle_disabled(obj));
-
-    teardown(panel, obj);
-}
-
-TEST_CASE_METHOD(PowerPanelLockFixture, "An unlocked device stays togglable mid-print",
-                 "[power][print_state]") {
-    // The flag is what gates the lock, not the print state on its own.
-    auto& ps = state();
-    helix::test::set_wire_state(ps, PrintJobState::PRINTING);
-    settle();
-
-    PowerPanel panel(state(), nullptr);
-    lv_obj_t* obj = build(panel);
-
-    auto devices = one_locked_device();
-    devices[0].locked_while_printing = false;
-    helix::ui::PowerPanelTestAccess::populate_device_list(panel, devices);
-    lv_obj_update_layout(test_screen());
-
-    CHECK_FALSE(toggle_disabled(obj));
 
     teardown(panel, obj);
 }

@@ -1,0 +1,1 @@
+Mock[A-Z_:]|[a-z]Mock\b|mock_internal

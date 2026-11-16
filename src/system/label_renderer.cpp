@@ -5,8 +5,8 @@
 
 #include "label_renderer.h"
 
+#include "core/text_io.h"
 #include "spoolman_types.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -7,6 +7,8 @@
 // Pure geometry, no LVGL: the map view hands the outline in pixels and draws the
 // segments that come back.
 
+#include "sort_small.h"
+
 #include <algorithm>
 #include <cmath>
 #include <glm/vec2.hpp>
@@ -51,8 +53,8 @@ struct HatchSegment {
                 continue;
             hits.push_back(p + (q - p) * ((c - up) / (uq - up)));
         }
-        std::sort(hits.begin(), hits.end(),
-                  [](const glm::vec2& l, const glm::vec2& r) { return l.x < r.x; });
+        sort_small(hits.begin(), hits.end(),
+                   [](const glm::vec2& l, const glm::vec2& r) { return l.x < r.x; });
         for (size_t i = 0; i + 1 < hits.size(); i += 2)
             out.push_back({hits[i], hits[i + 1]});
     }

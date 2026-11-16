@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -15,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: edits held by value
 
 namespace helix {
 class IMoonrakerAPI;
@@ -57,7 +59,10 @@ struct SectionLocation {
 };
 
 struct ConfigEdit {
-    enum class Type { SET_VALUE, ADD_KEY, REMOVE_KEY };
+    /// SET_VALUE needs the key; ADD_KEY sets or adds it; ADD_IF_ABSENT adds it
+    /// only where the section does not already name it, so a value the user
+    /// chose survives; REMOVE_KEY of an absent key is skipped.
+    enum class Type { SET_VALUE, ADD_KEY, ADD_IF_ABSENT, REMOVE_KEY };
     Type type;
     std::string key;
     std::string value; // ignored for REMOVE_KEY
@@ -118,8 +123,9 @@ struct PluginConfigEditPlan {
 
 /// The server.helix.config_edit edit list for @p edits on @p section, each
 /// carrying the value it expects to replace, read from @p config. Mirrors
-/// apply_edits(): SET_VALUE needs the key, ADD_KEY sets or adds, REMOVE_KEY of
-/// an absent key is skipped, and only an all-ADD_KEY list may create a section.
+/// apply_edits(): SET_VALUE needs the key, ADD_KEY sets or adds, ADD_IF_ABSENT
+/// adds only an absent key, REMOVE_KEY of an absent key is skipped, and only an
+/// all-ADD_KEY list may create a section.
 PluginConfigEditPlan plan_plugin_config_edits(const std::string& section,
                                               const std::vector<ConfigEdit>& edits,
                                               const nlohmann::json& config);
@@ -131,7 +137,7 @@ plugin_config_edit_backups(const nlohmann::json& result);
 
 class KlipperConfigEditor {
   public:
-    using FeatureStateSource = std::function<PluginFeatureState()>;
+    using FeatureStateSource = helix::SharedCallback<PluginFeatureState()>;
 
     KlipperConfigEditor();
 
@@ -143,9 +149,9 @@ class KlipperConfigEditor {
     /// workers stop. Without this join the monitor keeps polling a freed editor.
     ~KlipperConfigEditor();
 
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const std::string& error)>;
-    using SectionMapCallback = std::function<void(std::map<std::string, SectionLocation>)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const std::string& error)>;
+    using SectionMapCallback = helix::SharedCallback<void(std::map<std::string, SectionLocation>)>;
 
     static ConfigStructure parse_structure(const std::string& content);
 
@@ -260,8 +266,8 @@ class KlipperConfigEditor {
     /// How a restart that Klipper does not survive is undone, and what a
     /// restart it survives cleans up.
     struct RestartRecovery {
-        std::function<void(IMoonrakerAPI&, SuccessCallback, ErrorCallback)> restore;
-        std::function<void(IMoonrakerAPI&, SuccessCallback)> cleanup;
+        helix::SharedCallback<void(IMoonrakerAPI&, SuccessCallback, ErrorCallback)> restore;
+        helix::SharedCallback<void(IMoonrakerAPI&, SuccessCallback)> cleanup;
     };
 
     /// The file-API route: load, apply, back up, upload, then restart.

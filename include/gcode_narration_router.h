@@ -5,12 +5,11 @@
 
 #include "async_lifetime_guard.h"
 #include "gcode_unknown_command.h"
+#include "json_fwd.h"
 
 #include <optional>
 #include <set>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;
@@ -29,7 +28,7 @@ class IMoonrakerClient;
 /// Does NOT surface `!!` errors — those are GcodeErrorRouter's contract.
 ///
 /// Both response channels are routed, to DIFFERENT matchers: `//` bodies to
-/// AmsBackend::match_narration_phase(), unprefixed lines to
+/// INarrationMatcher::match_narration_phase(), unprefixed lines to
 /// match_bare_narration_phase(). AFC emits its load/unload narration without the
 /// prefix, so a `//`-only filter drops the semantically important half of the
 /// step model; a shared loose matcher would instead let arbitrary console text

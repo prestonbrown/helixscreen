@@ -278,6 +278,7 @@ static std::time_t get_newest_source_mtime() {
     check_files("lib/lvgl/src/xml/parsers/*.c");
     check_files("lib/lvgl/src/xml/lv_xml.c");
     check_files("src/ui/*.cpp");
+    check_files("src/ui/*/*.cpp");
     check_files("ui_xml/*.xml");
 
     return newest;
@@ -441,8 +442,11 @@ static xml_validator::WidgetDatabase build_widget_database(bool verbose) {
         }
     }
 
-    // 3. Scan custom widget registrations in src/ui/*.cpp
+    // 3. Scan custom widget registrations in src/ui/ and its one level of group directories
     auto ui_sources = find_files("src/ui/*.cpp");
+    for (auto& path : find_files("src/ui/*/*.cpp")) {
+        ui_sources.push_back(std::move(path));
+    }
     if (verbose) {
         std::cout << "Scanning " << ui_sources.size() << " UI source files for custom widgets..."
                   << std::endl;

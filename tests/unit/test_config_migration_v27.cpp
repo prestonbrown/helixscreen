@@ -10,62 +10,24 @@
 #include "config.h"
 #include "config_migrations.h"
 #include "input_settings_manager.h"
+#include "test_helpers/config_migration_fixture.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
 
-class MigrationV27Fixture {
+class MigrationV27Fixture : public helix::test::ConfigMigrationFixture {
   protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-  public:
-    MigrationV27Fixture() {
-        // Per-process directory: concurrent shards must not share settings.json.
-        temp_dir =
-            (fs::temp_directory_path() / ("helix_migration_v27_test_" + std::to_string(::getpid())))
-                .string();
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-        config_path = temp_dir + "/settings.json";
-    }
-    ~MigrationV27Fixture() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
     void write_and_init(int version, int scroll_throw) {
-        std::ofstream f(config_path);
-        f << json{{"config_version", version},
-                  {"active_printer_id", "voron"},
-                  {"input", {{"scroll_throw", scroll_throw}}},
-                  {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}}
-                 .dump(2);
-        f.close();
-        config.init(config_path);
+        ConfigMigrationFixture::write_and_init(
+            {{"config_version", version},
+             {"active_printer_id", "voron"},
+             {"input", {{"scroll_throw", scroll_throw}}},
+             {"printers", {{"voron", {{"moonraker_host", "192.168.1.112"}}}}}});
     }
 };
 

@@ -31,7 +31,7 @@
 #include "camera_frame.h"
 #include "camera_stream.h"
 #include "color_utils.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "demo_prompt_lines.h"
 #include "filament_macro_profiles.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -99,6 +99,24 @@ bool feed_prompt_lines(const std::string& name, const std::vector<std::string>& 
 // screenshots with the real widget lifecycle. Must run on the UI thread.
 bool show_demo_overlay(const std::string& name, std::string* error) {
     lv_obj_t* screen = lv_screen_active();
+
+    if (name == "preflight-material") {
+        // A seated slot with no material set while a calibration that needs
+        // it is on: the block, and the one-tap fix from the file's material.
+        helix::PreflightResult pf;
+        helix::ToolCheck unset;
+        unset.tool_index = 0;
+        unset.intended_material = "PLA";
+        unset.intended_color = 0xF5A623;
+        unset.mapped_slot = 1;
+        unset.slot_present = true;
+        unset.severity = helix::ToolCheck::Severity::UnknownMaterial;
+        pf.checks = {unset};
+        auto modal = std::make_unique<helix::ui::PreflightCheckModal>();
+        modal->set_checks(pf);
+        Modal::show_owned(std::move(modal), screen);
+        return true;
+    }
 
     if (name == "preflight-check") {
         // Representative pre-print filament check: one matching tool, one color
@@ -359,6 +377,13 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         return helix::ui::GuidedLoadModal::show_owned(*steps, name == "guided-load");
     }
 
+    if (name == "manual-load") {
+        // Every mock persona has a load macro and its filament system feeds the head,
+        // so no Load reaches the manual load there. This opens it on the active nozzle,
+        // against the mock's heater: Heating, then the hand push.
+        return helix::ui::GuidedLoadModal::show_manual(-1);
+    }
+
     if (name == "ams-error-toast") {
         // The widest thing the AMS error renderer ever has to lay out: the
         // longest suggestion any backend produces (96 chars) under a 44-char
@@ -435,7 +460,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
     // modal. The cases above exist because they need state wired up first;
     // a plain dialog needs none, so screenshotting one should not require
     // adding an entry here. Unknown names return nullptr and fall through.
-    if (Modal::show(name.c_str()) != nullptr) {
+    if (helix::ui::ComponentModal::show_owned(name.c_str()) != nullptr) {
         spdlog::debug("[demo] shown as a plain modal component: {}", name);
         return true;
     }

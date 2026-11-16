@@ -4,11 +4,10 @@
  * @brief UpgradeBanner's XML dismiss callback reaches the banner that owns it.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_fixtures.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
 #include "test_helpers/printer_state_test_access.h"
@@ -67,11 +66,11 @@ TEST_CASE_METHOD(UpgradeBannerFixture, "upgrade banner: dismiss hides the banner
     banner.init();
     lv_obj_t* root = find("upgrade_banner");
     REQUIRE(root != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(root));
 
     lv_obj_t* dismiss = find("upgrade_banner_dismiss_btn");
     REQUIRE(dismiss != nullptr);
     lv_obj_send_event(dismiss, LV_EVENT_CLICKED, nullptr);
 
-    CHECK(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(root));
 }

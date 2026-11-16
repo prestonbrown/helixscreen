@@ -14,6 +14,7 @@
 #include "bed_drying_controller.h"
 #include "chamber_heater_backend.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -21,7 +22,6 @@
 #include "temperature_controller.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/configfile_mock_client.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <string>
@@ -38,7 +38,7 @@ constexpr long long kStart = 1'000'000;
 constexpr long long kHours12 = 12 * 3600;
 
 void drain() {
-    ui::UpdateQueueTestAccess::drain_all(ui::UpdateQueue::instance());
+    ui::UpdateQueue::instance().drain_until_empty();
 }
 
 struct BedDryingFixture : public LVGLTestFixture {

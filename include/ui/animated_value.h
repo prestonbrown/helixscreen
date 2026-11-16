@@ -35,11 +35,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "display_settings_manager.h"
 #include "lvgl/lvgl.h"
-#include "observer_factory.h"
 
 #include <spdlog/spdlog.h>
 

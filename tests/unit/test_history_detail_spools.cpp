@@ -10,12 +10,12 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_accounting.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_plugin_features.h"
@@ -104,8 +104,19 @@ TEST_CASE_METHOD(SpoolsFx, "history's detail card lists the spools the job used"
     lv_obj_t* label = lv_obj_find_by_name(test_screen(), "spools_label");
     REQUIRE(section != nullptr);
     REQUIRE(label != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     CHECK(std::string(lv_label_get_text(label)) == text);
+
+    // A tree deleted with its screen is created afresh on the next open.
+    lv_obj_t* root = section;
+    while (lv_obj_get_parent(root) != test_screen()) {
+        root = lv_obj_get_parent(root);
+    }
+    lv_obj_delete(root);
+    drain();
+    ui::HistoryListPanelTestAccess::show_detail_overlay(panel, test_screen(), job);
+    drain();
+    CHECK(lv_obj_find_by_name(test_screen(), "spools_section") != nullptr);
 
     NavigationManager::instance().go_back();
     drain();

@@ -10,9 +10,10 @@
 #include "ui_modal.h"
 #include "ui_panel_settings.h"
 #include "ui_settings_touch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "input_settings_manager.h"
@@ -42,7 +43,7 @@ struct TouchCallbacksFixture : LVGLUITestFixture {
 
     ~TouchCallbacksFixture() override {
         dismiss_restart_prompt();
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         helix::ui::UpdateQueue::instance().drain();
@@ -156,6 +157,10 @@ TEST_CASE_METHOD(TouchCallbacksFixture,
     CHECK(helix::InputSettingsManager::instance().get_scroll_limit() == 15);
     CHECK(slider_label("row_scroll_limit") == "15");
     CHECK_FALSE(restart_prompt_up());
+
+    // The readout binds the setting, so a change made anywhere else shows too.
+    helix::InputSettingsManager::instance().set_scroll_limit(4);
+    CHECK(slider_label("row_scroll_limit") == "4");
 }
 
 TEST_CASE_METHOD(TouchCallbacksFixture,

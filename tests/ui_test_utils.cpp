@@ -4,13 +4,12 @@
 #include "ui_test_utils.h"
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
+#include "core/update_queue.h"
 #include "env_knobs.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "platform_info.h"
 #include "spdlog/spdlog.h"
-#include "test_helpers/update_queue_test_access.h"
 
 #include <algorithm>
 #include <atomic>
@@ -40,19 +39,6 @@ void lv_init_safe() {
     helix::ui::UpdateQueue::instance().init();
 }
 
-void ensure_headless_display() {
-    static bool created = false;
-    if (created) {
-        return;
-    }
-    auto* disp = lv_display_create(480, 320);
-    alignas(64) static lv_color_t buf[480 * 10];
-    lv_display_set_buffers(disp, buf, nullptr, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-    lv_display_set_flush_cb(
-        disp, [](lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); });
-    created = true;
-}
-
 void ensure_displays_never_block_on_flush() {
     if (!lv_is_initialized()) {
         return;
@@ -65,7 +51,7 @@ void ensure_displays_never_block_on_flush() {
 uint32_t lv_timer_handler_safe() {
     // Drain the UpdateQueue — executes pending callbacks which set subjects.
     // Subject observers fire synchronously during drain, propagating bindings.
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Pause ALL timers to prevent infinite handler loops, then selectively
     // execute one-shot timers (lv_async_call, retry timers) manually.
@@ -432,8 +418,7 @@ bool wait_for_visible(lv_obj_t* widget, uint32_t timeout_ms) {
         return false;
     }
 
-    return wait_until([widget]() { return !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN); },
-                      timeout_ms);
+    return wait_until([widget]() { return !lv_obj_is_hidden(widget); }, timeout_ms);
 }
 
 bool wait_for_hidden(lv_obj_t* widget, uint32_t timeout_ms) {
@@ -442,8 +427,7 @@ bool wait_for_hidden(lv_obj_t* widget, uint32_t timeout_ms) {
         return false;
     }
 
-    return wait_until([widget]() { return lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN); },
-                      timeout_ms);
+    return wait_until([widget]() { return lv_obj_is_hidden(widget); }, timeout_ms);
 }
 
 bool wait_for_timers(uint32_t timeout_ms) {
@@ -470,7 +454,7 @@ bool is_visible(lv_obj_t* widget) {
     if (!widget) {
         return false;
     }
-    return !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(widget);
 }
 
 std::string get_text(lv_obj_t* widget) {

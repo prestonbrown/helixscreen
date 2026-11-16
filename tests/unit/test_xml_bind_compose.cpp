@@ -19,15 +19,19 @@
 //
 // The count assertion at the bottom is what notices that you did not.
 
-#include "ui_update_queue.h"
+#include "ui_obj_flags.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml_expr.h"
 #include "printer_state.h"
 
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -62,6 +66,8 @@ struct BindGroup {
     int hold_count;
     bool orders_testable;
 };
+
+#include "core/subject.h"
 
 #include "double_bind_widgets.inc"
 
@@ -102,8 +108,34 @@ lv_obj_flag_t flag_from_name(const std::string& name) {
  * panels reading a dead stack slot.
  */
 struct InventoryFixture : public XMLTestFixture {
-    static std::map<std::string, lv_subject_t>& owned() {
-        static std::map<std::string, lv_subject_t> subjects;
+    struct Registered {
+        std::string name;
+        std::string file;
+        bool existed;
+    };
+    static std::vector<Registered>& registered() {
+        static std::vector<Registered> components;
+        return components;
+    }
+
+    /// A component bakes the tokens of the breakpoint it is registered at, and the
+    /// lazy loader skips a name that exists, so what this case registered must not
+    /// outlive it; a variant row's replacement goes back to the base file too.
+    struct RestoreComponents {
+        ~RestoreComponents() {
+            for (const Registered& r : registered()) {
+                if (r.existed) {
+                    lv_xml_register_component_from_file(r.file.c_str());
+                } else {
+                    lv_xml_component_unregister(r.name.c_str());
+                }
+            }
+            registered().clear();
+        }
+    };
+
+    static std::map<std::string, helix::Subject>& owned() {
+        static std::map<std::string, helix::Subject> subjects;
         return subjects;
     }
 
@@ -112,8 +144,8 @@ struct InventoryFixture : public XMLTestFixture {
     static lv_subject_t* resolve(const char* name) {
         if (lv_subject_t* existing = lv_xml_get_subject(nullptr, name))
             return existing;
-        lv_subject_t& mine = owned()[name];
-        lv_subject_init_int(&mine, 0);
+        helix::Subject& mine = owned()[name];
+        mine.init_int(0);
         lv_xml_register_subject(nullptr, name, &mine);
         return &mine;
     }
@@ -129,32 +161,31 @@ struct InventoryFixture : public XMLTestFixture {
 
     void set_and_settle(lv_subject_t* subject, int value) {
         lv_subject_set_int(subject, value);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     bool applied(const BindGroup& g, lv_obj_t* obj) const {
         return g.kind == BindKind::State ? lv_obj_has_state(obj, state_from_name(g.bits))
-                                         : lv_obj_has_flag(obj, flag_from_name(g.bits));
+                                         : helix::ui::obj_has_flags(obj, flag_from_name(g.bits));
     }
 
     /// Register the base components once, so a panel whose target widget sits
     /// inside a nested component still builds far enough to expose it.
     ///
-    /// The variant directories are deliberately excluded. LVGL names a component
-    /// by its FILE BASENAME, and eight names exist in both the base tree and a
-    /// variant, so registering ui_xml/micro/controls_panel.xml would silently
-    /// replace `controls_panel` for every build after it. Each row registers its
-    /// own file just before building, which is what makes a variant row get the
-    /// variant and a base row get the base.
+    /// Each row also registers its own file just before building, so a row
+    /// always builds the file it names.
     static void register_base_components() {
-        static bool done = false;
-        if (done)
+        if (!registered().empty())
             return;
-        done = true;
         for (const char* dir : {"ui_xml", "ui_xml/components"}) {
             for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".xml")
-                    lv_xml_register_component_from_file(("A:" + entry.path().string()).c_str());
+                if (entry.is_regular_file() && entry.path().extension() == ".xml") {
+                    const std::string name = entry.path().stem().string();
+                    const std::string file = "A:" + entry.path().string();
+                    registered().push_back(
+                        {name, file, lv_xml_component_find_scope(name.c_str()) != nullptr});
+                    lv_xml_register_component_from_file(file.c_str());
+                }
             }
         }
     }
@@ -203,6 +234,7 @@ void quiet_all(InventoryFixture& fx, const BindGroup& g) {
 // subject registry pointing at the inner one's destroyed PrinterState.
 TEST_CASE("every ui_xml widget with two bindings on one property composes them",
           "[ui][xml][bind_compose][inventory]") {
+    InventoryFixture::RestoreComponents restore;
     int checked = 0;
     int unreachable = 0;
     std::string unreachable_names;
@@ -276,5 +308,66 @@ TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
     // was generated from: adding a widget with two bindings on one property, or
     // removing one, moves these and forces a regeneration and a re-run.
     REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
-    REQUIRE(kTotalGroups == 78);
+    REQUIRE(kTotalGroups == 67);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads without reading it",
+                 "[xml][1983]") {
+    // The shape of motion_panel.xml: one subject dies with its panel, the other is a
+    // setting that outlives it, and the widget is still there when the setting fires.
+    auto panel_tab = std::make_unique<helix::Subject>();
+    panel_tab->init_int(0);
+    helix::Subject setting;
+    setting.init_int(0);
+    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_tab", panel_tab->get()) ==
+            LV_RESULT_OK);
+    REQUIRE(lv_xml_register_subject(nullptr, "cond_lifetime_setting", &setting) == LV_RESULT_OK);
+    REQUIRE(lv_xml_register_component_from_data(
+                "cond_lifetime_view",
+                "<component><view extends=\"lv_obj\">"
+                "<bind_flag_if cond=\"cond_lifetime_tab eq 0 and cond_lifetime_setting ne 0\" "
+                "flag=\"hidden\"/></view></component>") == LV_RESULT_OK);
+    auto* view =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "cond_lifetime_view", nullptr));
+    REQUIRE(view != nullptr);
+
+    lv_subject_set_int(&setting, 1);
+    REQUIRE(lv_obj_is_hidden(view));
+
+    panel_tab.reset();
+    helix::ui::UpdateQueue::instance().drain(); // runs the queued free of its node
+    lv_subject_set_int(&setting, 0); // reads freed storage if the binding still evaluates
+
+    CHECK(lv_obj_is_hidden(view));
+    lv_obj_delete(view);
+    setting.reset();
+    lv_xml_unregister_subject(nullptr, "cond_lifetime_tab");
+    lv_xml_unregister_subject(nullptr, "cond_lifetime_setting");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a binding made on a deinitialised subject never reads it",
+                 "[xml][1983]") {
+    helix::Subject gone;
+    gone.init_int(0);
+    gone.reset();
+    helix::Subject live;
+    live.init_int(0);
+    REQUIRE(lv_xml_register_subject(nullptr, "bind_gone_subject", &gone) == LV_RESULT_OK);
+    REQUIRE(lv_xml_register_subject(nullptr, "bind_live_subject", &live) == LV_RESULT_OK);
+    lv_xml_expr_t* expr = lv_xml_expr_compile(
+        "bind_gone_subject + bind_live_subject",
+        [](void*, const char* name) { return lv_xml_get_subject(nullptr, name); }, nullptr);
+    REQUIRE(expr != nullptr);
+
+    int fires = 0;
+    lv_obj_t* owner = lv_obj_create(test_screen());
+    lv_xml_expr_bind(
+        expr, owner, [](void* fired, int32_t) { ++*static_cast<int*>(fired); }, &fires);
+    lv_subject_set_int(&live, 1);
+
+    CHECK(fires == 0);
+    lv_obj_delete(owner);
+    live.reset();
+    lv_xml_unregister_subject(nullptr, "bind_gone_subject");
+    lv_xml_unregister_subject(nullptr, "bind_live_subject");
 }

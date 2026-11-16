@@ -5,10 +5,10 @@
 
 #if HELIX_HAS_PLUGINS
 
+#include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "plugin_consent.h"
 #include "plugin_host.h"
-#include "static_panel_registry.h"
 
 #include <functional>
 #include <list>

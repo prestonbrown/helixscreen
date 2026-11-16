@@ -249,8 +249,8 @@ void CameraStream::stop() {
     }
 
     // Snapshot before the join below clears joinability. The worker clears
-    // running_ itself on every exit path, so `was_running` alone no longer
-    // proves there is state to reclaim — a worker that gave up on its own
+    // running_ itself on every exit path, so `was_running` alone does not
+    // prove there is state to reclaim — a worker that gave up on its own
     // still leaves draw buffers and callbacks behind.
     bool had_thread = stream_thread_.joinable();
 
@@ -361,7 +361,6 @@ std::string CameraStream::parse_boundary(const std::string& content_type) {
     if (end != std::string::npos) {
         boundary = boundary.substr(0, end);
     }
-    // Strip quotes
     if (!boundary.empty() && boundary.front() == '"') {
         boundary = boundary.substr(1);
     }

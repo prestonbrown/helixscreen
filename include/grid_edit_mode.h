@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "grid_edit_cross_page.h"
 #include "grid_edit_drop.h"
@@ -11,11 +13,17 @@
 
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+namespace helix::ui {
+class TileEditCallout;
+enum class TileCalloutAction : int;
+} // namespace helix::ui
 
 namespace helix {
 
@@ -93,7 +101,7 @@ class GridEditMode {
     using RelayoutCallback = std::function<bool(const std::vector<std::string>& changed_ids,
                                                 const std::string& resized_id)>;
 
-    GridEditMode() = default;
+    GridEditMode();
     ~GridEditMode();
 
     GridEditMode(const GridEditMode&) = delete;
@@ -176,6 +184,11 @@ class GridEditMode {
         delete_page_cb_ = std::move(cb);
     }
 
+    /// The navbar's delete-page button: withdraws a held Undo, then runs the
+    /// delete-page callback. A no-op while grid input does not act (see
+    /// grid_input_acts) or the session's page is not deletable.
+    void request_delete_page();
+
     void set_gesture_ownership_callback(GestureOwnershipCallback cb) {
         gesture_ownership_cb_ = std::move(cb);
     }
@@ -211,15 +224,18 @@ class GridEditMode {
         return selected_;
     }
 
-    /// Select a widget (shows corner brackets + X button), or nullptr to deselect
+    /// Select a widget (shows corner brackets and edge handles), or nullptr to
+    /// deselect. A selection change closes the tile callout.
     void select_widget(lv_obj_t* widget);
 
     /// Handle a click event on the container — hit-tests children for selection
     void handle_click(lv_event_t* e);
 
-    /// A hold (LONG_PRESSED) in a live session grabs: the selected widget, or
-    /// the widget under the pointer once it selects it. A hold on empty grid
-    /// with nothing selected opens the widget catalog instead. An inert gesture
+    /// A hold (LONG_PRESSED) in a live session acts on the selected widget, or
+    /// the widget under the pointer once it selects it: inside the tile it
+    /// raises the callout and arms a grab, on a resizable tile's edge it starts
+    /// the resize. A hold on empty grid with nothing selected opens the widget
+    /// catalog instead. An inert gesture
     /// (see gesture_inert_) does neither, and nor does a hold while the catalog
     /// is open (see grid_input_acts).
     void handle_long_press(lv_event_t* e);
@@ -319,19 +335,65 @@ class GridEditMode {
     /// Detect which resize edge the pointer is near, or None if not near any edge.
     ResizeEdge detect_resize_edge(int px, int py, const lv_area_t& widget_area) const;
 
+    /// How far an edge grab band of @p band px reaches into a widget that is
+    /// @p widget_px across, so that the interior left for dragging is never
+    /// narrower than @p min_drag_px.
+    ///
+    /// A widget with room to spare gets the full band; a smaller one splits
+    /// what is left over the drag target between its two edges, down to 0 for
+    /// a widget no wider than the target. The outward band is untouched, so a
+    /// half-cell widget still resizes from just outside its edges.
+    static int inward_edge_reach(int band, int widget_px, int min_drag_px);
+
+    /// The facts of one gesture's release that decide whether it opens the
+    /// tile callout.
+    struct CalloutReleaseFacts {
+        bool press_on_selected = false; ///< the press landed inside the selected tile
+        bool resized = false;           ///< the gesture ran a resize
+        bool committed = false;         ///< a drop or resize changed the layout
+        int max_travel_px = 0;          ///< farthest the pointer got from the press
+        bool inert = false;             ///< the gesture took no grid action (gesture_inert_)
+        bool input_acts = false;        ///< grid input acted at the release
+    };
+
+    /// True for a tap on the selected tile: a press inside the selected tile, no resize, nothing
+    /// committed, at most kDragThresholdPx of travel, not inert, while grid input acts.
+    [[nodiscard]] static bool release_opens_callout(const CalloutReleaseFacts& f);
+
+    /// Whether the tile callout is on screen.
+    bool is_callout_open() const;
+
+    /// Raise the tile callout for the selected tile: its Configure (for a
+    /// widget with an edit-mode configure action) and Remove. A no-op without a
+    /// selection or while grid input does not act.
+    void open_tile_callout();
+
+    /// Close the tile callout without acting. Safe when it is not open.
+    void close_tile_callout();
+
+    /// Open the callout on the next tick for the selected tile, once the
+    /// gesture that asked for it has settled the selection. A press since then
+    /// cancels it.
+    void open_tile_callout_next_tick();
+
   private:
     friend struct helix::GridEditModeTestAccess;
 
     /// Whether input on the grid acts: a press, hold or click the grid handlers
-    /// pass on, and a tap on the selection's configure or remove button or the
-    /// delete-page button. True while the session is live and the widget
-    /// catalog is closed. The catalog places onto the page and cell it was
-    /// opened from; navigation's dismiss backdrop normally takes every press
-    /// beside it, and when that backdrop could not be created the grid still
-    /// takes no action.
+    /// pass on, a tile callout action and the navbar's delete-page button. True
+    /// while the session is live and neither the widget catalog nor the tile
+    /// callout is open. The catalog places onto the page and cell it was opened
+    /// from; navigation's dismiss backdrop, or the callout's, normally takes
+    /// every press beside it, and when that backdrop could not be created the
+    /// grid still takes no action.
     bool grid_input_acts() const {
-        return active_ && !catalog_open_;
+        return active_ && !catalog_open_ && !is_callout_open();
     }
+
+    /// Whether the session's page may be deleted: a config page other than the
+    /// main page while more than one page exists. The next-page slot is no
+    /// page to delete.
+    bool page_deletable() const;
 
     /// Track geometry of the live grid container.
     ///
@@ -383,10 +445,10 @@ class GridEditMode {
     /// to the handlers on carousel_host; its only callbacks draw the lattice
     /// and free what that draw reads.
     void ensure_shield();
-    /// Redraw the shield for the current selection: the lattice it draws, the
-    /// boundaries the selected widget can snap to, and its one child, the
-    /// delete-page button. Mid-gesture safe: the button is never the press
-    /// target and the shield itself is kept.
+    /// Redraw the shield for the current selection: the lattice it draws and
+    /// the boundaries the selected widget can snap to. Publishes whether the
+    /// navbar's delete-page button shows. Mid-gesture safe: the shield itself
+    /// is kept.
     void rebuild_lattice();
     /// Dots in the lattice the shield draws, 0 with none.
     int drawn_dot_count() const;
@@ -395,6 +457,27 @@ class GridEditMode {
     void destroy_selection_chrome();
     void remove_selected_widget();
     void configure_selected_widget();
+
+    /// What the last trash removal took off the grid, held for its toast's
+    /// Undo: the entry as it was (config and rectangle), and the page it sat on.
+    struct RemovedWidget;
+    /// Hold @p removed as the one removal Undo can reverse, replacing any
+    /// earlier one, and show the toast that offers it.
+    void offer_undo(std::unique_ptr<RemovedWidget> removed);
+    /// Forget the held removal: a late tap on its toast does nothing.
+    void cancel_undo();
+    /// cancel_undo(), and dismiss the toast that offered it. For whatever
+    /// changes the layout under a held removal: the widget catalog (placing,
+    /// Reset, Copy Layout), the delete-page confirmation, leaving the session.
+    void withdraw_undo();
+    /// Put the held removal back: on its own page (re-created when the removal
+    /// pruned it) at its own rectangle, or, when another widget took that spot,
+    /// where a catalog placement would land it on that page. A toast says so
+    /// when there is no room at all. Saves.
+    void undo_last_removal();
+    /// The toast's action: reaches the session that showed it only while that
+    /// removal is still the held one and the session is alive.
+    static void on_undo_toast(void* user_data);
 
     /// Run rebuild_cb_ on the next lv_timer_handler tick (helix::ui::run_next_tick),
     /// so its deletes run outside input dispatch. A request made while a
@@ -449,7 +532,10 @@ class GridEditMode {
     /// The scoped page's placed widgets, @p exclude_id left out, on the grid its
     /// container is laid out on: the occupancy every drag, drop, resize and
     /// catalog placement checks a rectangle against.
-    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants) const;
+    /// @p page names another config page; OnScreen counts the scoped
+    /// container's objects, so another page is read with AllPlaced.
+    GridLayout page_occupancy(const std::string& exclude_id, Occupants occupants,
+                              int page = -1) const;
 
     // Drag helpers
     void handle_drag_start(lv_event_t* e);
@@ -498,7 +584,7 @@ class GridEditMode {
     void clear_gesture_state();
 
     /// Null every pointer to an object living in the scoped container (the
-    /// selection, its chrome, the shield and its delete-page button, the snap
+    /// selection, its chrome, the shield, the snap
     /// preview and its cell) without deleting anything. For the rebuilds that
     /// destroy the container's children: a pointer kept past lv_obj_clean
     /// dangles.
@@ -554,12 +640,26 @@ class GridEditMode {
 
     bool active_ = false;
     lv_obj_t* container_ = nullptr;
-    lv_obj_t* shield_ = nullptr;
-    lv_obj_t* selected_ = nullptr;
-    lv_obj_t* selection_overlay_ = nullptr;
-    lv_obj_t* remove_btn_ = nullptr; // Trash button (container child, not overlay child)
-    lv_obj_t* configure_btn_ =
-        nullptr; // Configure button (upper-left, shown if widget supports it)
+    helix::ui::WidgetRef shield_;
+    helix::ui::WidgetRef selected_;
+    helix::ui::WidgetRef selection_overlay_;
+    /// The selected tile's action menu, and the config id it was raised for: an
+    /// action whose tile is no longer the selection does nothing.
+    std::unique_ptr<helix::ui::TileEditCallout> callout_;
+    std::string callout_widget_id_;
+    /// Run the action the callout sent for the tile it was raised for.
+    void on_callout_action(helix::ui::TileCalloutAction action);
+    /// Whether @p pt is past the drag threshold from the press.
+    [[nodiscard]] bool past_drag_threshold(lv_point_t pt) const;
+    /// Whether this hold, latched on the selected tile, raises its callout
+    /// instead of grabbing at once: a hold inside the tile that does not start
+    /// a resize.
+    [[nodiscard]] bool hold_raises_callout() const;
+    /// Whether the press at press_origin_ landed on an edge of @p sel_area that
+    /// resizes the selected widget.
+    [[nodiscard]] bool press_starts_resize(const lv_area_t& sel_area) const;
+    /// The finger that raised the open callout lifted: a bounce is no tap.
+    void restart_callout_lockout();
     PanelWidgetConfig* config_ = nullptr;
     int page_index_ = 0;
     RebuildCallback rebuild_cb_;
@@ -577,9 +677,9 @@ class GridEditMode {
     /// lv_tick_get() at the previous drag step, so the edge push advances by
     /// the time between reads rather than per read.
     uint32_t drag_step_tick_ = 0;
-    /// One-shot flip a majority crossing requested, due
-    /// kCrossPageCrossingDelayMs after the crossing, and its direction.
-    /// Dwell changes never cancel it.
+    /// One-shot flip a majority crossing requested, due the step's
+    /// flip_delay_ms after the crossing, and its direction.
+    /// Dwell changes never cancel it; the widget coming back inside does.
     lv_timer_t* crossing_flip_timer_ = nullptr;
     int crossing_flip_dir_ = 0;
     /// One-shot flip counting kCrossPageDwellMs while the pointer stays in an
@@ -607,8 +707,11 @@ class GridEditMode {
     /// commit that emptied the page saves once and reports the change through
     /// notify_pages_changed().
     bool prune_empty_page(int page);
-    /// Schedule the crossing flip toward @p dir, replacing one still pending.
-    void start_crossing_flip(int dir);
+    /// Schedule the crossing flip toward @p dir in @p delay_ms, replacing one
+    /// still pending.
+    void start_crossing_flip(int dir, uint32_t delay_ms);
+    /// Cancel the pending crossing flip, if any.
+    void cancel_crossing_flip();
     /// Restart the dwell toward @p dir, or cancel it when @p dir is 0.
     void restart_dwell_flip(int dir);
     /// Cancel both flip timers. Cancel-safe from the destructor and from
@@ -619,14 +722,12 @@ class GridEditMode {
     void request_page_flip(const char* trigger, int dir);
     static void crossing_flip_cb(lv_timer_t* timer);
     static void dwell_flip_cb(lv_timer_t* timer);
-    lv_obj_t* delete_page_btn_ = nullptr;
     /// What the shield draws as the lattice, owned by the shield.
     GridLatticeSpec* lattice_spec_ = nullptr;
     /// What the drawn lattice was built for: the shield and page holding it,
-    /// the grid, the selection's snap steps, the content size and whether the
-    /// delete-page button shows. rebuild_lattice() keeps a lattice whose key
-    /// still matches.
-    using LatticeKey = std::tuple<lv_obj_t*, lv_obj_t*, int, int, int, int, int, int, bool>;
+    /// the grid, the selection's snap steps and the content size.
+    /// rebuild_lattice() keeps a lattice whose key still matches.
+    using LatticeKey = std::tuple<lv_obj_t*, lv_obj_t*, int, int, int, int, int, int>;
     LatticeKey lattice_key_{};
 
     // Drag threshold: track press origin, only start real drag after movement
@@ -655,6 +756,24 @@ class GridEditMode {
     /// the press on the next tick.
     /// clear_gesture_state() resets it.
     bool gesture_inert_ = false;
+    /// The current gesture is the hold that entered edit mode.
+    bool gesture_entered_ = false;
+    /// The current gesture's press landed inside the tile that was selected
+    /// before it, or its hold grabbed the tile it landed in.
+    bool gesture_on_selected_ = false;
+    /// Where the current gesture's press landed, and the farthest the pointer
+    /// has been from it since.
+    lv_point_t gesture_start_ = {0, 0};
+    bool gesture_start_known_ = false;
+    int gesture_max_travel_px_ = 0;
+    /// Record the pointer at @p pt into gesture_max_travel_px_.
+    void track_gesture_travel(lv_point_t pt);
+    /// The last drag end committed a drop. Read by handle_released after the
+    /// end handler, which clears the gesture state.
+    bool last_drop_committed_ = false;
+    /// Counts the presses begin_press() starts, so a callout a release asked for
+    /// opens only if no press has begun since.
+    uint32_t gesture_serial_ = 0;
 
     // Drag state
     bool dragging_ = false;
@@ -684,7 +803,7 @@ class GridEditMode {
     /// An edit preview's four edge bars (top, bottom, left, right) on the top
     /// layer (ensure_outline() in grid_edit_mode.cpp says why). All null, or
     /// all live.
-    using ResizeOutline = std::array<lv_obj_t*, 4>;
+    using ResizeOutline = std::array<helix::ui::WeakWidget, 4>;
     /// The pixel-tracking resize outline.
     ResizeOutline resize_outline_{};
     /// The box resize_outline_ is drawn around, in screen coordinates.
@@ -699,7 +818,7 @@ class GridEditMode {
     ResizeOutline snap_anim_outline_{};
     /// The page the animating resize ran on, where a stopped snap lays the
     /// widget out (cancel_snap_animation). Checked live before use.
-    lv_obj_t* snap_anim_page_ = nullptr;
+    helix::ui::WidgetRef snap_anim_page_;
     /// The widget that snap animation resized, which the rebuild after it
     /// selects again. Empty when no snap is in flight.
     std::string snap_anim_widget_id_;
@@ -731,6 +850,12 @@ class GridEditMode {
     // Destructor expires all tokens so callbacks become no-ops if GridEditMode
     // (and its owning HomePanel) is destroyed during switch_printer teardown.
     helix::AsyncLifetimeGuard lifetime_;
+
+    /// The removal the toast's Undo reverses; null when none is held.
+    std::unique_ptr<RemovedWidget> removed_;
+    /// Expires the toast's reach into this session: on every new removal, an
+    /// undo, exit() and destruction.
+    helix::AsyncLifetimeGuard undo_lifetime_;
 };
 
 } // namespace helix

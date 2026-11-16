@@ -3,20 +3,22 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_subscription_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
+#include "calibration_owned_heat.h"
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h" // For BedMeshProfile
 #include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
+#include "subscription_guard.h"
 
 #include <array>
 #include <functional>
@@ -63,6 +65,11 @@ class BedMeshPanel : public OverlayBase {
     BedMeshPanel();
     ~BedMeshPanel() override;
 
+    /// The Moonraker API this panel sends through. Set before init_subjects().
+    void set_api(helix::IMoonrakerAPI* api) {
+        api_ = api;
+    }
+
     // === OverlayBase interface ===
     void init_subjects() override;
     void deinit_subjects();
@@ -99,11 +106,21 @@ class BedMeshPanel : public OverlayBase {
     void delete_profile(int index);
     void rename_profile(int index);
     void start_calibration();
+    /// start_calibration() once the bed is known clear: the profile name dialog.
+    void ask_calibration_name();
 
     // Modal actions
     void show_rename_modal(const std::string& profile_name);
     void show_delete_confirm_modal(const std::string& profile_name);
     void show_save_config_modal();
+    /// Clear heat this run owns while the client can still send.
+    void before_disconnect();
+
+    /// Whether this panel still owns a heater target it must turn off.
+    [[nodiscard]] bool holds_owned_heat() const {
+        return heat_.held();
+    }
+
     void hide_all_modals();
 
     // Modal callback action helpers (called from free function callbacks)
@@ -174,9 +191,9 @@ class BedMeshPanel : public OverlayBase {
     // helix::BedMeshState, which exists from connect; the panel's XML binds them there.
 
     // ========== Profile List Subjects (5 profiles max) ==========
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_name_subjects_{};
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_range_subjects_{};
-    std::array<lv_subject_t, BED_MESH_MAX_PROFILES> profile_active_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_name_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_range_subjects_{};
+    std::array<helix::Subject, BED_MESH_MAX_PROFILES> profile_active_subjects_{};
 
     std::array<std::array<char, 64>, BED_MESH_MAX_PROFILES> profile_name_bufs_;
     std::array<std::array<char, 32>, BED_MESH_MAX_PROFILES> profile_range_bufs_;
@@ -185,27 +202,28 @@ class BedMeshPanel : public OverlayBase {
     std::array<std::string, BED_MESH_MAX_PROFILES> profile_names_;
 
     // ========== Modal State Subjects (NOT visibility - internal state) ==========
-    lv_subject_t bed_mesh_rename_old_name_{}; // Display the old name in rename modal
+    helix::Subject bed_mesh_rename_old_name_{}; // Display the old name in rename modal
 
     char rename_old_name_buf_[64];
 
     // ========== Calibration Progress Subjects ==========
-    lv_subject_t bed_mesh_calibrate_state_{};     ///< CalibrationState enum value
-    lv_subject_t bed_mesh_probe_progress_{};      ///< 0-100 percentage
-    lv_subject_t bed_mesh_probe_text_{};          ///< "Probing point 5 of 25"
-    lv_subject_t bed_mesh_probe_indeterminate_{}; ///< 1 = spinner (total unknown), 0 = progress bar
-    lv_subject_t bed_mesh_error_message_{};       ///< Error message if failed
-    lv_subject_t bed_mesh_calibrate_name_{};      ///< Profile name field of the calibrate dialog
+    helix::Subject bed_mesh_calibrate_state_{}; ///< CalibrationState enum value
+    helix::Subject bed_mesh_probe_progress_{};  ///< 0-100 percentage
+    helix::Subject bed_mesh_probe_text_{};      ///< "Probing point 5 of 25"
+    helix::Subject
+        bed_mesh_probe_indeterminate_{};       ///< 1 = spinner (total unknown), 0 = progress bar
+    helix::Subject bed_mesh_error_message_{};  ///< Error message if failed
+    helix::Subject bed_mesh_calibrate_name_{}; ///< Profile name field of the calibrate dialog
 
     char probe_text_buf_[64];     ///< Buffer for probe_text_ subject
     char error_message_buf_[256]; ///< Buffer for error_message_ subject
     char calibrate_name_buf_[64]; ///< Buffer for calibrate_name_ subject
 
-    // ========== Modal Widget Pointers (uses ui_modal_show pattern) ==========
-    lv_obj_t* calibrate_modal_widget_ = nullptr;
-    lv_obj_t* rename_modal_widget_ = nullptr;
-    lv_obj_t* save_config_modal_widget_ = nullptr;
-    lv_obj_t* delete_modal_widget_ = nullptr;
+    // ========== Modal Widget Pointers (ComponentModal dialogs) ==========
+    helix::ui::WidgetRef calibrate_modal_widget_;
+    helix::ui::WidgetRef rename_modal_widget_;
+    helix::ui::WidgetRef save_config_modal_widget_;
+    helix::ui::WidgetRef delete_modal_widget_;
 
     // ========== UI Widget Pointers ==========
     helix::ui::WidgetRef canvas_;
@@ -251,6 +269,8 @@ class BedMeshPanel : public OverlayBase {
     static constexpr double kProbeBedTemp =
         helix::bed_mesh::kDefaultProbeBedTempC; // °C — thermal expansion for accurate mesh
 
+    helix::IMoonrakerAPI* api_ = nullptr;
+
     // RAII subscription guard - auto-unsubscribes from Moonraker on destruction
     SubscriptionGuard subscription_;
 
@@ -280,14 +300,17 @@ class BedMeshPanel : public OverlayBase {
     /// The profiles the printer stored when the calibration began.
     helix::bed_mesh::StoredMeshes meshes_before_;
 
-    // True for a heater that was off when probing began. The panel's preheat or a
-    // self-preparing sequence turns it on; cooldown_after_probing() turns it off.
-    bool preheat_turned_on_nozzle_ = false;
-    bool preheat_turned_on_bed_ = false;
+    /// Sends one owned heater's off through the TemperatureController.
+    static void send_heater_off(const std::string& heater);
+
+    // The heaters that were off when probing began. The panel's preheat or a
+    // self-preparing sequence turns them on; cooldown_after_probing() turns them off.
+    helix::CalibrationOwnedHeat heat_{"BedMeshPanel", &BedMeshPanel::send_heater_off};
 
     // ========== Private Methods ==========
     /// Record which heaters are off now, for cooldown_after_probing() to restore.
-    void remember_heaters_probing_turns_on();
+    /// @param nozzle_c, bed_c The targets probing sets; 0 when a sequence chooses them
+    void remember_heaters_probing_turns_on(int nozzle_c, int bed_c);
     void preheat_for_probing();
     void cooldown_after_probing();
     void start_home_and_probe();

@@ -7,7 +7,6 @@
 #include "ui_modal.h"
 #include "ui_next_tick.h"
 #include "ui_toast_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 
@@ -15,10 +14,13 @@
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/observer_factory.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "home_layout_sync.h"
-#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_cache_registry.h"
+#include "printer_retarget.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -171,7 +173,7 @@ bool PrinterSwitchFlow::confirm_pending() {
     auto& stack = ModalStack::instance();
     lv_obj_t* backdrop = stack.backdrop_for(m_confirm_dialog);
     if (backdrop && !stack.is_exiting(backdrop)) {
-        if (!lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(backdrop)) {
             return true;
         }
         // Hidden but still stacked, it would keep ModalStack non-empty and hold back
@@ -205,7 +207,7 @@ void PrinterSwitchFlow::run_waiting_restarts() {
     }
 }
 
-void PrinterSwitchFlow::post_request(std::function<void()> request) {
+void PrinterSwitchFlow::post_request(helix::SharedCallback<void()> request) {
     if (m_pending_request) {
         spdlog::info("[PrinterSwitchFlow] A newer request replaces the one waiting for the tick");
     }
@@ -213,7 +215,8 @@ void PrinterSwitchFlow::post_request(std::function<void()> request) {
     arm_restart_tick();
 }
 
-bool PrinterSwitchFlow::deferred_out_of_drain(const char* entry, std::function<void()> work) {
+bool PrinterSwitchFlow::deferred_out_of_drain(const char* entry,
+                                              helix::SharedCallback<void()> work) {
     if (!ui::UpdateQueue::instance().is_draining()) {
         // Made in place, this call is newer than anything waiting: a cancel's restart runs
         // first, as it would have on the tick, and a waiting request is dropped.
@@ -455,18 +458,28 @@ void PrinterSwitchFlow::restart_onto_restored_printer() {
     await_connection(title, connecting);
 }
 
-bool PrinterSwitchFlow::add_printer(const std::string& host, int port) {
-    if (deferred_out_of_drain("add_printer", [this, host, port] { add_printer(host, port); })) {
+bool PrinterSwitchFlow::add_printer(const std::string& host, int port, const std::string& api_key) {
+    if (deferred_out_of_drain("add_printer",
+                              [this, host, port, api_key] { add_printer(host, port, api_key); })) {
         return false;
     }
+    const bool has_key = !text_io::trim(api_key).empty();
     const std::string existing = m_config->find_printer_by_host(host, port);
     if (!existing.empty()) {
         spdlog::info("[PrinterSwitchFlow] {}:{} is already printer '{}'", host, port, existing);
+        // A blank field says nothing about the key the printer already has.
+        if (has_key) {
+            set_printer_api_key(existing, api_key);
+            if (!save_or_report()) {
+                return false;
+            }
+        }
         return request_switch(existing);
     }
 
     const std::string id = m_config->next_printer_id();
     m_config->add_printer(id, {{"moonraker_host", host}, {"moonraker_port", port}});
+    set_printer_api_key(id, api_key);
     spdlog::info("[PrinterSwitchFlow] Added printer '{}' at {}:{}", id, host, port);
     // Kept in the list unsaved rather than dropped, and not switched to.
     if (!save_or_report()) {

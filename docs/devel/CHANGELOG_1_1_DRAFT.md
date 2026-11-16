@@ -31,6 +31,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Upgrading from 1.0?**
 
+- **Your print signal macros keep their names.** If your printer already has HelixScreen's
+  helper macros, `HELIX_READY` and the `HELIX_PHASE_*` macros stay as they are, including when
+  you update the macro pack from Settings, so your `PRINT_START` needs no changes. They also
+  stay in your Fluidd or Mainsail macro list for now; you can hide them in Fluidd's macro
+  settings. A later release will move existing printers to the hidden names.
 - **Your home screen is converted, not reset.** The home screen moves to a square-cell
   grid, and your layout comes with it. Positions are converted onto the new grid in
   proportion: a widget that filled the left third of the screen still fills the left third,
@@ -44,6 +49,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   own grid's units, so when you return to 1.1 the home screen comes back rearranged, or,
   from some 1.0 builds, reset to its defaults. Arrange it again in edit mode. Everything
   else survives the round trip.
+- **Lane details come from the printer.** HelixScreen keeps no lane details of its own any
+  more: everything a lane shows is read from the printer, where 1.0 already wrote it. A detail
+  that only ever lived on the screen, never sent to the printer, does not carry over; set it
+  again. On AFC, AFC's own remember-spool setting decides what a lane keeps when its spool comes
+  out.
 - **Your 1.0 settings are kept** (#1305). The first start of 1.1 saves your old
   `settings.json` beside the new one as `settings.json.pre-migration`, before converting it.
   HelixScreen never reads that copy back; it is there if you want your 1.0 settings.
@@ -173,11 +183,16 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The printer picture shows an attached CFS** - a Creality K2 with a CFS connected shows
   the K2 with the CFS on top, switching on its own when the CFS reports in or drops out. A
   picture you picked yourself stays in place.
+- **Jacobean's K2 Plus firmware is recognised (#2087)** - a K2 Plus running Jacobean's
+  Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
+  print-start progress that follows its own START_PRINT. A printer type mismatch warning
+  also leaves the screen as soon as the type is changed in Settings.
 - **A K2 without a CFS is a single-spool printer (#1904)** - with no CFS attached, the
   multi-filament panels, slot widgets and bypass controls stay out of the way, and the
   Filament panel's Load and Unload run the K2's own external-spool load and its cut and
   retract. The external spool row says what is loaded. The toolhead filament sensor shows
-  up in Settings > Sensors and can watch for runout.
+  up in Settings > Sensors and can watch for runout. A K2 that has a CFS no longer looks
+  single-spool while its CFS is still answering at boot (#1933).
 - **Icon tiles resize** - the single-icon tiles (power, lock, shutdown, firmware restart,
   LED, network and the rest) scale with their tile instead of staying one fixed size, and
   can be resized for the first time. On most panels they take half-cell steps in width; on
@@ -362,21 +377,39 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   with what it holds, pre-ticks loaded heads for an unload, and says which heads cannot take
   the operation and why. The printer's own batch command does the work, preheating the next
   head while the current one finishes, and the header names the head being worked on.
+- **Print Status shows every toolhead's temperature** (#1818) - the nozzle chip on the
+  printer picture keeps the active tool, and one more chip lists the others
+  (`2 150° · 3 off · 4 off`). A parked head heating up leads that chip with its reading,
+  target and a progress bar, so you can see the next tool pre-heating; where the chip has
+  no room for every head it shows the heating one and a count of the rest. Tap it for the
+  temperature graph. Lanes that share one nozzle count as one head.
 
 **Filament systems**
 
-- **Your edits, the printer and Spoolman stop overwriting each other** (#1649, #1653) - every
-  piece of lane information now has a known source, and the more trustworthy source wins
-  instead of whichever wrote last. A colour you pick for a lane beats the linked spool's and
-  keeps its colour name. A spool linked from Spoolman owns its brand, material and name
-  (read-only while Spoolman is unreachable), and its remaining weight comes from the server.
-  Your edits on AFC, Happy Hare and ACE are marked as yours in the printer's shared lane
-  record, so Mainsail or Orca refreshing it does not wipe them, and on AFC a lane record from
-  an older plugin build does not replace them either. A reading from one source that leaves
-  a field out no longer blanks what another source knows. When a printer repeats an edit you
-  made back to the screen, it is still read as your edit, not as the printer's own data, so
-  clearing it brings back what the printer really reports (#1633). When another tool writes
-  a lane after you did, the newer edit wins, whichever side made it (#1632).
+- **A lane shows what the printer holds** (#1649, #1653) - HelixScreen no longer keeps its own
+  copy of your lanes. Each lane shows what your filament system holds first (AFC, Happy Hare, the
+  CFS, the AD5X's color menu and so on), then the lane record stored on the printer, then
+  Spoolman's details for the spool the lane is linked to, and nothing else. A second screen,
+  Mainsail, Fluidd and OrcaSlicer all see the same lane, and a change made on any of them shows
+  here within about ten seconds.
+- **Edits are written where the printer keeps them** - on AFC an edit goes to AFC itself
+  (spool, color, material, weight and tool commands), on Happy Hare to its gate map, now
+  including the spool's name and temperature, and on the CFS, AD5X, QIDI Box, Snapmaker U1,
+  ACE and tool changers to the printer's own commands plus the shared lane record. HelixScreen
+  never overwrites a lane record another program writes. On an OpenAMS with openams_spoolman,
+  edits go through openams_spoolman, each bay shows what it reports, and Clear Spool is greyed
+  out with the reason. On a Happy Hare that fills its gates from Spoolman, a change Spoolman owns
+  is refused and the editor says to make it in Spoolman.
+- **Saving says whether it worked** - the spool editor shows Saving... until the printer has
+  the change, then closes. If the printer refuses it, or Spoolman is offline, the editor stays
+  open with a line under Save saying why and keeps what you typed. These problems no longer
+  appear as pop-up messages.
+- **Editing waits for the printer** - while HelixScreen is connecting or reading the lanes for
+  the first time, Edit Spool is unavailable and the editor shows Loading lane details. While the
+  printer is disconnected, edits are refused instead of being kept to send later.
+- **Happy Hare tuning lives on the printer** - gear and extruder speeds, toolhead distances and
+  the sync setting set from HelixScreen are stored on the printer, so every screen shows the
+  same values, and clog detection shows what the MMU reports.
 - **A new spool is judged by what the hardware read** (#1710) - when a spool goes into a
   slot, a different tag, or a different material or colour read off the spool, clears the
   old spool's details; a matching read keeps them, and a spool inserted while the box is busy
@@ -608,6 +641,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **K2 with the k2-improvements mod** - its print start sequence is recognised, so the
   preparation steps are named correctly, heat soak and the chamber wait show as soaking, and
   the bed is no longer meshed twice.
+- **Motor sync step at print start** - AWD printers running motors-sync's `SYNC_MOTORS` in
+  their start sequence now see a Syncing Motors step while the belt motors are synchronized,
+  instead of the previous step's label sitting there. A `SYNC_MOTORS RESTORE_SYNC=1`, which
+  only reapplies the last sync, shows no step (prestonbrown/helixscreen#1880).
 - **Camera button on remote screens** - running HelixScreen against a printer on another
   machine, the print screen gains a Camera button for the full-screen webcam view. It stays
   hidden on the printer's own screen.
@@ -736,6 +773,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   app between prints is replaced by HelixScreen's.
 - **Snapmaker U1 with the multiACE mod** (#1426) - keeps its filament screen instead of being
   mistaken for a plain ACE setup.
+- **Snapmaker U1: set each toolhead's nozzle** - after a nozzle swap, pick its size and
+  Standard or High Flow in the filament system's Toolhead settings, and the printer stores
+  it. Locked while a print runs or is paused. Choosing 0.2 mm asks first, because the
+  printer then clears the head's filament info if the loaded filament can't go through a
+  0.2 mm nozzle. High Flow is available at 0.4 mm only. A change the printer refuses is
+  reported and the setting goes back.
 - **Power-loss recovery works on Qidi printers (#1716)** - on a Q2, Q1 Pro or Plus 4 running
   the stock firmware, the resume dialog now appears after a print was cut short by a power
   loss, offering the printer's own `RESUME_INTERRUPTED` flow or a clean discard.
@@ -827,6 +870,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Setup and settings**
 
+- **Static IP address for Wi-Fi and Ethernet** (#1900) - Settings > Connection > Network
+  Settings has an IPv4 row under each connection: set the IP address, subnet mask, gateway and
+  DNS server, or go back to DHCP with one tap. After a change the screen asks whether to keep
+  it, and puts the previous settings back on its own after 60 seconds, so an address that
+  leaves the printer unreachable undoes itself. The row appears where NetworkManager manages the
+  printer's network.
 - **Share the screen with Mainsail and Fluidd** (#1825) - Settings > Connection > Screen
   Sharing > Share Screen adds a **HelixScreen Screen** webcam that shows the printer's screen, and Allow
   Remote Control lets you tap and drag on it from the browser. On MainsailOS and KIAUH
@@ -839,6 +888,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   one printer's screen never lists it among another printer's webcams. With Add to
   Mainsail/Fluidd Webcams off the screen stays shared at its browser address but no webcam
   entry is added. A beta that had sharing on keeps it on for the printer that was selected.
+- **WiFi country** - Network Settings shows and sets the radio's country under the WiFi
+  switch, so 5 GHz networks show up in scans before the first connection. The United States,
+  United Kingdom, Germany, Canada, Australia and France are listed first. A country the
+  printer's own system set is remembered, so when a firmware update resets the radio to the
+  restricted worldwide mode, HelixScreen sets it again at the next start and 5 GHz networks
+  reconnect on their own.
 - **Find your printer by searching** (#1028) - first-run printer selection replaces the
   scroll through about 105 machines with a search box, a grid of vendors and a list per
   vendor.
@@ -917,6 +972,14 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Changed
 
+- **HelixScreen's print signals stay out of your macro list** - a new install of the helper
+  macros names its signals with a leading underscore (`_HELIX_READY`, `_HELIX_ENDED`,
+  `_HELIX_RESET` and `_HELIX_PHASE_*`), so Fluidd and Mainsail no longer list macros nobody
+  runs by hand. On a new install, add `_HELIX_READY` to the end of `PRINT_START`. A guide that
+  still says `HELIX_READY` gets you an `Unknown command` message and no ready signal, and so
+  does a printer that removed the macros, kept those calls and then installs them again:
+  rename the calls. `HELIX_START_PRINT`, `HELIX_CLEAN_NOZZLE`, `HELIX_BED_MESH_IF_NEEDED` and
+  `HELIX_UNLOAD_FILAMENT` keep their names.
 - **The print status picture holds still** (#1879) - the chips around the printer picture no
   longer rearrange it when a fan spins up, the speed is tuned or the light turns on. The
   layout is decided once for preparing and once for printing; a reading that becomes unusual
@@ -1127,14 +1190,43 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Fixed
 
+- **The sample Bed Level button runs a real macro** - the settings template and the
+  configuration guide named a macro the helper pack does not define, so a button copied from
+  them got `Unknown command`. They now use `HELIX_BED_MESH_IF_NEEDED`.
 - **Printers that require a Moonraker login connect** - with `force_logins` enabled,
   Moonraker refused every request from the screen. HelixScreen now sends the printer's
   `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
   request, and to nothing else.
+- **Enter the Moonraker API key on the screen** - Settings > Connection has an API Key row,
+  and the Change Host dialog a masked key field beside the host and port; saving reconnects
+  with the key at once. The setup wizard shows the field when Test Connection finds a printer
+  that requires a login. A printer that refuses the login now says so once, with a button to
+  the key, instead of a toast for every request it refused.
+- **Pressure advance calibration on a Snapmaker U1 checks the heads first** - with
+  calibration on, a head holding filament with no material set made the printer pause two
+  minutes into the start. The filament check now stops the print before it heats, and
+  offers to set the head to the material the file names in one tap. With calibration off
+  the head prints as it is.
+- **Filament use on a Snapmaker U1 with multiACE comes off the right spool** - what a
+  nozzle fed from an ACE bay extruded was charged to the head's lane instead of the bay's
+  spool, so the bay's remaining weight never went down.
+- **Print Status shows the chamber temperature with the chamber heater off** - the chamber
+  chip appeared only while the chamber heated or was above 50°C, so a QIDI Q2 printing PLA,
+  or a printer with only a chamber sensor, never showed it. It now shows whenever the
+  printer has a chamber.
+- **A print start longer than ten minutes no longer reads as failed** - on printers that run
+  their whole start sequence before answering the start, a long heat soak or chamber wait
+  outlasted the screen's wait for that answer. The screen said "Print did not start" and
+  dropped the heater targets while the printer carried on and printed, with Stop unavailable.
+  The print now stays preparing until the printer reports it, and Stop can cancel it.
 - **The layer count no longer jumps on every travel move** - on printers whose slicer does
   not report layers, the current layer is worked out from the nozzle height, and each Z-hop
   bumped it up a few layers and back. A new layer now shows once the nozzle has stayed at
   that height for a moment, so the count steps forward only when the print really moves up.
+- **A K2 Pro with the k2-improvements mod is a K2 Pro** - it was named a K2 Plus, because
+  the mod had a detection entry only for the Plus. The K2 Pro has its own now, and the bed
+  size picks between them. On both, a K2 that kept the stock PRTouch probe no longer shows
+  it as a Cartographer, so its probe tools work; a fitted Cartographer still shows as one.
 - **K2 pre-print steps** - the Creality K2's preparing checklist no longer marks Purge done
   while the nozzle is being cleaned. The nozzle clean parks over the purge chute and pushes a
   little filament to check flow, which read as the purge; the checklist now keeps it under
@@ -1440,6 +1532,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   over the still-running calibration.
 - **Centauri Carbon** (#1529) - screws tilt, probe accuracy and Z-offset no longer probe on an
   untared load cell, and the tare uses the command COSMOS actually defines.
+- **Centauri Carbon bed screws** - Bed Screws shows Klipper's own turns again, measured from
+  a base screw. COSMOS replaces SCREWS_TILT_CALCULATE with a macro whose Manual Leveling
+  prompt measures every screw against a fixed bed height, so it asked for about two turns on
+  every corner of a bed that needed minutes. HelixScreen now runs Klipper's calculation under
+  the name COSMOS gives it, and the plain command again if COSMOS drops the wrapper.
 - **Bed screw adjustment said Tighten where it meant Loosen** - the word followed Klipper's
   clockwise/counterclockwise, which on a spring-mounted bed is the opposite. It now comes
   from each corner's probed height. The AD5M and AD5X no longer reverse the arrows, which

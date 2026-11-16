@@ -4,6 +4,8 @@ HelixScreen provides built-in tools for the most common Klipper calibration task
 
 > **Looking for touchscreen calibration?** See the [Touch Calibration Guide](touch-calibration.md).
 
+Every calibration here that moves the toolhead (Bed Mesh, Screws Tilt, Z Offset, Probe Accuracy, Quad Gantry Level and Z-Tilt, Pressure Advance, Input Shaper, Belt Tension, Tool and Nozzle Offsets, Vertical Artifact Compensation and Check, and Cold Pull) first checks whether your last print may still be on the bed. If it may, HelixScreen asks **Is the bed clear?** before anything moves. Remove the print and tap **Cleared**, which also tells the home screen the bed is clear. When the bed is already known clear, the calibration starts straight away.
+
 ---
 
 ## Bed Mesh
@@ -188,7 +190,7 @@ For tool-changer printers that can measure their own tool positions: one tap cal
 
 This screen only appears on a tool changer whose firmware exposes the calibration macro. If your printer doesn't have it, use the regular [Z-Offset Calibration](#z-offset-calibration) flow instead — it still works per-tool.
 
-On a Snapmaker U1, toolhead offsets are calibrated from the filament system settings instead: see [Toolhead Offset Calibration](filament.md#toolhead-offset-calibration).
+On a Snapmaker U1, the same **Tool Offsets** entry runs the printer's own guided calibration instead of the screen below: see [Toolhead Offset Calibration](filament.md#toolhead-offset-calibration).
 
 Every tool your printer reports gets its own row, however many there are:
 
@@ -221,6 +223,12 @@ A tool that has never been calibrated shows `--` on each axis instead of a numbe
 5. If the run fails partway through, the status line explains why and the run stops there — clean the affected tool's nozzle and try again
 
 Tapping **Stop** during a run performs an emergency stop, since the calibration macro can't be paused partway through, only canceled outright.
+
+### FlashForge Creator 5 and 5 Pro (Reforge)
+
+On Reforge, the Tool Offsets screen above runs Reforge's own `CALIBRATE_TOOL_OFFSETS`. The confirmation shows Reforge's instruction to remove the build plate first. It measures the station, then every head in turn at 200 °C. When it finishes, **Save offsets** writes the measured results to your Klipper config with `SAVE_CONFIG`, which briefly restarts Klipper.
+
+Reforge derives each head's offsets from its measurements, so HelixScreen doesn't adjust them one tool at a time. While printing, the Z-offset buttons move the machine-wide offset, the same as on a single-head printer. This has not been tested on a printer yet.
 
 ### FlashForge Creator 5 Pro (Z-Mod)
 
@@ -256,6 +264,46 @@ The printer measures with its own built-in accelerometer; you do not need to add
 5. When it finishes, the printer saves the result and restarts Klipper. The screen briefly shows the printer reconnecting; this is expected.
 
 There is nothing to turn off: on printers without the calibration, the row never appears.
+
+Afterwards, run the **Vertical Artifact Check** below to see how much the compensation helped.
+
+---
+
+## Vertical Artifact Check
+
+The check finds the print speeds at which your printer's X and Y motors shake it hardest. Each motor's pull wobbles slightly as it turns. At the speed where that wobble matches a natural shake of the frame or toolhead, walls printed at that speed show fine, evenly spaced vertical lines. The cure on most printers is simple: keep your outer walls away from those speeds.
+
+### Requirements
+
+The **Vertical Artifact Check** row appears when the printer has an accelerometer (the same one Input Shaper uses), is a CoreXY or Cartesian (bed-slinger) printer, and HelixScreen runs on the printer's own screen. On a bed-slinger the Y motor is measured only if an accelerometer is configured for the bed (`accel_chip_y` in `[resonance_tester]`).
+
+### Running It
+
+1. Make sure no print is running and the bed is clear.
+2. Navigate to **Advanced > Vertical Artifact Check**.
+3. Tap **Start**. If the last print may still be on the bed, remove it and tap **Cleared** when asked.
+4. The printer homes if it needs to, lifts the nozzle and runs the toolhead back and forth at speeds from 20 to 300 mm/s, one motor at a time. It is loud, and takes about five minutes. The chart fills in as each speed is measured.
+
+### Reading the Results
+
+The chart shows how hard each motor shakes at each speed, for its three kinds of wobble (1x, 2x and 4x). Shaded stretches are the speeds to avoid, and the list under the chart names each one, for example "77-97 mm/s: the 2x ripple meets a 216 Hz resonance". Switch between **X motor** and **Y motor** at the top.
+
+Set your slicer's outer wall speed outside those stretches:
+
+| Slicer | Setting |
+|--------|---------|
+| OrcaSlicer, Bambu Studio | Speed > **Outer wall** |
+| PrusaSlicer, SuperSlicer | Speed > **External perimeters** |
+
+Walls along X or Y print at the speed you set. Angled walls turn one motor faster and the other slower, so they can still meet a shaky speed.
+
+HelixScreen remembers the last result. When you start a print whose outer walls land in a shaky stretch, it warns you before the print starts and suggests a speed just below and just above. You can start the print anyway.
+
+Some accelerometers sample slowly. If yours does, the results say how high it can measure, and faster wobbles are not shown.
+
+### Printers with Motor Compensation
+
+On FlashForge printers whose motors have **Vertical Artifact Compensation**, the check runs twice: once with the compensation off and once with it on. Faint lines on the chart are without it, bright lines with it, and the results say how much each wobble dropped. On stock FlashForge firmware the compensation uses the printer's factory settings, and the results say so.
 
 ---
 
@@ -473,7 +521,7 @@ If you are running Kalico firmware, a **Method** selector appears with MPC and P
 ## See Also
 
 - [Motion & Positioning](motion.md) — Jog controls used during manual calibration
-- [Settings: Printing](settings/printing.md) — Machine limits and Z movement configuration
+- [Settings: Printing](settings/printing.md) — Machine limits, and which way the Z buttons move (under Motion)
 - [Printing](printing.md) — Z-offset fine-tuning during active prints
 
 ---

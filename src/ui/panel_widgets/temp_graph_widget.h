@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 #include "ui_modal.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "panel_widget.h"
@@ -15,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
@@ -113,8 +114,8 @@ class TempGraphWidget : public PanelWidget {
     std::string instance_id_;
     nlohmann::json config_;
 
-    lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* parent_screen_ = nullptr;
+    helix::ui::WidgetRef widget_obj_;
+    helix::ui::WidgetRef parent_screen_;
 
     std::unique_ptr<TempGraphController> controller_;
 
@@ -134,6 +135,7 @@ class TempGraphWidget : public PanelWidget {
     /// connects) otherwise renders with no nozzle series until the next launch.
     ObserverGuard extruder_version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard tool_number_style_observer_;
 
     /// Rename every series to its display name in the current language.
     void refresh_series_names();
@@ -148,12 +150,7 @@ class TempGraphWidget : public PanelWidget {
         using SaveCallback = std::function<void(const nlohmann::json& new_config)>;
 
         TempGraphConfigModal(const nlohmann::json& config, SaveCallback on_save);
-        ~TempGraphConfigModal() override;
 
-        /// The dialog on screen, or nullptr.
-        static TempGraphConfigModal* active() {
-            return s_active_;
-        }
         /// Step row @p idx's series colour to the next palette entry.
         void cycle_color(size_t idx);
         void set_series_on(size_t idx, bool on);
@@ -165,6 +162,7 @@ class TempGraphWidget : public PanelWidget {
         const char* component_name() const override {
             return "temp_graph_config_modal";
         }
+        HELIX_KIND_TAG(TempGraphConfigModal)
 
         /// Map a Klipper object key to its user-facing label.
         /// Public so the outer widget can label graph series with the same
@@ -186,8 +184,6 @@ class TempGraphWidget : public PanelWidget {
         /// Publish one subject slot per series (name, colour, on/off) and the
         /// row count the dialog's <repeat> expands.
         void populate_sensor_list();
-
-        static TempGraphConfigModal* s_active_;
 
         nlohmann::json config_;
         SaveCallback on_save_;

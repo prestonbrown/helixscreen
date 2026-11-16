@@ -6,9 +6,13 @@
 #include "../../include/printer_state.h"
 #include "../../include/z_offset_utils.h"
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
+#include "printer_discovery.h"
 #include "save_config_restart.h"
+#include "tool_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -35,7 +39,7 @@ class ZOffsetFixture : public LVGLTestFixture {
     }
 
     void set_homed(const char* axes) {
-        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(state.motion_state().get_homed_axes_subject(), axes);
     }
 
     const std::string& last_sent() const {
@@ -197,6 +201,62 @@ TEST_CASE_METHOD(ZOffsetFixture,
     CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 0);
 }
 
+TEST_CASE_METHOD(ZOffsetFixture,
+                 "an idle step on a per-head changer adjusts the mounted head relatively",
+                 "[z_offset][adjust][mock][per_head]") {
+    // Z-Mod on a Creator 5: the mounted head runs at +3.413 live while the
+    // machine-wide save-variable still holds a stale -0.150 from another head.
+    state.set_printer_type_sync("FlashForge Creator 5 Pro");
+    auto hint = [&] {
+        return static_cast<ZOffsetTuneHint>(
+            lv_subject_get_int(state.profile_state().get_z_offset_tune_hint_subject()));
+    };
+    REQUIRE(hint() == ZOffsetTuneHint::AUTO_SAVED);
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json{"gcode_move", "toolhead", "save_variables", "zmod_color",
+                                    "gcode_button extruder_grab1", "gcode_macro SAVE_ZMOD_DATA"});
+    state.set_hardware(hw);
+    // Discovering the per-head storage republishes the tune hint.
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    set_homed("xyz");
+    lv_subject_set_int(state.motion_state().get_gcode_z_offset_subject(), 3413);
+    lv_subject_set_int(state.motion_state().get_persisted_z_offset_subject(), -150);
+    lv_subject_set_int(state.motion_state().get_persisted_z_offset_valid_subject(), 1);
+
+    const int shown = helix::zoffset::displayed_z_offset_microns(state);
+    REQUIRE(shown == 3413);
+
+    auto r = helix::zoffset::adjust(api.get(), &state, shown / 1000.0, shown / 1000.0, -0.01);
+
+    REQUIRE(r.sent);
+    // Only the step: the probe-delta variable a global ZMOD clears first feeds
+    // this firmware's pickup offset and its per-head save base.
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    CHECK(lv_subject_get_int(state.motion_state().get_persisted_z_offset_subject()) == -150);
+
+    // A surface still holding the stored value as its current offset steps
+    // relatively all the same, and leaves the stored value alone.
+    auto stale = helix::zoffset::adjust(api.get(), &state, -0.15, -0.15, -0.01);
+    REQUIRE(stale.sent);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    CHECK(lv_subject_get_int(state.motion_state().get_persisted_z_offset_subject()) == -150);
+}
+
+TEST_CASE_METHOD(ZOffsetFixture,
+                 "an idle step on a printer that re-applies head offsets is always relative",
+                 "[z_offset][adjust][mock][per_head]") {
+    // The U1 sets the mounted head's stored offset absolutely at every tool
+    // change; an absolute Z= from a stale base would overwrite it.
+    state.set_printer_type_sync("Snapmaker U1");
+    set_homed("xyz");
+    lv_subject_set_int(state.motion_state().get_gcode_z_offset_subject(), 120);
+
+    auto r = helix::zoffset::adjust(api.get(), &state, -0.05, -0.05, -0.01);
+
+    REQUIRE(r.sent);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "the z step index round-trips through Config",
                  "[z_offset][step]") {
     helix::zoffset::set_persisted_step_index(3);
@@ -211,4 +271,133 @@ TEST_CASE_METHOD(LVGLTestFixture, "the z step index round-trips through Config",
 
     helix::zoffset::set_persisted_step_index(-1);
     REQUIRE(helix::zoffset::persisted_step_index() == 3);
+}
+
+TEST_CASE_METHOD(ZOffsetFixture,
+                 "a probe save on a printer without Z_OFFSET_APPLY_PROBE reports it and saves "
+                 "nothing",
+                 "[z_offset][adjust][mock][eddy]") {
+    set_homed("xyz");
+    helix::zoffset::adjust(api.get(), &state, 0.0, 0.0, 0.05);
+    mock_client.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return !error.empty(); }, 3000));
+    CHECK(error.find("Z_OFFSET_APPLY_PROBE") != std::string::npos);
+    CHECK_FALSE(saved);
+    CHECK(last_sent() == "SET_GCODE_OFFSET Z_ADJUST=0.050 MOVE=1");
+    CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
+}
+
+namespace {
+
+/// A two-tool changer whose ToolState is built from @p extra objects on top of
+/// klipper-toolchanger's.
+class ChangerSaveFixture : public ZOffsetFixture {
+  public:
+    explicit ChangerSaveFixture(std::vector<std::string> extra = {}) {
+        auto objects = nlohmann::json::array({"gcode_move", "toolhead", "extruder", "extruder1",
+                                              "toolchanger", "tool T0", "tool T1"});
+        for (auto& o : extra) {
+            objects.push_back(o);
+        }
+        PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        state.set_hardware(hw);
+        auto& ts = ToolState::instance();
+        ts.deinit_subjects();
+        ts.init_subjects(true);
+        ts.init_tools(state.get_discovery());
+    }
+    ~ChangerSaveFixture() override {
+        ToolState::instance().deinit_subjects();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+};
+
+/// klipper-toolchanger: SAVE_TOOL_PARAMETER only stages, and the machine-wide
+/// SAVE_CONFIG commits.
+class ToolchangerSaveFixture : public ChangerSaveFixture {};
+
+/// A Creator 5 on Reforge: ff_toolchange publishes the same objects, and its
+/// calibration stages its own result.
+class ReforgeSaveFixture : public ChangerSaveFixture {
+  public:
+    ReforgeSaveFixture() : ChangerSaveFixture({"ff_toolchange"}) {}
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ToolchangerSaveFixture,
+                 "a toolchanger without Z_OFFSET_APPLY_PROBE still commits its tool offsets",
+                 "[z_offset][adjust][mock][eddy][tool_offsets]") {
+    auto& ts = ToolState::instance();
+    ts.set_tool_offset_local(1, Axis::Z, 100);
+    REQUIRE(ts.tool_offset_dirty(1, Axis::Z));
+    set_homed("xyz");
+    helix::zoffset::adjust(api.get(), &state, 0.0, 0.0, 0.05);
+    mock_client.set_gcode_command_unregistered("Z_OFFSET_APPLY_PROBE");
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::save_dirty_offsets(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, state.get_discovery(),
+        /*global_dirty=*/true, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+    CHECK(error.empty());
+    get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    REQUIRE(wait_until([&] { return !error.empty(); }, 3000));
+
+    // The tools are saved; the machine-wide offset is not, and says why.
+    CHECK(error.find("Z_OFFSET_APPLY_PROBE") != std::string::npos);
+    CHECK_FALSE(saved);
+    CHECK_FALSE(ts.tool_offset_dirty(1, Axis::Z));
+    CHECK(lv_subject_get_int(state.motion_state().get_pending_z_offset_delta_subject()) == 50);
+}
+
+TEST_CASE_METHOD(ReforgeSaveFixture, "Reforge: Save stages a live Z tune, then SAVE_CONFIG",
+                 "[z_offset][mock][tool_offsets][reforge]") {
+    auto& ts = ToolState::instance();
+    // Nothing per tool to babystep: the tune panel keeps the global offset.
+    CHECK(lv_subject_get_int(ts.get_per_tool_axis_supported_subject(Axis::Z)) == 0);
+    ts.update_from_status(
+        {{"tool T1", {{"gcode_x_offset", 0.1}, {"gcode_y_offset", 0.2}, {"gcode_z_offset", 3.2}}}});
+    REQUIRE_FALSE(ts.tool_offset_dirty(1, Axis::X));
+
+    std::vector<std::string> expected;
+    SECTION("a calibration run has already staged what it moved") {
+        ts.update_from_status({{"tool T1", {{"gcode_x_offset", 0.12}}}});
+        expected = {"SAVE_CONFIG"};
+    }
+    SECTION("TOOL_Z_ADJUST without SAVE=1 moved Z live, staging nothing") {
+        ts.update_from_status({{"tool T1", {{"gcode_z_offset", 3.25}}}});
+        expected = {"TOOL_Z_ADJUST TOOL=1 ADJUST=0 SAVE=1", "SAVE_CONFIG"};
+    }
+
+    mock_client.clear_gcode_script_history();
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::save_dirty_offsets(
+        api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE, state.get_discovery(),
+        /*global_dirty=*/false, [&]() { saved = true; },
+        [&](const std::string& msg) { error = msg; }, &state);
+
+    REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+    CHECK(mock_client.gcode_script_history() == expected);
+    get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    REQUIRE(wait_until([&] { return saved; }, 3000));
+    CHECK(error.empty());
+    CHECK(ts.dirty_tool_indices().empty());
 }

@@ -9,6 +9,8 @@ const char* to_string(StepId id) {
         return "TouchCalibration";
     case StepId::Language:
         return "Language";
+    case StepId::Appearance:
+        return "Appearance";
     case StepId::Wifi:
         return "Wifi";
     case StepId::Connection:
@@ -27,6 +29,8 @@ const char* to_string(StepId id) {
         return "FilamentSensor";
     case StepId::InputShaper:
         return "InputShaper";
+    case StepId::Preferences:
+        return "Preferences";
     case StepId::Summary:
         return "Summary";
     case StepId::Telemetry:

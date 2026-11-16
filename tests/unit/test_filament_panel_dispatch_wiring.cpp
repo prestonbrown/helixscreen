@@ -13,7 +13,7 @@
  * refusal raises, and — the reason the refusal enum exists — that the
  * already-mounted refusal arms neither the operation guard nor the on-button
  * spinner. Dispatching that no-op (SELECT_TOOL on the carriage tool) is what
- * left the Load button spinning for the full guard timeout in bundle 9KRXZ62P.
+ * left the Load button spinning for the full guard timeout.
  *
  * The branching itself is shipped code: helix::ui::panel_load_outcome() and
  * panel_unload_outcome() (ui_panel_filament.h) ARE execute_load()/execute_unload()
@@ -160,10 +160,10 @@ TEST_CASE("Load with filament seated calls change_tool on the mapped tool",
 
 TEST_CASE("Load with filament seated and no tool mapping still calls load_filament",
           "[filament][dispatch][wiring][swap]") {
-    // The panel used to dispatch unload_active_filament() here and arm the
-    // operation guard for a load that never came: the unload finished, the
-    // observer resolved the op, and the slot the user tapped was never fed.
-    // The backend now gets one command with the tapped slot.
+    // Dispatching unload_active_filament() here would arm the operation guard
+    // for a load that never comes: the unload finishes, the observer resolves
+    // the op, and the slot the user tapped is never fed. The backend gets one
+    // command with the tapped slot.
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/0, /*mapped_tools=*/{0, -1, -1, -1});
     BackendCaps seated = fresh_ams();
     seated.needs_unload_before_load = true;
@@ -213,11 +213,10 @@ TEST_CASE("Under bypass a named lane goes to the backend, not the bypass macro",
 
 TEST_CASE("A lane load is refused while the bypass spool still crosses the toolhead",
           "[filament][dispatch][wiring][bypass]") {
-    // The refusal this file's mirror was missing: it had no BypassLoaded arm, so
-    // it fell to the SelectSlot default and claimed the panel raises "Select a
-    // filament slot to load" and redirects to the AMS panel. It does neither —
-    // the bypass switch sits above the cutter and reads the upstream piece, so
-    // no gcode retracts it and there is nothing for the user to pick (36205eb27).
+    // BypassLoaded is a refusal, not the SelectSlot default: the panel neither
+    // raises "Select a filament slot to load" nor redirects to the AMS panel.
+    // The bypass switch sits above the cutter and reads the upstream piece, so
+    // no gcode retracts it and there is nothing for the user to pick.
     AmsSystemInfo sys = make_sys(4, /*current_slot=*/-1);
     sys.filament_loaded = true;
 

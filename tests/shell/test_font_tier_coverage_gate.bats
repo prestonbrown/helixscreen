@@ -134,9 +134,3 @@ EOF
     [ "$status" -eq 2 ]
     [[ "$output" == *"could not parse"* ]]
 }
-
-@test "gate passes against the real repository" {
-    run python3 "$GATE"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"platforms satisfy guards"* ]]
-}

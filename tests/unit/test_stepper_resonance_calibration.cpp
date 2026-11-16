@@ -33,6 +33,7 @@ PrinterDiscovery printer_with(std::initializer_list<const char*> extra) {
 constexpr const char* kTester = "stepper_resonance_tester";
 constexpr const char* kFactoryMacro = "gcode_macro STEPPER_RESONANCE_FACTORY_CALIBRATE";
 constexpr const char* kWrapperMacro = "gcode_macro CALIBRATE_VFA";
+constexpr const char* kCompensationMacro = "gcode_macro VFA_COMPENSATION";
 
 } // namespace
 
@@ -79,6 +80,31 @@ TEST_CASE("stepper resonance cal: the wrapper outranks the extra it drives",
     CHECK(cal::calibrate_gcode(hw, 1) == "CALIBRATE_VFA T=1");
 }
 
+TEST_CASE("stepper resonance cal: OpenCreator's VFA_COMPENSATION outranks the extra it wraps",
+          "[stepper_resonance_cal]") {
+    // OpenCreator's printer.vibration.cfg declares [stepper_resonance_tester],
+    // STEPPER_RESONANCE_FACTORY_CALIBRATE and the VFA_COMPENSATION wrapper,
+    // which refuses unless every head is docked, homes, parks at
+    // Z100/X130/Y130 and saves.
+    const PrinterDiscovery hw = printer_with({kTester, kFactoryMacro, kCompensationMacro});
+    const cal::Procedure p = cal::resolve(hw);
+    REQUIRE(p.present());
+    CHECK_FALSE(p.per_tool);
+    CHECK_FALSE(p.needs_home);
+    CHECK(p.restarts_klipper);
+    CHECK(cal::calibrate_gcode(hw, 0) == "VFA_COMPENSATION");
+    CHECK(cal::calibrate_gcode(hw, -1) == "VFA_COMPENSATION");
+}
+
+TEST_CASE("stepper resonance cal: a VFA_COMPENSATION macro without the extra is no routine",
+          "[stepper_resonance_cal]") {
+    // The wrapper drives the extra's STEPPER_RESONANCE_FACTORY_CALIBRATE; a
+    // same-named macro on a printer without it is somebody else's.
+    const PrinterDiscovery hw = printer_with({kCompensationMacro});
+    CHECK_FALSE(cal::resolve(hw).present());
+    CHECK(cal::calibrate_gcode(hw, 0).empty());
+}
+
 TEST_CASE("stepper resonance cal: the stock macro alone is not the routine",
           "[stepper_resonance_cal]") {
     // The macro's search command comes from the extra; without it there is
@@ -94,4 +120,27 @@ TEST_CASE("stepper resonance cal: the stock macro alone is not the routine",
     CHECK_FALSE(none.restarts_klipper);
     CHECK(std::string(none.name).empty());
     CHECK(cal::calibrate_gcode(bare, 0).empty());
+}
+
+TEST_CASE("stepper resonance cal: the compensation toggle needs both damp macros",
+          "[stepper_resonance_cal]") {
+    constexpr const char* kEnable = "gcode_macro STEPPER_RESONANCE_DAMP_ENABLE";
+    constexpr const char* kDisable = "gcode_macro STEPPER_RESONANCE_DAMP_DISABLE";
+
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kTester})).present());
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kTester, kEnable})).present());
+
+    const auto stock = cal::compensation_toggle(printer_with({kTester, kEnable, kDisable}));
+    REQUIRE(stock.present());
+    CHECK(stock.enable_gcode == "STEPPER_RESONANCE_DAMP_ENABLE");
+    CHECK(stock.disable_gcode == "STEPPER_RESONANCE_DAMP_DISABLE");
+    CHECK(stock.applies_factory_values);
+
+    // A firmware that saves its own calibration restores it on enable.
+    const auto calibrated =
+        cal::compensation_toggle(printer_with({kTester, kCompensationMacro, kEnable, kDisable}));
+    REQUIRE(calibrated.present());
+    CHECK_FALSE(calibrated.applies_factory_values);
+    CHECK_FALSE(cal::compensation_toggle(printer_with({kWrapperMacro, kEnable, kDisable}))
+                    .applies_factory_values);
 }

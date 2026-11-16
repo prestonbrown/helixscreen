@@ -177,7 +177,7 @@ TEST_CASE("is_safe_identifier() rejects empty identifier", "[moonraker_validatio
 // is_safe_gcode_param() -> is_safe_identifier(), whose charset is [A-Za-z0-9_ ].
 // That rejected `PLA+` — which HelixScreen itself offers from
 // filament_database.h — so every spool save silently dropped the material and
-// still reported success (bundle XGVDYEB5).
+// still reported success.
 
 TEST_CASE("is_safe_material_param() accepts real material names",
           "[moonraker_validation][material]") {

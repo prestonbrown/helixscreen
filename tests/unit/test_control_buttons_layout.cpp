@@ -9,12 +9,12 @@
  */
 
 #include "ui_button.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "core/update_queue.h"
 #include "helix/ui/text_metrics.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_control_view.h"
 #include "src/ui/panel_widgets/control_buttons_widget.h"
 #include "system_settings_manager.h"
@@ -132,7 +132,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "control buttons tile lays its buttons out f
         h.resize(2, 4, 120, 250);
         CHECK(lv_obj_get_y(stop) > lv_obj_get_y(primary));
         CHECK(lv_obj_get_x(stop) == lv_obj_get_x(primary));
-        CHECK(lv_obj_has_flag(stop_label, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(stop_label));
         CHECK(inside_root(primary));
         CHECK(inside_root(stop));
     }
@@ -141,7 +141,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "control buttons tile lays its buttons out f
         h.resize(4, 2, 300, 120);
         CHECK(lv_obj_get_x(stop) > lv_obj_get_x(primary));
         CHECK(lv_obj_get_y(stop) == lv_obj_get_y(primary));
-        CHECK_FALSE(lv_obj_has_flag(stop_label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(stop_label));
         CHECK(inside_root(primary));
         CHECK(inside_root(stop));
     }
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "control buttons tile lays its buttons out f
     SECTION("one cell is side by side, icons only") {
         h.resize(2, 2, 120, 120);
         CHECK(lv_obj_get_x(stop) > lv_obj_get_x(primary));
-        CHECK(lv_obj_has_flag(stop_label, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(stop_label));
         CHECK(inside_root(stop));
     }
 }

@@ -28,8 +28,8 @@
                 style_flex_cross_place="start">
           <text_body text="Hotend Fan" style_pad_bottom="#space_sm"/>
           <lv_dropdown name="hotend_fan_dropdown"
-                       width="100%" height="#header_height" options="heater_fan&#10;hotend_fan" style_border_opa="100%"
-                       style_radius="#border_radius" style_pad_all="#space_lg">
+                       width="100%" height="#wizard_dropdown_height" options="heater_fan&#10;hotend_fan"
+                       style_border_opa="100%" style_radius="#border_radius" style_pad_all="#space_lg">
             <event_cb trigger="value_changed" callback="on_hotend_fan_dropdown_changed"/>
           </lv_dropdown>
         </lv_obj>
@@ -39,7 +39,7 @@
                 style_flex_cross_place="start">
           <text_body text="Part Cooling Fan" style_pad_bottom="#space_sm"/>
           <lv_dropdown name="part_cooling_fan_dropdown"
-                       width="100%" height="#header_height" options="fan" style_border_opa="100%"
+                       width="100%" height="#wizard_dropdown_height" options="fan" style_border_opa="100%"
                        style_radius="#border_radius" style_pad_all="#space_lg">
             <event_cb trigger="value_changed" callback="on_part_fan_dropdown_changed"/>
           </lv_dropdown>
@@ -49,13 +49,14 @@
       <lv_obj name="optional_fans_row"
               width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
               style_flex_cross_place="start" style_pad_gap="#space_md" style_pad_top="#space_md">
+        <bind_flag_if_eq subject="fan_select_optional_visible" flag="hidden" ref_value="0"/>
         <!-- Chamber Fan (left) -->
         <lv_obj width="48%"
                 height="content" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
                 style_flex_cross_place="start">
           <text_body text="Chamber Fan" style_pad_bottom="#space_sm"/>
           <lv_dropdown name="chamber_fan_dropdown"
-                       width="100%" height="#header_height" options="None" style_border_opa="100%"
+                       width="100%" height="#wizard_dropdown_height" options="None" style_border_opa="100%"
                        style_radius="#border_radius" style_pad_all="#space_lg">
             <event_cb trigger="value_changed" callback="on_chamber_fan_dropdown_changed"/>
           </lv_dropdown>
@@ -66,14 +67,18 @@
                 style_flex_cross_place="start">
           <text_body text="Exhaust Fan" style_pad_bottom="#space_sm"/>
           <lv_dropdown name="exhaust_fan_dropdown"
-                       width="100%" height="#header_height" options="None" style_border_opa="100%"
+                       width="100%" height="#wizard_dropdown_height" options="None" style_border_opa="100%"
                        style_radius="#border_radius" style_pad_all="#space_lg">
             <event_cb trigger="value_changed" callback="on_exhaust_fan_dropdown_changed"/>
           </lv_dropdown>
         </lv_obj>
       </lv_obj>
       <!-- Status/error message area -->
-      <text_small name="fan_status_text" width="100%" style_pad_top="#space_md" style_text_color="#danger" hidden="true"/>
+      <text_small name="fan_status_text"
+                  width="100%" style_pad_top="#space_md" style_text_color="#danger"
+                  text="Each fan can only be selected once">
+        <bind_flag_if_eq subject="fan_select_duplicate" flag="hidden" ref_value="0"/>
+      </text_small>
     </ui_card>
   </view>
 </component>

@@ -7,13 +7,18 @@
  */
 
 #include "ui_panel_filament.h"
-#include "ui_update_queue.h"
+#include "ui_panel_print_select.h"
+#include "ui_print_start_controller.h"
+#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "discovery_steps.h"
 #include "hardware_role_registry.h"
+#include "json_utils.h"
 #include "light_button_config.h"
+#include "pa_calibration_run.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
 #include "printer_print_state.h"
@@ -32,6 +37,16 @@ bool discovery_print_active(bool subject_active, const nlohmann::json& status) {
     return subject_active || PrinterPrintState::status_indicates_active_print(status);
 }
 
+ReportedPrintActivity discovery_print_activity(bool subject_active, const nlohmann::json& status) {
+    if (discovery_print_active(subject_active, status)) {
+        return ReportedPrintActivity::Active;
+    }
+    const auto* stats = helix::json_util::find_member(status, "print_stats");
+    const auto* state = stats ? helix::json_util::find_member(*stats, "state") : nullptr;
+    return state && state->is_string() ? ReportedPrintActivity::Idle
+                                       : ReportedPrintActivity::Unknown;
+}
+
 namespace {
 
 // Move the snapshot into PrinterState (by-value param) so no hash-table copy iterates
@@ -45,6 +60,7 @@ void set_hardware_step(DiscoveryContext& ctx) {
     const auto& fans = ctx.hw.fans();
     get_printer_state().fan_state().init_fans(
         fans, FanRoleConfig::from_config(Config::get_instance(), fans), ctx.hw.fan_max_power());
+    get_printer_state().fan_state().set_tachometers(ctx.hw.fan_tachometers());
     crash_handler::breadcrumb::note("disc", "post_init_fans", static_cast<long>(fans.size()));
 }
 
@@ -78,6 +94,27 @@ void zoffset_persistence_step(DiscoveryContext& ctx) {
         },
         0, /*silent=*/true, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+// Undo what an interrupted pressure-advance run left on the printer. A run this
+// app drives can change printer state that only its own restore puts back (the
+// stock FlashForge sweep disables the X/Y drivers), and a crash or a lost link
+// skips that restore. What to look for, how to tell a stale change from a live
+// run, and what to send live behind pacal::check_interrupted_run().
+void pa_run_recovery_step(DiscoveryContext& ctx) {
+    if (ctx.print_active) {
+        return;
+    }
+    pacal::check_interrupted_run(
+        ctx.hw, []() -> IMoonrakerAPI* { return get_moonraker_api(); },
+        []() {
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("A pressure advance run was interrupted. The X/Y drivers were released and "
+                      "the motion limits and pressure advance reset; home the printer before "
+                      "moving it."),
+                8000);
+        });
 }
 
 // Seed temperature graphs from Moonraker's cached history. Fired after init_fans so
@@ -163,8 +200,6 @@ void safety_limits_step(DiscoveryContext& ctx) {
         });
 }
 
-// Detect helix_print plugin during discovery (not UI-initiated) so plugin status is known
-// early for UI gating.
 // The plugin's self-report, applied to PrinterState. An empty info is an absent plugin.
 void apply_helix_plugin_info(const helix::HelixPluginInfo& info) {
     get_printer_state().set_helix_plugin_link_dir(info.symlink_dir);
@@ -175,6 +210,8 @@ void apply_helix_plugin_info(const helix::HelixPluginInfo& info) {
     get_printer_state().set_helix_plugin_installed(info.available);
 }
 
+// Detects the helix_print plugin during discovery (not UI-initiated) so plugin status is
+// known early for UI gating.
 void helix_plugin_check_step(DiscoveryContext& ctx) {
     ctx.api.job().check_helix_plugin(
         apply_helix_plugin_info,
@@ -190,6 +227,14 @@ void job_queue_fetch_step(DiscoveryContext& ctx) {
     }
 }
 
+// Replay a tool-map restore an earlier session persisted but did not deliver. Decided on
+// this discovery's own status: the print subjects have not been updated from it yet, and
+// a restore sent under a running print re-routes it.
+void pending_remap_recovery_step(DiscoveryContext& ctx) {
+    ::print_start_controller_for(get_printer_state(), &ctx.api)
+        .recover_pending_remap(discovery_print_activity(ctx.print_active, ctx.status));
+}
+
 void settle_light_buttons_step(DiscoveryContext&) {
     settle_light_buttons();
 }
@@ -197,6 +242,7 @@ void settle_light_buttons_step(DiscoveryContext&) {
 constexpr DiscoveryStep kCoreSteps[] = {
     {"set_hardware", false, set_hardware_step, nullptr},
     {"zoffset_persistence", false, zoffset_persistence_step, nullptr},
+    {"pa_run_recovery", false, pa_run_recovery_step, nullptr},
     {"temp_graph_seed", false, temp_graph_seed_step, nullptr},
     {"status_dispatch", false, status_dispatch_step, "post_status_dispatch"},
     {"software_versions", false, software_versions_step, nullptr},
@@ -205,6 +251,7 @@ constexpr DiscoveryStep kCoreSteps[] = {
     {"safety_limits", false, safety_limits_step, nullptr},
     {"helix_plugin_check", false, helix_plugin_check_step, nullptr},
     {"job_queue_fetch", false, job_queue_fetch_step, nullptr},
+    {"pending_remap_recovery", false, pending_remap_recovery_step, nullptr},
     {"settle_light_buttons", false, settle_light_buttons_step, nullptr},
 };
 

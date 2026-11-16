@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "json_fwd.h"
+
 #include <lvgl/lvgl.h>
 
 #include <cstddef>
 #include <cstdint>
-
-#include "hv/json.hpp"
 
 /// A home tile's user colour: the palette its configure UI offers, the subjects
 /// the shared tile_color_grid component binds, and the rule for when a tile

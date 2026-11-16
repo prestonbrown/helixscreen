@@ -104,7 +104,7 @@ gate_scripts() {
 
 @test "non-shell files are not selected" {
     ! filter_selects docs/devel/BUILD_SYSTEM.md
-    ! filter_selects src/ui/ui_panel_macros.cpp
+    ! filter_selects src/ui/controls/ui_panel_macros.cpp
     ! filter_selects ui_xml/globals.xml
 }
 
@@ -140,26 +140,6 @@ gate_scripts() {
     if [ -n "$stale" ]; then
         echo "these files now pass shellcheck and must leave the baseline:$stale" >&2
         echo "Drop them from SHELLCHECK_BASELINE in $QC" >&2
-        return 1
-    fi
-}
-
-@test "every non-baselined script under scripts/ is clean" {
-    # This is the assertion CI enforces. If it fails, either fix the script or
-    # you are about to widen the baseline, which is not allowed to grow.
-    local baseline dirty=""
-    baseline=$(gate_baseline)
-
-    while IFS= read -r f; do
-        [ -z "$f" ] && continue
-        printf '%s\n' "$baseline" | grep -Fxq "$f" && continue
-        if ! check_as_gate_does "$f" >/dev/null; then
-            dirty="$dirty $f"
-        fi
-    done <<< "$(gate_scripts)"
-
-    if [ -n "$dirty" ]; then
-        echo "unbaselined scripts fail shellcheck:$dirty" >&2
         return 1
     fi
 }

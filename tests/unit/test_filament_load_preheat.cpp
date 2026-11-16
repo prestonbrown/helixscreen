@@ -63,7 +63,7 @@ int db_min(const std::string& material) {
 TEST_CASE("Load preheats for the SELECTED lane, not the loaded one", "[filament][preheat]") {
     const SlotInfo selected = lane("PETG"); // tool 3, the one being loaded
     const SlotInfo loaded = lane("PLA");    // tool 1, currently at the toolhead
-    (void)loaded; // deliberately never handed to the resolver — that is the fix
+    (void)loaded;                           // deliberately never handed to the resolver
 
     auto resolved = resolve_load_preheat_material(/*target_slot=*/3, &selected,
                                                   /*external_spool=*/nullptr);

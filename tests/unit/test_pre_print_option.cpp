@@ -75,6 +75,20 @@ TEST_CASE("parse_pre_print_option parses PreStartGcode strategy", "[pre_print_op
     CHECK(p.gcode_template == "LOAD_AI_RUN SWITCH={value}");
 }
 
+TEST_CASE("parse_pre_print_option reads needs_material", "[pre_print_option][parse]") {
+    json j = {{"id", "flow_calibrate"},
+              {"strategy", "pre_start_gcode"},
+              {"gcode_template", "SET_PRINT_PREFERENCES FLOW_CALIBRATE={value}"}};
+    auto plain = parse_pre_print_option(j);
+    REQUIRE(plain.has_value());
+    CHECK_FALSE(plain->needs_material);
+
+    j["needs_material"] = true;
+    auto needing = parse_pre_print_option(j);
+    REQUIRE(needing.has_value());
+    CHECK(needing->needs_material);
+}
+
 TEST_CASE("parse_pre_print_option parses QueueAheadJob strategy", "[pre_print_option][parse]") {
     json j = {{"id", "pa_cal"},
               {"category", "quality"},

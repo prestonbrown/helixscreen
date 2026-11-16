@@ -24,11 +24,11 @@ Key properties:
 | `include/application.h` | `switch_printer()`, `add_printer_via_wizard()`, `cancel_add_printer_wizard()`, soft restart state |
 | `src/application/application.cpp` | Soft restart lifecycle: `tear_down_printer_state()`, `init_printer_state()` |
 | `include/ui_printer_switch_menu.h` | `PrinterSwitchMenu` context menu (extends `ContextMenu`) |
-| `src/ui/ui_printer_switch_menu.cpp` | Navbar badge popup: printer list, checkmark active, add button |
+| `src/ui/printers/ui_printer_switch_menu.cpp` | Navbar badge popup: printer list, checkmark active, add button |
 | `include/ui_printer_list_overlay.h` | `PrinterListOverlay` (extends `OverlayBase`) |
-| `src/ui/ui_printer_list_overlay.cpp` | Settings management: switch, add, delete with confirmation |
-| `src/ui/ui_printer_manager_overlay.cpp` | "Manage Printers" button in Printer Manager overlay |
-| `src/ui/ui_panel_settings.cpp` | "Printers" row in Settings panel |
+| `src/ui/printers/ui_printer_list_overlay.cpp` | Settings management: switch, add, delete with confirmation |
+| `src/ui/printers/ui_printer_manager_overlay.cpp` | "Manage Printers" button in Printer Manager overlay |
+| `src/ui/settings/ui_panel_settings.cpp` | "Printers" row in Settings panel |
 | `src/ui/ui_nav_manager.cpp` | Printer badge click handler, switch/add callbacks, `PrinterSwitchMenu` ownership |
 | `include/printer_state.h` | `active_printer_name_` subject |
 | `src/printer/printer_state.cpp` | Subject initialization and setters |
@@ -221,7 +221,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
  2. NavigationManager::shutdown() (deactivate overlays, clear stacks, clear printer callbacks)
  3. Stop UpdateChecker auto-check timer
  4. Unload plugins
- 5. Freeze UpdateQueue (ScopedFreeze — blocks background enqueue)
+ 5. Freeze UpdateQueue (ScopedFreeze - blocks background enqueue)
  5b. Disconnect WebSocket (no more producers)
  6. Drain update queue (discard pending async callbacks)
  6b. Clear JobQueueState global pointer
@@ -239,13 +239,13 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 17. ObserverGuard::invalidate_all() (mark all guards as stale)
 18. Release MoonrakerManager
 19. Reset KeyboardManager
-20. Delete LVGL widget tree (lv_obj_del on app_layout)
+20. Delete LVGL widget tree (lv_obj_delete on app_layout)
 ```
 
 ### init_printer_state() (Steps 1-10)
 
 ```
- 1. Reinitialize UpdateQueue (before moonraker — background threads need the queue)
+ 1. Reinitialize UpdateQueue (before moonraker - background threads need the queue)
  2. Init core subjects (PrinterState, AmsState, etc.)
  2b. Seed active_printer_name from config
  3. Init Moonraker (creates client + API + history managers)
@@ -262,7 +262,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 
 **ScopedFreeze**: During teardown, the update queue is frozen (step 5) to prevent the WebSocket background thread from enqueuing new callbacks between `drain()` and widget destruction. The freeze thaws when it goes out of scope.
 
-**ObserverGuard invalidation**: At teardown step 17, `ObserverGuard::invalidate_all()` bumps an epoch that marks every existing guard as stale. During init, when old guards are reassigned (`guard = observe_*()`), the move-assignment safely releases instead of calling `lv_observer_remove()` on freed observer pointers. Guards created after the bump are removed normally, so init needs no closing step.
+**ObserverGuard invalidation**: At teardown step 17, `ObserverGuard::invalidate_all()` bumps an epoch that marks every existing guard as stale. During init, when old guards are reassigned (`guard = observe_*()`), the move-assignment safely releases instead of calling `lv_observer_delete()` on freed observer pointers. Guards created after the bump are removed normally, so init needs no closing step.
 
 **Re-entrancy guard**: `m_soft_restart_in_progress` (bool in Application) prevents `switch_printer()`, `add_printer_via_wizard()`, and `cancel_add_printer_wizard()` from being called during an active soft restart.
 
@@ -434,7 +434,7 @@ Checked at the top of `switch_printer()`, `add_printer_via_wizard()`, and `cance
 During soft restart, observer guards in surviving singletons (not destroyed by `StaticPanelRegistry`) hold freed observer pointers. The invalidation epoch handles this:
 
 1. `ObserverGuard::invalidate_all()` at end of teardown (step 17)
-2. During init, when guards are reassigned (`guard = observe_*()`), `reset()` safely releases instead of calling `lv_observer_remove()` on freed memory
+2. During init, when guards are reassigned (`guard = observe_*()`), `reset()` safely releases instead of calling `lv_observer_delete()` on freed memory
 
 ---
 
@@ -480,7 +480,8 @@ void MySingleton::init_subjects() {
 }
 ```
 
-2. **Implement `deinit_subjects()`** to call `lv_subject_deinit()` on each subject.
+2. **Implement `deinit_subjects()`** to `reset()` each `helix::Subject` (a `SubjectManager`'s
+   `deinit_all()` does it for every subject registered with it).
 
    Pick the entry's `StaticSubjectRegistry::Lifetime` by where its init runs. The default,
    `Printer`, is right when `init_subjects()` runs again on the rebuild path (SubjectInitializer,

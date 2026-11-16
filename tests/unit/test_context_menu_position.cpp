@@ -140,3 +140,231 @@ TEST_CASE("compute_card_pos: an oversized click-anchored card clamps the same wa
     CHECK(pos.x == kMargin);
     CHECK(pos.y == kMargin);
 }
+
+// ============================================================================
+// AroundAnchor
+// ============================================================================
+
+namespace {
+
+using AnchorSide = ContextMenu::AnchorSide;
+
+struct Placed {
+    lv_point_t pos;
+    AnchorSide side;
+};
+
+Placed around(lv_point_t card, lv_area_t anchor, lv_point_t bounds, int32_t margin, int32_t gap) {
+    AnchorSide side = AnchorSide::Over;
+    const lv_point_t pos = ContextMenu::compute_card_pos(
+        card, anchor, bounds, margin, gap, AnchorMode::AroundAnchor, AnchorAlign::Center, &side);
+    return {pos, side};
+}
+
+/// A tile at (x, y), w by h, as inclusive LVGL coordinates.
+lv_area_t tile(int32_t x, int32_t y, int32_t w, int32_t h) {
+    return {x, y, x + w - 1, y + h - 1};
+}
+
+// The home grid's breakpoints: Medium 800x480 (card 180x138, margin 10, gap
+// 5) and Micro 480x272 (card 120x84, margin 6, gap 2).
+constexpr lv_point_t kMedium{800, 480};
+constexpr lv_point_t kMediumCard{180, 138};
+constexpr lv_point_t kMicro{480, 272};
+constexpr lv_point_t kMicroCard{120, 84};
+
+} // namespace
+
+TEST_CASE("compute_card_pos: an around-anchored card goes below its tile when it fits",
+          "[context-menu][position]") {
+    const Placed p = around(kMediumCard, tile(560, 7, 114, 113), kMedium, 10, 5);
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.pos.x == 527);
+    CHECK(p.pos.y == 125);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card goes above when below overflows",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(46, 136, 286, 132), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Above);
+    CHECK(p.pos.x == 129);
+    CHECK(p.pos.y == 50);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card goes right, then left, top-aligned",
+          "[context-menu][position]") {
+    // A tall tile at the right edge: no room below, above or right.
+    const Placed left = around(kMediumCard, tile(560, 125, 233, 348), kMedium, 10, 5);
+    CHECK(left.side == AnchorSide::Left);
+    CHECK(left.pos.x == 375);
+    CHECK(left.pos.y == 125);
+    // The same tile mirrored to the left edge: right comes first.
+    const Placed right = around(kMediumCard, tile(7, 125, 233, 348), kMedium, 10, 5);
+    CHECK(right.side == AnchorSide::Right);
+    CHECK(right.pos.x == 245);
+    CHECK(right.pos.y == 125);
+}
+
+TEST_CASE("compute_card_pos: an around-anchored card with no side to go to sits over the tile",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(0, 0, 480, 272), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Over);
+    CHECK(p.pos.x == 240 - 60);
+    CHECK(p.pos.y == 136 - 42);
+    CHECK(p.pos.x >= 6);
+    CHECK(p.pos.y >= 6);
+    CHECK(p.pos.x + kMicroCard.x <= 480 - 6);
+    CHECK(p.pos.y + kMicroCard.y <= 272 - 6);
+}
+
+TEST_CASE("compute_card_pos: a corner tile's around-anchored card clamps along its side",
+          "[context-menu][position]") {
+    const Placed p = around(kMicroCard, tile(406, 4, 70, 64), kMicro, 6, 2);
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.pos.x == 354);
+    CHECK(p.pos.y == 70);
+}
+
+TEST_CASE("compute_card_pos: at 480x272 the tile callout stays on screen beside tiles at every "
+          "edge and corner",
+          "[context-menu][position][edit-callout]") {
+    // The grid host at Micro spans x 42..479 beside the navbar. A 1x1 tile is
+    // 70x64, a 2x2 142x132. The cards: 112x78 as measured with both rows, and
+    // the 120x84 worst case. The gap is space_xs plus the caret, 2 + 5.
+    constexpr int32_t kMargin = 6;
+    constexpr int32_t kGap = 7;
+    constexpr int32_t kLeft = 46;
+    constexpr int32_t kTop = 4;
+    constexpr int32_t kRight = 476;
+    constexpr int32_t kBottom = 268;
+    const lv_point_t card = GENERATE(lv_point_t{112, 78}, lv_point_t{120, 84});
+    const lv_point_t size = GENERATE(lv_point_t{70, 64}, lv_point_t{142, 132});
+    const int32_t xs[] = {kLeft, (kLeft + kRight) / 2 - size.x / 2, kRight - size.x};
+    const int32_t ys[] = {kTop, (kTop + kBottom) / 2 - size.y / 2, kBottom - size.y};
+    for (int32_t x : xs) {
+        for (int32_t y : ys) {
+            const lv_area_t anchor = tile(x, y, size.x, size.y);
+            const Placed p = around(card, anchor, kMicro, kMargin, kGap);
+            const lv_area_t placed{p.pos.x, p.pos.y, p.pos.x + card.x - 1, p.pos.y + card.y - 1};
+            CAPTURE(card.x, card.y, x, y, size.x, size.y, p.pos.x, p.pos.y,
+                    static_cast<int>(p.side));
+            CHECK(placed.x1 >= kMargin);
+            CHECK(placed.y1 >= kMargin);
+            CHECK(placed.x2 < kMicro.x - kMargin);
+            CHECK(placed.y2 < kMicro.y - kMargin);
+            // Every tile up to 2x2 leaves a side for the card: it never covers it.
+            CHECK(p.side != AnchorSide::Over);
+            CHECK((placed.x2 < anchor.x1 || placed.x1 > anchor.x2 || placed.y2 < anchor.y1 ||
+                   placed.y1 > anchor.y2));
+        }
+    }
+}
+
+// ============================================================================
+// side_of_anchor + compute_caret
+// ============================================================================
+
+namespace {
+
+using CaretPlacement = ContextMenu::CaretPlacement;
+
+constexpr int32_t kRadius = 8;
+constexpr int32_t kCaret = 8;
+// Closest the caret's centre may come to either end of an edge.
+constexpr int32_t kInset = kRadius + kCaret;
+
+/// A card at (x, y), w by h, placed against @p anchor; side read off the geometry.
+CaretPlacement caret_for(lv_area_t card, lv_area_t anchor) {
+    return ContextMenu::compute_caret(card, anchor, ContextMenu::side_of_anchor(card, anchor),
+                                      kRadius, kCaret);
+}
+
+} // namespace
+
+TEST_CASE("side_of_anchor: reads the side off the two rectangles", "[context-menu][caret]") {
+    const lv_area_t anchor = tile(100, 100, 50, 50); // 100..149
+    CHECK(ContextMenu::side_of_anchor(tile(80, 150, 90, 40), anchor) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(tile(80, 59, 90, 41), anchor) == AnchorSide::Above);
+    CHECK(ContextMenu::side_of_anchor(tile(150, 90, 60, 80), anchor) == AnchorSide::Right);
+    CHECK(ContextMenu::side_of_anchor(tile(40, 90, 60, 80), anchor) == AnchorSide::Left);
+    // Touching on one row overlaps: a card sharing the anchor's last row covers it.
+    CHECK(ContextMenu::side_of_anchor(tile(80, 149, 90, 40), anchor) == AnchorSide::Over);
+    CHECK(ContextMenu::side_of_anchor(tile(110, 110, 20, 20), anchor) == AnchorSide::Over);
+    // Right of a small anchor, then clamped down so it is below it too: the
+    // side it was placed on wins, and a preference it does not clear is ignored.
+    const lv_area_t small = tile(235, 140, 10, 10);
+    const lv_area_t card = tile(250, 163, 350, 307);
+    CHECK(ContextMenu::side_of_anchor(card, small) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Right) == AnchorSide::Right);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Left) == AnchorSide::Below);
+}
+
+TEST_CASE("compute_card_pos: a click-anchored card covers its point and has no caret",
+          "[context-menu][caret]") {
+    AnchorSide side = AnchorSide::Below;
+    ContextMenu::compute_card_pos({353, 307}, {235, 200, 235, 200}, {800, 480}, kMargin, kGap,
+                                  AnchorMode::ClickPoint, AnchorAlign::Center, &side);
+    CHECK(side == AnchorSide::Over);
+    // A tap inside the bottom margin: the clamp slides the card up off the
+    // point, which still gives no caret.
+    side = AnchorSide::Below;
+    const lv_point_t pos =
+        ContextMenu::compute_card_pos({80, 60}, {100, 476, 100, 476}, {800, 480}, kMargin, kGap,
+                                      AnchorMode::ClickPoint, AnchorAlign::Center, &side);
+    REQUIRE(pos.y + 60 - 1 < 476);
+    CHECK(side == AnchorSide::Over);
+}
+
+TEST_CASE("compute_caret: centred on the anchor below and above it", "[context-menu][caret]") {
+    // Anchor midpoint x = (300 + 359) / 2 = 329; the card starts at 250.
+    const lv_area_t anchor = tile(300, 200, 60, 40);
+    const CaretPlacement below = caret_for(tile(250, 260, 200, 100), anchor);
+    CHECK(below.side == AnchorSide::Below);
+    CHECK(below.offset == 79);
+    const CaretPlacement above = caret_for(tile(250, 80, 200, 100), anchor);
+    CHECK(above.side == AnchorSide::Above);
+    CHECK(above.offset == 79);
+}
+
+TEST_CASE("compute_caret: clamps clear of the card's corners", "[context-menu][caret]") {
+    // A small anchor near the card's left end, then near its right end.
+    const CaretPlacement left = caret_for(tile(100, 100, 200, 80), tile(98, 60, 6, 20));
+    CHECK(left.side == AnchorSide::Below);
+    CHECK(left.offset == kInset);
+    const CaretPlacement right = caret_for(tile(100, 100, 200, 80), tile(296, 60, 6, 20));
+    CHECK(right.side == AnchorSide::Below);
+    CHECK(right.offset == 200 - 1 - kInset);
+    // An anchor wholly beyond the card's span (the card was clamped to the
+    // screen edge): the caret stays on the facing edge, at the nearer end.
+    const CaretPlacement p = caret_for(tile(400, 100, 200, 80), tile(700, 20, 60, 40));
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.offset == 200 - 1 - kInset);
+    const CaretPlacement q = caret_for(tile(400, 100, 200, 80), tile(10, 300, 60, 40));
+    CHECK(q.side == AnchorSide::Above);
+    CHECK(q.offset == kInset);
+}
+
+TEST_CASE("compute_caret: on the left and right edges it follows the anchor's vertical middle",
+          "[context-menu][caret]") {
+    // Anchor rows 125..472 (a tall tile), midpoint 298; cards top-aligned at 125.
+    const lv_area_t anchor = tile(560, 125, 233, 348);
+    const CaretPlacement left = caret_for(tile(375, 125, 180, 138), anchor);
+    CHECK(left.side == AnchorSide::Left);
+    // 298 - 125 = 173 runs past the card's 138 rows: clamped to the bottom end.
+    CHECK(left.offset == 138 - 1 - kInset);
+    const CaretPlacement right = caret_for(tile(10, 200, 180, 300), tile(0, 250, 5, 21));
+    CHECK(right.side == AnchorSide::Right);
+    CHECK(right.offset == 260 - 200);
+}
+
+TEST_CASE("compute_caret: none over the anchor, the middle of a short edge",
+          "[context-menu][caret]") {
+    const CaretPlacement p = caret_for(tile(100, 100, 200, 100), tile(150, 120, 20, 20));
+    CHECK(p.side == AnchorSide::Over);
+    CHECK_FALSE(p.visible());
+    CHECK_FALSE(ContextMenu::compute_caret(tile(0, 0, 10, 10), tile(0, 20, 10, 10),
+                                           AnchorSide::Above, kRadius, 0)
+                    .visible());
+    // An edge too short for the inset gets the caret at its middle.
+    CHECK(caret_for(tile(100, 100, 24, 80), tile(90, 60, 10, 10)).offset == 12);
+}

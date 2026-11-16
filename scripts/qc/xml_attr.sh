@@ -41,7 +41,7 @@ if [ -x "build/bin/validate-xml-attributes" ]; then
   fi
 else
   echo "⚠️  validate-xml-attributes not built - skipping"
-  echo "   qc_xml_tools above should have built it - check its failure"
+  echo "   qc_xml_tools builds it when a staged .xml or the tool itself changes"
 fi
 
 echo ""

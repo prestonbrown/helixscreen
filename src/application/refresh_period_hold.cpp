@@ -3,8 +3,7 @@
 
 #include "refresh_period_hold.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::period; LVGL has no period getter
 #include "refresh_timing_env.h"
 

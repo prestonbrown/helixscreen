@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "state/volatile_subjects.h"
 
 #include "../catch_amalgamated.hpp"
 
 TEST_CASE_METHOD(LVGLTestFixture, "VolatileSubjects restores each subject to its own default",
                  "[state][volatile]") {
-    lv_subject_t zero_default{};
-    lv_subject_t one_default{};
-    lv_subject_init_int(&zero_default, 0);
-    lv_subject_init_int(&one_default, 1);
+    helix::Subject zero_default{};
+    helix::Subject one_default{};
+    zero_default.init_int(0);
+    one_default.init_int(1);
 
     helix::subjects::VolatileSubjects v;
     v.register_subject(&zero_default, 0);
@@ -27,15 +28,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "VolatileSubjects restores each subject to its
 
     CHECK(lv_subject_get_int(&zero_default) == 0);
     CHECK(lv_subject_get_int(&one_default) == 1);
-
-    lv_subject_deinit(&zero_default);
-    lv_subject_deinit(&one_default);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "VolatileSubjects::clear drops registrations",
                  "[state][volatile]") {
-    lv_subject_t s{};
-    lv_subject_init_int(&s, 0);
+    helix::Subject s{};
+    s.init_int(0);
 
     helix::subjects::VolatileSubjects v;
     v.register_subject(&s, 0);
@@ -46,6 +44,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "VolatileSubjects::clear drops registrations",
     v.reset_all();
     // Cleared registry must not touch the subject.
     CHECK(lv_subject_get_int(&s) == 5);
-
-    lv_subject_deinit(&s);
 }

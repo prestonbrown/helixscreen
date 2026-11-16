@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Each run stops a printer's screen service for a few minutes, and refuses a printer that is
+# printing. The hour is a placeholder until #1910 settles which printers and hours are allowed.
+
+[Unit]
+Description=Daily HelixScreen perf farm CPU check
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=false
+
+[Install]
+WantedBy=timers.target

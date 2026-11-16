@@ -24,13 +24,12 @@
  * that does not override.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
 #include "ams_fault_event.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "test_helpers/afc_test_access.h"
 

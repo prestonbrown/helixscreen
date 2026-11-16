@@ -10,6 +10,7 @@
 #include "ui_nav.h"
 
 #include "ams_backend.h"
+#include "ams_insert_signals.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "connection_state.h"
@@ -30,6 +31,15 @@ std::optional<bool> sensed_presence() {
     auto& mgr = FilamentSensorManager::instance();
     return manual_load_presence(lv_subject_get_int(mgr.get_entry_detected_subject()),
                                 lv_subject_get_int(mgr.get_toolhead_detected_subject()));
+}
+
+/// What an insert is judged on for a backend without its own reading: the slot status,
+/// on lanes with a prep sensor.
+std::optional<bool> presence_from_slot_status(const AmsBackend& backend, int slot_index) {
+    if (!backend.slot_has_prep_sensor(slot_index)) {
+        return std::nullopt;
+    }
+    return slot_status_reports_filament(backend.get_slot_info(slot_index).status);
 }
 
 /// The editor is still open while something (QR scanner, keyboard) covers it, and
@@ -102,12 +112,14 @@ void FilamentInsertWatcher::on_ams_changed() {
 }
 
 int FilamentInsertWatcher::judge_lanes(const AmsBackend& backend, FilamentInsertContext ctx) {
+    const IInsertSignals* const signals = backend.as<IInsertSignals>();
     const int count = std::max(0, backend.get_system_info().total_slots);
     lane_prev_.resize(count);
     lane_waiting_.resize(count, false);
     int open_slot = -1;
     for (int i = 0; i < count; ++i) {
-        ctx.is_present = backend.slot_insert_presence(i);
+        ctx.is_present =
+            signals ? signals->slot_insert_presence(i) : presence_from_slot_status(backend, i);
         // An insert held for the lane's tag reader is judged as the edge it was.
         const bool waiting = lane_waiting_[i];
         ctx.was_present = waiting ? std::optional<bool>(false) : lane_prev_[i];
@@ -121,7 +133,8 @@ int FilamentInsertWatcher::judge_lanes(const AmsBackend& backend, FilamentInsert
             }
             continue;
         }
-        switch (lane_insert_action(backend.slot_insert_identity(i), waiting)) {
+        switch (lane_insert_action(
+            signals ? signals->slot_insert_identity(i) : InsertIdentity::NotRead, waiting)) {
         case InsertEditorAction::Wait:
             lane_waiting_[i] = true;
             ui::claim_insert_prompt(i);

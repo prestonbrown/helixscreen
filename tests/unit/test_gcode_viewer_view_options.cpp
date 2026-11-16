@@ -8,10 +8,10 @@
 // VBO re-upload (the Pi 3B's GPU sustains ~4M triangles/s).
 
 #include "ui_gcode_viewer.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/gcode_layer_renderer_test_access.h"
+#include "core/update_queue.h"
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 

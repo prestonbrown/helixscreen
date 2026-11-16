@@ -45,7 +45,7 @@ Full rules: [`THREADING.md`](THREADING.md).
 | **Detached one-shot `std::thread`** | `std::thread(...).detach()` without try/catch. `pthread_create` returns `EAGAIN` under thread exhaustion → `std::terminate` through an LVGL C frame, and the crash looks unrelated. | #724, #837 |
 | **Deletion during input dispatch** | `lv_obj_delete()` on container children inside `LV_EVENT_CLICKED` / `LV_EVENT_RELEASED`. | — |
 | **Missing shutdown self-registration** | An `init_subjects()` that doesn't register its own `deinit_subjects()`, or a teardown callback that reaches a lazy `get_global_*()` getter and resurrects a singleton. | L101 |
-| **`lv_obj_is_valid()` in a hot path** | Recursive O(n) walk; stack-overflows on Pi. Use null checks plus a lifetime token. | L076 |
+| **`lv_obj_is_valid()` anywhere** | Banned in `src/`, `include/` and `tests/`: it cannot tell a live widget from a new one at a freed address, and it walks the whole tree. Hold a `WidgetRef` or `WeakWidget` (`include/ui_widget_ref.h`). `scripts/check_growth_ratchets.py` gates it |
 | **Cached child pointers outliving the widget tree** | A panel or manager caches raw `lv_obj_t*` members (or containers keyed by widget) — the subtree is deleted by a rebuild/teardown, then a later callback writes through the stale pointer. Null checks pass; the pointer isn't null, it's freed. Two guards do **not** cover it: `AsyncLifetimeGuard` guards `this`, not the widget tree, and a queued `UpdateQueue` callback can drain after the tree died. Fix shape: hold the member as `helix::ui::WidgetRef`, which clears itself on the widget's own delete; a hand-written `LV_EVENT_DELETE` hook only when the delete must do more than clear a pointer. THREADING.md §2. | 882edde88, 13db7c92e, #1298 |
 
 ---
@@ -65,7 +65,7 @@ reasonable, and the reason adversarial reading matters.
 | **Thread/network test left untagged** | Tests using `std::thread` / `condition_variable` / `hv::EventLoop` must be `[slow]`, or they deadlock parallel shards. | L052 |
 | **Claim not verified against current code** | A root cause inherited from an issue report, a commit message, or a stale comment. Grep the current tree and `git log -S` before accepting a mechanism — confident, well-argued reporter archaeology has pointed at the wrong cause more than once. | L095 |
 | **Log-only `on_error` claiming the error report** | An `execute_gcode` / `set_temperature` / `set_led` caller whose `on_error` only `spdlog`s or resets state, without `caller_surfaces_errors=false`. It records the rejection for dedup and silences `GcodeErrorRouter`'s `!!` copy — the only surface that would have told the user. Deriving intent *after* an internal callback wrapper has the same effect. | `RPC_ERROR_OWNERSHIP.md` |
-| **Print-state enum mismatch** | `static_cast<PrintState>(lv_subject_get_int(...))` compiles against whichever subject the author named — and `PrintJobState` and `PrintState` share no numbering past index 0, so a COMPLETE job reads back Paused and a PRINTING one Preparing. Binding the wrong subject to a typed observer fails the same way. Compiles, runs, answers a different question; shipped twice in one refactor. Use `get_print_lifecycle()` / `get_print_job_state()` and the typed factories (see `architecture/05-printer-state.md` § "Reading print state: typed accessors, not hand-cast ints"). | `check_print_state_cast.py` (partial) |
+| **Print-state enum mismatch** | `static_cast<PrintState>(lv_subject_get_int(...))` compiles against whichever subject the author named — and `PrintJobState` and `PrintState` share no numbering past index 0, so a COMPLETE job reads back Paused and a PRINTING one Preparing. Binding the wrong subject to a typed observer fails the same way. Compiles, runs, answers a different question; shipped twice in one refactor. Use `get_print_lifecycle()` / `get_print_job_state()` and the typed factories (see `architecture/05-printer-state.md` § "Reading print state: typed accessors, not hand-cast ints"). | `check_source_rules.py` `print-state-cast` (partial) |
 | **Duplicated functionality** | Every function, helper, constant, formatter, XML fragment, fixture and test helper the change ADDS gets a search of the whole repo for code that already does the same thing. Grep the behaviour (the computation, the string shape, the subject plumbing, the JSON parse, the defer/timer pattern), not the name: a near-twin usually has a different noun on it. Code moved out of one place must be gone from it, with every caller switched, not copied. Two hand-kept copies agree by convention until they silently don't, and each reads as correct on its own. Severity is **Major**; name the existing code to call or extend, and the fix: call it, extend it, or extract one shared function. Pre-existing duplicates the change sits beside go in a separate list. | CLAUDE.md § DRY |
 | **Absence reported as a result** | A routine that could not do its work returns what a routine that did it and found nothing returns: a failed search returning an empty list, a tool that skips files outside its scope and reports clean, a scorer that reports high confidence on a tie it cannot break. The caller cannot tell "I looked and found nothing" from "I could not look". Ask what the failure path returns, and whether the call site can distinguish inability from success. | #1436, #1437 |
 
@@ -107,7 +107,7 @@ Noise makes a review ignorable, and these all look like problems but aren't:
 ```bash
 ./scripts/quality-checks.sh              # everything the gates check
 make -j                                  # it has to build
-make test-run                            # parallel; excludes [slow] and hidden
+make unit-sweep                          # parallel; excludes [slow] and hidden
 ./build/bin/helix-tests "[tag]" "~[.]"   # one area
 make test-asan                           # suspected UAF or leak
 make test-tsan                           # suspected race
@@ -133,14 +133,14 @@ to skip verification. Use `--sim-speed 4..10` to reach an active print in second
 | `check_gcode_error_ownership.py` | Log-only error callbacks declare `caller_surfaces_errors=false` (baseline 0) |
 | `check_translation_format_specifiers.py` | Translated strings keep their placeholders |
 | `check_modal_chrome_budget.py` | A modal's chrome matches the content cap it budgets against: everything but a divider and the button row lives inside the scroll container; a second button row switches to the tall-chrome token; no card raised above the shared 85% cap (`MODAL_CHROME_OK` opt-out) |
-| `check_raw_print_job_state.py` | Every read of the raw print wire (`PrintJobState::…`, `get_print_job_state()`, `get_print_state_enum_subject()`) says why it is not on the lifecycle — `// RAW_PRINT_STATE_OK: <reason>` (baseline 0) |
-| `check_print_state_cast.py` | No hand-casting `lv_subject_get_int()` into `PrintState`/`PrintJobState`; the typed accessors pair each subject with its own enum (`PRINT_STATE_CAST_OK` opt-out) |
+| `check_source_rules.py` `raw-print-state` | Every read of the raw print wire (`PrintJobState::…`, `get_print_job_state()`, `get_print_state_enum_subject()`) says why it is not on the lifecycle — `// RAW_PRINT_STATE_OK: <reason>` (baseline 0) |
+| `check_source_rules.py` `print-state-cast` | No hand-casting `lv_subject_get_int()` into `PrintState`/`PrintJobState`; the typed accessors pair each subject with its own enum (`PRINT_STATE_CAST_OK` opt-out) |
 | `check_ams_xml_mirror.py` | `src/printer/ams_state_subjects.cpp#register_xml_subject_names` publishes exactly the XML subject names `src/printer/ams_state_subjects.cpp#init_subjects` does, loops included (#1439) |
 | spdlog-only | No `printf`/`cout`/`LV_LOG_` outside CLI subcommands |
 | design tokens | Hardcoded colors ratcheted; no private `_lv_*` APIs |
 | copyright, icon fonts, XML validity, shellcheck | Headers, codepoint sync, well-formed XML |
 
-`tests/shell/test_code_lint.bats` additionally forbids `_for_testing` methods on production
+`scripts/code_lint.sh` (`qc_code_lint`, `qc_test_lint`, `qc_ui_lint`) additionally forbids `_for_testing` methods on production
 classes, raw `set_temperature` sends from migrated temp views, the "centidegree" misnomer, and
 inline decidegree conversion.
 

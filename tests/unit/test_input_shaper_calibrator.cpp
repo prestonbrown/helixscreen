@@ -28,13 +28,13 @@
  */
 
 #include "../../include/calibration_types.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/input_shaper_calibrator.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/moonraker_error.h"
 #include "../../include/printer_state.h"
 #include "../../include/resonance_console.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -151,7 +151,7 @@ class InputShaperCalibratorTestFixture : public LVGLTestFixture {
         // makes the continuation run synchronously.
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         calibrator_ = InputShaperCalibrator(api_.get());
         // Nothing the fixture itself did should show up in the transcript the
@@ -217,7 +217,7 @@ class InputShaperCalibratorTestFixture : public LVGLTestFixture {
      * committed to until release_homing() / fail_homing() is called.
      */
     static void unhome() {
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "");
     }
 
     void release_homing() {
@@ -915,7 +915,7 @@ TEST_CASE_METHOD(InputShaperCalibratorTestFixture, "get_results is always valid 
 //
 // When a calibration command (G28, MEASURE_AXES_NOISE, SHAPER_CALIBRATE)
 // trips a Klipper "Internal error on command" / shutdown — e.g. the Creality
-// record_z_pos crash on a K2 with a missing z_pos.json (bundle 5LSSSKPX) —
+// record_z_pos crash on a K2 with a missing z_pos.json —
 // the printer halts. firmware_halt_message() recognizes that and returns a
 // clear, actionable string so the wizard can say "firmware fault, restart and
 // retry" instead of dumping a raw {"code":"key60",...} JSON envelope.
@@ -934,7 +934,7 @@ TEST_CASE("firmware_halt_message detects NOT_READY (Klipper halted preflight)",
 
 TEST_CASE("firmware_halt_message detects Klipper 'Internal error on command' envelope",
           "[calibrator][input_shaper][error_handling][1021]") {
-    // The exact shape that halted the K2 in bundle 5LSSSKPX, delivered as a
+    // The exact shape that halted a K2, delivered as a
     // raw JSON-RPC envelope string (no friendly extraction upstream).
     MoonrakerError err;
     err.type = MoonrakerErrorType::JSON_RPC_ERROR;

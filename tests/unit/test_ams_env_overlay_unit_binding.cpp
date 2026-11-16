@@ -13,7 +13,7 @@
  * second box has a sensor and whose first does not showed "42%" with the row
  * hidden, and the reverse pairing showed an empty row for a box with no sensor.
  *
- * The fix gives the overlay its own ams_env_overlay_humidity_visible subject,
+ * The overlay has its own ams_env_overlay_humidity_visible subject,
  * set from the shown unit's environment, matching how every other value in that
  * overlay is produced.
  */
@@ -21,14 +21,14 @@
 #include "ui_ams_environment_overlay.h"
 #include "ui_humidity_drop.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_panel_registry.h"
 
 #include <lvgl/lvgl.h>
 
@@ -131,7 +131,7 @@ struct HumidityRowState {
 bool widget_hidden(LVGLUITestFixture& fixture, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(fixture.test_screen(), name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Open the overlay on `unit`, read the humidity state, then tear the push down.
@@ -169,8 +169,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(subject_int("ams_env_ind_0_humidity_visible") == 0);
     REQUIRE(subject_int("ams_env_ind_1_humidity_visible") == 1);
 
-    // THE REGRESSION ASSERTION. Pre-fix both widgets were bound to
-    // ams_env_ind_0_humidity_visible, so unit 1's overlay hid a row whose
+    // THE REGRESSION ASSERTION. Binding both widgets to
+    // ams_env_ind_0_humidity_visible would make unit 1's overlay hide a row whose
     // reading ("42%") was right there next to it.
     const HumidityRowState state = humidity_state_for_unit(*this, 1);
     CHECK(state.subject == 1);

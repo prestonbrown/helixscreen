@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
 #include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
@@ -19,10 +19,10 @@ namespace helix {
  * A home-panel widget keeps its subjects in file-scope statics that every
  * instance shares. They are created once, before any XML binds them, and torn
  * down by StaticSubjectRegistry before lv_deinit() or a printer switch; the
- * next init after that teardown creates them again.
+ * next init after that teardown re-initializes them in place, at the same address.
  *
  * ```cpp
- * HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
+ * HELIX_PSRAM_BSS helix::Subject s_rung_subject;
  * helix::WidgetSubjects s_subjects{"MyWidgetSubjects"};
  *
  * void my_widget_init_subjects() {
@@ -43,7 +43,12 @@ class WidgetSubjects : public SubjectManager {
   public:
     /// @param registry_name The StaticSubjectRegistry key; the registry keeps one
     ///        entry per name, so it must be unique to this module.
-    explicit WidgetSubjects(const char* registry_name) : registry_name_(registry_name) {}
+    /// @param lifetime What a printer switch does to the subjects. Process keeps
+    ///        them published across it, for a module observed only by XML bindings
+    ///        and its own setters.
+    explicit WidgetSubjects(const char* registry_name, StaticSubjectRegistry::Lifetime lifetime =
+                                                           StaticSubjectRegistry::Lifetime::Printer)
+        : registry_name_(registry_name), lifetime_(lifetime) {}
 
     // Its registry entry points at this object.
     WidgetSubjects(const WidgetSubjects&) = delete;
@@ -71,7 +76,8 @@ class WidgetSubjects : public SubjectManager {
         std::forward<Init>(init)();
         initialized_ = true;
         StaticSubjectRegistry::instance().register_deinit(
-            registry_name_, [this, teardown = std::move(teardown)]() { deinit(teardown); });
+            registry_name_, [this, teardown = std::move(teardown)]() { deinit(teardown); },
+            lifetime_);
         return true;
     }
 
@@ -97,6 +103,7 @@ class WidgetSubjects : public SubjectManager {
     }
 
     const char* registry_name_;
+    StaticSubjectRegistry::Lifetime lifetime_;
     bool initialized_ = false;
 };
 

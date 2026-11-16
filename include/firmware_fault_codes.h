@@ -2,12 +2,11 @@
 #pragma once
 
 #include "error_event.h"
+#include "json_fwd.h"
 
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

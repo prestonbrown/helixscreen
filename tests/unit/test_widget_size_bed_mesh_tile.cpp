@@ -19,9 +19,9 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -91,7 +91,7 @@ struct BedMeshTileFixture : public LVGLUITestFixture {
         set_print_active(false);
         set_machine_blocked(false);
         BedMeshState::instance().apply(nullptr, 0);
-        lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
         drain();
     }
     void load_mesh(float spread, int profiles = 2, const char* name = "default") {
@@ -112,7 +112,7 @@ struct BedMeshTileFixture : public LVGLUITestFixture {
         drain();
     }
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     /// A gcode no action sends, so "nothing was sent" is distinguishable.
     void sentinel() {
@@ -157,7 +157,7 @@ lv_obj_t* part(Harness& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
@@ -381,7 +381,7 @@ TEST_CASE_METHOD(BedMeshTileFixture,
     CHECK(ui_bed_mesh_has_data(map));
     CHECK(ui_bed_mesh_get_render_mode(map) == BedMeshRenderMode::Force2D);
     // A static canvas draws nothing interactive: it takes no press, so a tap reaches the tile.
-    CHECK_FALSE(lv_obj_has_flag(map, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(map));
 
     tap(map);
     CHECK(opened == 1);
@@ -591,7 +591,7 @@ TEST_CASE_METHOD(BedMeshTileFixture,
                  "bed_mesh_tile: Calibrate homes first when the toolhead is not homed",
                  "[widget_size][bed_mesh_tile][actions]") {
     clear_mesh(0);
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "");
     Harness h(test_screen(), state());
     h.resize(1, 1, kFull.w, kFull.h);
 

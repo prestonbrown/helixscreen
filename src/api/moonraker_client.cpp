@@ -14,20 +14,21 @@
 
 #include "moonraker_client.h"
 
-#include "ui_error_reporting.h"
-#include "ui_update_queue.h"
-
 #include "abort_manager.h"
 #include "app_globals.h"
 #include "callback_drain.h"
+#include "core/error_reporting.h"
+#include "core/update_queue.h"
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
+#include "json_nonfinite.h"
 #include "json_utils.h"
 #include "klippy_notification.h"
 #include "moonraker_auth.h"
 #include "moonraker_auth_http.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
 #include "translation_loader.h"
@@ -168,6 +169,11 @@ void MoonrakerClient::start_klippy_state_poll() {
     spdlog::debug("[Moonraker Client] Polling printer.info until Klippy's state settles");
 }
 
+void MoonrakerClient::poll_klippy_state_until_settled() {
+    start_klippy_state_poll();
+    poll_klippy_state();
+}
+
 void MoonrakerClient::stop_klippy_state_poll(const char* why) {
     if (klippy_state_poll_->started_at.exchange(0) == 0) {
         return;
@@ -183,10 +189,11 @@ void MoonrakerClient::poll_klippy_state() {
         return;
     }
     if (const long long elapsed = steady_ms_since(started); elapsed > kKlippyStatePollMaxMs) {
-        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after disconnect — "
+        spdlog::warn("[Moonraker Client] Klippy state still unsettled {}ms after polling began — "
                      "no longer polling printer.info",
                      elapsed);
         stop_klippy_state_poll("unsettled");
+        emit_event(moonraker_event::klippy_never_ready());
         return;
     }
     if (poll->in_flight.exchange(true)) {
@@ -217,8 +224,7 @@ void MoonrakerClient::poll_klippy_state() {
             }
             poll->started_at.store(0);
 
-            spdlog::info("[Moonraker Client] Klippy state after disconnect: '{}' ({})", state,
-                         message);
+            spdlog::info("[Moonraker Client] Klippy state settled: '{}' ({})", state, message);
             json webhooks = {{"state", state}, {"state_message", message}};
             const uint64_t epoch = get_printer_state().network_state().klippy_epoch();
             helix::ui::queue_update("MoonrakerClient::klippy_state_poll", [webhooks, epoch]() {
@@ -671,35 +677,18 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
             spdlog::error("[Moonraker Client] Message too large: {} bytes (max: {})", msg.size(),
                           kMaxMessageSize);
 
-            // Emit event - this indicates a protocol problem
+            // The dropped reply is reported, so a request that then fails has a cause on screen.
             emit_event(MoonrakerEvent::translatable(
                 MoonrakerEventType::MESSAGE_OVERSIZED,
                 TR_NOOP("Received oversized data from printer ({} bytes). "
                         "This may indicate a communication error."),
                 {std::to_string(msg.size())}, true));
 
-            // Deferred, not inline. disconnect() takes callback_lifecycle_mutex_
-            // exclusively, and the onmessage trampoline that called us still holds
-            // that same mutex SHARED on this very thread. std::shared_mutex is
-            // neither recursive nor upgradeable, so acquiring exclusive here is an
-            // unconditional self-deadlock of the event loop — the socket stops
-            // being serviced and every later request times out with no clue why.
-            //
-            // queueInLoop() rather than runInLoop(): the latter runs inline when
-            // already on the loop thread, which is exactly the case here and would
-            // reproduce the deadlock. Queuing lands it on the next loop iteration,
-            // after the trampoline has returned and dropped its shared lock.
-            if (auto l = loop()) {
-                l->queueInLoop([this, dg = std::weak_ptr<bool>(destruction_guard_)]() {
-                    // Same liveness contract as the trampolines: a null lock() means
-                    // the destructor already ran, so never touch `this`.
-                    auto live = dg.lock();
-                    if (!live || is_destroying_.load(std::memory_order_acquire)) {
-                        return;
-                    }
-                    disconnect();
-                });
-            }
+            // Drop the frame and keep the connection. A frame is complete when it
+            // arrives, so the stream stays in sync, and the oversized one is usually
+            // Moonraker's valid reply to a large request: the request it answered
+            // times out and fails like any other. Disconnecting here would also
+            // switch off auto-reconnect, leaving the screen offline until restart.
             return;
         }
 
@@ -716,10 +705,19 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
         try {
             j = json::parse(msg);
         } catch (const json::parse_error& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] JSON parse error: {}", e.what());
-            TelemetryManager::instance().record_error("websocket", "parse_error",
-                                                      fmt::format("JSON parse: {}", e.what()));
-            return;
+            // Moonraker without orjson writes a NaN sensor reading as a bare NaN;
+            // read it as null rather than dropping every other field in the frame.
+            std::string repaired;
+            if (json_util::nonfinite_literals_to_null(msg, repaired)) {
+                j = json::parse(repaired, nullptr, false);
+            }
+            if (j.is_null() || j.is_discarded()) {
+                LOG_ERROR_INTERNAL("[Moonraker Client] JSON parse error: {}", e.what());
+                TelemetryManager::instance().record_error("websocket", "parse_error",
+                                                          fmt::format("JSON parse: {}", e.what()));
+                return;
+            }
+            spdlog::trace("[Moonraker Client] Read non-finite numbers in a frame as null");
         }
 
         // Route responses with request IDs through the tracker
@@ -879,8 +877,13 @@ void MoonrakerClient::on_ws_close() {
 
         if (was_connected_) {
             spdlog::warn("[Moonraker Client] WebSocket connection closed");
-            TelemetryManager::instance().record_error("websocket", "disconnected",
-                                                      "connection closed unexpectedly");
+            // A close inside the suppression window is one this app asked for
+            // (disconnect(), an expected Klippy restart), not a dropped link, so it
+            // is not reported as an error. connection_stability still counts it.
+            if (!suppressed) {
+                TelemetryManager::instance().record_error("websocket", "disconnected",
+                                                          "connection closed unexpectedly");
+            }
             was_connected_ = false;
             // Reset so re-identification + retry-on-klippy-state happen on reconnect
             discovery_.reset_identified();

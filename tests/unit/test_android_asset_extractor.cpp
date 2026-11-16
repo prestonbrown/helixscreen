@@ -10,8 +10,8 @@
  */
 
 #include "android_asset_extractor.h"
+#include "core/text_io.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <filesystem>
 #include <fstream>
@@ -326,6 +326,7 @@ TEST_CASE("Runtime artifacts are never extracted from the package", "[android][a
     CHECK(is_non_shippable_config_file("telemetry_device.json"));
     CHECK(is_non_shippable_config_file("telemetry_queue.json"));
     CHECK(is_non_shippable_config_file(".helix-screen.lock"));
+    CHECK(is_non_shippable_config_file("pending_remap.json"));
 }
 
 TEST_CASE("Shipped config seeds still extract", "[android][asset][config]") {
@@ -461,6 +462,8 @@ TEST_CASE("Auto Backup includes the config layer and the settings backups",
     }
     CHECK(paths_of(legacy, "exclude").count("data/config/telemetry_device.json") == 1);
     CHECK(paths_of(legacy, "exclude").count("data/config/.helix-screen.lock") == 1);
+    // A restored record would replay a stale tool map onto a reinstalled device.
+    CHECK(paths_of(legacy, "exclude").count("data/config/pending_remap.json") == 1);
     // FileConfigStorage::preserve_corrupt() keeps a broken document as <config>.corrupt;
     // restoring one onto another device brings back nothing usable.
     CHECK(paths_of(legacy, "exclude").count("data/config/settings.json.corrupt") == 1);

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_split_button.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 
 #include <spdlog/sinks/ostream_sink.h>
@@ -201,7 +201,7 @@ class SplitButtonLogCapture {
 // Teardown-safety guard for the #980 SIGSEGV: ui_split_button_create() schedules
 // a deferred callback that calls get_data()->lv_obj_get_child() on the widget.
 // During rapid panel teardown the widget is freed before that callback fires.
-// The fix routes the deferral through the widget-safe async_call (lv_obj_is_valid
+// The widget routes the deferral through the widget-safe async_call (widget liveness
 // guard) instead of a raw lv_async_call, so the callback is skipped once the
 // widget is gone.
 //

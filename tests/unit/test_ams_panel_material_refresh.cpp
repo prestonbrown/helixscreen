@@ -5,16 +5,16 @@
  * @file test_ams_panel_material_refresh.cpp
  * @brief Regression test for #981 — stale slot material label after nav-away/back
  *
- * Bug: the slot MATERIAL label has no backing subject (unlike color, which
+ * The slot MATERIAL label has no backing subject (unlike color, which
  * self-refreshes via the color observer / sync_from_backend()). The color
  * observer only re-reads material as a SIDE EFFECT when the color subject
  * actually changes. An in-app material edit that leaves the color unchanged,
- * followed by navigating away and back, therefore left the slot label showing
+ * followed by navigating away and back, would leave the slot label showing
  * the OLD material until the next slots_version bump (an IFS event).
  *
- * Fix (79caeec2a): AmsPanel::on_activate() now calls refresh_slots(), which
- * unconditionally re-reads each slot's material from the backend. With that line
- * removed, the final assertion below fails: the label stays "PLA".
+ * AmsPanel::on_activate() calls refresh_slots(), which unconditionally re-reads
+ * each slot's material from the backend. With that line removed, the final
+ * assertion below fails: the label stays "PLA".
  *
  * The test builds a real AmsPanel, renders slot 0 = PLA, edits ONLY the
  * material to PETG in the backend (color unchanged, no slots_version bump, so

@@ -1,13 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "calibration_abort.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -57,7 +55,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "emergency_stop_and_restart sends M112 then a 
     bool saw_shutdown = false;
     bool back_to_ready = false;
     for (int i = 0; i < 400 && !back_to_ready; ++i) {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_tick_inc(5);
         lv_timer_handler_safe();
         std::this_thread::sleep_for(std::chrono::milliseconds(2));

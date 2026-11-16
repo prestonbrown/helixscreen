@@ -8,6 +8,8 @@
 
 #include <cctype>
 
+#include "hv/json.hpp"
+
 namespace helix::chamber {
 namespace {
 

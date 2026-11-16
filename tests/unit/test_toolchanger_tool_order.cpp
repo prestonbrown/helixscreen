@@ -11,10 +11,9 @@
  * Klipper numbers 0.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 

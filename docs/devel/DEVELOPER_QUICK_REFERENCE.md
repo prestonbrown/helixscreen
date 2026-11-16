@@ -10,34 +10,32 @@ HelixScreen uses class-based patterns for all new code. For architectural ration
 
 ### Panel Pattern
 
-**Canonical example:** `include/ui_panel_filament.h` + `src/ui/ui_panel_filament.cpp`
+**Canonical example:** `include/ui_panel_filament.h` + `src/ui/filament/ui_panel_filament.cpp`
 
 ```cpp
-class ExamplePanel : public PanelBase {  // Use SubjectManager subjects_; member for auto cleanup
-public:
-    explicit ExamplePanel(lv_obj_t* parent);
+class ExamplePanel : public PanelBase {
+  public:
+    ExamplePanel(helix::PrinterState& printer_state, helix::IMoonrakerAPI* api);
     ~ExamplePanel() override;
 
-    void show() override;
-    void hide() override;
-    lv_obj_t* get_root() const override { return root_; }
+    void init_subjects() override;                       // BEFORE the XML is created
+    void setup(lv_obj_t* panel, lv_obj_t* parent_screen) override;  // cache widgets, wire observers
+    const char* get_name() const override { return "Example"; }
+    const char* get_xml_component_name() const override { return "example_panel"; }
 
-private:
-    void init_subjects();  // Call BEFORE lv_xml_create()
-    void setup_observers();  // Wire reactive bindings
-
-    lv_obj_t* root_ = nullptr;
-    SubjectManager subjects_;  // Owns subjects + observers, auto-cleans on destruction
-    lv_subject_t my_subject_{};
-    char buf_[128]{};  // Static storage for string subjects
+  private:
+    SubjectManager subjects_;      // registers the subjects, resets them on destruction
+    helix::Subject my_subject_;    // include/core/subject.h
+    char buf_[128]{};              // backing storage for a string subject
+    ObserverGuard temp_observer_;  // one guard per observed subject
 };
 ```
 
-**Note:** Use `PanelBase` with a `SubjectManager subjects_;` member for automatic observer cleanup on destruction.
+**Note:** `PanelBase` (`include/ui_panel_base.h`) pairs `init_subjects()` / `setup()` with a `SubjectManager subjects_;` member for subject cleanup and `ObserverGuard` members for observer cleanup.
 
 ### Manager Pattern (Backend)
 
-**Canonical example:** `include/wifi_manager.h` + `src/api/wifi_manager.cpp`
+**Canonical example:** `include/wifi_manager.h` + `src/network/wifi_manager.cpp`
 
 ```cpp
 class WiFiManager {
@@ -62,19 +60,21 @@ private:
 
 ### Modal Pattern
 
-**Canonical example:** `src/ui/ui_wizard*.cpp`
+**Canonical example:** `include/ui_info_qr_modal.h` + `src/ui/components/ui_info_qr_modal.cpp`
 
 ```cpp
 class ConfirmDialog : public Modal {
-public:
-    void show(const std::string& title, ConfirmCallback on_confirm);
-    void dismiss() override;
+  public:
+    const char* get_name() const override { return "Confirm"; }
+    const char* component_name() const override { return "confirm_dialog"; }
 
-private:
-    lv_obj_t* backdrop_ = nullptr;
-    lv_obj_t* dialog_ = nullptr;
+  protected:
+    void on_ok() override;      // primary button
+    void on_cancel() override;  // secondary button, backdrop, ESC
 };
 ```
+
+See `docs/devel/MODAL_SYSTEM.md`; a plain component modal needs no subclass (`helix::ui::ComponentModal::show_owned("component_name")`).
 
 ### Domain State Pattern
 
@@ -92,12 +92,12 @@ public:
     void set_active_extruder(const std::string& name); // Update via helix::ui::queue_update
 
 private:
-    lv_subject_t nozzle_temp_{};
+    helix::Subject nozzle_temp_;
     bool initialized_ = false;
 };
 ```
 
-**Domain classes:** `printer_*_state.h` — Temperature, Motion, Fan, Print, Calibration, Capabilities, ExcludedObjects, Network, Versions, Led, HardwareValidation, PluginStatus, CompositeVisibility
+**Domain classes:** `printer_*_state.h` — Temperature, Motion, Fan, Print, Calibration, Capabilities, ExcludedObjects, Network, Versions, Profile, HardwareValidation, PluginStatus, CompositeVisibility
 
 **For architectural rationale, see [chapter 05 — Printer state & singletons](architecture/05-printer-state.md).**
 
@@ -113,7 +113,7 @@ Singletons with LVGL subjects must register cleanup to avoid Static Destruction 
 // In init_subjects():
 void MySingleton::init_subjects() {
     if (initialized_) return;
-    lv_subject_init_int(&my_subject_, 0);
+    my_subject_.init_int(0);
     initialized_ = true;
 }
 
@@ -121,7 +121,7 @@ void MySingleton::init_subjects() {
 void MySingleton::deinit_subjects() {
     if (!initialized_) return;
     spdlog::debug("[MySingleton] Deinitializing subjects");
-    lv_subject_deinit(&my_subject_);  // Disconnects all observers
+    my_subject_.reset();  // frees its observers, keeps its address for the next init
     initialized_ = false;
 }
 
@@ -140,31 +140,30 @@ StaticSubjectRegistry::instance().register_deinit(
 
 ## Observer Factory (CRITICAL)
 
-Use `observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
+Use `core/observer_factory.h` for type-safe, auto-cleaned observers. **Never use raw `lv_subject_add_observer_*` in panels.**
 
 ```cpp
-#include "observer_factory.h"
+#include "core/observer_factory.h"
 
-// In setup_observers():
+// Members: ObserverGuard temp_observer_, filename_observer_;
+// In setup():
 // Integer observer; the handler runs deferred on the UI thread
-add_observer(observe<int>(
+temp_observer_ = observe<int>(
     get_printer_state().temperature_state().get_active_extruder_temp_subject(),
     this,
     [](MyPanel* self, int32_t temp) {
         self->update_temp_display(temp);
     },
-    get_printer_state().get_subjects_lifetime()
-));
+    get_printer_state().get_subjects_lifetime());
 
 // String observer
-add_observer(observe<const char*>(
+filename_observer_ = observe<const char*>(
     get_printer_state().print_state().get_print_filename_subject(),
     this,
     [](MyPanel* self, const char* name) {
         lv_label_set_text(self->filename_label_, name);
     },
-    get_printer_state().get_subjects_lifetime()
-));
+    get_printer_state().get_subjects_lifetime());
 ```
 
 **Key patterns:**
@@ -306,7 +305,7 @@ The preset tier comes from the narrow axis, `min(width, height)`, not the height
 | `medium` | 40×20px | 48×24px | 80×40px | 112×48px |
 | `large` | 48×24px | 56×28px | 88×44px | 128×56px |
 
-Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/ui_switch.cpp`.
+Only four preset tiers exist for seven breakpoints, deliberately: Tiny and Small share one preset (switches are too small to benefit from separate tiers), and Large, XLarge and XXLarge all share the widest one. See `ui_switch_init_size_presets()` in `src/ui/components/ui_switch.cpp`.
 
 ---
 
@@ -379,17 +378,23 @@ const lv_font_t* font = theme_manager_get_font("font_body");
 ### Initialization (BEFORE lv_xml_create!)
 
 ```cpp
-// String
+helix::Subject subj;   // a member; &subj is the lv_subject_t* LVGL calls take
+
+// String (the buffer must outlive the Subject)
 static char buf[128];
-lv_subject_init_string(&subj, buf, NULL, sizeof(buf), "init");
+subj.init_string(buf, "init");
 lv_xml_register_subject(nullptr, "my_text", &subj);
 
 // Integer
-lv_subject_init_int(&subj, 0);
+subj.init_int(0);
 
 // Color
-lv_subject_init_color(&subj, lv_color_hex(0xFF0000));
+subj.init_color(lv_color_hex(0xFF0000));
 ```
+
+In panel code use the managed macros instead (`UI_MANAGED_SUBJECT_INT` and friends,
+`include/subject_managed_panel.h`): they init, publish to XML and register for cleanup in one
+line. Ownership rules: `docs/devel/THREADING.md` § "Subject ownership".
 
 ### XML Bindings
 
@@ -409,7 +414,7 @@ Subjects must be initialized BEFORE creating XML to ensure bindings find initial
 lv_xml_register_font(...);                    // 1. Fonts
 lv_xml_register_image(...);                   // 2. Images
 lv_xml_register_component_from_file(...);     // 3. Components (globals first!)
-lv_subject_init_*(...);                       // 4. Init subjects
+subject.init_*(...);                          // 4. Init subjects (helix::Subject)
 lv_xml_register_subject(...);                 // 5. Register subjects
 lv_xml_create(...);                           // 6. Create UI
 ```
@@ -510,7 +515,7 @@ Theme-aware markdown viewer registered as an XML custom widget. Wraps `lv_markdo
 - Theme-aware: colors pulled from design tokens automatically.
 - Initialize with `ui_markdown_init()` after `lv_xml_init()` and theme init.
 
-**Header:** `include/ui_markdown.h` | **Source:** `src/ui/ui_markdown.cpp`
+**Header:** `include/ui_markdown.h` | **Source:** `src/ui/components/ui_markdown.cpp`
 
 ---
 
@@ -540,10 +545,7 @@ Auto-detects screen aspect ratio and loads alternative XML layouts. Themes contr
 auto& lm = helix::LayoutManager::instance();
 lm.init(display_width, display_height);      // Auto-detect
 lm.set_override("ultrawide");                // Force layout
-
-std::string path = lm.resolve_xml_path("home_panel.xml");
-// Returns "ui_xml/ultrawide/home_panel.xml" if override exists,
-// otherwise "ui_xml/home_panel.xml"
+bool portrait = helix::is_portrait_layout(lm.type());  // what ui_is_portrait publishes
 ```
 
 | Layout | Detection | Example Screens |
@@ -583,7 +585,7 @@ Unified modal system with RAII lifecycle, backdrop, stacking, and animations.
 
 ```cpp
 // Simple modal (no subclass):
-lv_obj_t* dialog = Modal::show("print_cancel_confirm_modal");
+lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_cancel_confirm_modal");
 Modal::hide(dialog);
 
 // Confirmation dialog helper (helix::ui):

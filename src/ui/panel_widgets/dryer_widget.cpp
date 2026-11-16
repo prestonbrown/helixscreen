@@ -11,19 +11,24 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_subject_registry.h"
+#include "ui_temperature_utils.h"
 #include "ui_tile_rung.h"
 
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -48,29 +53,29 @@ constexpr int kMaxTimes = 4;
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
 struct Flags {
-    lv_subject_t rung{};
-    lv_subject_t show_icon{};
-    lv_subject_t show_drop{};
-    lv_subject_t drop_rung{};
-    lv_subject_t rh_x10{};
-    lv_subject_t show_ring{};
-    lv_subject_t ring_pct{};
-    lv_subject_t show_info{};
-    lv_subject_t show_time{};
-    lv_subject_t show_name{};
-    lv_subject_t show_temp{};
-    lv_subject_t show_rh_detail{};
-    lv_subject_t show_rh{};
-    lv_subject_t show_status{};
-    lv_subject_t show_end{};
-    lv_subject_t show_count{};
-    lv_subject_t show_times{};
-    lv_subject_t row_count{};
+    helix::Subject rung{};
+    helix::Subject show_icon{};
+    helix::Subject show_drop{};
+    helix::Subject drop_rung{};
+    helix::Subject rh_x10{};
+    helix::Subject show_ring{};
+    helix::Subject ring_pct{};
+    helix::Subject show_info{};
+    helix::Subject show_time{};
+    helix::Subject show_name{};
+    helix::Subject show_temp{};
+    helix::Subject show_rh_detail{};
+    helix::Subject show_rh{};
+    helix::Subject show_status{};
+    helix::Subject show_end{};
+    helix::Subject show_count{};
+    helix::Subject show_times{};
+    helix::Subject row_count{};
 };
 HELIX_PSRAM_BSS Flags s_flags;
 
 struct TextSubject {
-    lv_subject_t subject{};
+    helix::Subject subject{};
     char buf[64]{};
 };
 struct Texts {
@@ -80,7 +85,7 @@ HELIX_PSRAM_BSS Texts s_texts;
 
 struct RowSubjects {
     TextSubject name, time, detail;
-    lv_subject_t pct{};
+    helix::Subject pct{};
 };
 HELIX_PSRAM_BSS RowSubjects s_rows[kMaxRows];
 
@@ -91,14 +96,14 @@ bool s_rows_composed = false;
 helix::LiveTileOwner<helix::DryerWidget> s_tile;
 std::function<void(const helix::DryerTap&)> s_open_hook;
 
-void init_int(lv_subject_t& subject, int value, const char* name) {
-    lv_subject_init_int(&subject, value);
+void init_int(helix::Subject& subject, int value, const char* name) {
+    subject.init_int(value);
     s_subjects.register_subject(&subject, name);
     helix::xml::register_subject_in_current_scope(name, &subject);
 }
 
 void init_text(TextSubject& text, const char* name) {
-    lv_subject_init_string(&text.subject, text.buf, nullptr, sizeof(text.buf), "");
+    text.subject.init_string(text.buf, nullptr, sizeof(text.buf), "");
     s_subjects.register_subject(&text.subject, name);
     helix::xml::register_subject_in_current_scope(name, &text.subject);
 }
@@ -175,19 +180,21 @@ std::string source_name(const helix::DryerSource& s) {
     if (!s.name.empty())
         return s.name;
     return s.unit_index >= 0
-               ? fmt::format("{} {}", lv_tr("Box"), helix::ui::lane_number(s.unit_index))
+               ? fmt::format("{} {}", lv_tr("Box"), helix::ui::display_ordinal(s.unit_index))
                : std::string(lv_tr("Box"));
 }
 
-// "47/55°C", or the one temperature known. `current_only` drops the target for a rung too
+// "47 / 55°C", or the one temperature known. `current_only` drops the target for a rung too
 // narrow to carry both.
 std::string temp_text(const helix::DryerSource& s, bool current_only) {
+    char buf[32];
     if (s.current_c >= 0 && s.target_c > 0 && !current_only)
-        return fmt::format("{}/{}°C", s.current_c, s.target_c);
+        return helix::ui::temperature::format_temperature_pair(s.current_c, s.target_c, buf,
+                                                               sizeof(buf));
     if (s.current_c >= 0)
-        return fmt::format("{}°C", s.current_c);
+        return helix::units::format_display_temp(s.current_c);
     if (s.target_c > 0)
-        return fmt::format("{}°C", s.target_c);
+        return helix::units::format_display_temp(s.target_c);
     return "";
 }
 
@@ -253,20 +260,6 @@ TextSet compose_single(const helix::DryerSummary& summary, helix::SizeRung rung,
     return t;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* heading;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("font_heading"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 int widest(std::initializer_list<int> widths) {
@@ -280,7 +273,7 @@ struct RowMetrics {
     int row_gap = 0;
 };
 
-RowMetrics measure_rows(const Fonts& f) {
+RowMetrics measure_rows(const helix::PanelWidgetFonts& f) {
     const int line_gap = theme_manager_get_spacing("space_xxs");
     const int bar_h = theme_manager_get_spacing("space_xs");
     return {line_px(f.small) + line_px(f.xs) + bar_h + 2 * line_gap,
@@ -308,7 +301,7 @@ DropGlyphs measure_drop_glyphs() {
 /// The widest idle text a single-block rung draws beside or under the drop, in that rung's
 /// faces. Mirrors panel_widget_dryer.xml: a stack spaces its children by space_xxs, a row
 /// by space_xs.
-helix::DropTextBlock idle_text_block(helix::SizeRung rung, const Fonts& f) {
+helix::DropTextBlock idle_text_block(helix::SizeRung rung, const helix::PanelWidgetFonts& f) {
     using helix::SizeRung;
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
@@ -342,7 +335,7 @@ helix::DropTextBlock idle_text_block(helix::SizeRung rung, const Fonts& f) {
 /// panel_widget_dryer.xml: a stack spaces its children by space_xxs, a row by space_xs.
 helix::RungNeeds measure_needs(DState state) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -464,7 +457,7 @@ DryerVerdict DryerWidget::decide(int width_px, int height_px, const SummaryState
         content_chrome_or_estimate(root(), "space_xxs", "space_xxs", "space_xxs", "space_xxs");
     const DState dstate =
         !state.drying ? DState::Idle : (state.multi ? DState::Multi : DState::Single);
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const RowMetrics rows = measure_rows(f);
 
     DryerInput in;
@@ -525,6 +518,10 @@ void DryerWidget::attach(lv_obj_t* widget_obj, lv_obj_t* /*parent_screen*/) {
         if (!token.expired())
             self->relayout_for_granted_size();
     });
+    temp_unit_observer_ = ui::observe_temp_unit_change(this, [token](DryerWidget* self) {
+        if (!token.expired())
+            self->publish_texts();
+    });
 
     // Instances are recycled across rebuilds: the verdict is republished here too.
     relayout_for_granted_size();
@@ -535,6 +532,7 @@ void DryerWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     if (DryerWidget* displaced = s_tile.release(this)) {
         // The tile beneath a transient one is still on screen and publishes again.
         displaced->publish_verdict();

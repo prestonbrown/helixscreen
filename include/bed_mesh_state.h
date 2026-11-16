@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_subscription_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "bed_mesh_stats.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
 #include "subject_managed_panel.h"
+#include "subscription_guard.h"
 
 namespace helix {
 
@@ -69,16 +69,16 @@ class BedMeshState {
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 
-    lv_subject_t available_{};
-    lv_subject_t profile_name_{};
-    lv_subject_t dimensions_{};
-    lv_subject_t max_value_{};
-    lv_subject_t max_coord_{};
-    lv_subject_t min_value_{};
-    lv_subject_t min_coord_{};
-    lv_subject_t variance_{};
-    lv_subject_t profile_count_{};
-    lv_subject_t version_{};
+    helix::Subject available_{};
+    helix::Subject profile_name_{};
+    helix::Subject dimensions_{};
+    helix::Subject max_value_{};
+    helix::Subject max_coord_{};
+    helix::Subject min_value_{};
+    helix::Subject min_coord_{};
+    helix::Subject variance_{};
+    helix::Subject profile_count_{};
+    helix::Subject version_{};
 
     char profile_name_buf_[64] = {};
     char dimensions_buf_[64] = {};

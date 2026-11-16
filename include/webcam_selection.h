@@ -14,13 +14,12 @@
 // Everything here is a pure function over WebcamInfo values: no printer, no
 // network, no display, so the selection rule is testable on its own.
 
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

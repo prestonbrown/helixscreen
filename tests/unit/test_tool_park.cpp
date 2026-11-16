@@ -10,13 +10,12 @@
  * home tool switcher offers Park only where the backend says it can.
  */
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "core/update_queue.h"
 #include "toolchanger_addon.h"
 
 #include <functional>

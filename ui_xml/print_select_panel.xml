@@ -92,22 +92,23 @@
     <!-- Context banner (shown when entering via Library > Recent) -->
     <lv_obj name="context_banner"
             width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md"
-            style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" hidden="true" scrollable="false">
+            style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" scrollable="false">
+      <bind_flag_if_eq subject="print_select_context_banner_shown" flag="hidden" ref_value="0"/>
       <text_small name="context_banner_text" text="Recently Printed"/>
     </lv_obj>
 
-    <!-- Card view container (visible when view_mode == 0) -->
+    <!-- Card view container (visible when view_mode == 0 and the directory lists files) -->
     <!-- Note: style_pad_gap controls spacing between cards, used by C++ layout calculations -->
     <lv_obj name="card_view_container"
             width="100%" height="100%" style_pad_all="0" style_pad_left="#space_md" style_pad_right="#space_md"
             style_pad_gap="#space_md" flex_flow="row_wrap" scrollable="true" flex_grow="1">
-      <bind_flag_if_eq subject="print_select_view_mode" flag="hidden" ref_value="1"/>
+      <bind_flag_if cond="print_select_view_mode eq 1 or print_select_files_empty" flag="hidden"/>
       <!-- Cards will be dynamically added here via C++ -->
     </lv_obj>
-    <!-- List view container (visible when view_mode == 1) -->
+    <!-- List view container (visible when view_mode == 1 and the directory lists files) -->
     <lv_obj name="list_view_container"
             width="100%" height="100%" style_pad_all="0" style_pad_gap="0" flex_flow="column" flex_grow="1">
-      <bind_flag_if_eq subject="print_select_view_mode" flag="hidden" ref_value="0"/>
+      <bind_flag_if cond="print_select_view_mode eq 0 or print_select_files_empty" flag="hidden"/>
       <!-- Column headers -->
       <lv_obj name="list_header"
               width="100%" height="content" style_pad_left="#nav_padding" style_pad_right="#nav_padding"
@@ -163,9 +164,9 @@
         <!-- List rows will be dynamically added here via C++ -->
       </lv_obj>
     </lv_obj>
-    <!-- Empty state message (shared, initially hidden) -->
-    <lv_obj name="empty_state_container"
-            width="100%" height="100%" style_pad_all="0" align="center" flex_grow="1" hidden="true">
+    <!-- Empty state message (shared by both views) -->
+    <lv_obj name="empty_state_container" width="100%" height="100%" style_pad_all="0" align="center" flex_grow="1">
+      <bind_flag_if_eq subject="print_select_files_empty" flag="hidden" ref_value="0"/>
       <centered_column width="content" height="content" style_pad_all="#space_xl" align="center" pad_gap="#space_sm">
         <text_heading text="No files available for printing" style_text_align="center"/>
         <text_body text="Upload gcode files to get started" style_text_align="center"/>

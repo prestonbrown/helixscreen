@@ -6,6 +6,7 @@
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::compute_window;
+using helix::ui::pool_rows_for_viewport;
 using helix::ui::VirtualWindow;
 
 namespace {
@@ -143,4 +144,22 @@ TEST_CASE("assign_pool_slots keeps slots whose item stays in the window", "[virt
         CHECK(order == std::vector<size_t>{0, 2, 1});
         CHECK(items == std::vector<ssize_t>{3, 5, 4});
     }
+}
+
+TEST_CASE("pool_rows_for_viewport covers every window and no more", "[virtual_list][pool]") {
+    for (const int viewport : {86, 328, 600}) {
+        for (const int stride : {56, 79}) {
+            const size_t pool = pool_rows_for_viewport(viewport, stride, 50, 2, 100);
+            size_t widest = 0;
+            for (int scroll = 0; scroll <= 50 * stride; ++scroll) {
+                const VirtualWindow w = compute_window(scroll, viewport, stride, 50, 2);
+                widest = std::max(widest, static_cast<size_t>(w.last - w.first));
+            }
+            CAPTURE(viewport, stride);
+            CHECK(pool == widest);
+        }
+    }
+    // A short list or a low cap bounds it.
+    CHECK(pool_rows_for_viewport(600, 79, 5, 2, 100) == 5);
+    CHECK(pool_rows_for_viewport(600, 79, 50, 2, 3) == 3);
 }

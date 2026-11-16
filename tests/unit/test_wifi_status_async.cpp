@@ -7,7 +7,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "async_lifetime_guard.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 

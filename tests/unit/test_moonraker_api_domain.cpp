@@ -11,17 +11,16 @@
  * - Hardware discovery reaching MoonrakerAPI::hardware()
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_hardware.h"
 #include "../../lvgl/lvgl.h"
 #include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_personas.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <chrono>
 #include <thread>
@@ -29,26 +28,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerAPIDomain {
-    LVGLInitializerAPIDomain() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerAPIDomain lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -60,7 +39,7 @@ static LVGLInitializerAPIDomain lvgl_init;
  * Uses MoonrakerClientMock to provide hardware discovery data for testing
  * the domain service operations.
  */
-class MoonrakerAPIDomainTestFixture {
+class MoonrakerAPIDomainTestFixture : public LVGLTestFixture {
   public:
     MoonrakerAPIDomainTestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         // Initialize printer state
@@ -78,7 +57,7 @@ class MoonrakerAPIDomainTestFixture {
     ~MoonrakerAPIDomainTestFixture() {
         // Drain while `state` is still alive — discover_printer() in the ctor
         // leaves PrinterCapabilitiesState's deferred setters queued (#1166).
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
 
         mock_client.stop_temperature_simulation();
         mock_client.disconnect();
@@ -147,7 +126,7 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
 
 TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture, "PrinterHardware::guess_main_led_strip returns LED",
                  "[printer][guessing]") {
-    // VORON_24 seeds four LEDs (moonraker_client_mock.cpp): "neopixel chamber_light",
+    // VORON_24 seeds four LEDs (mock_persona.h): "neopixel chamber_light",
     // "neopixel status_led", "led caselight", "output_pin Enclosure_LEDs". Priority 1
     // walks its keyword list {"case", "chamber", ...} in order and returns the first LED
     // matching the CURRENT keyword, so "case" resolves before "chamber" is ever tried —
@@ -273,4 +252,71 @@ TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
 
     CHECK(verdicts == std::vector<bool>{true, false});
     api->set_bed_mesh_presence_observer(nullptr);
+}
+
+// ============================================================================
+// Database operations: error path with null callbacks
+// ============================================================================
+
+// An unconnected MoonrakerClient refuses at its pre-send guard and invokes the
+// error callback synchronously, so these drive the `if (on_error)` branch of
+// the database helpers' error lambdas.
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "database_get_item error path tolerates a null error callback", "[api][proxy]") {
+    MoonrakerClient offline;
+    MoonrakerAPI offline_api(offline, state);
+
+    // Paired non-null run first: proves the error lambda really is reached in this
+    // setup, so the null run below is exercising the guard rather than nothing.
+    bool success_invoked = false;
+    bool error_invoked = false;
+    offline_api.database_get_item(
+        "helix", "key", [&success_invoked](const json&) { success_invoked = true; },
+        [&error_invoked](const MoonrakerError&) { error_invoked = true; });
+    REQUIRE(error_invoked);
+    REQUIRE_FALSE(success_invoked);
+
+    REQUIRE_NOTHROW(offline_api.database_get_item("helix", "key", [](const json&) {}, nullptr));
+}
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "database_post_item error path tolerates null callbacks", "[api][proxy]") {
+    MoonrakerClient offline;
+    MoonrakerAPI offline_api(offline, state);
+
+    bool success_invoked = false;
+    bool error_invoked = false;
+    offline_api.database_post_item(
+        "helix", "key", json{{"val", 1}}, [&success_invoked]() { success_invoked = true; },
+        [&error_invoked](const MoonrakerError&) { error_invoked = true; });
+    REQUIRE(error_invoked);
+    REQUIRE_FALSE(success_invoked);
+
+    REQUIRE_NOTHROW(
+        offline_api.database_post_item("helix", "key", json{{"val", 1}}, nullptr, nullptr));
+}
+
+// ============================================================================
+// Client state reached through the API
+// ============================================================================
+
+// The mock inherits these from MoonrakerClient, so they run the real client's code.
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "suppressing the disconnect modal is visible on the client", "[api][proxy]") {
+    REQUIRE_FALSE(mock_client.is_disconnect_modal_suppressed());
+
+    api->suppress_disconnect_modal(5000);
+
+    CHECK(mock_client.is_disconnect_modal_suppressed());
+}
+
+TEST_CASE_METHOD(MoonrakerAPIDomainTestFixture,
+                 "is_connected turns false once the client disconnects", "[api][proxy]") {
+    REQUIRE(api->is_connected());
+
+    mock_client.disconnect();
+
+    CHECK_FALSE(api->is_connected());
 }

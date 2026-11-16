@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /// @file ui_variant.h
-/// @brief Shared semantic color variants for icon, status_pill, and future components.
+/// @brief Shared semantic color variants for icon, status_pill and other components.
 /// @pattern Variant enum + ThemeManager palette lookup. Used by ui_icon and ui_status_pill.
 /// @threading Main thread only
 
@@ -12,7 +12,7 @@
 
 namespace helix::ui {
 
-/// Semantic color variants — shared across icon, status_pill, and future components.
+/// Semantic color variants, shared across icon, status_pill and other components.
 enum class Variant {
     NONE,      // Primary text color (default)
     TEXT,      // Same as NONE

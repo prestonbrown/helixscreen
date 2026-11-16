@@ -7,15 +7,15 @@
  *        token — never an empty one.
  *
  * An empty token is not neutral: ObserverGuard::reset() reads a null/empty
- * alive token as "subject already dead" and skips lv_observer_remove(),
+ * alive token as "subject already dead" and skips lv_observer_delete(),
  * orphaning a live observer node whose context is about to be freed. An owner
  * torn down and re-initialized mid-process (test fixtures, printer switches)
  * must therefore be able to fetch a live token between the two.
  */
 
-#include "ui_observer_guard.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -28,10 +28,10 @@ void noop_observer_cb(lv_observer_t*, lv_subject_t*) {}
 
 struct ManagedOwner {
     SubjectManager subjects_;
-    lv_subject_t value_{};
+    helix::Subject value_{};
 
     void init_subjects() {
-        lv_subject_init_int(&value_, 7);
+        value_.init_int(7);
         subjects_.register_subject(&value_, "manager_lifetime_probe");
     }
 };
@@ -49,21 +49,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "SubjectManager flips its death signal before 
 
     // A guard built the way observe_*() builds one: observer attached, token
     // set. Its reset() after the teardown below must skip
-    // lv_observer_remove() on the node lv_subject_deinit() freed.
+    // lv_observer_delete() on the observer the teardown already freed.
     ObserverGuard guard(&owner.value_, noop_observer_cb, nullptr);
     guard.set_alive_token(token);
-    REQUIRE(lv_ll_get_len(&owner.value_.subs_ll) == 1);
+    REQUIRE(lv_ll_get_len(&owner.value_.get()->subs_ll) == 1);
 
     owner.subjects_.deinit_all();
 
     CHECK_FALSE(*token);
-    CHECK(lv_ll_get_len(&owner.value_.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&owner.value_.get()->subs_ll) == 0);
 
     // The crash-hardening half: this reset() dereferences nothing the
-    // teardown freed. With the flip missing it calls lv_observer_remove()
+    // teardown freed. With the flip missing it calls lv_observer_delete()
     // on a freed node.
     guard.reset();
-    CHECK(lv_ll_get_len(&owner.value_.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&owner.value_.get()->subs_ll) == 0);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

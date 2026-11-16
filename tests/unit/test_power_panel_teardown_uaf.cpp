@@ -18,10 +18,10 @@
  */
 
 #include "ui_panel_power.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_panel_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
@@ -68,7 +68,6 @@ class PowerPanelTeardownFixture : public LVGLUITestFixture {
         // would pass for the wrong reason (null pointers are already safe).
         REQUIRE(PowerPanelTestAccess::chip_container(*panel_) != nullptr);
         REQUIRE(PowerPanelTestAccess::device_list_container(*panel_) != nullptr);
-        REQUIRE(PowerPanelTestAccess::empty_state_container(*panel_) != nullptr);
     }
 
     ~PowerPanelTeardownFixture() override {
@@ -126,7 +125,6 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
 
     CHECK(PowerPanelTestAccess::chip_container(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::device_list_container(panel()) == nullptr);
-    CHECK(PowerPanelTestAccess::empty_state_container(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::cached_overlay(panel()) == nullptr);
     CHECK(PowerPanelTestAccess::device_row_count(panel()) == 0);
 }
@@ -140,7 +138,7 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     // Tree dies while the rebuild is still sitting in the queue.
     delete_widget_tree();
 
-    // Pre-fix this drain ran populate_device_chips_impl() on the freed
+    // Unguarded, this drain would run populate_device_chips_impl() on the freed
     // container: safe_clean_children() -> lv_obj_update_layout(), then
     // create_led_chip() -> lv_button_create() -> lv_obj_get_screen(). SIGSEGV.
     UpdateQueue::instance().drain();
@@ -169,7 +167,7 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     delete_widget_tree();
 
     // populate_device_list() is what the get_power_devices reply defers to. It
-    // dereferences device_list_container_/empty_state_container_ and runs
+    // dereferences device_list_container_ and runs
     // clear_device_list() over device_rows_ — all stale after the delete.
     PowerPanelTestAccess::populate_device_list(panel(), sample_devices());
     UpdateQueue::instance().drain();
@@ -284,4 +282,21 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     delete_widget_tree();
     process_lvgl(50);
     SUCCEED("widget tree torn down after the panel without touching freed memory");
+}
+
+TEST_CASE_METHOD(PowerPanelTeardownFixture,
+                 "A rebuilt PowerPanel tree shows no empty state until its fetch answers",
+                 "[power][teardown]") {
+    // The last tree heard "no devices".
+    lv_subject_t* has_devices = lv_xml_get_subject(nullptr, "power_has_devices");
+    REQUIRE(has_devices != nullptr);
+    lv_subject_set_int(has_devices, 0);
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(root(), "empty_state")));
+    delete_widget_tree();
+
+    auto* rebuilt = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "power_panel", nullptr));
+    REQUIRE(rebuilt != nullptr);
+    panel().setup(rebuilt, test_screen());
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(rebuilt, "empty_state")));
+    destroy_panel();
 }

@@ -8,20 +8,18 @@
  *        remote client's home layout takes from the printer's own screen.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_int_subject.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "home_layout_share.h"
@@ -519,14 +517,14 @@ class SeedPopulateFixture : public HomeLayoutSyncFixture {
         lv_obj_set_size(container_, 710, 466);
         lv_obj_set_style_pad_all(container_, 0, 0);
         lv_obj_set_style_border_width(container_, 0, 0);
-        lv_obj_remove_flag(container_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(container_, false);
 
         saved_home_ = global_config_->get<json>(home_path(), json());
         fresh_home();
         helix::ui::set_test_toast_hook([this](ToastSeverity, const std::string& message, uint32_t) {
             toasts.push_back(message);
         });
-        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     ~SeedPopulateFixture() override {
@@ -538,7 +536,7 @@ class SeedPopulateFixture : public HomeLayoutSyncFixture {
         mgr.clear_panel_config("home");
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         res_.reset();
         if (lv_display_t* d = lv_display_get_default()) {
             theme_manager_refresh_layout_constants(d);
@@ -560,7 +558,7 @@ class SeedPopulateFixture : public HomeLayoutSyncFixture {
 
     void populate() {
         PanelWidgetManager::instance().populate_widgets("home", container_, 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void clear_container() {

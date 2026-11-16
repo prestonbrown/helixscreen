@@ -16,7 +16,7 @@
       <!-- SWITCH SENSORS SECTION (filament runout/motion sensors) -->
       <!-- ================================================================== -->
       <setting_group name="switch_sensors_section">
-        <bind_flag_if_eq subject="filament_sensor_count" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="sensor_filament_row_count" flag="hidden" ref_value="0"/>
         <setting_group_header title="SWITCH SENSORS"
                               icon="electric_switch" badge_subject="sensor_filament_row_count" hide_badge="false"/>
         <!-- Section content with inner padding -->
@@ -239,7 +239,7 @@
       <!-- ================================================================== -->
       <!-- NO SENSORS PLACEHOLDER -->
       <!-- ================================================================== -->
-      <!-- Shown only when every section's sensor count is zero -->
+      <!-- Shown only when no section lists a row -->
       <centered_column name="no_sensors_placeholder" flex_grow="1" style_pad_all="#space_lg">
         <bind_flag_if_not_eq subject="sensor_total_count" flag="hidden" ref_value="0"/>
         <icon src="sensor" size="md" variant="secondary"/>

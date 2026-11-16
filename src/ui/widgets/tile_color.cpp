@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tile_color.h"
 
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
-#include "static_subject_registry.h"
-#include "subject_managed_panel.h"
 #include "theme_manager.h"
+#include "widget_subjects.h"
 
 #include <algorithm>
 #include <iterator>
 #include <memory>
+
+#include "hv/json.hpp"
 
 namespace helix::tile_color {
 
@@ -38,11 +40,11 @@ constexpr size_t kPaletteSize = std::size(kPalette);
 constexpr lv_opa_t kMutedShare = 110;
 
 /// Index of the ringed swatch, or -1.
-lv_subject_t s_selected_subject{};
+helix::Subject s_selected_subject{};
 /// tile_color_grid's swatches bind tile_color_swatch_color_<i>.
 std::unique_ptr<helix::xml::IndexedSubjectPool> s_color_pool;
-bool s_registered = false;
-SubjectManager s_subjects;
+// Registered once with the widget factories, so it outlives a printer switch.
+helix::WidgetSubjects s_subjects{"TileColorSubjects", StaticSubjectRegistry::Lifetime::Process};
 
 } // namespace
 
@@ -91,28 +93,19 @@ lv_color_t muted(lv_color_t custom, lv_color_t muted_ref) {
 }
 
 void register_subjects() {
-    if (s_registered) {
-        return;
-    }
-    lv_subject_init_int(&s_selected_subject, -1);
-    s_color_pool = std::make_unique<helix::xml::IndexedSubjectPool>(
-        "tile_color_swatch_color", helix::xml::IndexedSubjectPool::Type::Color);
-    s_color_pool->ensure_size(kPaletteSize);
-    s_subjects.publish("tile_color_selected", &s_selected_subject);
-    // Registered once with the widget factories, so it outlives a printer switch.
-    StaticSubjectRegistry::instance().register_deinit(
-        "TileColorSubjects",
-        []() {
-            s_color_pool.reset();
-            s_subjects.deinit_all();
-            s_registered = false;
+    s_subjects.ensure_init(
+        [] {
+            s_selected_subject.init_int(-1);
+            s_color_pool = std::make_unique<helix::xml::IndexedSubjectPool>(
+                "tile_color_swatch_color", helix::xml::IndexedSubjectPool::Type::Color);
+            s_color_pool->ensure_size(kPaletteSize);
+            s_subjects.publish("tile_color_selected", &s_selected_subject);
         },
-        StaticSubjectRegistry::Lifetime::Process);
-    s_registered = true;
+        [] { s_color_pool.reset(); });
 }
 
 void publish_palette(uint32_t rgb) {
-    if (!s_registered) {
+    if (!s_subjects.initialized()) {
         return;
     }
     for (size_t i = 0; i < kPaletteSize; ++i) {
@@ -125,7 +118,7 @@ void publish_palette(uint32_t rgb) {
 }
 
 void publish_selection(uint32_t rgb) {
-    if (!s_registered) {
+    if (!s_subjects.initialized()) {
         return;
     }
     lv_subject_set_int(&s_selected_subject, palette_index(rgb));

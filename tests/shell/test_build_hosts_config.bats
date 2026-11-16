@@ -118,9 +118,72 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     for k in HELIX_TEST_HOST HELIX_TEST_CONTAINER HELIX_TEST_WORKDIR HELIX_TEST_TREES_HOST \
              HELIX_TEST_TREES HELIX_TEST_CCACHE HELIX_TEST_LOCK_DIR HELIX_TEST_HOST_AUTO \
-             REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR; do
+             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR \
+             HELIX_LAND_GATE_HOSTS; do
         contains "$k" "$output"
     done
+}
+
+@test "the test container's memory limit is a key the file can set" {
+    hosts HELIX_TEST_MEMORY=96g
+    run bash -c '. "$1"; echo "mem=[${HELIX_TEST_MEMORY:-}]"' _ "$LIB"
+    [ "$status" -eq 0 ]
+    contains "mem=[96g]" "$output"
+    lacks "is not a build-hosts key" "$output"
+}
+
+@test "the land-gate hosts pre-push asks are a key the file can set, commas kept" {
+    hosts HELIX_LAND_GATE_HOSTS=helix-dev,zeus.local
+    run bash -c '. "$1"; echo "gate=[${HELIX_LAND_GATE_HOSTS:-}]"' _ "$LIB"
+    [ "$status" -eq 0 ]
+    contains "gate=[helix-dev,zeus.local]" "$output"
+    lacks "is not a build-hosts key" "$output"
+}
+
+@test "a probe with a remote command returns that command's status, 255 for ssh's own failure" {
+    mock_command_script ssh 'while [ $# -gt 1 ]; do shift; done
+case "$1" in true) exit 0 ;; say) echo said; exit 0 ;; no) echo partial; exit 1 ;; *) echo "ssh: connect to host x port 22: Connection refused" >&2; exit 255 ;; esac'
+    run bash -c '. "$1"; probe_build_host h.invalid' _ "$LIB"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    # On success the command's stdout is the probe's; on failure it is not.
+    run bash -c '. "$1"; probe_build_host h.invalid say' _ "$LIB"
+    [ "$status" -eq 0 ]
+    [ "$output" = said ]
+    run bash -c '. "$1"; probe_build_host h.invalid no' _ "$LIB"
+    [ "$status" -eq 1 ]
+    lacks partial "$output"
+    run bash -c '. "$1"; probe_build_host h.invalid refuse' _ "$LIB"
+    [ "$status" -eq 255 ]
+    contains "refused" "$output"
+}
+
+# An ssh that saves what each call reads on stdin (the remote scripts
+# remote-build.sh sends) and succeeds without reaching anything.
+capture_ssh() {
+    mock_command_script ssh 'n=$(ls "$BATS_TEST_TMPDIR"/ssh-in-* 2>/dev/null | wc -l | tr -d " ")
+case " $* " in *" -O "*) exit 0 ;; esac
+cat > "$BATS_TEST_TMPDIR/ssh-in-$n"; exit 0'
+    mock_command_script scp 'exit 0'
+}
+
+@test "remote-build.sh passes no -j unless JOBS names one, so the remote make sizes its own" {
+    capture_ssh
+    hosts REMOTE_HOST=ok.invalid
+    # It reads only git (a diff, the untracked list) and writes a temp dir, so the
+    # real checkout is safe; the scratch tree has no .git for it to read.
+    cd "$ROOT"
+    run scripts/remote-build.sh test
+    [ "$status" -eq 0 ] || fail "remote-build failed: $output"
+    build=$(grep -l "JOBS_ARG=" "$BATS_TEST_TMPDIR"/ssh-in-*)
+    [ -n "$build" ] || fail "no build script captured: $(ls "$BATS_TEST_TMPDIR")"
+    grep -qx 'JOBS_ARG=""' "$build" || fail "$(grep JOBS_ARG= "$build")"
+
+    rm -f "$BATS_TEST_TMPDIR"/ssh-in-*
+    JOBS=-j7 run scripts/remote-build.sh test
+    [ "$status" -eq 0 ] || fail "remote-build failed: $output"
+    build=$(grep -l "JOBS_ARG=" "$BATS_TEST_TMPDIR"/ssh-in-*)
+    grep -qx 'JOBS_ARG="-j7"' "$build" || fail "$(grep JOBS_ARG= "$build")"
 }
 
 @test "a file that exists but cannot be read says so" {
@@ -205,7 +268,7 @@ resolve() { run bash -c '. "$1"; resolve_build_host "$2"; rc=$?; echo "value=[${
     contains "hang.invalid: timeout after 1s" "$output"
 }
 
-@test "no candidate answering fails in one line naming every one tried" {
+@test "no candidate answering fails naming every one tried, with what to try" {
     mock_candidate_ssh
     HELIX_HOST_PROBE_SECS=1 HELIX_TEST_HOST=dead.invalid,hang.invalid resolve HELIX_TEST_HOST
     [ "$status" -ne 0 ]
@@ -214,6 +277,14 @@ resolve() { run bash -c '. "$1"; resolve_build_host "$2"; rc=$?; echo "value=[${
     HELIX_HOST_PROBE_SECS=1 HELIX_TEST_HOST=dead.invalid run bash -c '. "$1"; HELIX_TEST_HOST=dead.invalid,dead2.invalid; require_build_host HELIX_TEST_HOST' _ "$LIB"
     [ "$status" -eq 2 ]
     contains "no candidate answered" "$output"
+    contains "HELIX_HOST_PROBE_SECS=30" "$output"
+}
+
+@test "a raised probe limit reaches ssh's own connect timeout, in the probe and in a run" {
+    mock_command_script ssh 'printf "%s\n" "$*" >> "$BATS_TEST_TMPDIR/ssh-args"'
+    HELIX_HOST_PROBE_SECS=7 HELIX_TEST_HOST=a.invalid,b.invalid resolve HELIX_TEST_HOST
+    grep -q "ConnectTimeout=7" "$BATS_TEST_TMPDIR/ssh-args"
+    grep -q 'ConnectTimeout=${HELIX_HOST_PROBE_SECS:-3}' "$ROOT/scripts/test-host-run.sh"
 }
 
 @test "a resolved host is not probed again, in the same shell or a child" {

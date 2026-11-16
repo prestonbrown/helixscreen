@@ -612,6 +612,7 @@ class HelixEdits:
         temp_file_path = web_request.get_str("temp_file_path", "")
         edits = web_request.get_list("edits", [])
         modifications = web_request.get_list("modifications", [])
+        tools = helix.tools_param(web_request)
 
         try:
             parse_edits(edits)
@@ -636,7 +637,8 @@ class HelixEdits:
         )
 
         result = await helix.start_linked_print(
-            original_filename, temp_file_path, modifications, True, "print_edited"
+            original_filename, temp_file_path, modifications, True, "print_edited",
+            tools=tools,
         )
         result["lines_changed"] = changed
         return result

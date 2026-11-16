@@ -45,7 +45,7 @@ graph TB
             AS["AmsState<br/>AmsBackendRegistry +<br/>per-system backends"]
             TS["ToolState<br/>multi-tool tracking"]
             SM["SettingsManager"]
-            SENSORS["7 sensor managers<br/>temp/humidity/width/probe/<br/>accel/load cell/filament"]
+            SENSORS["8 sensor managers<br/>temp/humidity/width/probe/<br/>accel/load cell/filament/input"]
         end
         subgraph Comms["Communication Layer"]
             MC["IMoonrakerClient<br/>WebSocket + JSON-RPC"]
@@ -179,6 +179,44 @@ explains it.
 | pay down tech debt | [ch. 15 - Known debt](architecture/15-known-debt.md) |
 | work on the G-code viewer, the print-status preview, or object picking | [ch. 16 - G-code pipeline](architecture/16-gcode-pipeline.md) |
 | work on the ESP32 (BTT K-Touch) firmware | [ch. 17 - ESP32 firmware](architecture/17-esp32-firmware.md) |
+
+## The layer map
+
+Every `src/<dir>` sits in one layer, and an include may point down the stack or
+sideways, never up: lower layers emit data and events, the UI presents them. The
+table is `LAYERS` in [`scripts/check_layering.py`](../../scripts/check_layering.py),
+which `--report` prints as a directory-to-directory include matrix.
+
+| Layer, low to high | Directories | Holds |
+|---|---|---|
+| core | `core`, `util`, `utils`, `config`, `generated` | text, logging, thread-to-main and registry plumbing every layer uses |
+| platform | `network`, `bluetooth`, `input`, `platform` | the OS and the hardware, never printer state |
+| moonraker | `api`, `mock` | the Moonraker client, its API façade and the mock printer |
+| state | `printer`, `temperature`, `spoolman`, `print`, `calibration`, `sensors`, `led`, `plugin`, `system` | subjects, backends and services |
+| rendering | `rendering` | G-code geometry and thumbnails |
+| ui | `ui` | LVGL widgets, panels, overlays, modals |
+| app | `application`, `abort`, `remote`, `tools`, `lvgl-demo` | wiring and lifecycle |
+
+A header belongs to the directory holding the `.cpp` of the same stem; one with no
+`.cpp` belongs to the layer its name or `include/` subdirectory serves (`include/core/`
+is core's; `ui_*.h`, `include/ui/` and `include/helix/ui/` are ui's; `include/led/`,
+`include/system/` and `include/state/` are led's, system's and printer's), and one matching neither is
+header-only and belongs to nobody until it is moved under a layer. The
+gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork point:
+a file may lose upward includes and may not gain one, a refactor that empties a
+directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
+message line `Layering: <path> <reason>` grants one file that cannot wait. The
+upward includes the tree still carries are tracked in #1952.
+
+To tell the user something, `src/printer` publishes a plain `helix::Notice`
+(`include/notice.h`) with `publish_notice()`, which delivers on the calling thread.
+`src/ui/notify/ui_toast_manager.cpp` subscribes during static initialization and
+shows the toast; `ToastManager` marshals its own widget work to the main thread.
+What is more than a toast (a prompt, a navigation, a recovery window) is a
+`helix::UiRequest` of a typed `UiRequestKind`, published with `publish_ui_request()`.
+The UI file that owns the action installs that kind's handler with a
+`UiRequestRegistration`. Delivery is synchronous and returns nothing, so a request
+keeps its caller's thread and order, and each kind states the thread it needs.
 
 ## The rules with teeth
 

@@ -12,6 +12,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_types.h"
+#include "core/subject.h"
 #include "filament_variants.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/draw/lv_draw_private.h"
@@ -393,12 +394,11 @@ TEST_CASE("SlotInfo::finish: never from the colour name", "[swatch]") {
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "swatch_paint: a cleared or uncoloured swatch is never left blank by a binding",
                  "[swatch]") {
-    static lv_subject_t colors_subject;
+    static helix::Subject colors_subject;
     static char colors_buf[64];
-    static lv_subject_t color_subject;
-    lv_subject_init_string(&colors_subject, colors_buf, nullptr, sizeof(colors_buf),
-                           "#FF0000,#0000FF");
-    lv_subject_init_color(&color_subject, lv_color_hex(0x00FF00));
+    static helix::Subject color_subject;
+    colors_subject.init_string(colors_buf, nullptr, sizeof(colors_buf), "#FF0000,#0000FF");
+    color_subject.init_color(lv_color_hex(0x00FF00));
     lv_xml_register_subject(nullptr, "test_swatch_colors", &colors_subject);
     lv_xml_register_subject(nullptr, "test_swatch_color", &color_subject);
 
@@ -408,7 +408,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto* multi = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "swatch_paint", multi_attrs));
     REQUIRE(multi != nullptr);
     helix::ui::apply_swatch_color(multi, 0xAA5500, "");
-    lv_subject_copy_string(&colors_subject, "");
+    lv_subject_set_string(&colors_subject, "");
     auto colors = helix::ui::swatch_paint_colors(multi);
     REQUIRE(colors.size() == 1);
     CHECK(lv_color_eq(colors[0], lv_color_hex(0xAA5500)));
@@ -436,8 +436,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_delete(bound);
     lv_xml_unregister_subject(nullptr, "test_swatch_colors");
     lv_xml_unregister_subject(nullptr, "test_swatch_color");
-    lv_subject_deinit(&colors_subject);
-    lv_subject_deinit(&color_subject);
+    colors_subject.reset();
+    color_subject.reset();
 }
 
 // ---------------------------------------------------------------------------

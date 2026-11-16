@@ -5,9 +5,8 @@
 // (helix::tool_topology); ToolState builds its tools from the answer and never
 // names the vendor.
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "fixed_tool_topology.h"
 #include "printer_discovery.h"
 #include "tool_state.h"

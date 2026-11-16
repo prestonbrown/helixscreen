@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -57,7 +57,7 @@ inline constexpr const char* kMinMoonrakerVersion = "0.9.0";
  * Tracks Klipper and Moonraker version strings for display in the Settings
  * panel About section. Both subjects are string subjects with 64-byte buffers.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * Default value for both subjects is "—" (em dash, U+2014) to indicate
  * version information has not yet been received from Moonraker.
@@ -67,7 +67,6 @@ class PrinterVersionsState {
     PrinterVersionsState() = default;
     ~PrinterVersionsState() = default;
 
-    // Non-copyable
     PrinterVersionsState(const PrinterVersionsState&) = delete;
     PrinterVersionsState& operator=(const PrinterVersionsState&) = delete;
 
@@ -126,10 +125,6 @@ class PrinterVersionsState {
     // Subject accessors
     // ========================================================================
 
-    /**
-     * @brief Get Klipper version subject for XML binding
-     * @return Pointer to string subject
-     */
     lv_subject_t* get_klipper_version_subject() {
         return &klipper_version_;
     }
@@ -164,10 +159,6 @@ class PrinterVersionsState {
         return &moonraker_version_;
     }
 
-    /**
-     * @brief Get OS version subject for XML binding
-     * @return Pointer to string subject
-     */
     lv_subject_t* get_os_version_subject() {
         return &os_version_;
     }
@@ -179,11 +170,11 @@ class PrinterVersionsState {
     bool subjects_initialized_ = false;
 
     // Version subjects (string, 64-byte buffer each)
-    lv_subject_t klipper_version_{};
-    lv_subject_t moonraker_version_{};
-    lv_subject_t os_version_{};
-    lv_subject_t moonraker_history_degraded_{};
-    lv_subject_t klipper_firmware_name_{};
+    helix::Subject klipper_version_{};
+    helix::Subject moonraker_version_{};
+    helix::Subject os_version_{};
+    helix::Subject moonraker_history_degraded_{};
+    helix::Subject klipper_firmware_name_{};
 
     // String buffers for subject storage
     char klipper_version_buf_[64]{};

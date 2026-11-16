@@ -8,19 +8,23 @@
 #include "ui_swatch.h"
 
 #include "app_globals.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
+#include "humidity_sensor_types.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "observe_language.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
+#include "settings_manager.h"
+#include "sort_small.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
@@ -156,6 +160,11 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Bed and chamber are named here, not by the printer layer.
     language_observer_ = helix::ui::observe_language_change(
         this, [](TempGraphWidget* self) { self->refresh_series_names(); });
+    // Extruder series are named "Nozzle 2" or "Nozzle T1" by the tool number style.
+    auto& settings = helix::SettingsManager::instance();
+    tool_number_style_observer_ = helix::ui::observe_int_change(
+        settings.subject_tool_number_style(), settings.get_subjects_lifetime(), this,
+        [](TempGraphWidget* self) { self->refresh_series_names(); });
 
     // The graph is `merges_into_card = false` — it reads as its own panel, not
     // as one tile in a fused run — so it supplies its own surface. Use the
@@ -173,6 +182,7 @@ void TempGraphWidget::detach() {
     cancel_discovery_rebuild();
     extruder_version_observer_.reset();
     language_observer_.reset();
+    tool_number_style_observer_.reset();
     controller_.reset();
 
     widget_obj_ = nullptr;
@@ -219,21 +229,19 @@ void TempGraphWidget::refresh_series_names() {
         return;
     }
     for (const auto& entry : config_["sensors"]) {
-        if (entry.contains("name") && entry["name"].is_string()) {
-            const std::string name = entry["name"].get<std::string>();
-            controller_->set_series_name(name, TempGraphConfigModal::sensor_display_name(name));
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name")) {
+            controller_->set_series_name(*name, TempGraphConfigModal::sensor_display_name(*name));
         }
     }
 }
 
 void TempGraphWidget::rebuild_in_place() {
-    // Snapshot the *current* widget pointers before detach() nulls them. They
-    // can also have been freed underneath us (a panel rebuild between
-    // modal-open and save — bundle RP293UCW), hence the validity check.
-    auto* current_widget = widget_obj_;
-    auto* current_parent = parent_screen_;
+    // detach() nulls the members, and a panel rebuild between modal-open and
+    // save can free the container too (bundle RP293UCW): handles read nullptr then.
+    const helix::ui::WeakWidget current_widget(widget_obj_);
+    const helix::ui::WeakWidget current_parent(parent_screen_);
     detach();
-    if (!current_widget || !lv_obj_is_valid(current_widget)) {
+    if (!current_widget) {
         spdlog::warn("[TempGraphWidget] '{}' rebuild: widget container gone, skipping reattach",
                      instance_id_);
         return;
@@ -339,10 +347,11 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
 
     int color_idx = 0;
     for (const auto& entry : config_["sensors"]) {
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
-        const std::string klipper_name = entry["name"].get<std::string>();
+        const std::string klipper_name = std::move(*name);
         bool enabled;
         if (use_snapshot) {
             enabled =
@@ -356,8 +365,8 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
         TempGraphSeriesSpec spec;
         spec.klipper_name = klipper_name;
         spec.display_name = TempGraphConfigModal::sensor_display_name(klipper_name);
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            spec.color = lv_color_hex(entry["color"].get<uint32_t>());
+        if (auto hex = helix::json_util::read_integer_field(entry, "color")) {
+            spec.color = lv_color_hex(static_cast<uint32_t>(*hex));
         } else {
             spec.color = kTempGraphSeriesColors[color_idx % kTempGraphPaletteSize];
         }
@@ -464,8 +473,8 @@ bool TempGraphWidget::merge_discovered_extruders(nlohmann::json& config, bool en
     auto& arr = config["sensors"];
     std::set<std::string> existing;
     for (const auto& entry : arr) {
-        if (entry.contains("name") && entry["name"].is_string())
-            existing.insert(entry["name"].get<std::string>());
+        if (auto name = helix::json_util::read_field<std::string>(entry, "name"))
+            existing.insert(std::move(*name));
     }
 
     bool added = false;
@@ -501,16 +510,16 @@ using helix::xml::IndexedSubjectPool;
 IndexedSubjectPool s_cfg_name{"temp_graph_cfg", IndexedSubjectPool::Type::String, 96, "_name"};
 IndexedSubjectPool s_cfg_color{"temp_graph_cfg", IndexedSubjectPool::Type::Color, 0, "_color"};
 IndexedSubjectPool s_cfg_on{"temp_graph_cfg", IndexedSubjectPool::Type::Int, 0, "_on"};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_count_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_follow_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_follow_subject{};
 helix::WidgetSubjects s_cfg_subjects{"TempGraphConfigSubjects"};
 
 void temp_graph_config_init_subjects() {
     s_cfg_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_cfg_count_subject, 0);
+            s_cfg_count_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_rows", &s_cfg_count_subject);
-            lv_subject_init_int(&s_cfg_follow_subject, 0);
+            s_cfg_follow_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_follow", &s_cfg_follow_subject);
         },
         [] {
@@ -526,13 +535,10 @@ uint32_t series_rgb(int color_idx) {
 
 } // namespace
 
-TempGraphWidget::TempGraphConfigModal* TempGraphWidget::TempGraphConfigModal::s_active_ = nullptr;
-
 TempGraphWidget::TempGraphConfigModal::TempGraphConfigModal(const nlohmann::json& config,
                                                             SaveCallback on_save)
     : config_(config), on_save_(std::move(on_save)) {
     temp_graph_config_init_subjects();
-    s_active_ = this;
     // The rows are published before the dialog is built, so the XML <repeat>
     // expands with them in place.
     populate_sensor_list();
@@ -540,11 +546,6 @@ TempGraphWidget::TempGraphConfigModal::TempGraphConfigModal(const nlohmann::json
         &s_cfg_follow_subject,
         config_.is_object() && helix::json_util::safe_bool(config_, "follow_overlay", false) ? 1
                                                                                              : 0);
-}
-
-TempGraphWidget::TempGraphConfigModal::~TempGraphConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
 }
 
 void TempGraphWidget::TempGraphConfigModal::on_show() {
@@ -596,7 +597,9 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
         // guessing multi. "extruderN" (N >= 1) implies multi and gets a number.
         if (*tool_number == 0)
             return lv_tr("Nozzle");
-        return std::string(lv_tr("Nozzle")) + " " + helix::ui::lane_number_text(*tool_number);
+        return std::string(lv_tr("Nozzle")) + " " +
+               helix::ui::tool_number_text(helix::ui::active_tool_number_style(),
+                                           helix::ui::tool_label(*tool_number), *tool_number);
     }
     if (klipper_name == "heater_bed")
         return lv_tr("Bed");
@@ -618,7 +621,7 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
             ch = ' ';
     }
 
-    return display;
+    return helix::sensors::with_humidity_chip_suffix(std::move(display), klipper_name);
 }
 
 void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
@@ -641,11 +644,11 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     {
         auto& arr = config_["sensors"];
         auto entry_is_extruder = [](const nlohmann::json& entry) {
-            return entry.contains("name") && entry["name"].is_string() &&
-                   is_extruder_name(entry["name"].get<std::string>());
+            auto name = helix::json_util::read_field<std::string>(entry, "name");
+            return name && is_extruder_name(*name);
         };
         auto split = std::stable_partition(arr.begin(), arr.end(), entry_is_extruder);
-        std::sort(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
+        helix::sort_small(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
             return a["name"].get<std::string>() < b["name"].get<std::string>();
         });
     }
@@ -654,16 +657,17 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
     const auto& sensors = config_["sensors"];
     for (size_t i = 0; i < sensors.size(); ++i) {
         const auto& entry = sensors[i];
-        if (!entry.contains("name") || !entry["name"].is_string())
+        auto name = helix::json_util::read_field<std::string>(entry, "name");
+        if (!name)
             continue;
 
         SensorRow row;
-        row.name = entry["name"].get<std::string>();
+        row.name = std::move(*name);
         row.display = sensor_display_name(row.name);
 
         // Find the matching color index from the palette
-        if (entry.contains("color") && entry["color"].is_number_integer()) {
-            uint32_t cfg_hex = entry["color"].get<uint32_t>();
+        if (auto color = helix::json_util::read_integer_field(entry, "color")) {
+            uint32_t cfg_hex = static_cast<uint32_t>(*color);
             lv_color_t cfg_color = lv_color_hex(cfg_hex);
             row.color_idx = static_cast<int>(i) % kTempGraphPaletteSize; // default
             for (int ci = 0; ci < kTempGraphPaletteSize; ++ci) {
@@ -717,14 +721,14 @@ void TempGraphWidget::TempGraphConfigModal::set_follow(bool on) {
 void TempGraphWidget::config_swatch_cb(lv_event_t* e) {
     // XML event user_data is the row's index as a string.
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && index)
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && index)
         modal->cycle_color(static_cast<size_t>(std::atoi(index)));
 }
 
 void TempGraphWidget::config_series_switch_cb(lv_event_t* e) {
     const char* index = static_cast<const char*>(lv_event_get_user_data(e));
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && index && sw) {
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && index && sw) {
         modal->set_series_on(static_cast<size_t>(std::atoi(index)),
                              lv_obj_has_state(sw, LV_STATE_CHECKED));
     }
@@ -732,7 +736,7 @@ void TempGraphWidget::config_series_switch_cb(lv_event_t* e) {
 
 void TempGraphWidget::config_follow_switch_cb(lv_event_t* e) {
     auto* sw = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (auto* modal = TempGraphConfigModal::active(); modal && sw)
+    if (auto* modal = Modal::from_event<TempGraphConfigModal>(e); modal && sw)
         modal->set_follow(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 

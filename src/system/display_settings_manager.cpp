@@ -3,22 +3,23 @@
 
 #include "display_settings_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
 #include "helix_psram_attr.h"
-#include "lvgl/src/others/translation/lv_translation.h"
-#include "observer_factory.h"
+#include "lvgl.h"
+#include "notice.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
+#include "preset_materials.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
 #include "screensaver_setting.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 #include "timezone_env.h"
@@ -30,6 +31,7 @@
 #include <iterator>
 
 #ifdef __ANDROID__
+#include "core/temperature_units.h"
 #include "system/android_jni.h"
 
 #include <SDL_system.h>
@@ -172,7 +174,6 @@ static int find_timezone_entry(const std::string& iana_id) {
 template <size_t N>
 static int validate_timeout_option(int value, const int (&options)[N], int default_value,
                                    const char* setting_name) {
-    // Check if value is exactly one of the valid options
     for (size_t i = 0; i < N; ++i) {
         if (options[i] == value) {
             return value; // Valid
@@ -236,6 +237,12 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
     // The saved choice; glass shows only where the glass gate also passes.
     {"settings_glass_effects", "/display/glass_effects", Scope::Global, true, 0, 0, 1,
      "glass_effects"},
+    {"settings_screensaver_print_progress", "/display/screensaver_print_progress", Scope::Global,
+     true, 1, 0, 1, "screensaver_print_progress"},
+    // 0=°C, 1=°F
+    {"settings_temp_unit", "/display/temp_unit", Scope::Global, false, 0, 0, 1, "temp_unit"},
+    // 0=DMY, 1=MDY, 2=YMD; while unsaved the subject holds the language's order
+    {"settings_date_format", "/display/date_format", Scope::Global, false, 1, 0, 2, "date_format"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {
@@ -294,6 +301,16 @@ void DisplaySettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(display_sleep_subject_, sleep_sec, "settings_display_sleep", subjects_);
 
     settings_.init(subjects_);
+    units::set_display_temp_unit(get_temp_unit());
+    units::publish_temp_unit();
+    UI_MANAGED_SUBJECT_STRING(temp_unit_symbol_subject_, temp_unit_symbol_buf_,
+                              units::display_temp_symbol(), "settings_temp_unit_symbol", subjects_);
+    if (has_saved_date_format()) {
+        set_saved_date_format(get_date_format());
+    } else {
+        set_saved_date_format(std::nullopt);
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
 
     // Has backlight control subject (for UI visibility) - check DisplayManager
     bool has_backlight = false;
@@ -413,10 +430,10 @@ void DisplaySettingsManager::init_subjects() {
 
     // Cross-validate: sleep must be >= dim when the device dims OR a screensaver
     // provides the dim-stage visual (#1049). This runs AFTER screensaver_type is
-    // initialized so should_couple_sleep_to_dim() sees it. Critical for the field
-    // config in bundle 3VDWMLYQ (no backlight, screensaver on, persisted
-    // sleep=60 < dim=600) — it self-corrects on next launch instead of starving
-    // the screensaver. Config can also be inconsistent from manual edits.
+    // initialized so should_couple_sleep_to_dim() sees it. A config with no
+    // backlight, the screensaver on and sleep=60 < dim=600 self-corrects on next
+    // launch instead of starving the screensaver. Config can also be
+    // inconsistent from manual edits.
     if (should_couple_sleep_to_dim() && dim_sec > 0 && sleep_sec > 0 && sleep_sec < dim_sec) {
         spdlog::warn("[DisplaySettingsManager] Config inconsistency: sleep {}s < dim {}s, "
                      "clamping sleep to dim",
@@ -606,8 +623,7 @@ void DisplaySettingsManager::set_display_dim_sec(int seconds) {
         lv_subject_set_int(&display_sleep_subject_, seconds);
         config->set<int>("/display/sleep_sec", seconds);
         config->save();
-        ToastManager::instance().show(ToastSeverity::INFO,
-                                      lv_tr("Sleep adjusted to match dim timeout"), 2000);
+        publish_notice({NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
     }
 
     spdlog::debug("[DisplaySettingsManager] Display dim set to {}s", seconds);
@@ -632,8 +648,8 @@ void DisplaySettingsManager::set_display_sleep_sec(int seconds) {
             spdlog::info("[DisplaySettingsManager] Clamping sleep {}s to dim {}s", seconds,
                          dim_sec);
             seconds = dim_sec;
-            ToastManager::instance().show(ToastSeverity::INFO,
-                                          lv_tr("Sleep adjusted to match dim timeout"), 2000);
+            publish_notice(
+                {NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
         }
     }
 
@@ -839,6 +855,46 @@ void DisplaySettingsManager::set_ui_scale_percent(int percent) {
         "[DisplaySettingsManager] set_ui_scale_percent({}) -> {} (applies on next start)", percent,
         stored == helix::DisplayMetrics::kScaleSettingAutomatic ? std::string("automatic")
                                                                 : std::to_string(stored) + "%");
+}
+
+void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
+    settings_.set(Key::TempUnit, static_cast<int>(unit));
+    units::set_display_temp_unit(get_temp_unit());
+    if (subjects_initialized_) {
+        lv_subject_set_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
+    }
+    // Text formatted in C++ from cached Celsius values re-formats from this; the
+    // printer's temperature subjects are left alone.
+    units::publish_temp_unit();
+    // The preset labels are formatted once into shared subjects; redo them now.
+    presets::refresh_subjects();
+    spdlog::info("[DisplaySettingsManager] Temperature unit set to {}",
+                 units::temp_unit_symbol(get_temp_unit()));
+}
+
+bool DisplaySettingsManager::has_saved_date_format() const {
+    Config* config = Config::get_instance();
+    return config &&
+           config->exists(kDisplaySettings[static_cast<size_t>(Key::DateFormat)].json_path);
+}
+
+DateFormat DisplaySettingsManager::get_date_format() const {
+    if (!has_saved_date_format()) {
+        Config* config = Config::get_instance();
+        return default_date_format_for_language(config ? config->get_language() : "");
+    }
+    return static_cast<DateFormat>(std::clamp(settings_.get(Key::DateFormat), 0, 2));
+}
+
+void DisplaySettingsManager::set_date_format(DateFormat format) {
+    settings_.set(Key::DateFormat, static_cast<int>(format));
+    set_saved_date_format(get_date_format());
+}
+
+void DisplaySettingsManager::on_language_changed() {
+    if (subjects_initialized_ && !has_saved_date_format()) {
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
 }
 
 void DisplaySettingsManager::set_gcode_render_mode(int mode) {

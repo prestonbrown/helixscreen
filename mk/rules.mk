@@ -187,8 +187,14 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # Each compilation emits a .ccj (compile command JSON) fragment alongside .o
 # Running 'make compile_commands' merges them instantly (no full rebuild needed)
 #
-# Usage: $(call emit-compile-command,compiler,flags,source,output)
-# Example: $(call emit-compile-command,$(CXX),$(CXXFLAGS) $(INCLUDES),$<,$@)
+# Usage: $(call emit-compile-command,command,source,output)
+# Example: $(call emit-compile-command,$(call APP_CXX_COMPILE),$<,$@)
+#
+# The command is one of the *_COMPILE functions below, called with no argument:
+# the same text the rule's recipe runs, without the arguments only the recipe
+# passes (DEPFLAGS, TEST_WARN_FLAGS). print-compile-command (Makefile) prints the
+# same function for a source, so a fragment, the recipe and that target cannot
+# describe one file three ways.
 #
 # The command must stay shell-ready: a consumer splits it back into argv, so a
 # define whose value has to reach the compiler WITH quotes (-DNAME="text") needs
@@ -198,15 +204,32 @@ DEPFILES := $(wildcard $(OBJ_DIR)/*.d $(OBJ_DIR)/**/*.d)
 # are escaped again for JSON.
 # ============================================================================
 define emit-compile-command
-	@CMD="$(1) $(2) -c $(3) -o $(4)"; \
+	@CMD="$(1) -c $(2) -o $(3)"; \
 	CMD_SH=$$(echo "$$CMD" | sed "s/\(-D[A-Za-z_][A-Za-z0-9_]*=\)\(\"[^\" ]*\"\)/\1'\2'/g"); \
 	CMD_ESC=$$(echo "$$CMD_SH" | sed 's/"/\\"/g'); \
 	printf '{"directory": "%s", "file": "%s", "command": "%s"}\n' \
 		"$(CURDIR)" \
-		"$(abspath $(3))" \
+		"$(abspath $(2))" \
 		"$$CMD_ESC" \
-		> $(4:.o=.ccj)
+		> $(3:.o=.ccj)
 endef
+
+# The compiler and flags of each object rule, without -c and -o. $(1) is where a
+# recipe adds the arguments its fragment leaves out, so the recipe, its .ccj and
+# print-compile-command all expand one definition. The tests/ rules have theirs
+# in mk/tests.mk, the Bluetooth plugin's in mk/bluetooth.mk.
+APP_C_COMPILE = $(CC) $(CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
+APP_CXX_COMPILE = $(CXX) $(CXXFLAGS) $(1) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF)
+LVGL_C_COMPILE = $(CC) $(LVGL_C_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
+LVGL_CXX_COMPILE = $(CXX) $(SUBMODULE_CXXFLAGS) $(1) $(INCLUDES) $(LV_CONF)
+LVGL_GLES_COMPILE = $(CXX) $(SUBMODULE_CXXFLAGS) -fpermissive $(1) $(INCLUDES) $(LV_CONF)
+LVGL_DEMO_COMPILE = $(CC) $(1) $(LVGL_INC) $(SUBMODULE_CFLAGS)
+HELIX_XML_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
+SPDLOG_COMPILE = $(CXX) $(SUBMODULE_CXXFLAGS) $(1) $(SPDLOG_DEFINES) $(SPDLOG_INC)
+LV_MARKDOWN_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
+QUIRC_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES)
+LUA_COMPILE = $(CXX) -x c++ $(SUBMODULE_CXXFLAGS) $(1) $(INCLUDES)
+FONT_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 
 # Compile app C sources
 # Uses DEPFLAGS to generate .d files for header dependency tracking
@@ -215,14 +238,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CC]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(CFLAGS) $(DEPFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call APP_C_COMPILE,$(DEPFLAGS)) -c $< -o $@"
 endif
-	$(Q)$(CC) $(CFLAGS) $(DEPFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call APP_C_COMPILE,$(DEPFLAGS)) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
-		echo "$(YELLOW)Command:$(RESET) $(CC) $(CFLAGS) $(DEPFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		echo "$(YELLOW)Command:$(RESET) $(call APP_C_COMPILE,$(DEPFLAGS)) -c $< -o $@"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call APP_C_COMPILE),$<,$@)
 
 # dns_resolv.c is created by the libhv DNS resolver fallback patch, so make has
 # to know PATCHES_STAMP produces it, or a parallel build on a pristine tree fails
@@ -264,11 +287,16 @@ endif
 # rebuilds every object over identical flags. Instead, a dry run whose flags
 # differ marks the stamp phony, so it still reports the objects that would
 # rebuild.
+#
+# The land gate runs several makes in one tree at once, so each parse writes
+# its own temp file, suffixed with make's pid (the $(shell)'s parent), and
+# renames it over the stamp only when the text differs: a shared temp file
+# would let one parse truncate it while another compares it.
 FLAGS_STAMP_TEXT := $(CC) $(CFLAGS) $(CXX) $(CXXFLAGS) $(SUBMODULE_CXXFLAGS) $(SUBMODULE_CFLAGS) $(LVGL_C_CFLAGS)
 ifeq ($(findstring n,$(firstword -$(MAKEFLAGS)))$(findstring q,$(firstword -$(MAKEFLAGS))),)
-$(shell mkdir -p $(OBJ_DIR))
-$(file >$(FLAGS_STAMP).new,$(FLAGS_STAMP_TEXT))
-$(shell cmp -s $(FLAGS_STAMP).new $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP).new $(FLAGS_STAMP); rm -f $(FLAGS_STAMP).new)
+FLAGS_STAMP_TMP := $(FLAGS_STAMP).new.$(shell mkdir -p $(OBJ_DIR) && echo $$PPID)
+$(file >$(FLAGS_STAMP_TMP),$(FLAGS_STAMP_TEXT))
+$(shell cmp -s $(FLAGS_STAMP_TMP) $(FLAGS_STAMP) || mv -f $(FLAGS_STAMP_TMP) $(FLAGS_STAMP); rm -f $(FLAGS_STAMP_TMP))
 else ifneq ($(file <$(FLAGS_STAMP)),$(FLAGS_STAMP_TEXT))
 .PHONY: $(FLAGS_STAMP)
 endif
@@ -280,14 +308,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STA
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
-		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		echo "$(YELLOW)Command:$(RESET) $(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call APP_CXX_COMPILE),$<,$@)
 
 # Large-file support for the gcode reader. FileDataSource addresses gcode by
 # uint64_t but seeks with fseeko/ftello, whose off_t is 32-bit on our 32-bit
@@ -305,9 +333,16 @@ endif
 $(OBJ_DIR)/rendering/gcode_data_source.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 # text_io opens, stats and seeks every file the ESP32-cut code reads, G-code
 # included; its API carries int64_t offsets, never off_t.
-$(OBJ_DIR)/system/text_io.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
+$(OBJ_DIR)/core/text_io.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 # helix_fs stats and lists the same files; a 32-bit stat fails a >2GB file with EOVERFLOW.
 $(OBJ_DIR)/system/helix_fs.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
+
+# print-compile-command (Makefile) prints a source's command from outside its
+# object's context, where no target-specific variable reaches, so it adds these
+# from here. tests/shell/test_print_compile_command.bats fails when an object
+# carries a target-specific CXXFLAGS this list does not repeat.
+LFS_OBJS := $(OBJ_DIR)/rendering/gcode_data_source.o $(OBJ_DIR)/core/text_io.o $(OBJ_DIR)/system/helix_fs.o
+LFS_CXXFLAGS := -D_FILE_OFFSET_BITS=64
 
 # Compile app Objective-C++ sources (macOS .mm files)
 # Uses DEPFLAGS to generate .d files for header dependency tracking
@@ -316,14 +351,14 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAM
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[OBJCXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
-		echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(DEPFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF) -c $< -o $@"; \
+		echo "$(YELLOW)Command:$(RESET) $(call APP_CXX_COMPILE,$(DEPFLAGS)) -c $< -o $@"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),$(CXXFLAGS) $(FORCED_INCLUDE) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call APP_CXX_COMPILE),$<,$@)
 
 # Compile LVGL sources (use SUBMODULE_CFLAGS to suppress third-party warnings)
 # NOTE: No DEPFLAGS for internal LVGL headers - 600+ files whose deps bloat make startup.
@@ -340,13 +375,13 @@ $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(F
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(LVGL_C_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call LVGL_C_COMPILE) -c $< -o $@"
 endif
-	$(Q)$(CC) $(LVGL_C_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call LVGL_C_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(LVGL_C_CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call LVGL_C_COMPILE),$<,$@)
 
 # Compile Helix XML sources (our MIT fork of LVGL's XML engine)
 # lib/helix-xml is a submodule, but OURS (github.com/prestonbrown/helix-xml) -
@@ -357,11 +392,11 @@ endif
 $(OBJ_DIR)/helix-xml/%.o: $(HELIX_XML_DIR)/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
-	$(Q)$(CC) $(SUBMODULE_CFLAGS) $(DEPFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call HELIX_XML_COMPILE,$(DEPFLAGS)) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call HELIX_XML_COMPILE),$<,$@)
 
 # Compile LVGL C++ sources (ThorVG) - use SUBMODULE_CXXFLAGS
 # No forced include: lv_conf.h compiles ThorVG out (LV_USE_THORVG_INTERNAL 0),
@@ -373,23 +408,23 @@ $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.cpp lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(SUBMODULE_CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call LVGL_CXX_COMPILE) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(SUBMODULE_CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call LVGL_CXX_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),$(SUBMODULE_CXXFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call LVGL_CXX_COMPILE),$<,$@)
 
 # Compile spdlog's own sources (SPDLOG_COMPILED_LIB), once for every binary
 $(OBJ_DIR)/spdlog/%.o: $(SPDLOG_DIR)/src/%.cpp $(ABI_STAMP) $(FLAGS_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CXX]$(RESET) $<"
-	$(Q)$(CXX) $(SUBMODULE_CXXFLAGS) $(SPDLOG_DEFINES) $(SPDLOG_INC) -c $< -o $@ || { \
+	$(Q)$(call SPDLOG_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),$(SUBMODULE_CXXFLAGS) $(SPDLOG_DEFINES) $(SPDLOG_INC),$<,$@)
+	$(call emit-compile-command,$(call SPDLOG_COMPILE),$<,$@)
 
 # Compile LVGL OpenGL ES shader assets as C++ (raw string literals require C++11)
 # Only the assets/ subdirectory needs C++ — the rest compiles fine as C.
@@ -398,11 +433,11 @@ $(OBJ_DIR)/spdlog/%.o: $(SPDLOG_DIR)/src/%.cpp $(ABI_STAMP) $(FLAGS_STAMP)
 $(LVGL_OPENGLES_OBJS): $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CXX/GLES]$(RESET) $<"
-	$(Q)$(CXX) $(SUBMODULE_CXXFLAGS) -fpermissive $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call LVGL_GLES_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),$(SUBMODULE_CXXFLAGS) -fpermissive $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call LVGL_GLES_COMPILE),$<,$@)
 
 # Compile lv_markdown sources (vendored C library - use SUBMODULE_CFLAGS)
 # Includes both src/*.c and deps/md4c/md4c.c
@@ -410,44 +445,44 @@ $(OBJ_DIR)/lv_markdown/%.o: $(LV_MARKDOWN_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(call LV_MARKDOWN_COMPILE) -c $< -o $@"
 endif
-	$(Q)$(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call LV_MARKDOWN_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call LV_MARKDOWN_COMPILE),$<,$@)
 
 # Compile quirc sources (vendored C library - use SUBMODULE_CFLAGS)
 $(OBJ_DIR)/quirc/%.o: $(QUIRC_DIR)/%.c
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
-	$(Q)$(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) -c $< -o $@ || { \
+	$(Q)$(call QUIRC_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(SUBMODULE_CFLAGS) $(INCLUDES),$<,$@)
+	$(call emit-compile-command,$(call QUIRC_COMPILE),$<,$@)
 
 # Compile Lua sources (vendored C compiled as C++ so a Lua error unwinds as an exception)
 $(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
-	$(Q)$(CXX) -x c++ $(SUBMODULE_CXXFLAGS) $(INCLUDES) -c $< -o $@ || { \
+	$(Q)$(call LUA_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CXX),-x c++ $(SUBMODULE_CXXFLAGS) $(INCLUDES),$<,$@)
+	$(call emit-compile-command,$(call LUA_COMPILE),$<,$@)
 
 # Compile font sources (generated by lv_font_conv - use SUBMODULE flags)
 # Emits .ccj fragment for incremental compile_commands.json generation
 $(OBJ_DIR)/assets/fonts/%.o: assets/fonts/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(GREEN)[FONT]$(RESET) $<"
-	$(Q)$(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(call FONT_COMPILE) -c $< -o $@ || { \
 		echo "$(RED)✗ Font compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
-	$(call emit-compile-command,$(CC),$(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF),$<,$@)
+	$(call emit-compile-command,$(call FONT_COMPILE),$<,$@)
 
 # Run the prototype
 run: $(TARGET)
@@ -546,7 +581,7 @@ demo: $(LVGL_OBJS) $(THORVG_OBJS) $(LVGL_DEMO_OBJS)
 $(OBJ_DIR)/lvgl/demos/%.o: $(LVGL_DIR)/demos/%.c
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[DEMO]$(RESET) $<"
-	$(Q)$(CC) -c $< -o $@ $(LVGL_INC) $(SUBMODULE_CFLAGS)
+	$(Q)$(call LVGL_DEMO_COMPILE) -c $< -o $@
 
 # Generate compile_commands.json for IDE/LSP support
 # Fast incremental approach: merges .ccj fragments generated during compilation
@@ -603,17 +638,17 @@ compile_commands_full:
 #   $(OBJ_DIR)/lvgl/*/*.d   - LVGL sources (one level deep)
 #   $(OBJ_DIR)/lvgl/*/*/*.d - LVGL sources (two levels deep - libs/thorvg/*)
 #   $(OBJ_DIR)/lvgl/*/*/*/*.d - LVGL sources (three levels deep)
--include $(wildcard $(OBJ_DIR)/*.d)
--include $(wildcard $(OBJ_DIR)/*/*.d)
--include $(wildcard $(OBJ_DIR)/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*.d)
--include $(wildcard $(OBJ_DIR)/tests/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*.d)
+-include $(call depfiles,$(OBJ_DIR)/tests/*/*.d)
 # helix-xml is edited in place (our own submodule), so its .d files ARE
 # tracked, unlike LVGL/lv_markdown/quirc below. Paths are 3-4 levels deep:
 #   $(OBJ_DIR)/helix-xml/src/xml/*.d           - e.g. lv_xml.c, lv_xml_component.c
 #   $(OBJ_DIR)/helix-xml/src/xml/parsers/*.d   - per-widget XML parsers
 #   $(OBJ_DIR)/helix-xml/src/libs/expat/*.d    - vendored expat (same tree)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*.d)
--include $(wildcard $(OBJ_DIR)/helix-xml/*/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*.d)
+-include $(call depfiles,$(OBJ_DIR)/helix-xml/*/*/*/*.d)
 # NOTE: LVGL .d files intentionally NOT included - they add 150k+ lines of deps
 # that slow make startup by 4+ seconds. LVGL rarely changes; do clean build if needed.

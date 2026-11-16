@@ -7,17 +7,17 @@
  *
  * Printer presets seed /standard_macros/<slot> from a template machine, so a
  * printer set up from someone else's preset can carry macro names its Klipper
- * has never heard of. Those names used to be taken at face value: the button
- * rendered as working, and the only feedback on a tap was an "Unknown command"
- * rejection from the printer.
+ * has never heard of. Taken at face value, such a button renders as working,
+ * and the only feedback on a tap is an "Unknown command" rejection from the
+ * printer.
  */
 
 #include "ui_panel_controls.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_op_dispatch.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"
@@ -178,7 +178,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Macro availability flips when the printer's m
     REQUIRE(info.get_macro() == "CLEAR_NOZZLE");
     REQUIRE(notify_count > after_second);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 // ============================================================================
@@ -283,7 +283,7 @@ class ControlsMacroFixture : public LVGLUITestFixture {
     }
 
     static bool hidden(lv_obj_t* o) {
-        return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(o);
     }
     static bool disabled(lv_obj_t* o) {
         return lv_obj_has_state(o, LV_STATE_DISABLED);

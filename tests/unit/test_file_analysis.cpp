@@ -12,13 +12,12 @@
  * the file read must fill whatever it leaves open.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "file_analysis.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -261,7 +260,7 @@ struct AnalysisLoaderFixture : LVGLUITestFixture {
         std::optional<FileStartFacts> answer;
         loader.load(
             name, [&answer](FileStartFacts facts) { answer = std::move(facts); },
-            [](std::function<void(bool, const std::string&)> done) { done(false, {}); });
+            [](helix::SharedCallback<void(bool, const std::string&)> done) { done(false, {}); });
         drain();
         return answer;
     }

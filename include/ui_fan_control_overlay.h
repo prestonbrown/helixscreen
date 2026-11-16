@@ -3,15 +3,19 @@
 #pragma once
 
 #include "ui_fan_dial.h"
-#include "ui_observer_guard.h"
 
 #include "app_globals.h"
+#include "chamber_air_modes.h"
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
+#include "subject_managed_panel.h"
 #include "ui/animated_value.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace helix {
@@ -52,6 +56,9 @@ class FanControlOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "fan_control_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
     lv_obj_t* create(lv_obj_t* parent) override;
 
     /**
@@ -90,6 +97,10 @@ class FanControlOverlay : public OverlayBase {
     }
 
   private:
+    /// Drops the dials and cards on close. The root's delete hook cannot: the
+    /// close resets overlay_root_ before the deferred delete reaches it.
+    void on_ui_destroyed() override;
+
     /// LV_EVENT_DELETE on the root: drops the dials and cards while their
     /// widgets are still alive, so a tree deleted by anyone else leaves no
     /// pointer into freed memory and the next open recreates it.
@@ -121,6 +132,16 @@ class FanControlOverlay : public OverlayBase {
      * @param speed_percent Speed 0-100%
      */
     void send_fan_speed(const std::string& object_name, int speed_percent);
+    /// A speed change on a chamber-air fan: runs the provider's guard, then sends,
+    /// asks first, or refuses and puts the dial back.
+    void handle_owned_fan_change(const std::string& dial_id, helix::chamber_air::FanRole role,
+                                 bool synthetic, int speed_percent);
+    void send_owned_fan_speed(const std::string& dial_id, helix::chamber_air::FanRole role,
+                              bool synthetic, int speed_percent);
+    /// Puts a dial back to the speed the printer reports.
+    void restore_dial(const std::string& dial_id, int speed_percent);
+    /// Coalesced, deferred rebuild of every dial and card.
+    void schedule_fans_rebuild();
 
     /**
      * @brief Subscribe to all per-fan speed subjects
@@ -160,6 +181,11 @@ class FanControlOverlay : public OverlayBase {
         std::unique_ptr<FanDial> dial;
         std::string object_name; ///< Moonraker object name for subject lookup
         helix::ui::AnimatedValue<int> animation;
+        /// Set for a fan chamber air control owns: its speed changes pass the
+        /// provider's guard. A synthetic dial has no Klipper object behind it and
+        /// sends through the provider's own command.
+        std::optional<helix::chamber_air::FanRole> owned_role;
+        bool synthetic = false;
     };
     std::vector<AnimatedFanDial> animated_fan_dials_;
 
@@ -170,7 +196,15 @@ class FanControlOverlay : public OverlayBase {
     struct AutoFanCard {
         std::string object_name;
         lv_obj_t* card = nullptr;
-        lv_obj_t* speed_label = nullptr;
+        /// The card's speed line, which its component binds. Heap-held so the
+        /// binding's address survives the vector growing.
+        struct SpeedText {
+            helix::Subject subject{};
+            char buf[32] = {};
+            std::string name;
+            SubjectManager manager;
+        };
+        std::unique_ptr<SpeedText> speed;
         lv_obj_t* arc = nullptr;      ///< Arc widget for live speed updates
         lv_obj_t* fan_icon = nullptr; ///< Fan icon for spin animation
         int last_speed_pct = 0;       ///< Cached speed for animation refresh
@@ -183,7 +217,10 @@ class FanControlOverlay : public OverlayBase {
 
     ObserverGuard fans_observer_;                    ///< Structural changes (fan discovery)
     std::vector<ObserverGuard> fan_speed_observers_; ///< Per-fan speed changes
+    ObserverGuard fan_rpm_observer_;                 ///< Any fan's tachometer reading
     ObserverGuard anim_settings_observer_;           ///< Animation settings changes
+    ObserverGuard chamber_air_observer_;             ///< Chamber air accessory fitted or removed
+    bool owned_confirm_open_ = false;                ///< A lower-speed confirmation is showing
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
     //
@@ -191,6 +228,9 @@ class FanControlOverlay : public OverlayBase {
     //
 
     void update_auto_fan_animation(AutoFanCard& card, int speed_pct);
+    /// The card's speed line: "40%", or "40% · 3100 RPM" with a tachometer reading.
+    static void set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
+                                        std::optional<int> rpm);
     void refresh_all_auto_fan_animations();
 };
 

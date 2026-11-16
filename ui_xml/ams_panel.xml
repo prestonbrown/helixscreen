@@ -40,7 +40,7 @@
       <bind_style_if_eq name="content_portrait" subject="ui_is_portrait" ref_value="1"/>
       <!-- Header Bar - left-column width only, with system logo + name -->
       <lv_obj name="overlay_header"
-              width="100%" height="#header_height" style_pad_left="#space_xs" style_pad_right="#space_sm"
+              width="100%" height="#ams_title_row_height" style_pad_left="#space_xs" style_pad_right="#space_sm"
               style_pad_top="0" style_pad_bottom="0" flex_flow="row" style_flex_main_place="start"
               style_flex_cross_place="center" style_flex_track_place="center" scrollable="false">
         <!-- Back button: flex_grow region covers arrow + title = large touch target -->
@@ -76,6 +76,12 @@
         </lv_obj>
         <!-- Outside the back button so a long system name cannot push it off the header -->
         <ams_disconnected_chip name="system_disconnected_chip" disconnected="ams_all_units_disconnected"/>
+        <!-- Device operations, shown whenever Settings > Printing offers them too -->
+        <ui_button name="btn_ams_settings"
+                   variant="ghost" icon="settings" icon_size="md" text="" style_max_height="#header_button_height">
+          <bind_flag_if_eq subject="ams_has_device_ops" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="ams_sidebar_settings_clicked"/>
+        </ui_button>
       </lv_obj>
       <!-- Portrait: the loaded strip and the status line stand here, above the diagram.
            AmsOperationSidebar moves them in from the sidebar and back on rotation. -->
@@ -93,10 +99,11 @@
         <bind_style_if_eq name="left_portrait" subject="ui_is_portrait" ref_value="1"/>
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-        <!-- Backend selector (hidden by default, shown when multiple backends present) -->
+        <!-- Backend selector (shown when multiple backends present) -->
         <lv_obj name="backend_selector_row"
                 width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_sm" flex_flow="row"
-                style_flex_main_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true">
+                style_flex_main_place="center" style_pad_gap="#space_xs" scrollable="false">
+          <bind_flag_if_lt subject="backend_count" flag="hidden" ref_value="2"/>
           <!-- Segments created dynamically in C++ -->
         </lv_obj>
         <!-- System logo + name now displayed in header bar (setup_system_header) -->
@@ -141,7 +148,7 @@
 
                Uses flex_grow="1" so canvas height scales with screen size.
                All vertical segments scale proportionally via Y ratios. -->
-          <filament_path_canvas name="path_canvas" width="100%" flex_grow="1"/>
+          <filament_path_canvas name="path_canvas" width="100%" flex_grow="1" bind_motion="filament_manual_motion"/>
         </lv_obj>
         <!-- Endless-spool status: the sentence that explains the arrows above
              (or their absence). Last child of the left column so it sits at the

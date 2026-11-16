@@ -22,16 +22,34 @@ else
 fi
 
 # The same boundary at link level: a listed file calling a symbol that only an
-# excluded file defines compiles everywhere and fails the firmware link. It reads
-# the native build's objects, which this hook may not have built yet or may hold
-# from an older build, so it is advisory.
-python3 scripts/check_esp32_app_srcs.py --link >"$QC_TMP/esp32_app_srcs_link.out" 2>&1
-case $? in
-  0) echo "✅ ESP32 link boundary: no listed file needs an excluded file's symbols" ;;
-  2) echo "ℹ️  ESP32 link boundary: no build/obj objects to read (advisory, skipped)" ;;
-  *) echo "⚠️  ESP32 link boundary findings (advisory):"
-     cat "$QC_TMP/esp32_app_srcs_link.out" ;;
-esac
+# excluded file defines compiles everywhere and fails the firmware link. The verdict
+# reads the native build's objects, so a tree whose objects are absent or older than
+# their sources has none, and the land gate, which has just built, must reach one
+# (HELIX_LINK_BOUNDARY_REQUIRED). The baseline is drawn from Linux objects; a Mac
+# compiles different backends, so it never has a verdict to give.
+if [ "$(uname -s)" = Darwin ]; then
+  if [ "${HELIX_LINK_BOUNDARY_REQUIRED:-0}" = 1 ]; then
+    echo "❌ ESP32 link boundary: no verdict on macOS; run the land gate on a Linux host"
+    EXIT_CODE=1
+  else
+    echo "ℹ️  ESP32 link boundary: no verdict on macOS, the land gate decides"
+  fi
+else
+  python3 scripts/check_esp32_app_srcs.py --link >"$QC_TMP/esp32_app_srcs_link.out" 2>&1
+  case $? in
+    0) echo "✅ ESP32 link boundary: no listed file needs an excluded file's symbols" ;;
+    2) if [ "${HELIX_LINK_BOUNDARY_REQUIRED:-0}" = 1 ]; then
+         echo "❌ ESP32 link boundary: no verdict in a tree that must have one:"
+         cat "$QC_TMP/esp32_app_srcs_link.out"
+         EXIT_CODE=1
+       else
+         echo "ℹ️  ESP32 link boundary: no verdict: $(cat "$QC_TMP/esp32_app_srcs_link.out")"
+       fi ;;
+    *) echo "❌ ESP32 link boundary:"
+       cat "$QC_TMP/esp32_app_srcs_link.out"
+       EXIT_CODE=1 ;;
+  esac
+fi
 
 echo ""
 

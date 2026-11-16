@@ -7,6 +7,7 @@
 // no photos, so the card keeps the preview.
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "print_history_data.h"
 #include "subject_managed_panel.h"
@@ -66,10 +67,10 @@ class HistoryPhotoViewer {
     void set_image(lv_draw_buf_t* buf);
     lv_obj_t* image() const;
 
-    lv_subject_t has_layer_{};
-    lv_subject_t has_end_{};
-    lv_subject_t view_{};
-    lv_subject_t state_{};
+    helix::Subject has_layer_{};
+    helix::Subject has_end_{};
+    helix::Subject view_{};
+    helix::Subject state_{};
 
     lv_obj_t* overlay_ = nullptr;
     std::string job_id_;

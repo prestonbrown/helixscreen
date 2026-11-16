@@ -14,7 +14,7 @@ namespace {
 lv_obj_t* make_scroll_container(lv_obj_t* parent, int n, int32_t h) {
     lv_obj_t* c = lv_obj_create(parent);
     lv_obj_set_size(c, 400, 200);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(c, true);
     lv_obj_set_flex_flow(c, LV_FLEX_FLOW_COLUMN);
     for (int i = 0; i < n; ++i) {
         lv_obj_t* row = lv_obj_create(c);
@@ -53,15 +53,20 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController disables up at top and
 
     PageScrollController ctl;
     REQUIRE(ctl.attach(c));
+    // A second scroller on the screen: a tap pages only its own container.
+    lv_obj_t* other = make_scroll_container(test_screen(), 20, 60);
+    PageScrollController other_ctl;
+    REQUIRE(other_ctl.attach(other));
 
     // At top: up disabled, down enabled.
     CHECK(lv_obj_has_state(ctl.up_button(), LV_STATE_DISABLED));
     CHECK_FALSE(lv_obj_has_state(ctl.down_button(), LV_STATE_DISABLED));
 
     int32_t before = lv_obj_get_scroll_y(c);
-    ctl.page_down(); // LV_ANIM_OFF here since Animations is disabled above
+    lv_obj_send_event(ctl.down_button(), LV_EVENT_CLICKED, nullptr); // no animation, see above
     lv_obj_update_layout(c);
     CHECK(lv_obj_get_scroll_y(c) > before);
+    CHECK(lv_obj_get_scroll_y(other) == 0);
 
     // Scroll to the very bottom: down disabled.
     lv_obj_scroll_to_y(c, lv_obj_get_scroll_bottom(c) + lv_obj_get_scroll_y(c), LV_ANIM_OFF);
@@ -118,7 +123,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PageScrollController hides gutter when cont
 
     PageScrollController ctl;
     REQUIRE(ctl.attach(c));
-    CHECK(lv_obj_has_flag(ctl.gutter(), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(ctl.gutter()));
     // No reserved padding while hidden — content keeps full width.
     CHECK(lv_obj_get_style_pad_right(c, LV_PART_MAIN) == 0);
 }

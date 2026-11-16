@@ -8,20 +8,28 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_widget_ref.h"
 
 #include "ams_state.h"
 #include "ams_types.h"
 #include "ams_unit_pages.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "display_numbering.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace helix::ui {
+
+/// Width for every card of an overview row that overflows, chosen so the next card stands
+/// partly past the row's right edge and shows there is more to scroll to. 0 when the row
+/// fits and flex shares it. @p min_widths has one entry per card.
+int32_t overview_peek_card_width(int32_t row_width, int32_t gap,
+                                 const std::vector<int32_t>& min_widths);
 
 /// The inputs a unit card's lane bars are built from.
 struct LaneBarsGeometry {
@@ -156,6 +164,10 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* bars_container = nullptr;   // Mini status bars
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
+        lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
+        lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
+        int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
+        bool has_art = false;                 // An art tile rather than a card
         int unit_index = -1;
         /// What the lane bars were built for; see lane_bars_stale().
         helix::ui::LaneBarsGeometry bars_built;
@@ -167,8 +179,9 @@ class AmsOverviewPanel : public PanelBase {
     };
 
     std::vector<UnitCard> unit_cards_;
-    lv_obj_t* cards_row_ = nullptr;
-    lv_obj_t* system_path_ = nullptr;
+    helix::ui::WidgetRef cards_row_;
+    int32_t laid_out_row_width_ = 0; ///< The row width layout_unit_row() last sized the cards to
+    helix::ui::WidgetRef system_path_;
     lv_obj_t* system_path_area_ = nullptr;
 
     // Shared bypass spool overlay (see include/ui_bypass_spool_widget.h). Lives
@@ -178,15 +191,15 @@ class AmsOverviewPanel : public PanelBase {
 
     // === Unit view state ===
     static constexpr int kMaxDetailSlots = kAmsDetailMaxSlots;
-    bool unit_view_active_ = false;        ///< The unit view is on screen, not the overview
-    lv_obj_t* detail_container_ = nullptr; ///< Unit view root container (takes the swipe)
+    bool unit_view_active_ = false;         ///< The unit view is on screen, not the overview
+    helix::ui::WidgetRef detail_container_; ///< Unit view root container (takes the swipe)
     lv_obj_t* path_container_ = nullptr;
     lv_obj_t* prev_button_ = nullptr;
     lv_obj_t* next_button_ = nullptr;
-    lv_obj_t* page_dots_ = nullptr;
-    AmsDetailWidgets detail_widgets_;        ///< Shared widget pointers for the spool box
-    lv_obj_t* detail_path_canvas_ = nullptr; ///< Filament path visualization
-    lv_obj_t* detail_slot_widgets_[kMaxDetailSlots] = {nullptr};
+    helix::ui::WidgetRef page_dots_;
+    AmsDetailWidgets detail_widgets_;         ///< Shared widget pointers for the spool box
+    helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
+    helix::ui::WidgetRef detail_slot_widgets_[kMaxDetailSlots];
     int detail_slot_count_ = 0;
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
 
@@ -217,6 +230,13 @@ class AmsOverviewPanel : public PanelBase {
     void create_unit_cards(const helix::AmsSystemInfo& info, helix::ui::LaneNoun noun);
     // The mini bars take no current_slot: the active-lane outline comes from the
     // per-slot active-loaded subject, not from comparing against current_slot.
+    /// Whether a unit is drawn as an art tile.
+    static bool unit_has_art(const helix::AmsSystemInfo& info, int unit_index);
+    void apply_card_art(UnitCard& card, const helix::AmsUnit& unit,
+                        const helix::AmsSystemInfo& info);
+    /// Size the cards to the row (see overview_peek_card_width) and each art stage to its tile.
+    void layout_unit_row();
+    static void on_cards_row_resized(lv_event_t* e);
     void update_unit_card(UnitCard& card, const helix::AmsUnit& unit, helix::ui::LaneNoun noun);
     void create_mini_bars(UnitCard& card, const helix::AmsUnit& unit);
     void refresh_system_path(const helix::AmsSystemInfo& info, int current_slot);
@@ -266,8 +286,8 @@ class AmsOverviewPanel : public PanelBase {
     // === Slot Interaction ===
     std::unique_ptr<helix::ui::AmsContextMenu> context_menu_; ///< Slot context menu (lazy init)
 
-    void handle_detail_slot_tap(int global_slot_index, lv_point_t click_pt);
-    void show_detail_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt);
+    void handle_detail_slot_tap(int global_slot_index);
+    void show_detail_context_menu(int slot_index, lv_obj_t* near_widget);
 
     // === Bypass Spool Interaction ===
     // The overview's overlay sits on the system path canvas, the unit view's on its own

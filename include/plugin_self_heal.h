@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "helix_plugin_installer.h"
 
 #include <functional>

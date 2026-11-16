@@ -46,6 +46,8 @@ TEST_CASE("spool_vents: detail by size, both edges inclusive", "[spool_vents]") 
     CHECK(spool_vent_detail(95) == SpoolVentDetail::Slots);
     CHECK(spool_vent_detail(96) == SpoolVentDetail::SlotsAndDots);
     CHECK(spool_vent_detail(240) == SpoolVentDetail::SlotsAndDots);
+    const SpoolVentFace none = face(SpoolVentDetail::None); // no detail opens nothing
+    CHECK(spool_vent_coverage(none, px(none, 0.25f, -90.0f), py(none, 0.25f, -90.0f)) == 0.0f);
 }
 
 TEST_CASE("spool_vents: six slots, the first straight up", "[spool_vents]") {
@@ -54,8 +56,13 @@ TEST_CASE("spool_vents: six slots, the first straight up", "[spool_vents]") {
         CHECK(spool_vent_coverage(f, px(f, 0.25f, deg), py(f, 0.25f, deg)) == 1.0f);
     CHECK(spool_vent_coverage(f, f.cx, f.cy) == 0.0f);                             // hub
     CHECK(spool_vent_coverage(f, px(f, 0.25f, 0.0f), py(f, 0.25f, 0.0f)) == 0.0f); // between
-    CHECK(spool_vent_coverage(f, px(f, 0.42f, -90.0f), py(f, 0.42f, -90.0f)) ==
-          0.0f); // past the end
+    // On a small squashed face, solid flange still stands 2 px inside the rim past every slot.
+    const SpoolVentFace tray{46.0f, 46.0f, 92.0f, 0.45f, SpoolVentDetail::Slots};
+    for (float deg : {-90.0f, -30.0f, 30.0f}) {
+        const float rx = px(tray, 0.42f, deg) - tray.cx, ry = py(tray, 0.42f, deg) - tray.cy;
+        const float in = 1.0f - 2.0f / std::hypot(rx, ry);
+        CHECK(spool_vent_coverage(tray, tray.cx + rx * in, tray.cy + ry * in) == 0.0f);
+    }
     CHECK(spool_vent_coverage(f, px(f, 0.10f, -90.0f), py(f, 0.10f, -90.0f)) ==
           0.0f); // inside the start
 }
@@ -80,15 +87,9 @@ TEST_CASE("spool_vents: vent dots open between the slots on large spools only", 
     const SpoolVentFace slots = face(SpoolVentDetail::Slots);
     CHECK(spool_vent_coverage(slots, px(slots, 0.27f, 0.0f), py(slots, 0.27f, 0.0f)) == 0.0f);
 
-    // A lattice point past the band's outer edge stays shut.
+    // Lattice points past the band's outer edge or inside its inner edge stay shut.
     CHECK(spool_vent_coverage(dots, px(dots, 0.39f, 0.0f), py(dots, 0.39f, 0.0f)) == 0.0f);
-    // So does one inside its inner edge.
     CHECK(spool_vent_coverage(dots, px(dots, 0.12f, 0.0f), py(dots, 0.12f, 0.0f)) == 0.0f);
-}
-
-TEST_CASE("spool_vents: no detail opens nothing", "[spool_vents]") {
-    const SpoolVentFace f = face(SpoolVentDetail::None);
-    CHECK(spool_vent_coverage(f, px(f, 0.25f, -90.0f), py(f, 0.25f, -90.0f)) == 0.0f);
 }
 
 TEST_CASE("spool_vents: a skewed face squashes the slots sideways", "[spool_vents]") {
@@ -97,7 +98,6 @@ TEST_CASE("spool_vents: a skewed face squashes the slots sideways", "[spool_vent
     // Where that slot would sit on an unskewed face is solid flange here.
     const float flat_x = f.cx + 0.25f * kSize * std::cos(-30.0f * kPi / 180.0f);
     CHECK(spool_vent_coverage(f, flat_x, py(f, 0.25f, -30.0f)) == 0.0f);
-
     CHECK(spool_vent_face_radius(f, px(f, 0.25f, -30.0f), py(f, 0.25f, -30.0f)) ==
           Catch::Approx(0.25f * kSize).margin(0.5f));
 }

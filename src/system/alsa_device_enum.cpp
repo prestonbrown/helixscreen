@@ -3,7 +3,7 @@
 
 #include "alsa_device_enum.h"
 
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 
 #include <algorithm>
 #include <cstdlib>

@@ -17,11 +17,14 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
+#include "ams_backend_indx.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_multiace.h"
 #include "ams_backend_openams.h"
 #include "ams_backend_qidi.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_backend_toolchanger.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/qidi_box_test_access.h"
 
 #include "../catch_amalgamated.hpp"
@@ -32,64 +35,40 @@ namespace {
 
 /// The mock's traits with the fields it answers from itself copied from @p real,
 /// so the comparison covers every other field. Environment data is faked for
-/// every persona (HELIX_MOCK_AMS_ENV); the mock has no firmware store, so spool
-/// persistence is always ToolState's job; consumption tracking is a test hook.
+/// every persona (HELIX_MOCK_AMS_ENV); consumption tracking is a test hook.
 BackendTraits comparable(const AmsBackendMock& mock, const BackendTraits& real) {
     BackendTraits t = mock.traits();
     t.has_environment_sensors = real.has_environment_sensors;
-    t.has_firmware_spool_persistence = real.has_firmware_spool_persistence;
     t.tracks_consumption_natively = real.tracks_consumption_natively;
     return t;
 }
 
-} // namespace
-
-TEST_CASE("Mock personas answer their real backend's traits", "[ams][mock][traits]") {
-    SECTION("Happy Hare (default persona)") {
-        AmsBackendMock mock(4);
-        CHECK(comparable(mock, AmsBackendHappyHare::kTraits) == AmsBackendHappyHare::kTraits);
+template <class Real> void check_persona(void (AmsBackendMock::*set_persona)(bool)) {
+    AmsBackendMock mock(4);
+    if (set_persona) {
+        (mock.*set_persona)(true);
     }
-    SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        CHECK(comparable(mock, AmsBackendAfc::kTraits) == AmsBackendAfc::kTraits);
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        CHECK(comparable(mock, AmsBackendToolChanger::kTraits) == AmsBackendToolChanger::kTraits);
-    }
-    SECTION("AD5X IFS") {
-        AmsBackendMock mock(4);
-        mock.set_ifs_mode(true);
-        CHECK(comparable(mock, AmsBackendAd5xIfs::kTraits) == AmsBackendAd5xIfs::kTraits);
-    }
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        CHECK(comparable(mock, AmsBackendSnapmaker::kTraits) == AmsBackendSnapmaker::kTraits);
-    }
+    CHECK(comparable(mock, Real::kTraits) == Real::kTraits);
 }
 
-TEST_CASE("Mock personas answer whether the carriage can be empty as their real backend does",
+} // namespace
+
+TEST_CASE("Mock personas answer their real backend's traits",
           "[ams][mock][traits][tool_switcher][1784]") {
-    SECTION("Snapmaker U1") {
-        AmsBackendMock mock(4);
-        mock.set_snapmaker_mode(true);
-        AmsBackendSnapmaker real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
-    }
-    SECTION("Tool changer") {
-        AmsBackendMock mock(4);
-        mock.set_tool_changer_mode(true);
-        AmsBackendToolChanger real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+    SECTION("Happy Hare (default persona)") {
+        check_persona<AmsBackendHappyHare>(nullptr);
     }
     SECTION("AFC") {
-        AmsBackendMock mock(4);
-        mock.set_afc_mode(true);
-        AmsBackendAfc real(nullptr, nullptr);
-        CHECK(mock.carriage_can_be_empty() == real.carriage_can_be_empty());
+        check_persona<AmsBackendAfc>(&AmsBackendMock::set_afc_mode);
+    }
+    SECTION("Tool changer") {
+        check_persona<AmsBackendToolChanger>(&AmsBackendMock::set_tool_changer_mode);
+    }
+    SECTION("AD5X IFS") {
+        check_persona<AmsBackendAd5xIfs>(&AmsBackendMock::set_ifs_mode);
+    }
+    SECTION("Snapmaker U1") {
+        check_persona<AmsBackendSnapmaker>(&AmsBackendMock::set_snapmaker_mode);
     }
 }
 
@@ -136,14 +115,119 @@ TEST_CASE("Real kTraits keep the answers the UI branches on", "[ams][traits]") {
     CHECK_FALSE(AmsBackendToolChanger::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendHappyHare::kTraits.unloads_stand_alone);
     CHECK_FALSE(AmsBackendAfc::kTraits.unloads_stand_alone);
+    // A tool changer's spools hang outside the machine: no case to draw.
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.has_physical_tray);
+    // Console-equipped firmwares send one command per user action.
+    CHECK_FALSE(AmsBackendAfc::kTraits.allows_implicit_chaining);
+    // Backends whose firmware names the seated lane per slot; Happy Hare and the
+    // tool changer keep the aggregate (current_slot, filament_loaded) rule.
+    CHECK(AmsBackendQidi::kTraits.has_per_slot_loaded_authority);
+    CHECK(helix::printer::AmsBackendCfs::kTraits.has_per_slot_loaded_authority);
+    CHECK(AmsBackendAce::kTraits.has_per_slot_loaded_authority);
+    CHECK(AmsBackendAd5xIfs::kTraits.has_per_slot_loaded_authority);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.has_per_slot_loaded_authority);
+    // Firmware that reports a spool id per lane.
+    CHECK(AmsBackendAfc::kTraits.printer_reports_spool_ids);
+    CHECK(AmsBackendHappyHare::kTraits.printer_reports_spool_ids);
+    CHECK_FALSE(BackendTraits{}.printer_reports_spool_ids);
 }
 
-TEST_CASE("The mock leaves spool persistence to ToolState in every persona",
-          "[ams][mock][traits]") {
+TEST_CASE("Real kTraits name each machine's positions and constant answers", "[ams][traits]") {
+    using helix::ui::LaneNoun;
+    CHECK(BackendTraits{}.lane_noun == LaneNoun::Slot);
+    CHECK(BackendTraits{}.tool_noun == LaneNoun::Tool);
+    CHECK(BackendTraits{}.toolhead_style_hint == ToolheadStyle::AUTO);
+    CHECK(AmsBackendHappyHare::kTraits.lane_noun == LaneNoun::Gate);
+    CHECK(AmsBackendAfc::kTraits.lane_noun == LaneNoun::Lane);
+    CHECK(AmsBackendToolChanger::kTraits.lane_noun == LaneNoun::Tool);
+    CHECK(AmsBackendSnapmaker::kTraits.lane_noun == LaneNoun::Feeder);
+    CHECK(AmsBackendSnapmaker::kTraits.tool_noun == LaneNoun::Toolhead);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).lane_noun() == LaneNoun::Feeder);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).tool_noun() == LaneNoun::Toolhead);
+    CHECK(helix::printer::AmsBackendCfs::kTraits.toolhead_style_hint == ToolheadStyle::CREALITY_K2);
+    CHECK(AmsBackendAfc::kTraits.sets_active_spool_on_link);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.sets_active_spool_on_link);
+    CHECK(AmsBackendSnapmaker::kTraits.print_routing_resets_to_identity);
+    CHECK(AmsBackendIndx::kIndxTraits.heads_share_heater);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.heads_share_heater);
+    CHECK(AmsBackendToolChanger::kTraitsWithFeed.carriage_can_be_empty);
+    CHECK(AmsBackendIndx::kIndxTraits.carriage_can_be_empty);
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).carriage_can_be_empty());
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.carriage_can_be_empty);
+}
+
+TEST_CASE("A U1 owns a spool per tool and has no bypass", "[ams][traits][spoolman]") {
+    // The Spoolman active-spool sync assigns per tool only where this holds.
+    AmsBackendSnapmaker u1(nullptr, nullptr);
+    CHECK(u1.supports_per_tool_spool_assignment());
+    CHECK_FALSE(u1.is_bypass_active());
+}
+
+TEST_CASE("Each optional interface answers only on the backends that implement it",
+          "[ams][traits][cfs][happy_hare][afc][toolchanger]") {
+    helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+    AmsBackendAce ace(nullptr, nullptr);
+    AmsBackendAd5xIfs ad5x(nullptr, nullptr);
+    AmsBackendAfc afc(nullptr, nullptr);
+    AmsBackendHappyHare happy_hare(nullptr, nullptr);
+    AmsBackendIndx indx(nullptr, nullptr);
+    AmsBackendMultiAce multi_ace(nullptr, nullptr);
+    AmsBackendOpenAms openams(nullptr, nullptr);
+    AmsBackendQidi qidi(nullptr, nullptr);
+    AmsBackendSnapmaker snapmaker(nullptr, nullptr);
+    AmsBackendToolChanger tool_changer(nullptr, nullptr);
     AmsBackendMock mock(4);
-    mock.set_afc_mode(true);
-    REQUIRE(AmsBackendAfc::kTraits.has_firmware_spool_persistence);
-    CHECK_FALSE(mock.has_firmware_spool_persistence());
+
+    struct Row {
+        const AmsBackend* backend;
+        const ICfsCalibration* calibration = nullptr;
+        const IGateSelector* gates = nullptr;
+        const ILaneRecovery* recovery = nullptr;
+        const INarrationMatcher* narration = nullptr;
+        const IFeederControl* feeder = nullptr;
+        const IStepOperation* steps = nullptr;
+        const IInsertSignals* insert = nullptr;
+        const IDryer* dryer = nullptr;
+        const IPrintRouting* routing = nullptr;
+    };
+    const Row rows[] = {
+        {.backend = &ace, .dryer = &ace},
+        {.backend = &ad5x, .steps = &ad5x, .routing = &ad5x},
+        {.backend = &multi_ace,
+         .steps = &multi_ace,
+         .insert = &multi_ace,
+         .dryer = &multi_ace,
+         .routing = &multi_ace},
+        {.backend = &openams, .dryer = &openams},
+        {.backend = &qidi, .dryer = &qidi},
+        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
+        {.backend = &indx, .feeder = &indx, .steps = &indx},
+        {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
+        {.backend = &afc, .recovery = &afc, .narration = &afc},
+        {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
+        {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
+        {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},
+    };
+    struct NothingImplementsThis {};
+    for (const Row& row : rows) {
+        INFO(ams_type_to_string(row.backend->get_type()));
+        CHECK(row.backend->as<ICfsCalibration>() == row.calibration);
+        CHECK(row.backend->as<IGateSelector>() == row.gates);
+        CHECK(row.backend->as<ILaneRecovery>() == row.recovery);
+        CHECK(row.backend->as<INarrationMatcher>() == row.narration);
+        CHECK(row.backend->as<IFeederControl>() == row.feeder);
+        CHECK(row.backend->as<IStepOperation>() == row.steps);
+        CHECK(row.backend->as<IInsertSignals>() == row.insert);
+        CHECK(row.backend->as<IDryer>() == row.dryer);
+        CHECK(row.backend->as<IPrintRouting>() == row.routing);
+        // A start that promises a pre-print step needs something to build it.
+        CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
+        CHECK(row.backend->as<NothingImplementsThis>() == nullptr);
+    }
+    // No capability and no narration template: the sidebar's coarse fallback.
+    CHECK(operation_step_model(mock, StepOperationType::LOAD_SWAP).steps.empty());
+    CHECK(operation_step_index_subject(mock, StepOperationType::LOAD_SWAP) == nullptr);
+    CHECK_FALSE(dryer_info(afc, 0).supported);
 }
 
 TEST_CASE("Mock AFC load leaves only the new lane loaded", "[ams][mock][traits]") {
@@ -189,19 +273,31 @@ helix::ClassifyContext paused_job() {
 
 } // namespace
 
+TEST_CASE("only CFS firmware owns a lane's identity", "[ams][traits][box_wins]") {
+    CHECK(helix::printer::AmsBackendCfs::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendHappyHare::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAfc::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAd5xIfs::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendAce::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendQidi::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendOpenAms::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendToolChanger::kTraits.firmware_owns_lane_identity);
+    CHECK_FALSE(AmsBackendSnapmaker::kTraits.firmware_owns_lane_identity);
+}
+
 TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_traits]") {
     struct Row {
         const char* name;
         BackendTraits traits;
         bool raises_runout_fault;
         bool raises_runout_fault_during_job;
-        bool unloads_to_hub_between_prints;
+        bool parks_off_toolhead_when_idle;
     };
     const Row rows[] = {
         {"Happy Hare", AmsBackendHappyHare::kTraits, true, true, false},
         {"AFC", AmsBackendAfc::kTraits, true, true, false},
         {"AD5X IFS", AmsBackendAd5xIfs::kTraits, true, false, true},
-        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, false},
+        {"CFS", helix::printer::AmsBackendCfs::kTraits, true, true, true},
         {"ACE", AmsBackendAce::kTraits, false, false, false},
         {"QIDI Box", AmsBackendQidi::kTraits, false, false, false},
         {"OpenAMS", AmsBackendOpenAms::kTraits, false, false, false},
@@ -212,7 +308,7 @@ TEST_CASE("runout ownership traits match the table", "[ams][traits][runout_trait
         INFO(row.name);
         CHECK(row.traits.raises_runout_fault == row.raises_runout_fault);
         CHECK(row.traits.raises_runout_fault_during_job == row.raises_runout_fault_during_job);
-        CHECK(row.traits.unloads_to_hub_between_prints == row.unloads_to_hub_between_prints);
+        CHECK(row.traits.parks_filament_off_toolhead_when_idle == row.parks_off_toolhead_when_idle);
     }
 }
 
@@ -227,43 +323,74 @@ TEST_CASE("runout_fault_traits_match_the_error_hooks", "[ams][traits][runout_tra
         AmsBackendAce backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("OpenAMS raises faults of the manager, not a runout") {
         AmsBackendOpenAms backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("Snapmaker classifies only the missing-filament-type refusal") {
         AmsBackendSnapmaker backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("a tool changer raises dock-sensor faults, not a runout") {
         AmsBackendToolChanger backend(nullptr, nullptr);
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
 
     SECTION("QIDI Box reports a blocked slot with a dismiss-only dialog") {
-        AmsBackendQidi backend(nullptr, nullptr);
+        helix::test::StartedBackend<AmsBackendQidi> backend;
         CHECK_FALSE(backend.classify_error(runout_line, paused_job()).has_value());
         CHECK_FALSE(backend.current_error().has_value());
-        QidiBoxTestAccess::parse_vars(
-            backend,
-            json{{"enable_box", 1}, {"slot0", 1}, {"slot1", -3}, {"slot2", 1}, {"slot3", 1}});
+        fire_vars(backend,
+                  json{{"enable_box", 1}, {"slot0", 1}, {"slot1", -3}, {"slot2", 1}, {"slot3", 1}});
         auto ev = backend.current_error();
         REQUIRE(ev.has_value());
         // Nothing to resume or reload from: the generic runout modal is the surface
         // that offers the user a way forward.
         REQUIRE(ev->recovery_actions.size() == 1);
         CHECK(ev->recovery_actions[0].gcode.empty());
-        CHECK_FALSE(backend.traits().raises_runout_fault);
     }
+}
+
+TEST_CASE("Keep Spool Info on Eject applies where the lane record is the only identity",
+          "[ams][capabilities][keep_spool]") {
+    CHECK(helix::AmsBackendToolChanger(nullptr, nullptr).lane_record_is_only_identity());
+    // Firmware that holds the spool decides an eject itself.
+    CHECK_FALSE(helix::AmsBackendAfc(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendHappyHare(nullptr, nullptr).lane_record_is_only_identity());
+    CHECK_FALSE(helix::AmsBackendAd5xIfs(nullptr, nullptr).lane_record_is_only_identity());
+}
+
+TEST_CASE("every backend's constant traits number tools from 1", "[ams][traits][tool_style]") {
+    using helix::ui::ToolNumberStyle;
+    struct Row {
+        const char* name;
+        BackendTraits traits;
+    };
+    const Row rows[] = {
+        {"defaults", BackendTraits{}},
+        {"Happy Hare", AmsBackendHappyHare::kTraits},
+        {"AFC", AmsBackendAfc::kTraits},
+        {"AD5X IFS", AmsBackendAd5xIfs::kTraits},
+        {"CFS", helix::printer::AmsBackendCfs::kTraits},
+        {"ACE", AmsBackendAce::kTraits},
+        {"QIDI Box", AmsBackendQidi::kTraits},
+        {"OpenAMS", AmsBackendOpenAms::kTraits},
+        {"INDX", AmsBackendIndx::kIndxTraits},
+        {"Tool changer", AmsBackendToolChanger::kTraits},
+        {"Tool changer with feed", AmsBackendToolChanger::kTraitsWithFeed},
+        {"Tool changer mount feed", AmsBackendToolChanger::kTraitsMountFeed},
+        {"Snapmaker", AmsBackendSnapmaker::kTraits},
+    };
+    for (const Row& row : rows) {
+        INFO(row.name);
+        CHECK(row.traits.tool_number_style == ToolNumberStyle::Physical);
+    }
+    CHECK(AmsBackendMultiAce(nullptr, nullptr).tool_number_style() == ToolNumberStyle::Physical);
 }

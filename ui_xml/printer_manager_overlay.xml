@@ -55,6 +55,7 @@
     <!-- Body. Tapping it while the name is being edited saves the edit (C++). -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="0" scrollable="true">
+      <event_cb trigger="clicked" callback="pm_body_clicked"/>
       <bind_style_if_eq name="body_row" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="body_column" subject="ui_is_portrait" ref_value="1"/>
 
@@ -116,6 +117,8 @@
             <bind_style_if_eq name="text_center" subject="ui_is_portrait" ref_value="0"/>
             <bind_style_if_eq name="text_left" subject="ui_is_portrait" ref_value="1"/>
             <bind_flag_if_eq subject="pm_name_editing" flag="hidden" ref_value="0"/>
+            <event_cb trigger="ready" callback="pm_name_input_ready"/>
+            <event_cb trigger="cancel" callback="pm_name_input_cancel"/>
           </text_input>
           <!-- Printer model (click to correct) - detection declines to guess when
                it is unsure, and can still pick a wrong near-neighbour when it is

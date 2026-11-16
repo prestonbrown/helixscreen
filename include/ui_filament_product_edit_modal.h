@@ -5,7 +5,9 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "filament_product_form.h"
+#include "instance_subjects.h"
 
 #include <functional>
 #include <string>
@@ -17,10 +19,10 @@ namespace helix::ui {
  * @brief Modal for adding or editing a user filament "product".
  *
  * Writes the authored (sparse) product to config/user_filaments.json via
- * FilamentCatalog::save_user_products — the first production caller of that
- * write path. Add mode starts from an empty form; edit mode pre-fills from the
- * resolved catalog entry and, on save, writes an overlay entry that overrides
- * that id (whether the source was a built-in or a prior user entry).
+ * FilamentCatalog::save_user_products. Add mode starts from an empty form;
+ * edit mode pre-fills from the resolved catalog entry and, on save, writes an
+ * overlay entry that overrides that id (whether the source was a built-in or a
+ * prior user entry).
  *
  * Main-thread only: everything runs from UI event handlers, so there is no
  * AsyncLifetimeGuard / background-thread work here.
@@ -60,10 +62,10 @@ class FilamentProductEditModal : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "filament_product_edit_modal";
     }
+    HELIX_KIND_TAG(FilamentProductEditModal)
 
   protected:
     void on_show() override;
-    void on_hide() override;
 
   private:
     enum class Mode { Add, Edit };
@@ -75,13 +77,16 @@ class FilamentProductEditModal : public Modal {
     bool has_overlay_ = false; ///< an overlay entry already exists for edit_id_
     SavedCallback on_saved_;
 
-    bool subjects_initialized_ = false;
-    SubjectManager subjects_;
-
     // Secondary (destructive) button label: "Delete" (user entry) or
     // "Restore Defaults" (built-in with an override). Hidden in Add mode.
-    lv_subject_t secondary_text_subject_{};
+    helix::Subject secondary_text_subject_{};
     char secondary_text_buf_[40]{};
+    helix::Subject show_secondary_subject_{}; ///< 1 when the secondary button applies
+    helix::Subject title_subject_{};          ///< "Add Filament" / "Edit Filament"
+    char title_buf_[64]{};
+    // Published under names this instance alone holds: the Filament panel and
+    // the AMS editor each keep a catalog picker, and with it one of these, alive.
+    helix::InstanceSubjects names_{"filament_product"}; ///< After the subjects it publishes
 
     // === Internal Methods ===
     void init_subjects();
@@ -97,7 +102,6 @@ class FilamentProductEditModal : public Modal {
     // === Static Callback Registration ===
     static void register_callbacks();
     static bool callbacks_registered_;
-    static FilamentProductEditModal* active_instance_;
 
     static void on_save_cb(lv_event_t* e);
     static void on_secondary_cb(lv_event_t* e);

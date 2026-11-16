@@ -2,10 +2,8 @@
 
 #include "xml_hot_reloader.h"
 
-#include "ui_update_queue.h"
-
+#include "core/update_queue.h"
 #include "helix_thread.h"
-#include "layout_manager.h"
 #include "xml_registration.h"
 
 #include <spdlog/spdlog.h>
@@ -168,8 +166,6 @@ void XmlHotReloader::stop() {
 void XmlHotReloader::initial_scan(const std::vector<std::string>& xml_dirs) {
     file_mtimes_.clear();
     file_to_lvgl_path_.clear();
-    file_to_logical_path_.clear();
-    file_to_variant_.clear();
 
     static constexpr const char* kSkipDirs[] = {"translations"};
     auto is_skipped = [](const fs::path& p) {
@@ -226,29 +222,6 @@ void XmlHotReloader::initial_scan(const std::vector<std::string>& xml_dirs) {
 
                 auto rel_path = entry.path().string();
                 file_to_lvgl_path_[abs_path] = "A:" + rel_path;
-
-                // Split the path-under-the-watch-root into the layout variant
-                // it belongs to and the filename LayoutManager resolves with,
-                // so scan_and_reload() can tell whether this copy is the one
-                // the running layout is actually using.
-                std::string variant;
-                fs::path logical = fs::relative(entry.path(), dir, ec);
-                if (ec) {
-                    logical = entry.path().filename();
-                    ec.clear();
-                }
-                auto first = logical.begin();
-                if (first != logical.end() &&
-                    helix::LayoutManager::is_variant_dir(first->string())) {
-                    variant = first->string();
-                    fs::path stripped;
-                    for (auto it = ++logical.begin(); it != logical.end(); ++it) {
-                        stripped /= *it;
-                    }
-                    logical = stripped;
-                }
-                file_to_logical_path_[abs_path] = logical.generic_string();
-                file_to_variant_[abs_path] = variant;
 
                 auto parent = entry.path().parent_path().filename().string();
                 per_dir_counts[parent.empty() ? dir : parent]++;
@@ -316,23 +289,6 @@ void XmlHotReloader::scan_and_reload() {
             continue;
         }
 
-        // A component that has a breakpoint override exists in several copies
-        // under ui_xml/ (base, micro/, portrait/, …) that all register under
-        // the same name. Registering the copy that just changed would replace
-        // the live component with a layout the running display isn't using, so
-        // only the copy the active layout resolves to is allowed to reload.
-        // Editing a shadowed copy still takes effect on the next launch at that
-        // breakpoint. Committing the mtime keeps it from re-checking each poll.
-        const auto& variant = file_to_variant_[abs_path];
-        if (helix::LayoutManager::instance().active_variant_dir(file_to_logical_path_[abs_path]) !=
-            variant) {
-            cached_mtime = current_mtime;
-            spdlog::debug("[HotReload] '{}' changed in {} layout, but the active layout uses a "
-                          "different copy — not reloading",
-                          comp_name, variant.empty() ? "base" : variant);
-            continue;
-        }
-
         // PRE-FLIGHT (parse-then-swap): read the file and validate XML
         // well-formedness BEFORE touching the registered component. If the file
         // is mid-write (truncated, briefly empty during atomic rename) or
@@ -392,7 +348,6 @@ void XmlHotReloader::scan_and_reload() {
                     // nothing.
                     auto borrowed = snapshot_borrowed_subjects(reload_name.c_str());
 
-                    // Unregister old component definition
                     auto result = lv_xml_component_unregister(reload_name.c_str());
                     if (result != LV_RESULT_OK) {
                         spdlog::warn("[HotReload] Failed to unregister '{}' — registering fresh",

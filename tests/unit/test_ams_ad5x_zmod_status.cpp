@@ -10,8 +10,13 @@
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
+#include "test_helpers/backend_harness.h"
+#include "test_helpers/log_capture.h"
+#include "test_helpers/toolchanger_test_helper.h"
 
 #include <string>
 #include <vector>
@@ -21,6 +26,7 @@
 using helix::Ad5xIfsTestAccess;
 using helix::AmsAction;
 using helix::AmsBackendAd5xIfs;
+using helix::LogCapture;
 
 using json = nlohmann::json;
 
@@ -105,9 +111,9 @@ TEST_CASE("AD5X IFS subscribes to the zmod objects only where they exist",
 }
 
 TEST_CASE("AD5X IFS applies a pushed zmod_ifs frame", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(2, {true, true, false, false}));
+    backend.fire_status(ifs_frame(2, {true, true, false, false}));
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 1));
@@ -120,8 +126,8 @@ TEST_CASE("AD5X IFS applies a pushed zmod_ifs frame", "[ams][ad5x_ifs][zmod_stat
 }
 
 TEST_CASE("AD5X IFS honors a Ports-only diff frame", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, false, false, false}));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(ifs_frame(1, {true, false, false, false}));
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
     REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 3));
 
@@ -129,19 +135,18 @@ TEST_CASE("AD5X IFS honors a Ports-only diff frame", "[ams][ad5x_ifs][zmod_statu
     // arrives as Ports alone with no Chan. The gcode path only ever saw this
     // object on a line that already matched "Chan"; requiring it here would
     // silently drop every presence-only update.
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_ifs", {{"Ports", json::array({true, false, false, true})}}}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", json::array({true, false, false, true})}}}});
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 0));
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 3));
 }
 
 TEST_CASE("AD5X IFS applies pushed zmod_color slots", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
     // Presence first: colors are only trusted for lanes the silk sensors see.
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, true, true, true}));
-    Ad5xIfsTestAccess::handle_status(backend, color_frame());
+    backend.fire_status(ifs_frame(1, {true, true, true, true}));
+    backend.fire_status(color_frame());
 
     CHECK(backend.get_slot_info(0).material == "PLA");
     CHECK(backend.get_slot_info(0).color_rgb == 0xFF0000);
@@ -153,10 +158,10 @@ TEST_CASE("AD5X IFS applies pushed zmod_color slots", "[ams][ad5x_ifs][zmod_stat
 
 TEST_CASE("AD5X IFS does not surface the firmware's unset-material sentinel",
           "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(1, {true, false, false, true}));
-    Ad5xIfsTestAccess::handle_status(backend, live_color_frame());
+    backend.fire_status(ifs_frame(1, {true, false, false, true}));
+    backend.fire_status(live_color_frame());
 
     CHECK(backend.get_slot_info(0).material == "PLA");
     CHECK(backend.get_slot_info(0).color_rgb == 0xA03CF7);
@@ -170,19 +175,17 @@ TEST_CASE("AD5X IFS does not surface the firmware's unset-material sentinel",
 }
 
 TEST_CASE("AD5X IFS survives malformed zmod frames", "[ams][ad5x_ifs][zmod_status]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, ifs_frame(3, {false, false, true, false}));
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(ifs_frame(3, {false, false, true, false}));
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 2));
 
     // get_status() is exception-free by construction upstream, but a truncated
     // or type-shifted frame must not take the presence view with it.
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_ifs", "not an object"}});
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_ifs", {{"Ports", "nope"}}}});
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_ifs", {{"Ports", json::array({true, false, 7, false})}}}});
-    Ad5xIfsTestAccess::handle_status(backend, json{{"zmod_color", {{"slots", 42}}}});
-    Ad5xIfsTestAccess::handle_status(
-        backend, json{{"zmod_color", {{"slots", json::array({json{{"ID", "9"}}})}}}});
+    backend.fire_status(json{{"zmod_ifs", "not an object"}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", "nope"}}}});
+    backend.fire_status(json{{"zmod_ifs", {{"Ports", json::array({true, false, 7, false})}}}});
+    backend.fire_status(json{{"zmod_color", {{"slots", 42}}}});
+    backend.fire_status(json{{"zmod_color", {{"slots", json::array({json{{"ID", "9"}}})}}}});
 
     CHECK(Ad5xIfsTestAccess::port_presence(backend, 2));
     CHECK_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -202,37 +205,196 @@ json change_macro_frame(int channel) {
 
 TEST_CASE("AD5X IFS reports a Z-Mod filament change it did not start",
           "[ams][ad5x_ifs][zmod_status][1714]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     REQUIRE(backend.can_cancel_operation());
 
     // The runout auto-swap starts: last_data carries the target tool.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(2));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    backend.fire_status(change_macro_frame(2));
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
     // Its macro holds the G-code queue; Abort would only land after it.
     CHECK_FALSE(backend.can_cancel_operation());
 
     // A diff frame that carries the macro without last_data changes nothing.
-    Ad5xIfsTestAccess::handle_status(backend,
-                                     json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    backend.fire_status(json{{"gcode_macro END_CHANGE_FILAMENT", json::object()}});
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
 
     // END_CHANGE_FILAMENT resets it to 99: the change is over.
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    backend.fire_status(change_macro_frame(99));
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK(backend.can_cancel_operation());
+}
+
+namespace {
+/// LVGL plus the GLOBAL PrinterState, which the backend reads for Klipper's
+/// idle_timeout state.
+struct ZmodChangeIdleFixture : public LVGLTestFixture {
+    ZmodChangeIdleFixture() {
+        get_printer_state().init_subjects(false);
+        set_idle_state("Ready");
+    }
+    ~ZmodChangeIdleFixture() override {
+        set_idle_state("Ready");
+    }
+    static void set_idle_state(const char* state) {
+        get_printer_state().update_from_status({{"idle_timeout", {{"state", state}}}});
+    }
+};
+} // namespace
+
+// Z-Mod's PRINT_ZCOLOR changes filament before print_stats leaves standby, so
+// no job holds the machine. When that change fails, Klipper goes idle and the
+// busy state must go with it (prestonbrown/helixscreen#2086).
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS releases a Z-Mod change once Klipper goes idle without finishing it",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
+
+    set_idle_state("Printing");
+    backend.fire_status(change_macro_frame(1));
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
+
+    // While the change chain runs, Klipper stays busy and the action holds.
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
+    CHECK_FALSE(backend.can_cancel_operation());
+
+    // The unload failed: Klipper is idle again, END_CHANGE_FILAMENT never ran.
+    set_idle_state("Ready");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(backend.can_cancel_operation());
+
+    // last_data.channel still names the abandoned change; it does not re-grab.
+    backend.fire_status(change_macro_frame(1));
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+}
+
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS holds a Z-Mod change Klipper was never seen running",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
+
+    // idle_timeout's Printing can land after the macro frame: an idle reading
+    // before Klipper was seen busy proves nothing about the change.
+    backend.fire_status(change_macro_frame(1));
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
+
+    set_idle_state("Printing");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
+    set_idle_state("Ready");
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+
+    // The next change starts with no busy sighting of its own: the last
+    // change's Printing says nothing about this one.
+    backend.fire_status(change_macro_frame(99));
+    backend.fire_status(change_macro_frame(2));
+    Ad5xIfsTestAccess::run_action_timeout(backend);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
+}
+
+// A successful change's last frame often carries END_CHANGE_FILAMENT's idle
+// channel and Klipper's idle together. That is the change finishing, not one
+// abandoned mid-chain, and the log must not say otherwise.
+TEST_CASE_METHOD(ZmodChangeIdleFixture,
+                 "AD5X IFS does not call a change that finished in the idle frame abandoned",
+                 "[ams][ad5x_ifs][zmod_status][2086]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    backend.fire_status(change_macro_frame(99));
+    set_idle_state("Printing");
+    backend.fire_status(change_macro_frame(2));
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
+
+    LogCapture log;
+    set_idle_state("Ready");
+    backend.fire_status(change_macro_frame(99));
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(log.count_containing("went idle mid-change") == 0);
+    CHECK(log.count_containing("filament change released") == 0);
 }
 
 TEST_CASE("AD5X IFS leaves an action it did not set to its owner",
           "[ams][ad5x_ifs][zmod_status][1714]") {
-    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
 
     // Something else already holds the action: the macro does not overwrite
     // it, and its return to 99 does not clear it.
     Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(1));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
-    Ad5xIfsTestAccess::handle_status(backend, change_macro_frame(99));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    backend.fire_status(change_macro_frame(1));
+    CHECK(backend.get_current_action() == AmsAction::LOADING);
+    backend.fire_status(change_macro_frame(99));
+    CHECK(backend.get_current_action() == AmsAction::LOADING);
+}
+
+// Z-Mod takes the print's tool map as printer.print.start's `tools`, each
+// slot as its 1-based IFS port (prestonbrown/helixscreen#2033).
+TEST_CASE("AD5X IFS on Z-Mod starts the print with the tool map",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array(
+        {"zmod", "zmod_color", "zmod_ifs", "AFC", "AFC_IFS IFS", "AFC_lane lane1", "extruder"}));
+    backend.set_discovery(hw);
+
+    CHECK(backend.print_start_params({{0, 2}}) == helix::PrintStartParams{{"tools", "3"}});
+    CHECK(backend.print_start_params({{0, 1}, {1, 0}}) ==
+          helix::PrintStartParams{{"tools", "2,1"}});
+    // A slot past the four ports is left to the firmware.
+    CHECK(backend.print_start_params({{0, 4}}).empty());
+    // Where the start carries the map, a pick lands without a plugin table.
+    CHECK(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS on Z-Mod without the built-in AFC keeps today's routing",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"}));
+    backend.set_discovery(hw);
+
+    // No map at the start, and no picker whose pick nothing would carry.
+    CHECK(backend.print_start_params({{0, 2}}).empty());
+    CHECK_FALSE(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS off Z-Mod starts the print with its filename alone",
+          "[ams][ad5x_ifs][print_start_params][2033]") {
+    helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
+    helix::PrinterDiscovery hw;
+    // The Forge-X standalone IFS module: no zmod_color.
+    hw.parse_objects(json::array({"ifs", "ifs_materials", "extruder"}));
+    backend.set_discovery(hw);
+
+    CHECK(backend.print_start_params({{0, 2}}).empty());
+    CHECK_FALSE(backend.remap_ready());
+}
+
+TEST_CASE("AD5X IFS keeps Z-Mod's AFC lane map in step with a pick",
+          "[ams][ad5x_ifs][tool_mapping][2033]") {
+    helix::test::GcodeCaptureBackend<AmsBackendAd5xIfs> backend;
+    helix::PrinterDiscovery hw;
+    auto objects = json::array({"zmod", "zmod_color", "zmod_ifs", "extruder"});
+
+    SECTION("built-in AFC: SET_MAP names the port's lane") {
+        for (const char* o : {"AFC", "AFC_IFS IFS", "AFC_lane lane3"}) {
+            objects.push_back(o);
+        }
+        hw.parse_objects(objects);
+        backend.set_discovery(hw);
+        REQUIRE(backend.set_tool_mapping(0, 2).success());
+        CHECK(backend.sent() == std::vector<std::string>{"SET_MAP LANE=lane3 MAP=T0"});
+    }
+
+    SECTION("AFC=0: there is no lane map to write") {
+        hw.parse_objects(objects);
+        backend.set_discovery(hw);
+        backend.set_tool_mapping(0, 2);
+        CHECK(backend.sent().empty());
+    }
 }

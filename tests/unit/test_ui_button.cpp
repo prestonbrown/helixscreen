@@ -11,14 +11,15 @@
 #include "ui_button.h"
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
-#include "ui_update_queue.h"
 #include "ui_variant.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_theme_mode.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -39,19 +40,19 @@ class UiButtonTestFixture : public XMLTestFixture {
         icon_buf_[sizeof(icon_buf_) - 1] = '\0';
 
         // Register a test subject for bind_icon tests
-        lv_subject_init_string(&icon_subject_, icon_buf_, nullptr, sizeof(icon_buf_), icon_buf_);
+        icon_subject_.init_string(icon_buf_, nullptr, sizeof(icon_buf_), icon_buf_);
         lv_xml_register_subject(nullptr, "test_icon_subject", &icon_subject_);
 
         // Register a test subject for bind_text tests
-        lv_subject_init_string(&text_subject_, text_buf_, nullptr, sizeof(text_buf_), "Close");
+        text_subject_.init_string(text_buf_, nullptr, sizeof(text_buf_), "Close");
         lv_xml_register_subject(nullptr, "test_text_subject", &text_subject_);
 
         spdlog::debug("[UiButtonTestFixture] Initialized with test subjects");
     }
 
     ~UiButtonTestFixture() override {
-        lv_subject_deinit(&icon_subject_);
-        lv_subject_deinit(&text_subject_);
+        icon_subject_.reset();
+        text_subject_.reset();
         spdlog::debug("[UiButtonTestFixture] Cleaned up");
     }
 
@@ -66,14 +67,14 @@ class UiButtonTestFixture : public XMLTestFixture {
      * @brief Set the icon subject value
      */
     void set_icon_name(const char* name) {
-        lv_subject_copy_string(&icon_subject_, name);
+        lv_subject_set_string(&icon_subject_, name);
     }
 
     /**
      * @brief Set the text subject value
      */
     void set_text(const char* text) {
-        lv_subject_copy_string(&text_subject_, text);
+        lv_subject_set_string(&text_subject_, text);
     }
 
     /**
@@ -122,10 +123,10 @@ class UiButtonTestFixture : public XMLTestFixture {
     }
 
   protected:
-    lv_subject_t icon_subject_;
+    helix::Subject icon_subject_;
     char icon_buf_[64];
 
-    lv_subject_t text_subject_;
+    helix::Subject text_subject_;
     char text_buf_[64];
 };
 
@@ -140,7 +141,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button can be created via XML",
 
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 // A solid variant is an accent fill: the label starts from the palette text
@@ -156,7 +157,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button solid variant label is readable
             const char* attrs[] = {"text", "Go", "variant", variant, nullptr};
             lv_obj_t* btn = create_button(attrs);
             REQUIRE(btn != nullptr);
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
 
             lv_obj_t* label = nullptr;
             for (uint32_t i = 0; i < lv_obj_get_child_count(btn); ++i) {
@@ -191,7 +192,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon basic creation works"
     const char* attrs[] = {"text", "Test", "bind_icon", "test_icon_subject", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon updates icon from subject",
@@ -280,7 +281,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles missing subje
     process_lvgl(50);
 
     // Button should exist and be valid
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string value",
@@ -297,7 +298,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_icon handles empty string 
     process_lvgl(50);
 
     // Button should exist and be valid
-    REQUIRE(lv_obj_is_valid(btn));
+    REQUIRE(helix::test::widget_in_tree(btn));
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture,
@@ -346,8 +347,8 @@ TEST_CASE_METHOD(UiButtonTestFixture,
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy/done states",
                  "[ui_button][xml][op_state][quick]") {
     // Dedicated int subject for op-state binding (0 idle / 1 busy / 2 done)
-    lv_subject_t op_subject;
-    lv_subject_init_int(&op_subject, 0);
+    helix::Subject op_subject;
+    op_subject.init_int(0);
     lv_xml_register_subject(nullptr, "test_op_subject", &op_subject);
 
     const char* idle_cp = helix::ui::icon::lookup_codepoint("light");
@@ -368,12 +369,12 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy
     // --- State 0: idle — original icon glyph visible, spinner hidden/absent ---
     INFO("idle: icon glyph should be the original 'light' codepoint");
     REQUIRE(strcmp(lv_label_get_text(icon), idle_cp) == 0);
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     {
         lv_obj_t* arc = ui_button_get_op_spinner(btn);
         // Spinner may not be created yet, or if created must be hidden in idle.
         if (arc) {
-            REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+            REQUIRE(lv_obj_is_hidden(arc));
         }
     }
 
@@ -381,32 +382,31 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy
     lv_subject_set_int(&op_subject, 1);
     process_lvgl(10);
     INFO("busy: glyph label must be hidden");
-    REQUIRE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(icon));
     lv_obj_t* arc = ui_button_get_op_spinner(btn);
     INFO("busy: spinner arc must exist and be visible");
     REQUIRE(arc != nullptr);
     REQUIRE(lv_obj_check_type(arc, &lv_arc_class));
-    REQUIRE_FALSE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(arc));
 
     // --- State 2: done — 'check' glyph visible, spinner hidden ---
     lv_subject_set_int(&op_subject, 2);
     process_lvgl(10);
     INFO("done: icon glyph should be the 'check' codepoint");
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     REQUIRE(strcmp(lv_label_get_text(icon), check_cp) == 0);
-    REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(arc));
 
     // --- Back to idle — original glyph restored, spinner hidden ---
     lv_subject_set_int(&op_subject, 0);
     process_lvgl(10);
     INFO("idle (return): original 'light' glyph restored");
-    REQUIRE_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(icon));
     REQUIRE(strcmp(lv_label_get_text(icon), idle_cp) == 0);
-    REQUIRE(lv_obj_has_flag(arc, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(arc));
 
     lv_obj_delete(btn);
     process_lvgl(5);
-    lv_subject_deinit(&op_subject);
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture,
@@ -522,15 +522,13 @@ TEST_CASE_METHOD(UiButtonTestFixture,
 }
 
 // ============================================================================
-// Deferred contrast / address-reuse crash regression (#924)
+// Deferred contrast after delete (#924)
 //
 // Integration-level coverage of the deferred-contrast path: a STYLE_CHANGED
 // event defers update_button_text_contrast through the UpdateQueue; if the
 // button is destroyed before the queue drains, the deferred recompute must be
-// skipped rather than crashing. The discriminating identity-guard test (which
-// FAILS when `d->id != gen` is removed) lives in
-// test_ui_button_defer_reuse.cpp, which includes ui_button.cpp directly for
-// access to the anonymous-namespace internals.
+// skipped rather than crashing. test_ui_button_defer_reuse.cpp covers the same
+// path through the anonymous-namespace internals.
 // ============================================================================
 
 TEST_CASE_METHOD(UiButtonTestFixture,
@@ -541,16 +539,15 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     REQUIRE(btn != nullptr);
 
     // Drain any create-time deferred contrast passes first.
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // STYLE_CHANGED enqueues a deferred contrast recompute; destroy the button
-    // before the queue drains. lv_obj_is_valid() must reject the stale pointer.
+    // before the queue drains. helix::test::widget_in_tree() must reject the stale pointer.
     lv_obj_send_event(btn, LV_EVENT_STYLE_CHANGED, nullptr);
     lv_obj_delete(btn);
 
     // Must not crash; the captured (now invalid) widget pointer is skipped.
-    REQUIRE_NOTHROW(
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance()));
+    REQUIRE_NOTHROW(helix::ui::UpdateQueue::instance().drain_until_empty());
 }
 
 // ============================================================================
@@ -671,8 +668,8 @@ lv_obj_t* text_label(lv_obj_t* btn) {
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_subject",
                  "[ui_button][xml][label_hidden]") {
     // Static: the XML scope keeps the name after the test, so the storage must outlive it.
-    static lv_subject_t labels{};
-    lv_subject_init_int(&labels, 1);
+    static helix::Subject labels{};
+    labels.init_int(1);
     lv_xml_register_subject(nullptr, "test_labels_subject", &labels);
 
     const char* attrs[] = {"icon",
@@ -689,23 +686,23 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_subj
     lv_obj_t* label = text_label(btn);
     REQUIRE(label != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
     lv_subject_set_int(&labels, 0);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(&labels, 1);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
-    lv_subject_deinit(&labels);
+    labels.reset();
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_cond",
                  "[ui_button][xml][label_hidden]") {
     // Static: the XML scope keeps the names after the test, so the storage must outlive it.
-    static lv_subject_t portrait{};
-    static lv_subject_t tier{};
-    lv_subject_init_int(&portrait, 0);
-    lv_subject_init_int(&tier, 2);
+    static helix::Subject portrait{};
+    static helix::Subject tier{};
+    portrait.init_int(0);
+    tier.init_int(2);
     lv_xml_register_subject(nullptr, "test_cond_portrait", &portrait);
     lv_xml_register_subject(nullptr, "test_cond_tier", &tier);
 
@@ -721,15 +718,15 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label follows label_hidden_cond
     lv_obj_t* label = text_label(btn);
     REQUIRE(label != nullptr);
 
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
     lv_subject_set_int(&portrait, 1);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(&tier, 5);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
-    lv_subject_deinit(&portrait);
-    lv_subject_deinit(&tier);
+    portrait.reset();
+    tier.reset();
 }
 
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label_hidden_if_bp_eq follows ui_breakpoint",
@@ -745,9 +742,9 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label_hidden_if_bp_eq follows u
     REQUIRE(label != nullptr);
 
     lv_subject_set_int(bp, 1);
-    CHECK(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(label));
     lv_subject_set_int(bp, 3);
-    CHECK_FALSE(lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(label));
 
     lv_obj_delete(btn);
     lv_subject_set_int(bp, saved);
@@ -758,8 +755,8 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button label_hidden_if_bp_eq follows u
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button stacked_subject restacks while the subject equals the ref",
                  "[ui_button][xml][quick]") {
-    static lv_subject_t stack_when;
-    lv_subject_init_int(&stack_when, 1);
+    static helix::Subject stack_when;
+    stack_when.init_int(1);
     lv_xml_register_subject(nullptr, "test_button_stack_when", &stack_when);
     const char* attrs[] = {
         "icon",          "tune", "text", "Tune", "stacked_subject", "test_button_stack_when",
@@ -778,7 +775,7 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     lv_subject_set_int(&stack_when, 1);
     CHECK(lv_obj_get_style_flex_flow(btn, LV_PART_MAIN) == LV_FLEX_FLOW_COLUMN);
     lv_obj_delete(btn);
-    lv_subject_deinit(&stack_when);
+    stack_when.reset();
 }
 
 // stacked_if_bp_lte: at ui_breakpoint <= N the button restacks icon-over-label
@@ -834,7 +831,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
     const char* attrs[] = {"text", "Go", "variant", "primary", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_obj_t* label = nullptr;
     for (uint32_t i = 0; i < lv_obj_get_child_count(btn) && !label; ++i)
         if (lv_obj_check_type(lv_obj_get_child(btn, i), &lv_label_class))
@@ -850,12 +847,41 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: the next frame draws the contr
 
     lv_refr_now(nullptr); // no UpdateQueue drain
     const uint32_t drawn = lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     const uint32_t settled = lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN));
     CAPTURE(before & 0xFFFFFF, drawn & 0xFFFFFF, settled & 0xFFFFFF);
     REQUIRE(settled != before); // the new fill does change the text colour
     CHECK(drawn == settled);
     lv_obj_remove_style(btn, &white_fill, LV_PART_MAIN);
+}
+
+// A text colour the author binds onto the button wins over the contrast pick; the
+// variant's own styles do not count, and removing the bound style restores contrast.
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: an authored text colour beats contrast",
+                 "[ui_button][contrast]") {
+    const char* attrs[] = {"text", "Stop", "variant", "outline", nullptr};
+    lv_obj_t* btn = create_button(attrs);
+    REQUIRE(btn != nullptr);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    lv_obj_t* label = lv_obj_get_child_by_type(btn, 0, &lv_label_class);
+    REQUIRE(label != nullptr);
+    const auto label_color = [label] {
+        return lv_color_to_u32(lv_obj_get_style_text_color(label, LV_PART_MAIN)) & 0xFFFFFF;
+    };
+    const uint32_t contrast = label_color();
+    const uint32_t danger = lv_color_to_u32(theme_manager_get_color("danger")) & 0xFFFFFF;
+    REQUIRE(contrast != danger);
+
+    static lv_style_t quiet_stop;
+    lv_style_init(&quiet_stop);
+    lv_style_set_text_color(&quiet_stop, theme_manager_get_color("danger"));
+    lv_obj_add_style(btn, &quiet_stop, LV_PART_MAIN);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(label_color() == danger);
+
+    lv_obj_remove_style(btn, &quiet_stop, LV_PART_MAIN);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(label_color() == contrast);
 }
 
 // A shell button that lays its content out through a wrapper still gives that
@@ -881,7 +907,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button: contrast reaches content insid
     lv_style_set_bg_color(&white_fill, lv_color_white());
     lv_style_set_bg_opa(&white_fill, LV_OPA_COVER);
     lv_obj_add_style(btn, &white_fill, LV_PART_MAIN);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     const uint32_t expected = lv_color_to_u32(theme_manager_get_contrast_adjusted_text(
         theme_manager_get_color("text"), lv_color_white()));
@@ -907,14 +933,14 @@ TEST_CASE_METHOD(UiButtonTestFixture,
     const char* attrs[] = {"text", "Go", "variant", "primary", nullptr};
     lv_obj_t* btn = create_button(attrs);
     REQUIRE(btn != nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_refr_now(nullptr);
 
     lv_display_t* disp = lv_obj_get_display(btn);
     s_invalidations = 0;
     lv_display_add_event_cb(disp, count_invalidation, LV_EVENT_INVALIDATE_AREA, nullptr);
     lv_obj_send_event(btn, LV_EVENT_STATE_CHANGED, nullptr);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     lv_display_remove_event_cb_with_user_data(disp, count_invalidation, nullptr);
 
     CHECK(s_invalidations == 0);
@@ -1004,8 +1030,8 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button row re-shares when a label grow
 // not the fixed button_height.
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button unstacks to its declared height",
                  "[ui_button][xml][quick]") {
-    static lv_subject_t stack_when;
-    lv_subject_init_int(&stack_when, 0);
+    static helix::Subject stack_when;
+    stack_when.init_int(0);
     lv_xml_register_subject(nullptr, "test_button_stack_height", &stack_when);
     lv_obj_t* box = lv_obj_create(test_screen());
     lv_obj_set_size(box, 200, 90);
@@ -1029,7 +1055,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button unstacks to its declared height
     CHECK(lv_obj_get_style_flex_flow(btn, LV_PART_MAIN) == LV_FLEX_FLOW_ROW);
     CHECK(lv_obj_get_style_height(btn, LV_PART_MAIN) == lv_pct(100));
     lv_obj_delete(box);
-    lv_subject_deinit(&stack_when);
+    stack_when.reset();
 }
 
 namespace {
@@ -1057,8 +1083,8 @@ lv_obj_t* make_flip_button(lv_obj_t* box, const char* subject_name, const char* 
 // button ellipsizes there instead of wrapping out of the bottom.
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button dotted label stays one line across a restack",
                  "[ui_button][xml][quick]") {
-    static lv_subject_t stack_when;
-    lv_subject_init_int(&stack_when, 0);
+    static helix::Subject stack_when;
+    stack_when.init_int(0);
     lv_xml_register_subject(nullptr, "test_button_stack_dots", &stack_when);
     lv_obj_t* box = lv_obj_create(test_screen());
     lv_obj_set_size(box, 60, 90);
@@ -1076,15 +1102,15 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button dotted label stays one line acr
         CHECK(label_inside(btn));
     }
     lv_obj_delete(box);
-    lv_subject_deinit(&stack_when);
+    stack_when.reset();
 }
 
 // Under its icon a wrap-mode label takes its text's own height, including after
 // it has been held to one line beside the icon.
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stacked wrap label keeps content height",
                  "[ui_button][xml][quick]") {
-    static lv_subject_t stack_when;
-    lv_subject_init_int(&stack_when, 0);
+    static helix::Subject stack_when;
+    stack_when.init_int(0);
     lv_xml_register_subject(nullptr, "test_button_stack_wrap", &stack_when);
     lv_obj_t* box = lv_obj_create(test_screen());
     lv_obj_set_size(box, 60, 200);
@@ -1101,7 +1127,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stacked wrap label keeps conten
     CHECK(lv_obj_get_style_height(label, LV_PART_MAIN) == LV_SIZE_CONTENT);
     CHECK(lv_obj_get_height(label) > one_line_height(label));
     lv_obj_delete(box);
-    lv_subject_deinit(&stack_when);
+    stack_when.reset();
 }
 
 // A stacked button that asked for a content minimum holds the wider of its
@@ -1110,8 +1136,8 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stacked wrap label keeps conten
 // it unstacks.
 TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stacked keeps a measured minimum width",
                  "[ui_button][xml][quick]") {
-    static lv_subject_t stack_when;
-    lv_subject_init_int(&stack_when, 0);
+    static helix::Subject stack_when;
+    stack_when.init_int(0);
     lv_xml_register_subject(nullptr, "test_button_stack_min", &stack_when);
     lv_obj_t* row = make_button_row(test_screen(), 300);
     const char* attrs[] = {"width",
@@ -1148,7 +1174,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stacked keeps a measured minimu
     lv_obj_update_layout(test_screen());
     CHECK(lv_obj_get_style_min_width(btn, LV_PART_MAIN) == LV_SIZE_CONTENT);
     lv_obj_delete(row);
-    lv_subject_deinit(&stack_when);
+    stack_when.reset();
 }
 
 // A column button cannot hold style_min_width="content" (LVGL measures a
@@ -1199,7 +1225,7 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button column holds a measured minimum
         lv_style_init(&content_min);
         lv_style_set_min_width(&content_min, LV_SIZE_CONTENT);
         lv_obj_add_style(btn, &content_min, LV_PART_MAIN);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         lv_refr_now(nullptr);
         lv_obj_update_layout(test_screen());
         CHECK(lv_obj_get_style_min_width(btn, LV_PART_MAIN) == measured(btn));
@@ -1257,17 +1283,17 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button honors a style's opacity while 
         dim_ready = true;
     }
     lv_obj_add_style(btn, &dim, LV_PART_MAIN);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_40);
 
     // Disabled still reads as disabled, and enabling hands opacity back.
     lv_obj_add_state(btn, LV_STATE_DISABLED);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_50);
     lv_obj_remove_state(btn, LV_STATE_DISABLED);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     process_lvgl(10);
     CHECK(lv_obj_get_style_opa(btn, LV_PART_MAIN) == LV_OPA_40);
     lv_obj_remove_style(btn, &dim, LV_PART_MAIN);

@@ -20,7 +20,6 @@
 #include "ui_change_host_modal.h"
 #include "ui_modal.h"
 #include "ui_printer_switch_menu.h"
-#include "ui_update_queue.h"
 
 #include "../mocks/mock_mdns_discovery.h"
 #include "../test_fixtures.h"
@@ -29,6 +28,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "host_identity.h"
 #include "i_moonraker_client.h"
 #include "moonraker_error.h"
@@ -339,8 +339,7 @@ TEST_CASE_METHOD(ConnFailedFixture, "A never-connected remote host still offers 
     CHECK(primary_text.find("Reconnect") != std::string::npos);
     const std::string cancel_text = UITest::button_text(Modal::get_top(), "btn_secondary");
     CHECK(cancel_text.find("Change Address") != std::string::npos);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(Modal::get_top(), "btn_secondary"),
-                                LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(Modal::get_top(), "btn_secondary")));
 
     cfg->set<std::string>(key, prev);
     helix::invalidate_host_identity_cache();

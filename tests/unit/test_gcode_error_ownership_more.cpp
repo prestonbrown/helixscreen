@@ -25,13 +25,13 @@
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "led/led_controller.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "rpc_error_correlation.h"
 #include "test_helpers/printer_state_test_access.h"
-#include "test_helpers/update_queue_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
 
 #include <algorithm>
@@ -49,7 +49,7 @@ class OwnershipMoreFixture : public LVGLTestFixture {
         helix::rpc_error_correlation::clear_for_test();
     }
     ~OwnershipMoreFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::rpc_error_correlation::clear_for_test();
     }
 };
@@ -104,6 +104,8 @@ TEST_CASE_METHOD(OwnershipMoreFixture, "Z-offset bed-off send leaves the `!!` ro
     ZOffsetCalibrationPanel panel;
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::mark_bed_warmed(panel);
+    lv_subject_set_int(state.network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(helix::ConnectionState::CONNECTED));
 
     client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, kRejection, "M140");
     ZOffsetCalibrationTestAccess::turn_off_bed(panel);

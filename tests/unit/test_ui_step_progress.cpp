@@ -7,8 +7,8 @@
  *
  * The vertical connector lines between step circles are absolutely-positioned
  * IGNORE_LAYOUT rects sized from a layout pass. When the widget is created while
- * an ancestor is hidden, the layout is degenerate (0-size) and the connectors
- * used to be skipped permanently. These tests pin the two contracts:
+ * an ancestor is hidden, the layout is degenerate (0-size), and the connectors
+ * must not be skipped permanently. These tests pin the two contracts:
  *   1. connectors exist with a positive extent when created while visible, and
  *   2. connectors are (re)created + sized once the widget becomes visible, even
  *      if it was built while hidden — driven by an LV_EVENT_SIZE_CHANGED reflow.
@@ -139,7 +139,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         lv_obj_t* item = lv_obj_get_child(widget, (int32_t)i);
         if (lv_obj_get_child_count(item) < 2)
             continue; // a connector
-        CHECK(lv_obj_has_flag(lv_obj_get_child(item, 1), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(lv_obj_get_child(item, 1)));
     }
     lv_obj_t* caption = ui_step_progress_get_caption(widget);
     REQUIRE(caption != nullptr);
@@ -245,7 +245,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // One scroller: a drag on the bar moves the parent, never rows inside the
     // bar's own box, which would open a gap below the last row.
-    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK_FALSE(lv_obj_is_scrollable(widget));
 
     ui_step_progress_set_current(widget, 15);
     process_lvgl(1000);
@@ -278,5 +278,5 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
                                                /*horizontal=*/true, nullptr);
     REQUIRE(widget != nullptr);
-    CHECK(lv_obj_has_flag(widget, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_scrollable(widget));
 }

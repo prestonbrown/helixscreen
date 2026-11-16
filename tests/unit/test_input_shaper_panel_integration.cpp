@@ -15,16 +15,17 @@
  */
 
 #include "../../include/calibration_types.h"
+#include "../../include/core/update_queue.h"
 #include "../../include/input_shaper_calibrator.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_panel_input_shaper.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/input_shaper_panel_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -85,7 +86,7 @@ TEST_CASE("InputShaperCalibrator state machine basics", "[calibrator][input_shap
 
 TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
     // Every type the results card can be handed maps to its own sentence
-    // (src/ui/ui_panel_input_shaper.cpp:1296). A missing arm silently degrades
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:1296). A missing arm silently degrades
     // to the generic fallback, which reads plausible and says nothing.
     CHECK(std::string(ispta::InputShaperPanelTestAccess::shaper_explanation("zv")) ==
           "Fast but minimal smoothing — best for well-built printers");
@@ -124,7 +125,7 @@ TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
 TEST_CASE("Vibration quality thresholds", "[input_shaper][panel][results]") {
     // Quality levels drive the result card's colour: 0=excellent (<5%),
     // 1=good (5-15%), 2=fair (15-25%), 3=poor (>=25%)
-    // (src/ui/ui_panel_input_shaper.cpp:1326). Assert the boundaries, since an
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:1326). Assert the boundaries, since an
     // off-by-one in a `<` vs `<=` is exactly what mis-colours a card.
     CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(0.0f) == 0);
     CHECK(ispta::InputShaperPanelTestAccess::vibration_quality(4.9f) == 0);
@@ -182,7 +183,7 @@ class InputShaperDeltaFixture : public LVGLUITestFixture {
 
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
 
         panel_ = &get_global_input_shaper_panel();
         panel_->init_subjects();
@@ -332,11 +333,11 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
               "Measured (shaper off)");
         lv_obj_t* prev_dot = view_widget(view_, "legend_x_previous_dot");
         lv_obj_t* prev_label = view_widget(view_, "legend_x_previous_label");
-        CHECK_FALSE(lv_obj_has_flag(prev_dot, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(prev_label, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(prev_dot));
+        CHECK_FALSE(lv_obj_is_hidden(prev_label));
         CHECK(std::string(lv_label_get_text(prev_label)) == "Previous");
         lv_obj_t* y_prev_dot = view_widget(view_, "legend_y_previous_dot");
-        CHECK_FALSE(lv_obj_has_flag(y_prev_dot, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(y_prev_dot));
 
         // The chart's Y quantity is named above the plot.
         REQUIRE(lv_obj_find_by_name(view_, "chart_x_caption") != nullptr);
@@ -354,8 +355,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
         CHECK(subject_int("is_x_has_delta") == 1);
         CHECK(subject_int("is_x_has_verdict") == 1);
         // ...so the Previous legend entry is present too...
-        CHECK_FALSE(
-            lv_obj_has_flag(view_widget(view_, "legend_x_previous_label"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_label")));
         // ...but no firmware overwrite happened, so no warning.
         CHECK(subject_int("is_x_fw_overwrite_warn") == 0);
     }
@@ -378,8 +378,8 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "delta rows stay hidden without a live
 
     // The Previous legend entry hides with the delta rows (no before-config),
     // while the always-on key entries and the chart caption remain.
-    CHECK(lv_obj_has_flag(view_widget(view_, "legend_x_previous_dot"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(view_widget(view_, "legend_x_previous_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_dot")));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_label")));
     CHECK(std::string(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))) ==
           "Measured (shaper off)");
     REQUIRE(lv_obj_find_by_name(view_, "chart_x_caption") != nullptr);
@@ -405,8 +405,8 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
     // The Y card's copy of the warning row is visible. The X card's own copy
     // is unreachable because the whole X card is hidden (its row's own flag
     // stays clear - LVGL hides children through the parent, not their flags).
-    CHECK_FALSE(lv_obj_has_flag(view_widget(view_, "fw_overwrite_warn_y"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(view_widget(view_, "result_card_x"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "fw_overwrite_warn_y")));
+    CHECK(lv_obj_is_hidden(view_widget(view_, "result_card_x")));
 }
 
 TEST_CASE_METHOD(InputShaperDeltaFixture,
@@ -418,11 +418,10 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
       public:
         GcodeLogCapture() : sink_(std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(256)) {
             sink_->set_level(spdlog::level::trace);
-            spdlog::default_logger()->sinks().push_back(sink_);
+            helix::attach_log_sink(*spdlog::default_logger(), sink_);
         }
         ~GcodeLogCapture() {
-            auto& sinks = spdlog::default_logger()->sinks();
-            sinks.erase(std::remove(sinks.begin(), sinks.end(), sink_), sinks.end());
+            helix::detach_log_sink(*spdlog::default_logger(), sink_);
         }
         [[nodiscard]] int count(const std::string& needle) const {
             int n = 0;
@@ -476,7 +475,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "Print test pattern sends the accelera
                  "[input_shaper][panel][test_pattern]") {
     // The button's whole job is one command: TUNING_TOWER ramps acceleration
     // across the print so ringing can be compared band by band
-    // (src/ui/ui_panel_input_shaper.cpp:2071).
+    // (src/ui/calibration/ui_panel_input_shaper.cpp:2071).
     mock_client_.clear_gcode_script_history();
 
     panel_->handle_print_test_pattern_clicked();
@@ -516,7 +515,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "InputShaperPanel current config subje
 
         CHECK(subject_int("is_shaper_configured") == 1);
         // Types are uppercased for display; frequencies get the shared "%.1f Hz"
-        // formatter (src/ui/ui_panel_input_shaper.cpp:1206).
+        // formatter (src/ui/calibration/ui_panel_input_shaper.cpp:1206).
         CHECK(subject_string("is_current_x_type") == "MZV");
         CHECK(subject_string("is_current_x_freq") == "36.7 Hz");
         CHECK(subject_string("is_current_y_type") == "EI");
@@ -557,7 +556,7 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "InputShaperPanel current config subje
 TEST_CASE_METHOD(InputShaperDeltaFixture, "Per-axis result population",
                  "[input_shaper][panel][results]") {
     // A single-axis run must fill that axis's card and leave the other one
-    // untouched (src/ui/ui_panel_input_shaper.cpp:1345 populate_axis_result).
+    // untouched (src/ui/calibration/ui_panel_input_shaper.cpp:1345 populate_axis_result).
     panel_->handle_calibrate_x_clicked();
     REQUIRE(pump_until([&] { return panel_state() == 2; }, /*inject_copy_marker=*/false));
 
@@ -963,7 +962,7 @@ TEST_CASE_METHOD(InputShaperPreviewFixture, "the results view's legend, colors a
         int checked = 0;
         for (uint32_t r = 0; r < rows; ++r) {
             lv_obj_t* row = lv_obj_get_child(table, static_cast<int32_t>(r));
-            if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_child_count(row) < 4) {
+            if (lv_obj_is_hidden(row) || lv_obj_get_child_count(row) < 4) {
                 continue;
             }
             lv_area_t row_box;
@@ -980,4 +979,30 @@ TEST_CASE_METHOD(InputShaperPreviewFixture, "the results view's legend, colors a
         }
         CHECK(checked >= 6);
     }
+}
+
+TEST_CASE_METHOD(InputShaperPreviewFixture,
+                 "the live sweep stops behind the screensaver and streams again on wake",
+                 "[input_shaper][panel][preview][suspend]") {
+    panel_->handle_calibrate_x_clicked();
+    REQUIRE(run_until([&] { return subject_int("is_measuring_has_chart") == 1; }));
+    REQUIRE(log_.created == 1);
+    REQUIRE(log_.stopped == 0);
+
+    panel_->on_deactivate(DeactivateReason::Suspended);
+    CHECK(log_.stopped == 1);
+    CHECK(subject_int("is_measuring_has_chart") == 0);
+    for (int i = 0; i < 5; ++i) {
+        tick();
+    }
+    CHECK(log_.created == 1);
+
+    panel_->on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(panel_state() == 1);
+    // The preview opens its stream at the next console frequency.
+    CHECK(run_until([&] { return log_.created == 2; }));
+    CHECK(log_.stopped == 1);
+
+    REQUIRE(run_until([&] { return panel_state() == 2; }));
 }

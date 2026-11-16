@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 namespace helix {
@@ -21,9 +22,9 @@ class IMoonrakerAPI;
  *
  * ## Features
  * - Enable/disable firmware retraction
- * - Retract length (0-6mm, 0.1mm steps)
+ * - Retract length (0-6mm, 0.01mm steps)
  * - Retract speed (10-80 mm/s)
- * - Unretract extra length (0-1mm, 0.1mm steps)
+ * - Unretract extra length (0-1mm, 0.01mm steps)
  * - Unretract speed (10-60 mm/s)
  *
  * ## Klipper G-codes
@@ -50,6 +51,9 @@ class RetractionSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "retraction_settings_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void on_activate() override;
@@ -119,24 +123,30 @@ class RetractionSettingsOverlay : public OverlayBase {
     lv_obj_t* unretract_extra_slider_ = nullptr;
     lv_obj_t* unretract_speed_slider_ = nullptr;
 
+    /// A rebuilt tree has no typed value to keep, so its first activate syncs.
+    void on_ui_destroyed() override {
+        enable_switch_ = nullptr;
+        retract_length_slider_ = nullptr;
+        retract_speed_slider_ = nullptr;
+        unretract_extra_slider_ = nullptr;
+        unretract_speed_slider_ = nullptr;
+        returning_from_keypad_ = false;
+    }
+
     // Subject manager for automatic cleanup
     SubjectManager subjects_;
 
     // Display label subjects
-    lv_subject_t retract_length_display_{};
-    lv_subject_t retract_speed_display_{};
-    lv_subject_t unretract_extra_display_{};
-    lv_subject_t unretract_speed_display_{};
+    helix::Subject retract_length_display_{};
+    helix::Subject retract_speed_display_{};
+    helix::Subject unretract_extra_display_{};
+    helix::Subject unretract_speed_display_{};
 
     // Static buffers for subject strings
     char retract_length_buf_[16];
     char retract_speed_buf_[16];
     char unretract_extra_buf_[16];
     char unretract_speed_buf_[16];
-
-    //
-    // === Injected Dependencies ===
-    //
 
     helix::IMoonrakerAPI* api_ = nullptr;
 

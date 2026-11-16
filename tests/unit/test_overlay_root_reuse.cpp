@@ -18,11 +18,12 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_motion.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "led/ui_led_control_overlay.h"
 #include "printer_state.h"
 
@@ -119,8 +120,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "two callers opening the LED overlay share o
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a fan overlay tree deleted out from under the singleton is rebuilt on next open",
+                 "a fan overlay tree closed or deleted under the singleton is rebuilt on next open",
                  "[overlays][fan_control][overlay-root-reuse]") {
+    const bool by_back = GENERATE(false, true);
+    CAPTURE(by_back);
     FreshOverlays fresh;
     state().fan_state().init_fans({"fan", "fan_generic chamber"});
     seed_nav_panels(test_screen());
@@ -131,8 +134,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const size_t dials = FanControlOverlayTestAccess::dial_count(overlay);
     REQUIRE(dials > 0);
 
-    close_all();
-    lv_obj_delete(first);
+    if (by_back) {
+        NavigationManager::instance().go_back();
+        process_lvgl(600);
+        helix::ui::UpdateQueue::instance().drain();
+    } else {
+        close_all();
+        lv_obj_delete(first);
+    }
 
     // The dials point into the deleted tree; they must be gone before anything
     // (the next open's repopulate included) touches them.
@@ -142,7 +151,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     seed_nav_panels(test_screen());
     lv_obj_t* reopened = helix::open_fan_control_overlay(test_screen());
     REQUIRE(reopened != nullptr);
-    CHECK(lv_obj_is_valid(reopened));
+    CHECK(helix::test::widget_in_tree(reopened));
     CHECK(overlay.get_root() == reopened);
     lv_obj_t* container = FanControlOverlayTestAccess::fans_container(overlay);
     REQUIRE(container != nullptr);
@@ -168,7 +177,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     seed_nav_panels(test_screen());
     lv_obj_t* reopened = helix::open_led_control_overlay(test_screen());
     REQUIRE(reopened != nullptr);
-    CHECK(lv_obj_is_valid(reopened));
+    CHECK(helix::test::widget_in_tree(reopened));
     CHECK(get_led_control_overlay().get_root() == reopened);
     CHECK(lv_obj_find_by_name(reopened, "led_tab_row") != nullptr);
 }

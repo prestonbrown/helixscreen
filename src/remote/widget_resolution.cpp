@@ -3,6 +3,8 @@
 
 #include "widget_resolution.h"
 
+#include "ui_utils.h"
+
 #include "lvgl.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_intersect
 
@@ -51,7 +53,7 @@ bool tap_reaches_handler(lv_obj_t* o) {
         if (has_own_click_handler(cur)) {
             return true;
         }
-        if (!lv_obj_has_flag(cur, LV_OBJ_FLAG_EVENT_BUBBLE)) {
+        if (!lv_obj_is_event_bubble(cur)) {
             break;
         }
     }
@@ -75,7 +77,7 @@ void collect_value_controls(lv_obj_t* parent, std::vector<lv_obj_t*>& out) {
     uint32_t count = lv_obj_get_child_count(parent);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(parent, i);
-        if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!child || lv_obj_is_hidden(child)) {
             continue;
         }
         if (is_value_control(child)) {
@@ -91,11 +93,11 @@ void collect_value_controls(lv_obj_t* parent, std::vector<lv_obj_t*>& out) {
 
 } // namespace
 
-// `click row_foo` on a composite settings row used to send CLICKED to the row
-// container — which does nothing, because the control the user meant is the
-// switch nested inside it. Prefer a value-control descendant when the target
-// itself isn't one; fall back to the literal target (a category row that opens
-// an overlay is clickable and has no value-control, and must stay that way).
+// `click row_foo` on a composite settings row means the switch nested inside
+// it: CLICKED sent to the row container does nothing. Prefer a value-control
+// descendant when the target itself isn't one; fall back to the literal target
+// (a category row that opens an overlay is clickable and has no value-control,
+// and must stay that way).
 //
 // Descent is only ever a repair for a target that does nothing on its own. A
 // target with its own click handler is already the thing the caller addressed,
@@ -304,7 +306,7 @@ std::string path_of(lv_obj_t* o, lv_obj_t* base) {
 std::vector<Overflow> find_overflow(lv_obj_t* root) {
     std::vector<Overflow> found;
     std::function<void(lv_obj_t*)> walk = [&](lv_obj_t* o) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             return;
         }
         // LVGL reports a short content box as a negative remainder.
@@ -360,7 +362,7 @@ void collect_widgets(lv_obj_t* root, const std::function<bool(const char* name)>
     const uint32_t count = lv_obj_get_child_count(root);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_t* child = lv_obj_get_child(root, i);
-        if (!child || (!include_hidden && lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))) {
+        if (!child || (!include_hidden && lv_obj_is_hidden(child))) {
             continue;
         }
         char resolved[128];
@@ -417,25 +419,14 @@ lv_obj_t* topmost_visible(const std::vector<lv_obj_t*>& matches) {
     return best;
 }
 
-lv_obj_t* hidden_ancestor(lv_obj_t* obj) {
-    // Hidden is inherited: an object inside a hidden parent is not drawn and
-    // never hit-tested, however unhidden it is itself.
-    for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
-            return o;
-        }
-    }
-    return nullptr;
-}
-
 const char* click_blocker(lv_obj_t* obj) {
     if (obj == nullptr) {
         return "not found";
     }
-    if (hidden_ancestor(obj) != nullptr) {
+    if (ui::hidden_ancestor(obj) != nullptr) {
         return "hidden";
     }
-    if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE)) {
+    if (!lv_obj_is_clickable(obj)) {
         return "not clickable";
     }
     // Checked on the hit object only, which is what lv_indev.c does - a
@@ -461,7 +452,7 @@ lv_obj_t* view_clipper(lv_obj_t* obj) {
     if (obj == nullptr) {
         return nullptr;
     }
-    if (lv_obj_t* hidden = hidden_ancestor(obj)) {
+    if (lv_obj_t* hidden = ui::hidden_ancestor(obj)) {
         return hidden;
     }
     // Only the loaded screen and the layers drawn over it are on the display.
@@ -475,7 +466,7 @@ lv_obj_t* view_clipper(lv_obj_t* obj) {
     lv_area_t view{};
     bool clipped = false;
     for (lv_obj_t* a = lv_obj_get_parent(obj); a != nullptr; a = lv_obj_get_parent(a)) {
-        if (lv_obj_has_flag(a, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+        if (lv_obj_is_overflow_visible(a)) {
             continue;
         }
         // What shows is the intersection of every clipping box on the way up.

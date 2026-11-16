@@ -35,12 +35,11 @@
  *     -> "an unknown-command response never advances the step bar" fails
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/gcode_narration_router_test_access.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "gcode_narration_router.h"
 
 #include <optional>
@@ -231,8 +230,7 @@ TEST_CASE("AFC // narration classifies as it did before", "[afc][narration][corp
 
 TEST_CASE_METHOD(LVGLTestFixture, "bare AFC narration reaches the step bar",
                  "[afc][narration][corpus]") {
-    // The whole point of fix 1: these lines used to be dropped by the `//` filter
-    // before any matcher saw them.
+    // These lines must survive the `//` filter and reach a matcher.
     reset_step_baseline();
     GcodeNarrationRouter router(nullptr, nullptr);
 

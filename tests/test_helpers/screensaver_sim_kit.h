@@ -277,6 +277,32 @@ inline helix::ui::ClockReading reading_at(int32_t seconds_of_day, bool use_24h =
     return r;
 }
 
+/**
+ * @brief A reading of a print in `mode` at `progress_pct`, at the time of day `seconds_of_day`
+ *
+ * COUNTDOWN and PAUSED carry `countdown_s` as a real estimate, COUNTDOWN its end minute too;
+ * DONE reads 100% whatever `progress_pct` says, as ClockState reads it. CLOCK is reading_at().
+ */
+inline helix::ui::ClockReading print_reading_for(helix::ui::ClockMode mode, int32_t progress_pct,
+                                                 int32_t seconds_of_day = hms(10, 8, 30),
+                                                 int32_t countdown_s = 3723) {
+    using helix::ui::ClockMode;
+    helix::ui::ClockReading r = reading_at(seconds_of_day);
+    if (mode == ClockMode::CLOCK) {
+        return r;
+    }
+    r.mode = mode;
+    r.progress_pct = mode == ClockMode::DONE ? 100 : progress_pct;
+    if (mode == ClockMode::COUNTDOWN || mode == ClockMode::PAUSED) {
+        r.countdown_s = countdown_s;
+        r.has_countdown = true;
+    }
+    if (mode == ClockMode::COUNTDOWN) {
+        r.eta_minute_of_day = ((seconds_of_day + countdown_s) / 60) % 1440;
+    }
+    return r;
+}
+
 /// An LVGL draw buffer (a canvas's, say) as a frame, for a format PixelWriter reads.
 inline FrameTarget frame_of(const lv_draw_buf_t* buf) {
     REQUIRE(buf != nullptr);

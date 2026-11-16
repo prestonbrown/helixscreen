@@ -29,10 +29,9 @@
  * while the forced override and non-PWM backends keep the no-op contract.
  */
 
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/sound_manager_test_access.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "pwm_sound_backend.h"
@@ -223,6 +222,14 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "M300 backend displaces the PWM sysfs bac
     hw.parse_objects(objects);
     REQUIRE(hw.has_speaker());
 
+    SECTION("a rebuild of the printer's subjects keeps the host backend's speaker capability") {
+        SoundManagerTestAccess::finalize(sm);
+        REQUIRE(sm.has_backend());
+        state().deinit_subjects();
+        state().init_subjects(true);
+        CHECK(lv_subject_get_int(speaker_subject()) == 1);
+    }
+
     SECTION("real detection swaps PWM out for M300") {
         state().set_hardware(hw);
         UpdateQueue::instance().drain();
@@ -337,7 +344,7 @@ TEST_CASE_METHOD(MoonrakerTestFixture, "M300 drop without host recovery leaves n
 
     state().set_hardware(hw);
     UpdateQueue::instance().drain();
-    REQUIRE(SoundManagerTestAccess::backend(sm)->needs_moonraker_client()); // M300 active
+    REQUIRE(sm.has_backend());
 
     sm.set_moonraker_client(nullptr, /*host_recovery=*/false);
 

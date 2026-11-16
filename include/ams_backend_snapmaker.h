@@ -3,15 +3,18 @@
 #pragma once
 #if HELIX_HAS_SNAPMAKER
 
-#include "ui_timer_guard.h"
-
+#include "ams_insert_signals.h"
+#include "ams_print_routing.h"
+#include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
-#include "lane_echo.h"
 #include "lane_observation.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_feed_mode.h"
+#include "snapmaker_nozzle_properties.h"
 #include "snapmaker_print_preferences.h"
 #include "snapmaker_status_parse.h"
 
@@ -23,6 +26,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -52,8 +56,24 @@ class RunoutScopeTestAccess;
  * Path topology is PARALLEL (each tool has its own independent path).
  */
 
-class AmsBackendSnapmaker : public AmsSubscriptionBackend {
+class AmsBackendSnapmaker : public AmsSubscriptionBackend,
+                            public helix::IStepOperation,
+                            public helix::IInsertSignals,
+                            public helix::IPrintRouting {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IInsertSignals>()) {
+            return static_cast<helix::IInsertSignals*>(this);
+        }
+        if (tag == helix::type_tag<helix::IStepOperation>()) {
+            return static_cast<helix::IStepOperation*>(this);
+        }
+        if (tag == helix::type_tag<helix::IPrintRouting>()) {
+            return static_cast<helix::IPrintRouting*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
     ~AmsBackendSnapmaker() override;
@@ -65,20 +85,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::SNAPMAKER;
-    }
-
-    /// The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
-    /// firmware UI binary: zero occurrences of Slot, Lane, or capitalised
-    /// Channel), never our "slot".
-    [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
-        return helix::ui::LaneNoun::Feeder;
-    }
-
-    /// The U1's own UI names the printing end "Toolhead 1".."Toolhead 4" - a
-    /// different word from lane_noun()'s Feeder, naming a different physical
-    /// thing (where filament enters vs. where it prints) despite the 1:1 count.
-    [[nodiscard]] helix::ui::LaneNoun tool_noun() const override {
-        return helix::ui::LaneNoun::Toolhead;
     }
 
     // State queries
@@ -112,6 +118,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
                                                        const std::vector<int>& extruder_map);
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    /// Re-words a standing channel fault ("Lane 2: Load failed") in the new language.
+    void refresh_translated_texts() override;
 
     // Operation step bar. The U1 firmware reports a granular channel_state that
     // classify_channel_state maps to a per-direction step index published via the
@@ -123,12 +131,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] lv_subject_t* get_operation_step_index_subject(StepOperationType op) override;
 
     /// Snapmaker U1 has 4 independent extruders (extruder, extruder1, extruder2,
-    /// extruder3), one per tool. Tool N sources slot N directly — identity mapping.
+    /// extruder3), one per tool. Each extrudes from the slot feeding its head.
     [[nodiscard]] std::optional<int> slot_for_extruder(int extruder_idx) const override {
-        if (extruder_idx < 0 || extruder_idx >= static_cast<int>(get_system_info().total_slots)) {
-            return std::nullopt;
-        }
-        return extruder_idx;
+        return head_source_slot(extruder_idx, get_system_info());
     }
 
     // Path visualization (PARALLEL topology — each tool is independent)
@@ -144,6 +149,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         // each side. The detail view's tray graphic draws a container that is not
         // there.
         t.has_physical_tray = false;
+        // PARK_EXTRUDER docks every head, so the carriage can be empty even though
+        // a load feeds filament rather than mounting a tool.
+        t.carriage_can_be_empty = true;
         t.supports_auto_heat_on_load = true;
         // AUTO_FEEDING ... UNLOAD=1 runs the firmware's unload state machine,
         // whose unload_heating stage heats (FILAMENT_BACKEND_SNAPMAKER_U1.md).
@@ -173,16 +181,21 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         // Each head has its own lane and AUTO_FEEDING runs one direction, so
         // an unload is never the first half of a swap.
         t.unloads_stand_alone = true;
+        // The U1's own UI names these "Feeder 1".."Feeder 4" (verified against its
+        // firmware UI binary: zero occurrences of Slot, Lane, or capitalised
+        // Channel), never our "slot".
+        t.lane_noun = helix::ui::LaneNoun::Feeder;
+        // The printing end is "Toolhead 1".."Toolhead 4": a different word naming a
+        // different physical thing (where filament enters vs. where it prints)
+        // despite the 1:1 count.
+        t.tool_noun = helix::ui::LaneNoun::Toolhead;
+        // print_task_config.py's reset_print_info() returns extruder_map_table to
+        // identity at every print end (complete, cancel, error).
+        t.print_routing_resets_to_identity = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
         return kTraits;
-    }
-
-    // PARK_EXTRUDER docks every head, so the carriage can be empty even though
-    // a load feeds filament rather than mounting a tool.
-    [[nodiscard]] bool carriage_can_be_empty() const override {
-        return true;
     }
 
     /// One head per extruder, each fed by the lane of the same index.
@@ -218,8 +231,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     // needs_unload_before_load() is answered by the base class: every lane here
     // is PARALLEL, so slot_has_independent_path() is true for all of them and the
-    // serial rule never applies. See AmsBackend for why, including the `T{n}`
-    // load this backend used to dispatch.
+    // serial rule never applies. See AmsBackend for why, including why a `T{n}`
+    // load here seats the carriage and feeds nothing.
     [[nodiscard]] PathSegment get_filament_segment() const override;
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
@@ -270,6 +283,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         bool filament_detected{false};
         bool module_exist{false};
         bool disable_auto{false};
+        /// A frame has carried module_exist, so module_exist is the firmware's word.
+        bool module_reported{false};
+        /// A frame has carried disable_auto, so the head's Auto loading is known.
+        bool auto_reported{false};
         /// The head's filament_motion_sensor `enabled` flag. Arrives from the
         /// sensor status objects, not the feeder frame, so a feeder write
         /// carries the previous value forward instead of defaulting it.
@@ -277,6 +294,23 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     };
 
     [[nodiscard]] ChannelSnapshot channel_snapshot(int slot_index) const;
+
+    /// A head the firmware reports with no feeder, or its feeder out of automatic
+    /// mode, loads by hand: the guided manual load (#2000).
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override;
+
+    /// Whether @p snap says no automatic feeder can feed its head: the firmware
+    /// reported no module, or the feeder out of automatic mode. False until a frame
+    /// says either.
+    [[nodiscard]] static bool feeder_absent(const ChannelSnapshot& snap) {
+        return (snap.module_reported && !snap.module_exist) || snap.disable_auto;
+    }
+
+    /// Whether @p snap names a feeder that is there with its Auto loading off,
+    /// which the user can turn on, as opposed to no feeder at all.
+    [[nodiscard]] static bool auto_load_off(const ChannelSnapshot& snap) {
+        return snap.disable_auto && !(snap.module_reported && !snap.module_exist);
+    }
 
     /// Eligibility answered from the feeder's own channel fields: only a
     /// settled state on a fault-free, auto-mode channel with its motion
@@ -379,29 +413,19 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     // Configuration
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
     /// The channel's last tag reading. An entry whose CARD_UID names no card
     /// was written over the API, not read off a spool, and is none.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
-    void persist_slot_weight(int slot_index, float remaining_weight_g,
-                             float total_weight_g) override;
-    void persist_external_identity_impl(int slot_index,
-                                        const helix::ams::Observation& spoolman) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
-    AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
-    // Explicit user-initiated override clear (e.g. "Clear slot metadata" button
-    // in the AMS edit modal). Erases overrides_[slot_index], resets the
-    // override-exclusive fields (spool_name, spoolman_*, remaining_weight_g) on
-    // the live SlotInfo, and fires override_store_->clear_async. Brand /
-    // color_name / total_weight_g are preserved — on Snapmaker those fields
-    // are populated from the RFID tag, so they reflect firmware truth.
-    // The hardware-event detector calls this internally once a CARD_UID change
-    // confirms a physical swap.
-    void clear_slot_override(int slot_index) override;
+    // clear_slot_override()'s Snapmaker half: the spool name goes back to the
+    // tag's product line. Brand / color_name / total_weight_g survive the
+    // base's clear: on Snapmaker those come from the RFID tag, so they are
+    // firmware truth. The hardware-event detector runs the clear once a
+    // CARD_UID change confirms a physical swap.
+    void after_override_cleared_locked(int slot_index, SlotInfo& slot) override;
 
     // Bypass (not applicable for tool changers)
     AmsError enable_bypass() override;
@@ -424,12 +448,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// cancel and start reach this backend as one unbroken print) begins a
     /// new print's state.
     void note_print_start_from_here() override;
-
-    /// print_task_config.py's reset_print_info() returns extruder_map_table to
-    /// identity at every print end (complete, cancel, error).
-    [[nodiscard]] bool print_routing_resets_to_identity() const override {
-        return true;
-    }
 
     /// SET_PRINT_USED_EXTRUDERS for @p tools_used at their default heads, no
     /// map, plus the per-print unload choice. Only while the firmware's map
@@ -469,7 +487,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// which a head the firmware calls official requires.
     [[nodiscard]] static std::string
     build_filament_config_gcode(int head, const SlotInfo& slot, bool force = false,
-                                RecordLines lines = RecordLines::Both);
+                                RecordLines lines = RecordLines::Both,
+                                const std::string& kept_subtype = {});
 
     /// One multi-line feed script covering @p slots, in the order given,
     /// newline-joined with no trailing newline. Empty @p slots yields the
@@ -577,17 +596,52 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     /// The Print Behavior section shown on the AMS device-operations
-    /// overlay. Absent until the firmware has reported a preference, so the
-    /// overlay never offers a setting whose state it does not know.
+    /// overlay, and the Toolhead section with each head's nozzle. Each is
+    /// absent until the firmware has reported what it shows, so the overlay
+    /// never offers a setting whose state it does not know.
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
 
     /// One DeviceAction per reported preference: toggles, a sensitivity
-    /// dropdown, and one end-unload toggle per reported toolhead.
+    /// dropdown, one end-unload toggle per reported toolhead, and an Auto
+    /// loading toggle per head whose feeder reports its mode. Then, per
+    /// head, a nozzle diameter and a nozzle flow dropdown for each field the
+    /// head reports, unavailable while a print is printing or paused (the
+    /// firmware refuses the change then).
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
 
-    /// Sends the SET_PRINT_PREFERENCES line build_preference_gcode() maps the
-    /// action id to. Unknown ids are reported as not supported.
+    /// The device section the print preferences and Auto loading rows sit in.
+    static constexpr const char* kPrintPrefsSection = "print_prefs";
+    /// Each head's Auto loading row id: this prefix, then the head number.
+    static constexpr std::string_view kAutoLoadActionPrefix = "snapmaker_auto_load_t";
+
+    /// Sends the line build_preference_gcode() maps the action id to, or the nozzle change
+    /// build_nozzle_change() makes of it. Unknown ids are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
+
+    /// A nozzle change reports through @p on_done once the firmware has answered;
+    /// every other action as the base class does.
+    AmsError do_run_device_action(const std::string& action_id, const std::any& value,
+                                  DeviceActionDone on_done) override;
+
+    /// Each head's nozzle as the firmware last reported it.
+    [[nodiscard]] std::array<snapmaker::nozzle::Nozzle, snapmaker::kToolCount>
+    reported_nozzles() const;
+
+    /// What a pick on a nozzle row sends.
+    struct NozzleChange {
+        /// The id names a nozzle row of a head that reports the field, and the
+        /// value is one of its options.
+        bool valid = false;
+        /// The params of the firmware's nozzle_properties call, carrying only
+        /// the field that differs from the report; unset when the pick is what
+        /// the head already reports, so nothing is sent.
+        std::optional<nlohmann::json> params;
+    };
+
+    /// The change a nozzle row's pick makes. Separated from
+    /// execute_device_action so the mapping is testable without a client.
+    [[nodiscard]] NozzleChange build_nozzle_change(const std::string& action_id,
+                                                   const std::any& value) const;
 
     /// The saved unload-at-end list (SettingsManager's end-of-print unload
     /// tools) as one SET_PRINT_PREFERENCES line, sized to the toolheads the
@@ -656,6 +710,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     }
 
     void on_started() override;
+    void on_lane_records_read_locked() override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS Snapmaker]";
@@ -673,10 +728,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// What one status frame decides, collected under mutex_ and acted on by
     /// dispatch_effects() after it is released, plus the frame-local values the
     /// parse sections hand to each other.
-    /// A user edit's record write held by record_writes_held_locked().
-    struct PendingRecordWrite {
-        SlotInfo info;
-        bool material_declared = false;
+    /// How a SET_PRINT_FILAMENT_CONFIG for an edit goes out: FORCE=1 or not,
+    /// and which lines.
+    struct RecordWrite {
+        bool force = false;
+        RecordLines lines = RecordLines::Both;
+        /// The sub-type the head keeps when the edit names no product line.
+        std::string kept_subtype;
     };
 
     /// A refeed whose AUTO_FEEDING answered OK before the feeder's frame
@@ -714,8 +772,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
         std::vector<std::pair<int, std::string>> official_repairs;
         /// record_restores_locked() output, sent outside mutex_.
         std::vector<std::pair<int, std::string>> record_restores;
-        /// Held record writes this frame released.
-        std::vector<std::pair<int, PendingRecordWrite>> record_flushes;
         /// The head a refeed waits on reached a settled state this frame.
         bool refeed_settled = false;
         /// The print's first printing frame: its file's heads are checked for
@@ -919,6 +975,18 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// a different question ("did the ACTIVE lane run out during extrusion").
     std::array<bool, kNumTools> loaded_at_toolhead_{{false, false, false, false}};
 
+    /// What the standing channel fault's operation_detail was composed from,
+    /// so a language switch can re-word it. `shown` is the text as set; once
+    /// operation_detail no longer equals it, the record describes nothing.
+    struct ChannelFaultText {
+        int lane = -1;
+        bool from_error_token = false;
+        std::string error;
+        std::string op_state;
+        std::string shown;
+    };
+    std::optional<ChannelFaultText> channel_fault_text_;
+
     /// Per-slot "filament_feed has reported this lane" — set the first time a
     /// frame carries a boolean filament_detected or a channel_state for the
     /// lane, and never cleared. Until it is set, the convergence-point presence
@@ -974,6 +1042,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Per head: the lane's declaration has been written back since the
     /// firmware record last named a type. Under mutex_.
     std::array<bool, kNumTools> record_restore_sent_{};
+
+    /// Per head, the type and colour this session's last edit wrote into
+    /// print_task_config: the record official_flag_repairs_locked() may
+    /// rewrite, since another writer's it would discard. Under mutex_.
+    struct SentRecord {
+        std::string material;
+        uint32_t color_rgb = 0;
+    };
+    std::array<std::optional<SentRecord>, kNumTools> sent_record_{};
 
     /// Per channel: a spool went into the feeder port after the lane's
     /// material was declared, so the declaration may name a spool that has
@@ -1038,10 +1115,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// unset until a frame carries it. Under mutex_.
     std::optional<int> main_state_;
 
-    /// Per head, the latest held record write; dropped with the head's
-    /// override and at on_started(). Under mutex_.
-    std::array<std::optional<PendingRecordWrite>, kNumTools> pending_record_writes_{};
-
     /// The temperatures and spool weight the last tag reading on each channel
     /// wrote onto SlotInfo, which no lane record carries. Unset until a tag is
     /// read, and again once retract_tag_reading_locked() takes them back.
@@ -1059,6 +1132,16 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// on_started(); all access under mutex_.
     std::array<std::optional<helix::ams::TagReading>, kNumTools> tag_readings_{};
 
+    /// The Firmware observation each channel's last tag reading files; unset
+    /// when the entry names no tag. file_head_firmware_locked() lays the
+    /// head's print_task_config over it. Under mutex_.
+    std::array<std::optional<helix::ams::Observation>, kNumTools> tag_firmware_{};
+
+    /// File @p head's Firmware observation: the tag's reading with
+    /// print_task_config's type and colour over it, or drop
+    /// the source when neither states anything. Caller holds mutex_.
+    void file_head_firmware_locked(int head);
+
     /// Whether filament_detect.info last showed a real card on each channel: a
     /// CARD_UID with a nonzero byte. Unset until the first entry for it.
     std::array<std::optional<bool>, kNumTools> tag_has_card_{};
@@ -1069,23 +1152,32 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// beside an official flag). Caller holds mutex_.
     [[nodiscard]] std::optional<bool> record_write_needs_force_locked(int head) const;
 
-    /// Write a user edit into the head's print_task_config record, the one the
-    /// firmware's RESUME gate, the stock screen and slicers read: the identity
-    /// line when the record names a different type, vendor or subtype, the
-    /// colour line when it names a different colour, nothing when it already
-    /// agrees (every line runs FLOW_RESET_K on the head), both lines with
-    /// FORCE=1 on an official head with no card. A record not seen yet is
-    /// written only for a declared material, @p material_declared. While
-    /// record_writes_held_locked() the edit is kept in pending_record_writes_
-    /// and written by the first frame for which heads_free_locked(). Main
-    /// thread.
-    void write_task_filament_record(int head, const SlotInfo& info, bool material_declared);
+    /// What a user edit's write into the head's print_task_config record (the
+    /// one the firmware's RESUME gate, the stock screen and slicers read)
+    /// sends: the identity line when the record names a different type, vendor
+    /// or subtype, the colour line when it names a different colour, both
+    /// lines with FORCE=1 on an official head with no card. Nullopt when
+    /// nothing goes out: the record already agrees (every line runs
+    /// FLOW_RESET_K on the head), a real tag owns it, the material cannot be
+    /// sent, or a record not seen yet with no declared material
+    /// (@p material_declared). Caller holds mutex_.
+    [[nodiscard]] std::optional<RecordWrite>
+    plan_record_write_locked(int head, const SlotInfo& info, bool material_declared) const;
 
-    /// Whether a user edit's record write must wait: the offset calibration
-    /// holds the heads, this backend's own print_stats.state reads printing,
-    /// or, before its frames have named one, the app's print job state reads
-    /// PRINTING or is not initialized. Caller holds mutex_.
-    [[nodiscard]] bool record_writes_held_locked() const;
+    /// The sub-type head @p head keeps when @p info names no product line and
+    /// leaves its filament unchanged; empty otherwise. Caller holds mutex_.
+    [[nodiscard]] std::string kept_subtype_locked(int head, const SlotInfo& info) const;
+
+    /// Send @p plan for @p head. Main thread, mutex_ not held.
+    void write_task_filament_record(int head, const SlotInfo& info, const RecordWrite& plan);
+
+    /// Whether a user edit's write of @p head's record is refused: the offset
+    /// calibration holds the heads; the print state (this backend's own
+    /// print_stats.state, else the app's print job state) reads printing, or
+    /// paused while the firmware still holds a type for the head (a paused
+    /// head it reset is the runout reload, which the resume writes anyway); or
+    /// no print state has been read. Caller holds mutex_.
+    [[nodiscard]] bool record_writes_held_locked(int head) const;
 
     /// FORCE=1 rewrites for heads whose record is flagged official while the
     /// tag entry is filled with no card behind it, the channel has shown no
@@ -1096,9 +1188,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// print_stats.state that is neither printing nor paused. Marks each head
     /// returned sent. Caller holds mutex_.
     [[nodiscard]] std::vector<std::pair<int, std::string>> official_flag_repairs_locked();
-
-    /// Forget @p head's held record write, if it has one. Caller holds mutex_.
-    void drop_pending_record_write_locked(int head);
 
     /// Whether the toolhead offset calibration holds the machine state: it
     /// parks, heats and probes the heads between its steps. Caller holds mutex_.
@@ -1205,6 +1294,26 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// print_stats.state names a print in progress (printing or paused).
     [[nodiscard]] bool print_in_progress_locked() const;
 
+    /// A nozzle change is out on this head. Its rows are disabled until the answer,
+    /// since another pick would be built from a report the change is about to
+    /// replace. Under mutex_.
+    std::array<bool, snapmaker::kToolCount> nozzle_change_in_flight_{};
+
+    /// Ends the head's in-flight change. @p accepted carries the params the
+    /// firmware took, which the head reports from now on: the status frame saying
+    /// so can lag the reply, and the next pick is built from this.
+    void finish_nozzle_change(int head, const nlohmann::json* accepted);
+
+    /// Sends a nozzle change (@p params from build_nozzle_change()) and reads
+    /// the firmware's reply, which @p on_done (may be empty) receives. A refusal,
+    /// an unexpected reply or a failed send goes to nozzle_change_failed().
+    AmsError send_nozzle_change(nlohmann::json params, DeviceActionDone on_done);
+
+    /// Main thread: hands @p error to @p on_done, or shows it when there is none,
+    /// then re-announces the backend's state, so a row showing the refused pick
+    /// goes back to the reported value.
+    void nozzle_change_failed(const AmsError& error, const DeviceActionDone& on_done);
+
     /// Apply this frame's print_stats.state; a print that ends forgets the
     /// unconfirmed loads and the task judgement. Caller holds mutex_.
     void apply_print_state_locked(const std::string& state);
@@ -1223,10 +1332,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// load itself (not in extruders_used), while print @p print still runs.
     /// Silent when the tools cannot be read.
     void warn_unloaded_used_heads(const std::string& filename, uint32_t print);
-
-    /// On a channel whose firmware states no identity at all, drop the brand
-    /// and product line the lane only remembers. Caller holds mutex_.
-    void retract_unbacked_identity_locked(int slot_index, SlotInfo& slot);
 
     /// On a channel whose tag reader names no tag, drop the lane's vendor-cache
     /// record and take what it stated off @p slot, falling back to what
@@ -1324,6 +1429,27 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// access under mutex_.
     bool nozzle_offset_supported_ = false;
 
+    /// The status-object key of the macro that maps heads to feeder channels
+    /// ("gcode_macro " + its config-case name; empty when the firmware lacks
+    /// it), cached by set_discovery(). All access under mutex_.
+    std::string feed_variable_object_;
+
+    /// Each head's feeder module and channel, as that macro's frames have
+    /// stated them, the stock wiring until they do. All access under mutex_.
+    snapmaker::feed_mode::FeedChannelMap feed_channels_ = snapmaker::feed_mode::stock_channel_map();
+
+    // Auto loading (src/printer/ams_backend_snapmaker_auto_load.cpp).
+    /// Some head's feeder has reported its mode, so the rows have a state to show.
+    [[nodiscard]] bool auto_load_reported() const;
+    /// One Auto loading row per head whose feeder has reported its mode.
+    void append_auto_load_actions(std::vector<helix::printer::DeviceAction>& out) const;
+    /// The command that sets @p head's Auto loading to @p value; empty when
+    /// the value is not a bool or the head names no feeder channel.
+    [[nodiscard]] std::string auto_load_gcode(size_t head, const std::any& value) const;
+    /// Lays the head-to-channel macro's frame, when @p status carries one,
+    /// over feed_channels_. Caller holds mutex_.
+    void update_feed_channels_locked(const nlohmann::json& status);
+
     /// The batch do_filament_batch() dispatched, verified head-by-head in
     /// handle_status's channel_state parse. All access under mutex_.
     BatchPlan batch_;
@@ -1331,22 +1457,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// Source of BatchPlan::dispatch_id; monotonic per backend. Under mutex_.
     uint64_t next_batch_dispatch_id_ = 1;
 
-    /// The shared lane_data namespace this backend co-authors. request_resync()
-    /// re-reads it only where firmware states no identity of its own.
-    helix::ams::FilamentSlotOverrideStore* lane_record_store() override {
-        return override_store_.get();
-    }
-
     // Per-slot last-observed RFID CARD_UID. Shared with the other
     // RFID-fingerprint backend (CFS). Snapmaker never calls expect() — nothing
     // here writes a UID back to firmware, so every change is external. All
     // access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
-
-    // The base's own_write_echoes_ stays unarmed on this backend: a user edit
-    // reaches firmware only through SET_PRINT_FILAMENT_CONFIG, which writes
-    // print_task_config, and that struct files no lane observation. Nothing
-    // this backend sends comes back through filament_detect.info.
 };
 
 } // namespace helix

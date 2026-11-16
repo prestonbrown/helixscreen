@@ -1,0 +1,34 @@
+// read_lane_identity() from src/printer/afc_status_parse.cpp before 40318bf81d, for test_code_lint.bats.
+LaneIdentity read_lane_identity(const nlohmann::json& lane, LaneSurface surface) {
+    LaneIdentity id;
+    // AFC writes "#RRGGBB"; clear_values() writes '' on eject and SET_COLOR with
+    // no value stores the bare '#', both clears. Anything else that will not
+    // parse is a value we cannot read, not a lane with no colour.
+    id.color = read_color(lane, "color");
+    id.material = ams::read_field<std::string>(lane, "material");
+
+    // The filament name AFC copied out of Spoolman. get_status calls it
+    // `filament_name`, AFCLane's attribute; lane_data uses `name`, the shared
+    // spelling Happy Hare publishes (#833), and the attribute name defensively.
+    // get_status is not offered `name`: there it would be the lane's own name.
+    const auto name_keys = surface == LaneSurface::LaneData
+                               ? std::initializer_list<const char*>{"name", "filament_name"}
+                               : std::initializer_list<const char*>{"filament_name"};
+    for (const char* key : name_keys) {
+        if (auto v = ams::read_field<std::string>(lane, key)) {
+            id.spool_name = std::move(*v);
+            break;
+        }
+    }
+
+    // JSON null is AFC dropping the link (clear_values() sets spool_id=None on
+    // eject); a float or a string is neither a link nor a clear.
+    if (auto v = read_integer_field(lane, "spool_id")) {
+        id.spool_id = std::optional<int>{*v};
+    } else if (lane.contains("spool_id") && lane["spool_id"].is_null()) {
+        id.spool_id = std::optional<int>{};
+    }
+
+    id.brand = read_vendor(lane);
+    return id;
+}

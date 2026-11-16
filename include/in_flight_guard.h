@@ -16,7 +16,7 @@ namespace helix {
  * (WebSocket drop, server never replies), the flag wedges forever and the panel
  * stops refreshing. This helper folds that pattern — the boolean plus an optional
  * timestamp-based self-heal — into one place so every caller gets the same
- * behavior (extracted from PrintSelectPanel's refresh_should_skip(), #910/#911).
+ * behavior (#910/#911).
  *
  * @c now is injectable so unit tests drive stuck-detection deterministically.
  *

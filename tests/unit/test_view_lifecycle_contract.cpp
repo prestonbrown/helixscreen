@@ -20,9 +20,9 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_probe_overlay.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/probe_overlay_test_access.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "overlay_base.h"
 #include "test_fixtures.h"
@@ -149,6 +149,20 @@ TEST_CASE_METHOD(MoonrakerTestFixture,
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
 
+    CHECK(token.expired());
+}
+
+TEST_CASE_METHOD(MoonrakerTestFixture,
+                 "A screensaver suspend keeps screen-scoped callbacks until a real exit",
+                 "[lifecycle][navigation][suspend]") {
+    // The suspended view wakes into on_activate(); a calibration or probe it
+    // started is still running and its result is still this screen's.
+    BareOverlay overlay;
+    auto token = overlay.screen_token();
+    overlay.on_deactivate(DeactivateReason::Suspended);
+    CHECK_FALSE(token.expired());
+
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
     CHECK(token.expired());
 }
 

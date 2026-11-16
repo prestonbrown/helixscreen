@@ -10,6 +10,9 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/text_io.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix/xml/indexed_subject_pool.h"
@@ -18,13 +21,11 @@
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "light_button_config.h"
-#include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
-#include "text_io.h"
 #include "theme_manager.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -84,31 +85,22 @@ namespace {
 /// The picker's rows. One picker is open at a time, so these are process-wide.
 struct PickerSubjects {
     xml::IndexedSubjectPool names{"led_picker_name", xml::IndexedSubjectPool::Type::String};
-    lv_subject_t count{};
-    lv_subject_t selected{};
-    bool ready = false;
+    helix::Subject count{};
+    helix::Subject selected{};
 };
 
+helix::WidgetSubjects s_picker_subjects{"LedPicker"};
+
+/// Created on the first open, before the picker's XML binds them.
 PickerSubjects& picker_subjects() {
-    static PickerSubjects s;
-    if (!s.ready) {
-        lv_subject_init_int(&s.count, 0);
-        lv_xml_register_subject(nullptr, "led_picker_count", &s.count);
-        lv_subject_init_int(&s.selected, -1);
-        lv_xml_register_subject(nullptr, "led_picker_selected", &s.selected);
-        s.ready = true;
-        StaticSubjectRegistry::instance().register_deinit("LedPicker", []() {
-            if (s.ready) {
-                lv_xml_unregister_subject(nullptr, "led_picker_count");
-                lv_xml_unregister_subject(nullptr, "led_picker_selected");
-                lv_subject_deinit(&s.count);
-                lv_subject_deinit(&s.selected);
-                s.names.reclaim();
-                s.ready = false;
-            }
-        });
-    }
-    return s;
+    static PickerSubjects s_picker;
+    s_picker_subjects.ensure_init(
+        [] {
+            UI_MANAGED_SUBJECT_INT(s_picker.count, 0, "led_picker_count", s_picker_subjects);
+            UI_MANAGED_SUBJECT_INT(s_picker.selected, -1, "led_picker_selected", s_picker_subjects);
+        },
+        [] { s_picker.names.reclaim(); });
+    return s_picker;
 }
 
 } // namespace
@@ -259,7 +251,7 @@ void LedWidget::bind_led() {
             }
         }
     }
-    lv_subject_copy_string(&name_subject_, name.c_str());
+    lv_subject_set_string(&name_subject_, name.c_str());
     sizing_.set_content({"", "", name.empty() ? std::string("Light") : name, false});
     relayout_for_granted_size();
 

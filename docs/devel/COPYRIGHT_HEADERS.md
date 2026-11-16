@@ -96,15 +96,7 @@ head -5 src/main.cpp | grep SPDX
 
 ## Pre-commit Hook
 
-The quality checks script runs automatically via pre-commit hook if configured:
-
-```bash
-# Install pre-commit hook
-cp scripts/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-This ensures all committed files have proper SPDX headers.
+`core.hooksPath` is `.githooks` (tracked; `make setup` and `make install-deps` set it), so the pre-commit hook runs the staged-only quality checks, header check included, with no install step. The check reads the first three lines of every `.cpp`, `.c`, `.h` and `.mm` file under `src/` and `include/` for the `SPDX-License-Identifier: GPL-3.0-or-later` line (`scripts/qc/copyright.sh`).
 
 ## Full Copyright Notice
 

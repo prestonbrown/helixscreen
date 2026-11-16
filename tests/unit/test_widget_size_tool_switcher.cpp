@@ -25,9 +25,9 @@
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/tool_topologies.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "helix/ui/text_metrics.h"
 #include "panel_widget_size.h"
 #include "printer_discovery.h"
@@ -55,7 +55,7 @@ namespace {
 struct ToolSwitcherFixture : public LVGLUITestFixture {
     ~ToolSwitcherFixture() override {
         ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -130,7 +130,7 @@ struct ParkingBackend {
         backend->wait_for_operation_thread();
         backend->stop();
         AmsState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
@@ -148,6 +148,8 @@ void configure_named_tools(const std::vector<std::string>& names) {
     disc.parse_objects(objects);
     ts.init_tools(disc);
     REQUIRE(ts.tool_count() == static_cast<int>(names.size()));
+    // The changer's first status frame: the first tool is on the carriage.
+    ts.update_from_status({{"toolchanger", {{"tool_number", 0}}}});
 }
 
 } // namespace
@@ -500,11 +502,12 @@ TEST_CASE_METHOD(ToolSwitcherFixture,
 // The face and the picker
 // ============================================================================
 
-TEST_CASE_METHOD(ToolSwitcherFixture, "tool_switcher: the face marks an unknown mounted head",
-                 "[widget_size][tool_switcher]") {
-    // Klipper's toolchanger.tool_number is taken as reported, so a printer that
-    // names a tool the discovery never listed leaves active_tool_index() past
-    // the end of the tool list.
+TEST_CASE_METHOD(ToolSwitcherFixture,
+                 "tool_switcher: a tool number no listed tool carries names no head",
+                 "[widget_size][tool_switcher][tool-number]") {
+    // Klipper's toolchanger.tool_number naming a tool discovery never listed
+    // mounts no head the list holds, so the face asks for one rather than
+    // naming the last head mounted.
     configure_named_tools({"T0", "T1", "T2"});
     ToolState& ts = ToolState::instance();
 
@@ -516,8 +519,9 @@ TEST_CASE_METHOD(ToolSwitcherFixture, "tool_switcher: the face marks an unknown 
 
     ts.update_from_status(nlohmann::json{{"toolchanger", {{"tool_number", 7}}}});
     process_lvgl(30);
-    REQUIRE(ts.active_tool_index() == 7);
-    CHECK(subject_string("tool_switcher_face_label") == "?");
+    REQUIRE(ts.active_tool_index() == -1);
+    const std::string face = subject_string("tool_switcher_face_label");
+    CHECK((face == "Choose head" || face == "None"));
 }
 
 // ============================================================================
@@ -659,7 +663,7 @@ TEST_CASE_METHOD(ToolSwitcherFixture,
     REQUIRE(list != nullptr);
     lv_obj_t* park = lv_obj_find_by_name(lv_obj_get_parent(list), "tool_park_btn");
     REQUIRE(park != nullptr);
-    CHECK(lv_obj_has_flag(park, LV_OBJ_FLAG_HIDDEN) == !tool_changer);
+    CHECK(lv_obj_is_hidden(park) == !tool_changer);
     ToolSwitcherTestAccess::hide_picker(h.widget());
     process_lvgl(30);
 }

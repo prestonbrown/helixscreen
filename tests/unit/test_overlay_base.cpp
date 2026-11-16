@@ -17,13 +17,14 @@
 
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_panel_common.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/process_async_timers.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "overlay_base.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -72,7 +73,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui defers widget deletion (re
     auto overlay = std::make_unique<TestOverlay>();
     lv_obj_t* root = overlay->create(test_screen());
     REQUIRE(root != nullptr);
-    REQUIRE(lv_obj_is_valid(root));
+    REQUIRE(helix::test::widget_in_tree(root));
 
     lv_obj_t* cached = root;
     overlay->destroy_overlay_ui(cached);
@@ -91,12 +92,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui defers widget deletion (re
     // reparented to top layer) until the async tick fires. This is what
     // prevents the L081 event-list-corruption crash: no sync widget delete
     // inside the queue-callback call chain.
-    REQUIRE(lv_obj_is_valid(root));
-    REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(helix::test::widget_in_tree(root));
+    REQUIRE(lv_obj_is_hidden(root));
 
     // After the async tick, the widget is actually gone.
     process_async_timers();
-    REQUIRE_FALSE(lv_obj_is_valid(root));
+    REQUIRE_FALSE(helix::test::widget_in_tree(root));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -120,12 +121,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // After drain: pointer nulled, widget hidden but still valid (async pending).
     REQUIRE(cached == nullptr);
-    REQUIRE(lv_obj_is_valid(root));
-    REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(helix::test::widget_in_tree(root));
+    REQUIRE(lv_obj_is_hidden(root));
 
     // Async tick completes the deletion.
     REQUIRE_NOTHROW(process_async_timers());
-    REQUIRE_FALSE(lv_obj_is_valid(root));
+    REQUIRE_FALSE(helix::test::widget_in_tree(root));
 }
 
 // destroy_overlay_ui() names the overlay as the teardown's owner, so an overlay
@@ -149,7 +150,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui stops when its drain frees
     // Stopped before the null-out, the free and the after hook.
     CHECK(cached == root);
     process_async_timers();
-    CHECK(lv_obj_is_valid(root));
+    CHECK(helix::test::widget_in_tree(root));
 
     helix::ui::set_strict_ui_checks(strict);
     lv_obj_delete(root);
@@ -180,7 +181,7 @@ class ShowOverlay : public OverlayBase {
             return OverlayBase::create(parent);
         }
         overlay_root_ = lv_obj_create(parent);
-        lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_root_, true);
         return overlay_root_;
     }
     const char* xml_component() const override {
@@ -229,7 +230,7 @@ class ShowFixture : public LVGLUITestFixture {
 
     static void settle() {
         for (int i = 0; i < 5; ++i) {
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
             lv_timer_handler();
         }
     }
@@ -263,7 +264,7 @@ TEST_CASE_METHOD(ShowFixture, "show() inits subjects once and creates once acros
     CHECK(overlay.create_calls == 1);
     CHECK(overlay.register_calls == 1);
     CHECK(overlay.before_show_calls == 3);
-    CHECK(lv_obj_is_valid(first));
+    CHECK(helix::test::widget_in_tree(first));
 }
 
 TEST_CASE_METHOD(ShowFixture, "show() with destroy_on_close frees the tree on pop and re-creates",
@@ -289,6 +290,32 @@ TEST_CASE_METHOD(ShowFixture, "show() with destroy_on_close frees the tree on po
     CHECK(NavigationManager::instance().is_panel_on_top(overlay.get_root()));
     pop(overlay);
     process_async_timers();
+}
+
+TEST_CASE_METHOD(ShowFixture, "show() feeds the overlay open trace one build and one open per show",
+                 "[overlay_base][overlay_show][overlay_open_trace]") {
+    const auto counts = [] {
+        for (const auto& r : helix::nav::overlay_open_records()) {
+            if (r.name == "ShowOverlay") {
+                return std::make_pair(r.builds, r.opens);
+            }
+        }
+        return std::make_pair(0u, 0u);
+    };
+    lv_obj_invalidate(test_screen());
+    lv_refr_now(nullptr); // ends opens earlier cases left waiting for a frame
+    const auto before = counts();
+    ShowOverlay overlay(nullptr, /*destroy=*/true);
+    for (int i = 0; i < 2; ++i) {
+        REQUIRE(overlay.show(test_screen()));
+        settle();
+        lv_obj_invalidate(test_screen());
+        lv_refr_now(nullptr);
+        pop(overlay);
+        process_async_timers();
+    }
+    CHECK(counts().first == before.first + 2);
+    CHECK(counts().second == before.second + 2);
 }
 
 TEST_CASE_METHOD(ShowFixture,
@@ -322,7 +349,7 @@ TEST_CASE_METHOD(ShowFixture, "show() re-creates a root deleted out from under i
     settle();
     CHECK(overlay.create_calls == 2);
     CHECK(overlay.ui_destroyed_calls == 1);
-    CHECK(lv_obj_is_valid(overlay.get_root()));
+    CHECK(helix::test::widget_in_tree(overlay.get_root()));
     pop(overlay);
 }
 
@@ -452,11 +479,11 @@ TEST_CASE_METHOD(ShowFixture, "show() leaves the screen undrawn until the queued
         REQUIRE(overlay.show(test_screen()));
         lv_obj_update_layout(test_screen());
         CHECK(meter.pixels == 0);
-        CHECK(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(overlay.get_root()));
         CHECK(lv_obj_get_parent(overlay.get_root()) == test_screen());
     }
     settle();
-    CHECK_FALSE(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(overlay.get_root()));
     CHECK(NavigationManager::instance().is_panel_on_top(overlay.get_root()));
     pop(overlay);
 }
@@ -486,7 +513,7 @@ TEST_CASE_METHOD(ShowFixture, "is_push_pending() spans push_overlay() to its que
                  "[overlay_base][overlay_show][nav]") {
     auto& nav = NavigationManager::instance();
     lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, nullptr);
 
     CHECK_FALSE(nav.is_push_pending(overlay));
@@ -505,7 +532,7 @@ TEST_CASE_METHOD(ShowFixture, "is_push_pending() spans push_overlay() to its que
 TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-out overlays",
                  "[overlay_base][overlay_show][nav]") {
     lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     helix::nav::register_overlay(overlay, nullptr);
     CHECK_FALSE(helix::nav::is_showing(overlay));
     CHECK_FALSE(helix::nav::is_showing(nullptr));
@@ -519,15 +546,14 @@ TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-o
     helix::nav::go_back();
     settle();
     REQUIRE_FALSE(helix::nav::is_in_stack(overlay));
-    lv_obj_remove_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, false);
     CHECK(helix::nav::is_showing(overlay));
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     CHECK_FALSE(helix::nav::is_showing(overlay));
 
-    // A caller may hold the pointer past the widget's deletion.
+    // An owner's handle reads null once the widget is deleted.
     helix::nav::unregister_overlay(overlay);
-    lv_obj_t* deleted = lv_obj_create(test_screen());
-    lv_obj_delete(deleted);
-    CHECK_FALSE(helix::nav::is_showing(deleted));
+    helix::ui::WidgetRef handle(overlay);
     lv_obj_delete(overlay);
+    CHECK_FALSE(helix::nav::is_showing(handle));
 }

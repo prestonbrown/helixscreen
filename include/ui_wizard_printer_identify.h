@@ -5,6 +5,7 @@
 
 #include "ui_selector_model.h"
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
@@ -21,13 +22,6 @@
  * - Printer type selection from list
  * - Auto-detection via hardware fingerprinting
  * - Configuration persistence
- *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - Static trampolines for LVGL event callbacks
- * - Global singleton getter for backwards compatibility
  *
  * ## Subject Bindings (6 total):
  *
@@ -76,7 +70,7 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     WizardPrinterIdentifyStep();
     ~WizardPrinterIdentifyStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardPrinterIdentifyStep(const WizardPrinterIdentifyStep&) = delete;
     WizardPrinterIdentifyStep& operator=(const WizardPrinterIdentifyStep&) = delete;
@@ -123,9 +117,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
      */
     bool is_validated() const override;
 
-    /**
-     * @brief Get step name for logging
-     */
     const char* get_name() const {
         return "Wizard Printer";
     }
@@ -149,7 +140,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
   private:
     friend class WizardPrinterIdentifyStepTestAccess;
 
-    // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // Printer preview image widget
@@ -171,16 +161,16 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     lv_obj_t* tile_cache_container_ = nullptr;
 
     // Subjects
-    lv_subject_t printer_name_{};
-    lv_subject_t printer_type_selected_{};
-    lv_subject_t printer_detection_status_{};
+    helix::Subject printer_name_{};
+    helix::Subject printer_type_selected_{};
+    helix::Subject printer_detection_status_{};
     // Selector view state: 0 = vendor tiles, 1 = one vendor's models, 2 = search,
     // 3 = the printers a tied detection could not separate
-    lv_subject_t printer_view_{};
+    helix::Subject printer_view_{};
     // Active vendor's name while drilled in (bound to the header label)
-    lv_subject_t vendor_title_{};
+    helix::Subject vendor_title_{};
     // Rows currently visible under the active view (0 shows "No printers found")
-    lv_subject_t match_count_{};
+    helix::Subject match_count_{};
 
     // String buffers (must be persistent)
     char printer_name_buffer_[128];
@@ -251,10 +241,6 @@ struct PrinterDetectionHint {
     bool ambiguous = false;               // The detector could not separate its candidates
     std::vector<int> candidate_indices{}; // Those candidates' list indices, winner first
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 /**
  * @brief Get the global WizardPrinterIdentifyStep instance

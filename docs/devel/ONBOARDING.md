@@ -74,7 +74,7 @@ make install-deps    # Auto-install (interactive)
 
 ## Build & Run
 
-Before compiling, check for existing build processes (`pgrep -f 'make|c\+\+'`) —
+Before compiling, check for existing build processes (`pgrep -x -d' ' 'make|clang++|cc1plus'`; never `pgrep -f`, which matches its own command line) —
 concurrent compilations thrash the machine.
 
 ```bash
@@ -89,7 +89,9 @@ Always run with verbosity when debugging: `-v` = INFO, `-vv` = DEBUG, `-vvv` = T
 
 ```bash
 make test                            # Build tests only (does NOT run them)
-make test-run                        # Build AND run tests in parallel
+make t F='[tag]'                     # Build, then run one tag or case
+make unit-sweep                      # Build AND run the C++ suite in parallel
+make full-test-run                   # unit-sweep plus the bats shell suite
 ./build/bin/helix-tests "[tag]"      # Run a specific test tag
 ```
 

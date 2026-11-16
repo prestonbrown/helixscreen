@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "json_fwd.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
@@ -13,8 +14,6 @@
 #include <lvgl.h>
 #include <mutex>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -136,10 +135,10 @@ class TimelapseState {
     AsyncLifetimeGuard async_lifetime_;
 
     // Subjects
-    lv_subject_t timelapse_render_progress_{};
-    lv_subject_t timelapse_render_status_{};
-    lv_subject_t timelapse_frame_count_{};
-    lv_subject_t timelapse_capture_info_{};
+    helix::Subject timelapse_render_progress_{};
+    helix::Subject timelapse_render_status_{};
+    helix::Subject timelapse_frame_count_{};
+    helix::Subject timelapse_capture_info_{};
 
     // String buffers for string subjects
     char timelapse_render_status_buf_[32]{};

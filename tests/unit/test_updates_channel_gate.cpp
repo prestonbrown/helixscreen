@@ -24,13 +24,14 @@
 
 #include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include <lvgl.h>
-
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -54,9 +55,9 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         // this tree's condition would resolve to nothing and the container would
         // never hide. Supply it the way the stub supplies platform_host_power_supported:
         // register if absent, function-local static so it outlives the fixture.
-        static lv_subject_t beta_subject;
+        static helix::Subject beta_subject;
         if (!lv_xml_get_subject(nullptr, "show_beta_features")) {
-            lv_subject_init_int(&beta_subject, 1);
+            beta_subject.init_int(1);
             lv_xml_register_subject(nullptr, "show_beta_features", &beta_subject);
         }
         get_global_settings_panel().init_subjects();
@@ -66,7 +67,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
     }
 
     ~UpdatesChannelGateFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -90,7 +91,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         REQUIRE(root_ != nullptr);
         lv_obj_t* obj = lv_obj_find_by_name(root_, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 
     lv_obj_t* dropdown(const char* row_name) const {

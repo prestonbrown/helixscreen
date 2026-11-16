@@ -3,12 +3,14 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "print_history_data.h"
 #include "print_history_manager.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <vector>
@@ -70,7 +72,7 @@ class HistoryDashboardPanel : public OverlayBase {
     /**
      * @brief Deinitialize all subjects
      *
-     * Calls lv_subject_deinit() on all subjects. Must be called
+     * Calls reset() on all subjects. Must be called
      * before destructor to avoid dangling observers.
      */
     void deinit_subjects();
@@ -79,6 +81,9 @@ class HistoryDashboardPanel : public OverlayBase {
 
     const char* xml_component() const override {
         return "history_dashboard_panel";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     lv_obj_t* create(lv_obj_t* parent) override;
@@ -136,33 +141,17 @@ class HistoryDashboardPanel : public OverlayBase {
     // === Widget References ===
     //
 
-    // Filter buttons
-    lv_obj_t* filter_day_ = nullptr;
-    lv_obj_t* filter_week_ = nullptr;
-    lv_obj_t* filter_month_ = nullptr;
-    lv_obj_t* filter_year_ = nullptr;
-    lv_obj_t* filter_all_ = nullptr;
-
-    // Stat labels (2x2 grid)
-    lv_obj_t* stat_total_prints_ = nullptr;
-    lv_obj_t* stat_print_time_ = nullptr;
-    lv_obj_t* stat_filament_ = nullptr;
-    lv_obj_t* stat_success_rate_ = nullptr;
-
-    // Containers
-    lv_obj_t* stats_grid_ = nullptr;
-    lv_obj_t* empty_state_ = nullptr;
-    lv_obj_t* btn_view_history_ = nullptr;
-
-    // Charts
-    lv_obj_t* trend_chart_container_ = nullptr;
-    lv_obj_t* trend_chart_ = nullptr;
+    // Null once the tree is freed on close; every reader checks them.
+    helix::ui::WidgetRef trend_chart_container_;
+    helix::ui::WidgetRef trend_chart_;
     lv_chart_series_t* trend_series_ = nullptr;
-    lv_obj_t* trend_period_label_ = nullptr;
 
-    lv_obj_t* filament_chart_container_ = nullptr;
+    helix::ui::WidgetRef filament_chart_container_;
     // Filament bar rows stored for cleanup/refresh
-    std::vector<lv_obj_t*> filament_bar_rows_;
+    std::vector<helix::ui::WeakWidget> filament_bar_rows_;
+
+    /// Drops the chart series, bar rows and connection observer with the tree.
+    void on_ui_destroyed() override;
 
     //
     // === Dependencies ===
@@ -188,26 +177,26 @@ class HistoryDashboardPanel : public OverlayBase {
     SubjectManager subjects_;
 
     // Subject for empty state binding (must persist for LVGL binding lifetime)
-    lv_subject_t history_has_jobs_subject_{};
+    helix::Subject history_has_jobs_subject_{};
 
     // Boolean subjects for filter button state binding (L040: two bind_styles pattern)
-    lv_subject_t history_filter_day_active_{};
-    lv_subject_t history_filter_week_active_{};
-    lv_subject_t history_filter_month_active_{};
-    lv_subject_t history_filter_year_active_{};
-    lv_subject_t history_filter_all_active_{};
+    helix::Subject history_filter_day_active_{};
+    helix::Subject history_filter_week_active_{};
+    helix::Subject history_filter_month_active_{};
+    helix::Subject history_filter_year_active_{};
+    helix::Subject history_filter_all_active_{};
 
     // String subjects for stat labels
-    lv_subject_t stat_total_prints_subject_{};
-    lv_subject_t stat_print_time_subject_{};
-    lv_subject_t stat_filament_subject_{};
-    lv_subject_t stat_success_rate_subject_{};
-    lv_subject_t trend_period_subject_{};
+    helix::Subject stat_total_prints_subject_{};
+    helix::Subject stat_print_time_subject_{};
+    helix::Subject stat_filament_subject_{};
+    helix::Subject stat_success_rate_subject_{};
+    helix::Subject trend_period_subject_{};
     // Set while the shown stats come from fewer jobs than the period holds.
-    lv_subject_t history_coverage_partial_subject_{};
-    lv_subject_t history_coverage_subject_{};
+    helix::Subject history_coverage_partial_subject_{};
+    helix::Subject history_coverage_subject_{};
 
-    // Static buffers for string subjects (required for lv_subject_init_string)
+    // Static buffers for string subjects (required by init_string)
     char stat_total_prints_buf_[32];
     char stat_print_time_buf_[32];
     char stat_filament_buf_[32];

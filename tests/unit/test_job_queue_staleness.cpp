@@ -22,16 +22,14 @@
  * Subjects are deliberately never initialized: JobQueueState registers its
  * subjects into helix-xml's PROCESS-global scope and is process-lifetime in
  * production, so a local instance that inits them leaves dangling names behind
- * for the rest of the binary (see test_job_queue_count_subject.cpp). Nothing
+ * for the rest of the binary. Nothing
  * here needs them -- set_jobs() and the staleness mark both bypass subjects.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "job_queue_state.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -59,12 +57,12 @@ class JobQueueStalenessFixture : public LVGLTestFixture {
         state_.reset();
         api_.reset();
         client_.disconnect();
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
   protected:
     void pump(int rounds = 10) {
-        UpdateQueueTestAccess::drain_all(UpdateQueue::instance(), rounds);
+        UpdateQueue::instance().drain_until_empty(rounds);
     }
 
     MoonrakerClientMock client_;

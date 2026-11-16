@@ -13,6 +13,7 @@ still reads English.
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 from pathlib import Path
@@ -20,10 +21,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from helix.app import HelixCtlError
+from helix.app import HelixApp, HelixCtlError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RECIPES = REPO_ROOT / "scripts" / "screenshot-recipes.sh"
+BINARY = Path(os.environ.get("HELIX_UI_BINARY", str(REPO_ROOT / "build" / "bin" / "helix-screen")))
 RUSSIAN = REPO_ROOT / "translations" / "ru.yml"
 LANGUAGES = REPO_ROOT / "src" / "system" / "system_settings_manager.cpp"
 
@@ -40,11 +42,12 @@ ALLOW = {"min", "mm", "PLA", "PETG", "ABS", "ASA", "TPU", "OK"}
 TEXT_TYPES = {"label", "dropdown"}
 
 # Widgets that show data: file, spool and AMS slot (spool) names, material and macro names, paths, the
-# licenses text, LED names from the printer's config, and the title, text and buttons a macro's
-# action prompt supplies.
+# licenses text, LED and temperature sensor names from the printer's config, and the title, text and
+# buttons a macro's action prompt supplies.
 DATA_PATH = re.compile(
     r"licenses_text|row_install_root|loaded_material|macro_label|macro_desc|"
     r"filename_label|spool_name|ams_slot_view\[\d+\]/name_label|led_tab_\d+/0/tab_label|"
+    r"temp_sensors_list/sensor_row(\[\d+\])?/0/0/name_label|"
     r"action_prompt_modal/.*(dialog_title|content_container|button_container|footer_container)")
 
 # Fan names generated from the mock printer's config object names.
@@ -118,14 +121,17 @@ def _labels(app) -> dict[str, str]:
     return out
 
 
-@pytest.mark.slow
-def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
-    app = fresh_helix_app
+def _stale_after_switch(app, recipes) -> tuple[int, list[str], list[str]]:
+    """Walk ``recipes`` in English, switch to Russian, walk them again.
+
+    Returns the translatable labels checked, the stale ones, and the recipes
+    this mock cannot reach.
+    """
     ru = yaml.safe_load(RUSSIAN.read_text())["translations"]
 
     before = {}
     unreachable = []
-    for token, steps in _recipes():
+    for token, steps in recipes:
         if _run(app, steps):
             before[token] = _labels(app)
         else:
@@ -141,7 +147,7 @@ def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
 
     stale = []
     checked = 0
-    for token, steps in _recipes():
+    for token, steps in recipes:
         if token not in before or not _run(app, steps):
             continue
         after = _labels(app)
@@ -156,9 +162,11 @@ def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
             now = after.get(path)
             if now is None:
                 continue  # not on screen after the switch: rebuilt, nothing stale
-            # An uppercase label must show its translation uppercased too.
+            # An uppercase label must show its translation uppercased too; a
+            # label too narrow for it shows the start of it, cut with dots.
             if en.isupper() and phrase == en:
-                if now != want.upper():
+                cut = now.endswith("...") and want.upper().startswith(now[:-3])
+                if now != want.upper() and not cut:
                     stale.append(f"{token}: {path}: {en!r} reads {now!r}, want {want.upper()!r}")
                 continue
             # Still exactly the English text is the stale signature; a different
@@ -167,9 +175,32 @@ def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
             # of it has a translation.
             if now == en:
                 stale.append(f"{token}: {path}: {en!r} unchanged; {phrase!r} -> {want!r}")
+    return checked, stale, unreachable
 
+
+@pytest.mark.slow
+def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
+    checked, stale, unreachable = _stale_after_switch(fresh_helix_app, _recipes())
     report = "\n".join(stale)
     print(f"\n{checked} translatable labels checked, {len(stale)} stale; "
           f"unreachable on this mock: {', '.join(unreachable) or 'none'}\n{report}")
     assert checked > 0
     assert not stale, f"{len(stale)} stale labels:\n{report}"
+
+
+# Each filament backend writes its own status text, and the default mock runs
+# only one of them, so the AMS screens are walked again on each real backend.
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "ams", ["afc", "toolchanger", "cfs", "openams", "indx", "snapmaker", "ifs"])
+def test_ams_screens_retranslate_on_each_backend(tmp_path, ams):
+    if not BINARY.exists():
+        pytest.skip(f"{BINARY} not built")
+    recipes = [(token, steps) for token, steps in _recipes() if token == "ams"]
+    assert recipes, "the ams screenshot recipe is gone"
+    with HelixApp(binary=BINARY, socket_path=tmp_path / "control.sock",
+                  log_path=tmp_path / "app.log", extra_env={"HELIX_MOCK_AMS": ams}) as app:
+        checked, stale, _ = _stale_after_switch(app, recipes)
+    report = "\n".join(stale)
+    assert checked > 0
+    assert not stale, f"{len(stale)} stale labels on {ams}:\n{report}"

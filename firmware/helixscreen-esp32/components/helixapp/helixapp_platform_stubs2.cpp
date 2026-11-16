@@ -3,6 +3,7 @@
 // Link stubs, round 2 — platform-bound singletons/utilities demanded by the
 // slice link. One row each in the audit categorization table.
 
+#include "ui_overlay_ipv4_settings.h"
 #include "ui_panel_spoolman.h"
 #include "ui_spoolman_overlay.h"
 
@@ -40,6 +41,8 @@
 #include <string>
 #include <sys/types.h>
 #include <vector>
+
+#include "hv/json.hpp"
 
 // --- DisplayManager (SDL/DRM/fbdev backends; ESP32 uses esp_lcd) -----------
 // The header contract allows instance() to return nullptr when no Application
@@ -127,7 +130,7 @@ std::string app_get_runtime_dir() {
 }
 
 // --- SpoolmanOverlay (Moonraker database + HTTP probe UI) --------------------
-// The real ctor/dtor and virtual overrides live in src/ui/ui_spoolman_overlay
+// The real ctor/dtor and virtual overrides live in src/ui/filament/ui_spoolman_overlay
 // .cpp (outside the slice). Constructing the function-local static emits the
 // vtable, so every non-inline virtual must be defined here too. Members are
 // plain pointers/lv_subject_t — no cascading dtors.
@@ -183,7 +186,7 @@ SpoolmanOverlay& get_spoolman_overlay() {
 // both bound solely by spoolman_panel.xml — an overlay that is never created
 // here — so the no-op body leaves no binding unsatisfied.
 
-// src/ui/ui_panel_spoolman.cpp (DEFINE_GLOBAL_PANEL)
+// src/ui/filament/ui_panel_spoolman.cpp (DEFINE_GLOBAL_PANEL)
 // The panel's SearchDebounce member has no default ctor (a search callback is
 // mandatory), so the stub constructs it with a null one - never fired, because
 // this target never creates the panel (create() below returns nullptr).
@@ -196,6 +199,7 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t*) {
 }
 void SpoolmanPanel::on_activate() {}
 void SpoolmanPanel::on_deactivating(DeactivateReason) {}
+void SpoolmanPanel::on_ui_destroyed() {}
 
 SpoolmanPanel& get_global_spoolman_panel() {
     static HELIX_PSRAM_BSS SpoolmanPanel panel;
@@ -206,7 +210,7 @@ SpoolmanPanel& get_global_spoolman_panel() {
 // the panel above requires their ctors/dtors, and defining their out-of-line
 // virtuals here is what makes their vtables emit complete too.
 
-// src/ui/ui_spoolman_list_view.cpp
+// src/ui/filament/ui_spoolman_list_view.cpp
 namespace helix::ui {
 SpoolmanListView::~SpoolmanListView() = default;
 // ContainerDeleteNet override (declared out-of-line in the header): without a
@@ -214,13 +218,13 @@ SpoolmanListView::~SpoolmanListView() = default;
 // firmware link fails with an undefined _ZTV reference.
 void SpoolmanListView::on_netted_container_destroyed() {}
 
-// src/ui/ui_spoolman_context_menu.cpp
+// src/ui/filament/ui_spoolman_context_menu.cpp
 SpoolmanContextMenu::SpoolmanContextMenu() = default;
 SpoolmanContextMenu::~SpoolmanContextMenu() = default;
 void SpoolmanContextMenu::on_created(lv_obj_t*) {}
 void SpoolmanContextMenu::on_backdrop_clicked() {}
 
-// src/ui/ui_spoolman_edit_modal.cpp
+// src/ui/filament/ui_spoolman_edit_modal.cpp
 SpoolEditModal::SpoolEditModal() = default;
 SpoolEditModal::~SpoolEditModal() = default;
 void SpoolEditModal::on_show() {}
@@ -586,8 +590,8 @@ std::string peek_helix_cache_dir(const std::string& subdir, const char** tier_ou
 
 namespace helix {
 
-// --- WiFiManager: Task 13 replaces this stub. src/api/wifi_manager.cpp (the
-// real, desktop-shared implementation) and src/api/wifi_backend.cpp are now
+// --- WiFiManager: Task 13 replaces this stub. src/network/wifi_manager.cpp (the
+// real, desktop-shared implementation) and src/network/wifi_backend.cpp are now
 // compiled in (app_srcs.txt); WifiBackend::create() dispatches to
 // helix::create_platform_wifi_backend() on ESP_PLATFORM, implemented in
 // wifi_backend_esp.cpp against esp_wifi. get_wifi_manager()'s singleton
@@ -737,6 +741,29 @@ int dup2(int, int) {
 EthernetManager::EthernetManager() {}
 EthernetManager::~EthernetManager() = default;
 void EthernetManager::get_info_async(std::function<void(const EthernetInfo&)>) {}
+void EthernetManager::add_link_observer(helix::LifetimeToken, helix::SharedCallback<void()>) {}
+
+// --- Static IPv4 (src/network/ipv4_manager_ops.cpp, ui_overlay_ipv4_settings.cpp).
+// No ESP32 backend can keep a static address, so Network Settings hides both
+// IPv4 rows; these answer "unsupported" for the code that asks.
+bool EthernetManager::supports_ipv4_config() {
+    return false;
+}
+void EthernetManager::get_ipv4_config_async(
+    helix::LifetimeToken, helix::SharedCallback<void(bool, const helix::net::Ipv4Config&)>) {}
+namespace helix {
+bool WiFiManager::supports_ipv4_config() {
+    return false;
+}
+void WiFiManager::get_ipv4_config_async(LifetimeToken,
+                                        SharedCallback<void(bool, const net::Ipv4Config&)>) {}
+} // namespace helix
+namespace helix::settings {
+void open_ipv4_settings(lv_obj_t*, net::Ipv4Link, const std::string&) {}
+std::string ipv4_row_summary(const net::Ipv4Config&) {
+    return {};
+}
+} // namespace helix::settings
 
 // --- app_globals, fourth batch ------------------------------------------------
 // Process-global storage for both accessors (get returns what set stored),

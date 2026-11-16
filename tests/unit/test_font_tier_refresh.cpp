@@ -32,6 +32,9 @@
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
 
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -66,17 +69,14 @@ TEST_CASE_METHOD(XMLTestFixture, "A rising breakpoint registers the font tiers s
     const int rise = AssetManager::register_fonts_for_tier(to_int(UiBreakpoint::XXLarge));
     CHECK(AssetManager::registered_font_tier() == to_int(UiBreakpoint::XXLarge));
 
-    // Only the *additional* tiers, not the whole table again. The four gates
-    // above SMALL contribute 4 (medium) + 4 (large) + 5 (xlarge) + 13 (xxlarge)
-    // faces; update this number when a tier gains or loses a face.
-    //
-    // xxlarge went 7 -> 13 with the six high-DPI rungs (noto_sans_48/64,
-    // bold_48/64, light_32/40) that the UI scale factor steps up into.
-#if HELIX_MAX_FONT_TIER >= 6
-    CHECK(rise == 26);
-#else
-    CHECK(rise > 0);
-#endif
+    // Only the *additional* tiers, not the whole table again: the faces the
+    // registration table adds above SMALL.
+    const auto names_at = [](UiBreakpoint bp) {
+        return AssetManager::text_font_names_for_breakpoint(to_int(bp)).size();
+    };
+    REQUIRE(names_at(UiBreakpoint::XXLarge) > names_at(UiBreakpoint::Small));
+    CHECK(rise ==
+          static_cast<int>(names_at(UiBreakpoint::XXLarge) - names_at(UiBreakpoint::Small)));
 
     // One representative face per gate must now resolve.
     CHECK(lv_xml_get_font_silent(nullptr, "noto_sans_26") != nullptr); // medium gate
@@ -246,5 +246,44 @@ TEST_CASE_METHOD(XMLTestFixture, "Switch size presets follow a runtime breakpoin
         CHECK(lv_obj_get_style_width(sw, LV_PART_MAIN) == 80);
         CHECK(lv_obj_get_style_height(sw, LV_PART_MAIN) == 40);
         lv_obj_delete(sw);
+    }
+}
+
+// scripts/translations/registered_text_fonts.txt lists the text face names each
+// breakpoint registers. A scaled-up font token resolves only to a registered
+// name, so the CJK filename bake and prune read it to size their bins.
+// HELIX_UPDATE_GOLDEN=1 rewrites it.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "Each breakpoint registers the text faces the registered-fonts file lists",
+                 "[font_tier][cjk_filename]") {
+    std::string expected;
+    for (int tier = 0; tier <= 6; ++tier) {
+        expected += std::to_string(tier) + ":";
+        for (const auto& name : AssetManager::text_font_names_for_breakpoint(tier))
+            expected += " " + name;
+        expected += "\n";
+    }
+    const std::string path = "scripts/translations/registered_text_fonts.txt";
+    if (std::getenv("HELIX_UPDATE_GOLDEN")) {
+        std::ofstream(path) << expected;
+        WARN("rewrote " << path);
+    } else {
+        std::ifstream in(path);
+        REQUIRE(in.good());
+        const std::string actual((std::istreambuf_iterator<char>(in)),
+                                 std::istreambuf_iterator<char>());
+        CHECK(actual == expected);
+    }
+
+    // Replaying startup tier by tier registers exactly the rows each tier adds,
+    // plus the six icon faces with the first.
+    AssetManager::reset_for_test();
+    size_t before = 0;
+    for (int tier = 0; tier <= 6; ++tier) {
+        const size_t now = AssetManager::text_font_names_for_breakpoint(tier).size();
+        const size_t icons = tier == 0 ? 6 : 0;
+        CHECK(AssetManager::register_fonts_for_tier(tier) ==
+              static_cast<int>(now - before + icons));
+        before = now;
     }
 }

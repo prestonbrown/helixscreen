@@ -1,6 +1,6 @@
-# LVGL 9.5 / helix-xml Attributes Reference
+# LVGL 9 / helix-xml Attributes Reference
 
-**Source:** `lib/helix-xml/src/xml/parsers/*.c` | **Updated:** 2026-07-22
+**Source:** `lib/helix-xml/src/xml/parsers/*.c`
 
 ---
 
@@ -10,7 +10,7 @@
 - `width="content"` not `width="LV_SIZE_CONTENT"` (XML string, not C constant)
 - `flex_align` doesn't exist → use `style_flex_main_place` / `style_flex_cross_place`
 - `zoom` doesn't exist → use `scale_x` / `scale_y` (256 = 100%)
-- Unknown attributes silently ignored
+- An unknown attribute is ignored with a `Unknown attribute "x" on <widget>` warning (`lib/helix-xml/src/xml/lv_xml_attr_check.c`)
 
 ---
 
@@ -61,7 +61,7 @@ All widgets inherit these.
 
 **Operators:** `bind_flag_if_eq`, `bind_flag_if_not_eq`, `bind_flag_if_gt`, `bind_flag_if_ge`, `bind_flag_if_lt`, `bind_flag_if_le` (same for `bind_state_*`)
 
-**Expression-driven conditionals** (multi-subject / arithmetic conditions — see `LVGL9_XML_GUIDE.md` § "Expression Conditionals"):
+**Expression-driven conditionals** (multi-subject / arithmetic conditions - see `LVGL9_XML_GUIDE.md` § "Expression Conditionals"):
 
 ```xml
 <!-- Derived subject, kept in sync (declare inputs first) -->
@@ -89,7 +89,7 @@ All widgets inherit these.
 | `<bind_state_if cond= state= invert=>` | Reactive state add/remove driven by expression |
 | `<bind_style_if cond= name= selector= parts= invert=>` | Reactive style enable/disable driven by expression |
 
-**Grammar:** subject name, int literal, `( )` grouping; `== != < <= > >=` / word forms `eq ne lt le gt ge`; `&& \|\| !` / word forms `and or not`; `+ - * / %` (div/mod by zero → `0`). **House style = word forms** — `&&`/`<` need XML escaping (`&amp;&amp;`/`&lt;`), word forms don't.
+**Grammar:** subject name, int literal, `( )` grouping; `== != < <= > >=` / word forms `eq ne lt le gt ge`; `&& \|\| !` / word forms `and or not`; `+ - * / %` (div/mod by zero → `0`). **House style = word forms** - `&&`/`<` need XML escaping (`&amp;&amp;`/`&lt;`), word forms don't.
 
 **Looping** (`LVGL9_XML_GUIDE.md` § "Repeating fragments with `<repeat>`"):
 
@@ -104,8 +104,8 @@ All widgets inherit these.
 
 | Tag/Attr | Notes |
 |----------|-------|
-| `<repeat count=>` | Expands its body `count` times. `count` is a literal, a `#const`, or a subject name; a subject-bound `count` **reactively rebuilds** the expansion when the subject changes (async off-tree teardown — a reactive `<repeat>` must be its parent's last child or in its own container). Clamped to `[0, 256]`. Not nestable yet. |
-| `$i` / `${…}` | Zero-based iteration index inside a `<repeat>` body. Bare `$i` is a whole-value substitution (`text="$i"`); `${i}` / `${prop}` splices a name into a larger string (`bind_text="slot_${i}_label"`). `${…}` also evaluates an **integer expression** and splices the result (`${i + 1}`, `${i * 84}`, `${base * scale}`, `${cols * 2}`) — operands are `i`, integer literals, numeric props, and subjects. **Resolve-once**: subject operands are read at creation and do not update reactively (use `bind_*` for live values). |
+| `<repeat count=>` | Expands its body `count` times. `count` is a literal, a `#const`, or a subject name; a subject-bound `count` **reactively rebuilds** the expansion when the subject changes (async off-tree teardown - a reactive `<repeat>` must be its parent's last child or in its own container). Clamped to `[0, 256]`. A `<repeat>` or `<if>` nested inside it is skipped with an error. |
+| `$i` / `${…}` | Zero-based iteration index inside a `<repeat>` body. Bare `$i` is a whole-value substitution (`text="$i"`); `${i}` / `${prop}` splices a name into a larger string (`bind_text="slot_${i}_label"`). `${…}` also evaluates an **integer expression** and splices the result (`${i + 1}`, `${i * 84}`, `${base * scale}`, `${cols * 2}`) - operands are `i`, integer literals, numeric props, and subjects. **Resolve-once**: subject operands are read at creation and do not update reactively (use `bind_*` for live values). |
 
 **Structural conditionals** (`LVGL9_XML_GUIDE.md` § "Structural conditionals with `<if>` / `<else>`"):
 
@@ -122,8 +122,8 @@ All widgets inherit these.
 
 | Tag/Attr | Notes |
 |----------|-------|
-| `<if cond=>` | `cond` is an expression string, same word-form grammar as `cond=` on `bind_flag_if`/`<subject_expr>`. Creates only the matching body — no subjects referenced = static, expands once at load, no observer; subjects referenced = reactive, rebuilds on any operand change. Reactive `<if>` must be its parent's last child or in its own container (same ordering constraint as `<repeat>`). Not nestable yet. |
-| `<else>` | No attributes. Inline divider inside one `<if>…</if>`: everything before it is the true-body, everything after is the false-body. `<else/>` and `<else></else>` are identical. Optional — omitting it means "create nothing" for the false case. A second `<else/>` warns (first split wins); a stray `<else/>` outside any `<if>` warns and is ignored. |
+| `<if cond=>` | `cond` is an expression string, same word-form grammar as `cond=` on `bind_flag_if`/`<subject_expr>`. Creates only the matching body - no subjects referenced = static, expands once at load, no observer; subjects referenced = reactive, rebuilds on any operand change. Reactive `<if>` must be its parent's last child or in its own container (same ordering constraint as `<repeat>`). A `<repeat>` or `<if>` nested inside it is skipped with an error. |
+| `<else>` | No attributes. Inline divider inside one `<if>…</if>`: everything before it is the true-body, everything after is the false-body. `<else/>` and `<else></else>` are identical. Optional - omitting it means "create nothing" for the false case. A second `<else/>` warns (first split wins); a stray `<else/>` outside any `<if>` warns and is ignored. |
 
 ---
 
@@ -177,7 +177,7 @@ All widgets inherit these.
 |------|-------|
 | `style_flex_main_place` | Main axis: `start`, `end`, `center`, `space_between`, `space_around`, `space_evenly` |
 | `style_flex_cross_place` | Cross axis alignment |
-| `style_flex_track_place` | Track alignment — **needed to center items with explicit widths** (not just wrap!) |
+| `style_flex_track_place` | Track alignment - **needed to center items with explicit widths** (not just wrap!) |
 
 ### Transforms
 
@@ -211,7 +211,7 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 
 **Share across files:** a `<styles>` block is file-local. A look two files need lives in `ui_xml/styles.xml` and is borrowed by dotted name: `<style name="styles.press_wash" selector="pressed"/>`, or `<bind_style name="styles.invisible" .../>`. See `LVGL9_XML_GUIDE.md` § "Defining Styles".
 
-**`bind_style` / `bind_style_if_*` — `parts="main,indicator"`:** apply one style to multiple parts in one line (helix-xml extension). State bits from `selector` are preserved per part. See `LVGL9_XML_GUIDE.md` § "Applying One Style to Multiple Parts".
+**`bind_style` / `bind_style_if_*` - `parts="main,indicator"`:** apply one style to multiple parts in one line (helix-xml extension). State bits from `selector` are preserved per part. See `LVGL9_XML_GUIDE.md` § "Applying One Style to Multiple Parts".
 
 ---
 
@@ -222,8 +222,8 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 | Attr | Notes |
 |------|-------|
 | `text` | Content |
-| `long_mode` | `wrap`, `scroll`, `dots`, `clip`. ⚠️ Inert without an explicit `width` — a content-width label is always one line. See `LVGL9_XML_GUIDE.md`, "Text never wraps inside a `flex_grow` column". `dots` on a `text_*` or `ui_button` at content height holds the label to one line; an explicit px/% `height` or `style_max_height` opts out and allows multi-line dots. Text meant to wrap must not use `dots`. See "One-line labels: `long_mode="dots"`". |
-| `bind_text` | `"subject 'format'"` |
+| `long_mode` | `wrap`, `scroll`, `dots`, `clip`. ⚠️ Inert without an explicit `width` - a content-width label is always one line. See `LVGL9_XML_GUIDE.md`, "Text never wraps inside a `flex_grow` column". `dots` on a `text_*` or `ui_button` at content height holds the label to one line; an explicit px/% `height` or `style_max_height` opts out and allows multi-line dots. Text meant to wrap must not use `dots`. See "One-line labels: `long_mode="dots"`". |
+| `bind_text`, `bind_text-fmt` | Subject name, plus an optional printf format (`bind_text-fmt="%.1f°C"`) |
 
 ### lv_image
 
@@ -232,30 +232,33 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 | `src` | Image name or path |
 | `scale_x`, `scale_y` | 256=100% (⚠️ no `zoom`) |
 | `rotation` | 0.1° units |
-| `inner_align` | `center`, `stretch`, `tile` |
+| `inner_align` | `center`, `top_left` ... `bottom_right`, `left_mid`, `right_mid`, `stretch`, `tile`, `contain`, `contain_downscale` (fits like `contain` but never scales up), `cover` |
+| `bind_src` | Subject (pointer or string) |
 
 ### lv_slider / lv_bar
 
 | Attr | Notes |
 |------|-------|
-| `value` | `"50"` or `"50 true"` (animated) |
-| `range` | `"0 100"` |
+| `value`, `start_value` | Int (`start_value` for `range` mode) |
+| `min_value`, `max_value` | Range ends |
 | `mode` | `normal`, `range`, `symmetrical` |
+| `orientation` | Slider only |
 | `bind_value` | Subject name |
 
 ### lv_arc
 
 | Attr | Notes |
 |------|-------|
-| `value`, `range` | Same as slider |
-| `angles` | `"0 270"` (start end) |
+| `value`, `min_value`, `max_value` | Same as slider |
+| `start_angle`, `end_angle`, `bg_start_angle`, `bg_end_angle`, `rotation` | Degrees |
 | `mode` | `normal`, `reverse`, `symmetrical` |
+| `bind_value` | Subject name |
 
 ### lv_textarea
 
 | Attr | Notes |
 |------|-------|
-| `text`, `placeholder` | |
+| `text`, `placeholder_text`, `placeholder_tag` | |
 | `one_line`, `password_mode` | bool |
 
 ### lv_checkbox
@@ -281,7 +284,7 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 
 ---
 
-## Event Callbacks (9.4+)
+## Event Callbacks
 
 ```xml
 <lv_button>
@@ -291,7 +294,7 @@ Define in `<styles>`, apply with child `<style>`. Drop `style_` prefix.
 
 Register: `lv_xml_register_event_cb(nullptr, "my_handler", fn)`
 
-**Triggers:** `clicked`, `value_changed`, `pressed`, `released`, `ready`, `cancel`
+**Triggers:** any LVGL event name without the `LV_EVENT_` prefix, lowercased (`clicked`, `value_changed`, `pressed`, `released`, `ready`, `cancel`, `all`, ...)
 
 ---
 
@@ -305,4 +308,4 @@ Register: `lv_xml_register_event_cb(nullptr, "my_handler", fn)`
 | dir | `none`, `top`, `bottom`, `left`, `right`, `hor`, `ver`, `all` |
 | border_side | `none`, `top`, `bottom`, `left`, `right`, `full` |
 | text_align | `left`, `right`, `center`, `auto` |
-| blend_mode | `normal`, `additive`, `subtractive`, `multiply` |
+| blend_mode | `normal`, `additive`, `subtractive`, `multiply`, `difference` |

@@ -15,8 +15,9 @@
  * and building the modal's widget tree to reach it would test the XML instead.
  *
  * register_callbacks() binds the names job_queue_row.xml's event_cbs resolve,
- * which must exist before a row is created. attach_row_data() and set_active()
- * give a bare row the job and the modal those callbacks act on.
+ * which must exist before a row is created. attach_row_data() gives a bare row
+ * the job its callbacks act on; the row finds its modal the way every row does,
+ * by sitting inside that modal's dialog.
  */
 class JobQueueModalTestAccess {
   public:
@@ -32,10 +33,5 @@ class JobQueueModalTestAccess {
     static void attach_row_data(lv_obj_t* row, const std::string& job_id,
                                 const std::string& filename) {
         helix::JobQueueModal::attach_row_data(row, job_id, filename);
-    }
-
-    /// The modal's destructor clears this again.
-    static void set_active(helix::JobQueueModal* modal) {
-        helix::JobQueueModal::s_active_instance_ = modal;
     }
 };

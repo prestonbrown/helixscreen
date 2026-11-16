@@ -12,7 +12,8 @@
  * - HTTP file upload/download (G-code files, thumbnails, config)
  * - Response parsing and error handling
  * - Domain-specific callbacks (progress, completion, errors)
- * - Bed mesh operations (delegating to MoonrakerClient for storage)
+ * - Bed mesh data (MoonrakerClient forwards bed_mesh updates; MoonrakerAdvancedAPI
+ *   parses and stores them)
  * - Print history and timelapse management
  * - Spoolman filament tracking integration
  *
@@ -45,6 +46,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "helix_shared_callback.h"
 #include "http_request_epoch.h"
 #include "i_moonraker_api.h"
@@ -236,7 +238,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
      *        thread — typically the main thread inside an LVGL LV_EVENT_CLICKED
      *        frame. A handler here must therefore obey the input-handler rules:
      *        no synchronous widget deletion (lv_obj_delete / lv_obj_clean /
-     *        safe_delete); use the deferred forms. See CLAUDE.md § Threading.
+     *        safe_delete); use the deferred forms. See docs/devel/THREADING.md.
      * @param caller_surfaces_errors Whether @p on_error actually SHOWS the user
      *        something. Pass false when it only logs: a spdlog line is not a
      *        user-visible report, and letting it claim ownership of the report
@@ -445,9 +447,6 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
         helix::http_epoch::set_base_url(base_url, moved);
     }
 
-    /**
-     * @brief Get the current HTTP base URL
-     */
     const std::string& get_http_base_url() const override {
         return http_base_url_;
     }
@@ -758,7 +757,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
      * @brief Get REST API for generic REST endpoint and WLED operations
      *
      * All REST methods (call_rest_get, call_rest_post, wled_get_strips,
-     * wled_set_strip, wled_get_status, get_server_config) are available
+     * wled_set_strip, get_server_config) are available
      * through this accessor.
      *
      * @return Reference to MoonrakerRestAPI
@@ -816,14 +815,14 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
     helix::PrinterDiscovery hardware_;
 
     /// Subject for notifying when build_volume changes (version counter)
-    lv_subject_t build_volume_version_{};
+    helix::Subject build_volume_version_{};
     std::atomic<int> build_volume_version_counter_{0};
 
     /// Generation guard for the subject writes this class defers to the main
     /// thread. Invalidated by the destructor *before* `build_volume_version_` is
     /// deinited, so a callback still sitting in the UpdateQueue is dropped
-    /// instead of notifying a freed observer list — the exact failure that took
-    /// down the unsharded suite (#1165, #1146). Unlike the subject-owning state
+    /// instead of notifying a freed observer list (#1165, #1146). Unlike the
+    /// subject-owning state
     /// classes there is no `deinit_subjects()` here: the subject is created in
     /// the constructor and torn down only at destruction.
     helix::AsyncLifetimeGuard async_lifetime_;

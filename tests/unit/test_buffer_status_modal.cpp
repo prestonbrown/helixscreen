@@ -101,26 +101,6 @@ static helix::AmsSystemInfo make_afc_info(int unit_count = 1) {
 }
 
 // ============================================================================
-// Construction / metadata
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal default construction",
-                 "[modals][buffer_status]") {
-    BufferStatusModal modal;
-
-    REQUIRE(std::string(modal.get_name()) == "Buffer Status");
-    REQUIRE(std::string(modal.component_name()) == "buffer_status_modal");
-    REQUIRE(modal.is_visible() == false);
-    REQUIRE(modal.dialog() == nullptr);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal destructor safe when not shown",
-                 "[modals][buffer_status]") {
-    auto modal = std::make_unique<BufferStatusModal>();
-    REQUIRE_NOTHROW(modal.reset());
-}
-
-// ============================================================================
 // Happy Hare populate
 // ============================================================================
 

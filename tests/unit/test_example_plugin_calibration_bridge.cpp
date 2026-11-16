@@ -63,7 +63,7 @@ void fire_agent_event(HostRig& rig, const char* event, const json& data) {
 }
 
 void set_print_state(const char* v) {
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "print_state"), v);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "print_state"), v);
     drain();
 }
 

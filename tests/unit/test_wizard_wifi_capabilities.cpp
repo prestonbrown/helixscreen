@@ -7,12 +7,12 @@
  *        can move the radio (prestonbrown/helixscreen#1429).
  */
 
-#include "ui_update_queue.h"
 #include "ui_wizard_wifi.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wizard_wifi_test_access.h"
+#include "core/update_queue.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
 
@@ -61,12 +61,11 @@ class WizardCapabilityFixture : public LVGLUITestFixture {
 
 TEST_CASE_METHOD(WizardCapabilityFixture,
                  "The wizard offers the WiFi toggle when the radio can move", "[1429][wizard]") {
-    CHECK_FALSE(
-        lv_obj_has_flag(toggle_for(std::make_unique<WifiBackendMock>()), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(toggle_for(std::make_unique<WifiBackendMock>())));
 }
 
 TEST_CASE_METHOD(WizardCapabilityFixture,
                  "The wizard hides the WiFi toggle when the backend cannot move the radio",
                  "[1429][wizard]") {
-    CHECK(lv_obj_has_flag(toggle_for(std::make_unique<NoToggleBackend>()), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(toggle_for(std::make_unique<NoToggleBackend>())));
 }

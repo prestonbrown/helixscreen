@@ -3,6 +3,8 @@
 
 #include "snapmaker_print_preferences.h"
 
+#include "hv/json.hpp"
+
 namespace helix::snapmaker {
 namespace {
 

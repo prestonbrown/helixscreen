@@ -1,6 +1,6 @@
 # Theme System
 
-> **For contributors:** If you're doing layout or styling work, start with the **[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md)** instead. This document covers the internal architecture of the theme system — the table-driven `ThemeManager`, shared `lv_style_t` objects, and extending the system with new themed widgets.
+> **For contributors:** If you're doing layout or styling work, start with the **[UI Contributor Guide](UI_CONTRIBUTOR_GUIDE.md)** instead. This document covers the internal architecture of the theme system - the table-driven `ThemeManager`, shared `lv_style_t` objects, and extending the system with new themed widgets.
 
 ## Overview
 
@@ -10,17 +10,15 @@ The reactive theme system enables **live theme switching** (dark/light modes) wi
 
 > **DATA in C++, APPEARANCE in XML, Shared Styles connect them.**
 
-> **Note:** The theme system handles colors, spacing tokens, and typography. For structural layout changes across different screen shapes (ultrawide, portrait, tiny), see the [Layout System](LAYOUT_SYSTEM.md) — themes and layouts are independent and any combination works.
+> **Note:** The theme system handles colors, spacing tokens, and typography. For structural layout changes across different screen shapes (ultrawide, portrait, tiny), see the [Layout System](LAYOUT_SYSTEM.md) - themes and layouts are independent and any combination works.
 
 - **Data** (C++): Printer state, temperatures, positions
 - **Appearance** (XML): Layout, colors via tokens, spacing via tokens
-- **Shared Styles** (`ThemeManager`): a fixed table of LVGL `lv_style_t` objects — one per `StyleRole` — that widgets add by reference. Re-theming reconfigures the styles in place, so every widget that added them redraws with new colors.
+- **Shared Styles** (`ThemeManager`): a fixed table of LVGL `lv_style_t` objects - one per `StyleRole` - that widgets add by reference. Re-theming reconfigures the styles in place, so every widget that added them redraws with new colors.
 
-### What Problem It Solves
+### How a Switch Works
 
-**Before:** Changing themes required restarting the app or manually updating hundreds of widgets.
-
-**After:** Call `theme_manager_apply_theme(theme, dark)` → `ThemeManager` reconfigures every style in its table against the new palette → `lv_obj_report_style_change(nullptr)` triggers LVGL's style cascade → every widget that added a shared style redraws with new colors. Widgets with baked-in inline styles from XML are then re-styled by a widget-tree walk (`theme_manager_refresh_widget_tree` + `theme_apply_current_palette_to_tree`).
+Call `theme_manager_apply_theme(theme, dark)` → `ThemeManager` reconfigures every style in its table against the new palette → `lv_obj_report_style_change(nullptr)` triggers LVGL's style cascade → every widget that added a shared style redraws with new colors. Widgets with baked-in inline styles from XML are then re-styled by a widget-tree walk (`theme_manager_refresh_widget_tree` + `theme_apply_current_palette_to_tree`).
 
 ---
 
@@ -30,10 +28,10 @@ The system has two cooperating pieces, both fronted by `theme_manager.h`:
 
 | Piece | File(s) | Responsibility |
 |-------|---------|----------------|
-| **`ThemeManager`** (singleton) | `src/ui/theme_manager_new.cpp`, style configs in `src/ui/style_configs.cpp` | Owns the fixed table of shared `lv_style_t` objects (one per `StyleRole`), reconfigures them against the active `ThemePalette`, and fires `lv_obj_report_style_change()` |
-| **Free functions** (`theme_manager_*`) | `src/ui/theme_manager.cpp` and the `src/ui/theme_*.cpp` files beside it | Token lookup, XML constant registration, responsive spacing/font constants, theme loading, and the unified `theme_manager_apply_theme()` re-theme entry point |
+| **`ThemeManager`** (singleton) | `src/ui/theme/theme_manager_new.cpp`, style configs in `src/ui/style_configs.cpp` | Owns the fixed table of shared `lv_style_t` objects (one per `StyleRole`), reconfigures them against the active `ThemePalette`, and fires `lv_obj_report_style_change()` |
+| **Free functions** (`theme_manager_*`) | `src/ui/theme/theme_manager.cpp` and the `src/ui/theme/*.cpp` files beside it | Token lookup, XML constant registration, responsive spacing/font constants, theme loading, and the unified `theme_manager_apply_theme()` re-theme entry point |
 
-`ThemeManager` replaces the deleted theme_core.c. Instead of a getter per style, roles are enumerated in the `StyleRole` enum and stored in a `std::array<StyleEntry, StyleRole::COUNT>`. Each `StyleEntry` binds a role to its `lv_style_t` and a `StyleConfigureFn` (`configure_card`, `configure_button_primary`, … in `style_configs.cpp`) that writes palette colors into the style.
+Instead of a getter per style, roles are enumerated in the `StyleRole` enum and stored in a `std::array<StyleEntry, StyleRole::COUNT>`. Each `StyleEntry` binds a role to its `lv_style_t` and a `StyleConfigureFn` (`configure_card`, `configure_button_primary`, … in `style_configs.cpp`) that writes palette colors into the style.
 
 ### When to Use Each
 
@@ -100,7 +98,7 @@ and selector: a global token (`style_text_color="#text_muted"`) with its name, a
 - `lv_xml_reapply_token_styles()` rewrites each token color with its const's new value, unless
   C++ has changed that color since the XML wrote it (an error-red label, a selection
   highlight keeps its value).
-- The palette walker (`src/ui/theme_live_recolor.cpp`) writes every local color through one
+- The palette walker (`src/ui/theme/theme_live_recolor.cpp`) writes every local color through one
   helper that skips a property+selector `lv_xml_obj_has_authored_style()` reports. A token
   is already right after the re-apply, and a literal such as the QR scanner's white status
   text stays as written. Widgets with no inline color are themed by the walker as before.
@@ -147,7 +145,7 @@ All colors are referenced as tokens with `#` prefix in XML:
 ### Light/Dark Variants
 
 Theme-aware colors resolve to a light or dark value depending on the current mode. Note
-the `_light`/`_dark` **suffix convention is internal to the XML const registration** — it
+the `_light`/`_dark` **suffix convention is internal to the XML const registration** - it
 is how `theme_tokens_register.cpp` registers each palette color into the `ui_xml` global scope
 (e.g. `card_bg_light`, `card_bg_dark`). The **theme JSON itself does not use suffixed
 keys**; it nests `"light": { ... }` and `"dark": { ... }` objects. The system automatically
@@ -204,16 +202,16 @@ Every responsive value requires three core variants: `_small`, `_medium`, `_larg
 | `_xlarge` | 701-1000px | 1280×720, 1024×768 | → `_large` |
 | `_xxlarge` | >1000px | 1440p, 4K | → `_xlarge` → `_large` |
 
-**Two ladders feed that one table** (`src/ui/theme_responsive.cpp`):
+**Two ladders feed that one table** (`src/ui/theme/theme_responsive.cpp`):
 
 | Ladder | Scalar | Used by |
 |--------|--------|---------|
 | Cramped axis (default) | `responsive_dimension()` = `min(width, height)` | Fonts, spacing, widths, everything axis-neutral |
 | Vertical axis | `responsive_vertical_dimension()` = `height` | The height tokens listed in `VERTICAL_AXIS_TOKENS` |
 
-On a landscape display the narrow axis usually *is* the height, which is why "height-based" looked right for years; on a portrait panel it is the width. Because `min(w, h) == h` on landscape and square displays, the two ladders only diverge in portrait. A 320×1480 panel resolves `#space_lg` from 320 (`_tiny`, 8px) and `#button_height` from 1480 (`_xxlarge`, 96px).
+On a landscape display the narrow axis usually *is* the height; on a portrait panel it is the width. Because `min(w, h) == h` on landscape and square displays, the two ladders only diverge in portrait. A 320×1480 panel resolves `#space_lg` from 320 (`_tiny`, 8px) and `#button_height` from 1480 (`_xxlarge`, 96px).
 
-`theme_manager_resolve_px_tokens()` is the single place that applies this policy; startup registration and the resize path both apply its output, so the two can never disagree. The `ui_breakpoint` subject keeps holding the **cramped** tier — all XML `ref_value` bindings are written against it. Tier boundaries live in `breakpoint_for()` (`include/ui_breakpoint.h`).
+`theme_manager_resolve_px_tokens()` is the single place that applies this policy; startup registration and the resize path both apply its output, so the two can never disagree. The `ui_breakpoint` subject keeps holding the **cramped** tier - all XML `ref_value` bindings are written against it. Tier boundaries live in `breakpoint_for()` (`include/ui_breakpoint.h`).
 
 Full explanation, worked example, and the rule for classifying a new token: [UI_CONTRIBUTOR_GUIDE.md § Screen Breakpoints](UI_CONTRIBUTOR_GUIDE.md#2-screen-breakpoints). Background: prestonbrown/helixscreen#1209.
 
@@ -234,15 +232,15 @@ The deadband covers every measured printer (CC1 131, SonicPad 170, CB1 187, Pi 2
 
 | Thing | Where |
 |-------|-------|
-| Every `<px>` token, responsive and static alike | `theme_manager_scale_px_token()`, shared by both registration paths |
+| Every `<px>` token, responsive and static alike | `helix::theme_detail::scale_px_token()` (`src/ui/theme/theme_responsive.cpp`), shared by both registration paths |
 | Grid cell track edge | `GridLayout::get_dimensions()` |
 | Font tokens | remapped to the nearest **larger** linked face by `DisplayMetrics::scaled_font_name()` |
 
-Static (non-suffixed) tokens scale too. They are fixed-size boxes — icon badges, chips, swatches, column widths — holding scaled text, so exempting them just makes glyphs overflow their containers. The one exemption is any token whose name ends `_opacity`: those are declared `<px>` but hold an 0-255 alpha, and multiplying one sails past opaque.
+Static (non-suffixed) tokens scale too. They are fixed-size boxes - icon badges, chips, swatches, column widths - holding scaled text, so exempting them just makes glyphs overflow their containers. The one exemption is any token whose name ends `_opacity`: those are declared `<px>` but hold an 0-255 alpha, and multiplying one sails past opaque.
 
 **LVGL's own DPI**
 
-`Application` sets `lv_display_set_dpi()` to `LV_DPI_DEF * scale` — never a kernel-reported value. LVGL derives its internal padding from DPI via `LV_DPX`, so this keeps its chrome (and the handful of `lv_dpx()` call sites in `src/`) growing in step with the design tokens. The two paths are disjoint — tokens reach widgets as style attributes, `LV_DPX` only feeds LVGL's own theme — so they add rather than compound. At scale 1.0 the expression is exactly `LV_DPI_DEF`.
+`Application` sets `lv_display_set_dpi()` to `LV_DPI_DEF * scale` - never a kernel-reported value. LVGL derives its internal padding from DPI via `LV_DPX`, so this keeps its chrome (and the handful of `lv_dpx()` call sites in `src/`) growing in step with the design tokens. The two paths are disjoint - tokens reach widgets as style attributes, `LV_DPX` only feeds LVGL's own theme - so they add rather than compound. At scale 1.0 the expression is exactly `LV_DPI_DEF`.
 
 **Why the kernel is never trusted**
 
@@ -311,13 +309,13 @@ Font tokens differ from `px` tokens in one way that matters: the face a token na
 has to have been registered with LVGL before the token can point at it, and not every
 tier is registered at once.
 
-- **Build time** — `FONT_TIERS` (`mk/cross.mk`) decides which faces are linked at all,
+- **Build time** - `FONT_TIERS` (`mk/cross.mk`) decides which faces are linked at all,
   and `HELIX_MAX_FONT_TIER` is derived from it. `theme_manager` uses that ceiling to
   tell a font pruned by tier from a font missing because of a build bug. See
   `BUILD_SYSTEM.md`.
-- **Startup** — `AssetManager::register_fonts()` registers the current tier and below,
+- **Startup** - `AssetManager::register_fonts()` registers the current tier and below,
   skipping larger tiers to save `.rodata`.
-- **Runtime** — `AssetManager::register_fonts_for_tier()` is re-entrant. A rising tier
+- **Runtime** - `AssetManager::register_fonts_for_tier()` is re-entrant. A rising tier
   registers the delta; a same-or-lower tier is a no-op; nothing is ever unregistered,
   because live widgets hold pointers into those static faces.
 
@@ -334,9 +332,10 @@ exist only because that function derives them.
 
 Note what this does **not** do: `style_text_font` is resolved to a concrete
 `lv_font_t*` at parse time and baked into the widget's style, so re-pointing a token
-does not restyle widgets that already exist. The same has always been true of `px`
-tokens. Widgets built after the refresh pick up the new tier; the eagerly-built root
-panels do not, short of `NavigationManager::rebuild_active_views()`.
+does not restyle widgets that already exist. The same is true of `px` tokens. The
+resize path therefore rebuilds the views when the refresh reports a moved token
+(UI_CONTRIBUTOR_GUIDE.md, "Built widgets keep their tokens"), and
+`theme_manager_refresh_base_font()` re-points the theme's default text font in place.
 
 ---
 
@@ -378,7 +377,7 @@ Standard card surface with themed background, border, and radius.
 </ui_card>
 ```
 
-Adds the shared `StyleRole::Card` style (`ThemeManager::instance().get_style(StyleRole::Card)`) → `card_bg` color, `border` color, theme radius. See `src/ui/ui_card.cpp`.
+Adds the shared `StyleRole::Card` style (`ThemeManager::instance().get_style(StyleRole::Card)`) → `card_bg` color, `border` color, theme radius. See `src/ui/components/ui_card.cpp`.
 
 #### ui_dialog
 Modal/overlay container with elevated surface color.
@@ -390,7 +389,7 @@ Modal/overlay container with elevated surface color.
 </ui_dialog>
 ```
 
-Adds the shared `StyleRole::Dialog` style → `elevated_bg` color. See `src/ui/ui_dialog.cpp`.
+Adds the shared `StyleRole::Dialog` style → `elevated_bg` color. See `src/ui/components/ui_dialog.cpp`.
 
 ### Buttons
 
@@ -405,12 +404,14 @@ Adds the shared `StyleRole::Dialog` style → `elevated_bg` color. See `src/ui/u
 | `warning` | Warning amber | Caution actions |
 | `tertiary` | Tertiary accent | Tertiary actions |
 | `ghost` | Transparent | Subtle actions |
+| `outline` | Transparent with a border | Bordered secondary actions |
+| `transparent` | Transparent | Icon-only or inline actions |
 
 **Attributes:**
 - `variant` - Button style (default: "primary")
 - `text` - Button label
 - `icon` - MDI icon name
-- `icon_position` - "left" (default) or "right"
+- `icon_position` - "left" (default), "right", "top" or "bottom"
 
 ```xml
 <ui_button variant="primary" text="Save"/>
@@ -451,7 +452,7 @@ Icon sizes map directly to fixed-size icon fonts (not responsive):
 | `lg` | mdi_icons_48 | Status indicators |
 | `xl` | mdi_icons_64 | Navigation, hero icons |
 
-> **Note:** For responsive icon sizing, use the `icon_size` token (`size="#icon_size"`) which selects one of these named sizes per breakpoint (`icon_size_*` in `globals.xml`): `md` for micro, tiny and small; `lg` for medium; `xl` for large, xlarge and xxlarge. `sm` is never selected automatically — 24px is illegible on a 272px screen.
+> **Note:** For responsive icon sizing, use the `icon_size` token (`size="#icon_size"`) which selects one of these named sizes per breakpoint (`icon_size_*` in `globals.xml`): `md` for micro, tiny and small; `lg` for medium and up. `xs`, `sm` and `xl` are never selected automatically (the reasons are in the `icon_size_*` comment in `globals.xml`).
 
 **Attributes:**
 - `src` - MDI icon name ("home", "settings", "wifi")
@@ -486,14 +487,14 @@ Spinner sizes are **responsive** - the pixel values vary by breakpoint (narrow a
 | `md` | 24px / 2px arc | 28px / 3px arc | 32px / 3px arc | 40px / 4px arc | 48px / 4px arc |
 | `lg` | 48px / 3px arc | 56px / 4px arc | 64px / 4px arc | 80px / 5px arc | 96px / 6px arc |
 
-> Note: no `_micro` or `_tiny` spinner variants are defined, so Micro and Tiny both resolve to the Small column. The `xs`/`sm` arc widths (`spinner_arc_xs`, `spinner_arc_sm`) are plain constants with no variants — 2px on every tier.
+> Note: no `_micro` or `_tiny` spinner variants are defined, so Micro and Tiny both resolve to the Small column. The `xs`/`sm` arc widths (`spinner_arc_xs`, `spinner_arc_sm`) are plain constants with no variants - 2px on every tier.
 
 ```xml
 <spinner size="lg"/>
 <spinner size="md" align="center"/>
 ```
 
-Adds the shared `StyleRole::Spinner` style → primary accent color. See `src/ui/ui_spinner.cpp`.
+Adds the shared `StyleRole::Spinner` style → primary accent color. See `src/ui/components/ui_spinner.cpp`.
 
 #### severity_card
 Status card with severity-colored border:
@@ -511,7 +512,7 @@ Status card with severity-colored border:
 </severity_card>
 ```
 
-Adds one of the shared `StyleRole::SeverityInfo` / `SeveritySuccess` / `SeverityWarning` / `SeverityDanger` styles, selected by the `severity` attribute. See `src/ui/ui_severity_card.cpp`.
+Adds one of the shared `StyleRole::SeverityInfo` / `SeveritySuccess` / `SeverityWarning` / `SeverityDanger` styles, selected by the `severity` attribute. See `src/ui/components/ui_severity_card.cpp`.
 
 ### Layout
 
@@ -537,7 +538,7 @@ Use `border` color from theme.
 ```
 
 For a reactive surface that updates automatically without a tree walk, use a semantic widget
-(`<ui_card>`, `<ui_dialog>`) — it adds the corresponding shared `StyleRole` style, which the
+(`<ui_card>`, `<ui_dialog>`) - it adds the corresponding shared `StyleRole` style, which the
 `ThemeManager` reconfigures in place on every theme change.
 
 ### Using Spacing Tokens
@@ -593,7 +594,7 @@ lv_style_t* card_style = tm.get_style(StyleRole::Card);  // never null after ini
 lv_obj_add_style(obj, card_style, LV_PART_MAIN);
 ```
 
-This is exactly the pattern the built-in widgets use — see `ui_card.cpp` (`StyleRole::Card`),
+This is exactly the pattern the built-in widgets use - see `ui_card.cpp` (`StyleRole::Card`),
 `ui_dialog.cpp` (`StyleRole::Dialog`), `ui_button.cpp` (variant → `StyleRole::Button*`),
 `ui_text.cpp` (`StyleRole::TextPrimary` / `TextMuted`), and `ui_severity_card.cpp`.
 
@@ -635,7 +636,7 @@ lv_color_t text = theme_manager_get_contrast_color(bg_color);
 For widgets that need custom update logic beyond a shared style, observe the theme-changed
 subject (a monotonically increasing generation counter) exposed by
 `theme_manager_get_changed_subject()`. Use an `ObserverGuard` member so cleanup is automatic
-(see `src/ui/ui_heating_animator.cpp`):
+(see `src/ui/controls/ui_heating_animator.cpp`):
 
 ```cpp
 lv_subject_t* theme_subject = theme_manager_get_changed_subject();
@@ -645,7 +646,7 @@ if (theme_subject) {
 ```
 
 The observer fires after every `theme_manager_apply_theme()` (toggle, theme switch, preview).
-Widgets that only need color updates should add a shared `StyleRole` style instead — those
+Widgets that only need color updates should add a shared `StyleRole` style instead - those
 refresh automatically without an observer.
 
 ---
@@ -712,7 +713,7 @@ The ESP32 firmware draws 16 bpp and does not compile glass.
 
 1. **Add a role** to the `StyleRole` enum in `include/theme_manager.h` (before `COUNT`).
 
-2. **Write its configure function** in `src/ui/style_configs.cpp` — declare it in the
+2. **Write its configure function** in `src/ui/style_configs.cpp` - declare it in the
    `style_configs` namespace block and implement it to write palette colors into the style:
    ```cpp
    void configure_my_style(lv_style_t* s, const ThemePalette& p) {
@@ -723,11 +724,11 @@ The ESP32 firmware draws 16 bpp and does not compile glass.
    ```
 
 3. **Bind role → configure fn** in `ThemeManager::register_style_configs()`
-   (`src/ui/theme_manager_new.cpp`):
+   (`src/ui/theme/theme_manager_new.cpp`):
    ```cpp
    styles_[static_cast<size_t>(StyleRole::MyStyle)].configure = configure_my_style;
    ```
-   The manager inits and reconfigures every table entry automatically — there is no separate
+   The manager inits and reconfigures every table entry automatically - there is no separate
    init/update/preview step to touch.
 
 4. **Add the shared style** in your widget's create handler:
@@ -741,18 +742,25 @@ The ESP32 firmware draws 16 bpp and does not compile glass.
    ```
 
 Widget *parts* not modeled as a `StyleRole` (e.g. a custom knob or indicator) follow the
-file-static pattern in `theme_lvgl_apply.cpp` instead — add an `lv_style_t`, configure it in
+file-static pattern in `theme_lvgl_apply.cpp` instead - add an `lv_style_t`, configure it in
 `init_extra_styles()` / `update_handle_styles()`, and attach it in `helix_theme_apply()`.
 
 ### Adding a New Color Token
 
-1. Add to theme JSON files (`assets/config/themes/defaults/*.json`):
-   ```json
-   "dark": { "my_color": "#hexvalue" },
-   "light": { "my_color": "#hexvalue" }
-   ```
+A theme JSON carries only the 16 palette colors (`ModePalette::color_names()` in
+`include/theme_loader.h`); any other key is ignored. So:
 
-2. If semantic (part of 16-color palette), add to `ModePalette` in `theme_loader.h`
+1. **A color that is not part of the palette** (a diagram's path colors, a stepper's states):
+   declare a `_light` / `_dark` pair in `ui_xml/globals.xml`:
+   ```xml
+   <color name="my_color_dark" value="#4FA3F7"/>
+   <color name="my_color_light" value="#1F6FC5"/>
+   ```
+   `theme_tokens_register.cpp` finds every such pair and registers the base name for the
+   current mode.
+
+2. **A new palette color** is a schema change: add it to `ModePalette` and `color_names()`,
+   to `get_builtin_fallback_theme()`, and to every `assets/config/themes/defaults/*.json`.
 
 3. Reference in XML: `style_bg_color="#my_color"`
 
@@ -765,9 +773,9 @@ file-static pattern in `theme_lvgl_apply.cpp` instead — add an `lv_style_t`, c
    <px name="my_space_large" value="16"/>
    ```
 
-   The declaration MUST be at the top level of `ui_xml/` — discovery does not recurse into `ui_xml/components/`, `ui_xml/portrait/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
+   The declaration MUST be at the top level of `ui_xml/` - discovery does not recurse into `ui_xml/components/` or any other subdirectory, so a suffixed token declared there is never registered and every `#reference` to it silently resolves to nothing. Enforced by `scripts/check_responsive_token_scope.py` (#1211).
 
-2. Classify the axis. Heights, top/bottom padding and vertical maxima go in `VERTICAL_AXIS_TOKENS` (`src/ui/theme_responsive.cpp`); widths and anything axis-neutral (all `space_*`) need no change. If in doubt, neutral.
+2. Classify the axis. Heights, top/bottom padding and vertical maxima go in `VERTICAL_AXIS_TOKENS` (`src/ui/theme/theme_responsive.cpp`); widths and anything axis-neutral (all `space_*`) need no change. If in doubt, neutral.
 
 3. Use in XML: `style_pad_all="#my_space"`
 
@@ -780,19 +788,19 @@ file-static pattern in `theme_lvgl_apply.cpp` instead — add an `lv_style_t`, c
 | File | Purpose |
 |------|---------|
 | `include/theme_manager.h` | `ThemeManager` class, `StyleRole` enum, `ThemePalette` struct, free `theme_manager_*` API |
-| `src/ui/theme_manager_new.cpp` | `ThemeManager` implementation: style table, `apply_palette()`, `set_dark_mode()`, `get_style()`, `get_color()`, preview |
-| `src/ui/style_configs.cpp` | `configure_*` functions — one per `StyleRole`, writes palette colors into each shared style |
-| `src/ui/theme_manager.cpp` | Core state (`ThemeRuntime`, `ThemeSubjects`), `theme_manager_init()`/`deinit()`, `theme_manager_apply_theme()`, change broadcast, color lookups |
-| `src/ui/theme_token_scan.cpp` | Expat discovery of `<color>`/`<px>`/`<string>` tokens in `ui_xml/` and the constant-set validator |
-| `src/ui/theme_tokens_register.cpp` | XML constant registration: semantic colors, theme properties, static constants, swatch subjects |
-| `src/ui/theme_responsive.cpp` | Breakpoint classification, responsive px tokens, overlay width constants, resize refresh |
-| `src/ui/theme_fonts.cpp` | Responsive font tokens, `is_icon_font()`, `theme_manager_get_font()` |
-| `src/ui/theme_lvgl_apply.cpp` | `helix_theme_apply()`, shared widget-part styles, palette conversions |
-| `src/ui/theme_live_recolor.cpp` | Palette walk over a live widget tree and the colour-swap maps (`set_swap_maps()`) |
-| `src/ui/theme_color_math.cpp` | Hex parsing, brightness, saturation, WCAG contrast helpers |
+| `src/ui/theme/theme_manager_new.cpp` | `ThemeManager` implementation: style table, `apply_palette()`, `set_dark_mode()`, `get_style()`, `get_color()`, preview |
+| `src/ui/style_configs.cpp` | `configure_*` functions - one per `StyleRole`, writes palette colors into each shared style |
+| `src/ui/theme/theme_manager.cpp` | Core state (`ThemeRuntime`, `ThemeSubjects`), `theme_manager_init()`/`deinit()`, `theme_manager_apply_theme()`, change broadcast, color lookups |
+| `src/ui/theme/theme_token_scan.cpp` | Expat discovery of `<color>`/`<px>`/`<string>` tokens in `ui_xml/` and the constant-set validator |
+| `src/ui/theme/theme_tokens_register.cpp` | XML constant registration: semantic colors, theme properties, static constants, swatch subjects |
+| `src/ui/theme/theme_responsive.cpp` | Breakpoint classification, responsive px tokens, overlay width constants, resize refresh |
+| `src/ui/theme/theme_fonts.cpp` | Responsive font tokens, `is_icon_font()`, `theme_manager_get_font()` |
+| `src/ui/theme/theme_lvgl_apply.cpp` | `helix_theme_apply()`, shared widget-part styles, palette conversions |
+| `src/ui/theme/theme_live_recolor.cpp` | Palette walk over a live widget tree and the colour-swap maps (`set_swap_maps()`) |
+| `src/ui/theme/theme_color_math.cpp` | Hex parsing, brightness, saturation, WCAG contrast helpers |
 | `include/glass_shading.h`, `include/glass_painter.h`, `include/glass_gate.h` | Glass appearance: the derived stops, the draw-task painter and families, the gate and live switching |
 | `src/ui/overlay_geometry.cpp` | Nav width ladder, overlay widths and heights, `ui_set_overlay_geometry()` |
-| `src/ui/theme_manager_internal.h` | `helix::theme_detail`: what these files share. Not public API |
-| `src/ui/theme_loader.cpp`, `include/theme_loader.h` | Parses theme JSON into `ThemeData` / `ModePalette` |
+| `src/ui/theme/theme_manager_internal.h` | `helix::theme_detail`: what these files share. Not public API |
+| `src/ui/theme/theme_loader.cpp`, `include/theme_loader.h` | Parses theme JSON into `ThemeData` / `ModePalette` |
 | `ui_xml/globals.xml` | Spacing, font, and icon token definitions |
 | `assets/config/themes/defaults/*.json` | Theme color definitions |

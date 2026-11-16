@@ -2,6 +2,7 @@
 #pragma once
 
 #include "axis.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 
@@ -74,8 +75,9 @@ class AsyncLifetimeGuard;
  */
 enum class HomingPolicy { IfNeeded, Always };
 
-void ensure_homed_then(IMoonrakerAPI* api, AsyncLifetimeGuard& guard, std::function<void()> then,
-                       std::function<void(const MoonrakerError&)> on_error,
+void ensure_homed_then(IMoonrakerAPI* api, AsyncLifetimeGuard& guard,
+                       helix::SharedCallback<void()> then,
+                       helix::SharedCallback<void(const MoonrakerError&)> on_error,
                        HomingPolicy policy = HomingPolicy::IfNeeded);
 
 } // namespace helix

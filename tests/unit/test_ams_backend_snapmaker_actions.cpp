@@ -6,9 +6,13 @@
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
 #include "config.h"
+#include "core/update_queue.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "settings_manager.h"
+#include "snapmaker_feed_mode.h"
 #include "snapmaker_nozzle_offset.h"
+#include "test_helpers/backend_harness.h"
 
 #include <algorithm>
 #include <any>
@@ -36,9 +40,7 @@ const DeviceAction* find_action(const std::vector<DeviceAction>& as, const std::
 
 class CapturingU1 : public AmsBackendSnapmaker {
   public:
-    CapturingU1() : AmsBackendSnapmaker(nullptr, nullptr) {
-        running_.store(true);
-    }
+    using AmsBackendSnapmaker::AmsBackendSnapmaker;
     std::vector<std::string> captured;
     AmsError execute_gcode(const std::string& gcode) override {
         captured.push_back(gcode);
@@ -63,12 +65,12 @@ struct EndUnloadFixture : LVGLTestFixture {
 TEST_CASE("snapmaker exposes its firmware settings as device actions",
           "[ams][snapmaker][actions]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", true},
-                                                       {"replenish_ignore_color", false},
-                                                       {"filament_entangle_detect", false},
-                                                       {"filament_entangle_sen", "medium"},
-                                                       {"end_led_turn_off", true}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"auto_replenish_filament", true},
+                               {"replenish_ignore_color", false},
+                               {"filament_entangle_detect", false},
+                               {"filament_entangle_sen", "medium"},
+                               {"end_led_turn_off", true}}));
     const auto actions = backend.get_device_actions();
 
     // Auto-replenish is the generic Endless Spool switch, not a device action.
@@ -106,9 +108,8 @@ TEST_CASE_METHOD(EndUnloadFixture, "end-unload offers one toggle per reported to
     // The firmware's list says how many heads there are; the values are ours.
     // It clears every entry when a print ends, so its echo is not the choice.
     SettingsManager::instance().set_end_of_print_unload_tools(0b0001);
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend,
-                                       frame({{"end_unload_filament", {false, true, true, true}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, true, true, true}}}));
     const auto actions = backend.get_device_actions();
     REQUIRE(find_action(actions, "snapmaker_end_unload_t0") != nullptr);
     REQUIRE(find_action(actions, "snapmaker_end_unload_t3") != nullptr);
@@ -121,9 +122,8 @@ TEST_CASE_METHOD(EndUnloadFixture, "end-unload offers one toggle per reported to
 
 TEST_CASE_METHOD(EndUnloadFixture, "end-unload toggles carry their tool for the UI to name",
                  "[ams][snapmaker][actions][end_unload]") {
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"end_unload_filament", {false, false, false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}}}));
     const auto actions = backend.get_device_actions();
     const DeviceAction* t1 = find_action(actions, "snapmaker_end_unload_t1");
     REQUIRE(t1 != nullptr);
@@ -137,9 +137,8 @@ TEST_CASE_METHOD(EndUnloadFixture, "quick end-unload toggles compose instead of 
     // Each toggle sends the whole list. The firmware echo has not caught up
     // between taps a second apart, so a list built from it would carry only
     // the latest tap.
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"end_unload_filament", {false, false, false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}}}));
     backend.execute_device_action("snapmaker_end_unload_t1", std::any(true));
     backend.execute_device_action("snapmaker_end_unload_t2", std::any(true));
     backend.execute_device_action("snapmaker_end_unload_t3", std::any(true));
@@ -154,7 +153,7 @@ TEST_CASE_METHOD(EndUnloadFixture, "quick end-unload toggles compose instead of 
 
 TEST_CASE_METHOD(EndUnloadFixture, "every print start carries the saved end-unload list",
                  "[ams][snapmaker][actions][end_unload]") {
-    AmsBackendSnapmaker backend(nullptr, nullptr);
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
 
     SECTION("nothing before the firmware reports how many heads it has") {
         SettingsManager::instance().set_end_of_print_unload_tools(0b0101);
@@ -162,23 +161,20 @@ TEST_CASE_METHOD(EndUnloadFixture, "every print start carries the saved end-unlo
     }
 
     SECTION("the list comes from the setting, not the cleared echo") {
-        SnapmakerTestAccess::handle_status(
-            backend, frame({{"end_unload_filament", {false, false, false, false}}}));
+        backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}}}));
         SettingsManager::instance().set_end_of_print_unload_tools(0b0101);
         REQUIRE(backend.build_preprint_gcode({}, {}) ==
                 "SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[1,0,1,0]");
     }
 
     SECTION("all off is sent too, so a stale firmware list cannot ride into the print") {
-        SnapmakerTestAccess::handle_status(
-            backend, frame({{"end_unload_filament", {true, true, true, true}}}));
+        backend.fire_status(frame({{"end_unload_filament", {true, true, true, true}}}));
         REQUIRE(backend.build_preprint_gcode({}, {}) ==
                 "SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[0,0,0,0]");
     }
 
     SECTION("it rides after the extruder map of a print with known tools") {
-        SnapmakerTestAccess::handle_status(
-            backend, frame({{"end_unload_filament", {false, false, false, false}}}));
+        backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}}}));
         SettingsManager::instance().set_end_of_print_unload_tools(0b0001);
         const std::string gcode = backend.build_preprint_gcode({0}, {});
         REQUIRE(gcode.find("SET_PRINT_EXTRUDER_MAP") != std::string::npos);
@@ -195,10 +191,9 @@ TEST_CASE_METHOD(
     // The firmware's end macro skips a soft-filament head, so a toggle reading
     // "on" there would promise an unload that never happens.
     SettingsManager::instance().set_end_of_print_unload_tools(0b0011);
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend,
-                                       frame({{"end_unload_filament", {false, false, false, false}},
-                                              {"filament_soft", {false, true, false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}},
+                               {"filament_soft", {false, true, false, false}}}));
 
     const auto actions = backend.get_device_actions();
     const DeviceAction* soft = find_action(actions, "snapmaker_end_unload_t1");
@@ -223,8 +218,7 @@ TEST_CASE_METHOD(
             "SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[1,0,1,0]");
 
     // Rigid filament back in the head: the saved choice reads on again.
-    SnapmakerTestAccess::handle_status(backend,
-                                       frame({{"filament_soft", {false, false, false, false}}}));
+    backend.fire_status(frame({{"filament_soft", {false, false, false, false}}}));
     const auto after = backend.get_device_actions();
     REQUIRE(find_action(after, "snapmaker_end_unload_t1")->enabled);
     REQUIRE(std::any_cast<bool>(find_action(after, "snapmaker_end_unload_t1")->current_value) ==
@@ -237,11 +231,10 @@ TEST_CASE_METHOD(EndUnloadFixture,
     // The firmware derives filament_soft from its own table keyed by the exact
     // FILAMENT_TYPE, so a type it has no row for (TPU-85A) reads rigid.
     SettingsManager::instance().set_end_of_print_unload_tools(0b1111);
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend,
-                                       frame({{"end_unload_filament", {false, false, false, false}},
-                                              {"filament_type", {"PLA", "TPU-85A", "PEBA", "ASA"}},
-                                              {"filament_soft", {false, false, false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}},
+                               {"filament_type", {"PLA", "TPU-85A", "PEBA", "ASA"}},
+                               {"filament_soft", {false, false, false, false}}}));
 
     const auto actions = backend.get_device_actions();
     for (const char* id : {"snapmaker_end_unload_t1", "snapmaker_end_unload_t2"}) {
@@ -269,11 +262,10 @@ TEST_CASE_METHOD(EndUnloadFixture,
                  "[ams][snapmaker][actions][end_unload]") {
     SettingsManager::instance().set_end_of_print_unload_tools(0b1111);
     const auto enabled = [](const std::vector<std::string>& types) {
-        AmsBackendSnapmaker backend(nullptr, nullptr);
-        SnapmakerTestAccess::handle_status(
-            backend, frame({{"end_unload_filament", {false, false, false, false}},
-                            {"filament_type", types},
-                            {"filament_soft", {false, false, false, false}}}));
+        helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+        backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}},
+                                   {"filament_type", types},
+                                   {"filament_soft", {false, false, false, false}}}));
         const auto actions = backend.get_device_actions();
         std::vector<bool> out;
         for (int t = 0; t < 4; ++t) {
@@ -295,8 +287,8 @@ TEST_CASE_METHOD(EndUnloadFixture,
 
 TEST_CASE("executing a toggle emits only that field", "[ams][snapmaker][actions]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"end_led_turn_off", false}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_led_turn_off", false}}));
     const std::string g = backend.build_preference_gcode("snapmaker_end_led_off", std::any(true));
     REQUIRE(g == "SET_PRINT_PREFERENCES END_LED_TURN_OFF=1");
 }
@@ -306,9 +298,8 @@ TEST_CASE_METHOD(EndUnloadFixture, "executing the per-tool toggle rewrites the w
     // END_UNLOAD_FILAMENT takes the full list, so flipping one tool must send
     // the others at their saved values or they are cleared.
     SettingsManager::instance().set_end_of_print_unload_tools(0b0101);
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"end_unload_filament", {false, false, false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false, false, false}}}));
     const std::string g = backend.build_preference_gcode("snapmaker_end_unload_t1", std::any(true));
     REQUIRE(g == "SET_PRINT_PREFERENCES END_UNLOAD_FILAMENT=[1,1,1,0]");
 }
@@ -322,9 +313,9 @@ TEST_CASE("an unknown action id produces no gcode", "[ams][snapmaker][actions]")
 TEST_CASE("the replenish and tangle toggles each emit only their own field",
           "[ams][snapmaker][actions]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(
-        backend, frame({{"replenish_ignore_color", false}, {"filament_entangle_detect", true}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(
+        frame({{"replenish_ignore_color", false}, {"filament_entangle_detect", true}}));
     REQUIRE(backend.build_preference_gcode("snapmaker_replenish_ignore_color", std::any(true)) ==
             "SET_PRINT_PREFERENCES REPLENISH_IGNORE_COLOR=1");
     REQUIRE(backend.build_preference_gcode("snapmaker_entangle_detect", std::any(false)) ==
@@ -349,8 +340,8 @@ TEST_CASE("a value whose type does not match the action is refused, not thrown",
     // the same refusal a malformed id gets — because a bad_any_cast out of
     // here would escape the UI-thread action callback uncaught.
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"end_unload_filament", {false, false}}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"end_unload_filament", {false, false}}}));
     REQUIRE(
         backend
             .build_preference_gcode("snapmaker_replenish_ignore_color", std::any(std::string("on")))
@@ -399,9 +390,34 @@ TEST_CASE("toolhead offset calibration is not a Multi-Filament setting",
     CHECK(backend.get_device_sections().empty());
 }
 
+TEST_CASE("snapmaker asks the UI about a held calibration no run here owns, from the queue",
+          "[ams][snapmaker][actions][nozzle_offset]") {
+    HelixTestFixture fixture;
+    static int s_asked = 0;
+    s_asked = 0;
+    const auto previous = set_ui_request_handler(
+        UiRequestKind::PromptEndHeldNozzleOffsetCalibration, [](const UiRequest&) { ++s_asked; });
+    snapmaker::nozzle_offset::clear_exit_pending();
+    {
+        helix::test::WiredBackend<AmsBackendSnapmaker> backend;
+        backend.set_discovery(nozzle_offset_discovery());
+        backend.wire().respond_to(
+            "printer.objects.query",
+            {{"status",
+              {{"machine_state_manager",
+                {{"main_state", snapmaker::nozzle_offset::kMainStateXyzOffsetCalibrate}}}}}});
+        REQUIRE(backend.start().success());
+        CHECK(s_asked == 0);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(s_asked == 1);
+        backend.stop();
+    }
+    set_ui_request_handler(UiRequestKind::PromptEndHeldNozzleOffsetCalibration, previous);
+}
+
 TEST_CASE("snapmaker auto-replenish is the Endless Spool switch", "[ams][snapmaker][endless]") {
     HelixTestFixture fixture;
-    CapturingU1 backend;
+    helix::test::StartedBackend<CapturingU1> backend;
 
     SECTION("unreported, the switch is not offered and refuses") {
         CHECK_FALSE(backend.get_endless_spool_capabilities().available());
@@ -410,18 +426,18 @@ TEST_CASE("snapmaker auto-replenish is the Endless Spool switch", "[ams][snapmak
     }
 
     SECTION("the reported flag is the enabled state") {
-        SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", false}}));
+        backend.fire_status(frame({{"auto_replenish_filament", false}}));
         auto caps = backend.get_endless_spool_capabilities();
         CHECK(caps.available());
         CHECK(caps.switchable);
         CHECK(caps.enabled == EndlessSpoolEnabled::Off);
 
-        SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", true}}));
+        backend.fire_status(frame({{"auto_replenish_filament", true}}));
         CHECK(backend.get_endless_spool_capabilities().enabled == EndlessSpoolEnabled::On);
     }
 
     SECTION("switching it sends the firmware preference") {
-        SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", false}}));
+        backend.fire_status(frame({{"auto_replenish_filament", false}}));
         REQUIRE(backend.set_endless_spool_enabled(true).success());
         REQUIRE(backend.captured.size() == 1);
         CHECK(backend.captured[0] == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1");
@@ -431,8 +447,8 @@ TEST_CASE("snapmaker auto-replenish is the Endless Spool switch", "[ams][snapmak
 TEST_CASE("the retired auto-replenish action id is refused and sends nothing",
           "[ams][snapmaker][actions][endless_spool]") {
     HelixTestFixture fixture;
-    CapturingU1 backend;
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", false}}));
+    helix::test::StartedBackend<CapturingU1> backend;
+    backend.fire_status(frame({{"auto_replenish_filament", false}}));
     CHECK(backend.build_preference_gcode("snapmaker_auto_replenish", std::any(true)).empty());
     CHECK_FALSE(
         backend.execute_device_action("snapmaker_auto_replenish", std::any(true)).success());
@@ -442,8 +458,8 @@ TEST_CASE("the retired auto-replenish action id is refused and sends nothing",
 TEST_CASE("an auto-replenish change announces a state change and a repeat does not",
           "[ams][snapmaker][actions][endless_spool]") {
     HelixTestFixture fixture;
-    AmsBackendSnapmaker backend(nullptr, nullptr);
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", false}}));
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(frame({{"auto_replenish_filament", false}}));
     int changes = 0;
     backend.set_event_callback([&](const std::string& ev, const std::string&) {
         if (ev == AmsBackend::EVENT_STATE_CHANGED) {
@@ -451,8 +467,380 @@ TEST_CASE("an auto-replenish change announces a state change and a repeat does n
         }
     });
 
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", true}}));
+    backend.fire_status(frame({{"auto_replenish_filament", true}}));
     CHECK(changes == 1);
-    SnapmakerTestAccess::handle_status(backend, frame({{"auto_replenish_filament", true}}));
+    backend.fire_status(frame({{"auto_replenish_filament", true}}));
     CHECK(changes == 1);
+}
+
+namespace {
+/// An extruder status object for head @p head (0-based), filed the way the
+/// firmware names them: extruder, extruder1, ...
+nlohmann::json head_frame(int head, const nlohmann::json& fields) {
+    nlohmann::json p = nlohmann::json::object();
+    p[head == 0 ? std::string("extruder") : "extruder" + std::to_string(head)] = fields;
+    return p;
+}
+const nlohmann::json kStandard04{{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+std::any pick(const char* option) {
+    return std::any(std::string(option));
+}
+} // namespace
+
+TEST_CASE("a head offers nozzle rows only for the fields it reports",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+
+    SECTION("nothing reported: no rows and no section") {
+        for (const auto& a : backend.get_device_actions()) {
+            CHECK(a.section != "toolhead");
+        }
+        for (const auto& s : backend.get_device_sections()) {
+            CHECK(s.id != "toolhead");
+        }
+    }
+    SECTION("one head reporting both fields gets both rows, the others none") {
+        backend.fire_status(head_frame(1, kStandard04));
+        const auto actions = backend.get_device_actions();
+        REQUIRE(find_action(actions, "snapmaker_nozzle_diameter_t1") != nullptr);
+        REQUIRE(find_action(actions, "snapmaker_nozzle_flow_t1") != nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_diameter_t0") == nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_flow_t2") == nullptr);
+
+        const auto sections = backend.get_device_sections();
+        auto it = std::find_if(sections.begin(), sections.end(),
+                               [](const DeviceSection& s) { return s.id == "toolhead"; });
+        REQUIRE(it != sections.end());
+        CHECK_FALSE(it->description.empty());
+    }
+    SECTION("a head reporting only its diameter gets only that row") {
+        backend.fire_status(head_frame(2, {{"nozzle_diameter", 0.6}}));
+        const auto actions = backend.get_device_actions();
+        CHECK(find_action(actions, "snapmaker_nozzle_diameter_t2") != nullptr);
+        CHECK(find_action(actions, "snapmaker_nozzle_flow_t2") == nullptr);
+        const auto sections = backend.get_device_sections();
+        CHECK(std::any_of(sections.begin(), sections.end(),
+                          [](const DeviceSection& s) { return s.id == "toolhead"; }));
+    }
+}
+
+TEST_CASE("nozzle rows show the reported value among the firmware's options",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(
+        head_frame(3, {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}));
+    const auto actions = backend.get_device_actions();
+
+    const DeviceAction* d = find_action(actions, "snapmaker_nozzle_diameter_t3");
+    REQUIRE(d != nullptr);
+    CHECK(d->type == ActionType::DROPDOWN);
+    CHECK(d->label == "Nozzle diameter");
+    CHECK(d->section == "toolhead");
+    CHECK(d->tool_index == 3);
+    CHECK(d->slot_index == 3);
+    CHECK(d->enabled);
+    CHECK(d->options == std::vector<std::string>{"0.2 mm", "0.4 mm", "0.6 mm", "0.8 mm"});
+    CHECK(std::any_cast<std::string>(d->current_value) == "0.6 mm");
+
+    const DeviceAction* f = find_action(actions, "snapmaker_nozzle_flow_t3");
+    REQUIRE(f != nullptr);
+    CHECK(f->label == "Nozzle flow");
+    CHECK(f->options == std::vector<std::string>{"Standard", "High Flow"});
+    CHECK(std::any_cast<std::string>(f->current_value) == "High Flow");
+    CHECK(f->option_confirms.empty());
+}
+
+TEST_CASE("a nozzle value no option names reads as unknown, not as an option",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(
+        head_frame(0, {{"nozzle_diameter", 0.25}, {"nozzle_volume_type", "hardened"}}));
+    const auto actions = backend.get_device_actions();
+    REQUIRE(find_action(actions, "snapmaker_nozzle_diameter_t0") != nullptr);
+    CHECK_FALSE(find_action(actions, "snapmaker_nozzle_diameter_t0")->current_value.has_value());
+    REQUIRE(find_action(actions, "snapmaker_nozzle_flow_t0") != nullptr);
+    CHECK_FALSE(find_action(actions, "snapmaker_nozzle_flow_t0")->current_value.has_value());
+}
+
+TEST_CASE("picking a 0.2 mm nozzle asks first, other diameters do not",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(head_frame(0, kStandard04));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* d = find_action(actions, "snapmaker_nozzle_diameter_t0");
+    REQUIRE(d != nullptr);
+    const auto* confirm = d->option_confirm_for("0.2 mm");
+    REQUIRE(confirm != nullptr);
+    CHECK(confirm->message.find("TPU") != std::string::npos);
+    CHECK(confirm->confirm_label == "Change");
+    CHECK(d->option_confirm_for("0.4 mm") == nullptr);
+    CHECK(d->option_confirm_for("0.6 mm") == nullptr);
+    CHECK(d->option_confirm_for("0.8 mm") == nullptr);
+}
+
+TEST_CASE("nozzle rows are disabled with a reason while a print is in progress",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(head_frame(1, kStandard04));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+
+    const auto rows_disabled = [&](bool expect_disabled) {
+        const auto actions = backend.get_device_actions();
+        for (const char* id : {"snapmaker_nozzle_diameter_t1", "snapmaker_nozzle_flow_t1"}) {
+            const DeviceAction* a = find_action(actions, id);
+            REQUIRE(a != nullptr);
+            CHECK(a->enabled == !expect_disabled);
+            if (expect_disabled) {
+                CHECK(a->disable_reason == "Finish or cancel the print first");
+            }
+        }
+    };
+
+    rows_disabled(false);
+    backend.fire_status({{"print_stats", {{"state", "printing"}}}});
+    rows_disabled(true);
+    // The rows' availability changed, so the overlay is told to redraw.
+    CHECK(changes >= 1);
+    // The device-action gate refuses a disabled row before the backend.
+    CHECK(backend.execute_device_action("snapmaker_nozzle_diameter_t1", pick("0.6 mm")).result ==
+          AmsResult::WRONG_STATE);
+
+    backend.fire_status({{"print_stats", {{"state", "paused"}}}});
+    rows_disabled(true);
+
+    backend.fire_status({{"print_stats", {{"state", "complete"}}}});
+    rows_disabled(false);
+}
+
+TEST_CASE("a reported nozzle change announces a state change and a repeat does not",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(head_frame(0, kStandard04));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+    backend.fire_status(head_frame(0, {{"nozzle_diameter", 0.6}}));
+    CHECK(changes == 1);
+    backend.fire_status(head_frame(0, {{"nozzle_diameter", 0.6}}));
+    CHECK(changes == 1);
+}
+
+TEST_CASE("the flow row is available only where High Flow applies",
+          "[ams][snapmaker][actions][nozzle]") {
+    struct Case {
+        double diameter;
+        const char* flow;
+        bool enabled;
+    };
+    // A 0.6 mm head still on High Flow can leave it.
+    const auto c = GENERATE(Case{0.4, "standard", true}, Case{0.6, "standard", false},
+                            Case{0.6, "high_flow", true});
+    CAPTURE(c.diameter, c.flow);
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(
+        head_frame(1, {{"nozzle_diameter", c.diameter}, {"nozzle_volume_type", c.flow}}));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* flow = find_action(actions, "snapmaker_nozzle_flow_t1");
+    REQUIRE(flow != nullptr);
+    CHECK(flow->enabled == c.enabled);
+    if (!c.enabled) {
+        CHECK(flow->disable_reason == "High Flow needs a 0.4 mm nozzle");
+    }
+}
+
+TEST_CASE("a nozzle pick names the diameter and only a flow type that changes",
+          "[ams][snapmaker][actions][nozzle]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(head_frame(2, kStandard04));
+
+    SECTION("a new diameter leaves the flow type out") {
+        const auto c = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.6 mm"));
+        REQUIRE(c.valid);
+        REQUIRE(c.params);
+        CHECK(*c.params == nlohmann::json{{"extruder", 2}, {"diameter", 0.6}});
+    }
+    SECTION("a new flow type also names the head's own diameter") {
+        const auto c = backend.build_nozzle_change("snapmaker_nozzle_flow_t2", pick("High Flow"));
+        REQUIRE(c.valid);
+        REQUIRE(c.params);
+        CHECK(*c.params ==
+              nlohmann::json{{"extruder", 2}, {"diameter", 0.4}, {"volume_type", "high_flow"}});
+    }
+    SECTION("the reported value sends nothing") {
+        const auto d = backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.4 mm"));
+        CHECK(d.valid);
+        CHECK_FALSE(d.params);
+        const auto f = backend.build_nozzle_change("snapmaker_nozzle_flow_t2", pick("Standard"));
+        CHECK(f.valid);
+        CHECK_FALSE(f.params);
+        // Nothing to send is success, and needs no client.
+        CHECK(backend.execute_device_action("snapmaker_nozzle_diameter_t2", pick("0.4 mm"))
+                  .success());
+    }
+    SECTION("an unlisted option, a head without the field, or a bad value is refused") {
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_diameter_t2", pick("0.5 mm")).valid);
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_diameter_t0", pick("0.6 mm")).valid);
+        CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t2", std::any(true)).valid);
+        CHECK_FALSE(
+            backend.build_nozzle_change("snapmaker_nozzle_flow_t9", pick("Standard")).valid);
+        CHECK_FALSE(backend.build_nozzle_change("snapmaker_nozzle_flow_t", pick("Standard")).valid);
+    }
+}
+
+// ============================================================================
+// Auto loading: each head's feeder in or out of automatic mode
+// ============================================================================
+
+namespace {
+/// One head's entry in its feeder's frame.
+nlohmann::json feeder(int head, const nlohmann::json& fields) {
+    return {{head < 2 ? "filament_feed left" : "filament_feed right",
+             {{"extruder" + std::to_string(head), fields}}}};
+}
+std::string auto_load_id(int head) {
+    return "snapmaker_auto_load_t" + std::to_string(head);
+}
+bool has_section(const AmsBackendSnapmaker& b, const char* id) {
+    const auto sections = b.get_device_sections();
+    return std::any_of(sections.begin(), sections.end(),
+                       [&](const DeviceSection& s) { return s.id == id; });
+}
+} // namespace
+
+TEST_CASE("auto loading offers a row only for heads whose feeder reports its mode",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    CHECK(find_action(backend.get_device_actions(), auto_load_id(0)) == nullptr);
+    CHECK_FALSE(has_section(backend, "print_prefs"));
+
+    backend.fire_status(feeder(0, {{"module_exist", true}, {"disable_auto", false}}));
+    backend.fire_status(feeder(2, {{"module_exist", true}, {"disable_auto", true}}));
+    const auto actions = backend.get_device_actions();
+    const DeviceAction* t0 = find_action(actions, auto_load_id(0));
+    const DeviceAction* t2 = find_action(actions, auto_load_id(2));
+    REQUIRE(t0 != nullptr);
+    REQUIRE(t2 != nullptr);
+    CHECK(find_action(actions, auto_load_id(1)) == nullptr);
+    CHECK(t0->type == ActionType::TOGGLE);
+    CHECK(t0->section == "print_prefs");
+    CHECK(t0->label == "Auto loading");
+    CHECK(t0->tool_index == 0);
+    CHECK(t2->slot_index == 2);
+    CHECK(std::any_cast<bool>(t0->current_value) == true);
+    CHECK(std::any_cast<bool>(t2->current_value) == false);
+    CHECK(t0->enabled);
+    // The rows alone open the section: no print preference has been reported.
+    CHECK(has_section(backend, "print_prefs"));
+}
+
+TEST_CASE("an auto loading row is disabled where its feeder cannot act",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const auto row = [&](int head) {
+        const auto actions = backend.get_device_actions();
+        const DeviceAction* a = find_action(actions, auto_load_id(head));
+        REQUIRE(a != nullptr);
+        return *a;
+    };
+
+    backend.fire_status(feeder(1, {{"module_exist", false}, {"disable_auto", false}}));
+    CHECK_FALSE(row(1).enabled);
+    CHECK(row(1).disable_reason == "No feeder attached");
+
+    backend.fire_status(feeder(
+        3, {{"module_exist", true}, {"disable_auto", false}, {"channel_state", "load_feeding"}}));
+    CHECK_FALSE(row(3).enabled);
+    CHECK(row(3).disable_reason == "Wait for the load or unload to finish");
+    backend.fire_status(feeder(3, {{"channel_state", "load_finish"}}));
+    CHECK(row(3).enabled);
+}
+
+TEST_CASE("auto loading sends FEED_AUTO for the head's feeder channel",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const int head = GENERATE(0, 1, 2, 3);
+    const bool on = GENERATE(true, false);
+    backend.fire_status(feeder(head, {{"module_exist", true}, {"disable_auto", on}}));
+    CHECK(backend.build_preference_gcode(auto_load_id(head), std::any(on)) ==
+          snapmaker::feed_mode::auto_mode_gcode(*snapmaker::feed_mode::stock_channel(head), on));
+    // A head the firmware has not reported names no channel.
+    CHECK(backend.build_preference_gcode(auto_load_id(4), std::any(on)).empty());
+}
+
+TEST_CASE("auto loading follows the printer's own head-to-channel map",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    helix::PrinterDiscovery d;
+    d.parse_objects(nlohmann::json::array({"gcode_macro _FILAMENT_FEED_VARIABLE"}));
+    backend.set_discovery(d);
+    backend.fire_status({{"gcode_macro _FILAMENT_FEED_VARIABLE",
+                          {{"module_sequence", {"right", "right", "left", "left"}},
+                           {"channel_sequence", {0, 1, 1, 0}}}}});
+    backend.fire_status(feeder(0, {{"module_exist", true}, {"disable_auto", true}}));
+    CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
+          "FEED_AUTO MODULE=right CHANNEL=0 AUTO=1");
+
+    // Another printer's discovery drops the map; until its own macro frame
+    // lands, the head takes the stock wiring.
+    backend.set_discovery(helix::PrinterDiscovery{});
+    CHECK(backend.build_preference_gcode(auto_load_id(0), std::any(true)) ==
+          "FEED_AUTO MODULE=left CHANNEL=1 AUTO=1");
+}
+
+TEST_CASE("a feeder's mode change redraws the row and a repeat does not",
+          "[ams][snapmaker][actions][auto_load]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(feeder(1, {{"module_exist", true}, {"disable_auto", false}}));
+    int changes = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED) {
+            ++changes;
+        }
+    });
+    backend.fire_status(feeder(1, {{"disable_auto", true}}));
+    CHECK(changes == 1);
+    CHECK(std::any_cast<bool>(
+              find_action(backend.get_device_actions(), auto_load_id(1))->current_value) == false);
+    backend.fire_status(feeder(1, {{"disable_auto", true}}));
+    CHECK(changes == 1);
+}
+
+TEST_CASE("a load refused because auto loading is off names the setting",
+          "[ams][snapmaker][auto_load][1832]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const bool module = GENERATE(true, false);
+    backend.fire_status(feeder(1, {{"filament_detected", true},
+                                   {"channel_state", "preload_finish"},
+                                   {"module_exist", module},
+                                   {"disable_auto", module}}));
+    const AmsError err = backend.load_filament(1);
+    INFO(err.user_msg);
+    CHECK(err.result == AmsResult::WRONG_STATE);
+    CHECK((err.user_msg.find("Auto loading") != std::string::npos) == module);
+    CHECK((backend.head_filament_ops(1).load_reason.find("Auto loading") != std::string::npos) ==
+          module);
 }

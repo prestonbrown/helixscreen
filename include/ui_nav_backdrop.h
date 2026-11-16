@@ -5,6 +5,9 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/timer_guard.h"
+
+#include <functional>
 #include <lvgl.h>
 #include <string>
 #include <unordered_map>
@@ -27,17 +30,22 @@ class OverlayBackdrop {
     friend class ::NavigationManagerTestAccess;
 
   public:
+    /// @p retake re-takes the primary snapshot (NavigationManager's refresh).
+    explicit OverlayBackdrop(std::function<void()> retake = {}) : retake_(std::move(retake)) {}
+
     /// Take the snapshot of @p screen as the primary backdrop and wire @p click_cb to
     /// its press and click. The live E-stop and the @p arriving overlay stay out of
     /// the image: both sit above the backdrop. No-op replacement if the snapshot
-    /// cannot be created.
+    /// cannot be created. A style transition caught mid-way (the navbar crossfade
+    /// when an overlay opens right after a panel switch) would stay frozen in the
+    /// shot, so it is re-taken once the longest one still running has ended.
     void adopt(lv_obj_t* screen, lv_obj_t* arriving, lv_event_cb_t click_cb);
 
     /// Re-take the snapshot from the live widget tree, for a change outside the
     /// overlay that lands behind it (the navbar). Hides every screen child except
     /// @p app_layout and shows @p base_panel while the picture is taken, so the new
     /// snapshot matches the original rather than the overlays stacked on top.
-    /// No-op without a live snapshot.
+    /// @p base_panel is nullptr or live. No-op without a live snapshot.
     void refresh(lv_obj_t* app_layout, lv_obj_t* base_panel);
 
     /// The primary backdrop, or nullptr.
@@ -85,10 +93,14 @@ class OverlayBackdrop {
     void reset();
 
   private:
+    void cancel_settle_retake();
+
     WidgetRef primary_;
+    std::function<void()> retake_;
+    LvglTimerGuard settle_timer_;
     std::string palette_key_;
     bool press_keyboard_visible_ = false;
-    std::unordered_map<lv_obj_t*, lv_obj_t*> nested_;
+    std::unordered_map<lv_obj_t*, WeakWidget> nested_;
 };
 
 } // namespace helix::ui

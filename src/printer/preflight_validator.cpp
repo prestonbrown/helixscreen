@@ -14,6 +14,16 @@ bool PreflightResult::has_block() const {
     });
 }
 
+std::optional<MaterialFix> PreflightResult::material_fix() const {
+    for (const ToolCheck& c : checks) {
+        if (c.severity == ToolCheck::Severity::UnknownMaterial && c.mapped_slot >= 0 &&
+            c.mapped_backend == 0 && !c.intended_material.empty()) {
+            return MaterialFix{c.tool_index, c.mapped_slot, c.intended_material};
+        }
+    }
+    return std::nullopt;
+}
+
 bool PreflightResult::has_advisory() const {
     return std::any_of(checks.begin(), checks.end(), [](const ToolCheck& c) {
         return c.severity == ToolCheck::Severity::MaterialMismatch;
@@ -45,7 +55,8 @@ static const AvailableSlot* find_slot(int slot_index, int backend_index,
 PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& tools,
                                              const std::vector<AvailableSlot>& slots,
                                              const std::vector<ToolMapping>& mapping,
-                                             const FirmwareRouting& routing, bool bypass_active) {
+                                             const FirmwareRouting& routing, bool bypass_active,
+                                             bool material_needed) {
     PreflightResult out;
 
     // Bypass / external spool: the filament reaching the nozzle does not come from
@@ -86,23 +97,23 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
             // Auto prints from the lane the firmware routes the tool to.
             slot = FilamentMapper::resolve_printing_slot(*m, slots, routing);
             c.mapped_slot = slot != nullptr ? slot->slot_index : -1;
+            c.mapped_backend = slot != nullptr ? slot->backend_index : 0;
         } else {
             c.mapped_slot = m != nullptr ? m->mapped_slot : -1;
+            c.mapped_backend = m != nullptr ? m->mapped_backend : 0;
             slot =
                 c.mapped_slot >= 0 ? find_slot(c.mapped_slot, m->mapped_backend, slots) : nullptr;
         }
         if (slot == nullptr || slot->is_empty) {
             c.slot_present = false;
             c.severity = ToolCheck::Severity::EmptySlot;
-        } else if (slot->material == "NONE") {
-            // A Snapmaker U1 slot holding a spool it has no identity for. The
-            // filament is seated, so this is not an empty slot, but the
-            // firmware refuses RESUME for that extruder until a material is
-            // assigned -- starting anyway only defers the failure until after
-            // the heat, home and probe. An unreported material is the empty
-            // string and stays out of this arm: "not known" is not the same
-            // claim as "declared unusable", and blocking it would stop prints
-            // on every backend that reports no material at all.
+        } else if (material_needed && slot->material_required) {
+            // Filament is seated, so this is not an empty slot, but an option
+            // this print enables refuses it until a material is set: starting
+            // anyway only defers the failure until after the heat, home and
+            // probe. The slot prints fine with no such option on, and a material
+            // that is merely unreported stays out of this arm, or every backend
+            // that reports none would block every print.
             c.slot_present = true;
             c.color_ok = FilamentMapper::colors_match(t.color_rgb, slot->color_rgb);
             c.severity = ToolCheck::Severity::UnknownMaterial;

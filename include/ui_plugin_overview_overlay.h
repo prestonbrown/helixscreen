@@ -2,16 +2,18 @@
 #pragma once
 
 // Advanced > HelixPrint Plugin: what the installed plugin runs. Read-only: the
-// version, then one line per feature in the plugin's status map (active, off,
-// or unavailable with the plugin's reason). A feature with a setting leads to
-// the page that holds its switch; the switches live there, never here. The
-// lines are the plugin's feature map, which the XML cannot enumerate.
+// version, then one dense row per feature in the plugin's status map, grouped
+// as running, off, and not available here (with the plugin's reason in plain
+// words). A feature with a setting leads to the page that holds its switch;
+// the switches live there, never here. The rows are the plugin's feature map,
+// which the XML cannot enumerate.
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix_plugin_features.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
+#include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
 
@@ -24,6 +26,7 @@ class PluginOverviewOverlay : public OverlayBase {
   public:
     ~PluginOverviewOverlay() override;
 
+    void init_subjects() override;
     void register_callbacks() override;
 
     const char* get_name() const override {
@@ -31,6 +34,9 @@ class PluginOverviewOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "plugin_overview_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     lv_obj_t* create(lv_obj_t* parent) override;
@@ -47,22 +53,40 @@ class PluginOverviewOverlay : public OverlayBase {
 
   private:
     void create_line(const PluginFeatureLine& line);
-    void create_row(const char* component, std::vector<std::pair<std::string, std::string>> attrs,
-                    const std::string& name);
     static void on_feature_clicked(lv_event_t* e);
 
-    lv_obj_t* rows_container_ = nullptr;
+    lv_obj_t* running_rows_ = nullptr;
+    lv_obj_t* off_rows_ = nullptr;
+    lv_obj_t* unavailable_rows_ = nullptr;
     std::vector<PluginFeatureLine> lines_;
     ObserverGuard probe_observer_;
+
+    void on_ui_destroyed() override {
+        running_rows_ = nullptr;
+        off_rows_ = nullptr;
+        unavailable_rows_ = nullptr;
+        probe_observer_.reset();
+    }
+
+    SubjectManager subjects_;
+    helix::Subject version_subject_{};
+    char version_buf_[32] = {};
+    helix::Subject running_count_subject_{};
+    helix::Subject off_count_subject_{};
+    helix::Subject unavailable_count_subject_{};
 };
 
-/// A feature line's short status as the overview shows it at the right:
-/// Active, Off or Unavailable.
-std::string plugin_feature_status_text(const PluginFeatureLine& line);
+/// How the overview shows one feature: the group it sits in (its status) and,
+/// for an unavailable feature only, why in plain words.
+struct PluginOverviewRow {
+    PluginFeatureStatus status = PluginFeatureStatus::Unavailable;
+    std::string reason;
+};
 
-/// Why an unavailable line's feature cannot run, shown under its name
-/// (plugin_reason_text); empty for an available line or one with no reason.
-std::string plugin_feature_reason_text(const PluginFeatureLine& line);
+/// The overview row for @p line: an unavailable feature's reason through
+/// plugin_reason_text(), or a plain fallback when the plugin gave none; a
+/// running or off feature carries no reason.
+PluginOverviewRow plugin_overview_row(const PluginFeatureLine& line);
 
 inline PluginOverviewOverlay& get_plugin_overview_overlay() {
     return lazy_global<PluginOverviewOverlay>("PluginOverviewOverlay");

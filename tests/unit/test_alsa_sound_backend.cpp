@@ -252,6 +252,37 @@ TEST_CASE("ALSASoundBackend::resume() handoff survives repeated suspend/resume c
     backend.shutdown();
 }
 
+// The source captures a tracker its owner destroys as soon as
+// clear_render_source() returns (prestonbrown/helixscreen#2010).
+TEST_CASE("ALSASoundBackend::clear_render_source waits out a render call in flight",
+          "[sound][alsa]") {
+    ALSASoundBackend backend;
+    REQUIRE(backend.initialize("null"));
+
+    std::atomic<bool> in_call{false};
+    std::atomic<int> calls{0};
+    backend.set_render_source([&](float*, size_t, int) {
+        in_call = true;
+        ++calls;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        in_call = false;
+    });
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (!in_call.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::yield();
+    }
+    REQUIRE(in_call.load());
+
+    backend.clear_render_source();
+    CHECK_FALSE(in_call.load());
+    const int calls_at_clear = calls.load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    CHECK(calls.load() == calls_at_clear);
+
+    backend.shutdown();
+}
+
 // ============================================================================
 // Short sounds vs the ALSA start threshold (prestonbrown/helixscreen#1337)
 //

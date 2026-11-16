@@ -8,17 +8,18 @@
  * @threading Public setters called from WebSocket; internal setters run on main thread
  * @gotchas Static string buffers; init subjects before XML; temps in decidegrees
  *
- * @see moonraker_client.cpp, ui_update_queue.h
+ * @see moonraker_client.cpp, core/update_queue.h
  */
 
 #include "printer_state.h"
-
-#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "capability_overrides.h"
 #include "chamber_heater_assignment.h"
 #include "connection_state.h" // For ConnectionState enum
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "enclosure_top.h"
 #include "hardware_validator.h"
@@ -31,10 +32,10 @@
 #include "plr_backend.h"
 #include "pre_print_preferences.h"
 #include "printer_cache_registry.h"
+#include "printer_discovery.h"
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
 #include "system/crash_handler.h"
 #include "unit_conversions.h"
 #include "z_offset_persistence.h"
@@ -105,7 +106,6 @@ using namespace helix;
 // ============================================================================
 
 PrinterState::PrinterState() {
-    // Load user-configured capability overrides from settings.json
     capability_overrides_.load_from_config();
     plugin_status_state_.set_locality_source(
         [this] { return moonraker_locality() == helix::MoonrakerLocality::Local; });
@@ -114,7 +114,7 @@ PrinterState::PrinterState() {
 PrinterState::~PrinterState() {
     // Backstop for the path that skips deinit_subjects() entirely: the subjects
     // are members, so they die with this object even though nothing called
-    // lv_subject_deinit() on them. Any ObserverGuard still holding one would
+    // reset() on them. Any ObserverGuard still holding one would
     // otherwise reset() against freed storage. Flipping costs nothing when
     // deinit_subjects() already ran — that installed a fresh token, and flipping
     // it just tells holders registered since then that the state is gone too.
@@ -158,7 +158,7 @@ void PrinterState::deinit_subjects() {
     // deinit_all() runs — so the flip cannot wait for it. Observers held by
     // objects that outlive this call — process-lifetime panel singletons, most
     // of all — check this token in ObserverGuard::reset() and skip
-    // lv_observer_remove() on observer nodes that lv_subject_deinit() is about
+    // lv_observer_delete() on observer nodes that reset() is about
     // to free. Flipping the bool (rather than only dropping the shared_ptr) is
     // what makes it work when a holder still has a copy. The later
     // subjects_.deinit_all() flips again; that lands on the renewed token,
@@ -175,13 +175,14 @@ void PrinterState::deinit_subjects() {
     calibration_state_.deinit_subjects();
     hardware_validation_state_.deinit_subjects();
     composite_visibility_state_.deinit_subjects();
+    chamber_air_state_.deinit_subjects();
     network_state_.deinit_subjects();
     versions_state_.deinit_subjects();
     excluded_objects_state_.deinit_subjects();
     profile_state_.deinit_subjects();
 
     // Deinit PrinterState's own subjects (multi-printer)
-    lv_subject_deinit(&active_printer_name_);
+    active_printer_name_.reset();
     subjects_.deinit_all();
 
     subjects_initialized_ = false;
@@ -208,16 +209,12 @@ void PrinterState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterState] Initializing subjects (register_xml={})", register_xml);
 
-    // Initialize temperature state component (extruder and bed temperatures)
     temperature_state_.init_subjects(register_xml);
 
-    // Initialize motion state component (position, speed/flow, z-offset)
     motion_state_.init_subjects(register_xml);
 
-    // Initialize fan state component (fan speed, multi-fan tracking)
     fan_state_.init_subjects(register_xml);
 
-    // Initialize print state component (progress, state, timing, layers, print start)
     print_domain_.init_subjects(register_xml);
 
     // Initialize capabilities state component (hardware capabilities, feature availability)
@@ -242,6 +239,7 @@ void PrinterState::init_subjects(bool register_xml) {
 
     // has_any_preprint_options aggregate (per-op can_show_* subjects retired)
     composite_visibility_state_.init_subjects(register_xml);
+    chamber_air_state_.init_subjects(register_xml);
 
     // Version subjects (for About section) - delegated to versions_state_ component
     versions_state_.init_subjects(register_xml);
@@ -348,6 +346,7 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     if (auto fitted = helix::enclosure_top::fitted_from_status(discovery_, state)) {
         capabilities_state_.set_enclosure_top_fitted(*fitted);
     }
+    chamber_air_state_.apply(helix::chamber_air::read_status(discovery_, state));
 
     // Delegate print updates to print state component
     print_domain_.update_from_status(state, whole_objects);
@@ -515,6 +514,16 @@ void PrinterState::update_nav_buttons_enabled() {
     network_state_.update_nav_buttons_enabled();
 }
 
+void PrinterState::set_led_override(OverrideState state) {
+    capability_overrides_.set_override(capability::LED, state);
+    if (!capability_overrides_.save_override_to_config(capability::LED)) {
+        spdlog::warn("[PrinterState] Could not save the led capability override");
+    }
+    capabilities_state_.set_led(discovery_, capability_overrides_);
+    spdlog::info("[PrinterState] led capability set to {}",
+                 CapabilityOverrides::state_to_string(state));
+}
+
 void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // Called directly from the main LVGL thread (hardware discovery callback).
     // No deferral needed — the caller is already inside a queue_update callback.
@@ -539,6 +548,13 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
+    // Per-head Z offset storage changes what the tune hint can promise.
+    if (profile_state_.set_z_offset_per_head(
+            helix::zoffset::firmware_applies_z_offset_per_head(discovery_)) &&
+        !profile_state_.printer_type().empty()) {
+        set_printer_type_internal(profile_state_.printer_type());
+    }
+    chamber_air_state_.set_hardware(discovery_);
     versions_state_.set_firmware_name_internal(discovery_.firmware_name());
     print_domain_.set_layer_pause_state_object(helix::layer_pause::state_object(discovery_));
 
@@ -546,9 +562,11 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // initial status dispatch that carries the interrupted flag; the offer
     // decision reads both, so the capability must land first.
     print_domain_.set_plr_resume_macro_present(helix::plr_resume_macro_present(discovery_));
+    print_domain_.set_plr_saved_file_gates_offer(helix::plr_saved_file_gates_offer(discovery_));
 
     // Fold the helper-macro install status in with the same snapshot.
     plugin_status_state_.set_helix_macros_base_status(MacroManager::evaluate_status(discovery_));
+    plugin_status_state_.set_signal_macro_scan(discovery_.signal_macro_scan());
 
     // Stored option settings belong to the machine that reported them. New
     // hardware starts from none: a self-storing firmware reports its own in the
@@ -617,7 +635,13 @@ void PrinterState::set_timelapse_available(bool available) {
     // Resynthesize the option set (timelapse is appended dynamically when
     // available) and recompute aggregate visibility — both must run on the
     // main thread.
-    async_lifetime_.defer("PrinterState::set_timelapse_available", [this]() {
+    async_lifetime_.defer("PrinterState::set_timelapse_available", [this, available]() {
+        // A plugin that went away takes its setting with it; the next printer's
+        // discovery seeds its own.
+        if (!available) {
+            profile_state_.set_timelapse_default_enabled(false);
+            composite_visibility_state_.set_timelapse_enabled(false);
+        }
         apply_dynamic_options();
         update_gcode_modification_visibility();
     });
@@ -629,6 +653,7 @@ void PrinterState::set_timelapse_default_enabled(bool enabled) {
     // resynthesis must run on the main thread (#1094).
     async_lifetime_.defer("PrinterState::set_timelapse_default_enabled", [this, enabled]() {
         profile_state_.set_timelapse_default_enabled(enabled);
+        composite_visibility_state_.set_timelapse_enabled(enabled);
         apply_dynamic_options();
         update_gcode_modification_visibility();
     });
@@ -688,17 +713,35 @@ void PrinterState::set_helix_plugin_features(helix::PluginFeatureMap features,
                           });
 }
 
+void PrinterState::set_signal_migration_report(helix::signal_macros::SignalMigrationReport report) {
+    async_lifetime_.defer("PrinterState::set_signal_migration_report", [this, report]() {
+        plugin_status_state_.set_signal_migration_report(report);
+    });
+}
+
 void PrinterState::set_macro_option_count(size_t count) {
     macro_option_count_ = count;
     update_gcode_modification_visibility();
 }
 
+void PrinterState::set_hidden_option_ids(std::set<std::string> ids) {
+    hidden_option_ids_ = std::move(ids);
+}
+
 void PrinterState::update_gcode_modification_visibility() {
-    // Delegate to composite visibility component
+    // The card shows for rows that render: a declared option the detail view
+    // leaves out, or one whose required macro is missing, draws nothing.
+    size_t rendered_rows = 0;
+    for (const PrePrintOption& opt : profile_state_.pre_print_option_set().options) {
+        if (hidden_option_ids_.count(opt.id) == 0 && !is_macro_gate_closed(opt)) {
+            ++rendered_rows;
+        }
+    }
     bool plugin = plugin_status_state_.service_has_helix_plugin();
-    composite_visibility_state_.update_visibility(
-        plugin, capabilities_state_, profile_state_.pre_print_option_set().options.size(),
-        macro_option_count_);
+    composite_visibility_state_.update_visibility(plugin, capabilities_state_, rendered_rows,
+                                                  macro_option_count_);
+    composite_visibility_state_.set_timelapse_owner(
+        timelapse_owner(profile_state_.firmware_owns_timelapse(), timelapse_available()));
 }
 
 bool PrinterState::is_blocking_operation_active() {
@@ -718,7 +761,7 @@ bool PrinterState::is_blocking_operation_active() {
     //
     // Debounced, not the raw subject: the flag is equally true for a one-shot
     // housekeeping macro, and a printer with delayed_gcode loops would otherwise
-    // refuse a jog for ~7% of its idle life (bundle L53W5PKG).
+    // refuse a jog for ~7% of its idle life.
     if (!calibration_state_.idle_timeout_busy().blocking()) {
         return false;
     }
@@ -793,7 +836,6 @@ void PrinterState::set_kinematics(const std::string& kinematics) {
     bool has_qgl = lv_subject_get_int(capabilities_state_.subject(Capability::HasQgl)) != 0;
     auto_detected_bed_moves_ = is_corexy_family && !has_qgl;
 
-    // Apply with user override considered
     apply_effective_bed_moves();
 }
 
@@ -920,6 +962,8 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
 }
 
 void PrinterState::apply_dynamic_options() {
+    profile_state_.set_heat_soak_macro(
+        capability_overrides_.has_heat_soak() ? discovery_.heat_soak_macro() : std::string());
     profile_state_.apply_dynamic_options(
         discovery_.has_exclude_object(), timelapse_available(),
         helix::skip_wrappers::offerable(discovery_.skip_active(), skip_gates_));
@@ -934,6 +978,6 @@ bool PrinterState::timelapse_available() {
 // ============================================================================
 
 void PrinterState::set_active_printer_name(const std::string& name) {
-    lv_subject_copy_string(&active_printer_name_, name.c_str());
+    lv_subject_set_string(&active_printer_name_, name.c_str());
     spdlog::debug("[PrinterState] Active printer name set to: '{}'", name);
 }

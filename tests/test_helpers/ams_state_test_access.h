@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_state.h"
+#include "filament_slot_override_store.h"
 
 #include <chrono>
 
@@ -24,6 +25,10 @@ class AmsStateTestAccess {
     /// Arm the grace directly, as if an unload had just completed. For tests
     /// about what CONSUMES the grace; the arming logic itself is driven through
     /// sync_from_backend() so it stays covered by real code.
+    /// Leave a commit result for @p slot that nobody took.
+    static void leave_slot_edit_result(AmsState& ams, int slot, AmsError err) {
+        ams.last_slot_edit_ = std::make_pair(slot, std::move(err));
+    }
     static void arm_post_unload_runout_grace(AmsState& ams) {
         auto& g = ams.runout_grace_;
         std::lock_guard<std::mutex> lock(g.mutex_);
@@ -118,6 +123,18 @@ class AmsStateTestAccess {
         if (ams.initialized_ && !ams.last_narration_label_.empty()) {
             ams.set_narration_phase(-1, "");
         }
+    }
+
+    /// The bypass record @p info describes, landed as a read of AmsState's own
+    /// bypass store does: the record kept, filed as the bypass lane's Record
+    /// source, and the external spool subjects notified. For a test that needs
+    /// an external spool present without a Moonraker round trip.
+    static void seed_external_spool(const SlotInfo& info) {
+        AmsState& ams = AmsState::instance();
+        const helix::ams::FilamentSlotOverride record = helix::ams::external_lane_record(info);
+        ams.bypass_record_read_ = record;
+        helix::ams::file_bypass_record(&record);
+        ams.refresh_external_spool();
     }
 };
 } // namespace helix

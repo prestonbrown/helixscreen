@@ -10,7 +10,7 @@
 // ============================================================================
 // helix::flush_px_map_stride: the one dbuf-stride-or-fallback rule every
 // flush-path px_map consumer derives its row pitch from. These tests pin the
-// rule's behaviour; the lint gate in test_code_lint.bats (no inline copy at
+// rule's behaviour; the lint gate in scripts/code_lint.sh (no inline copy at
 // the call sites) is what keeps a second copy from appearing
 // (prestonbrown/helixscreen#1610).
 // ============================================================================

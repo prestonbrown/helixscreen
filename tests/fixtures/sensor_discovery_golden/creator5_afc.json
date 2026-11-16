@@ -1,0 +1,823 @@
+{
+  "buckets": {
+    "fans": [
+      "heater_fan heat_fan",
+      "fan_generic fanM106",
+      "fan_generic chamber_fan",
+      "fan_generic chamber_loop_fan"
+    ],
+    "filament_sensor_names": [
+      "filament_motion_sensor fm_ex0",
+      "filament_motion_sensor fm_ex1",
+      "filament_motion_sensor fm_ex2",
+      "filament_motion_sensor fm_ex3"
+    ],
+    "has_accelerometer": true,
+    "has_fan_feedback": false,
+    "has_filament_sensors": true,
+    "has_led": true,
+    "has_led_effects": true,
+    "has_probe": true,
+    "has_speaker": true,
+    "has_width_sensors": true,
+    "heaters": [
+      "heater_bed",
+      "extruder",
+      "extruder1",
+      "extruder2",
+      "extruder3",
+      "heater_generic chamber_heater",
+      "heater_generic chamber_heater"
+    ],
+    "leds": [
+      "led chamber_led"
+    ],
+    "load_cells": [],
+    "printer_objects": [
+      "heater_bed",
+      "extruder",
+      "bed_mesh",
+      "output_pin beeper",
+      "firmware_retraction",
+      "temperature_sensor chamber",
+      "extruder1",
+      "extruder2",
+      "extruder3",
+      "heater_generic chamber_heater",
+      "heater_fan heat_fan",
+      "fan_generic fanM106",
+      "fan_generic chamber_fan",
+      "fan_generic chamber_loop_fan",
+      "temperature_sensor mcu_temp",
+      "led chamber_led",
+      "ff_toolchange",
+      "ff_tool_offset",
+      "ff_print",
+      "AFC",
+      "AFC_Toolchanger Tools",
+      "AFC_extruder e0",
+      "AFC_lane e0",
+      "AFC_extruder e1",
+      "AFC_lane e1",
+      "AFC_extruder e2",
+      "AFC_lane e2",
+      "AFC_extruder e3",
+      "AFC_lane e3",
+      "gcode_button extruder_pos1",
+      "gcode_button extruder_grab1",
+      "gcode_button extruder_pos2",
+      "gcode_button extruder_grab2",
+      "gcode_button extruder_pos3",
+      "gcode_button extruder_grab3",
+      "gcode_button extruder_pos4",
+      "gcode_button extruder_grab4",
+      "gcode_macro TOOLCHANGE_PARK",
+      "gcode_macro FF_BEFORE_PRINT_START",
+      "gcode_macro BED_MESH_CALIBRATE",
+      "gcode_button frontDoor",
+      "gcode_button topDoor",
+      "led_effect breathing",
+      "led_effect fire_comet",
+      "led_effect rainbow",
+      "led_effect static_white",
+      "exclude_object",
+      "gcode_macro START_PRINT",
+      "gcode_macro END_PRINT",
+      "gcode_macro PAUSE",
+      "gcode_macro RESUME",
+      "gcode_macro CANCEL_PRINT",
+      "gcode_macro LOAD_FILAMENT",
+      "gcode_macro UNLOAD_FILAMENT",
+      "gcode_macro G28",
+      "gcode_macro M600",
+      "gcode_macro _SYSTEM_MACRO",
+      "gcode_macro SET_PAUSE_NEXT_LAYER",
+      "gcode_macro SET_PAUSE_AT_LAYER",
+      "gcode_macro SET_PRINT_STATS_INFO",
+      "gcode_macro LIGHTS_ON",
+      "gcode_macro LIGHTS_OFF",
+      "gcode_macro LIGHTS_TOGGLE",
+      "gcode_macro LED_PARTY",
+      "gcode_macro LED_NIGHTLIGHT",
+      "mcu",
+      "mcu EBBCan",
+      "bme280 chamber",
+      "htu21d dryer",
+      "hall_filament_width_sensor",
+      "timelapse",
+      "cartographer",
+      "probe",
+      "filament_motion_sensor fm_ex0",
+      "filament_motion_sensor fm_ex1",
+      "filament_motion_sensor fm_ex2",
+      "filament_motion_sensor fm_ex3",
+      "toolchanger",
+      "tool T0",
+      "tool T1",
+      "tool T2",
+      "tool T3",
+      "gcode_macro CALIBRATE_TOOL_OFFSETS"
+    ],
+    "sensors": [
+      "temperature_sensor chamber",
+      "temperature_sensor mcu_temp",
+      "bme280 chamber",
+      "htu21d dryer"
+    ],
+    "width_sensor_objects": [
+      "hall_filament_width_sensor"
+    ]
+  },
+  "managers": {
+    "accel": {
+      "count": 1,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "adxl345",
+          "role": "none",
+          "sensor_name": "adxl345",
+          "type": "adxl345"
+        }
+      ]
+    },
+    "filament": {
+      "count": 4,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor fm_ex0",
+          "role": "none",
+          "sensor_name": "fm_ex0",
+          "type": "motion"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor fm_ex1",
+          "role": "none",
+          "sensor_name": "fm_ex1",
+          "type": "motion"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor fm_ex2",
+          "role": "none",
+          "sensor_name": "fm_ex2",
+          "type": "motion"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor fm_ex3",
+          "role": "none",
+          "sensor_name": "fm_ex3",
+          "type": "motion"
+        }
+      ]
+    },
+    "humidity": {
+      "count": 2,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "bme280 chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "bme280"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "dryer",
+          "sensor_name": "dryer",
+          "type": "htu21d"
+        }
+      ]
+    },
+    "input": {
+      "count": 10,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_pos1",
+          "role": "other",
+          "sensor_name": "extruder_pos1",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_grab1",
+          "role": "other",
+          "sensor_name": "extruder_grab1",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_pos2",
+          "role": "other",
+          "sensor_name": "extruder_pos2",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_grab2",
+          "role": "other",
+          "sensor_name": "extruder_grab2",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_pos3",
+          "role": "other",
+          "sensor_name": "extruder_pos3",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_grab3",
+          "role": "other",
+          "sensor_name": "extruder_grab3",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_pos4",
+          "role": "other",
+          "sensor_name": "extruder_pos4",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button extruder_grab4",
+          "role": "other",
+          "sensor_name": "extruder_grab4",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button frontDoor",
+          "role": "door",
+          "sensor_name": "frontDoor",
+          "type": "gcode_button"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "gcode_button topDoor",
+          "role": "door",
+          "sensor_name": "topDoor",
+          "type": "gcode_button"
+        }
+      ]
+    },
+    "load_cell": {
+      "count": 0,
+      "entries": []
+    },
+    "probe": {
+      "count": 1,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "cartographer",
+          "role": "z_probe",
+          "sensor_name": "cartographer",
+          "type": "cartographer"
+        }
+      ]
+    },
+    "temperature": {
+      "count": 5,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "temperature_sensor chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "heater_generic chamber_heater",
+          "role": "chamber",
+          "sensor_name": "chamber_heater",
+          "type": "heater_generic"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "temperature_sensor mcu_temp",
+          "role": "mcu",
+          "sensor_name": "mcu_temp",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "bme280 chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "auxiliary",
+          "sensor_name": "dryer",
+          "type": "temperature_sensor"
+        }
+      ]
+    },
+    "width": {
+      "count": 1,
+      "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "hall_filament_width_sensor",
+          "role": "flow_compensation",
+          "sensor_name": "hall",
+          "type": "hall"
+        }
+      ]
+    }
+  },
+  "subscriptions": {
+    "AFC": [
+      "connected",
+      "bypass_state",
+      "quiet_mode",
+      "current_load",
+      "current_lane",
+      "current_state",
+      "current_tool",
+      "current_toolchange",
+      "error_state",
+      "filament_loaded",
+      "lane_loaded",
+      "led_state",
+      "message",
+      "name",
+      "number_of_toolchanges",
+      "num_extruders",
+      "status",
+      "system",
+      "tool_sensor_after_extruder",
+      "tool_stn",
+      "tool_stn_unload",
+      "type",
+      "units",
+      "lanes",
+      "hubs",
+      "extruders",
+      "buffers"
+    ],
+    "AFC_Toolchanger Tools": [
+      "lanes",
+      "extruders",
+      "hubs",
+      "buffers"
+    ],
+    "AFC_extruder e0": [
+      "lane_loaded",
+      "tool_end_status",
+      "tool_start_status"
+    ],
+    "AFC_extruder e1": [
+      "lane_loaded",
+      "tool_end_status",
+      "tool_start_status"
+    ],
+    "AFC_extruder e2": [
+      "lane_loaded",
+      "tool_end_status",
+      "tool_start_status"
+    ],
+    "AFC_extruder e3": [
+      "lane_loaded",
+      "tool_end_status",
+      "tool_start_status"
+    ],
+    "AFC_lane e0": [
+      "bed_temp",
+      "buffer_status",
+      "color",
+      "current_map",
+      "dist_hub",
+      "endstops",
+      "extruder",
+      "extruder_temp",
+      "filament_name",
+      "filament_status",
+      "filament_status_led",
+      "hub",
+      "initial_weight",
+      "load",
+      "loaded_to_hub",
+      "map",
+      "material",
+      "multi_color_hexes",
+      "prep",
+      "remember_spool",
+      "runout_lane",
+      "selector",
+      "spool_id",
+      "spool_vendor",
+      "status",
+      "td1_color",
+      "td1_scan_time",
+      "td1_td",
+      "tool_loaded",
+      "vendor_name",
+      "weight"
+    ],
+    "AFC_lane e1": [
+      "bed_temp",
+      "buffer_status",
+      "color",
+      "current_map",
+      "dist_hub",
+      "endstops",
+      "extruder",
+      "extruder_temp",
+      "filament_name",
+      "filament_status",
+      "filament_status_led",
+      "hub",
+      "initial_weight",
+      "load",
+      "loaded_to_hub",
+      "map",
+      "material",
+      "multi_color_hexes",
+      "prep",
+      "remember_spool",
+      "runout_lane",
+      "selector",
+      "spool_id",
+      "spool_vendor",
+      "status",
+      "td1_color",
+      "td1_scan_time",
+      "td1_td",
+      "tool_loaded",
+      "vendor_name",
+      "weight"
+    ],
+    "AFC_lane e2": [
+      "bed_temp",
+      "buffer_status",
+      "color",
+      "current_map",
+      "dist_hub",
+      "endstops",
+      "extruder",
+      "extruder_temp",
+      "filament_name",
+      "filament_status",
+      "filament_status_led",
+      "hub",
+      "initial_weight",
+      "load",
+      "loaded_to_hub",
+      "map",
+      "material",
+      "multi_color_hexes",
+      "prep",
+      "remember_spool",
+      "runout_lane",
+      "selector",
+      "spool_id",
+      "spool_vendor",
+      "status",
+      "td1_color",
+      "td1_scan_time",
+      "td1_td",
+      "tool_loaded",
+      "vendor_name",
+      "weight"
+    ],
+    "AFC_lane e3": [
+      "bed_temp",
+      "buffer_status",
+      "color",
+      "current_map",
+      "dist_hub",
+      "endstops",
+      "extruder",
+      "extruder_temp",
+      "filament_name",
+      "filament_status",
+      "filament_status_led",
+      "hub",
+      "initial_weight",
+      "load",
+      "loaded_to_hub",
+      "map",
+      "material",
+      "multi_color_hexes",
+      "prep",
+      "remember_spool",
+      "runout_lane",
+      "selector",
+      "spool_id",
+      "spool_vendor",
+      "status",
+      "td1_color",
+      "td1_scan_time",
+      "td1_td",
+      "tool_loaded",
+      "vendor_name",
+      "weight"
+    ],
+    "bed_mesh": [
+      "profile_name",
+      "probed_matrix",
+      "mesh_min",
+      "mesh_max",
+      "mesh_params",
+      "profiles"
+    ],
+    "bme280 chamber": [
+      "temperature",
+      "humidity"
+    ],
+    "display_status": [
+      "message",
+      "progress"
+    ],
+    "exclude_object": [
+      "objects",
+      "excluded_objects",
+      "current_object"
+    ],
+    "extruder": [
+      "temperature",
+      "target",
+      "power",
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
+    ],
+    "extruder1": [
+      "temperature",
+      "target",
+      "power",
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
+    ],
+    "extruder2": [
+      "temperature",
+      "target",
+      "power",
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
+    ],
+    "extruder3": [
+      "temperature",
+      "target",
+      "power",
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
+    ],
+    "fan_generic chamber_fan": [
+      "speed",
+      "rpm"
+    ],
+    "fan_generic chamber_loop_fan": [
+      "speed",
+      "rpm"
+    ],
+    "fan_generic fanM106": [
+      "speed",
+      "rpm"
+    ],
+    "filament_motion_sensor fm_ex0": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
+    ],
+    "filament_motion_sensor fm_ex1": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
+    ],
+    "filament_motion_sensor fm_ex2": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
+    ],
+    "filament_motion_sensor fm_ex3": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
+    ],
+    "firmware_retraction": [
+      "retract_length",
+      "retract_speed",
+      "unretract_extra_length",
+      "unretract_speed"
+    ],
+    "gcode_button extruder_grab1": [
+      "state"
+    ],
+    "gcode_button extruder_grab2": [
+      "state"
+    ],
+    "gcode_button extruder_grab3": [
+      "state"
+    ],
+    "gcode_button extruder_grab4": [
+      "state"
+    ],
+    "gcode_button extruder_pos1": [
+      "state"
+    ],
+    "gcode_button extruder_pos2": [
+      "state"
+    ],
+    "gcode_button extruder_pos3": [
+      "state"
+    ],
+    "gcode_button extruder_pos4": [
+      "state"
+    ],
+    "gcode_button frontDoor": [
+      "state"
+    ],
+    "gcode_button topDoor": [
+      "state"
+    ],
+    "gcode_macro SET_PRINT_STATS_INFO": [
+      "pause_next_layer",
+      "pause_at_layer"
+    ],
+    "gcode_macro START_PRINT": [
+      "preparation_done"
+    ],
+    "gcode_macro _HELIX_STATE": [
+      "print_started"
+    ],
+    "gcode_macro _START_PRINT": [
+      "print_started"
+    ],
+    "gcode_move": [
+      "gcode_position",
+      "speed",
+      "speed_factor",
+      "extrude_factor",
+      "homing_origin"
+    ],
+    "hall_filament_width_sensor": [
+      "Diameter",
+      "Raw"
+    ],
+    "heater_bed": [
+      "temperature",
+      "target",
+      "power"
+    ],
+    "heater_fan heat_fan": [
+      "speed",
+      "rpm"
+    ],
+    "heater_generic chamber_heater": [
+      "temperature",
+      "target",
+      "power"
+    ],
+    "htu21d dryer": [
+      "temperature",
+      "humidity"
+    ],
+    "idle_timeout": [
+      "state"
+    ],
+    "led chamber_led": [
+      "color_data"
+    ],
+    "led_effect breathing": [
+      "enabled"
+    ],
+    "led_effect fire_comet": [
+      "enabled"
+    ],
+    "led_effect rainbow": [
+      "enabled"
+    ],
+    "led_effect static_white": [
+      "enabled"
+    ],
+    "manual_probe": [
+      "is_active",
+      "z_position"
+    ],
+    "mcu": [
+      "last_stats"
+    ],
+    "mcu EBBCan": [
+      "last_stats"
+    ],
+    "motion_report": [
+      "live_position",
+      "live_velocity",
+      "live_extruder_velocity"
+    ],
+    "pause_resume": [
+      "is_paused"
+    ],
+    "print_stats": [
+      "state",
+      "filename",
+      "filament_used",
+      "print_duration",
+      "total_duration",
+      "estimated_time",
+      "info",
+      "message",
+      "power_loss"
+    ],
+    "probe": [
+      "last_query",
+      "last_z_result",
+      "z_offset",
+      "name"
+    ],
+    "stepper_enable": [
+      "steppers"
+    ],
+    "temperature_sensor chamber": [
+      "temperature",
+      "humidity"
+    ],
+    "temperature_sensor mcu_temp": [
+      "temperature",
+      "humidity"
+    ],
+    "tool T0": [
+      "active",
+      "mounted",
+      "detect_state",
+      "gcode_x_offset",
+      "gcode_y_offset",
+      "gcode_z_offset",
+      "extruder",
+      "fan"
+    ],
+    "tool T1": [
+      "active",
+      "mounted",
+      "detect_state",
+      "gcode_x_offset",
+      "gcode_y_offset",
+      "gcode_z_offset",
+      "extruder",
+      "fan"
+    ],
+    "tool T2": [
+      "active",
+      "mounted",
+      "detect_state",
+      "gcode_x_offset",
+      "gcode_y_offset",
+      "gcode_z_offset",
+      "extruder",
+      "fan"
+    ],
+    "tool T3": [
+      "active",
+      "mounted",
+      "detect_state",
+      "gcode_x_offset",
+      "gcode_y_offset",
+      "gcode_z_offset",
+      "extruder",
+      "fan"
+    ],
+    "toolchanger": [
+      "status",
+      "tool_number",
+      "tool_numbers",
+      "tool_names"
+    ],
+    "toolhead": [
+      "position",
+      "homed_axes",
+      "kinematics",
+      "extruder",
+      "max_velocity",
+      "axis_minimum",
+      "axis_maximum"
+    ],
+    "virtual_sdcard": [
+      "progress",
+      "layer",
+      "layer_count",
+      "is_active",
+      "file_position",
+      "file_path"
+    ],
+    "webhooks": [
+      "state",
+      "state_message"
+    ]
+  }
+}

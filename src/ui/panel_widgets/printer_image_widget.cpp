@@ -7,9 +7,9 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_icon_codepoints.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_plate_glow.h"
 #include "ui_printer_manager_overlay.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_utils.h"
 
 #include "ams_state.h"
@@ -17,17 +17,21 @@
 #include "callout_chip.h"
 #include "callout_presenter.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix_fs.h"
-#include "http_executor.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "led_widget.h"
 #include "light_button_config.h"
 #include "lock_manager.h"
-#include "observer_factory.h"
 #include "panel_widget_registry.h"
+#include "plate_glow.h"
 #include "prerendered_images.h"
 #include "printer_detector.h"
 #include "printer_image_manager.h"
@@ -40,6 +44,7 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "ui/fan_spin_animation.h"
+#include "ui/opa_pulse.h"
 #include "widget_subjects.h"
 #include "wizard_config_paths.h"
 
@@ -49,32 +54,35 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 // Subjects owned by PrinterImageWidget module — created before XML bindings resolve
-static lv_subject_t s_printer_type_subject;
+static helix::Subject s_printer_type_subject;
 static char s_printer_type_buffer[64];
-static lv_subject_t s_printer_info_visible;
+static helix::Subject s_printer_info_visible;
 
 // Live callout subjects (printer image overlay chips), driven from PrinterState
 // by PrinterImageWidget::update_callouts() and apply_callout_layout().
-static lv_subject_t s_printer_callout_mode;
-static lv_subject_t s_callout_toolhead_merged;
-static lv_subject_t s_callout_nozzle_shown;
-static lv_subject_t s_callout_bed_shown;
-static lv_subject_t s_callout_chamber_shown;
-static lv_subject_t s_callout_fan_shown;
-static lv_subject_t s_callout_light_shown;
-static lv_subject_t s_callout_light_on;
-static lv_subject_t s_callout_bed_heating;
-static lv_subject_t s_callout_nozzle_text;
+static helix::Subject s_printer_callout_mode;
+static helix::Subject s_callout_toolhead_merged;
+static helix::Subject s_callout_nozzle_shown;
+static helix::Subject s_callout_bed_shown;
+static helix::Subject s_callout_chamber_shown;
+static helix::Subject s_callout_fan_shown;
+static helix::Subject s_callout_light_shown;
+static helix::Subject s_callout_light_on;
+static helix::Subject s_callout_bed_heating;
+static helix::Subject s_callout_bed_glow_level;
+static helix::Subject s_callout_chamber_glow_level;
+static helix::Subject s_callout_nozzle_text;
 static char s_callout_nozzle_text_buf[32];
-static lv_subject_t s_callout_bed_text;
+static helix::Subject s_callout_bed_text;
 static char s_callout_bed_text_buf[32];
-static lv_subject_t s_callout_chamber_text;
+static helix::Subject s_callout_chamber_text;
 static char s_callout_chamber_text_buf[32];
-static lv_subject_t s_callout_fan_text;
+static helix::Subject s_callout_fan_text;
 static char s_callout_fan_text_buf[32];
-static lv_subject_t s_callout_toolhead_text;
+static helix::Subject s_callout_toolhead_text;
 static char s_callout_toolhead_text_buf[32];
 
 static helix::WidgetSubjects s_subjects{"PrinterImageWidgetSubjects"};
@@ -86,14 +94,6 @@ constexpr const char* kLineNames[] = {"callout_line_nozzle", "callout_line_bed",
                                       "callout_line_chamber", "callout_line_fan",
                                       "callout_line_light"};
 
-constexpr lv_opa_t kGlowOpaLow = 30;
-constexpr lv_opa_t kGlowOpaHigh = 70;
-constexpr uint32_t kGlowPulseMs = 900;
-
-void glow_opa_anim_cb(void* glow, int32_t opa) {
-    lv_obj_set_style_bg_opa(static_cast<lv_obj_t*>(glow), static_cast<lv_opa_t>(opa), 0);
-}
-
 /// Writes a chip's text, compact while the chips are pinned. True on a change.
 bool publish_callout_text(lv_subject_t* text, const std::string& full) {
     const bool pinned =
@@ -101,21 +101,22 @@ bool publish_callout_text(lv_subject_t* text, const std::string& full) {
     const std::string t = pinned ? helix::ui::compact_callout_text(full) : full;
     if (t == lv_subject_get_string(text))
         return false;
-    lv_subject_copy_string(text, t.c_str());
+    lv_subject_set_string(text, t.c_str());
     return true;
 }
 
-/// The text chips, indexed like PrinterImageWidget::callout_full_text_.
+/// The text chips, indexed like PrinterImageWidget::callout_full_text_. It holds the
+/// Subjects, not their nodes: a node does not exist until the first init.
 struct CalloutTextSubject {
     helix::CalloutKind kind;
-    lv_subject_t* subject;
+    helix::Subject* subject;
 };
 const CalloutTextSubject kCalloutTexts[] = {
-    {helix::CalloutKind::Nozzle, &s_callout_nozzle_text},
-    {helix::CalloutKind::Bed, &s_callout_bed_text},
-    {helix::CalloutKind::Chamber, &s_callout_chamber_text},
-    {helix::CalloutKind::Fan, &s_callout_fan_text},
-    {helix::CalloutKind::Toolhead, &s_callout_toolhead_text},
+    {helix::CalloutKind::Nozzle, std::addressof(s_callout_nozzle_text)},
+    {helix::CalloutKind::Bed, std::addressof(s_callout_bed_text)},
+    {helix::CalloutKind::Chamber, std::addressof(s_callout_chamber_text)},
+    {helix::CalloutKind::Fan, std::addressof(s_callout_fan_text)},
+    {helix::CalloutKind::Toolhead, std::addressof(s_callout_toolhead_text)},
 };
 
 } // namespace
@@ -123,21 +124,19 @@ const CalloutTextSubject kCalloutTexts[] = {
 static void printer_image_widget_init_subjects() {
     s_subjects.ensure_init([] {
         // String subject for printer model name
-        lv_subject_init_string(&s_printer_type_subject, s_printer_type_buffer, nullptr,
-                               sizeof(s_printer_type_buffer), "");
+        s_printer_type_subject.init_string(s_printer_type_buffer, nullptr,
+                                           sizeof(s_printer_type_buffer), "");
         s_subjects.publish("printer_type_text", &s_printer_type_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_printer_type_subject, "printer_type_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-            __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_type_subject, "printer_type_text",
+                                     LV_SUBJECT_TYPE_STRING);
 
         // String subject for hostname/IP
 
         // Integer subject: 0=hidden, 1=visible
-        lv_subject_init_int(&s_printer_info_visible, 0);
+        s_printer_info_visible.init_int(0);
         s_subjects.publish("printer_info_visible", &s_printer_info_visible);
-        SubjectDebugRegistry::instance().register_subject(&s_printer_info_visible,
-                                                          "printer_info_visible",
-                                                          LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_info_visible, "printer_info_visible",
+                                     LV_SUBJECT_TYPE_INT);
 
         // Live callout subjects. Every int starts at 0 (CalloutMode::ImageOnly for
         // the mode subject, "not shown" for the rest) so the callout layer and
@@ -145,50 +144,50 @@ static void printer_image_widget_init_subjects() {
         // callout_<kind>_shown int is 0 hidden, 1 active, 2 residual (a heater off
         // but still hot, its chip text greyed).
         static const struct {
-            lv_subject_t* subject;
+            helix::Subject* subject;
             const char* name;
         } int_subjects[] = {
-            {&s_printer_callout_mode, "printer_callout_mode"},
-            {&s_callout_toolhead_merged, "callout_toolhead_merged"},
-            {&s_callout_nozzle_shown, "callout_nozzle_shown"},
-            {&s_callout_bed_shown, "callout_bed_shown"},
-            {&s_callout_chamber_shown, "callout_chamber_shown"},
-            {&s_callout_fan_shown, "callout_fan_shown"},
-            {&s_callout_light_shown, "callout_light_shown"},
-            {&s_callout_light_on, "callout_light_on"},
-            {&s_callout_bed_heating, "callout_bed_heating"},
+            {std::addressof(s_printer_callout_mode), "printer_callout_mode"},
+            {std::addressof(s_callout_toolhead_merged), "callout_toolhead_merged"},
+            {std::addressof(s_callout_nozzle_shown), "callout_nozzle_shown"},
+            {std::addressof(s_callout_bed_shown), "callout_bed_shown"},
+            {std::addressof(s_callout_chamber_shown), "callout_chamber_shown"},
+            {std::addressof(s_callout_fan_shown), "callout_fan_shown"},
+            {std::addressof(s_callout_light_shown), "callout_light_shown"},
+            {std::addressof(s_callout_light_on), "callout_light_on"},
+            {std::addressof(s_callout_bed_heating), "callout_bed_heating"},
+            {std::addressof(s_callout_bed_glow_level), "callout_bed_glow_level"},
+            {std::addressof(s_callout_chamber_glow_level), "callout_chamber_glow_level"},
         };
         for (const auto& s : int_subjects) {
             // 0 doubles as CalloutMode::ImageOnly for the mode subject and as
             // "not shown"/"not merged"/"not heating" for the rest.
-            lv_subject_init_int(s.subject, 0);
-            s_subjects.publish(s.name, s.subject);
-            SubjectDebugRegistry::instance().register_subject(
-                s.subject, s.name, LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+            s.subject->init_int(0);
+            s_subjects.publish(s.name, s.subject->get());
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject->get(), s.name, LV_SUBJECT_TYPE_INT);
         }
 
         static const struct {
-            lv_subject_t* subject;
+            helix::Subject* subject;
             char* buf;
             size_t buf_size;
             const char* name;
         } text_subjects[] = {
-            {&s_callout_nozzle_text, s_callout_nozzle_text_buf, sizeof(s_callout_nozzle_text_buf),
-             "callout_nozzle_text"},
-            {&s_callout_bed_text, s_callout_bed_text_buf, sizeof(s_callout_bed_text_buf),
-             "callout_bed_text"},
-            {&s_callout_chamber_text, s_callout_chamber_text_buf,
+            {std::addressof(s_callout_nozzle_text), s_callout_nozzle_text_buf,
+             sizeof(s_callout_nozzle_text_buf), "callout_nozzle_text"},
+            {std::addressof(s_callout_bed_text), s_callout_bed_text_buf,
+             sizeof(s_callout_bed_text_buf), "callout_bed_text"},
+            {std::addressof(s_callout_chamber_text), s_callout_chamber_text_buf,
              sizeof(s_callout_chamber_text_buf), "callout_chamber_text"},
-            {&s_callout_fan_text, s_callout_fan_text_buf, sizeof(s_callout_fan_text_buf),
-             "callout_fan_text"},
-            {&s_callout_toolhead_text, s_callout_toolhead_text_buf,
+            {std::addressof(s_callout_fan_text), s_callout_fan_text_buf,
+             sizeof(s_callout_fan_text_buf), "callout_fan_text"},
+            {std::addressof(s_callout_toolhead_text), s_callout_toolhead_text_buf,
              sizeof(s_callout_toolhead_text_buf), "callout_toolhead_text"},
         };
         for (const auto& s : text_subjects) {
-            lv_subject_init_string(s.subject, s.buf, nullptr, s.buf_size, "");
-            s_subjects.publish(s.name, s.subject);
-            SubjectDebugRegistry::instance().register_subject(
-                s.subject, s.name, LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+            s.subject->init_string(s.buf, nullptr, s.buf_size, "");
+            s_subjects.publish(s.name, s.subject->get());
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject->get(), s.name, LV_SUBJECT_TYPE_STRING);
         }
 
         spdlog::debug(
@@ -197,6 +196,21 @@ static void printer_image_widget_init_subjects() {
 }
 
 namespace helix {
+
+namespace ui {
+
+PrinterImageChange classify_printer_image_change(const PrinterImageStamp& shown,
+                                                 const PrinterImageStamp& next) {
+    if (shown.source.empty() || shown.source != next.source ||
+        shown.fingerprint != next.fingerprint)
+        return PrinterImageChange::NewPixels;
+    if (shown.area_w != next.area_w || shown.area_h != next.area_h)
+        return PrinterImageChange::Resized;
+    return PrinterImageChange::None;
+}
+
+} // namespace ui
+
 void register_printer_image_widget() {
     register_widget_factory(
         "printer_image", [](const std::string&) { return std::make_unique<PrinterImageWidget>(); });
@@ -245,8 +259,6 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     auto* container = lv_obj_find_by_name(widget_obj_, "printer_container");
     if (container) {
         lv_obj_set_user_data(container, this);
-        // Pressed feedback: dim on touch
-        lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
     }
 
     // Load printer image and info from config
@@ -267,10 +279,12 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             in.lifetime));
     }
 
-    // A recycled instance's mode is the last tree's; hide the layer until the
-    // timer has positioned this tree's chips.
+    // A recycled instance's mode is the last tree's; hide the layer until this
+    // tree's chips are positioned, which the deferred refresh does before the
+    // first frame draws them.
     lv_subject_set_int(&s_printer_callout_mode, static_cast<int>(CalloutMode::ImageOnly));
     arm_callout_observers();
+    callouts_unplaced_ = true;
     schedule_callout_layout();
 
     spdlog::debug("[PrinterImageWidget] Attached");
@@ -301,8 +315,11 @@ void PrinterImageWidget::detach() {
                 lv_line_set_points(line, nullptr, 0);
         }
     }
-    set_glow_pulse(false);
-    callout_glow_pulsing_ = false; // a dead tree took its pulse with it
+    if (widget_obj_) {
+        for (const char* name : {"callout_bed_glow", "callout_chamber_glow"})
+            helix::ui::heat_glow_update_pulse(lv_obj_find_by_name(widget_obj_, name),
+                                              helix::ui::temperature::HeatState::Off, false);
+    }
     cancel_callout_timer();
 
     // Cancel any pending timers. detach() runs from the destructor, so cancelling
@@ -350,6 +367,8 @@ void PrinterImageWidget::on_hooked_root_deleted() {
     exact_image_.cancel();
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
+    // The next tree's image holds no src; nothing must count as already shown.
+    current_source_path_.clear();
 }
 
 void PrinterImageWidget::on_activate() {
@@ -379,7 +398,7 @@ void PrinterImageWidget::reload_from_config() {
 
     // Show printer name if set, otherwise fall back to printer type, then " " for layout
     std::string display_name = helix::get_printer_display_name(" ");
-    lv_subject_copy_string(&s_printer_type_subject, display_name.c_str());
+    lv_subject_set_string(&s_printer_type_subject, display_name.c_str());
 
     if (!host.empty() && host != "127.0.0.1" && host != "localhost") {
     }
@@ -388,8 +407,18 @@ void PrinterImageWidget::reload_from_config() {
 }
 
 void PrinterImageWidget::refresh_printer_image() {
+    apply_printer_image(/*force=*/true);
+}
+
+void PrinterImageWidget::apply_printer_image(bool force) {
     if (!widget_obj_)
         return;
+
+    // Never inside a rebuild: attach() and on_activate() reach this through a
+    // timer, so a layout pass is safe here (#983/#1025). A freshly built tree
+    // has had none, and both the exact-size copy and the callouts are sized
+    // from it.
+    lv_obj_update_layout(widget_obj_);
 
     lv_display_t* disp = lv_display_get_default();
     int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
@@ -397,22 +426,43 @@ void PrinterImageWidget::refresh_printer_image() {
     const std::string source_path =
         helix::PrinterImageManager::instance().get_displayed_image_path(screen_width);
 
-    // LVGL keys its decoded copy on the path alone, and an import can rewrite an
-    // image in place under that same path, so the decoded copy and the natural
-    // size read from it are dropped on every refresh. The scaled entries on disk
-    // need no such sweep: their names carry the source's mtime and size, so the
-    // entry holding the old pixels is never named again.
-    if (!current_source_path_.empty()) {
-        lv_image_cache_drop(current_source_path_.c_str());
+    lv_obj_t* area = lv_obj_find_by_name(widget_obj_, "printer_container");
+    if (!area)
+        area = widget_obj_;
+    const helix::ui::PrinterImageStamp next{source_path,
+                                            helix::printer_image_source_fingerprint(source_path),
+                                            static_cast<int>(lv_obj_get_content_width(area)),
+                                            static_cast<int>(lv_obj_get_content_height(area))};
+    const helix::ui::PrinterImageChange change =
+        force ? helix::ui::PrinterImageChange::NewPixels
+              : helix::ui::classify_printer_image_change(shown_stamp_, next);
+
+    if (change == helix::ui::PrinterImageChange::NewPixels) {
+        // LVGL keys its decoded copy on the path alone, and an import can rewrite
+        // an image in place under that same path, so new pixels drop the decoded
+        // copy and the natural size read from it. The stamp names that path even
+        // on a freshly attached tree, where nothing has been shown on it yet. The
+        // scaled entries on disk need no such sweep: their names carry the
+        // source's mtime and size, so the entry holding the old pixels is never
+        // named again.
+        if (!shown_stamp_.source.empty())
+            lv_image_cache_drop(shown_stamp_.source.c_str());
+        natural_size_path_.clear();
     }
-    natural_size_path_.clear();
-    // A new source, or new pixels under the same path, can have other tagged
-    // points and another aspect.
-    schedule_callout_layout();
+    shown_stamp_ = next;
 
     if (current_source_path_ != source_path)
         exact_image_.forget_displayed();
     current_source_path_ = source_path;
+
+    // New pixels can have other tagged points and another aspect, a new area
+    // other room, and a new tree has no chips placed. Laid out now, the image
+    // below is cut for the rect the callouts leave it.
+    if (change != helix::ui::PrinterImageChange::None || callouts_unplaced_) {
+        callouts_unplaced_ = false;
+        cancel_callout_timer();
+        apply_callout_layout();
+    }
 
     if (!exact_image_.show_cached(source_path)) {
         // No exact-size copy for this size yet. The tier image costs a decode plus a
@@ -440,21 +490,25 @@ void PrinterImageWidget::schedule_image_refresh() {
         refresh_timer_ = nullptr;
     }
 
+    // Period 0: a new timer goes to the head of LVGL's list and the handler
+    // restarts from the head after a create, so this runs once the rebuild has
+    // returned but before the display refresh of the same pass. The first frame
+    // of a rebuilt tree then already shows its picture.
     refresh_timer_ = lv_timer_create(
         [](lv_timer_t* timer) {
-            // Guard the C/C++ boundary: refresh_printer_image() sets the image
-            // source and forces an alignment-driven layout; an exception escaping
-            // into lv_timer_handler() (C) would terminate the process.
+            // Guard the C/C++ boundary: apply_printer_image() sets the image
+            // source and forces a layout; an exception escaping into
+            // lv_timer_handler() (C) would terminate the process.
             LVGL_SAFE_EVENT_CB_BEGIN("[PrinterImageWidget] refresh_timer");
             auto* self = static_cast<PrinterImageWidget*>(lv_timer_get_user_data(timer));
             if (self) {
                 self->refresh_timer_ = nullptr;
-                self->refresh_printer_image();
+                self->apply_printer_image(/*force=*/false);
             }
             lv_timer_delete(timer);
             LVGL_SAFE_EVENT_CB_END();
         },
-        1, this);
+        0, this);
     lv_timer_set_repeat_count(refresh_timer_, 1);
 }
 
@@ -624,6 +678,7 @@ void PrinterImageWidget::handle_callout_clicked(CalloutKind kind) {
     case CalloutKind::HotendFan:
     case CalloutKind::AuxFan:
     case CalloutKind::SpeedFlow:
+    case CalloutKind::OtherTools:
         break; // the home widget has no such chips
     }
 }
@@ -696,13 +751,18 @@ void PrinterImageWidget::arm_callout_observers() {
     callout_observers_.push_back(helix::ui::observe<const char*>(
         lv_xml_get_subject(nullptr, "tool_badge_text"), this,
         [](PrinterImageWidget* w, const char*) { w->schedule_callout_layout(); }, tools_life));
+    // The heater chips read in the display unit, and their width with it.
+    callout_observers_.push_back(
+        helix::ui::observe_temp_unit_change(this, [](PrinterImageWidget* w) {
+            w->update_callouts();
+            w->schedule_callout_layout();
+        }));
 
     const auto chip = [&](const char* name) { return lv_obj_find_by_name(widget_obj_, name); };
-    callout_spin_pct_ = -1;        // fresh icons: the next update sets their spin
-    callout_glow_pulsing_ = false; // fresh glow: nothing animates it yet
-    nozzle_binder_.bind(chip("callout_chip_nozzle"), ps, HeaterType::Nozzle);
-    bed_binder_.bind(chip("callout_chip_bed"), ps, HeaterType::Bed);
-    chamber_binder_.bind(chip("callout_chip_chamber"), ps, HeaterType::Chamber);
+    callout_spin_pct_ = -1; // fresh icons: the next update sets their spin
+    nozzle_binder_.bind_required(chip("callout_chip_nozzle"), ps, HeaterType::Nozzle);
+    bed_binder_.bind_required(chip("callout_chip_bed"), ps, HeaterType::Bed);
+    chamber_binder_.bind_required(chip("callout_chip_chamber"), ps, HeaterType::Chamber);
     update_callouts();
 }
 
@@ -738,12 +798,26 @@ void PrinterImageWidget::update_callouts() {
     const int bed_cur = read_int_or_zero(ps.temperature_state().get_bed_temp_subject());
     const int bed_tgt = read_int_or_zero(ps.temperature_state().get_bed_target_subject());
     heater(bed_cur, bed_tgt, true, &s_callout_bed_shown, CalloutKind::Bed, &s_callout_bed_text);
-    const int bed_heating = heater_display(bed_cur, bed_tgt).state == HeatState::Heating ? 1 : 0;
+    const HeatState bed_heat = heater_display(bed_cur, bed_tgt).state;
+    const int bed_heating = heater_region_glows(bed_heat) ? 1 : 0;
     lv_subject_set_int(&s_callout_bed_heating, bed_heating);
-    heater(read_int_or_zero(ps.temperature_state().get_chamber_temp_subject()),
-           read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject()),
-           read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0,
-           &s_callout_chamber_shown, CalloutKind::Chamber, &s_callout_chamber_text);
+    const int glow_level = bed_glow_level(bed_cur);
+    if (lv_subject_get_int(&s_callout_bed_glow_level) != glow_level) {
+        lv_subject_set_int(&s_callout_bed_glow_level, glow_level);
+        changed = true;
+    }
+    const int chamber_cur = read_int_or_zero(ps.temperature_state().get_chamber_temp_subject());
+    const int chamber_tgt =
+        read_int_or_zero(ps.temperature_state().get_chamber_effective_target_subject());
+    const bool has_chamber =
+        read_int_or_zero(ps.capabilities_state().subject(Capability::HasChamber)) != 0;
+    heater(chamber_cur, chamber_tgt, has_chamber, &s_callout_chamber_shown, CalloutKind::Chamber,
+           &s_callout_chamber_text);
+    const int chamber_level = has_chamber ? chamber_glow_level(chamber_cur) : 0;
+    if (lv_subject_get_int(&s_callout_chamber_glow_level) != chamber_level) {
+        lv_subject_set_int(&s_callout_chamber_glow_level, chamber_level);
+        changed = true;
+    }
 
     const int fan = read_int_or_zero(ps.fan_state().get_fan_speed_subject());
     char fan_buf[8];
@@ -761,7 +835,9 @@ void PrinterImageWidget::update_callouts() {
                                     fan_buf));
 
     const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
-    set_glow_pulse(bed_heating && animate);
+    callout_bed_heat_ = bed_heat;
+    callout_chamber_heat_ = heater_display(chamber_cur, chamber_tgt).state;
+    update_glow_pulses();
     // Restarting a spin resets its rotation, so only a speed or preference
     // change touches it, never a temperature tick.
     const int spin = animate ? fan : 0;
@@ -866,7 +942,7 @@ void PrinterImageWidget::apply_callout_layout() {
     int nozzle_icons = icon_px("heater");
     if (lv_obj_t* nozzle = lv_obj_find_by_name(widget_obj_, "callout_chip_nozzle")) {
         lv_obj_t* badge = lv_obj_find_by_name(nozzle, "tool_badge");
-        if (badge && !lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN)) {
+        if (badge && !lv_obj_is_hidden(badge)) {
             nozzle_icons +=
                 lv_obj_get_style_pad_column(lv_obj_get_parent(badge), LV_PART_MAIN) +
                 helix::ui::measure_text_px(lv_label_get_text(badge),
@@ -913,8 +989,13 @@ void PrinterImageWidget::apply_callout_layout() {
         part.chip = lv_obj_find_by_name(widget_obj_, c.name);
         part.line =
             k < std::size(kLineNames) ? lv_obj_find_by_name(widget_obj_, kLineNames[k]) : nullptr;
-        if (c.kind == CalloutKind::Bed)
+        if (c.kind == CalloutKind::Bed) {
             part.glow = lv_obj_find_by_name(widget_obj_, "callout_bed_glow");
+            part.glowing = lv_subject_get_int(&s_callout_bed_glow_level) != 0;
+        } else if (c.kind == CalloutKind::Chamber) {
+            part.glow = lv_obj_find_by_name(widget_obj_, "callout_chamber_glow");
+            part.glowing = lv_subject_get_int(&s_callout_chamber_glow_level) != 0;
+        }
         part.in_budget = c.capable;
         part.active = lv_subject_get_int(c.shown) != 0;
         part.icons = c.icons;
@@ -934,10 +1015,25 @@ void PrinterImageWidget::apply_callout_layout() {
 
     lv_subject_set_int(&s_callout_toolhead_merged, out.toolhead_merged ? 1 : 0);
     lv_subject_set_int(&s_printer_callout_mode, static_cast<int>(out.mode));
+    update_glow_pulses();
     for (const auto& t : kCalloutTexts)
-        publish_callout_text(t.subject, callout_full_text_[static_cast<size_t>(t.kind)]);
+        publish_callout_text(t.subject->get(), callout_full_text_[static_cast<size_t>(t.kind)]);
     if (presenter_.image_changed())
         schedule_image_refresh();
+}
+
+void PrinterImageWidget::update_glow_pulses() {
+    if (!widget_obj_)
+        return;
+    // The XML hides a glow at level 0 and in the modes with nothing to draw on.
+    const auto mode = static_cast<CalloutMode>(lv_subject_get_int(&s_printer_callout_mode));
+    const bool drawable = mode != CalloutMode::ImageOnly && mode != CalloutMode::Docked;
+    helix::ui::heat_glow_update_pulse(
+        lv_obj_find_by_name(widget_obj_, "callout_bed_glow"), callout_bed_heat_,
+        drawable && lv_subject_get_int(&s_callout_bed_glow_level) != 0);
+    helix::ui::heat_glow_update_pulse(
+        lv_obj_find_by_name(widget_obj_, "callout_chamber_glow"), callout_chamber_heat_,
+        drawable && lv_subject_get_int(&s_callout_chamber_glow_level) != 0);
 }
 
 void PrinterImageWidget::place_printer_image(const CalloutRect* moved) {
@@ -946,25 +1042,4 @@ void PrinterImageWidget::place_printer_image(const CalloutRect* moved) {
     // relayouts, and that relayout finds the rect unchanged, so this cannot loop.
     if (presenter_.place_image(img, moved))
         schedule_image_refresh();
-}
-
-void PrinterImageWidget::set_glow_pulse(bool on) {
-    lv_obj_t* glow = widget_obj_ ? lv_obj_find_by_name(widget_obj_, "callout_bed_glow") : nullptr;
-    if (!glow || on == callout_glow_pulsing_)
-        return;
-    callout_glow_pulsing_ = on;
-    // The anim runs on the glow object, so LVGL deletes it with the object.
-    lv_anim_delete(glow, glow_opa_anim_cb);
-    if (!on)
-        return;
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, glow);
-    lv_anim_set_values(&a, kGlowOpaLow, kGlowOpaHigh);
-    lv_anim_set_duration(&a, kGlowPulseMs);
-    lv_anim_set_playback_duration(&a, kGlowPulseMs);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_set_exec_cb(&a, glow_opa_anim_cb);
-    lv_anim_start(&a);
 }

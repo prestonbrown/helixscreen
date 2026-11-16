@@ -17,8 +17,7 @@
 #
 #   - tests/unit/test_packaging_manifest.cpp:  regression test asserts this
 #     output matches a filesystem walk so new subdirs can't silently drop
-#     out of packages (three prior incidents: e0840a4b6, 87452586f, and the
-#     Android extractor bug this replaces).
+#     out of packages.
 #
 # Usage:   scripts/gen-packaging-manifest.sh [PROJECT_ROOT]
 # Default PROJECT_ROOT is the parent of this script's directory.

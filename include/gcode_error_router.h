@@ -7,7 +7,8 @@
 #include "error_event.h"
 #include "firmware_error_envelope.h"
 #include "i_moonraker_client.h" // SubscriptionId
-#include "lvgl.h"               // lv_timer_t (held presentations)
+#include "json_fwd.h"
+#include "lvgl.h" // lv_timer_t (held presentations)
 
 #include <cstddef>
 #include <functional>
@@ -17,8 +18,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerAPI;
@@ -60,8 +59,7 @@ enum class RecoverDispatch {
 /// the recovery modal rather than silently dropping affordances or firing into
 /// a cold nozzle. Everything else runs the action's own gcode; only key298
 /// routes through PrinterRecoveryService, which is why it alone carries an
-/// empty gcode. Before #1172 this decision did not exist and every WARNING
-/// with an action was offered a klipper_mcu bounce.
+/// empty gcode (#1172).
 RecoverDispatch decide_recover_dispatch(const ErrorEvent& e);
 
 /// Centralizes Klipper/Moonraker gcode-error surfacing for HelixScreen.

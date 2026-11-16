@@ -13,11 +13,10 @@
  * complaint is still terminal.
  */
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "calibration_types.h"
+#include "core/update_queue.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"

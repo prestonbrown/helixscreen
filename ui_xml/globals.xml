@@ -127,6 +127,14 @@
     <px name="space_xs_large" value="6"/>
     <px name="space_xs_xlarge" value="8"/>
     <px name="space_xs_xxlarge" value="10"/>
+    <!-- menu_caret: how far a context menu's caret (the triangle pointing at what
+         opened it) stands off the card; its base is twice this wide. -->
+    <px name="menu_caret_tiny" value="5"/>
+    <px name="menu_caret_small" value="6"/>
+    <px name="menu_caret_medium" value="8"/>
+    <px name="menu_caret_large" value="9"/>
+    <px name="menu_caret_xlarge" value="12"/>
+    <px name="menu_caret_xxlarge" value="14"/>
     <!-- home_grid_gap: gap between the home widget grid's tracks. Matches space_xs up to
          medium; wider from large up, where cells are big enough to want the air. -->
     <px name="home_grid_gap_tiny" value="2"/>
@@ -577,6 +585,15 @@
     <px name="button_height_sm_large" value="40"/>
     <px name="button_height_sm_xlarge" value="48"/>
     <px name="button_height_sm_xxlarge" value="56"/>
+    <!-- Filament panel motion glyph (toolhead + filament column) between
+         Extrude and Retract: narrow enough to leave both buttons their labels -->
+    <px name="filament_motion_glyph_w_micro" value="24"/>
+    <px name="filament_motion_glyph_w_tiny" value="28"/>
+    <px name="filament_motion_glyph_w_small" value="36"/>
+    <px name="filament_motion_glyph_w_medium" value="44"/>
+    <px name="filament_motion_glyph_w_large" value="44"/>
+    <px name="filament_motion_glyph_w_xlarge" value="52"/>
+    <px name="filament_motion_glyph_w_xxlarge" value="64"/>
 
     <!-- jog_mode_h / jog_mode_w: a jog mode key in the pad layout (icon over
          label). The height holds touch_target_min; the width cap keeps the key
@@ -664,13 +681,34 @@
 
     <!-- Other component dimensions -->
     <!-- header_height is responsive: _small/_medium/_large registered as header_height based on screen height -->
-    <px name="header_height_micro" value="28"/>
+    <px name="header_height_micro" value="40"/>
     <px name="header_height_tiny" value="33"/>
     <px name="header_height_small" value="48"/>
     <px name="header_height_medium" value="56"/>
     <px name="header_height_large" value="60"/>
     <px name="header_height_xlarge" value="68"/>
     <px name="header_height_xxlarge" value="80"/>
+    <!-- The wizard's setup dropdowns (heaters, fans, LEDs, filament sensor). A
+         vertical-axis token: these heights let the fan step's four dropdowns
+         fit a 272px-tall screen, and portrait resolves them from its height. -->
+    <px name="wizard_dropdown_height_micro" value="28"/>
+    <px name="wizard_dropdown_height_tiny" value="33"/>
+    <px name="wizard_dropdown_height_small" value="48"/>
+    <px name="wizard_dropdown_height_medium" value="56"/>
+    <px name="wizard_dropdown_height_large" value="60"/>
+    <px name="wizard_dropdown_height_xlarge" value="68"/>
+    <px name="wizard_dropdown_height_xxlarge" value="80"/>
+
+    <!-- The AMS panels' left-column title row, which is not a header_bar. A
+         vertical-axis token: at 480x272 the path canvas below it needs these
+         heights to hold two label rows and the whole toolhead. -->
+    <px name="ams_title_row_height_micro" value="28"/>
+    <px name="ams_title_row_height_tiny" value="33"/>
+    <px name="ams_title_row_height_small" value="48"/>
+    <px name="ams_title_row_height_medium" value="56"/>
+    <px name="ams_title_row_height_large" value="60"/>
+    <px name="ams_title_row_height_xlarge" value="68"/>
+    <px name="ams_title_row_height_xxlarge" value="80"/>
 
     <!-- NOTE: spool_row_min_height_* and spool_swatch_size_* are component-scoped
          in ui_xml/spoolman_spool_item.xml (their only consumer). -->
@@ -991,7 +1029,7 @@
     <!-- NO BASE icon_font_xl - registered at runtime -->
     <!-- tile_icon_xxl_size: the home tiles' top icon rung, twice the tier's xl
          glyph, so a tile only reaches it past a cell and a half. It names a
-         size, not a face: src/ui/ui_tile_rung.cpp draws it in the largest MDI
+         size, not a face: src/ui/home/ui_tile_rung.cpp draws it in the largest MDI
          face this build links at or below it, scaled up to at most 2x. -->
     <px name="tile_icon_xxl_size_micro" value="64"/>
     <px name="tile_icon_xxl_size_tiny" value="96"/>

@@ -5,11 +5,12 @@
 
 #include "ui_event_safety.h"
 #include "ui_overlay_network_settings.h"
-#include "ui_timer_guard.h"
 
+#include "core/log_redact.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "ethernet_manager.h"
-#include "log_redact.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
@@ -22,17 +23,17 @@
 static constexpr uint32_t kSignalPollIntervalMs = 5000;
 
 // Subjects owned by NetworkWidget module — created before XML bindings resolve
-static lv_subject_t s_network_icon_state;
+static helix::Subject s_network_icon_state;
 static helix::WidgetSubjects s_subjects{"NetworkWidgetSubjects"};
 
 static void network_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet
-        lv_subject_init_int(&s_network_icon_state, 0);
+        // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet,
+        // 6=wifi joined without an address yet
+        s_network_icon_state.init_int(0);
         s_subjects.publish("home_network_icon_state", &s_network_icon_state);
-        SubjectDebugRegistry::instance().register_subject(&s_network_icon_state,
-                                                          "home_network_icon_state",
-                                                          LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_network_icon_state, "home_network_icon_state",
+                                     LV_SUBJECT_TYPE_INT);
 
         spdlog::debug("[NetworkWidget] Subjects initialized (icon_state + label)");
     });
@@ -62,12 +63,6 @@ void NetworkWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
     active_ = true;
-
-    // Register click handler via per-callback user_data
-    lv_obj_t* btn = lv_obj_find_by_name(widget_obj_, "network_btn");
-    if (btn) {
-        lv_obj_add_event_cb(btn, network_clicked_cb, LV_EVENT_CLICKED, this);
-    }
 
     // Use module-owned subjects (initialized via network_widget_init_subjects)
     network_icon_state_ = &s_network_icon_state;
@@ -221,9 +216,9 @@ void NetworkWidget::detect_network_type(bool force) {
     // for the async probe to finish.
     //
     // Exception: if the backend has just signaled READY (backend_ready_ == true)
-    // and we're currently Disconnected, re-check WiFi status. This fixes the
-    // race where the widget attached before the backend finished init and got
-    // pinned on Disconnected before the READY event could trigger a refresh.
+    // and we're currently Disconnected, re-check WiFi status. A widget that
+    // attached before the backend finished init would otherwise stay pinned on
+    // Disconnected, since the READY event came too early to trigger a refresh.
     //
     // When force=true (from state observer callback), always re-check WiFi so
     // CONNECTED/DISCONNECTED events are reflected even when current_network_
@@ -264,6 +259,7 @@ void NetworkWidget::apply_wifi_status(const WifiBackend::ConnectionStatus& statu
         return;
     }
     last_wifi_signal_ = status.signal_strength;
+    last_wifi_phase_ = helix::ui::wifi::link_phase(status);
     if (status.connected) {
         spdlog::info("[NetworkWidget] Detected WiFi connection ({})",
                      helix::redact::ssid(status.ssid));
@@ -285,6 +281,7 @@ void NetworkWidget::poll_wifi_signal() {
                                             return;
                                         }
                                         last_wifi_signal_ = status.signal_strength;
+                                        last_wifi_phase_ = helix::ui::wifi::link_phase(status);
                                         update_network_icon_state();
                                     });
 }
@@ -307,6 +304,7 @@ int NetworkWidget::compute_network_icon_state() const {
     // 3 = WiFi strength 3 (51-75%, accent variant)
     // 4 = WiFi strength 4 (>75%, accent variant)
     // 5 = Ethernet connected (accent variant)
+    // 6 = WiFi joined, IPv4 address still pending (wifi_alert, warning variant)
 
     if (current_network_ == NetworkType::Disconnected) {
         spdlog::trace("[NetworkWidget] Network disconnected -> state 0");
@@ -316,6 +314,11 @@ int NetworkWidget::compute_network_icon_state() const {
     if (current_network_ == NetworkType::Ethernet) {
         spdlog::trace("[NetworkWidget] Network ethernet -> state 5");
         return 5;
+    }
+
+    if (last_wifi_phase_ == helix::ui::wifi::LinkPhase::GettingAddress) {
+        spdlog::trace("[NetworkWidget] WiFi joined, awaiting address -> state 6");
+        return 6;
     }
 
     // WiFi - the signal strength the last status read returned
@@ -366,7 +369,7 @@ void NetworkWidget::signal_poll_timer_cb(lv_timer_t* timer) {
 
 void NetworkWidget::network_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[NetworkWidget] network_clicked_cb");
-    auto* self = static_cast<NetworkWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<NetworkWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_network_clicked();

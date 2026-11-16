@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "quick_action_slots.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
-#include "ui/ui_modal_guard.h"
 
 #include <array>
 #include <map>
@@ -74,13 +75,13 @@ class QuickActionButtons {
     // A slot the user configured against a macro this printer lacks stays
     // visible and goes disabled, so the button that stopped working is still
     // where they left it instead of silently vanishing.
-    std::array<lv_subject_t, 4> visible_{};
-    std::array<lv_subject_t, 4> available_{};
-    std::array<lv_subject_t, 4> name_{};
+    std::array<helix::Subject, 4> visible_{};
+    std::array<helix::Subject, 4> available_{};
+    std::array<helix::Subject, 4> name_{};
     std::array<std::array<char, 64>, 4> name_buf_{};
     /// 1 while a slot shows the light toggle instead of a macro
-    std::array<lv_subject_t, 4> light_{};
-    lv_subject_t header_visible_{};
+    std::array<helix::Subject, 4> light_{};
+    helix::Subject header_visible_{};
 
     /// The slots as stored; a never-written slot may take the light by default
     /// (see resolve_quick_slots).
@@ -93,7 +94,7 @@ class QuickActionButtons {
 
     ObserverGuard macros_version_observer_;
     ObserverGuard led_controllable_observer_;
-    ui::ModalGuard run_confirmation_dialog_;
+    ui::WidgetRef run_confirmation_dialog_;
 };
 
 } // namespace helix

@@ -25,7 +25,7 @@ namespace {
 bool hidden(lv_obj_t* card, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(card, name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 std::string text(lv_obj_t* card, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(card, name);
@@ -81,6 +81,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[ams][buffer][loaded_card]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
+    // A repeat init publishes every name again: drop one the card binds and
+    // let the second init put it back.
+    lv_xml_unregister_subject(nullptr, "clog_meter_safe");
+    ams.init_subjects(true);
     ensure_ams_widgets_registered();
     lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
     REQUIRE(bp != nullptr);
@@ -90,8 +94,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(card != nullptr);
     lv_obj_set_width(card, 137);
     AmsStateTestAccess::sync_buffer(ams, test::fps_units({0.32f}), 0);
-    lv_subject_copy_string(ams.get_current_material_text_subject(),
-                           "Polymaker Jet Black PLA Galaxy Sparkle Edition");
+    lv_subject_set_string(ams.get_current_material_text_subject(),
+                          "Polymaker Jet Black PLA Galaxy Sparkle Edition");
 
     for (int breakpoint = 0; breakpoint <= 4; ++breakpoint) {
         CAPTURE(breakpoint);
@@ -167,6 +171,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(20);
     CHECK_FALSE(hidden(card, "buffer_mini"));
     CHECK_FALSE(hidden(card, "clog_meter"));
+
+    // Nothing to report: the check stands in for the arc and the reading.
+    lv_subject_t* safe = ams.clog_meter_subjects().safe;
+    for (int is_safe : {1, 0}) {
+        lv_subject_set_int(safe, is_safe);
+        CHECK(hidden(card, "clog_arc") == (is_safe == 1));
+        CHECK(hidden(card, "clog_value_text") == (is_safe == 1));
+        CHECK(hidden(card, "clog_safe_icon") == (is_safe == 0));
+    }
     lv_subject_set_int(clog_mode, clog_mode_before);
 
     lv_subject_set_int(bp, original);

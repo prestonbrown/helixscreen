@@ -60,6 +60,8 @@
 #                as a kill: a compiler error proves the code is load-bearing
 #                for the build, not that any test checks its behaviour. It
 #                leaves the hunk UNPROVEN, so it makes the run incomplete.
+#                --inside N adds evidence beside this verdict without changing it:
+#                see INSIDE MUTANTS.
 #   unreversible the hunk does not apply in reverse against the working tree,
 #                so no mutant exists to judge. Also unproven.
 #   NOT COVERED  no strategy in this script can mutate the file at all. The
@@ -173,6 +175,16 @@
 # make and every extra process draws from the jobserver the run inherits, so
 # none of this runs on top of the machine's job budget (THE JOB BUDGET).
 #
+# A file's own filter takes seconds where the whole suite takes minutes, so a run
+# of many files is one child run per filter, each paying a diff, a no-op build, a
+# baseline and tree copies, with workers only inside a group. --pool drops all of
+# that for a long range: one build and one set of copies, each filter's baseline
+# once, in the tree no mutant touches, and any free worker takes the next hunk.
+# --first PATTERN says which files go ahead. --auto-tests-max and
+# --confirm-survivors let a stem many test files name use those files: a kill is a
+# kill whichever test made it, and a mutant green there faces the whole suite
+# before it reads SURVIVED.
+#
 # BOUNDS
 #
 # --max-minutes (default 45, 0 for none) caps the whole run, baseline included.
@@ -180,6 +192,14 @@
 # and that hunk and every one after it are reported UNEXAMINED: the run is
 # INCOMPLETE, never CLEAN, and the list says exactly what is left for a rerun
 # (--since the last proven commit, or --only).
+#
+# Each filter's baseline time is kept in build/mutate-baseline-secs.json, and a
+# baseline the deadline cut off is kept as a lower bound. A baseline whose kept
+# time is more than what is left of --max-minutes is not started: its hunks are
+# reported UNEXAMINED (unjudged in a pool) at once, so the fallback filter of a
+# large batch cannot spend the whole cap before any mutant runs. Catch2 times are
+# kept per --shards. A refusal marks its entry, and the next run measures that
+# baseline again, so a time taken under load costs one refused run.
 #
 # EXIT CODES
 #
@@ -211,6 +231,7 @@ import argparse
 import contextlib
 import copy
 import io
+import json
 import os
 import re
 import select
@@ -233,7 +254,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from diff_base import base_line, resolve_base, short_sha  # noqa: E402
 
 HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
-RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*\t(.*)$')
+RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*$')
+
+_C_ESCAPES = {'a': 7, 'b': 8, 't': 9, 'n': 10, 'v': 11, 'f': 12, 'r': 13, '"': 34, '\\': 92}
+
+
+def git_unquote(name):
+    """A path as git prints it, with its C-style quoting undone.
+
+    Git wraps a name holding a double quote, a backslash or a control byte (and,
+    without core.quotePath=false, any non-ASCII byte) in double quotes, writing
+    those bytes as `\\"`, `\\t` or octal `\\303\\251`. A bare name is returned as is.
+    """
+    if not name.startswith('"'):
+        return name
+    out, i = bytearray(), 1
+    while i < len(name) and name[i] != '"':
+        if name[i] == '\\' and i + 1 < len(name):
+            nxt = name[i + 1]
+            if nxt in '01234567':
+                out.append(int(name[i + 1:i + 4], 8) & 0xFF)
+                i += 4
+                continue
+            out.append(_C_ESCAPES.get(nxt, ord(nxt)))
+            i += 2
+            continue
+        out += name[i].encode('utf-8', 'surrogateescape')
+        i += 1
+    return out.decode('utf-8', 'surrogateescape')
+
+
+def patch_side(line):
+    """(name, path) from a `--- a/X` or `+++ b/X` header line.
+
+    `name` is the token exactly as git wrote it, quotes and prefix included;
+    `path` is the real file name, or None for /dev/null. Git ends the line with
+    a tab when the name holds a space; a name with a real tab in it is quoted.
+    """
+    name = line[4:].rstrip('\n')
+    if name.endswith('\t'):
+        name = name[:-1]
+    if name == '/dev/null':
+        return name, None
+    return name, git_unquote(name)[2:]
 
 # Files the suite physically cannot execute (no headless GL, no device). Shared
 # with scripts/cov_diff.py so both tools agree on what is un-judgeable rather
@@ -278,12 +341,14 @@ COVERAGE = (
 # before COVERAGE, which would otherwise claim them as code.
 GENERATED = (
     ('src/generated/*', 'generated output; mutate the source it is generated from'),
+    ('ui_xml/translations/*', 'generated from translations/*.yml by generate_translations.py'),
 )
 
-# Content no program reads, so no mutant of it could change behaviour. Named in
-# the report and does not make the run incomplete. The bar is "nothing executes
-# this", not "testing it would be awkward" -- anything a program reads belongs
-# in COVERAGE or in the not-covered default, where it stays visible.
+# Content no mutant can judge: nothing executes it, or reverting it only swaps
+# a string or a picture that the translation gates and screenshots look at. Named
+# in the report and does not make the run incomplete. The bar is "there is no
+# logic here", not "testing it would be awkward" -- anything else a program reads
+# belongs in COVERAGE or in the not-covered default, where it stays visible.
 NON_BEHAVIOURAL = (
     ('docs/*',           'documentation'),
     ('*.md',             'documentation'),
@@ -292,6 +357,8 @@ NON_BEHAVIOURAL = (
     ('CONTRIBUTORS.txt', 'project metadata'),
     ('.gitignore',       'project metadata'),
     ('.gitattributes',   'project metadata'),
+    ('translations/*',   'locale strings; the translation gates pin them'),
+    ('assets/images/*',  'picture data'),
 )
 
 # Not covered, with a reason worth stating instead of the generic one. These
@@ -300,11 +367,33 @@ UNMUTATABLE = (
     ('tests/*',        'a test is proven by mutating the code it pins, not by reverting itself'),
     ('lib/*',          'vendored or submodule code; a superproject diff carries no hunks for it'),
     ('patches/*',      'a patch against vendored code; the build applies the stack as a whole'),
-    ('translations/*', 'locale content; the translation gates pin it and a revert cannot'),
+    ('android/gradlew', 'the Gradle wrapper, which Gradle generates'),
 )
+
+# A shell script outside scripts/ (the plugin's installers, platform hooks, git
+# hooks, scripts/helix-claim) takes the tooling strategy: a `.sh` or `.bash` file,
+# or an extensionless one whose first line runs a shell. Checked after the rules
+# above, so tests/, lib/ and patches/ keep their own verdicts.
+SHELL_SUFFIXES = ('.sh', '.bash')
+SHELL_SHEBANG = re.compile(rb'#!\s*\S*/(?:env\s+)?(?:ba|da|k|z)?sh\b')
+
+
+def is_shell_script(path, root):
+    """A shell script by name, or, with @p root, by the shebang of an extensionless file."""
+    name = path.rsplit('/', 1)[-1]
+    if name.endswith(SHELL_SUFFIXES):
+        return True
+    if root is None or '.' in name:
+        return False
+    try:
+        with open(Path(root) / path, 'rb') as f:
+            first = f.readline(128)
+    except OSError:
+        return False
+    return SHELL_SHEBANG.match(first) is not None
 DEFAULT_REASON = 'no mutation strategy covers this path'
 # A run on the merge path. A longer run is a release check (--release).
-MERGE_MAX_MINUTES = 30
+MERGE_MAX_MINUTES = 45
 GITLINK_REASON = 'a submodule pointer; run the gate inside the submodule'
 
 
@@ -324,11 +413,12 @@ def load_untestable(root):
     return out
 
 
-def classify(path, is_gitlink):
+def classify(path, is_gitlink, root=None):
     """('mutate', strategy) | ('inert', reason) | ('uncovered', reason).
 
     The default is 'uncovered'. Every other outcome has to be claimed by a rule,
     which is what keeps a path nobody thought about out of a clean result.
+    @p root, when given, lets an extensionless file be read for its shebang.
     """
     if is_gitlink:
         return 'uncovered', GITLINK_REASON
@@ -344,6 +434,8 @@ def classify(path, is_gitlink):
     for pattern, reason in UNMUTATABLE:
         if fnmatch(path, pattern):
             return 'uncovered', reason
+    if is_shell_script(path, root):
+        return 'mutate', 'tooling'
     return 'uncovered', DEFAULT_REASON
 
 
@@ -410,8 +502,56 @@ def select_only(hunks, only_args):
 
     Each --only value may itself list several patterns separated by commas.
     """
-    patterns = [p.strip() for arg in only_args for p in arg.split(',') if p.strip()]
+    patterns = split_patterns(only_args)
     return [h for h in hunks if any(p in h['file'] for p in patterns)]
+
+
+def split_patterns(args_):
+    """The patterns of a repeatable, comma-separated option."""
+    return [p.strip() for arg in args_ or () for p in arg.split(',') if p.strip()]
+
+
+def first_rank(path, patterns):
+    """The index of the first --first pattern `path` contains, else past them all."""
+    return next((i for i, p in enumerate(patterns) if p in path), len(patterns))
+
+
+# A mutant of a header recompiles every includer: about half a second of wall
+# clock per includer at -j36, and a range's headers run from a dozen includers to
+# thousands. Past this many, a hunk waits for every other hunk in the run.
+HEADER_COSTLY_INCLUDERS = 100
+
+
+def header_fanout(root):
+    """{header path: translation units whose dependency file names it} from build/."""
+    counts, prefix = {}, f'{root}/'
+    name = re.compile(r'(?:^|\s)(?:' + re.escape(prefix) + r')?(include/[\w/.+-]+)')
+    for dirpath, _dirs, names in os.walk(root / 'build'):
+        for n in names:
+            if not n.endswith('.d'):
+                continue
+            try:
+                text = Path(dirpath, n).read_text(errors='replace')
+            except OSError:
+                continue
+            for header in set(name.findall(text)):
+                counts[header] = counts.get(header, 0) + 1
+    return counts
+
+
+# How much of its suites a hunk's filter runs: its own tests, all of Catch2, or
+# all of bats and pytest. A run cut short by its cap has then judged the most.
+SCOPE_NARROW, SCOPE_WHOLE_CATCH2, SCOPE_WHOLE_SCRIPTS = 0, 1, 2
+
+
+def filter_scope(key, default_key, is_compiled):
+    """Which SCOPE_* a group key is, given the defaults it falls back to."""
+    filt, shell, python = key
+    default_filter, default_shell, default_python = default_key
+    if not is_compiled:
+        whole = (shell and shell == default_shell) or (python and python == default_python)
+        return SCOPE_WHOLE_SCRIPTS if whole else SCOPE_NARROW
+    return SCOPE_WHOLE_CATCH2 if filt == default_filter else SCOPE_NARROW
 
 
 # ---------------------------------------------------------------------------
@@ -419,13 +559,68 @@ def select_only(hunks, only_args):
 #
 # One filter for the whole run makes every hunk pay for the union of every
 # file's tests, which is most of what a run costs. Each changed file gets its
-# own: an explicit --tests-for GLOB=FILTER first, else the test files that name
-# the file's stem (Catch2's [#<test file>] tags), else --tests. Hunks sharing a
+# own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
+# it (Catch2's [#<test file>] tags): those naming its stem, the header a source
+# implements, or that header's class (reach_names); a data file also by the tests
+# reaching the sources DATA_CONSUMERS_MAP says read it; plus the cases elsewhere
+# carrying a tag those files own (owned_tags). Else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
 # A stem more test files name than this is a common word, not a file's own tests.
 AUTO_TESTS_MAX_FILES = 12
+# The tests reaching a class through its header or name: a class's own state
+# is reached by under two dozen test files, while the mock client (~290) or the
+# AMS backend base (~80) is reached by so much of the suite that it runs whole.
+AUTO_TESTS_MAX_REACHED = 40
+# The why of a filter auto_tests_filter chose.
+AUTO_TESTS_WHY = 'test files reaching it'
+# Data file glob -> the sources that read it, with the text proving they do.
+DATA_CONSUMERS_MAP = 'scripts/mutate_data_consumers.tsv'
+
+
+def parse_data_consumers(text):
+    """[(glob, source, evidence, names)] from the consumer map's text; ValueError
+    on a row without glob, source and evidence. `names` is the optional fourth
+    field split on commas, () when absent."""
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        fields = [f.strip() for f in line.split('\t')]
+        if len(fields) not in (3, 4) or not all(fields):
+            raise ValueError(f'{DATA_CONSUMERS_MAP}:{n}: expected '
+                             'glob<TAB>source<TAB>evidence[<TAB>names]')
+        names = tuple(x.strip() for x in fields[3].split(',') if x.strip()) \
+            if len(fields) == 4 else ()
+        out.append((fields[0], fields[1], fields[2], names))
+    return out
+
+
+def load_data_consumers(root):
+    """The consumer map's rows, or [] when the repo has none."""
+    f = root / DATA_CONSUMERS_MAP
+    return parse_data_consumers(f.read_text(errors='replace')) if f.is_file() else []
+
+
+def data_consumers(path, rows):
+    """The sources whose reach_names judge `path`: those of its rows that name no
+    reach of their own, in map order."""
+    out = []
+    for glob, source, _evidence, names in rows:
+        if fnmatch(path, glob) and not names and source not in out:
+            out.append(source)
+    return out
+
+
+def data_names(path, rows):
+    """The words `path`'s rows name in place of their source's reach_names: a
+    loader narrower than the file that holds it."""
+    out = []
+    for glob, _source, _evidence, names in rows:
+        if fnmatch(path, glob):
+            out += [n for n in names if n not in out]
+    return out
 
 
 def parse_tests_for(specs):
@@ -439,6 +634,14 @@ def parse_tests_for(specs):
     return out
 
 
+def read_or_empty(path):
+    """A file's text, or '' when it cannot be read."""
+    try:
+        return path.read_text(errors='replace')
+    except OSError:
+        return ''
+
+
 def _test_sources(root):
     """{test file stem: text} for the C++ unit tests."""
     out = {}
@@ -450,23 +653,125 @@ def _test_sources(root):
     return out
 
 
-def auto_tests_filter(path, test_sources):
-    """`[#test_a]~[.]~[slow],...` for the test files naming `path`'s stem, or ''.
+_QUOTED_INCLUDE = re.compile(r'^\s*#\s*include\s*"([^"]+)"', re.M)
 
-    The stem is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
-    `foo_modal` callers' includes but not `foobar`. A stem named by more than
-    AUTO_TESTS_MAX_FILES files says nothing about which tests are this file's.
+
+def reach_names(path, source_text=''):
+    """The words a test that reaches `path` names: its stem, and for a source file
+    the header it implements and that header's class.
+
+    A source implements the included header whose stem is its own or a `_`-prefix
+    of it (the longest), so `foo_bar.cpp` split out of `foo.h`'s class is reached
+    through `foo.h` by tests that never name `foo_bar`. The class is the header
+    stem in CamelCase (`foo_bar` -> `FooBar`), counted only when the source
+    defines a member of it (`FooBar::`), since tests reach a class by its name.
     """
     stem = path.rsplit('/', 1)[-1].rsplit('.', 1)[0]
-    if len(stem) < 4:
-        return ''
-    word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(stem) + r'(?![A-Za-z0-9_])')
-    hits = [name for name, text in test_sources.items() if word.search(text)]
-    if not hits or len(hits) > AUTO_TESTS_MAX_FILES:
+    names = [stem]
+    if path.endswith(HEADER_SUFFIXES) or not source_text:
+        return names
+    implemented = ''
+    for inc in _QUOTED_INCLUDE.findall(source_text):
+        h = inc.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+        if (h == stem or stem.startswith(h + '_')) and len(h) > len(implemented):
+            implemented = h
+    if not implemented:
+        return names
+    if implemented != stem:
+        names.append(implemented)
+    cls = ''.join(part[:1].upper() + part[1:] for part in implemented.split('_'))
+    if re.search(r'(?<![A-Za-z0-9_])' + re.escape(cls) + r'\s*::', source_text):
+        names.append(cls)
+    return names
+
+
+def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source_text='',
+                      consumers=(), extra_names=()):
+    """`[#test_a]~[.]~[slow],...` for the test files naming any of `path`'s
+    reach_names, those of a `consumers` (source, text) pair that reads it, or one
+    of `extra_names`, or ''.
+
+    Each name is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
+    `foo_modal` callers' includes but not `foobar`. Names under four characters
+    say nothing and are skipped. A stem more than `max_files` files name is a
+    common word: the answer is '', unless consumers or extra_names give a reach,
+    which then stands alone. The header and class a source implements
+    may bring the total up to AUTO_TESTS_MAX_REACHED (or `max_files`, if larger);
+    past that the answer is '' too: a filter missing some of the file's tests
+    reports their kills as survivors, so the whole --tests judges it instead.
+    """
+    names = reach_names(path, source_text)
+    for source, text in consumers:
+        names += [n for n in reach_names(source, text) if n not in names]
+    names += [n for n in extra_names if n not in names]
+    hits = set()
+    for i, name in enumerate(names):
+        if len(name) < 4:
+            continue
+        word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(name) + r'(?![A-Za-z0-9_])')
+        hits.update(t for t, text in test_sources.items() if word.search(text))
+        if i == 0 and len(hits) > max_files:
+            if not (consumers or extra_names):
+                return ''
+            # The map's declared reach is the evidence a common stem is not.
+            hits = set()
+    if not hits or len(hits) > max(max_files, AUTO_TESTS_MAX_REACHED):
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
     # the exclusions --tests' default has: [.] and [slow] stay out.
-    return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
+    return ','.join([f'[#{name}]~[.]~[slow]' for name in sorted(hits)]
+                    + [f'[{tag}]~[.]~[slow]' for tag in owned_tags(hits, test_sources)])
+
+
+# TEST_CASE("name", "[tags]") and TEST_CASE_METHOD(Fixture, "name", "[tags]"): the
+# tags string of each case. Adjacent string literals are not joined; no case
+# here splits its tags across two.
+_CASE_TAGS = re.compile(
+    r'\b(?:TEST_CASE|TEST_CASE_METHOD|TEMPLATE_TEST_CASE)\s*\(\s*(?:[A-Za-z_][\w:<>]*\s*,\s*)?'
+    r'"(?:[^"\\]|\\.)*"\s*,\s*"([^"]*)"')
+# A tag whose cases the selected files hold at least this share of is about the
+# code those files test, so its cases elsewhere reach that code too.
+OWNED_TAG_SHARE = 2 / 3
+# A tag in more unselected files than this is a theme, not one behaviour.
+OWNED_TAG_MAX_OTHER_FILES = 3
+
+
+def case_tags(test_sources):
+    """{test file stem: {tag: number of cases carrying it}}, hidden and special
+    tags ([.], [!...], [#...], [@...], [slow]) left out. About 0.3s for the suite."""
+    out = {}
+    for stem, text in test_sources.items():
+        counts = {}
+        for tags in _CASE_TAGS.findall(text):
+            for tag in set(re.findall(r'\[([^\]]+)\]', tags)):
+                if tag[0] not in '.!#@' and tag != 'slow':
+                    counts[tag] = counts.get(tag, 0) + 1
+        out[stem] = counts
+    return out
+
+
+def owned_tags(selected, test_sources):
+    """The tags the `selected` test files own whose cases also sit in others, sorted.
+
+    A test reaching the code through a header it shares with the whole suite
+    names none of the file's words, but its case often carries the tag of the
+    behaviour the selected files pin: [remap-restart] in a session-wiring test.
+    A tag counts when the selected files hold at least OWNED_TAG_SHARE of its
+    cases and no more than OWNED_TAG_MAX_OTHER_FILES other files carry it.
+    """
+    tags = case_tags(test_sources)
+    inside = {}
+    for stem in selected:
+        for tag, n in tags.get(stem, {}).items():
+            inside[tag] = inside.get(tag, 0) + n
+    owned = []
+    for tag, n in inside.items():
+        others = [counts[tag] for stem, counts in tags.items()
+                  if stem not in selected and tag in counts]
+        if others and len(others) <= OWNED_TAG_MAX_OTHER_FILES \
+                and n >= OWNED_TAG_SHARE * (n + sum(others)):
+            owned.append(tag)
+    return sorted(owned)
 
 
 def suite_paths(spec):
@@ -523,15 +828,18 @@ def script_tests_for(path, auto, shell_sources, python_sources, shell_default, p
     return shell_default, python_default, 'the whole bats and pytest suites'
 
 
-def filter_for(path, tests_for, auto, test_sources, default):
-    """(filter, why) for one changed file."""
+def filter_for(path, tests_for, auto, test_sources, default, max_files=AUTO_TESTS_MAX_FILES,
+               source_text='', consumers=(), extra_names=()):
+    """(filter, why) for one changed file, whose text is `source_text`, read by
+    the `consumers` (source, text) pairs."""
     for glob, filt in tests_for:
         if fnmatch(path, glob):
             return filt, f'--tests-for {glob}'
     if auto:
-        filt = auto_tests_filter(path, test_sources)
+        filt = auto_tests_filter(path, test_sources, max_files, source_text, consumers,
+                                 extra_names)
         if filt:
-            return filt, 'test files naming it'
+            return filt, AUTO_TESTS_WHY
     return default, '--tests'
 
 
@@ -557,7 +865,7 @@ def adopt_baseline_reds(suites, suite):
     alone (root, no jobpool, no shellcheck). They can neither detect nor miss a
     mutant, so they are set aside by name and every other case judges. Returns the
     suite's state once they are: GREEN, or DETECTED/INCONCLUSIVE when it never
-    settles. Catch2 is never adopted: its baseline is red only when the tree is.
+    settles. Catch2 is never adopted by name: establish_baseline asks it twice.
     """
     for _ in range(MAX_BASELINE_RED_PASSES):
         text = suites.last_output
@@ -603,6 +911,7 @@ def changed_files(root, base):
     Read from `git diff --raw` rather than from the hunks, so a file the text
     diff has nothing to say about -- a binary asset, a submodule pointer, a mode
     change -- still reaches the report instead of vanishing between the two.
+    `-z` hands every path over unquoted, each in its own NUL-separated field.
     """
     # Files: base against the working tree, so uncommitted edits count, but
     # with submodules ignored: git refuses a submodule path that is a symlink
@@ -610,19 +919,24 @@ def changed_files(root, base):
     # carries lib/. Submodule pointers: base against HEAD, which never reads
     # the working tree.
     seen = {}
-    for args in (['--ignore-submodules=all', base], [base, 'HEAD']):
-        r = run(['git', '-c', 'core.quotePath=false', 'diff', '--raw', *args], cwd=root)
+    for args, gitlinks_only in ((['--ignore-submodules=all', base], False),
+                                ([base, 'HEAD'], True)):
+        r = run(['git', 'diff', '--raw', '-z', *args], cwd=root)
         if r.returncode != 0:
             sys.exit(f'git diff --raw failed:\n{r.stdout}')
-        for line in r.stdout.splitlines():
-            m = RAW_RE.match(line)
+        fields, i = r.stdout.split('\0'), 0
+        while i < len(fields):
+            m = RAW_RE.match(fields[i])
             if not m:
+                i += 1
                 continue
-            old_mode, new_mode, _status, paths = m.groups()
-            path = paths.split('\t')[-1]      # rename: destination is what exists now
+            old_mode, new_mode, status = m.groups()
+            npaths = 2 if status in 'RC' else 1
+            path = fields[i + npaths]               # rename: destination is what exists now
             gitlink = '160000' in (old_mode, new_mode)
-            if gitlink or args[0] != base:
+            if gitlink or not gitlinks_only:
                 seen.setdefault(path, gitlink)
+            i += 1 + npaths
     return list(seen.items())
 
 
@@ -633,29 +947,43 @@ def collect_hunks(root, base):
     `git apply -R` can undo that hunk alone while its siblings stay applied.
     The diff is taken over the WHOLE tree; what may be mutated is decided by
     classify(), which reports what it declines rather than filtering it away.
+
+    A hunk is reverted in place, in the file as it exists now (in_place_header).
+    `old_file` is where its pre-image lived at `base`, which differs from
+    `file` only for a rename or copy. Both come from the `---`/`+++` lines,
+    unquoted: the `diff --git a/X b/Y` line cannot be split reliably when a
+    name holds ` b/` itself.
     """
     r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', '--ignore-submodules=all', base],
             cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff failed:\n{r.stdout}')
-    hunks, path, current, hdr_lines = [], None, None, []
+    hunks, path, old_path, current, hdr_lines = [], None, None, None, []
 
     def flush():
-        if path and current:
-            hunks.append({'file': path, 'line': current['line'],
+        if (path or old_path) and current:
+            hunks.append({'file': path or old_path, 'old_file': old_path or path,
+                          'line': current['line'],
                           'old_line': current['old_line'],
                           'body': list(current['body']),
-                          'patch': ''.join(hdr_lines + current['body'])})
+                          'patch': ''.join(in_place_header(hdr_lines) + current['body'])})
 
     for line in r.stdout.splitlines(keepends=True):
         if line.startswith('diff --git '):
             flush()
-            current = None
-            hdr_lines = [line]
-            path = line.split(' b/')[-1].strip()
-        elif current is None and (line.startswith(('index ', '--- ', '+++ ',
+            current, old_path = None, None
+            hdr_lines, path = [line], None
+        elif current is None and line.startswith(('--- ', '+++ ')):
+            side = patch_side(line)[1]
+            if line.startswith('--- '):
+                old_path = side
+            else:
+                path = side
+            hdr_lines.append(line)
+        elif current is None and (line.startswith(('index ',
                                                    'old mode', 'new mode',
-                                                   'similarity', 'rename ',
+                                                   'similarity', 'dissimilarity',
+                                                   'rename ', 'copy ',
                                                    'new file', 'deleted file'))):
             hdr_lines.append(line)
         elif line.startswith('@@'):
@@ -667,6 +995,35 @@ def collect_hunks(root, base):
             current['body'].append(line)
     flush()
     return hunks
+
+
+# Headers that make `git apply -R` do more than undo the hunk's lines: it would
+# move a renamed file back to its old path, or chmod the file, and restoring the
+# bytes at the current path puts back neither. The mutant is the edit; a rename
+# or mode change on its own is a compile-only question no suite answers.
+_NOT_IN_PLACE = ('old mode ', 'new mode ', 'similarity index ', 'dissimilarity index ',
+                 'rename from ', 'rename to ', 'copy from ', 'copy to ')
+
+
+def in_place_header(hdr_lines):
+    """A file header whose reversal touches only the file at its current path."""
+    out = []
+    for line in hdr_lines:
+        if line.startswith(_NOT_IN_PLACE):
+            continue
+        if line.startswith('index '):
+            # `index a..b 100644`: the mode suffix belongs to a mode change too.
+            line = ' '.join(line.split()[:2]) + '\n'
+        out.append(line)
+    plus = next((ln for ln in out if ln.startswith('+++ ')), None)
+    if plus is None or plus.startswith('+++ /dev/null'):
+        return out                      # no text hunk, or a deletion: the old path IS the path
+    name = patch_side(plus)[0]         # `b/<path>`, or `"b/<path>"` when quoted
+    a_name = '"a/' + name[3:] if name.startswith('"') else 'a/' + name[2:]
+    tail = plus[4 + len(name):]        # git's tab after a name with a space, and the newline
+    return [f'diff --git {a_name} {name}\n' if ln.startswith('diff --git ')
+            else f'--- {a_name}{tail}' if ln.startswith('--- ') and not ln.startswith('--- /dev/null')
+            else ln for ln in out]
 
 
 # ---------------------------------------------------------------------------
@@ -712,14 +1069,31 @@ def code_only_lines(text, syntax='c'):
     output here, which is what lets a comment-only hunk be recognised without
     guessing from the shape of a line (`*` starts a doxygen continuation AND a
     pointer store; `//` appears inside string literals).
+    """
+    return split_code_and_comments(text, syntax)[0]
+
+
+def comment_only_lines(text, syntax='c'):
+    """Split source into lines holding only each line's comment text.
+
+    The complement of code_only_lines(): a line inside a block comment keeps
+    its text, a string literal that looks like a comment keeps none.
+    scripts/check_comment_archaeology.py reads comments through this.
+    """
+    return split_code_and_comments(text, syntax)[1]
+
+
+def split_code_and_comments(text, syntax='c'):
+    """(code lines, comment lines) of a source, one entry per line each.
 
     The scanner tracks block comments, string/char literals and C++11 raw
-    strings.
+    strings. Comment openers and closers belong to neither side.
     """
     rules = COMMENT_SYNTAX[syntax]
     line_tokens, block, quotes = rules['line'], rules['block'], rules['quotes']
     hash_style = '#' in line_tokens
     out, line = [], []
+    comments, comment = [], []
     state, raw_delim = 'code', ''
     i, n = 0, len(text)
     while i < n:
@@ -727,6 +1101,8 @@ def code_only_lines(text, syntax='c'):
         if c == '\n':
             out.append(''.join(line))
             line = []
+            comments.append(''.join(comment))
+            comment = []
             i += 1
             if state == 'line':
                 state = 'code'
@@ -763,6 +1139,7 @@ def code_only_lines(text, syntax='c'):
             i += 1
             continue
         if state == 'line':
+            comment.append(c)
             i += 1
             continue
         if state == 'block':
@@ -770,6 +1147,7 @@ def code_only_lines(text, syntax='c'):
                 state = 'code'
                 i += len(block[1])
                 continue
+            comment.append(c)
             i += 1
             continue
         if state == 'raw':
@@ -791,7 +1169,8 @@ def code_only_lines(text, syntax='c'):
         if (state == 'str' and c == '"') or (state == 'chr' and c == "'"):
             state = 'code'
     out.append(''.join(line))
-    return out
+    comments.append(''.join(comment))
+    return out, comments
 
 
 HEADER_SUFFIXES = ('.h', '.hpp', '.hh', '.hxx', '.inc')
@@ -809,6 +1188,7 @@ def hunk_changed_lines(root, base, h, cache):
     as usual rather than guess from a partial read.
     """
     path = h['file']
+    old_path = h.get('old_file', path)
     syntax = comment_syntax(path)
 
     def sides(key, loader):
@@ -820,10 +1200,10 @@ def hunk_changed_lines(root, base, h, cache):
         return cache[key]
 
     def pre_loader():
-        r = run(['git', 'show', f'{base}:{path}'], cwd=root)
+        r = run(['git', 'show', f'{base}:{old_path}'], cwd=root)
         return r.stdout if r.returncode == 0 else ''
 
-    pre = sides(('pre', path), pre_loader)
+    pre = sides(('pre', old_path), pre_loader)
     post = sides(('post', path), lambda: (root / path).read_text(errors='replace'))
     if pre is None or post is None:
         return False
@@ -1341,6 +1721,97 @@ def suite_outcome(name, returncode, output, who=''):
     return GREEN, ''
 
 
+class BaselineRefused(RuntimeError):
+    """A filter's suites cannot judge a mutant: red, silent, or matching nothing."""
+
+
+class BaselineUnaffordable(BaselineRefused):
+    """A baseline took longer on an earlier run here than this run has left."""
+
+
+BASELINE_RECORD = 'build/mutate-baseline-secs.json'
+_BASELINE_RECORD_LOCK = threading.Lock()
+
+
+def baseline_record_key(suite, args, shards=None):
+    """What a baseline's time is recorded under: the suite and the filter it ran,
+    and for catch2 the --shards it was asked for (`shards`, default args.shards),
+    since how many shards run at once sets its wall time."""
+    if suite == 'catch2':
+        return f'catch2 shards={args.shards if shards is None else shards} {args.tests}'
+    spec = {'bats': args.shell_tests, 'pytest': args.python_tests}.get(suite, '')
+    return f'{suite} {spec}'
+
+
+def read_baseline_record(root):
+    """{key: {'secs': float, 'refused': bool}} from earlier runs in this checkout."""
+    try:
+        data = json.loads((root / BASELINE_RECORD).read_text())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for k, v in data.items():
+        if isinstance(v, dict) and isinstance(v.get('secs'), (int, float)):
+            out[k] = {'secs': float(v['secs']), 'refused': bool(v.get('refused'))}
+    return out
+
+
+def _store_baseline_record(root, data):
+    path = root / BASELINE_RECORD
+    try:
+        tmp = path.with_name(path.name + '.tmp')
+        tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + '\n')
+        tmp.replace(path)
+    except OSError:
+        pass                       # no build/ here: the next run just measures again
+
+
+def write_baseline_record(root, key, secs, at_least=False):
+    """Keep `secs` for `key`, measured by a run that started this baseline.
+    `at_least`: a lower bound, which never lowers a time kept. Either way the
+    entry is no longer marked refused: it has been run again."""
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        kept = data.get(key, {}).get('secs', 0)
+        data[key] = {'secs': round(max(kept, secs) if at_least else secs, 1),
+                     'refused': False}
+        _store_baseline_record(root, data)
+
+
+def check_baseline_affordable(root, suite, args):
+    """Raise BaselineUnaffordable when the kept time for this baseline exceeds what is
+    left before the deadline. A run with no deadline, or no kept time, always starts it.
+
+    A refusal is made once per measurement: it marks the entry, and the next run
+    that would refuse it runs the baseline instead, whose time replaces the entry.
+    A time measured under load therefore costs one refused run, never every run
+    after it, and a baseline that truly does not fit is re-measured every other run.
+    """
+    if RUN_STATE.deadline_at is None:
+        return
+    key = baseline_record_key(suite, args)
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        kept = data.get(key)
+        left = RUN_STATE.deadline_at - time.monotonic()
+        if kept is None or kept['secs'] < left:
+            return
+        if kept['refused']:
+            print(f'  {suite}: refused last time at {kept["secs"]:.0f}s, so measured again '
+                  f'with {max(left, 0):.0f}s left', flush=True)
+            return
+        kept['refused'] = True
+        _store_baseline_record(root, data)
+    spec = key.split(' ', 2 if suite == 'catch2' else 1)[-1]
+    raise BaselineUnaffordable(
+        f'the {suite} baseline for {spec!r} took {kept["secs"]:.0f}s on an earlier run here '
+        f'({BASELINE_RECORD}), more than the {max(left, 0):.0f}s left of --max-minutes '
+        f'(the next run measures it again); give those files a narrower --tests-for, '
+        f'or run them alone with --only')
+
+
 class BuildUnavailable(RuntimeError):
     """The Catch2 binary is not there, so no verdict about a mutant is possible.
 
@@ -1532,6 +2003,13 @@ class JobBudget:
 JOBS = JobBudget()
 
 
+def header_includer(root, path):
+    """The source of the same stem as a header, relative to `root`, or None."""
+    stem = Path(path).name.rsplit('.', 1)[0]
+    found = sorted((root / 'src').rglob(f'{stem}.cpp')) if (root / 'src').is_dir() else []
+    return str(found[0].relative_to(root)) if found else None
+
+
 def syntax_rejects(root, path, log):
     """True when the reverted file does not even compile on its own.
 
@@ -1539,17 +2017,21 @@ def syntax_rejects(root, path, log):
     the one file is seconds, and a hunk that removes a declaration its own file
     still uses is rejected there. It is a negative filter only: passing says
     nothing, because a revert can break a DIFFERENT translation unit, which only
-    the real build sees. Headers are skipped for that reason -- reverting one
-    breaks its consumers, not itself, so the check would always pass.
+    the real build sees. A header is asked of the source of its own stem, its
+    likeliest user, since a failing rebuild of its includers costs minutes.
     """
     if path.endswith(HEADER_SUFFIXES):
-        return False
+        path = header_includer(root, path)
+        if path is None:
+            return False
     checker = root / 'scripts' / 'syntax_check.py'
     if not checker.exists():
         return False
     rc, out = run_tracked([sys.executable, str(checker), path], root)
     log.write(out)
-    return rc != 0
+    # A failed compile only. A reverted new file leaves nothing to compile, and
+    # flags the checker could not get judge nothing: the real build decides those.
+    return rc != 0 and f'{path}: FAILED' in out
 
 
 # Every child that builds, runs a suite or writes the tree leads its own
@@ -1595,11 +2077,39 @@ class OutOfTime(RuntimeError):
 
 class _RunState:
     out_of_time = False
+    # time.monotonic() at which --max-minutes runs out, or None for no cap.
+    deadline_at = None
     # A stop signal is being handled: nothing new may start.
     stopping = False
+    # Assertions this run stopped trusting; a group child leaves them in a file too.
+    flaky_sites = set()
+    flaky_file = None
 
 
 RUN_STATE = _RunState()
+
+
+def set_flaky_aside(plan, sites):
+    """These assertions judge no mutant of `plan` from now on, and the report says so."""
+    plan.flaky |= sites
+    RUN_STATE.flaky_sites |= sites
+    if RUN_STATE.flaky_file:
+        with open(RUN_STATE.flaky_file, 'a') as f:
+            f.write(''.join(f'{site}\n' for site in sorted(sites)))
+
+
+def flaky_lines():
+    """The report's lines naming every assertion set aside, or none."""
+    if not RUN_STATE.flaky_sites:
+        return []
+    return ['\nset aside as flaky, failing once and passing when asked again; they judged '
+            'no later mutant:'] + [f'  {site}' for site in sorted(RUN_STATE.flaky_sites)]
+
+
+def flaky_clause():
+    """What a CLEAN line has to admit."""
+    n = len(RUN_STATE.flaky_sites)
+    return f' ({n} flaky assertion{"s" if n != 1 else ""} set aside)' if n else ''
 
 
 def tracked_proc(cmd, cwd, stdin=False, stdout=None):
@@ -1811,6 +2321,14 @@ def fit_shards(requested, matched):
 SHARDS_PER_SLOT = 4
 
 
+_CATCH2_FAILURE_SITE = re.compile(r'^(.+:\d+): FAILED:', re.M)
+
+
+def catch2_failure_sites(output):
+    """The `file:line` of every failing assertion a Catch2 run names."""
+    return set(_CATCH2_FAILURE_SITE.findall(output))
+
+
 class Catch2Plan:
     """How the C++ suite is split, and what the baseline measured of each part.
 
@@ -1823,6 +2341,10 @@ class Catch2Plan:
         self.width = max(1, width)         # shards run at once, at most
         self.secs = {}                     # shard -> baseline wall seconds
         self.limits = None                 # shard -> mutant timeout seconds
+        self.failed_sites = set()          # what the last baseline run named
+        # Assertions that failed one baseline run and passed the next. They fail
+        # under load with nothing wrong, so they cannot judge a mutant.
+        self.flaky = set()
 
     def order(self):
         """Shard indices, longest baseline first; index order before one."""
@@ -1852,7 +2374,7 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
                for i in plan.order()]
     measuring = plan.limits is None
     running, tokens = [], []
-    detected, unexplained, hung = False, '', ''
+    detected, unexplained, hung = None, '', ''
 
     def reap(entry, kill=False):
         i, who, p, out_f, t0, _ = entry
@@ -1889,8 +2411,13 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
                 running.remove(entry)
                 out = reap(entry)
                 state, why = suite_outcome('catch2', entry[2].returncode, out, entry[1])
+                sites = catch2_failure_sites(out)
+                if measuring:
+                    plan.failed_sites |= sites
+                if state == DETECTED and sites and sites <= plan.flaky:
+                    state = GREEN
                 if state == DETECTED:
-                    detected = True
+                    detected = (entry[0], sites)
                 elif state == INCONCLUSIVE and not unexplained:
                     unexplained = why
             if detected:
@@ -1914,8 +2441,42 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
     if hung:
         return DETECTED, TIMED_OUT, hung
     if detected:
-        return DETECTED, '', ''
+        return DETECTED, '', detected
     return (INCONCLUSIVE, unexplained, '') if unexplained else (GREEN, '', '')
+
+
+REPEATED, NOT_REPEATED, REPEAT_UNEXPLAINED = 'repeated', 'not repeated', 'unexplained'
+
+
+def detection_repeats(root, test_bin, filt, plan, shard, sites):
+    """Whether the shard that detected a mutant fails again at the same assertions.
+
+    A wall-clock budget in a test can run out on a machine a pool is loading, with
+    the mutant nowhere near it, and `killed` is the verdict nobody re-checks. Run
+    at normal CPU priority (its I/O class and any peer's load stay as they are, so
+    a flake can still repeat) under twice the shard's limit. A failure elsewhere
+    leaves these assertions unconfirmed, and the suite's re-run judges the other.
+    A crash or a stall names no failure, so it says nothing either way.
+    """
+    argv = catch2_argv(test_bin, filt) + ['-x', '1']
+    if plan.shards > 1:
+        argv += ['--shard-count', str(plan.shards), '--shard-index', str(shard)]
+    with normal_priority(), tempfile.TemporaryFile(mode='w+', encoding='utf-8',
+                                                   errors='replace') as out_f:
+        p = tracked_proc(argv, root, stdout=out_f)
+        try:
+            p.wait(timeout=plan.limits[shard] * 2)
+        except subprocess.TimeoutExpired:
+            _signal_procs([p], signal.SIGKILL)
+            p.wait()
+            return REPEAT_UNEXPLAINED
+        finally:
+            untrack_proc(p)
+        out_f.seek(0)
+        out = out_f.read()
+    if suite_detected('catch2', out):
+        return REPEATED if not sites or catch2_failure_sites(out) & sites else NOT_REPEATED
+    return REPEAT_UNEXPLAINED if p.returncode != 0 else NOT_REPEATED
 
 
 def run_confirmed(suites, name):
@@ -1980,6 +2541,8 @@ class Suites:
         # build before it: what adopt_baseline() measures.
         self.last_secs = None
         self.last_output = ''             # what the last bats/pytest run printed
+        # () -> Suites for the whole of --tests, in this tree; or None.
+        self.wider = None
 
     def _set_root(self, root):
         self.root = root
@@ -2187,13 +2750,182 @@ class Suites:
         re-run goes at normal priority: a run yielding to everything else on
         the host has no bound on how long it can be starved.
         """
-        state, why, who = self._run_once(name, 1.0)
+        state, why, who = self._run_repeated(name, 1.0)
         if why != TIMED_OUT:
             return state, why
         note(f'[{who} hit its limit; re-running at 2x] ')
         with normal_priority():
-            state, why, _ = self._run_once(name, 2.0)
+            state, why, _ = self._run_repeated(name, 2.0)
         return state, why
+
+    def _run_repeated(self, name, scale):
+        """One suite run whose detection, if any, has repeated.
+
+        A failure that does not repeat judges nothing from then on, and the shards
+        stopped at it have still to run, so the suite runs again. Each pass sets
+        aside at least one more assertion, so this ends.
+        """
+        while True:
+            state, why, who = self._run_once(name, scale)
+            if (state != DETECTED or why or name != 'catch2' or not self.catch2.limits
+                    or RUN_STATE.out_of_time):
+                return state, why, who
+            shard, sites = who
+            outcome = detection_repeats(self.root, self.catch2_bin, self.args.tests,
+                                        self.catch2, shard, sites)
+            if outcome == REPEATED:
+                return state, why, who
+            named = ', '.join(sorted(sites)) or 'a failure naming no assertion'
+            if outcome == REPEAT_UNEXPLAINED or not sites:
+                return INCONCLUSIVE, f'{named} failed, and its repeat named no failure', ''
+            set_flaky_aside(self.catch2, sites)
+            note(f'[{named} failed once and not again] ')
+
+
+def establish_baseline(suites, needed):
+    """Run `needed` once on the baseline and adopt their limits.
+
+    Raises BaselineRefused when a suite cannot judge a mutant: a red one makes
+    every mutant read as killed, and one that cannot report judges nothing.
+    """
+    args = suites.args
+    started = {}
+    # fit_shards narrows args.shards below; the record is keyed on what was asked for.
+    asked_shards = args.shards
+    if 'catch2' in needed:
+        # Counting the cases is part of what the catch2 baseline costs.
+        check_baseline_affordable(suites.root, 'catch2', args)
+        started['catch2'] = time.monotonic()
+        suites.ensure_catch2_binary()
+        matched = count_catch2_cases(suites.root, suites.catch2_bin, args.tests)
+        if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key('catch2', args, asked_shards),
+                                  time.monotonic() - started['catch2'], at_least=True)
+            raise OutOfTime()
+        if matched is not None:
+            try:
+                args.shards = fit_shards(args.shards, matched)
+                suites.catch2 = Catch2Plan(
+                    fit_shards(args.shards * SHARDS_PER_SLOT, matched), args.shards)
+            except ValueError as e:
+                raise BaselineRefused(
+                    f'--tests {args.tests!r} {e}. Check the tag spelling '
+                    f'with: build/bin/helix-tests {args.tests!r} --list-tests') from e
+            print(f'  catch2: {matched} case(s) match {args.tests!r}, '
+                  f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
+    for suite in sorted(needed):
+        if suite not in started:
+            check_baseline_affordable(suites.root, suite, args)
+            started[suite] = time.monotonic()
+        state, why = suites.run(suite)
+        if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
+                                  time.monotonic() - started[suite], at_least=True)
+            raise OutOfTime()
+        if state == DETECTED and suite == 'catch2':
+            # A wall-clock budget in a test can run out on a machine this run
+            # shares, and one such case must not cost a night's run its filter.
+            # Asked once more, at normal priority; red twice is a red tree.
+            plan = suites.catch2
+            seen, plan.failed_sites = plan.failed_sites, set()
+            with normal_priority():
+                state, why = suites.run(suite)
+            if RUN_STATE.out_of_time:
+                raise OutOfTime()
+            if state == GREEN:
+                set_flaky_aside(plan, seen)
+                print(f'  catch2: red once and green on a re-run, so these judge no mutant: '
+                      f'{", ".join(sorted(seen))}', flush=True)
+        if state == DETECTED and suite in ('bats', 'pytest'):
+            state = adopt_baseline_reds(suites, suite)
+            if RUN_STATE.out_of_time:
+                raise OutOfTime()
+        if state == DETECTED:
+            raise BaselineRefused(f'baseline {suite} suite is RED. Fix it first, or every '
+                                  f'mutant will read as killed. See {args.log}')
+        if state == INCONCLUSIVE:
+            # No re-run here: the baseline exists to show the harness works, and
+            # a runner that cannot report is a reason to stop rather than to ask
+            # a second time.
+            raise BaselineRefused(f'baseline {suite} suite judged nothing - {why}. Every '
+                                  f'mutant would be measured by a suite that cannot report. '
+                                  f'See {args.log}')
+        # From the start of this baseline: the case count and any re-run are its cost too.
+        write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
+                              time.monotonic() - started[suite])
+        lo, hi = suites.adopt_baseline(suite, suites.last_secs)
+        span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
+        per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
+        print(f'  {suite} green ({suites.last_secs:.0f}s; mutant timeout {span}{per})', flush=True)
+
+
+class FilterBaselines:
+    """One baseline per filter for a --pool run, taken the first time a hunk needs it.
+
+    Each runs in the tree the run started in, which no mutant ever touches, so a
+    worker can take one between mutants whatever its own copy holds. A refusal is
+    kept: every hunk of that filter is unjudged, and every other filter carries on.
+    """
+
+    def __init__(self, root, args, log, key_of, needed_of):
+        self.root, self.args, self.log = root, args, log
+        self.key_of, self.needed_of = key_of, needed_of
+        self.whole_key = (args.tests, '', '')
+        needed_of.setdefault(self.whole_key, {'catch2'})
+        self.locks = {key: threading.Lock() for key in needed_of}
+        self.results = {}
+        self._log_lock = threading.Lock()
+
+    def _establish(self, key):
+        args = copy.copy(self.args)
+        args.tests, args.shell_tests, args.python_tests = key
+        buf = io.StringIO()
+        suites = Suites(self.root, args, buf)
+        try:
+            establish_baseline(suites, self.needed_of[key])
+        except BaselineUnaffordable as e:
+            print(f'  not started for {describe_key(key)}: {e}', flush=True)
+            return e
+        except BaselineRefused as e:
+            print(f'  FAIL for {describe_key(key)}: {e}', flush=True)
+            return e
+        finally:
+            with self._log_lock:
+                self.log.write(f'\n===== baseline {describe_key(key)} =====\n')
+                self.log.write(buf.getvalue())
+                self.log.flush()
+        return suites
+
+    def suites_for(self, h):
+        """The established Suites judging this hunk; raises BaselineRefused."""
+        return self._established(self.key_of[h['file']])
+
+    def _established(self, key):
+        with self.locks[key]:
+            if key not in self.results:
+                self.results[key] = self._establish(key)
+        if isinstance(self.results[key], BaselineRefused):
+            raise self.results[key]
+        return self.results[key]
+
+    def take_whole_suite_first(self, hunks):
+        """The whole suite's baseline now, when any hunk or survivor will need it."""
+        if self.args.confirm_survivors or any(self.key_of[h['file']] == self.whole_key
+                                              for h in hunks):
+            try:
+                self._established(self.whole_key)
+            except BaselineUnaffordable:
+                pass              # named by _establish; its hunks read unjudged
+
+    def wider_for(self, h, plan, tree_root, log):
+        """() -> the whole suite's Suites in this tree, or None when `h` has it already.
+
+        A callable, so a run with no survivor never pays that baseline.
+        """
+        if ('catch2' not in plan['suites'] or not self.args.confirm_survivors
+                or self.key_of[h['file']] == self.whole_key):
+            return None
+        return lambda: self._established(self.whole_key).for_tree(tree_root, log)
 
 
 # ---------------------------------------------------------------------------
@@ -2208,6 +2940,9 @@ class Suites:
 # ---------------------------------------------------------------------------
 UNBUILT_MUTANT = ('the build reported success and left the test binary '
                   'untouched, so the suite ran a binary this mutant is not in')
+# A source file gone from the tree does not make the binary out of date, so make
+# keeps the old object linked and any suite would judge the unreverted code.
+DELETED_SOURCE = 'its revert deletes a new source file, which no build takes out of the binary'
 
 
 class TreeDrift(RuntimeError):
@@ -2234,26 +2969,35 @@ def binary_fingerprint(path):
     return st.st_size, st.st_mtime_ns
 
 
-def restore_file(root, rel, original):
-    """Put one file back the way the run found it.
+def file_mode(path):
+    """The permission bits of `path`, or None when it is not a file."""
+    return stat.S_IMODE(path.stat().st_mode) if path.is_file() else None
+
+
+def restore_file(root, rel, original, mode=None):
+    """Put one file back the way the run found it: its bytes, and its `mode`
+    when given, since `git apply` writes a file anew with the umask's bits.
 
     touch(1)ed because make compares mtimes: a byte-identical restore with an
     older mtime leaves make nothing to do, and the next mutant's suite runs the
     previous mutant's binary.
 
     Returns whether anything had to be written. A file already holding its
-    original bytes is left alone, mtime included: it never held a mutant, so
-    no build has seen one, and touching it would only recompile it.
+    original bytes and mode is left alone, mtime included: it never held a
+    mutant, so no build has seen one, and touching it would only recompile it.
     """
     target = root / rel
     current = target.read_bytes() if target.is_file() else None
-    if current == original:
+    if current == original and (mode is None or file_mode(target) in (None, mode)):
         return False
     if original is None:
         target.unlink(missing_ok=True)
         return True
-    target.write_bytes(original)
-    os.utime(target, None)
+    if current != original:
+        target.write_bytes(original)
+        os.utime(target, None)
+    if mode is not None:
+        target.chmod(mode)
     return True
 
 
@@ -2292,22 +3036,26 @@ class TreeGuard:
 
     def __init__(self, root):
         self.root, self.pristine, self.dirty = root, {}, set()
+        self.modes = {}
+        # A restored source leaves its mutant in the binary until the next build.
+        self.binary_holds_mutant = False
 
     def capture(self, rel):
         target = self.root / rel
         self.pristine.setdefault(rel, target.read_bytes() if target.is_file() else None)
+        self.modes.setdefault(rel, file_mode(target))
 
     def mark(self, rel):
         self.dirty.add(rel)
 
     def restore(self, rel):
-        restore_file(self.root, rel, self.pristine[rel])
+        restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))
         self.dirty.discard(rel)
 
     def restore_all(self):
         """Restore every marked file; the paths that needed writing."""
         written = [rel for rel in sorted(self.dirty)
-                   if restore_file(self.root, rel, self.pristine[rel])]
+                   if restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))]
         self.dirty.clear()
         return written
 
@@ -2389,6 +3137,95 @@ def record_proof(root, message, head):
     if r.returncode != 0:
         return False, (r.stdout.strip().splitlines() or ['git notes failed'])[-1]
     return True, ''
+
+
+# ---------------------------------------------------------------------------
+# EXTRACTIONS
+#
+# A refactor that moves code into a new file reverts badly. Each hunk that swaps
+# inline code for a call into the new file restores, when reverted, the code that
+# moved, which behaves the same, so it survives; each hunk of the new file is
+# uncompilable, since its callers still need it. Neither verdict says whether a
+# test watches the moved logic. The summary names that shape: a survivor that
+# introduces a name an added file declares (one the file's pre-image does not
+# have), grouped by the added file, with that file's hunks no revert could judge
+# and the --inside run that mutates its added lines instead.
+# ---------------------------------------------------------------------------
+_IDENT = re.compile(r'[A-Za-z_]\w*')
+_DECLARED_FUNC = re.compile(
+    r'^\s*(?!(?:return|else|new|delete|throw|co_return|case|goto)\b)[\w:<>,]+'
+    r'(?:\s*[*&]+\s*|\s+)(?:\w+::)*(\w+)\s*\(', re.M)
+_DECLARED_TYPE = re.compile(r'\b(?:class|struct|enum(?:\s+class)?|namespace|using)\s+(\w+)')
+# A member or variable: `std::optional<bool> motion_detected;`, `int n = 0;`.
+_DECLARED_VAR = re.compile(
+    r'^\s*(?!(?:return|else|delete|throw|co_return|case|goto|using|typedef)\b)'
+    r'[\w:]+(?:<[^;()]*>)?(?:\s*[*&]+\s*|\s+)(\w+)\s*(?:=[^;]*|\{[^;]*\})?;', re.M)
+
+
+def text_at(root, rev, path):
+    """`path`'s text at `rev`, or '' when it did not exist there."""
+    r = run(['git', 'show', f'{rev}:{path}'], cwd=root)
+    return r.stdout if r.returncode == 0 else ''
+
+
+def added_files(hunks):
+    """The paths whose hunks the diff adds from nothing."""
+    return {h['file'] for h in hunks if '\n--- /dev/null' in '\n' + h['patch']}
+
+
+def declared_names(text):
+    """The functions, types, members and variables a source declares."""
+    return (set(_DECLARED_FUNC.findall(text)) | set(_DECLARED_TYPE.findall(text))
+            | set(_DECLARED_VAR.findall(text)))
+
+
+def extraction_targets(survivors, added_texts, pre_texts):
+    """{survivor label: added file} for each survivor hunk that replaces code (it
+    removes a line as well as adding one) and whose added lines bring in a name
+    (four characters or more) the file did not have and an added file declares.
+    A hunk that only adds a call is new behaviour, not moved code. A name an added
+    header declares is credited to the added source of the same stem, the file
+    whose lines --inside can mutate. `added_texts` and `pre_texts` map paths to
+    their text."""
+    by_kind = sorted(added_texts, key=lambda p: (p.endswith(HEADER_SUFFIXES), p))
+    declared = [(path, declared_names(added_texts[path])) for path in by_kind]
+    sources = {Path(p).stem: p for p in by_kind if not p.endswith(HEADER_SUFFIXES)}
+    out = {}
+    for h in survivors:
+        pre = pre_texts.get(h['file'])
+        if h['file'] in added_texts or not pre:
+            continue
+        if not any(line.startswith('-') and line[1:].strip() for line in h['body'][1:]):
+            continue
+        had = set(_IDENT.findall(pre))
+        new_names = {n for line in h['body'] if line.startswith('+')
+                     for n in _IDENT.findall(line[1:]) if len(n) >= 4 and n not in had}
+        for path, names in declared:
+            if new_names & names:
+                out[f"{h['file']}:{h['line']}"] = sources.get(Path(path).stem, path)
+                break
+    return out
+
+
+def extraction_report(targets, unjudged):
+    """The summary's lines for `targets` (extraction_targets), given the label of
+    every hunk its revert could not judge; [] when there are none."""
+    if not targets:
+        return []
+    lines = [f'EXTRACTION: {len(targets)} survivor(s) replace code with a call into a file '
+             'this diff adds. A revert restores the code it replaced, which likely '
+             'behaves the same, so their survival says little about whether a test '
+             'watches the moved logic:']
+    for added in sorted(set(targets.values())):
+        callers = sorted((label for label, t in targets.items() if t == added),
+                         key=lambda x: (x.rsplit(':', 1)[0], int(x.rsplit(':', 1)[1])))
+        lines.append(f'  {added} <- {", ".join(callers)}')
+        inside = [u for u in unjudged if u.rsplit(':', 1)[0] == added]
+        if inside:
+            lines.append(f'    {len(inside)} hunk(s) inside {added} cannot be judged by a '
+                         'revert.')
+        lines.append(f'    --inside N --only {added} mutates the lines it adds instead.')
+    return lines
 
 
 # The progress line each verdict gets. `killed` is deliberately the quiet one:
@@ -2475,11 +3312,13 @@ def arm_deadline(seconds):
             signal_live_procs(signal.SIGKILL)
 
     signal.signal(signal.SIGALRM, on_deadline)
+    RUN_STATE.deadline_at = time.monotonic() + max(seconds, 0.001)
     signal.setitimer(signal.ITIMER_REAL, max(seconds, 0.001))
 
 
 def disarm_deadline():
     signal.setitimer(signal.ITIMER_REAL, 0)
+    RUN_STATE.deadline_at = None
 
 
 class RunBase:
@@ -2557,8 +3396,286 @@ def resolve_run_base(root, args):
 
 
 # ---------------------------------------------------------------------------
+# INSIDE MUTANTS
+#
+# Over a long range most hunks of a busy file cannot be reverted alone: one adds
+# a helper another calls, one renames a member the rest of the file uses, one
+# drops a definition a header still declares. `uncompilable` is the true answer
+# to "does this revert build" and says nothing about whether a test watches the
+# code. --inside N asks that with a small edit to a line the hunk ADDED, which
+# keeps every name in place: negate an `if`, drop a call statement, flip a logical
+# or comparison operator or a boolean literal. An edit that does not build is
+# passed over for the next, up to INSIDE_MAX_TRIES.
+#
+# The hunk's verdict stands and the run stays incomplete: one edit
+# to one line is not the question a revert asks. Each mutant is reported on its
+# own line, and a survivor fails the run like any other survivor. Headers are
+# left out, since a mutant there costs every includer's rebuild.
+# ---------------------------------------------------------------------------
+INSIDE_MAX_TRIES = 6
+# Nothing a test should pin (logging) or nothing a token edit can compile into a
+# different program (compile-time code, declarations of operators).
+_INSIDE_SKIP = re.compile(r'\b(?:spdlog|LOG_\w+|assert|static_assert|constexpr|operator|template'
+                          r'|lv_tr|HELIX_\w+)\b')
+_INSIDE_CALL = re.compile(r'^\s*(?!(?:return|if|for|while|switch|else|case|delete|throw|co_\w+)\b)'
+                          r'[A-Za-z_][\w:.\->\[\]]*(?:\(\))?(?:(?:\.|->)\w+)*\s*\(.*\);\s*$')
+# (name, pattern, replacement), most telling first; each applies at its first match.
+_INSIDE_TOKENS = (
+    ('&& to ||', re.compile(r'&&'), '||'),
+    ('|| to &&', re.compile(r'\|\|'), '&&'),
+    ('== to !=', re.compile(r'=='), '!='),
+    ('!= to ==', re.compile(r'!='), '=='),
+    ('<= to >', re.compile(r' <= '), ' > '),
+    ('>= to <', re.compile(r' >= '), ' < '),
+    ('< to >=', re.compile(r' < '), ' >= '),
+    ('> to <=', re.compile(r' > '), ' <= '),
+    ('true to false', re.compile(r'\btrue\b'), 'false'),
+    ('false to true', re.compile(r'\bfalse\b'), 'true'),
+)
+
+
+def code_mask(line):
+    """`line` with literal contents blanked and any comment cut, same offsets, or None.
+
+    None for a line a one-line scan cannot read: a raw string, a block comment.
+    """
+    if 'R"' in line or '/*' in line or '*/' in line:
+        return None
+    out, quote, i = [], '', 0
+    while i < len(line):
+        c = line[i]
+        if quote:
+            if c == '\\':
+                out.append('  ')
+                i += 2
+                continue
+            if c == quote:
+                quote = ''
+                out.append(c)
+            else:
+                out.append(' ')
+        elif line.startswith('//', i):
+            break
+        else:
+            if c in '"\'' and not (c == "'" and i and line[i - 1].isalnum()):
+                quote = c
+            out.append(c)
+        i += 1
+    return None if quote else ''.join(out)
+
+
+def _balanced_close(mask, opening):
+    """The index of the `)` closing the `(` at `opening`, or None on this line."""
+    depth = 0
+    for i in range(opening, len(mask)):
+        depth += {'(': 1, ')': -1}.get(mask[i], 0)
+        if depth == 0:
+            return i
+    return None
+
+
+def inside_edits(line):
+    """[(operator name, rewritten line)] for one added line, most telling first."""
+    mask = code_mask(line.rstrip('\n'))
+    if mask is None or not mask.strip() or mask.lstrip().startswith('#') or _INSIDE_SKIP.search(mask):
+        return []
+    edits = []
+    m = re.search(r'\bif\s*\(', mask)
+    if m:
+        close = _balanced_close(mask, m.end() - 1)
+        if close is not None:
+            edits.append(('negate if', f'{line[:m.end()]}!({line[m.end():close]}){line[close:]}'))
+    if _INSIDE_CALL.match(mask) and mask.count('(') == mask.count(')'):
+        indent = line[:len(line) - len(line.lstrip())]
+        edits.append(('drop call', f'{indent};\n'))
+    for name, rx, to in _INSIDE_TOKENS:
+        m = rx.search(mask)
+        if m:
+            edits.append((name, f'{line[:m.start()]}{to}{line[m.end():]}'))
+    return edits
+
+
+INSIDE_CALL_MAX_LINES = 12
+
+
+def multiline_call_end(lines, first):
+    """The index of the line ending the call statement that opens at `first`, or None.
+
+    A call whose `(` stays open at the end of its first line: notice and request
+    posts are mostly written this way, and dropping one is what a test should see.
+    """
+    head = code_mask(lines[first].rstrip('\n'))
+    if head is None or _INSIDE_SKIP.search(head) or head.count('(') <= head.count(')'):
+        return None
+    masks = [head]
+    for at in range(first + 1, min(first + INSIDE_CALL_MAX_LINES, len(lines))):
+        mask = code_mask(lines[at].rstrip('\n'))
+        if mask is None or _INSIDE_SKIP.search(mask):
+            return None
+        masks.append(mask)
+        joined = ' '.join(m.strip() for m in masks)
+        if joined.count('(') == joined.count(')'):
+            return at if _INSIDE_CALL.match(joined) else None
+    return None
+
+
+def hunk_inside_mutants(h, lines):
+    """[(1-based line, operator, rewritten line, lines it replaces)] for added lines.
+
+    Ordered by operator so a negated `if` anywhere in the hunk goes before a
+    flipped literal, then by line. `lines` is the file as it stands.
+    """
+    rank = ['negate if', 'drop call'] + [t[0] for t in _INSIDE_TOKENS]
+    out = []
+    at = h['line'] - 1
+    for raw in h['body'][1:]:
+        tag = raw[:1]
+        if tag == '+':
+            if at < len(lines):
+                out += [(at + 1, name, text, 1) for name, text in inside_edits(lines[at])]
+                end = multiline_call_end(lines, at)
+                if end is not None:
+                    indent = lines[at][:len(lines[at]) - len(lines[at].lstrip())]
+                    out.append((at + 1, 'drop call', f'{indent};\n', end - at + 1))
+            at += 1
+        elif tag == ' ':
+            at += 1
+    return sorted(out, key=lambda m: (rank.index(m[1]), m[0]))
+
+
+def spread_mutants(mutants, n):
+    """`mutants`, reordered so the first `n` are spaced across the hunk.
+
+    A new file is one hunk, and its first `n` mutants by operator would all sit in
+    its first function. One mutant per line, the most telling on that line, evenly
+    spaced; everything else follows as the fallback when one does not build.
+    """
+    if n <= 1:
+        return list(mutants)
+    best = {}
+    for m in mutants:
+        best.setdefault(m[0], m)
+    by_line = [best[line] for line in sorted(best)]
+    picked = [by_line[i * len(by_line) // n] for i in range(n)] if len(by_line) > n else by_line
+    return picked + [m for m in mutants if m not in picked]
+
+
+def mutate_inside(root, guard, suites, h, plan, args, log):
+    """Judge up to --inside mutants of a hunk's added lines; returns whether one built.
+
+    Appends (line, operator, verdict, note) to h['inside'].
+    """
+    h['inside'] = []
+    target = root / h['file']
+    built_any, tried = False, 0
+    if not target.is_file():
+        note('[inside: the change deleted this file] ')
+        return False
+    lines = target.read_text(errors='surrogateescape').splitlines(keepends=True)
+    mutants = spread_mutants(hunk_inside_mutants(h, lines), args.inside)
+    if not mutants:
+        note('[inside: no operator applies to its added lines] ')
+    for line_no, op, text, span in mutants:
+        if tried >= INSIDE_MAX_TRIES or len(h['inside']) >= args.inside or RUN_STATE.out_of_time:
+            break
+        tried += 1
+        try:
+            guard.mark(h['file'])
+            mutated = list(lines)
+            mutated[line_no - 1:line_no - 1 + span] = [text]
+            target.write_text(''.join(mutated), errors='surrogateescape')
+            verdict, note_, built = build_and_judge(root, suites, h['file'], plan, args, log)
+            built_any = built_any or built
+            # What the deadline cut off is not a verdict, whatever it returned.
+            if RUN_STATE.out_of_time:
+                break
+            if verdict and verdict != 'uncompilable':
+                h['inside'].append((line_no, op, verdict, note_))
+                note(f'[inside :{line_no} {op}: {verdict}] ')
+        except OutOfTime:
+            break
+        finally:
+            guard.restore(h['file'])
+    if mutants and not h['inside'] and not RUN_STATE.out_of_time:
+        note('[inside: no mutant of its added lines built] ')
+    return built_any
+
+
+def inside_report(hunks):
+    """(lines of the report, survivors as labels) for every inside mutant judged."""
+    lines, survived, tally = [], [], {}
+    for h in hunks:
+        for line_no, op, verdict, _ in h.get('inside', ()):
+            label = f'{h["file"]}:{line_no}'
+            mark = LOUD_VERDICT.get(verdict, verdict)
+            lines.append(f'  {mark:<13} {label}  {op}  (the revert of the hunk at '
+                         f':{h["line"]} judged nothing)')
+            tally[verdict] = tally.get(verdict, 0) + 1
+            if verdict == 'survived':
+                survived.append(f'{label}  {op}')
+    if lines:
+        lines.append(f'{sum(tally.values())} inside mutant(s): '
+                     + ', '.join(f'{v}={n}' for v, n in sorted(tally.items())))
+    return lines, survived
+
+
+# ---------------------------------------------------------------------------
 # ONE HUNK
 # ---------------------------------------------------------------------------
+def build_and_judge(root, suites, rel, plan, args, log):
+    """(verdict, note, built) for the mutant now in `root`.
+
+    `verdict` is '' when the deadline cut it off. A mutant green under a narrow
+    filter is asked of `suites.wider`, when set, before it reads as a survivor.
+    """
+    verdict, note_, built_any = '', '', False
+    # Only a mutant whose strategy builds, judged by the suite that
+    # binary IS, can be measured against the wrong one.
+    fingerprinted = plan['build'] and 'catch2' in plan['suites']
+    rebuilt = True
+    if plan['build'] and syntax_rejects(root, rel, log):
+        verdict, note_ = 'uncompilable', 'syntax'
+    elif plan['build']:
+        built_any = True
+        was = binary_fingerprint(suites.catch2_bin)
+        built, secs = build(root, args.jobs, log, mutant=True)
+        if not built:
+            verdict, note_ = 'uncompilable', f'{secs:.0f}s'
+        elif fingerprinted:
+            rebuilt = binary_fingerprint(suites.catch2_bin) != was
+    if not verdict and not RUN_STATE.out_of_time:
+        state, unexplained = judge(suites, plan['suites'])
+        if state == GREEN and suites.wider and not RUN_STATE.out_of_time:
+            state, unexplained = judge(suites.wider(), ('catch2',))
+            if state == DETECTED:
+                note('[only the whole suite detected it] ')
+        if state == DETECTED and not rebuilt:
+            state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
+        verdict = {DETECTED: 'killed', GREEN: 'survived',
+                   INCONCLUSIVE: 'inconclusive'}[state]
+        if verdict == 'killed' and unexplained == TIMED_OUT:
+            verdict = 'killed (timeout)'
+        note_ = unexplained
+    return verdict, note_, built_any
+
+
+def clean_binary_for(root, guard, suites, plan, args, log):
+    """Why this tree's binary cannot judge a hunk that does not build, or ''.
+
+    A hunk with no build of its own runs on whatever binary the last mutant left,
+    whose failure would read as this hunk's kill. Every source is restored by now,
+    so a build gives back the baseline.
+    """
+    if plan['build'] or 'catch2' not in plan['suites'] or not guard.binary_holds_mutant:
+        return ''
+    was = binary_fingerprint(suites.catch2_bin)
+    built, _ = build(root, args.jobs, log, mutant=True)
+    if not built or binary_fingerprint(suites.catch2_bin) == was:
+        return 'the previous mutant is still in the test binary: rebuilding it failed'
+    guard.binary_holds_mutant = False
+    return ''
+
+
 def mutate_hunk(root, guard, suites, h, plan, args, log):
     """(verdict, note, built) for one hunk reverted in `root`, then restored.
 
@@ -2570,37 +3687,28 @@ def mutate_hunk(root, guard, suites, h, plan, args, log):
         # A pristine entry of None means the change deletes the file: reverting
         # recreates it, and restoring means removing it again (TreeGuard).
         guard.mark(h['file'])
-        applied, why = apply_reverse(root, h['patch'])
-        if not applied:
+        not_clean = clean_binary_for(root, guard, suites, plan, args, log)
+        applied, why = (False, '') if not_clean else apply_reverse(root, h['patch'])
+        if not_clean:
+            verdict, note_ = 'inconclusive', not_clean
+        elif not applied:
             verdict, note_ = 'unreversible', why.strip().splitlines()[:1]
+        elif (plan['build'] and not (root / h['file']).exists()
+              and not h['file'].endswith(HEADER_SUFFIXES)):
+            verdict, note_ = 'inconclusive', DELETED_SOURCE
         else:
-            # Only a mutant whose strategy builds, judged by the suite that
-            # binary IS, can be measured against the wrong one.
-            fingerprinted = plan['build'] and 'catch2' in plan['suites']
-            rebuilt = True
-            if plan['build'] and syntax_rejects(root, h['file'], log):
-                verdict, note_ = 'uncompilable', 'syntax'
-            elif plan['build']:
-                built_any = True
-                was = binary_fingerprint(suites.catch2_bin)
-                built, secs = build(root, args.jobs, log, mutant=True)
-                if not built:
-                    verdict, note_ = 'uncompilable', f'{secs:.0f}s'
-                elif fingerprinted:
-                    rebuilt = binary_fingerprint(suites.catch2_bin) != was
-            if not verdict and not RUN_STATE.out_of_time:
-                state, unexplained = judge(suites, plan['suites'])
-                if state == DETECTED and not rebuilt:
-                    state, unexplained = INCONCLUSIVE, UNBUILT_MUTANT
-                verdict = {DETECTED: 'killed', GREEN: 'survived',
-                           INCONCLUSIVE: 'inconclusive'}[state]
-                if verdict == 'killed' and unexplained == TIMED_OUT:
-                    verdict = 'killed (timeout)'
-                note_ = unexplained
+            verdict, note_, built_any = build_and_judge(root, suites, h['file'], plan, args, log)
     except OutOfTime:
         pass
     finally:
         guard.restore(h['file'])
+    revert_judged_nothing = (verdict in ('uncompilable', 'unreversible')
+                             or note_ in (UNBUILT_MUTANT, DELETED_SOURCE))
+    if (args.inside and revert_judged_nothing and plan['build']
+            and not h['file'].endswith(HEADER_SUFFIXES) and not RUN_STATE.out_of_time):
+        built_any = mutate_inside(root, guard, suites, h, plan, args, log) or built_any
+    if built_any:
+        guard.binary_holds_mutant = True
     return verdict, note_, built_any
 
 
@@ -2638,7 +3746,7 @@ def plan_workers(root, args):
     """(workers, why) for this run: why is '' unless parallel was asked for and
     cannot be had here."""
     if args.workers == 'auto':
-        want = max(1, min(6, (os.cpu_count() or 1) // 12))
+        want = max(1, min(12, (os.cpu_count() or 1) // 6))
     else:
         try:
             want = int(args.workers)
@@ -2760,7 +3868,7 @@ def make_worker_trees(root, args, n, guard, suites):
     for dst in dsts:
         verify_pristine(dst, guard.pristine, f'in the worker copy {dst}')
         g = TreeGuard(dst)
-        g.pristine = dict(guard.pristine)
+        g.pristine, g.modes = dict(guard.pristine), dict(guard.modes)
         trees.append(WorkerTree(dst, g, suites.for_tree(dst, io.StringIO())))
     return trees
 
@@ -2771,8 +3879,12 @@ def remove_worker_trees(trees):
             shutil.rmtree(t.root, ignore_errors=True)
 
 
-def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, progress):
-    """(results, unexamined, stop_reason, judged_by), one worker per tree."""
+def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, progress,
+                 baselines=None):
+    """(results, unexamined, stop_reason, judged_by), one worker per tree.
+
+    `baselines` (FilterBaselines) gives each hunk the suites of its own filter.
+    """
     lock = threading.Lock()
     queue = list(enumerate(mutable))
     in_flight, done, failures = {}, {}, []
@@ -2800,9 +3912,15 @@ def run_parallel(trees, mutable, verdict_of, args, log, pristine, stop_why, prog
                 _thread_state.notes = []
                 try:
                     tok = JOBS.take_base(halted)
-                    tree.suites.log = buf
-                    verdict, note_, _built = mutate_hunk(
-                        tree.root, tree.guard, tree.suites, h, plan, args, buf)
+                    try:
+                        if baselines:
+                            tree.suites = baselines.suites_for(h).for_tree(tree.root, buf)
+                            tree.suites.wider = baselines.wider_for(h, plan, tree.root, buf)
+                        tree.suites.log = buf
+                        verdict, note_, _built = mutate_hunk(
+                            tree.root, tree.guard, tree.suites, h, plan, args, buf)
+                    except BaselineRefused as e:
+                        verdict, note_ = 'inconclusive', f'no baseline to judge it by: {e}'
                     if RUN_STATE.out_of_time or not verdict:
                         return
                     verify_pristine(tree.root, pristine,
@@ -2886,6 +4004,15 @@ def main():
     ap.add_argument('--no-auto-tests', action='store_true',
                     help='do not give a file the test files that name its stem; '
                          'every file without --tests-for gets --tests')
+    ap.add_argument('--auto-tests-max', type=int, default=AUTO_TESTS_MAX_FILES, metavar='N',
+                    help='a file named by more than N test files gets --tests instead of them')
+    ap.add_argument('--confirm-survivors', action='store_true',
+                    help='with --pool: a mutant green under a narrow filter runs against '
+                         '--tests before it reads SURVIVED, so a narrow filter costs a '
+                         'verdict nothing')
+    ap.add_argument('--inside', type=int, default=0, metavar='N',
+                    help='for a .cpp hunk whose revert does not build, judge up to N small '
+                         'mutants of its added lines (see INSIDE MUTANTS)')
     ap.add_argument('--group-child', action='store_true', help=argparse.SUPPRESS)
     ap.add_argument('--group-files', default=None, help=argparse.SUPPRESS)
     ap.add_argument('--probe-workers', action='store_true',
@@ -2904,6 +4031,12 @@ def main():
                     help='seconds one suite (one Catch2 shard) may run for a mutant before '
                          'it counts as killed by timeout (0: the max of 60s and 5x its '
                          'baseline run)')
+    ap.add_argument('--first', action='append', default=None, metavar='PATTERN',
+                    help='mutate changed files whose path contains PATTERN first, in the '
+                         'order given (repeatable, or comma-separated). Nothing is left out')
+    ap.add_argument('--pool', action='store_true',
+                    help='one baseline build and one set of worker copies for the whole run, '
+                         'with every hunk in one queue, instead of a child run per filter')
     ap.add_argument('--limit', type=int, default=None, help='stop after N hunks')
     # A mutant costs a compile plus a whole-program link, so a 52-hunk range is
     # hours. Scoping to the files worth confirming is how this stays usable.
@@ -2937,6 +4070,9 @@ def main():
         print(f'FAIL: {e}', file=sys.stderr)
         return 2
 
+    if args.group_child:
+        RUN_STATE.flaky_file = f'{args.log}.flaky'
+        Path(RUN_STATE.flaky_file).unlink(missing_ok=True)
     root = repo_root()
     if args.probe_workers:
         args.workers = 'auto'
@@ -2976,9 +4112,9 @@ def main():
     # ---- classify the whole change -------------------------------------
     verdict_of = {}       # path -> ('mutate', strategy) | ('inert'|'uncovered', reason)
     for path, is_gitlink in files:
-        verdict_of[path] = classify(path, is_gitlink)
+        verdict_of[path] = classify(path, is_gitlink, root)
     for h in hunks:                       # a hunk git names but --raw did not
-        verdict_of.setdefault(h['file'], classify(h['file'], False))
+        verdict_of.setdefault(h['file'], classify(h['file'], False, root))
 
     hunks_of = {}
     for h in hunks:
@@ -3032,7 +4168,10 @@ def main():
     # path order happens to run them first. Cheap and conclusive first, so a run
     # that is cut short -- by --limit, or by someone's patience -- has still
     # answered something.
-    mutable.sort(key=lambda h: (h['file'].endswith(HEADER_SUFFIXES), h['file'], h['line']))
+    # --first outranks all of it: it names what the run is for.
+    first = split_patterns(args.first)
+    mutable.sort(key=lambda h: (first_rank(h['file'], first),
+                                h['file'].endswith(HEADER_SUFFIXES), h['file'], h['line']))
 
     # --only and --limit are deliberate narrowings, but a narrowed run still did
     # not examine the whole change, so what they set aside is counted too.
@@ -3058,6 +4197,11 @@ def main():
     # What judges each file: (Catch2 filter, bats files, pytest files).
     auto = not args.no_auto_tests
     sources = _test_sources(root) if auto else {}
+    try:
+        consumer_rows = load_data_consumers(root) if auto else []
+    except ValueError as e:
+        print(f'mutate-diff: {e}', file=sys.stderr)
+        return 2
     shell_sources = _script_test_sources(root, 'tests/shell', '*.bats') if auto else {}
     python_sources = _script_test_sources(root, 'tests/python', 'test_*.py') if auto else {}
     # Each file's key is (Catch2 filter, bats files, pytest files): what judges it.
@@ -3067,13 +4211,45 @@ def main():
         if path in key_of:
             continue
         if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
-            filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests)
-            key_of[path] = (filt, args.shell_tests, args.python_tests)
+            text = read_or_empty(root / path) if auto else ''
+            consumers = [(c, read_or_empty(root / c))
+                         for c in data_consumers(path, consumer_rows)]
+            filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests,
+                                            args.auto_tests_max, text, consumers,
+                                            data_names(path, consumer_rows))
+            # No script suite in the key: a C++ file sharing a group with a
+            # script nothing names would pay the whole bats suite's baseline.
+            key_of[path] = (filt, '', '')
         else:
             shell, python, why_of[path] = script_tests_for(
                 path, auto, shell_sources, python_sources,
                 args.shell_tests, args.python_tests)
             key_of[path] = (args.tests, shell, python)
+
+    # Compiled code and the data it reads before scripts, whose suites have no
+    # fail-fast and judge tooling, not the product. Within those, hunks that need
+    # only their own tests go before those that need a whole suite, and the script
+    # nothing names, which pays all of bats, goes last of all.
+    default_key = (args.tests, args.shell_tests, args.python_tests)
+
+    def scope_of(path):
+        return filter_scope(key_of[path], default_key,
+                            'catch2' in STRATEGIES[verdict_of[path][1]]['suites'])
+    fanout = header_fanout(root) if args.pool else {}
+    if args.pool and not fanout:
+        print('no dependency files under build/ yet, so widest headers are not known to go last')
+    if args.confirm_survivors and not args.pool:
+        print('--confirm-survivors needs --pool: a green mutant reads SURVIVED under its own filter')
+
+    def includers(path):
+        return fanout.get(path, 0) if path.endswith(HEADER_SUFFIXES) else 0
+    mutable.sort(key=lambda h: ('catch2' not in STRATEGIES[verdict_of[h['file']][1]]['suites'],
+                                includers(h['file']) > HEADER_COSTLY_INCLUDERS,
+                                first_rank(h['file'], first),
+                                includers(h['file']) if includers(h['file']) > HEADER_COSTLY_INCLUDERS else 0,
+                                scope_of(h['file']) == SCOPE_WHOLE_SCRIPTS,
+                                h['file'].endswith(HEADER_SUFFIXES),
+                                scope_of(h['file'])))
 
     # A strategy whose suite is not installed here cannot judge its hunks. Move
     # them to not-covered rather than letting an unrunnable suite read green.
@@ -3124,7 +4300,8 @@ def main():
         for h in mutable:
             print(f'  {h["file"]}:{h["line"]}  [{verdict_of[h["file"]][1]}]')
 
-    # ---- per-file filters: one child run per filter --------------------
+    # ---- per-file filters: one child run per filter, or one pool --------
+    pool = False
     if not args.group_child:
         groups = group_by_filter([h['file'] for h in mutable], key_of)
         if groups:
@@ -3136,10 +4313,15 @@ def main():
                     else:
                         judged = ' + '.join(x for x in (shell, python) if x) or '-'
                         print(f'  {path}  {judged}  ({why_of[path]})')
-        if len(groups) > 1 and not args.list_only:
+        pool = args.pool and bool(groups) and not args.list_only
+        if pool and plan_workers(root, args)[0] <= 1:
+            pool = False
+            print('--pool needs worker copies, which this run cannot have: '
+                  'running one group at a time')
+        if len(groups) > 1 and not args.list_only and not pool:
             return run_groups(root, guard, args, base, groups, started, incomplete,
                               uncovered, deferred)
-        if len(groups) == 1:
+        if len(groups) == 1 and not pool:
             args.tests, args.shell_tests, args.python_tests = groups[0][0]
 
     def finish_proof(n_killed):
@@ -3156,7 +4338,8 @@ def main():
             root, proof_message(
                 f'mutate-diff: every mutatable hunk vs {base[:12]} killed or skipped '
                 f'({n_killed} killed, {len(skipped_decl)} declaration-only, '
-                f'{len(uncovered)} path(s) not covered); tests {args.tests!r}',
+                f'{len(uncovered)} path(s) not covered); tests '
+                + ('each file\'s own filter' if pool else repr(args.tests)),
                 [path for path, _, _ in uncovered]),
             head_at_start)
         if ok:
@@ -3209,6 +4392,9 @@ def main():
     if workers > 1 and not JOBS.pooled and not JOBS.make_private(args.jobs, os.environ):
         workers, why_serial = 1, 'no jobserver to share the job budget through'
         print(f'workers: 1 ({why_serial})')
+        if pool:
+            return run_groups(root, guard, args, base, groups, started, incomplete,
+                              uncovered, deferred)
 
     if args.max_minutes > 0:
         arm_deadline(args.max_minutes * 60 - (time.monotonic() - started))
@@ -3239,45 +4425,18 @@ def main():
                 print(f'FAIL: baseline build is broken. See {args.log}', file=sys.stderr)
                 return 2
             print(f'  build ok ({secs:.0f}s)')
-        if 'catch2' in needed:
-            suites.ensure_catch2_binary()
-            matched = count_catch2_cases(root, suites.catch2_bin, args.tests)
-            if matched is not None:
-                try:
-                    args.shards = fit_shards(args.shards, matched)
-                    suites.catch2 = Catch2Plan(
-                        fit_shards(args.shards * SHARDS_PER_SLOT, matched), args.shards)
-                except ValueError as e:
-                    print(f'FAIL: --tests {args.tests!r} {e}. Check the tag spelling '
-                          f'with: build/bin/helix-tests {args.tests!r} --list-tests',
-                          file=sys.stderr)
-                    return 2
-                print(f'  catch2: {matched} case(s) match {args.tests!r}, '
-                      f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
-        for suite in sorted(needed):
-            state, why = suites.run(suite)
-            if RUN_STATE.out_of_time:
-                raise OutOfTime()
-            if state == DETECTED and suite in ('bats', 'pytest'):
-                state = adopt_baseline_reds(suites, suite)
-                if RUN_STATE.out_of_time:
-                    raise OutOfTime()
-            if state == DETECTED:
-                print(f'FAIL: baseline {suite} suite is RED. Fix it first, or every '
-                      f'mutant will read as killed. See {args.log}', file=sys.stderr)
-                return 2
-            if state == INCONCLUSIVE:
-                # No re-run here: the baseline exists to show the harness works, and
-                # a runner that cannot report is a reason to stop rather than to ask
-                # a second time.
-                print(f'FAIL: baseline {suite} suite judged nothing - {why}. Every '
-                      f'mutant would be measured by a suite that cannot report. '
-                      f'See {args.log}', file=sys.stderr)
-                return 2
-            lo, hi = suites.adopt_baseline(suite, suites.last_secs)
-            span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
-            per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
-            print(f'  {suite} green ({suites.last_secs:.0f}s; mutant timeout {span}{per})')
+        baselines = None
+        if pool:
+            needed_of = {}
+            for h in mutable:
+                needed_of.setdefault(key_of[h['file']], set()).update(
+                    STRATEGIES[verdict_of[h['file']][1]]['suites'])
+            baselines = FilterBaselines(root, args, log, key_of, needed_of)
+            # Measured before any worker starts, so its shard limits are not
+            # taken on a machine a whole pool is loading.
+            baselines.take_whole_suite_first(mutable)
+        else:
+            establish_baseline(suites, needed)
 
         # Read once, before the first mutation: see SAFETY.
         for h in mutable:
@@ -3285,11 +4444,24 @@ def main():
         pristine = guard.pristine
         if workers > 1:
             t0 = time.monotonic()
-            trees = make_worker_trees(root, args, workers, guard, suites)
+            # A copy per hunk at most: a group of one hunk has no use for six.
+            trees = make_worker_trees(root, args, min(workers, len(mutable)), guard, suites)
             for t in trees:
                 guards.append(t.guard)
-            print(f'  {workers} workers, each in a copy of the tree '
+            print(f'  {len(trees)} workers, each in a copy of the tree '
                   f'({trees[0].root.parent}, {time.monotonic() - t0:.0f}s)')
+    except BaselineUnaffordable as e:
+        disarm_deadline()
+        print(f'\nbaseline not started: {e}')
+        for h in mutable:
+            print(f'  UNEXAMINED    {h["file"]}:{h["line"]}')
+        print(report_incomplete(uncovered, deferred, unexamined=len(mutable),
+                                stop_reason='its baseline would not fit in --max-minutes'))
+        remove_worker_trees(trees)
+        return 0 if args.allow_incomplete else 3
+    except BaselineRefused as e:
+        print(f'FAIL: {e}', file=sys.stderr)
+        return 2
     except OutOfTime:
         out_of_time_report(mutable)
         print(report_incomplete(uncovered, deferred, unexamined=len(mutable),
@@ -3297,7 +4469,7 @@ def main():
                                             f'during the baseline'))
         remove_worker_trees(trees)
         return 0 if args.allow_incomplete else 3
-    print(f'  baseline established{cap_note}\n')
+    print(f'  {"build" if pool else "baseline"} established{cap_note}\n')
 
     def stop_why():
         """Why no further hunk may start, or ''."""
@@ -3323,7 +4495,8 @@ def main():
     try:
         if workers > 1:
             results, unexamined, stop_reason, judged_by = run_parallel(
-                trees, mutable, verdict_of, args, log, pristine, stop_why, progress)
+                trees, mutable, verdict_of, args, log, pristine, stop_why, progress,
+                baselines=baselines)
         else:
             for n, h in enumerate(mutable, 1):
                 stop_reason = stop_why()
@@ -3382,6 +4555,12 @@ def main():
     if skipped_decl:
         print(f'{len(skipped_decl)} hunk(s) skipped (declaration-only): every changed '
               f'line is a declaration whose revert can only fail to compile')
+    if RUN_STATE.flaky_sites:
+        print('\n'.join(flaky_lines()))
+    inside_lines, inside_survived = inside_report(mutable)
+    if inside_lines:
+        print('\ninside mutants, beside the verdicts above:')
+        print('\n'.join(inside_lines))
     print(f'log: {args.log}')
 
     survived = [r for r in results if r[1] == 'survived']
@@ -3390,17 +4569,50 @@ def main():
     if unproven or unjudged or uncovered or deferred or unexamined:
         incomplete = True
 
+    if incomplete and (survived or inside_survived):
+        # The survivors decide the exit, but the summary still names the part of
+        # the change this run never judged.
+        print(report_incomplete(uncovered, deferred, unproven, unjudged,
+                                unexamined=len(unexamined), stop_reason=stop_reason,
+                                survived=True))
+    if inside_survived and not survived:
+        sys.stdout.flush()
+        print(f'\nFAIL: {len(inside_survived)} inside mutant(s) survived, and no test detects them:',
+              file=sys.stderr)
+        for label in inside_survived:
+            print(f'  {label}', file=sys.stderr)
+        return 1
     if survived:
         # Name the suites that actually ran: a tooling hunk is judged by bats and
         # pytest, and quoting the Catch2 filter at it would misreport the verdict.
-        where = ' + '.join(sorted(judged_by))
-        if 'catch2' in judged_by:
+        where = 'its own filter' if pool else ' + '.join(sorted(judged_by))
+        if 'catch2' in judged_by and not pool:
             where = where.replace('catch2', f'catch2 {args.tests!r}')
+        hunk_of = {f"{h['file']}:{h['line']}": h for h in mutable}
+        moved = extraction_targets(
+            [hunk_of[label] for label, _, _ in survived if label in hunk_of],
+            {p: read_or_empty(root / p) for p in added_files(hunks)},
+            {p: text_at(root, base, p)
+             for p in {label.rsplit(':', 1)[0] for label, _, _ in survived}})
         sys.stdout.flush()
         print(f'\nFAIL: {len(survived)} hunk(s) survived reversion - nothing in '
               f'{where} detects them:', file=sys.stderr)
         for label, _, _ in survived:
-            print(f'  {label}', file=sys.stderr)
+            if label in moved:
+                continue
+            judged = f'  {describe_key(key_of[label.rsplit(":", 1)[0]])}' if pool else ''
+            print(f'  {label}{judged}', file=sys.stderr)
+        auto_judged = sorted({label.rsplit(':', 1)[0] for label, _, _ in survived
+                              if why_of.get(label.rsplit(':', 1)[0]) == AUTO_TESTS_WHY})
+        if auto_judged:
+            print(f'  {len(auto_judged)} of these file(s) ran only the tests that name them '
+                  f'({", ".join(auto_judged)}); a test reaching them another way did not '
+                  "run. Rerun with --tests-for 'PATH=[tag]', or --pool --confirm-survivors.",
+                  file=sys.stderr)
+        for label in inside_survived:
+            print(f'  {label} (inside)', file=sys.stderr)
+        for line in extraction_report(moved, [label for label, _, _ in unproven + unjudged]):
+            print(line, file=sys.stderr)
         return 1
     n_killed = sum(1 for r in results if r[1].startswith('killed'))
     if not (unproven or unjudged or deferred or unexamined):
@@ -3414,11 +4626,11 @@ def main():
                     if n_by_timeout else '')
     if skipped_decl:
         print(f'\nVERDICT: CLEAN ({len(skipped_decl)} hunk(s) not built: declaration-only, '
-              f'unexamined){timeout_note} - every other hunk was mutated and every '
-              f'mutant was killed.')
-    else:
-        print(f'\nVERDICT: CLEAN{timeout_note} - every changed hunk was mutated and '
+              f'unexamined){timeout_note}{flaky_clause()} - every other hunk was mutated and '
               f'every mutant was killed.')
+    else:
+        print(f'\nVERDICT: CLEAN{timeout_note}{flaky_clause()} - every changed hunk was '
+              f'mutated and every mutant was killed.')
     return 0
 
 
@@ -3435,13 +4647,16 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     leaving a file changed has it put back and named here.
     """
     passthrough = ['--jobs', str(args.jobs), '--shards', str(args.shards),
-                   '--workers', str(args.workers), '--timeout', str(args.timeout)]
+                   '--workers', str(args.workers), '--timeout', str(args.timeout),
+                   '--inside', str(args.inside)]
     for flag in ('no_skip_comments', 'no_skip_declarations', 'allow_orphan', 'release'):
         if getattr(args, flag):
             passthrough.append('--' + flag.replace('_', '-'))
     if args.worker_dir:
         passthrough += ['--worker-dir', args.worker_dir]
-    codes = []
+    for pattern in args.first or ():
+        passthrough += ['--first', pattern]
+    codes, not_started = [], 0
     for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
         if args.max_minutes > 0 and left < 1:
@@ -3449,7 +4664,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                   f'{args.max_minutes:g} reached ===')
             for path in paths:
                 print(f'  UNEXAMINED    {path}')
-            codes.append(3)
+            not_started += len(paths)
+            codes.append(None)
             continue
         print(f'\n=== group {i}/{len(groups)}: {describe_key((filt, shell, python))}  '
               f'({len(paths)} file(s)) ===', flush=True)
@@ -3468,27 +4684,44 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         finally:
             untrack_proc(p)
         for path in paths:
-            if restore_file(root, path, guard.pristine[path]):
+            if restore_file(root, path, guard.pristine[path], guard.modes.get(path)):
                 print(f'  RESTORED      {path}: the group left it changed', flush=True)
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
+        child_flaky = Path(f'{args.log}.g{i}.flaky')
+        if child_flaky.is_file():
+            RUN_STATE.flaky_sites |= set(child_flaky.read_text().split('\n')) - {''}
+            child_flaky.unlink()
     print('\n' + '=' * 68)
+    if RUN_STATE.flaky_sites:
+        print('\n'.join(flaky_lines()))
     for (key, paths), code in zip(groups, codes):
-        print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
-    if incomplete:
-        print(report_incomplete(uncovered, deferred))
+        print(f'  exit {3 if code is None else code}  {describe_key(key)}  '
+              f'({len(paths)} file(s))')
+    short_groups = codes.count(3)
+    if incomplete or not_started or short_groups:
+        print(report_incomplete(
+            uncovered, deferred, survived=1 in codes, short_groups=short_groups,
+            not_started=not_started,
+            stop_reason=f'--max-minutes {args.max_minutes:g} reached before their group started'))
+    codes = [3 if code is None else code for code in codes]
     worst = combine_exits(codes + ([3] if incomplete else []))
     if worst == 3 and args.allow_incomplete:
         return 0
     if worst == 0:
-        print('\nVERDICT: CLEAN - every group mutated every hunk and killed every mutant '
-              '(not recorded as proven: each group saw only its own files)')
+        print(f'\nVERDICT: CLEAN{flaky_clause()} - every group mutated every hunk and killed '
+              'every mutant (not recorded as proven: each group saw only its own files)')
     return worst
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,
-                      stop_reason=''):
-    """The line that stops a partial run from reading like a whole one."""
+                      stop_reason='', survived=False, short_groups=0, not_started=0):
+    """The line that stops a partial run from reading like a whole one.
+
+    `survived`: the run has survivors, listed above. `short_groups`: groups that
+    ran but did not examine all of their own files. `not_started`: files whose
+    group never started, for `stop_reason`.
+    """
     parts = []
     if uncovered:
         parts.append(f'{len(uncovered)} path(s) NOT COVERED')
@@ -3500,10 +4733,16 @@ def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=
         parts.append(f'{deferred} hunk(s) deferred by --only/--limit')
     if unexamined:
         parts.append(f'{unexamined} hunk(s) UNEXAMINED: {stop_reason}')
+    if short_groups:
+        parts.append(f'{short_groups} group(s) INCOMPLETE, each named above')
+    if not_started:
+        parts.append(f'{not_started} file(s) UNEXAMINED: {stop_reason}')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
             + '; '.join(parts) + '.\n'
-            'Nothing survived, but that is not evidence for the part above. '
-            'Mutate it by hand and say so in the commit body, or accept it with '
+            + ('Hunks SURVIVED above: each needs a test that pins it. '
+               if survived else
+               'Nothing survived, but that is not evidence for the part above. ')
+            + 'Mutate it by hand and say so in the commit body, or accept it with '
             '--allow-incomplete.')
 
 

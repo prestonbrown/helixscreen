@@ -11,11 +11,13 @@
  * Initialization order:
  *   1. ui_keypad_init_subjects() - before XML creation
  *   2. Register XML components
- *   3. ui_keypad_init(parent) - creates widget, wires events
+ *   3. ui_keypad_init(parent) - registers callbacks; the widget is built on first show
  */
 
 #pragma once
 
+#include "core/temperature_units.h"
+#include "keypad_input.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -52,7 +54,51 @@ struct ui_keypad_config_t {
     std::function<void(float)> on_confirm;
     /// Called once when the keypad closes without a confirmed value.
     std::function<void()> on_cancel;
+    /// Ipv4 types a dotted quad: the dot key shows, the sign key does not, and the
+    /// numeric range, `callback`, `validate` and `on_confirm` are unused.
+    helix::ui::KeypadInput::Mode mode = helix::ui::KeypadInput::Mode::Number;
+    /// Ipv4 mode: what the display starts with, kept only if it types as an address.
+    std::string initial_text;
+    /// Ipv4 mode: called with the typed text once the keypad has closed.
+    std::function<void(const std::string&)> on_confirm_text;
+    /// The value is a temperature: give initial, min and max in Celsius. The keypad
+    /// shows and accepts the user's display unit, and `callback`, `validate` and
+    /// `on_confirm` receive the whole Celsius target the typed value commands.
+    /// `unit_label` is replaced by the display unit's symbol.
+    bool temperature = false;
 };
+
+namespace helix::ui {
+
+/// Per-row facts a slider cannot answer about itself when its value is typed.
+/// Bounds are read from the lv_slider at tap time, so the XML stays the single
+/// source of truth for each range.
+struct SliderFieldSpec {
+    const char* title; ///< Keypad header, a translation tag the row already declares
+    const char* unit;  ///< Suffix beside the keypad's display
+    int divisor;       ///< Slider positions per real unit (see SliderScale)
+    bool allow_decimal;
+};
+
+/// A temperature config (`temperature` set, values in Celsius) as the keypad shows it in
+/// @p unit: whole display-unit values, the range narrowed to whole degrees inside the
+/// Celsius one, and the unit's symbol. Any other config is returned unchanged.
+ui_keypad_config_t keypad_config_in_unit(const ui_keypad_config_t& config, units::TempUnit unit);
+
+/// Whether a temperature keypad takes @p typed as "off": a typed 0 where the Celsius
+/// range starts at 0. In °F that range opens at 32, and 0 still turns a heater off.
+bool keypad_typed_off(float typed, float min_c);
+
+/// A value typed in @p unit as the whole Celsius target it commands, kept inside
+/// [@p min_c, @p max_c]; "off" (keypad_typed_off()) is 0.
+float keypad_value_to_celsius(float typed, float min_c, float max_c, units::TempUnit unit);
+
+/// Open the keypad on @p slider's current value and range.
+/// @param log_name Prefix for the debug line
+void show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
+                            ui_keypad_callback_t callback, void* user_data, const char* log_name);
+
+} // namespace helix::ui
 
 /**
  * @brief Initialize keypad subjects for reactive binding
@@ -72,7 +118,7 @@ void ui_keypad_deinit_subjects();
 /**
  * @brief Initialize keypad widget
  *
- * Creates the keypad from XML and wires button events.
+ * Registers the keypad callbacks; the widget is built from XML on first show.
  * Call AFTER XML component registration.
  *
  * @param parent Parent widget (usually screen)

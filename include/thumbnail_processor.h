@@ -12,7 +12,6 @@
 #include <mutex>
 #include <string>
 
-// Forward declarations
 class HThreadPool;
 
 /**
@@ -26,8 +25,6 @@ class HThreadPool;
  *
  * Solution: Pre-scale thumbnails once at download time, store as raw LVGL binary,
  * display at 1:1 with zero runtime scaling.
- *
- * @see docs/THUMBNAIL_OPTIMIZATION_PLAN.md for full architecture
  */
 
 /// Test-only accessor for the private constructor (tests/unit/). Forward
@@ -125,7 +122,7 @@ class ThumbnailProcessor {
      * @brief Process PNG data asynchronously
      *
      * Decodes the PNG, resizes to target dimensions, converts to LVGL format,
-     * and writes to cache. Callbacks are invoked on worker thread.
+     * and writes to cache. Callbacks are invoked on the main thread.
      *
      * @param png_data Raw PNG file contents
      * @param source_path Original thumbnail path (used for cache key generation)
@@ -218,10 +215,10 @@ class ThumbnailProcessor {
      * @brief Get the card thumbnail target that fits a card of the given size
      *
      * The resolution ladder in get_target_for_resolution() infers a card size from
-     * the display, and those guesses drifted from what the grid actually lays out —
-     * a 480x272 screen builds 138x115 cards, not the ~107px the ladder assumed, so a
-     * 120x120 .bin overhung the card and LVGL cropped the top off every model.
-     * This derives the target from the real card box instead.
+     * the display, and those guesses do not match what the grid lays out — a
+     * 480x272 screen builds 138x115 cards, not the ~107px the ladder assumes, so a
+     * 120x120 .bin would overhang the card and LVGL would crop the top off every
+     * model. This derives the target from the real card box instead.
      *
      * The card art is centred and then lifted by `preview_offset_y` (-12% of its own
      * height) to clear the metadata overlay, so a square of side N needs

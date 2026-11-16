@@ -18,10 +18,11 @@
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_notification_history.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/notification_history_panel_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
@@ -66,7 +67,7 @@ struct NotificationHistoryPanelFixture : public LVGLUITestFixture {
     }
 
     ~NotificationHistoryPanelFixture() override {
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -143,7 +144,7 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
 
     // NavigationManager::go_back() only hides an overlay's widget tree; it is
     // never destroyed and the version observer stays attached.
-    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, true);
 
     NotificationHistory::instance().add(make_entry("Entry One", "arrived while hidden"));
     helix::ui::notification_refresh_from_history();
@@ -192,7 +193,7 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
     NavigationManager::instance().set_panels(panels);
 
     // How the manager opens it: built hidden, push queued.
-    lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, true);
     panel_->refresh();
     REQUIRE(lv_obj_get_child_count(overlay) == 0);
     helix::nav::register_overlay(root_, nullptr);
@@ -233,10 +234,10 @@ TEST_CASE_METHOD(NotificationHistoryPanelFixture,
     REQUIRE(lv_obj_get_child_count(overlay) == 2);
     lv_obj_t* first = lv_obj_get_child(overlay, 0); // newest first: "Acting"
     lv_obj_t* second = lv_obj_get_child(overlay, 1);
-    CHECK(lv_obj_has_flag(first, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(second, LV_OBJ_FLAG_CLICKABLE));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(first, "icon_error"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(first, "icon_info"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_clickable(first));
+    CHECK_FALSE(lv_obj_is_clickable(second));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(first, "icon_error")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(first, "icon_info")));
 
     panel_->handle_item_clicked(1);
     CHECK(ran.empty());

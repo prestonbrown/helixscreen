@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "maintenance_meters.h"
+
 // Pure layout decision for the maintenance home tile.
 //
 // Free of LVGL so it is unit-testable without a display. MaintenanceWidget measures the
@@ -29,6 +31,11 @@ struct MaintenanceTileLayoutInput {
     /// (their width with the gap before them).
     int caption_h = 0;
     int list_w = 0;
+    /// A ranked row's height at Wide and at Full, the gap above a row, and the Full title.
+    int list_row_h = 1;
+    int full_row_h = 1;
+    int row_gap = 0;
+    int full_title_h = 0;
 };
 
 struct MaintenanceTileVerdict {
@@ -37,6 +44,8 @@ struct MaintenanceTileVerdict {
     bool show_total = false;
     /// The ring's diameter: the largest square the rung leaves it; 0 where no ring shows.
     int ring_d = 0;
+    /// How many ranked rows Wide or Full holds; 0 elsewhere. The rung does not depend on it.
+    int rows = 0;
 };
 
 [[nodiscard]] constexpr MaintenanceTileVerdict
@@ -61,6 +70,14 @@ decide_maintenance_tile_layout(const MaintenanceTileLayoutInput& in) {
         break;
     }
     v.ring_d = std::max(v.ring_d, 0);
+    if (v.rung == SizeRung::Wide) {
+        v.rows = (in.content_h + in.row_gap) / (in.list_row_h + in.row_gap);
+    } else if (v.rung == SizeRung::Full) {
+        const int avail = in.content_h - in.full_title_h - (v.show_total ? in.total_line_h : 0);
+        v.rows = avail / (in.full_row_h + in.row_gap);
+    }
+    if (v.rung == SizeRung::Wide || v.rung == SizeRung::Full)
+        v.rows = std::clamp(v.rows, 1, maintenance::kTileRows);
     return v;
 }
 

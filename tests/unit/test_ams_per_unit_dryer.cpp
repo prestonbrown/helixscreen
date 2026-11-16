@@ -5,6 +5,7 @@
 #include "../test_helpers/qidi_box_test_access.h"
 #include "ams_backend_qidi.h"
 #include "ams_state.h"
+#include "test_helpers/backend_harness.h"
 
 #include <ctime>
 #include <memory>
@@ -16,13 +17,12 @@ using namespace helix::printer;
 using json = nlohmann::json;
 
 // Build a 2-box QIDI backend with box1 actively drying and box2 idle.
-static std::unique_ptr<AmsBackendQidi> make_two_box_qidi_one_drying() {
-    auto backend = std::make_unique<AmsBackendQidi>(nullptr, nullptr);
-    QidiBoxTestAccess::parse_vars(*backend, json{{"box_count", 2}});
+static std::unique_ptr<helix::test::StartedBackend<AmsBackendQidi>> make_two_box_qidi_one_drying() {
+    auto backend = std::make_unique<helix::test::StartedBackend<AmsBackendQidi>>();
+    fire_vars(*backend, json{{"box_count", 2}});
     QidiBoxTestAccess::set_clock(*backend, [] { return std::time_t{1'000'000}; });
     QidiBoxTestAccess::set_drying_timer_supported(*backend, true);
-    QidiBoxTestAccess::handle_status(
-        *backend,
+    backend->fire_status(
         json{{"heater_generic heater_box1", json{{"temperature", 48.0}, {"target", 55.0}}},
              {"heater_generic heater_box2", json{{"temperature", 24.0}, {"target", 0.0}}}});
     QidiBoxTestAccess::apply_box_extras(

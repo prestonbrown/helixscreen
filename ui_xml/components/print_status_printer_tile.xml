@@ -2,13 +2,14 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Print status printer tile: the printer picture with a chip per heater, fan,
-     the light and speed/flow. PrintStatusTiles measures the chips and the
+     the light, speed/flow and the other heads of a multi-head printer. PrintStatusTiles measures the chips and the
      shared CalloutPresenter positions the image, chips, lines and glows inside
      ps_printer_area's content box; everything else is bound here.
      ps_callout_mode: 0 ImageOnly, 1 Pinned (compact chips on the picture),
      2 Docked (untagged image, no lines or glows), 3 BothSides, 4 OneSide.
      A glow is strong while its chip's tone is Active (a heater climbing, a fan
-     spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. -->
+     spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. The bed
+     and chamber glow by how hot they are instead (heat_glow). -->
 <component>
   <view extends="ui_card" style_pad_all="0" style_radius="#border_radius" style_clip_corner="true" scrollable="false">
     <lv_obj name="ps_printer_area"
@@ -19,11 +20,13 @@
               width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
               clickable="false" ignore_layout="true">
         <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="0"/>
-        <region_glow name="ps_glow_nozzle"
-                     color="#danger" tone_subject="ps_chip_nozzle_tone" shown_subject="ps_glow_nozzle"/>
-        <region_glow name="ps_glow_bed" color="#danger" tone_subject="ps_chip_bed_tone" shown_subject="ps_glow_bed"/>
-        <region_glow name="ps_glow_chamber"
-                     color="#danger" tone_subject="ps_chip_chamber_tone" shown_subject="ps_glow_chamber"/>
+        <!-- PrintStatusTiles paints the nozzle's glow from the heat state. -->
+        <region_glow name="ps_glow_nozzle" tone_subject="ps_chip_nozzle_tone" shown_subject="ps_glow_nozzle"/>
+        <!-- ps_glow_bed is the plate's heat level: 0 hidden, 1 warm, 2 hot, 3 very hot. -->
+        <heat_glow name="ps_glow_bed" level_subject="ps_glow_bed" hidden_when="ps_glow_bed eq 0"/>
+        <!-- Likewise the chamber's air: its level, drawn across the enclosure's windows. -->
+        <heat_glow name="ps_glow_chamber"
+                   color="#danger" level_subject="ps_glow_chamber" hidden_when="ps_glow_chamber eq 0"/>
         <region_glow name="ps_glow_part_fan"
                      color="#info" tone_subject="ps_chip_part_fan_tone" shown_subject="ps_glow_part_fan"/>
         <region_glow name="ps_glow_hotend_fan"
@@ -50,9 +53,10 @@
                        progress_subject="ps_chip_nozzle_progress" state_subject="ps_chip_nozzle_state">
           <bind_flag_if cond="ps_chip_nozzle_shown eq 0 or ps_toolhead_merged eq 1" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
-          <icon src="heater" size="xs">
+          <!-- The chip text carries the tool badge, so the icon stays bare. -->
+          <nozzle_icon size="xs" badge_subject="">
             <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
-          </icon>
+          </nozzle_icon>
         </activity_chip>
         <activity_chip name="ps_chip_bed"
                        text_subject="ps_chip_bed_text" shown_subject="ps_chip_bed_shown"
@@ -60,9 +64,9 @@
                        progress_subject="ps_chip_bed_progress" state_subject="ps_chip_bed_state">
           <bind_flag_if cond="ps_chip_bed_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
-          <icon src="radiator" size="xs">
+          <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs">
             <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
-          </icon>
+          </heater_icon>
         </activity_chip>
         <activity_chip name="ps_chip_chamber"
                        text_subject="ps_chip_chamber_text" shown_subject="ps_chip_chamber_shown"
@@ -70,9 +74,9 @@
                        progress_subject="ps_chip_chamber_progress" state_subject="ps_chip_chamber_state">
           <bind_flag_if cond="ps_chip_chamber_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
-          <icon src="fridge_industrial" size="xs">
+          <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs">
             <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
-          </icon>
+          </heater_icon>
         </activity_chip>
         <activity_chip name="ps_chip_part_fan"
                        text_subject="ps_chip_part_fan_text" shown_subject="ps_chip_part_fan_shown"
@@ -124,6 +128,17 @@
           <event_cb trigger="clicked" callback="on_print_status_tune"/>
           <!-- The pill lays out row_reverse: the speed icon reads before the chip's text. -->
           <icon src="speed" size="xs">
+            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+          </icon>
+        </activity_chip>
+        <!-- Every head but the printing one. No tagged point, so no line or glow. -->
+        <activity_chip name="ps_chip_other_tools"
+                       text_subject="ps_chip_other_tools_text" shown_subject="ps_chip_other_tools_shown"
+                       compact_subject="ps_callout_mode" tone_subject="ps_chip_other_tools_tone"
+                       progress_subject="ps_chip_other_tools_progress">
+          <bind_flag_if cond="ps_chip_other_tools_shown eq 0" flag="hidden"/>
+          <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
+          <icon name="chip_glyph" src="heater" size="xs">
             <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
           </icon>
         </activity_chip>

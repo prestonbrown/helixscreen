@@ -15,7 +15,7 @@
  * rewritten path into its own override and a re-entrant set_filename() could
  * retire it again before it was used. That churn is gone - PrinterPrintState
  * decides the identity once, before print_filename_ is published - but the cases
- * are kept because they pin the behaviour that churn used to threaten.
+ * are kept because they pin behaviour that churn in that ordering threatens.
  *
  * The panel is exercised WITHOUT ActivePrintMediaManager, and the thumbnail is
  * published by hand. That is the point: the invariant is "the panel agrees with
@@ -24,17 +24,17 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <memory>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using Access = PrintStatusPanelTestAccess;
@@ -67,7 +67,7 @@ struct FilenameObserverFixture : public LVGLTestFixture {
     }
 
     /// Drive the filename the way Moonraker does, then let the panel's deferred
-    /// observer run. Nested queue_update calls are why drain_all, not drain.
+    /// observer run. Nested queue_update calls are why drain_until_empty, not drain.
     void report_filename(const std::string& filename) {
         json status = {{"print_stats", {{"filename", filename}}}};
         state_.update_from_status(status);
@@ -75,7 +75,7 @@ struct FilenameObserverFixture : public LVGLTestFixture {
     }
 
     void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     PrinterState state_;

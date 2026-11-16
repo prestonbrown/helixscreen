@@ -14,9 +14,6 @@ namespace helix {
 class Config;
 }
 
-// Forward declaration: SubjectManager for wizard subjects (defined in ui_wizard.cpp)
-// Wizard is function-based rather than class-based, so we use a static manager
-
 /**
  * Wizard Container - Responsive Multi-Step UI Component
  *
@@ -36,11 +33,10 @@ class Config;
  * Initialize wizard subjects
  *
  * Creates and registers reactive subjects for wizard state:
- * - current_step (int)
- * - total_steps (int)
- * - wizard_title (string)
- * - wizard_progress (string, e.g. "Step 2 of 7")
- * - wizard_next_button_text (string, "Next" or "Finish")
+ * - current_step, total_steps (int)
+ * - wizard_title, wizard_subtitle, wizard_step_current, wizard_step_total (string)
+ * - wizard_total_visible, wizard_is_final_step, wizard_back_visible,
+ *   wizard_show_skip, connection_test_passed (int flags)
  *
  * MUST be called BEFORE creating XML components.
  */
@@ -57,16 +53,12 @@ void ui_wizard_deinit_subjects();
 /**
  * Register responsive constants to wizard_container scope and propagate to children
  *
- * Detects screen size and registers wizard-specific constants to wizard_container scope,
- * then propagates to all child wizard screens. Uses parent-defined constants pattern
- * to avoid polluting globals scope.
+ * Registers wizard_button_width to the wizard_container scope, then propagates it
+ * to every wizard step component. Uses parent-defined constants pattern to avoid
+ * polluting globals scope.
  *
- * Responsive values by screen size:
- * - SMALL (≤480):    list_padding=4,  header=32,  footer=72,  button=110
- * - MEDIUM (481-800): list_padding=6,  header=42,  footer=82,  button=140
- * - LARGE (>800):     list_padding=8,  header=48,  footer=88,  button=160
- *
- * Also sets responsive fonts and WiFi screen dimensions.
+ * wizard_button_width by the display's larger axis: 90 (≤272), 110 (≤460),
+ * 140 (≤550), 160 above.
  *
  * MUST be called AFTER all wizard_*.xml components are registered and BEFORE ui_wizard_create().
  */

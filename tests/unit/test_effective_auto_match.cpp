@@ -45,7 +45,6 @@
 
 #include "ui_panel_print_status.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
@@ -53,6 +52,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "settings_manager.h"
 
 #include <memory>
@@ -73,7 +73,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
         // writes one — so WITHOUT this the setter silently does not stick and
         // every case below would read a constant 0 while appearing to drive the
         // setting. Idempotent (early-returns on subjects_initialized_), and the
-        // same call test_afc_spool_reassert.cpp makes for the same reason.
+        // same call the other AFC tests make for the same reason.
         helix::SettingsManager::instance().init_subjects();
         prev_auto_color_ = helix::SettingsManager::instance().get_auto_color_map();
 
@@ -146,7 +146,7 @@ struct AutoMatchFixture : public LVGLTestFixture {
 } // namespace
 
 // ============================================================================
-// PrintSelectDetailView — src/ui/ui_print_select_detail_view.cpp
+// PrintSelectDetailView — src/ui/print/ui_print_select_detail_view.cpp
 // Consumed by effective_mappings() (swatches + pre-flight gate).
 // ============================================================================
 

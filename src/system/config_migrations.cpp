@@ -6,12 +6,12 @@
 #include "completion_alert_mode.h"
 #include "config.h"
 #include "config_testing.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "input_defaults.h"
 #include "json_utils.h"
 #include "platform_capabilities.h"
 #include "screensaver_setting.h"
-#include "text_io.h"
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
 #include "system/telemetry_manager.h"
@@ -1328,6 +1328,165 @@ static void migrate_v30_to_v31(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Whether a saved printer is an AD5X, by the preset it was set up from or its saved type.
+/// A root preset marker speaks only for an active printer that names neither: the seeder
+/// rewrites that marker on every update, so it can describe a different printer than the
+/// one now active.
+static bool printer_is_ad5x(const json& config, const std::string& printer_id,
+                            const json& printer) {
+    const std::string own_preset = helix::json_util::safe_string(printer, "preset");
+    const std::string own_type = helix::json_util::safe_string(printer, "type");
+    if (!own_preset.empty() || !own_type.empty()) {
+        return own_preset == "ad5x" || own_type == "FlashForge Adventurer 5X";
+    }
+    return helix::json_util::safe_string(config, "preset") == "ad5x" &&
+           find_active_printer_key(config) == printer_id;
+}
+
+/// Drop an AD5X's "filament_switch_sensor runout_sensor" entry. That name is zMod's client
+/// variable, not a Klipper object, so Hardware Health reports it missing on every boot. A
+/// printer with no head_switch_sensor entry gets the stale entry renamed to it instead, so
+/// the role and switch the user chose carry over to the sensor the printer really has.
+static void migrate_v31_to_v32(json& config, const std::string& /*config_path*/) {
+    static constexpr const char* kStale = "filament_switch_sensor runout_sensor";
+    static constexpr const char* kHead = "filament_switch_sensor head_switch_sensor";
+    if (!config.contains("printers") || !config["printers"].is_object()) {
+        return;
+    }
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        // VENDOR_OK: a migration freezes the printers it repairs
+        if (!printer.is_object() || !printer_is_ad5x(config, printer_id, printer)) {
+            continue;
+        }
+        const json::json_pointer sensors_ptr("/filament_sensors/sensors");
+        if (!printer.contains(sensors_ptr) || !printer.at(sensors_ptr).is_array()) {
+            continue;
+        }
+        json& sensors = printer.at(sensors_ptr);
+        bool has_head = false;
+        for (const auto& s : sensors) {
+            has_head = has_head || helix::json_util::safe_string(s, "klipper_name") == kHead;
+        }
+        for (auto it = sensors.begin(); it != sensors.end();) {
+            if (helix::json_util::safe_string(*it, "klipper_name") != kStale) {
+                ++it;
+            } else if (!has_head) {
+                (*it)["klipper_name"] = kHead;
+                has_head = true;
+                spdlog::info("[Config] Migration v32: renamed runout_sensor to "
+                             "head_switch_sensor for printer '{}'",
+                             printer_id);
+                ++it;
+            } else {
+                it = sensors.erase(it);
+                spdlog::info("[Config] Migration v32: dropped runout_sensor for printer '{}'",
+                             printer_id);
+            }
+        }
+    }
+}
+
+/// Which AD5M Pro firmware a saved printer was set up for, by its own preset or type.
+/// Empty when it is not an AD5M Pro set up from a Forge-X or Z-Mod preset. A root preset
+/// marker speaks only for an active printer that names neither, as in printer_is_ad5x().
+static std::string ad5m_pro_firmware(const json& config, const std::string& printer_id,
+                                     const json& printer) {
+    std::string preset = helix::json_util::safe_string(printer, "preset");
+    const std::string type = helix::json_util::safe_string(printer, "type");
+    if (preset.empty() && type.empty() && find_active_printer_key(config) == printer_id) {
+        preset = helix::json_util::safe_string(config, "preset");
+    }
+    if (preset == "ad5m_pro_forgex" ||
+        (preset.empty() && type == "FlashForge Adventurer 5M Pro (ForgeX)")) {
+        return "forgex";
+    }
+    if (preset == "ad5m_pro_zmod") {
+        return "zmod";
+    }
+    return {};
+}
+
+/// Correct the AD5M Pro fan roles its Forge-X and Z-Mod presets once swapped. chamber_fan is
+/// the side fan FlashForge's M106 P2 drives across the bed, so it is the aux fan, and
+/// internal_fan is the enclosure's circulation fan. Z-Mod exposes neither internal_fan nor
+/// external_fan to Klipper (AIR_CIRCULATION_* drives them), so there the chamber and exhaust
+/// roles go. Only a role still holding the old preset's exact value changes: anything else
+/// is a choice the user made.
+static void migrate_v32_to_v33(json& config, const std::string& /*config_path*/) {
+    static constexpr const char* kSideFan = "fan_generic chamber_fan";
+    static constexpr const char* kCirculation = "fan_generic internal_fan";
+    static constexpr const char* kExhaust = "fan_generic external_fan";
+    if (!config.contains("printers") || !config["printers"].is_object()) {
+        return;
+    }
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        // VENDOR_OK: a migration freezes the printers it repairs
+        const std::string firmware =
+            printer.is_object() ? ad5m_pro_firmware(config, printer_id, printer) : "";
+        if (firmware.empty() || !printer.contains("fans") || !printer["fans"].is_object()) {
+            continue;
+        }
+        json& fans = printer["fans"];
+        if (helix::json_util::safe_string(fans, "aux") != kCirculation) {
+            continue;
+        }
+        const bool chamber_is_old_default =
+            helix::json_util::safe_string(fans, "chamber") == kSideFan;
+        if (firmware == "forgex") {
+            if (!chamber_is_old_default) {
+                continue;
+            }
+            fans["aux"] = kSideFan;
+            fans["chamber"] = kCirculation;
+        } else {
+            fans["aux"] = kSideFan;
+            if (chamber_is_old_default) {
+                fans.erase("chamber");
+            }
+            if (helix::json_util::safe_string(fans, "exhaust") == kExhaust) {
+                fans.erase("exhaust");
+            }
+        }
+        spdlog::info("[Config] Migration v33: corrected AD5M Pro ({}) fan roles for printer '{}'",
+                     firmware, printer_id);
+    }
+}
+
+/// Retire the bypass spool settings: the bypass spool is a lane record in
+/// Moonraker's database (lane_name "bypass"). A printer's block is parked under
+/// filament/legacy_external_spool, which AmsState writes into an empty bypass
+/// record at the next connect (Moonraker is out of reach here) and then
+/// removes. The pre-v22 root copy was fanned out to every printer, so it goes.
+static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/) {
+    int parked = 0;
+    if (json* filament = find_relative(config, "filament");
+        filament != nullptr && filament->is_object()) {
+        filament->erase("external_spool");
+    }
+    if (config.contains("printers") && config["printers"].is_object()) {
+        for (auto& [printer_id, printer] : config["printers"].items()) {
+            if (!printer.is_object() || !printer.contains("filament") ||
+                !printer["filament"].is_object()) {
+                continue;
+            }
+            json& filament = printer["filament"];
+            const auto old = filament.find("external_spool");
+            if (old == filament.end()) {
+                continue;
+            }
+            if (old->is_object() && !old->empty()) {
+                filament["legacy_external_spool"] = *old;
+                ++parked;
+            }
+            filament.erase("external_spool");
+        }
+    }
+    if (parked > 0) {
+        spdlog::info("[Config] Migration v34: parked {} bypass spool(s) for the lane record import",
+                     parked);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1343,7 +1502,8 @@ constexpr struct {
     {22, migrate_v21_to_v22}, {23, migrate_v22_to_v23}, {24, migrate_v23_to_v24},
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
-    {31, migrate_v30_to_v31},
+    {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32}, {33, migrate_v32_to_v33},
+    {34, migrate_v33_to_v34},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,

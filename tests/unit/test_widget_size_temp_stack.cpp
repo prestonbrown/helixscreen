@@ -33,6 +33,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "lvgl/src/misc/lv_event_private.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/temp_stack_widget.h"
 
@@ -181,4 +182,21 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack stacks icons above temps only wh
     h.resize(2, 4, 150, 40);
     expect_side_by_side(nozzle_icon, nozzle_temp);
     expect_side_by_side(bed_icon, bed_temp);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile that holds it",
+                 "[temp_stack][panel_widget][from_event]") {
+    PanelWidgetHarness<TempStackWidget> a(test_screen(), state(), nullptr);
+    PanelWidgetHarness<TempStackWidget> b(test_screen(), state(), nullptr);
+    auto owner_of = [](lv_obj_t* row) {
+        lv_event_t e{};
+        e.current_target = row;
+        return panel_widget_from_event<TempStackWidget>(&e);
+    };
+
+    CHECK(owner_of(a.child("temp_stack_nozzle_row")) == &a.widget());
+    CHECK(owner_of(b.child("temp_stack_bed_row")) == &b.widget());
+
+    a.widget().detach_tile();
+    CHECK(owner_of(a.child("temp_stack_nozzle_row")) == nullptr);
 }

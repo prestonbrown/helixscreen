@@ -4,10 +4,10 @@
 #include "audio_settings_manager.h"
 
 #include "config.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "core/static_subject_registry.h"
+#include "lvgl.h"
 #include "sound_manager.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 
 #include <algorithm>
 #include <iterator>
@@ -137,7 +137,11 @@ void AudioSettingsManager::refresh_backend_subjects() {
         return;
     auto& sm = SoundManager::instance();
     const int device = sm.has_alsa_backend() ? 1 : 0;
+#ifdef HELIX_HAS_TRACKER
     const int music = sm.can_play_music() ? 1 : 0;
+#else
+    const int music = 0; // the tracker is the only music player, and it is not built
+#endif
     spdlog::info("[AudioSettingsManager] audio_device_available={} music_available={}", device,
                  music);
     lv_subject_set_int(&audio_device_available_subject_, device);

@@ -11,6 +11,8 @@
  * - State updates from Moonraker status JSON
  */
 
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
@@ -60,27 +62,9 @@ PrinterDiscovery discovery_of(const std::vector<std::string>& objects) {
 // Test Fixture
 // ============================================================================
 
-class LoadCellTestFixture {
+class LoadCellTestFixture : public LVGLTestFixture {
   public:
     LoadCellTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                        (void)area;
-                                        (void)px_map;
-                                    });
-            display_created_ = true;
-        }
-
         // Reset state for test isolation first
         LoadCellManagerTestAccess::reset(mgr());
 
@@ -131,13 +115,9 @@ class LoadCellTestFixture {
     }
 
   private:
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* LoadCellTestFixture::display_ = nullptr;
-bool LoadCellTestFixture::display_created_ = false;
 
 // ============================================================================
 // State Update Tests
@@ -206,10 +186,8 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
     SECTION("Shows the reading over an earlier user edit of the weight") {
         SlotInfo spool;
         spool.material = "PLA";
-        AmsState::instance().set_external_spool_info_in_memory(spool);
-        helix::ams::Observation edit(helix::ams::ObservationSource::LocalUser);
-        edit.remaining_weight_g = 750.0f;
-        helix::ams::commit_slot_edit(helix::ams::kBypassLaneId, edit);
+        spool.remaining_weight_g = 750.0f;
+        helix::AmsStateTestAccess::seed_external_spool(spool);
         REQUIRE(ams_state_spool_info().remaining_weight_g == 750.0);
 
         update_sensor_state("load_cell spool_weight", 290.0);
@@ -296,15 +274,15 @@ TEST_CASE_METHOD(LoadCellTestFixture,
                  "[load_cell][ams]") {
     discover_test_sensors();
 
-    // The raw record changes only when the manager pushes, so planting a marker
-    // there shows whether a later frame pushed again.
+    // The bypass lane's Metered reading changes only when the manager pushes,
+    // so planting a marker there shows whether a later frame pushed again.
     const auto raw_weight = [] {
-        return AmsState::instance().raw_external_spool_info().value().remaining_weight_g;
+        return AmsState::instance().get_external_spool_info().value().remaining_weight_g;
     };
-    const auto plant_marker = [&] {
-        auto info = AmsState::instance().raw_external_spool_info().value();
-        info.remaining_weight_g = 12345.0f;
-        AmsState::instance().set_external_spool_info_in_memory(info);
+    const auto plant_marker = [] {
+        helix::ams::Observation marker(helix::ams::ObservationSource::Metered);
+        marker.remaining_weight_g = 12345.0f;
+        helix::ams::ingest(helix::ams::kBypassLaneId, marker);
     };
 
     update_sensor_state("load_cell spool_weight", 300.0);

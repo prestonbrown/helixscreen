@@ -2,7 +2,7 @@
 
 #include "klipper_config_parser.h"
 
-#include "text_io.h"
+#include "core/text_io.h"
 
 #include <spdlog/spdlog.h>
 

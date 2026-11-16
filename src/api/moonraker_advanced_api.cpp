@@ -3,20 +3,19 @@
 
 #include "moonraker_advanced_api.h"
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-#include "ui_observer_guard.h"
-#include "ui_update_queue.h"
-
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
+#include "core/error_reporting.h"
+#include "core/observer_factory.h"
+#include "core/observer_guard.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "gcode_unknown_command.h"
 #include "helix_regex.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_validation.h"
-#include "observer_factory.h"
 #include "operation_timeout_guard.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
@@ -1042,7 +1041,17 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             !msg["params"][0].is_string())
             return;
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        // Kalico sends the whole result block as one multi-line respond_info.
+        const std::string& text = msg["params"][0].get_ref<const std::string&>();
+        for (std::string_view line : text_io::Lines(text, '\n')) {
+            if (core_.completed())
+                return;
+            on_line(std::string(line));
+        }
+    }
+
+  private:
+    void on_line(const std::string& line) {
         spdlog::trace("[MPCCalibrateCollector] Received: {}", line);
 
         // If we're accumulating result lines after "Finished MPC calibration"
@@ -1058,21 +1067,24 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             return;
         }
 
-        // Progress: phase 1 — ambient settling
-        if (line.find("Waiting for heater to settle") != std::string::npos) {
+        // Kalico's control_mpc.py narrates four phases. Phase 1 has two spellings:
+        // with an ambient sensor it only waits for the heater to cool below a
+        // threshold, without one it waits for the temperature to settle.
+        if (line.find("Waiting for heater to settle") != std::string::npos ||
+            line.find("Waiting for heater to drop below") != std::string::npos) {
             report_progress(1, line);
             return;
         }
-
-        // Progress: phase 2 — heatup test
         if (line.find("Performing heatup test") != std::string::npos) {
             report_progress(2, line);
             return;
         }
-
-        // Progress: phase 3 — fan breakpoint measurements
-        if (line.find("measuring power usage with") != std::string::npos) {
+        if (line.find("Performing ambient transfer tests") != std::string::npos) {
             report_progress(3, line);
+            return;
+        }
+        if (line.find("measuring power usage with") != std::string::npos) {
+            report_progress(4, line);
             return;
         }
 
@@ -1091,10 +1103,11 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         }
     }
 
-  private:
-    void report_progress(int phase, const std::string& description) {
-        // Total phases: 1=settle, 2=heatup, 3=fan measurements
-        static constexpr int kTotalPhases = 3;
+    void report_progress(int phase, const std::string& line) {
+        // 1=settle, 2=heatup, 3=ambient transfer, 4=fan measurements
+        static constexpr int kTotalPhases = 4;
+        // Klipper's respond_info marks every line "// "; the user reads the sentence.
+        const std::string description = line.rfind("// ", 0) == 0 ? line.substr(3) : line;
         spdlog::debug("[MPCCalibrateCollector] Progress: phase={} desc={}", phase, description);
         if (on_progress_)
             on_progress_(phase, kTotalPhases, description);
@@ -1103,7 +1116,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void parse_result_line(const std::string& line) {
         // Parse: fan_ambient_transfer=0.12, 0.18, 0.25 [W/K]
         // Must check BEFORE ambient_transfer since both contain "ambient_transfer"
-        static const helix::Regex fat_regex(R"(fan_ambient_transfer=([\d., ]+)\s*\[W/K\])");
+        static const helix::Regex fat_regex(R"(fan_ambient_transfer=([\deE.+\-, ]*)\[W/K\])");
         // Parse: block_heat_capacity=18.5432 [J/K]
         static const helix::Regex bhc_regex(R"(block_heat_capacity=([\d.]+))");
         // Parse: sensor_responsiveness=0.123456 [K/s/K]
@@ -1117,8 +1130,8 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
             result_.fan_ambient_transfer = match[1].str();
             // Trim trailing whitespace
             auto end = result_.fan_ambient_transfer.find_last_not_of(' ');
-            if (end != std::string::npos)
-                result_.fan_ambient_transfer.resize(end + 1);
+            // A heater with no cooling_fan reports an empty list.
+            result_.fan_ambient_transfer.resize(end == std::string::npos ? 0 : end + 1);
             spdlog::debug("[MPCCalibrateCollector] fan_ambient_transfer={}",
                           result_.fan_ambient_transfer);
             parsed_fan_ambient_ = true;
@@ -2576,13 +2589,22 @@ void MoonrakerAdvancedAPI::calculate_screws_tilt(ScrewTiltCallback on_success,
     // make the slot a silent no-op. Falls back to the stock command when the slot
     // is empty, which is every printer that predates this setting.
     const StandardMacroInfo& slot = StandardMacros::instance().get(StandardMacroSlot::ScrewsTilt);
-    const ResolvedMacroScript resolved = resolve_macro_script(slot, {});
+    helix::MacroScriptValues values;
+    values.screws_tilt_builtin = client_.hardware().screws_tilt_builtin();
+    const ResolvedMacroScript resolved = resolve_macro_script(slot, values);
     const std::string command = resolved.script.empty() ? "SCREWS_TILT_CALCULATE" : resolved.script;
     spdlog::info("[Moonraker API] Starting {}", command);
 
+    // A shipped sequence spans several lines; the collector's diagnostics name the
+    // one command in it that probes.
+    const std::string& probing_command = resolved.shipped && !values.screws_tilt_builtin.empty()
+                                             ? values.screws_tilt_builtin
+                                             : command;
+
     // Create a collector to handle async response parsing
     // The collector will self-destruct when complete via shared_ptr ref counting
-    auto collector = std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error, command);
+    auto collector =
+        std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error, probing_command);
     collector->start();
 
     // Send the G-code command
@@ -3073,9 +3095,11 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
 
             const json& h = settings[heater];
             std::string control = json_util::safe_string(h, "control", "pid");
-            spdlog::debug("[Moonraker API] Heater '{}' control type: {}", heater, control);
+            const bool names_cooling_fan = !json_util::safe_string(h, "cooling_fan", "").empty();
+            spdlog::debug("[Moonraker API] Heater '{}' control type: {}, cooling_fan named: {}",
+                          heater, control, names_cooling_fan);
             if (on_complete) {
-                on_complete(control);
+                on_complete(control, names_cooling_fan);
             }
         },
         [on_error](const MoonrakerError& err) {

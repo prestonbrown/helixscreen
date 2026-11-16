@@ -35,7 +35,7 @@ pushed() { git update-ref refs/remotes/origin/main HEAD; }
     reflink
     run scripts/mutate-diff.sh --tests '[x]'
     [ "$status" -eq 0 ]
-    contains "LOCAL: scripts/mutate_diff.py --workers auto --tests [x]" "$output"
+    contains "LOCAL: scripts/mutate_diff.py --workers auto --pool --tests [x]" "$output"
     lacks "TEST-HOST-RUN" "$output"
 }
 
@@ -46,7 +46,7 @@ pushed() { git update-ref refs/remotes/origin/main HEAD; }
     run scripts/mutate-diff.sh --tests '[x]' --tests-for 'src/a b.cpp=[one case]'
     [ "$status" -eq 0 ]
     # Each argument arrives whole, spaces included.
-    contains "TEST-HOST-RUN: <mutate> <--tests> <[x]> <--tests-for> <src/a b.cpp=[one case]>" "$output"
+    contains "TEST-HOST-RUN: <mutate> <--pool> <--tests> <[x]> <--tests-for> <src/a b.cpp=[one case]>" "$output"
     lacks "LOCAL:" "$output"
 }
 

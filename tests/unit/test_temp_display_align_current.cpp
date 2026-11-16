@@ -12,9 +12,9 @@
 
 #include "ui_fonts.h"
 #include "ui_temp_display.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
 #include "printer_state.h"
@@ -102,4 +102,18 @@ TEST_CASE_METHOD(XMLTestFixture, "align_current follows a face retiered after cr
 
     CHECK(current_width(display) == helix::ui::text_width("00.0", bigger, 0));
     CHECK(current_width(display) != before);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "the separator keeps a space's gap before the target",
+                 "[temp_display][align_current]") {
+    lv_obj_t* display = create_display(test_screen(), "extruder_temp", "extruder_target", "false");
+    REQUIRE(display != nullptr);
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* separator = lv_obj_get_child(display, kSeparatorChild);
+    lv_obj_t* target = lv_obj_get_child(display, kSeparatorChild + 1);
+    const lv_font_t* font = lv_obj_get_style_text_font(separator, LV_PART_MAIN);
+    const int32_t space = lv_font_get_glyph_width(font, ' ', 0);
+    REQUIRE(space > 0);
+    CHECK(lv_obj_get_x(target) - (lv_obj_get_x(separator) + lv_obj_get_width(separator)) == space);
 }

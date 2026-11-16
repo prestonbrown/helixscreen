@@ -6,6 +6,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "system_settings_manager.h"
 #include "theme_manager.h"
 
 #include <cstring>
@@ -18,6 +19,7 @@ using helix::ui::format_file_size;
 using helix::ui::format_modified_date;
 using helix::ui::format_print_time;
 using helix::ui::format_relative_time;
+using helix::ui::format_uptime;
 
 // ============================================================================
 // format_print_time() Tests
@@ -211,6 +213,32 @@ TEST_CASE("UI Utils: format_relative_time", "[ui_utils][format][i18n]") {
 }
 
 // ============================================================================
+// format_uptime() Tests
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: format_uptime", "[ui_utils][format][i18n][1939]") {
+    struct RestoreEnglish {
+        ~RestoreEnglish() {
+            helix::SystemSettingsManager::instance().set_language("en");
+        }
+    } restore_english;
+    helix::SystemSettingsManager::instance().set_language("en");
+
+    SECTION("English") {
+        CHECK(format_uptime(-1) == "Up: --");
+        CHECK(format_uptime(42 * 60) == "Up: 42m");
+        CHECK(format_uptime(3 * 3600 + 12 * 60) == "Up: 3h 12m");
+        CHECK(format_uptime(3 * 86400 + 14 * 3600 + 5 * 60) == "Up: 3d 14h");
+    }
+
+    SECTION("Translated") {
+        helix::SystemSettingsManager::instance().set_language("de");
+        CHECK(format_uptime(3 * 3600 + 12 * 60) == "Betriebszeit: 3 Std 12 Min");
+        CHECK(format_uptime(3 * 86400 + 14 * 3600) == "Betriebszeit: 3 Tg. 14 Std");
+    }
+}
+
+// ============================================================================
 // ui_get_header_content_padding() Tests
 // ============================================================================
 
@@ -222,14 +250,14 @@ TEST_CASE("UI Utils: format_relative_time", "[ui_utils][format][i18n]") {
 TEST_CASE("UI Utils: ui_get_header_content_padding - returns space_lg value",
           "[ui_utils][responsive]") {
     SECTION("Returns positive value") {
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         REQUIRE(padding > 0);
     }
 
     SECTION("Returns a valid space_lg value") {
         // space_lg at breakpoints: tiny=8, small=12, medium=16, large=20,
         // xlarge=24, xxlarge=32; fallback is 16 when the theme is uninitialized.
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         REQUIRE((padding == 8 || padding == 12 || padding == 16 || padding == 20 || padding == 24 ||
                  padding == 32));
     }
@@ -335,13 +363,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* child2 = lv_obj_create(parent);
 
     // LVGL objects are clickable by default
-    REQUIRE(lv_obj_has_flag(child1, LV_OBJ_FLAG_CLICKABLE));
-    REQUIRE(lv_obj_has_flag(child2, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(child1));
+    REQUIRE(lv_obj_is_clickable(child2));
 
     helix::ui::disable_widget_clicks_recursive(parent);
 
-    REQUIRE_FALSE(lv_obj_has_flag(child1, LV_OBJ_FLAG_CLICKABLE));
-    REQUIRE_FALSE(lv_obj_has_flag(child2, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE_FALSE(lv_obj_is_clickable(child1));
+    REQUIRE_FALSE(lv_obj_is_clickable(child2));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -351,12 +379,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* child = lv_obj_create(root);
     lv_obj_t* grandchild = lv_obj_create(child);
 
-    REQUIRE(lv_obj_has_flag(grandchild, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(grandchild));
 
     helix::ui::disable_widget_clicks_recursive(root);
 
-    REQUIRE_FALSE(lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE));
-    REQUIRE_FALSE(lv_obj_has_flag(grandchild, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE_FALSE(lv_obj_is_clickable(child));
+    REQUIRE_FALSE(lv_obj_is_clickable(grandchild));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -365,12 +393,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_create(parent); // child
 
-    REQUIRE(lv_obj_has_flag(parent, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(parent));
 
     helix::ui::disable_widget_clicks_recursive(parent);
 
     // Parent itself should NOT have CLICKABLE removed — only descendants
-    REQUIRE(lv_obj_has_flag(parent, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(parent));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "UI Utils: disable_widget_clicks_recursive - null is safe",
@@ -383,7 +411,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[ui_utils][widget_flags][edge]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     helix::ui::disable_widget_clicks_recursive(parent); // Should not crash
-    REQUIRE(lv_obj_has_flag(parent, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(parent));
 }
 
 // ============================================================================

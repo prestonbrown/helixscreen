@@ -8,11 +8,11 @@
 // test_ui_panel_macros_rows.cpp drives the real row widgets.
 
 #include "ui_panel_macros.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/macros_panel_test_access.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "macro_edit_logic.h"
 #include "macro_param_cache.h"
 #include "settings_manager.h"
@@ -125,6 +125,7 @@ TEST_CASE_METHOD(HelixTestFixture, "hidden-macro save round-trips through settin
     helix::Config::get_instance()->reset_to_defaults(); // key-absent start (see prepare())
     auto& sm = helix::SettingsManager::instance();
     REQUIRE_FALSE(sm.hidden_macros_key_exists());
+    REQUIRE(sm.get_hidden_macros().empty());
 
     sm.set_hidden_macros({"CLEAN_NOZZLE", "_HOME_Z"});
     REQUIRE(sm.hidden_macros_key_exists());
@@ -238,7 +239,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "normal mode after save excludes the hidden ma
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "edit mode offers the defaults editor only on rows with known params",
+                 "edit mode offers the defaults editor only on rows that take parameters",
                  "[macros][editmode]") {
     auto& cache = helix::MacroParamCache::instance();
     cache.clear();
@@ -247,16 +248,20 @@ TEST_CASE_METHOD(LVGLTestFixture,
     config["gcode_macro NO_PARAMS"]["gcode"] = "G28";
     const std::string with_params = "WITH_PARAMS";
     const std::string no_params = "NO_PARAMS";
-    cache.populate_from_configfile(config, {with_params, no_params});
+    // Registered with Klipper but absent from configfile: a Python command.
+    const std::string unknown = "PY_LOAD";
+    cache.populate_from_configfile(config, {with_params, no_params, unknown});
 
     auto& p = get_global_macros_panel();
-    MacrosPanelTestAccess::prepare(p, {"WITH_PARAMS", "NO_PARAMS"});
+    MacrosPanelTestAccess::prepare(p, {"WITH_PARAMS", "NO_PARAMS", "PY_LOAD"});
 
     MacrosPanelTestAccess::enter(p);
     const size_t i_params = index_of(p, "WITH_PARAMS");
     const size_t i_plain = index_of(p, "NO_PARAMS");
+    const size_t i_unknown = index_of(p, "PY_LOAD");
     REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_params) == 0);
     REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_plain) == 1);
+    REQUIRE(MacrosPanelTestAccess::defaults_hidden_int(p, i_unknown) == 0);
 
     // Leaving edit mode hides the affordance on every row again.
     MacrosPanelTestAccess::exit(p, /*save=*/false);

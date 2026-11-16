@@ -8,7 +8,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scripted_recovery_api.h"
 #include "app_globals.h"
-#include "http_executor.h"
+#include "core/http_executor.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_recovery_service.h"
@@ -217,11 +217,8 @@ TEST_CASE_METHOD(RecoveryFixture,
 TEST_CASE_METHOD(RecoveryFixture, "Recovery: 503 from firmware_restart goes straight to the script",
                  "[recovery]") {
     install_script(0);
-    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                          503,
-                                          "Klippy Host not connected",
-                                          "printer.firmware_restart",
-                                          {}};
+    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN, 503,
+                                          "Klippy Host not connected", "printer.firmware_restart"};
 
     recover();
     run_to_end();
@@ -235,11 +232,8 @@ TEST_CASE_METHOD(RecoveryFixture, "Recovery: 503 from firmware_restart goes stra
 TEST_CASE_METHOD(RecoveryFixture,
                  "Recovery: 503 with no local script falls back to a service restart",
                  "[recovery]") {
-    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN,
-                                          503,
-                                          "Klippy Host not connected",
-                                          "printer.firmware_restart",
-                                          {}};
+    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN, 503,
+                                          "Klippy Host not connected", "printer.firmware_restart"};
 
     recover();
     run_to_end();

@@ -12,8 +12,11 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
 #include "helix_shared_callback.h"
+#include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -24,7 +27,6 @@
 #include <string_view>
 #include <vector>
 
-// Forward declaration
 class Modal;
 
 /**
@@ -76,7 +78,7 @@ enum class ModalCloseReason {
  *
  * ## Usage - Simple Modals (no subclass):
  * @code
- * lv_obj_t* modal = Modal::show("print_cancel_confirm_modal");
+ * lv_obj_t* modal = helix::ui::ComponentModal::show_owned("fan_rename_modal");
  * // ...later...
  * Modal::hide(modal);
  * @endcode
@@ -115,9 +117,12 @@ class Modal {
     // ========================================================================
 
     /**
-     * @brief Show a simple modal (no subclass needed)
+     * @brief Show a modal with no owner (tests only)
      *
-     * Creates and displays a modal from the specified XML component.
+     * Creates and displays a modal from the specified XML component. Nothing
+     * owns it, so nothing hears it close; app code uses
+     * helix::ui::ComponentModal::show_owned() instead, and
+     * scripts/check_growth_ratchets.py refuses this form under src/ and include/.
      * Backdrop is created in C++ and XML content is placed inside it.
      *
      * @param component_name XML component name
@@ -201,6 +206,46 @@ class Modal {
      *         or the top modal is instance-backed and was hidden instead
      */
     static bool rebuild_top();
+
+    // ========================================================================
+    // INSTANCE LOOKUP (for XML event callbacks)
+    // ========================================================================
+
+    /**
+     * @brief The instance whose dialog the event's widget sits in
+     *
+     * XML event callbacks are registered once per process and carry no `this`;
+     * this is how they find their instance. The widget that fired is walked up
+     * to the dialog (or backdrop) ModalStack tracks, and that entry's owner is
+     * returned. A widget a modal parents outside its dialog (a dropdown's list,
+     * the keyboard) belongs to the modal on top. nullptr when the widget is in
+     * no open modal's tree, the modal is already closing, or the dialog came
+     * from the static Modal::show() factory, which has no instance.
+     */
+    static Modal* from_event(lv_event_t* e);
+
+    /**
+     * @brief from_event(), narrowed to a `T`
+     *
+     * Exact-type match through kind_tag(), the same way ContextMenu::active_as<T>()
+     * downcasts: a subclass declares HELIX_KIND_TAG(Self) in its body, or no
+     * typed lookup resolves it (the base's tag is helix::kUndeclaredKind, which
+     * matches no T, and the mismatch is logged).
+     */
+    template <typename T> static T* from_event(lv_event_t* e) {
+        return static_cast<T*>(from_event_of_kind(e, helix::type_tag<T>()));
+    }
+
+    /**
+     * @brief This modal's concrete type as a helix::type_tag<T>() value
+     *
+     * The RTTI-free stand-in for typeid(*this) that from_event<T>() compares.
+     * Declared with HELIX_KIND_TAG(Self); a subclass without it keeps the
+     * base's helix::kUndeclaredKind.
+     */
+    [[nodiscard]] virtual std::size_t kind_tag() const {
+        return helix::kUndeclaredKind;
+    }
 
     // ========================================================================
     // INSTANCE API (for subclassed modals)
@@ -348,8 +393,8 @@ class Modal {
 
   protected:
     // Modal state
-    lv_obj_t* backdrop_ = nullptr;
-    lv_obj_t* dialog_ = nullptr;
+    helix::ui::WidgetRef backdrop_;
+    helix::ui::WidgetRef dialog_;
     lv_obj_t* parent_ = nullptr;
 
     /// Why the in-progress (or most recent) hide() was initiated. Set on every
@@ -403,6 +448,9 @@ class Modal {
     ///        on every button it wires - without this strip those are dangling.
     static void disarm_tree(lv_obj_t* backdrop, lv_obj_t* dialog, Modal* owner = nullptr);
 
+    /// from_event() when the instance's kind_tag() is @p kind, else nullptr.
+    static Modal* from_event_of_kind(lv_event_t* e, std::size_t kind);
+
     // Static event handlers
     static void backdrop_click_cb(lv_event_t* e);
     static void esc_key_cb(lv_event_t* e);
@@ -444,11 +492,14 @@ class ModalStack {
     /// dialog is untracked or was created through the static factory.
     Modal* owner_for(lv_obj_t* dialog) const;
 
+    /// The owner of the entry whose dialog or backdrop is @p obj or contains it
+    /// (nullptr for a static-factory dialog), or nullopt when no entry does.
+    std::optional<Modal*> owner_of(lv_obj_t* obj) const;
+
     /// Point an existing entry at a different owner (nullptr = no owner).
     /// No-op if the backdrop is not tracked.
     void reassign_owner(lv_obj_t* backdrop, Modal* new_owner);
 
-    // Get topmost dialog
     lv_obj_t* top_dialog() const;
 
     /// Return the component name of the top (most recent non-exiting) modal, or "" if empty.
@@ -458,7 +509,6 @@ class ModalStack {
     /// wherever it sits in the stack; nullptr when none is.
     lv_obj_t* dialog_for_component(const std::string& component_name) const;
 
-    // Get backdrop for a dialog
     lv_obj_t* backdrop_for(lv_obj_t* dialog) const;
 
     /// Component name a dialog was shown from, or "" if it is untracked.
@@ -535,9 +585,13 @@ class ModalStack {
   private:
     ModalStack() = default;
 
+    /// Drop entries whose backdrop was deleted behind the stack, which no owner
+    /// can name any more.
+    void prune_dead();
+
     struct ModalEntry {
-        lv_obj_t* backdrop;
-        lv_obj_t* dialog;
+        helix::ui::WeakWidget backdrop;
+        helix::ui::WeakWidget dialog;
         std::string component_name;
         bool exiting; /**< true = exit animation in progress, ignore hide() calls */
         Modal* owner; /**< owning instance, or nullptr for static Modal::show() modals */
@@ -614,9 +668,55 @@ class ModalDialogAttrs {
     std::vector<const char*> attrs_;
 };
 
-inline lv_obj_t* modal_show(const char* name, const char** attrs = nullptr) {
-    return Modal::show(name, attrs);
-}
+/**
+ * @brief A modal for an XML component that wires its own buttons
+ *
+ * For a dialog whose buttons are XML event callbacks, or are wired by the
+ * caller on the dialog show_owned() returns, and that needs no C++ hooks of
+ * its own. ModalStack owns the instance like any show_owned() modal, so the
+ * dialog has an owner: Modal::hide(dialog) runs the instance teardown and
+ * Modal::from_event() resolves it. ESC closes it the way a backdrop tap does,
+ * without pressing either button.
+ *
+ * A dialog with buttons wired in C++ that do more than close it gets its own
+ * Modal subclass instead, with the wiring in on_show().
+ */
+class ComponentModal : public Modal {
+  public:
+    explicit ComponentModal(std::string component_name)
+        : component_name_(std::move(component_name)) {}
+
+    HELIX_KIND_TAG(ComponentModal)
+
+    /// Show @p component_name owned by ModalStack. The dialog, or nullptr when
+    /// the component could not be created.
+    static lv_obj_t* show_owned(const char* component_name, const char** attrs = nullptr) {
+        if (!component_name) {
+            return nullptr;
+        }
+        auto modal = std::make_unique<ComponentModal>(component_name);
+        ComponentModal* raw = modal.get();
+        if (!Modal::show_owned(std::move(modal), lv_screen_active(), attrs)) {
+            return nullptr;
+        }
+        return raw->dialog();
+    }
+
+    const char* get_name() const override {
+        return component_name_.c_str();
+    }
+    const char* component_name() const override {
+        return component_name_.c_str();
+    }
+
+  protected:
+    void on_escape() override {
+        hide(ModalCloseReason::EscKey);
+    }
+
+  private:
+    std::string component_name_;
+};
 
 inline void modal_hide(lv_obj_t* dialog) {
     Modal::hide(dialog);
@@ -743,18 +843,19 @@ lv_obj_t* modal_alert(const char* title, const char* message,
  * @brief Show the "low RAM before resonance calibration" warning modal.
  *
  * Centralizes the (translated) copy, severity, AND the re-entry scaffold so
- * the two calibration entry points (input-shaper panel + wizard) can't
- * diverge: pass the address of the stored handle and this helper clears it on
- * every close path - button press, backdrop/ESC dismissal, teardown - and
- * falls back to acting on a failed build only through the caller's own
+ * the calibration entry points (input-shaper panel, wizard, belt tension)
+ * can't diverge: pass the address of the stored handle and this helper clears
+ * it on every close path - button press, backdrop/ESC dismissal, teardown -
+ * and falls back to acting on a failed build only through the caller's own
  * null-handle check. @p options carries the decline callback, the dismissal
  * callback and the owner token; the helper clears the handle ahead of each of
  * them, so a caller keeps its own on_cancel and on_dismiss and does not clear
- * the handle itself. Do NOT hand-roll an LV_EVENT_DELETE hook for this:
- * one that outlives its owner is the use-after-free that got
- * prestonbrown/helixscreen#1380 reverted.
+ * the handle itself. The handle is a WidgetRef, so a dialog freed behind the
+ * caller's back (its screen deleted, a modal-stack sweep) reads nullptr too;
+ * the explicit clear is what opens the caller's guard before the exit
+ * animation ends.
  */
-lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
+lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, WidgetRef* dialog_handle,
                                          helix::SharedCallback<void()> on_confirm,
                                          const ConfirmOptions& options = {});
 

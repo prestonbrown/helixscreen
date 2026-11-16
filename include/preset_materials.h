@@ -18,11 +18,9 @@
  * persisted to settings.json under "preset_materials"). This header is the one
  * place the rest of the UI reads it from, so the filament panel, the preheat
  * widget, the nozzle/bed/chamber temperature panels, the PID calibration panel
- * and the AMS environment overlay can never disagree about slot N.
- *
- * Historically each of those had its own hardcoded {"PLA","PETG","ABS",...} copy;
- * a user who reassigned a slot saw the new material in some places and the old
- * literal in others.
+ * and the AMS environment overlay can never disagree about slot N. A hardcoded
+ * {"PLA","PETG","ABS",...} copy anywhere else would show a reassigned slot's new
+ * material in some places and the old literal in others.
  *
  * Two layers:
  *  - Plain accessors (name/all) — no LVGL, safe from any code including tests.

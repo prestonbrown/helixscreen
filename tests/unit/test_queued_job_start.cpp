@@ -14,7 +14,6 @@
  */
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_preparation_manager_test_access.h"
@@ -24,13 +23,13 @@
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_macros_read.h"
 #include "../test_helpers/scoped_mock_ams.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_discovery.h"
 #include "queued_job_start.h"
-#include "static_panel_registry.h"
 
 #include <memory>
 #include <optional>
@@ -428,6 +427,9 @@ class OneManagerFixture : private helix::PrintSelectGlobalStateReset, public LVG
         StaticPanelRegistry::instance().destroy_all();
         client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        // No macro in Klipper's config object, so the PRINT_START analysis walks
+        // the config files, the step these cases hold and count.
+        api->set_configfile_macros(nlohmann::json::object());
         previous_api_ = get_moonraker_api();
         set_moonraker_api(api.get());
         get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
@@ -462,7 +464,7 @@ class OneManagerFixture : private helix::PrintSelectGlobalStateReset, public LVG
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 6);
+        helix::ui::UpdateQueue::instance().drain_until_empty(6);
     }
 
     static void set_connection(ConnectionState state) {

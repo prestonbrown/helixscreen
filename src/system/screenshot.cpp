@@ -3,9 +3,9 @@
 
 #include "screenshot.h"
 
-#include "ui_error_reporting.h"
-
 #include "app_globals.h"
+#include "core/error_reporting.h"
+#include "core/text_io.h"
 #include "lodepng_encode.h"
 
 #include <spdlog/spdlog.h>
@@ -120,10 +120,8 @@ bool has_suffix_ci(const std::string& s, const std::string& suffix) {
     if (s.size() < suffix.size()) {
         return false;
     }
-    return std::equal(suffix.rbegin(), suffix.rend(), s.rbegin(), [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) ==
-               std::tolower(static_cast<unsigned char>(b));
-    });
+    return helix::text_io::equals_ignore_case(std::string_view(s).substr(s.size() - suffix.size()),
+                                              suffix);
 }
 
 } // namespace

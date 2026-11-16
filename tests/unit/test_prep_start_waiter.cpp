@@ -15,7 +15,6 @@
  */
 
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../test_helpers/delayed_file_transfers.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
@@ -27,9 +26,9 @@
 #include "../test_helpers/queued_job_starter_test_access.h"
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_macros_read.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "gcode_ops_detector.h"
 #include "printer_state.h"
 #include "queued_job_start.h"
@@ -59,6 +58,9 @@ class WaiterFixture : private helix::PrintSelectGlobalStateReset, public LVGLUIT
     WaiterFixture() : client(MoonrakerClientMock::PrinterType::VORON_24, 100.0) {
         client.connect("ws://mock/websocket", []() {}, []() {});
         api = std::make_unique<DelayedMoonrakerAPIMock>(client, get_printer_state(), transfers);
+        // No macro in Klipper's config object, so the PRINT_START analysis walks
+        // the config files, the step these cases hold and count.
+        api->set_configfile_macros(nlohmann::json::object());
         manager = std::make_unique<PrintPreparationManager>();
         manager->set_dependencies(api.get(), &get_printer_state());
         get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
@@ -79,7 +81,7 @@ class WaiterFixture : private helix::PrintSelectGlobalStateReset, public LVGLUIT
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance(), 6);
+        helix::ui::UpdateQueue::instance().drain_until_empty(6);
     }
 
     /// when_ready_to_start(@p name, @p dir, @p version), recording its answer.

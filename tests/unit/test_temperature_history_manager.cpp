@@ -16,15 +16,16 @@
  */
 
 // Include the real implementation header
+#include "../../include/core/update_queue.h"
 #include "../../include/printer_state.h"
 #include "../../include/temperature_history_manager.h"
 #include "../../include/temperature_sensor_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 
 #include <atomic>
 #include <chrono>
@@ -35,35 +36,15 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
 // ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-namespace {
-struct LVGLInitializerTempHistory {
-    LVGLInitializerTempHistory() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerTempHistory lvgl_init;
-} // namespace
-
-// ============================================================================
 // Test Fixture
 // ============================================================================
 
-class TemperatureHistoryManagerTestFixture {
+class TemperatureHistoryManagerTestFixture : public LVGLTestFixture {
     static bool queue_initialized;
 
   public:
@@ -83,7 +64,7 @@ class TemperatureHistoryManagerTestFixture {
         manager_.reset();
 
         // Drain pending callbacks
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
 
         // Shutdown queue
         helix::ui::update_queue_shutdown();
@@ -106,7 +87,7 @@ class TemperatureHistoryManagerTestFixture {
     void set_extruder_temp(int decidegrees) {
         lv_subject_set_int(printer_state_.temperature_state().get_active_extruder_temp_subject(),
                            decidegrees);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /**
@@ -115,7 +96,7 @@ class TemperatureHistoryManagerTestFixture {
     void set_extruder_target(int decidegrees) {
         lv_subject_set_int(printer_state_.temperature_state().get_active_extruder_target_subject(),
                            decidegrees);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /**
@@ -123,7 +104,7 @@ class TemperatureHistoryManagerTestFixture {
      */
     void set_bed_temp(int decidegrees) {
         lv_subject_set_int(printer_state_.temperature_state().get_bed_temp_subject(), decidegrees);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     /**
@@ -132,7 +113,7 @@ class TemperatureHistoryManagerTestFixture {
     void set_bed_target(int decidegrees) {
         lv_subject_set_int(printer_state_.temperature_state().get_bed_target_subject(),
                            decidegrees);
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // ========================================================================
@@ -149,7 +130,7 @@ class TemperatureHistoryManagerTestFixture {
      */
     bool wait_for_sample_count(const std::string& heater, int count, int timeout_ms = 500) {
         for (int i = 0; i < timeout_ms / 10; ++i) {
-            UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain();
             if (manager_->get_sample_count(heater) >= count) {
                 return true;
             }
@@ -578,7 +559,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // (the real ordering — the manager is built at startup, discovery lands
     // once the WebSocket connects)
     printer_state_.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // When: each extruder reports its own temperature
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_temp_subject("extruder"),
@@ -587,7 +568,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
                        419);
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_temp_subject("extruder2"),
                        2295);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Then: each lands in its own bucket, unmixed
     REQUIRE(manager_->get_sample_count("extruder") == 1);
@@ -601,15 +582,15 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
 TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
                  "TemperatureHistoryManager keeps the active tool out of the extruder bucket",
                  "[temperature_history][multi_tool]") {
-    // Given: a 5-tool changer printing on T4 (bundle 5ZVLLHK2 — T4 at 229.5C
+    // Given: a 5-tool changer printing on T4 (a field report: T4 at 229.5C
     // while extruder itself sits cold at 43.8C)
     printer_state_.temperature_state().init_extruders(
         {"extruder", "extruder1", "extruder2", "extruder3", "extruder4"});
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // When: the ACTIVE-extruder subject carries T4's hot reading
     lv_subject_set_int(printer_state_.temperature_state().get_active_extruder_temp_subject(), 2295);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Then: it does NOT get filed under "extruder" — that bucket belongs to
     // extruder's own sensor, and backfilling it into Nozzle 1 is what pinned
@@ -621,7 +602,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // And: extruder4's own subject is what feeds extruder4's bucket
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_temp_subject("extruder4"),
                        2295);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(manager_->get_sample_count("extruder4") == 1);
     REQUIRE(manager_->get_samples("extruder4").back().temp_deci == 2295);
 }
@@ -630,21 +611,21 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
                  "TemperatureHistoryManager tracks per-extruder targets independently",
                  "[temperature_history][multi_tool]") {
     printer_state_.temperature_state().init_extruders({"extruder", "extruder1"});
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Given: two tools with different setpoints
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_target_subject("extruder"),
                        0);
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_target_subject("extruder1"),
                        2300);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // When: both report a temperature
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_temp_subject("extruder"),
                        438);
     lv_subject_set_int(printer_state_.temperature_state().get_extruder_temp_subject("extruder1"),
                        2295);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Then: each sample carries its OWN tool's target, not a shared cache
     REQUIRE(manager_->get_samples("extruder").back().target_deci == 0);
@@ -658,16 +639,16 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // subject is the only source — keep recording it so a graph opened during
     // startup still has a trace.
     lv_subject_set_int(printer_state_.temperature_state().get_active_extruder_temp_subject(), 2000);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(manager_->get_sample_count("extruder") == 1);
 
     // Once discovery lands, the per-extruder subjects take over and the
     // fallback must go away, or a tool change reintroduces the mixing bug.
     printer_state_.temperature_state().init_extruders({"extruder", "extruder1"});
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     lv_subject_set_int(printer_state_.temperature_state().get_active_extruder_temp_subject(), 2295);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     for (const auto& sample : manager_->get_samples("extruder")) {
         REQUIRE(sample.temp_deci != 2295);
@@ -684,7 +665,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // An unmounted tool on a MedusaHC reads ~-70C forever, and the user sets
     // min_temp: -100 so Klipper tolerates it. Every sample is rejected, which
     // used to mean every sample was logged: 19,098 of 20,000 crash-ring lines
-    // in bundle 6QWNVZY5 were this one message.
+    // in one debug bundle were this one message.
     constexpr int64_t kSamples = 600; // ten minutes at 1 Hz
     const int64_t base = now_ms();
     const int64_t lines_before =
@@ -747,7 +728,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     // A manager built after discovery subscribes to what discovery found. (The
     // fixture's was built before the sensor manager's subjects existed here.)
     manager_ = std::make_unique<TemperatureHistoryManager>(printer_state_);
-    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 
     tsm.update_from_status({{"heater_generic filament_dryer", {{"target", 55.0}}}});
     tsm.update_from_status({{"heater_generic filament_dryer", {{"temperature", 48.5}}}});

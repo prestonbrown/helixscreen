@@ -31,11 +31,8 @@
  * followed by a `this`/`self` dereference is the same check-then-use race as a
  * bare `tok.expired()` — L081 Mechanism C.
  *
- * That is not theoretical. This header previously showed the bare-check form as
- * its usage example, and five callbacks in ui_panel_print_select.cpp were
- * written to match, each dereferencing `self` on an HttpExecutor worker
- * (prestonbrown/helixscreen#960). `scripts/check_l081_anti_pattern.py` now
- * flags that shape.
+ * `scripts/check_l081_anti_pattern.py` flags that shape
+ * (prestonbrown/helixscreen#960).
  *
  * ThumbnailCache marshals its callbacks to the main thread at the fetch
  * boundary, so within a fetch callback the race is closed by that — but do not

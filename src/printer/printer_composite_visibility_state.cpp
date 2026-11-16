@@ -27,6 +27,9 @@ void PrinterCompositeVisibilityState::init_subjects(bool register_xml) {
                   register_xml);
 
     INIT_SUBJECT_INT(has_any_preprint_options, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(timelapse_owner, static_cast<int>(TimelapseOwner::None), subjects_,
+                     register_xml);
+    INIT_SUBJECT_INT(timelapse_enabled, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterCompositeVisibilityState] Subjects initialized successfully");
@@ -40,6 +43,20 @@ void PrinterCompositeVisibilityState::deinit_subjects() {
     spdlog::debug("[PrinterCompositeVisibilityState] Deinitializing subjects");
     subjects_.deinit_all();
     subjects_initialized_ = false;
+}
+
+void PrinterCompositeVisibilityState::set_timelapse_owner(TimelapseOwner owner) {
+    const int value = static_cast<int>(owner);
+    if (lv_subject_get_int(&timelapse_owner_) != value) {
+        lv_subject_set_int(&timelapse_owner_, value);
+    }
+}
+
+void PrinterCompositeVisibilityState::set_timelapse_enabled(bool enabled) {
+    const int value = enabled ? 1 : 0;
+    if (lv_subject_get_int(&timelapse_enabled_) != value) {
+        lv_subject_set_int(&timelapse_enabled_, value);
+    }
 }
 
 void PrinterCompositeVisibilityState::update_visibility(

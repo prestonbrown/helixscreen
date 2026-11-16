@@ -13,13 +13,13 @@
  * tests are done as integration tests with the actual application.
  */
 
-#include "ui_observer_guard.h"
-
 #include "../../lvgl_test_fixture.h"
 #include "../../test_helpers/ams_state_test_access.h"
 #include "ams_state.h"
+#include "core/observer_factory.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "filament_sensor_manager.h"
-#include "observer_factory.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "subject_initializer.h"
@@ -139,8 +139,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard RAII removes observer on destru
     // Test that ObserverGuard properly removes observers when going out of scope
     // This verifies the RAII pattern used by SubjectInitializer
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     std::atomic<int> callback_count{0};
 
@@ -185,8 +185,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard RAII removes observer on destru
     lv_subject_set_int(&subject, 300);
     process_lvgl(10);
     REQUIRE(callback_count.load() == 0); // Still no callback
-
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard move semantics transfer ownership",
@@ -194,8 +192,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard move semantics transfer ownersh
     // Test that move assignment properly transfers observer ownership
     // Important for SubjectInitializer which stores guards in member variables
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
 
     std::atomic<int> callback_count{0};
 
@@ -240,8 +238,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard move semantics transfer ownersh
     lv_subject_set_int(&subject, 100);
     process_lvgl(10);
     REQUIRE(callback_count.load() == 0); // No callback after reset
-
-    lv_subject_deinit(&subject);
 }
 
 // Panels built by init_panels() observe the language subject from their

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_widget_ref.h"
+
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
+#include "subject_managed_panel.h"
 
 /**
  * @brief Memory Stats Overlay - Development tool for monitoring memory usage
@@ -18,9 +22,6 @@
  */
 class MemoryStatsOverlay {
   public:
-    /**
-     * @brief Get singleton instance
-     */
     static MemoryStatsOverlay& instance();
 
     /**
@@ -30,24 +31,9 @@ class MemoryStatsOverlay {
      */
     void init(lv_obj_t* parent, bool initially_visible = false);
 
-    /**
-     * @brief Toggle overlay visibility
-     */
     void toggle();
-
-    /**
-     * @brief Show overlay
-     */
     void show();
-
-    /**
-     * @brief Hide overlay
-     */
     void hide();
-
-    /**
-     * @brief Check if overlay is visible
-     */
     bool is_visible() const;
 
     /**
@@ -61,21 +47,35 @@ class MemoryStatsOverlay {
      */
     void update();
 
+    /// Text tone of a delta or pressure value: the index its bind_styles select.
+    enum class Tone : int { Ok = 0, Warn = 1, Bad = 2 };
+
   private:
     MemoryStatsOverlay() = default;
     ~MemoryStatsOverlay();
 
-    // Non-copyable
     MemoryStatsOverlay(const MemoryStatsOverlay&) = delete;
     MemoryStatsOverlay& operator=(const MemoryStatsOverlay&) = delete;
 
-    lv_obj_t* overlay_ = nullptr;
-    lv_obj_t* rss_label_ = nullptr;
-    lv_obj_t* hwm_label_ = nullptr;
-    lv_obj_t* private_label_ = nullptr;
-    lv_obj_t* delta_label_ = nullptr;
-    lv_obj_t* pressure_label_ = nullptr;
+    void init_subjects();
+
+    helix::ui::WidgetRef overlay_;
     lv_timer_t* update_timer_ = nullptr;
+
+    SubjectManager subjects_;
+    helix::Subject rss_text_{};
+    helix::Subject hwm_text_{};
+    helix::Subject private_text_{};
+    helix::Subject delta_text_{};
+    helix::Subject pressure_text_{};
+    helix::Subject delta_tone_{};
+    helix::Subject pressure_tone_{};
+    char rss_buf_[16] = {};
+    char hwm_buf_[16] = {};
+    char private_buf_[16] = {};
+    char delta_buf_[16] = {};
+    char pressure_buf_[16] = {};
+    bool subjects_initialized_ = false;
 
     int64_t baseline_rss_kb_ = 0;
     bool initialized_ = false;

@@ -4,10 +4,11 @@
 #pragma once
 
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
+#include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
 #include "exact_size_image.h"
 #include "panel_widget.h"
 
@@ -16,6 +17,32 @@
 #include <vector>
 
 namespace helix {
+
+namespace ui {
+
+/// What the printer picture was last drawn from: the source, its file's
+/// mtime and size, and the content size of the area it is laid out in.
+struct PrinterImageStamp {
+    std::string source;      ///< resolved LVGL path
+    std::string fingerprint; ///< printer_image_source_fingerprint() of the source
+    int area_w = 0;
+    int area_h = 0;
+};
+
+/// How a refresh differs from what is on screen. Only NewPixels makes the
+/// decoded source stale; any change moves the callouts.
+enum class PrinterImageChange {
+    None,     ///< same picture, same area: nothing to redo
+    Resized,  ///< same picture, another area: relayout
+    NewPixels ///< another source, or the same path rewritten: reload and relayout
+};
+
+/// Pure: compares what is shown with what a refresh would show. Nothing shown
+/// yet (an empty source) is NewPixels.
+PrinterImageChange classify_printer_image_change(const PrinterImageStamp& shown,
+                                                 const PrinterImageStamp& next);
+
+} // namespace ui
 
 class PrinterImageWidget : public PanelWidget {
   public:
@@ -42,7 +69,8 @@ class PrinterImageWidget : public PanelWidget {
     /// Reload printer image and printer info subjects from config
     void reload_from_config();
 
-    /// Re-check printer image setting and update the displayed image
+    /// The picture may have changed on disk: re-resolve it and reload it even
+    /// under the same path and size.
     void refresh_printer_image();
 
     /// XML event callback — opens printer manager overlay
@@ -73,6 +101,11 @@ class PrinterImageWidget : public PanelWidget {
     // (mid-rebuild grid) walked the freed descriptor off the heap end (#983/#1025).
     lv_timer_t* refresh_timer_ = nullptr;
     std::string current_source_path_; // Resolved source image (LVGL path)
+    /// What the last apply drew from. Kept across a rebuild, so a recycled
+    /// instance knows whether its new tree shows the same picture.
+    helix::ui::PrinterImageStamp shown_stamp_;
+    /// Set by attach(): the new tree's chips are unplaced until the next apply.
+    bool callouts_unplaced_ = false;
     /// Natural size of the source, read once per path: every relayout needs it
     /// (an untagged image's aspect, a user tag's size guard), and a decoder
     /// info call opens the file.
@@ -100,6 +133,9 @@ class PrinterImageWidget : public PanelWidget {
     std::vector<ObserverGuard> hardware_observers_;
     void refresh_if_detected_image_changed();
 
+    /// Re-resolves the picture and redoes what classify_printer_image_change()
+    /// says changed since the last apply; `force` treats it as new pixels.
+    void apply_printer_image(bool force);
     void schedule_image_refresh();
     void schedule_cache_check();
     void check_or_generate_cache();
@@ -110,12 +146,13 @@ class PrinterImageWidget : public PanelWidget {
     void arm_callout_observers();
     void update_callouts();         ///< subjects -> chip text/shown; relayout on change
     void schedule_callout_layout(); ///< one-shot deferred apply_callout_layout()
+    /// Breathe the bed and chamber glows while they climb and are on screen.
+    void update_glow_pulses();
     void cancel_callout_timer();
     void apply_callout_layout(); ///< measure, decide, position
     /// Moves and sizes printer_image to `moved`, or back to filling its
     /// container when null; refreshes the image only when the rect changes.
     void place_printer_image(const CalloutRect* moved);
-    void set_glow_pulse(bool on); ///< start/stop the bed glow's opacity pulse
     void handle_callout_clicked(CalloutKind kind);
     /// Recovers the widget from a chip's event (chip -> callout_layer -> printer_container).
     static PrinterImageWidget* widget_from_chip(lv_event_t* e);
@@ -127,7 +164,9 @@ class PrinterImageWidget : public PanelWidget {
     int callout_colspan_ = 0;
     int callout_rowspan_ = 0;
     int callout_spin_pct_ = -1; ///< speed the fan icons spin at; -1 = not yet applied
-    bool callout_glow_pulsing_ = false;
+    helix::ui::temperature::HeatState callout_bed_heat_ = helix::ui::temperature::HeatState::Off;
+    helix::ui::temperature::HeatState callout_chamber_heat_ =
+        helix::ui::temperature::HeatState::Off;
     helix::ui::CalloutPresenter presenter_;
     std::vector<ObserverGuard> callout_observers_;
     /// Each text chip's full text, indexed by CalloutKind. Its subject carries the

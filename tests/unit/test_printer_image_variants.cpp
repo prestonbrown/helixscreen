@@ -9,6 +9,7 @@
 #include "printer_image_variants.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::AmsType;
 using helix::printer_images::HardwareFacts;

@@ -9,10 +9,10 @@
 
 #include "ui_component_keypad.h"
 #include "ui_nav_manager.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "input_settings_manager.h"
 #include "input_settings_test_helpers.h"
 #include "settings_manager.h"
@@ -94,7 +94,7 @@ struct KeypadLayoutFixture : LVGLUITestFixture {
     }
 
     static bool shown(lv_obj_t* keypad, const char* name) {
-        return !lv_obj_has_flag(key(keypad, name), LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(key(keypad, name));
     }
 
     void press(lv_obj_t* keypad, const char* name) {

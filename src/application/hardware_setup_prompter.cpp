@@ -11,16 +11,17 @@
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_panel_notification_history.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard.h"
 
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "hardware_role_registry.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_fan_state.h"
@@ -67,18 +68,20 @@ bool parse_action_generation(const std::string& arg, uint32_t& gen) {
     return parsed.ec == std::errc{} && parsed.ptr == arg.data() + arg.size();
 }
 
-/// PRINTER_TYPE and TYPE_MISMATCH_SHOWN_FOR hold display names, which a
-/// database rename orphans; every comparison reads them through the alias list.
+/// PRINTER_TYPE and the answered pair hold display names, which a database
+/// rename orphans; every comparison reads them through the alias list.
 std::string canonical_saved_type() {
     auto* cfg = Config::get_instance();
     return PrinterDetector::canonical_type_name(
         cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
 }
 
-std::string canonical_shown_for() {
+PrinterDetector::MismatchAnswer canonical_answer() {
     auto* cfg = Config::get_instance();
-    return PrinterDetector::canonical_type_name(
-        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
+    return {PrinterDetector::canonical_type_name(
+                cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, "")),
+            PrinterDetector::canonical_type_name(cfg->get<std::string>(
+                cfg->df() + helix::wizard::kTypeMismatchShownForDetected, ""))};
 }
 
 void* toast_generation(uint32_t generation) {
@@ -408,6 +411,9 @@ void HardwareSetupPrompter::prompt_deferred_hardware_setup(
 }
 
 void HardwareSetupPrompter::settle_type_mismatch_warning() {
+    // The answer covers the pair the warning asked about, so a later detection
+    // of another type still gets its own question.
+    const std::string detected = pending_review_ ? pending_review_->detected : std::string();
     pending_review_.reset();
     review_open_ = false;
     // Answered: the sticky toast has nothing left to ask.
@@ -415,6 +421,7 @@ void HardwareSetupPrompter::settle_type_mismatch_warning() {
     auto* cfg = Config::get_instance();
     cfg->set<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR,
                           cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
+    cfg->set<std::string>(cfg->df() + helix::wizard::kTypeMismatchShownForDetected, detected);
     if (!cfg->save()) {
         spdlog::warn("[HardwareSetup] Failed to persist type mismatch decision");
     }
@@ -424,7 +431,7 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
     // The gates below all decline silently in normal operation. A debug bundle
     // is the only view we get of a reporter's run, so each one says why it
     // declined: without that there is no way to tell a 68%-confidence near-miss
-    // apart from detection returning nothing at all (bundle TZT85MQ3).
+    // apart from detection returning nothing at all.
     if (guards.type_mismatch_shown) {
         spdlog::debug("[HardwareSetup] Type mismatch check skipped: already prompted this session");
         return;
@@ -434,7 +441,7 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
         // mismatch against the saved type says nothing about real hardware.
         // Gate on the runtime-config predicate, not on HELIX_MOCK_PRINTER:
         // plain --test runs the mock client without that env var ever being
-        // set, so the old getenv check let every --test launch open the
+        // set, so an env check would let every --test launch open the
         // prompt against whatever type settings-test.json happened to carry.
         spdlog::debug("[HardwareSetup] Type mismatch check skipped: mock printer");
         return;
@@ -462,35 +469,39 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
         }
     }
 
-    // Canonicalised too: a dismissal recorded under the pre-rename name still
-    // answers for the same printer.
-    const std::string flag = canonical_shown_for();
+    // Canonicalised too: a dismissal recorded under the pre-rename names still
+    // answers for the same printers.
+    const auto answered = canonical_answer();
 
     auto detected = PrinterDetector::auto_detect(hardware);
-    const auto decision = PrinterDetector::classify_type_mismatch(saved, detected, flag);
+    const auto decision = PrinterDetector::classify_type_mismatch(saved, detected, answered);
     if (decision != PrinterDetector::MismatchDecision::Warn) {
         // info, not debug: this runs once per discovery pass, and it is the line
         // that answers "why was there no prompt?" in a bundle.
         spdlog::info(
             "[HardwareSetup] No type mismatch prompt: detected '{}' at {}% (runner-up '{}' "
-            "at {}%, margin {}, {} tied), saved '{}', dismissed-for '{}', need >={}% and "
-            "margin >={} - {}",
+            "at {}%, margin {}, {} tied), saved '{}', answered for '{}' vs '{}', need >={}% "
+            "and margin >={} - {}",
             detected.type_name, detected.confidence, detected.runner_up_type_name,
-            detected.runner_up_confidence, detected.margin(), detected.tied_count, saved, flag,
-            PrinterDetector::kMismatchMinConfidence, PrinterDetector::kDetectMinMargin,
-            PrinterDetector::mismatch_decision_name(decision));
+            detected.runner_up_confidence, detected.margin(), detected.tied_count, saved,
+            answered.saved, answered.detected, PrinterDetector::kMismatchMinConfidence,
+            PrinterDetector::kDetectMinMargin, PrinterDetector::mismatch_decision_name(decision));
         return;
     }
 
     // Session guard: one warning per boot. The toast and history entry stay until the
-    // user answers the review; only an answer persists TYPE_MISMATCH_SHOWN_FOR.
+    // user answers the review; only an answer persists the answered pair.
     guards.type_mismatch_shown = true;
+    // An ambiguous detection reaches Warn only through the contender for the
+    // saved machine, which is the type to offer.
+    const std::string offered = PrinterDetector::mismatch_subject(saved, detected);
     spdlog::info("[HardwareSetup] Printer type mismatch: saved '{}' but detected '{}' ({}%)", saved,
-                 detected.type_name, detected.confidence);
-    warn_type_mismatch({detected.type_name, detected.confidence, saved});
+                 offered, detected.confidence);
+    warn_type_mismatch({offered, detected.confidence, saved});
 }
 
-void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
+void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review,
+                                               bool retire_on_type_change) {
     const std::string message = type_mismatch_toast_text(review.saved, review.detected);
     pending_review_ = std::move(review);
     const uint32_t generation = ++review_generation_;
@@ -517,6 +528,19 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
             settle_type_mismatch_on_close(gen);
         });
     review_handler_registered_ = true;
+    // Armed on every warning: a printer switch rebuilds PrinterState's subjects, and a
+    // guard left on the old printer_type subject would watch nothing.
+    if (retire_on_type_change) {
+        auto& ps = get_printer_state();
+        type_change_observer_ = helix::ui::observe<const char*>(
+            ps.profile_state().get_printer_type_subject(), this,
+            [](HardwareSetupPrompter* self, const char* /*type*/) {
+                self->retire_warning_if_type_changed();
+            },
+            ps.get_subjects_lifetime());
+    } else {
+        type_change_observer_.reset();
+    }
 
     const std::string action = fmt::format("{}:{}", kReviewPrinterTypeAction, generation);
     ui_notification_warning_with_action(lv_tr("Printer type mismatch"), message.c_str(),
@@ -538,15 +562,27 @@ bool HardwareSetupPrompter::pending_review_current(uint32_t generation, const ch
     // A warning about a type the user has since replaced, or one already
     // answered, is spent: it settles nothing and stays disarmed for the new type.
     const std::string saved = canonical_saved_type();
-    const std::string flag = canonical_shown_for();
-    if (saved != pending_review_->saved || flag == saved) {
+    const auto answered = canonical_answer();
+    if (saved != pending_review_->saved ||
+        (answered.saved == saved &&
+         answered.detected == PrinterDetector::canonical_type_name(pending_review_->detected))) {
         spdlog::info("[HardwareSetup] Type mismatch {} skipped: warned for '{}', saved type is "
-                     "now '{}', dismissed-for '{}'",
-                     what, pending_review_->saved, saved, flag);
+                     "now '{}', answered for '{}' vs '{}'",
+                     what, pending_review_->saved, saved, answered.saved, answered.detected);
         pending_review_.reset();
         return false;
     }
     return true;
+}
+
+void HardwareSetupPrompter::retire_warning_if_type_changed() {
+    if (!pending_review_ || canonical_saved_type() == pending_review_->saved) {
+        return;
+    }
+    spdlog::info("[HardwareSetup] Type mismatch warning for '{}' retired: saved type is now '{}'",
+                 pending_review_->saved, canonical_saved_type());
+    pending_review_.reset();
+    ToastManager::instance().hide(review_toast_clicked, toast_generation(review_generation_));
 }
 
 void HardwareSetupPrompter::settle_type_mismatch_on_close(uint32_t generation) {
@@ -566,7 +602,9 @@ void HardwareSetupPrompter::show_type_mismatch_review(uint32_t generation) {
 
 void HardwareSetupPrompter::show_type_mismatch_demo(const std::string& detected, int confidence,
                                                     const std::string& saved, bool open_review) {
-    warn_type_mismatch({detected, confidence, saved});
+    // The demo's saved name is not the configured type, so watching the type would
+    // retire its toast on the observer's first notification.
+    warn_type_mismatch({detected, confidence, saved}, false);
     if (open_review) {
         open_type_mismatch_review();
     }

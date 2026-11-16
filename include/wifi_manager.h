@@ -296,10 +296,11 @@ class WiFiManager {
     bool supports_country();
 
     struct CountryState {
-        bool read_ok = false; ///< The radio answered; false keeps `system` empty
-        std::string system;   ///< What the radio reports ("" = world)
-        std::string stored;   ///< The saved choice ("" = never chosen)
-        std::string display;  ///< What the UI shows as current (country::plan())
+        bool read_ok = false;  ///< The radio answered; false keeps `system` empty
+        std::string system;    ///< What the radio reports ("" = world)
+        std::string stored;    ///< The saved choice ("" = never chosen)
+        std::string last_seen; ///< The last real country the radio reported
+        std::string display;   ///< What the UI shows as current (country::plan())
     };
 
     /**
@@ -321,6 +322,37 @@ class WiFiManager {
      */
     void set_country_async(const std::string& code, helix::LifetimeToken token,
                            helix::SharedCallback<void(bool success)> on_done);
+
+    // ========================================================================
+    // IPv4 Configuration
+    // ========================================================================
+
+    /// Whether the backend can persist a static IPv4 config
+    /// (helix::net::Ipv4Configurable::supports_ipv4_config()).
+    bool supports_ipv4_config();
+
+    /**
+     * @brief Read the interface's IPv4 config on the control lane
+     *
+     * @p on_done(ok, config) runs on the LVGL thread while @p token lives. A
+     * backend without support answers at once with ok false.
+     */
+    void get_ipv4_config_async(
+        helix::LifetimeToken token,
+        helix::SharedCallback<void(bool ok, const helix::net::Ipv4Config& config)> on_done);
+
+    /**
+     * @brief On the control lane, apply @p next through helix::net::apply_ipv4_change()
+     *
+     * The revert record and its snapshot are written first. @p previous is
+     * what the record shows; @p abandoned, once set, makes the apply restore
+     * the snapshot itself. @p on_done(status) runs on the LVGL thread while
+     * @p token lives; the failure's detail is logged here.
+     */
+    void apply_ipv4_change_async(
+        const helix::net::Ipv4Config& previous, const helix::net::Ipv4Config& next,
+        std::shared_ptr<std::atomic<bool>> abandoned, helix::LifetimeToken token,
+        helix::SharedCallback<void(helix::net::Ipv4Result::Status)> on_done);
 
     // ========================================================================
     // Hardware Detection (Legacy Compatibility)
@@ -545,12 +577,18 @@ class WiFiManager {
     void handle_disconnected(const std::string& event_data);
     void handle_auth_failed(const std::string& event_data);
     void handle_init_failed(bool silent, const std::string& msg);
-    // LVGL thread: logs the change and rescans while a scan session is open,
-    // since the new domain can enable channels the last scan could not use.
+    // LVGL thread: logs the change, remembers a real country, and rescans
+    // while a scan session is open, since the new domain can enable channels
+    // the last scan could not use.
     void handle_regdom_change(const std::string& event_data);
-    // LVGL thread, once the backend is READY: sends the saved country when the
-    // radio disagrees with it. With nothing saved the radio is left alone.
+    // LVGL thread, once the backend is READY: sends the country
+    // country::plan() picks: the saved one when the radio disagrees, else the
+    // remembered one when the radio is at world. A country the radio reports
+    // without a saved choice is left alone.
     void apply_stored_country();
+    // Any thread: saves @p system as the last real country the radio
+    // reported, on the LVGL thread. World and junk are ignored.
+    void remember_radio_country(const std::string& system);
 
     // Registers SCAN_COMPLETE/CONNECTED/DISCONNECTED/AUTH_FAILED/INIT_FAILED/READY
     // handlers on the current backend_. Called once from the constructor and
@@ -654,6 +692,20 @@ class WiFiManager {
     bool cached_connected();
     void run_status_reads();
 
+    // While a status read says the link awaits an address, the backend's
+    // address events are polled on the LVGL thread and each one wakes the
+    // state observers, whose re-read finds the address. The watch ends when
+    // the cached status has an address or no link, or after kAddressWatchMaxMs; the
+    // next read that still finds none starts it again. LVGL thread only.
+    static constexpr uint32_t kAddressWatchPeriodMs = 250;
+    static constexpr uint32_t kAddressWatchMaxMs = 60000;
+    std::unique_ptr<helix::net::LinkEvents> address_events_;
+    uint32_t address_watch_elapsed_ms_ = 0;
+    // Any thread: starts the watch when @p status awaits an address.
+    void watch_address_if_awaiting(const WifiBackend::ConnectionStatus& status);
+    void start_address_watch();
+    void address_watch_tick();
+
     // The control lane: backend control calls run here one at a time, in
     // submission order, on an HttpExecutor::fast() worker (see the class
     // comment). The running drain holds a radio op, so the destructor and the
@@ -693,6 +745,7 @@ class WiFiManager {
         uint32_t connect_ms = 45000; // the connect watchdog's window
         uint32_t other_ms = 40000;   // disconnect, forget, radio: two wpa_ctrl
                                      // round trips at their 15 s worst, plus margin
+        uint32_t ipv4_ms = 58000;    // an IPv4 change: up to six nmcli calls
         uint32_t stall_ms = 60000;   // past every deadline above, and nmcli's 30 s
     };
     UserOpTimeouts user_op_timeouts_;

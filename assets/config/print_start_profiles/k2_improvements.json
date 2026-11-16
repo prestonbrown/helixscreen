@@ -41,7 +41,7 @@
     },
     {
       "pattern": "Waiting for chamber to reach|chamber heater alone can not reach|Chamber temperature .* reached",
-      "phase": "SOAKING",
+      "phase": "HEATING_CHAMBER",
       "message": "Heating Chamber...",
       "weight": 25
     },

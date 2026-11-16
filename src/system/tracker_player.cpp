@@ -666,7 +666,6 @@ void TrackerPlayer::render_audio(float* output, size_t frames, int sample_rate) 
 
             mix += sample * cs.volume * master_vol;
 
-            // Advance position
             double speed = cs.sample_speed * inv_sr;
             cs.sample_pos += speed;
 

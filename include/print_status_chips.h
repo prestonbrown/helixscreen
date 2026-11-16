@@ -7,11 +7,16 @@
 #include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
+#include "display_numbering.h"
 
+#include <functional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace helix {
+
+struct PhysicalHead;
 
 /// The chip's look; XML binds these ints. Normal = plain, Active = working
 /// (heating, spinning, on), Warn = needs a look (off target, tuned), Dim = off.
@@ -23,12 +28,17 @@ struct ChipContent {
     ChipTone tone = ChipTone::Normal;
     /// Showing an expected value, so a tile too small for every chip drops it first.
     bool expendable = false;
-    /// Its region on the picture glows.
-    bool glow = false;
+    /// How its region on the picture glows: 0 not at all, otherwise 1, or for
+    /// the bed and chamber their heat level (bed_glow_level(), chamber_glow_level(): 1-3).
+    /// The nozzle's region glows while heater_region_glows().
+    int glow = 0;
     /// 0-100 heat-up progress for a climbing heater, -1 for no bar.
     int progress_pct = -1;
     /// A heater's HeaterStatusState as an int, for its heater_status glyph; 0 for any other chip.
     int status_state = 0;
+    /// A heater's classification, or Heating on the other-tools chip while a head climbs:
+    /// get_heating_state_color() of it paints the chip.
+    ui::temperature::HeatState heat = ui::temperature::HeatState::Off;
 };
 
 /// A heater chip. `status` is classify_heater_status() of the same reading.
@@ -36,10 +46,60 @@ struct ChipContent {
 /// `printing`: past pre-print, so leaving the band is Warn rather than Active.
 /// `badge` ("T1") prefixes the text on a multi-tool printer, empty otherwise.
 /// `start_deci` is the reading when heating began, for the progress bar.
-/// Not present, or off and cold: not shown.
+/// `reading_alone_shows`: an off, cold heater still shows its reading, for a
+/// chamber whose temperature matters while its heater is idle or absent.
+/// Not present, or off and cold without `reading_alone_shows`: not shown.
 [[nodiscard]] ChipContent heater_chip(bool present, int current_deci, int target_deci,
                                       const ui::temperature::HeaterStatus& status, bool printing,
-                                      bool show_power, std::string_view badge, int start_deci);
+                                      bool show_power, std::string_view badge, int start_deci,
+                                      bool reading_alone_shows = false);
+
+/// A head the other-tools chip lists: the tool that stands for it and the
+/// extruder it heats.
+struct OtherHead {
+    int tool = -1;
+    std::string extruder;
+};
+
+/// The heads besides the one printing, in head order, each named by its
+/// representative tool. Lanes feeding one extruder are one head, and a head
+/// naming no extruder has no reading to list. Empty on a one-head printer, and
+/// where the heads share one heater: a parked head there reads nothing of its own.
+[[nodiscard]] std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads,
+                                                 int active_tool, bool heads_share_heater);
+
+/// One head's reading for the other-tools chip. `start_deci` is the reading
+/// when its target was set, for the progress bar.
+struct OtherToolReading {
+    std::string badge; ///< ui::tool_badge_label(): "2" or "T1", or a configured "Left"
+    int current_deci = 0;
+    int target_deci = 0;
+    int start_deci = 0;
+    /// The number a configured name gives way to where names do not fit
+    /// (ui::tool_number_text()); empty when `badge` is that number already.
+    std::string number;
+};
+
+/// The badge and fallback number of tool `index` in `style`, the readings left at zero.
+[[nodiscard]] OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name,
+                                                int index);
+
+/// The chip listing every head but the printing one: "2 150° · 3 off · 4 off".
+/// A head climbing to its target leads with value / target, the chip is
+/// Active and its bar follows the first climbing head. `fits` says whether a
+/// text fits the chip's room; the full list gives way to as many heads as fit,
+/// in that order, and a count of the rest ("2 off · +2"). A climbing head
+/// always stays ("2 184 / 220° · +2"); with none climbing and no head fitting,
+/// the count alone ("+3 tools"). Configured names give way to the heads'
+/// numbers where the list with names does not fit. Expendable only while no head climbs; Dim while
+/// every head is off. Not shown with no other heads.
+[[nodiscard]] ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
+                                           const std::function<bool(const std::string&)>& fits);
+
+/// The text the layout budgets the other-tools chip at: one head climbing at
+/// the widest reading, by its number, and the count of the rest, the shortest text
+/// other_tools_chip() shows while a head climbs. Empty with no other heads.
+[[nodiscard]] std::string other_tools_budget_text(const std::vector<OtherToolReading>& tools);
 
 /// The text a heater chip is measured at when the layout picks its mode: its
 /// widest shape ("999 / 999°") after `badge` ("T1"), whatever it shows now, so
@@ -68,13 +128,19 @@ struct ChipContent {
 /// The light chip: Active when on, expendable when off.
 [[nodiscard]] ChipContent light_chip(bool controllable, bool on);
 
+/// The light and a warm chamber light the same windows; heat wins, so the light's glow yields.
+[[nodiscard]] inline bool light_glow_yields(const ChipContent& chamber) {
+    return chamber.glow != 0;
+}
+
 /// Whether the layout may shed this chip's room in this phase. This is the
 /// budget's expendable: constant per phase, so the callout mode cannot change
 /// mid-print. The chip showing now keeps its live ChipContent::expendable.
 /// Printing: the part fan is expected to run, so its room is never shed; the
 /// hotend fan (automatic, redundant with the nozzle chip), the aux fan, the
 /// light and speed/flow stay sheddable. Preparing: fans are normally off, so
-/// every fan chip stays sheddable. Heaters and the toolhead never are.
+/// every fan chip stays sheddable. Heaters, the toolhead and the other-tools
+/// chip never are.
 [[nodiscard]] bool phase_budget_expendable(CalloutKind kind, bool printing);
 
 /// Whether a heater chip carries its duty ("220° · 5%"). Only the line modes

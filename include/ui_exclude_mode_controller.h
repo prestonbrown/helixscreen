@@ -4,8 +4,9 @@
 #include "ui_exclude_object_badges.h"
 #include "ui_exclude_object_map_view.h"
 #include "ui_exclude_object_side_list.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
+
+#include "core/observer_guard.h"
 
 #include <lvgl.h>
 #include <memory>

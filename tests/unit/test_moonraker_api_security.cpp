@@ -4,6 +4,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -33,27 +34,10 @@ using namespace helix;
  */
 
 // ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializer {
-    LVGLInitializer() {
-        lv_init_safe();
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf[800 * 10];
-        lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-    }
-};
-} // namespace
-
-static LVGLInitializer lvgl_init;
-
-// ============================================================================
 // Test Fixtures
 // ============================================================================
 
-class MoonrakerAPITestFixture {
+class MoonrakerAPITestFixture : public LVGLTestFixture {
   public:
     MoonrakerAPITestFixture() {
         // Initialize printer state (no XML registration - local instance, not singleton)

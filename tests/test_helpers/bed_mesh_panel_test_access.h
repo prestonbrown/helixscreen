@@ -48,16 +48,23 @@ struct BedMeshPanelTestAccess {
         return &BedMeshPanel::on_content_size_changed;
     }
 
-    /// The calibrate-state subject's type. start_calibration() notifies panel
-    /// subjects that only init_subjects() creates, so a test driving the
-    /// state machine proves first that the panel is initialized.
+    /// The calibrate-state subject's type, or LV_SUBJECT_TYPE_INVALID until
+    /// init_subjects() has run. start_calibration() notifies panel subjects that
+    /// only init_subjects() initializes, so a test driving the state machine
+    /// proves first that the panel is initialized.
     static int calibrate_state_type(const BedMeshPanel& p) {
-        return static_cast<int>(p.bed_mesh_calibrate_state_.type);
+        const helix::Subject& s = p.bed_mesh_calibrate_state_;
+        return s.is_live() ? static_cast<int>(s.get()->type)
+                           : static_cast<int>(LV_SUBJECT_TYPE_INVALID);
+    }
+
+    static helix::CalibrationOwnedHeat& heat(BedMeshPanel& p) {
+        return p.heat_;
     }
 
     /// The calibrate-state machine's current value.
     static int calibrate_state(const BedMeshPanel& p) {
-        return p.bed_mesh_calibrate_state_.value.num;
+        return lv_subject_get_int(p.bed_mesh_calibrate_state_.get());
     }
 };
 

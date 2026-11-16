@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "start_block_steps.h"
 
+#include "core/text_io.h"
 #include "gcode_ops_detector.h"
 #include "operation_patterns.h"
 #include "print_start_phase_label.h"
-#include "text_io.h"
 
 #include <algorithm>
 #include <cctype>
@@ -81,6 +81,10 @@ std::optional<StartBlockStepKind> step_kind(const gcode::DetectedOperation& op) 
         // returns at once, so the position cannot follow its work; and the
         // collector's temperature detection owns SOAKING. Not a step: with a
         // start block, the soak row appears once that detection enters it.
+    case PrintStartPhase::MOTOR_SYNC:
+        // SYNC_MOTORS RESTORE_SYNC=1 shares the command word and returns at
+        // once without syncing, so the line cannot place the work. The
+        // console's "Motors synchronization started" enters the phase.
     default:
         return std::nullopt;
     }

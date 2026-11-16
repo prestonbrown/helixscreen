@@ -19,11 +19,35 @@ The K2, K2 Pro and K2 Plus use Allwinner ARM Cortex-A7 dual-core processors runn
 covered by [K1 Series Support](CREALITY_K1_SUPPORT.md), where its user-confirmed install is
 recorded. The routing trap is described in `src/printer/ams_backend_cfs.cpp#"AmsBackendCfs::AmsBackendCfs("`.
 
-Detection has an entry for the K2, K2 Pro and K2 Plus (plus the K2 Plus k2-improvements variant),
-all sharing the `k2` preset. They are told apart by the model hostname or by the bed size the
-firmware declares in `gcode_macro product_param` (250-270, 290-310 and 340-360 mm). The base K2
+Detection has an entry for the K2, K2 Pro and K2 Plus, plus k2-improvements variants of the K2 Pro
+and K2 Plus, all sharing the `k2` preset. They are told apart by the model hostname or by the bed
+size the firmware declares in `gcode_macro product_param` (250-270, 290-310 and 340-360 mm); the
+mod's `_START_PRINT_VARS` macro picks the variant pair, and the bed picks the model within it. The
+mod documents only the K2 Plus, and a K2 Pro has been reported running it; with no report from a
+base K2 there is no base K2 variant, so a modded base K2 misses both mod windows and ties them,
+which detection offers as a choice and never saves. A K2 Plus or K2 Pro on the mod can also
+tie its Plus and Pro mod entries, because the mod's heuristic is definitive and the bonus that
+would separate them caps. When the printer was already saved as a type, the saved type
+settles the tie only for a contender in its variant family: the saved type itself, or an entry
+related to it through `variant_of`. A contender that merely shares the saved type's picture
+does not count, and the identify step of the wizard preselects the printer the saved type
+settled on instead of asking again. The mod
+entries keep `probe_type: prtouch_v3`: Cartographer is optional on the mod, and a real one types
+itself from its own `cartographer` object. The base K2
 entry is the preset's `preset_default`, so a K2 preset install that identifies no K2 machine
 persists "Creality K2". Its image is a copy of the K2 Plus photo until one of the base model exists.
+
+Jacobean's K2 Plus firmware ([Jacob10383/k2-plus-custom-firmware](https://github.com/Jacob10383/k2-plus-custom-firmware))
+replaces Creality's firmware with a Linux image running Jacob10383's Kalico fork and its own CFS,
+motor, probe and power-loss modules. Its shipped configs (`config/k2` in
+[Jacob10383/kalico](https://github.com/Jacob10383/kalico)) carry a `_START_PRINT_VARS` of their
+own and no `product_param`, so without an entry of its own it ties the two k2-improvements entries.
+`Creality K2 Plus (Jacobean firmware)` is a variant of the K2 Plus keyed on its
+`extended_zone_transform` object, which every other K2 entry excludes. It has no preset (its fans,
+sensors and CFS macros differ from the `k2` preset's), no `probe_type` (Cartographer or its own
+`prtouch`, never `prtouch_v3`), and its own `k2_jacobean` print-start profile written from its
+START_PRINT's STATUS_MSG text. Its detection fixtures are the live configs of two real units
+(`creality_k2_plus_jacobean*.json`, #2087).
 
 ## Hardware (Confirmed on K2 Plus — 2026-03-23)
 
@@ -86,7 +110,7 @@ The Docker image (`docker/Dockerfile.k2`) downloads [Bootlin's armv7-eabihf musl
 ### Build Directly (Requires Toolchain)
 
 ```bash
-make PLATFORM_TARGET=k2 -j
+make k2
 ```
 
 ### Build Configuration
@@ -98,7 +122,7 @@ make PLATFORM_TARGET=k2 -j
 | Linking | Fully static (musl) |
 | Display backend | fbdev (`/dev/fb0`) |
 | Input | evdev (auto-detected) |
-| SSL | Disabled (Moonraker is local on port 4408) |
+| SSL | Enabled (static OpenSSL cross-built into the toolchain): HTTPS carries the update check, self-update, telemetry and crash upload |
 | Optimization | `-Os` with LTO (size-optimized) |
 | Platform define | `HELIX_PLATFORM_K2` |
 
@@ -164,7 +188,7 @@ Deploy directory: `/mnt/UDISK/helixscreen` (override with `K2_DEPLOY_DIR`). SSH 
 1. Stops any running HelixScreen processes
 2. Deploys platform hooks (`assets/config/platform/hooks-k2.sh` → /mnt/UDISK/helixscreen/platform/hooks.sh)
 3. Transfers binaries, assets, XML layouts, and config
-4. Installs SysV init script at `/etc/init.d/S99helixscreen` for boot persistence
+4. Installs the init script at `/etc/init.d/S99helixscreen` plus a procd shim at `/etc/init.d/helixscreen` (`config/helixscreen-k2-procd-shim.sh`), which owns the `/etc/rc.d/S99helixscreen` / `K01helixscreen` boot links
 5. Installs the web-server carve-out at `/etc/init.d/helix-k2-webserver` (`config/k2-webserver.init`, a USE_PROCD starter). Once its instance is registered, procd's respawn keeps `web-server` alive; the hook's restore registers it at every HelixScreen start — the stock app's `stop` runs killall -9 over the stock set and takes any `web-server` down (ours included), while `disable` only removes the app's rc.d links. The carve-out's own rc.d boot entry is belt-and-braces. It serves the LAN web interface: ports 80/443 redirect to Fluidd on :4408, 9999 is the local status websocket (prestonbrown/helixscreen#1617)
 6. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
 7. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
@@ -198,7 +222,7 @@ HelixScreen uses evdev and auto-detects the capacitive touch controller. Running
 
 The K2 Plus reports a Goodix `gt9xxnew_ts` on `/dev/input/event0`, which is the only input node on the machine. **The name contains no "touch" substring**, so `grep -i touch /proc/bus/input/devices` returns nothing on a healthy K2 - match on `gt9`/`goodix` or just read the whole file.
 
-Selection is scored, not name-matched: `src/api/input_device_scanner.cpp#"find_touch_device(const"` (shared by the fbdev and DRM backends) requires ABS capabilities, then adds points for a known name (`include/touch_calibration.h#is_known_touchscreen_name`), `INPUT_PROP_DIRECT`, and USB. Some K2 hardware revisions carry a `tlsc6x` controller instead. Its kernel name `tlsc6x_touch` matches the generic `touch` pattern, so it scores as a known panel (the Snapmaker U1 uses the same controller). No K2 with that variant has been observed yet.
+Selection is scored, not name-matched: `src/platform/input/input_device_scanner.cpp#"find_touch_device(const"` (shared by the fbdev and DRM backends) requires ABS capabilities, then adds points for a known name (`include/touch_calibration.h#is_known_touchscreen_name`), `INPUT_PROP_DIRECT`, and USB. Some K2 hardware revisions carry a `tlsc6x` controller instead. Its kernel name `tlsc6x_touch` matches the generic `touch` pattern, so it scores as a known panel (the Snapmaker U1 uses the same controller). No K2 with that variant has been observed yet.
 
 ## Spaghetti Detection
 
@@ -228,9 +252,24 @@ The firmware-side reference (box.cfg, the `box` schema variants and field encodi
 and `M8200` command surface, error codes, runout and auto-refill, and the community Kalico port)
 is [CREALITY_CFS_K2_INTERNALS.md](../printer-research/CREALITY_CFS_K2_INTERNALS.md).
 
+The local daemon on port 9999 that a contributor reports keeping Creality Print and the Creality
+Cloud app in step with the spools was captured on a K1C, not a K2; its reported `modifyMaterial`
+frame is on the K1 page
+([CREALITY_K1_SUPPORT.md § "The local CFS daemon on port 9999"](CREALITY_K1_SUPPORT.md#the-local-cfs-daemon-on-port-9999-reported-not-verified-by-us),
+[#2048](https://github.com/prestonbrown/helixscreen/issues/2048)). Whether the K2's `web-server`
+on 9999 accepts the same frame is unchecked.
+
+## Z-offset calibration
+
+The K2's Klipper shares the K1's `Z_OFFSET_APPLY_PROBE`, whose zero-offset guard is commented
+out, so the command always rewrites the staged calibration from the value loaded at startup.
+HelixScreen saves an accepted calibration with `SAVE_CONFIG` alone; see
+[CREALITY_K1_SUPPORT.md § "Z-offset calibration on Creality's Klipper"](CREALITY_K1_SUPPORT.md#z-offset-calibration-on-crealitys-klipper)
+([#1994](https://github.com/prestonbrown/helixscreen/issues/1994)).
+
 ## Auto-Detection
 
-HelixScreen auto-detects K2 printers using heuristics from `config/printer_database.json`:
+HelixScreen auto-detects K2 printers using heuristics from `assets/config/printer_database.json`:
 
 | Heuristic | Confidence | Description |
 |-----------|------------|-------------|
@@ -247,7 +286,7 @@ HelixScreen auto-detects K2 printers using heuristics from `config/printer_datab
 | `build_volume_range` | 55 | Build volume within the K2 envelope |
 | CoreXY kinematics | 40 | CoreXY motion system |
 
-These identify the **printer**, not its firmware. A community Kalico port trips every one of them — `box`, `motor_control`, `fan_feedback` and the hostname are all still present — so model detection reports a stock K2 Plus. Anything that varies with firmware rather than hardware (the CFS box schema, the macro dialect) must therefore be detected from the payload or the macro list, never from `PrinterDetector`. See [Community Kalico port](../printer-research/CREALITY_CFS_K2_INTERNALS.md#community-kalico-port).
+These identify the **printer**, not its firmware. The community Kalico port (Jacobean's firmware, above) still carries `box`, `motor_control` and the hostname; only its `extended_zone_transform` object, which every stock and k2-improvements entry excludes, routes it to its own variant. Anything that varies with firmware rather than hardware (the CFS box schema, the macro dialect) must therefore be detected from the payload or the macro list, never from `PrinterDetector`. See [Community Kalico port](../printer-research/CREALITY_CFS_K2_INTERNALS.md#community-kalico-port).
 
 Note that `chamber_temp` is **not** universal on K2 hardware either: the Kalico port drops `temperature_sensor chamber_temp` and exposes chamber temperature through `heater_generic chamber_heater` instead.
 

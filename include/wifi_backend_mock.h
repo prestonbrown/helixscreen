@@ -67,7 +67,11 @@ class WifiBackendMock : public WifiBackend {
     WiFiError disconnect_network() override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
+    /// A connected status with no address is awaiting one; a join the
+    /// simulator makes gets none under HELIX_MOCK_WIFI_DHCP_PENDING=1.
     ConnectionStatus get_status() override;
+    /// Fires on every address change set_connected_state() makes.
+    std::unique_ptr<helix::net::LinkEvents> open_address_events() override;
     bool supports_5ghz() const override;
     WiFiError forget_network(const std::string& ssid) override;
     bool supports_forget() const override {
@@ -82,6 +86,24 @@ class WifiBackendMock : public WifiBackend {
     }
     WiFiError get_country(std::string& code) override;
     WiFiError set_country(const std::string& code) override;
+
+    /// In memory, one config for the process (helix::net::mock_ipv4_store).
+    /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
+    bool supports_ipv4_config() const override {
+        return true;
+    }
+    helix::net::Ipv4Result get_ipv4_config(helix::net::Ipv4Config& out) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).get(out);
+    }
+    helix::net::Ipv4Result prepare_ipv4_change(const helix::net::Ipv4Config&,
+                                               helix::net::Ipv4Snapshot& out) override {
+        out = helix::net::mock_ipv4_snapshot(helix::net::Ipv4Link::Wifi);
+        return helix::net::Ipv4Result::success();
+    }
+    helix::net::Ipv4Result apply_ipv4_config(const helix::net::Ipv4Snapshot&,
+                                             const helix::net::Ipv4Config& config) override {
+        return helix::net::mock_ipv4_store(helix::net::Ipv4Link::Wifi).apply(config);
+    }
 
     /// Test helpers: stand in for a country the device's own configuration
     /// set, and count the set_country() calls that reached the radio.
@@ -142,6 +164,9 @@ class WifiBackendMock : public WifiBackend {
     std::string connected_ssid_;
     std::string connected_ip_;
     int connected_signal_;
+    /// Bumped on each address change; shared so an event feed may outlive us.
+    std::shared_ptr<std::atomic<unsigned>> address_generation_ =
+        std::make_shared<std::atomic<unsigned>>(0);
     bool radio_enabled_{true};
     bool join_displaces_wired_link_{false};
     std::optional<helix::wifi::WifiInterface> resolved_interface_;

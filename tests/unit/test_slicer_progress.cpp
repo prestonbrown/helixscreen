@@ -25,6 +25,7 @@
 #include "app_globals.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -40,7 +41,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -63,7 +63,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -93,7 +92,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -120,7 +118,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Slicer progress: slicer-only update advances
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -150,7 +147,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -171,7 +167,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -196,7 +191,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Slicer progress: slicer active flag resets o
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // First print: activate slicer
@@ -237,7 +231,6 @@ TEST_CASE_METHOD(HelixTestFixture, "Slicer progress: cannot go backward in COMPL
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Print with slicer active at high progress
@@ -269,7 +262,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print
@@ -296,7 +288,6 @@ TEST_CASE_METHOD(HelixTestFixture,
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
     state.init_subjects(false);
 
     // Start a print -- no slicer

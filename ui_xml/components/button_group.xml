@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A segmented row of buttons that read as one control (a choice of several, or a set
+     of related actions): one rounded outline that clips its square-cornered
+     button_group_item children, so only the group's outer corners are round. Give the
+     first item style_border_width="0"; every later one draws the divider on its left. -->
+<component>
+  <api>
+    <prop name="height" type="string" default="#button_height_sm"/>
+  </api>
+  <view extends="lv_obj"
+        width="content" height="$height" style_radius="#border_radius" style_clip_corner="true" style_pad_all="0"
+        style_pad_gap="0" flex_flow="row" scrollable="false" style_border_width="1" style_border_color="#text_muted"
+        style_border_opa="60"/>
+</component>

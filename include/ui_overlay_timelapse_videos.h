@@ -3,11 +3,15 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
+#include "subject_managed_panel.h"
 #include "thumbnail_cache.h"
 
 #include <set>
@@ -22,7 +26,9 @@ struct TimelapseCardDimensions {
 class TimelapseVideosOverlay : public OverlayBase {
   public:
     explicit TimelapseVideosOverlay(helix::IMoonrakerAPI* api);
+    ~TimelapseVideosOverlay() override;
 
+    void init_subjects() override;
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
 
@@ -31,6 +37,9 @@ class TimelapseVideosOverlay : public OverlayBase {
     }
     [[nodiscard]] const char* xml_component() const override {
         return "timelapse_videos_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void on_activate() override;
@@ -94,10 +103,20 @@ class TimelapseVideosOverlay : public OverlayBase {
     helix::AsyncLifetimeGuard thumb_lifetime_;
 
     lv_obj_t* video_grid_container_ = nullptr;
-    lv_obj_t* video_grid_empty_ = nullptr;
+
+    SubjectManager subjects_;
+    /// 1 = the listing came back with no video: the empty state replaces the grid
+    helix::Subject videos_empty_subject_{};
+    /// 1 = a player exists on this host, so each card carries the play glyph
+    helix::Subject can_play_subject_{};
+
+    void on_ui_destroyed() override {
+        thumb_lifetime_.invalidate();
+        video_grid_container_ = nullptr;
+    }
 
     std::string pending_delete_filename_;
-    lv_obj_t* delete_confirmation_dialog_ = nullptr;
+    helix::ui::WidgetRef delete_confirmation_dialog_;
 
     // Cached gradient buffer (shared across all video cards)
     lv_draw_buf_t* cached_gradient_ = nullptr;

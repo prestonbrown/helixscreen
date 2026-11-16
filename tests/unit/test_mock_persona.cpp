@@ -27,6 +27,7 @@ constexpr PrinterType kAllTypes[] = {
     PrinterType::FLASHFORGE_AD5X,
     PrinterType::CREALITY_K2_PLUS,
     PrinterType::SNAPMAKER_U1,
+    PrinterType::FLASHFORGE_CREATOR5_AFC,
 };
 } // namespace
 

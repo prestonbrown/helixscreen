@@ -6,9 +6,9 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -23,7 +23,7 @@ using namespace helix;
  */
 
 static void drain() {
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 // ============================================================================

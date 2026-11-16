@@ -12,6 +12,12 @@
     <!-- preview_size comes from globals as #color_preview_size (responsive: 40/48/56px) -->
     <!-- sv_size, hue_height registered at runtime by register_color_picker_component_constants() -->
   </consts>
+  <styles>
+    <!-- MICRO/TINY segment pills: the open tab is a filled primary pill (ui_button
+         picks its contrast text), the other a muted ghost. -->
+    <style name="picker_tab_active" bg_color="#primary" bg_opa="255"/>
+    <style name="picker_tab_idle" bg_opa="0" text_color="#text_muted"/>
+  </styles>
   <!-- SIZE_OK: an absolute width, not the house 70%, because the two-column
        layout below has a hard content floor and the swatch grid is a fixed-px
        row_wrap that overflows rather than reflowing. #color_picker_modal_width
@@ -40,10 +46,14 @@
       <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
       <ui_button name="btn_tab_presets"
                  height="#button_height_sm" text="Presets" flex_grow="1" variant="ghost" focusable="false">
+        <bind_style name="picker_tab_active" subject="color_picker_custom_tab" ref_value="0"/>
+        <bind_style name="picker_tab_idle" subject="color_picker_custom_tab" ref_value="1"/>
         <event_cb trigger="clicked" callback="color_picker_tab_presets_cb"/>
       </ui_button>
       <ui_button name="btn_tab_custom"
                  height="#button_height_sm" text="Custom" flex_grow="1" variant="ghost" focusable="false">
+        <bind_style name="picker_tab_active" subject="color_picker_custom_tab" ref_value="1"/>
+        <bind_style name="picker_tab_idle" subject="color_picker_custom_tab" ref_value="0"/>
         <event_cb trigger="clicked" callback="color_picker_tab_custom_cb"/>
       </ui_button>
     </lv_obj>
@@ -83,6 +93,7 @@
             <text_input name="hex_input"
                         width="100" height="content" max_length="9" text="#808080" placeholder_text="#hex_placeholder"
                         style_outline_width="0" scrollable="false">
+              <bind_style name="styles.text_tone_danger" subject="color_picker_hex_invalid" ref_value="1"/>
               <event_cb trigger="value_changed" callback="hex_input_changed_cb"/>
               <event_cb trigger="defocused" callback="hex_input_defocused_cb"/>
             </text_input>
@@ -116,6 +127,7 @@
       <lv_obj name="presets_content"
               width="100%" height="content" style_pad_all="#space_md" flex_flow="row_wrap" style_pad_gap="#space_xs"
               style_flex_main_place="center" scrollable="false">
+        <bind_flag_if_eq subject="color_picker_custom_tab" flag="hidden" ref_value="1"/>
         <!-- Only child of presets_content, so the reactive <if> ordering
              constraint is satisfied. -->
         <if cond="color_picker_palette eq 1">
@@ -131,10 +143,11 @@
         </if>
       </lv_obj>
 
-      <!-- Custom tab content (hidden by default, C++ toggles via tab switching) -->
+      <!-- Custom tab content -->
       <lv_obj name="custom_content"
               width="100%" height="content" style_pad_all="#space_md" flex_flow="row" style_pad_gap="#space_md"
-              style_flex_main_place="center" scrollable="false" hidden="true">
+              style_flex_main_place="center" scrollable="false">
+        <bind_flag_if_eq subject="color_picker_custom_tab" flag="hidden" ref_value="0"/>
         <!-- LEFT: HSV picker -->
         <ui_hsv_picker name="hsv_picker_tiny" sv_size="#sv_size" hue_height="#hue_height" gap="#space_sm"/>
         <!-- RIGHT: Preview + hex input + color name stacked -->
@@ -149,6 +162,7 @@
           <text_input name="hex_input_tiny"
                       width="100" height="content" max_length="9" text="#808080" placeholder_text="#hex_placeholder"
                       style_outline_width="0" scrollable="false">
+            <bind_style name="styles.text_tone_danger" subject="color_picker_hex_invalid" ref_value="1"/>
             <event_cb trigger="value_changed" callback="hex_input_changed_cb"/>
             <event_cb trigger="defocused" callback="hex_input_defocused_cb"/>
           </text_input>

@@ -5,9 +5,8 @@
 // the REAL discovery sequence over the mock transport (MoonrakerClientMock's own
 // discover_printer is a shortcut that never subscribes).
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_discovery_sequence.h"
 #include "moonraker_subscription_merge.h"

@@ -3,11 +3,12 @@
 #pragma once
 #if HELIX_HAS_QIDI
 
+#include "ams_dryer.h"
 #include "ams_subscription_backend.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
-#include "lane_echo.h"
+#include "qidi_status_parse.h"
 
 #include <cstdint>
 #include <ctime>
@@ -55,8 +56,15 @@ namespace helix {
 ///
 /// Until then: every operation logs a "not yet implemented" warning and
 /// returns a sensible no-op / NOT_SUPPORTED error.
-class AmsBackendQidi : public AmsSubscriptionBackend {
+class AmsBackendQidi : public AmsSubscriptionBackend, public helix::IDryer {
   public:
+    [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
+        return AmsSubscriptionBackend::capability(tag);
+    }
+
     AmsBackendQidi(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendQidi() override;
 
@@ -112,13 +120,6 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
 
-    /// Forward map (index = tool, value = global slot), derived from the
-    /// per-slot mapped_tool the save_variables read-path writes. The base
-    /// default returns {}, which — on a backend that advertises tool mapping —
-    /// silently disables the print-start remap snapshot/restore and the AMS
-    /// context menu's mapping read, and makes AmsState fall back to a 1:1
-    /// topology that contradicts a user remap.
-    [[nodiscard]] std::vector<int> get_tool_mapping() const override;
     // QIDI Box reassigns a logical tool to a physical slot by rewriting the
     // save_variables entry (value_t<N>="slot<M>") that the stock T<N> macros
     // read at load time — applied via set_tool_mapping(). Same shape as CFS, so
@@ -197,9 +198,7 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     }
     [[nodiscard]] std::string eject_unavailable_reason(int slot_index) const override;
 
-    AmsError apply_user_edit(int slot_index, const SlotInfo& info,
-                             const helix::ams::Observation& declared) override;
-    AmsError sync_external_identity(int slot_index, const SlotInfo& info) override;
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
     /// The Box's saved RFID ids, resolved, kept while our own write-back holds
     /// the saved ids (helix::ams::fold_tag_frame).
@@ -220,6 +219,10 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
 
   protected:
     void on_started() override;
+    void on_lane_records_read_locked() override;
+    /// The Box holds a slot's material and colour as save_variables rows, so a
+    /// record's copies never fill a field the Box states as unset (row 0).
+    void drop_firmware_held_fields(helix::ams::Observation& record) const override;
     void handle_status(const nlohmann::json& status) override;
     const char* backend_log_tag() const override {
         return "[AMS QIDI Box]";
@@ -364,22 +367,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     std::function<std::time_t()> now_fn_ = [] { return std::time(nullptr); };
 
   public:
-    /// Temperature profile for a single fila entry from
-    /// officiall_filas_list.cfg. Public so test friend can return one.
-    struct FilaProfile {
-        std::string name; ///< Human label from `filament` (e.g. "PLA Rapido")
-        std::string type; ///< Material class from `type` (e.g. "PLA", "ABS-GF")
-        int nozzle_min = 0;
-        int nozzle_max = 0;
-        int box_min = 0;
-        int box_max = 0;
-    };
+    using FilaProfile = helix::qidi::FilaProfile;
 
   private:
-    /// Parse a ConfigParser-formatted officiall_filas_list.cfg payload and
-    /// populate fila_profiles_, color_palette_, and vendor_names_. Tolerant of
-    /// whitespace, blank lines, and `#` / `;` comments. Non-matching sections
-    /// (anything but `[fila<N>]`, `[colordict]`, `[vendor_list]`) are ignored.
+    /// Replace fila_profiles_, color_palette_ and vendor_names_ with what an
+    /// officiall_filas_list.cfg payload states (qidi::parse_filas_list).
     void apply_filas_list(const std::string& content);
 
     /// fila_id (1-99) → temperature profile, populated by apply_filas_list().
@@ -434,37 +426,15 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     [[nodiscard]] helix::ams::SpoolEvidence
     fingerprint_evidence_locked(const std::string& fingerprint) const;
 
-    /// Cross-product the per-field token lists into the fingerprint set the slot
-    /// may report while our own SAVE_VARIABLEs echo back one field at a time,
-    /// and register it with rfid_tracker_ so each echo reads as OwnWriteEcho
-    /// instead of a spool swap. The vendor write needs no composite of its
-    /// own: the fingerprint does not count the vendor id. Returns the staged
-    /// values, for a forget_expected() release when none of the writes
-    /// dispatch. Caller must hold mutex_.
-    std::vector<std::string>
-    expect_own_write_echoes_locked(int slot_index, const std::string& base,
-                                   const std::vector<std::string>& fila_tokens,
-                                   const std::vector<std::string>& color_tokens);
-
     /// Blanks everything the slot showed, material and colour included, so it
     /// reads as no identity the moment the clear lands; the parse restates
     /// whatever the Box still reports.
     void clear_override_fields(SlotInfo& slot) const override;
 
-    // Per-slot last-observed tag fingerprint (the composite of the three
-    // save_variable table indices), plus the pending expected fingerprints for
-    // an identity push we issued. Shared with the other fingerprint backends
-    // (CFS, Snapmaker). All access under mutex_.
+    // Per-slot last-observed tag fingerprint (the composite of the filament
+    // and colour save_variable ids). Shared with the other fingerprint
+    // backends (CFS, Snapmaker). All access under mutex_.
     helix::ams::SlotFingerprintTracker rfid_tracker_;
-
-    // The base's own_write_echoes_, on this backend:
-    // What the user's own SAVE_VARIABLE push declared, so the ids echoing
-    // back through save_variables are not filed as the Box's reading. The
-    // ids name table rows rather than spelling the values, so the staged
-    // declaration is relocated to what the rows resolve to. No boundary
-    // token exists for this lane: suppression ends on a value the write did
-    // not carry, or with the override at the fingerprint-change clear, which
-    // is the Box's own spool-swap signal.
 };
 
 } // namespace helix

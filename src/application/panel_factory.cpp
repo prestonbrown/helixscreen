@@ -29,9 +29,6 @@
 
 using namespace helix;
 
-// Note: PanelOverlayAdapter was removed - PrintStatusPanel now inherits directly
-// from OverlayBase, eliminating the need for an adapter.
-
 bool PanelFactory::find_panels(lv_obj_t* panel_container) {
     m_panel_container = panel_container; // kept for deferred panel creation (ESP)
     for (int i = 0; i < kUiPanelCount; i++) {
@@ -103,7 +100,7 @@ void PanelFactory::build_deferred_panel(int panel_id) {
     if (m_panels[panel_id])
         return; // already built
 
-    // The loading scrim + paint-before-block is now owned by NavigationManager's
+    // The loading scrim + paint-before-block is owned by NavigationManager's
     // NavTransitionScrim guard, which wraps the whole nav transition (this build
     // runs under it). One scrim mechanism for all transitions, not two.
     auto build_start = std::chrono::steady_clock::now();
@@ -154,12 +151,11 @@ void IdlePrebuilder::tick() {
 
 void PanelFactory::setup_panels(lv_obj_t* screen) {
     m_screen = screen; // setup() target for eager + deferred panels
-    // Register panels with navigation system
     NavigationManager::instance().set_panels(m_panels.data());
 
 #if defined(HELIX_PLATFORM_ESP32)
     // ESP: build ONLY home at boot. Instantiating all six panels here is ~19s of
-    // layout_update_core on the K-Touch (Plan 4 Task 6 profile). The other five
+    // layout_update_core on the K-Touch (measured). The other five
     // are created on first navigation via build_deferred_panel, registered as
     // NavigationManager's deferred builder below. See app_layout override.
     NavigationManager::instance().set_deferred_panel_builder(
@@ -204,8 +200,7 @@ void PanelFactory::setup_panels(lv_obj_t* screen) {
     // first tap would block for (plus that panel's XML subtree creation, which
     // happens earlier inside the app_layout build).
     //
-    // Measured on a CC1 (armv7, 2 cores, 114 MB) 2026-08-15, for the question
-    // "should Linux defer panels the way ESP32 does?":
+    // CC1 (armv7, 2 cores, 114 MB) measurements:
     //   app_layout XML create (all six subtrees)  564-615ms, +896 kB RSS
     //   all six setup()                           163-170ms, +512 kB RSS
     //   worst single panel: filament 109-113ms, print_select 47-50ms,
@@ -213,8 +208,7 @@ void PanelFactory::setup_panels(lv_obj_t* screen) {
     // So the whole eager build is ~1.4 MB and ~0.73s of a ~9.3s boot. Deferring
     // five panels could return at most ~1.2 MB, and only for panels the user
     // never opens, against a first-tap stall with no scrim (NavTransitionScrim
-    // is ESP32-only). Not worth it on Linux — the answer came out "no", and the
-    // numbers are here so it does not have to be re-derived.
+    // is ESP32-only). Not worth it on Linux.
     auto timed_setup = [](const char* name, auto&& fn) {
         auto t0 = std::chrono::steady_clock::now();
         fn();

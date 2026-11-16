@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "core/text_io.h"
 #include "test_helpers/unique_temp_dir.h"
-#include "text_io.h"
 
 #include <atomic>
 #include <clocale>
@@ -138,6 +138,82 @@ TEST_CASE("write_file_atomic replaces the target and leaves no tmp", "[text_io]"
     }
 }
 
+// Every symlinked layout links config/<file> into a store outside the install
+// root. A rename onto the link would replace it with a real file inside the
+// install root, which the next update deletes (#2085).
+TEST_CASE("write_file_atomic through a symlink updates the target and keeps the link",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    fs::create_directories(dir.file("store"));
+    fs::create_directories(dir.file("config"));
+    const std::string target = dir.file("store/tool_spools.json");
+    REQUIRE(tio::write_file(target, "old"));
+
+    struct Link {
+        std::string path;
+        std::string points_at;
+    };
+    const Link links[] = {
+        {dir.file("config/tool_spools.json"), target}, // absolute, as the installer makes
+        {dir.file("config/relative.json"), "../store/tool_spools.json"},
+    };
+    for (const Link& link : links) {
+        fs::create_symlink(link.points_at, link.path);
+        for (auto d : {tio::Durability::None, tio::Durability::Fsync}) {
+            INFO("link " << link.path << " durability " << static_cast<int>(d));
+            REQUIRE(tio::write_file_atomic(link.path, "new via " + link.path, d));
+            CHECK(fs::is_symlink(link.path));
+            CHECK(fs::read_symlink(link.path) == link.points_at);
+            CHECK(tio::read_file(target) == "new via " + link.path);
+            CHECK(helix::test::staging_files_beside(target) == 0);
+            CHECK(helix::test::staging_files_beside(link.path) == 0);
+        }
+    }
+}
+
+TEST_CASE("write_file_atomic through a dangling symlink re-creates the file it names",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    fs::create_directories(dir.file("store"));
+    fs::create_directories(dir.file("config"));
+    const std::string target = dir.file("store/settings.json");
+    const std::string link = dir.file("config/settings.json");
+    fs::create_symlink(target, link);
+    REQUIRE_FALSE(fs::exists(target));
+
+    REQUIRE(tio::write_file_atomic(link, "fresh"));
+    CHECK(fs::is_symlink(link));
+    CHECK(tio::read_file(target) == "fresh");
+
+    // A link into a directory that is gone has nothing to re-create, so the
+    // save still lands at the path it was given.
+    const std::string orphan = dir.file("config/orphan.json");
+    fs::create_symlink(dir.file("missing-dir/orphan.json"), orphan);
+    REQUIRE(tio::write_file_atomic(orphan, "here"));
+    CHECK_FALSE(fs::is_symlink(orphan));
+    CHECK(tio::read_file(orphan) == "here");
+}
+
+TEST_CASE("write_file_atomic through a dangling link given with no directory part",
+          "[text_io][2085]") {
+    ScratchDir dir;
+    const fs::path cwd = fs::current_path();
+    struct Restore {
+        fs::path to;
+        ~Restore() {
+            std::error_code ec;
+            fs::current_path(to, ec);
+        }
+    } restore{cwd};
+    fs::current_path(dir.path);
+    fs::create_symlink("store.json", "settings.json");
+    REQUIRE_FALSE(fs::exists("store.json"));
+
+    REQUIRE(tio::write_file_atomic("settings.json", "fresh"));
+    CHECK(fs::is_symlink("settings.json"));
+    CHECK(tio::read_file("store.json") == "fresh");
+}
+
 TEST_CASE("write_file_atomic failure keeps the target and removes the tmp", "[text_io]") {
     ScratchDir dir;
     const std::string target = dir.file("target");
@@ -262,6 +338,35 @@ TEST_CASE("LineReader reads files like std::getline", "[text_io]") {
     std::string long_line(20000, 'g');
     tio::write_file(dir.file("long"), long_line + "\nend\n");
     CHECK(read_records(dir.file("long")) == V{long_line, "end"});
+}
+
+TEST_CASE("LineReader returns records that straddle its read chunks whole", "[text_io]") {
+    // Lengths from 0 to past 9000 put delimiters at every offset of a 4 KiB
+    // chunk, records longer than a chunk, and an empty record at a chunk edge.
+    std::string text;
+    for (size_t i = 0; text.size() < 600000; ++i) {
+        const size_t len = (i * 7919) % 9001;
+        for (size_t k = 0; k < len; ++k) {
+            text.push_back(static_cast<char>('a' + (i + k) % 26));
+        }
+        text.push_back('\n');
+    }
+    text += "unterminated tail";
+    ScratchDir dir;
+    tio::write_file(dir.file("big"), text);
+
+    tio::LineReader r(dir.file("big"));
+    std::string line;
+    size_t n = 0;
+    for (std::string_view want : tio::lines(text)) {
+        REQUIRE(r.next(line));
+        REQUIRE(line == want);
+        ++n;
+    }
+    CHECK_FALSE(r.last_had_delimiter());
+    CHECK_FALSE(r.next(line));
+    CHECK_FALSE(r.next(line));
+    CHECK(n > 100);
 }
 
 TEST_CASE("LineReader reports whether the last record was terminated", "[text_io]") {
@@ -434,6 +539,144 @@ TEST_CASE("to_lower and to_upper map ASCII only", "[text_io]") {
     // High-bit bytes (UTF-8 continuation, Latin-1) pass through whatever the locale.
     CHECK(to_lower("\xC3\x89\xE9") == "\xC3\x89\xE9");
     CHECK(to_upper("\xC3\xA9\xE9") == "\xC3\xA9\xE9");
+}
+
+TEST_CASE("contains_ignore_case", "[text_io]") {
+    SECTION("Finds exact match") {
+        REQUIRE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "BED_MESH"));
+    }
+
+    SECTION("Case insensitive - finds lowercase in uppercase") {
+        REQUIRE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "bed_mesh"));
+    }
+
+    SECTION("Case insensitive - finds uppercase in lowercase") {
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "BED_MESH"));
+    }
+
+    SECTION("Case insensitive - mixed case") {
+        REQUIRE(tio::contains_ignore_case("BeD_MeSh_CaLiBrAtE", "bed_MESH"));
+    }
+
+    SECTION("Returns false when not found") {
+        REQUIRE_FALSE(tio::contains_ignore_case("BED_MESH_CALIBRATE", "QGL"));
+    }
+
+    SECTION("Empty needle matches nothing") {
+        REQUIRE_FALSE(tio::contains_ignore_case("anything", ""));
+    }
+
+    SECTION("Empty haystack doesn't match non-empty needle") {
+        REQUIRE_FALSE(tio::contains_ignore_case("", "test"));
+    }
+
+    SECTION("Empty needle does not match an empty haystack either") {
+        // The empty-needle guard is checked before the size comparison, so this
+        // stays false rather than degenerating into std::string::find's
+        // "found at 0" convention.
+        REQUIRE_FALSE(tio::contains_ignore_case("", ""));
+    }
+
+    SECTION("Needle longer than haystack is rejected") {
+        REQUIRE_FALSE(tio::contains_ignore_case("BED", "BED_MESH"));
+    }
+
+    SECTION("Matches at both ends of the haystack") {
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "BED"));       // position 0
+        REQUIRE(tio::contains_ignore_case("bed_mesh_calibrate", "CALIBRATE")); // final byte
+        REQUIRE(tio::contains_ignore_case("G28", "g28"));                      // whole string
+    }
+
+    SECTION("Searches by length, not to the first NUL") {
+        // std::string_view carries its own size; an embedded NUL must not end
+        // the scan the way it would for a C string.
+        const std::string_view haystack("BED\0MESH", 8);
+        REQUIRE(tio::contains_ignore_case(haystack, std::string_view("\0mesh", 5)));
+        REQUIRE_FALSE(tio::contains_ignore_case(haystack, std::string_view("\0qgl", 4)));
+    }
+}
+
+// contains_ignore_case folds ONLY A-Z/a-z, by arithmetic, on raw bytes. These
+// cases pin the contract for bytes >= 0x80, the UTF-8 the AMS backends feed it,
+// so a locale-aware, unsigned-char or Unicode-aware fold cannot quietly alter
+// which macros and filament names match.
+
+TEST_CASE("contains_ignore_case folds ASCII only over real UTF-8", "[text_io][utf8]") {
+    SECTION("High bytes match byte-for-byte and are passed through unfolded") {
+        // "Düse" — the u-umlaut is C3 BC in UTF-8; the surrounding ASCII still folds.
+        REQUIRE(tio::contains_ignore_case("Düse wechseln", "düse"));
+        REQUIRE(tio::contains_ignore_case("AMS Löschen", "ms löschen"));
+        REQUIRE(tio::contains_ignore_case("Загрузка филамента", "филамента"));
+        REQUIRE(tio::contains_ignore_case("フィラメント交換", "交換"));
+    }
+
+    SECTION("No case folding happens above 0x7F") {
+        // U+00DC vs U+00FC differ in their second UTF-8 byte (9C vs BC). A
+        // Unicode-aware fold would call these equal; this one must not.
+        REQUIRE_FALSE(tio::contains_ignore_case("DÜSE", "düse"));
+        REQUIRE(tio::contains_ignore_case("DÜSE", "DÜSE"));
+
+        // Cyrillic upper/lower likewise stay distinct.
+        REQUIRE_FALSE(tio::contains_ignore_case("ФИЛАМЕНТ", "филамент"));
+        REQUIRE(tio::contains_ignore_case("ФИЛАМЕНТ", "ФИЛАМЕНТ"));
+    }
+
+    SECTION("Raw high bytes are compared, never folded") {
+        // 0xC0/0xE0 are A-with-grave and a-with-grave in Latin-1, i.e. exactly
+        // 0x20 apart the way 'A'/'a' are. The fold must not reach them —
+        // signed char makes them negative, unsigned char makes them > 'Z', so
+        // this holds on x86 and on ARM alike.
+        REQUIRE_FALSE(tio::contains_ignore_case("\xC0", "\xE0"));
+        REQUIRE(tio::contains_ignore_case("\xC0", "\xC0"));
+        REQUIRE(tio::contains_ignore_case("PLA\xFF_DRY", "\xFF_dry"));
+    }
+
+    SECTION("The A-Z window is exact at both edges") {
+        // '@' is 'A'-1 and '[' is 'Z'+1; folding either would make these match
+        // their +0x20 partners '`' and '{'.
+        REQUIRE_FALSE(tio::contains_ignore_case("@", "`"));
+        REQUIRE_FALSE(tio::contains_ignore_case("[", "{"));
+        // 'A' and 'Z' themselves are inside the window.
+        REQUIRE(tio::contains_ignore_case("@AZ[", "@az["));
+    }
+
+    SECTION("Real macro names with accented parameters still match their ASCII token") {
+        REQUIRE(
+            tio::contains_ignore_case("SET_FILAMENT_TYPE MATERIAL=Rot-Grün", "set_filament_type"));
+        REQUIRE(tio::contains_ignore_case("_UNLOAD_FILAMENT_ÜBERGABE", "unload_filament"));
+        REQUIRE_FALSE(tio::contains_ignore_case("SET_FILAMENT_TYPE MATERIAL=Rot-Grün", "grun"));
+    }
+}
+
+TEST_CASE("equals_ignore_case", "[text_io]") {
+    SECTION("Exact match") {
+        REQUIRE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Case insensitive match - different cases") {
+        REQUIRE(tio::equals_ignore_case("skip_bed_mesh", "SKIP_BED_MESH"));
+        REQUIRE(tio::equals_ignore_case("SKIP_BED_MESH", "skip_bed_mesh"));
+        REQUIRE(tio::equals_ignore_case("Skip_Bed_Mesh", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Returns false for different strings") {
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_QGL"));
+    }
+
+    SECTION("Returns false for substrings") {
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED_MESH", "SKIP_BED"));
+        REQUIRE_FALSE(tio::equals_ignore_case("SKIP_BED", "SKIP_BED_MESH"));
+    }
+
+    SECTION("Empty strings equal") {
+        REQUIRE(tio::equals_ignore_case("", ""));
+    }
+
+    SECTION("No case folding happens above 0x7F") {
+        REQUIRE_FALSE(tio::equals_ignore_case("DÜSE", "düse"));
+        REQUIRE_FALSE(tio::equals_ignore_case("\xC0", "\xE0"));
+        REQUIRE(tio::equals_ignore_case("Düse", "DüSE"));
+    }
 }
 
 TEST_CASE("utf8_first_codepoint takes the whole lead character", "[text_io]") {

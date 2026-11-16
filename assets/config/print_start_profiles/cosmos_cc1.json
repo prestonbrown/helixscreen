@@ -10,7 +10,7 @@
   "signal_formats": [],
   "response_patterns": [
     { "pattern": "Heatsoak: ([0-9.]+)m", "phase": "SOAKING", "message": "Heat Soaking...", "weight": 10, "hold_minutes_group": 1 },
-    { "pattern": "Chamber: [0-9]+c", "phase": "SOAKING", "message": "Heat Soaking...", "weight": 10 },
+    { "pattern": "Chamber: [0-9]+c", "phase": "HEATING_CHAMBER", "message": "Heating Chamber...", "weight": 10 },
     { "pattern": "Creating adaptive bed mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 1 },
     { "pattern": "Using default bed mesh", "phase": "BED_MESH", "message": "Bed Mesh...", "weight": 1 },
     { "pattern": "Smart Park location", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 8 },

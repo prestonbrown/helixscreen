@@ -5,10 +5,6 @@
 
 #include "lvgl.h"
 
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
 /**
  * Initialize header_bar component system
  * Registers global resize handler

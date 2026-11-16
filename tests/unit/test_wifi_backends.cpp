@@ -753,9 +753,9 @@ TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
         // init_wpa() (fails — nobody answers on the dummy socket).
         WiFiError result = backend.start();
 
-        // The init attempt must NOT be reported as a usable backend. Pre-fix,
-        // is_running() returned init_complete_ (true after any finished attempt),
-        // so this REQUIRE_FALSE caught the bug.
+        // The init attempt must NOT be reported as a usable backend:
+        // is_running() must not return init_complete_ (true after any finished
+        // attempt).
         REQUIRE_FALSE(result.success());
         REQUIRE_FALSE(backend.is_running());
 
@@ -776,6 +776,13 @@ TEST_CASE("WpaBackend honest is_running after failed init (#1036)",
 // command line. The /proc cmdline scan parses that file so we can auto-detect
 // the socket directory without a manual HELIX_WPA_SOCKET_DIR override.
 // ============================================================================
+TEST_CASE("WpaBackend never offers static IPv4, so the row hides", "[network][wifi][ipv4]") {
+    WifiBackendWpaSupplicant backend;
+    CHECK_FALSE(backend.supports_ipv4_config());
+    helix::net::Ipv4Config out;
+    CHECK(backend.get_ipv4_config(out).status == helix::net::Ipv4Result::Status::NotSupported);
+}
+
 TEST_CASE("read_ctrl_interface_from_conf parses ctrl_interface forms", "[network][backend][wpa]") {
     using helix::wifi::detail::read_ctrl_interface_from_conf;
 

@@ -23,75 +23,21 @@
 // tests, with a sandboxed HELIX_CONFIG_DIR.
 
 #include "config.h"
+#include "test_helpers/config_migration_fixture.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
-namespace fs = std::filesystem;
 using namespace helix;
 
 namespace {
 
-class MigrationV25Fixture {
+class MigrationV25Fixture : public helix::test::ConfigMigrationFixture {
   protected:
-    Config config;
-    std::string temp_dir;
-    std::string config_path;
-    std::string saved_config_dir_;
-    bool had_config_dir_ = false;
-
-    void SetUp() {
-        // Per-process directory: `make test-run` shards across concurrent
-        // helix-tests processes and a fixed path lets two of them clobber each
-        // other's settings.json mid-migration.
-        temp_dir =
-            (fs::temp_directory_path() / ("helix_migration_v25_test_" + std::to_string(::getpid())))
-                .string();
-        fs::remove_all(temp_dir);
-        fs::create_directories(temp_dir);
-
-        if (const char* prev = std::getenv("HELIX_CONFIG_DIR")) {
-            saved_config_dir_ = prev;
-            had_config_dir_ = true;
-        }
-        setenv("HELIX_CONFIG_DIR", temp_dir.c_str(), 1);
-
-        config_path = temp_dir + "/settings.json";
-    }
-
-    void TearDown() {
-        fs::remove_all(temp_dir);
-        if (had_config_dir_) {
-            setenv("HELIX_CONFIG_DIR", saved_config_dir_.c_str(), 1);
-        } else {
-            unsetenv("HELIX_CONFIG_DIR");
-        }
-        config.clear_path();
-    }
-
-    void write_and_init(const json& contents) {
-        std::ofstream f(config_path);
-        f << contents.dump(2);
-        f.close();
-        config.init(config_path);
-    }
-
     json phases_of(size_t entry) {
         return config.get<json>("/print_start_history/entries/" + std::to_string(entry) + "/phases",
                                 json::object());
-    }
-
-  public:
-    MigrationV25Fixture() {
-        SetUp();
-    }
-    ~MigrationV25Fixture() {
-        TearDown();
     }
 };
 

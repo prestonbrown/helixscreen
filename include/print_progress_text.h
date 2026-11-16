@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -57,11 +58,11 @@ class PrintProgressText {
     PrinterState& printer_state_;
     const PrintLifecycleState& lifecycle_;
 
-    lv_subject_t layer_text_subject_{};
-    lv_subject_t filament_used_text_subject_{};
-    lv_subject_t elapsed_subject_{};
-    lv_subject_t remaining_subject_{};
-    lv_subject_t eta_subject_{};
+    helix::Subject layer_text_subject_{};
+    helix::Subject filament_used_text_subject_{};
+    helix::Subject elapsed_subject_{};
+    helix::Subject remaining_subject_{};
+    helix::Subject eta_subject_{};
 
     char layer_text_buf_[80] = "Layer 0 / 0";
     char filament_used_text_buf_[32] = "";

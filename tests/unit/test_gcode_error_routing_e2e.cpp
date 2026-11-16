@@ -23,7 +23,6 @@
 // Tagged [.ui_integration]: needs the XML component tree on disk (modal_dialog).
 
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_error_router_test_access.h"
@@ -31,6 +30,7 @@
 #include "ams_backend_happy_hare.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "error_classify.h"
 #include "error_event.h"
 #include "gcode_error_router.h"
@@ -258,7 +258,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Severity affordance: the fault dialog always shows the danger icon.
     lv_obj_t* err_icon = lv_obj_find_by_name(screen, "icon_error");
     REQUIRE(err_icon != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(err_icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(err_icon));
 
     // A recovery button is present (the modal built buttons from the actions).
     REQUIRE(find_text_containing(screen, lv_tr("Resume")) != nullptr);
@@ -376,7 +376,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Routing E2E: Happy Hare runout pause routes
     // Severity affordance: the error icon must be visible (not hidden).
     lv_obj_t* err_icon = lv_obj_find_by_name(screen, "icon_error");
     REQUIRE(err_icon != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(err_icon, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(err_icon));
 
     // A Resume recovery button must be present (always the primary action for HH).
     REQUIRE(find_text_containing(screen, lv_tr("Resume")) != nullptr);

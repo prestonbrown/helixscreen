@@ -7,12 +7,13 @@
 
 #include "ui_modal.h"
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
+#include "core/update_queue.h"
 #include "print_completion.h"
 #include "printer_state.h"
 
@@ -45,7 +46,7 @@ struct StopReasonPanelFixture : public LVGLUITestFixture {
     ~StopReasonPanelFixture() override {
         state().print_state().set_print_stop_reason("");
         test::set_wire_state(state(), PrintJobState::STANDBY);
-        if (root_ && lv_obj_is_valid(root_)) {
+        if (root_ && helix::test::widget_in_tree(root_)) {
             lv_obj_delete(root_);
         }
         root_ = nullptr;
@@ -83,7 +84,7 @@ TEST_CASE_METHOD(StopReasonPanelFixture, "Paused overlay: the stop reason says w
     lv_obj_t* reason = find("paused_badge_reason");
     REQUIRE(reason != nullptr);
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 }
 
 TEST_CASE_METHOD(StopReasonPanelFixture,
@@ -110,12 +111,12 @@ TEST_CASE_METHOD(StopReasonPanelFixture, "Canceled overlay: the stop reason show
                  "[print_status][stop_reason]") {
     lv_obj_t* reason = find("cancel_reason_label");
     REQUIRE(reason != nullptr);
-    CHECK(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason));
 
     state().print_state().set_print_stop_reason(kReason);
     settle();
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows under the filename",
@@ -124,16 +125,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows und
     state().print_state().set_print_stop_reason(kReason);
     UpdateQueue::instance().drain();
 
-    lv_obj_t* dialog = helix::ui::modal_show("print_completion_modal");
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
     REQUIRE(dialog != nullptr);
     lv_obj_t* reason = lv_obj_find_by_name(dialog, "stop_reason_label");
     REQUIRE(reason != nullptr);
     CHECK(label_text(reason) == kReason);
-    CHECK_FALSE(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason));
 
     state().print_state().set_print_stop_reason("");
     UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(reason, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason));
 
     helix::ui::modal_hide(dialog);
     UpdateQueue::instance().drain();
@@ -159,6 +160,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion toast: a canceled print says why
 
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0] == std::string("Print canceled: Unknown - ") + kReason);
+    // A user already watching print status sees the ending there, not in a toast.
+    const auto ui_query = set_print_status_shown_query([]() { return true; });
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    UpdateQueue::instance().drain();
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
+    UpdateQueue::instance().drain();
+    set_print_status_shown_query(ui_query);
+    CHECK(toasts.size() == 1);
 
     completion.reset();
     helix::ui::set_test_toast_hook(nullptr);

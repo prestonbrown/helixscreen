@@ -254,7 +254,7 @@ TEST_CASE("MedusaHC detection never displaces another AMS system",
             json::array({"extruder", "extruder1", "gcode_macro T0", "gcode_macro T1"}));
 
         // Two hot ends make this a multi-tool printer under the general rule
-        // (tests/unit/test_multi_tool_detection.cpp). What must not happen is
+        // (the multi-tool section at the end of this file). What must not happen is
         // the MedusaHC provider claiming it: that turns on dock sensors and a
         // feeder the machine does not have.
         REQUIRE_FALSE(helix::toolchanger_addon::present(hw));
@@ -274,4 +274,68 @@ TEST_CASE("MedusaHC detection never displaces another AMS system",
         REQUIRE(systems.size() == 1);
         REQUIRE(systems[0].type == AmsType::HAPPY_HARE);
     }
+}
+
+// ============================================================================
+// The general multi-tool rule: more than one hot end, whoever built it
+//
+// Tool counts come from three sources, in descending authority: the [tool N]
+// objects klipper-toolchanger creates, a changer extra's own count, and, for a
+// machine presenting one heater and one extruder motor per tool, the extruder
+// heater count. The third is the only signal a printer whose changer ships
+// neither klipper-toolchanger nor a recognised extra gives off. Registering
+// AmsType::TOOL_CHANGER for those gives them slots, per-tool spool identity and
+// the filament panel's tool selector (prestonbrown/helixscreen#1350).
+// ============================================================================
+
+namespace {
+
+/// A dual-extruder machine with no filament system and no changer module: two
+/// hot ends, T0/T1 macros, nothing else to go on.
+json dual_extruder_objects() {
+    return json::array({"extruder", "extruder1", "gcode_macro T0", "gcode_macro T1", "heater_bed",
+                        "toolhead", "gcode_move", "configfile"});
+}
+
+} // namespace
+
+TEST_CASE("extruder heaters name the tools when no tool objects exist",
+          "[printer_discovery][multitool]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(dual_extruder_objects());
+
+    REQUIRE(hw.tool_names().size() == 2);
+    CHECK(hw.tool_names()[0] == "T0");
+    CHECK(hw.tool_names()[1] == "T1");
+}
+
+TEST_CASE("a single hot end is not a multi-tool printer", "[printer_discovery][multitool]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"extruder", "heater_bed", "gcode_macro T0", "toolhead"}));
+
+    CHECK(hw.tool_names().empty());
+    CHECK(hw.mmu_type() == AmsType::NONE);
+    CHECK(hw.detected_ams_systems().empty());
+}
+
+TEST_CASE("a mixing hotend's extruder_stepper is not a second tool",
+          "[printer_discovery][multitool]") {
+    // Chimera/cyclops: one [extruder] heater plus [extruder_stepper] sections.
+    // One hot end, so one tool, and the enumeration must not see the steppers.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array(
+        {"extruder", "extruder_stepper e1", "extruder_stepper e2", "heater_bed", "toolhead"}));
+
+    CHECK(hw.tool_names().empty());
+    CHECK(hw.detected_ams_systems().empty());
+}
+
+TEST_CASE("a filament system on a multi-extruder machine keeps its own backend",
+          "[printer_discovery][multitool]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"mmu", "extruder", "extruder1", "heater_bed", "toolhead"}));
+
+    REQUIRE(hw.mmu_type() == AmsType::HAPPY_HARE);
+    REQUIRE(hw.detected_ams_systems().size() == 1);
+    CHECK(hw.detected_ams_systems()[0].type == AmsType::HAPPY_HARE);
 }

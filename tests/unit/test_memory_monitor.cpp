@@ -4,17 +4,19 @@
 #include "memory_monitor.h"
 
 #ifdef __linux__
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/memory_monitor_test_access.h"
+#include "../test_helpers/thread_wakes.h"
+#include "core/update_queue.h"
 #endif
 
 #include <spdlog/spdlog.h>
 
 #include <atomic>
+#include <chrono>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -56,9 +58,9 @@ TEST_CASE("MemoryThresholds for normal device", "[memory_monitor]") {
 
     auto t = MemoryThresholds::for_device(info);
 
-    // Normal tier: warn = max(120MB, 30%), critical = max(180MB, 50%).
-    // At 400MB, 30% = 120MB ties the floor and 50% = 200MB beats it.
-    REQUIRE(t.warn_rss_kb == 120u * 1024);
+    // Normal tier: warn = max(120MB, 40%), critical = max(180MB, 50%).
+    // At 400MB, 40% = 160MB and 50% = 200MB both beat their floors.
+    REQUIRE(t.warn_rss_kb == 160u * 1024);
     REQUIRE(t.critical_rss_kb == info.total_kb * 50 / 100);
     REQUIRE(t.critical_rss_kb == 200u * 1024);
 }
@@ -310,71 +312,35 @@ TEST_CASE("compute_pressure_level: available memory triggers critical", "[memory
 // Hysteresis tests
 // =============================================================================
 
-TEST_CASE("compute_pressure_level: hysteresis holds warning level", "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS is between clear and warn thresholds — should hold warning
-    MemoryStats stats;
-    stats.vm_rss_kb = (t.clear_warn_rss_kb + t.warn_rss_kb) / 2;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::warning, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::warning);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis clears warning when below clear threshold",
+TEST_CASE("compute_pressure_level: RSS hysteresis holds a level until it falls below clear",
           "[memory_monitor]") {
     MemoryInfo sys;
     sys.total_kb = 2048 * 1024;
     sys.available_kb = 1500 * 1024;
     auto t = MemoryThresholds::for_device(sys);
-
-    // RSS below clear threshold — should drop to none
-    MemoryStats stats;
-    stats.vm_rss_kb = t.clear_warn_rss_kb - 1024;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::warning, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::none);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis holds critical level", "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS between clear_critical and critical — should hold critical
-    MemoryStats stats;
-    stats.vm_rss_kb = (t.clear_critical_rss_kb + t.critical_rss_kb) / 2;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::critical, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::critical);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis clears critical when below clear threshold",
-          "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS below clear_critical but above clear_warn — should drop to warning hold
-    // Wait: if RSS is below clear_critical_rss but above clear_warn_rss,
-    // and current is critical, what happens?
-    // The function checks: critical trigger? no. warn trigger? depends on value.
-    // Then checks: hold critical? RSS >= clear_critical? no (we set it below).
-    // Then checks: hold warning? RSS >= clear_warn? yes.
-    // So it drops from critical to warning (held by hysteresis).
-    MemoryStats stats;
-    stats.vm_rss_kb = t.clear_critical_rss_kb - 1024;
-    // Ensure this is still above clear_warn
-    REQUIRE(stats.vm_rss_kb > t.clear_warn_rss_kb);
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::critical, sys, 0);
-    // Critical cleared, but warning hysteresis still holds (RSS > clear_warn)
-    REQUIRE(level == MemoryPressureLevel::warning);
+    REQUIRE(t.clear_critical_rss_kb - 1024 > t.clear_warn_rss_kb);
+    struct Step {
+        size_t rss_kb;
+        MemoryPressureLevel current;
+        MemoryPressureLevel expected;
+    };
+    const Step steps[] = {
+        // Between clear and trigger: the level holds.
+        {(t.clear_warn_rss_kb + t.warn_rss_kb) / 2, MemoryPressureLevel::warning,
+         MemoryPressureLevel::warning},
+        {(t.clear_critical_rss_kb + t.critical_rss_kb) / 2, MemoryPressureLevel::critical,
+         MemoryPressureLevel::critical},
+        // Below clear: warning clears; critical clears to the warning it still holds.
+        {t.clear_warn_rss_kb - 1024, MemoryPressureLevel::warning, MemoryPressureLevel::none},
+        {t.clear_critical_rss_kb - 1024, MemoryPressureLevel::critical,
+         MemoryPressureLevel::warning},
+    };
+    for (const Step& step : steps) {
+        CAPTURE(step.rss_kb);
+        MemoryStats stats;
+        stats.vm_rss_kb = step.rss_kb;
+        CHECK(compute_pressure_level(stats, t, step.current, sys, 0) == step.expected);
+    }
 }
 
 TEST_CASE("compute_pressure_level: available memory hysteresis", "[memory_monitor]") {
@@ -541,6 +507,135 @@ TEST_CASE("compute_pressure_level: sustained time cannot invent pressure that is
     REQUIRE(level == MemoryPressureLevel::none);
 }
 
+// =============================================================================
+// assess_memory_pressure() / describe_memory_pressure()
+// =============================================================================
+
+namespace {
+// A ~415MB Pi driving a printer mid-print: RSS 127MB flat, ~165MB free.
+MemoryInfo pi_415mb() {
+    MemoryInfo sys;
+    sys.total_kb = 415 * 1024;
+    sys.available_kb = 165 * 1024;
+    return sys;
+}
+} // namespace
+
+TEST_CASE("assess_memory_pressure: a 415MB Pi mid-print is not under pressure",
+          "[memory_monitor]") {
+    const MemoryInfo sys = pi_415mb();
+    const auto t = MemoryThresholds::for_device(sys);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = 130428;
+
+    const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+    REQUIRE(a.level == MemoryPressureLevel::none);
+    REQUIRE(a.cause == MemoryPressureCause::none);
+}
+
+TEST_CASE("assess_memory_pressure: an RSS warning with ample free memory never escalates",
+          "[memory_monitor]") {
+    const MemoryInfo sys = pi_415mb();
+    const auto t = MemoryThresholds::for_device(sys);
+    REQUIRE(sys.available_kb > t.clear_warn_available_kb);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = t.warn_rss_kb + 1024;
+
+    const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::warning, sys, 0,
+                                          t.sustained_warning_secs_to_critical * 100);
+    REQUIRE(a.level == MemoryPressureLevel::warning);
+    REQUIRE(a.cause == MemoryPressureCause::rss_warning);
+}
+
+TEST_CASE("describe_memory_pressure: the reason names the band that set the level",
+          "[memory_monitor]") {
+    MemoryInfo sys;
+    sys.total_kb = 117232;
+    sys.available_kb = 11560; // between the available-memory bands
+    const auto t = MemoryThresholds::for_device(sys);
+
+    MemoryStats stats;
+    stats.vm_rss_kb = t.warn_rss_kb + 1024; // RSS also in its warning band
+
+    SECTION("held low free memory escalates and says so") {
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::warning, sys, 0,
+                                              t.sustained_warning_secs_to_critical);
+        REQUIRE(a.level == MemoryPressureLevel::critical);
+        REQUIRE(a.cause == MemoryPressureCause::sustained_low_available);
+        const auto reason = describe_memory_pressure(a, stats, t, sys, 0);
+        REQUIRE(reason.find("System available") != std::string::npos);
+        REQUIRE(reason.find("RSS") == std::string::npos);
+    }
+
+    SECTION("an RSS critical says critical") {
+        stats.vm_rss_kb = t.critical_rss_kb + 1024;
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+        REQUIRE(a.cause == MemoryPressureCause::rss_critical);
+        REQUIRE(describe_memory_pressure(a, stats, t, sys, 0).find("critical threshold") !=
+                std::string::npos);
+    }
+
+    SECTION("an RSS warning says warning") {
+        sys.available_kb = 200 * 1024;
+        const auto a = assess_memory_pressure(stats, t, MemoryPressureLevel::none, sys, 0, 0);
+        REQUIRE(a.level == MemoryPressureLevel::warning);
+        REQUIRE(describe_memory_pressure(a, stats, t, sys, 0).find("warning threshold") !=
+                std::string::npos);
+    }
+}
+
+// =============================================================================
+// should_report_memory_pressure()
+// =============================================================================
+
+TEST_CASE("should_report_memory_pressure: a held level reports once", "[memory_monitor]") {
+    MemoryReportState state;
+    constexpr size_t kStep = 3 * 1024;
+
+    REQUIRE(
+        should_report_memory_pressure(state, MemoryPressureLevel::warning, 130428, kStep, true));
+    for (int i = 0; i < 100; ++i) {
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::warning, 130428,
+                                                    kStep, true));
+    }
+}
+
+TEST_CASE("should_report_memory_pressure: rises and real growth report", "[memory_monitor]") {
+    MemoryReportState state;
+    constexpr size_t kStep = 3 * 1024;
+
+    REQUIRE(
+        should_report_memory_pressure(state, MemoryPressureLevel::elevated, 100000, kStep, true));
+    SECTION("a rise to a higher level reports") {
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::warning, 100000, kStep,
+                                              true));
+    }
+    SECTION("growth below the step stays quiet, at the step reports") {
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::elevated,
+                                                    100000 + kStep - 1, kStep, true));
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::elevated, 100000 + kStep,
+                                              kStep, true));
+        REQUIRE_FALSE(should_report_memory_pressure(state, MemoryPressureLevel::elevated,
+                                                    100000 + kStep, kStep, true));
+    }
+    SECTION("a drop is silent and re-arms the higher level") {
+        REQUIRE_FALSE(
+            should_report_memory_pressure(state, MemoryPressureLevel::none, 90000, kStep, true));
+        REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::elevated, 90000, kStep,
+                                              true));
+    }
+}
+
+TEST_CASE("should_report_memory_pressure: the interval floor defers without consuming",
+          "[memory_monitor]") {
+    MemoryReportState state;
+    REQUIRE_FALSE(
+        should_report_memory_pressure(state, MemoryPressureLevel::critical, 1000, 1024, false));
+    REQUIRE(should_report_memory_pressure(state, MemoryPressureLevel::critical, 1000, 1024, true));
+}
+
 #ifdef __linux__
 // =============================================================================
 // Pressure-response completion ordering
@@ -601,5 +696,23 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(deleted_at < lines.size());  // the deferred delete actually ran
     REQUIRE(complete_at < lines.size()); // ...and the completion sampled
     REQUIRE(deleted_at < complete_at);   // the sample lands after the delete
+}
+#endif
+
+#ifdef __linux__
+TEST_CASE("MemoryMonitor sleeps between samples and still stops at once", "[memory_monitor]") {
+    auto& monitor = MemoryMonitor::instance();
+    monitor.stop();
+    const auto fresh = helix::test::threads_started_by([&] { monitor.start(5000); });
+    REQUIRE(fresh.size() == 1);
+
+    const long start = helix::test::thread_voluntary_switches(fresh[0]);
+    REQUIRE(start >= 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    CHECK(helix::test::thread_voluntary_switches(fresh[0]) - start <= 2);
+
+    const auto t0 = std::chrono::steady_clock::now();
+    monitor.stop();
+    CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(1));
 }
 #endif

@@ -61,6 +61,19 @@ TEST_CASE("flashforge_mod_tree names each layout", "[platform_info]") {
     CHECK(std::string(helix::flashforge_mod_tree_name(FlashForgeModTree::ForgeX)) == "Forge-X");
 }
 
+TEST_CASE("flashforge_mod_tree reads Forge-X's own tree before /usr/prog", "[platform_info]") {
+    // #2092: a Forge-X chroot can carry /usr/prog too (the AD5X rig's does), so the
+    // generic FlashForge dir must not outrank the mod's own descriptor.
+    TempDirGuard tmp;
+    CHECK(helix::flashforge_mod_tree(
+              helix::test::make_flashforge_layout(tmp.path, "forgex-prog").string()) ==
+          helix::FlashForgeModTree::ForgeX);
+    // The /ZMOD marker file is Z-Mod's own; with no Forge-X tree it still wins.
+    auto zmod = helix::test::make_flashforge_layout(tmp.path, "zmod-marker");
+    fs::create_directories(zmod / "usr/prog");
+    CHECK(helix::flashforge_mod_tree(zmod.string()) == helix::FlashForgeModTree::Zmod);
+}
+
 TEST_CASE("flashforge_mod_tree requires the marker kinds, not just names", "[platform_info]") {
     // /ZMOD as a DIRECTORY is not the Z-Mod marker file. The probe checks
     // S_ISREG here and the launcher uses `-f` — the two must stay in step or

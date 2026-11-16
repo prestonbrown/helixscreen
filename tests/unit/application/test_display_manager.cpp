@@ -13,9 +13,11 @@
 #include "app_constants.h"
 #include "application_test_fixture.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "lib/lvgl/src/indev/lv_indev_private.h"
+#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "runtime_config.h"
 #include "test_helpers/config_test_access.h"
 #include "test_helpers/display_manager_test_access.h"
@@ -616,6 +618,106 @@ TEST_CASE_METHOD(ApplicationTestFixture,
 
 namespace {
 
+/// A DRM backend whose touch panel can come back after LVGL deleted it, as a
+/// USB controller does when it re-enumerates (prestonbrown/helixscreen#2069).
+class ReopeningPointerBackend : public MockDrmPointerBackend {
+  public:
+    lv_indev_t* reopen_input_pointer() override {
+        ++reopen_calls;
+        if (!device_present) {
+            return nullptr;
+        }
+        return create_input_pointer();
+    }
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
+
+    bool device_present = false;
+    int reopen_calls = 0;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager reopens the pointer once a deleted device comes back",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend_owner = std::make_unique<ReopeningPointerBackend>();
+    ReopeningPointerBackend* backend = backend_owner.get();
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend_owner));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    // lv_evdev deletes its own device when the controller drops off the bus.
+    lv_indev_delete(mgr.pointer_input());
+    REQUIRE(mgr.pointer_input() == nullptr);
+    REQUIRE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    // Still re-enumerating: the retry keeps going.
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    CHECK(backend->reopen_calls == 1);
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    backend->device_present = true;
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    CHECK(backend->reopen_calls == 2);
+    lv_indev_t* reopened = mgr.pointer_input();
+    REQUIRE(reopened != nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    // The new device gets init()'s pointer setup, sleep-aware wrapper included.
+    CHECK(DisplayManagerTestAccess::pointer_is_sleep_wrapped(mgr));
+    // create_input_devices() set a scroll throw of 25; LVGL's own default is 10.
+    CHECK(reopened->scroll_throw == 25);
+
+    // And it is watched like the first, so a second drop retries again.
+    lv_indev_delete(reopened);
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager arms no pointer retry on a backend that cannot reopen it",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend = std::make_unique<MockDrmPointerBackend>();
+    REQUIRE_FALSE(backend->can_reopen_input_pointer());
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    if (mgr.keyboard_input()) {
+        lv_indev_delete(mgr.keyboard_input());
+    }
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager does not retry a pointer deleted during shutdown",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    DisplayManagerTestAccess::set_backend(mgr, std::make_unique<ReopeningPointerBackend>());
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+
+    // lv_deinit() deletes every indev while the manager shuts down.
+    DisplayManagerTestAccess::set_shutting_down(mgr, true);
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    if (mgr.keyboard_input()) {
+        lv_indev_delete(mgr.keyboard_input());
+    }
+}
+
+namespace {
+
 /// A live pointer that always reports PRESSED at a fixed point.
 void live_pointer_a_read_cb(lv_indev_t*, lv_indev_data_t* data) {
     data->point = {100, 100};
@@ -703,6 +805,50 @@ TEST_CASE_METHOD(ApplicationTestFixture,
     lv_timer_delete(timer);
     lv_indev_delete(pointer_a);
     lv_indev_delete(pointer_b);
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager's debug-touch timer runs at frame rate only while the "
+                 "setting is on",
+                 "[application][display][indev]") {
+    DisplayManager mgr;
+    lv_indev_t* pointer = lv_indev_create();
+    lv_indev_set_type(pointer, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(pointer, live_pointer_a_read_cb);
+    DisplayManagerTestAccess::set_pointer(mgr, pointer);
+
+    struct InstanceGuard {
+        DisplayManager* prev = DisplayManager::instance();
+        ~InstanceGuard() {
+            DisplayManagerTestAccess::set_active_instance(prev);
+        }
+    } instance_guard;
+    DisplayManagerTestAccess::set_active_instance(&mgr);
+
+    struct DebugTouchesGuard {
+        bool prev = RuntimeConfig::debug_touches();
+        ~DebugTouchesGuard() {
+            RuntimeConfig::set_debug_touches(prev);
+        }
+    } debug_touches_guard;
+
+    RuntimeConfig::set_debug_touches(false);
+    lv_timer_t* timer = DisplayManagerTestAccess::install_debug_touch_timer(mgr);
+    REQUIRE(timer != nullptr);
+    CHECK(timer->period == helix::debug_touch_period_ms(false));
+
+    // The Settings toggle reaches the timer on its next tick, in both directions.
+    RuntimeConfig::set_debug_touches(true);
+    lv_indev_read(pointer);
+    DisplayManagerTestAccess::debug_touch_tick(timer);
+    CHECK(timer->period == helix::debug_touch_period_ms(true));
+
+    RuntimeConfig::set_debug_touches(false);
+    DisplayManagerTestAccess::debug_touch_tick(timer);
+    CHECK(timer->period == helix::debug_touch_period_ms(false));
+
+    lv_timer_delete(timer);
+    lv_indev_delete(pointer);
 }
 
 namespace {

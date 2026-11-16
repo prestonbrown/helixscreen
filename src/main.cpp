@@ -15,7 +15,7 @@
 #include "application.h"
 #include "async_lifetime_guard.h"
 #include "bench_gcode_cmd.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
 #include "helix_version.h"
 #include "probe_egl_cmd.h"
 #include "system/crash_handler.h"

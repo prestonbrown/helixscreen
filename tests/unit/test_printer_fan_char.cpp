@@ -32,22 +32,39 @@
 #include "printer_fan_state.h"
 #include "printer_state.h"
 
+#include <algorithm>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
 using json = nlohmann::json;
 using helix::FanType;
 
+static PrinterState& fresh_printer_state() {
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    return state;
+}
+
+namespace {
+
+/// The process-wide PrinterState, reset and with its subjects initialised
+/// without XML registration.
+PrinterState& fresh_state() {
+    lv_init_safe();
+    PrinterState& state = fresh_printer_state();
+    return state;
+}
+
+} // namespace
+
 // ============================================================================
 // Initial State Tests - Document default initialization behavior
 // ============================================================================
 
 TEST_CASE("Fan characterization: initial values after init", "[characterization][fan][init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("no per-fan subjects initially") {
         // Before init_fans(), no per-fan subjects exist
@@ -66,11 +83,7 @@ TEST_CASE("Fan characterization: initial values after init", "[characterization]
 
 TEST_CASE("Fan characterization: init_fans creates per-fan subjects",
           "[characterization][fan][init_fans]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux_fan"});
 
@@ -92,96 +105,34 @@ TEST_CASE("Fan characterization: init_fans creates per-fan subjects",
     }
 }
 
-TEST_CASE("Fan characterization: init_fans populates fans vector",
-          "[characterization][fan][init_fans]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    state.fan_state().init_fans(
-        {"fan", "heater_fan hotend_fan", "controller_fan mcu_fan", "fan_generic aux"});
-
-    SECTION("fans vector has correct size") {
-        REQUIRE(state.fan_state().get_fans().size() == 4);
+TEST_CASE("Fan characterization: init_fans classifies each fan by its object name",
+          "[characterization][fan][init_fans][type][controllable]") {
+    PrinterState& state = fresh_state();
+    struct Row {
+        const char* object_name;
+        FanType type;
+        bool controllable;
+    };
+    const Row rows[] = {
+        {"fan", FanType::PART_COOLING, true},
+        {"heater_fan hotend_fan", FanType::HEATER_FAN, false},
+        {"controller_fan mcu_fan", FanType::CONTROLLER_FAN, false},
+        {"fan_generic aux", FanType::GENERIC_FAN, true},
+    };
+    std::vector<std::string> names;
+    for (const auto& row : rows) {
+        names.emplace_back(row.object_name);
     }
-
-    SECTION("FanInfo object_name matches input") {
-        const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[0].object_name == "fan");
-        REQUIRE(fans[1].object_name == "heater_fan hotend_fan");
-        REQUIRE(fans[2].object_name == "controller_fan mcu_fan");
-        REQUIRE(fans[3].object_name == "fan_generic aux");
-    }
-
-    SECTION("FanInfo speed_percent initializes to 0") {
-        const auto& fans = state.fan_state().get_fans();
-        for (const auto& fan : fans) {
-            REQUIRE(fan.speed_percent == 0);
-        }
-    }
-}
-
-// ============================================================================
-// Fan Type Classification Tests - Verify type determination from object name
-// ============================================================================
-
-TEST_CASE("Fan characterization: fan type classification", "[characterization][fan][type]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    state.fan_state().init_fans(
-        {"fan", "heater_fan hotend_fan", "controller_fan mcu_fan", "fan_generic aux"});
+    state.fan_state().init_fans(names);
 
     const auto& fans = state.fan_state().get_fans();
-
-    SECTION("\"fan\" is PART_COOLING type") {
-        REQUIRE(fans[0].type == FanType::PART_COOLING);
-    }
-
-    SECTION("\"heater_fan *\" is HEATER_FAN type") {
-        REQUIRE(fans[1].type == FanType::HEATER_FAN);
-    }
-
-    SECTION("\"controller_fan *\" is CONTROLLER_FAN type") {
-        REQUIRE(fans[2].type == FanType::CONTROLLER_FAN);
-    }
-
-    SECTION("\"fan_generic *\" is GENERIC_FAN type") {
-        REQUIRE(fans[3].type == FanType::GENERIC_FAN);
-    }
-}
-
-TEST_CASE("Fan characterization: fan controllability", "[characterization][fan][controllable]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    state.fan_state().init_fans(
-        {"fan", "heater_fan hotend_fan", "controller_fan mcu_fan", "fan_generic aux"});
-
-    const auto& fans = state.fan_state().get_fans();
-
-    SECTION("PART_COOLING is controllable") {
-        REQUIRE(fans[0].is_controllable == true);
-    }
-
-    SECTION("HEATER_FAN is not controllable") {
-        REQUIRE(fans[1].is_controllable == false);
-    }
-
-    SECTION("CONTROLLER_FAN is not controllable") {
-        REQUIRE(fans[2].is_controllable == false);
-    }
-
-    SECTION("GENERIC_FAN is controllable") {
-        REQUIRE(fans[3].is_controllable == true);
+    REQUIRE(fans.size() == std::size(rows));
+    for (size_t i = 0; i < fans.size(); ++i) {
+        INFO(rows[i].object_name);
+        CHECK(fans[i].object_name == rows[i].object_name);
+        CHECK(fans[i].type == rows[i].type);
+        CHECK(fans[i].is_controllable == rows[i].controllable);
+        CHECK(fans[i].speed_percent == 0);
     }
 }
 
@@ -189,105 +140,61 @@ TEST_CASE("Fan characterization: fan controllability", "[characterization][fan][
 // Fan Speed Update Tests - JSON parsing and subject updates
 // ============================================================================
 
-TEST_CASE("Fan characterization: main fan speed updates from JSON",
-          "[characterization][fan][update]") {
-    lv_init_safe();
+TEST_CASE("Fan characterization: a status speed becomes a percent on the fan's subjects",
+          "[characterization][fan][update][per-fan][faninfo]") {
+    // Klipper reports 0.0-1.0; the part fan also drives the main fan_speed_ subject.
+    struct Row {
+        const char* object;
+        double speed;
+        int percent;
+    };
+    const Row rows[] = {
+        {"fan", 1.0, 100},
+        {"fan", 0.75, 75},
+        {"fan", 0.5, 50},
+        {"fan", 0.25, 25},
+        {"fan", 0.8, 80},
+        {"fan", 0.65, 65},
+        {"heater_fan hotend_fan", 0.6, 60},
+        {"heater_fan hotend_fan", 0.45, 45},
+        {"fan_generic aux", 0.4, 40},
+    };
+    const std::vector<std::string> objects = {"fan", "heater_fan hotend_fan", "fan_generic aux"};
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.object << " at " << row.speed) {
+            PrinterState& state = fresh_state();
+            state.fan_state().init_fans(objects);
+            state.update_from_status(json{{row.object, {{"speed", row.speed}}}});
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    // Must init fans for multi-fan tracking to work
-    state.fan_state().init_fans({"fan"});
-
-    SECTION("full speed (1.0 -> 100%)") {
-        json status = {{"fan", {{"speed", 1.0}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 100);
-    }
-
-    SECTION("half speed (0.5 -> 50%)") {
-        json status = {{"fan", {{"speed", 0.5}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 50);
-    }
-
-    SECTION("off (0.0 -> 0%)") {
-        // First turn on
-        json on_status = {{"fan", {{"speed", 1.0}}}};
-        state.update_from_status(on_status);
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 100);
-
-        // Then turn off
-        json off_status = {{"fan", {{"speed", 0.0}}}};
-        state.update_from_status(off_status);
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 0);
-    }
-
-    SECTION("75% speed (0.75 -> 75%)") {
-        json status = {{"fan", {{"speed", 0.75}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 75);
-    }
-
-    SECTION("25% speed (0.25 -> 25%)") {
-        json status = {{"fan", {{"speed", 0.25}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 25);
+            CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject(row.object)) ==
+                  row.percent);
+            const auto& fans = state.fan_state().get_fans();
+            const auto fan = std::find_if(fans.begin(), fans.end(), [&](const auto& f) {
+                return f.object_name == row.object;
+            });
+            REQUIRE(fan != fans.end());
+            CHECK(fan->speed_percent == row.percent);
+            if (std::string(row.object) == "fan") {
+                CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == row.percent);
+            }
+        }
     }
 }
 
-TEST_CASE("Fan characterization: per-fan speed updates from JSON",
+TEST_CASE("Fan characterization: each fan keeps its own speed, and the part fan turns off",
           "[characterization][fan][update][per-fan]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux"});
 
-    SECTION("main fan update affects per-fan subject") {
-        json status = {{"fan", {{"speed", 0.8}}}};
-        state.update_from_status(status);
+    state.update_from_status(json{{"fan", {{"speed", 0.9}}}});
+    state.update_from_status(json{{"heater_fan hotend_fan", {{"speed", 0.3}}}});
+    CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan")) == 90);
+    CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject("heater_fan hotend_fan")) ==
+          30);
+    CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan_generic aux")) == 0);
 
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan")) == 80);
-    }
-
-    SECTION("heater_fan update affects its per-fan subject") {
-        json status = {{"heater_fan hotend_fan", {{"speed", 0.6}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(
-                    state.fan_state().get_fan_speed_subject("heater_fan hotend_fan")) == 60);
-    }
-
-    SECTION("fan_generic update affects its per-fan subject") {
-        json status = {{"fan_generic aux", {{"speed", 0.4}}}};
-        state.update_from_status(status);
-
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan_generic aux")) ==
-                40);
-    }
-
-    SECTION("updates for different fans are independent") {
-        json status1 = {{"fan", {{"speed", 0.9}}}};
-        state.update_from_status(status1);
-
-        json status2 = {{"heater_fan hotend_fan", {{"speed", 0.3}}}};
-        state.update_from_status(status2);
-
-        // Both should retain their values
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan")) == 90);
-        REQUIRE(lv_subject_get_int(
-                    state.fan_state().get_fan_speed_subject("heater_fan hotend_fan")) == 30);
-        REQUIRE(lv_subject_get_int(state.fan_state().get_fan_speed_subject("fan_generic aux")) ==
-                0);
-    }
+    state.update_from_status(json{{"fan", {{"speed", 0.0}}}});
+    CHECK(lv_subject_get_int(state.fan_state().get_fan_speed_subject()) == 0);
 }
 
 // ============================================================================
@@ -297,11 +204,7 @@ TEST_CASE("Fan characterization: per-fan speed updates from JSON",
 // ============================================================================
 
 TEST_CASE("Fan max_power normalization", "[fan][update][max_power]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("heater_fan full-on with max_power 0.5 reads 100%") {
         // Klipper reports speed=0.5 for a fan configured max_power: 0.5 running
@@ -347,44 +250,13 @@ TEST_CASE("Fan max_power normalization", "[fan][update][max_power]") {
     }
 }
 
-TEST_CASE("Fan characterization: FanInfo speed_percent updates",
-          "[characterization][fan][update][faninfo]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    state.fan_state().init_fans({"fan", "heater_fan hotend_fan"});
-
-    SECTION("FanInfo speed_percent updates with JSON") {
-        json status = {{"fan", {{"speed", 0.65}}}};
-        state.update_from_status(status);
-
-        const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[0].speed_percent == 65);
-    }
-
-    SECTION("FanInfo speed_percent updates for heater_fan") {
-        json status = {{"heater_fan hotend_fan", {{"speed", 0.45}}}};
-        state.update_from_status(status);
-
-        const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[1].speed_percent == 45);
-    }
-}
-
 // ============================================================================
 // Observer Notification Tests - Verify observers fire on fan changes
 // ============================================================================
 
 TEST_CASE("Fan characterization: observer fires when fan_speed changes",
           "[characterization][fan][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan"});
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
@@ -411,16 +283,12 @@ TEST_CASE("Fan characterization: observer fires when fan_speed changes",
     REQUIRE(user_data[0] >= 2); // At least one more notification
     REQUIRE(user_data[1] == 75);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: observer fires on per-fan subject change",
           "[characterization][fan][observer][per-fan]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"heater_fan hotend_fan"});
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
@@ -450,16 +318,12 @@ TEST_CASE("Fan characterization: observer fires on per-fan subject change",
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 50);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
           "[characterization][fan][observer][version]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
         int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
@@ -490,7 +354,7 @@ TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
     REQUIRE(user_data[0] >= 3);
     REQUIRE(user_data[1] == 2);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -498,11 +362,7 @@ TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
 // ============================================================================
 
 TEST_CASE("Fan characterization: updates before init_fans", "[characterization][fan][no_init]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Do NOT call init_fans
 
@@ -522,11 +382,7 @@ TEST_CASE("Fan characterization: updates before init_fans", "[characterization][
 
 TEST_CASE("Fan characterization: update for undiscovered fan is ignored",
           "[characterization][fan][unknown]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Only init some fans
     state.fan_state().init_fans({"fan"});
@@ -553,11 +409,7 @@ TEST_CASE("Fan characterization: update for undiscovered fan is ignored",
 
 TEST_CASE("Fan characterization: per-fan subjects cleared on reset",
           "[characterization][fan][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan"});
 
@@ -587,11 +439,7 @@ TEST_CASE("Fan characterization: per-fan subjects cleared on reset",
 
 TEST_CASE("Fan characterization: static subjects reset to defaults",
           "[characterization][fan][reset]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan"});
 
@@ -614,11 +462,7 @@ TEST_CASE("Fan characterization: static subjects reset to defaults",
 
 TEST_CASE("Fan characterization: reinitializing fans replaces previous subjects",
           "[characterization][fan][reinit]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // First init
     state.fan_state().init_fans({"fan"});
@@ -648,11 +492,7 @@ TEST_CASE("Fan characterization: reinitializing fans replaces previous subjects"
 
 TEST_CASE("Fan characterization: fan update does not affect non-fan subjects",
           "[characterization][fan][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan"});
 
     // Set some non-fan values first
@@ -674,11 +514,7 @@ TEST_CASE("Fan characterization: fan update does not affect non-fan subjects",
 
 TEST_CASE("Fan characterization: non-fan update does not affect fan subjects",
           "[characterization][fan][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan"});
 
     // Set fan value first
@@ -703,11 +539,7 @@ TEST_CASE("Fan characterization: non-fan update does not affect fan subjects",
 
 TEST_CASE("Fan characterization: observers on different fan subjects are independent",
           "[characterization][fan][observer][independence]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan"});
 
     int main_count = 0;
@@ -735,49 +567,8 @@ TEST_CASE("Fan characterization: observers on different fan subjects are indepen
     REQUIRE(main_count >= 2);
     REQUIRE(per_fan_count >= 2);
 
-    lv_observer_remove(main_observer);
-    lv_observer_remove(per_fan_observer);
-}
-
-TEST_CASE("Fan characterization: multiple observers on same fan subject all fire",
-          "[characterization][fan][observer]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-    state.fan_state().init_fans({"fan"});
-
-    int count1 = 0, count2 = 0, count3 = 0;
-
-    auto observer_cb = [](lv_observer_t* observer, lv_subject_t*) {
-        int* count = static_cast<int*>(lv_observer_get_user_data(observer));
-        (*count)++;
-    };
-
-    lv_observer_t* observer1 =
-        lv_subject_add_observer(state.fan_state().get_fan_speed_subject(), observer_cb, &count1);
-    lv_observer_t* observer2 =
-        lv_subject_add_observer(state.fan_state().get_fan_speed_subject(), observer_cb, &count2);
-    lv_observer_t* observer3 =
-        lv_subject_add_observer(state.fan_state().get_fan_speed_subject(), observer_cb, &count3);
-
-    // All observers fire on initial add
-    REQUIRE(count1 == 1);
-    REQUIRE(count2 == 1);
-    REQUIRE(count3 == 1);
-
-    // Single update should fire all three
-    json status = {{"fan", {{"speed", 0.5}}}};
-    state.update_from_status(status);
-
-    REQUIRE(count1 >= 2);
-    REQUIRE(count2 >= 2);
-    REQUIRE(count3 >= 2);
-
-    lv_observer_remove(observer1);
-    lv_observer_remove(observer2);
-    lv_observer_remove(observer3);
+    lv_observer_delete(main_observer);
+    lv_observer_delete(per_fan_observer);
 }
 
 // ============================================================================
@@ -785,11 +576,7 @@ TEST_CASE("Fan characterization: multiple observers on same fan subject all fire
 // ============================================================================
 
 TEST_CASE("Fan characterization: edge cases and boundary values", "[characterization][fan][edge]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
     state.fan_state().init_fans({"fan"});
 
     SECTION("very small speed values") {
@@ -841,11 +628,7 @@ TEST_CASE("Fan characterization: edge cases and boundary values", "[characteriza
 }
 
 TEST_CASE("Fan characterization: empty init_fans", "[characterization][fan][edge]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("init_fans with empty vector") {
         state.fan_state().init_fans({});
@@ -857,11 +640,7 @@ TEST_CASE("Fan characterization: empty init_fans", "[characterization][fan][edge
 }
 
 TEST_CASE("Fan characterization: fan with unusual name format", "[characterization][fan][edge]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("fan_generic with underscore in name") {
         state.fan_state().init_fans({"fan_generic aux_cooling_fan"});
@@ -879,6 +658,14 @@ TEST_CASE("Fan characterization: fan with unusual name format", "[characterizati
         REQUIRE(state.fan_state().get_fans()[0].type == FanType::HEATER_FAN);
         REQUIRE(state.fan_state().get_fans()[0].is_controllable == false);
     }
+
+    SECTION("heater_fan_throttled is a heater fan") {
+        state.fan_state().init_fans({"heater_fan_throttled chamber_heat_fan"});
+
+        REQUIRE(state.fan_state().get_fans()[0].type == FanType::HEATER_FAN);
+        REQUIRE(state.fan_state().get_fans()[0].is_controllable == false);
+        CHECK(state.fan_state().get_fans()[0].display_name == "Chamber Heat Fan");
+    }
 }
 
 // ============================================================================
@@ -887,11 +674,7 @@ TEST_CASE("Fan characterization: fan with unusual name format", "[characterizati
 
 TEST_CASE("Fan characterization: init_fans before update populates per-fan speeds",
           "[characterization][fan][ordering]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Correct order: init fans FIRST, then send status updates
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan"});
@@ -914,11 +697,7 @@ TEST_CASE("Fan characterization: init_fans before update populates per-fan speed
 
 TEST_CASE("Fan characterization: update before init_fans drops per-fan speeds",
           "[characterization][fan][ordering]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Wrong order: send status updates BEFORE init_fans
     json status = {{"fan", {{"speed", 0.75}}}, {"heater_fan hotend_fan", {{"speed", 0.6}}}};
@@ -954,11 +733,7 @@ TEST_CASE("Fan characterization: update before init_fans drops per-fan speeds",
 // ============================================================================
 
 TEST_CASE("Fan role config: configured part fan classified as PART_COOLING", "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.part_fan = "fan_generic Fanm106";
@@ -986,11 +761,7 @@ TEST_CASE("Fan role config: configured part fan classified as PART_COOLING", "[f
 
 TEST_CASE("Fan role config: display name overrides from configured roles",
           "[fan][role_config][display_name]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.part_fan = "fan_generic Fanm106";
@@ -1065,11 +836,7 @@ TEST_CASE("Fan labels: a type pill reads as the role its type fills", "[fan][fan
 
 TEST_CASE("Fan role config: a configured aux fan is named by its role",
           "[fan][role_config][display_name]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.aux_fan = "fan_generic nevermore";
@@ -1082,11 +849,7 @@ TEST_CASE("Fan role config: a configured aux fan is named by its role",
 }
 
 TEST_CASE("Fan role config: empty roles uses default behavior", "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Default-constructed FanRoleConfig has empty strings
     helix::FanRoleConfig roles;
@@ -1106,11 +869,7 @@ TEST_CASE("Fan role config: empty roles uses default behavior", "[fan][role_conf
 
 TEST_CASE("Fan role config: configured part fan updates hero slider subject",
           "[fan][role_config][update]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.part_fan = "fan_generic Fanm106";
@@ -1136,11 +895,7 @@ TEST_CASE("Fan role config: configured part fan updates hero slider subject",
 
 TEST_CASE("Fan role config: bare 'fan' skipped when different part fan configured",
           "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.part_fan = "fan_generic fanM106";
@@ -1165,11 +920,7 @@ TEST_CASE("Fan role config: bare 'fan' skipped when different part fan configure
 }
 
 TEST_CASE("Fan role config: bare 'fan' NOT skipped when it IS the part fan", "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles;
     roles.part_fan = "fan";
@@ -1191,11 +942,7 @@ TEST_CASE("Fan role config: bare 'fan' NOT skipped when it IS the part fan", "[f
 
 TEST_CASE("Fan role config: bare 'fan' NOT skipped when roles are empty (default)",
           "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     helix::FanRoleConfig roles; // default: part_fan is empty
 
@@ -1211,11 +958,7 @@ TEST_CASE("Fan role config: bare 'fan' NOT skipped when roles are empty (default
 
 TEST_CASE("Fan role config: canonical 'fan' part_fan does not create redundant override",
           "[fan][role_config]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // When the configured part fan IS the canonical "fan", don't add a role override
     // (it already has a direct mapping to "Part Cooling Fan")
@@ -1237,11 +980,7 @@ TEST_CASE("Fan role config: canonical 'fan' part_fan does not create redundant o
 
 TEST_CASE("Fan characterization: output_pin fan type classification",
           "[characterization][fan][type][output_pin]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans(
         {"output_pin fan0", "output_pin fan1", "output_pin fan2", "heater_fan hotend_fan"});
@@ -1270,11 +1009,7 @@ TEST_CASE("Fan characterization: output_pin fan type classification",
 }
 
 TEST_CASE("Fan characterization: FanInfo rpm field", "[characterization][fan][rpm]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"output_pin fan0"});
 
@@ -1287,11 +1022,7 @@ TEST_CASE("Fan characterization: FanInfo rpm field", "[characterization][fan][rp
 
 TEST_CASE("Fan characterization: output_pin fan speed from value field",
           "[characterization][fan][update][output_pin]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "heater_fan hotend_fan"});
 
@@ -1342,26 +1073,23 @@ TEST_CASE("Fan characterization: output_pin fan speed from value field",
 
 TEST_CASE("Fan characterization: fan_feedback RPM updates",
           "[characterization][fan][update][fan_feedback]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2"});
+    // The slot-to-fan map comes from the printer's config (test_fan_tachometers.cpp);
+    // here it is given so only the routing is under test.
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "output_pin fan1"}});
 
-    SECTION("fan_feedback maps fanN_speed to output_pin fanN rpm") {
+    SECTION("fan_feedback fields land on the fans the map names") {
         json status = {
             {"fan_feedback", {{"fan0_speed", 16000}, {"fan1_speed", 3692}, {"fan2_speed", 0}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[0].rpm.has_value());
-        REQUIRE(fans[0].rpm.value() == 16000);
-        REQUIRE(fans[1].rpm.has_value());
-        REQUIRE(fans[1].rpm.value() == 3692);
-        REQUIRE(fans[2].rpm.has_value());
-        REQUIRE(fans[2].rpm.value() == 0);
+        REQUIRE(fans[0].rpm == std::optional<int>(0));
+        REQUIRE(fans[1].rpm == std::optional<int>(16000));
+        REQUIRE_FALSE(fans[2].rpm.has_value());
     }
 
     SECTION("fan_feedback for unknown fanN is ignored") {
@@ -1373,7 +1101,7 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     }
 
     SECTION("fan_feedback with non-numeric value is ignored") {
-        json status = {{"fan_feedback", {{"fan0_speed", nullptr}}}};
+        json status = {{"fan_feedback", {{"fan2_speed", nullptr}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
@@ -1381,13 +1109,111 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     }
 }
 
-TEST_CASE("Fan characterization: duplicate chamber_fan disambiguated by role",
-          "[characterization][fan][names][chamber]") {
+TEST_CASE("Fan characterization: Klipper rpm field on tachometer fans (#2071)",
+          "[characterization][fan][update][rpm]") {
     lv_init_safe();
 
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_printer_state();
+
+    state.fan_state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux",
+                                 "controller_fan board_fan", "temperature_fan chamber"});
+
+    const auto& fans = state.fan_state().get_fans();
+
+    SECTION("every speed-reporting fan type reads rpm, rounded to an integer") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", 4200.4}}},
+                                  {"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 7800.6}}},
+                                  {"fan_generic aux", {{"speed", 0.3}, {"rpm", 1500.0}}},
+                                  {"controller_fan board_fan", {{"speed", 1.0}, {"rpm", 3000.0}}},
+                                  {"temperature_fan chamber", {{"speed", 0.2}, {"rpm", 900.0}}}});
+
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+        REQUIRE(fans[1].rpm == std::optional<int>(7801));
+        REQUIRE(fans[2].rpm == std::optional<int>(1500));
+        REQUIRE(fans[3].rpm == std::optional<int>(3000));
+        REQUIRE(fans[4].rpm == std::optional<int>(900));
+    }
+
+    SECTION("rpm arrives in an update without speed") {
+        state.update_from_status({{"heater_fan hotend_fan", {{"rpm", 6000.0}}}});
+        REQUIRE(fans[1].rpm == std::optional<int>(6000));
+    }
+
+    SECTION("a fan with no tachometer reports rpm null: no reading, never 0") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", nullptr}}}});
+        REQUIRE_FALSE(fans[0].rpm.has_value());
+    }
+
+    SECTION("a stopped tachometer fan reads 0, not no reading") {
+        state.update_from_status({{"fan", {{"speed", 0.0}, {"rpm", 0.0}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(0));
+    }
+
+    SECTION("an update without rpm keeps the last known value") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", 4200.0}}},
+                                  {"heater_fan hotend_fan", {{"rpm", 7000.0}}}});
+        state.update_from_status(
+            {{"fan", {{"speed", 0.6}}}, {"heater_fan hotend_fan", {{"speed", 1.0}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+        REQUIRE(fans[1].rpm == std::optional<int>(7000));
+    }
+
+    SECTION("rpm null after a reading clears it") {
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        state.update_from_status({{"fan", {{"rpm", nullptr}}}});
+        REQUIRE_FALSE(fans[0].rpm.has_value());
+    }
+
+    SECTION("fan_rpm_version ticks only when a reading changes") {
+        lv_subject_t* ver = state.fan_state().get_fan_rpm_version_subject();
+        const int v0 = lv_subject_get_int(ver);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", nullptr}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 2);
+    }
+
+    SECTION("a non-numeric rpm is ignored") {
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        state.update_from_status({{"fan", {{"rpm", "fast"}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+    }
+}
+
+TEST_CASE("Fan characterization: fan_feedback and Klipper rpm on one printer (#2071)",
+          "[characterization][fan][update][rpm][fan_feedback]") {
+    lv_init_safe();
+
+    PrinterState& state = fresh_printer_state();
+
+    state.fan_state().init_fans(
+        {"output_pin fan0", "heater_fan hotend_fan", "heater_fan chamber_fan"});
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "heater_fan chamber_fan"}});
+    const auto& fans = state.fan_state().get_fans();
+
+    // The tachometer map owns the fans it names; Klipper's rpm reaches only the fan
+    // objects that publish it, so neither source overwrites the other.
+    state.update_from_status({{"fan_feedback", {{"fan2_speed", 16000}, {"fan0_speed", 2400}}},
+                              {"output_pin fan0", {{"value", 1.0}, {"rpm", 5.0}}},
+                              {"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 7000.0}}}});
+
+    REQUIRE(fans[0].rpm == std::optional<int>(16000));
+    REQUIRE(fans[1].rpm == std::optional<int>(7000));
+    REQUIRE(fans[2].rpm == std::optional<int>(2400));
+
+    SECTION("the fan object's own null rpm does not erase a tachometer reading") {
+        // Klipper publishes rpm null for a heater_fan without a tachometer_pin.
+        state.update_from_status({{"heater_fan chamber_fan", {{"speed", 1.0}, {"rpm", nullptr}}}});
+        REQUIRE(fans[2].rpm == std::optional<int>(2400));
+    }
+}
+
+TEST_CASE("Fan characterization: duplicate chamber_fan disambiguated by role",
+          "[characterization][fan][names][chamber]") {
+    PrinterState& state = fresh_state();
 
     // A Creality K2 Plus exposes TWO distinct Klipper objects that share the
     // suffix "chamber_fan": the PTC heater element's cooling fan and the chamber
@@ -1412,11 +1238,7 @@ TEST_CASE("Fan characterization: duplicate chamber_fan disambiguated by role",
 
 TEST_CASE("Fan characterization: single chamber fan still reads sensibly",
           "[characterization][fan][names][chamber]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     SECTION("lone heater_fan chamber_fan reads as 'Chamber Heater Fan'") {
         state.fan_state().init_fans({"heater_fan chamber_fan"});
@@ -1443,11 +1265,7 @@ TEST_CASE("Fan characterization: single chamber fan still reads sensibly",
 
 TEST_CASE("Fan characterization: custom display names from config",
           "[characterization][fan][names]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Simulate saved custom names in config
     auto* config = Config::get_instance();
@@ -1502,10 +1320,7 @@ TEST_CASE("init_fans: healed roles correctly register 'fan' subject when stale r
           "[characterization][fan][role][hwrole]") {
     // Exercises the real path: Config has a stale role, from_config heals it, and the
     // healed roles are passed to init_fans so the subject for the correct fan is created.
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     Config* cfg = Config::get_instance();
     const std::string key = cfg->df() + "fans/part";
@@ -1527,10 +1342,7 @@ TEST_CASE("init_fans: healed roles correctly register 'fan' subject when stale r
 
 TEST_CASE("init_fans keeps [fan] when part role points to an absent object",
           "[characterization][fan][role][hwrole]") {
-    lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // Defense in depth: a role that resolution did NOT touch (set directly), naming
     // an object absent from the discovered list, must NOT cause [fan] to be skipped.
@@ -1556,11 +1368,7 @@ TEST_CASE("init_fans keeps [fan] when part role points to an absent object",
 
 TEST_CASE("Fan subject is not gated on the struct comparison (#1181)",
           "[fan][reinit][subject_sync]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan"});
 
@@ -1581,11 +1389,7 @@ TEST_CASE("Fan subject is not gated on the struct comparison (#1181)",
 
 TEST_CASE("Fan subject always reflects latest update even when struct unchanged (#1181)",
           "[fan][update][subject_sync]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan", "heater_fan hotend_fan"});
 
@@ -1623,11 +1427,7 @@ TEST_CASE("Fan subject always reflects latest update even when struct unchanged 
 
 TEST_CASE("Steady-speed fan survives a role re-apply with no new status update (#1181)",
           "[fan][reinit][subject_sync]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan"});
     state.update_from_status({{"fan", {{"speed", 0.6}}}});
@@ -1643,11 +1443,7 @@ TEST_CASE("Steady-speed fan survives a role re-apply with no new status update (
 
 TEST_CASE("apply_roles re-shadows and un-shadows bare [fan] from the discovered list",
           "[fan][reinit][roles]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     auto names = [&state]() {
         std::vector<std::string> out;
@@ -1681,11 +1477,7 @@ TEST_CASE("apply_roles re-shadows and un-shadows bare [fan] from the discovered 
 
 TEST_CASE("apply_roles carries live readings, like any other re-init (#1181)",
           "[fan][reinit][roles]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"fan", "fan_generic aux"});
     state.update_from_status({{"fan_generic aux", {{"speed", 0.4}}}});
@@ -1699,11 +1491,7 @@ TEST_CASE("apply_roles carries live readings, like any other re-init (#1181)",
 }
 
 TEST_CASE("Promoted part fan survives a role re-apply (#1181)", "[fan][reinit][classification]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_state();
 
     // The "stale [fan]" shape #1124 was about: bare [fan] exists but never
     // reports, and the real part cooler is a named generic fan.

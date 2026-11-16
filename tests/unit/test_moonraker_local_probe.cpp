@@ -5,7 +5,7 @@
  * @file test_moonraker_local_probe.cpp
  * @brief Local /proc evidence about Moonraker, for when Moonraker cannot answer.
  *
- * AD5X bundles TAU4PW4H / 865DXBQ7 (v0.99.107): the WebSocket to
+ * Two AD5X debug bundles (v0.99.107): the WebSocket to
  * 127.0.0.1:7125 was refused instantly across two boots. Every Moonraker-derived
  * section of the bundle is fetched THROUGH Moonraker, so all five carried
  * `{"error": "No response from ..."}` and the bundle could not distinguish:
@@ -368,6 +368,15 @@ TEST_CASE("select_moonraker_processes reports daemons and never ourselves", "[bu
     SECTION("nothing running is a real answer, not a failure") {
         CHECK(select_moonraker_processes({}).empty());
     }
+}
+
+TEST_CASE("moonraker_loads_python_addons reads the daemon's executable", "[plugin_installer]") {
+    using helix::diag::moonraker_loads_python_addons;
+    CHECK(moonraker_loads_python_addons({}));
+    CHECK(moonraker_loads_python_addons({{1, "/usr/bin/python3 /opt/moonraker/moonraker.py"}}));
+    CHECK(moonraker_loads_python_addons({{2, "/usr/bin/tail -f /var/log/moonruster"}}));
+    CHECK_FALSE(moonraker_loads_python_addons({{3, "/usr/bin/moonruster -d /etc/klipper"}}));
+    CHECK_FALSE(moonraker_loads_python_addons({{4, "moonruster"}, {5, "/usr/bin/rusticc"}}));
 }
 
 TEST_CASE("find_moonraker_processes survives the live /proc", "[bundle][ad5x]") {

@@ -23,13 +23,19 @@
  * text onto a saver canvas.
  */
 
+namespace helix {
+enum class PrintOutcome;
+} // namespace helix
+
 namespace helix::ui {
 
 /// The local time of day, the date and the 12/24-hour setting, with no print.
 ClockInput saver_clock_now();
 
-/// A clock's reading of the app's print lifecycle: cancelled and failed prints read as no print.
-ClockPrintPhase clock_print_phase(PrintState state);
+/// The print phase for the app's lifecycle `state`. An idle printer reports how its last print
+/// ended (`outcome`, which persists until the next print), so a printer that goes back to
+/// standby after a print still reads that end.
+ClockPrintPhase clock_print_phase(PrintState state, PrintOutcome outcome);
 
 /// The print as two short lines: "ETA 9:41 PM" and "1h 12m left" while counting down,
 /// "PAUSED" and the time left while paused, "DONE" and nothing when done, both empty for the
@@ -62,15 +68,23 @@ struct ClockLines {
 };
 ClockLines clock_lines(const ClockReading& reading);
 
-/// clock_lines() for the last reading asked about, built again only when clock_text_same()
-/// says the text changed.
+/// Lines a saver shows for a reading: clock_lines(), or a saver's own.
+using ClockLinesFn = ClockLines (*)(const ClockReading&);
+
+/// `build`'s lines for the last reading asked about, built again only when clock_text_same()
+/// says the text changed, or with `by_minute` the time of day's minute changed too.
 class ClockTextCache {
   public:
+    explicit ClockTextCache(ClockLinesFn build = clock_lines, bool by_minute = false)
+        : build_(build), by_minute_(by_minute) {}
+
     const ClockLines& get(const ClockReading& reading);
     /// Forgets the text and frees its strings.
     void reset();
 
   private:
+    ClockLinesFn build_;
+    bool by_minute_;
     ClockLines lines_;
     ClockReading built_for_;
     bool built_ = false;

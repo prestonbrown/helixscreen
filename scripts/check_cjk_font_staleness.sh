@@ -66,7 +66,7 @@ if [ "$MISSING_COUNT" -gt 0 ]; then
     exit 1
 fi
 
-WIZARD_SOURCES="ui_xml/wizard_language_chooser.xml src/ui/ui_wizard_language_chooser.cpp"
+WIZARD_SOURCES="ui_xml/wizard_language_chooser.xml src/ui/wizard/ui_wizard_language_chooser.cpp"
 # shellcheck disable=SC2086 # word-split into one glob per source
 WIZARD_NEEDED=$(python3 scripts/translations/cjk_charset.py --root "$ROOT" --paths $WIZARD_SOURCES)
 WIZARD_BAKED=$(sed -n 's/^WIZARD_CJK="\(.*\)"$/\1/p' "$ROOT/scripts/regen_text_fonts.sh" 2>/dev/null \

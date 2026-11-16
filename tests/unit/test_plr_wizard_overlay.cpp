@@ -16,9 +16,8 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_plr_wizard_overlay.h"
-#include "ui_update_queue.h"
 
-#include "../../src/ui/ui_plr_prompt.h"
+#include "../../src/ui/print/ui_plr_prompt.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/plr_offer_controller_test_access.h"
 #include "../test_helpers/plr_wizard_overlay_test_access.h"
@@ -26,6 +25,8 @@
 #include "app_globals.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_awake_hold.h"
 #include "first_run_tour.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -35,7 +36,6 @@
 #include "plr_backend.h"
 #include "plr_offer_controller.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <algorithm>
 #include <array>
@@ -392,7 +392,7 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: the Checks card says the heat co
     open();
     REQUIRE(wizard_step() == PlrWizardStep::Checks);
     lv_obj_t* note = wizard_widget("plr_heat_in_place_note");
-    CHECK_FALSE(lv_obj_has_flag(note, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(note));
     CHECK(widget_text("plr_heat_in_place_note") ==
           "The bed and nozzle heat together before anything moves, so the print re-grips and "
           "the nozzle lets go of it.");
@@ -488,7 +488,7 @@ TEST_CASE_METHOD(PlrWizardFixture,
     settle();
     REQUIRE(wizard_step() == PlrWizardStep::Committing);
     CHECK(helix::display_awake_hold().is_held());
-    CHECK_FALSE(lv_obj_has_flag(wizard_widget("btn_plr_cancel_committing"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wizard_widget("btn_plr_cancel_committing")));
 
     bool saw_start = false;
     for (int i = 0; i < 40 && !saw_start && wizard_step() == PlrWizardStep::Committing; ++i) {
@@ -500,7 +500,7 @@ TEST_CASE_METHOD(PlrWizardFixture,
     REQUIRE(wizard_step() == PlrWizardStep::Committing);
     // The running print's own sleep rules apply from here.
     CHECK_FALSE(helix::display_awake_hold().is_held());
-    CHECK(lv_obj_has_flag(wizard_widget("btn_plr_cancel_committing"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wizard_widget("btn_plr_cancel_committing")));
     // A Cancel tap that slipped through would turn the heaters off under the print.
     PlrWizardOverlayTestAccess::tap_abort(get_plr_wizard_overlay());
     settle();
@@ -563,11 +563,13 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: the screensaver does not abort a
     settle();
     REQUIRE(wizard_step() == PlrWizardStep::Preparing);
 
-    get_plr_wizard_overlay().on_deactivating(DeactivateReason::Suspended);
+    NavigationManager::instance().suspend_active();
     settle();
     CHECK(wizard_step() == PlrWizardStep::Preparing);
-    // The prepare reply still lands in this opening.
+    // The prepare reply lands behind the screensaver, and the wake shows its step.
     REQUIRE(run_past(PlrWizardStep::Preparing));
+    NavigationManager::instance().resume_active();
+    settle();
     CHECK(wizard_step() == PlrWizardStep::ZStep);
     CHECK(client.count(helix::kPlrAbortRpc) == 0);
 }
@@ -723,6 +725,7 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR: the first-run tour waits for the resume
     cfg->set<bool>("/wizard_completed", true);
     lv_subject_set_int(&get_home_edit_mode_subject(), 0);
     auto& tour = helix::tour::FirstRunTour::instance();
+    tour.set_printer_ready(true);
     REQUIRE_FALSE(tour.is_running());
     // The gate is open with nothing over Home, so a closed gate below is the cover's doing.
     REQUIRE(helix::tour::FirstRunTour::should_auto_start());

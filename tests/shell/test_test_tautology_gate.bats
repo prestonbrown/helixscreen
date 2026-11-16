@@ -26,7 +26,7 @@ setup() {
     REPO_ROOT="$PWD"
     WORK="${BATS_TEST_TMPDIR:-$(mktemp -d)}/repo"
     rm -rf "$WORK"; mkdir -p "$WORK/scripts" "$WORK/include" "$WORK/src" "$WORK/tests/unit"
-    cp "$REPO_ROOT/$TAUT" "$REPO_ROOT/$MIRROR" "$WORK/scripts/"
+    cp "$REPO_ROOT/$TAUT" "$REPO_ROOT/$MIRROR" "$REPO_ROOT/scripts/source_strip.py" "$WORK/scripts/"
     mkdir -p "$WORK/mk"
     cat > "$WORK/mk/tests.mk" <<'EOF'
 TEST_APP_OBJS := $(filter-out \
@@ -208,14 +208,14 @@ EOF
 # ------------------------------------------------- mirror signal 4: stub-logic
 
 stub_fixture() {
-    mkdir -p "$WORK/mk" "$WORK/src/ui"
+    mkdir -p "$WORK/mk" "$WORK/src/ui" "$WORK/src/ui/notify"
     cat > "$WORK/mk/tests.mk" <<'EOF'
 TEST_APP_OBJS := $(filter-out \
     $(OBJ_DIR)/main.o \
-    $(OBJ_DIR)/ui/ui_toast_manager.o \
+    $(OBJ_DIR)/ui/notify/ui_toast_manager.o \
     ,$(APP_OBJS))
 EOF
-    cat > "$WORK/src/ui/ui_toast_manager.cpp" <<'EOF'
+    cat > "$WORK/src/ui/notify/ui_toast_manager.cpp" <<'EOF'
 namespace helix {
 void ToastManager::show(int severity, const char* msg) {
     if (severity > 0) { render(msg); }

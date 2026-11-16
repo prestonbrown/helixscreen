@@ -118,7 +118,12 @@
       "gcode_macro LED_PARTY",
       "gcode_macro LED_NIGHTLIGHT",
       "mcu",
-      "timelapse"
+      "timelapse",
+      "filament_detect",
+      "filament_feed left",
+      "filament_feed right",
+      "print_task_config",
+      "machine_state_manager"
     ],
     "sensors": [
       "temperature_sensor cavity",
@@ -236,7 +241,11 @@
       "power",
       "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "state",
+      "park_pin",
+      "active_pin",
+      "activating_move"
     ],
     "extruder1": [
       "temperature",
@@ -244,7 +253,11 @@
       "power",
       "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "state",
+      "park_pin",
+      "active_pin",
+      "activating_move"
     ],
     "extruder2": [
       "temperature",
@@ -252,7 +265,11 @@
       "power",
       "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "state",
+      "park_pin",
+      "active_pin",
+      "activating_move"
     ],
     "extruder3": [
       "temperature",
@@ -260,43 +277,39 @@
       "power",
       "pressure_advance",
       "nozzle_diameter",
-      "nozzle_volume_type"
+      "nozzle_volume_type",
+      "state",
+      "park_pin",
+      "active_pin",
+      "activating_move"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic cavity_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e1_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e2_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic e3_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
-    "filament_motion_sensor e0_filament": [
-      "filament_detected",
-      "enabled",
-      "detection_count"
-    ],
-    "filament_motion_sensor e1_filament": [
-      "filament_detected",
-      "enabled",
-      "detection_count"
-    ],
-    "filament_motion_sensor e2_filament": [
-      "filament_detected",
-      "enabled",
-      "detection_count"
-    ],
-    "filament_motion_sensor e3_filament": [
-      "filament_detected",
-      "enabled",
-      "detection_count"
-    ],
+    "filament_detect": null,
+    "filament_feed left": null,
+    "filament_feed right": null,
+    "filament_motion_sensor e0_filament": null,
+    "filament_motion_sensor e1_filament": null,
+    "filament_motion_sensor e2_filament": null,
+    "filament_motion_sensor e3_filament": null,
     "firmware_retraction": [
       "retract_length",
       "retract_speed",
@@ -329,19 +342,24 @@
       "power"
     ],
     "heater_fan e0_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e1_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e2_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan e3_nozzle_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "heater_fan power_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"
@@ -361,6 +379,7 @@
     "led_effect static_white": [
       "enabled"
     ],
+    "machine_state_manager": null,
     "manual_probe": [
       "is_active",
       "z_position"
@@ -385,10 +404,17 @@
       "estimated_time",
       "info",
       "message",
-      "power_loss"
+      "power_loss",
+      "exception"
     ],
+    "print_task_config": null,
     "purifier": [
-      "power_detected"
+      "power_detected",
+      "mode",
+      "critical_chamber_temp",
+      "inner_fan_work_time",
+      "exhaust_fan",
+      "inner_fan"
     ],
     "stepper_enable": [
       "steppers"
@@ -399,7 +425,7 @@
     ],
     "tmc2240 stepper_x": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "toolhead": [
       "position",
@@ -416,6 +442,7 @@
       "layer_count",
       "is_active",
       "file_position",
+      "pl_env_valid",
       "file_path"
     ],
     "webhooks": [

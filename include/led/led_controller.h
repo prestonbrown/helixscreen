@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "helix_shared_callback.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
 #include "subject_managed_panel.h"
@@ -18,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: configfile_config_ held by value
 
 namespace helix {
 class IMoonrakerAPI;
@@ -73,8 +74,8 @@ class NativeBackend {
     void update_pin_config(const nlohmann::json& config_section);
 
     // Control methods
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const std::string&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const std::string&)>;
 
     // `on_queued` is the third disposition IMoonrakerAPI::execute_gcode offers:
     // SET_LED is discretionary, so while an external blocking op holds Klipper's
@@ -106,7 +107,7 @@ class NativeBackend {
 
     /// Register/unregister a callback for strip color changes (called on main thread)
     using ColorChangeCallback =
-        std::function<void(const std::string& strip_id, const StripColor& color)>;
+        helix::SharedCallback<void(const std::string& strip_id, const StripColor& color)>;
     void set_color_change_callback(ColorChangeCallback cb) {
         color_change_cb_ = std::move(cb);
     }
@@ -231,7 +232,7 @@ class WledBackend {
     [[nodiscard]] bool has_strip_state(const std::string& strip_id) const;
 
     // Poll Moonraker for current WLED status and update strip_states_
-    void poll_status(std::function<void()> on_complete = nullptr);
+    void poll_status(helix::SharedCallback<void()> on_complete = nullptr);
 
   private:
     /// One wled_set_strip call; -1 leaves brightness or preset unchanged.
@@ -402,12 +403,17 @@ class LedController {
 
     // Discovery
     void discover_from_hardware(const helix::PrinterDiscovery& hardware);
+
+    /// The led capability is turned off for this printer: its firmware declares
+    /// lights the hardware does not have, so led_controllable and led_has_devices
+    /// read 0 whatever discovery finds. Republishes both.
+    void set_lights_disabled(bool disabled);
     void discover_wled_strips(); ///< Async WLED discovery via Moonraker HTTP bridge
 
     /// Called on the main thread when a WLED discovery settles (see
     /// wled_discovery_pending()), so the app can re-run whatever waited for the
     /// full device set. Survives deinit().
-    void set_on_wled_settled(std::function<void()> cb) {
+    void set_on_wled_settled(helix::SharedCallback<void()> cb) {
         on_wled_settled_ = std::move(cb);
     }
 
@@ -478,7 +484,7 @@ class LedController {
 
     /// Poll WLED state over Moonraker, then bump led_state_version on the main
     /// thread and run @p on_done there.
-    void refresh_wled_state(std::function<void()> on_done = nullptr);
+    void refresh_wled_state(helix::SharedCallback<void()> on_done = nullptr);
 
     /// The backend that owns @p strip_id; nullopt for an id no backend owns, so
     /// nothing is ever sent to a device that is not there. A "macro:" id is always
@@ -531,6 +537,12 @@ class LedController {
     /// for direct XML binding.
     lv_subject_t* get_led_controllable_subject() {
         return &led_controllable_;
+    }
+
+    /// Boolean subject (0/1): the LEDs overlay has a device to list. Registered
+    /// globally as "led_has_devices".
+    lv_subject_t* get_led_has_devices_subject() {
+        return &led_has_devices_;
     }
 
     /// Int subject (0/1): a light toggle command is currently awaiting its gcode ACK.
@@ -596,7 +608,7 @@ class LedController {
     IMoonrakerAPI* api_ = nullptr;
     IMoonrakerClient* client_ = nullptr;
     helix::AsyncLifetimeGuard lifetime_;
-    std::function<void()> on_wled_settled_;
+    helix::SharedCallback<void()> on_wled_settled_;
     bool wled_discovery_pending_ = false;
     unsigned wled_discovery_gen_ = 0; ///< A late answer or timeout settles only its own discovery
     void settle_wled_discovery(unsigned gen);
@@ -637,19 +649,20 @@ class LedController {
     /// strips arriving, a macro device added, edited or deleted.
     void bump_config_version();
 
-    lv_subject_t led_config_version_{};    // Bumped on discover/config changes
-    lv_subject_t led_controllable_{};      // 0/1: at least one switchable device exists
-    lv_subject_t led_has_devices_{};       // 0/1: the LEDs overlay has a device, PRESET included
-    lv_subject_t led_command_in_flight_{}; // 0/1: a light toggle is awaiting its gcode ACK
-    lv_subject_t led_state_version_{};     // Bumped when device state may have changed
-    int in_flight_count_ = 0;              // outstanding toggle commands awaiting ACK
-    ObserverGuard conn_observer_;          // clears in-flight count on any non-CONNECTED transition
+    helix::Subject led_config_version_{};    // Bumped on discover/config changes
+    helix::Subject led_controllable_{};      // 0/1: at least one switchable device exists
+    helix::Subject led_has_devices_{};       // 0/1: the LEDs overlay has a device, PRESET included
+    helix::Subject led_command_in_flight_{}; // 0/1: a light toggle is awaiting its gcode ACK
+    helix::Subject led_state_version_{};     // Bumped when device state may have changed
+    int in_flight_count_ = 0;                // outstanding toggle commands awaiting ACK
+    ObserverGuard conn_observer_; // clears in-flight count on any non-CONNECTED transition
     // Clears in-flight count on any exit from klippy READY. A Klipper restart leaves
     // the Moonraker WebSocket up, so conn_observer_ above never sees it (#1129).
     // No paired SubjectLifetime: PrinterState::get_klippy_state_subject() is a static
     // singleton-lifetime subject (no lifetime-token overload).
     ObserverGuard klippy_observer_;
     bool version_subject_initialized_ = false;
+    bool lights_disabled_ = false;
     /// Owns the four subjects above: when the registry deinit calls
     /// deinit_all(), the death signal expires before they are freed.
     SubjectManager subjects_;

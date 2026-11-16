@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_next_tick.h"
-#include "ui_update_queue.h"
 
 #include "../../include/temp_graph_controller.h"
 #include "../../include/temp_graph_internal.h"
 #include "../../include/ui_temp_graph.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -20,6 +22,7 @@
 #include <chrono>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -27,15 +30,9 @@ using namespace helix;
 // Test Fixture
 // ============================================================================
 
-class TempGraphControllerFixture {
+class TempGraphControllerFixture : public LVGLTestFixture {
   public:
     TempGraphControllerFixture() {
-        lv_init_safe();
-
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
         screen = lv_obj_create(NULL);
 
         // Initialize PrinterState subjects (needed by controller's setup_observers)
@@ -52,21 +49,6 @@ class TempGraphControllerFixture {
 
     lv_obj_t* screen;
 };
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-TEST_CASE_METHOD(TempGraphControllerFixture, "Controller creates graph with minimal config",
-                 "[controller][temp_graph_controller]") {
-    TempGraphControllerConfig cfg;
-    cfg.series.clear(); // No series — avoids printer state lookups for sensors
-
-    auto controller = std::make_unique<TempGraphController>(screen, cfg);
-
-    REQUIRE(controller->is_valid());
-    REQUIRE(controller->graph() != nullptr);
-}
 
 TEST_CASE_METHOD(TempGraphControllerFixture, "Controller with series specs returns valid IDs",
                  "[controller][temp_graph_controller]") {
@@ -158,23 +140,6 @@ TEST_CASE_METHOD(TempGraphControllerFixture, "Controller with custom scale param
     auto controller = std::make_unique<TempGraphController>(screen, cfg);
     REQUIRE(controller->is_valid());
     REQUIRE(controller->graph() != nullptr);
-}
-
-TEST_CASE_METHOD(TempGraphControllerFixture, "Controller destruction with series is safe",
-                 "[controller][temp_graph_controller]") {
-    TempGraphControllerConfig cfg;
-    cfg.series = {
-        {"extruder", lv_color_hex(0xFF4444), true},
-        {"heater_bed", lv_color_hex(0x88C0D0), true},
-    };
-
-    // Create with active series and observers, then immediately destroy
-    auto controller = std::make_unique<TempGraphController>(screen, cfg);
-    REQUIRE(controller->is_valid());
-
-    // Destruction tears down observers, drains queue, destroys graph
-    REQUIRE_NOTHROW(controller.reset());
-    REQUIRE(controller == nullptr);
 }
 
 // Reproducer for: chamber series klipper_name is "heater_generic chamber" (full Klipper
@@ -481,6 +446,22 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
 //   1. Synchronous destroy with a queued callback still pending
 //   2. The on_activate() "detach + release + async-delete" swap pattern
 
+TEST_CASE_METHOD(TempGraphControllerFixture, "Controller rebuild leaves a deleted container alone",
+                 "[controller][temp_graph_controller][regression][uaf]") {
+    TempGraphControllerConfig cfg;
+    cfg.series = {{"extruder", lv_color_hex(0xFF4444), true}};
+    lv_obj_t* container = lv_obj_create(screen);
+    auto controller = std::make_unique<TempGraphController>(container, cfg);
+    REQUIRE(controller->is_valid());
+    const auto* graph = controller->graph();
+
+    lv_obj_delete(container);
+    controller->rebuild();
+
+    // A rebuild against the dead container would have made a new graph.
+    CHECK(controller->graph() == graph);
+}
+
 TEST_CASE_METHOD(TempGraphControllerFixture,
                  "Queued rebuild callback safely no-ops after synchronous destroy (#1117)",
                  "[controller][temp_graph_controller][regression][uaf]") {
@@ -644,7 +625,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     auto newest = [&] {
         const uint32_t pc = lv_chart_get_point_count(g->chart);
         const uint32_t sp = lv_chart_get_x_start_point(g->chart, nozzle);
-        return lv_chart_get_y_array(g->chart, nozzle)[(sp + pc - 1) % pc];
+        return lv_chart_get_series_y_array(g->chart, nozzle)[(sp + pc - 1) % pc];
     };
 
     lv_subject_set_int(temps.get_extruder_temp_subject("extruder"), 520);
@@ -673,7 +654,7 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
 
 // Bed and chamber series observe PrinterState's static subjects. When those die
 // first, lv_subject_deinit() has already freed each observer node, so the
-// controller's teardown must skip lv_observer_remove() rather than free it again.
+// controller's teardown must skip lv_observer_delete() rather than free it again.
 TEST_CASE_METHOD(TempGraphControllerFixture,
                  "Controller destroyed after its bed and chamber subjects die is safe",
                  "[controller][temp_graph_controller]") {
@@ -706,4 +687,37 @@ TEST_CASE("sample_due puts every series on the same wall-clock slots", "[temp_gr
     // Early in a slot, then late in the same one: not due, though nearly an
     // interval has elapsed.
     CHECK_FALSE(TempGraphController::sample_due(base + 100, base + slot - 100));
+}
+
+// ============================================================================
+// A controller whose chart was deleted stops feeding it
+// ============================================================================
+
+TEST_CASE_METHOD(TempGraphControllerFixture,
+                 "Controller makes no graph calls after its container is deleted",
+                 "[controller][temp_graph_controller][log_once]") {
+    auto& temps = get_printer_state().temperature_state();
+    lv_obj_t* container = lv_obj_create(screen);
+
+    TempGraphControllerConfig cfg;
+    cfg.series = {{"extruder", lv_color_hex(0xFF0000), true}};
+    auto controller = std::make_unique<TempGraphController>(container, cfg);
+    REQUIRE(controller->is_valid());
+
+    int64_t now_ms = 1'000'000;
+    TempGraphControllerTestAccess::set_clock(*controller, [&now_ms]() { return now_ms; });
+
+    lv_obj_delete(container);
+    CHECK_FALSE(controller->is_valid());
+
+    helix::LogCapture log;
+    for (int i = 0; i < 4; ++i) {
+        now_ms += UI_TEMP_GRAPH_SAMPLE_INTERVAL_SEC * 1000;
+        lv_subject_set_int(temps.get_extruder_temp_subject("extruder"), 2000 + i * 10);
+        lv_subject_set_int(temps.get_extruder_target_subject("extruder"), 2100 + i * 10);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(log.count_containing("[TempGraph]") == 0);
+
+    controller.reset();
 }

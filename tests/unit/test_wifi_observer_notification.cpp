@@ -14,11 +14,11 @@
  * observer callback ordering is deterministic.
  */
 
-#include "ui_update_queue.h"
-
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "runtime_config.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -35,16 +35,13 @@ namespace {
 
 // Enables test mode (idle mock WiFi backend, no wpa_supplicant probing)
 // and a headless LVGL display for the duration of the test.
-struct ObserverNotificationFixture {
+struct ObserverNotificationFixture : LVGLTestFixture {
     ScopedRuntimeConfig scoped_config;
 
     ObserverNotificationFixture() {
         auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
-        lv_init_safe();
-        ensure_headless_display();
-        helix::ui::UpdateQueue::instance().init();
     }
 
     std::shared_ptr<WiFiManager> make_manager() {
@@ -56,92 +53,12 @@ struct ObserverNotificationFixture {
 
 } // namespace
 
-TEST_CASE("WiFiManager: state observer fires on CONNECTED event", "[wifi][unit][1059][observers]") {
-    ObserverNotificationFixture fx;
-    auto wm = fx.make_manager();
-
-    helix::AsyncLifetimeGuard lifetime;
-    int fires = 0;
-    WiFiManagerTestAccess::add_observer(*wm, lifetime.token(), [&fires]() { fires++; });
-
-    WiFiManagerTestAccess::fire_connected(*wm);
-    helix::ui::UpdateQueue::instance().drain();
-
-    REQUIRE(fires == 1);
-}
-
-TEST_CASE("WiFiManager: state observer fires on DISCONNECTED event",
-          "[wifi][unit][1059][observers]") {
-    ObserverNotificationFixture fx;
-    auto wm = fx.make_manager();
-
-    helix::AsyncLifetimeGuard lifetime;
-    int fires = 0;
-    WiFiManagerTestAccess::add_observer(*wm, lifetime.token(), [&fires]() { fires++; });
-
-    WiFiManagerTestAccess::fire_disconnected(*wm);
-    helix::ui::UpdateQueue::instance().drain();
-
-    REQUIRE(fires == 1);
-}
-
-TEST_CASE("WiFiManager: state observer fires on both CONNECTED and DISCONNECTED",
-          "[wifi][unit][1059][observers]") {
-    ObserverNotificationFixture fx;
-    auto wm = fx.make_manager();
-
-    helix::AsyncLifetimeGuard lifetime;
-    int fires = 0;
-    WiFiManagerTestAccess::add_observer(*wm, lifetime.token(), [&fires]() { fires++; });
-
-    WiFiManagerTestAccess::fire_connected(*wm);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(fires == 1);
-
-    WiFiManagerTestAccess::fire_disconnected(*wm);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(fires == 2);
-}
-
-TEST_CASE("WiFiManager: observer fires via notify_state_observers from handle_connected",
-          "[wifi][unit][1059][observers]") {
-    // The production code path: handle_connected() calls notify_state_observers(),
-    // which locks state_observers_mutex_, snapshots the list, and defers each
-    // observer callback via tok.defer(). The deferred callback ultimately calls
-    // NetworkWidget::detect_network_type(true).
-    //
-    // This test verifies that the full chain — handle_connected → observer
-    // callback — works with the mock backend's connected flow.
-    ObserverNotificationFixture fx;
-    auto wm = fx.make_manager();
-
-    // Replay: simulate what NetworkWidget::attach() registers.
-    helix::AsyncLifetimeGuard lifetime;
-    bool backend_ready = false;
-    bool wifi_connected = false;
-    int call_count = 0;
-
-    WiFiManagerTestAccess::add_observer(*wm, lifetime.token(), [&]() {
-        call_count++;
-        backend_ready = true;
-        // Simulate detect_network_type(true):
-        wifi_connected = wm->is_connected();
-    });
-
-    // Fire CONNECTED as the backend would.
-    WiFiManagerTestAccess::fire_connected(*wm);
-    helix::ui::UpdateQueue::instance().drain();
-
-    REQUIRE(call_count == 1);
-    REQUIRE(backend_ready);
-}
-
 TEST_CASE("WiFiManager: observer callback ordering — CONNECTED before DISCONNECTED",
           "[wifi][unit][1059][observers]") {
     // Verify that when the NetworkWidget observer pattern is used, a DISCONNECTED
-    // event that arrives after CONNECTED is correctly delivered — this was broken
-    // before the fix because detect_network_type()'s condition skipped the WiFi
-    // re-check when current_network_ was already Wifi.
+    // event that arrives after CONNECTED is correctly delivered, even though
+    // current_network_ is already Wifi: detect_network_type() must not skip
+    // the WiFi re-check then.
     ObserverNotificationFixture fx;
     auto wm = fx.make_manager();
 

@@ -3,8 +3,8 @@
 
 #include "filament_macro_profiles.h"
 
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <array>
 #include <string>

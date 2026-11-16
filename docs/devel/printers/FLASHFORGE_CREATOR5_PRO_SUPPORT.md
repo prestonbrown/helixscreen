@@ -4,7 +4,7 @@ The FlashForge Creator 5 line is served by the **unified MIPS32 target**: `make 
 is an alias of `make mips`, so its binary, toolchain and release asset are the K1/AD5X
 one. The board is told apart at runtime, never at compile time (see the unified-block
 comment in `mk/cross.mk`). This page covers what is specific to the printers: a 4-tool
-toolchanger running a FlashForge Klipper fork on an Ingenic X2000 MIPS host. HelixScreen
+toolchanger running a FlashForge Klipper fork on an Ingenic X2600 MIPS host. HelixScreen
 carries two entries for the line: the **Creator 5 Pro**, which adds a chamber heater and
 chamber fans over the base machine, and the heater-free **Creator 5**. Each is detected
 on its own and gets its own preset (see "Printer detection and preset"); everything else
@@ -36,10 +36,10 @@ wording, the bar stays silently suppressed until the parser learns it.
 
 | Spec | Value |
 |------|-------|
-| SoC | Ingenic X2000 (XBurst2, MIPS32r2, 2x 1.2 GHz) - same family as the Creality K1's X2000E |
+| SoC | Ingenic X2600 (XBurst2, MIPS32r2, 2 cores), the AD5X's SoC: the device tree reports `ingenic,x2600` |
 | FPU / ABI | Hard float, 64-bit FPU (`-mfp64`), **NaN2008** (`/lib/ld-linux-mipsn8.so.1`) |
-| RAM | 512 MB (MemTotal ~473 MB, as reported by Creator 5 Pro installs in telemetry) |
-| Display | 800x480 panel; the framebuffer is exposed **portrait (480x800)**, so the preset sets `display.rotate = 90` (verified on the printer); fbdev `/dev/fb0`, no X11/Wayland/DRM |
+| RAM | 512 MB (MemTotal ~473 MB on 59 of 61 Creator 5 devices in telemetry). U-Boot sets `mem=` from the DRAM it detects; a unit that detects 256 MB boots with about 228 MB (see `../PERFORMANCE.md`) |
+| Display | 800x480 panel; the framebuffer (`jzfb`, mode `U:480x800p-60`, virtual 480x1600) is exposed **portrait (480x800)**, upright at `display.rotate = 90` (verified on the printer). The preset carries it for installer installs and the board-mount table (`kKnownPanels` in `src/application/display_metrics.cpp`) applies it on a first boot without one, such as a Z-Mod unzip; fbdev `/dev/fb0`, no X11/Wayland/DRM |
 | Touch | evdev, `/dev/input/event2` (auto-detected; override with `HELIX_TOUCH_DEVICE`) |
 | Stock UI | `firmwareExe` - LVGL 8 on fbdev. **Also** hosts the port-8898 REST API, the MQTT cloud link, and the tool-pickup orchestration for UI-started prints |
 | C library | glibc 2.33, built with Ingenic "MIPS Linux Tools GCC12.1 Release6.0.1 xburst2" (`mips-gcc1210-glibc233`), min kernel 3.10.14 |
@@ -56,7 +56,7 @@ large partition), `/usr/data/config/` (Klipper/Moonraker config), `/usr/data/fir
 
 ### Platform key and self-update
 
-The unified build defines only `HELIX_PLATFORM_MIPS`, so `UpdateChecker::get_platform_key()`
+The unified build defines only `HELIX_PLATFORM_MIPS`, so `helix::platform::current_key()`
 returns `"mips"` and self-update fetches the unified `mips` asset, the same bytes this
 board runs. No creator5-specific asset exists or is needed.
 
@@ -152,8 +152,8 @@ excludes on `gcode_button extruder_grab1` and `zmod_afclite`. The directional pa
 `tests/unit/test_printer_detector.cpp` (`[creator5]`).
 
 Preset macro buttons for macros a firmware does not ship (e.g. `TOOLCHANGE_PARK` on Z-Mod)
-render greyed out, not dead: `ControlsPanel::update_macro_button` keeps the button visible
-and disabled when the macro is absent.
+render greyed out, not dead: `QuickActionButtons::update_button` keeps the button visible
+and sets its `macro_N_available` subject to 0 when the macro is absent.
 
 ## Z-Mod tool changer support
 
@@ -173,7 +173,39 @@ the tool changer (`PrinterDiscovery::parse_objects`, the carve-out beside the PA
 rule): the shim reports no extruders and no hubs, so an AFC backend would draw a hub
 topology for four independent heads and send Happy Hare macros the firmware does not have.
 The `zmod_afclite` object also corroborates both Creator 5 database entries and is an
-exclude on the AD5X entry.
+exclude on the AD5X entry. Current Z-Mod replaces the shim with a built-in AFC emulation
+(mod setting `AFC=1`: `AFC`, `AFC_IFS <unit>`, `AFC_lane lane1..4`, no `zmod_afclite`),
+which the AD5X publishes too, so it names neither machine; the same discovery carve-out
+keeps the tool changer, and the AD5X keeps its IFS backend.
+
+**A print's tool map rides on the print start.** With the built-in emulation, Z-Mod no
+longer prints from its lane map: its Moonraker takes the map for one print as a `tools`
+parameter of `printer.print.start` (`"2,,1"`: index the G-code tool, value the 1-based
+slot), and without one opens its own colour prompt. The Moonraker side, including the
+`print_start_tools` flag in `server.info`, is described in
+[FLASHFORGE_AD5X_SUPPORT.md § "Z-Mod 1.7.5"](FLASHFORGE_AD5X_SUPPORT.md#z-mod-175-native-3mf-and-the-print-start-tool-map).
+`helix::print_start` (`include/print_start_params.h`) owns that knowledge. On the Creator 5
+the tool changer sends the map only with the built-in AFC on (`has_zmod_afc()`). A Creator 5
+with `AFC=0` or the afclite shim keeps the G-code rewrite remap and is sent no map, even
+where its Moonraker advertises `print_start_tools`, because nobody has yet checked on
+hardware that Z-Mod with AFC off reads `T<i>=<slot>` as heads
+([`FILAMENT_BACKEND_TOOLCHANGER.md`](../FILAMENT_BACKEND_TOOLCHANGER.md#z-mod-on-the-creator-5-pro)).
+The AFC-on path is hardware-checked: on our Creator 5 Pro with Z-Mod 1.7.5-260 and `AFC=1`, a
+print started from HelixScreen reached Klipper as `_ZSDCARD_PRINT_FILE ... SILENT=1
+AUTO_ASSIGN=0 T0=2 T1=2 T2=3 T3=4`, no prompt appeared and the right head heated. Each test
+print was stopped after START_PRINT, so a full multi-tool print is not covered
+([#2033](https://github.com/prestonbrown/helixscreen/issues/2033)). The filament
+backends answer `AmsBackend::print_start_params()` and the print-start path forwards the
+answer. Every print HelixScreen starts there from the file card carries every lane the card
+shows, picked or seeded, so Z-Mod's prompt does not open for it; a tool set to Auto, or one
+past the machine's heads, is left empty for Z-Mod's own default. The tool changer backend
+sends each head as its 1-based slot and remaps Native, never rewriting the job. A reprint
+and a PA tower have no card and send no map, so Z-Mod asks as it always has. `SET_MAP` and the other table writes
+still go out, which is what Z-Mod builds without the `tools` parameter route by; their
+Moonraker reads only `filename` and ignores the rest. A start through the HelixPrint
+plugin (a file rewritten for a pre-print option) can carry the map only by starting the file
+through Z-Mod's `klippy_apis.start_print(filename, tools=...)`; a plain `SDCARD_PRINT_FILE`
+start drops it ([#2038](https://github.com/prestonbrown/helixscreen/issues/2038)).
 
 **The swap routine and its step bar.** A tool change cuts the filament at a station and
 wipes the nozzle on rubber instead of purging bulk filament (FlashForge's own wiki: the
@@ -211,7 +243,8 @@ firmware and all move hardware (heat, feed, cut, wipe), and none of them is call
 contributor's on-device test (prestonbrown/helixscreen#1779, Z-Mod 1.7.4) showed that
 `CHANGE_TOOL LANE=E<n>` is Z-Mod's own Load for head `n`: the afclite shim heats only the
 selected head and feeds it. With `zmod_afclite` present, the UI's Load for head `n` sends
-exactly that command and nothing else. `_T_IN_ZCOLOR` is not called directly: it is defined
+exactly that command and nothing else; with the built-in emulation the lane is
+`lane<n+1>`. `_T_IN_ZCOLOR` is not called directly: it is defined
 in the unpublished `zmod_color` plugin, the C5 configs call it with a 1-based `SLOT`
 (ghzserg/z_c5pro `translate/en/c5pro_display_off.cfg`, `_T_USE`), and the AD5X
 zmod_color.py plugin (its cmd_IN_ZCOLOR handler) reads `NAPR=0` as load, so a guessed `SLOT` or `NAPR` could
@@ -239,7 +272,8 @@ step-bar markers on a live swap remains open (prestonbrown/helixscreen#1714).
 
 ### Calibration and chamber air macros
 
-HelixScreen drives three more Z-Mod macro families from `c5pro_generic.cfg`. Each is a row in
+HelixScreen drives three more Z-Mod macro families: the two calibrations from
+`translate/en/c5pro_display_off.cfg` and chamber air from `translate/en/c5pro_generic.cfg`. Each is a row in
 a capability provider table; the tool offset and stepper resonance rows detect the macro by
 capability rather than by naming the machine.
 
@@ -265,7 +299,7 @@ capability rather than by naming the machine.
 Both rows need a homed toolhead. `calibrate_gcode(hw, tool)` builds the script (empty with
 no row, or for a negative tool on a per-tool row) and never includes the homing. The
 subject is `printer_has_stepper_resonance_cal`. The entry
-(`src/ui/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown for a per-tool row on a
+(`src/ui/calibration/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown for a per-tool row on a
 printer with more than one tool, else a plain confirmation, and sends through
 `start_calibration_gcode()` (`src/printer/macro_executor.cpp#start_calibration_gcode`):
 refused while `machine_motion_blocked` is set, `ensure_homed_then()` when `needs_home`, then
@@ -277,13 +311,78 @@ Every row requires its macro to be defined, so a Creator 5 on an older Z-Mod wit
 shows no entry. The chamber air row also requires the Z-Mod changer row
 (`toolchanger_addon::zmod_c5_present(hw)`).
 
+### Automatic pressure advance
+
+Stock and Z-Mod firmware have no pressure-advance command: the stock screen ran the sweep
+(the procedure is in
+[`FLASHFORGE_CREATOR5_FIRMWARE.md`](../printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md#automatic-pressure-advance)),
+so with HelixScreen in its place, HelixScreen runs it. The Klipper4FlashForge firmware ships
+the same sweep as one command, `FF_PA_CALIBRATE` from its `[ff_pa]` extra, and HelixScreen
+uses that instead wherever it exists.
+
+`helix::pacal` (`include/pa_calibration.h`) has one table row per firmware, each naming
+what kind of run it needs, and every kind runs behind `pacal::Run`
+(`include/pa_calibration_run.h`), so the PA panel never learns which it holds:
+
+| Row | Detected by | Kind | K afterwards |
+|-----|-------------|------|--------------|
+| Klipper4FlashForge `ff_pa` | object `ff_pa` | one firmware command | reported only |
+| FlashForge eBoard sweep | config section `[pa_adjust]` and both `output_pin enable_pin_tmc_x/_y` | driven by HelixScreen | live until Klipper restarts |
+
+The sweep is `flashforge::pa_sweep::Sweep` (`include/flashforge_pa_sweep.h`), a pure state
+machine over the stock constants, and a driver (`src/calibration/flashforge_pa_sweep_run.cpp`)
+that sends each step as one `gcode/script` call and reads `Result is value=` off the console.
+Where it differs from the stock app:
+
+- It refuses to start unless the selected tool is the mounted one (`toolhead.extruder`):
+  every `G1 E` drives the mounted extruder.
+- It homes first when needed and reads Z again afterwards. It raises Z to 8 mm before any
+  travel and, if the head started higher, comes down to 8 mm only once it is over the chute.
+- It saves and restores the gcode state, motion limits and the extruder's own K.
+- The restore reads `homed_axes` first. If the machine is still homed it sets
+  `SET_KINEMATIC_POSITION` X/Y (from the raw `toolhead.position` read right after the park; Z
+  never moves) while the drivers are still off, and only then releases them. If something
+  unhomed it mid-run, it releases them and sends `M84` instead. If the restore itself fails, a
+  release plus `M84` follows.
+- A line whose `PA_GET` reply has not arrived 5 s after its script returned ends the run.
+- A run where every line got the same verdict is refused: a sensor answering 9 to
+  everything would otherwise report 0.0100 as a measurement.
+- On success it applies K with `SET_PRESSURE_ADVANCE EXTRUDER=<extruder>` for the session.
+  A stop at any point, including during the restore, applies nothing.
+
+A stop ends the run after the line in flight and sends the restore. While a run is live it
+holds a `CleanupHold`, so SIGTERM takes the graceful path and the panel's
+`before_disconnect()` sends the restore at once. A crash or a lost link skips all of that, so
+the `pa_run_recovery` connect step (`src/application/discovery_steps_core.cpp`) calls
+`pacal::check_interrupted_run()`. On this printer that reads the two pins, `toolhead.position`
+and `idle_timeout.state`, and when either pin is set, looks again 12 s later. A live sweep (this
+app's, or another screen's) moves the planned position every few seconds and keeps Klipper busy,
+so only a latch that stayed set while nothing moved and Klipper sat idle is treated as stale.
+Then it releases both pins, sends `M84`, puts `max_accel`, `square_corner_velocity` and each
+extruder's pressure advance back to the config's values, and restores the saved gcode state.
+Tests: `[pa_sweep]`, `[pa_calibration]`, `[pa_cal]`. Mock: the
+`creator5_zmod` persona carries `[pa_adjust]` and the pins, with `PA_GET` verdicts from
+`HELIX_MOCK_PA_VERDICTS` (a negative entry is a reply that never comes).
+
+Not yet run on hardware. Before trusting it, with filament loaded and the chute clear:
+
+1. From the console, without HelixScreen: `PA_ACTION ACTION=11 PC=666`, a few moves,
+   `PA_ACTION ACTION=0 PC=666`, `M400`, `PA_GET`. A value that arrives, even 0, proves the path.
+2. One sweep from the PA panel, compared against a hand-tuned PA tower on the same filament.
+3. SIGKILL HelixScreen mid-line; on restart the pins read 0, the axes are unhomed and the
+   notice shows.
+4. Afterwards `pressure_advance` (apart from the applied K), both pins, `max_accel` and
+   `square_corner_velocity` are back where they started.
+5. The 8 mm line height clears the chute on every tool, and where Z ends after a G28.
+
 ### The `creator5_zmod` mock persona
 
 `HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test` runs the real
 `AmsBackendToolChanger` against mock Z-Mod hardware: the persona publishes `zmod`,
 `zmod_color`, `save_variables`, the 1-based `gcode_button extruder_pos1..4` /
 `extruder_grab1..4`, Z-Mod 1.7.4's afclite shim objects (`zmod_afclite`, `AFC`,
-`AFC_lane E0..E3`, `AFC_unit C5`) and the `fd_ex`/`fm_ex` sensor pairs, answers
+`AFC_lane E0..E3`, `AFC_unit C5`; the built-in emulation's `AFC`, `AFC_IFS IFS`,
+`AFC_lane lane1..4` under `HELIX_MOCK_ZMOD_AFC=1`) and the `fd_ex`/`fm_ex` sensor pairs, answers
 `_T_IN` / `_T_OUT` / `CHANGE_ZCOLOR` — narrating the swap markers the step bar parses —
 answers the calibration and chamber air macros above, and implies `--real-ams` so the mock
 AMS gate does not stand a mock backend in front of it. The `creator5` persona models the Reforge side only. Details in
@@ -322,7 +421,10 @@ Each item below says whether it is done or still open.
    `flashforge_creator_5` for the heater-free model (same fingerprints, excluding on the
    chamber heater). Presets: `creator5_pro.json` (4 hotends, chamber heater,
    part/chamber fans, LED, `fd_ex*` switches as per-head runout sensors, rotate 90) and
-   `creator5.json` (the same minus the chamber heater and chamber fans). Without the
+   `creator5.json` (the same minus the chamber heater and chamber fans). OpenCreator
+   (`creator5_toolchanger`, also a 99 establisher) gets the `_opencreator` variant of
+   each, which names no filament sensors: AFC owns its `extruder<N>_tool_start`
+   switches and handles runout itself. Without the
    entries the detector resolves the AD5X, which matches on hostname, MIPS and 4 tools;
    the entries are what tell them apart, with the AD5X side excluding on
    `gcode_button extruder_grab1`. Each entry carries its own image:
@@ -349,3 +451,43 @@ Each item below says whether it is done or still open.
    so `FilamentSensorManager#scan_required_lanes` takes each required head's `fd_ex`
    reading as that head's filament state. Not yet confirmed on a real C5: whether a
    stood-down switch keeps reporting live.
+
+## Reforge firmware quirks
+
+Reforge (`Klipper4FlashForge/firmware`) runs Klipper and Moonraker under s6, with its data
+directory at `/usr/data/anvil-data` and its mod tree at `/usr/data/anvil`. Two of its layout
+choices change what HelixScreen can read. Both were reported and measured on a real Creator 5
+Pro by the reporter of the linked issues.
+
+**Config includes cannot be downloaded.** The config directory holds the mod's own files
+(`printer.base.cfg`, `ff-print-macros.cfg`, the other `ff-*.cfg`, `timelapse.cfg`,
+`printer.chamber.cfg`) as symlinks into `/usr/data/anvil/config`. Moonraker reserves its own
+source path (Moonraker's file manager calls `add_reserved_path("moonraker", srcdir, False)`), and on
+Reforge that path is the whole `/usr/data/anvil` tree, so `GET
+/server/files/config/printer.base.cfg` answers 403 for every client, Mainsail included
+([#2061](https://github.com/prestonbrown/helixscreen/issues/2061)). Klipper's
+`configfile.config` still carries every macro body (`START_PRINT` lives in
+`ff-print-macros.cfg`). The print start analysis therefore reads `gcode_macro` sections from
+that object first (`src/print/print_start_analyzer.cpp#configfile_macro_definitions`) and
+downloads the include chain only when the object has no print start macro. A file that answers
+403 or 404 is skipped with one warning, and only a lost connection is retried
+(`src/print/print_start_analyzer.cpp#is_unreadable_file`).
+
+**The image has no system zoneinfo.** `/usr/share/zoneinfo` does not exist, and
+`/etc/localtime` points into `/usr/data/anvil-data/misc/zoneinfo`. HelixScreen's device
+builds link musl statically, and musl does not read `TZDIR`, so pointing `TZDIR` at the
+bundled zone files and setting `TZ=Europe/Berlin` falls back to UTC. When the system has no
+zoneinfo, HelixScreen sets `TZ` to the absolute path of the bundled zone file, which musl opens
+directly (`src/system/timezone_env.cpp#apply`). The reporter confirmed the fix on Reforge with
+v1.1.0-beta.17, including a switch to `Asia/Tokyo` that moved the log clock by nine hours
+([#2003](https://github.com/prestonbrown/helixscreen/issues/2003)). The setting is read from
+`display.timezone` in `settings.json`; a top-level `timezone` key is ignored.
+
+**Tool offsets are measured, not set.** Reforge has no `SET_TOOL_PARAMETER` or
+`SAVE_TOOL_PARAMETER`: its `tool T<n>` offsets are derived from each head's measured nozzle
+position, and its `CALIBRATE_TOOL_OFFSETS` stages the measurement for `SAVE_CONFIG`. The
+Reforge row of `src/printer/tool_offsets.cpp#providers` writes nothing per tool by value. The
+Tool Offsets panel's Save stages a live `TOOL_Z_ADJUST` tune with
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` and then sends `SAVE_CONFIG`
+([FILAMENT_BACKEND_TOOLCHANGER.md](../FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). Not yet run on a Reforge printer
+([#2030](https://github.com/prestonbrown/helixscreen/issues/2030)).

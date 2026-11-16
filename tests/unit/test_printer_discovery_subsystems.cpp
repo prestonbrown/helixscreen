@@ -13,15 +13,19 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
+#include "app_globals.h"
+#include "capability_overrides.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "standard_macros.h"
+#include "test_helpers/backend_harness.h"
 #include "tool_state.h"
 #include "width_sensor_manager.h"
 
@@ -55,7 +59,7 @@ struct DiscoverySubsystemsFixture : public LVGLTestFixture {
         // An empty printer is the clean slate: it clears every manager this
         // touched, through the same path the cases drive.
         helix::init_subsystems_from_hardware(PrinterDiscovery{}, nullptr, nullptr);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         helix::led::LedAutoState::instance().deinit();
         helix::led::LedController::instance().deinit();
         StandardMacros::instance().reset();
@@ -108,6 +112,24 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
     REQUIRE(wsm.sensor_count() == 0);
 }
 
+TEST_CASE_METHOD(DiscoverySubsystemsFixture,
+                 "discovery leaves a light the user turned off uncontrollable",
+                 "[discovery][led]") {
+    auto& ps = get_printer_state();
+    lv_subject_t* controllable =
+        helix::led::LedController::instance().get_led_controllable_subject();
+
+    helix::init_subsystems_from_hardware(discovery_of({"extruder", "led chamber_light"}), nullptr,
+                                         &client);
+    REQUIRE(lv_subject_get_int(controllable) == 1);
+
+    ps.set_led_override(OverrideState::DISABLE);
+    helix::init_subsystems_from_hardware(discovery_of({"extruder", "led chamber_light"}), nullptr,
+                                         &client);
+    CHECK(lv_subject_get_int(controllable) == 0);
+    ps.set_led_override(OverrideState::AUTO);
+}
+
 // init_tools() rebuilds the tools with T0 mounted, but a backend that already
 // reported an empty carriage owns the answer and sends no frame to restate it
 // (prestonbrown/helixscreen#1784).
@@ -121,20 +143,19 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
         discovery_of({"extruder", "extruder1", "extruder2", "extruder3", "toolchanger",
                       "filament_detect", "toolhead", "heater_bed", "print_task_config"});
     {
-        helix::test::RegisteredBackend<helix::AmsBackendSnapmaker> backend(nullptr, nullptr);
+        helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend;
         ts.init_tools(u1);
-        helix::SnapmakerTestAccess::handle_status(
-            *backend, nlohmann::json{{"extruder", {{"state", "PARKED"}}},
-                                     {"extruder1", {{"state", "PARKED"}}},
-                                     {"extruder2", {{"state", "PARKED"}}},
-                                     {"extruder3", {{"state", "PARKED"}}},
-                                     {"toolhead", {{"extruder", "extruder2"}}}});
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        backend->fire_status(nlohmann::json{{"extruder", {{"state", "PARKED"}}},
+                                            {"extruder1", {{"state", "PARKED"}}},
+                                            {"extruder2", {{"state", "PARKED"}}},
+                                            {"extruder3", {{"state", "PARKED"}}},
+                                            {"toolhead", {{"extruder", "extruder2"}}}});
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         ams.sync_from_backend();
         REQUIRE(ts.active_tool_index() == -1);
 
         helix::init_subsystems_from_hardware(u1, nullptr, &client);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(ts.active_tool_index() == -1);
         CHECK(lv_subject_get_int(ts.get_active_tool_subject()) == -1);
     }
@@ -154,7 +175,7 @@ TEST_CASE_METHOD(DiscoverySubsystemsFixture,
         REQUIRE(backend->get_current_tool() == -1);
 
         helix::init_subsystems_from_hardware(hw, nullptr, &client);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         CHECK(ts.active_tool_index() == 0);
         CHECK_FALSE(ts.backend_owns_active_tool());
     }

@@ -21,6 +21,30 @@
 #include <unordered_map>
 #include <vector>
 
+#if defined(ESP_PLATFORM)
+#include "sdkconfig.h" // CONFIG_HELIX_SUBJECT_DEBUG_STRIP
+#endif
+
+/// 1 when the subject macros record every subject in SubjectDebugRegistry.
+/// Only an ESP-IDF build can turn it off: the knob is a Kconfig option, read
+/// behind ESP_PLATFORM, so no desktop or Linux build can see it set.
+#if defined(ESP_PLATFORM) && CONFIG_HELIX_SUBJECT_DEBUG_STRIP
+#define HELIX_SUBJECT_DEBUG_REGISTRY_ENABLED 0
+#else
+#define HELIX_SUBJECT_DEBUG_REGISTRY_ENABLED 1
+#endif
+
+/// Records a subject in SubjectDebugRegistry from a registration macro, with
+/// the macro's call site as the file and line. Expands to nothing when the
+/// registry is compiled out, so the name and __FILE__ never become strings.
+#if HELIX_SUBJECT_DEBUG_REGISTRY_ENABLED
+#define HELIX_SUBJECT_DEBUG_REGISTER(subject_ptr, name, type)                                      \
+    SubjectDebugRegistry::instance().register_subject((subject_ptr), (name), (type), __FILE__,     \
+                                                      __LINE__)
+#else
+#define HELIX_SUBJECT_DEBUG_REGISTER(subject_ptr, name, type) ((void)0)
+#endif
+
 /**
  * @brief Debug information for a registered subject
  */

@@ -5,38 +5,37 @@
  * @file test_nav_overlay_activation.cpp
  * @brief Overlay-close activation and expected-disconnect latches (#1245)
  *
- * Two latches in NavigationManager, both of which used to be inferred from state
+ * Two latches in NavigationManager, neither of which may be inferred from state
  * that other code paths rewrite:
  *
  * 1. Closing an overlay must activate the panel it restored EXACTLY ONCE, and
- *    only after that panel has been un-hidden. Four call sites used to race for
- *    it (animation-complete callback, the two animations-disabled paths, and
- *    go_back's own synchronous call), so a close with animations off activated
- *    twice — enough to trip PrintSelectPanel's Print-Last activation counter and
- *    to start FirstRunTour twice. Activating before the un-hide is worse: an
- *    on_activate() that navigates (PrintSelectPanel calls set_active(Home)) had
+ *    only after that panel has been un-hidden. Four call sites can race for it
+ *    (animation-complete callback, the two animations-disabled paths, and
+ *    go_back's own synchronous call); a close with animations off activating
+ *    twice trips PrintSelectPanel's Print-Last activation counter and starts
+ *    FirstRunTour twice. Activating before the un-hide is worse: an
+ *    on_activate() that navigates (PrintSelectPanel calls set_active(Home)) has
  *    its work undone by go_back's own lv_obj_remove_flag two lines later.
  *
  * 2. mark_disconnect_expected() must survive a still-undrained CONNECTED apply.
- *    It used to spoof previous_connection_state_, which every deferred
- *    connection handler overwrites — so a CONNECTED callback queued before the
- *    app backgrounded restored was_connected==true and the synthetic disconnect
- *    behind it cleared the overlay stack and bounced the user to Home.
+ *    Spoofing previous_connection_state_ is not enough: every deferred
+ *    connection handler overwrites it, so a CONNECTED callback queued before the
+ *    app backgrounded would restore was_connected==true and the synthetic
+ *    disconnect behind it would clear the overlay stack and bounce the user Home.
  */
 
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/scoped_platform_tier.h"
 #include "../test_helpers/snapshot_backdrops_mode.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
@@ -53,6 +52,7 @@
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -76,7 +76,7 @@ class RecordingPanel : public PanelBase {
     void on_activate() override {
         ++activates;
         if (widget) {
-            visible_on_last_activate = !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN);
+            visible_on_last_activate = !lv_obj_is_hidden(widget);
         }
         if (navigate_to_home_on_activate) {
             // One-shot, mirroring PrintSelectPanel's Print-Last flow: on_activate
@@ -101,7 +101,7 @@ uint32_t shown_top_layer_children() {
     uint32_t shown = 0;
     lv_obj_t* layer = lv_layer_top();
     for (uint32_t i = 0; i < lv_obj_get_child_count(layer); ++i) {
-        if (!lv_obj_has_flag(lv_obj_get_child(layer, i), LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(lv_obj_get_child(layer, i))) {
             ++shown;
         }
     }
@@ -161,7 +161,7 @@ class OverlayActivationFixture : public LVGLUITestFixture {
         nav.register_panel_instance(PanelId::Controls, &controls_panel_);
 
         overlay_ = lv_obj_create(test_screen());
-        lv_obj_add_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_, true);
         nav.register_overlay_instance(overlay_, &overlay_lifecycle_);
     }
 
@@ -178,7 +178,7 @@ class OverlayActivationFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     /// Open the overlay over whatever main panel is active, and settle.
@@ -205,7 +205,7 @@ TEST_CASE_METHOD(OverlayActivationFixture, "Overlay close activates the main pan
     open_overlay();
     REQUIRE(nav.has_open_overlays());
     // Premise: pushing the overlay hid the panel underneath it.
-    REQUIRE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(home_widget_));
 
     home_panel_.activates = 0;
     home_panel_.visible_on_last_activate = false;
@@ -223,7 +223,7 @@ TEST_CASE_METHOD(OverlayActivationFixture, "Overlay close activates the main pan
     // when it is told it is active, or anything on_activate() does to the
     // visible panel stack is undone by go_back's own un-hide right after.
     REQUIRE(home_panel_.visible_on_last_activate);
-    REQUIRE_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(home_widget_));
     REQUIRE_FALSE(nav.has_open_overlays());
 }
 
@@ -235,7 +235,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     open_overlay();
 
     lv_obj_t* second = lv_obj_create(test_screen());
-    lv_obj_add_flag(second, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(second, true);
     RecordingOverlay second_lifecycle;
     nav.register_overlay_instance(second, &second_lifecycle);
     nav.push_overlay(second);
@@ -264,7 +264,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     REQUIRE(nav.get_active() == PanelId::Controls);
 
     open_overlay();
-    REQUIRE(lv_obj_has_flag(controls_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(controls_widget_));
 
     // The Print-Last shape: the panel beneath the overlay decides, from its own
     // on_activate(), that it is finished and hands off to Home.
@@ -278,8 +278,8 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     REQUIRE(controls_panel_.activates == 1);
     REQUIRE(nav.get_active() == PanelId::Home);
     REQUIRE(nav.is_panel_in_stack(home_widget_));
-    REQUIRE_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(controls_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(home_widget_));
+    REQUIRE(lv_obj_is_hidden(controls_widget_));
 }
 
 TEST_CASE_METHOD(OverlayActivationFixture,
@@ -295,7 +295,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     // not wait for the queued active_panel observer to un-hide it.
     REQUIRE(controls_panel_.activates == 1);
     REQUIRE(controls_panel_.visible_on_last_activate);
-    REQUIRE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(home_widget_));
 }
 
 namespace {
@@ -402,7 +402,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     drain();
 
     REQUIRE_FALSE(nav.has_open_overlays());
-    REQUIRE_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(home_widget_));
 
     // The panel is back on screen, so it must have been told it is active
     // again. Without this, it stays visible-but-deactivated forever and
@@ -478,7 +478,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     drain();
 
     REQUIRE_FALSE(nav.has_open_overlays());
-    REQUIRE_FALSE(lv_obj_has_flag(controls_widget_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(controls_widget_));
     REQUIRE(controls_panel_.activates == 1);
 }
 
@@ -501,7 +501,7 @@ TEST_CASE_METHOD(OverlayActivationFixture, "go_back while a push is pending drop
     CHECK(home_panel_.deactivates == 0);
     CHECK_FALSE(nav.is_push_pending(overlay_));
     CHECK_FALSE(nav.has_open_overlays());
-    CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(overlay_));
 }
 
 TEST_CASE_METHOD(OverlayActivationFixture, "go_back with a pending push still pops what is shown",
@@ -789,7 +789,7 @@ TEST_CASE_METHOD(OverlayActivationFixture,
         REQUIRE_FALSE(lv_obj_check_type(backdrop, &lv_image_class));
         REQUIRE(lv_obj_get_width(overlay_) < lv_obj_get_width(test_screen()));
         // Hidden, it would leave dimmed emptiness beside the narrow overlay.
-        CHECK_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(home_widget_));
         CHECK(lv_obj_get_index(backdrop) > lv_obj_get_index(home_widget_));
         CHECK(lv_obj_get_index(backdrop) < lv_obj_get_index(overlay_));
     }
@@ -800,12 +800,12 @@ TEST_CASE_METHOD(OverlayActivationFixture,
         REQUIRE_FALSE(
             lv_obj_check_type(NavigationManagerTestAccess::overlay_backdrop(nav), &lv_image_class));
         // Drawn under a full-width overlay, it would redraw for hours unseen.
-        CHECK(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(home_widget_));
     }
 
     nav.go_back();
     drain();
-    CHECK_FALSE(lv_obj_has_flag(home_widget_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(home_widget_));
     CHECK_FALSE(nav.has_open_overlays());
 }
 
@@ -837,7 +837,7 @@ TEST_CASE_METHOD(OverlayActivationFixture, "Overlay slides follow the tier's sty
         nav.go_back();
         drain();
         CHECK(lv_anim_get(overlay_, nullptr) == nullptr);
-        CHECK(lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(overlay_));
         CHECK_FALSE(nav.has_open_overlays());
         process_lvgl(50); // the close callback runs on the next tick
         drain();

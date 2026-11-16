@@ -16,13 +16,12 @@
 //
 // No I/O and no LVGL: callers fetch configfile.settings and do the uploads.
 
+#include "json_fwd.h"
 #include "pre_print_option.h"
 
 #include <array>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::skip_wrappers {
 

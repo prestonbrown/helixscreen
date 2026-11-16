@@ -5,7 +5,7 @@
  * @file test_wizard_wifi_modal_lifetime.cpp
  * @brief The wizard WiFi step's cached modal pointer must not outlive its modal.
  *
- * WizardWifiStep keeps the password modal that modal_show() returns, and the
+ * WizardWifiStep keeps the password modal that ComponentModal::show_owned() returns, and the
  * deferred connect-result callback walks it with lv_obj_find_by_name(). Every
  * modal carries an unconditional backdrop-tap and ESC handler that closes it
  * through Modal::hide() without telling the caller, so a dismissal the step did
@@ -118,4 +118,27 @@ TEST_CASE_METHOD(WizardWifiModalFixture, "A dying modal clears only its own cach
     process_lvgl(50);
 
     REQUIRE(Access::password_modal(s) == live);
+}
+
+TEST_CASE_METHOD(WizardWifiModalFixture,
+                 "Connect with no password shows the error until the modal opens again",
+                 "[wizard][wifi][modal_lifetime]") {
+    WizardWifiStep& s = step();
+    auto status_shown = [&]() {
+        lv_obj_t* status = lv_obj_find_by_name(Access::password_modal(s), "modal_status");
+        REQUIRE(status != nullptr);
+        return lv_obj_is_hidden(status) ? std::string() : std::string(lv_label_get_text(status));
+    };
+
+    s.show_password_modal("TestNetwork");
+    CHECK(status_shown().empty());
+    Access::password_connect_clicked(s);
+    CHECK(status_shown() == "Password cannot be empty");
+
+    s.hide_password_modal();
+    process_lvgl(50);
+    s.show_password_modal("TestNetwork");
+    CHECK(status_shown().empty());
+    s.hide_password_modal();
+    process_lvgl(50);
 }

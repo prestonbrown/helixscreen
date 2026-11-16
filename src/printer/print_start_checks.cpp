@@ -4,7 +4,7 @@
  * @brief Pure core of the print-start gate pipeline: rules + gate fns.
  *
  * Rule bodies are ports of the imperative checks in
- * src/ui/ui_print_start_controller.cpp (unresolved_tools_for, the initiate()
+ * src/ui/print/ui_print_start_controller.cpp (unresolved_tools_for, the initiate()
  * spool-weight math, find_material_mismatches); the gate evaluate-functions
  * port the dialog message builders (build_empty_lane_message,
  * show_*_warning) verbatim. Behavior is ported as-is; the only deltas are the
@@ -18,12 +18,13 @@
 #include "ui_filament_mapping_card.h"
 
 #include "color_utils.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "gcode_ops_detector.h"
-#include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_param_cache.h"
+#include "motor_ripple_analysis.h"
 #include "operation_patterns.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -393,16 +394,19 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
         message = fmt::format(lv_tr("This file was sliced for {} but {} is loaded."),
                               m.expected_material, m.loaded_material);
 
-        // Add temperature details if available
         if (m.expected_nozzle_min > 0 && m.loaded_nozzle_min > 0) {
+            using units::to_display_temp_whole;
+            const char* unit = units::display_temp_symbol();
             message += "\n\n";
-            message +=
-                fmt::format("  {} {}: {}\u2013{}°C {}, {}°C {}\n"
-                            "  {} {}: {}\u2013{}°C {}, {}°C {}",
-                            LV_SYMBOL_BULLET, m.expected_material, m.expected_nozzle_min,
-                            m.expected_nozzle_max, lv_tr("nozzle"), m.expected_bed_temp,
-                            lv_tr("bed"), LV_SYMBOL_BULLET, m.loaded_material, m.loaded_nozzle_min,
-                            m.loaded_nozzle_max, lv_tr("nozzle"), m.loaded_bed_temp, lv_tr("bed"));
+            message += fmt::format(
+                "  {} {}: {}\u2013{}{} {}, {}{} {}\n"
+                "  {} {}: {}\u2013{}{} {}, {}{} {}",
+                LV_SYMBOL_BULLET, m.expected_material, to_display_temp_whole(m.expected_nozzle_min),
+                to_display_temp_whole(m.expected_nozzle_max), unit, lv_tr("nozzle"),
+                to_display_temp_whole(m.expected_bed_temp), unit, lv_tr("bed"), LV_SYMBOL_BULLET,
+                m.loaded_material, to_display_temp_whole(m.loaded_nozzle_min),
+                to_display_temp_whole(m.loaded_nozzle_max), unit, lv_tr("nozzle"),
+                to_display_temp_whole(m.loaded_bed_temp), unit, lv_tr("bed"));
         }
     } else {
         // Multi-tool format: list each mismatched tool
@@ -411,17 +415,19 @@ CheckResult gate_material_compatibility(const PrintStartContext& ctx) {
         for (const auto& m : mismatches) {
             std::string expected_temps;
             if (m.expected_nozzle_min > 0) {
-                expected_temps =
-                    fmt::format(" ({}\u2013{}°C)", m.expected_nozzle_min, m.expected_nozzle_max);
+                expected_temps = fmt::format(" ({}\u2013{})",
+                                             units::to_display_temp_whole(m.expected_nozzle_min),
+                                             units::format_display_temp(m.expected_nozzle_max));
             }
             std::string loaded_temps;
             if (m.loaded_nozzle_min > 0) {
                 loaded_temps =
-                    fmt::format(" ({}\u2013{}°C)", m.loaded_nozzle_min, m.loaded_nozzle_max);
+                    fmt::format(" ({}\u2013{})", units::to_display_temp_whole(m.loaded_nozzle_min),
+                                units::format_display_temp(m.loaded_nozzle_max));
             }
-            // "needs X (range): You have Y (range)" — clearer than the old
-            // "X -> Y" form, which read as a transformation rather than a
-            // comparison. Two short clauses joined by a colon scan well.
+            // "needs X (range): You have Y (range)" — a colon reads as a
+            // comparison where "X -> Y" would read as a transformation. Two
+            // short clauses joined by a colon scan well.
             message += fmt::format("  {} {}: {} {}{}: {} {}{}\n", LV_SYMBOL_BULLET,
                                    helix::ui::tool_label(m.tool_index), lv_tr("needs"),
                                    m.expected_material, expected_temps, lv_tr("you have"),
@@ -555,6 +561,37 @@ CheckResult gate_door_open(const PrintStartContext& ctx) {
                        lv_tr("Start Anyway"));
 }
 
+CheckResult gate_outer_wall_speed(const PrintStartContext& ctx) {
+    namespace ripple = calibration::ripple;
+    if (!ctx.outer_wall_speed_mm_s || ctx.ripple_bands.empty()) {
+        return pass_result();
+    }
+    const float speed = *ctx.outer_wall_speed_mm_s;
+    const auto bands = ripple::merge_bands(ctx.ripple_bands);
+    const ripple::RippleBand* band = ripple::band_containing(bands, speed);
+    if (!band) {
+        return pass_result();
+    }
+    const auto below = ripple::nearest_clear_speed(bands, speed, true);
+    const auto above = ripple::nearest_clear_speed(bands, speed, false);
+    spdlog::info("[PrintStartController] Outer walls at {:.0f} mm/s fall in the {:.0f}-{:.0f} mm/s "
+                 "ripple band - showing pre-print warning",
+                 speed, band->lo_mm_s, band->hi_mm_s);
+    std::string advice;
+    if (below && above) {
+        advice = fmt::format(fmt::runtime(lv_tr("Try {0} or {1} mm/s")), *below, *above);
+    } else if (below || above) {
+        advice = fmt::format(fmt::runtime(lv_tr("Try {0} mm/s")), below ? *below : *above);
+    }
+    const std::string body = fmt::format(
+        fmt::runtime(lv_tr("Your file asks for outer walls at {0:.0f} mm/s. This printer shook "
+                           "hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, "
+                           "which can print fine vertical lines on walls along X or Y. {3} "
+                           "(Orca: Outer wall speed; PrusaSlicer: External perimeters).")),
+        speed, band->lo_mm_s, band->hi_mm_s, advice);
+    return warn_result(lv_tr("Wall Speed Shakes This Printer"), body, lv_tr("Start Anyway"));
+}
+
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {
     const PrinterStopCheck& stop = ctx.printer_stop;
     if (stop.state != PrinterStopCheck::State::Stops) {
@@ -682,16 +719,15 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx) {
 
 std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintStartContext& ctx) {
     // The external spool is the ONE spool this rule can weigh, and a lane-fed
-    // print does not draw from it. Every sibling rule here already scopes itself
-    // on bypass; this one never did, because it predates bypass existing (it is
-    // from the single-extruder era, 39a576ddc).
+    // print does not draw from it, so like every sibling rule here it scopes
+    // itself on bypass.
     //
-    // The consequence is not a merely-inaccurate warning, it is an unanswerable
-    // one: the rule compares the file's WHOLE-FILE total against that spool, so
-    // no lane assignment or tool remap can change either input. On a K2 Plus the
-    // user mapped a print from T1 to T2 and kept getting "needs about 1900g but
+    // Unscoped, the warning would be not merely inaccurate but unanswerable:
+    // the rule compares the file's WHOLE-FILE total against that spool, so
+    // no lane assignment or tool remap can change either input. On a K2 Plus a
+    // print mapped from T1 to T2 would keep reading "needs about 1900g but
     // the spool has about 386g" - 386g being the bypass spool, which the print
-    // was never going to touch. Worse, assigning a spool to a LANE calls
+    // never touches. Worse, assigning a spool to a LANE calls
     // set_active_spool(), and Moonraker's active spool is what populates
     // external_spool - so editing a lane silently re-aims this comparison.
     //
@@ -819,15 +855,14 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
     // slicer assigned a material to but that never actually extrude (common
     // when a multi-tool profile prints a single-tool file: T0..T2 inherit the
     // profile's defaults but only T3 is used). Empty vector means the slicer
-    // didn't emit per-tool data — in that case we keep the old behavior and
-    // check every tool. Graceful fallback, no false-negatives possible.
+    // didn't emit per-tool data — in that case every tool is checked.
     std::vector<double> filament_weights;
     if (ctx.metadata.has_value()) {
         filament_weights = ctx.metadata->filament_weights;
     }
     auto tool_is_used = [&filament_weights](int tool_index) -> bool {
         if (filament_weights.empty()) {
-            return true; // No data → check everything (old behavior).
+            return true; // No data → check everything.
         }
         if (tool_index < 0 || tool_index >= static_cast<int>(filament_weights.size())) {
             return true; // Out-of-range → can't prove unused, be safe.
@@ -881,7 +916,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
                 detail.expected_material = tool->material;
             }
 
-            // Get loaded material from the mapped AMS slot
             for (const auto& slot : slots) {
                 if (slot.slot_index == m.mapped_slot && slot.backend_index == m.mapped_backend) {
                     detail.loaded_material = slot.material;
@@ -914,7 +948,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
                 continue;
             }
 
-            // Look up temperature ranges from the filament database
             auto expected_info = filament::find_material(detail.expected_material);
             if (expected_info) {
                 detail.expected_nozzle_min = expected_info->nozzle_min;
@@ -948,7 +981,6 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
             return mismatches;
         }
 
-        // Check the first tool (single extruder)
         const auto& expected = gcode_materials[0];
         if (expected.empty()) {
             return mismatches;
@@ -1079,6 +1111,8 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         // Last: a door is closed in a second, so it is asked after anything
         // that needs the user to think about the file or the filament.
         {"door_open", gate_door_open},
+        // After the door: a wall speed only costs print quality.
+        {"outer_wall_speed", gate_outer_wall_speed},
     };
     return gates;
 }

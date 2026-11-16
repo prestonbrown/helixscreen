@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "capability_matrix.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "file_version.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
@@ -14,12 +14,16 @@
 #include "helix_callback.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
+#include "json_fwd.h"
 #include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
+#include "print_3mf.h"
 #include "print_start_analyzer.h"
 #include "print_start_checks.h"
+#include "print_start_params.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "thermal_rate_model.h"
 #include "versioned_lru.h"
 #include "zip_reader.h"
@@ -34,7 +38,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: server_edits held in a std::optional
 
 class PrintPreparationManagerTestAccess;
 
@@ -195,6 +199,14 @@ class PrintPreparationManager {
      * @param id Option id (e.g. "bed_mesh", "ai_detect")
      */
     [[nodiscard]] PrePrintOptionState get_option_state(const std::string& id) const;
+
+    /**
+     * @brief Whether this print enables an option that needs a material set on
+     *        every slot it prints from (PrePrintOption::needs_material).
+     * @param saved Asked first when set, as a queued job's saved options are;
+     *        any answer but 0/1 falls through to get_option_state().
+     */
+    [[nodiscard]] bool enabled_options_need_material(const OptionStateProvider& saved = {}) const;
 
     // === PRINT_START Macro Analysis ===
 
@@ -456,14 +468,18 @@ class PrintPreparationManager {
      * @param expected_scan_key The scan_key() this file's scan was kept under
      *        when it differs from its printer path (a stick file printed from
      *        its copy); empty = scan_key(filename, current_path)
+     * @param start_params Sent with printer.print.start beside the filename (a
+     *        firmware's per-print tool map, helix::print_start)
      */
     void start_print(const std::string& filename, const std::string& current_path,
                      NavigateToStatusCallback on_navigate_to_status,
                      PrintCompletionCallback on_completion = nullptr,
-                     const std::string& expected_scan_key = {});
+                     const std::string& expected_scan_key = {},
+                     const helix::PrintStartParams& start_params = {});
 
     /**
-     * @brief Print plate @p plate of the .3mf at @p file_path as extracted G-code.
+     * @brief Print plate @p plate of the .3mf at @p file_path as extracted G-code
+     *        (set_archive_route() for a printer that reads nothing of it).
      *
      * For an archive the printer has no metadata for, which Klipper cannot
      * print as it is: every start of @p file_path from here on downloads the
@@ -478,6 +494,24 @@ class PrintPreparationManager {
      */
     void set_archive_plate(const std::string& file_path, int plate,
                            const std::string& converted_output = {});
+
+    /**
+     * @brief Name how the .3mf at @p file_path prints from here on: what the
+     *        printer reads of it, the plate shown, its converted output.
+     *
+     * Every start of @p file_path follows print_3mf::classify() over @p inputs,
+     * asked again with what that start rewrites: a plate the printer starts
+     * itself goes as the archive and its plate (print_start::start_request_params()),
+     * and prints extracted when the start rewrites its G-code. The transport's
+     * local copies are this manager's own. Inputs for an archive the printer
+     * picks the plate of forget the file.
+     */
+    void set_archive_route(const std::string& file_path, const print_3mf::RouteInputs& inputs);
+
+    /// The route a start of @p file_path takes (print_3mf::classify()); AsFile
+    /// for anything but a .3mf. @p rewrite: what the start changes in what prints.
+    [[nodiscard]] print_3mf::Route archive_route(const std::string& file_path,
+                                                 print_3mf::Rewrite rewrite) const;
 
     /// What prints for an archive, so its scan reads that G-code: the
     /// printer's conversion of the shown plate, or the plate's own entry.
@@ -507,10 +541,6 @@ class PrintPreparationManager {
     /// of the archive too. @p on_completion reports how it ended.
     void start_archive_reprint(const std::string& file_path, int plate,
                                PrintCompletionCallback on_completion);
-
-    /// The plate set_archive_plate() named for @p file_path, or 0. Also 0 when
-    /// the printer already converted it: that output prints instead.
-    [[nodiscard]] int archive_plate_for(const std::string& file_path) const;
 
     /// What a start of @p file_path prints: the printer's own conversion of
     /// the archive when set_archive_plate() named one, else @p file_path.
@@ -670,7 +700,10 @@ class PrintPreparationManager {
 
     // === Checkbox State Subjects (LT2 - from PrintSelectDetailView) ===
     // === Pre-print estimate ===
-    lv_subject_t preprint_estimate_subject_{};
+    /// Read by the detail view through its getter, never bound by name: every
+    /// manager has its own, and the XML engine's one scope could publish only one.
+    SubjectManager subjects_;
+    helix::Subject preprint_estimate_subject_{};
     bool estimate_subject_initialized_ = false;
 
     // === Predictor Cache ===
@@ -794,10 +827,13 @@ class PrintPreparationManager {
     ObserverGuard plugin_observer_;
     /// keeps_local_copies(api_), answered by set_dependencies().
     bool keeps_local_copies_ = true;
-    /// set_archive_plate(): the .3mf that prints as an extracted plate, and the plate.
+    /// set_archive_route(): the .3mf whose route is named, and what names it.
     std::string archive_path_;
-    int archive_plate_ = 0;
-    std::string archive_output_; ///< the printer's own conversion, which prints instead
+    print_3mf::RouteInputs archive_inputs_;
+    /// The start in flight's extra printer.print.start parameters, from
+    /// start_print(). The printer.print.start send takes them, so they reach
+    /// that one start; every other entry point clears them.
+    helix::PrintStartParams start_params_;
     /// set_archive_scan_source(), by scan_key().
     std::map<std::string, ArchiveScanSource> archive_scan_sources_;
     bool skip_reset_sent_ = false; ///< One reset per pending skip, until it reads clear
@@ -893,6 +929,10 @@ class PrintPreparationManager {
     /// The pre-print phases the option toggles decide: a shown toggle turned
     /// off skips its phase (false), one left on runs it (true).
     [[nodiscard]] helix::PreprintPhaseOverrides preprint_phase_overrides() const;
+
+    /// The analyzed PRINT_START soaks on its own, so the heat soak option
+    /// would only repeat or contradict it.
+    [[nodiscard]] bool start_macro_soaks() const;
 
     /**
      * @brief Download, modify, and print a G-code file
@@ -1008,6 +1048,10 @@ class PrintPreparationManager {
      *        route, which has none.
      */
     void abandon_start(const char* where, const PrintCompletionCallback& on_completion = nullptr);
+
+    /// Toasts and abandons the start when @p route refuses it; false otherwise.
+    bool refuse_archive_route(const print_3mf::Route& route,
+                              const PrintCompletionCallback& on_completion);
 
     /// The preparing job @p preparing_epoch named is gone: cancelled, failed
     /// or replaced while the work in front of the start ran. False for 0,

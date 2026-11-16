@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "hardware_object_table.h"
+#include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -15,8 +16,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class Config;
@@ -233,8 +232,8 @@ class SensorManager {
     mutable std::recursive_mutex mutex_;
     std::vector<SensorEntry> entries_;
     SubjectManager subjects_;
-    lv_subject_t count_{};
-    lv_subject_t revision_{};
+    helix::Subject count_{};
+    helix::Subject revision_{};
     bool subjects_initialized_ = false;
     bool sync_mode_ = false;
     bool deinit_registered_ = false;

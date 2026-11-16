@@ -19,14 +19,14 @@
  */
 
 #include "ui_settings_sensors.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "input_sensor_manager.h"
@@ -34,7 +34,6 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_panel_registry.h"
 #include "temperature_sensor_manager.h"
 
 #include <algorithm>
@@ -282,7 +281,7 @@ class ScopedSensorManagers {
     ScopedSensorManagers& operator=(const ScopedSensorManagers&) = delete;
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
   private:
@@ -312,7 +311,7 @@ void collect_labels(lv_obj_t* root, const char* name, std::vector<std::string>& 
 
 bool hidden_up_to(lv_obj_t* obj, lv_obj_t* root) {
     for (; obj && obj != root; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(obj)) {
             return true;
         }
     }
@@ -467,6 +466,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(manager.entries()[0].role == RowTestManager::kFirst);
         section.pick_role(0, 3); // past the options: ignored
         CHECK(manager.entries()[0].role == RowTestManager::kFirst);
+        subjects.deinit_all(); // the section's subjects die before the manager does
     }
     manager.deinit_subjects();
 
@@ -537,6 +537,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK_FALSE(hidden_up_to(dd, row));
         CHECK(lv_dropdown_get_selected(dd) == 1);
         lv_obj_delete(row);
+        subjects.deinit_all(); // the section's subjects die before the manager does
     }
     manager.deinit_subjects();
 }
@@ -572,12 +573,39 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* root = activate_overlay(test_screen());
     lv_obj_t* placeholder = lv_obj_find_by_name(root, "no_sensors_placeholder");
     REQUIRE(placeholder != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(placeholder));
 
     // One sensor appearing while the overlay is open hides it.
     helix::sensors::InputSensorManager::instance().discover(every_kind_discovery());
     ScopedSensorManagers::drain();
-    CHECK(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(placeholder));
+}
+
+// Switch sensors a filament system owns are listed nowhere in Settings, so a
+// printer whose every switch sensor is one shows no switch section and no
+// monitoring toggle over an empty list.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Sensor settings: switch sensors a filament system owns leave no empty section",
+                 "[sensors][settings][filament_sensor]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"extruder", "filament_switch_sensor lane_1", "filament_switch_sensor slot_2"}));
+    ScopedSensorManagers sensors(hw);
+    REQUIRE(helix::FilamentSensorManager::instance().sensor_count() == 2);
+
+    lv_obj_t* root = activate_overlay(test_screen());
+    auto& overlay = helix::settings::get_sensor_settings_overlay();
+    SensorRowSection* section = overlay.section("filament");
+    REQUIRE(section != nullptr);
+    REQUIRE(section->row_count() == 0);
+
+    lv_obj_t* switches = lv_obj_find_by_name(root, "switch_sensors_section");
+    REQUIRE(switches != nullptr);
+    CHECK(lv_obj_is_hidden(switches));
+    // Nothing is listed anywhere, so the placeholder says so.
+    lv_obj_t* placeholder = lv_obj_find_by_name(root, "no_sensors_placeholder");
+    REQUIRE(placeholder != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(placeholder));
 }
 
 // Temperature rows show no reading, so a status frame refills nothing; a change
@@ -592,7 +620,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(name0 != nullptr);
     const std::string filled = lv_subject_get_string(name0);
     REQUIRE_FALSE(filled.empty());
-    lv_subject_copy_string(name0, "untouched");
+    lv_subject_set_string(name0, "untouched");
 
     auto& temps = helix::sensors::TemperatureSensorManager::instance();
     temps.update_from_status({{"temperature_sensor mcu_temp", {{"temperature", 41.5}}}});

@@ -5,16 +5,15 @@
 // shared by the ACE backend test files.
 #pragma once
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_ace.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 #include "fake_moonraker_client.h"
 #include "helix_shared_callback.h"
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <functional>
-#include <json.hpp> // nlohmann/json from libhv
 #include <string>
 #include <vector>
 
@@ -65,6 +64,8 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     // parse lands on the UpdateQueue — drain after calling.
     void test_on_started() {
         on_started();
+        // The store's first read lands through the update queue.
+        helix::ui::UpdateQueue::instance().drain();
     }
 
     // State accessors for verification

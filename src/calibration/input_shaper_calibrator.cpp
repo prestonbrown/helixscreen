@@ -35,10 +35,6 @@ InputShaperCalibrator::InputShaperCalibrator(IMoonrakerAPI* api) : api_(api) {
     spdlog::debug("[InputShaperCalibrator] Created with API");
 }
 
-// ============================================================================
-// firmware_halt_message()
-// ============================================================================
-
 std::string InputShaperCalibrator::firmware_halt_message(const MoonrakerError& err) {
     // A NOT_READY error is the execute_gcode() preflight guard refusing to
     // send while Klipper is already halted ("Klipper is halted — restart
@@ -73,10 +69,6 @@ std::string InputShaperCalibrator::firmware_halt_message(const MoonrakerError& e
            "recovery prompt), then try calibration again.";
 }
 
-// ============================================================================
-// homing_error_message()
-// ============================================================================
-
 std::string InputShaperCalibrator::homing_error_message(const MoonrakerError& err) {
     if (err.type == MoonrakerErrorType::TIMEOUT) {
         spdlog::warn("[InputShaperCalibrator] G28 response timed out (may still be running)");
@@ -93,13 +85,8 @@ std::string InputShaperCalibrator::homing_error_message(const MoonrakerError& er
     return "Homing failed: " + MoonrakerError::extract_friendly_message(err.message);
 }
 
-// ============================================================================
-// check_accelerometer()
-// ============================================================================
-
 void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
                                                 ErrorCallback on_error) {
-    // Check if API is available
     if (!api_) {
         spdlog::warn("[InputShaperCalibrator] check_accelerometer called without API");
         if (on_error) {
@@ -108,7 +95,6 @@ void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
         return;
     }
 
-    // Transition to CHECKING_ADXL state
     state_ = State::CHECKING_ADXL;
     spdlog::info("[InputShaperCalibrator] Starting accelerometer check");
 
@@ -152,16 +138,10 @@ void InputShaperCalibrator::check_accelerometer(AccelCheckCallback on_complete,
         });
 }
 
-// ============================================================================
-// run_calibration()
-// ============================================================================
-
 void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progress,
                                             ResultCallback on_complete, ErrorCallback on_error) {
-    // Normalize axis to uppercase
     char normalized_axis = static_cast<char>(std::toupper(static_cast<unsigned char>(axis)));
 
-    // Validate axis
     if (normalized_axis != 'X' && normalized_axis != 'Y') {
         spdlog::warn("[InputShaperCalibrator] Invalid axis: {}", axis);
         if (on_error) {
@@ -171,7 +151,6 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
         return;
     }
 
-    // Check if API is available
     if (!api_) {
         spdlog::warn("[InputShaperCalibrator] run_calibration called without API");
         if (on_error) {
@@ -190,7 +169,6 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
         return;
     }
 
-    // Transition to appropriate testing state
     state_ = (normalized_axis == 'X') ? State::TESTING_X : State::TESTING_Y;
     spdlog::info("[InputShaperCalibrator] Starting calibration for axis {}", normalized_axis);
 
@@ -248,18 +226,10 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
         });
 }
 
-// ============================================================================
-// emergency_abort()
-// ============================================================================
-
 void InputShaperCalibrator::emergency_abort() {
     state_ = State::IDLE;
     helix::emergency_stop_and_restart(api_, "InputShaperCalibrator");
 }
-
-// ============================================================================
-// apply_settings()
-// ============================================================================
 
 void InputShaperCalibrator::apply_settings(const ApplyConfig& config, SuccessCallback on_success,
                                            ErrorCallback on_error) {
@@ -282,7 +252,6 @@ void InputShaperCalibrator::apply_settings(const ApplyConfig& config, SuccessCal
         return;
     }
 
-    // Check if API is available
     if (!api_) {
         spdlog::warn("[InputShaperCalibrator] apply_settings called without API");
         if (on_error) {

@@ -6,10 +6,9 @@
  * @brief The only translation unit that sees the build's git hash.
  *
  * helix_git_hash.h is generated per build and holds nothing but the short
- * commit hash, so a new commit invalidates this object alone. Passing the hash
- * as a -D on the global flags instead put a value that changes every commit on
- * every TU's command line, which is the one input ccache's direct mode cannot
- * look past.
+ * commit hash, so a new commit invalidates this object alone. A -D on the
+ * global flags would put a value that changes every commit on every TU's command
+ * line, which is the one input ccache's direct mode cannot look past.
  */
 
 #include "helix_version.h"

@@ -17,7 +17,7 @@ config, not hardware-verified. Build targets are `PLATFORM_TARGET` values in `mk
 |---------|-----------|-------|-----------------|----------------|--------|--------|
 | FlashForge Adventurer 5M / Pro | Allwinner, Cortex-A7 armv7 | 800x480 fbdev | Forge-X, Klipper Mod or ZMOD | none | `ad5m`, `ad5m-br` | Tested |
 | FlashForge Adventurer 5X | Ingenic X2600, MIPS32 (nan2008) | 800x480 fbdev | ZMOD 1.7.0+ | IFS (4) | `mips` (alias `ad5x`) | Tested |
-| FlashForge Creator 5 / 5 Pro | Ingenic X2000, MIPS32 | 800x480 (portrait fb, rotated) | Z-Mod or Reforge | 4-head toolchanger | `mips` (`make creator5`) | UI runs on device; Load/Unload tested on a Creator 5 Pro (Z-Mod 1.7.4 + afclite, #1779); live-swap step bar open (#1714) |
+| FlashForge Creator 5 / 5 Pro | Ingenic X2600, MIPS32 | 800x480 (portrait fb, rotated) | Z-Mod or Reforge | 4-head toolchanger | `mips` (`make creator5`) | UI runs on device; Load/Unload tested on a Creator 5 Pro (Z-Mod 1.7.4 + afclite, #1779); live-swap step bar open (#1714) |
 | Creality K1 / K1C / K1 Max / K1 SE | Ingenic X2000E, MIPS32r2 | 480x800 portrait fbdev | Guilouz, Simple AF or Guppy Mod (Moonraker) | optional CFS upgrade | `mips` (alias `k1`), `k1-dynamic` | Supported (K1C, K1 Max tested; K1 community) |
 | Creality K2 / K2 Plus / K2 Pro | Allwinner T113, Cortex-A7 armv7 | 480x800 portrait, rotated | stock | CFS (up to 16) | `k2` | Tested (K2 Plus); Community (K2 Pro); base K2 not captured |
 | Snapmaker U1 | Rockchip RK3562, aarch64 | 480x320 DRM | stock 1.2+ with Root access, or PAXX | SnapSwap 4-head | `snapmaker-u1` | Tested on PAXX; stock unverified |
@@ -39,6 +39,7 @@ documents below record which.
 | [FLASHFORGE_AD5X_RESEARCH.md](FLASHFORGE_AD5X_RESEARCH.md) | AD5X hardware, stock firmware, ZMOD, and the 2026-08 firmware-ecosystem survey |
 | [FLASHFORGE_AD5X_PLATFORM_NOTES.md](FLASHFORGE_AD5X_PLATFORM_NOTES.md) | The runtime environment HelixScreen deploys into on a ZMOD AD5X: chroot layout, logs, ZMOD display lifecycle, rig observations |
 | [FLASHFORGE_CREATOR5_FIRMWARE.md](FLASHFORGE_CREATOR5_FIRMWARE.md) | Creator 5 stock firmware: finding and decrypting packages, the 2.0.0 full-image layout, what 2.0.0 changed (decoded mixed-temperature table, multi-plate, calibration records, Klipper deltas), and the stock UI's features against HelixScreen |
+| [FLASHFORGE_CREATOR5_CUSTOM_FIRMWARE.md](FLASHFORGE_CREATOR5_CUSTOM_FIRMWARE.md) | Creator 5 replacement firmwares compared (Z-Mod, Reforge, OpenCreator): install and undo, changer model, per-head material, maturity, and how each fits HelixScreen |
 | [FLASHFORGE_AD5X_IFS_ANALYSIS.md](FLASHFORGE_AD5X_IFS_ANALYSIS.md) | IFS serial protocol, Klipper objects, the ZMOD IFS Python module, bambufy vs lessWaste, unload semantics verified against ZMOD source |
 | [CREALITY_K1_SERIES_RESEARCH.md](CREALITY_K1_SERIES_RESEARCH.md) | K1C / K1 Max hardware, stock firmware, rooting, community firmware |
 | [CREALITY_CFS_K1_INTERNALS.md](CREALITY_CFS_K1_INTERNALS.md) | K1-family CFS box wrapper (`box_wrapper.cpython-38-mipsel`): `BOX_*` semantics, tn_data.json, deferred-failure and resume traps. Read before changing anything the CFS backend emits on K1 |

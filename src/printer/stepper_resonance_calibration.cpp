@@ -20,7 +20,7 @@ struct Row {
 
 // --- Firmware wrapper: CALIBRATE_VFA ----------------------------------------
 //
-// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_generic.cfg) mounts head n, zeroes the
+// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_display_off.cfg) mounts head n, zeroes the
 // gcode offset, moves to the bed centre, runs the stock
 // STEPPER_RESONANCE_FACTORY_CALIBRATE, parks the head and ends in SAVE_CONFIG.
 // It homes as part of mounting, so nothing has to come first.
@@ -58,12 +58,30 @@ std::string tester_build(const PrinterDiscovery& hw, int /*tool*/) {
     return calibrate + "\nSAVE_CONFIG";
 }
 
+// --- Firmware wrapper: VFA_COMPENSATION ---------------------------------------
+//
+// OpenCreator's VFA_COMPENSATION (printer.vibration.cfg) refuses unless every
+// head is docked, homes, parks the bare carriage at Z100/X130/Y130, runs
+// STEPPER_RESONANCE_FACTORY_CALIBRATE and ends in SAVE_CONFIG. Sending the
+// stock macro directly skips the dock check and the park. The macro name alone
+// is not the routine: it drives the stepper_resonance_tester extra above.
+bool compensation_detect(const PrinterDiscovery& hw) {
+    return hw.has_macro("VFA_COMPENSATION") && tester_detect(hw);
+}
+
+std::string compensation_build(const PrinterDiscovery& /*hw*/, int /*tool*/) {
+    return "VFA_COMPENSATION";
+}
+
 /// Most specific first: a wrapper that knows the machine outranks the bare
 /// extra it drives.
 const Row kRows[] = {
     {{"Z-Mod CALIBRATE_VFA", /*per_tool=*/true, /*needs_home=*/true,
       /*restarts_klipper=*/true, wrapper_build},
      wrapper_detect},
+    {{"OpenCreator VFA_COMPENSATION", /*per_tool=*/false, /*needs_home=*/false,
+      /*restarts_klipper=*/true, compensation_build},
+     compensation_detect},
     {{"stepper_resonance_tester", /*per_tool=*/false, /*needs_home=*/true,
       /*restarts_klipper=*/true, tester_build},
      tester_detect},
@@ -86,6 +104,21 @@ std::string calibrate_gcode(const PrinterDiscovery& hw, int tool) {
         return {};
     }
     return p.build(hw, tool);
+}
+
+CompensationToggle compensation_toggle(const PrinterDiscovery& hw) {
+    // The stock printer.vibration.cfg pair. Its enable sets fixed numbers; a
+    // firmware whose routine saves a calibration restores that instead.
+    constexpr const char* kEnable = "STEPPER_RESONANCE_DAMP_ENABLE";
+    constexpr const char* kDisable = "STEPPER_RESONANCE_DAMP_DISABLE";
+    CompensationToggle t;
+    if (!hw.has_macro(kEnable) || !hw.has_macro(kDisable)) {
+        return t;
+    }
+    t.enable_gcode = kEnable;
+    t.disable_gcode = kDisable;
+    t.applies_factory_values = !wrapper_detect(hw) && !compensation_detect(hw);
+    return t;
 }
 
 const char* entry_name() {

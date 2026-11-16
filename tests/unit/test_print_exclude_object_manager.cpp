@@ -8,8 +8,8 @@
  *
  * Background: printer.gcode.script blocks until Klipper executes the queued gcode,
  * so during pre-print an EXCLUDE_OBJECT RPC can sit queued for minutes and hit the
- * 60s transport timeout before it returns. The fix:
- *   1. MoonrakerAPI::exclude_object() now uses silent=true + 15min timeout.
+ * 60s transport timeout before it returns. So:
+ *   1. MoonrakerAPI::exclude_object() uses silent=true + 15min timeout.
  *   2. The request tracker suppresses REQUEST_TIMEOUT events for silent requests.
  *   3. PrintExcludeObjectManager treats TIMEOUT errors as advisory (waits for the
  *      exclude_object status subscription to confirm) and only reverts / toasts for
@@ -23,13 +23,14 @@
  * Per L053: static LVGL fixtures reset between tests as needed.
  */
 
+#include "../../include/core/update_queue.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../include/moonraker_error.h"
 #include "../../include/printer_state.h"
 #include "../../include/ui_print_exclude_object_manager.h"
-#include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include "../catch_amalgamated.hpp"
@@ -38,7 +39,7 @@
 using namespace helix;
 using namespace helix::ui;
 
-/// Friend-class test accessor (L065 / test_code_lint.bats): keeps production
+/// Friend-class test accessor (L065 / scripts/code_lint.sh): keeps production
 /// headers free of `_for_testing` methods while letting tests drive the
 /// awaiting-confirmation set and RPC-error branch directly.
 class PrintExcludeObjectManagerTestAccess {
@@ -60,25 +61,11 @@ class PrintExcludeObjectManagerTestAccess {
 
 namespace {
 
-struct LVGLInitializerExcludeMgr {
-    LVGLInitializerExcludeMgr() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-static LVGLInitializerExcludeMgr lvgl_init_mgr;
-
 /// Fixture: manager wired to mock client and PrinterState, no gcode_viewer widget.
 /// The manager's viewer-touching branches are all guarded by `if (gcode_viewer_)`,
 /// so passing nullptr keeps us out of the LVGL widget graph while still exercising
 /// the observer, awaiting-confirmation, and excluded_objects_ bookkeeping.
-class ExcludeManagerFixture {
+class ExcludeManagerFixture : public LVGLTestFixture {
   public:
     ExcludeManagerFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         state.init_subjects(false);
@@ -87,7 +74,7 @@ class ExcludeManagerFixture {
         manager = std::make_unique<PrintExcludeObjectManager>(api.get(), state, nullptr);
         manager->init();
         // observe<int> defers an initial-value callback through UpdateQueue
-        // (per L048 / observer_factory.h). Drain it now so the print-state
+        // (per L048 / core/observer_factory.h). Drain it now so the print-state
         // watchdog's STANDBY=0 fire-on-subscribe doesn't clear test-injected
         // awaiting_confirmation_ entries on the first real drain.
         UpdateQueue::instance().drain();

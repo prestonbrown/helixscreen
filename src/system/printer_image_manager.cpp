@@ -7,7 +7,9 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/static_subject_registry.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "lvgl_image_writer.h"
 #include "prerendered_images.h"
@@ -16,8 +18,6 @@
 #include "printer_images.h"
 #include "printer_state.h"
 #include "settings_manager.h"
-#include "static_subject_registry.h"
-#include "text_io.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -33,7 +33,8 @@
 #include "stb_image_resize.h"
 
 // LVGL for color format constant
-#include <lvgl/src/draw/lv_image_dsc.h>
+#include "core/subject.h"
+#include "lvgl.h"
 
 namespace hfs = helix::fs;
 
@@ -66,7 +67,7 @@ void PrinterImageManager::init_subjects() {
     if (subjects_initialized_)
         return;
     // Version counter for observers
-    lv_subject_init_int(&image_changed_subject_, 0);
+    image_changed_subject_.init_int(0);
     subjects_.register_subject(&image_changed_subject_);
     subjects_initialized_ = true;
     StaticSubjectRegistry::instance().register_deinit(
@@ -452,13 +453,11 @@ PrinterImageManager::ValidationResult
 PrinterImageManager::validate_image(const std::string& path) const {
     ValidationResult result;
 
-    // Check file exists
     if (!hfs::exists(path)) {
         result.error = "File not found: " + path;
         return result;
     }
 
-    // Check file size
     auto file_size = helix::text_io::file_size(path);
     if (!file_size) {
         result.error = "File not found: " + path;
@@ -560,7 +559,6 @@ PrinterImageManager::ImportResult
 PrinterImageManager::import_image(const std::string& source_path) {
     ImportResult result;
 
-    // Validate
     auto validation = validate_image(source_path);
     if (!validation.valid) {
         result.error = validation.error;
@@ -623,7 +621,7 @@ PrinterImageManager::import_image(const std::string& source_path) {
 
 void PrinterImageManager::import_image_async(const std::string& source_path,
                                              std::function<void(ImportResult)> callback) {
-    // For now, run synchronously. Phase 4 adds proper async via thread pool.
+    // Runs synchronously on the caller's thread despite the name.
     auto result = import_image(source_path);
     if (callback) {
         callback(std::move(result));

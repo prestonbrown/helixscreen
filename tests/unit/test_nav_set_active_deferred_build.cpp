@@ -13,11 +13,10 @@
 
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/lvgl.h"
 #include "printer_state.h"
@@ -84,7 +83,7 @@ class DeferredBuildFixture : public LVGLUITestFixture {
     }
 
     static void drain() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     lv_obj_t* home_widget_ = nullptr;
@@ -112,5 +111,5 @@ TEST_CASE_METHOD(DeferredBuildFixture,
     drain();
     REQUIRE(builds_ == 1);
     REQUIRE(deferred_panel_.activations == 1);
-    REQUIRE_FALSE(lv_obj_has_flag(nav.get_panel_widget(PanelId::PrintSelect), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(nav.get_panel_widget(PanelId::PrintSelect)));
 }

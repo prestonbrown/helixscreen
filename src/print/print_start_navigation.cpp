@@ -3,11 +3,9 @@
 
 #include "print_start_navigation.h"
 
-#include "ui_nav.h"
-#include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
+#include "core/update_queue.h"
+#include "notice.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -45,19 +43,11 @@ bool print_start_nav_should_navigate(PrintJobState prev, PrintJobState current) 
 // every inactive→active transition, including the completion→retry cycle
 // (finished print → error/standby → new print) where the user may still be
 // viewing print status from the previous job. Without this guard, every
-// retry produced a "[NavigationManager] Overlay ... already in stack"
-// warning (bundle J3WD5GQJ saw 9 of these in 11 hours). The
-// is_panel_in_stack() check has to run on the UI thread, so it lives
-// inside the queue_update lambda.
+// retry logs a "[NavigationManager] Overlay ... already in stack" warning.
+// The OpenPrintStatus handler makes that check, on the UI thread.
 static void queue_push_print_status_overlay() {
-    helix::ui::queue_update("print_start_navigation::queue_push_print_status_overlay", []() {
-        auto* cached = PrintStatusPanel::get_cached_overlay();
-        if (cached && helix::nav::is_in_stack(cached)) {
-            spdlog::debug("[PrintStartNav] Print status already on stack — skip auto-nav");
-            return;
-        }
-        PrintStatusPanel::push_overlay(lv_display_get_screen_active(nullptr));
-    });
+    helix::ui::queue_update("print_start_navigation::queue_push_print_status_overlay",
+                            []() { publish_ui_request({UiRequestKind::OpenPrintStatus}); });
 }
 
 // Callback for print state changes - auto-navigates to print status when a print
@@ -69,9 +59,9 @@ static void queue_push_print_status_overlay() {
 //
 // This observer fires synchronously from lv_subject_set_int which may be called on
 // the WebSocket background thread. All LVGL widget creation MUST happen on the UI
-// thread, so we defer push_overlay via queue_update. This fixes the thumbnail race
-// condition (#450) where widgets created on the background thread were in an
-// inconsistent state when deferred observer callbacks tried to update them.
+// thread, so we defer push_overlay via queue_update: widgets created on the
+// background thread are in an inconsistent state when deferred observer callbacks
+// try to update them (#450).
 static void on_print_state_changed_for_navigation(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
     // PRINT_STATE_CAST_OK: `subject` IS print_state_enum, and this file is a

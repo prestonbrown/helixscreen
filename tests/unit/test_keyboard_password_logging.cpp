@@ -22,9 +22,10 @@
  */
 
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
+#include "ui_text_edit_menu.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "logging_init.h"
 #include "lvgl/lvgl.h"
 
@@ -112,29 +113,6 @@ size_t count_of(const std::string& hay, const std::string& needle) {
 // Property 1 — the typed character never appears in a log line
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Keyboard: typed characters never reach the log ring buffer",
-                 "[ui][keyboard][security][log_ring]") {
-    ScopedKeyboard keyboard_guard(test_screen());
-    lv_obj_t* kb = KeyboardManager::instance().get_instance();
-    REQUIRE(kb != nullptr);
-
-    // 'g' is a worst case: it is a letter (so it carries an alternate, which is
-    // what gated the old log line) and it is common in passphrases.
-    const uint32_t g = find_key(kb, 'g');
-    REQUIRE(g != UINT32_MAX);
-
-    init_console_logging();
-    press(kb, g);
-
-    const std::string tail = tail_ring_buffer(500);
-
-    // The character must not appear quoted, bare, or anywhere else in the line.
-    INFO("ring buffer after one keypress:\n" << tail);
-    REQUIRE(tail.find("PRESSED 'g'") == std::string::npos);
-    REQUIRE(tail.find("'g'") == std::string::npos);
-    REQUIRE(tail.find("pressed_char") == std::string::npos);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Keyboard: a typed passphrase is not reconstructable from the ring buffer",
                  "[ui][keyboard][security][log_ring]") {
@@ -142,11 +120,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* kb = KeyboardManager::instance().get_instance();
     REQUIRE(kb != nullptr);
 
+    // 'g' carries an alternate, the path most likely to log a character.
+    REQUIRE(find_key(kb, 'g') != UINT32_MAX);
+
     init_console_logging();
 
-    // Type a realistic passphrase. Digits and symbols live on other layers; the
-    // letters alone are what made the original leak damaging.
-    const std::string secret = "correcthorsebattery";
+    // Type a realistic passphrase. Digits and symbols live on other layers, so
+    // letters are the keys that matter; 'g' also carries an alternate.
+    const std::string secret = "correcthorsebatterystapling";
     size_t typed = 0;
     for (char c : secret) {
         const uint32_t id = find_key(kb, c);
@@ -165,6 +146,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         INFO("character " << c << " leaked as " << quoted);
         REQUIRE(tail.find(quoted) == std::string::npos);
     }
+    REQUIRE(tail.find("pressed_char") == std::string::npos);
 }
 
 // ============================================================================
@@ -192,7 +174,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Keyboard: keystrokes do not flood the log r
 
     const std::string tail = tail_ring_buffer(2000);
 
-    // The real defect: 1776 of 2000 lines in bundle 5HLV7EAJ were keyboard
+    // The real defect: 1776 of 2000 lines in one debug bundle were keyboard
     // chatter, and the entire ring covered 3m50s. Per-keystroke logging must not
     // reach the ring at all.
     const size_t kb_lines = count_of(tail, "[KeyboardManager]");
@@ -228,6 +210,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Keyboard: password context is detected from
     // latched at registration.
     lv_textarea_set_password_mode(secret, false);
     REQUIRE_FALSE(KeyboardManager::instance().is_password_context());
+    // Declared a password field, it stays secret to the clipboard once unmasked.
+    CHECK(helix::ui::is_secret_field(secret));
 
     KeyboardManager::instance().show(nullptr);
     REQUIRE_FALSE(KeyboardManager::instance().is_password_context());

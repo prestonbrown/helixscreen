@@ -11,20 +11,20 @@
 //   S2 - the LOAD_SWAP step template the sidebar renders includes the
 //        "Brush nozzle" and "Clean nozzle" phases.
 //
-// The router unit test (test_gcode_narration_router.cpp) covers process_line
-// in isolation; on_notify_gcode_response was previously UNTESTED. This file
-// exercises both, plus the template-derived step labels the sidebar consumes.
+// This file exercises process_line and on_notify_gcode_response together, plus
+// the template-derived step labels the sidebar consumes.
 
 #include "ui_ams_sidebar.h"
 #include "ui_step_progress.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_sidebar_xml.h"
 #include "../test_helpers/gcode_narration_router_test_access.h"
+#include "../test_helpers/widget_in_tree.h"
 #include "ams_backend_afc.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "gcode_narration_router.h"
 
 #include <algorithm>
@@ -522,7 +522,7 @@ struct NarratedSidebarFixture : public XMLTestFixture {
 
     ~NarratedSidebarFixture() override {
         sidebar_.reset();
-        if (panel_ && lv_obj_is_valid(panel_)) {
+        if (panel_ && helix::test::widget_in_tree(panel_)) {
             lv_obj_delete(panel_);
         }
         AmsState::instance().set_narration_phase(-1, "");

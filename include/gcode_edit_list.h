@@ -12,14 +12,13 @@
 
 #include "gcode_file_modifier.h"
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 #include "moonraker_error.h"
 
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::gcode {
 

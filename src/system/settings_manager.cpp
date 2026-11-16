@@ -11,12 +11,14 @@
 #include "audio_settings_manager.h"
 #include "belt_tension_types.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
 #include "input_settings_manager.h"
 #include "json_utils.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "material_settings_manager.h"
 #include "mount_feed_sequence.h"
 #include "printer_detector.h"
@@ -25,7 +27,6 @@
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
 #include "spdlog/spdlog.h"
-#include "static_subject_registry.h"
 #include "system/telemetry_manager.h"
 #include "system_settings_manager.h"
 #include "wizard_config_paths.h"
@@ -35,52 +36,6 @@
 #include <iterator>
 
 using namespace helix;
-
-// Aftermarket toolhead styles shown in dropdown (Auto + user overrides only)
-// Native styles (DEFAULT, CREALITY_K1, CREALITY_K2) are auto-detected and not shown.
-// The full style list: the dropdown and the enum carry the same eight
-// entries in the same order, so a style the DB auto-detects (K1/K2) or
-// pins (Default) is also selectable by hand.
-// Map dropdown index → ToolheadStyle enum value (production dropdown)
-static constexpr helix::ToolheadStyle kDropdownToStyle[] = {
-    helix::ToolheadStyle::AUTO,          // 0: Auto
-    helix::ToolheadStyle::DEFAULT,       // 1: Default (Bambu-like)
-    helix::ToolheadStyle::A4T,           // 2: A4T
-    helix::ToolheadStyle::ANTHEAD,       // 3: AntHead
-    helix::ToolheadStyle::JABBERWOCKY,   // 4: JabberWocky
-    helix::ToolheadStyle::STEALTHBURNER, // 5: Stealthburner
-    helix::ToolheadStyle::CREALITY_K1,   // 6: Creality K1
-    helix::ToolheadStyle::CREALITY_K2,   // 7: Creality K2
-};
-static constexpr int kDropdownCount =
-    static_cast<int>(sizeof(kDropdownToStyle) / sizeof(kDropdownToStyle[0]));
-
-// Debug dropdown: indices map directly to enum values (0=Auto, 1=Default, ...)
-static constexpr helix::ToolheadStyle kDropdownToStyleDebug[] = {
-    helix::ToolheadStyle::AUTO,          // 0
-    helix::ToolheadStyle::DEFAULT,       // 1
-    helix::ToolheadStyle::A4T,           // 2
-    helix::ToolheadStyle::ANTHEAD,       // 3
-    helix::ToolheadStyle::JABBERWOCKY,   // 4
-    helix::ToolheadStyle::STEALTHBURNER, // 5
-    helix::ToolheadStyle::CREALITY_K1,   // 6
-    helix::ToolheadStyle::CREALITY_K2,   // 7
-};
-static constexpr int kDropdownDebugCount =
-    static_cast<int>(sizeof(kDropdownToStyleDebug) / sizeof(kDropdownToStyleDebug[0]));
-
-// Convert ToolheadStyle enum to dropdown index
-static int style_to_dropdown_index(helix::ToolheadStyle style) {
-    auto* rc = get_runtime_config();
-    bool debug = rc && rc->test_mode;
-    int count = debug ? kDropdownDebugCount : kDropdownCount;
-    const auto* table = debug ? kDropdownToStyleDebug : kDropdownToStyle;
-    for (int i = 0; i < count; i++) {
-        if (table[i] == style)
-            return i;
-    }
-    return 0; // Unknown styles map to Auto
-}
 
 namespace {
 /// The one place a (mode, ring) pair becomes a config key.
@@ -149,8 +104,11 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
      "qidi_eject_velocity"},
     // Per-printer: AUTO resolves from this printer's type, so the manual
     // override follows the same printer.
-    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 7,
-     "toolhead_style"},
+    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0,
+     kLastToolheadStyle, "toolhead_style"},
+    // helix::ui::ToolNumberStyleSetting: 0=Auto, 1=Physical ("1"), 2=Gcode ("T0")
+    {"settings_tool_number_style", "appearance/tool_number_style", Scope::PerPrinter, false, 0, 0,
+     2, "tool_number_style"},
     {"show_printer_switcher", "/printers/show_printer_switcher", Scope::Global, true, 0, 0, 1,
      "show_printer_switcher"},
     {"show_widget_labels", "/appearance/show_widget_labels", Scope::Global, true, 0, 0, 1,
@@ -180,6 +138,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // Off: positions count from 1. See helix::ui::lane_number().
+    {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
+     "number_lanes_from_zero"},
     {"console_filter_temps", "/console/filter_temps", Scope::Global, true, 1, 0, 1,
      "console_filter_temps"},
     {"console_filter_firmware_noise", "/console/filter_firmware_noise", Scope::Global, true, 1, 0,
@@ -201,7 +162,26 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // 4=A lower. Per-printer: belt routing is the machine's.
     {"settings_belt_layout", "belt_tension/layout", Scope::PerPrinter, false, 0, 0,
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
+    // Temperature graph: stepper driver, MCU and host series are opt-in (#2080).
+    {"temp_graph_show_mcu", "temp_graph/show_mcu", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_mcu"},
+    {"temp_graph_show_host", "temp_graph/show_host", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_host"},
+    {"temp_graph_show_drivers", "temp_graph/show_drivers", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_drivers"},
 };
+
+namespace {
+/// Push a stored numbering base to the labels and re-render them if it changed.
+void apply_lane_numbering(bool from_zero) {
+    if (from_zero == helix::ui::lane_numbering_from_zero()) {
+        return;
+    }
+    helix::ui::set_lane_numbering_from_zero(from_zero);
+    // Everything that formats a number re-renders on this subject.
+    lv_subject_notify(SystemSettingsManager::instance().subject_language());
+}
+} // namespace
 
 SettingsManager& SettingsManager::instance() {
     static HELIX_PSRAM_BSS SettingsManager instance;
@@ -236,6 +216,8 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
+    sync_tool_number_style_mirror();
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -315,11 +297,18 @@ void SettingsManager::load_jog_distances() {
     }
 }
 
+void SettingsManager::set_number_lanes_from_zero(bool enabled) {
+    settings_.set(Key::NumberLanesFromZero, enabled);
+    apply_lane_numbering(enabled);
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
+    sync_tool_number_style_mirror();
+    apply_lane_numbering(get_number_lanes_from_zero());
     load_jog_distances();
 }
 
@@ -434,20 +423,6 @@ bool SettingsManager::set_maintenance_record(const std::string& printer_prefix,
 // TOOLHEAD STYLE
 // =============================================================================
 
-/// Maps a printer-database toolhead_style string to the enum; AUTO means "no
-/// opinion".
-static ToolheadStyle toolhead_style_from_name(const std::string& name) {
-    if (name == "creality_k1")
-        return ToolheadStyle::CREALITY_K1;
-    if (name == "creality_k2")
-        return ToolheadStyle::CREALITY_K2;
-    if (name == "anthead")
-        return ToolheadStyle::ANTHEAD;
-    if (name == "default")
-        return ToolheadStyle::DEFAULT;
-    return ToolheadStyle::AUTO;
-}
-
 ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     auto style = get_toolhead_style();
     if (style != ToolheadStyle::AUTO) {
@@ -470,7 +445,7 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     // Printers the database does not cover: the live filament backend may know.
     auto* backend = AmsState::instance().get_backend();
     if (backend) {
-        auto hinted = toolhead_style_from_name(backend->toolhead_style_hint());
+        const ToolheadStyle hinted = backend->toolhead_style_hint();
         if (hinted != ToolheadStyle::AUTO)
             return hinted;
     }
@@ -480,21 +455,19 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
 std::string SettingsManager::get_toolhead_style_options() {
     // The first two are words; the rest name toolhead products.
     return std::string(lv_tr("Auto")) + "\n" + lv_tr("Default") +
-           "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2";
+           "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2"
+           "\nDragonburner\nMini Stealthburner\nBambu Lab\nEnder 3\nXOL\nSnapmaker U1\nFlashForge "
+           "AD5\nFlashForge Creator 5\nElegoo Centauri\nArtillery M1\nQidi\nSovol SV08";
 }
 
 int SettingsManager::toolhead_style_to_dropdown_index(ToolheadStyle style) {
-    return style_to_dropdown_index(style);
+    return static_cast<int>(style);
 }
 
 ToolheadStyle SettingsManager::dropdown_index_to_toolhead_style(int index) {
-    auto* rc = get_runtime_config();
-    bool debug = rc && rc->test_mode;
-    int count = debug ? kDropdownDebugCount : kDropdownCount;
-    const auto* table = debug ? kDropdownToStyleDebug : kDropdownToStyle;
-    if (index < 0 || index >= count)
+    if (index < 0 || index > kLastToolheadStyle)
         return ToolheadStyle::AUTO;
-    return table[index];
+    return static_cast<ToolheadStyle>(index);
 }
 
 // ============================================================================
@@ -534,17 +507,6 @@ void SettingsManager::reset_jog_distances() {
         for (int outer = 0; outer < 2; ++outer)
             set_jog_distance(mode, outer, jog_distance_default(mode, outer));
     }
-}
-
-bool SettingsManager::get_bypass_declared() const {
-    Config* config = Config::get_instance();
-    return config->get<bool>(config->df() + "ams/bypass_declared", false);
-}
-
-void SettingsManager::set_bypass_declared(bool declared) {
-    Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "ams/bypass_declared", declared);
-    config->save();
 }
 
 namespace {
@@ -655,77 +617,13 @@ void SettingsManager::mark_detection_seeded() {
     config->save();
 }
 
-// ============================================================================
-// Filament Settings
-// ============================================================================
-
-std::optional<SlotInfo> SettingsManager::get_external_spool_info() const {
-    Config* config = Config::get_instance();
-
-    // Primary check: explicit assigned boolean (new format)
-    bool assigned = config->get<bool>(config->df() + "filament/external_spool/assigned", false);
-
-    // Backward compat: old configs have color_rgb but no assigned key
-    if (!assigned) {
-        auto color = config->get<int>(config->df() + "filament/external_spool/color_rgb", -1);
-        if (color == -1) {
-            return std::nullopt;
-        }
-        // Old format detected — treat as assigned (will be migrated on next set)
-    }
-
-    SlotInfo info;
-    info.slot_index = -2; // External spool sentinel
-    info.global_index = -2;
-    info.color_rgb =
-        static_cast<uint32_t>(config->get<int>(config->df() + "filament/external_spool/color_rgb",
-                                               static_cast<int>(kAmsDefaultSlotColor)));
-    info.material = config->get<std::string>(config->df() + "filament/external_spool/material", "");
-    info.brand = config->get<std::string>(config->df() + "filament/external_spool/brand", "");
-    // The external spool has no lane_data record, so this get/set pair is its
-    // ONLY persistence — the catalog product identity has to round-trip here or
-    // the editor reopens on the alphabetically-first variant of the material.
-    info.catalog_id =
-        config->get<std::string>(config->df() + "filament/external_spool/catalog_id", "");
-    info.product_name =
-        config->get<std::string>(config->df() + "filament/external_spool/product_name", "");
-    info.nozzle_temp_min =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_min", 0);
-    info.nozzle_temp_max =
-        config->get<int>(config->df() + "filament/external_spool/nozzle_temp_max", 0);
-    info.bed_temp = config->get<int>(config->df() + "filament/external_spool/bed_temp", 0);
-    info.spoolman_id = config->get<int>(config->df() + "filament/external_spool/spoolman_id", 0);
-    info.spool_name =
-        config->get<std::string>(config->df() + "filament/external_spool/spool_name", "");
-    info.remaining_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/remaining_weight_g", -1.0f);
-    info.total_weight_g =
-        config->get<float>(config->df() + "filament/external_spool/total_weight_g", -1.0f);
-    info.status = SlotStatus::AVAILABLE;
-    return info;
+bool SettingsManager::is_detection_switch_adopted() const {
+    return Config::get_instance()->get<bool>("/detection/switch_adopted", false);
 }
 
-void SettingsManager::set_external_spool_info(const SlotInfo& info) {
+void SettingsManager::mark_detection_switch_adopted() {
     Config* config = Config::get_instance();
-    config->set<bool>(config->df() + "filament/external_spool/assigned", true);
-    config->set<int>(config->df() + "filament/external_spool/color_rgb",
-                     static_cast<int>(info.color_rgb));
-    config->set<std::string>(config->df() + "filament/external_spool/material", info.material);
-    config->set<std::string>(config->df() + "filament/external_spool/brand", info.brand);
-    config->set<std::string>(config->df() + "filament/external_spool/catalog_id", info.catalog_id);
-    config->set<std::string>(config->df() + "filament/external_spool/product_name",
-                             info.product_name);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_min",
-                     info.nozzle_temp_min);
-    config->set<int>(config->df() + "filament/external_spool/nozzle_temp_max",
-                     info.nozzle_temp_max);
-    config->set<int>(config->df() + "filament/external_spool/bed_temp", info.bed_temp);
-    config->set<int>(config->df() + "filament/external_spool/spoolman_id", info.spoolman_id);
-    config->set<std::string>(config->df() + "filament/external_spool/spool_name", info.spool_name);
-    config->set<float>(config->df() + "filament/external_spool/remaining_weight_g",
-                       info.remaining_weight_g);
-    config->set<float>(config->df() + "filament/external_spool/total_weight_g",
-                       info.total_weight_g);
+    config->set<bool>("/detection/switch_adopted", true);
     config->save();
 }
 
@@ -820,17 +718,6 @@ void SettingsManager::set_chamber_sensor_assignment(const std::string& value) {
 // ============================================================================
 // Filament Settings
 // ============================================================================
-
-void SettingsManager::clear_external_spool_info() {
-    Config* config = Config::get_instance();
-    // Probe first: get_json() would vivify "filament": null on every call and
-    // the unconditional save() below would persist it (#1129).
-    const json* existing = config->try_get_json(config->df() + "filament");
-    if (existing != nullptr && existing->is_object() && existing->contains("external_spool")) {
-        config->get_json(config->df() + "filament").erase("external_spool");
-    }
-    config->save();
-}
 
 // ============================================================================
 // Barcode Scanner Settings

@@ -2,6 +2,13 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <api>
+    <!-- A host whose row has height for only the bar and one line of text passes
+         hide_title="true" and status_flow="row_wrap": the phase message and the
+         time left then share a line, wrapping only when the width runs out. -->
+    <prop name="hide_title" type="string" default="false"/>
+    <prop name="status_flow" type="string" default="column"/>
+  </api>
   <!-- Pre-print block shared by the library and detailed active layouts: phase
        message, progress bar and time left from the print_start_* subjects.
        Hidden while print_start_phase == 0 (no pre-print routine running). -->
@@ -10,11 +17,16 @@
         style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" hidden="true" clickable="false"
         event_bubble="true">
     <bind_flag_if_eq subject="print_start_phase" flag="hidden" ref_value="0"/>
-    <text_body text="Preparing Print" clickable="false" event_bubble="true"/>
+    <text_body text="Preparing Print" hidden="$hide_title" clickable="false" event_bubble="true"/>
     <progress_bar_estimate name="print_start_bar"
                            width="90%" bind_value="print_start_progress" clickable="false" event_bubble="true"/>
-    <text_small bind_text="print_start_message" clickable="false" event_bubble="true"/>
-    <text_small name="print_start_eta"
-                bind_text="print_start_time_left" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+    <lv_obj name="print_start_status"
+            width="100%" height="content" style_pad_all="0" flex_flow="$status_flow" style_flex_main_place="center"
+            style_flex_cross_place="center" style_flex_track_place="center" style_pad_row="#space_xs"
+            style_pad_column="#space_sm" scrollable="false" clickable="false" event_bubble="true">
+      <text_small bind_text="print_start_message" clickable="false" event_bubble="true"/>
+      <text_small name="print_start_eta"
+                  bind_text="print_start_time_left" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+    </lv_obj>
   </view>
 </component>

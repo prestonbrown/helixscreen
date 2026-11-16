@@ -67,30 +67,39 @@
           <text_small name="ethernet_mac" width="100%" bind_text="ethernet_mac" style_text_align="left"/>
         </ui_card>
       </lv_obj>
-      <!-- RIGHT COLUMN: Network List (60%) -->
-      <!-- State-driven styling: automatically dims to 50% opacity when disabled -->
-      <ui_card name="network_list_container"
-               height="100%" flex_grow="6" flex_flow="column" scrollable="true" scroll_elastic="false"
-               style_clip_corner="true" style_flex_main_place="start" style_flex_cross_place="start">
-        <!-- Reactive state binding: set disabled state when wifi_enabled == 0 -->
-        <bind_state_if_eq subject="wifi_enabled" state="disabled" ref_value="0"/>
-        <!-- Also disable when hardware unavailable -->
-        <bind_state_if_eq subject="wifi_hardware_available" state="disabled" ref_value="0"/>
-        <!-- Title -->
-        <text_heading width="100%" text="Available Networks" style_pad_bottom="#space_sm"/>
-        <!-- Scanning indicator (shown when wifi_scanning == 1) -->
-        <text_body name="network_list_scanning" width="100%" text="Scanning for networks..." style_text_align="center">
-          <!-- Show only when scanning (hide when wifi_scanning == 0) -->
-          <bind_flag_if_eq subject="wifi_scanning" flag="hidden" ref_value="0"/>
-        </text_body>
-        <!-- Placeholder shown when WiFi is disabled (wifi_enabled == 0) -->
-        <text_body name="network_list_placeholder"
-                   width="100%" text="Enable WiFi to scan for networks" style_text_align="center">
-          <!-- Show placeholder only when WiFi is disabled (hidden when enabled) -->
-          <bind_flag_if_eq subject="wifi_enabled" flag="hidden" ref_value="1"/>
-        </text_body>
-        <!-- Network list populated dynamically from C++ -->
-      </ui_card>
+      <!-- RIGHT COLUMN: Network List (60%) and Add Hidden Network -->
+      <lv_obj height="100%"
+              flex_grow="6" scrollable="false" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+              style_flex_main_place="start" style_flex_cross_place="start">
+        <!-- State-driven styling: automatically dims to 50% opacity when disabled -->
+        <ui_card name="network_list_container"
+                 width="100%" flex_grow="1" flex_flow="column" scrollable="true" scroll_elastic="false"
+                 style_clip_corner="true" style_flex_main_place="start" style_flex_cross_place="start">
+          <!-- Reactive state binding: set disabled state when wifi_enabled == 0 -->
+          <bind_state_if_eq subject="wifi_enabled" state="disabled" ref_value="0"/>
+          <!-- Also disable when hardware unavailable -->
+          <bind_state_if_eq subject="wifi_hardware_available" state="disabled" ref_value="0"/>
+          <!-- Title -->
+          <text_heading width="100%" text="Available Networks" style_pad_bottom="#space_sm"/>
+          <!-- Scanning indicator (shown when wifi_scanning == 1) -->
+          <text_body name="network_list_scanning" width="100%" text="Scanning for networks..." style_text_align="center">
+            <!-- Show only when scanning (hide when wifi_scanning == 0) -->
+            <bind_flag_if_eq subject="wifi_scanning" flag="hidden" ref_value="0"/>
+          </text_body>
+          <!-- Placeholder shown when WiFi is disabled (wifi_enabled == 0) -->
+          <text_body name="network_list_placeholder"
+                     width="100%" text="Enable WiFi to scan for networks" style_text_align="center">
+            <!-- Show placeholder only when WiFi is disabled (hidden when enabled) -->
+            <bind_flag_if_eq subject="wifi_enabled" flag="hidden" ref_value="1"/>
+          </text_body>
+          <!-- Network list populated dynamically from C++ -->
+        </ui_card>
+        <!-- A network that does not broadcast its name never appears in the list -->
+        <ui_button name="add_hidden_btn" width="100%" height="content" icon="wifi" text="Add Hidden Network">
+          <bind_state_if cond="wifi_enabled eq 0 or wifi_hardware_available eq 0" state="disabled"/>
+          <event_cb trigger="clicked" callback="on_wizard_wifi_add_hidden"/>
+        </ui_button>
+      </lv_obj>
     </lv_obj>
     <!-- Password modal now created on-demand via modal system -->
   </view>

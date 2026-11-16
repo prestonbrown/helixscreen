@@ -58,7 +58,7 @@ TEST_CASE_METHOD(MockPlrFixture, "Mock PLR: the plugin reports the plr feature a
     Reply status = call(client, "server.helix.status");
     REQUIRE(status.result);
     const json& plr = status.result->at("features").at("plr");
-    CHECK(plr.at("version") == helix::kPlrFeatureMinVersion);
+    CHECK(plr.at("version") == helix::kPlrUnlistedTierMinVersion);
     CHECK(plr.at("enabled") == true);
 
     Reply plr_status = call(client, helix::kPlrStatusRpc);

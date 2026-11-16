@@ -20,16 +20,16 @@
  */
 
 #include "ui_panel_print_status.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "core/update_queue.h"
 #include "printer_state.h"
 
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -77,7 +77,7 @@ struct PrintStatusThumbFixture : public LVGLTestFixture {
     void report_filename(const std::string& filename) {
         nlohmann::json status = {{"print_stats", {{"filename", filename}}}};
         state_.update_from_status(status);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     PrinterState state_;

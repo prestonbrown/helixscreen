@@ -11,19 +11,22 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_multiace.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "multiace_status.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <filesystem>
@@ -77,13 +80,11 @@ const std::vector<std::string> kU1Objects{"filament_detect", "extruder",   "extr
                                           "extruder2",       "extruder3",  "print_task_config",
                                           "toolhead",        "toolchanger"};
 
-class CapturingMultiAce : public AmsBackendMultiAce {
+class CapturingMultiAce : public helix::test::StartedBackend<AmsBackendMultiAce> {
   public:
-    explicit CapturingMultiAce(IMoonrakerAPI* api = nullptr,
-                               helix::IMoonrakerClient* client = nullptr)
-        : AmsBackendMultiAce(api, client) {
-        running_.store(true);
-    }
+    CapturingMultiAce() = default;
+    explicit CapturingMultiAce(IMoonrakerAPI* api)
+        : helix::test::StartedBackend<AmsBackendMultiAce>(api) {}
 
     std::vector<std::string> sent;
 
@@ -105,7 +106,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
     void answer_ok() {
         REQUIRE(last_ok);
         last_ok();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
     void answer_error(const std::string& message) {
         REQUIRE(last_error);
@@ -113,7 +114,7 @@ class CapturingMultiAce : public AmsBackendMultiAce {
         err.type = MoonrakerErrorType::JSON_RPC_ERROR;
         err.message = message;
         last_error(err);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     helix::SharedCallback<void()> last_ok;
@@ -134,45 +135,23 @@ class CapturingMultiAce : public AmsBackendMultiAce {
     }
 
     void frame(const json& status) {
-        SnapmakerTestAccess::handle_status(*this, status);
+        fire_status(status);
     }
 };
 
 struct MultiAceFixture : public HelixTestFixture {
     ~MultiAceFixture() override {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
 
-/// The real on_started(), where the backend acquires its loaded override
-/// store. As in test_ams_override_store_lifecycle.cpp: start() is final on
-/// AmsSubscriptionBackend and drags in subscription setup a store round-trip
-/// has no use for.
+/// The real on_started(), where the backend opens its lane record store.
+/// start() is final on AmsSubscriptionBackend and drags in subscription setup
+/// a store round-trip has no use for.
 class StoreBackedMultiAce : public CapturingMultiAce {
   public:
-    explicit StoreBackedMultiAce(IMoonrakerAPI* api) : CapturingMultiAce(api, nullptr) {}
+    explicit StoreBackedMultiAce(IMoonrakerAPI* api) : CapturingMultiAce(api) {}
     using AmsBackendMultiAce::on_started;
-};
-
-/// Per-test read-cache sandbox, so a neighbouring test's stored records are
-/// not reachable from this one (the cache file serves every backend in the
-/// process). Same idiom as test_ams_override_store_lifecycle.cpp.
-struct MultiAceOverrideCacheDir {
-    std::filesystem::path path;
-    std::filesystem::path previous;
-    explicit MultiAceOverrideCacheDir(const std::string& suffix) {
-        previous = helix::ams::detail::slot_override_cache_dir_ref();
-        path = std::filesystem::temp_directory_path() /
-               ("multiace_override_" + suffix + "_" + std::to_string(::getpid()));
-        std::filesystem::remove_all(path);
-        std::filesystem::create_directories(path);
-        helix::ams::detail::slot_override_cache_dir_ref() = path;
-    }
-    ~MultiAceOverrideCacheDir() {
-        helix::ams::detail::slot_override_cache_dir_ref() = previous;
-        std::error_code ec;
-        std::filesystem::remove_all(path, ec);
-    }
 };
 
 /// A live print state for the gates that read it.
@@ -187,6 +166,37 @@ struct MultiAcePrintFixture : public LVGLTestFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(MultiAcePrintFixture,
+                 "the mock U1 feeder takes Auto loading and loads nothing with it off",
+                 "[multiace][auto_load]") {
+    auto backend = AmsBackend::create(AmsType::SNAPMAKER, api.get(), &client, nullptr);
+    REQUIRE(backend->start().success());
+    const auto row_value = [&](int head) {
+        const auto actions = backend->get_device_actions();
+        const std::string id = "snapmaker_auto_load_t" + std::to_string(head);
+        auto it =
+            std::find_if(actions.begin(), actions.end(), [&](const auto& a) { return a.id == id; });
+        REQUIRE(it != actions.end());
+        return std::any_cast<bool>(it->current_value);
+    };
+
+    // Head 1 is the left module's channel 0 on the stock wiring.
+    client.gcode_script("FEED_AUTO MODULE=left CHANNEL=0 AUTO=0");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == false);
+    CHECK(row_value(0) == true);
+
+    // The firmware answers a load on that head OK and feeds nothing.
+    client.gcode_script("AUTO_FEEDING EXTRUDER=1 LOAD=1");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    REQUIRE(backend->execute_device_action("snapmaker_auto_load_t1", std::any(true)).success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == true);
+    CHECK(backend->slot_op_eligibility(1, /*load=*/true) !=
+          AmsBackend::FilamentOpEligibility::AlreadyLoaded);
+}
 
 // ============================================================================
 // Detection and construction
@@ -205,14 +215,14 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "factory builds MultiAce only for a multi
         auto backend = AmsBackend::create(AmsType::SNAPMAKER, api.get(), &client, hw);
         REQUIRE(backend);
         REQUIRE(backend->get_type() == AmsType::SNAPMAKER);
-        auto& snap = static_cast<AmsBackendSnapmaker&>(*backend);
-        SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
+        REQUIRE(backend->start().success());
+        helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
         return backend->get_system_info().units.size();
     };
     CHECK(units_after_frame(&modded) == 5);
     CHECK(units_after_frame(&plain) == 1);
     CHECK(units_after_frame(nullptr) == 1);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "AmsState builds the multiACE backend from discovery",
@@ -229,10 +239,10 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "AmsState builds the multiACE backend fro
 
     // Only the multiACE variant shows the ACE units.
     auto& snap = static_cast<AmsBackendSnapmaker&>(*ams.get_backend(0));
-    SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
+    helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
     CHECK(snap.get_system_info().units.size() == 5);
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ams.deinit_subjects();
 }
 
@@ -249,8 +259,8 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a 4-ACE rig gives every bay a slot subje
     REQUIRE(ams.backend_count() == 1);
 
     auto& snap = static_cast<AmsBackendSnapmaker&>(*ams.get_backend(0));
-    SnapmakerTestAccess::handle_status(snap, ace_frame("head_mode_4ace.json"));
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::test::fire_status(client, ace_frame("head_mode_4ace.json"));
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     // ACE 4's bays are global slots 16-19, past the old 16-slot ceiling; the
     // fixture fills bay 1 with a red PLA and reports bay 3 empty.
@@ -263,7 +273,7 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a 4-ACE rig gives every bay a slot subje
     CHECK(lv_subject_get_int(ams.get_slot_status_subject(first + 2)) ==
           static_cast<int>(SlotStatus::EMPTY));
 
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ams.deinit_subjects();
 }
 
@@ -578,13 +588,13 @@ TEST_CASE_METHOD(MultiAceFixture, "a refused op leaves a pending bay load standi
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "bay swap refused while paused", "[multiace]") {
-    CapturingMultiAce b(api.get(), &client);
+    CapturingMultiAce b(api.get());
     b.frame(ace_frame("head_mode_4ace.json"));
     helix::test::set_wire_state(state, PrintJobState::PAUSED);
 
     CHECK_FALSE(b.load_filament(multiace::bay_global(0, 1)).success());
     CHECK(b.sent.empty());
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "every head goes through the engine while it is active",
@@ -922,7 +932,7 @@ AmsError resume_head(CapturingMultiAce& b, int head) {
         fired = true;
         captured = err;
     });
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(fired);
     return captured;
 }
@@ -1035,6 +1045,21 @@ TEST_CASE_METHOD(MultiAceFixture, "a stock U1 keeps a PREP sensor on every head"
     CHECK_FALSE(stock.slot_has_prep_sensor(-1));
 }
 
+TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load counts bays and heads as the screen does",
+                 "[multiace][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    CapturingMultiAce b;
+    b.record_errors();
+    b.frame(ace_frame("head_mode_4ace.json"));
+    REQUIRE(b.load_filament(multiace::bay_global(0, 1)).success());
+    b.close_pending_window();
+    b.answer_ok();
+    b.frame(feed_frame(0, "preload_finish"));
+    REQUIRE(b.errors.size() == 1);
+    CHECK(b.errors[0] ==
+          "ACE 1 bay 1 was not loaded: toolhead 0 did not empty in time after its unload");
+}
+
 TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load says so", "[multiace]") {
     CapturingMultiAce b;
     b.record_errors();
@@ -1072,7 +1097,7 @@ TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load says so", "[multiace]") {
 }
 
 TEST_CASE_METHOD(MultiAcePrintFixture, "a pending bay load yields to a print", "[multiace]") {
-    CapturingMultiAce b(api.get(), &client);
+    CapturingMultiAce b(api.get());
     b.record_errors();
     b.frame(ace_frame("head_mode_4ace.json"));
     REQUIRE(b.load_filament(multiace::bay_global(0, 1)).success());
@@ -1084,13 +1109,13 @@ TEST_CASE_METHOD(MultiAcePrintFixture, "a pending bay load yields to a print", "
     }
     SECTION("a print start this screen is preparing, not yet on the wire") {
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "", 0);
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
         REQUIRE(state.print_state().get_print_lifecycle() == PrintState::Preparing);
     }
     b.frame(json{{"ace", {{"head_source", json::object()}}}});
     CHECK(b.sent.size() == 1);
     CHECK(b.errors.size() == 1);
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "a loaded head with no recorded source refuses a bay swap",
@@ -1126,6 +1151,33 @@ TEST_CASE_METHOD(MultiAceFixture, "a routed head's spool lives in its bay", "[mu
     // Without the engine contract there are no bays to be upstream.
     CapturingMultiAce plain;
     CHECK_FALSE(plain.upstream_slot(0).has_value());
+}
+
+TEST_CASE_METHOD(MultiAceFixture, "a head's consumption lands on the bay feeding it",
+                 "[multiace][filament_tracker]") {
+    CapturingMultiAce b;
+    b.frame(ace_frame("head_mode_4ace.json"));
+    const AmsSystemInfo info = b.get_system_info();
+    REQUIRE(info.total_slots == 20);
+
+    // Head 0 is routed from ACE 1 bay 1 and head 2 from ACE 3 bay 4: what
+    // those nozzles extrude comes off the bays' spools.
+    CHECK(b.slot_for_extruder(0) == std::optional<int>{multiace::bay_global(0, 0)});
+    CHECK(b.slot_for_extruder(2) == std::optional<int>{multiace::bay_global(2, 3)});
+    for (int head = 0; head < 4; ++head) {
+        CHECK(b.slot_for_extruder(head) == b.head_source_slot(head, info));
+    }
+    // The U1 has four extruders however many bays the ACEs add.
+    for (int e = 4; e < info.total_slots; ++e) {
+        CHECK_FALSE(b.slot_for_extruder(e).has_value());
+    }
+
+    // Without the engine contract each head feeds itself.
+    CapturingMultiAce plain;
+    for (int head = 0; head < 4; ++head) {
+        CHECK(plain.slot_for_extruder(head) == std::optional<int>{head});
+    }
+    CHECK_FALSE(plain.slot_for_extruder(4).has_value());
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "spool numbering counts a routed bay once", "[multiace]") {
@@ -1280,6 +1332,28 @@ TEST_CASE_METHOD(MultiAceFixture, "a bay edit lands and survives the engine's fr
     CHECK(b.get_slot_info(1).color_rgb != edited.color_rgb);
 }
 
+TEST_CASE_METHOD(MultiAceFixture, "a bay's lane record stands over the engine's table",
+                 "[multiace][ams]") {
+    helix::test::RegisteredBackend<CapturingMultiAce> reg;
+    CapturingMultiAce& b = *reg;
+    b.frame(ace_frame("head_mode_4ace.json"));
+    const int bay = multiace::bay_global(1, 0);
+
+    // The edit's record, read back from Moonraker: no engine command stores a
+    // bay label, so the record is the edit once it is no longer pending.
+    helix::ams::FilamentSlotOverride record;
+    record.material = "PETG";
+    record.brand = "Polymaker";
+    record.color_rgb = 0x1E5AA8;
+    record.color_set = true;
+    helix::test::file_override_as_lane_records(b, bay, record);
+    b.frame(ace_frame("head_mode_4ace.json"));
+
+    CHECK(b.get_slot_info(bay).material == "PETG");
+    CHECK(b.get_slot_info(bay).brand == "Polymaker");
+    CHECK(b.get_slot_info(bay).color_rgb == 0x1E5AA8u);
+}
+
 TEST_CASE_METHOD(MultiAceFixture, "a bay edit clears when a different spool is detected",
                  "[multiace][ams]") {
     helix::test::RegisteredBackend<CapturingMultiAce> reg;
@@ -1344,13 +1418,13 @@ TEST_CASE_METHOD(MultiAceFixture, "bay edits refuse slots the backend does not s
 
 TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yields to the engine",
                  "[multiace][ams]") {
-    MultiAceOverrideCacheDir cache("clear");
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 
     helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
     StoreBackedMultiAce& b = *reg;
     b.on_started();
+    helix::ui::UpdateQueue::instance().drain();
     b.frame(ace_frame("head_mode_4ace.json"));
 
     const int bay = multiace::bay_global(1, 0);
@@ -1394,45 +1468,4 @@ TEST_CASE_METHOD(MultiAceFixture, "clearing a bay spool drops the edit and yield
     const SlotInfo reframed = b.get_slot_info(bay);
     CHECK(reframed.material == "PLA");
     CHECK(reframed.color_rgb == 0xFF0000u);
-}
-
-TEST_CASE_METHOD(MultiAceFixture, "a bay edit survives a restart and outranks the engine's table",
-                 "[multiace][ams][filament_slot_override]") {
-    MultiAceOverrideCacheDir cache("restart");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    // Session 1: the user names the spool in ACE 2 bay 1.
-    {
-        helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
-        StoreBackedMultiAce& b = *reg;
-        b.on_started();
-        b.frame(ace_frame("head_mode_4ace.json"));
-        SlotInfo edit = b.get_slot_info(multiace::bay_global(1, 0));
-        edit.material = "PETG";
-        edit.brand = "Polymaker";
-        edit.color_rgb = 0x1E5AA8;
-        REQUIRE(b.commit_user_edit(multiace::bay_global(1, 0),
-                                   b.get_slot_info(multiace::bay_global(1, 0)), edit)
-                    .success());
-    }
-
-    // Session 2: the store loads, the engine restates its own table, and the
-    // stored edit still wins.
-    {
-        helix::test::RegisteredBackend<StoreBackedMultiAce> reg(&api);
-        StoreBackedMultiAce& b = *reg;
-        b.on_started();
-        b.frame(ace_frame("head_mode_4ace.json"));
-
-        const SlotInfo slot = b.get_slot_info(multiace::bay_global(1, 0));
-        CHECK(slot.material == "PETG");
-        CHECK(slot.brand == "Polymaker");
-        CHECK(slot.color_rgb == 0x1E5AA8u);
-        // A bay nobody edited keeps the engine's word: ACE 1 bay 2 is the
-        // engine's Generic blue PETG, not the edit's Polymaker shade.
-        const SlotInfo untouched = b.get_slot_info(multiace::bay_global(0, 1));
-        CHECK(untouched.brand == "Generic");
-        CHECK(untouched.color_rgb == 0x0000FFu);
-    }
 }

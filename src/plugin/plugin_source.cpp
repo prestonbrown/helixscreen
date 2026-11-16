@@ -5,11 +5,10 @@
 
 #include "plugin_source.h"
 
-#include "ui_update_queue.h"
-
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "json_utils.h"
 #include "plugin_manifest.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

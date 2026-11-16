@@ -6,30 +6,36 @@
  * @brief Pointing the live connection at another printer drops what the last one left.
  */
 
-#include "ui_update_queue.h"
+#include "ui_print_start_controller.h"
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/config_dir_guard.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/sound_manager_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
+#include "ams_backend_afc.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/data_root_resolver.h"
+#include "core/update_queue.h"
 #include "m300_sound_backend.h"
 #include "moonraker_manager.h"
 #include "print_history_manager.h"
 #include "print_start_collector.h"
 #include "print_stop_reason.h"
+#include "printer_discovery.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "sound_manager.h"
 
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -167,7 +173,9 @@ TEST_CASE_METHOD(RetargetFixture, "Connect: every connection gets a print-start 
     CHECK(manager_.print_start_collector() != nullptr);
     CHECK(manager_.print_start_collector() != first);
     CHECK_FALSE(first->is_active());
-    CHECK(collector_taps() == 0);
+    // The new collector listens from connect on, for console lines that announce a
+    // printer-side start; the old one's tap is gone, or there would be two.
+    CHECK(collector_taps() == 1);
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Connect: every connection tracks why its prints stop",
@@ -199,7 +207,7 @@ TEST_CASE_METHOD(RetargetFixture,
     ps.update_from_status(
         nlohmann::json{{"display_status", {{"message", "Your part is finished!"}}},
                        {"heater_bed", {{"temperature", 61.0}, {"target", 60.0}}}});
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(ps.print_state().get_print_job_state() == helix::PrintJobState::COMPLETE);
     REQUIRE(std::string(lv_subject_get_string(ps.print_state().get_display_message_subject())) ==
             "Your part is finished!");
@@ -213,7 +221,7 @@ TEST_CASE_METHOD(RetargetFixture,
     REQUIRE_FALSE(history.get_jobs().empty());
 
     helix::retarget_printer_connection();
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 
     CHECK(ps.print_state().get_print_job_state() == helix::PrintJobState::STANDBY);
     CHECK(
@@ -221,6 +229,23 @@ TEST_CASE_METHOD(RetargetFixture,
     CHECK(lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()) == 0);
     CHECK(history.get_jobs().empty());
     set_print_history_manager(nullptr);
+}
+
+TEST_CASE_METHOD(RetargetFixture, "Retarget: the previous printer's chamber air controls go",
+                 "[multi-printer][retarget][chamber_air]") {
+    auto& ps = get_printer_state();
+    helix::PrinterDiscovery u1;
+    u1.parse_objects(nlohmann::json::array({"purifier", "fm175xx_reader", "tool"}));
+    ps.chamber_air().set_hardware(u1);
+    ps.chamber_air().apply(helix::chamber_air::read_status(
+        u1, nlohmann::json{{"purifier", {{"power_detected", true}, {"mode", 1}}}}));
+    REQUIRE(lv_subject_get_int(ps.chamber_air().available_subject()) == 1);
+
+    helix::retarget_printer_connection();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    CHECK(lv_subject_get_int(ps.chamber_air().available_subject()) == 0);
+    CHECK(lv_subject_get_int(ps.chamber_air().mode_subject()) == -1);
 }
 
 TEST_CASE_METHOD(RetargetFixture, "Retarget: the previous printer's M300 beeper is dropped",
@@ -237,4 +262,53 @@ TEST_CASE_METHOD(RetargetFixture, "Retarget: the previous printer's M300 beeper 
     CHECK((after == nullptr || !after->needs_moonraker_client()));
     sound.shutdown();
     sound.set_moonraker_client(nullptr);
+}
+
+namespace {
+/// An AFC backend that counts the tool-map writes reaching it, in a count that
+/// outlives the backend.
+class TallyAfcBackend : public helix::AmsBackendAfc {
+  public:
+    explicit TallyAfcBackend(std::shared_ptr<int> writes)
+        : AmsBackendAfc(nullptr, nullptr), writes_(std::move(writes)) {}
+    helix::AmsError can_set_tool_mapping(int, int) const override {
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError set_tool_mapping_impl(int, int) override {
+        ++*writes_;
+        return helix::AmsErrorHelper::success();
+    }
+    std::vector<int> get_tool_mapping() const override {
+        return {1, 2};
+    }
+
+  private:
+    std::shared_ptr<int> writes_;
+};
+} // namespace
+
+TEST_CASE_METHOD(RetargetFixture,
+                 "Retarget: a replay waiting on a report never writes to the previous printer",
+                 "[multi-printer][retarget][remap-restart]") {
+    helix::ConfigDirGuard config_dir{"retarget_remap"};
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << R"({"backend_index":0,"backend_type":2,"tool_mapping":[2,1]})";
+    }
+    auto writes = std::make_shared<int>(0);
+    helix::AmsState::instance().set_backend(std::make_unique<TallyAfcBackend>(writes));
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    helix::ui::PrintStartController controller{get_printer_state(), nullptr};
+    controller.recover_pending_remap(helix::ReportedPrintActivity::Unknown);
+
+    // The neutral standby the switch writes is not the previous printer's report;
+    // its backends are gone before that report can restore onto them.
+    helix::retarget_printer_connection();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    CHECK(*writes == 0);
+    helix::AmsState::instance().clear_pending_tool_map_restore();
 }

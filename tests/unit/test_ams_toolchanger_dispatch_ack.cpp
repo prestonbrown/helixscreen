@@ -34,10 +34,9 @@
  * exactly what AmsBackendAfc::finalize_dispatch_after_macro() concluded.
  */
 
-#include "ui_update_queue.h"
-
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 
 #include <algorithm>
 #include <functional>

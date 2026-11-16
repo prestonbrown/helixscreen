@@ -14,14 +14,13 @@
 
 #include "ui_panel_print_select.h"
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/print_select_panel_test_access.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
@@ -29,6 +28,7 @@
 #include "print_start_collector.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -79,7 +79,7 @@ class AnalysisRefreshFixture : public LVGLUITestFixture {
     }
 
     void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(UpdateQueue::instance());
+        UpdateQueue::instance().drain_until_empty();
     }
 
     bool analysis_has(PrintStartOpCategory category) const {
@@ -263,9 +263,9 @@ TEST_CASE_METHOD(AnalysisRefreshFixture,
     scope.moonraker.print_start_collector()->set_macro_analysis(stale);
     REQUIRE_FALSE(scope.expected_order().empty());
 
-    // printer.cfg is listed but every download of it fails.
-    api_.files_mock().set_config_files({{"printer.cfg", print_start_cfg(kMeshMacro)}});
-    api_.transfers_mock().set_config_files({{"other.cfg", ""}});
+    // printer.cfg is listed but every download of it loses the connection.
+    api_.transfers_mock().set_config_file_error("printer.cfg",
+                                                MoonrakerError::connection_lost("download_file"));
     set_connection(ConnectionState::CONNECTED);
     // The retries wait out 1s and 2s timers.
     REQUIRE(advance_until(
@@ -277,4 +277,23 @@ TEST_CASE_METHOD(AnalysisRefreshFixture,
     REQUIRE_FALSE(manager_.get_macro_analysis()->found);
 
     CHECK(scope.expected_order().empty());
+}
+
+TEST_CASE_METHOD(AnalysisRefreshFixture, "an analysis the printer refuses for good is not retried",
+                 "[print_preparation][print_start][2061]") {
+    MoonrakerError unauthorized;
+    unauthorized.type = MoonrakerErrorType::PERMISSION_DENIED;
+    unauthorized.code = 401;
+    unauthorized.message = "HTTP 401: Unauthorized";
+    api_.transfers_mock().set_config_file_error("printer.cfg", unauthorized);
+
+    set_connection(ConnectionState::CONNECTED);
+    settle();
+
+    // A retry would still be waiting out its 1s timer.
+    CHECK_FALSE(manager_.is_macro_analysis_in_progress());
+    REQUIRE(manager_.get_macro_analysis().has_value());
+    CHECK_FALSE(manager_.get_macro_analysis()->found);
+    const auto& asked = api_.transfers_mock().config_downloads();
+    CHECK(std::count(asked.begin(), asked.end(), "printer.cfg") == 1);
 }

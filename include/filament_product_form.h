@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include <string>
+#include "json_fwd.h"
 
-#include "hv/json.hpp"
+#include <string>
 
 namespace helix::ui {
 

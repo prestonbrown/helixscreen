@@ -70,8 +70,7 @@ inline ContentChrome measure_content_chrome(lv_obj_t* root, int reserve_px, int 
             if (branch_gap == BranchGap::Visible) {
                 parts = 0;
                 for (uint32_t i = 0; i < children; ++i) {
-                    if (!lv_obj_has_flag(lv_obj_get_child(o, static_cast<int32_t>(i)),
-                                         LV_OBJ_FLAG_HIDDEN)) {
+                    if (!lv_obj_is_hidden(lv_obj_get_child(o, static_cast<int32_t>(i)))) {
                         ++parts;
                     }
                 }

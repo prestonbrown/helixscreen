@@ -182,7 +182,6 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
         return report;
     }
 
-    // Extract crash data fields
     report.signal = crash_data.value("signal", 0);
     report.signal_name = crash_data.value("signal_name", "UNKNOWN");
     report.app_version = crash_data.value("app_version", "unknown");
@@ -229,7 +228,7 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
         }
     }
 
-    // Register state (Phase 2)
+    // Register state
     if (crash_data.contains("reg_pc"))
         report.reg_pc = crash_data["reg_pc"];
     if (crash_data.contains("reg_sp"))
@@ -256,6 +255,8 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
         report.event_original_target = crash_data["event_original_target"];
     if (crash_data.contains("event_code"))
         report.event_code = crash_data["event_code"];
+    if (crash_data.contains("lvgl_version"))
+        report.lvgl_version = crash_data["lvgl_version"];
 
     // Heap snapshot (cached from main loop)
     auto copy_heap = [&](const char* key, long& dst) {
@@ -493,6 +494,8 @@ nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
         if (!report.event_original_target.empty())
             j["event_original_target"] = report.event_original_target;
         j["event_code"] = report.event_code;
+        if (!report.lvgl_version.empty())
+            j["lvgl_version"] = report.lvgl_version;
     }
 
     // Cached heap snapshot
@@ -791,8 +794,8 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
         }
         body << " (age " << report.heap.age_ms << "ms)\n";
         if (!heap_snapshot_age_is_plausible(report.heap.age_ms, report.uptime_sec)) {
-            // Say so in the issue itself — this figure was chased as a real
-            // signal once already (bundle ED2YC336).
+            // Say so in the issue itself, so nobody chases this figure as a
+            // real signal.
             body << "  - ⚠️ Snapshot age exceeds the process uptime of " << report.uptime_sec
                  << "s, so the heap figures above are not trustworthy. Raw stamps: ts "
                  << report.heap.snapshot_ts_ms << "ms, crash clock " << report.heap.mono_ms_now
@@ -836,7 +839,6 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
         body << "```\n";
     }
 
-    // URL-encode the title and body
     auto url_encode = [](const std::string& str) -> std::string {
         std::ostringstream encoded;
         for (unsigned char c : str) {
@@ -875,7 +877,6 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
 bool CrashReporter::save_to_file(const CrashReport& report) {
     std::string path = report_file_path();
 
-    // Ensure parent directory exists
     std::error_code ec;
     fs::path parent = fs::path(path).parent_path();
     if (!parent.empty()) {

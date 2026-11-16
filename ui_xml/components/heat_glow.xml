@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A heat glow over part of the printer picture: the bed's plate or the chamber's
+     windows. The owner's CalloutPresenter hands it its shape; level_subject is how
+     hot it is (1 warm, 2 hot, 3 very hot) and hidden_when hides it. -->
+<component>
+  <api>
+    <prop name="level_subject" type="subject" default=""/>
+    <prop name="hidden_when" type="string"/>
+    <prop name="color" type="string" default="#warning"/>
+  </api>
+  <view extends="plate_glow" style_image_recolor="$color" style_image_recolor_opa="255">
+    <style name="styles.plate_glow_warm"/>
+    <bind_style_if_eq name="styles.plate_glow_hot" subject="$level_subject" ref_value="2"/>
+    <bind_style_if_eq name="styles.plate_glow_very_hot" subject="$level_subject" ref_value="3"/>
+    <bind_flag_if cond="$hidden_when" flag="hidden"/>
+  </view>
+</component>

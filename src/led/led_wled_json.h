@@ -11,7 +11,7 @@
  * the unit tests that pin the unwrap behaviour.
  */
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline readers of the json
 
 namespace helix::led::detail {
 

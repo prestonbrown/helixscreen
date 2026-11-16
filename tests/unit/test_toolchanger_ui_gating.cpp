@@ -10,7 +10,6 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_batch_filament_modal.h"
 #include "ui_modal.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/registered_backend.h"
@@ -18,11 +17,13 @@
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
-#include "static_panel_registry.h"
 #include "toolchanger_addon.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -178,4 +179,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The Unload picker reads a fed docked hot en
     CHECK(row_text(dialog, "1").find("ABS - ready to load") != std::string::npos);
     Modal::hide(dialog);
     process_lvgl(200);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "The Load picker offers All where every head fits one run",
+                 "[ams][batch][toolchanger]") {
+    AmsState::instance().init_subjects(true);
+    test::RegisteredBackend<FedChanger> tc(4);
+    (*tc).feed_status("ready", 0);
+    ui::UpdateQueue::instance().drain();
+
+    // Mount picks one head, so it never offers All.
+    for (auto [op, offers_all] :
+         {std::pair{ui::HeadPickOp::Load, true}, std::pair{ui::HeadPickOp::Mount, false}}) {
+        REQUIRE(ui::BatchFilamentModal::show_owned(op, [](const std::vector<ui::HeadPickRow>&) {}));
+        lv_obj_t* dialog = Modal::get_top();
+        REQUIRE(dialog != nullptr);
+        CHECK((lv_obj_find_by_name(dialog, "item_all") != nullptr) == offers_all);
+        Modal::hide(dialog);
+        process_lvgl(200);
+    }
 }

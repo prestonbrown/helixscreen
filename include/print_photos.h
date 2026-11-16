@@ -11,14 +11,13 @@
 // PrintPhotosController (taking them) and HistoryPhotoViewer (showing them).
 
 #include "helix_plugin_features.h"
+#include "json_fwd.h"
 #include "print_history_data.h"
 
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

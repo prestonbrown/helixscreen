@@ -374,8 +374,8 @@ TEST_CASE_METHOD(PortraitSpanFixture, "Portrait saved-position pass clamps an ov
 }
 
 // The other side of the branch: a widget that genuinely cannot fit even at its
-// declared minimum IS still disabled. Without this the fix would just never
-// disable anything and the "grid full" path would rot untested.
+// declared minimum IS still disabled. Without this, a placement that never
+// disables anything would pass and the "grid full" path would rot untested.
 TEST_CASE_METHOD(PortraitSpanFixture, "Portrait still disables a widget that cannot fit at minimum",
                  "[panel_widget][manager][regression][1216]") {
     // A minimum wider than the whole grid — unplaceable at any span. Derived

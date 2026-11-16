@@ -5,8 +5,8 @@
  * @file moonraker_advanced_api.h
  * @brief Advanced panel operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate bed mesh, input shaper, PID calibration,
- * machine limits, and macro execution in a dedicated class. Uses MoonrakerClient for
+ * Encapsulates bed mesh, input shaper, PID calibration, machine limits, and macro
+ * execution in a class separate from MoonrakerAPI. Uses MoonrakerClient for
  * JSON-RPC transport and MoonrakerAPI for G-code execution.
  */
 
@@ -89,7 +89,8 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
 
     /// Callback for heater control type query (returns "pid", "mpc", etc.)
-    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback =
+        helix::SharedCallback<void(const std::string& control_type, bool names_cooling_fan)>;
 
     /// Callback for PID calibration progress (sample number, tolerance value; -1.0 = n/a)
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
@@ -99,8 +100,7 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
 
     /// Result struct for MPC calibration.
     /// Lives on IAdvancedAPI (start_mpc_calibrate is declared there); aliased
-    /// here so existing qualified references (MoonrakerAdvancedAPI::MPCResult)
-    /// keep resolving.
+    /// here so qualified references (MoonrakerAdvancedAPI::MPCResult) resolve.
     using MPCResult = IAdvancedAPI::MPCResult;
 
     /// Callback for MPC calibration result

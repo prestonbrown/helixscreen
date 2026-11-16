@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
+#include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_state.h"
@@ -236,8 +238,8 @@ class EmergencyStopOverlay {
     bool require_confirmation_ = false;
 
     // Dialog widget references (created on-demand)
-    lv_obj_t* confirmation_dialog_ = nullptr;
-    lv_obj_t* recovery_dialog_ = nullptr;
+    helix::ui::WidgetRef confirmation_dialog_;
+    helix::ui::WidgetRef recovery_dialog_;
 
     // Restart operation tracking - prevents recovery dialog during expected
     // SHUTDOWN. Deadline (lv_tick_get() ms) past which the restart stops
@@ -260,12 +262,6 @@ class EmergencyStopOverlay {
     // Klippy reported STARTUP since the restart window opened, so a SHUTDOWN or
     // ERROR now is where the restart landed, not the stop on its way down.
     std::atomic<bool> restart_saw_startup_{false};
-
-    // Skip the first klippy_state observer fire — it carries the subject's
-    // default (SHUTDOWN) before Moonraker has reported real state. A real
-    // shutdown at startup is delivered separately via the
-    // MoonrakerEventType::KLIPPY_SHUTDOWN event in MoonrakerManager.
-    bool klippy_state_initial_seen_ = false;
 
     // Recovery dialog state
     RecoveryReason recovery_reason_ = RecoveryReason::NONE;
@@ -305,20 +301,19 @@ class EmergencyStopOverlay {
     int recovery_recheck_retries_ = 0;
 
     // Visibility subject (1=visible, 0=hidden) - drives XML bindings
-    lv_subject_t estop_visible_{};
+    helix::Subject estop_visible_{};
 
     // Recovery dialog subjects (drive XML bindings in klipper_recovery_dialog.xml)
-    lv_subject_t recovery_title_subject_{};
+    helix::Subject recovery_title_subject_{};
     char recovery_title_buf_[64]{};
-    lv_subject_t recovery_message_subject_{};
+    helix::Subject recovery_message_subject_{};
     char recovery_message_buf_[512]{};
-    lv_subject_t recovery_can_restart_{}; // 1=show restart buttons, 0=hide (disconnected)
     // Klipper error code split out of a JSON state_message (e.g. "key1"). Rendered
     // dim in the dialog header; recovery_has_code_ drives its visibility, since
     // bind_flag_if_eq compares ints and cannot test a string for emptiness.
-    lv_subject_t recovery_code_subject_{};
+    helix::Subject recovery_code_subject_{};
     char recovery_code_buf_[64]{};
-    lv_subject_t recovery_has_code_{}; // 1=code present, 0=none (hides the label)
+    helix::Subject recovery_has_code_{}; // 1=code present, 0=none (hides the label)
 
     bool subjects_initialized_ = false;
 
@@ -329,6 +324,7 @@ class EmergencyStopOverlay {
     ObserverGuard print_state_observer_;
     ObserverGuard klippy_state_observer_;
     ObserverGuard klippy_message_observer_;
+    ObserverGuard wizard_observer_;
 
     // Event handlers
     void handle_click();
@@ -382,10 +378,20 @@ class EmergencyStopOverlay {
     bool show_recovery_for_main(RecoveryReason reason);
     void dismiss_recovery_dialog();
     void update_recovery_dialog_content();
+
+    /// Show the recovery dialog for a SHUTDOWN or ERROR Klippy has already
+    /// reported. For the moments a fault went unshown with no edge left to
+    /// carry it, such as the setup wizard closing over a faulted printer.
+    void surface_reported_klippy_fault();
     /// While a restart is in flight, toast that one is and return true, so the
     /// caller sends nothing. Main thread only.
     bool refuse_restart_in_flight();
     void restart_klipper();
+    /// True, after toasting why, when a Moonraker restart cannot be sent now:
+    /// no connection to carry it, a job holding the machine, or a Klipper
+    /// restart still in flight. Main thread only.
+    bool refuse_moonraker_restart();
+    void restart_moonraker();
 
   public:
     /// Restart Klipper firmware: the platform-correct sequence (a plain
@@ -408,6 +414,7 @@ class EmergencyStopOverlay {
     static void advanced_estop_clicked(lv_event_t* e);
     static void advanced_restart_klipper_clicked(lv_event_t* e);
     static void advanced_firmware_restart_clicked(lv_event_t* e);
+    static void advanced_restart_moonraker_clicked(lv_event_t* e);
     static void home_firmware_restart_clicked(lv_event_t* e);
 };
 
@@ -440,10 +447,12 @@ constexpr uint32_t kExpectedRestartDisconnectModalMs = 15000;
  *
  * @param message UNTRANSLATED source string; translated on the main thread
  *                when the toast is shown. Taken by value because that happens
- *                on a later tick - the previous const char* form kept only the
- *                pointer, which outlived any caller-owned buffer.
+ *                on a later tick.
+ * @param api The API the restarting command goes through, so the window is
+ *            armed on the connection that is about to drop. Null arms only the
+ *            recovery dialog's window.
  */
-void begin_expected_klippy_restart(std::string message);
+void begin_expected_klippy_restart(std::string message, IMoonrakerAPI* api);
 
 } // namespace ui
 } // namespace helix

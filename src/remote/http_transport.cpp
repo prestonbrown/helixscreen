@@ -3,8 +3,8 @@
 
 #include "http_transport.h"
 
+#include "core/text_io.h"
 #include "remote_control_server.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 

@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "json_fwd.h"
 #include "printer_event_journal.h"
 
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class IMoonrakerClient;

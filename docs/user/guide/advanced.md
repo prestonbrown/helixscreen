@@ -65,6 +65,21 @@ Turn a filter **off** if you want to see that output — for example, turn off "
 
 ---
 
+## Cold Pull
+
+A cold pull cleans a partly clogged nozzle. You melt filament into the nozzle, let it cool until it is firm, then pull it out by hand so the burnt residue comes out with it. **Cold Pull** in the Tools section walks you through it, and so does the **Cold Pull** button on the "Nozzle clog detected" alert.
+
+1. **Choose the material.** PLA, Nylon or cleaning filament. Each has a soak temperature (how hot the nozzle gets) and a pull temperature (when you pull). Adjust either in 5 °C steps; your change is remembered for that material. Do not cold pull a coated nozzle.
+2. **Get the toolhead ready.** The screen can park the head if the printer is homed and has a park macro. Unload the current filament first, unless your filament system has a lane loaded in the head, in which case that filament is used.
+3. **Heat and feed.** Push filament into the extruder until it stops, then tap **Extrude** until clean filament comes out. On a badly clogged nozzle nothing may come out; tap **Done** anyway.
+4. **Cool.** The heater drops to the pull temperature and the part fan runs at full speed. Do not touch the filament yet.
+5. **Pull.** When the screen says so, release the extruder tension and pull the filament out in one firm motion.
+6. **Inspect the tip.** A clean pull is a cone with no dark specks. If the tip stretched thin, pull a little colder next time; if it snapped, a little warmer. Tap **Repeat** for another pass or **Done** to finish.
+
+The cold pull runs on the active tool. It will not start while a print is running or paused, while another filament operation is heating the nozzle, or while the printer is not ready; the screen tells you which. **Cancel** works on every step, and any way you leave turns the heater off and puts the fan back where it was.
+
+---
+
 ## Macro Execution
 
 ![Macro Panel](../../images/user/advanced-macros.png)
@@ -98,11 +113,13 @@ If HelixScreen can't determine the parameters (e.g., complex Jinja2 templates), 
 If you type the same values every time, save them once:
 
 1. Open the editor: in the Macros panel, press-and-hold to enter edit mode and tap the **tune icon** on the macro's row — or, on a home panel Macro Button, open **Customize → Options → Default Parameters**
-2. Fill in the values you want remembered
+2. Fill in the values you want remembered. For a macro whose parameters HelixScreen can't determine, type them into the single text field as `KEY=VALUE` pairs separated by spaces (for example `PURGE=1 LENGTH=50`); text that isn't in that form is refused with a warning
 3. Leave **Ask for parameters** on, or switch it off
 4. Tap **Save**
 
 With **Ask for parameters** on (the default), tapping the macro still opens the form — but every field starts filled with your saved values, so you can adjust one and run. With it off, the macro runs immediately using the saved values, with no form at all.
+
+The editor is offered for any macro that takes parameters, including commands added by Klipper plugins (AFC, Happy Hare and similar) that only accept the free-form text. Macros that take no parameters have nothing to save, so they don't show it.
 
 > **Note:** The dangerous-macro confirmation is never skipped by saved defaults, and a Macro Button with "Require Confirmation?" off runs with the saved values directly. Saved defaults are kept per printer, like your hidden-macro choices.
 
@@ -226,6 +243,12 @@ When the HelixPrint plugin is installed, **Advanced > HelixPrint Plugin** shows 
 
 ---
 
+## Restarting Moonraker
+
+The bar at the bottom of the Advanced panel has a **Restart Moonraker** button next to **Restart Klipper** and **Firmware Restart**. Use it when Moonraker is misbehaving, for example when files, history or Spoolman stop updating. HelixScreen asks you to confirm, then reconnects by itself once Moonraker is back, usually within a few seconds. The button is refused while a print is running or paused, and while a Klipper restart is still under way.
+
+---
+
 ## Print History
 
 ![Print History](../../images/user/advanced-history.png)
@@ -279,8 +302,9 @@ Record timelapse videos of your prints automatically using the [moonraker-timela
 If the timelapse plugin is not installed, HelixScreen detects this and offers a guided **Install Wizard**:
 
 1. Navigate to **Advanced > Timelapse Setup**
-2. Follow the on-screen instructions to install the plugin via SSH
+2. When HelixScreen runs on the same computer as Moonraker, it downloads and links the plugin itself, with no SSH needed. When Moonraker runs on another machine, or HelixScreen cannot tell yet, the screen shows the commands to run over SSH, and you tap **Check Again** afterwards
 3. HelixScreen will configure your `moonraker.conf` automatically
+   Videos need `ffmpeg` on the printer. If it is missing, the screen tells you the command to install it, and recording still works without it.
 4. After installation, the setup row is replaced by timelapse settings and video browser
 
 ### Settings

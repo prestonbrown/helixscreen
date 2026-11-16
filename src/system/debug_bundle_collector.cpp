@@ -2,20 +2,20 @@
 
 #include "system/debug_bundle_collector.h"
 
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/http_executor.h"
+#include "core/log_redact.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_regex.h"
 #include "helix_version.h"
 #include "host_identity.h"
-#include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_config_includes.h"
-#include "log_redact.h"
 #include "logging_init.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
@@ -31,7 +31,6 @@
 #include "system/moonraker_local_probe.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
-#include "text_io.h"
 #include "touch_calibration_wrapper.h"
 #include "utils/network_validation.h"
 #include "wifi_link_monitor.h"
@@ -131,7 +130,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // Sanitized like klipper_log/moonraker_log below. This is defence in depth,
     // not the primary control: it catches MACs, tokens and emails, but an SSID
     // is an arbitrary string no regex can recognise, so SSIDs are kept out of
-    // the ring at the log call site instead (see include/log_redact.h).
+    // the ring at the log call site instead (see include/core/log_redact.h).
     try {
         auto log_tail = collect_log_tail();
         if (!log_tail.empty()) {
@@ -144,6 +143,13 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // Link telemetry only (frequency, RSSI, quality, retry counters): no SSID,
     // BSSID or MAC may enter this section.
     bundle["network"] = helix::WifiLinkMonitor::instance().to_json();
+
+    if (!options.ui_perf_json.empty()) {
+        json ui_perf = json::parse(options.ui_perf_json, nullptr, false);
+        if (!ui_perf.is_discarded()) {
+            bundle["ui_perf"] = std::move(ui_perf);
+        }
+    }
 
     // log_meta records the active sink target, the persistent level, and whether
     // the log_tail came from the live ring buffer or the on-disk cascade — so a
@@ -189,7 +195,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
             bundle["crash_history"] = sanitize_json(crash_history);
         }
 
-        auto device_id = collect_device_id(config_dir);
+        auto device_id = collect_device_id(TelemetryManager::instance().get_device_id_path());
         if (!device_id.empty()) {
             bundle["device_id"] = device_id;
         }
@@ -591,6 +597,7 @@ PrinterSnapshot DebugBundleCollector::snapshot_printer_state() {
             snap.connection_state = lv_subject_get_int(conn_subj);
         if (auto* klippy_subj = ps.network_state().get_klippy_state_subject())
             snap.klippy_state = lv_subject_get_int(klippy_subj);
+        snap.klippy_state_reported = ps.network_state().klippy_state_reported();
 
         // Discovery is read here with the subjects, on the main thread, so the
         // worker never races a re-discovery reassigning it.
@@ -660,7 +667,9 @@ json DebugBundleCollector::collect_printer_info(const PrinterSnapshot& snap) {
 
         // Klippy state
         const char* klippy_names[] = {"ready", "startup", "shutdown", "error"};
-        if (snap.klippy_state >= 0 && snap.klippy_state < 4) {
+        if (!snap.klippy_state_reported) {
+            printer["klippy_state"] = "unreported";
+        } else if (snap.klippy_state >= 0 && snap.klippy_state < 4) {
             printer["klippy_state"] = klippy_names[snap.klippy_state];
         }
     } catch (const std::exception& e) {
@@ -854,7 +863,7 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // Moonraker" needs, whereas a routable IPv6 is an ISP-allocated prefix
         // plus a stable interface ID and identifies a household. Runs last so
         // the MAC pass has already claimed six-group colon-hex strings. Shares
-        // its implementation with the log call sites (include/log_redact.h).
+        // its implementation with the log call sites (include/core/log_redact.h).
         result = helix::redact::ips_in_text(result);
 
         return result;
@@ -2069,14 +2078,37 @@ std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_
         return {};
     }
 
-    std::string body = collect_log_tail_from_paths(paths, num_lines);
+    helix::logs::TailSource source;
+    std::string body = helix::logs::tail_file(paths, num_lines, &source);
     if (body.empty())
         return {};
     spdlog::info("[DebugBundle] Read {} from local disk ({} candidate path(s))", log_name,
                  paths.size());
     // Defaults, as at the HTTP call site: the second parameter is stats_context,
     // not a line count.
-    return condense_max_repeats > 0 ? condense_klipper_log(body, condense_max_repeats) : body;
+    if (condense_max_repeats > 0)
+        body = condense_klipper_log(body, condense_max_repeats);
+    return local_log_source_line(source.path, source.modified, std::time(nullptr)) + "\n" + body;
+}
+
+std::string DebugBundleCollector::local_log_source_line(const std::string& path,
+                                                        std::time_t modified, std::time_t now) {
+    std::tm utc{};
+    gmtime_r(&modified, &utc);
+    char when[32];
+    std::strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    const long long age = static_cast<long long>(now) - static_cast<long long>(modified);
+    std::string age_text;
+    if (age < 0) {
+        age_text = "after this bundle's clock";
+    } else if (age < 3600) {
+        age_text = fmt::format("{} min before this bundle", age / 60);
+    } else if (age < 172800) {
+        age_text = fmt::format("{} h before this bundle", age / 3600);
+    } else {
+        age_text = fmt::format("{} days before this bundle", age / 86400);
+    }
+    return fmt::format("[read from local disk: {}, last written {} ({})]", path, when, age_text);
 }
 
 std::string DebugBundleCollector::pick_rotated_sibling(const std::vector<LogFileEntry>& listing,
@@ -2342,8 +2374,7 @@ json DebugBundleCollector::collect_crash_history(const std::string& config_dir) 
 // Device ID (double-hashed for R2 cross-referencing)
 // =============================================================================
 
-std::string DebugBundleCollector::collect_device_id(const std::string& config_dir) {
-    std::string path = config_dir + "/telemetry_device.json";
+std::string DebugBundleCollector::collect_device_id(const std::string& path) {
     try {
         std::ifstream file(path);
         if (!file.good()) {
@@ -2426,10 +2457,19 @@ DebugBundleCollector::CollectFn& collect_override() {
     static DebugBundleCollector::CollectFn fn;
     return fn;
 }
+
+DebugBundleCollector::UiPerfProvider& ui_perf_provider() {
+    static DebugBundleCollector::UiPerfProvider fn;
+    return fn;
+}
 } // namespace
 
 void DebugBundleCollector::set_collect_override_for_test(CollectFn fn) {
     collect_override() = std::move(fn);
+}
+
+void DebugBundleCollector::set_ui_perf_provider(UiPerfProvider provider) {
+    ui_perf_provider() = std::move(provider);
 }
 
 void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCallback callback) {
@@ -2453,6 +2493,9 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
     // slow lane, where touching either is a data race (see PrinterSnapshot).
     BundleOptions opts = options;
     opts.printer = snapshot_printer_state();
+    if (const auto& provider = ui_perf_provider()) {
+        opts.ui_perf_json = provider();
+    }
 
     // Resolve the worker URL on the submitting thread, with the rest of the
     // caller-thread state: the slow lane can execute after the caller's

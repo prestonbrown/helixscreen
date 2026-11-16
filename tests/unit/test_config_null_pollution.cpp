@@ -256,21 +256,6 @@ TEST_CASE_METHOD(ConfigPollutionFixture,
 }
 
 TEST_CASE_METHOD(ConfigPollutionFixture,
-                 "Config #1129: clear_external_spool_info creates no filament null node",
-                 "[config][settings][pollution]") {
-    write_and_init(clean_config());
-
-    // Probes /filament then save()s unconditionally — get_json() here left a
-    // permanent "filament": null behind on every call.
-    SettingsManager::instance().clear_external_spool_info();
-
-    json saved = read_saved();
-    INFO("saved config: " << saved.dump(2));
-    REQUIRE_FALSE(saved["printers"]["voronv2"].contains("filament"));
-    REQUIRE(null_leaves(saved).empty());
-}
-
-TEST_CASE_METHOD(ConfigPollutionFixture,
                  "Config #1129: try_get_json and get<T> never create missing nodes",
                  "[config][pollution]") {
     write_and_init(clean_config());

@@ -11,6 +11,7 @@
 // deferred-discovery must be suppressed before the connection-failed check.
 
 #include "moonraker_event_routing.h"
+#include "moonraker_events.h"
 
 #include <string>
 
@@ -35,6 +36,14 @@ TEST_CASE("Recovery events route to the unified dialog", "[moonraker][routing][1
 
     d = decide_moonraker_event(MoonrakerEventType::KLIPPY_SHUTDOWN, kIsError, kNoWizard);
     REQUIRE(d.route == MoonrakerEventRoute::RecoveryShutdown);
+}
+
+// Klippy that never comes up sends no notify_klippy_* transition, so the client
+// raises this itself when its settle window runs out; it must reach the same dialog.
+TEST_CASE("A Klippy that never came up routes to the recovery dialog", "[moonraker][routing]") {
+    const MoonrakerEvent evt = helix::moonraker_event::klippy_never_ready();
+    const auto d = decide_moonraker_event(evt.type, evt.is_error, kNoWizard);
+    CHECK(d.route == MoonrakerEventRoute::RecoveryDisconnected);
 }
 
 TEST_CASE("Recovery events survive the wizard", "[moonraker][routing][1219]") {
@@ -231,4 +240,30 @@ TEST_CASE("Routes that need no title report none", "[moonraker][routing][1219]")
                                  d.route == MoonrakerEventRoute::ConnectionFailedModal;
         REQUIRE(needs_title == (d.title_tag != nullptr));
     }
+}
+
+TEST_CASE("A refused login gets its own prompt, a toast over a modal, nothing in the wizard",
+          "[moonraker][routing][api-key]") {
+    auto d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kNoWizard);
+    CHECK(d.route == MoonrakerEventRoute::LoginRefusedPrompt);
+    REQUIRE(d.title_tag != nullptr);
+    CHECK(std::string(d.title_tag) == "Login Required");
+
+    d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kNoWizard, kModalUp);
+    CHECK(d.route == MoonrakerEventRoute::LoginRefusedToast);
+
+    // The wizard's connection test says it beside the key field.
+    d = decide_moonraker_event(MoonrakerEventType::LOGIN_REFUSED, kIsError, kWizardUp);
+    CHECK(d.route == MoonrakerEventRoute::Ignore);
+    CHECK(d.suppressed_because == MoonrakerEventSuppression::Wizard);
+}
+
+TEST_CASE("A refused login says whether a key is missing or was rejected",
+          "[moonraker][routing][api-key]") {
+    const std::string missing = helix::login_refused_message(false);
+    const std::string rejected = helix::login_refused_message(true);
+    CHECK(missing.find("requires a login") != std::string::npos);
+    CHECK(rejected.find("rejected its API key") != std::string::npos);
+    CHECK(missing.find("Settings > Connection") != std::string::npos);
+    CHECK(rejected.find("Settings > Connection") != std::string::npos);
 }

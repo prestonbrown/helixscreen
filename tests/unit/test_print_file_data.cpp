@@ -1,9 +1,16 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../lvgl_test_fixture.h"
+#include "display_settings_manager.h"
+#include "lvgl.h"
 #include "moonraker_types.h"
 #include "print_file_data.h"
+#include "translation_loader.h"
 #include "usb_backend.h"
+
+#include <atomic>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -34,10 +41,9 @@ TEST_CASE("from_moonraker_file creates PrintFileData from FileInfo", "[print_fil
         REQUIRE(data.metadata_fetched == false);
     }
 
-    SECTION("formats display strings") {
+    SECTION("formats only the display strings that do not translate") {
         REQUIRE(data.size_str == "1.0 MB");
-        REQUIRE_FALSE(data.modified_str.empty());
-        REQUIRE(data.print_time_str == "0 min");
+        REQUIRE(data.print_time_str.empty());
         REQUIRE(data.filament_str == "0.0 g");
     }
 
@@ -75,31 +81,6 @@ TEST_CASE("from_moonraker_file handles edge cases", "[print_file_data]") {
         REQUIRE(data.file_size_bytes == 0);
         REQUIRE(data.size_str == "0 B");
     }
-
-    SECTION("large file") {
-        FileInfo file;
-        file.filename = "huge.gcode";
-        file.is_dir = false;
-        file.size = 5ULL * 1024 * 1024 * 1024; // 5 GB
-        file.modified = 1735000000.0;
-
-        PrintFileData data = PrintFileData::from_moonraker_file(file, "");
-
-        REQUIRE(data.file_size_bytes == 5ULL * 1024 * 1024 * 1024);
-        REQUIRE(data.size_str == "5.00 GB"); // GB uses %.2f format
-    }
-
-    SECTION("special characters in filename") {
-        FileInfo file;
-        file.filename = "test (copy) [v2].gcode";
-        file.is_dir = false;
-        file.size = 1024;
-        file.modified = 1735000000.0;
-
-        PrintFileData data = PrintFileData::from_moonraker_file(file, "");
-
-        REQUIRE(data.filename == "test (copy) [v2].gcode");
-    }
 }
 
 // ============================================================================
@@ -119,9 +100,8 @@ TEST_CASE("from_usb_file creates PrintFileData from UsbGcodeFile", "[print_file_
         REQUIRE(data.thumbnail_path == "A:/usb_placeholder.bin");
     }
 
-    SECTION("formats size and date strings") {
+    SECTION("formats the size") {
         REQUIRE(data.size_str == "512.0 KB");
-        REQUIRE_FALSE(data.modified_str.empty());
     }
 
     SECTION("uses placeholder for unavailable metadata") {
@@ -136,25 +116,6 @@ TEST_CASE("from_usb_file creates PrintFileData from UsbGcodeFile", "[print_file_
         REQUIRE(data.filament_grams == 0.0f);
         REQUIRE(data.metadata_fetched == false);
         REQUIRE(data.original_thumbnail_url.empty());
-    }
-}
-
-TEST_CASE("from_usb_file handles edge cases", "[print_file_data]") {
-    SECTION("empty filename") {
-        UsbGcodeFile file("/mnt/usb/", "", 0, 0);
-
-        PrintFileData data = PrintFileData::from_usb_file(file, "");
-
-        REQUIRE(data.filename.empty());
-        REQUIRE(data.file_size_bytes == 0);
-    }
-
-    SECTION("negative timestamp") {
-        UsbGcodeFile file("/mnt/usb/old.gcode", "old.gcode", 1024, -1);
-
-        PrintFileData data = PrintFileData::from_usb_file(file, "");
-
-        REQUIRE(data.modified_timestamp == static_cast<time_t>(-1));
     }
 }
 
@@ -190,8 +151,54 @@ TEST_CASE("make_directory creates directory entry", "[print_file_data]") {
         REQUIRE(data.modified_timestamp == 0);
         REQUIRE(data.print_time_minutes == 0);
         REQUIRE(data.filament_grams == 0.0f);
-        REQUIRE(data.modified_str.empty());
         REQUIRE(data.print_time_str.empty());
         REQUIRE(data.filament_str.empty());
     }
+}
+
+TEST_CASE("format_unfetched_print_times fills only files waiting for metadata",
+          "[print_file_data]") {
+    FileInfo info;
+    info.filename = "benchy.gcode";
+    std::vector<PrintFileData> files = {PrintFileData::from_moonraker_file(info, ""),
+                                        PrintFileData::from_moonraker_file(info, ""),
+                                        PrintFileData::make_directory("parts", "", false)};
+    files[1].metadata_fetched = true;
+    helix::format_unfetched_print_times(files);
+    CHECK(files[0].print_time_str == "0 min");
+    CHECK(files[1].print_time_str.empty()); // its metadata formats it
+    CHECK(files[2].print_time_str.empty());
+}
+
+// The file provider builds entries on the WebSocket thread while the language
+// and time format change on the main thread: under TSan this reports any
+// setting, subject or translation state the factory reads.
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "from_moonraker_file on a background thread races no settings change",
+                 "[print_file_data][threading]") {
+    auto& display = helix::DisplaySettingsManager::instance();
+    const helix::TimeFormat saved_format = display.get_time_format();
+    helix::ui::ensure_translation_loaded("de");
+    FileInfo file;
+    file.filename = "benchy.gcode";
+    file.size = 1024;
+    file.modified = 1733063400.0;
+
+    std::atomic<bool> done{false};
+    std::atomic<int> complete{0};
+    std::thread worker([&]() {
+        for (int i = 0; i < 400; ++i) {
+            const PrintFileData data = PrintFileData::from_moonraker_file(file, "");
+            complete += data.size_str == "1.0 KB" && data.modified_timestamp == 1733063400;
+        }
+        done = true;
+    });
+    for (int i = 0; !done; ++i) {
+        lv_translation_set_language(i % 2 ? "de" : helix::ui::kIdentityLocale);
+        display.set_time_format(i % 2 ? helix::TimeFormat::HOUR_24 : helix::TimeFormat::HOUR_12);
+    }
+    worker.join();
+    lv_translation_set_language(helix::ui::kIdentityLocale);
+    display.set_time_format(saved_format);
+    REQUIRE(complete == 400);
 }

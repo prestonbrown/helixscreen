@@ -88,8 +88,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     MoonrakerClient(const MoonrakerClient&) = delete;
     MoonrakerClient& operator=(const MoonrakerClient&) = delete;
 
-    // GcodeStoreEntry is defined in moonraker_types.h
-    // Kept as a type alias for backward compatibility
+    // GcodeStoreEntry is defined in moonraker_types.h; the alias lets callers
+    // name it as MoonrakerClient::GcodeStoreEntry
     using GcodeStoreEntry = ::GcodeStoreEntry;
 
     // ========== Connection Lifecycle ==========
@@ -155,7 +155,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      *
      * Disabling calls setReconnect(nullptr), stopping libhv's background
      * retry loop. Re-enabling re-installs the same reconn_setting_t that
-     * connect() builds (shared via install_reconnect_settings()) so behavior
+     * connect() builds (shared via apply_reconnect_settings()) so behavior
      * matches a fresh connect() call. Transient by design: the next
      * connect() unconditionally re-installs reconnect settings regardless of
      * this flag. Used by connection-test flows (setup wizard, change-host
@@ -390,7 +390,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
 
     /**
      * @brief Get discovered hardware data
-     * @return Reference to PrinterDiscovery containing all discovered hardware
+     * @return A snapshot of the discovered hardware, copied under the discovery lock
      */
     [[nodiscard]] helix::PrinterDiscovery hardware() const override {
         return discovery_.hardware();
@@ -418,9 +418,6 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
         discovery_.reset_identified();
     }
 
-    /**
-     * @brief Get current connection state
-     */
     ConnectionState get_connection_state() const override {
         return connection_state_;
     }
@@ -670,6 +667,17 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     void emit_event(const MoonrakerEvent& evt);
 
     /**
+     * @brief Poll printer.info until Klippy's state settles, starting now
+     *
+     * For discovery finding Klippy in startup or error: with the gate closed no
+     * subscription carries webhooks.state, and Moonraker never announces a failed
+     * start, so without this a printer faulted at connect reads as the SHUTDOWN
+     * placeholder with no reason. The first request goes out immediately rather
+     * than on the next health tick. Any thread.
+     */
+    void poll_klippy_state_until_settled();
+
+    /**
      * @brief Dispatch printer status to all registered notify callbacks
      *
      * Wraps raw status data (e.g., from subscription response) into a
@@ -708,8 +716,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     // The inherited libhv std::function callbacks (onopen/onmessage/onclose) are
     // installed exactly ONCE via install_ws_callbacks() and never reassigned per
     // connect(). Reassigning them while the libhv event-loop thread is mid-invoke
-    // frees the std::function's heap storage under the running lambda → UAF (bundle
-    // UK9QCFY3). The trampolines forward to these real bodies, which read per-connect
+    // frees the std::function's heap storage under the running lambda → UAF.
+    // The trampolines forward to these real bodies, which read per-connect
     // state from last_url_/last_on_connected_/last_on_disconnected_ instead of captures.
     void on_ws_open();
     void on_ws_message(const std::string& msg);
@@ -760,8 +768,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * phase — Moonraker silently drops the malformed bytes and the request
      * stalls indefinitely (#909).
      *
-     * Virtual so MoonrakerClientMock can return true unconditionally without
-     * having to drive connection_state_ through tests.
+     * Virtual as a subclass seam. MoonrakerClientMock does not override it: it
+     * overrides the send_jsonrpc() overloads that consult it.
      *
      * @param method RPC method name (used for diagnostic logging only)
      * @return true if it is safe to issue a send right now
@@ -883,7 +891,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     std::atomic<ConnectFailureKind> last_connect_failure_{ConnectFailureKind::Unknown};
     uint32_t initial_connect_failure_ms_{60000};
 
-    /// Klippy's state is polled from printer.info after notify_klippy_disconnected,
+    /// Klippy's state is polled from printer.info after notify_klippy_disconnected
+    /// (and from poll_klippy_state_until_settled() when discovery finds it down),
     /// because Moonraker announces a successful start (notify_klippy_ready) but never
     /// a failed one: without the poll a startup error reads as SHUTDOWN forever. The
     /// health timer drives it; it ends on a ready/shutdown/error answer, on

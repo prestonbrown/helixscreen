@@ -4,29 +4,45 @@
 <component>
   <!-- One row of the Filament Mapping modal: [expected_swatch (hosting Tx)]
        [material] [→] [trigger: chosen_swatch | slot_text | warn | chevron].
-       Colors, label texts, visibility of optional children, and the
-       row-level click handler live in C++; everything visual (sizes, fonts,
-       padding, borders, radii) lives here so it can be tuned without
-       rebuilding. -->
+       The row's shape comes in as props when C++ creates it; C++ sets its
+       three texts (a tool name, material or lane label may begin with '#',
+       which a prop would read as a constant) and paints its swatches. In auto-color mode (filament_mapping_auto) every
+       row dims, drops its chevron and stops taking taps. -->
+  <api>
+    <!-- "1" on a multi-tool file: the Tx label shows on the expected swatch -->
+    <prop name="tool_shown" type="string" default="0"/>
+    <!-- "1" when the file names this tool's material -->
+    <prop name="material_shown" type="string" default="0"/>
+    <!-- What the mapped slot shows: none (Auto/Unmapped), filled, or empty -->
+    <prop name="chosen" type="string" default="none"/>
+    <!-- "1" on a material mismatch or a mapping to an empty slot -->
+    <prop name="warn" type="string" default="0"/>
+  </api>
+  <styles>
+    <style name="row_auto" opa="50%"/>
+  </styles>
   <view name="tool_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_hor="#space_md" style_pad_ver="#space_sm" style_pad_gap="#space_md" style_radius="#space_sm"
         style_bg_color="#elevated_bg" style_bg_opa="255" scrollable="false" clickable="true">
     <style name="styles.press_wash" selector="pressed"/>
+    <bind_style name="row_auto" subject="filament_mapping_auto" ref_value="1"/>
+    <bind_flag_if_eq subject="filament_mapping_auto" flag="clickable" ref_value="0"/>
+    <event_cb trigger="clicked" callback="filament_mapping_row_cb"/>
     <!-- Expected (gcode) colour: a labelled chip, so a rounded rect. For
          multi-tool files the Tx label is centered on it (mirrors the
          print-details pill). -->
     <swatch_paint name="expected_swatch"
                   width="#space_2xl" height="#space_2xl" style_radius="#border_radius_small" color="#text_muted">
       <lv_label name="tool_label"
-                text="" align="center" hidden="true" style_text_font="#font_body" style_text_color="#text"
-                clickable="false" event_bubble="true"/>
+                text="" align="center" hidden_if_prop_not_eq="$tool_shown|1" style_text_font="#font_body"
+                style_text_color="#text" clickable="false" event_bubble="true"/>
     </swatch_paint>
     <!-- File-declared material ("PLA", "PETG" …). Hidden when the file has
          no material metadata. -->
     <lv_label name="material_label"
-              text="" hidden="true" style_text_font="#font_body" style_text_color="#text_muted" clickable="false"
-              event_bubble="true"/>
+              text="" hidden_if_prop_not_eq="$material_shown|1" style_text_font="#font_body"
+              style_text_color="#text_muted" clickable="false" event_bubble="true"/>
     <!-- Gcode → chosen slot arrow. -->
     <lv_label name="arrow"
               text="#icon_arrow_right" style_text_font="mdi_icons_24" style_text_color="#text_muted" clickable="false"
@@ -37,19 +53,24 @@
             style_pad_ver="#space_sm" style_pad_gap="#space_sm" style_radius="#space_sm" style_bg_color="#card_bg"
             style_bg_opa="255" style_border_width="1" style_border_color="#text_muted" style_border_opa="30"
             scrollable="false" clickable="false" event_bubble="true">
-      <!-- Currently-mapped slot colour (hidden for Auto/Unmapped). -->
-      <color_dot name="chosen_swatch" size="#space_2xl" hidden="true"/>
+      <!-- Currently-mapped slot colour -->
+      <color_dot name="chosen_swatch" size="#space_2xl" hidden_if_prop_not_eq="$chosen|filled"/>
+      <!-- A mapping to an empty slot: no colour, a warning ring -->
+      <color_dot name="chosen_swatch_empty"
+                 size="#space_2xl" hidden_if_prop_not_eq="$chosen|empty" style_border_width="2"
+                 style_border_color="#warning" style_border_opa="255"/>
       <!-- Display text ("Auto", "Unmapped", or the formatted slot label). -->
       <text_body name="slot_text" flex_grow="1" text="" long_mode="dots" clickable="false" event_bubble="true"/>
-      <!-- Material mismatch / empty-slot warning, shown by C++ when either
-           applies. -->
+      <!-- Material mismatch / empty-slot warning. -->
       <lv_label name="trigger_warn"
-                hidden="true" text="#icon_triangle_exclamation" style_text_font="mdi_icons_16"
+                hidden_if_prop_not_eq="$warn|1" text="#icon_triangle_exclamation" style_text_font="mdi_icons_16"
                 style_text_color="#warning" clickable="false" event_bubble="true"/>
       <!-- Chevron cues the tappable dropdown; hidden in auto-color mode. -->
       <lv_label name="trigger_chevron"
-                hidden="true" text="#icon_chevron_down" style_text_font="mdi_icons_16" style_text_color="#text_muted"
-                clickable="false" event_bubble="true"/>
+                text="#icon_chevron_down" style_text_font="mdi_icons_16" style_text_color="#text_muted"
+                clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="filament_mapping_auto" flag="hidden" ref_value="1"/>
+      </lv_label>
     </lv_obj>
   </view>
 </component>

@@ -20,9 +20,10 @@
 
 #pragma once
 
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
-#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
 #include <chrono>
@@ -57,6 +58,9 @@ class AboutSettingsOverlay : public OverlayBase {
     }
     const char* xml_component() const override {
         return "about_settings_overlay";
+    }
+    bool destroy_on_close() const override {
+        return true;
     }
 
     void on_activate() override;
@@ -100,22 +104,26 @@ class AboutSettingsOverlay : public OverlayBase {
 
     lv_obj_t* marquee_content_ = nullptr;
 
+    void on_ui_destroyed() override {
+        marquee_content_ = nullptr;
+    }
+
     //
     // === Reactive Subjects ===
     //
 
     SubjectManager subjects_;
 
-    lv_subject_t version_value_subject_{};
-    lv_subject_t about_version_description_subject_{};
-    lv_subject_t printer_value_subject_{};
-    lv_subject_t print_hours_value_subject_{};
-    lv_subject_t install_root_value_subject_{};
-    lv_subject_t config_dir_value_subject_{};
-    lv_subject_t cache_dir_value_subject_{};
-    lv_subject_t log_dest_value_subject_{};
-    lv_subject_t host_arch_value_subject_{};
-    lv_subject_t about_copyright_subject_{};
+    helix::Subject version_value_subject_{};
+    helix::Subject about_version_description_subject_{};
+    helix::Subject printer_value_subject_{};
+    helix::Subject print_hours_value_subject_{};
+    helix::Subject install_root_value_subject_{};
+    helix::Subject config_dir_value_subject_{};
+    helix::Subject cache_dir_value_subject_{};
+    helix::Subject log_dest_value_subject_{};
+    helix::Subject host_arch_value_subject_{};
+    helix::Subject about_copyright_subject_{};
 
     // Static buffers for string subjects
     char version_value_buf_[32];

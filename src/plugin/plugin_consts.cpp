@@ -4,7 +4,7 @@
 
 #include "plugin_consts.h"
 
-#include "../ui/theme_manager_internal.h"
+#include "../ui/theme/theme_manager_internal.h"
 #include "display_metrics.h"
 #include "helix-xml/src/libs/expat/expat.h"
 #include "helix-xml/src/xml/lv_xml.h"

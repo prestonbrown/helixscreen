@@ -24,8 +24,6 @@
  * get_status(), so configfile is the only place they appear at all.
  */
 
-#include "ui_update_queue.h"
-
 #include "../../include/accel_sensor_manager.h"
 #include "../../include/belt_tension_types.h"
 #include "../../include/moonraker_advanced_api.h"
@@ -35,6 +33,7 @@
 #include "../../include/printer_state.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/mock_kinematics_env.h"
+#include "core/update_queue.h"
 
 #include <memory>
 #include <string>

@@ -45,8 +45,10 @@ bool axis_is_homed(const PrinterState& ps, Axis axis) {
     return std::string(axes).find(c) != std::string::npos;
 }
 
-void ensure_homed_then(IMoonrakerAPI* api, AsyncLifetimeGuard& guard, std::function<void()> then,
-                       std::function<void(const MoonrakerError&)> on_error, HomingPolicy policy) {
+void ensure_homed_then(IMoonrakerAPI* api, AsyncLifetimeGuard& guard,
+                       helix::SharedCallback<void()> then,
+                       helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                       HomingPolicy policy) {
     if (policy == HomingPolicy::IfNeeded && toolhead_is_homed(get_printer_state())) {
         spdlog::debug("[ensure_homed_then] Already homed, proceeding");
         if (then) {

@@ -11,7 +11,7 @@
     { "pattern": "Z_TILT_ADJUST|z.?tilt.?adjust", "phase": "Z_TILT", "message": "Z Tilt Adjust...", "weight": 12 },
     { "pattern": "G29|BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|bed.?mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 12 },
     { "pattern": "M109|M104\\s+S[1-9]|Heating (nozzle|hotend|extruder)", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 18 },
-    { "pattern": "M141\\s+S[1-9]|M191|chamber.*heat|heating.*chamber", "phase": "HEATING_BED", "message": "Heating Chamber...", "weight": 10 },
+    { "pattern": "M141\\s+S[1-9]|M191|chamber.*heat|heating.*chamber", "phase": "HEATING_CHAMBER", "message": "Heating Chamber...", "weight": 10 },
     { "pattern": "ENABLE_ALL_SENSOR|enable.?all.?sensor|save_last_file", "phase": "PURGING", "message": "Preparing to Print...", "weight": 5 }
   ]
 }

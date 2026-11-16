@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <pthread.h>
 #include <sched.h>
 #include <string>
@@ -120,6 +121,25 @@ bool PWMSoundBackend::resolve_channel(const std::string& setting, const char* en
                      setting);
     }
     return false;
+}
+
+std::shared_ptr<PWMSoundBackend> PWMSoundBackend::open_named_channel(const std::string& setting,
+                                                                     const char* env,
+                                                                     const std::string& base_path) {
+    int chip = -1;
+    int channel = -1;
+    if (!resolve_channel(setting, env, chip, channel)) {
+        return nullptr;
+    }
+    auto pwm = std::make_shared<PWMSoundBackend>(base_path, chip, channel);
+    pwm->set_auto_export(true);
+    pwm->set_klippy_shares_channel(false);
+    if (!pwm->initialize()) {
+        spdlog::warn("[PWMSoundBackend] Named buzzer {} unavailable, falling back",
+                     pwm->channel_path());
+        return nullptr;
+    }
+    return pwm;
 }
 
 void PWMSoundBackend::silence_signal_safe() {

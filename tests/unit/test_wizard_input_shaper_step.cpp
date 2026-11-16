@@ -14,6 +14,7 @@
 
 #include "ui_wizard_input_shaper.h"
 
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../ui_test_utils.h"
@@ -26,6 +27,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -40,7 +42,10 @@ static lv_subject_t* get_subject_by_name(const char* name) {
 // Test Fixture
 // ============================================================================
 
-class WizardInputShaperStepTestFixture {
+// create() registers the wizard component on first use; it has to register
+// against the theme, or its breakpoint subject_expr is dropped for the rest
+// of the process.
+class WizardInputShaperStepTestFixture : public LVGLUITestFixture {
   public:
     ScopedRuntimeConfig scoped_config_;
 
@@ -49,22 +54,6 @@ class WizardInputShaperStepTestFixture {
         // the global back when the fixture dies rather than leaving it set
         // (#1287).
         get_runtime_config()->test_mode = true;
-
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                    });
-            display_created_ = true;
-        }
 
         // Initialize PrinterState subjects for testing
         PrinterStateTestAccess::reset(state());
@@ -100,17 +89,13 @@ class WizardInputShaperStepTestFixture {
         state().set_hardware(hardware);
 
         // Drain async queue to apply subject updates
-        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain();
     }
 
   private:
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* WizardInputShaperStepTestFixture::display_ = nullptr;
-bool WizardInputShaperStepTestFixture::display_created_ = false;
 
 // ============================================================================
 // should_skip() Tests
@@ -666,7 +651,7 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - erro
         REQUIRE(status != nullptr);
 
         // Simulate error message update
-        lv_subject_copy_string(status, "Accelerometer not responding");
+        lv_subject_set_string(status, "Accelerometer not responding");
 
         const char* msg = lv_subject_get_string(status);
         REQUIRE(std::string(msg) == "Accelerometer not responding");
@@ -693,7 +678,7 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - erro
         std::string long_error(200, 'E');
 
         // Should not crash - LVGL truncates safely
-        lv_subject_copy_string(status, long_error.c_str());
+        lv_subject_set_string(status, long_error.c_str());
 
         // Verify it was truncated (not full length)
         const char* msg = lv_subject_get_string(status);
@@ -797,7 +782,6 @@ TEST_CASE_METHOD(WizardInputShaperStepTestFixture, "WizardInputShaperStep - asyn
 
 #include "ui_frequency_response_chart.h"
 
-#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/sweep_preview_fakes.h"
 #include "../test_helpers/wizard_input_shaper_step_test_access.h"
 #include "moonraker_api_mock.h"
@@ -818,7 +802,7 @@ class WizardPreviewFixture : public LVGLUITestFixture {
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
         get_printer_state().set_klippy_state_sync(KlippyState::READY);
-        lv_subject_copy_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(get_printer_state().motion_state().get_homed_axes_subject(), "xyz");
         if (reachable) {
             api_ = std::make_unique<MoonrakerAPIMock>(client_, get_printer_state());
         } else {

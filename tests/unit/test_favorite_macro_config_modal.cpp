@@ -7,11 +7,12 @@
 //                 include/moonraker_api.h and include/theme_manager.h.
 #include "ui_modal.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "favorite_macro_config_modal.h"
 #include "favorite_macro_widget.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -20,7 +21,6 @@
 #include "macro_param_modal.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
-#include "static_subject_registry.h"
 
 #include <map>
 #include <memory>
@@ -47,13 +47,13 @@ TEST_CASE_METHOD(XMLTestFixture, "favorite_macro_config_modal instantiates + tab
 
     lv_subject_set_int(tab, 0);
     lv_obj_update_layout(dlg);
-    REQUIRE_FALSE(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(sec_macro));
+    REQUIRE(lv_obj_is_hidden(sec_options));
 
     lv_subject_set_int(tab, 2);
     lv_obj_update_layout(dlg);
-    REQUIRE(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(sec_macro));
+    REQUIRE_FALSE(lv_obj_is_hidden(sec_options));
 
     lv_obj_delete(dlg);
 }
@@ -152,6 +152,53 @@ TEST_CASE_METHOD(FavoriteMacroRunFixture,
     CHECK_FALSE(widget_script_sent_containing(mock_client, "MY_MACRO TEMP"));
 }
 
+TEST_CASE_METHOD(FavoriteMacroRunFixture,
+                 "favorite macro widget with confirmation off sends an UNKNOWN macro's saved text",
+                 "[macro][favorite_config][wiring]") {
+    // Registered with Klipper, absent from configfile: its parameters are unknown.
+    helix::MacroParamCache::instance().populate_from_configfile(nlohmann::json::object(),
+                                                                {"MY_MACRO"});
+    REQUIRE(helix::MacroParamCache::instance().get("MY_MACRO").knowledge ==
+            helix::MacroParamKnowledge::UNKNOWN);
+
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"PURGE", "1"}};
+    record.ask_for_params = false;
+    helix::MacroParamDefaults::instance().set("MY_MACRO", record);
+
+    attach_widget(/*require_confirmation=*/false);
+    widget.handle_clicked();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(widget_script_sent_containing(mock_client, "MY_MACRO PURGE=1"));
+    helix::MacroParamDefaults::instance().clear("MY_MACRO");
+}
+
+TEST_CASE_METHOD(FavoriteMacroRunFixture,
+                 "favorite macro widget asking for an UNKNOWN macro prefills the free-form text",
+                 "[macro][favorite_config][wiring]") {
+    helix::MacroParamCache::instance().populate_from_configfile(nlohmann::json::object(),
+                                                                {"MY_MACRO"});
+
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"PURGE", "1"}};
+    helix::MacroParamDefaults::instance().set("MY_MACRO", record);
+
+    attach_widget(/*require_confirmation=*/true);
+    widget.handle_clicked();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(widget_script_sent_containing(mock_client, "MY_MACRO"));
+    lv_obj_t* prompt = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
+    REQUIRE(prompt != nullptr);
+    lv_obj_t* field = lv_obj_find_by_name(prompt, "field_input");
+    REQUIRE(field != nullptr);
+    CHECK(std::string(lv_textarea_get_text(field)) == "PURGE=1");
+    lv_obj_send_event(lv_obj_find_by_name(prompt, "btn_close"), LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    helix::MacroParamDefaults::instance().clear("MY_MACRO");
+}
+
 // =============================================================================
 // Options tab: the "Default Parameters" entry and its editor
 // =============================================================================
@@ -173,9 +220,11 @@ class ConfigModalDefaultsFixture : public XMLTestFixture {
 
     /// populate_from_configfile() clears the cache on every call, so every
     /// macro the case needs goes in through ONE call.
-    static void cache_macros(std::initializer_list<std::pair<const char*, const char*>> macros) {
+    /// @p unknown names are registered with Klipper but absent from configfile.
+    static void cache_macros(std::initializer_list<std::pair<const char*, const char*>> macros,
+                             std::initializer_list<const char*> unknown = {}) {
         nlohmann::json cfg;
-        std::vector<std::string> names;
+        std::vector<std::string> names(unknown.begin(), unknown.end());
         for (const auto& [name, gcode] : macros) {
             cfg[std::string("gcode_macro ") + name]["gcode"] = gcode;
             names.emplace_back(name);
@@ -218,9 +267,10 @@ class ConfigModalDefaultsFixture : public XMLTestFixture {
 } // namespace
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture,
-                 "Options shows Default Parameters only for macros with known params",
+                 "Options shows Default Parameters only for macros that take parameters",
                  "[macro][favorite_config][defaults]") {
-    cache_macros({{"MY_MACRO", "G1 E{params.TEMP|default(10)}"}, {"PLAIN_MACRO", "G28"}});
+    cache_macros({{"MY_MACRO", "G1 E{params.TEMP|default(10)}"}, {"PLAIN_MACRO", "G28"}},
+                 {"PY_LOAD"});
 
     // The visibility bind lives on the wrapper (a hidden flex child drops out of
     // layout); the row itself never carries the flag.
@@ -228,7 +278,7 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     lv_obj_t* wrap = lv_obj_find_by_name(with_params.dialog(), "default_params_wrap");
     REQUIRE(wrap != nullptr);
     REQUIRE(lv_obj_find_by_name(with_params.dialog(), "row_default_params") != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(wrap, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wrap));
 
     with_params.hide();
     helix::ui::UpdateQueue::instance().drain();
@@ -236,7 +286,44 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     auto& without_params = show_config_for("PLAIN_MACRO");
     lv_obj_t* plain_wrap = lv_obj_find_by_name(without_params.dialog(), "default_params_wrap");
     REQUIRE(plain_wrap != nullptr);
-    CHECK(lv_obj_has_flag(plain_wrap, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(plain_wrap));
+
+    without_params.hide();
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto& unknown_params = show_config_for("PY_LOAD");
+    lv_obj_t* unknown_wrap = lv_obj_find_by_name(unknown_params.dialog(), "default_params_wrap");
+    REQUIRE(unknown_wrap != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(unknown_wrap));
+}
+
+TEST_CASE_METHOD(ConfigModalDefaultsFixture,
+                 "Default Parameters for an UNKNOWN macro saves its free-form text",
+                 "[macro][favorite_config][defaults]") {
+    cache_macros({}, {"PY_LOAD"});
+
+    show_config_for("PY_LOAD");
+    lv_obj_send_event(lv_obj_find_by_name(modal_->dialog(), "row_default_params"), LV_EVENT_CLICKED,
+                      nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
+    REQUIRE(editor != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(editor, "modal_title_save")));
+    lv_obj_t* field = lv_obj_find_by_name(editor, "field_input");
+    REQUIRE(field != nullptr);
+    lv_textarea_set_text(field, "purge=1");
+
+    lv_obj_send_event(
+        lv_obj_find_by_name(lv_obj_find_by_name(editor, "save_button_row"), "btn_primary"),
+        LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const helix::MacroParamDefaultRecord saved =
+        helix::MacroParamDefaults::instance().get("PY_LOAD");
+    CHECK(saved.values == std::map<std::string, std::string>{{"PURGE", "1"}});
+    CHECK(saved.ask_for_params);
+    helix::MacroParamDefaults::instance().clear("PY_LOAD");
 }
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture,
@@ -250,13 +337,13 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     helix::MacroParamDefaults::instance().set("MY_MACRO", existing);
 
     show_config_for("MY_MACRO");
-    helix::FavoriteMacroConfigModal::defaults_cb(nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(modal_->dialog(), "row_default_params"), LV_EVENT_CLICKED,
+                      nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
     REQUIRE(editor != nullptr);
-    REQUIRE_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(editor, "modal_title_save"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(editor, "modal_title_save")));
     lv_obj_t* field = lv_obj_find_by_name(editor, "field_input");
     REQUIRE(field != nullptr);
     REQUIRE(std::string(lv_textarea_get_text(field)) == "200");
@@ -267,7 +354,9 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     lv_obj_remove_state(ask, LV_STATE_CHECKED);
     lv_obj_send_event(ask, LV_EVENT_VALUE_CHANGED, nullptr);
 
-    helix::MacroParamModal::save_cb(nullptr);
+    lv_obj_send_event(
+        lv_obj_find_by_name(lv_obj_find_by_name(editor, "save_button_row"), "btn_primary"),
+        LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
     const helix::MacroParamDefaultRecord saved =
@@ -335,8 +424,8 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
 
     lv_subject_set_int(tab, 2);
     lv_obj_update_layout(modal.dialog());
-    CHECK(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(sec_macro));
+    CHECK_FALSE(lv_obj_is_hidden(sec_options));
 }
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture, "a tap on a macro row selects and saves that macro",

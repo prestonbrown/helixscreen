@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "filament_catalog.h"
 
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "helix_fs.h"
 #include "json_utils.h"
+#include "spoolman_types.h"
 #include "system/helix_paths.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -57,9 +58,9 @@ int get_int(const nlohmann::json& j, const char* key, int def) {
 /// uses find + is_number: config/user_filaments.json is hand-editable, and
 /// nlohmann's .value() throws type_error.302 on a key that is PRESENT with a
 /// null value (a missing key is fine). This function is the single resolution
-/// point for every catalog load path, so one `"brand": null` used to unwind out
-/// of FilamentCatalog::load_full() and take the whole catalog with it — a
-/// per-field default keeps the cost to that field.
+/// point for every catalog load path, so a throw here on one `"brand": null`
+/// would unwind out of FilamentCatalog::load_full() and take the whole catalog
+/// with it — a per-field default keeps the cost to that field.
 EffectiveFilament to_effective(const nlohmann::json& p) {
     EffectiveFilament e;
     e.id = helix::json_util::safe_string(p, "id");
@@ -302,9 +303,11 @@ FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
         if (!orca.empty())
             ++carriers[orca];
 
+    // An id no Orca preset can match on the Moonraker path (a Bambu GF code, a
+    // display name) is no id at all: lane_data must not carry it (RFC 0001 §5).
     std::unordered_map<std::string, std::string> out;
     for (auto& [id, orca] : by_product)
-        if (!id.empty() && !orca.empty() && carriers[orca] == 1)
+        if (!id.empty() && carriers[orca] == 1 && is_usable_orca_filament_id(orca))
             out.emplace(id, std::move(orca));
     return out;
 }

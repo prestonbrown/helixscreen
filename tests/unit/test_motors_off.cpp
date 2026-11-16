@@ -13,12 +13,12 @@
  * shows up as a missing or spurious script in the client's history.
  */
 
+#include "ui_modal.h"
 #include "ui_motors_off.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 
@@ -45,7 +45,7 @@ class MotorsOffFixture : public LVGLUITestFixture {
     }
 
     static void settle() {
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     static void press(lv_obj_t* dialog, const char* name) {
@@ -71,7 +71,7 @@ class MotorsOffFixture : public LVGLUITestFixture {
 } // namespace
 
 TEST_CASE_METHOD(MotorsOffFixture, "motors off confirm sends M84", "[controls][motors]") {
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 
@@ -85,7 +85,7 @@ TEST_CASE_METHOD(MotorsOffFixture, "motors off confirm sends M84", "[controls][m
 }
 
 TEST_CASE_METHOD(MotorsOffFixture, "motors off cancel moves nothing", "[controls][motors]") {
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 
@@ -102,7 +102,7 @@ TEST_CASE_METHOD(MotorsOffFixture, "motors off refuses a confirm made after a pr
     ps.update_from_status({{"print_stats", {{"state", "standby"}}}});
     settle();
 
-    helix::ui::ModalGuard guard;
+    helix::ui::WidgetRef guard;
     helix::ui::show_motors_off_confirm(&api, guard);
     REQUIRE(guard.get() != nullptr);
 

@@ -28,15 +28,15 @@
 
 #include "ui_filament_mapping_card.h"
 #include "ui_swatch.h"
-#include "ui_update_queue.h"
 
 #include "../mapping_card_render_fixture.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/mock_bypass.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "filament_chip_model.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "settings_manager.h"
@@ -258,7 +258,7 @@ void load_lane(helix::AmsBackendMock* mock, int index, uint32_t rgb, const char*
     auto slot = mock->get_slot_info(index);
     slot.color_rgb = rgb;
     slot.material = material;
-    mock->sync_external_identity(index, slot);
+    helix::test::apply_edit(*mock, index, slot);
 }
 
 // One explicit mapping per tool (-1: none), so what a chip shows is a pure
@@ -339,15 +339,15 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     CHECK(lv_color_eq(border_of(warn), theme_manager_get_color("warning")));
     CHECK(lv_color_eq(border_of(block), theme_manager_get_color("danger")));
     // No lane: the empty-spool icon stands in, and no word sits in the body.
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_slot"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_pick")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_slot")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_pick")));
     lv_obj_t* const warn_slot = lv_obj_find_by_name(warn, "chip_slot");
     REQUIRE(warn_slot != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(warn_slot, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(warn_slot));
     CHECK(std::string(lv_label_get_text(warn_slot)) == "2");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_spool")));
 
     process_lvgl(100);
 }
@@ -366,8 +366,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An empty slot outlines its chip red"
     CHECK(chip_string(1, "_slot") == "2");
     lv_obj_t* const empty = chip(1);
     REQUIRE(empty != nullptr);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_empty_ring"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_empty_ring")));
 
     process_lvgl(100);
 }
@@ -430,11 +430,10 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     REQUIRE(chip_count() == 2);
     CHECK(chip_int(0, "_file_color_known") == 0);
     CHECK(chip_int(0, "_ink") == 0);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip(0), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(chip(0), "chip_header_fill")));
     CHECK(chip_int(1, "_file_color_known") == 1);
     CHECK(chip_int(1, "_ink") != 0);
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(chip(1), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(chip(1), "chip_header_fill")));
 
     process_lvgl(100);
 }
@@ -446,7 +445,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip's spool paints the slot's s
     slot.multi_color_hexes = "#FF0000,#00FF00,#0000FF";
     slot.material = "PLA";
     slot.product_name = "Silk Rainbow";
-    mock->sync_external_identity(0, slot);
+    helix::test::apply_edit(*mock, 0, slot);
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PLA"});
     card.set_mappings(mappings_to_slots({0, 1}));
     REQUIRE(chip_count() == 2);
@@ -483,11 +482,11 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An unmapped chip carries no word in 
     struct RestoreEnglish {
         ~RestoreEnglish() {
             helix::SystemSettingsManager::instance().set_language("en");
-            helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     } restore;
     helix::SystemSettingsManager::instance().set_language("de");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Pick")) != "Pick");
     CHECK(chip_string(1, "_slot").empty());
     CHECK(chip_int(1, "_slot_state") == 0);
@@ -533,7 +532,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip(2) == nullptr);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(pill));
     CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(pill, "count_label"))) == "+4");
 
     process_lvgl(100);
@@ -547,7 +546,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A palette that fits draws no overflo
     CHECK(chip_count() == 3);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(pill));
 
     process_lvgl(100);
 }
@@ -948,7 +947,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Picking Auto shows the lane the tool
     CHECK(chip_string(1, "_slot") == "2");
     CHECK(chip_int(1, "_slot_state") == 1);
     // The print-start gate judges the same lane and lets it print.
-    CHECK_FALSE(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
+    CHECK_FALSE(
+        helix::file_preflight(card.get_tool_info(), card.get_mappings(), false).has_block());
     process_lvgl(100);
 }
 
@@ -969,7 +969,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip_int(1, "_severity") == 2);
     CHECK(chip_int(1, "_slot_state") == 0);
     // The print-start gate reads the same mapping and blocks it.
-    CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
+    CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings(), false).has_block());
     process_lvgl(100);
 }
 
@@ -1005,7 +1005,7 @@ TEST_CASE_METHOD(
     CHECK(seeded[0].mapped_slot == 0);
     CHECK(seeded[1].mapped_slot == 1);
 
-    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded, false);
     REQUIRE(preflight.checks.size() == 2);
     CHECK(preflight.checks[0].severity == helix::ToolCheck::Severity::EmptySlot);
     CHECK(preflight.has_block());
@@ -1052,7 +1052,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
           helix::printer::RemapBlock::NoStrategy);
 
     // Neither the empty lane 1 nor the PETG in lane 2 is held against a tool.
-    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded, false);
     CHECK(preflight.checks.empty());
     CHECK_FALSE(preflight.has_block());
     CHECK_FALSE(preflight.has_advisory());

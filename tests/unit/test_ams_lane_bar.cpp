@@ -9,8 +9,8 @@
 #include "ams_backend_mock.h"
 #include "ams_lane_state.h"
 #include "ams_state.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "static_subject_registry.h"
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -26,13 +26,11 @@ lv_obj_t* make_bar(lv_obj_t* parent, int slot_index) {
 bool visible(lv_obj_t* root, const char* name) {
     lv_obj_t* o = lv_obj_find_by_name(root, name);
     REQUIRE(o != nullptr);
-    return !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(o);
 }
 } // namespace
 
-TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane draws nothing", "[ams][lane_bar]") {
-    // The whole point of the bar rendering's Empty case: no fill, no outline.
-    // The layout gap remains so lanes stay countable, but nothing is painted.
+TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane has no outline", "[ams][lane_bar]") {
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
@@ -43,14 +41,15 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: an Empty lane draws nothing", "[
     process_lvgl(20);
 
     CHECK_FALSE(visible(bar, "bar_fill"));
-    CHECK_FALSE(visible(bar, "bar_bg"));
+    CHECK(visible(bar, "bar_bg"));
+    CHECK(lv_obj_get_style_border_width(lv_obj_find_by_name(bar, "bar_bg"), LV_PART_MAIN) == 0);
     lv_obj_delete(bar);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "ams_lane_bar: a Ghosted lane keeps its fill, dimmed",
                  "[ams][lane_bar]") {
-    // The #1071 reversal. BOTH halves are asserted: the fill comes back AND the
-    // cell is dimmed. Without the second, this is the bug a106413f6 fixed.
+    // #1071: BOTH halves are asserted: the fill comes back AND the cell is
+    // dimmed. A full-strength fill on an empty lane reads as a loaded spool.
     ui_ams_lane_bar_register();
     AmsState::instance().init_subjects(true);
     lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),

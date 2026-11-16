@@ -1,7 +1,8 @@
 diff --git a/src/libs/lodepng/lodepng.c b/src/libs/lodepng/lodepng.c
+index b339538e5..cadc7408a 100644
 --- a/src/libs/lodepng/lodepng.c
 +++ b/src/libs/lodepng/lodepng.c
-@@ -2353,8 +2353,10 @@
+@@ -2353,8 +2353,10 @@ static unsigned zlib_decompress(unsigned char ** out, size_t * outsize, size_t e
      else {
          ucvector v = ucvector_init(*out, *outsize);
          if(expected_size) {

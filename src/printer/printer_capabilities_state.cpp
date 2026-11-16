@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_capabilities_state.cpp
- * @brief Printer capabilities state management extracted from PrinterState
+ * @brief Printer capabilities state, one of PrinterState's domain sub-states
  *
  * Manages capability subjects that control UI feature visibility based on
- * hardware detection and user overrides. Extracted from PrinterState as
- * part of god class decomposition.
+ * hardware detection and user overrides.
  */
 
 #include "printer_capabilities_state.h"
 
-#include "ui_update_queue.h"
-
 #include "chamber_air_modes.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "layer_pause.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
+#include "motor_ripple_view.h"
 #include "pa_calibration.h"
 #include "printer_fan_state.h"
 #include "sound_manager.h"
@@ -74,6 +74,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
     {Capability::CanAddPaCal, "printer_can_add_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
+    {Capability::SupportsRippleCheck, "printer_supports_ripple_check", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
     {Capability::HasExtraFans, "printer_has_extra_fans", 0},
@@ -83,6 +84,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasHeatSoak, "printer_has_heat_soak", 0},
     {Capability::HasFanFeedback, "printer_has_fan_feedback", 0},
     {Capability::HasLedEffects, "printer_has_led_effects", 0},
+    {Capability::HasLedObject, "printer_has_led_object", 0},
     {Capability::EnclosureTopFitted, "printer_enclosure_top_fitted", 0},
     {Capability::HardwareGeneration, "printer_hardware_generation", 0},
 };
@@ -110,16 +112,16 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
                   register_xml);
 
     for (const auto& def : kCapabilityDefs) {
+        capability_subjects_[static_cast<size_t>(def.cap)].init_int(def.initial);
         lv_subject_t* s = subject(def.cap);
-        lv_subject_init_int(s, def.initial);
         subjects_.register_subject(s, register_xml ? def.name : nullptr);
         if (register_xml) {
             helix::xml::register_subject_in_current_scope(def.name, s);
         }
     }
 
-    lv_subject_init_string(&tool_offset_cal_description_, tool_offset_cal_description_buf_, nullptr,
-                           sizeof(tool_offset_cal_description_buf_), "");
+    tool_offset_cal_description_.init_string(tool_offset_cal_description_buf_, nullptr,
+                                             sizeof(tool_offset_cal_description_buf_), "");
     constexpr const char* kToolOffsetCalDescription = "printer_tool_offset_cal_description";
     subjects_.register_subject(&tool_offset_cal_description_,
                                register_xml ? kToolOffsetCalDescription : nullptr);
@@ -130,6 +132,10 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
 
     subjects_initialized_ = true;
     apply_pending_capability_values();
+    // A host audio backend outlives every printer, and a switch to an unreachable printer
+    // never reaches set_hardware(). At boot this reads false: SoundManager initializes
+    // after these subjects, so Application seeds the capability itself.
+    set_sound_backend_available(SoundManager::instance().has_backend());
     render_tool_offset_cal_description();
     spdlog::trace("[PrinterCapabilitiesState] Subjects initialized successfully");
 }
@@ -182,6 +188,15 @@ void PrinterCapabilitiesState::deinit_subjects() {
     pending_capability_values_.fill(std::nullopt);
 }
 
+void PrinterCapabilitiesState::set_led(const PrinterDiscovery& hardware,
+                                       const CapabilityOverrides& overrides) {
+    // A preset turns this off for printers whose firmware declares a light that
+    // stock hardware does not wire; the object flag keeps the toggle that turns
+    // it back on reachable.
+    set_capability(Capability::HasLed, overrides.has_led() ? 1 : 0);
+    set_capability(Capability::HasLedObject, hardware.has_led() ? 1 : 0);
+}
+
 void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
                                             const CapabilityOverrides& overrides) {
     // Update subjects using effective values (auto-detect + user overrides)
@@ -193,13 +208,13 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasBedMesh, overrides.has_bed_mesh() ? 1 : 0);
     set_capability(Capability::HasNozzleClean, overrides.has_nozzle_clean() ? 1 : 0);
     set_capability(Capability::HasHeatSoak, overrides.has_heat_soak() ? 1 : 0);
+    set_led(hardware, overrides);
 
     // Hardware capabilities (no user override support yet - set directly from detection)
     spdlog::debug("[PrinterCapabilitiesState] has_probe={} has_led={} has_accel={}",
                   hardware.has_probe(), hardware.has_led(), hardware.has_accelerometer());
     set_capability(Capability::HasProbe, hardware.has_probe() ? 1 : 0);
     set_capability(Capability::HasHeaterBed, hardware.has_heater_bed() ? 1 : 0);
-    set_capability(Capability::HasLed, hardware.has_led() ? 1 : 0);
     set_capability(Capability::HasAccelerometer, hardware.has_accelerometer() ? 1 : 0);
     set_capability(Capability::HasShakeTune, hardware.has_klippain_shaketune() ? 1 : 0);
     set_capability(Capability::HasFanFeedback, hardware.has_fan_feedback() ? 1 : 0);
@@ -291,6 +306,13 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::CanAddPaCal, helix::pacal::can_add_measuring(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
                    helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
+    set_capability(
+        Capability::SupportsRippleCheck,
+        helix::calibration::ripple::ripple_check_supported(
+            hardware.kinematics(), hardware.has_accelerometer(),
+            hardware.motor_geometry(helix::calibration::ripple::MotorId::StepperX).has_value())
+            ? 1
+            : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 
@@ -309,7 +331,7 @@ void PrinterCapabilitiesState::render_tool_offset_cal_description() {
         return;
     }
     const char* key = tool_offset_cal_description_key_;
-    lv_subject_copy_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
+    lv_subject_set_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
 }
 
 void PrinterCapabilitiesState::on_language_changed() {

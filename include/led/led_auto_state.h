@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "json_fwd.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
 
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterState;

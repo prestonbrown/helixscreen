@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "idle_timeout_busy.h"
+#include "json_fwd.h"
 #include "state/volatile_subjects.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
 #include <lvgl.h>
-
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -18,7 +18,7 @@ namespace helix {
  * Tracks firmware retraction settings, manual probe state, and motor enabled state.
  * These subjects are used by calibration panels and Z-offset workflows.
  *
- * Extracted from PrinterState as part of god class decomposition.
+ * One of PrinterState's domain sub-states.
  *
  * ## Firmware Retraction (4 subjects)
  * - retract_length_: Length in centimillimeters (0.8mm stored as 80)
@@ -41,7 +41,6 @@ class PrinterCalibrationState {
     PrinterCalibrationState() = default;
     ~PrinterCalibrationState() = default;
 
-    // Non-copyable
     PrinterCalibrationState(const PrinterCalibrationState&) = delete;
     PrinterCalibrationState& operator=(const PrinterCalibrationState&) = delete;
 
@@ -166,9 +165,9 @@ class PrinterCalibrationState {
      *
      * The discretionary-gcode busy guard lets benign commands (fan/temp/LED) queue
      * behind a blocking op instead of rejecting them, and wants to tell the user
-     * ONCE per episode rather than once per command (bundle 7CT79XXK saw four
-     * back-to-back toasts). Returns true for the first caller after the blocking op
-     * started, false thereafter, until PrinterState re-arms it via
+     * ONCE per episode rather than once per command (a burst of benign commands
+     * would otherwise stack back-to-back toasts). Returns true for the first caller after the
+     * blocking op started, false thereafter, until PrinterState re-arms it via
      * arm_busy_queue_toast() once the composite blocking condition clears.
      *
      * Both claim and re-arm normally run on the main thread (status parsing is
@@ -194,8 +193,8 @@ class PrinterCalibrationState {
      *
      * Called by PrinterState on any Klippy state transition. Klipper reports these
      * as DELTA-only fields, so a value cached before a restart otherwise persists
-     * until the field next changes — which made a freshly-restarted idle printer
-     * look busy and wedged discretionary G-code (#1129).
+     * until the field next changes, so a freshly-restarted idle printer would
+     * look busy and wedge discretionary G-code (#1129).
      */
     void reset_klippy_volatile() {
         volatile_.reset_all();
@@ -215,20 +214,20 @@ class PrinterCalibrationState {
 
     // Firmware retraction settings (from firmware_retraction Klipper module)
     // Lengths stored as centimillimeters (x100) to preserve 0.01mm precision with integers
-    lv_subject_t retract_length_{};         // centimm (e.g., 80 = 0.8mm)
-    lv_subject_t retract_speed_{};          // mm/s (integer, e.g., 35)
-    lv_subject_t unretract_extra_length_{}; // centimm (e.g., 0 = 0.0mm)
-    lv_subject_t unretract_speed_{};        // mm/s (integer, e.g., 35)
+    helix::Subject retract_length_{};         // centimm (e.g., 80 = 0.8mm)
+    helix::Subject retract_speed_{};          // mm/s (integer, e.g., 35)
+    helix::Subject unretract_extra_length_{}; // centimm (e.g., 0 = 0.0mm)
+    helix::Subject unretract_speed_{};        // mm/s (integer, e.g., 35)
 
     // Manual probe subjects (for Z-offset calibration)
-    lv_subject_t manual_probe_active_{};     // 0=inactive, 1=active (PROBE_CALIBRATE running)
-    lv_subject_t manual_probe_z_position_{}; // Z position * 1000 (for 0.001mm resolution)
+    helix::Subject manual_probe_active_{};     // 0=inactive, 1=active (PROBE_CALIBRATE running)
+    helix::Subject manual_probe_z_position_{}; // Z position * 1000 (for 0.001mm resolution)
 
     // Motor enabled state (from idle_timeout.state)
-    lv_subject_t motors_enabled_{}; // 0=disabled (Idle), 1=enabled (Ready/Printing)
+    helix::Subject motors_enabled_{}; // 0=disabled (Idle), 1=enabled (Ready/Printing)
 
     // idle_timeout.state == "Printing" flag (Klipper's canonical busy indicator)
-    lv_subject_t idle_timeout_printing_{}; // 0=not printing/busy, 1=state == "Printing"
+    helix::Subject idle_timeout_printing_{}; // 0=not printing/busy, 1=state == "Printing"
     /// False once deinit_subjects() frees the subject. Handed to observers so
     /// their removal can tell a live subject from a freed one.
     std::shared_ptr<bool> idle_timeout_printing_lifetime_;
@@ -238,8 +237,9 @@ class PrinterCalibrationState {
     IdleTimeoutBusy idle_timeout_busy_;
 
     // Latches the once-per-blocking-episode "your change will queue" toast. Claimed
-    // by the busy guard (main thread), re-armed on the blocking op's falling edge in
-    // update_from_status (websocket thread) — hence atomic.
+    // by the busy guard, re-armed on the blocking op's falling edge in
+    // PrinterState::update_from_status; atomic for a background execute_gcode
+    // caller (see claim_busy_queue_toast()).
     std::atomic<bool> busy_queue_toast_shown_{false};
 };
 

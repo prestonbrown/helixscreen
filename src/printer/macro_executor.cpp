@@ -3,20 +3,18 @@
 
 #include "macro_executor.h"
 
-#include "ui_emergency_stop.h"
-#include "ui_toast_manager.h"
-#include "ui_update_queue.h"
-
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/text_io.h"
+#include "core/update_queue.h"
 #include "device_display_name.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
+#include "notice.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "text_io.h"
 #include "toolhead_homing.h"
 
 #include <spdlog/spdlog.h>
@@ -26,6 +24,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -60,17 +60,6 @@ const std::unordered_set<std::string> kDangerousMacros = [] {
     all.insert(kHaltingMacros.begin(), kHaltingMacros.end());
     return all;
 }();
-
-/// Does this error message name a Klippy disconnect?
-///
-/// Moonraker's wording is "Klippy Disconnected"; matching the two words
-/// independently, uppercased, keeps a "klippy has disconnected" phrasing from
-/// slipping past while still refusing Klipper's own G-code complaints.
-bool contains_klippy_disconnect(const std::string& message) {
-    const std::string upper = helix::text_io::to_upper(message);
-    return upper.find("KLIPPY") != std::string::npos &&
-           upper.find("DISCONNECT") != std::string::npos;
-}
 
 /// Commands a macro body issues, uppercased, in command position only.
 ///
@@ -157,10 +146,10 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
             spdlog::info("{} {} executed successfully", tag_copy, macro_copy);
             std::string msg = display_name + " sent";
             helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
-                ToastManager::instance().show(ToastSeverity::SUCCESS, msg.c_str(), 2000);
+                publish_notice({NoticeSeverity::SUCCESS, msg, 2000});
             });
         },
-        [tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
+        [api, tag_copy, macro_copy, display_name, host_effect](const MoonrakerError& err) {
             const MacroFailureReport report = classify_macro_rpc_failure(host_effect, err);
             if (report == MacroFailureReport::ExpectedHalt) {
                 // The macro did what it said: the printer is stopped. Absorbed
@@ -185,16 +174,14 @@ void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const ch
                 // Klipper went down and suppressed nothing. Also completes the
                 // contract: the klippy-READY observer says "Printer ready" when
                 // it comes back, and the recovery dialog still appears if it
-                // does not. The literal is the one the PID and input-shaper
-                // saves already use for this event, so it costs no new
-                // translation key.
-                helix::ui::begin_expected_klippy_restart("Firmware restarting...");
+                // does not.
+                publish_ui_request({UiRequestKind::ExpectKlippyRestart, -1, api});
                 return;
             }
             spdlog::error("{} {} failed: {}", tag_copy, macro_copy, err.message);
             std::string msg = display_name + " failed";
             helix::ui::queue_update("macro_executor::execute_macro_gcode", [msg]() {
-                ToastManager::instance().show(ToastSeverity::ERROR, msg.c_str(), 4000);
+                publish_notice({NoticeSeverity::ERROR, msg, 4000});
             });
         },
         cmd.timeout_ms ? cmd.timeout_ms : IMoonrakerAPI::kMacroTimeoutMs);
@@ -218,8 +205,7 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
     // A print can start while a confirmation is open (Mainsail, the job queue).
     if (lv_subject_get_int(
             get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
-        ToastManager::instance().show(ToastSeverity::WARNING,
-                                      lv_tr("Cannot calibrate while printing"), 3000);
+        publish_notice({NoticeSeverity::WARNING, lv_tr("Cannot calibrate while printing"), 3000});
         return;
     }
     if (!api) {
@@ -237,8 +223,7 @@ void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool n
         api, homing_lifetime, [api, cmd, tag]() { execute_machine_gcode(api, cmd, tag.c_str()); },
         [cmd, tag](const MoonrakerError& err) {
             spdlog::error("{} Homing before {} failed: {}", tag, cmd.log_name, err.message);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          (cmd.display_name + " failed").c_str(), 4000);
+            publish_notice({NoticeSeverity::ERROR, cmd.display_name + " failed", 4000});
         });
 }
 
@@ -389,10 +374,16 @@ namespace {
 /// caller's known_values — the computed one wins where both name a parameter —
 /// each filtered to the names this macro declares. Saved and known keys are
 /// spelled the way the macro declares them, so an exact-name match is the
-/// filter; undeclared names belong to some other macro's signature.
+/// filter; undeclared names belong to some other macro's signature. An
+/// UNKNOWN macro declares nothing to filter by, so it sends its saved values
+/// as typed and no known_values: those were computed for a declared name.
 std::map<std::string, std::string> plain_run_params(const CachedMacroInfo& cached,
                                                     const MacroRunRequest& req) {
     std::map<std::string, std::string> out;
+    if (cached.knowledge == MacroParamKnowledge::UNKNOWN) {
+        // Nothing to filter against: the user typed these for this macro.
+        return req.saved_values;
+    }
     if (cached.knowledge != MacroParamKnowledge::KNOWN_PARAMS) {
         return out;
     }
@@ -451,7 +442,12 @@ MacroRunDecision decide_macro_run(const CachedMacroInfo& cached, const MacroRunR
         return {MacroRunAction::Prompt, std::move(prefill)};
     }
 
-    return {MacroRunAction::PromptUnknown, {}};
+    return {MacroRunAction::PromptUnknown, req.saved_values};
+}
+
+bool macro_takes_saved_defaults(MacroParamKnowledge knowledge) {
+    return knowledge == MacroParamKnowledge::KNOWN_PARAMS ||
+           knowledge == MacroParamKnowledge::UNKNOWN;
 }
 
 MacroParamResult macro_param_result_from_values(const std::vector<MacroParam>& params,
@@ -509,7 +505,7 @@ MacroFailureReport classify_macro_rpc_failure(MacroHostEffect effect, const Moon
     // like any other. Klipper's OWN rejections come through the same channel
     // carrying its complaint ("Unknown command", "Must home axis first"), so the
     // text is what separates them.
-    if (err.code == 503 || contains_klippy_disconnect(err.message)) {
+    if (err.is_klippy_disconnect()) {
         return expected;
     }
     return MacroFailureReport::Error;

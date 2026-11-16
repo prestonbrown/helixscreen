@@ -324,6 +324,51 @@ seed_update_channel() {
     return 0
 }
 
+# The channels install.sh may record. An app-side twin validates the marker
+# (src/system/install_provenance.cpp), so a new name goes in both, and in the
+# worker's list (server/telemetry-worker/src/schema.ts).
+install_source_allowlist() {
+    echo "helix-installer kiauh helper-script curl other"
+}
+
+# Print $1 when it is a listed channel, else "other".
+install_source_normalize() {
+    case "$1" in
+        helix-installer|kiauh|helper-script|curl|other) printf '%s\n' "$1" ;;
+        *) printf 'other\n' ;;
+    esac
+}
+
+# Record which channel installed this copy, one word in config/.install_source.
+# The first install's channel stands: an update keeps a valid marker whatever it
+# was told, and only an explicit --source on a reinstall replaces one. An update
+# of an install with no marker writes nothing unless told, because its channel
+# is not known and the app then reports "unknown". Telemetry bookkeeping must
+# never fail an install. Runs before the final setup_config_symlink, which
+# relocates the file so a Moonraker web update cannot delete it.
+record_install_source() {
+    local dir="${INSTALL_DIR}/config" marker existing="" source_name
+    marker="${dir}/.install_source"
+    if [ -r "$marker" ]; then
+        existing=$(head -n 1 "$marker" 2>/dev/null) || existing=""
+        [ "$(install_source_normalize "$existing")" = "$existing" ] || existing=""
+    fi
+    source_name="${INSTALL_SOURCE_ARG:-}"
+    if [ -n "$existing" ] && { [ "${update_mode:-false}" = true ] || [ -z "$source_name" ]; }; then
+        return 0
+    fi
+    if [ -z "$source_name" ]; then
+        [ "${update_mode:-false}" = true ] && return 0
+        source_name=curl
+    fi
+    if [ -d "$dir" ] && printf '%s\n' "$source_name" | $(file_sudo "$dir") tee "$marker" >/dev/null 2>&1; then
+        log_info "Install source: $source_name"
+    else
+        log_warn "Could not record the install source; telemetry will report it as unknown"
+    fi
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # Tier-2: Moonraker-based printer detection with confidence gate
 # ---------------------------------------------------------------------------

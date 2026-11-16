@@ -14,13 +14,13 @@
  *      fails, the scan-failed path must NOT emit a user-facing warning.
  */
 
-#include "ui_update_queue.h"
-
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
-#include "log_redact.h"
+#include "core/log_redact.h"
+#include "core/update_queue.h"
 #include "runtime_config.h"
 #include "wifi_manager.h"
 #include "wifi_ui_utils.h"
@@ -192,16 +192,13 @@ namespace {
 
 // Test-mode mock WiFi backend + headless display, mirroring the auth-debounce
 // fixture so start_scan() exercises the real WiFiManager code path.
-struct OsLinkBehaviorFixture {
+struct OsLinkBehaviorFixture : LVGLTestFixture {
     ScopedRuntimeConfig scoped_config;
 
     OsLinkBehaviorFixture() {
         auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
-        lv_init_safe();
-        ensure_headless_display();
-        helix::ui::UpdateQueue::instance().init();
     }
 
     ~OsLinkBehaviorFixture() {
@@ -275,7 +272,7 @@ TEST_CASE("start_scan with OS link up suppresses the scan-failed user warning",
 
 TEST_CASE("A scan that fails right after our own forget does not warn the user",
           "[wifi][unit][ad5x]") {
-    // AD5X bundle TAU4PW4H: the user taps Forget on the CONNECTED network, that
+    // On an AD5X, the user taps Forget on the CONNECTED network, that
     // disassociates, the overlay restarts scanning immediately, the trigger
     // fails while the link is mid-teardown — and because the link genuinely is
     // down at that instant, the os_link_up() suppression above does not apply.

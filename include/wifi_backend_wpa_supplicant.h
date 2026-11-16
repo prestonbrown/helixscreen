@@ -40,6 +40,11 @@ bool wpa_string_is_valid(const std::string& input);
 /// Returns @p input unchanged on success, "" on failure. Exposed for unit
 /// testing.
 std::string validate_wpa_string(const std::string& input, const std::string& field_name);
+
+/// Whether a SCAN_RESULTS ssid field names no network: empty, or only the
+/// "\x00" escapes wpa_supplicant prints for a hidden network that broadcasts
+/// its SSID as zero bytes. Exposed for unit testing.
+bool is_hidden_scan_ssid(const std::string& ssid);
 } // namespace helix::wifi::detail
 
 #ifndef __APPLE__
@@ -132,6 +137,23 @@ enum class ScanTrigger {
 /// happened to be down at that instant, raised "WiFi scan failed. Try again."
 /// over a healthy radio.
 ScanTrigger classify_scan_reply(const std::string& reply);
+
+enum class CtrlRequestOutcome {
+    Reply,    ///< wpa_ctrl_request() returned a reply datagram.
+    TimedOut, ///< No reply within wpa_ctrl's 10 s; the daemon may still answer late.
+    Failed,   ///< send/select/recv error; nothing is left in flight.
+};
+
+/// Classify a wpa_ctrl_request() return code (0, -2 timeout, -1 or other errors).
+///
+/// wpa_ctrl has no request ids: a request takes the first non-event datagram
+/// on the socket as its reply. A TimedOut request leaves its reply owed, and
+/// when the daemon sends it late it lands in front of the next request's
+/// answer, which then reads the stale datagram as its own. One timeout makes
+/// every later command read the previous command's reply (#2066: SCAN
+/// "failing" with a STATUS dump, RSSI=-48, wpa_state=SCANNING). The caller
+/// must retire a connection whose request TimedOut.
+CtrlRequestOutcome classify_ctrl_request(int wpa_ctrl_rc);
 } // namespace helix::wifi::detail
 
 /**
@@ -242,6 +264,11 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
                               bool is_hidden) override;
     WiFiError disconnect_network() override;
     ConnectionStatus get_status() override;
+    /// The kernel's address notifications: get_status() reads live state, so
+    /// a re-read after one finds the address DHCP just assigned.
+    std::unique_ptr<helix::net::LinkEvents> open_address_events() override {
+        return helix::net::open_kernel_link_events();
+    }
     bool supports_5ghz() const override;
     WiFiError set_radio_enabled(bool on) override;
     bool is_radio_enabled() const override;
@@ -394,7 +421,8 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
      */
     std::string map_event_to_callback(const std::string& event);
 
-    // 5GHz support — computed once during init, never changes
+    // 5GHz support: resolved once during init from the radio's frequency
+    // list, and raised by any scan that sees a 5 GHz network
     std::atomic<bool> supports_5ghz_cached_{false};
     std::atomic<bool> supports_5ghz_resolved_{false};
 
@@ -406,6 +434,21 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
 
     // Thread safety
     std::mutex cmd_mutex_; ///< Protects conn from concurrent send_command() calls
+
+    /// Control socket path and client dir conn was opened with, so a timed-out
+    /// connection can be replaced. Guarded by cmd_mutex_.
+    std::string ctrl_socket_path_;
+    std::string ctrl_client_dir_;
+
+    /// Swap conn for a fresh connection after a request timed out. Each
+    /// connection binds its own client address and closing one unlinks it, so
+    /// the late reply wpa_supplicant still owes has nowhere to land. Keeps the
+    /// old connection when no new one can be opened. Caller holds cmd_mutex_.
+    void reopen_ctrl_locked();
+
+    /// Serializes start(): the boot-time start_async() worker and a radio-on
+    /// bringup from WiFiManager can both call it.
+    std::mutex start_mutex_;
 
     // Change detection for status logging (reduces log noise)
     ConnectionStatus last_logged_status_; ///< Previous status for change detection
@@ -473,6 +516,12 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     void reconcile_saved_networks();
 
   public:
+    /// Replace the kernel address lookup get_status() falls back on when
+    /// STATUS carries no ip_address. Call before start().
+    void set_ipv4_lookup_for_test(std::function<std::string(const std::string&)> lookup) {
+        ipv4_lookup_ = std::move(lookup);
+    }
+
     /// The resolved interface, or nullopt when resolution was inconclusive and
     /// callers must fall back to legacy first-match behaviour.
     std::optional<helix::wifi::WifiInterface> resolved_interface() const override;
@@ -482,6 +531,9 @@ class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread
     }
 
   private:
+    /// Routable IPv4 the kernel holds on a netdev, "" when none.
+    std::function<std::string(const std::string&)> ipv4_lookup_;
+
     // Last state requested via set_radio_enabled(). Defaults to true (radio on).
     std::atomic<bool> radio_enabled_{true};
 

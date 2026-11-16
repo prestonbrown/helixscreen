@@ -1,14 +1,15 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "consumption_sink.h"
+#include "core/update_queue.h"
 #include "filament_consumption_tracker.h"
 #include "filament_consumption_tracker_test_access.h"
 #include "printer_state.h"
@@ -17,6 +18,7 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::AmsSlotSink;
 using helix::FilamentConsumptionTracker;
@@ -25,7 +27,7 @@ using helix::FilamentConsumptionTrackerTestAccess;
 namespace {
 
 // Sets up an AmsState singleton with a single AmsBackendMock (4 slots) so the
-// sink can read/write real SlotInfo via the backend's sync_external_identity API.
+// sink can read/write real SlotInfo via the backend's public edit and weight paths.
 struct AmsSlotSinkFixture : LVGLTestFixture {
     int backend_idx = 0;
     helix::AmsBackendMock* mock = nullptr;
@@ -54,7 +56,7 @@ struct AmsSlotSinkFixture : LVGLTestFixture {
         info.remaining_weight_g = 500.0f;
         info.total_weight_g = 1000.0f;
         info.spoolman_id = 0;
-        mock->sync_external_identity(0, info);
+        helix::test::apply_edit(*mock, 0, info);
     }
 
     ~AmsSlotSinkFixture() override {
@@ -78,7 +80,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: skipped when remaining_weight
                  "[consumption_sink][ams]") {
     helix::SlotInfo info = mock->get_slot_info(0);
     info.remaining_weight_g = -1.0f;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     AmsSlotSink sink(backend_idx, 0);
     sink.snapshot(0.0f);
@@ -89,7 +91,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: skipped when spoolman_id is s
                  "[consumption_sink][ams]") {
     helix::SlotInfo info = mock->get_slot_info(0);
     info.spoolman_id = 42;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     AmsSlotSink sink(backend_idx, 0);
     sink.snapshot(0.0f);
@@ -100,7 +102,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: skipped when material density
                  "[consumption_sink][ams]") {
     helix::SlotInfo info = mock->get_slot_info(0);
     info.material = "UnknownNovelMaterial9000";
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     AmsSlotSink sink(backend_idx, 0);
     sink.snapshot(0.0f);
@@ -147,7 +149,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "consumption sinks meter at the printer's f
         info.material = "PLA";
         info.remaining_weight_g = 500.0f;
         info.total_weight_g = 1000.0f;
-        helix::AmsState::instance().set_external_spool_info_in_memory(info);
+        helix::AmsStateTestAccess::seed_external_spool(info);
 
         helix::ExternalSpoolSink sink;
         sink.snapshot(0.0f);
@@ -163,7 +165,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: apply_delta clamps remaining 
                  "[consumption_sink][ams]") {
     helix::SlotInfo seed = mock->get_slot_info(0);
     seed.remaining_weight_g = 5.0f;
-    mock->sync_external_identity(0, seed);
+    helix::test::apply_edit(*mock, 0, seed);
 
     AmsSlotSink sink(backend_idx, 0);
     sink.snapshot(0.0f);
@@ -183,7 +185,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: other slots untouched by neig
     info1.remaining_weight_g = 750.0f;
     info1.total_weight_g = 1000.0f;
     info1.spoolman_id = 0;
-    mock->sync_external_identity(1, info1);
+    helix::test::apply_edit(*mock, 1, info1);
 
     AmsSlotSink sink0(backend_idx, 0);
     sink0.snapshot(0.0f);
@@ -201,7 +203,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: external write mid-tick rebas
     // Simulate a user or Spoolman writing a new authoritative value.
     helix::SlotInfo info = mock->get_slot_info(0);
     info.remaining_weight_g = 300.0f;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     // Next tick should detect the mismatch and rebaseline (no decrement).
     sink.apply_delta(1100.0f);
@@ -224,7 +226,7 @@ TEST_CASE_METHOD(AmsSlotSinkFixture,
     // User links the slot to Spoolman mid-print.
     helix::SlotInfo info = mock->get_slot_info(0);
     info.spoolman_id = 100;
-    mock->sync_external_identity(0, info);
+    helix::test::apply_edit(*mock, 0, info);
 
     float before = mock->get_slot_info(0).remaining_weight_g;
     sink.apply_delta(1000.0f);
@@ -274,6 +276,58 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState: slots a backend reports after add get sinks",
+                 "[consumption_sink][ams][tracker_registry]") {
+    auto& ams = helix::AmsState::instance();
+    ams.clear_backends();
+    ams.deinit_subjects();
+    ams.init_subjects(false);
+
+    auto m = std::make_unique<helix::AmsBackendMock>(4);
+    helix::AmsBackendMock* mock = m.get();
+    REQUIRE(ams.add_backend(std::move(m)) == 0);
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 4);
+
+    mock->set_multi_unit_mode(true);
+    const int grown = mock->get_system_info().total_slots;
+    REQUIRE(grown > 4);
+    ams.sync_backend(0);
+    CHECK(FilamentConsumptionTrackerTestAccess::ams_sink_count() ==
+          static_cast<std::size_t>(grown));
+
+    // A second sync with no new slots registers nothing more.
+    ams.sync_backend(0);
+    CHECK(FilamentConsumptionTrackerTestAccess::ams_sink_count() ==
+          static_cast<std::size_t>(grown));
+
+    ams.clear_backends();
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState: slots a second backend reports after add get sinks",
+                 "[consumption_sink][ams][tracker_registry]") {
+    auto& ams = helix::AmsState::instance();
+    ams.clear_backends();
+    ams.deinit_subjects();
+    ams.init_subjects(false);
+
+    REQUIRE(ams.add_backend(std::make_unique<helix::AmsBackendMock>(4)) == 0);
+    auto m = std::make_unique<helix::AmsBackendMock>(4);
+    helix::AmsBackendMock* second = m.get();
+    REQUIRE(ams.add_backend(std::move(m)) == 1);
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 8);
+
+    second->set_multi_unit_mode(true);
+    const int grown = second->get_system_info().total_slots;
+    REQUIRE(grown > 4);
+    ams.sync_backend(1);
+    CHECK(FilamentConsumptionTrackerTestAccess::ams_sink_count() ==
+          static_cast<std::size_t>(4 + grown));
+
+    ams.clear_backends();
+    REQUIRE(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Tracker: mid-print register_sink auto-snapshots and tracks deltas",
                  "[consumption_sink][ams][registration]") {
@@ -297,7 +351,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     seed.remaining_weight_g = 500.0f;
     seed.total_weight_g = 1000.0f;
     seed.spoolman_id = 0;
-    mock->sync_external_identity(0, seed);
+    helix::test::apply_edit(*mock, 0, seed);
 
     // Start tracker and drive the printer into PRINTING so print_in_progress_
     // is true when we register a new sink below.
@@ -313,7 +367,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     seed1.remaining_weight_g = 800.0f;
     seed1.total_weight_g = 1000.0f;
     seed1.spoolman_id = 0;
-    mock->sync_external_identity(1, seed1);
+    helix::test::apply_edit(*mock, 1, seed1);
 
     auto late_sink = std::make_unique<helix::AmsSlotSink>(backend_idx, 1);
     helix::AmsSlotSink* raw = late_sink.get();
@@ -393,7 +447,7 @@ TEST_CASE_METHOD(
     seed.remaining_weight_g = 500.0f;
     seed.total_weight_g = 1000.0f;
     seed.spoolman_id = 0;
-    mock->sync_external_identity(0, seed);
+    helix::test::apply_edit(*mock, 0, seed);
 
     // PRINTING snapshots every sink; only slot 0 is trackable, so only its
     // flush persists.

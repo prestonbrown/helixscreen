@@ -53,6 +53,11 @@ export interface PointKind {
 
 export const MAX_SLOT = 20;
 
+// Mirrors src/system/install_provenance.cpp; "unknown" is what the client sends
+// for a missing marker.
+const INSTALL_SOURCES = ["helix-installer", "kiauh", "helper-script", "curl", "other", "unknown"];
+const HOST_MODS = ["forge_x", "zmod", "klipper_mod", "cosmos", "paxx", "simple_af", "rinkhals", "none"];
+
 // ---------- Readers ----------
 
 const reads = (paths: readonly string[], fn: ReadFn, fallback = false): Reader =>
@@ -73,6 +78,18 @@ const nested = (sec: string, key: string, ...flatKeys: string[]): Reader =>
       return undefined;
     },
     true,
+  );
+
+/** A value from a fixed list, "unknown" for anything else a client sends, undefined when absent. */
+const allowlisted = (read: Reader, allowed: readonly string[]): Reader =>
+  reads(
+    read.paths,
+    (e, item) => {
+      const v = read(e, item);
+      if (v === undefined || v === null || v === "") return undefined;
+      return allowed.includes(String(v)) ? v : "unknown";
+    },
+    read.fallback,
   );
 
 const firstOf = (...readers: Reader[]): Reader =>
@@ -290,6 +307,8 @@ const KINDS: PointKind[] = [
     blob(10, "zip_tool", nested("app", "zip_tool", "zip_tool")),
     // Resolved printer board; splits the unified "mips" platform key.
     blob(11, "app_board", appBoard),
+    blob(13, "install_source", allowlisted(nested("app", "install_source"), INSTALL_SOURCES)),
+    blob(14, "host_mod", allowlisted(nested("app", "host_mod"), HOST_MODS)),
     dbl(1, "ram_total_mb", nested("host", "ram_total_mb", "ram_total_mb")),
     dbl(2, "cpu_cores", nested("host", "cpu_cores", "cpu_cores")),
     dbl(3, "extruder_count", nested("printer", "extruder_count", "extruder_count")),

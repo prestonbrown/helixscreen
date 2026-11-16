@@ -68,10 +68,10 @@ class PrintPreparationManagerTestAccess {
     /// The modify route's first synchronous bail-out. Private because nothing
     /// outside the manager should dispatch it, but it is the cheapest reachable
     /// failure exit and every other one retires the job the same way.
-    static void modify_and_print(helix::ui::PrintPreparationManager& m,
-                                 const std::string& file_path,
-                                 std::function<void()> on_navigate_to_status = nullptr,
-                                 helix::ui::PrintCompletionCallback on_completion = nullptr) {
+    static void
+    modify_and_print(helix::ui::PrintPreparationManager& m, const std::string& file_path,
+                     helix::ui::NavigateToStatusCallback on_navigate_to_status = nullptr,
+                     helix::ui::PrintCompletionCallback on_completion = nullptr) {
         // start_print() hands its verified scan to the modify step; a test
         // entering at the modify step hands it the cached one the same way.
         m.start_scan_ = m.get_scan_result();

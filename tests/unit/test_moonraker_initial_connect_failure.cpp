@@ -5,7 +5,7 @@
  * @file test_moonraker_initial_connect_failure.cpp
  * @brief A socket that never opens must eventually say so.
  *
- * Context (debug bundle XRK8KPTF, K2 Plus, v0.99.98): the configured Moonraker
+ * Context (K2 Plus, v0.99.98): the configured Moonraker
  * host was stale, so the WebSocket never opened once. The client retried every
  * ~3.1s for the whole session and told the user nothing — the only indication
  * was a disconnected icon that does not name the host it is failing to reach.
@@ -102,7 +102,7 @@ TEST_CASE("A never-opened WebSocket escalates to CONNECTION_FAILED",
 
     REQUIRE(saw_failure);
 
-    // The message must name the endpoint we could not reach. Bundle XRK8KPTF's
+    // The message must name the endpoint we could not reach. One
     // reporter had a stale host in settings and no surface anywhere told them
     // which address the app was dialing.
     CHECK(failure_message.find("19998") != std::string::npos);
@@ -110,8 +110,8 @@ TEST_CASE("A never-opened WebSocket escalates to CONNECTION_FAILED",
     // kDeadUrl is loopback, i.e. the printer HelixScreen is running on. Telling
     // that user to "check that the printer is powered on and that this address
     // is correct" is advice they cannot act on — the screen in their hand proves
-    // the printer is up, and 127.0.0.1 is not wrong. AD5X bundles TAU4PW4H /
-    // 865DXBQ7 are two boots of exactly this, with Moonraker simply not running.
+    // the printer is up, and 127.0.0.1 is not wrong. Two AD5X debug
+    // bundles are two boots of exactly this, with Moonraker simply not running.
     CHECK(failure_message.find("this printer") != std::string::npos);
     CHECK(failure_message.find("address is correct") == std::string::npos);
 

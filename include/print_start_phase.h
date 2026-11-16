@@ -30,18 +30,20 @@ namespace helix {
  *       therefore costs nothing outside this file.
  */
 enum class PrintStartPhase {
-    IDLE = 0,           ///< Not in PRINT_START (normal operation)
-    INITIALIZING = 1,   ///< PRINT_START detected, waiting for phases
-    HOMING = 2,         ///< G28 / Home All Axes detected
-    HEATING_BED = 3,    ///< M140/M190 / Heating bed detected
-    SOAKING = 4,        ///< Holding at temperature: heat-soak dwell or chamber wait
-    HEATING_NOZZLE = 5, ///< M104/M109 / Heating nozzle detected
-    QGL = 6,            ///< QUAD_GANTRY_LEVEL detected
-    Z_TILT = 7,         ///< Z_TILT_ADJUST detected
-    BED_MESH = 8,       ///< BED_MESH_CALIBRATE or BED_MESH_PROFILE LOAD detected
-    CLEANING = 9,       ///< CLEAN_NOZZLE / nozzle wipe detected
-    PURGING = 10,       ///< VORON_PURGE / LINE_PURGE detected
-    COMPLETE = 11       ///< Transitioning to PRINTING state
+    IDLE = 0,            ///< Not in PRINT_START (normal operation)
+    INITIALIZING = 1,    ///< PRINT_START detected, waiting for phases
+    HOMING = 2,          ///< G28 / Home All Axes detected
+    MOTOR_SYNC = 3,      ///< motors-sync SYNC_MOTORS (AWD belt motor sync), needs homed axes
+    HEATING_BED = 4,     ///< M140/M190 / Heating bed detected
+    SOAKING = 5,         ///< Holding at temperature: the heat-soak dwell
+    HEATING_CHAMBER = 6, ///< Waiting for the chamber to reach temperature (M191, chamber wait)
+    HEATING_NOZZLE = 7,  ///< M104/M109 / Heating nozzle detected
+    QGL = 8,             ///< QUAD_GANTRY_LEVEL detected
+    Z_TILT = 9,          ///< Z_TILT_ADJUST detected
+    BED_MESH = 10,       ///< BED_MESH_CALIBRATE or BED_MESH_PROFILE LOAD detected
+    CLEANING = 11,       ///< CLEAN_NOZZLE / nozzle wipe detected
+    PURGING = 12,        ///< VORON_PURGE / LINE_PURGE detected
+    COMPLETE = 13        ///< Transitioning to PRINTING state
 };
 
 /// Number of declared phases; every int in [0, count) is a PrintStartPhase.
@@ -64,10 +66,14 @@ inline constexpr std::string_view print_start_phase_name(PrintStartPhase phase) 
         return "INITIALIZING";
     case PrintStartPhase::HOMING:
         return "HOMING";
+    case PrintStartPhase::MOTOR_SYNC:
+        return "MOTOR_SYNC";
     case PrintStartPhase::HEATING_BED:
         return "HEATING_BED";
     case PrintStartPhase::SOAKING:
         return "SOAKING";
+    case PrintStartPhase::HEATING_CHAMBER:
+        return "HEATING_CHAMBER";
     case PrintStartPhase::HEATING_NOZZLE:
         return "HEATING_NOZZLE";
     case PrintStartPhase::QGL:
@@ -102,9 +108,12 @@ struct PrintStartPhaseAlias {
 inline constexpr PrintStartPhaseAlias kPrintStartPhaseAliases[] = {
     {"START", PrintStartPhase::INITIALIZING},
     {"STARTING", PrintStartPhase::INITIALIZING},
+    {"SYNC_MOTORS", PrintStartPhase::MOTOR_SYNC},
     {"BED_HEATING", PrintStartPhase::HEATING_BED},
     {"HEAT_SOAK", PrintStartPhase::SOAKING},
     {"SOAK", PrintStartPhase::SOAKING},
+    {"CHAMBER_HEATING", PrintStartPhase::HEATING_CHAMBER},
+    {"HEAT_CHAMBER", PrintStartPhase::HEATING_CHAMBER},
     {"NOZZLE_HEATING", PrintStartPhase::HEATING_NOZZLE},
     {"HEATING_HOTEND", PrintStartPhase::HEATING_NOZZLE},
     {"QUAD_GANTRY_LEVEL", PrintStartPhase::QGL},
@@ -144,13 +153,15 @@ inline std::optional<PrintStartPhase> print_start_phase_from_name(std::string_vi
 /**
  * @brief Whether the prediction history keeps a measured duration for a phase
  *
- * Heating is predicted from measured heat rates by ThermalRateModel rather than
+ * Bed and nozzle heating are predicted from measured heat rates by ThermalRateModel rather than
  * from history, and IDLE/INITIALIZING/COMPLETE are transitions with no dwell of
  * their own. Both listings are exhaustive so a new phase has to be classified.
  */
 inline constexpr bool print_start_phase_stores_duration(PrintStartPhase phase) {
     switch (phase) {
     case PrintStartPhase::HOMING:
+    case PrintStartPhase::MOTOR_SYNC:
+    case PrintStartPhase::HEATING_CHAMBER:
     case PrintStartPhase::SOAKING:
     case PrintStartPhase::QGL:
     case PrintStartPhase::Z_TILT:

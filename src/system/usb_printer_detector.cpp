@@ -3,9 +3,8 @@
 
 #include "usb_printer_detector.h"
 
-#include "ui_update_queue.h"
-
-#include "http_executor.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 
 #include <spdlog/spdlog.h>
 
@@ -164,7 +163,7 @@ void UsbPrinterDetector::request_scan() {
     }
     scan_in_flight_ = true;
     scan_async([this, tok = poll_lifetime_.token()](std::vector<UsbPrinterInfo> detected) {
-        if (tok.expired()) {
+        if (tok.expired()) { // L081_OK: scan_async answers through queue_update
             return;
         }
         scan_in_flight_ = false;

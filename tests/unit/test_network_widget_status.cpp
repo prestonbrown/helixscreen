@@ -10,9 +10,9 @@
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "async_lifetime_guard.h"
+#include "core/http_executor.h"
 #include "ethernet_backend_mock.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "http_executor.h"
 #include "panel_widget_manager.h"
 #include "runtime_config.h"
 #include "src/ui/panel_widgets/network_widget.h"
@@ -30,6 +30,7 @@ using helix::NetworkWidgetTestAccess;
 namespace {
 
 constexpr int kIconEthernet = 5;
+constexpr int kIconAwaitingAddress = 6;
 
 struct NetworkWidgetStatusFixture : LVGLUITestFixture {
     ScopedRuntimeConfig scoped_config_;
@@ -177,4 +178,28 @@ TEST_CASE_METHOD(NetworkWidgetStatusFixture,
     // Clears the mock's link, then fires the event exactly as the backend does.
     helix::WiFiManagerTestAccess::fire_disconnected(*helix::get_wifi_manager());
     CHECK(wait_until([&]() { return icon() == 0; }));
+}
+
+TEST_CASE_METHOD(
+    NetworkWidgetStatusFixture,
+    "network tile: a joined link without an address shows the alert, then its strength",
+    "[network_widget][wifi_dhcp_pending]") {
+    wifi->set_connected_state(true, "HomeNet", "", 80);
+    attach();
+    REQUIRE(wait_until([&]() { return icon() == kIconAwaitingAddress; }));
+
+    // The kernel's address event reaches the tile through the WiFi state
+    // observer; no panel change or poll tick is needed.
+    wifi->set_connected_state(true, "HomeNet", "192.168.1.100", 80);
+    CHECK(wait_until([&]() { return icon() == 4; }));
+}
+
+TEST_CASE_METHOD(EthernetUpFixture,
+                 "network tile: Ethernet outranks a WiFi link waiting for an address",
+                 "[network_widget][wifi_dhcp_pending]") {
+    wifi->set_connected_state(true, "HomeNet", "", 80);
+    attach();
+    REQUIRE(wait_until([&]() { return icon() == kIconEthernet; }));
+    await_earlier_answers();
+    CHECK(icon() == kIconEthernet);
 }

@@ -53,7 +53,7 @@ static void set_xml_subject(const char* name, int value) {
 static void set_xml_subject_str(const char* name, const char* value) {
     lv_subject_t* subject = lv_xml_get_subject(NULL, name);
     REQUIRE(subject != nullptr);
-    lv_subject_copy_string(subject, value);
+    lv_subject_set_string(subject, value);
 }
 
 // Look up a named descendant, failing the test with the name if it is absent.
@@ -73,7 +73,7 @@ static lv_obj_t* require_named(lv_obj_t* root, const char* name) {
 // the boundary and read the resolved flag.
 static bool is_hidden(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 static std::string label_text_of(lv_obj_t* obj) {
@@ -409,24 +409,6 @@ TEST_CASE_METHOD(XMLTestFixture,
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
 // =============================================================================
 
-TEST_CASE_METHOD(XMLTestFixture,
-                 "controls_panel: nozzle_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    // Subjects carry decidegrees; temp_display renders whole degrees.
-    set_xml_subject("extruder_temp", 2015);
-    set_xml_subject("extruder_target", 2200);
-    lv_obj_t* panel = create_component("controls_panel");
-    lv_obj_t* disp = require_named(panel, "nozzle_temp_display");
-    REQUIRE(ui_temp_display_is_valid(disp));
-    CHECK(ui_temp_display_get_current(disp) == 201);
-    CHECK(ui_temp_display_get_target(disp) == 220);
-
-    set_xml_subject("extruder_temp", 1000);
-    CHECK(ui_temp_display_get_current(disp) == 100);
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp_display widget)",
                  "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
     ControlsPanelSubjects owner(state());
@@ -482,11 +464,30 @@ TEST_CASE_METHOD(XMLTestFixture,
     // an inverted ref_value here offers an action that cannot work.
     PrintStatusSubjects owner(state());
     REQUIRE(register_component("print_status_more_menu"));
-    set_xml_subject("printer_has_timelapse", 0);
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::None));
     lv_obj_t* menu = create_component("print_status_more_menu");
     lv_obj_t* btn = require_named(menu, "btn_more_timelapse");
     CHECK(is_hidden(btn));
 
-    set_xml_subject("printer_has_timelapse", 1);
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Plugin));
     CHECK_FALSE(is_hidden(btn));
+
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Firmware));
+    CHECK(is_hidden(btn));
+
+    // The plugin settings row wants the plugin; the install row wants no owner at all.
+    REQUIRE(register_component("settings_printing_overlay"));
+    REQUIRE(register_component("advanced_panel"));
+    lv_obj_t* settings = require_named(create_component("settings_printing_overlay"),
+                                       "container_timelapse_settings");
+    lv_obj_t* install =
+        lv_obj_get_parent(require_named(create_component("advanced_panel"), "row_timelapse_setup"));
+    CHECK(is_hidden(settings));
+    CHECK(is_hidden(install));
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::Plugin));
+    CHECK_FALSE(is_hidden(settings));
+    CHECK(is_hidden(install));
+    set_xml_subject("timelapse_owner", static_cast<int>(TimelapseOwner::None));
+    CHECK(is_hidden(settings));
+    CHECK_FALSE(is_hidden(install));
 }

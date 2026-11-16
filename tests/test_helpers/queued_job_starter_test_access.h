@@ -28,7 +28,7 @@ class QueuedJobStarterTestAccess {
         return s.stall_watchdog_.get();
     }
 
-    using PrepSource = std::function<helix::ui::PrintPreparationManager*()>;
+    using PrepSource = helix::SharedCallback<helix::ui::PrintPreparationManager*()>;
 
     /// Point the starter at @p prep instead of print-select's.
     static void set_prep(helix::queue::QueuedJobStarter& s,

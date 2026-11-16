@@ -15,6 +15,7 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "system/crash_reporter.h"
 
 #include <lvgl.h>
@@ -24,7 +25,6 @@ class CrashReportModal : public Modal {
     explicit CrashReportModal(CrashReporter& reporter);
     ~CrashReportModal() override;
 
-    // Non-copyable
     CrashReportModal(const CrashReportModal&) = delete;
     CrashReportModal& operator=(const CrashReportModal&) = delete;
 
@@ -44,6 +44,7 @@ class CrashReportModal : public Modal {
     const char* component_name() const override {
         return "crash_report_modal";
     }
+    HELIX_KIND_TAG(CrashReportModal)
 
   protected:
     void on_show() override;
@@ -52,9 +53,9 @@ class CrashReportModal : public Modal {
   private:
     // Subjects for XML data binding
     SubjectManager subjects_;
-    lv_subject_t details_subject_{};
-    lv_subject_t status_subject_{};
-    lv_subject_t show_qr_subject_{};
+    helix::Subject details_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject show_qr_subject_{};
     bool subjects_initialized_ = false;
 
     // Subject string buffers
@@ -77,9 +78,8 @@ class CrashReportModal : public Modal {
     // Callback registration (idempotent)
     static void register_callbacks();
     static bool callbacks_registered_;
-    static CrashReportModal* active_instance_;
 
-    // Static event callbacks (dispatch to active instance)
+    // Static event callbacks
     static void on_send_cb(lv_event_t* e);
     static void on_dismiss_cb(lv_event_t* e);
 

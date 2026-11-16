@@ -2,6 +2,12 @@
 # Shared test helpers for bats tests
 # Source this from setup() in each .bats file
 
+# A test of test-host-run.sh must not re-exec it under the real caffeinate.
+export HELIX_TEST_AWAKE=1
+
+# Stubbed ssh runs test-host-run.sh's load check here, on a machine that may be busy.
+export HELIX_TEST_MAX_LOAD=0
+
 # Stub out logging functions (not available outside installer)
 log_info() { :; }
 log_warn() { :; }
@@ -13,11 +19,18 @@ export -f log_info log_warn log_error log_success log_note
 # assert on its text, so they run verbose unless a test unsets this.
 export HELIX_INSTALL_VERBOSE=1
 
-# Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1)
-# Each bats test runs in a subshell, so this creates a fresh dir per test.
-if [ -z "$BATS_TEST_TMPDIR" ]; then
+# Ensure BATS_TEST_TMPDIR exists (added in bats 1.4.1, Ubuntu 22.04 ships 1.2.1).
+# There a file-level load runs before BATS_TEST_NAME is set, a load in a test body runs
+# after it, and the export reaches the next test. So a load with no name starts a new
+# test, and a load with a name keeps its own test's dir and claims an unclaimed one.
+if [ -z "$BATS_TEST_TMPDIR" ] || { [ -n "$HELIX_BATS_TMPDIR_FILLED" ] &&
+    { [ -z "$BATS_TEST_NAME" ] ||
+        { [ -n "$HELIX_BATS_TMPDIR_TEST" ] && [ "$HELIX_BATS_TMPDIR_TEST" != "$BATS_TEST_NAME" ]; }; }; }; then
     BATS_TEST_TMPDIR=$(mktemp -d "${BATS_TMPDIR:-/tmp}/bats-test-XXXXXX")
+    export HELIX_BATS_TMPDIR_FILLED=1
 fi
+[ -z "$HELIX_BATS_TMPDIR_FILLED" ] || export HELIX_BATS_TMPDIR_TEST="$BATS_TEST_NAME"
+export BATS_TEST_TMPDIR
 
 # helix-claim treats two claims carrying one session id as one owner. A suite
 # run from inside a session would otherwise make every claim a test takes the
@@ -420,6 +433,19 @@ last_line() {
 # file on failure, which is usually what you want to see).
 # ---------------------------------------------------------------------------
 
+# Stop bats tracking the current line, for a file whose tests run installer or
+# launcher code in-process. bats records every simple command through a DEBUG
+# trap that bash inherits into each function (set -T); that costs about 1 ms a
+# command, a third or more of such a file's time. A failing assertion still
+# fails its test, but bats names this function as the place it failed; rerun
+# with HELIX_BATS_TRAP=1, which keeps the trap, to see the failing line. Call
+# right after `load helpers` in setup().
+skip_line_tracking() {
+    [ "${HELIX_BATS_TRAP:-0}" = 1 ] && return 0
+    trap - DEBUG
+    set +T
+}
+
 # Abort the current test with a message. bats-core does not ship `fail` (it
 # comes from the optional bats-assert library), so a test body calling it dies
 # with "fail: command not found" — which still fails the test, but reports the
@@ -654,7 +680,7 @@ helix_app_lock_acquire() {
 # Skip unless the app binary at $1 is built. The Shell Tests CI job never
 # builds it, so build.yml's compile job runs every file that calls this against
 # the binary it just linked. A file that skips on a missing app any other way
-# runs in neither job, which test_code_lint.bats refuses.
+# runs in neither job, which scripts/code_lint.sh refuses.
 require_app() {
     [ -x "$1" ] || skip "helix-screen not built (run 'make -j')"
 }
@@ -669,6 +695,27 @@ helix_app_lock_release() {
     [ "$owner" = "$$" ] && rm -rf "$HELIX_APP_LOCK_DIR"
     HELIX_APP_LOCK_HELD=""
     return 0
+}
+
+# A stand-in for another process holding a flock: takes <lock file> on fd 9,
+# writes <holder format> into it (its %s is the test's pid), touches
+# <ready marker> and holds the lock until killed. Prints the holder's pid.
+#
+# Killing that pid releases the lock and ends the holder's sleep with it.
+# Neither keeps bats' output fd 3 open, which bats waits on before it ends
+# the file, so a holder never adds its sleep to the file's run time.
+hold_flock() { # <lock file> <ready marker> <holder format>
+    (
+        exec 9>>"$1"
+        flock 9
+        # shellcheck disable=SC2059
+        printf "$3\n" "$$" >&9
+        sleep 30 9>&- &
+        trap 'kill $! 2>/dev/null; exit 0' TERM
+        touch "$2"
+        wait
+    ) >/dev/null 2>&1 3>&- &
+    echo $!
 }
 
 # A SUDO stand-in that runs everything for real except an rm outside $1.

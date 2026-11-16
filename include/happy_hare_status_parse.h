@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ams_types.h"
+#include "json_fwd.h"
 #include "lane_translation.h"
 
 #include <array>
@@ -12,8 +13,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 /**
  * @file happy_hare_status_parse.h
@@ -98,6 +97,15 @@ struct TanglePreventionDelta {
     std::optional<float> release;
 };
 
+/// One `fans` entry (v4.1+): a unit whose fans Happy Hare manages.
+struct MmuFanUnit {
+    std::string unit;     ///< The unit's name, which MMU_FAN's UNIT= accepts
+    int first_gate = -1;  ///< The unit's first gate, -1 when not published
+    bool enabled = false; ///< Automatic (temperature-driven) fan management
+    /// FAN_FORCED per fan: 0 off, 1 on, 2 auto; nullopt for a gate without a fan.
+    std::vector<std::optional<int>> modes;
+};
+
 /// The v4 extended status: eSpooler, sync feedback, clog detection, counters.
 struct MmuTelemetryDelta {
     std::optional<std::string> espooler_active; ///< v3; v4 keeps it as a deprecated alias
@@ -107,6 +115,10 @@ struct MmuTelemetryDelta {
     std::optional<std::string> sync_feedback_state;
     std::optional<float> sync_feedback_bias; ///< sync_feedback_bias_modelled
     std::optional<float> sync_feedback_bias_raw;
+    /// v4 `sync_feedback_enabled`: whether MMU_SYNC_FEEDBACK control is on.
+    std::optional<bool> sync_feedback_enabled;
+    /// v4.1 `fans`: one entry per unit with managed fans.
+    std::optional<std::vector<MmuFanUnit>> fans;
     std::optional<bool> sync_drive;
     std::optional<int> clog_detection_enabled;
     std::optional<EncoderDelta> encoder;
@@ -126,6 +138,7 @@ struct MmuTelemetryDelta {
     /// has no buffer (sync feedback, flowguard) or no encoder; v3 never does.
     bool sync_feedback_bias_null = false;
     bool sync_feedback_bias_raw_null = false;
+    bool sync_feedback_enabled_null = false;
     bool flowguard_null = false;
     bool encoder_null = false;
     /// `tangle_prevention` was in the frame (null or not): only v4 publishes it.
@@ -198,12 +211,13 @@ struct MachineLayout {
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
 /// configfile's `[mmu_machine]`, read as a single unit.
 struct MachineUnit {
-    std::string display_name;                     ///< v4 `display_name`; empty when not published
-    std::string selector_type;                    ///< e.g. "VirtualSelector" (Type B)
-    int first_gate = -1;                          ///< -1 when not published
-    int num_gates = 0;                            ///< 0 when not published
-    std::string filament_heater;                  ///< shared enclosure heater
-    std::string environment_sensor;               ///< shared enclosure sensor
+    std::string display_name;       ///< v4 `display_name`; empty when not published
+    std::string vendor;             ///< hardware family, e.g. "ERCF"; empty when not published
+    std::string selector_type;      ///< e.g. "VirtualSelector" (Type B)
+    int first_gate = -1;            ///< -1 when not published
+    int num_gates = 0;              ///< 0 when not published
+    std::string filament_heater;    ///< shared enclosure heater
+    std::string environment_sensor; ///< shared enclosure sensor
     std::vector<std::string> filament_heaters;    ///< one per gate of THIS unit
     std::vector<std::string> environment_sensors; ///< one per gate of THIS unit
     std::optional<bool> has_bypass;
@@ -289,5 +303,12 @@ parse_entry_sensor_objects(const nlohmann::json& params);
 [[nodiscard]] GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu);
 [[nodiscard]] MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu);
 [[nodiscard]] MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu);
+
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+[[nodiscard]] SpoolMotorAction spool_motor_action(const std::string& state);
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt when
+/// sync feedback is absent or "disabled".
+[[nodiscard]] std::optional<BufferMotion> sync_feedback_motion(const std::string& state);
 
 } // namespace helix::happy_hare

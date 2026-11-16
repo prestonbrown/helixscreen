@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -34,7 +35,6 @@ class LabelPrinterSettingsManager {
   public:
     static LabelPrinterSettingsManager& instance();
 
-    // Non-copyable
     LabelPrinterSettingsManager(const LabelPrinterSettingsManager&) = delete;
     LabelPrinterSettingsManager& operator=(const LabelPrinterSettingsManager&) = delete;
 
@@ -91,19 +91,16 @@ class LabelPrinterSettingsManager {
     /** @brief Set label preset (persists to config) */
     void set_label_preset(int preset);
 
-    /** @brief Get USB vendor ID */
     uint16_t get_usb_vid() const;
 
     /** @brief Set USB vendor ID (updates configured subject, persists) */
     void set_usb_vid(uint16_t vid);
 
-    /** @brief Get USB product ID */
     uint16_t get_usb_pid() const;
 
     /** @brief Set USB product ID (updates configured subject, persists) */
     void set_usb_pid(uint16_t pid);
 
-    /** @brief Get USB serial number */
     std::string get_usb_serial() const;
 
     /** @brief Set USB serial number (persists to config) */
@@ -111,7 +108,6 @@ class LabelPrinterSettingsManager {
 
     // Bluetooth settings
 
-    /** @brief Get Bluetooth MAC address */
     [[nodiscard]] std::string get_bt_address() const;
 
     /** @brief Set Bluetooth MAC address (updates configured subject, persists) */
@@ -165,8 +161,8 @@ class LabelPrinterSettingsManager {
 
     SubjectManager subjects_;
 
-    lv_subject_t printer_configured_subject_{}; // int: 0/1
-    lv_subject_t printer_type_subject_{};       // int: 0=network, 1=usb, 2=bluetooth
+    helix::Subject printer_configured_subject_{}; // int: 0/1
+    helix::Subject printer_type_subject_{};       // int: 0=network, 1=usb, 2=bluetooth
 
     bool subjects_initialized_ = false;
 };
@@ -184,11 +180,9 @@ inline lv_subject_t* label_printer_configured_subject() {
     settings.init_subjects();
     return settings.subject_printer_configured();
 #else
-    static lv_subject_t unsupported{};
-    static bool initialized = false;
-    if (!initialized) {
-        lv_subject_init_int(&unsupported, 0);
-        initialized = true;
+    static helix::Subject unsupported{};
+    if (!unsupported.is_live()) {
+        unsupported.init_int(0);
     }
     return &unsupported;
 #endif

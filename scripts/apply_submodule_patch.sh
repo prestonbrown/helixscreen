@@ -38,6 +38,14 @@
 # which is the routine case on shared files (seven patches touch
 # src/misc/lv_event.c); an absent marker means the effect is genuinely
 # missing; no row means no information and the verdict stays hedged.
+#
+# A submodule that is not its own git checkout (unpacked from a source
+# tarball) gets the same three-way verdict from the same engine: `git apply`
+# run inside the directory with repository discovery stopped at it, so an
+# enclosing repository cannot claim the paths and skip them. With no git
+# installed, GNU `patch -p1 --fuzz=0` stands in; it allows the same line
+# offsets git does and no more. Such a tree can never back the from-clean
+# claim, because nothing records what its pristine bytes were.
 
 set -u
 
@@ -54,6 +62,56 @@ note=${4:-}
 git_submodule() {
   env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
     git -C "$submodule" "$@"
+}
+
+here=$(cd "$(dirname "$0")" && pwd)
+if [ ! -f "$here/own_git_dir.sh" ]; then
+  echo "✗ ${label}: $here/own_git_dir.sh is missing" >&2
+  exit 1
+fi
+
+# git: the submodule's own checkout. git-dir: a plain directory, judged by git
+# outside any repository. patch: a plain directory and no git on PATH.
+if bash "$here/own_git_dir.sh" "$submodule" >/dev/null 2>&1; then
+  backend="git"
+elif command -v git >/dev/null 2>&1; then
+  backend="git-dir"
+elif command -v patch >/dev/null 2>&1; then
+  backend="patch"
+else
+  echo "✗ ${label}: $submodule is not a git checkout and neither git nor patch is installed" >&2
+  exit 1
+fi
+
+case $patch_file in
+  /*) abs_patch=$patch_file ;;
+  *) abs_patch=$PWD/$patch_file ;;
+esac
+
+# apply_patch [--check] [--reverse]: one apply question, asked of the backend.
+apply_patch() {
+  case $backend in
+    git)
+      git_submodule apply "$@" "$patch_file"
+      ;;
+    git-dir)
+      ( cd "$submodule" &&
+        GIT_CEILING_DIRECTORIES=$(dirname "$(pwd -P)") \
+          env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+          git apply "$@" "$abs_patch" )
+      ;;
+    patch)
+      local args=() a
+      for a in "$@"; do
+        case $a in
+          --check) args+=(--dry-run) ;;
+          --reverse) args+=(-R) ;;
+        esac
+      done
+      patch -p1 -f -s --fuzz=0 --no-backup-if-mismatch -r - ${args[@]+"${args[@]}"} \
+        -d "$submodule" -i "$abs_patch"
+      ;;
+  esac
 }
 
 if [ -n "${NO_COLOR:-}" ] ||
@@ -85,6 +143,7 @@ from_clean_verified() {
   # answers both whether git can read the tree and what changed in it; a
   # pathspec the checkout has no file for simply matches nothing, which is
   # the pristine answer for a file the patch itself creates.
+  [ "$backend" = git ] || return 1
   local files out
   files=$(patch_files)
   [ -n "$files" ] || files=.
@@ -96,8 +155,6 @@ from_clean_verified() {
 # (no row, no python, or no answer). Anything but a clean answer reads as
 # unknown to the caller.
 marker_state() {
-  local here
-  here=$(cd "$(dirname "$0")" && pwd) || return 2
   python3 "$here/check_patch_markers.py" \
     --tsv "${HELIX_PATCH_MARKERS_TSV:-$here/../mk/patch-markers.tsv}" \
     --lvgl "${HELIX_MARKER_LVGL_DIR:-lib/lvgl}" \
@@ -106,14 +163,14 @@ marker_state() {
     --only "$(basename "$patch_file")" >/dev/null 2>&1
 }
 
-if git_submodule apply --check "$patch_file" 2>/dev/null; then
+if apply_patch --check >/dev/null 2>&1; then
   echo "${yellow}→ Applying ${label}...${reset}"
-  if ! git_submodule apply "$patch_file"; then
-    echo "${red}✗ ${label}: git apply failed${reset}"
+  if ! apply_patch; then
+    echo "${red}✗ ${label}: ${backend%-dir} apply failed${reset}"
     exit 1
   fi
   echo "${green}✓ ${label} applied${reset}"
-elif git_submodule apply --check --reverse "$patch_file" 2>/dev/null; then
+elif apply_patch --check --reverse >/dev/null 2>&1; then
   echo "${green}✓ ${label} already applied${reset}"
 elif [ "${HELIX_PATCHES_FROM_CLEAN:-0}" = "1" ] && from_clean_verified; then
   echo "${red}✗ ${label} does not apply to a clean checkout — the patch and the submodule disagree.${note:+ $note}" >&2

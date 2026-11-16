@@ -16,19 +16,23 @@
 // SET_GCODE_OFFSET override persists whatever it computes -- silently discarding
 // the user's stored offset.
 
+#include "ui_button.h"
 #include "ui_nav_manager.h"
 #include "ui_print_tune_overlay.h"
-#include "ui_update_queue.h"
 #include "ui_utils.h"
+#include "ui_z_offset_indicator.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
+#include "settings_manager.h"
 #include "tool_state.h"
+#include "z_offset_utils.h"
 
 #include <array>
 #include <memory>
@@ -353,7 +357,8 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     overlay.handle_z_target_select(1); // the heading follows the tool's own Z
 
-    ts.update_from_status(json{{"tool T0", json{{"gcode_z_offset", 0.10}}}});
+    ts.update_from_status(json{{"toolchanger", json{{"tool_number", 0}}},
+                               {"tool T0", json{{"gcode_z_offset", 0.10}}}});
     helix::ui::UpdateQueue::instance().drain();
 
     lv_subject_t* display = lv_xml_get_subject(nullptr, "tune_z_offset_display");
@@ -393,7 +398,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     lv_obj_t* row = lv_obj_find_by_name(overlay.get_panel(), "tune_pa_row");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     overlay.handle_pa_adjust(1);
     helix::ui::UpdateQueue::instance().drain();
@@ -422,4 +427,105 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(tap("btn_speed_minus_5") == "M220 S85");
     CHECK(tap("btn_speed_plus_5") == "M220 S90");
     CHECK(tap("btn_speed_plus_10") == "M220 S100");
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the saved offset sits beside the adjustment, moving opposite to it",
+                 "[ui_integration][zoffset][1998]") {
+    // An endstop printer: the saved value is stepper_z's position_endstop, and
+    // Z_OFFSET_APPLY_ENDSTOP saves it minus the gcode offset.
+    state().capabilities_state().set_stepper_z_endstop_microns(235000);
+    lv_subject_set_int(state().profile_state().get_z_offset_can_save_subject(), 1);
+    // The save setting is per printer and persists across cases.
+    const int save_mode = SettingsManager::instance().get_z_offset_save_mode();
+    helix::zoffset::set_save_enabled(true);
+    // A single-tool printer; another case's toolchanger can leave this set.
+    lv_subject_set_int(
+        helix::ToolState::instance().get_per_tool_axis_supported_subject(helix::Axis::Z), 0);
+    set_live_offset(0.02);
+    set_printing(true);
+    set_homed(true);
+
+    auto& overlay = show_overlay();
+    lv_obj_t* line = lv_obj_find_by_name(overlay.get_root(), "z_offset_saved_line");
+    REQUIRE(line != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(line));
+    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.980 mm after Save");
+
+    overlay.handle_z_step_select(2); // 0.010mm
+    overlay.handle_z_adjust(-1);     // closer to the bed: the saved value goes up
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
+
+    // A firmware that keeps each head's own offset: the machine-wide value is
+    // not the mounted head's, so the line goes.
+    state().profile_state().set_z_offset_per_head(true);
+    overlay.handle_z_adjust(-1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_obj_is_hidden(line));
+    state().profile_state().set_z_offset_per_head(false);
+
+    state().capabilities_state().set_stepper_z_endstop_microns(0);
+    SettingsManager::instance().set_z_offset_save_mode(save_mode);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: one file lays out the z-offset controls for each orientation",
+                 "[ui_integration][zoffset][layout]") {
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+
+    // Portrait: the direction buttons sit beside the indicator and the step
+    // amounts get a row of their own. Landscape: steps and directions share a
+    // row beside the indicator.
+    const bool is_portrait = GENERATE(false, true);
+    INFO("portrait=" << is_portrait);
+    lv_subject_set_int(portrait, is_portrait ? 1 : 0);
+
+    lv_obj_t* root = show_overlay().get_root();
+    lv_obj_t* indicator = lv_obj_find_by_name(root, "z_offset_indicator");
+    lv_obj_t* farther = lv_obj_find_by_name(root, "btn_z_farther");
+    lv_obj_t* step = lv_obj_find_by_name(root, "btn_z_step_0");
+    lv_obj_t* reset = lv_obj_find_by_name(root, "btn_reset");
+    REQUIRE(indicator != nullptr);
+    REQUIRE(farther != nullptr);
+    REQUIRE(step != nullptr);
+    REQUIRE(reset != nullptr);
+
+    lv_obj_t* indicator_row = lv_obj_get_parent(indicator);
+    lv_obj_t* direction_column = lv_obj_get_parent(farther);
+    CHECK((lv_obj_get_parent(direction_column) == indicator_row) == is_portrait);
+    CHECK((lv_obj_get_parent(lv_obj_get_parent(step)) == lv_obj_get_parent(direction_column)) ==
+          !is_portrait);
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(reset))) ==
+          (is_portrait ? "Reset" : "Reset Speed & Flow to 100%"));
+
+    lv_subject_set_int(portrait, portrait_before);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the z-offset indicator keeps its value across a rotation",
+                 "[ui_integration][zoffset][layout]") {
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 0);
+    set_live_offset(0.02);
+    set_printing(true);
+
+    lv_obj_t* root = show_overlay().get_root();
+    lv_obj_t* before = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(before != nullptr);
+    CHECK(helix::ui::z_offset_indicator_value(before) == 20);
+
+    // The orientation <if> rebuilds the indicator in place, before any panel
+    // rebuild runs; the new one has to show the offset straight away.
+    lv_subject_set_int(portrait, 1);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* after = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(after != nullptr);
+    CHECK(helix::ui::z_offset_indicator_value(after) == 20);
+
+    lv_subject_set_int(portrait, portrait_before);
 }

@@ -1,14 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_update_queue.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/measured_grids.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_int_subject.h"
 #include "ams_state.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/update_queue.h"
 #include "default_layout_resolver.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -19,6 +18,8 @@
 
 extern "C" void lv_xml_component_init(void);
 
+#include "core/subject.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +27,7 @@ extern "C" void lv_xml_component_init(void);
 #include <fstream>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <unistd.h>
@@ -157,469 +159,145 @@ static const PanelWidgetEntry* find_entry(const std::vector<PanelWidgetEntry>& e
 // Tests
 // ============================================================================
 
-TEST_CASE("default_layout: valid JSON with tiny breakpoint produces correct anchors",
+// The runtime breakpoint is Micro (index 0), whose placement key is "tiny", so
+// the JSON below places under "tiny" and adds other tiers only to prove they are
+// not the ones read.
+TEST_CASE("default_layout: the layout file's anchors, and the fallback when it has none",
           "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            },
-            {
-                "id": "print_status",
-                "placements": {
-                    "tiny": { "col": 0, "row": 2, "colspan": 2, "rowspan": 2 }
-                }
-            },
-            {
-                "id": "tips",
-                "placements": {
-                    "tiny": { "col": 2, "row": 0, "colspan": 4, "rowspan": 2 }
+    struct Expect {
+        const char* id;
+        bool placed;
+        int col = -1, row = -1;
+        int colspan = 0, rowspan = 0; // 0: not checked; -1: the registry's span
+    };
+    struct Row {
+        const char* what;
+        const char* json; // nullptr: no file at all
+        std::vector<Expect> expect;
+        std::vector<const char*> absent;
+        bool only_expected_placed = false;
+    };
+    // The built-in anchors every unusable file falls back to.
+    const std::vector<Expect> fallback = {{"printer_image", true, 0, 0, 4, 4},
+                                          {"print_status", true, 0, 4, 4, 4},
+                                          {"tips", true, 4, 0, 4, 4}};
+    const Row rows[] = {
+        {"valid tiny placements",
+         R"({"anchors": [
+               {"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}},
+               {"id": "print_status", "placements": {"tiny": {"col": 0, "row": 2, "colspan": 2, "rowspan": 2}}},
+               {"id": "tips", "placements": {"tiny": {"col": 2, "row": 0, "colspan": 4, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2},
+          {"print_status", true, 0, 2, 2, 2},
+          {"tips", true, 2, 0, 4, 2}}},
+        {"only the runtime tier's placement is read",
+         R"({"anchors": [
+               {"id": "printer_image", "placements": {
+                   "tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2},
+                   "large": {"col": 0, "row": 0, "colspan": 3, "rowspan": 3}}},
+               {"id": "tips", "placements": {
+                   "tiny": {"col": 2, "row": 0, "colspan": 2, "rowspan": 2},
+                   "large": {"col": 3, "row": 0, "colspan": 5, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2}, {"tips", true, 2, 0, 2, 2}}},
+        {"no file", nullptr, fallback},
+        {"malformed JSON", "{ this is not valid json }}}}", fallback},
+        {"an empty anchors array", R"({ "anchors": [] })", fallback},
+        {"no anchors key", R"({ "something_else": true })", fallback},
+        {"no anchor has the runtime tier",
+         R"({"anchors": [{"id": "printer_image", "placements": {"large": {"col": 0, "row": 0, "colspan": 3, "rowspan": 3}}}]})",
+         fallback},
+        {"one anchor with the runtime tier is enough: the other is auto-placed",
+         R"({"anchors": [
+               {"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}},
+               {"id": "tips", "placements": {"large": {"col": 3, "row": 0, "colspan": 5, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2}, {"tips", false}}},
+        {"an unknown id is ignored",
+         R"({"anchors": [
+               {"id": "totally_bogus_widget", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 1, "rowspan": 1}}},
+               {"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2}},
+         {"totally_bogus_widget"}},
+        {"an empty id is skipped",
+         R"({"anchors": [
+               {"id": "", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 1, "rowspan": 1}}},
+               {"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2}}},
+        {"widgets the file does not anchor are auto-placed",
+         R"({"anchors": [{"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}}]})",
+         {{"printer_image", true, 0, 0, 2, 2}},
+         {},
+         true},
+        // An omitted span takes the registry span rather than one track: one track
+        // is a quarter of the area the widget declares as its minimum.
+        {"omitted fields: row 0 and the registry span",
+         R"({"anchors": [{"id": "printer_image", "placements": {"tiny": {"col": 1}}}]})",
+         {{"printer_image", true, 1, 0, -1, -1}}},
+        {"file positions override the built-in ones",
+         R"({"anchors": [{"id": "printer_image", "placements": {"tiny": {"col": 5, "row": 3, "colspan": 1, "rowspan": 1}}}]})",
+         {{"printer_image", true, 5, 3, 1, 1}}},
+    };
+
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.what) {
+            TempCwdGuard guard;
+            if (row.json != nullptr) {
+                guard.write_layout(row.json);
+            }
+            const auto entries = PanelWidgetConfig::build_default_grid();
+
+            // Every registry widget appears once, and some are on.
+            REQUIRE(entries.size() == grid_widget_count());
+            std::set<std::string> ids;
+            for (const auto& e : entries) {
+                ids.insert(e.id);
+            }
+            for (const auto& def : get_all_widget_defs()) {
+                if (!def.multi_instance) {
+                    CHECK(ids.count(def.id) == 1);
                 }
             }
-        ]
-    })");
+            CHECK(std::any_of(entries.begin(), entries.end(),
+                              [](const PanelWidgetEntry& e) { return e.enabled; }));
 
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 2);
-    CHECK(pi->rowspan == 2);
-    CHECK(pi->enabled);
-
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->col == 0);
-    CHECK(ps->row == 2);
-    CHECK(ps->colspan == 2);
-    CHECK(ps->rowspan == 2);
-    CHECK(ps->enabled);
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->col == 2);
-    CHECK(tips->row == 0);
-    CHECK(tips->colspan == 4);
-    CHECK(tips->rowspan == 2);
-    CHECK(tips->enabled);
-}
-
-TEST_CASE("default_layout: different breakpoints produce different placements",
-          "[default_layout]") {
-    // Runtime breakpoint is "tiny" (index 0). Providing both tiny and large
-    // placements verifies that only the tiny values are selected.
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny":  { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 },
-                    "large": { "col": 0, "row": 0, "colspan": 3, "rowspan": 3 }
+            for (const auto& x : row.expect) {
+                CAPTURE(x.id);
+                const auto* e = find_entry(entries, x.id);
+                REQUIRE(e != nullptr);
+                CHECK(e->has_grid_position() == x.placed);
+                if (!x.placed) {
+                    continue;
                 }
-            },
-            {
-                "id": "tips",
-                "placements": {
-                    "tiny":  { "col": 2, "row": 0, "colspan": 2, "rowspan": 2 },
-                    "large": { "col": 3, "row": 0, "colspan": 5, "rowspan": 2 }
+                CHECK(e->enabled);
+                CHECK(e->col == x.col);
+                CHECK(e->row == x.row);
+                const auto* def = find_widget_def(x.id);
+                REQUIRE(def != nullptr);
+                // A registry span of one track could not tell "the registry span"
+                // from "defaulted to one track".
+                if (x.colspan < 0) {
+                    REQUIRE(def->colspan > 1);
+                    REQUIRE(def->rowspan > 1);
+                }
+                if (x.colspan != 0) {
+                    CHECK(e->colspan == (x.colspan < 0 ? def->colspan : x.colspan));
+                    CHECK(e->rowspan == (x.rowspan < 0 ? def->rowspan : x.rowspan));
                 }
             }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    // Tiny values selected (not large: 3x3)
-    CHECK(pi->colspan == 2);
-    CHECK(pi->rowspan == 2);
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    // Tiny values (not large: col=3 5x2)
-    CHECK(tips->col == 2);
-    CHECK(tips->colspan == 2);
-    CHECK(tips->rowspan == 2);
-}
-
-TEST_CASE("default_layout: missing file falls back to hardcoded defaults", "[default_layout]") {
-    TempCwdGuard guard;
-    // No layout file written — config/default_layout.json does not exist
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // Hardcoded fallback anchors: printer_image, print_status, tips
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->enabled);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 4);
-    CHECK(pi->rowspan == 4);
-
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->enabled);
-    CHECK(ps->has_grid_position());
-    CHECK(ps->col == 0);
-    CHECK(ps->row == 4);
-    CHECK(ps->colspan == 4);
-    CHECK(ps->rowspan == 4);
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->enabled);
-    CHECK(tips->has_grid_position());
-    CHECK(tips->col == 4);
-    CHECK(tips->row == 0);
-    CHECK(tips->colspan == 4);
-    CHECK(tips->rowspan == 4);
-}
-
-TEST_CASE("default_layout: malformed JSON falls back gracefully", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout("{ this is not valid json }}}}");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // Should get hardcoded fallback anchors
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->has_grid_position());
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->has_grid_position());
-}
-
-TEST_CASE("default_layout: empty anchors array falls back to hardcoded defaults",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // Empty anchors array -> no anchors loaded -> hardcoded fallback triggered
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 4);
-    CHECK(pi->rowspan == 4);
-
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->has_grid_position());
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->has_grid_position());
-}
-
-TEST_CASE("default_layout: unknown widget ID in JSON is ignored", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "totally_bogus_widget",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 1, "rowspan": 1 }
-                }
-            },
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
+            for (const char* id : row.absent) {
+                CHECK(find_entry(entries, id) == nullptr);
+            }
+            if (row.only_expected_placed) {
+                for (const auto& e : entries) {
+                    const bool listed = std::any_of(row.expect.begin(), row.expect.end(),
+                                                    [&e](const Expect& x) { return e.id == x.id; });
+                    if (!listed) {
+                        CAPTURE(e.id);
+                        CHECK(e.col == -1);
+                        CHECK(e.row == -1);
+                    }
                 }
             }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // The bogus widget should not appear in entries
-    auto* bogus = find_entry(entries, "totally_bogus_widget");
-    CHECK(bogus == nullptr);
-
-    // The valid widget should be anchored
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-}
-
-TEST_CASE("default_layout: missing breakpoint in placements causes fallback", "[default_layout]") {
-    TempCwdGuard guard;
-    // Only define "large" placements — runtime breakpoint is "tiny", so no match.
-    // With no anchors matched, the empty vector triggers hardcoded fallback.
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "large": { "col": 0, "row": 0, "colspan": 3, "rowspan": 3 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // No anchors matched for tiny breakpoint -> empty anchors -> hardcoded fallback
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 4);
-    CHECK(pi->rowspan == 4);
-}
-
-TEST_CASE("default_layout: partial breakpoint match does not trigger fallback",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    // One anchor has "tiny" placement, one only has "large"
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            },
-            {
-                "id": "tips",
-                "placements": {
-                    "large": { "col": 3, "row": 0, "colspan": 5, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // printer_image has tiny placement -> anchored from JSON
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->colspan == 2);
-
-    // tips has only large placement -> not matched for "tiny".
-    // But since at least one anchor was loaded, fallback is NOT triggered.
-    // So tips gets auto-placed (col=-1, row=-1).
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK_FALSE(tips->has_grid_position());
-}
-
-TEST_CASE("default_layout: result always has at least some enabled widgets", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE_FALSE(entries.empty());
-
-    bool any_enabled = std::any_of(entries.begin(), entries.end(),
-                                   [](const PanelWidgetEntry& e) { return e.enabled; });
-    CHECK(any_enabled);
-}
-
-TEST_CASE("default_layout: result always has at least some enabled widgets even with missing file",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    // No layout file at all
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE_FALSE(entries.empty());
-
-    bool any_enabled = std::any_of(entries.begin(), entries.end(),
-                                   [](const PanelWidgetEntry& e) { return e.enabled; });
-    CHECK(any_enabled);
-}
-
-TEST_CASE("default_layout: non-anchor widgets get auto-place coordinates", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    for (const auto& e : entries) {
-        if (e.id == "printer_image")
-            continue;
-        INFO("Widget " << e.id << " col=" << e.col << " row=" << e.row);
-        // All non-anchor widgets should have col=-1, row=-1 (auto-placed)
-        CHECK(e.col == -1);
-        CHECK(e.row == -1);
-    }
-}
-
-TEST_CASE("default_layout: anchor with empty id is skipped", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 1, "rowspan": 1 }
-                }
-            },
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // Should not crash, printer_image should still be anchored
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-}
-
-TEST_CASE("default_layout: JSON with missing anchors key falls back to hardcoded defaults",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({ "something_else": true })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // anchors key missing -> .value("anchors", json::array()) returns empty ->
-    // no anchors loaded -> hardcoded fallback
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->has_grid_position());
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 4);
-    CHECK(pi->rowspan == 4);
-}
-
-TEST_CASE("default_layout: anchor placements default col/row/span values when omitted",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    // Placement exists for "tiny" but is missing some fields
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 1 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    const auto* def = helix::find_widget_def("printer_image");
-    REQUIRE(def);
-    // col comes from the JSON; row falls back to 0. An omitted span takes the
-    // registry span rather than one track — one track is a quarter of the area
-    // the widget declares as its minimum, so defaulting to it would render an
-    // anchored widget at a size it is not allowed to have.
-    CHECK(pi->col == 1);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == def->colspan);
-    CHECK(pi->rowspan == def->rowspan);
-    CHECK(pi->colspan > 1);
-    CHECK(pi->rowspan > 1);
-}
-
-TEST_CASE("default_layout: custom anchor positions from JSON override hardcoded defaults",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    // Use non-default positions to verify JSON takes priority over hardcoded values
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 5, "row": 3, "colspan": 1, "rowspan": 1 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    // JSON values should override the hardcoded fallback positions
-    CHECK(pi->col == 5);
-    CHECK(pi->row == 3);
-    CHECK(pi->colspan == 1);
-    CHECK(pi->rowspan == 1);
-}
-
-TEST_CASE("default_layout: all registry widgets present in result regardless of JSON content",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    // Only anchor one widget — all others should still appear in result
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    const auto& defs = get_all_widget_defs();
-    REQUIRE(entries.size() == grid_widget_count());
-
-    // Every non-multi-instance registry widget must appear exactly once
-    std::set<std::string> entry_ids;
-    for (const auto& e : entries) {
-        entry_ids.insert(e.id);
-    }
-    for (const auto& def : defs) {
-        if (def.multi_instance)
-            continue;
-        CHECK(entry_ids.count(def.id) == 1);
+        }
     }
 }
 
@@ -671,9 +349,8 @@ class BreakpointGuard {
     explicit BreakpointGuard(UiBreakpoint bp) {
         subj_ = theme_manager_get_breakpoint_subject();
         if (subj_) {
-            if (subj_->type != LV_SUBJECT_TYPE_INT) {
-                // Zero-initialized subject in test env — init it properly
-                lv_subject_init_int(subj_, 0);
+            if (auto* owner = helix::Subject::owner_of(subj_); owner && !owner->is_live()) {
+                owner->init_int(0);
             }
             original_ = lv_subject_get_int(subj_);
             lv_subject_set_int(subj_, to_int(bp));
@@ -697,114 +374,53 @@ class BreakpointGuard {
 // bed_temperature conditional placement tests
 // ============================================================================
 
-TEST_CASE("default_layout: bed_temperature is always last in result", "[default_layout]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    REQUIRE(!entries.empty());
-    CHECK(entries.back().id == "bed_temperature");
-}
-
-TEST_CASE("default_layout: bed_temperature enabled at small breakpoint without AMS",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::Small); // small
-    guard.write_layout(R"({ "anchors": [] })");
-
-    // No AMS subject registered → ams_slot_count lookup returns NULL → no AMS
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
-    CHECK(entries.back().id == "bed_temperature");
-}
-
-TEST_CASE("default_layout: bed_temperature enabled at large breakpoint even with AMS",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::Large); // large
-    AmsSubjectGuard ams(4);
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
-    CHECK(entries.back().id == "bed_temperature");
-}
-
-TEST_CASE("default_layout: bed_temperature enabled at xlarge breakpoint even with AMS",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::XLarge); // xlarge
-    AmsSubjectGuard ams(4);
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
-    CHECK(entries.back().id == "bed_temperature");
-}
-
-TEST_CASE("default_layout: bed_temperature enabled at medium breakpoint without AMS",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::Medium); // medium
-    guard.write_layout(R"({ "anchors": [] })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
-    CHECK(entries.back().id == "bed_temperature");
-}
-
-TEST_CASE("default_layout: anchored bed_temperature survives AMS at medium breakpoint",
+TEST_CASE("default_layout: bed_temperature is on and last at every tier, with or without an AMS",
           "[default_layout][regression]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::Medium);
-    AmsSubjectGuard ams(4);
-    // The shipped medium table anchors bed_temperature. An anchor states where
-    // this tier puts the widget, so it answers the "is there room" question the
-    // AMS heuristic is guessing at. Before the fix the heuristic won: the K2 and
-    // every other AMS printer at or below 800x480 shipped with no bed readout and
-    // an empty cell where the anchor had reserved one.
-    guard.write_layout(R"({
-      "anchors": [
-        { "id": "bed_temperature",
-          "placements": { "medium": { "col": 3, "row": 3, "colspan": 1, "rowspan": 1 } } }
-      ]
-    })");
+    struct Row {
+        const char* what;
+        UiBreakpoint bp;
+        int ams_slots; // 0: no AMS subject set
+        const char* json;
+        int col, row; // -1: not anchored
+    };
+    // An anchor states where its tier puts the widget, so it answers the "is
+    // there room" question an AMS heuristic would guess at; unanchored, the
+    // square-cell grid has the cells to seat it beside an AMS widget.
+    const Row rows[] = {
+        {"micro, no AMS", UiBreakpoint::Micro, 0, R"({ "anchors": [] })", -1, -1},
+        {"small, no AMS", UiBreakpoint::Small, 0, R"({ "anchors": [] })", -1, -1},
+        {"medium, no AMS", UiBreakpoint::Medium, 0, R"({ "anchors": [] })", -1, -1},
+        {"large, AMS", UiBreakpoint::Large, 4, R"({ "anchors": [] })", -1, -1},
+        {"xlarge, AMS", UiBreakpoint::XLarge, 4, R"({ "anchors": [] })", -1, -1},
+        {"medium, AMS, anchored", UiBreakpoint::Medium, 4,
+         R"({"anchors": [{"id": "bed_temperature", "placements": {"medium": {"col": 3, "row": 3, "colspan": 1, "rowspan": 1}}}]})",
+         3, 3},
+        {"medium, AMS, unanchored", UiBreakpoint::Medium, 4,
+         R"({"anchors": [{"id": "printer_image", "placements": {"medium": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}}]})",
+         -1, -1},
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.what) {
+            TempCwdGuard guard;
+            BreakpointGuard bp(row.bp);
+            std::optional<AmsSubjectGuard> ams;
+            if (row.ams_slots > 0) {
+                ams.emplace(row.ams_slots);
+            }
+            guard.write_layout(row.json);
 
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
-    CHECK(bed->col == 3);
-    CHECK(bed->row == 3);
-}
-
-TEST_CASE("default_layout: unanchored bed_temperature survives AMS at medium breakpoint",
-          "[default_layout]") {
-    TempCwdGuard guard;
-    BreakpointGuard bp(UiBreakpoint::Medium);
-    AmsSubjectGuard ams(4);
-    // bed_temperature ships enabled on every tier, anchored or not, and the
-    // placement engine decides where it lands. The square-cell grid has the cells
-    // to seat it alongside an AMS widget, so no heuristic disables it.
-    guard.write_layout(R"({
-      "anchors": [
-        { "id": "printer_image",
-          "placements": { "medium": { "col": 0, "row": 0, "colspan": 2, "rowspan": 2 } } }
-      ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* bed = find_entry(entries, "bed_temperature");
-    REQUIRE(bed);
-    CHECK(bed->enabled);
+            const auto entries = PanelWidgetConfig::build_default_grid();
+            const auto* bed = find_entry(entries, "bed_temperature");
+            REQUIRE(bed != nullptr);
+            CHECK(bed->enabled);
+            if (row.col >= 0) {
+                CHECK(bed->col == row.col);
+                CHECK(bed->row == row.row);
+            } else {
+                CHECK(entries.back().id == "bed_temperature");
+            }
+        }
+    }
 }
 
 // Regression for a cross-test isolation leak: `ams_slot_count` is a member
@@ -826,9 +442,9 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
     // Mimic an AMS test leaving the singleton's gate subject >0. If AmsState
     // already registered the real subject this finds it; otherwise stand one in.
     lv_subject_t* ams = lv_xml_get_subject(nullptr, "ams_slot_count");
-    static lv_subject_t stand_in;
+    static helix::Subject stand_in;
     if (!ams) {
-        lv_subject_init_int(&stand_in, 0);
+        stand_in.init_int(0);
         lv_xml_register_subject(nullptr, "ams_slot_count", &stand_in);
         ams = lv_xml_get_subject(nullptr, "ams_slot_count");
     }
@@ -845,15 +461,11 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
 // Portrait anchor variants (#1216)
 // ============================================================================
 //
-// default_layout.json used to key placements by BREAKPOINT ONLY. A 480x800
-// portrait panel has a cramped axis of 480, i.e. breakpoint MEDIUM, so it got
-// the LANDSCAPE medium anchors — authored against a 6-column grid. `tips` at
-// col 2 colspan 4 and `temperature`/`bed_temperature` at col 3 simply do not
-// exist on a 3-column portrait grid, so three of five anchors were unreachable
-// and fell through to auto-place.
-//
-// Anchor tables are now keyed by layout variant in the same most-specific-first
-// order LayoutManager::variant_chain() uses for ui_xml/ overrides.
+// A 480x800 portrait panel has a cramped axis of 480, the same MEDIUM
+// breakpoint as an 800x480 landscape one, so a table keyed by breakpoint alone
+// would hand it anchors authored for a landscape grid. Anchor tables are keyed
+// by layout variant in LayoutManager::variant_chain()'s most-specific-first
+// order.
 
 namespace {
 
@@ -891,105 +503,81 @@ class LayoutTypeGuard {
 
 } // namespace
 
-TEST_CASE("default_layout: portrait uses the portrait anchor variant",
+TEST_CASE("default_layout: the anchor table follows the layout variant chain",
           "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(kVariantLayout);
-    LayoutTypeGuard portrait(480, 800);
-    REQUIRE(helix::LayoutManager::instance().type() == helix::LayoutType::PORTRAIT);
+    constexpr const char* kBaseOnly = R"({"anchors": [
+        {"id": "printer_image", "placements": {"micro": {"col": 1, "row": 1, "colspan": 2, "rowspan": 2}}}]})";
+    struct Expect {
+        const char* id;
+        int col, row, colspan, rowspan; // -2: not checked
+    };
+    struct Row {
+        const char* what;
+        int w, h;
+        helix::LayoutType type;
+        const char* json;
+        std::vector<Expect> expect;
+    };
+    const Row rows[] = {
+        // tips is absent from the portrait variant, so it must not inherit the
+        // base 4-wide anchor: a 4-column widget cannot exist on a portrait grid.
+        {"portrait uses the portrait variant",
+         480,
+         800,
+         helix::LayoutType::PORTRAIT,
+         kVariantLayout,
+         {{"printer_image", 0, -2, -2, 3}, {"tips", -1, -1, -2, -2}}},
+        {"landscape ignores it",
+         800,
+         480,
+         helix::LayoutType::STANDARD,
+         kVariantLayout,
+         {{"printer_image", 4, -2, -2, 2}, {"tips", 0, -2, 4, -2}}},
+        // TINY_PORTRAIT's chain is {tiny_portrait, portrait}, as for ui_xml/
+        // overrides: with no tiny_portrait table it reaches portrait, not the base.
+        {"a portrait sub-class inherits the shared portrait variant",
+         320,
+         480,
+         helix::LayoutType::TINY_PORTRAIT,
+         kVariantLayout,
+         {{"printer_image", 0, -2, -2, 3}}},
+        {"portrait with no variant uses the base anchors",
+         480,
+         800,
+         helix::LayoutType::PORTRAIT,
+         kBaseOnly,
+         {{"printer_image", 1, 1, -2, -2}}},
+    };
+    const auto check = [](int got, int want) {
+        if (want != -2) {
+            CHECK(got == want);
+        }
+    };
+    for (const auto& row : rows) {
+        DYNAMIC_SECTION(row.what) {
+            TempCwdGuard guard;
+            guard.write_layout(row.json);
+            LayoutTypeGuard layout(row.w, row.h);
+            REQUIRE(helix::LayoutManager::instance().type() == row.type);
 
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 0); // portrait variant, not the base anchor's col 4
-    CHECK(pi->rowspan == 3);
-
-    // tips is absent from the portrait variant, so it must NOT inherit the
-    // base 4-wide anchor — a 4-column widget cannot exist on a portrait grid.
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->col == -1);
-    CHECK(tips->row == -1);
-}
-
-TEST_CASE("default_layout: landscape ignores the portrait anchor variant",
-          "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(kVariantLayout);
-    LayoutTypeGuard landscape(800, 480);
-    REQUIRE(helix::LayoutManager::instance().type() == helix::LayoutType::STANDARD);
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 4); // base anchor
-    CHECK(pi->rowspan == 2);
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->col == 0);
-    CHECK(tips->colspan == 4);
-}
-
-TEST_CASE("default_layout: portrait sub-classes inherit the shared portrait variant",
-          "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(kVariantLayout);
-    // 320x480 is TINY_PORTRAIT, whose variant chain is {tiny_portrait, portrait}
-    // — exactly like ui_xml/ overrides. With no tiny_portrait table it must fall
-    // through to portrait, not to the landscape base.
-    LayoutTypeGuard tiny_portrait(320, 480);
-    REQUIRE(helix::LayoutManager::instance().type() == helix::LayoutType::TINY_PORTRAIT);
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 0);
-    CHECK(pi->rowspan == 3);
-}
-
-TEST_CASE("default_layout: portrait falls back to the base anchors when no variant exists",
-          "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": { "micro": { "col": 1, "row": 1, "colspan": 2, "rowspan": 2 } }
+            const auto entries = PanelWidgetConfig::build_default_grid();
+            for (const auto& x : row.expect) {
+                CAPTURE(x.id);
+                const auto* e = find_entry(entries, x.id);
+                REQUIRE(e != nullptr);
+                check(e->col, x.col);
+                check(e->row, x.row);
+                check(e->colspan, x.colspan);
+                check(e->rowspan, x.rowspan);
             }
-        ]
-    })");
-    LayoutTypeGuard portrait(480, 800);
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 1);
-    CHECK(pi->row == 1);
-}
-
-TEST_CASE("default_layout: portrait keeps tips enabled", "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(kVariantLayout);
-
-    {
-        LayoutTypeGuard portrait(480, 800);
-        auto entries = PanelWidgetConfig::build_default_grid();
-        auto* tips = find_entry(entries, "tips");
-        REQUIRE(tips);
-        // The square-cell grid gives every portrait tier at least 8 tracks,
-        // so tips (authored 8 wide, minimum 4) fits without shrinking and
-        // the landscape-only suppression is gone.
-        CHECK(tips->enabled);
-    }
-    {
-        LayoutTypeGuard landscape(800, 480);
-        auto entries = PanelWidgetConfig::build_default_grid();
-        auto* tips = find_entry(entries, "tips");
-        REQUIRE(tips);
-        CHECK(tips->enabled);
+            // Every portrait tier has at least 8 tracks, so tips (authored 8 wide,
+            // minimum 4) stays on in both orientations.
+            if (row.json == kVariantLayout) {
+                const auto* tips = find_entry(entries, "tips");
+                REQUIRE(tips != nullptr);
+                CHECK(tips->enabled);
+            }
+        }
     }
 }
 
@@ -1101,8 +689,9 @@ void check_anchor_table(const nlohmann::json& anchors, const std::string& bp_nam
 }
 
 /// Split a placement key into the tier it names and, when the key is
-/// grid-qualified, the track grid it was authored for. "xxlarge@6x14" gives
-/// {"xxlarge", 6, 14}; a bare "xxlarge" gives {"xxlarge", 0, 0}.
+/// grid-qualified, the track grid it was authored for; a "+<subject>" suffix is
+/// dropped. "xxlarge@6x14" gives {"xxlarge", 6, 14}; a bare "xxlarge" gives
+/// {"xxlarge", 0, 0}.
 struct PlacementKey {
     std::string tier;
     int cols = 0;
@@ -1113,7 +702,8 @@ struct PlacementKey {
     }
 };
 
-PlacementKey parse_placement_key(const std::string& key) {
+PlacementKey parse_placement_key(const std::string& full_key) {
+    const std::string key = full_key.substr(0, full_key.find('+'));
     const auto at = key.find('@');
     if (at == std::string::npos) {
         return {key, 0, 0};
@@ -1302,57 +892,49 @@ TEST_CASE("default_layout: a variant disables a widget per breakpoint",
 
 // The legacy bare-array variant shape must keep working — shipped copies of
 // default_layout.json predate the object form and the file is runtime-editable.
-TEST_CASE("default_layout: a variant accepts both the array and object shapes",
+TEST_CASE("default_layout: a variant accepts both the array and object shapes, and anchor config",
           "[default_layout][portrait]") {
+    // An anchor may carry per-widget config (how portrait ships print_status in
+    // its Detailed layout without a C++ branch per widget).
     const char* as_array = R"({
         "anchors": [],
         "variants": { "portrait": [
             { "id": "printer_image",
-              "placements": { "tiny": { "col": 1, "row": 2, "colspan": 4, "rowspan": 4 } } }
+              "placements": { "tiny": { "col": 1, "row": 2, "colspan": 4, "rowspan": 4 } } },
+            { "id": "print_status", "config": { "layout_style": "detailed" },
+              "placements": { "tiny": { "col": 0, "row": 6, "colspan": 8, "rowspan": 4 } } }
         ] }
     })";
     const char* as_object = R"({
         "anchors": [],
         "variants": { "portrait": { "anchors": [
             { "id": "printer_image",
-              "placements": { "tiny": { "col": 1, "row": 2, "colspan": 4, "rowspan": 4 } } }
+              "placements": { "tiny": { "col": 1, "row": 2, "colspan": 4, "rowspan": 4 } } },
+            { "id": "print_status", "config": { "layout_style": "detailed" },
+              "placements": { "tiny": { "col": 0, "row": 6, "colspan": 8, "rowspan": 4 } } }
         ] } }
     })";
 
     for (const char* doc : {as_array, as_object}) {
+        CAPTURE(doc);
         TempCwdGuard guard;
         guard.write_layout(doc);
         LayoutTypeGuard portrait(480, 800);
-        auto entries = PanelWidgetConfig::build_default_grid();
-        auto* pi = find_entry(entries, "printer_image");
+        const auto entries = PanelWidgetConfig::build_default_grid();
+        const auto* pi = find_entry(entries, "printer_image");
         REQUIRE(pi);
         CHECK(pi->col == 1);
         CHECK(pi->row == 2);
         CHECK(pi->colspan == 4);
+        const auto* ps = find_entry(entries, "print_status");
+        REQUIRE(ps);
+        REQUIRE(ps->config.is_object());
+        CHECK(ps->config.value("layout_style", std::string{}) == "detailed");
     }
 }
 
 // An anchor may carry per-widget config, which is how portrait ships
 // print_status in its Detailed layout without a C++ branch per widget.
-TEST_CASE("default_layout: an anchor carries per-widget config", "[default_layout][portrait]") {
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [],
-        "variants": { "portrait": { "anchors": [
-            { "id": "print_status",
-              "config": { "layout_style": "detailed" },
-              "placements": { "tiny": { "col": 0, "row": 0, "colspan": 8, "rowspan": 4 } } }
-        ] } }
-    })");
-
-    LayoutTypeGuard portrait(480, 800);
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    REQUIRE(ps->config.is_object());
-    CHECK(ps->config.value("layout_style", std::string{}) == "detailed");
-}
-
 // The shipped portrait table must actually ship Detailed — the whole reason the
 // anchor config plumbing exists. Library clips its last action row at every
 // measured geometry.
@@ -1383,28 +965,21 @@ TEST_CASE("default_layout: the shipped portrait print_status is Detailed",
 // currently do not (micro reaches 8 of 12 columns), and whether the shipped
 // tables should fill the width is an open layout question, not a correctness
 // one — see the ledger's default-layout discussion item.
-TEST_CASE("default_layout: the shipped landscape anchors fit their grid",
-          "[default_layout][shipped]") {
-    nlohmann::json layout = load_shipped_layout();
-    REQUIRE(layout.contains("anchors"));
-
-    for (int i = 0; i < 7; i++) {
-        auto it = kLandscapeBudget.find(kBpNames[i]);
-        check_table_at_tier(layout, i, kBpNames[i],
-                            it == kLandscapeBudget.end() ? nullptr : &it->second);
-    }
-}
-
-TEST_CASE("default_layout: the shipped ultrawide anchors fit their grid",
+TEST_CASE("default_layout: the shipped landscape and ultrawide anchors fit their grids",
           "[default_layout][shipped][ultrawide]") {
     nlohmann::json layout = load_shipped_layout();
+    REQUIRE(layout.contains("anchors"));
     REQUIRE(layout.contains("variants"));
     REQUIRE(layout["variants"].contains("ultrawide"));
 
-    for (int i = 0; i < 7; i++) {
-        auto it = kUltrawideBudget.find(kBpNames[i]);
-        check_table_at_tier(layout["variants"]["ultrawide"], i, kBpNames[i],
-                            it == kUltrawideBudget.end() ? nullptr : &it->second);
+    const std::pair<const nlohmann::json*, const std::map<std::string, TrackBudget>*> tables[] = {
+        {&layout, &kLandscapeBudget}, {&layout["variants"]["ultrawide"], &kUltrawideBudget}};
+    for (const auto& [table, budgets] : tables) {
+        for (int i = 0; i < 7; i++) {
+            auto it = budgets->find(kBpNames[i]);
+            check_table_at_tier(*table, i, kBpNames[i],
+                                it == budgets->end() ? nullptr : &it->second);
+        }
     }
 }
 
@@ -1457,125 +1032,76 @@ TEST_CASE("default_layout: a grid-qualified placement wins over the bare tier ke
         ]
     })");
 
-    // Same tier, same file — only the measured grid differs.
-    auto on_6x14 = PanelWidgetConfig::build_default_grid(6, 14);
-    auto* qualified = find_entry(on_6x14, "printer_image");
-    REQUIRE(qualified);
-    CHECK(qualified->col == 2);
-    CHECK(qualified->row == 4);
-    CHECK(qualified->colspan == 4);
-
-    // A grid with no entry of its own falls back to the bare tier key.
-    auto on_12x24 = PanelWidgetConfig::build_default_grid(12, 24);
-    auto* bare = find_entry(on_12x24, "printer_image");
-    REQUIRE(bare);
-    CHECK(bare->col == 0);
-    CHECK(bare->row == 0);
-    CHECK(bare->colspan == 8);
-}
-
-TEST_CASE("default_layout: an unknown grid leaves tier-keyed behaviour untouched",
-          "[default_layout][grid_key]") {
-    // Every caller that cannot measure a grid — config load, and every existing
-    // test — must get exactly what it got before grids entered the key.
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny":      { "col": 0, "row": 0, "colspan": 8, "rowspan": 2 },
-                    "tiny@6x14": { "col": 2, "row": 4, "colspan": 4, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid();
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-    CHECK(pi->colspan == 8);
+    // Same tier, same file: only the measured grid differs. A grid with no entry
+    // of its own, or no measured grid at all (config load), reads the bare key.
+    struct Row {
+        const char* what;
+        int cols, rows; // 0: no measured grid
+        int col, row, colspan;
+    };
+    const Row rows[] = {
+        {"the grid the key names", 6, 14, 2, 4, 4},
+        {"another grid", 12, 24, 0, 0, 8},
+        {"no measured grid", 0, 0, 0, 0, 8},
+    };
+    for (const auto& row : rows) {
+        CAPTURE(row.what);
+        const auto entries = row.cols > 0
+                                 ? PanelWidgetConfig::build_default_grid(row.cols, row.rows)
+                                 : PanelWidgetConfig::build_default_grid();
+        const auto* pi = find_entry(entries, "printer_image");
+        REQUIRE(pi);
+        CHECK(pi->col == row.col);
+        CHECK(pi->row == row.row);
+        CHECK(pi->colspan == row.colspan);
+    }
 }
 
 TEST_CASE("default_layout: an anchor that does not fit the measured grid is not honoured",
           "[default_layout][grid_key]") {
-    // The failure this exists to stop. clamp_to_grid() would shove the origin
-    // back so the span fits, landing the widget on top of a neighbour and
-    // reading as a designed position. Dropping it to auto-place says what
-    // actually happened: this anchor does not describe this grid.
+    // clamp_to_grid() would shove the origin back so the span fits, landing the
+    // widget on a neighbour and reading as a designed position. Dropping it to
+    // auto-place says what happened: this anchor does not describe this grid.
     TempCwdGuard guard;
     guard.write_layout(R"({
         "anchors": [
-            {
-                "id": "printer_image",
-                "placements": {
-                    "tiny": { "col": 0, "row": 0, "colspan": 4, "rowspan": 4 }
-                }
-            },
-            {
-                "id": "print_status",
-                "placements": {
-                    "tiny": { "col": 8, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            },
-            {
-                "id": "tips",
-                "placements": {
-                    "tiny": { "col": 0, "row": 4, "colspan": 10, "rowspan": 2 }
-                }
-            }
+            { "id": "printer_image",
+              "placements": { "tiny": { "col": 0, "row": 0, "colspan": 4, "rowspan": 4 } } },
+            { "id": "print_status",
+              "placements": { "tiny": { "col": 8, "row": 0, "colspan": 2, "rowspan": 2 } } },
+            { "id": "tips",
+              "placements": { "tiny": { "col": 0, "row": 4, "colspan": 10, "rowspan": 2 } } }
         ]
     })");
 
-    // A 6x14 grid holds printer_image (0+4 <= 6, 0+4 <= 14) but not
-    // print_status (col 8 is off the grid) nor tips (colspan 10 > 6).
-    auto entries = PanelWidgetConfig::build_default_grid(6, 14);
-
-    auto* pi = find_entry(entries, "printer_image");
-    REQUIRE(pi);
-    CHECK(pi->col == 0);
-    CHECK(pi->row == 0);
-
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->col == -1);
-    CHECK(ps->row == -1);
-
-    auto* tips = find_entry(entries, "tips");
-    REQUIRE(tips);
-    CHECK(tips->col == -1);
-    CHECK(tips->row == -1);
-
-    // Dropped anchors keep their registry span, the same answer an entry that
-    // never had a position gets — not the span the rejected anchor asked for.
-    const auto* tips_def = helix::find_widget_def("tips");
-    REQUIRE(tips_def);
-    CHECK(tips->colspan == tips_def->colspan);
-}
-
-TEST_CASE("default_layout: the same anchor fits a grid that is big enough",
-          "[default_layout][grid_key]") {
-    // Guards the test above against passing for the wrong reason: if the
-    // fitting check were simply rejecting everything, this would fail too.
-    TempCwdGuard guard;
-    guard.write_layout(R"({
-        "anchors": [
-            {
-                "id": "print_status",
-                "placements": {
-                    "tiny": { "col": 8, "row": 0, "colspan": 2, "rowspan": 2 }
-                }
-            }
-        ]
-    })");
-
-    auto entries = PanelWidgetConfig::build_default_grid(12, 24);
-    auto* ps = find_entry(entries, "print_status");
-    REQUIRE(ps);
-    CHECK(ps->col == 8);
-    CHECK(ps->row == 0);
+    SECTION("a 6x14 grid holds printer_image only") {
+        // print_status's col 8 is off the grid; tips' colspan 10 is wider than 6.
+        const auto entries = PanelWidgetConfig::build_default_grid(6, 14);
+        const auto* pi = find_entry(entries, "printer_image");
+        REQUIRE(pi);
+        CHECK(pi->col == 0);
+        CHECK(pi->row == 0);
+        const auto* ps = find_entry(entries, "print_status");
+        REQUIRE(ps);
+        CHECK(ps->col == -1);
+        CHECK(ps->row == -1);
+        const auto* tips = find_entry(entries, "tips");
+        REQUIRE(tips);
+        CHECK(tips->col == -1);
+        CHECK(tips->row == -1);
+        // A dropped anchor keeps its registry span, as an entry that never had a
+        // position does, not the span the rejected anchor asked for.
+        const auto* tips_def = helix::find_widget_def("tips");
+        REQUIRE(tips_def);
+        CHECK(tips->colspan == tips_def->colspan);
+    }
+    SECTION("the same anchors fit a 12x24 grid") {
+        const auto entries = PanelWidgetConfig::build_default_grid(12, 24);
+        const auto* ps = find_entry(entries, "print_status");
+        REQUIRE(ps);
+        CHECK(ps->col == 8);
+        CHECK(ps->row == 0);
+    }
 }
 
 TEST_CASE("default_layout: a widget the table chose stays on when its anchor does not fit",
@@ -1750,6 +1276,22 @@ using helix::test::ScopedIntSubject;
 constexpr int kMediumCols = 12;
 constexpr int kMediumRows = 8;
 
+/// An 800x480 landscape panel at the medium tier with no dryer, chamber or
+/// Spoolman; @p readouts sets the LED and filament-sensor gates together.
+struct MediumSlotScene {
+    MediumSlotScene(int ams_slots, int readouts)
+        : ams(ams_slots), led("led_controllable", readouts),
+          fil("filament_sensor_count", readouts) {}
+    helix::test::ScopedBreakpoint bp{UiBreakpoint::Medium};
+    LayoutTypeGuard landscape{800, 480};
+    AmsSubjectGuard ams;
+    ScopedIntSubject dryer{"home_dryer_available", 0};
+    ScopedIntSubject chamber{"printer_has_chamber", 0};
+    ScopedIntSubject led;
+    ScopedIntSubject fil;
+    ScopedIntSubject spoolman{"printer_has_spoolman", 0};
+};
+
 void require_every_default_widget_placed_or_off(const std::vector<PanelWidgetEntry>& entries) {
     for (const auto& e : entries) {
         const auto* def = helix::find_widget_def(e.id);
@@ -1766,14 +1308,7 @@ void require_every_default_widget_placed_or_off(const std::vector<PanelWidgetEnt
 
 TEST_CASE("default_layout: an AMS printer fills the medium spool slot with the AMS",
           "[default_layout][slot][shipped]") {
-    helix::test::ScopedBreakpoint bp(UiBreakpoint::Medium);
-    LayoutTypeGuard landscape(800, 480);
-    AmsSubjectGuard ams(4);
-    ScopedIntSubject dryer("home_dryer_available", 0);
-    ScopedIntSubject chamber("printer_has_chamber", 0);
-    ScopedIntSubject led("led_controllable", 1);
-    ScopedIntSubject fil("filament_sensor_count", 1);
-    ScopedIntSubject spoolman("printer_has_spoolman", 0);
+    const MediumSlotScene scene(/*ams_slots=*/4, /*readouts=*/1);
 
     auto entries = PanelWidgetConfig::build_default_grid(kMediumCols, kMediumRows);
 
@@ -1800,14 +1335,7 @@ TEST_CASE("default_layout: an AMS printer fills the medium spool slot with the A
 TEST_CASE(
     "default_layout: a printer without an AMS fills the medium spool slot from the graph side",
     "[default_layout][slot][shipped]") {
-    helix::test::ScopedBreakpoint bp(UiBreakpoint::Medium);
-    LayoutTypeGuard landscape(800, 480);
-    AmsSubjectGuard ams(0);
-    ScopedIntSubject dryer("home_dryer_available", 0);
-    ScopedIntSubject chamber("printer_has_chamber", 0);
-    ScopedIntSubject led("led_controllable", 1);
-    ScopedIntSubject fil("filament_sensor_count", 1);
-    ScopedIntSubject spoolman("printer_has_spoolman", 0);
+    const MediumSlotScene scene(/*ams_slots=*/0, /*readouts=*/1);
 
     auto entries = PanelWidgetConfig::build_default_grid(kMediumCols, kMediumRows);
 
@@ -1834,14 +1362,7 @@ TEST_CASE(
 
 TEST_CASE("default_layout: a printer with no readout hardware leaves the medium spool slot empty",
           "[default_layout][slot][shipped]") {
-    helix::test::ScopedBreakpoint bp(UiBreakpoint::Medium);
-    LayoutTypeGuard landscape(800, 480);
-    AmsSubjectGuard ams(0);
-    ScopedIntSubject dryer("home_dryer_available", 0);
-    ScopedIntSubject chamber("printer_has_chamber", 0);
-    ScopedIntSubject led("led_controllable", 0);
-    ScopedIntSubject fil("filament_sensor_count", 0);
-    ScopedIntSubject spoolman("printer_has_spoolman", 0);
+    const MediumSlotScene scene(/*ams_slots=*/0, /*readouts=*/0);
 
     std::string signature;
     auto entries = PanelWidgetConfig::build_default_grid(kMediumCols, kMediumRows, &signature);
@@ -1911,14 +1432,7 @@ TEST_CASE("default_layout: snapshot reads an absent gate as open and an absent r
 
 TEST_CASE("default_layout: an AMS on a medium grid too narrow for the slot is auto-placed",
           "[default_layout][slot][shipped]") {
-    helix::test::ScopedBreakpoint bp(UiBreakpoint::Medium);
-    LayoutTypeGuard landscape(800, 480);
-    AmsSubjectGuard ams(4);
-    ScopedIntSubject dryer("home_dryer_available", 0);
-    ScopedIntSubject chamber("printer_has_chamber", 0);
-    ScopedIntSubject led("led_controllable", 1);
-    ScopedIntSubject fil("filament_sensor_count", 1);
-    ScopedIntSubject spoolman("printer_has_spoolman", 0);
+    const MediumSlotScene scene(/*ams_slots=*/4, /*readouts=*/1);
 
     // The shipped region (4,2,4,2) ends at track 8; a 6-column grid cuts it.
     auto entries = PanelWidgetConfig::build_default_grid(6, kMediumRows);
@@ -2155,27 +1669,38 @@ TEST_CASE("default_layout: every shipped candidate is gated on hardware or a cap
     CHECK(candidates > 0);
 }
 
-TEST_CASE("default_layout: no shipped table places a generic filler", "[default_layout][shipped]") {
+TEST_CASE("default_layout: no shipped table places a generic filler or an excluded widget",
+          "[default_layout][shipped]") {
     const auto layout = load_shipped_layout();
-    std::set<std::string> named;
-    std::function<void(const nlohmann::json&)> walk = [&](const nlohmann::json& j) {
-        if (j.is_string()) {
-            named.insert(j.get<std::string>());
-        } else if (j.is_structured()) {
-            for (const auto& v : j) {
-                walk(v);
+    std::function<void(const nlohmann::json&, std::set<std::string>&)> walk =
+        [&](const nlohmann::json& j, std::set<std::string>& out) {
+            if (j.is_string()) {
+                out.insert(j.get<std::string>());
+            } else if (j.is_structured()) {
+                for (const auto& v : j) {
+                    walk(v, out);
+                }
             }
-        }
-    };
-    walk(layout["anchors"]);
-    walk(layout["candidate_lists"]);
-    walk(layout["variants"]);
-    REQUIRE(named.count("print_status") == 1);
+        };
+    // What the tables place: no filler that would stand in for a real readout.
+    std::set<std::string> placed;
+    walk(layout["anchors"], placed);
+    walk(layout["candidate_lists"], placed);
+    walk(layout["variants"], placed);
+    REQUIRE(placed.count("print_status") == 1);
     for (const char* id :
          {"z_offset", "speed_flow", "print_stats", "job_queue", "gcode_console", "control_buttons",
           "preheat", "clock", "network", "lock", "motion", "macros", "favorite_macro"}) {
         INFO("widget " << id);
-        CHECK(named.count(id) == 0);
+        CHECK(placed.count(id) == 0);
+    }
+    // Anywhere in the file: no widget a default may never place.
+    std::set<std::string> anywhere;
+    walk(layout, anywhere);
+    REQUIRE(anywhere.count("printer_image") > 0);
+    for (const char* id : {"toolhead", "host_health", "exclude_map"}) {
+        INFO("widget " << id);
+        CHECK(anywhere.count(id) == 0);
     }
 }
 
@@ -2307,27 +1832,6 @@ TEST_CASE("default_layout: the shipped table repeats no key within an object",
     CHECK(repeated.empty());
 }
 
-TEST_CASE("default_layout: no shipped table names toolhead, host_health or exclude_map",
-          "[default_layout][shipped]") {
-    const auto layout = load_shipped_layout();
-    std::vector<std::string> strings;
-    std::function<void(const nlohmann::json&)> walk = [&](const nlohmann::json& j) {
-        if (j.is_string()) {
-            strings.push_back(j.get<std::string>());
-        } else if (j.is_structured()) {
-            for (const auto& v : j) {
-                walk(v);
-            }
-        }
-    };
-    walk(layout);
-    REQUIRE(std::count(strings.begin(), strings.end(), "printer_image") > 0);
-    for (const char* id : {"toolhead", "host_health", "exclude_map"}) {
-        INFO("widget " << id);
-        CHECK(std::count(strings.begin(), strings.end(), id) == 0);
-    }
-}
-
 namespace {
 
 struct ExpectedRect {
@@ -2412,49 +1916,45 @@ const std::vector<Persona> kPersonas = {
      {{"temperature", 0, 0, 2, 2}, {"bed_temperature", 2, 0, 2, 2}, {"ams", 4, 0, 2, 2},
       {"notifications", 6, 0, 2, 2}, {"print_status", 0, 2, 8, 4}},
      {"printer_image", "fan_stack", "filament", "led", "temp_graph"}},
-    {"u1 tiny: the tool switcher takes the spool slot", "tiny", 10, 8, {},
+    {"u1 tiny: the tool switcher under the fans, a gap beside the image", "tiny", 10, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"notifications", 8, 0, 2, 2}, {"fan_stack", 4, 2, 2, 2}, {"tool_switcher", 6, 2, 4, 2},
-      {"print_status", 0, 4, 10, 4}},
-     {"ams", "led", "filament"}},
-    {"voron toolchanger medium: the tool switcher takes the spool slot, no toolhead", "medium", 12,
-     8, {},
+     {{"printer_image", 0, 0, 4, 4}, {"fan_stack", 6, 0, 2, 2}, {"notifications", 8, 0, 2, 2},
+      {"tool_switcher", 6, 2, 4, 2}, {"print_status", 0, 4, 10, 4}},
+     {"ams", "led", "filament", "temperature", "bed_temperature"}},
+    {"tool changer medium: the Creator 5 Pro's own arrangement, a gap beside the image", "medium",
+     12, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"printer_has_chamber", 1},
       {"printer_is_enclosed", 1}, {"led_controllable", 1}, {"filament_sensor_count", 1},
       {"printer_has_bed_mesh", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2}, {"tool_switcher", 4, 2, 4, 2},
-      {"temp_graph", 8, 2, 4, 6}, {"print_status", 0, 4, 8, 4}},
-     {"ams", "toolhead", "chamber_temperature", "led", "filament", "bed_mesh_tile"}},
-    {"voron toolchanger micro: the tool switcher takes the spool slot", "micro", 12, 8, {},
+     {{"printer_image", 0, 0, 6, 4}, {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2},
+      {"tool_switcher", 8, 2, 4, 2}, {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
+     {"ams", "toolhead", "chamber_temperature", "led", "filament", "bed_mesh_tile", "temperature",
+      "bed_temperature"}},
+    {"voron toolchanger micro: medium's arrangement on the same grid", "micro", 12, 8, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 6, 4}, {"temperature", 6, 0, 2, 2}, {"bed_temperature", 8, 0, 2, 2},
-      {"notifications", 10, 0, 2, 2}, {"fan_stack", 6, 2, 2, 2}, {"tool_switcher", 8, 2, 4, 2},
-      {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
-     {"ams", "led", "filament"}},
-    {"voron toolchanger large: the eight-track strip under the readout band, the AMS kept",
+     {{"printer_image", 0, 0, 6, 4}, {"fan_stack", 8, 0, 2, 2}, {"notifications", 10, 0, 2, 2},
+      {"tool_switcher", 8, 2, 4, 2}, {"print_status", 0, 4, 8, 4}, {"temp_graph", 8, 4, 4, 4}},
+     {"ams", "led", "filament", "temperature", "bed_temperature"}},
+    {"voron toolchanger large: the strip under the readout band, a gap beside the wider image",
      "large", 16, 10, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"printer_has_chamber", 1},
       {"printer_is_enclosed", 1}, {"led_controllable", 1}, {"filament_sensor_count", 1},
       {"printer_has_bed_mesh", 1}},
-     {{"printer_image", 0, 0, 4, 4}, {"temperature", 4, 0, 2, 2}, {"bed_temperature", 6, 0, 2, 2},
-      {"ams", 8, 0, 4, 2}, {"fan_stack", 12, 0, 2, 2}, {"notifications", 14, 0, 2, 2},
-      {"tool_switcher", 8, 2, 8, 2}, {"print_status", 0, 4, 8, 4},
+     {{"printer_image", 0, 0, 6, 4}, {"ams", 8, 0, 4, 2}, {"fan_stack", 12, 0, 2, 2},
+      {"notifications", 14, 0, 2, 2}, {"tool_switcher", 8, 2, 8, 2}, {"print_status", 0, 4, 8, 4},
       {"bed_mesh_tile", 8, 6, 4, 4}, {"temp_graph", 12, 6, 4, 4}, {"tips", 0, 8, 8, 2}},
-     {"toolhead", "chamber_temperature", "led", "filament"}},
-    {"voron toolchanger xxlarge: the eight-track strip above the declared block", "xxlarge", 24,
+     {"toolhead", "chamber_temperature", "led", "filament", "temperature", "bed_temperature"}},
+    {"voron toolchanger xxlarge: no temperature tiles, the strip above the declared block", "xxlarge", 24,
      14, {},
      {{"ams_slot_count", 4}, {"ams_is_tool_changer", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 6, 6}, {"print_status", 6, 0, 10, 6}, {"temperature", 16, 0, 2, 2},
-      {"bed_temperature", 18, 0, 2, 2}, {"fan_stack", 20, 0, 2, 2},
+     {{"printer_image", 0, 0, 6, 6}, {"print_status", 6, 0, 10, 6}, {"fan_stack", 20, 0, 2, 2},
       {"notifications", 22, 0, 2, 2}, {"ams", 16, 2, 4, 2}, {"filament", 20, 2, 2, 2},
       {"led", 22, 2, 2, 2}, {"tool_switcher", 16, 8, 8, 2}, {"temp_graph", 0, 6, 16, 6},
       {"tips", 0, 12, 16, 2}},
-     {"toolhead", "bed_mesh_tile"}},
+     {"toolhead", "bed_mesh_tile", "temperature", "bed_temperature"}},
     {"voron_24 large: one readout band on top, the bed mesh beside the graph", "large", 16, 10, {},
      {{"printer_has_chamber", 1}, {"printer_is_enclosed", 1}, {"led_controllable", 1},
       {"filament_sensor_count", 1}, {"printer_has_bed_mesh", 1}},
@@ -2592,14 +2092,20 @@ void add_rect(TrackSet& out, int col, int row, int colspan, int rowspan) {
     }
 }
 
-/// The tracks @p table declares empty on purpose on this grid.
-TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows) {
+/// The capability subjects of @p caps as choose_placement_key() reads them.
+std::function<int(const std::string&)> subjects_of(const CapabilitySnapshot& caps) {
+    return [&caps](const std::string& name) { return caps.get(name); };
+}
+
+/// The tracks @p table declares empty on purpose on this grid for @p caps.
+TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows,
+                       const CapabilitySnapshot& caps) {
     TrackSet out;
     if (!table.contains("gaps")) {
         return out;
     }
     const std::string key = helix::layout::choose_placement_key(
-        table["gaps"], static_cast<UiBreakpoint>(bp), cols, rows);
+        table["gaps"], static_cast<UiBreakpoint>(bp), cols, rows, subjects_of(caps));
     if (key.empty()) {
         return out;
     }
@@ -2609,15 +2115,16 @@ TrackSet declared_gaps(const nlohmann::json& table, int bp, int cols, int rows) 
     return out;
 }
 
-/// The tracks of every slot region @p table resolves on this grid.
-TrackSet slot_regions(const nlohmann::json& table, int bp, int cols, int rows) {
+/// The tracks of every slot region @p table resolves on this grid for @p caps.
+TrackSet slot_regions(const nlohmann::json& table, int bp, int cols, int rows,
+                      const CapabilitySnapshot& caps) {
     TrackSet out;
     for (const auto& entry : table["anchors"]) {
         if (!entry.contains("slot")) {
             continue;
         }
         const std::string key = helix::layout::choose_placement_key(
-            entry["placements"], static_cast<UiBreakpoint>(bp), cols, rows);
+            entry["placements"], static_cast<UiBreakpoint>(bp), cols, rows, subjects_of(caps));
         if (key.empty()) {
             continue;
         }
@@ -2646,7 +2153,9 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
     // home. An empty track is either a gap the table declares for this grid or,
     // when the printer lacks the hardware, a slot cell nothing qualified for.
     // With every gate open each slot fills, so the empty tracks are exactly the
-    // declared gaps, with or without an AMS taking its spool slot.
+    // declared gaps, with or without an AMS taking its spool slot. A printer
+    // that is not a tool changer leaves the switcher-only slots empty, so it is
+    // held to the closed rule.
     const auto layout = load_shipped_layout();
     CapabilitySnapshot closed = all_closed(layout);
     CapabilitySnapshot open = closed;
@@ -2655,19 +2164,23 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
     }
     CapabilitySnapshot open_no_ams = open;
     open_no_ams.subjects["ams_slot_count"] = 0;
+    CapabilitySnapshot open_no_tool_changer = open;
+    open_no_tool_changer.subjects["ams_is_tool_changer"] = 0;
 
     for (const auto& g : helix::test::kMeasuredGrids) {
         LayoutTypeGuard layout_type(g.panel_w, g.panel_h);
         const std::vector<std::string> chain = helix::LayoutManager::instance().variant_chain();
         const int bp = static_cast<int>(breakpoint_for(std::min(g.panel_w, g.panel_h)));
         const auto& table = active_table(layout, chain);
-        const TrackSet gaps = declared_gaps(table, bp, g.cols, g.rows);
-        const TrackSet slots = slot_regions(table, bp, g.cols, g.rows);
 
-        for (const CapabilitySnapshot* caps : {&open, &open_no_ams, &closed}) {
-            const char* gates = caps == &open          ? "open"
-                                : caps == &open_no_ams ? "open, no AMS"
-                                                       : "closed";
+        for (const CapabilitySnapshot* caps :
+             {&open, &open_no_ams, &open_no_tool_changer, &closed}) {
+            const char* gates = caps == &open                   ? "open"
+                                : caps == &open_no_ams          ? "open, no AMS"
+                                : caps == &open_no_tool_changer ? "open, not a tool changer"
+                                                                : "closed";
+            const TrackSet gaps = declared_gaps(table, bp, g.cols, g.rows, *caps);
+            const TrackSet slots = slot_regions(table, bp, g.cols, g.rows, *caps);
             INFO(g.name << " (" << kBpNames[bp] << " " << g.cols << "x" << g.rows
                         << " tracks), gates " << gates);
             const ResolvedDefault r = helix::layout::resolve_default_layout(
@@ -2711,7 +2224,7 @@ TEST_CASE("default_layout: every measured grid is covered or declared empty",
                     }
                 }
             }
-            if (caps == &closed) {
+            if (caps == &closed || caps == &open_no_tool_changer) {
                 TrackSet undeclared;
                 for (const auto& t : holes) {
                     if (!gaps.count(t) && !slots.count(t)) {

@@ -9,6 +9,7 @@
     <prop name="fan_name" type="string" default="Fan"/>
     <prop name="fan_type" type="string" default="fan"/>
     <prop name="fan_object" type="string" default=""/>
+    <prop name="fan_speed" type="string" default="0%"/>
   </api>
   <consts>
     <const name="row_height" value="56"/>
@@ -32,6 +33,6 @@
 
     <status_pill name="type_label" text="$fan_type" clickable="false" event_bubble="true"/>
     <text_body name="speed_label"
-               text="0%" style_min_width="48" style_text_align="right" clickable="false" event_bubble="true"/>
+               text="$fan_speed" style_min_width="48" style_text_align="right" clickable="false" event_bubble="true"/>
   </view>
 </component>

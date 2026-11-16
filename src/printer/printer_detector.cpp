@@ -3,23 +3,23 @@
 
 #include "printer_detector.h"
 
-#include "ui_error_reporting.h"
-
 #include "app_globals.h"
 #include "config.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
+#include "core/text_io.h"
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "lvgl/src/others/translation/lv_translation.h"
+#include "lvgl.h"
 #include "print_start_analyzer.h"
+#include "printer_database_merge.h"
 #include "printer_discovery.h"
 #include "printer_image_variants.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
-#include "text_io.h"
 #include "thermal_rate_model.h"
 #include "width_sensor_manager.h"
 #include "wizard_config_paths.h"
@@ -78,6 +78,7 @@ namespace {
  * - Add new printers (unique ID)
  * - Override bundled printers (same ID replaces bundled)
  * - Disable bundled printers ("enabled": false)
+ * The per-entry rules, id_aliases included: printer_database_merge.h.
  */
 struct PrinterDatabase {
     json data;
@@ -198,20 +199,12 @@ struct PrinterDatabase {
     void merge_user_extensions() {
         const std::string extensions_dir = helix::writable_path("printer_database.d");
 
-        // Check if extensions directory exists
         if (!hfs::exists(extensions_dir) || !hfs::is_directory(extensions_dir)) {
             spdlog::debug("[PrinterDetector] No user extensions directory at {}", extensions_dir);
             return;
         }
 
-        // Build index of bundled printers by ID for fast lookup
-        std::map<std::string, size_t> bundled_index;
-        for (size_t i = 0; i < data["printers"].size(); ++i) {
-            std::string id = helix::json_util::safe_string(data["printers"][i], "id");
-            if (!id.empty()) {
-                bundled_index[id] = i;
-            }
-        }
+        printer_db::BundledIds bundled = printer_db::index_bundled(data["printers"]);
 
         // Scan for JSON files in extensions directory
         std::vector<std::string> extension_files;
@@ -231,9 +224,8 @@ struct PrinterDatabase {
         // Sort for consistent ordering
         std::sort(extension_files.begin(), extension_files.end());
 
-        // Process each extension file
         for (const auto& file_path : extension_files) {
-            merge_extension_file(file_path, bundled_index);
+            merge_extension_file(file_path, bundled);
         }
 
         if (user_overrides > 0 || user_additions > 0) {
@@ -242,8 +234,7 @@ struct PrinterDatabase {
         }
     }
 
-    void merge_extension_file(const std::string& file_path,
-                              std::map<std::string, size_t>& bundled_index) {
+    void merge_extension_file(const std::string& file_path, printer_db::BundledIds& bundled) {
         const auto extension_text = helix::text_io::read_file(file_path);
         if (!extension_text) {
             load_errors.push_back(fmt::format("Could not open {}", file_path));
@@ -287,51 +278,11 @@ struct PrinterDatabase {
             return;
         }
 
-        // Process each printer in the extension
-        for (const auto& printer : extension_data["printers"]) {
-            std::string id = helix::json_util::safe_string(printer, "id");
-            if (id.empty()) {
-                load_errors.push_back(fmt::format("{}: printer missing 'id' field", file_path));
-                spdlog::warn("[PrinterDetector] {}", load_errors.back());
-                continue;
-            }
-
-            // Check if printer is disabled
-            bool enabled = helix::json_util::safe_bool(printer, "enabled", true);
-
-            // Check if this overrides a bundled printer
-            auto it = bundled_index.find(id);
-            if (it != bundled_index.end()) {
-                // Override bundled printer
-                if (!enabled) {
-                    // Mark as disabled (will be filtered out in list)
-                    data["printers"][it->second]["enabled"] = false;
-                    spdlog::debug("[PrinterDetector] Disabled bundled printer '{}'", id);
-                } else {
-                    // Replace bundled definition
-                    data["printers"][it->second] = printer;
-                    spdlog::debug("[PrinterDetector] User override for '{}'", id);
-                }
-                user_overrides++;
-            } else {
-                // Add new printer
-                if (enabled) {
-                    // Validate required fields for new printers
-                    std::string name = helix::json_util::safe_string(printer, "name");
-                    if (name.empty()) {
-                        load_errors.push_back(
-                            fmt::format("{}: printer '{}' missing 'name' field", file_path, id));
-                        spdlog::warn("[PrinterDetector] {}", load_errors.back());
-                        continue;
-                    }
-
-                    data["printers"].push_back(printer);
-                    bundled_index[id] = data["printers"].size() - 1;
-                    spdlog::debug("[PrinterDetector] Added user printer '{}'", name);
-                    user_additions++;
-                }
-            }
-        }
+        printer_db::MergeCounts counts;
+        printer_db::merge_extension_printers(data["printers"], extension_data["printers"], bundled,
+                                             file_path, counts, load_errors);
+        user_overrides += counts.overrides;
+        user_additions += counts.additions;
 
         spdlog::debug("[PrinterDetector] Processed extension file: {}", file_path);
     }
@@ -382,7 +333,6 @@ bool has_pattern(const std::vector<std::string>& objects, const std::string& pat
 
 namespace {
 
-// Check if all patterns in array are present
 bool has_all_patterns(const std::vector<std::string>& objects, const json& patterns) {
     for (const auto& pattern : patterns) {
         if (!pattern.is_string())
@@ -509,7 +459,6 @@ bool check_build_volume_range(const BuildVolume& volume, const json& heuristic) 
             return false;
     }
 
-    // Check Y range
     if (heuristic.contains("min_y")) {
         float min_y = helix::json_util::safe_float(heuristic, "min_y", 0.0f);
         if (y_size < min_y)
@@ -662,7 +611,6 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
             }
         }
     } else if (type == "build_volume_range") {
-        // Check if build volume is within specified range
         if (check_build_volume_range(hardware.build_volume, heuristic)) {
             spdlog::debug("[PrinterDetector] Matched build volume range (confidence: {})",
                           confidence);
@@ -745,7 +693,6 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
         std::string pattern_lower = helix::text_io::to_lower(pattern);
 
         for (const auto& obj : hardware.printer_objects) {
-            // Check if object is a G-code macro
             if (obj.rfind("gcode_macro ", 0) == 0) {
                 // Extract macro name (everything after "gcode_macro ")
                 std::string macro_name = obj.substr(12);
@@ -1265,15 +1212,30 @@ std::string PrinterDetector::apply_preset_with_variants(helix::Config* config,
                                   : nullptr;
     bool is_zmod = !preset_is_forgex && zmod_signal != nullptr;
 
+    // OpenCreator (Kalico with AFC standalone on the Creator 5 line) publishes
+    // its own changer extra. Its runout switches are AFC's tool_start sensors
+    // and its chamber heater fan a heater_fan_throttled, not the stock names.
+    static constexpr const char* kOpenCreatorSignal = "creator5_toolchanger";
+    const char* variant_suffix = nullptr;
+    const char* variant_signal = nullptr;
+    if (has_object(kOpenCreatorSignal)) {
+        variant_suffix = "_opencreator";
+        variant_signal = kOpenCreatorSignal;
+    } else if (is_zmod) {
+        variant_suffix = "_zmod";
+        variant_signal = zmod_signal;
+    }
+
     std::string applied = preset;
-    if (is_zmod) {
-        std::string zmod_preset = preset + "_zmod";
-        spdlog::info("[PrinterDetector] ZMOD firmware detected ({}), trying preset '{}'",
-                     zmod_signal, zmod_preset);
-        if (config->apply_preset_file(zmod_preset)) {
-            applied = zmod_preset;
+    if (variant_suffix != nullptr) {
+        std::string variant_preset = preset + variant_suffix;
+        spdlog::info("[PrinterDetector] Firmware variant detected ({}), trying preset '{}'",
+                     variant_signal, variant_preset);
+        if (config->apply_preset_file(variant_preset)) {
+            applied = variant_preset;
         } else {
-            spdlog::info("[PrinterDetector] No ZMOD preset variant, using '{}'", preset);
+            spdlog::info("[PrinterDetector] No '{}' preset variant, using '{}'", variant_suffix,
+                         preset);
             if (!config->apply_preset_file(preset)) {
                 return "";
             }
@@ -1285,7 +1247,7 @@ std::string PrinterDetector::apply_preset_with_variants(helix::Config* config,
     }
 
     config->set_preset(applied);
-    helix::reload_sensor_roles_after_preset();
+    helix::reload_settings_after_preset();
     return applied;
 }
 
@@ -1339,7 +1301,6 @@ struct ListCache {
         const json* printers = database_printers();
         if (printers == nullptr) {
             spdlog::warn("[PrinterDetector] Cannot build list without database");
-            // Fallback to just Custom/Other and Unknown
             names = {"Custom/Other", "Unknown"};
             entries = {{"Custom/Other", ""}, {"Unknown", ""}};
             options = "Custom/Other\nUnknown";
@@ -1382,7 +1343,6 @@ struct ListCache {
         entries.push_back({"Custom/Other", ""});
         entries.push_back({"Unknown", ""});
 
-        // Build newline-separated string for list display
         for (size_t i = 0; i < names.size(); ++i) {
             options += names[i];
             if (i < names.size() - 1) {
@@ -1490,7 +1450,6 @@ int PrinterDetector::find_list_index(const std::string& printer_name) {
         }
     }
 
-    // Return Unknown index if not found
     return get_unknown_list_index();
 }
 
@@ -1557,7 +1516,6 @@ int PrinterDetector::find_list_index(const std::string& printer_name,
         }
     }
 
-    // Return Unknown index in filtered list
     return get_unknown_list_index(kinematics);
 }
 
@@ -1627,9 +1585,34 @@ std::string PrinterDetector::get_probe_type(const std::string& printer_name) {
     return printer_field(printer_name, "probe_type");
 }
 
-std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& printer_name) {
+namespace {
+
+/// `calibration.<key>` as a string, empty when the entry, its calibration object
+/// or the key is absent.
+std::string calibration_string(const std::string& printer_name, const char* key) {
     const json* calibration = printer_member(printer_name, "calibration");
-    return calibration ? helix::json_util::safe_string(*calibration, "bed_mesh_gcode") : "";
+    return calibration ? helix::json_util::safe_string(*calibration, key) : "";
+}
+
+/// `calibration.<key>` is literally true.
+bool calibration_flag(const std::string& printer_name, const char* key) {
+    const json* calibration = printer_member(printer_name, "calibration");
+    const json* flag = calibration ? helix::json_util::find_member(*calibration, key) : nullptr;
+    return flag != nullptr && flag->is_boolean() && flag->get<bool>();
+}
+
+} // namespace
+
+std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& printer_name) {
+    return calibration_string(printer_name, "bed_mesh_gcode");
+}
+
+std::string PrinterDetector::get_screws_tilt_gcode(const std::string& printer_name) {
+    return calibration_string(printer_name, "screws_tilt_gcode");
+}
+
+bool PrinterDetector::get_screws_tilt_self_prepares(const std::string& printer_name) {
+    return calibration_flag(printer_name, "screws_tilt_self_prepares");
 }
 
 // ============================================================================
@@ -1637,11 +1620,7 @@ std::string PrinterDetector::get_bed_mesh_calibrate_gcode(const std::string& pri
 // ============================================================================
 
 bool PrinterDetector::get_bed_mesh_self_prepares(const std::string& printer_name) {
-    const json* calibration = printer_member(printer_name, "calibration");
-    const json* flag = calibration
-                           ? helix::json_util::find_member(*calibration, "bed_mesh_self_prepares")
-                           : nullptr;
-    return flag != nullptr && flag->is_boolean() && flag->get<bool>();
+    return calibration_flag(printer_name, "bed_mesh_self_prepares");
 }
 
 std::string PrinterDetector::get_print_start_profile(const std::string& printer_name) {
@@ -1714,6 +1693,16 @@ bool PrinterDetector::is_enclosed(const std::string& printer_name) {
     return printer_flag(printer_name, "enclosed");
 }
 
+helix::maintenance::ModelDefaults
+PrinterDetector::get_maintenance_defaults(const std::string& printer_name) {
+    const json* printer = find_printer_entry(printer_name);
+    if (!printer)
+        return {};
+    const json* field = json_util::find_member(*printer, "maintenance");
+    return field ? helix::maintenance::model_defaults_from_json(*field)
+                 : helix::maintenance::ModelDefaults{};
+}
+
 helix::calibration::BeltTensionerKind
 PrinterDetector::get_belt_tensioner(const std::string& printer_name) {
     using helix::calibration::BeltTensionerKind;
@@ -1782,7 +1771,6 @@ PrinterDetector::LoadStatus PrinterDetector::get_load_status() {
 // ============================================================================
 
 PrinterDetectionResult PrinterDetector::auto_detect(const helix::PrinterDiscovery& discovery) {
-    // Build PrinterHardwareData from discovery
     PrinterHardwareData hw_data;
     hw_data.heaters = discovery.heaters();
     hw_data.sensors = discovery.sensors();
@@ -1841,6 +1829,20 @@ bool preset_in_family(const std::string& candidate, const std::string& family) {
     return candidate.size() > family.size() && candidate.compare(0, family.size(), family) == 0 &&
            candidate[family.size()] == '_';
 }
+
+/// The preset a saved type's boot migration reads. A firmware variant names
+/// different hardware from its base (Z-Mod's `fan_generic fanM106` for stock's
+/// `fan`), so the installed preset wins when it is @p base_preset or one of its
+/// variants and still ships; anything else migrates from the base
+/// (prestonbrown/helixscreen#2064).
+std::string boot_migration_preset(const std::string& base_preset,
+                                  const std::string& installed_preset) {
+    if (preset_in_family(installed_preset, base_preset) &&
+        Config::preset_file_exists(installed_preset)) {
+        return installed_preset;
+    }
+    return base_preset;
+}
 } // namespace
 
 bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discovery,
@@ -1850,7 +1852,6 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         return false;
     }
 
-    // Check if printer type is already set
     std::string saved_type =
         config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     if (!saved_type.empty()) {
@@ -1860,13 +1861,14 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
         // preset migration path. apply_preset_file checks wizard_completed and
         // only writes filament_sensors when the user's block is empty/missing —
         // a no-op for fully-configured installs, a one-shot fix for users whose
-        // older preset didn't seed the block (Snapmaker U1 shipped pre-2026-05
-        // with role=none on e1/e2/e3; tonight's preset fix only helped fresh
-        // installs without this hook).
-        std::string saved_preset = get_preset_for_name(saved_type);
+        // saved preset did not seed the block (Snapmaker U1 presets shipped
+        // before 2026-05 with role=none on e1/e2/e3, and a fresh install is
+        // the only other path that reads the current preset).
+        std::string saved_preset =
+            boot_migration_preset(get_preset_for_name(saved_type), config->get_preset());
         if (!saved_preset.empty()) {
             if (config->apply_preset_file(saved_preset)) {
-                helix::reload_sensor_roles_after_preset();
+                helix::reload_settings_after_preset();
             }
         }
         // Apply the saved type to PrinterState for the same reason the
@@ -1945,7 +1947,6 @@ bool PrinterDetector::auto_detect_and_save(const helix::PrinterDiscovery& discov
                      result.type_name, result.confidence, result.reason);
     }
 
-    // Save to config
     config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, result.type_name);
     if (!result.preset.empty()) {
         std::string applied = apply_preset_with_variants(config, result.preset, discovery);
@@ -2030,7 +2031,7 @@ const char* PrinterDetector::mismatch_decision_name(MismatchDecision decision) {
     case MismatchDecision::SavedTypeNotSpecific:
         return "saved type is unset or not specific";
     case MismatchDecision::AlreadyDismissed:
-        return "already answered for this saved type";
+        return "already answered for this saved and detected pair";
     }
     return "unknown";
 }
@@ -2074,10 +2075,31 @@ std::string PrinterDetector::canonical_type_name(const std::string& printer_name
     return printer_name;
 }
 
+namespace {
+/// The contender of an ambiguous @p detected that is the saved type or one of
+/// its variant family (relate_types), or nullptr when the result separated or
+/// no tied candidate is the saved machine. A shared picture is not enough: one
+/// image can stand for a whole model line of different sizes.
+const std::string* contender_for_saved_machine(const std::string& saved_type,
+                                               const PrinterDetectionResult& detected) {
+    if (!detected.ambiguous() || saved_type.empty()) {
+        return nullptr;
+    }
+    for (const auto& contender : detected.contenders) {
+        if (contender == saved_type ||
+            PrinterDetector::relate_types(saved_type, contender).relation !=
+                PrinterDetector::TypeRelation::DifferentModel) {
+            return &contender;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const std::string& detected_type, int detected_confidence,
-                                        const std::string& flag_value, int detected_margin) {
+                                        const MismatchAnswer& answered, int detected_margin) {
     // Emptiness is checked before confidence so a no-detection pass is
     // distinguishable in the log from a real candidate that scored short.
     if (detected_type.empty())
@@ -2093,7 +2115,7 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
         return MismatchDecision::MatchesSavedType;
     if (saved_type.empty() || saved_type == "Custom/Other" || saved_type == "Unknown")
         return MismatchDecision::SavedTypeNotSpecific;
-    if (flag_value == saved_type)
+    if (answered.saved == saved_type && answered.detected == detected_type)
         return MismatchDecision::AlreadyDismissed;
     return MismatchDecision::Warn;
 }
@@ -2101,12 +2123,31 @@ PrinterDetector::classify_type_mismatch(const std::string& saved_type,
 PrinterDetector::MismatchDecision
 PrinterDetector::classify_type_mismatch(const std::string& saved_type,
                                         const PrinterDetectionResult& detected,
-                                        const std::string& flag_value) {
+                                        const MismatchAnswer& answered) {
     if (!detected.detected()) {
         return MismatchDecision::NoDetection;
     }
-    return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, flag_value,
-                                  detected.margin());
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    if (settled == nullptr) {
+        return classify_type_mismatch(saved_type, detected.type_name, detected.confidence, answered,
+                                      detected.margin());
+    }
+    // A contender is not separated from the winner, so it carries the winner's
+    // confidence; the saved type is what separated it from the other machines.
+    return classify_type_mismatch(saved_type, *settled, detected.confidence, answered,
+                                  kDetectMinMargin);
+}
+
+std::string PrinterDetector::mismatch_subject(const std::string& saved_type,
+                                              const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : detected.type_name;
+}
+
+std::string PrinterDetector::saved_type_contender(const std::string& saved_type,
+                                                  const PrinterDetectionResult& detected) {
+    const std::string* settled = contender_for_saved_machine(saved_type, detected);
+    return settled != nullptr ? *settled : std::string();
 }
 
 PrinterDetector::TypeRelationResult

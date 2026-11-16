@@ -122,6 +122,7 @@
         }
       ],
       "operations": [
+        "screws_tilt",
         "probe_accuracy",
         "z_offset_calibrate"
       ],
@@ -130,12 +131,13 @@
       ],
       "label": "Zeroing load cell",
       "timeout_s": 60,
-      "reason": "COSMOS probes with a load cell whose zero drifts between calibrations. Its load_cell module registers LOAD_CELL_TARE as a command, never a gcode_macro, so macro_match cannot see it: the load_cell_probe object keys the rule, and COSMOS's _COSMOS_SETTINGS macro keeps it off other firmware whose load cell may not define that command. COSMOS's SCREWS_TILT_CALCULATE and BED_MESH_CALIBRATE tare the load cell themselves, so only probe accuracy and Z-offset calibration get it."
+      "reason": "COSMOS probes with a load cell whose zero drifts between calibrations. Its load_cell module registers LOAD_CELL_TARE as a command, never a gcode_macro, so macro_match cannot see it: the load_cell_probe object keys the rule, and COSMOS's _COSMOS_SETTINGS macro keeps it off other firmware whose load cell may not define that command. COSMOS's BED_MESH_CALIBRATE tares the load cell itself, so bed mesh does not get it. Screws tilt does: the Elegoo Centauri Carbon entry's shipped sequence tares on its own and is self-preparing, and without COSMOS's wrapper the stock SCREWS_TILT_CALCULATE needs the tare from here."
     }
   ],
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
+      "toolhead_style": "flashforge_ad5",
       "name": "FlashForge Adventurer 5M",
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m.png",
@@ -230,11 +232,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_adventurer_5m_forgex",
+      "toolhead_style": "flashforge_ad5",
       "variant_of": "flashforge_adventurer_5m",
       "variant_label": "ForgeX",
       "klipper_hides_dot_dirs": true,
@@ -347,11 +349,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro",
+      "toolhead_style": "flashforge_ad5",
       "enclosed": true,
       "name": "FlashForge Adventurer 5M Pro",
       "aliases": [
@@ -471,11 +473,11 @@
             "adaptive_value": "1"
           }
         ]
-      },
-      "toolhead_style": "default"
+      }
     },
     {
       "id": "flashforge_ad5m_pro_forgex",
+      "toolhead_style": "flashforge_ad5",
       "variant_of": "flashforge_ad5m_pro",
       "variant_label": "ForgeX",
       "klipper_hides_dot_dirs": true,
@@ -611,7 +613,6 @@
           }
         ]
       },
-      "toolhead_style": "default",
       "_print_start_default_phases_comment": "Measured on an AD5M Pro on Forge-X 1.4.2 2026-10-15 (KAMP, ABS 105/265): homing ~5s; the nozzle clean ~135s, ~112s of it the silent cool-down to 120C for probing; the 25-point mesh plus Smart Park ~150s; the priming line ~15s. Heating is omitted - the thermal model owns those.",
       "print_start_default_phases": {
         "HOMING": 5,
@@ -627,6 +628,7 @@
     },
     {
       "id": "flashforge_ad5x",
+      "toolhead_style": "flashforge_ad5",
       "klipper_hides_dot_dirs": true,
       "name": "FlashForge Adventurer 5X",
       "manufacturer": "FlashForge",
@@ -731,12 +733,18 @@
     },
     {
       "id": "flashforge_creator_5",
+      "id_aliases": [
+        "flashforge_creator5"
+      ],
+      "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5",
       "manufacturer": "FlashForge",
       "image": "flashforge-creator-5.png",
       "preset": "creator5",
       "z_offset_calibration_strategy": "firmware_managed",
+      "print_start_profile": "creator5",
+      "hide_manual_z_calibration": true,
       "heuristics": [
         {
           "type": "object_exists",
@@ -744,6 +752,13 @@
           "pattern": "ff_toolchange",
           "confidence": 99,
           "reason": "[ff_toolchange] tool-changer extra (Klipper4Creator5 port)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "creator5_toolchanger",
+          "confidence": 99,
+          "reason": "[creator5_toolchanger] tool-changer extra (OpenCreator's Kalico fork)"
         },
         {
           "type": "object_exists",
@@ -796,17 +811,22 @@
           "confidence": 0,
           "reason": "The chamber heater is the Pro's hardware; a machine carrying one is a Creator 5 Pro, not a Creator 5"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "flashforge_creator_5_pro",
+      "id_aliases": [
+        "flashforge_creator5_pro"
+      ],
+      "toolhead_style": "flashforge_creator5",
       "enclosed": true,
       "name": "FlashForge Creator 5 Pro",
       "manufacturer": "FlashForge",
       "image": "flashforge-creator-5-pro.png",
       "preset": "creator5_pro",
       "z_offset_calibration_strategy": "firmware_managed",
+      "print_start_profile": "creator5",
+      "hide_manual_z_calibration": true,
       "heuristics": [
         {
           "type": "object_exists",
@@ -814,6 +834,13 @@
           "pattern": "ff_toolchange",
           "confidence": 99,
           "reason": "[ff_toolchange] tool-changer extra (Klipper4Creator5 port)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "creator5_toolchanger",
+          "confidence": 99,
+          "reason": "[creator5_toolchanger] tool-changer extra (OpenCreator's Kalico fork)"
         },
         {
           "type": "object_exists",
@@ -866,11 +893,12 @@
           "confidence": 0,
           "reason": "The chamber heater is the only hardware that separates a Creator 5 Pro from a Creator 5; a machine reporting none is a Creator 5, and the name itself is shared with other enclosed printers so it never scores on its own"
         }
-      ],
-      "toolhead_style": "default"
+      ]
     },
     {
       "id": "voron_2_4",
+      "toolhead_style": "stealthburner",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 2.4",
       "manufacturer": "Voron",
@@ -883,6 +911,11 @@
         "BED_MESH": 90,
         "CLEANING": 20,
         "PURGING": 15
+      },
+      "plr": {
+        "tier": 0,
+        "reason": "gantry_drops",
+        "note": "A flying gantry on four belted Z motors drops and racks when the power goes, and QUAD_GANTRY_LEVEL would probe over the part to level it again, so no tier can resume it."
       },
       "heuristics": [
         {
@@ -962,6 +995,8 @@
     },
     {
       "id": "voron_0_1",
+      "toolhead_style": "mini_stealthburner",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron 0.2",
       "aliases": [
@@ -1028,6 +1063,11 @@
       "name": "PFA Micron",
       "manufacturer": "PrintersForAnts",
       "image": "pfa-micron.png",
+      "plr": {
+        "tier": 0,
+        "reason": "gantry_drops",
+        "note": "A flying gantry on four belted Z motors drops and racks when the power goes, and QUAD_GANTRY_LEVEL would probe over the part to level it again, so no tier can resume it."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1122,6 +1162,8 @@
     },
     {
       "id": "voron_trident",
+      "toolhead_style": "stealthburner",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "enclosed": true,
       "name": "Voron Trident",
       "manufacturer": "Voron",
@@ -1189,6 +1231,8 @@
     },
     {
       "id": "voron_switchwire",
+      "toolhead_style": "stealthburner",
+      "maintenance": { "belt_tension": { "hours": 300 } },
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
       "image": "voron-switchwire.png",
@@ -1269,6 +1313,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1399,6 +1449,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1542,6 +1598,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1644,6 +1706,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -1777,6 +1845,12 @@
           }
         ]
       },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -1784,6 +1858,13 @@
           "pattern": "_START_PRINT_VARS",
           "confidence": 0,
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -1901,7 +1982,7 @@
           "image": "creality-k2-plus-cfs.png"
         }
       ],
-      "probe_type": "cartographer",
+      "probe_type": "prtouch_v3",
       "preset": "k2",
       "print_start_profile": "k2_improvements",
       "console_filters": [
@@ -1924,6 +2005,12 @@
             "requires_macro": "LOAD_AI_RUN"
           }
         ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -1948,11 +2035,25 @@
           "reason": "_START_PRINT_VARS is the k2-improvements START_PRINT's variable holder - definitive, and it is the macro that changes the narration"
         },
         {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^gcode_macro _START_PRINT_VARS$",
+          "confidence": 0,
+          "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Jacobean's K2 Plus firmware ships a _START_PRINT_VARS of its own; its extended_zone_transform extra marks a K2 that is not running Creality's firmware at all"
+        },
+        {
           "type": "object_exists",
           "field": "printer_objects",
           "pattern": "^cartographer$",
           "confidence": 70,
-          "reason": "The mod replaces prtouch_v3 with a Cartographer probe",
+          "reason": "Cartographer is the mod's optional probe: its gimme-the-jamin.sh installer swaps prtouch_v3 for it, no-carto.sh keeps prtouch_v3. A real Cartographer types itself from this object, so the entry's probe_type stays prtouch_v3",
           "corroborating": true
         },
         {
@@ -2049,6 +2150,99 @@
       ]
     },
     {
+      "id": "creality_k2_plus_jacobean",
+      "variant_of": "creality_k2_plus",
+      "variant_label": "Jacobean firmware",
+      "_comment": "Jacobean's K2 Plus firmware (github.com/Jacob10383/k2-plus-custom-firmware): a replacement Linux system running Jacob10383's Kalico fork with its own CFS, motor, probe and power-loss modules, not a mod of Creality's firmware. Its configs ship in that Kalico fork's config/k2. No preset: its fans (fan, heater_fan heatbreak_fan, fan_generic aux_fans, temperature_fan chamber_exhaust_fans), its missing chamber_temp sensor, load_ai and filament_rack, and its BOX_LOAD/BOX_UNLOAD macros all differ from the stock k2 preset. No probe_type: its probe is Cartographer or its own prtouch module, never prtouch_v3, and both type themselves from their objects. No pre_print_options: it has no PRINT_PREPARED or LOAD_AI_RUN",
+      "enclosed": true,
+      "name": "Creality K2 Plus (Jacobean firmware)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-plus.png",
+      "image_variants": [
+        {
+          "when": {
+            "filament_system": "cfs"
+          },
+          "image": "creality-k2-plus-cfs.png"
+        }
+      ],
+      "print_start_profile": "k2_jacobean",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 99,
+          "reason": "[extended_zone_transform] is the firmware's own extra (its box.cfg) routing moves into the K2's rear purge zone; neither Creality's firmware nor k2-improvements has it - definitive"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "A K2 Plus without it runs Creality's firmware, stock or modded, and belongs to those entries"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^power_loss_recovery$",
+          "confidence": 80,
+          "reason": "The firmware's own power-loss recovery module (printer.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^danger_options$",
+          "confidence": 50,
+          "reason": "[danger_options] is Kalico's own section, which the firmware's printer.cfg sets. Every Kalico install can carry it, so it supports the identification and never makes one",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "The firmware's own CFS module keeps Creality's box object name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "The firmware's own closed-loop motor module keeps Creality's motor_control object name"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2plus",
+          "confidence": 90,
+          "reason": "The firmware's rootfs ships hostname K2Plus"
+        }
+      ]
+    },
+    {
       "id": "creality_k2_pro",
       "enclosed": true,
       "name": "Creality K2 Pro",
@@ -2096,6 +2290,12 @@
           }
         ]
       },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -2103,6 +2303,13 @@
           "pattern": "_START_PRINT_VARS",
           "confidence": 0,
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -2204,6 +2411,190 @@
       }
     },
     {
+      "id": "creality_k2_pro_k2improvements",
+      "variant_of": "creality_k2_pro",
+      "variant_label": "k2-improvements",
+      "enclosed": true,
+      "name": "Creality K2 Pro (k2-improvements)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-pro.png",
+      "image_variants": [
+        {
+          "when": {
+            "filament_system": "cfs"
+          },
+          "image": "creality-k2-pro-cfs.png"
+        }
+      ],
+      "probe_type": "prtouch_v3",
+      "preset": "k2",
+      "print_start_profile": "k2_improvements",
+      "console_filters": [
+        "creality_rs485",
+        "creality_k2_modules"
+      ],
+      "pre_print_options": {
+        "macro_name": "START_PRINT",
+        "setup_gcode": "PRINT_PREPARED",
+        "options": [
+          {
+            "id": "ai_detect",
+            "category": "monitoring",
+            "order": 10,
+            "default_enabled": false,
+            "label_key": "AI detection",
+            "description_key": "Monitor for print abnormalities (K2 Plus camera-based)",
+            "strategy": "pre_start_gcode",
+            "gcode_template": "LOAD_AI_RUN SWITCH={value}",
+            "requires_macro": "LOAD_AI_RUN"
+          }
+        ]
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
+      "heuristics": [
+        {
+          "type": "kinematics_exclude",
+          "field": "kinematics",
+          "pattern": "delta",
+          "confidence": 0,
+          "reason": "Every K2 is corexy. _START_PRINT_VARS is a common user-macro name too (FLSUN T1 Pro configs carry it), so it cannot be definitive on another kinematics"
+        },
+        {
+          "type": "kinematics_exclude",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 0,
+          "reason": "Every K2 is corexy"
+        },
+        {
+          "type": "macro_match",
+          "field": "macros",
+          "pattern": "_START_PRINT_VARS",
+          "confidence": 99,
+          "reason": "_START_PRINT_VARS is the k2-improvements START_PRINT's variable holder - definitive, and it is the macro that changes the narration"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^gcode_macro _START_PRINT_VARS$",
+          "confidence": 0,
+          "reason": "A K2 without the mod is its stock entry's: the stock entries score every other heuristic here equally, so without this exclusion the two tie"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Jacobean's K2 Plus firmware ships a _START_PRINT_VARS of its own; its extended_zone_transform extra marks a K2 that is not running Creality's firmware at all"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^cartographer$",
+          "confidence": 70,
+          "reason": "Cartographer is the mod's optional probe: its gimme-the-jamin.sh installer swaps prtouch_v3 for it, no-carto.sh keeps prtouch_v3. A real Cartographer types itself from this object, so the entry's probe_type stays prtouch_v3",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "CFS box object. Every CFS-equipped Creality carries it, so it narrows a machine to the range and never to a model; the model is the hostname's and bed size's to name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "K2-specific motor control module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "fan_feedback",
+          "confidence": 65,
+          "reason": "Creality fan-tachometer module. A captured real K1C reports it too, so it evidences Creality's range and not this model; the model is the hostname's and bed size's to name. Weight left as-is deliberately: re-scoring or dropping it wants a real K2 discovery snapshot, and no fixture has one"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2",
+          "confidence": 85,
+          "reason": "Hostname contains 'k2'"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "load_ai",
+          "confidence": 60,
+          "reason": "K2 AI print monitoring"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "filament_rack",
+          "confidence": 65,
+          "reason": "K2 filament rack module"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2pro",
+          "confidence": 90,
+          "reason": "Hostname contains 'K2Pro'"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "measure": "declared_bed",
+          "min_x": 290,
+          "max_x": 310,
+          "min_y": 290,
+          "max_y": 310,
+          "confidence": 55,
+          "reason": "Declared bed ~300mm (K2 Pro); separates Pro from Plus once the K2 platform is identified. Measures the bed size Creality's product_param macro declares; 300 is Creality's spec for the Pro, not a captured value. Stepper travel overshoots the bed: a reported K2 Pro has position_max 302 in X and 332 in Y",
+          "separator": true
+        }
+      ]
+    },
+    {
       "id": "creality_k2",
       "enclosed": true,
       "name": "Creality K2",
@@ -2255,6 +2646,12 @@
         ]
       },
       "_heuristics_comment": "The K2 platform heuristics minus the active chamber heater: the base K2 has no chamber heater (docs/devel/printers/CREALITY_K2_SUPPORT.md model table). Nothing documents it without motor_control, fan_feedback, load_ai, filament_rack, a chamber thermistor or the optional CFS box, so those stay",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -2262,6 +2659,13 @@
           "pattern": "_START_PRINT_VARS",
           "confidence": 0,
           "reason": "Exclude the k2-improvements mod (separate entry) - it replaces START_PRINT wholesale"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -2383,6 +2787,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2464,6 +2874,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2553,6 +2969,12 @@
       "console_filters": [
         "creality_macro_chatter"
       ],
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -2610,6 +3032,12 @@
       "display": {
         "resolution": "320x240",
         "notes": "Stock 3.2\" foldable color LCD; HelixScreen runs on a companion display"
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2669,6 +3097,7 @@
     },
     {
       "id": "creality_ender_3_v3",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 V3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -2677,6 +3106,12 @@
         "touch_controller": "tsc2007",
         "touch_type": "resistive",
         "notes": "TSC2007 resistive touchscreen; requires affine calibration"
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2736,6 +3171,7 @@
     },
     {
       "id": "creality_ender_3_v3_ke",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 V3 KE",
       "manufacturer": "Creality",
       "image": "creality-ender-3-v3-ke.png",
@@ -2744,6 +3180,12 @@
         "touch_controller": "ns2009",
         "touch_type": "resistive",
         "notes": "NS2009 I2C resistive ADC; axes may be hardware-swapped; requires affine calibration"
+      },
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
       },
       "heuristics": [
         {
@@ -2822,6 +3264,7 @@
     },
     {
       "id": "creality_ender_3_s1",
+      "toolhead_style": "ender3",
       "name": "Creality Ender-3 S1",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -2865,6 +3308,7 @@
     },
     {
       "id": "creality_ender_3",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 3",
       "manufacturer": "Creality",
       "image": "creality-ender-3.png",
@@ -2949,6 +3393,7 @@
     },
     {
       "id": "creality_ender_5",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 5",
       "manufacturer": "Creality",
       "image": "creality-ender-5.png",
@@ -3002,6 +3447,7 @@
     },
     {
       "id": "creality_ender_5_max",
+      "toolhead_style": "ender3",
       "name": "Creality Ender 5 Max",
       "manufacturer": "Creality",
       "image": "creality-ender-5-max.png",
@@ -3115,15 +3561,19 @@
     },
     {
       "id": "elegoo_centauri_carbon",
+      "toolhead_style": "elegoo_centauri",
       "enclosed": true,
       "name": "Elegoo Centauri Carbon",
       "manufacturer": "Elegoo",
       "image": "elegoo-centauri-carbon.png",
       "preset": "cc1",
       "_calibration_comment": "COSMOS's BED_MESH_CALIBRATE is a macro that heats the bed to BED_TEMP, homes, cleans the nozzle, tares the load cell, probes, then measures the Z offset. It needs nothing sent ahead of it (bed_mesh_self_prepares); its M190/M109 wait for a hot bed to cool, so BED_TEMP never asks for less than a bed above 60C already has, even when a lower target is set. {profile_arg} stores the mesh under the chosen name as it completes; the Z-offset step clears the active mesh right after, so it cannot be saved from there.",
+      "_screws_tilt_comment": "COSMOS replaces SCREWS_TILT_CALCULATE with a macro (rename_existing: SCREWS_TILT_CALCULATE_BASE) that tares the load cell, runs Klipper's calculation, parks, then opens a Manual Leveling prompt measuring every screw against a fixed bed height (z_bed_level + position_endstop - 4) rather than against a base screw. The shipped sequence is that macro without its prompt, so the Bed Screws panel shows Klipper's base-relative turns. Firmware without the wrapper runs the stock command, and the cosmos_load_cell_tare rule tares ahead of it.",
       "calibration": {
         "bed_mesh_gcode": "BED_MESH_CALIBRATE{profile_arg} BED_TEMP={bed_temp}",
-        "bed_mesh_self_prepares": true
+        "bed_mesh_self_prepares": true,
+        "screws_tilt_gcode": "LOAD_CELL_CALIBRATE TARE=TRUE SAVE=TRUE\n{screws_tilt_builtin}\nG90\nG1 X128 Y220 Z20 F6000",
+        "screws_tilt_self_prepares": true
       },
       "print_start_profile": "cosmos_cc1",
       "_print_start_default_phases_comment": "COSMOS PRINT_START, measured on a CC1 running 26.08 (2026-09-14, cold start, 105C bed / 260C nozzle): both heaters set without waiting, G28 through homing_override ~23s, M190, a heat soak of cosmos.conf heatsoak minutes (60s by default; cosmos_cc1.json holds the pre-print open for the minutes it announces), the stored default mesh loaded in under a second (adaptive_mesh probes a new mesh instead, which the history learns), SMART_PARK, M109, then a KAMP line purge ~13s. Heating is omitted: the thermal model owns it.",
@@ -3218,6 +3668,50 @@
           "pattern": "elegoo",
           "confidence": 80,
           "reason": "Hostname contains 'elegoo'"
+        }
+      ]
+    },
+    {
+      "id": "elegoo_centauri_carbon_2",
+      "toolhead_style": "elegoo_centauri",
+      "enclosed": true,
+      "name": "Elegoo Centauri Carbon 2",
+      "manufacturer": "Elegoo",
+      "image": "elegoo-centauri-carbon-2.png",
+      "_heuristics_comment": "No Klipper capture of a CC2 exists yet, so only a hostname that spells the model out identifies one. The COSMOS macros are what a Klipper Centauri Carbon reports, so a machine carrying them stays on the elegoo_centauri_carbon entry whatever its hostname says.",
+      "heuristics": [
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "gcode_macro _COSMOS_SETTINGS",
+          "reason": "COSMOS macro: an original Centauri Carbon"
+        },
+        {
+          "type": "object_exclude",
+          "field": "printer_objects",
+          "pattern": "gcode_macro ELEGOO_PURGE",
+          "reason": "COSMOS kamp.cfg macro: an original Centauri Carbon"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauri-carbon-2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauri_carbon_2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "centauricarbon2",
+          "confidence": 98,
+          "reason": "Hostname names the Centauri Carbon 2"
         }
       ]
     },
@@ -3615,6 +4109,12 @@
       "image": "qidi-x-max-3.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3704,6 +4204,7 @@
     },
     {
       "id": "qidi_plus_4",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Plus 4",
       "manufacturer": "Qidi",
@@ -3711,6 +4212,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required). Compatible with the QIDI Box filament changer (4-slot hub-style, chainable to 16).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3810,6 +4317,12 @@
       "image": "qidi-x-plus-3.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI on serial bus. Not supported without screen replacement (HDMI/DSI touchscreen required).",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3899,12 +4412,19 @@
     },
     {
       "id": "qidi_q1_pro",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Q1 Pro",
       "manufacturer": "Qidi",
       "image": "qidi-q1-pro.png",
       "print_start_profile": "qidi",
       "notes": "Stock display is a TJC HMI (TJC4827X243_011) on serial bus at 480x272. Not supported without screen replacement.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -3983,6 +4503,12 @@
       "image": "qidi-x-smart-3.png",
       "print_start_profile": "qidi",
       "notes": "Smallest of the Qidi 3-series (175x180x170 build volume, passive enclosure, no active chamber heater). Stock display is a TJC HMI on serial bus at 480x272 -- on-device install requires screen replacement. Works without modification as a remote target when HelixScreen runs on a separate touchscreen.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4041,6 +4567,7 @@
     },
     {
       "id": "qidi_max_4",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Max 4",
       "manufacturer": "Qidi",
@@ -4049,6 +4576,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "Linux framebuffer display. Detection + preset are community-tested on-device; the QIDI Box is detected/read via the qidi_box backend, but Max 4 box CONTROL diverges from the Q2/Plus 4 -- eject/unload uses the multi_color_controller dialect (MULTI_COLOR_BOX_UNLOAD SLOT=slotN), not the shared box_stepper FORCE_MOVE primitive (rejected as 'Invalid pin value'). Per-model box dispatch tracked in prestonbrown/helixscreen#1083.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_exclude",
@@ -4156,6 +4689,7 @@
     },
     {
       "id": "qidi_q2",
+      "toolhead_style": "qidi",
       "enclosed": true,
       "name": "Qidi Q2",
       "manufacturer": "Qidi",
@@ -4268,6 +4802,12 @@
       "print_start_profile": "qidi",
       "ams_type": "qidi_box",
       "notes": "New-generation QIDI board (RK3308 host, STM32F407 main MCU) with a 480x800 Linux framebuffer display, so HelixScreen runs on-device. Same generation as the Q2 and Max 4. Compatible with the QIDI Box filament changer (4-slot hub-style, chainable to 16). The panel is a portrait 480x800 mounted sideways; HelixScreen's rotation is set by the preset.",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "kinematics_exclude",
@@ -4391,6 +4931,11 @@
       "name": "FLSUN V400",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4447,6 +4992,11 @@
       "name": "FLSUN Super Racer",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4514,6 +5064,11 @@
       "name": "FLSUN Delta",
       "manufacturer": "FLSUN",
       "image": "flsun-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4561,6 +5116,11 @@
       "manufacturer": "FLSUN",
       "image": "flsun-s1.png",
       "z_offset_calibration_strategy": "endstop",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "object_required",
@@ -4634,6 +5194,11 @@
       "manufacturer": "FLSUN",
       "image": "flsun-t1-pro.png",
       "preset": "flsun_t1",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4678,6 +5243,11 @@
       "name": "Doron Velta",
       "manufacturer": "Doron",
       "image": "doron_velta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -4739,6 +5309,11 @@
       "name": "Venture Delta",
       "manufacturer": "Venture",
       "image": "venture-delta.png",
+      "plr": {
+        "tier": 0,
+        "reason": "delta_kinematics",
+        "note": "A delta cannot home X and Y without moving the nozzle down; the plugin also refuses delta kinematics at runtime."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5134,9 +5709,14 @@
     },
     {
       "id": "sovol_sv08",
+      "toolhead_style": "sovol_sv08",
       "name": "Sovol SV08",
       "manufacturer": "Sovol",
       "image": "sovol-sv08.png",
+      "plr": {
+        "tier": 1,
+        "note": "Four Z lead screws hold the levelled gantry unpowered, so assisted Z resumes it without re-levelling. Listed so the plugin's quad_gantry_level check for unlisted printers does not refuse it. Not yet run on hardware."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -5224,9 +5804,14 @@
     },
     {
       "id": "sovol_sv08_max",
+      "toolhead_style": "sovol_sv08",
       "name": "Sovol SV08 Max",
       "manufacturer": "Sovol",
       "image": "sovol-sv08-max.png",
+      "plr": {
+        "tier": 1,
+        "note": "Four Z lead screws hold the levelled gantry unpowered, so assisted Z resumes it without re-levelling. Listed so the plugin's quad_gantry_level check for unlisted printers does not refuse it. Not yet run on hardware."
+      },
       "heuristics": [
         {
           "type": "kinematics_match",
@@ -6054,6 +6639,79 @@
       ]
     },
     {
+      "id": "anycubic_kobra_x",
+      "name": "Anycubic Kobra X",
+      "manufacturer": "Anycubic",
+      "image": "anycubic-kobra-x.png",
+      "print_start_profile": "anycubic_kobra",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger) - confirmed via a Kobrian Kobra X printer.cfg"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_toolchanger$",
+          "confidence": 95,
+          "reason": "KX multi-material head toolchanger (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_selector$",
+          "confidence": 92,
+          "reason": "KX filament selector (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^kx_filament$",
+          "confidence": 90,
+          "reason": "KX filament manager (Kobra X kx_multimaterial.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^motor_link$",
+          "confidence": 50,
+          "corroborating": true,
+          "reason": "Corroboration only: Anycubic's closed-loop motor link (NF026) may ride on other Anycubic boards ported to Klipper"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobrian-kx",
+          "confidence": 95,
+          "reason": "Hostname contains 'kobrian-kx' (the Kobrian image names a Kobra X host kobrian-kx-<suffix>)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobrax",
+          "confidence": 97,
+          "reason": "Hostname contains 'kobrax'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobra-x",
+          "confidence": 97,
+          "reason": "Hostname contains 'kobra-x'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
+        }
+      ]
+    },
+    {
       "id": "anycubic_i3_mega",
       "name": "Anycubic i3 Mega",
       "manufacturer": "Anycubic",
@@ -6447,6 +7105,7 @@
     },
     {
       "id": "artillery_m1_pro",
+      "toolhead_style": "artillery_m1",
       "name": "Artillery M1 Pro",
       "manufacturer": "Artillery",
       "image": "artillery-m1-pro.png",
@@ -6863,6 +7522,12 @@
       "z_offset_persists": false,
       "tool_change_resets_z_offset": true,
       "print_start_profile": "snapmaker_u1",
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
       "heuristics": [
         {
           "type": "object_exists",
@@ -7032,6 +7697,7 @@
             "order": 10,
             "default_enabled": false,
             "label_key": "Pressure Advance Calibration",
+            "needs_material": true,
             "strategy": "pre_start_gcode",
             "gcode_template": "SET_PRINT_PREFERENCES FLOW_CALIBRATE={value}",
             "emit_when_disabled": true

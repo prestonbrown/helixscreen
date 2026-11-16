@@ -25,6 +25,11 @@ class PrintStartCollectorTestAccess {
         return c.wait_line_.kind;
     }
 
+    static bool start_macro_seen_zero(PrintStartCollector& c) {
+        std::lock_guard<std::mutex> lock(c.state_mutex_);
+        return c.start_macro_seen_zero_;
+    }
+
     static bool is_heater_wait_report(const std::string& line) {
         return PrintStartCollector::is_heater_wait_report(line);
     }
@@ -39,6 +44,10 @@ class PrintStartCollectorTestAccess {
 
     static bool is_respond_completion(const std::string& line) {
         return PrintStartCollector::is_respond_completion(line);
+    }
+
+    static void on_gcode_response(PrintStartCollector& collector, const nlohmann::json& msg) {
+        collector.on_gcode_response(msg);
     }
 
     /// Wind back the start time to simulate elapsed seconds.
@@ -197,5 +206,13 @@ class PrintStartCollectorTestAccess {
     static std::optional<helix::PreprintPhaseOverrides> phase_overrides(PrintStartCollector& c) {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
         return c.phase_overrides_;
+    }
+
+    /// Drop the client's references to a running collector and leave its ETA
+    /// timer armed, so whoever holds the collector holds the last reference.
+    static void drop_client_references(PrintStartCollector& c) {
+        c.client_.unregister_method_callback("notify_gcode_response", c.handler_name_);
+        c.handler_name_.clear();
+        c.client_.unsubscribe_notify_update(c.macro_subscription_id_.exchange(0));
     }
 };

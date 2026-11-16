@@ -1,10 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "ui_update_queue.h"
-
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/update_queue.h"
 #include "lvgl_test_fixture.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -14,7 +13,6 @@
 
 #include <chrono>
 #include <optional>
-#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -24,19 +22,19 @@ TEST_CASE("toolhead_is_homed reads the live homed_axes subject", "[homing][toolh
     ps.init_subjects(true);
 
     SECTION("empty means not homed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "");
         CHECK_FALSE(helix::toolhead_is_homed(ps));
     }
     SECTION("xyz means homed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xyz");
         CHECK(helix::toolhead_is_homed(ps));
     }
     SECTION("partial homing is NOT homed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xy");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xy");
         CHECK_FALSE(helix::toolhead_is_homed(ps));
     }
     SECTION("z-only is NOT homed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "z");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "z");
         CHECK_FALSE(helix::toolhead_is_homed(ps));
     }
 }
@@ -47,20 +45,20 @@ TEST_CASE("axis_is_homed reads each axis independently", "[homing][toolhead]") {
     ps.init_subjects(false); // false = skip XML registration (test default)
 
     SECTION("xy homed leaves z unhomed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xy");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xy");
         CHECK(helix::axis_is_homed(ps, helix::Axis::X));
         CHECK(helix::axis_is_homed(ps, helix::Axis::Y));
         CHECK_FALSE(helix::axis_is_homed(ps, helix::Axis::Z));
         CHECK_FALSE(helix::toolhead_is_homed(ps));
     }
     SECTION("empty homed_axes means nothing is homed") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "");
         CHECK_FALSE(helix::axis_is_homed(ps, helix::Axis::X));
         CHECK_FALSE(helix::axis_is_homed(ps, helix::Axis::Y));
         CHECK_FALSE(helix::axis_is_homed(ps, helix::Axis::Z));
     }
     SECTION("xyz homed reports all three axes") {
-        lv_subject_copy_string(ps.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(ps.motion_state().get_homed_axes_subject(), "xyz");
         CHECK(helix::axis_is_homed(ps, helix::Axis::X));
         CHECK(helix::axis_is_homed(ps, helix::Axis::Y));
         CHECK(helix::axis_is_homed(ps, helix::Axis::Z));
@@ -75,7 +73,7 @@ TEST_CASE("free ensure_homed_then runs then() synchronously when homed", "[homin
     // local PrinterState (which owns its own, unrelated subject storage).
     helix::PrinterState& state = get_printer_state();
     state.init_subjects(false);
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "xyz");
 
     helix::AsyncLifetimeGuard guard;
     bool ran = false;
@@ -92,7 +90,7 @@ TEST_CASE("free ensure_homed_then does not run then() synchronously when not hom
     LVGLTestFixture fixture;
     helix::PrinterState& state = get_printer_state();
     state.init_subjects(false);
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "");
 
     helix::AsyncLifetimeGuard guard;
     bool ran = false;
@@ -108,7 +106,7 @@ TEST_CASE("ensure_homed_then with HomingPolicy::Always homes an already-homed to
     LVGLTestFixture fixture;
     helix::PrinterState& state = get_printer_state();
     state.init_subjects(false);
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "xyz");
 
     helix::AsyncLifetimeGuard guard;
     bool ran = false;
@@ -131,7 +129,7 @@ TEST_CASE("ensure_homed_then's continuation is not refused as someone else's bus
     state.set_klippy_state_sync(helix::KlippyState::READY);
     lv_subject_set_int(state.print_state().get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "");
 
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     client.connect("ws://mock/websocket", []() {}, []() {});
@@ -150,10 +148,11 @@ TEST_CASE("ensure_homed_then's continuation is not refused as someone else's bus
     // The G28 is seen holding idle_timeout "Printing", and the homing macro is
     // still moving the bed past SETTLE when G28 acks. Ownership needs the send
     // to precede the episode, so the episode is observed now and allowed to
-    // settle in real time.
+    // settle.
     lv_subject_set_int(state.calibration_state().get_idle_timeout_printing_subject(), 1);
     state.calibration_state().idle_timeout_busy().set_printing(true);
-    std::this_thread::sleep_for(helix::IdleTimeoutBusy::kSettle + std::chrono::milliseconds(100));
+    helix::BusyClock::advance_for_test(helix::IdleTimeoutBusy::kSettle +
+                                       std::chrono::milliseconds(100));
     REQUIRE(state.is_blocking_operation_active());
     helix::ui::UpdateQueue::instance().drain();
 
@@ -173,7 +172,7 @@ TEST_CASE("ensure_homed_then's G28 ack adopts no episode that begins after it",
     state.set_klippy_state_sync(helix::KlippyState::READY);
     lv_subject_set_int(state.print_state().get_print_state_enum_subject(),
                        static_cast<int>(helix::PrintJobState::STANDBY));
-    lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "");
 
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     client.connect("ws://mock/websocket", []() {}, []() {});
@@ -183,8 +182,8 @@ TEST_CASE("ensure_homed_then's G28 ack adopts no episode that begins after it",
     bool ran = false;
     helix::ensure_homed_then(&api, guard, [&] { ran = true; }, nullptr);
     // A homing pass longer than the grace window, then the ack.
-    std::this_thread::sleep_for(helix::BusyEpisodeOwner::kGraceWindow +
-                                std::chrono::milliseconds(100));
+    helix::BusyClock::advance_for_test(helix::BusyEpisodeOwner::kGraceWindow +
+                                       std::chrono::milliseconds(100));
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(ran);
 

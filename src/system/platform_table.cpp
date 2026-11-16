@@ -7,11 +7,24 @@ namespace helix::platform {
 namespace {
 
 // FlashForge zmod config: IFS slot truth and user-defined filament types.
-// A 404 (non-zmod install, K1 series on the unified MIPS build) is skipped.
 const std::vector<std::string> kZmodDiagnosticFiles = {
     "/server/files/config/Adventurer5M.json",
     "/server/files/config/mod_data/user.cfg",
 };
+
+// K1 series: the launch hook's SSH state log (assets/config/platform/
+// hooks-k1.sh), in Moonraker's logs root.
+const std::vector<std::string> kK1DiagnosticFiles = {
+    "/server/files/logs/helixscreen-ssh.log",
+};
+
+// The unified MIPS build runs on both boards, so it asks for both boards'
+// files; the one a board lacks is a 404, which the collector skips.
+std::vector<std::string> mips_diagnostic_files() {
+    std::vector<std::string> files = kZmodDiagnosticFiles;
+    files.insert(files.end(), kK1DiagnosticFiles.begin(), kK1DiagnosticFiles.end());
+    return files;
+}
 
 constexpr uint8_t kElf32 = 1, ELF64 = 2, LE = 1;
 constexpr uint16_t EM_ARM_ = 0x28, EM_AARCH64_ = 0xB7, EM_X86_64_ = 0x3E, EM_MIPS_ = 0x08;
@@ -25,8 +38,8 @@ const std::vector<Info> kPlatforms = {
     {"x86-desktop", "x86 Linux Desktop (windowed)", false, ELF64, LE, EM_X86_64_, {}},
     {"ad5m", "FlashForge Adventurer 5M", true, kElf32, LE, EM_ARM_, kZmodDiagnosticFiles},
     {"ad5x", "FlashForge Adventurer 5X", true, kElf32, LE, EM_MIPS_, kZmodDiagnosticFiles},
-    {"mips", "MIPS (K1 series / AD5X)", true, kElf32, LE, EM_MIPS_, kZmodDiagnosticFiles},
-    {"k1", "Creality K1", true, kElf32, LE, EM_MIPS_, {}},
+    {"mips", "MIPS (K1 series / AD5X)", true, kElf32, LE, EM_MIPS_, mips_diagnostic_files()},
+    {"k1", "Creality K1", true, kElf32, LE, EM_MIPS_, kK1DiagnosticFiles},
     // One build serves the K2, K2 Pro and K2 Plus, so the name covers all three.
     {"k2", "Creality K2", true, kElf32, LE, EM_ARM_, {}},
     {"cc1", "Elegoo Centauri Carbon", true, kElf32, LE, EM_ARM_, {}},

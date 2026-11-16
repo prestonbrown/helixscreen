@@ -6,6 +6,7 @@
 #include "ams_backend_mock.h"
 #include "ams_types.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -351,11 +352,11 @@ TEST_CASE("Mock backend supports toolchange simulation", "[afc][toolchange][mock
 // ============================================================================
 
 #include "ui_ams_tool_text.h"
-#include "ui_update_queue.h"
 
 #include "../ui_test_utils.h"
 #include "ams_state.h"
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
 #include "tool_state.h"
 
 #include <lvgl.h>
@@ -457,7 +458,7 @@ TEST_CASE("AmsState toolchange text formatting", "[afc][toolchange][format]") {
 // Rendered toolchange text — the AFC wire value all the way to the label
 // ============================================================================
 
-// Drives the real formatter observers from src/ui/ui_ams_tool_text.cpp over the
+// Drives the real formatter observers from src/ui/filament/ui_ams_tool_text.cpp over the
 // real AmsState subjects, fed by the real AFC parser. Nothing here reimplements
 // the format string, so the assertions break if either half of the 1-based /
 // 0-based contract moves.
@@ -522,6 +523,12 @@ TEST_CASE_METHOD(AfcToolchangeRenderFixture, "AFC toolchange text renders AFC's 
         REQUIRE(rendered() == "1 / 161");
     }
 
+    SECTION("a toolchange count ignores the slot numbering base") {
+        ScopedZeroLaneNumbering zero;
+        feed_afc(37, 161);
+        REQUIRE(rendered() == "37 / 161");
+    }
+
     SECTION("mid print the label tracks AFC's console count") {
         feed_afc(37, 161);
         REQUIRE(rendered() == "37 / 161");
@@ -530,8 +537,8 @@ TEST_CASE_METHOD(AfcToolchangeRenderFixture, "AFC toolchange text renders AFC's 
     SECTION("the final change renders N / N, not N+1 / N") {
         // Assert one change BELOW the ceiling first. At the ceiling the clamp
         // also turns a broken 1-based store into "161 / 161", so feeding only
-        // the final change cannot tell the fix from the bug it is named for —
-        // drop the backend's -1 normalization and this section still passed.
+        // the final change cannot tell correct from broken: dropping the
+        // backend's -1 normalization would still pass.
         // At wire 160 the clamp is inert: correct normalization renders
         // "160 / 161" and a missing -1 renders "161 / 161".
         feed_afc(160, 161);

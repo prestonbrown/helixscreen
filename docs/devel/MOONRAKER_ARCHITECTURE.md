@@ -2,8 +2,6 @@
 
 This document describes the architecture of the Moonraker integration layer.
 
-> **Last Updated:** 2026-08-17
-
 ## Overview
 
 The Moonraker integration is split into three distinct layers with clean separation of concerns:
@@ -42,9 +40,9 @@ The Moonraker integration is split into three distinct layers with clean separat
 
 **Key Architectural Principle:** MoonrakerClient is pure transport. It does NOT store hardware data. All discovered hardware information flows via callbacks to MoonrakerAPI, which owns the `PrinterDiscovery` instance as the single source of truth.
 
-**Abstraction Boundary (enforced Feb 2026):** UI code should ONLY talk to the API layer, never the transport layer directly. The API provides proxy methods for connection state, subscriptions, database operations, and plugin RPCs. The dead `IMoonrakerDomainService` interface has been deleted; shared data types live in `moonraker_types.h`.
+**Abstraction boundary:** UI code talks only to the API layer, never the transport layer directly. The API provides proxy methods for connection state (`get_connection_state()`, `get_websocket_url()`), subscriptions (`subscribe_notifications()`, `register_method_callback()`), database operations (`database_get_item()`, `database_post_item()`), `suppress_disconnect_modal()` and plugin RPCs. Shared data types (`BedMeshProfile`, `GcodeStoreEntry`) live in `moonraker_types.h`.
 
-**Interfaces are the consumer contract (Plan 3, Jul 2026):** `IMoonrakerAPI` (`include/i_moonraker_api.h`), `helix::IMoonrakerClient` (`include/i_moonraker_client.h`), and the ten sub-API interfaces in `include/i_moonraker_sub_apis.h` are what every consumer depends on — not the concrete classes. This started as a narrower mock-parity mirror (Apr 2026) of the currently-virtual methods on each concrete class; Plan 3 widened it into the full contract so the network layer can be swapped out (e.g. the ESP32 port's non-libhv client) behind the same interfaces. The concretes (`MoonrakerAPI`, `helix::MoonrakerClient`, the ten `Moonraker*API` sub-classes) live behind `MoonrakerManager` (`include/moonraker_manager.h`), which owns them via `std::unique_ptr<MoonrakerAPI>` (the concrete façade — the mock inherits it) / `std::unique_ptr<helix::IMoonrakerClient>` and constructs them in `create_api()` / `create_client()`. Mocks still inherit the concretes. Drift protection: `tests/unit/test_interface_drift_moonraker_*.cpp`. Lint-enforced: `tests/shell/test_code_lint.bats` fails CI if a concrete type is named outside the network layer.
+**Interfaces are the consumer contract:** `IMoonrakerAPI` (`include/i_moonraker_api.h`), `helix::IMoonrakerClient` (`include/i_moonraker_client.h`), and the ten sub-API interfaces in `include/i_moonraker_sub_apis.h` are what every consumer depends on, not the concrete classes, so the network layer can be swapped out (the ESP32 port's non-libhv client) behind the same interfaces. The concretes (`MoonrakerAPI`, `helix::MoonrakerClient`, the ten `Moonraker*API` sub-classes) live behind `MoonrakerManager` (`include/moonraker_manager.h`), which owns them via `std::unique_ptr<MoonrakerAPI>` (the concrete façade - the mock inherits it) / `std::unique_ptr<helix::IMoonrakerClient>` and constructs them in `create_api()` / `create_client()`. Mocks still inherit the concretes. Drift protection: `tests/unit/test_interface_drift_moonraker_*.cpp`. Lint-enforced: `scripts/code_lint.sh` fails CI if a concrete type is named outside the network layer.
 
 ## Layer Responsibilities
 
@@ -66,10 +64,10 @@ The Moonraker integration is split into three distinct layers with clean separat
 - Hardware "guessing" logic
 - **Store hardware discovery data** (moved to MoonrakerAPI)
 
-**Broadcast notifications must be filtered by the consumer, at the edge.** The client fans a method callback out to every registered handler; it does not know which of them cares. `notify_filelist_changed` is the one that bites: Moonraker fires it for *every* registered root, and printers write to `config` constantly — an AFC unit rewrites `AFC/AFC.var.unit` on every `SET_*` command, a `SAVE_VARIABLE` `delayed_gcode` rewrites `saved_variables.cfg`. On bundle L53W5PKG that was one notification per ~10 s for a whole print. Two consumers, two different filters, both required:
+**Broadcast notifications must be filtered by the consumer, at the edge.** The client fans a method callback out to every registered handler; it does not know which of them cares. `notify_filelist_changed` is the one that bites: Moonraker fires it for *every* registered root, and printers write to `config` constantly - an AFC unit rewrites `AFC/AFC.var.unit` on every `SET_*` command, a `SAVE_VARIABLE` `delayed_gcode` rewrites `saved_variables.cfg`. On bundle L53W5PKG that was one notification per ~10 s for a whole print. Two consumers, two different filters, both required:
 
-- `PrintSelectPanel` lists the `gcodes` root only (`PrintSelectFileProvider` hardcodes it), so it filters on the roots an operation touches — `include/json_utils.h#filelist_change_affects_gcodes` takes both `item.root` and `source_item.root` and counts *either* end as `gcodes`. `item` describes the destination and the origin rides in `source_item`, so a file moved out of `gcodes` reports a foreign item root; both arguments are required, because looking at the item root alone is exactly the case that leaves the listing naming a file that is gone. Without the filter every config write cost a full `server.files.get_directory` round trip plus a list rebuild, 113 of them in that one session, while the user was on the print-status panel.
-- `PrintHistoryManager` cares about files disappearing, so it filters on *action first, then root* — `filelist_change_affects_history()` admits only `delete_file`/`delete_dir`/`move_file`/`move_dir`, and of those only the ones touching `gcodes`. The root half matters as much as the action half: Moonraker's timelapse component moves frame and render artifacts throughout a print, and an unfiltered `move_file` costs a full 500-job refetch, ~1 s of round-trip on a Pi 4. A move counts if *either* end is in `gcodes`; a payload with no `item.root` at all invalidates, because going stale is worse than one extra round-trip.
+- `PrintSelectPanel` lists the `gcodes` root only (`PrintSelectFileProvider` hardcodes it), so it filters on the roots an operation touches - `include/json_utils.h#filelist_change_affects_gcodes` takes both `item.root` and `source_item.root` and counts *either* end as `gcodes`. `item` describes the destination and the origin rides in `source_item`, so a file moved out of `gcodes` reports a foreign item root; both arguments are required, because looking at the item root alone is exactly the case that leaves the listing naming a file that is gone. Without the filter every config write cost a full `server.files.get_directory` round trip plus a list rebuild, 113 of them in that one session, while the user was on the print-status panel.
+- `PrintHistoryManager` cares about files disappearing, so it filters on *action first, then root* - `filelist_change_affects_history()` admits only `delete_file`/`delete_dir`/`move_file`/`move_dir`, and of those only the ones touching `gcodes`. The root half matters as much as the action half: Moonraker's timelapse component moves frame and render artifacts throughout a print, and an unfiltered `move_file` costs a full 500-job refetch, ~1 s of round-trip on a Pi 4. A move counts if *either* end is in `gcodes`; a payload with no `item.root` at all invalidates, because going stale is worse than one extra round-trip.
 
 A new consumer of this notification needs to state which axis it filters on before it registers. Filtering the log line alone is not the fix; the work behind it is the cost.
 
@@ -86,15 +84,15 @@ A new consumer of this notification needs to state which axis it filters on befo
 - Object exclusion state queries
 - Print control (pause, resume, cancel)
 
-**`execute_gcode()`'s three dispositions:** `on_success`, `on_error`, and `on_queued` (see `include/moonraker_api.h`). `on_queued` is not decoration — when a script is discretionary (see `include/gcode_classify.h`) and an external blocking op (`G28`, `BED_MESH_CALIBRATE`, a manual probe) holds Klipper's gcode lock, `execute_gcode()` queues the command fire-and-forget and DROPS its RPC response: neither `on_success` nor `on_error` will ever fire. `on_queued` means "accepted for later execution", never "the printer did it" — a caller that needs to know the command actually ran must not treat it as completion, only as a signal to release a caller-side in-flight counter.
+**`execute_gcode()`'s three dispositions:** `on_success`, `on_error`, and `on_queued` (see `include/moonraker_api.h`). `on_queued` is not decoration - when a script is discretionary (see `include/gcode_classify.h`) and an external blocking op (`G28`, `BED_MESH_CALIBRATE`, a manual probe) holds Klipper's gcode lock, `execute_gcode()` queues the command fire-and-forget and DROPS its RPC response: neither `on_success` nor `on_error` will ever fire. `on_queued` means "accepted for later execution", never "the printer did it" - a caller that needs to know the command actually ran must not treat it as completion, only as a signal to release a caller-side in-flight counter.
 
-**`on_error` is not a claim to report.** Supplying an error callback says the caller wants to *know*; it does not say the user will be *told*. The trailing `caller_surfaces_errors` parameter (default `true`) is the claim, and it must be captured from the caller's own `on_error` **before** any internal wrapper — `execute_gcode()` wraps unconditionally to settle its activity counter, so intent derived afterwards reads our own bookkeeping as a caller promise. Pass `false` when the callback only logs or only resets state: a false claim makes the request tracker record the rejection for cross-channel dedup, `GcodeErrorRouter` then suppresses its report of Klipper's `!!` broadcast, and the failure reaches nobody. The `silent` parameter is a separate axis — it means "no automatic toast from us", never "the user has been told", so it neither records for dedup nor stops the `!!` router. `scripts/check_gcode_error_ownership.py` gates the log-only case at zero. Full contract and the decision matrix: `RPC_ERROR_OWNERSHIP.md`.
+**`on_error` is not a claim to report.** Supplying an error callback says the caller wants to *know*; it does not say the user will be *told*. The trailing `caller_surfaces_errors` parameter (default `true`) is the claim, and it must be captured from the caller's own `on_error` **before** any internal wrapper - `execute_gcode()` wraps unconditionally to settle its activity counter, so intent derived afterwards reads our own bookkeeping as a caller promise. Pass `false` when the callback only logs or only resets state: a false claim makes the request tracker record the rejection for cross-channel dedup, `GcodeErrorRouter` then suppresses its report of Klipper's `!!` broadcast, and the failure reaches nobody. The `silent` parameter is a separate axis - it means "no automatic toast from us", never "the user has been told", so it neither records for dedup nor stops the `!!` router. `scripts/check_gcode_error_ownership.py` gates the log-only case at zero. Full contract and the decision matrix: `RPC_ERROR_OWNERSHIP.md`.
 
-**What counts as "an external blocking op" is debounced, not the raw flag.** `idle_timeout.state` reads `"Printing"` while *any* gcode executes, so a printer with housekeeping `delayed_gcode` loops reports it in short bursts forever while sitting idle — bundle L53W5PKG (a Voron Trident running `bedfanloop`, `_AIR_FILTER_TIMER` and AFC `PREP`) logged 632 transitions, the flag high for ~0.7 s out of every 10 s. Each burst made the gate refuse jogs with "Printer is busy — try again in a moment" on an idle printer, roughly 7% of that machine's idle life. `IdleTimeoutBusy` (`include/idle_timeout_busy.h`) requires the flag to hold for `kSettle` (1 s) before `is_blocking_operation_active()` reports it; the real ops the gate exists for hold it for many seconds. Three consequences worth knowing:
+**What counts as "an external blocking op" is debounced, not the raw flag.** `idle_timeout.state` reads `"Printing"` while *any* gcode executes, so a printer with housekeeping `delayed_gcode` loops reports it in short bursts forever while sitting idle - bundle L53W5PKG (a Voron Trident running `bedfanloop`, `_AIR_FILTER_TIMER` and AFC `PREP`) logged 632 transitions, the flag high for ~0.7 s out of every 10 s. Each burst made the gate refuse jogs with "Printer is busy - try again in a moment" on an idle printer, roughly 7% of that machine's idle life. `IdleTimeoutBusy` (`include/idle_timeout_busy.h`) requires the flag to hold for `kSettle` (1 s) before `is_blocking_operation_active()` reports it; the real ops the gate exists for hold it for many seconds. Three consequences worth knowing:
 
-- **Only the rising edge is debounced.** Clearing takes effect immediately — there is no false negative to protect against on that edge, and making the user wait a second after a homing completes would be its own bug.
+- **Only the rising edge is debounced.** Clearing takes effect immediately - there is no false negative to protect against on that edge, and making the user wait a second after a homing completes would be its own bug.
 - **A repeated `"Printing"` report does not re-arm the window.** Restarting the settle on every status batch would let a printer that re-sends faster than `kSettle` never reach the blocking state at all, turning the debounce into a hole in the gate rather than a filter.
-- **It must be cleared wherever the subject is.** `idle_timeout` is a delta-only field, so `PrinterCalibrationState::reset_klippy_volatile()` resets it on a Klippy transition (#1129). The debounce caches the same field but is not a subject, so it is cleared there explicitly — miss that and the #1129 wedge returns one layer down, invisible to the subject-level tests.
+- **It must be cleared wherever the subject is.** `idle_timeout` is a delta-only field, so `PrinterCalibrationState::reset_klippy_volatile()` resets it on a Klippy transition (#1129). The debounce caches the same field but is not a subject, so it is cleared there explicitly - miss that and the #1129 wedge returns one layer down, invisible to the subject-level tests.
 
 The raw `get_idle_timeout_printing_subject()` remains the literal Klipper state for display; gates read `idle_timeout_busy()`.
 
@@ -102,11 +100,11 @@ The raw `get_idle_timeout_printing_subject()` remains the literal Klipper state 
 
 - **Every non-silent `execute_gcode()` send is stamped**, before it goes out, into `PrinterState::app_command_episode()`. Silent sends are the app's own housekeeping (`LedAutoState` reacting to a state change) and can follow an external op's start closely, so they never stamp.
 - **An episode is the app's when a stamped send falls in the `kGraceWindow` (2 s) before its start.** The start is when the main thread saw `idle_timeout` go high (`IdleTimeoutBusy::printing_since()`), so a send after it, even by a fraction of a second, is joining someone else's operation and never adopts it. The last `kHistory` (16) send times are kept, because the first ask comes about `kSettle` into the episode after more sends have landed.
-- **Ownership is decided once per episode**, on the first ask, and lapses `kMaxSelfBusy` (30 s) after the latest send, which bounds how long an op that starts mid-burst can pass as the app's.
+- **Ownership is decided once per episode**, on the first ask that can settle it, and lapses `kMaxSelfBusy` (30 s) after the latest activity (an ack or an untracked send), which bounds how long an op that starts mid-burst can pass as the app's. Sends tracked with `note_sent()`/`note_done()` are a second witness: one stuck without an ack for `kGraceWindow` disowns the episode, a prompt ack adopts it. The header comment in `include/busy_episode_owner.h` has the full rule.
 
 This is toast attribution only. The blocking-op predicates and the motion refusal never read `app_command_episode()`, so a light tap cannot let a jog through during an external bed mesh or filament op (#1108). Motion has its own owner under the same rule: `AppMotionActivity` keeps a `BusyEpisodeOwner` fed from motion sends alone, and `PrinterState::is_external_blocking_operation_active()` treats an episode those sends began as self-inflicted, so one jog does not refuse the next. It also passes a jog while the previous jog is in flight or acked within the last 2s (`AppMotionActivity::recently_active`). A manual probe session blocks regardless.
 
-Before adding a command to `detail::categorize_gcode_token()` in `gcode_classify.h`, verify every caller that emits it either holds no in-flight counter or passes `on_queued`. Skipping this check is exactly how #1129 happened — a cached `idle_timeout_printing` made the app treat an idle printer as busy, routed a `SET_LED` down the fire-and-forget path, and left the LED in-flight counter pinned for the session. `SET_GCODE_OFFSET` is deliberately excluded from the discretionary set: it CONTROLS a blocking op (z-offset calibration sends it mid-probe), so queuing it behind that op would break calibration.
+Before adding a command to `detail::categorize_gcode_token()` in `gcode_classify.h`, verify every caller that emits it either holds no in-flight counter or passes `on_queued`. Skipping this check is exactly how #1129 happened - a cached `idle_timeout_printing` made the app treat an idle printer as busy, routed a `SET_LED` down the fire-and-forget path, and left the LED in-flight counter pinned for the session. `SET_GCODE_OFFSET` is deliberately excluded from the discretionary set: it CONTROLS a blocking op (z-offset calibration sends it mid-probe), so queuing it behind that op would break calibration.
 
 ### PrinterDiscovery (Hardware Data)
 
@@ -120,8 +118,6 @@ Before adding a command to `detail::categorize_gcode_token()` in `gcode_classify
 
 **Accessed via:** `MoonrakerAPI::hardware()`
 
-**Note:** `PrinterCapabilities` class has been DELETED. All its functionality is now in `PrinterDiscovery`.
-
 **Key Pattern:** All async methods use callback pattern:
 ```cpp
 void method_name(
@@ -132,7 +128,7 @@ void method_name(
 
 ### HTTP Work Execution (HttpExecutor)
 
-**Location:** `include/http_executor.h`, `src/system/http_executor.cpp`
+**Location:** `include/core/http_executor.h`, `src/core/http_executor.cpp`
 
 HTTP requests from the Moonraker REST sub-APIs run on one of two process-wide `HttpExecutor` singletons, not on per-request threads.
 
@@ -145,7 +141,7 @@ HTTP requests from the Moonraker REST sub-APIs run on one of two process-wide `H
 
 **Why two lanes:** A long upload on the slow lane cannot head-of-line block thumbnail fetches or status polls on the fast lane. The fast lane's 4 workers preserve burst parallelism when the file browser scrolls (~20 concurrent thumbnail requests) without reintroducing unbounded thread spawning.
 
-**Why bounded:** Per-request `std::thread` spawning crashed under thread exhaustion (EAGAIN from `pthread_create`) on systems where multiple services share the user's `RLIMIT_NPROC` — e.g. RatOS 2.1 where klipper+moonraker+nginx+helixscreen all run as `pi`. Total HTTP thread cap is now 5 across the whole process.
+**Why bounded:** Per-request `std::thread` spawning crashed under thread exhaustion (EAGAIN from `pthread_create`) on systems where multiple services share the user's `RLIMIT_NPROC` - e.g. RatOS 2.1 where klipper+moonraker+nginx+helixscreen all run as `pi`. The total HTTP thread cap is 5 across the whole process.
 
 **Submitting work:**
 
@@ -157,19 +153,19 @@ helix::http::HttpExecutor::fast().submit([url, on_success, on_error]() {
 });
 ```
 
-The submitted lambda runs on a worker thread — callbacks invoked from it are on a background thread and must use `ui_queue_update()` or `tok.defer()` to touch UI. This matches the pre-HttpExecutor threading contract; no caller changes were required during migration.
+The submitted lambda runs on a worker thread - callbacks invoked from it are on a background thread and must use `ui_queue_update()` or `tok.defer()` to touch UI. 
 
-**Lifecycle:** `HttpExecutor::start_all()` is called just before `init_moonraker()` in `Application::run()`. `HttpExecutor::stop_all()` is called in `Application::shutdown()` after `m_moonraker.reset()` so no submitter outlives the workers. Soft restart (`switch_printer`) destroys and recreates `MoonrakerManager` but leaves the executors running.
+**Lifecycle:** `HttpExecutor::start_all()` is called just before `init_moonraker()` in `Application::run()`. `HttpExecutor::stop_all()` is called in `Application::shutdown()` after `PrinterSession::teardown_printer_scope()`, so no submitter outlives the workers. A soft restart (printer switch) destroys and recreates `MoonrakerManager` but leaves the executors running.
 
 **When to use which lane (rule of thumb):**
 - **Fast:** small request (≤ ~1 MB response/body), frequent, short-latency expected, or called in bursts. Safe default.
 - **Slow:** response/body measured in tens of MB, transfer duration measured in seconds-to-minutes, or the call path explicitly streams to/from disk. Anything that would noticeably stall the user if head-of-line blocked behind it.
 
-**Do NOT:** spawn a raw `std::thread` for HTTP work. If `HttpExecutor::fast()/slow()` don't fit the shape you need, discuss — adding a new lane is preferable to reintroducing unbounded spawning.
+**Do NOT:** spawn a raw `std::thread` for HTTP work. If `HttpExecutor::fast()/slow()` don't fit the shape you need, discuss - adding a new lane is preferable to reintroducing unbounded spawning.
 
 ### Moonraker API Key
 
-A Moonraker with `force_logins` refuses every request without a credential, trusted address or not, and accepts the printer's API key in an `X-Api-Key` header. The key is the active printer's `moonraker_api_key` setting.
+A Moonraker with `force_logins` refuses every request without a credential, trusted address or not, and accepts the printer's API key in an `X-Api-Key` header. Each saved printer keeps its own key in its `moonraker_api_key` setting, and a connection uses the active printer's. Change Host edits the active printer's key; Add Printer stores the key entered with the address on the added printer (`src/application/printer_switch_flow.cpp#add_printer`).
 
 | Piece | Role |
 |-------|------|
@@ -181,6 +177,10 @@ A Moonraker with `force_logins` refuses every request without a credential, trus
 | `EspHttpLane::run_one()` | The firmware's HTTP file reads, through `esp_http_client_set_header()` |
 
 **The key goes only to the host and port saved with it.** Moonraker refuses a wrong key even from a trusted address, so a key sent to a different printer (the connection wizard testing a typed address, a CLI override) would break a connection that works without one. Change Host moves a printer entry to a new address and keeps its key, since it is still that printer. A synchronous redirect re-runs the hook, so the key comes off at another host; libhv's async client follows redirects without the hook, and nothing in the app sends HTTP through it. An `X-Api-Key` another caller set for its own service (telemetry) is left alone. The WebSocket upgrade request is created once per `MoonrakerClient` and reused by every connect, so `connect()` erases the previous key before it sets the current one.
+
+**Entering the key.** The Change Host dialog (`src/ui/printers/ui_change_host_modal.cpp`) carries a masked key field beside the host and port, reached from Settings > Connection's Host and API Key rows; Save writes the key with `set_active_printer_api_key()` and reconnects through `connect_printer`. The connection wizard shows the same field when its test answers 401, and records the typed key for the address under test only (`WizardConnectionStep::connect_confirmed`). Test Connection sends the key in its `/server/info` probe, so it tells "needs a key" from "rejected this key" (`MoonrakerConnectionTest::Result::login_required`, `key_sent`). A key that is not 32 hex digits is refused before any request (`moonraker_auth::is_plausible_api_key`).
+
+**A refused login.** When `server.connection.identify` fails with Unauthorized, `MoonrakerDiscoverySequence::stop_for_refused_login` stops discovery, marks `moonraker_auth::unauthorized()` and emits one `LOGIN_REFUSED` event per credential (`set_credential()` clears the mark). The manager shows it as a Login Required prompt whose button opens the key field; the request tracker's generic toast and the file-list and PRINT_START-analysis toasts stay quiet while the mark is set, so that message is not buried.
 
 ### Event System
 
@@ -199,27 +199,31 @@ enum class MoonrakerEventType {
     KLIPPY_DISCONNECTED,  // Klipper firmware disconnected
     KLIPPY_SHUTDOWN,      // Klipper firmware entered shutdown state (M112, thermal, error)
     KLIPPY_READY,         // Klipper firmware ready
-    DISCOVERY_FAILED,     // Printer discovery failed
-    REQUEST_TIMEOUT       // JSON-RPC request timed out
+    DISCOVERY_FAILED,     // Printer discovery failed (non-retryable)
+    DISCOVERY_DEFERRED,   // Discovery waiting on Klippy (retries on state change)
+    REQUEST_TIMEOUT,      // JSON-RPC request timed out
+    LOGIN_REFUSED         // Moonraker refused this client's login (once per credential)
 };
 
 struct MoonrakerEvent {
     MoonrakerEventType type;
-    std::string message;
+    std::string message;   // English
     std::string details;
     bool is_error;
+    const char* message_tag = nullptr;      // untranslated template, or nullptr
+    std::vector<std::string> message_args;  // fills the template's {} slots
 };
 ```
 
-**Emitting an event is not deciding how to show it.** `helix::decide_moonraker_event()` (`moonraker_event_routing.cpp`) owns that, as a pure function so the caller can apply `lv_tr()` on the main thread (#1219). The event's own text follows the same split: an emitter builds it with `MoonrakerEvent::translatable()`, which keeps the untranslated template in `message_tag` and its arguments in `message_args` beside the English `message` the logs use, and `MoonrakerManager::present_event()` renders `lv_tr(message_tag)` on the main thread. Text from Klipper or Moonraker stays untagged and is shown as it arrived. `CONNECTION_FAILED` is the one with real routing rules, because it is latched and fires ~60 s after startup — reliably landing on whatever the user is doing about it:
+**Emitting an event is not deciding how to show it.** `helix::decide_moonraker_event()` (`moonraker_event_routing.cpp`) owns that, as a pure function so the caller can apply `lv_tr()` on the main thread (#1219). The event's own text follows the same split: an emitter builds it with `MoonrakerEvent::translatable()`, which keeps the untranslated template in `message_tag` and its arguments in `message_args` beside the English `message` the logs use, and `MoonrakerManager::present_event()` renders `lv_tr(message_tag)` on the main thread. Text from Klipper or Moonraker stays untagged and is shown as it arrived. `CONNECTION_FAILED` is the one with real routing rules, because it is latched and fires ~60 s after startup - reliably landing on whatever the user is doing about it:
 
 | Context | Route | Why |
 |---|---|---|
 | Setup wizard on screen | `Ignore` | The wizard's Connection step *is* the host-entry UI and reports its own result inline. On a fresh install the address that "failed" is only the `127.0.0.1` default the wizard exists to replace, and on a standalone display the message even claims Klipper runs on this machine. Bundle L53W5PKG: pushed over the Language step, left sitting there 16.5 minutes. |
-| A modal already open | `ErrorToast` | Bundle 865DXBQ7: pushed at stack depth 2 over the WiFi password keyboard, password retyped from scratch. Degrade, never drop — the user is doing something else and still needs to know. |
-| Otherwise | `ConnectionFailedModal` | The connection-failed prompt. **Reconnect is the primary action** — a dropped Moonraker is usually transient, so retrying is the first button. "Change Address" is secondary and only offered when the configured host is remote: when the printer is known to run HelixScreen itself (`is_moonraker_on_same_host`), the address is not the fault and the prompt is a plain Reconnect alert, since "Change Address" there walks the user into editing a correct `127.0.0.1` while the real problem is a Moonraker service that did not start (`src/ui/ui_change_host_modal.cpp`). |
+| A modal already open | `ErrorToast` | Bundle 865DXBQ7: pushed at stack depth 2 over the WiFi password keyboard, password retyped from scratch. Degrade, never drop - the user is doing something else and still needs to know. |
+| Otherwise | `ConnectionFailedModal` | The connection-failed prompt. **Reconnect is the primary action** - a dropped Moonraker is usually transient, so retrying is the first button. "Change Address" is secondary and only offered when the configured host is remote: when the printer is known to run HelixScreen itself (`is_moonraker_on_same_host`), the address is not the fault and the prompt is a plain Reconnect alert, since "Change Address" there walks the user into editing a correct `127.0.0.1` while the real problem is a Moonraker service that did not start (`src/ui/printers/ui_change_host_modal.cpp`). |
 
-Recovery events (`KLIPPY_DISCONNECTED`, `KLIPPY_SHUTDOWN`) return before all of this and are suppressible by nothing — a shut-down Klippy needs its dialog whatever is on screen. `KLIPPY_READY` routes to `Ignore` unconditionally: klippy becoming ready is an internal lifecycle event, not a notification; the user-facing completion signal is the `klippy_state` READY observer (the "Printer ready" toast that dismisses the emergency-stop recovery dialog), not this event.
+Recovery events (`KLIPPY_DISCONNECTED`, `KLIPPY_SHUTDOWN`) return before all of this and are suppressible by nothing - a shut-down Klippy needs its dialog whatever is on screen. `KLIPPY_READY` routes to `Ignore` unconditionally: klippy becoming ready is an internal lifecycle event, not a notification; the user-facing completion signal is the `klippy_state` READY observer (the "Printer ready" toast that dismisses the emergency-stop recovery dialog), not this event.
 
 **Moonraker announces a Klippy that started, never one that failed to.** `notify_klippy_ready`
 arrives on success; a startup error (a `printer.cfg` mistake, an MCU that will not answer, K2's
@@ -241,19 +245,9 @@ the script killed at 90 s), and `AbortManager`'s restart backstop is held above 
 a `static_assert` in `src/abort/abort_manager.cpp`. One chain runs at a time, and a chain whose
 client is destroyed (printer switch, soft restart) ends without calling back.
 
-**`RPC_ERROR` is a fallback, not a report of every failure.** `MoonrakerRequestTracker::route_response()` emits it only when `helix::rpc_error_policy::decide()` finds that nothing else will speak — and for `printer.gcode.script` that is never, because Klipper mirrors the rejection as a `!!` line that `GcodeErrorRouter` reports instead. See `RPC_ERROR_OWNERSHIP.md`.
+**`RPC_ERROR` is a fallback, not a report of every failure.** `MoonrakerRequestTracker::route_response()` emits it only when `helix::rpc_error_policy::decide()` finds that nothing else will speak - and for `printer.gcode.script` that is never, because Klipper mirrors the rejection as a `!!` line that `GcodeErrorRouter` reports instead. See `RPC_ERROR_OWNERSHIP.md`.
 
-**Usage:**
-```cpp
-// Register handler in main.cpp
-moonraker_client->register_event_handler([](const MoonrakerEvent& evt) {
-    if (evt.is_error) {
-        ui_notification_error(title, evt.message.c_str(), true);
-    } else {
-        ui_notification_warning(evt.message.c_str());
-    }
-});
-```
+**Usage:** the one handler is registered by `MoonrakerManager` (`src/application/moonraker_manager.cpp`) through `IMoonrakerClient::register_event_handler()`, and hands each event to `present_event()` on the main thread.
 
 ## Mock Architecture
 
@@ -295,33 +289,6 @@ api.set_mock_state(state);
 client.gcode_script("EXCLUDE_OBJECT NAME=Part_1", ...);
 // api.get_excluded_objects_from_mock() returns {"Part_1"}
 ```
-
-## Removed/Migrated Methods
-
-The following methods have been removed from `MoonrakerClient` and are now in `MoonrakerAPI`:
-
-| Removed from MoonrakerClient | Now in MoonrakerAPI |
-|------------------------------|---------------------|
-| `get_heaters()` | `hardware().heaters()` |
-| `get_fans()` | `hardware().fans()` |
-| `get_sensors()` | `hardware().sensors()` |
-| `get_leds()` | `hardware().leds()` |
-| `get_hostname()` | `hardware().hostname()` |
-| `get_active_bed_mesh()` | `advanced().get_active_bed_mesh()` |
-| `get_bed_mesh_profiles()` | `advanced().get_bed_mesh_profiles()` |
-| `has_bed_mesh()` | `advanced().has_bed_mesh()` |
-| `guess_bed_heater()` | `PrinterHardware::guess_bed_heater()` (`printer_hardware.h`) |
-| `guess_hotend_heater()` | `PrinterHardware::guess_hotend_heater()` (`printer_hardware.h`) |
-| `guess_bed_sensor()` | `PrinterHardware::guess_bed_sensor()` (`printer_hardware.h`) |
-| `guess_hotend_sensor()` | `PrinterHardware::guess_hotend_sensor()` (`printer_hardware.h`) |
-
-### Deleted Classes
-
-| Deleted Class | Replacement |
-|---------------|-------------|
-| `PrinterCapabilities` | `PrinterDiscovery` (accessed via `MoonrakerAPI::hardware()`) |
-
-**Migration:** Replace `PrinterCapabilities` usage with `api->hardware().has_qgl()`, `api->hardware().macros()`, etc.
 
 ## Key Differences: API vs Client
 
@@ -381,8 +348,8 @@ The following methods have been removed from `MoonrakerClient` and are now in `M
 | `include/moonraker_types.h` | Shared data types (BedMeshProfile, GcodeStoreEntry, etc.) |
 | `include/moonraker_client_mock.h` | Transport layer mock |
 | `include/moonraker_api_mock.h` | Domain layer mock |
-| `include/i_moonraker_client.h` | `helix::IMoonrakerClient` — transport-layer consumer contract |
-| `include/i_moonraker_api.h` | `IMoonrakerAPI` — domain-layer consumer contract |
+| `include/i_moonraker_client.h` | `helix::IMoonrakerClient` - transport-layer consumer contract |
+| `include/i_moonraker_api.h` | `IMoonrakerAPI` - domain-layer consumer contract |
 | `include/i_moonraker_sub_apis.h` | The ten sub-API interfaces (`IAdvancedAPI`, `IJobAPI`, etc.) |
 | `include/moonraker_manager.h` | Owns the concrete client/API instances behind the interfaces |
 
@@ -392,8 +359,8 @@ The following methods have been removed from `MoonrakerClient` and are now in `M
 |------|---------|
 | `src/api/moonraker_client.cpp` | Transport implementation |
 | `src/api/moonraker_api.cpp` | Domain logic (+ `moonraker_api_*.cpp` splits) |
-| `src/api/moonraker_client_mock.cpp` | Mock transport (+ `moonraker_client_mock_*.cpp` splits) |
-| `src/api/moonraker_api_mock.cpp` | Mock domain (local file access) |
+| `src/mock/moonraker_client_mock.cpp` | Mock transport (+ `moonraker_client_mock_*.cpp` splits) |
+| `src/mock/moonraker_api_mock.cpp` | Mock domain (local file access) |
 | `src/application/moonraker_manager.cpp` | Lifecycle wiring, profile loading, observer setup |
 
 ### Test Files
@@ -405,103 +372,6 @@ The following methods have been removed from `MoonrakerClient` and are now in `M
 | `tests/unit/test_mock_shared_state.cpp` | Shared state tests |
 | `tests/unit/test_moonraker_full_stack.cpp` | Integration tests |
 
-## Migration Guide
-
-### Migrating from MoonrakerClient to MoonrakerAPI
-
-**Before (OLD - no longer works):**
-```cpp
-MoonrakerClient* client = get_moonraker_client();
-std::string bed_heater = client->guess_bed_heater();  // REMOVED
-const std::vector<std::string>& heaters = client->get_heaters();  // REMOVED
-const BedMeshProfile& mesh = client->get_active_bed_mesh();  // REMOVED
-```
-
-**After (CURRENT):**
-```cpp
-MoonrakerAPI* api = get_moonraker_api();
-helix::PrinterHardware guesser(api->hardware().heaters(), api->hardware().sensors(),
-                               api->hardware().fans(), api->hardware().leds());
-std::string bed_heater = guesser.guess_bed_heater();
-const std::vector<std::string>& heaters = api->hardware().heaters();
-const BedMeshProfile* mesh = api->advanced().get_active_bed_mesh();  // Note: pointer!
-if (mesh) {
-    // Use mesh data
-}
-```
-
-### Migrating from PrinterCapabilities
-
-**Before (OLD - class deleted):**
-```cpp
-PrinterCapabilities caps;
-caps.parse_objects(printer_objects);
-bool has_qgl = caps.has_qgl();
-const auto& macros = caps.macros();
-```
-
-**After (CURRENT):**
-```cpp
-MoonrakerAPI* api = get_moonraker_api();
-bool has_qgl = api->hardware().has_qgl();
-const auto& macros = api->hardware().macros();
-```
-
-### Migrating from get_client() / get_moonraker_client()
-
-**Before (OLD - violates abstraction boundary):**
-```cpp
-// Connection state
-api->get_client().get_connection_state();
-api->get_client().get_last_url();
-
-// Subscriptions
-api->get_client().register_method_callback("notify_gcode_response", "panel", cb);
-api->get_client().register_notify_update(cb);
-
-// Database
-client->send_jsonrpc("server.database.get_item", params, on_result, on_error);
-
-// G-code
-client->gcode_script("TURN_OFF_HEATERS");
-
-// Disconnect modal
-client->suppress_disconnect_modal(15000);
-```
-
-**After (CURRENT):**
-```cpp
-// Connection state — use API proxies
-api->get_connection_state();
-api->get_websocket_url();
-
-// Subscriptions — use API proxies
-api->register_method_callback("notify_gcode_response", "panel", cb);
-api->subscribe_notifications(cb);
-
-// Database — use typed wrappers
-api->database_get_item("helix", "spoolman_enabled", on_success, on_error);
-
-// The printer's own screen publishes its home layout under namespace "helix-screen",
-// key "home_layout" (include/home_layout_share.h); see LAYOUT_SYSTEM.md
-
-// G-code — use validated path
-api->execute_gcode("TURN_OFF_HEATERS", nullptr, nullptr);
-
-// Disconnect modal — use API proxy
-api->suppress_disconnect_modal(15000);
-```
-
-### Key Changes
-
-1. **Hardware data:** All hardware queries go through `api->hardware()`
-2. **Bed mesh:** Owned by the `advanced()` sub-API, accessed via `api->advanced().get_active_bed_mesh()`
-3. **Null checks:** `MoonrakerAPI` returns pointers for bed mesh, not references
-4. **PrinterCapabilities deleted:** Use `PrinterDiscovery` via `api->hardware()`
-5. **Global accessor:** Use `get_moonraker_api()` for domain operations
-6. **IMoonrakerDomainService deleted:** `BedMeshProfile` and `GcodeStoreEntry` now in `moonraker_types.h`
-7. **UI abstraction boundary:** UI code uses API proxy methods, never `get_client()` or `get_moonraker_client()`
-
 ## Capability-Driven Subscriptions
 
 `printer.objects.subscribe` **replaces** the whole per-connection subscription, so
@@ -510,7 +380,7 @@ built by `MoonrakerDiscoverySequence::build_subscription_objects()`.
 
 Firmware-persisted z-offset is one such capability: on printers whose firmware keeps
 the offset outside `gcode_move`, the storing object is added by
-`helix::zoffset::required_status_objects(hw)` (`include/z_offset_persistence.h`) —
+`helix::zoffset::required_status_objects(hw)` (`include/z_offset_persistence.h`) -
 `save_variables` on ZMOD. The builder asks the capability question and never names a
 firmware; see the vendor-abstraction rule in the root `CLAUDE.md`.
 
@@ -553,7 +423,7 @@ Each AMS backend manages its own Moonraker subscriptions independently. When `Am
 ## Locating Moonraker's Config File
 
 Anything that edits Moonraker's configuration (today: Spoolman setup, in
-`ui_spoolman_overlay.cpp`) has to answer one question first — **which file on disk did
+`ui_spoolman_overlay.cpp`) has to answer one question first - **which file on disk did
 Moonraker actually load, and can the file API reach it?** The reported name is not an
 answer, and the difference has produced silent-failure bugs on three firmwares.
 
@@ -569,8 +439,8 @@ are the same directory on a stock install and different ones on real firmware:
 | Raspberry Pi, CB1 | `~/printer_data/config` | `moonraker.conf` | yes |
 | Creality K1 | `/usr/data/printer_data/config` | `moonraker.conf` | yes |
 | Snapmaker U1 | `/oem/printer_data/config` | a relative subpath | yes |
-| Creality K2 | `/mnt/UDISK/printer_data/config` | `moonraker.conf` | **no** — the real config is `/usr/share/moonraker/moonraker.conf`, launched via `-c`, and 404s over HTTP |
-| Flashforge AD5M | `/opt/config` | absolute paths under `/root/printer_data/config` | **yes, but only by luck** — that path is a symlink to `/opt/config`, so the same files *are* served under the root by their tail |
+| Creality K2 | `/mnt/UDISK/printer_data/config` | `moonraker.conf` | **no** - the real config is `/usr/share/moonraker/moonraker.conf`, launched via `-c`, and 404s over HTTP |
+| Flashforge AD5M | `/opt/config` | absolute paths under `/root/printer_data/config` | **yes, but only by luck** - that path is a symlink to `/opt/config`, so the same files *are* served under the root by their tail |
 
 ### The resolution chain
 
@@ -578,11 +448,11 @@ are the same directory on a stock install and different ones on real firmware:
 list**, and `SpoolmanOverlay::verify_config_reachable()` proves the winner by downloading
 it and grading its sections. Nothing is ever written on the strength of a path alone.
 
-1. **Already relative** — the file API takes it verbatim.
+1. **Already relative** - the file API takes it verbatim.
 2. **Absolute and under the `config` root** (from `server.files.roots`, the only call that
-   reports an absolute writable path) — strip the prefix, on a component boundary so
+   reports an absolute writable path) - strip the prefix, on a component boundary so
    `.../config` cannot swallow `.../config_backup`.
-3. **Absolute and outside it** — *speculate* from the tail after the last `config/`
+3. **Absolute and outside it** - *speculate* from the tail after the last `config/`
    component, then the bare basename.
 
 Case 3 is a guess, and `candidates_are_speculative()` says so. A guessed candidate must
@@ -594,7 +464,7 @@ fractional match rule writes confidently to a file Moonraker never reads.
 ### Section drift vs. a different file
 
 Moonraker serves the section list it parsed **when it last started**, so a file edited
-since then legitimately disagrees with it — uninstalling HelixScreen strips
+since then legitimately disagrees with it - uninstalling HelixScreen strips
 `[update_manager helixscreen]` while a long-running Moonraker keeps reporting it.
 `classify_section_match()` grades by **how many sections went missing**, not what fraction
 survived: tolerance is one always, a quarter of the list once that is more. A
@@ -611,7 +481,7 @@ directly. Three things make that safe enough to ship:
   `[include]` naming it is appended **second**. An include with no matching file makes
   Moonraker raise `ConfigError` and refuse to start, taking the printer's web stack down.
 - **The include is absolute.** Moonraker resolves a relative include against the
-  *including* file's directory — a bare `helixscreen.conf` in a vendor config under
+  *including* file's directory - a bare `helixscreen.conf` in a vendor config under
   `/usr/share` names a file that does not exist.
 - **Durability.** Read whole, append, write to a temp file in the same directory, `fsync`,
   `rename`, `fsync` the directory. The rename alone orders only the directory entry, not
@@ -619,14 +489,14 @@ directly. Three things make that safe enough to ship:
   Symlinked configs are resolved first, or `rename` would replace the link itself.
 
 Two gates keep it narrow. `SpoolmanConfigTarget::proved_out_of_reach` distinguishes "the
-file API answered and the config is not under a root it serves" from "we could not tell" —
+file API answered and the config is not under a root it serves" from "we could not tell" -
 a dropped socket must never license editing vendor firmware. And `plan_local_include()`
 refuses when the config already resolves inside the writable root, compared through
 `fs::weakly_canonical()` rather than string prefixes, because on the AD5M the two are one
 directory named two ways.
 
 **Code:** `include/moonraker_config_manager.h`, `include/system/moonraker_local_probe.h`,
-`src/ui/ui_spoolman_overlay.cpp`.
+`src/ui/filament/ui_spoolman_overlay.cpp`.
 **Tests:** `tests/unit/test_config_path_candidates.cpp`,
 `test_moonraker_local_include_plan.cpp`, `test_local_config_append.cpp`,
 `test_moonraker_file_roots.cpp`.

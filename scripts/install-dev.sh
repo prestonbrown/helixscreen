@@ -61,6 +61,7 @@ if [ -z "${_HELIX_BUNDLED_INSTALLER:-}" ]; then
     . "$LIB_DIR/remote_screen.sh"    # nginx route for the built-in screen server
     . "$LIB_DIR/recovery.sh"
     . "$LIB_DIR/kiauh.sh"
+    . "$LIB_DIR/image.sh"         # --target-root image installs and --first-boot (#1913)
     . "$LIB_DIR/uninstall.sh"  # uses functions from other modules
     . "$LIB_DIR/plan.sh"
     . "$LIB_DIR/main.sh"       # must be last - defines main() that calls everything

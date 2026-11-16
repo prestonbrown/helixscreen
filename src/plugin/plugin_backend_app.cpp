@@ -3,14 +3,13 @@
 
 #if HELIX_HAS_PLUGINS
 
-#include "ui_update_queue.h"
-
 #include "../api/moonraker_gcode_guards.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/http_executor.h"
+#include "core/update_queue.h"
 #include "helix_version.h"
 #include "host_identity.h"
-#include "http_executor.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"

@@ -7,6 +7,8 @@
 #if HELIX_HAS_CAMERA
 
 #include "app_globals.h"
+#include "core/subject.h"
+#include "json_utils.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
@@ -19,18 +21,13 @@
 
 namespace helix {
 
-CameraConfigModal* CameraConfigModal::s_active_ = nullptr;
-
 CameraConfigModal::CameraConfigModal(const std::string& widget_id, const std::string& panel_id,
                                      SaveCallback on_save)
     : widget_id_(widget_id), panel_id_(panel_id), on_save_(std::move(on_save)) {
     init_subjects();
-    s_active_ = this;
 }
 
 CameraConfigModal::~CameraConfigModal() {
-    if (s_active_ == this)
-        s_active_ = nullptr;
     deinit_subjects();
 }
 
@@ -38,12 +35,12 @@ void CameraConfigModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&rot_0_active_, 1);
-    lv_subject_init_int(&rot_90_active_, 0);
-    lv_subject_init_int(&rot_180_active_, 0);
-    lv_subject_init_int(&rot_270_active_, 0);
-    lv_subject_init_int(&flip_h_active_, 0);
-    lv_subject_init_int(&flip_v_active_, 0);
+    rot_0_active_.init_int(1);
+    rot_90_active_.init_int(0);
+    rot_180_active_.init_int(0);
+    rot_270_active_.init_int(0);
+    flip_h_active_.init_int(0);
+    flip_v_active_.init_int(0);
 
     subjects_.publish("cam_rot_0_active", &rot_0_active_);
     subjects_.publish("cam_rot_90_active", &rot_90_active_);
@@ -52,19 +49,17 @@ void CameraConfigModal::init_subjects() {
     subjects_.publish("cam_flip_h_active", &flip_h_active_);
     subjects_.publish("cam_flip_v_active", &flip_v_active_);
 
-    lv_subject_init_int(&source_count_, 0);
+    source_count_.init_int(0);
     subjects_.publish("cam_source_count", &source_count_);
     for (size_t i = 0; i < kMaxRows; ++i) {
         char key[40];
-        lv_subject_init_int(&source_active_[i], 0);
+        source_active_[i].init_int(0);
         std::snprintf(key, sizeof(key), "cam_source_%zu_active", i);
         subjects_.publish(key, &source_active_[i]);
-        lv_subject_init_string(&source_name_[i], source_name_buf_[i].data(), nullptr,
-                               kSourceTextLen, "");
+        source_name_[i].init_string(source_name_buf_[i].data(), nullptr, kSourceTextLen, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_name", i);
         subjects_.publish(key, &source_name_[i]);
-        lv_subject_init_string(&source_note_[i], source_note_buf_[i].data(), nullptr,
-                               kSourceTextLen, "");
+        source_note_[i].init_string(source_note_buf_[i].data(), nullptr, kSourceTextLen, "");
         std::snprintf(key, sizeof(key), "cam_source_%zu_note", i);
         subjects_.publish(key, &source_note_[i]);
     }
@@ -98,14 +93,14 @@ void CameraConfigModal::on_show() {
 void CameraConfigModal::load_config(const nlohmann::json& config) {
     base_config_ = config.is_object() ? config : nlohmann::json::object();
 
-    if (config.contains("rotation") && config["rotation"].is_number_integer())
-        rotation_ = config["rotation"].get<int>();
-    if (config.contains("flip_h") && config["flip_h"].is_boolean())
-        flip_h_ = config["flip_h"].get<bool>();
-    if (config.contains("flip_v") && config["flip_v"].is_boolean())
-        flip_v_ = config["flip_v"].get<bool>();
-    if (config.contains("source") && config["source"].is_string())
-        source_ = config["source"].get<std::string>();
+    if (auto rotation = json_util::read_integer_field(config, "rotation"))
+        rotation_ = *rotation;
+    if (auto flip_h = json_util::read_field<bool>(config, "flip_h"))
+        flip_h_ = *flip_h;
+    if (auto flip_v = json_util::read_field<bool>(config, "flip_v"))
+        flip_v_ = *flip_v;
+    if (auto source = json_util::read_field<std::string>(config, "source"))
+        source_ = std::move(*source);
 
     sync_rotation_subjects();
     sync_flip_subjects();
@@ -142,8 +137,8 @@ void CameraConfigModal::on_ok() {
 void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
     // Row 0 is Automatic — the discovery auto-pick — so it renders exactly
     // like the camera rows it sits above.
-    lv_subject_copy_string(&source_name_[0], lv_tr("Automatic"));
-    lv_subject_copy_string(&source_note_[0], "");
+    lv_subject_set_string(&source_name_[0], lv_tr("Automatic"));
+    lv_subject_set_string(&source_note_[0], "");
 
     source_names_.clear();
     for (const auto& cam : cams) {
@@ -151,7 +146,7 @@ void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
             continue; // The local-probe entry has no name; nothing to pick
         source_names_.push_back(cam.name);
         size_t row = source_names_.size();
-        lv_subject_copy_string(&source_name_[row], cam.name.c_str());
+        lv_subject_set_string(&source_name_[row], cam.name.c_str());
         // What the user gets if they pick it: a live stream, snapshot polling
         // for a service CameraStream cannot decode, or (for now) nothing.
         const char* note = "";
@@ -160,11 +155,11 @@ void CameraConfigModal::publish_sources(const std::vector<WebcamInfo>& cams) {
         } else if (!webcam::is_mjpeg_service(cam.service)) {
             note = lv_tr("Snapshot only");
         }
-        lv_subject_copy_string(&source_note_[row], note);
+        lv_subject_set_string(&source_note_[row], note);
     }
     for (size_t row = source_names_.size() + 1; row < kMaxRows; ++row) {
-        lv_subject_copy_string(&source_name_[row], "");
-        lv_subject_copy_string(&source_note_[row], "");
+        lv_subject_set_string(&source_name_[row], "");
+        lv_subject_set_string(&source_note_[row], "");
     }
     sync_source_subjects();
     // Set the count LAST: it drives the <repeat> expansion, and the rebuilt
@@ -205,56 +200,50 @@ void CameraConfigModal::sync_flip_subjects() {
     lv_subject_set_int(&flip_v_active_, flip_v_ ? 1 : 0);
 }
 
-// Static event callbacks — routed through the single active instance (s_active_).
+// Static event callbacks: each acts on the modal its widget sits in.
 void CameraConfigModal::on_source_clicked(lv_event_t* e) {
     // Row identity comes from the event_cb user_data ("${i}" of the repeat;
     // row 0 is Automatic).
     const char* ud = static_cast<const char*>(lv_event_get_user_data(e));
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->select_source(ud ? std::atoi(ud) : 0);
     }
 }
 
 void CameraConfigModal::on_rotate_0(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 0;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_90(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 90;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_180(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 180;
         m->sync_rotation_subjects();
     }
 }
 void CameraConfigModal::on_rotate_270(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->rotation_ = 270;
         m->sync_rotation_subjects();
     }
 }
 
 void CameraConfigModal::on_flip_h_toggled(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->flip_h_ = !m->flip_h_;
         m->sync_flip_subjects();
     }
 }
 
 void CameraConfigModal::on_flip_v_toggled(lv_event_t* e) {
-    (void)e;
-    if (auto* m = s_active_) {
+    if (auto* m = Modal::from_event<CameraConfigModal>(e)) {
         m->flip_v_ = !m->flip_v_;
         m->sync_flip_subjects();
     }

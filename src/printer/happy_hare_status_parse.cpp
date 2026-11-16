@@ -4,8 +4,8 @@
 #include "happy_hare_status_parse.h"
 
 #include "ams_status_json.h"
+#include "core/text_io.h"
 #include "json_utils.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -184,6 +184,9 @@ constexpr ParamRow kParams[] = {
     {"heater_max_temp", "heater_max_temp", "heater_max_temp", "heater_max_temp", ParamScope::Unit},
     // The HUMIDITY= target MMU_HEATER applies when a start names none. v4 only.
     {"heater_default_dry_humidity", "", "", "heater_default_dry_humidity", ParamScope::Unit},
+    // Whether a sync-feedback (or encoder) autotuned rotation distance is saved. v4 only;
+    // MMU_SYNC_FEEDBACK AUTOTUNE= changes it until Klipper restarts.
+    {"autotune_rotation_distance", "", "", "autotune_rotation_distance", ParamScope::Unit},
     // Clog detection mode, 0 off, 1 static (manual), 2 automatic, in every
     // version. In static mode the length is the calibrated clog length before
     // 3.42 and the encoder's maximum motion from 3.42 on.
@@ -254,6 +257,10 @@ std::vector<std::string> read_config_list(const nlohmann::json* v) {
 MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::json& fields) {
     MachineUnit u;
     u.display_name = read_string_member(fields, "display_name");
+    // Live unit_N fields say `vendor`; an old [mmu_machine] section says `mmu_vendor`.
+    u.vendor = read_string_member(fields, "vendor");
+    if (u.vendor.empty())
+        u.vendor = read_string_member(fields, "mmu_vendor");
     u.selector_type = read_string_member(fields, "selector_type");
     if (const auto* first = find_member(fields, "first_gate")) {
         u.first_gate = ams::read_integer(*first).value_or(-1);
@@ -616,6 +623,28 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     d.sync_feedback_state = ams::read_field<std::string>(mmu, "sync_feedback_state");
     d.sync_feedback_bias = ams::read_field<float>(mmu, "sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw = ams::read_field<float>(mmu, "sync_feedback_bias_raw");
+    d.sync_feedback_enabled = ams::read_field<bool>(mmu, "sync_feedback_enabled");
+    if (const auto it = mmu.find("fans"); it != mmu.end() && it->is_array()) {
+        std::vector<MmuFanUnit> fans;
+        for (const auto& entry : *it) {
+            if (!entry.is_object()) {
+                continue;
+            }
+            MmuFanUnit fan;
+            fan.unit = read_string_member(entry, "unit");
+            fan.first_gate = ams::read_integer_field(entry, "first_gate").value_or(-1);
+            fan.enabled = ams::read_field<bool>(entry, "enabled").value_or(false);
+            if (const auto* modes = find_member(entry, "modes"); modes && modes->is_array()) {
+                for (const auto& mode : *modes) {
+                    fan.modes.push_back(ams::read_integer(mode));
+                }
+            }
+            if (!fan.unit.empty()) {
+                fans.push_back(std::move(fan));
+            }
+        }
+        d.fans = std::move(fans);
+    }
     d.sync_drive = ams::read_field<bool>(mmu, "sync_drive");
     d.clog_detection_enabled = ams::read_integer_field(mmu, "clog_detection_enabled");
 
@@ -665,6 +694,7 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     };
     d.sync_feedback_bias_null = is_null("sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw_null = is_null("sync_feedback_bias_raw");
+    d.sync_feedback_enabled_null = is_null("sync_feedback_enabled");
     d.flowguard_null = is_null("flowguard");
     d.encoder_null = is_null("encoder");
     d.v4_marker = mmu.contains("tangle_prevention");
@@ -713,6 +743,36 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
         }
     }
     return d;
+}
+
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+SpoolMotorAction spool_motor_action(const std::string& state) {
+    if (state.empty()) {
+        return SpoolMotorAction::None;
+    }
+    if (state == "rewind") {
+        return SpoolMotorAction::Rewinding;
+    }
+    if (state == "assist") {
+        return SpoolMotorAction::Assisting;
+    }
+    return SpoolMotorAction::Other;
+}
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" advances,
+/// "tension" trails, anything else ("neutral") has no direction.
+std::optional<BufferMotion> sync_feedback_motion(const std::string& state) {
+    if (state.empty() || state == "disabled") {
+        return std::nullopt;
+    }
+    if (state == "compressed") {
+        return BufferMotion::Advancing;
+    }
+    if (state == "tension") {
+        return BufferMotion::Trailing;
+    }
+    return BufferMotion::Unknown;
 }
 
 } // namespace helix::happy_hare

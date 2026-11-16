@@ -21,6 +21,7 @@
 #include "helix_shared_callback.h"
 #include "i_moonraker_client.h"
 #include "klippy_state.h"
+#include "printer_discovery.h"
 #include "reconnect_backoff.h"
 #include "rpc_error_policy.h"
 #include "transport_lifecycle.h"

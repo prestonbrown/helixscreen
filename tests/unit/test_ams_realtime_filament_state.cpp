@@ -18,11 +18,11 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
-#include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "core/update_queue.h"
 
 #include <functional>
 #include <memory>
@@ -53,7 +53,7 @@ class SnapmakerRealtimeTestAccess {
 
 namespace {
 void drain() {
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain();
 }
 } // namespace
 
@@ -302,7 +302,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Per-slot LIVE subjects notify observers on se
     CHECK(fire_count > baseline); // observer fired → panel would redraw the lane
     CHECK(last_value == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ams.clear_backends();
     ams.deinit_subjects();
 }
@@ -327,8 +327,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
     REQUIRE(lv_subject_get_int(ams.get_slot_active_loaded_subject(0)) == 1);
 
     // Observe slot 0's active-loaded subject (the SINGLE source the bottom
-    // T-badge now binds to). It must fire and drop to 0 on unload — previously
-    // the badge read current_slot + filament_loaded separately and stayed lit.
+    // T-badge binds to). It must fire and drop to 0 on unload; reading
+    // current_slot + filament_loaded separately leaves the badge lit.
     int fire_count = 0;
     int last_value = -1;
     struct Ctx {
@@ -357,7 +357,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Active-loaded subject is the single highlight
     CHECK(fire_count > baseline); // badge observer fired → highlight drops
     CHECK(last_value == 0);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
     ams.clear_backends();
     ams.deinit_subjects();
 }

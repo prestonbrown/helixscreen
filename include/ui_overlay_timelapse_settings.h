@@ -44,7 +44,11 @@ class TimelapseSettingsOverlay : public OverlayBase {
     [[nodiscard]] const char* xml_component() const override {
         return "timelapse_settings_overlay";
     }
+    bool destroy_on_close() const override {
+        return true;
+    }
 
+    void init_subjects() override;
     lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
     void on_activate() override;
@@ -65,16 +69,21 @@ class TimelapseSettingsOverlay : public OverlayBase {
         api_ = api;
     }
 
+    /**
+     * @brief Update settings to Moonraker
+     *
+     * A successful save also refreshes the printer's global timelapse setting.
+     */
+    void save_settings();
+
   private:
     /**
      * @brief Fetch current settings from Moonraker
      */
     void fetch_settings();
 
-    /**
-     * @brief Update settings to Moonraker
-     */
-    void save_settings();
+    /// Show the timelapse macro card when Klipper lacks TIMELAPSE_TAKE_FRAME
+    void refresh_macro_card();
 
     /**
      * @brief Update mode info text based on current selection
@@ -98,6 +107,14 @@ class TimelapseSettingsOverlay : public OverlayBase {
     lv_obj_t* mode_info_text_ = nullptr;
     lv_obj_t* framerate_dropdown_ = nullptr;
     lv_obj_t* autorender_switch_ = nullptr;
+
+    void on_ui_destroyed() override {
+        enable_switch_ = nullptr;
+        mode_dropdown_ = nullptr;
+        mode_info_text_ = nullptr;
+        framerate_dropdown_ = nullptr;
+        autorender_switch_ = nullptr;
+    }
 
     // Framerate values for dropdown index mapping
     static constexpr int kFramerateValues[] = {15, 24, 30, 60};

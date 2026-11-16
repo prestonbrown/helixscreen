@@ -18,9 +18,9 @@
  *     (apply_layout_visibility)
  *   - whichever spool canvas (`spool_wide` / `spool_compact`) carries the
  *     real filament color (update_spool_display's `active_spool` pick)
- *   - `spoolman_no_spool_label` hidden flag and `spoolman_material` text,
- *     both of which only branch on `is_wide_` in the no-spool case
- *     (update_spool_display)
+ *   - the compact `spoolman_no_spool_label` and the wide row's own
+ *     `spoolman_no_spool_wide` line, both of which only branch on `is_wide_`
+ *     in the no-spool case
  *
  * The first two cases use spans that contradict the pixel verdict
  * (`colspan>=2` would land the opposite mode), so an implementation that
@@ -39,6 +39,7 @@
 #include "ui_spool_canvas.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_widget_labels.h"
 #include "ams_state.h"
@@ -63,6 +64,16 @@ bool color_is(lv_color_t c, uint32_t rgb) {
            c.blue == (rgb & 0xFF);
 }
 
+/// Drawn unless it or an ancestor is hidden.
+bool shown(lv_obj_t* obj) {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_is_hidden(o)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -74,7 +85,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ext.brand = "TestBrand";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
 
@@ -87,50 +98,56 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // attach() applies compact defaults (XML: wide_layout hidden, compact shown)
     // and colors the compact canvas immediately.
-    CHECK(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wide_layout));
+    CHECK_FALSE(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_compact), kTestSpoolColor));
 
     // Wide by pixel, contradicting span (colspan=1 -> old predicate stays compact).
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK_FALSE(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(wide_layout));
+    CHECK(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_wide), kTestSpoolColor));
+    // The wide row names the spool, in place of its No Spool line.
+    CHECK(std::string(lv_label_get_text(h.child("spoolman_material"))) == "PLA");
+    CHECK(shown(h.child("spoolman_material")));
+    CHECK_FALSE(shown(h.child("spoolman_no_spool_wide")));
+    CHECK(shown(h.child("spoolman_brand_color")));
+    CHECK(std::string(lv_label_get_text(h.child("spoolman_weight"))) == "500g / 1000g");
+    CHECK(shown(h.child("spoolman_weight")));
 
     // Back to compact by pixel, contradicting span (colspan=3 -> old predicate goes wide).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
-    CHECK(lv_obj_has_flag(wide_layout, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spool_compact, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(wide_layout));
+    CHECK_FALSE(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_compact), kTestSpoolColor));
 
     AmsState::instance().clear_external_spool_info();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "active_spool no-spool label and material text follow pixels, not spans",
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool no-spool label follows pixels, not spans",
                  "[widget_size][active_spool][panel_widget]") {
     AmsState::instance().clear_external_spool_info();
 
     PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
 
     lv_obj_t* no_spool_label = h.child("spoolman_no_spool_label");
-    lv_obj_t* material_label = h.child("spoolman_material");
+    lv_obj_t* no_spool_wide = h.child("spoolman_no_spool_wide");
     REQUIRE(no_spool_label != nullptr);
-    REQUIRE(material_label != nullptr);
+    REQUIRE(no_spool_wide != nullptr);
 
-    // Compact + no spool: label visible, material text blank.
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    // Compact + no spool: the caption says so.
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
 
-    // Wide by pixel, contradicting span (colspan=1).
+    // Wide by pixel, contradicting span (colspan=1): the text row says so.
     h.resize(1, 1, w_normal(), h_tall());
-    CHECK(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)) == lv_tr("No Spool"));
+    CHECK_FALSE(shown(no_spool_label));
+    CHECK(shown(no_spool_wide));
 
     // Back to compact by pixel, contradicting span (colspan=3).
     h.resize(3, 3, w_normal() - 1, h_tall() - 1);
-    CHECK_FALSE(lv_obj_has_flag(no_spool_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(std::string(lv_label_get_text(material_label)).empty());
+    CHECK(shown(no_spool_label));
+    CHECK_FALSE(shown(no_spool_wide));
 }
 
 // The #1109 shape, driven through the pixel predicate. A rebuild that
@@ -147,7 +164,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a wide ins
     ext.material = "PLA";
     ext.total_weight_g = 1000.0f;
     ext.remaining_weight_g = 500.0f;
-    AmsState::instance().set_external_spool_info_in_memory(ext);
+    helix::AmsStateTestAccess::seed_external_spool(ext);
 
     ActiveSpoolWidget widget(api());
 
@@ -178,11 +195,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "active_spool stays colored after a wide ins
 
     // The wide layout must be visible and its canvas colored; the compact
     // canvas must be hidden (so its default-white state is never shown).
-    INFO("wide_layout hidden=" << lv_obj_has_flag(wide_layout2, LV_OBJ_FLAG_HIDDEN)
-                               << " compact hidden="
-                               << lv_obj_has_flag(compact2, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(wide_layout2, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE(lv_obj_has_flag(compact2, LV_OBJ_FLAG_HIDDEN));
+    INFO("wide_layout hidden=" << lv_obj_is_hidden(wide_layout2)
+                               << " compact hidden=" << lv_obj_is_hidden(compact2));
+    REQUIRE_FALSE(lv_obj_is_hidden(wide_layout2));
+    REQUIRE(lv_obj_is_hidden(compact2));
     REQUIRE_FALSE(color_is(ui_spool_canvas_get_color(wide2), kDefaultWhite));
     REQUIRE(color_is(ui_spool_canvas_get_color(wide2), kTestSpoolColor));
 
@@ -198,4 +214,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.unsettled_boxes(box_sweep(60, 60, 20, 240)) == std::vector<std::string>{});
     CHECK(h.unsettled_boxes(box_sweep(20, 300, 29, 29)) == std::vector<std::string>{});
     CHECK(h.unsettled_boxes(box_sweep(20, 300, 60, 60)) == std::vector<std::string>{});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool's compact spool is sized by its box",
+                 "[active_spool][panel_widget][tile]") {
+    // The compact spool is a square one line of the tile's icon face, so a
+    // bigger box draws a bigger spool, and a box too small for the smallest
+    // face is refused rather than clipped.
+    ActiveSpoolWidget widget(api());
+    lv_obj_t* comp = static_cast<lv_obj_t*>(
+        lv_xml_create(test_screen(), "panel_widget_active_spool", widget.xml_attrs()));
+    REQUIRE(comp != nullptr);
+    widget.attach(comp, test_screen());
+    lv_obj_t* spool = lv_obj_find_by_name(comp, "spool_compact");
+    REQUIRE(spool != nullptr);
+
+    widget.on_size_changed(1, 1, 50, 50);
+    lv_obj_update_layout(comp);
+    const int small = lv_obj_get_height(spool);
+    widget.on_size_changed(2, 2, 110, 110);
+    lv_obj_update_layout(comp);
+    const int large = lv_obj_get_height(spool);
+    INFO("spool " << small << "px at 50x50, " << large << "px at 110x110");
+    CHECK(large > small);
+    CHECK(lv_obj_get_width(spool) == large);
+
+    CHECK_FALSE(widget.fits_at(8, 8));
+    CHECK(widget.fits_at(200, 200));
+    widget.detach();
 }

@@ -9,9 +9,9 @@
  */
 
 #include "ui_keyboard_manager.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "keyboard_layout_provider.h"
 #include "lvgl/lvgl.h"
@@ -137,9 +137,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The hardware keyboard setting row shows onl
     REQUIRE(row != nullptr);
 
     settings.set_hardware_keyboard_present(false);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     settings.set_hardware_keyboard_present(true);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     settings.set_hardware_keyboard_present(prior_present);
     lv_obj_delete(overlay);

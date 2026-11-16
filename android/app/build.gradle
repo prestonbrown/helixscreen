@@ -62,7 +62,7 @@ android {
 
     defaultConfig {
         applicationId "org.helixscreen.app"
-        minSdkVersion 28
+        minSdkVersion 24
         targetSdkVersion 36
         versionCode vCode  // 1.0.0 → 100000099, 1.1.0-beta.1 → 100100031
         versionName helix_version
@@ -228,7 +228,7 @@ def nonShippableConfig = [
     'settings.json', 'settings-test.json', 'helixconfig*',
     'crash*.txt', 'crash_history.json', '.crash_restart_count',
     'tool_spools.json', 'telemetry_*.json', 'user_filaments.json',
-    'filament_slot_overrides.json',
+    'filament_slot_overrides.json', 'pending_remap.json',
     '.helix-screen.lock', '*.corrupt'
 ]
 

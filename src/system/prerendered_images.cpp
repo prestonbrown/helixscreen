@@ -4,13 +4,13 @@
 #include "prerendered_images.h"
 
 #include "app_globals.h"
-#include "data_root_resolver.h"
+#include "core/data_root_resolver.h"
+#include "core/text_io.h"
 #include "helix_fs.h"
 #include "lvgl_image_writer.h"
 #include "prerender_size_class.h"
 #include "stb_image.h"
 #include "stb_image_resize.h"
-#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -49,38 +49,6 @@ bool prerendered_exists(const std::string& path) {
     // frogfs path as ENODATA, and helix::fs::exists reads every stat failure as
     // "not there".
     return helix::fs::exists(asset_path(path));
-}
-
-std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, bool dark_mode) {
-    const char* size_name = get_splash_3d_size_name(screen_width, screen_height);
-    const char* mode_name = dark_mode ? "dark" : "light";
-
-    // Path relative to install directory
-    std::string path = "assets/images/prerendered/splash-3d-";
-    path += mode_name;
-    path += "-";
-    path += size_name;
-    path += ".bin";
-
-    if (prerendered_exists(path)) {
-        spdlog::debug("[Prerendered] Using 3D splash: {}", path);
-        return asset_component_uri(path);
-    }
-
-    // A 480x400 panel takes the tiny canvas when its own is absent.
-    if (std::string(size_name) == "small") {
-        path = "assets/images/prerendered/splash-3d-";
-        path += mode_name;
-        path += "-tiny.bin";
-        if (prerendered_exists(path)) {
-            spdlog::debug("[Prerendered] Using 3D splash (tiny fallback): {}", path);
-            return asset_component_uri(path);
-        }
-    }
-
-    spdlog::debug("[Prerendered] 3D splash not found for {} {} ({}x{}), falling back", mode_name,
-                  size_name, screen_width, screen_height);
-    return "";
 }
 
 std::string get_prerendered_splash_path(int screen_width, int screen_height) {
@@ -286,7 +254,11 @@ std::string get_cached_printer_image_path(const std::string& source_image_path, 
     std::string cache_dir = get_printer_image_cache_dir();
     std::string basename = extract_source_basename(source_image_path);
     return cache_dir + "/" + basename + "-" + std::to_string(width) + "x" + std::to_string(height) +
-           "-" + source_fingerprint(strip_lvgl_prefix(source_image_path)) + ".bin";
+           "-" + printer_image_source_fingerprint(source_image_path) + ".bin";
+}
+
+std::string printer_image_source_fingerprint(const std::string& source_image_path) {
+    return source_fingerprint(strip_lvgl_prefix(source_image_path));
 }
 
 bool printer_cache_entry_matches(const std::string& cache_filename,
@@ -317,6 +289,10 @@ bool printer_cache_entry_matches(const std::string& cache_filename,
         return false;
     }
     return pos < cache_filename.size() && cache_filename[pos] == '-';
+}
+
+bool printer_image_source_exists(const std::string& source_image_path) {
+    return helix::fs::exists(strip_lvgl_prefix(source_image_path));
 }
 
 bool generate_cached_printer_image(const std::string& source_image_path, int width, int height,

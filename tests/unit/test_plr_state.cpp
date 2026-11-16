@@ -11,6 +11,7 @@
  * type-check every field rather than assume presence implies a usable value.
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "printer_print_state.h"
@@ -19,28 +20,16 @@
 #include <spdlog/spdlog.h>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using json = nlohmann::json;
 
 namespace {
 
-class PlrStateTestFixture {
+class PlrStateTestFixture : public LVGLTestFixture {
   public:
     PlrStateTestFixture() {
-        lv_init_safe();
-
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_, [](lv_display_t* disp, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(disp);
-            });
-            display_created_ = true;
-        }
-
         PrinterStateTestAccess::reset(state_);
         state_.init_subjects(false);
     }
@@ -76,12 +65,7 @@ class PlrStateTestFixture {
 
   private:
     PrinterState state_;
-    static lv_display_t* display_;
-    static bool display_created_;
 };
-
-lv_display_t* PlrStateTestFixture::display_ = nullptr;
-bool PlrStateTestFixture::display_created_ = false;
 
 } // namespace
 

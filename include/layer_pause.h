@@ -32,11 +32,11 @@
 // reports as print_stats.info.current_layer. A print whose slicer emits no
 // such lines cannot fire either macro.
 
+#include "json_fwd.h"
+
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 class PrinterDiscovery;

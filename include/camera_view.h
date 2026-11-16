@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "camera_stream.h"
+#include "json_fwd.h"
 #include "moonraker_types.h"
 
 #include <atomic>
@@ -14,8 +15,6 @@
 #include <initializer_list>
 #include <memory>
 #include <string>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

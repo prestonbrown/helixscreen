@@ -43,6 +43,7 @@ class AmsBackendIndx : public AmsBackendToolChanger {
         // preheats nor needs the head loaded first.
         t.load_feeds_filament = true;
         t.supports_auto_heat_on_load = true;
+        t.heads_share_heater = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -65,9 +66,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
         return std::nullopt;
     }
 
-    [[nodiscard]] bool heads_share_heater() const override {
-        return true;
-    }
     [[nodiscard]] std::string nozzle_heat_blocked_reason() const override;
 
     /// The macro homes; HelixScreen sends no G28 of its own.
@@ -84,6 +82,9 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     [[nodiscard]] int max_heads_per_filament_op() const override;
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
+
+    /// Re-words a standing seat fault, which names its tool, in the new language.
+    void refresh_translated_texts() override;
 
     /// Seat or remove the half-seated tool, each behind a confirm. Empty
     /// without the MANUAL_* macros or a seat fault. Caller holds mutex_.
@@ -103,6 +104,12 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     /// without a hotend, never when the preset did not change.
     [[nodiscard]] std::optional<EditFollowUp> edit_follow_up(int slot_index, const SlotInfo& before,
                                                              const SlotInfo& after) const override;
+
+    /// The tool changer's edit, plus the spool link written to the tool's own
+    /// `T<n>.spool_id` macro variable where its macro declares one: that
+    /// variable is the firmware's link, so a macro or another client that
+    /// changes it wins over the lane record.
+    AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
 
   protected:
     /// A print is paused. Virtual so tests can pause without a printer.

@@ -5,7 +5,9 @@
 
 #include "ui_modal.h"
 
-#include "static_subject_registry.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "helix_shared_callback.h"
 
 #include <spdlog/spdlog.h>
 
@@ -40,7 +42,7 @@
  */
 class RunoutGuidanceModal : public Modal {
   public:
-    using Callback = std::function<void()>;
+    using Callback = helix::SharedCallback<void()>;
 
     RunoutGuidanceModal() {
         init_subjects();
@@ -328,17 +330,17 @@ class RunoutGuidanceModal : public Modal {
     // heap-freed before modal callbacks fire; a statically-stored subject
     // survives across show/hide cycles and multiple instantiations. Global, not
     // component-scoped, so the nested modal_button_row can resolve it too.
-    static inline lv_subject_t autofeed_capable_subject_{};
+    static inline helix::Subject autofeed_capable_subject_{};
     // Resume-gate subject (#991): 1 = block (disable Resume), 0 = allow.
     // Default 0 so non-auto-feed / unknown backends are never gated.
     // Global like autofeed_capable_subject_.
-    static inline lv_subject_t resume_blocked_subject_{};
+    static inline helix::Subject resume_blocked_subject_{};
     // Header-icon subject: 1 = advisory (neutral filament icon), 0 = real runout
     // (alert icon). Lives here, with the modal's other two subjects, rather than on any one
     // consumer — it describes THIS dialog, and an owner-specific home made it look like one
     // surface's private state when all three share it. Default 0: a caller that forgets
     // set_advisory() gets the warning icon, which is the safe direction to fail.
-    static inline lv_subject_t advisory_subject_{};
+    static inline helix::Subject advisory_subject_{};
     static inline bool subjects_initialized_ = false;
 
     static void init_subjects() {
@@ -346,9 +348,9 @@ class RunoutGuidanceModal : public Modal {
             return;
         subjects_initialized_ = true;
 
-        lv_subject_init_int(&autofeed_capable_subject_, 0);
-        lv_subject_init_int(&resume_blocked_subject_, 0);
-        lv_subject_init_int(&advisory_subject_, 0);
+        autofeed_capable_subject_.init_int(0);
+        resume_blocked_subject_.init_int(0);
+        advisory_subject_.init_int(0);
 
         lv_xml_register_subject(nullptr, "runout_autofeed_capable", &autofeed_capable_subject_);
         lv_xml_register_subject(nullptr, "runout_resume_blocked", &resume_blocked_subject_);
@@ -360,9 +362,9 @@ class RunoutGuidanceModal : public Modal {
             lv_xml_unregister_subject(nullptr, "runout_autofeed_capable");
             lv_xml_unregister_subject(nullptr, "runout_resume_blocked");
             lv_xml_unregister_subject(nullptr, "runout_is_advisory");
-            lv_subject_deinit(&autofeed_capable_subject_);
-            lv_subject_deinit(&resume_blocked_subject_);
-            lv_subject_deinit(&advisory_subject_);
+            autofeed_capable_subject_.reset();
+            resume_blocked_subject_.reset();
+            advisory_subject_.reset();
             subjects_initialized_ = false;
         });
     }

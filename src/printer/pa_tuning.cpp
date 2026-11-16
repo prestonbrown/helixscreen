@@ -9,6 +9,8 @@
 #include <cmath>
 #include <limits>
 
+#include "hv/json.hpp"
+
 namespace helix::pa {
 
 namespace {

@@ -1,8 +1,63 @@
+diff --git a/include/lvgl/drivers/display/lv_linux_drm.h b/include/lvgl/drivers/display/lv_linux_drm.h
+index a08c47507..c936cb741 100644
+--- a/include/lvgl/drivers/display/lv_linux_drm.h
++++ b/include/lvgl/drivers/display/lv_linux_drm.h
+@@ -93,6 +93,30 @@ char * lv_linux_drm_find_device_path(void);
+  */
+ void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t callback);
+ 
++/**
++ * @brief Query the DRM plane's supported rotation bitmask
++ *
++ * Iterates the plane properties to find the "rotation" property and builds
++ * a bitmask from its enum values. Returns 0 if no rotation property exists.
++ *
++ * @param disp      Pointer to the display object created with lv_linux_drm_create()
++ * @return Bitmask of supported DRM_MODE_ROTATE_* values, or 0
++ */
++uint64_t lv_linux_drm_get_plane_rotation_mask(lv_display_t * disp);
++
++/**
++ * @brief Set the DRM plane rotation property
++ *
++ * Configures the hardware rotation via the DRM plane "rotation" property.
++ * This is necessary because LVGL's software rotation (lv_display_set_rotation)
++ * does not work with LV_DISPLAY_RENDER_MODE_DIRECT used by the DRM backend.
++ *
++ * @param disp      Pointer to the display object created with lv_linux_drm_create()
++ * @param rotation  DRM rotation bitmask (DRM_MODE_ROTATE_0, DRM_MODE_ROTATE_90,
++ *                  DRM_MODE_ROTATE_180, DRM_MODE_ROTATE_270)
++ */
++void lv_linux_drm_set_rotation(lv_display_t * disp, uint64_t rotation);
++
+ /**
+  * Get the horizontal resolution of a DRM mode
+  * @param mode pointer to the DRM mode object
+@@ -121,6 +145,19 @@ int32_t lv_linux_drm_mode_get_refresh_rate(const lv_linux_drm_mode_t * mode);
+  */
+ bool lv_linux_drm_mode_is_preferred(const lv_linux_drm_mode_t * mode);
+ 
++/**
++ * Get the open DRM master file descriptor backing a DRM display.
++ *
++ * HelixScreen uses this to issue connector DPMS (drmModeConnectorSetProperty)
++ * on the same master fd LVGL holds — required because DPMS modesetting needs
++ * DRM master, which LVGL already acquired via drmSetMaster() (#1049). Valid for
++ * both the non-EGL (drm_dev_t) and EGL (lv_drm_ctx_t) paths.
++ *
++ * @param disp pointer to the display object
++ * @return the DRM fd (>= 0), or -1 if unavailable
++ */
++int lv_linux_drm_get_fd(lv_display_t * disp);
++
+ /**
+  * Get the underlying DRM mode object.
+  * @param mode pointer to the DRM mode object
 diff --git a/src/drivers/display/drm/lv_linux_drm.c b/src/drivers/display/drm/lv_linux_drm.c
-index 2a6ca6ed0..2e7d11dbe 100644
+index 7da121785..f67b49bba 100644
 --- a/src/drivers/display/drm/lv_linux_drm.c
 +++ b/src/drivers/display/drm/lv_linux_drm.c
-@@ -78,6 +78,7 @@ typedef struct {
+@@ -75,6 +75,7 @@ typedef struct {
      drmModePropertyPtr conn_props[128];
      drm_buffer_t drm_bufs[BUFFER_CNT];
      drm_buffer_t * act_buf;
@@ -10,7 +65,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  #if LV_USE_LINUX_DRM_GBM_BUFFERS
      struct gbm_device * gbm_device;
  #endif
-@@ -112,6 +113,7 @@ static uint32_t tick_get_cb(void);
+@@ -109,6 +110,7 @@ static uint32_t tick_get_cb(void);
  #endif
  
  static int drm_setup_buffers(drm_dev_t * drm_dev);
@@ -18,7 +73,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf);
  static void drm_flush_wait(lv_display_t * drm_dev);
  static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
-@@ -121,6 +123,8 @@ static void drm_del_event_cb(lv_event_t * event);
+@@ -118,6 +120,8 @@ static void drm_del_event_cb(lv_event_t * event);
  /**********************
   *  STATIC VARIABLES
   **********************/
@@ -27,7 +82,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  
  /**********************
   *      MACROS
-@@ -256,6 +260,52 @@ void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t
+@@ -255,6 +259,52 @@ void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t
      LV_UNUSED(callback);
      LV_LOG_WARN("DRM without EGL support doesn't currently support setting a mode selection callback");
  }
@@ -80,7 +135,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  /**********************
   *   STATIC FUNCTIONS
   **********************/
-@@ -440,6 +481,20 @@ static int drm_add_conn_property(drm_dev_t * drm_dev, const char * name, uint64_
+@@ -439,6 +489,20 @@ static int drm_add_conn_property(drm_dev_t * drm_dev, const char * name, uint64_
      return 0;
  }
  
@@ -101,7 +156,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
  {
      int ret;
-@@ -482,16 +537,80 @@ static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
+@@ -481,16 +545,80 @@ static int drm_dmabuf_set_plane(drm_dev_t * drm_dev, drm_buffer_t * buf)
      drm_add_plane_property(drm_dev, "CRTC_W", drm_dev->width);
      drm_add_plane_property(drm_dev, "CRTC_H", drm_dev->height);
  
@@ -184,7 +239,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane_id, uint32_t crtc_id,
                        uint32_t crtc_idx)
  {
-@@ -501,6 +620,8 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
+@@ -500,6 +628,8 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
      unsigned int i;
      unsigned int j;
      int ret = 0;
@@ -193,7 +248,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  
      planes = drmModeGetPlaneResources(drm_dev->fd);
      if(!planes) {
-@@ -508,7 +629,10 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
+@@ -507,7 +637,10 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
          return -1;
      }
  
@@ -205,7 +260,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  
      for(i = 0; i < planes->count_planes; ++i) {
          plane = drmModeGetPlane(drm_dev->fd, planes->planes[i]);
-@@ -519,6 +643,8 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
+@@ -518,6 +651,8 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
          }
  
          if(!(plane->possible_crtcs & (1 << crtc_idx))) {
@@ -214,7 +269,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
              drmModeFreePlane(plane);
              continue;
          }
-@@ -529,21 +655,43 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
+@@ -528,21 +663,43 @@ static int find_plane(drm_dev_t * drm_dev, unsigned int fourcc, uint32_t * plane
          }
  
          if(j == plane->count_formats) {
@@ -232,7 +287,8 @@ index 2a6ca6ed0..2e7d11dbe 100644
 +                    ptype == DRM_PLANE_TYPE_PRIMARY ? "PRIMARY" :
 +                    ptype == DRM_PLANE_TYPE_OVERLAY ? "OVERLAY" :
 +                    ptype == DRM_PLANE_TYPE_CURSOR  ? "CURSOR"  : "UNKNOWN");
-+
+ 
+-        LV_LOG_TRACE("found plane %d", *plane_id);
 +        if(ptype == DRM_PLANE_TYPE_PRIMARY) {
 +            *plane_id = plane->plane_id;
 +            drmModeFreePlane(plane);
@@ -241,13 +297,12 @@ index 2a6ca6ed0..2e7d11dbe 100644
 +            goto out;
 +        }
  
--        LV_LOG_TRACE("found plane %d", *plane_id);
+-        /* Success */
 +        /* Remember first suitable non-primary plane as fallback */
 +        if(!fallback_plane_id && ptype != DRM_PLANE_TYPE_CURSOR) {
 +            fallback_plane_id = plane->plane_id;
 +        }
- 
--        /* Success */
++
 +        drmModeFreePlane(plane);
 +    }
 +
@@ -264,7 +319,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
  out:
      drmModeFreePlaneResources(planes);
      return ret;
-@@ -579,16 +727,16 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+@@ -578,16 +735,16 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
          }
  
          if(conn->connection == DRM_MODE_CONNECTED) {
@@ -285,7 +340,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
          }
  
          if(conn->connection == DRM_MODE_CONNECTED && conn->count_modes > 0)
-@@ -604,7 +752,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+@@ -603,7 +760,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
      }
  
      drm_dev->conn_id = conn->connector_id;
@@ -294,7 +349,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
      drm_dev->mmWidth = conn->mmWidth;
      drm_dev->mmHeight = conn->mmHeight;
  
-@@ -635,9 +783,8 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+@@ -634,9 +791,8 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
  
      if(enc) {
          drm_dev->enc_id = enc->encoder_id;
@@ -305,7 +360,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
          drmModeFreeEncoder(enc);
          enc = NULL;
      }
-@@ -698,7 +845,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
+@@ -697,7 +853,7 @@ static int drm_find_connector(drm_dev_t * drm_dev, int64_t connector_id)
          goto free_res;
      }
  
@@ -314,7 +369,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
      ret = 0;
  
  free_res:
-@@ -1052,11 +1199,18 @@ static void drm_flush_wait(lv_display_t * disp)
+@@ -1051,11 +1207,18 @@ static void drm_flush_wait(lv_display_t * disp)
      while(drm_dev->req) {
          int ret;
          do {
@@ -335,7 +390,7 @@ index 2a6ca6ed0..2e7d11dbe 100644
          else {
              LV_LOG_ERROR("poll failed: %s", strerror(errno));
              return;
-@@ -1072,7 +1226,41 @@ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_
+@@ -1071,7 +1234,41 @@ static void drm_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_
      LV_UNUSED(px_map);
      drm_dev_t * drm_dev = lv_display_get_driver_data(disp);
  
@@ -378,59 +433,3 @@ index 2a6ca6ed0..2e7d11dbe 100644
  
      if(drm_dmabuf_set_plane(drm_dev, drm_dev->act_buf)) {
          LV_LOG_ERROR("Flush fail");
-diff --git a/src/drivers/display/drm/lv_linux_drm.h b/src/drivers/display/drm/lv_linux_drm.h
-index 5afede049..fa1b28b56 100644
---- a/src/drivers/display/drm/lv_linux_drm.h
-+++ b/src/drivers/display/drm/lv_linux_drm.h
-@@ -90,6 +90,30 @@ char * lv_linux_drm_find_device_path(void);
-  */
- void lv_linux_drm_set_mode_cb(lv_display_t * disp, lv_linux_drm_select_mode_cb_t callback);
- 
-+/**
-+ * @brief Query the DRM plane's supported rotation bitmask
-+ *
-+ * Iterates the plane properties to find the "rotation" property and builds
-+ * a bitmask from its enum values. Returns 0 if no rotation property exists.
-+ *
-+ * @param disp      Pointer to the display object created with lv_linux_drm_create()
-+ * @return Bitmask of supported DRM_MODE_ROTATE_* values, or 0
-+ */
-+uint64_t lv_linux_drm_get_plane_rotation_mask(lv_display_t * disp);
-+
-+/**
-+ * @brief Set the DRM plane rotation property
-+ *
-+ * Configures the hardware rotation via the DRM plane "rotation" property.
-+ * This is necessary because LVGL's software rotation (lv_display_set_rotation)
-+ * does not work with LV_DISPLAY_RENDER_MODE_DIRECT used by the DRM backend.
-+ *
-+ * @param disp      Pointer to the display object created with lv_linux_drm_create()
-+ * @param rotation  DRM rotation bitmask (DRM_MODE_ROTATE_0, DRM_MODE_ROTATE_90,
-+ *                  DRM_MODE_ROTATE_180, DRM_MODE_ROTATE_270)
-+ */
-+void lv_linux_drm_set_rotation(lv_display_t * disp, uint64_t rotation);
-+
- /**
-  * Get the horizontal resolution of a DRM mode
-  * @param mode pointer to the DRM mode object
-@@ -118,6 +142,20 @@ int32_t lv_linux_drm_mode_get_refresh_rate(const lv_linux_drm_mode_t * mode);
-  */
- bool lv_linux_drm_mode_is_preferred(const lv_linux_drm_mode_t * mode);
- 
-+
-+/**
-+ * Get the open DRM master file descriptor backing a DRM display.
-+ *
-+ * HelixScreen uses this to issue connector DPMS (drmModeConnectorSetProperty)
-+ * on the same master fd LVGL holds — required because DPMS modesetting needs
-+ * DRM master, which LVGL already acquired via drmSetMaster() (#1049). Valid for
-+ * both the non-EGL (drm_dev_t) and EGL (lv_drm_ctx_t) paths.
-+ *
-+ * @param disp pointer to the display object
-+ * @return the DRM fd (>= 0), or -1 if unavailable
-+ */
-+int lv_linux_drm_get_fd(lv_display_t * disp);
-+
- /**********************
-  *      MACROS
-  **********************/

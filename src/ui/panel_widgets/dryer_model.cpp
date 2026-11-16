@@ -3,17 +3,16 @@
 
 #include "src/ui/panel_widgets/dryer_model.h"
 
-#include "ui_update_queue.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_drying_controller.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "helix_psram_attr.h"
-#include "observer_factory.h"
 #include "printer_state.h"
-#include "static_subject_registry.h"
-#include "subject_managed_panel.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -24,10 +23,9 @@
 namespace helix::dryer_model {
 namespace {
 
-HELIX_PSRAM_BSS lv_subject_t s_available_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_version_subject{};
-bool s_subjects_initialized = false;
-SubjectManager s_subjects;
+HELIX_PSRAM_BSS helix::Subject s_available_subject{};
+HELIX_PSRAM_BSS helix::Subject s_version_subject{};
+helix::WidgetSubjects s_subjects{"DryerModelSubjects"};
 
 DryerSummary s_summary;
 std::vector<ObserverGuard> s_observers;
@@ -43,7 +41,7 @@ bool s_pinned = false;
 bool s_bed_watched = false;
 
 bool subject_ready(const lv_subject_t* subject) {
-    return subject != nullptr && subject->type != LV_SUBJECT_TYPE_INVALID;
+    return helix::subject_is_live(subject);
 }
 
 // Sources notify far more often than the summary changes (every unit's humidity and
@@ -203,22 +201,18 @@ DryerSummaryInput read_sources() {
 } // namespace
 
 void init_subjects() {
-    if (!s_subjects_initialized) {
-        UI_MANAGED_SUBJECT_INT(s_available_subject, 0, "home_dryer_available", s_subjects);
-        UI_MANAGED_SUBJECT_INT(s_version_subject, 0, "home_dryer_version", s_subjects);
-        s_subjects_initialized = true;
-        StaticSubjectRegistry::instance().register_deinit("DryerModelSubjects", []() {
+    s_subjects.ensure_init(
+        [] {
+            UI_MANAGED_SUBJECT_INT(s_available_subject, 0, "home_dryer_available", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_version_subject, 0, "home_dryer_version", s_subjects);
+        },
+        [] {
             s_observers.clear();
-            if (s_subjects_initialized && lv_is_initialized()) {
-                s_subjects.deinit_all();
-                s_subjects_initialized = false;
-            }
             s_summary = {};
             s_chamber_cycle = {};
             s_bed_watched = false;
             s_refresh_queued = false;
         });
-    }
     // A queue that was discarded under a pending request would otherwise block every later one.
     s_refresh_queued = false;
     s_pinned = false;
@@ -240,7 +234,7 @@ void publish(DryerSummary fresh) {
 }
 
 void refresh_now() {
-    if (!s_subjects_initialized || s_pinned)
+    if (!s_subjects.initialized() || s_pinned)
         return;
     if (!s_bed_watched && get_bed_drying_controller())
         attach_sources();
@@ -254,7 +248,7 @@ void refresh_now() {
 } // namespace
 
 void refresh() {
-    if (!s_subjects_initialized)
+    if (!s_subjects.initialized())
         return;
     // Sources that were deinited and brought back since the observers attached are not
     // the ones those observers hold.
@@ -264,7 +258,7 @@ void refresh() {
 }
 
 void publish_for_test(DryerSummary summary) {
-    if (!s_subjects_initialized)
+    if (!s_subjects.initialized())
         return;
     s_pinned = true;
     publish(std::move(summary));

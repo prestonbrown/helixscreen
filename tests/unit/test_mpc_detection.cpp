@@ -15,6 +15,7 @@
 #include "../../include/printer_discovery.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -27,25 +28,7 @@
 
 using namespace helix;
 
-// ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
 namespace {
-struct LVGLInitializerMPCDetection {
-    LVGLInitializerMPCDetection() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerMPCDetection lvgl_init;
 
 /// Scoped HELIX_MOCK_KALICO override. is_mock_kalico() re-reads the environment on
 /// every printer.objects.query, so setting it around a call is enough — no restart,
@@ -104,7 +87,7 @@ TEST_CASE("PrinterDiscovery::is_kalico() cleared on clear()", "[mpc_detection]")
 // Heater Control Type Query Tests
 // ============================================================================
 
-class MPCDetectionTestFixture {
+class MPCDetectionTestFixture : public LVGLTestFixture {
   public:
     MPCDetectionTestFixture() : mock_client_(MoonrakerClientMock::PrinterType::VORON_24) {
         state_.init_subjects(false);
@@ -126,7 +109,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture,
 
     api_->advanced().get_heater_control_type(
         "extruder",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             cb_fired.store(true);
         },
@@ -144,7 +127,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns pid f
 
     api_->advanced().get_heater_control_type(
         "heater_bed",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             cb_fired.store(true);
         },
@@ -167,7 +150,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture,
     std::string error_message;
 
     api_->advanced().get_heater_control_type(
-        "nonexistent_heater", [&](const std::string&) { success_fired.store(true); },
+        "nonexistent_heater", [&](const std::string&, bool) { success_fired.store(true); },
         [&](const MoonrakerError& err) {
             error_message = err.message;
             error_fired.store(true);
@@ -194,7 +177,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns mpc o
 
     api_->advanced().get_heater_control_type(
         "extruder",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             success_fired.store(true);
         },
@@ -204,4 +187,21 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns mpc o
     REQUIRE(success_fired.load());
     REQUIRE_FALSE(error_fired.load());
     REQUIRE(control_type == "mpc");
+}
+
+TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type reports a named cooling_fan",
+                 "[mpc_detection]") {
+    ScopedKalico kalico("1");
+    auto query = [&]() {
+        std::atomic<int> names_fan{-1};
+        api_->advanced().get_heater_control_type(
+            "extruder", [&](const std::string&, bool names) { names_fan.store(names ? 1 : 0); },
+            [&](const MoonrakerError&) {});
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return names_fan.load();
+    };
+
+    CHECK(query() == 0);
+    mock_client_.set_extruder_cooling_fan("fan");
+    CHECK(query() == 1);
 }

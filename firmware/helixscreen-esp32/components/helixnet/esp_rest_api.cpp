@@ -73,6 +73,7 @@
 #include "moonraker_file_transfer_api.h"
 #include "moonraker_rest_api.h"
 #include "moonraker_validation.h"
+#include "rest_response.h"
 
 #include <algorithm>
 #include <cctype>
@@ -436,10 +437,6 @@ void MoonrakerRestAPI::wled_get_strips(RestCallback on_success, ErrorCallback) {
 void MoonrakerRestAPI::wled_set_strip(const std::string&, const std::string&, int, int,
                                       SuccessCallback, ErrorCallback on_error) {
     esp_rest_unimplemented_err("MoonrakerRestAPI::wled_set_strip", on_error);
-}
-
-void MoonrakerRestAPI::wled_get_status(RestCallback, ErrorCallback on_error) {
-    esp_rest_unimplemented_err("MoonrakerRestAPI::wled_get_status", on_error);
 }
 
 void MoonrakerRestAPI::get_server_config(RestCallback, ErrorCallback on_error) {

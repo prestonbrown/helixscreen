@@ -3,27 +3,32 @@
 
 // The U1 forgets its unload-at-end list when each print ends, so every way a
 // print starts carries it: a reprint with no recorded routing and a restart
-// from the beginning included.
+// from the beginning included. A backend with no IPrintRouting sends nothing there.
 
 #if HELIX_HAS_SNAPMAKER
 
 #include "ui_print_start_controller.h"
 #include "ui_resume_dispatch.h"
-#include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/snapmaker_test_access.h"
+#include "ams_backend_afc.h"
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "filament_op_execute.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "standing_print_options.h"
+#include "test_helpers/backend_harness.h"
 
 #include <string>
 
@@ -49,6 +54,9 @@ struct U1StartFx : LVGLTestFixture {
         client.connect("ws://mock/websocket", []() {}, []() {});
     }
     ~U1StartFx() override {
+        // A restart builds the process-wide print-select panel around the
+        // case's own API, which dies with the case.
+        StaticPanelRegistry::instance().destroy_all();
         SettingsManager::instance().set_end_of_print_unload_tools(0);
         client.stop_temperature_simulation();
         client.disconnect();
@@ -63,19 +71,65 @@ struct U1StartFx : LVGLTestFixture {
     }
 };
 
-void report_heads(AmsBackendSnapmaker& backend) {
-    SnapmakerTestAccess::handle_status(
-        backend, nlohmann::json{{"print_task_config",
-                                 {{"end_unload_filament", {false, false, false, false}}}}});
+/// Promises the pre-print step with nothing to build it: no real backend does, so
+/// this reaches the fallback every caller spells out for a missing IPrintRouting.
+class NoRoutingBackend : public AmsBackendAfc {
+  public:
+    NoRoutingBackend(IMoonrakerAPI* api, IMoonrakerClient* client) : AmsBackendAfc(api, client) {}
+    [[nodiscard]] BackendTraits traits() const override {
+        BackendTraits t = AmsBackendAfc::traits();
+        t.requires_preprint_send = true;
+        return t;
+    }
+};
+
+void report_heads(test::WiredBackend<AmsBackendSnapmaker>& backend) {
+    backend.fire_status(nlohmann::json{
+        {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
 }
 
+/// Counts the starts it is told of, so a case can see the start path tell it.
+class NotingSnapmaker : public AmsBackendSnapmaker {
+  public:
+    using AmsBackendSnapmaker::AmsBackendSnapmaker;
+    int noted = 0;
+    void note_print_start_from_here() override {
+        ++noted;
+        AmsBackendSnapmaker::note_print_start_from_here();
+    }
+};
+
 } // namespace
+
+TEST_CASE_METHOD(U1StartFx, "a print started from this screen is announced to the routing backend",
+                 "[end_unload][preprint][reprint]") {
+    MoonrakerAPI api{client, ps};
+    test::RegisteredWired<NotingSnapmaker> backend;
+    backend->fire_status(nlohmann::json{
+        {"print_task_config", {{"end_unload_filament", {false, false, false, false}}}}});
+
+    const auto settle = [] {
+        for (int i = 0; i < 8; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    };
+    SECTION("a reprint") {
+        helix::ui::PrintStartController controller{ps, &api};
+        controller.initiate_reprint("cal.gcode", "cal.gcode", {0}, []() {}, []() {});
+        settle();
+    }
+    SECTION("a restart from the beginning") {
+        helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
+        settle();
+    }
+    CHECK(backend->noted == 1);
+}
 
 TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends the unload list",
                  "[end_unload][preprint]") {
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     REQUIRE(backend->requires_preprint_send());
 
@@ -85,6 +139,38 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends t
     CHECK(sent.find(kUnload) != std::string::npos);
     // No routing was recorded, so no map is invented.
     CHECK(sent.find("SET_PRINT_EXTRUDER_MAP") == std::string::npos);
+}
+
+TEST_CASE_METHOD(U1StartFx, "a backend without IPrintRouting sends nothing ahead of a job",
+                 "[print-start][preprint]") {
+    MoonrakerAPI api{client, ps};
+    test::RegisteredWired<NoRoutingBackend> backend;
+    REQUIRE(backend->requires_preprint_send());
+    REQUIRE(backend->as<IPrintRouting>() == nullptr);
+    client.clear_gcode_script_history();
+
+    SECTION("a reprint starts with no pre-print send") {
+        helix::ui::PrintStartController controller{ps, &api};
+        bool started = false;
+        controller.initiate_reprint(
+            "cal.gcode", "cal.gcode", {0}, [&started]() { started = true; }, []() {});
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(started);
+        CHECK(all_scripts().empty());
+    }
+    SECTION("a restart sends only its own clear") {
+        helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(all_scripts() == "SDCARD_RESET_FILE\nCANCEL_PRINT_BASE\n");
+    }
+    SECTION("a purge goes straight out, and standing options are empty") {
+        bool purged = false;
+        helix::ui::run_after_purge_preamble(
+            &api, "[test]", [&purged]() { purged = true; }, [](const MoonrakerError&) {});
+        CHECK(purged);
+        CHECK(all_scripts().empty());
+        CHECK(render_standing_gcode({&*backend}).empty());
+    }
 }
 
 TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send never starts",
@@ -101,7 +187,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
         });
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     REQUIRE(backend->requires_preprint_send());
 
@@ -126,39 +212,59 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
           (withdraw ? PreparingStart::None : PreparingStart::Accepted));
 }
 
-TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start times out while Stop waits is held",
-                 "[preparing_cancel][preprint]") {
+TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start loses its answer stays preparing",
+                 "[preparing_cancel][preprint][1898]") {
+    // The printer may still be running its start sequence; only a refusal fails it.
+    const int kind = GENERATE(0, 1, 2); // timeout, timeout with Stop waiting, refusal
+    CAPTURE(kind);
+    const bool refused = kind == 2;
+    const MoonrakerError error =
+        refused ? MoonrakerError::from_json_rpc({{"code", 400}, {"message", "File not found"}},
+                                                "printer.print.start")
+                : MoonrakerError::timeout("printer.print.start", 600000);
     MoonrakerClientMockTestAccess::set_method_handler(
         client, "printer.print.start",
-        [](MoonrakerClientMock*, const nlohmann::json&,
-           helix::SharedCallback<void(const nlohmann::json&)>,
-           helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
-            err(MoonrakerError::timeout("printer.print.start", 600000));
+        [error](MoonrakerClientMock*, const nlohmann::json&,
+                helix::SharedCallback<void(const nlohmann::json&)>,
+                helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
+            err(error);
             return true;
         });
     MoonrakerAPI api{client, ps};
     helix::ui::PrintStartController controller{ps, &api};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
 
     bool errored = false;
     controller.initiate_reprint(
         "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
-    ps.print_state().note_preparing_cancel_requested();
+    if (kind == 1) {
+        ps.print_state().note_preparing_cancel_requested();
+    }
     for (int i = 0; i < 4; ++i) {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    CHECK(ps.print_state().has_preparing_job());
+    CHECK(errored == refused);
+    CHECK(ps.print_state().has_preparing_job() == !refused);
+    if (refused) {
+        CHECK(ps.print_state().last_preparing_exit() == PreparingExit::Failed);
+        return;
+    }
     CHECK(ps.print_state().preparing_start() == PreparingStart::Unanswered);
-    CHECK_FALSE(errored);
+
+    ps.update_from_status(
+        nlohmann::json{{"print_stats", {{"state", "printing"}, {"filename", "cal.gcode"}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(ps.print_state().has_preparing_job());
+    CHECK(ps.print_state().last_preparing_exit() == PreparingExit::Confirmed);
 }
 
 TEST_CASE_METHOD(U1StartFx,
                  "a U1 restart from the beginning sends the unload list after the cancel",
                  "[end_unload][preprint]") {
     MoonrakerAPI api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
 
     helix::ui::restart_print_from_beginning(&api, "cal.gcode", "[test]", nullptr);
@@ -172,7 +278,7 @@ TEST_CASE_METHOD(U1StartFx,
 TEST_CASE_METHOD(U1StartFx, "a U1 restart from the beginning names the file's heads",
                  "[end_unload][preprint][reprint]") {
     MoonrakerAPI api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     helix::PlantedGcode file("restart_t0t2.gcode", "",
                              "; filament_type = PLA;PLA;PETG\n"
@@ -194,7 +300,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 restart of an Orca job names its heads from th
                  "[end_unload][preprint][reprint]") {
     // The API mock serves the planted file's bytes to the footer's range read.
     MoonrakerAPIMock api{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     // Orca's U1 profile leaves per-tool weights out of Moonraker's metadata;
     // its footer carries them ("BMCU 370C_ASA_18.4g_54m6s.gcode", off a U1).
@@ -218,7 +324,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 restart drops when the printer connection chan
                  "[end_unload][preprint][reprint]") {
     MoonrakerAPI api{client, ps};
     MoonrakerAPI next_printer{client, ps};
-    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    test::RegisteredWired<AmsBackendSnapmaker> backend;
     report_heads(*backend);
     IMoonrakerAPI* previous = get_moonraker_api();
 
