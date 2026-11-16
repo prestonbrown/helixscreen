@@ -48,7 +48,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "the comparison gives each ripple's worst spee
     r.sweeps = {off};
     r.compensated_sweeps = {on};
     const std::string calibrated = ripple_reduction_summary(r, false);
-    CHECK(calibrated.find("80%") != std::string::npos); // 2x: 3000 -> 600
+    CHECK(calibrated.find("80% less") != std::string::npos); // 2x: 3000 -> 600
+
+    // Compensation that makes a ripple worse says so, rather than "0% less".
+    b.ripple = {150.0f, 3630.0f, std::nullopt};
+    r.compensated_sweeps[0].speeds = {b};
+    const std::string worse = ripple_reduction_summary(r, false);
+    CHECK(worse.find("21% more") != std::string::npos); // 2x: 3000 -> 3630
+    CHECK(worse.find("0% less") != std::string::npos);  // 1x: unchanged
     CHECK(calibrated.find("as your printer applies it") == std::string::npos);
     CHECK(ripple_reduction_summary(r, true).find("as your printer applies it") !=
           std::string::npos);
