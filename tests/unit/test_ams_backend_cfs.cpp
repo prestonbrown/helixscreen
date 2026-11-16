@@ -535,24 +535,25 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
 TEST_CASE("CFS reports an unload after print only where the firmware does one",
           "[ams][cfs][unload_after_print]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
-    auto frame =
-        [](const char* extra) {
-            return make_cfs_notification(json::parse(std::string(R"({"state":"connect","filament":0,
-            "auto_refill":0,"enable":1)") + extra + R"(,"map":{"T1A":"T1A"},
-            "T1":{"state":"connect","filament":"None","vender":["none"],"remain_len":["-1"],
-                  "color_value":["-1"],"material_type":["-1"]}})"));
-        };
+    auto fork_box = [](bool unload) {
+        json box = make_flat_fork_box();
+        box["unload_after_print_enabled"] = unload;
+        return make_cfs_notification(box);
+    };
 
     SECTION("stock firmware states no option and always unloads") {
-        backend.fire_status(frame(""));
+        backend.fire_status(make_cfs_notification(json::parse(R"({"state":"connect","filament":0,
+            "auto_refill":0,"enable":1,"map":{"T1A":"T1A"},
+            "T1":{"state":"connect","filament":"None","vender":["none"],"remain_len":["-1"],
+                  "color_value":["-1"],"material_type":["-1"]}})")));
         CHECK(backend.auto_unloads_after_print());
     }
     SECTION("fork firmware with the option off leaves the filament in") {
-        backend.fire_status(frame(R"(,"unload_after_print_enabled":false)"));
+        backend.fire_status(fork_box(false));
         CHECK_FALSE(backend.auto_unloads_after_print());
     }
     SECTION("fork firmware with the option on unloads") {
-        backend.fire_status(frame(R"(,"unload_after_print_enabled":true)"));
+        backend.fire_status(fork_box(true));
         CHECK(backend.auto_unloads_after_print());
     }
 }
