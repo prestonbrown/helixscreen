@@ -221,7 +221,7 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 |------|---------|
 | `include/ams_backend_qidi.h` | Backend class declaration, capability overrides, RFID/fila-profile types |
 | `src/printer/ams_backend_qidi.cpp` | Full implementation: save_variables parse, gcode builders, dryer, RFID reverse-lookups |
-| `include/printer_discovery.h` | `box_stepper slot<N>` detection + slot count |
+| `src/printer/printer_discovery_parse.cpp` | `box_stepper slot<N>` detection + slot count |
 | `include/ams_types.h` | `AmsType::QIDI_BOX` enum + string converters |
 | `tests/unit/test_ams_backend_qidi.cpp` | save_variables parsing, the per-slot loaded reconcile (#1199), tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
 

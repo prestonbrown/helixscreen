@@ -36,8 +36,8 @@ ZMOD's AD5X config defines `[gcode_macro M300]` → `RUN_SHELL_COMMAND
 CMD=audio_freq`; Forge-X's macros/base.cfg ships `[gcode_macro M300]` wrapping
 the fork's native TONE command (whose tone_player backend is being ported to
 the cmd_pwm-compatible `fx-pwm` helper for this platform). HelixScreen's
-speaker detection therefore keys on the M300 macro (`parse_objects`,
-printer_discovery.h), and sound goes out as `M300 S<Hz> P<ms>` via the M300
+speaker detection therefore keys on the M300 macro
+(`src/printer/printer_discovery_parse.cpp#parse_objects`), and sound goes out as `M300 S<Hz> P<ms>` via the M300
 backend — S0 is the backend's silence form and is a no-op on both firmwares.
 Note for rigs: Forge-X's TONE wrapper drops every tone when the printer's
 `mod_params` `sound` variable is off — that mutes HelixScreen too, and looks
@@ -59,7 +59,7 @@ The AD5X uses a FlashForge-specific layout, distinct from the Creality K1:
 | `/usr/data/config/mod_data/` | ZMOD data, logs, database |
 | `/opt/config/` | Symlink or bind-mount to `/usr/data/config/` |
 
-The presence of `/usr/prog/` is used for runtime platform detection (K1 vs AD5X).
+At run time the unified binary tells the boards apart in `helix::board::current()` (`src/system/board_identity.cpp#resolve`): the `MACHINE=` line of /usr/prog/app_startup.sh names an AD5X or a Creator 5, and a FlashForge mod tree (`/ZMOD`, or a mod's .shell/platform.sh under `/opt/config/mod` or `/usr/data/config/mod`) with no machine id still means an AD5X. A MIPS host with neither is a K1 (`src/system/platform_info.cpp`).
 
 ## Build Target
 
@@ -80,7 +80,7 @@ The AD5X runs HelixScreen through the [ZMOD](https://github.com/ghzserg/zmod) fi
 
 - Klipper/Moonraker installation and management
 - Display initialization (fbdev, touch via tslib env vars)
-- App lifecycle (init.d service script `S80guppyscreen`)
+- App lifecycle (its own `/etc/init.d/S80helixscreen`, inside the chroot at `/usr/data/.mod/.zmod`)
 - Update management via Moonraker update manager
 - Z-offset storage — see below
 
@@ -178,7 +178,7 @@ The ZMOD init script sets up touch input via tslib environment variables, but He
 - Framebuffer: `/dev/fb0` (800x480, 32bpp)
 - Backlight: `FBIOBLANK` ioctl (standard Linux fbdev)
 
-## Sound (2026-09-01 rig sessions)
+## Sound
 
 **Decision: UI sounds only.** The piezo is driven natively by
 `JzPwmSoundBackend` (behind `HELIX_HAS_JZ_PWM`, ad5x builds): theme steps
@@ -201,8 +201,7 @@ streaming on this engine is impossible with numbers: buffer swaps are
 refused while a loop is armed and the legal chunk cycle costs a fixed
 ~500 ms of silence per chunk.
 
-Daemon hardening (all learned from rig incidents, see SOUND_SYSTEM.md for
-the protocol): SIGPIPE ignored (a client close must not kill the daemon);
+Daemon hardening (see SOUND_SYSTEM.md for the protocol): SIGPIPE ignored (a client close must not kill the daemon);
 per-frame release/re-request claim dance (second dma_init otherwise
 EPERMs) - and that dance can itself D-wedge pwm2_release, so never loop
 it hot; hold loops use absolute deadlines (poll timeout restarts on a
@@ -344,7 +343,8 @@ the FBIOBLANK fires, and the display controller goes quiet.
 
 **Wizard and preset agree:** `ui_wizard_printer_identify.cpp` writes no
 display settings, so the AD5X preset's values stand. Config migrations v13 and
-v15 (`src/system/config_migrations.cpp#migrate_v14_to_v15`) restore
+v15 (`src/system/config_migrations.cpp#migrate_v12_to_v13`,
+`src/system/config_migrations.cpp#migrate_v14_to_v15`) restore
 `sleep_backlight_off=true`, `hardware_blank=1` on any AD5X config still carrying
 the stale `false` / `0` pair. See prestonbrown/helixscreen#235,
 prestonbrown/helixscreen#431, prestonbrown/helixscreen#303 for history.
@@ -361,9 +361,9 @@ prestonbrown/helixscreen#431, prestonbrown/helixscreen#303 for history.
   issue tracks this symptom; reports go to a
   [new issue](https://github.com/prestonbrown/helixscreen/issues/new) with the
   bundle share code)
-- Try reordering in `enter_sleep()`: backlight → 0 *before* `FBIOBLANK`
-- Add `clear_framebuffer(0x00000000)` before creating the software overlay
-- Force `lv_refr_now()` after `create_sleep_overlay()` so there is no
+- Try reordering in `DisplaySleepController::enter_sleep()`: backlight → 0 *before* `FBIOBLANK`
+- Clear the framebuffer to black before creating the software overlay
+- Force `lv_refr_now()` after `DisplaySleepController::create_sleep_overlay()` so there is no
   window between overlay creation and flush
 
 ### Touch Input
@@ -478,7 +478,7 @@ Zmod has an option to rename slots from 0-indexed (0,1,2,3) to 1-indexed (1,2,3,
 | Architecture | ARM (armv7l, Cortex-A7) | MIPS (Ingenic X2600 XBurst2) |
 | Display | 800x480 fbdev | 800x480 fbdev |
 | Backlight | `/dev/disp` ioctl (Allwinner sunxi) | `FBIOBLANK` (standard Linux) |
-| Config path | `/opt/helixscreen/` | `/usr/data/helixscreen/` |
+| Install root | `/opt/helixscreen/` (Forge-X, Klipper Mod), `/srv/helixscreen` (ZMOD) | `/srv/helixscreen` inside Z-Mod's chroot at `/usr/data/.mod/.zmod`, launched by Z-Mod's `/etc/init.d/S80helixscreen` |
 | Multi-material | No (single extruder) | IFS (4 spools) |
 | Build target | `PLATFORM_TARGET=ad5m` | `PLATFORM_TARGET=ad5x` (alias of `mips`) |
 | Binary | ARM static (glibc sysroot) | MIPS32r2 static (musl), shared with the K1 |

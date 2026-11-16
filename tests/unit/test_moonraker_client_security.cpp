@@ -15,7 +15,7 @@ using namespace helix;
  * MoonrakerClient Security Tests
  *
  * Comprehensive tests for Moonraker security fixes from Issues #2, #3, #4, #6, #7, #9
- * in the Moonraker Security Review (docs/MOONRAKER_SECURITY_REVIEW.md).
+ * in the Moonraker Security Review (docs/audits/MOONRAKER_SECURITY_REVIEW.md).
  *
  * Test Categories:
  * 1. Issue #4: Use-After-Free - Destructor cleanup (no dangling callbacks)

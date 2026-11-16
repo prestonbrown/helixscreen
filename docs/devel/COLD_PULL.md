@@ -22,7 +22,7 @@ meet and shows the overlay. Opening never heats; only `Start` does, and it check
 
 - **Advanced panel**, the Cold Pull row (`ui_xml/advanced_panel.xml`).
 - **The clog alert.** `key845` ("Nozzle clog detected") carries a Cold Pull recovery action whose
-  `RecoveryAction::guided_flow` is `kColdPullFlowId` and whose gcode is empty, beside an OK that only closes the alert (a blocking table code that offers a fix always keeps a plain way out). The runner registers
+  `RecoveryAction::guided_flow` is `kColdPullFlowId` and whose gcode is empty, beside an OK that only closes the alert (a blocking table code that offers a fix always keeps a plain way out). `SubjectInitializer` registers
   the overlay as that guided device flow (`register_cold_pull_flow()`), so the alert, which lives
   below the UI layer, names the flow by id. `RecoveryFaultModal` hands the tapped action to
   `RecoveryModalPresenter::on_guided_flow_tapped()`, which marks the fault answered and opens the

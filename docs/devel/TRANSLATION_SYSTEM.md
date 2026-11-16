@@ -113,10 +113,13 @@ These are the generator's only outputs.
 Translation generation is integrated into the build via `mk/translations.mk`:
 
 ```makefile
-# Regenerate the XML packs if YAML or script changes
-$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT)
-    python generate_translations.py
+# Regenerate the XML packs if the YAML, the script or HELIX_LANG changes
+$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT) $(TRANS_LANG_STAMP)
+    $(VENV_PYTHON_TRANS) $(TRANS_SCRIPT) $(TRANS_LANG_FLAG)
 ```
+
+`HELIX_LANG` limits which locales a build packs; the stamp file forces a regeneration when it
+changes.
 
 Run manually with:
 
@@ -150,11 +153,10 @@ so it never has to parse every language up front.
 **English never loads a pack.** English tags ARE the English UI text, and
 `lv_translation_get()` returns the tag unchanged when no pack matches, so
 `ensure_translation_loaded()` skips the identity locale entirely (heap + lookup
-scan savings — see `kIdentityLocale`). The hard consequence: **every key in
+scan savings - see `kIdentityLocale`). The hard consequence: **every key in
 `translations/en.yml` must be its own English text.** A "semantic" key whose
 value differs from the key (`pre_print_option.timelapse.label: Timelapse`)
-renders as the raw dotted identifier in the English UI — that exact bug shipped
-in v0.99.114 (timelapse toggle row, first-run tour). If the English text already
+renders as the raw dotted identifier in the English UI. If the English text already
 exists as a tag, point the reference (C++ / XML / `printer_database.json`) at
 the existing tag instead of adding a near-duplicate key.
 `scripts/check_translation_identity.py` (wired into `quality-checks.sh`) fails
@@ -265,7 +267,7 @@ std::string msg = fmt::format(lv_tr("Nozzle: {}°C"), temp);
 ```
 
 Wrapping a C++ string literal in `lv_tr(...)` (or `fmt::format(lv_tr("..{}.."), arg)`
-for format strings) is exactly how a C++ string becomes translatable — the
+for format strings) is exactly how a C++ string becomes translatable - the
 wrapped literal is also picked up by `make translation-sync`.
 
 ### Loading a locale and changing language
@@ -353,16 +355,16 @@ form against the format it replaces.
 
 ### Adding New Translatable Strings
 
-1. **Add to XML with translation_tag:**
+1. **Add the literal to XML** (the literal is its own tag; see "Static Text" above):
    ```xml
-   <text_body text="New Feature" translation_tag="New Feature"/>
+   <text_body text="New Feature"/>
    ```
 
 2. **Extract to YAML files:**
    ```bash
    make translation-sync
    ```
-   This scans XML files and adds new keys to all YAML files with the English value as placeholder.
+   This scans XML and C++ and adds new keys to every YAML file: the English text in `en.yml`, an empty value (needs translation) in the others.
 
 3. **Translate in YAML files:**
    Edit each `translations/*.yml` file to add proper translations:
@@ -377,7 +379,7 @@ form against the format it replaces.
    When translating a recurring domain term, reuse the rendering in
    `translations/GLOSSARY.md` for that language. For terms not in the glossary,
    grep the target `translations/<lang>.yml` and reuse the dominant existing
-   rendering — never coin a new word for a concept that's already translated.
+   rendering - never coin a new word for a concept that's already translated.
 
 4. **Regenerate the XML translation packs:**
    ```bash
@@ -386,7 +388,7 @@ form against the format it replaces.
 
 5. **Rebuild and test:**
    ```bash
-   make -j && ./build/bin/helix-screen --test -vv
+   make && ./build/bin/helix-screen --test -vv
    ```
 
 ### Preview Changes Before Sync
@@ -414,10 +416,10 @@ Extraction and obsolete-detection ask opposite questions, so they use different
 oracles:
 
 - **`sync`** asks *"should this string be translated?"* It is tuned for
-  **precision** — the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
+  **precision** - the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
   keep junk (subject names, hex colors, numbers) out of the YAML.
 - **`obsolete`** asks *"is this key mentioned at all?"* It is tuned for
-  **recall** — `collect_referenced_strings()` in `scripts/translations/obsolete.py`
+  **recall** - `collect_referenced_strings()` in `scripts/translations/obsolete.py`
   scans `src/`, `include/`, `ui_xml/`, `assets/`, `config/`, and `tests/` for the
   key as a delimited literal (a complete C/JSON string, an XML attribute value,
   or an XML text node).
@@ -431,7 +433,7 @@ dead, because keys reached *indirectly* are invisible to it:
 | Tag stored as JSON data | pre-print option labels in `assets/config/printer_database.json` |
 | Label text declared in a header | `include/ui_panel_controls.h` |
 
-Matching is deliberately **delimited, not substring** — otherwise the word
+Matching is deliberately **delimited, not substring** - otherwise the word
 `Unlink` inside a code comment would count as a use of the `Unlink` key and hide
 a genuinely dead entry. The scan errs toward reporting a reference: a key that
 also appears in an unrelated log message just leaves a stale entry behind,
@@ -442,7 +444,7 @@ Two categories are reported obsolete **by design**:
 - Strings that live only in a dev/test panel carrying an `<!-- i18n: skip-file -->`
   marker: the marker opts the file out, so its strings should not be keys.
 - Strings containing a literal `\n` (multi-line dropdown option labels), which
-  `should_skip_text()` no longer extracts.
+  `should_skip_text()` does not extract.
 
 The generated packs under `ui_xml/translations/` are excluded from the scan;
 they list every key by definition and so can never prove usage.

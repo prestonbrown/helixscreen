@@ -340,7 +340,7 @@ correlates only the swept band.
   running path and "done" for one this run already measured; on RESULTS an age ("just now",
   "N min ago") that a 30 s timer keeps current. Ghost curves are drawn on their own scale;
   the two current curves share one.
-- Under the chart: `bt_facts`, up to `MAX_LISTED_PEAKS` pairs strongest first as A/B
+- Under the chart: `bt_facts`, up to `kMaxListedPeaks` pairs strongest first as A/B
   ("Peaks 36/35 · 132/133 Hz"), and `bt_unpaired` ("Only on Path B: 120, 129 Hz"), hidden by
   `bt_has_unpaired` when empty.
 - Chart: the listed pairs carry the same number on both curves; the listed unpaired peaks

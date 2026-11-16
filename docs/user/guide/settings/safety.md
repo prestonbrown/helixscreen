@@ -2,6 +2,8 @@
 
 **Settings > Safety & Alerts** decides how careful HelixScreen is and how loudly it tells you things. Use it to add a confirmation to the emergency stop or to macros, to set a safety net for cancels that hang, to control camera failure detection, to hold slicer prints that don't fit the printer, and to choose how finished prints and other messages are announced.
 
+Rows for hardware your printer doesn't have are hidden, so your list may be shorter than the one pictured.
+
 ![Safety & Alerts settings, top of the page](../../../images/user/settings-safety.png)
 
 ---
@@ -19,11 +21,11 @@ The confirmation guards against stopping a print by accident. Turn it off if you
 
 ## Cancel Escalation
 
-Some printers take a long time to finish canceling a print: parking tools, cooling down, running a long `CANCEL_PRINT` macro. Cancel Escalation is a safety net. If a cancel hasn't finished after a set time, HelixScreen sends an emergency stop (`M112`).
+Some printers take a long time to finish canceling a print: parking tools, cooling down, running a long cancel macro. Cancel Escalation is a safety net. If a cancel hasn't finished after a set time, HelixScreen sends an emergency stop (`M112`).
 
 **Off** by default.
 
-**Leave it off** on tool changers that park tools when canceling, on printers with long `CANCEL_PRINT` macros, and on any printer whose cancel is expected to take more than a few seconds.
+**Leave it off** on tool changers that park tools when canceling, on printers with long cancel macros, and on any printer whose cancel is expected to take more than a few seconds.
 
 **Turn it on** on simple printers where a cancel should be quick, or if you've had cancels that got stuck and never returned to idle.
 
@@ -48,7 +50,7 @@ Keep it on if you have macros that move the toolhead, heat the printer or do any
 
 ## Spaghetti Detection
 
-> Only shown on printers with built-in camera failure detection: the Creality K2 Plus, and the Snapmaker U1 with defect detection.
+> Only shown on printers with camera failure detection: Creality K2, K2 Plus and K2 Pro on stock firmware, and the Snapmaker U1 with its own defect detection.
 
 While a print runs, the printer's camera watches for "spaghetti": a print that has come loose or is piling up as a tangle of plastic.
 
@@ -57,7 +59,14 @@ While a print runs, the printer's camera watches for "spaghetti": a print that h
 | **On** (default) | The camera is checked for failures during every print |
 | **Off** | Nothing is watched and no detection alerts appear |
 
-The first time HelixScreen starts on a K2 Plus that had its own detection settings, it copies your on/off and pause choices over once. After that, they're set here.
+**Where the setting starts.** HelixScreen copies the printer's own choice once, so detection doesn't switch back on if you had turned it off before:
+
+- **Creality K2 family:** the first time HelixScreen runs, it copies the printer's own AI detection switch and its pause choice.
+- **Snapmaker U1:** the first time HelixScreen connects, it reads the printer's own detection switch and takes that value.
+
+After that, the switches in this page are the ones that count.
+
+**On a Snapmaker U1, the switch controls the printer itself.** The U1 detects spaghetti in its own firmware and pauses the print on its own. Turning Spaghetti Detection off here turns the printer's detection off, so the U1 stops pausing prints for spaghetti. Turning it on turns the printer's detection back on. HelixScreen also sets the printer to match this switch every time it connects, so a change made on the printer's own screen is undone at the next connection. Only the spaghetti check follows this switch; the [Bed Clear Check](#bed-clear-check) below has its own.
 
 ### Pause on Detection
 
@@ -66,9 +75,24 @@ The first time HelixScreen starts on a K2 Plus that had its own detection settin
 | **On** (default) | A detected failure pauses the print and opens a dialog where you can resume, cancel, or turn detection off |
 | **Off** | A detected failure only shows a warning. The print keeps going |
 
-Grayed out while Spaghetti Detection is off. Hidden on printers whose firmware pauses the print on its own when it sees a failure (the Snapmaker U1).
+Grayed out while Spaghetti Detection is off. Hidden on the Snapmaker U1, whose firmware always pauses the print on its own and whose detection dialog always opens.
 
-See [Print Monitoring](../print-monitoring.md) for what the detection dialog offers.
+See [Print Monitoring](../print-monitoring.md#print-failure-detection) for what the detection dialog offers.
+
+---
+
+## Bed Clear Check
+
+> Only shown on the Snapmaker U1.
+
+Before each print, the U1's camera checks that the bed is empty. The row's description reads "Camera checks the bed is empty before each print".
+
+| Setting | What happens |
+|---------|--------------|
+| **On** | The printer looks over the bed before each print and stops if it sees something on it |
+| **Off** | The printer starts without the check |
+
+The switch shows and sets the printer's own setting. It is grayed out while the printer's detection module is switched off as a whole, because the check cannot run then. If the printer refuses the change, the switch goes back to where it was and a message says "The printer did not change its bed check". See [Print Monitoring](../print-monitoring.md#bed-clear-check-snapmaker-u1) for the dialog a failed check opens.
 
 ---
 
@@ -81,18 +105,9 @@ When your slicer uploads a file and asks the printer to print it, the printer st
 | **On** | A slicer's upload-and-print waits for the check, and a file that doesn't fit stays in the file list unstarted |
 | **Off** (default) | The slicer's print starts as soon as the upload finishes |
 
-Which slicer starts are held: only an upload that asks for the print in the same request. That is a slicer set up with an **OctoPrint**-style host upload and its **Upload and Print** (or **Print**) button, such as PrusaSlicer, SuperSlicer and OrcaSlicer's host upload. Every file type Moonraker prints is held (`.gcode`, `.g`, `.gco`, `.nc`, Cura's `.ufp`), and so is a `.gcode.3mf` when the plugin is set to start converted 3MF uploads. These are **not** held, because the plugin never sees a request to print them:
+Only an upload that asks for the print in the same request is held: a slicer set up with an OctoPrint-style host upload and its **Upload and Print** (or **Print**) button, such as PrusaSlicer, SuperSlicer and OrcaSlicer's host upload. A print started separately after the upload (OrcaSlicer's own Moonraker connection, Mainsail, Fluidd, or the next job in the job queue) is not held, because the plugin never sees a request to print it.
 
-- OrcaSlicer's own Moonraker printer connection when it uploads the file first and then sends a separate start command
-- a print started from Mainsail, Fluidd or another app after the upload
-- the next job in Moonraker's job queue
-
-- A different nozzle size or printer model in the slicer profile never holds a print.
-- The slicer waits at most 45 seconds from the moment its upload arrives, including the time a 3MF takes to convert. If the plugin hasn't read the file by then, or can't read the printer's configuration, a G-code upload starts as it would without the switch, and a 3MF upload is converted but not started (the slicer is told so). The printer's Moonraker log says why.
-- While the printer is already printing, nothing waits. A file the plugin has already read is checked and, if it doesn't fit, isn't queued. A file it hasn't read yet is queued unchecked, as it would be without the switch, and starts later without a check.
-- A file that is printing right now, or already waits in the job queue, is never started or queued a second time, even if the slicer sends it twice. Uploading the same name again after its print has finished starts it as usual.
-- The plugin can't see the extra tools a filament system adds, so this switch doesn't hold a print for its tool count. The screen still checks it when you start the file there: a file using a tool past the printer's extruders is blocked, and one past a count only its tool macros give is a warning with **Start Anyway**.
-- Without the [HelixPrint plugin](../helixprint-plugin.md) the switch is greyed out with **Requires the HelixPrint plugin** and an **Install** button: only the plugin sees a slicer's print. Prints you start from the screen are checked either way; see [Does the file fit this printer?](../printing.md#does-the-file-fit-this-printer).
+Without the plugin the row is grayed out with **Requires the HelixPrint plugin** and an **Install** button. Prints you start from the screen are checked either way; see [Does the file fit this printer?](../printing.md#does-the-file-fit-this-printer). The [HelixPrint plugin page](../helixprint-plugin.md) lists the rest of the details, such as the 45-second wait and what happens while the printer is already printing.
 
 ---
 

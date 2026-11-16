@@ -386,7 +386,7 @@ HELIX_FORCE_ROTATION_PROBE=1 ./build/bin/helix-screen
 - Saves the confirmed rotation to `/display/rotate` in `settings.json`
 - Sets `/display/rotation_probed` flag so it doesn't re-run on subsequent boots
 - Skips entirely if: rotation is already configured (config, env var, or CLI), or the probe has already run
-- Never shows on a board whose orientation is already known: the kernel's `panel_orientation`, else the board's mount (`upright_rotation` in `src/application/display_metrics.cpp#kKnownPanels`; 270° on the K1, K1C and K1 Max), which applies only when the framebuffer is the geometry that mount was measured on (480x800 for the K1). That rotation is saved the same way, with no prompt
+- Never shows on a board whose orientation is already known: the kernel's `panel_orientation`, else the board's mount (`upright_rotation` in `src/application/display_metrics.cpp#known_panel`; 270° on the K1, K1C and K1 Max), which applies only when the framebuffer is the geometry that mount was measured on (480x800 for the K1). That rotation is saved the same way, with no prompt
 - `HELIX_FORCE_ROTATION_PROBE=1` skips the board's mount, so the probe runs on a board that resolved wrongly. A kernel `panel_orientation` still applies
 - Runs after translations are loaded (Phase 8c) so probe strings are translatable via `lv_tr()`
 
@@ -1260,6 +1260,16 @@ their timing does not depend on the host. No device deployment should need it.
 | **Default** | Unset — the real `/proc` |
 | **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
+### `HELIX_WPA_SYS_ROOT`
+
+Override the sysfs tree the wpa backend reads when it resolves a WiFi interface (the rfkill switches' `soft` attribute). A test seam, like `HELIX_WPA_PROC_ROOT`; no device deployment should need it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute directory path to use in place of `/sys` |
+| **Default** | Unset or empty: the real `/sys` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
+
 ### `HELIX_NETD_SOCKET`
 
 Override the control socket of the printer's network daemon (`netd`, the
@@ -1861,7 +1871,7 @@ HELIX_STRICT_BG_THREAD_CHECK=1 ./build/bin/helix-screen --test -vv
 
 **Read once, at `set_main_thread_id()` time**, so setting it later in the process has no effect — the cost at fire time is a single cached read.
 
-**Release builds ignore the env var *and* compile out the abort branch.** Under `HELIX_RELEASE_BUILD` the detector still emits its telemetry anomaly and debug log, but never aborts: a Snapmaker U1 user (dev `6d10417c`, 2026-05-14) somehow had this set in their environment and hit a stray strict-mode abort (crash signature `307b6f48`). `set_strict_bg_check(true)` still flips the flag in any build — the release build simply has nothing to do with it. See `CLAUDE.md` § "Threading & Lifecycle".
+**Release builds ignore the env var *and* compile out the abort branch.** Under `HELIX_RELEASE_BUILD` the detector still emits its telemetry anomaly and debug log, but never aborts: a Snapmaker U1 user (dev `6d10417c`, 2026-05-14) somehow had this set in their environment and hit a stray strict-mode abort (crash signature `307b6f48`). `set_strict_bg_check(true)` still flips the flag in any build — the release build simply has nothing to do with it. See `.claude/rules/threading.md`.
 
 ---
 

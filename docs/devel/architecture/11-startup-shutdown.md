@@ -207,7 +207,7 @@ Read in this order; about 30 minutes total.
 
 1. `src/main.cpp#main`: client dispatch, `set_terminate`, the `execv` in-place restart. 187 lines; read it whole.
 2. `src/application/application.cpp#run`: skim top to bottom reading only the `Phase N` comments; this is the authoritative ladder.
-3. `src/application/application.cpp#init_display`: DPI forcing, and the splash suppression block at `src/application/application.cpp#init_display/"Replace the flush callback with a no-op"`.
+3. `src/application/application.cpp#init_display`: DPI forcing, and the splash hand-off at `src/application/application.cpp#init_display/"config.splash_active"`, which `DisplayManager` passes to the backend (`set_splash_active()`).
 4. `src/application/application.cpp#init_theme`: globals.xml registered *before* `theme_manager_init()`, and why.
 5. `src/xml_registration.cpp#register_xml_components`: responsive consts, semantic widgets, callbacks, `styles.xml`, then the first-use loader (`src/xml_registration.cpp#register_xml_on_first_use`).
 6. `src/application/subject_initializer.cpp#init_core_and_state`: the dependency phases and the NavigationManager-registers-last comment.

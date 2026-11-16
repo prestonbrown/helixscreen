@@ -85,7 +85,7 @@ Klipper SHAPER_CALIBRATE
 
 ---
 
-## CSV Parser (`ShaperCsvParser`)
+## CSV Parser (`parse_shaper_csv`)
 
 Parses CSV output from Klipper's calibrate_shaper.py. The CSV is written to `/tmp/calibration_data_{axis}_{timestamp}.csv` on the printer's filesystem.
 
@@ -131,7 +131,7 @@ ShaperCsvData parse_shaper_csv(const std::string& csv_path, char axis);
 
 The parser auto-discovers shaper columns from the CSV header. Any column matching the `name(frequency)` pattern is parsed as a shaper curve. No code changes needed when Klipper adds new shaper types.
 
-Client-side re-scoring (`shaper_response.h`) is stricter: it ports each shaper's tap definitions, so a genuinely new shaper type needs a new taps function there. Unknown types degrade gracefully — `shaper_transfer_curve()` returns an empty vector and callers hide the verdict row / chart overlay rather than guessing.
+Client-side re-scoring (`shaper_response.h`) is stricter: it ports each shaper's tap definitions, so a genuinely new shaper type needs a new taps function there. Unknown types degrade gracefully - `shaper_transfer_curve()` returns an empty vector and callers hide the verdict row / chart overlay rather than guessing.
 
 ---
 
@@ -293,7 +293,7 @@ User taps chip -> input_shaper_chip_x_2_cb (XML event callback)
 
 ### Shaper Overlay Colors
 
-Colors come from the 11-entry `kShaperOverlayColors[]` array, shared by chart lines and legend dots. Assignment is positional — each shaper takes the color at its column index in the CSV (`index % 11`), so an 11-shaper Kalico CSV never reuses a color:
+Colors come from the 11-entry `kShaperOverlayColors[]` array, shared by chart lines and legend dots. Assignment is positional - each shaper takes the color at its column index in the CSV (`index % 11`), so an 11-shaper Kalico CSV never reuses a color:
 
 | Index | Shaper (stock Klipper) | Color (hex) | Visual |
 |-------|------------------------|-------------|--------|
@@ -302,12 +302,12 @@ Colors come from the 11-entry `kShaperOverlayColors[]` array, shared by chart li
 | 2 | EI | `0xFFA726` | Orange |
 | 3 | 2HUMP_EI | `0xAB47BC` | Purple |
 | 4 | 3HUMP_EI | `0xEF5350` | Red |
-| 5 | — | `0x26C6DA` | Cyan |
-| 6 | — | `0xFFEE58` | Yellow |
-| 7 | — | `0xEC407A` | Pink |
-| 8 | — | `0x7E57C2` | Deep purple |
-| 9 | — | `0x8D6E63` | Brown |
-| 10 | — | `0x78909C` | Blue-grey |
+| 5 | - | `0x26C6DA` | Cyan |
+| 6 | - | `0xFFEE58` | Yellow |
+| 7 | - | `0xEC407A` | Pink |
+| 8 | - | `0x7E57C2` | Deep purple |
+| 9 | - | `0x8D6E63` | Brown |
+| 10 | - | `0x78909C` | Blue-grey |
 
 The Shaper column above is the stock-Klipper mapping (five columns, indices 0-4). Kalico lists its smooth shapers (`smooth_zv` ... `smooth_si`) ahead of the discrete ones, so on a Kalico CSV the names shift down the palette while every column still gets a distinct color.
 
@@ -322,17 +322,17 @@ A legend row sits to the right of the chips keying all three curve kinds (a "Rel
 
 ## Live-Before Delta, Residual Verdict, and Firmware Overwrite Warning
 
-When a calibration run starts, the panel snapshots the currently live `[input_shaper]` config (`snapshot_config_before()`, first axis of a run only) so the results cards can show what actually changed — anchored to live-before rather than to what `SAVE_CONFIG` later writes.
+When a calibration run starts, the panel snapshots the currently live `[input_shaper]` config (`snapshot_config_before()`, first axis of a run only) so the results cards can show what actually changed - anchored to live-before rather than to what `SAVE_CONFIG` later writes.
 
 Per axis, when a before-value exists and the result is valid:
 
-- **Delta row** — a single `is_{axis}_delta_text` string ("ei @ 69.8 Hz -> mzv @ 53.8 Hz"), gated by `is_{axis}_has_delta`. The live-before value appears only inside this string (`populate_axis_delta()` formats both halves); there is no separate "was" subject.
-- **Verdict row** — "Old setting on today's data: N% residual - now: M%": the old setting's transfer curve re-scored against the freshly measured PSD next to the new fit's residual (`residual_vibration_percent()`, which reproduces klippy's `_estimate_remaining_vibrations()` — thresholded at `psd.max()/20`, shaped spectrum `H*psd` linear — so the verdict is comparable to the vibrations% the comparison table shows). The new side prefers the curve the firmware fitted into the CSV column (the parser shapes it by the raw PSD, so the verdict divides that back out bin by bin); both sides hide via `is_{axis}_has_verdict` when the PSD is missing or a shaper type has no ported taps.
-- **Chart overlay** — the old setting's curve is added as a muted series (see `draw_muted_series_cb` above) so its notch is comparable against the fresh fit on the same spectrum.
+- **Delta row** - a single `is_{axis}_delta_text` string ("ei @ 69.8 Hz -> mzv @ 53.8 Hz"), gated by `is_{axis}_has_delta`. The live-before value appears only inside this string (`populate_axis_delta()` formats both halves); there is no separate "was" subject.
+- **Verdict row** - "Old setting on today's data: N% residual - now: M%": the old setting's transfer curve re-scored against the freshly measured PSD next to the new fit's residual (`residual_vibration_percent()`, which reproduces klippy's `_estimate_remaining_vibrations()` - thresholded at `psd.max()/20`, shaped spectrum `H*psd` linear - so the verdict is comparable to the vibrations% the comparison table shows). The new side prefers the curve the firmware fitted into the CSV column (the parser shapes it by the raw PSD, so the verdict divides that back out bin by bin); both sides hide via `is_{axis}_has_verdict` when the PSD is missing or a shaper type has no ported taps.
+- **Chart overlay** - the old setting's curve is added as a muted series (see `draw_muted_series_cb` above) so its notch is comparable against the fresh fit on the same spectrum.
 
 ### Firmware overwrite warning (Creality forks)
 
-Some klippy forks (Creality's K1C build) overwrite the staged X result with the Y-axis values at the end of a Y-axis run and announce it with a console line starting `copy_TestAxis_y_to_x Recommended shaper_type_x = ...`. The collector's marker matcher runs BEFORE the recommendation parser — the marker embeds a real `Recommended shaper_type_x` wording that would otherwise clobber the Y run's own recommendation — and sets `InputShaperResult::x_overwritten_by_firmware` on the Y result. The panel carries that onto the X results card (`fw_overwrite_warn_x`, gated on `is_x_fw_overwrite_warn`) with a warning row: the measured X recommendation shown on screen was discarded by the firmware and the saved config holds Y's values for both axes. A Y-only run has no X card to carry it, so the same warning also renders on the Y card (`fw_overwrite_warn_y`, gated `is_x_fw_overwrite_warn eq 1 and is_results_has_x eq 0`).
+Some klippy forks (Creality's K1C build) overwrite the staged X result with the Y-axis values at the end of a Y-axis run and announce it with a console line starting `copy_TestAxis_y_to_x Recommended shaper_type_x = ...`. The collector's marker matcher runs BEFORE the recommendation parser - the marker embeds a real `Recommended shaper_type_x` wording that would otherwise clobber the Y run's own recommendation - and sets `InputShaperResult::x_overwritten_by_firmware` on the Y result. The panel carries that onto the X results card (`fw_overwrite_warn_x`, gated on `is_x_fw_overwrite_warn`) with a warning row: the measured X recommendation shown on screen was discarded by the firmware and the saved config holds Y's values for both axes. A Y-only run has no X card to carry it, so the same warning also renders on the Y card (`fw_overwrite_warn_y`, gated `is_x_fw_overwrite_warn eq 1 and is_results_has_x eq 0`).
 
 The transfer math lives in `src/calibration/shaper_response.cpp` and reproduces the klippy shaper tap definitions plus the damping-aware `_estimate_shaper()` (pessimized over Klipper's `kTestDampingRatios`), which is what the firmware writes into a calibration CSV's fitted columns. `tests/unit/test_shaper_response.cpp` pins it against a real K1C CSV column so the port cannot silently drift from firmware output.
 
@@ -600,7 +600,7 @@ Set `INPUT_SHAPER_AUTO_START=1` to auto-start X axis calibration when the panel 
 
 ### Adding a New Shaper Type
 
-The CSV parser auto-discovers shaper columns from the header, and the chip toggles and comparison table rows are pre-built for up to 11 shapers (`kMaxShapers` in `ui_panel_input_shaper.h`) — stock Klipper's five plus Kalico's six smooth shapers fit with no code changes. To support more than 11, increase `kMaxShapers` and add the corresponding chip XML elements and callback registrations. The exception is client-side re-scoring: a genuinely new shaper type still needs a new taps function in `shaper_response.h` (see "Adding Support for New Shaper Types" above), or its verdict row and live-before overlays stay hidden.
+The CSV parser auto-discovers shaper columns from the header, and the chip toggles and comparison table rows are pre-built for up to 11 shapers (`kMaxShapers` in `ui_panel_input_shaper.h`) - stock Klipper's five plus Kalico's six smooth shapers fit with no code changes. To support more than 11, increase `kMaxShapers` and add the corresponding chip XML elements and callback registrations. The exception is client-side re-scoring: a genuinely new shaper type still needs a new taps function in `shaper_response.h` (see "Adding Support for New Shaper Types" above), or its verdict row and live-before overlays stay hidden.
 
 ### Adding a New Calibration Metric
 

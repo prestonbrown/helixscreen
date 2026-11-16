@@ -61,7 +61,7 @@ cut, it removes:
 | `HELIX_HAS_CONSOLE=0` | The G-code console, its settings overlay and the home Console widget | The Advanced page's G-code Console row hides on `platform_console_supported` (0 on the firmware), and the widget is not in the home catalog |
 | `HELIX_HAS_SNAKE_GAME=0` | The Snake easter egg | Seven taps on the About page's printer name do nothing |
 
-Measured with `HELIX_LTO=1` on 2026-11-11 (#1916): the app image went from 6,197,264 to 6,164,992 bytes, saving
+Measured with the app-component LTO build (#1916): with both gates at 0 the app image went from 6,197,264 to 6,164,992 bytes, saving
 32,272 bytes, nearly all of it in `.flash.text` (29 KB) and `.flash.rodata` (3 KB). That leaves 445,952 bytes under
 `app_max_bytes`. To cut another feature, gate it the same way and record the measured saving in this table.
 

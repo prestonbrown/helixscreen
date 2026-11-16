@@ -776,7 +776,7 @@ Who already switches the active spool (source survey, 2026-10-20):
 | `include/filament_accounting.h`, `src/printer/filament_accounting.cpp` | The same rules in C++, `printer_switches_active_spool`, `app_sets_spool_on_edit`, `filament_spools_record`, `extruder_feed_signal`, `filament_accounting_sender`, `filament_usage_available`, `parse_filament_usage`, `describe_spool_usage`; exception-free, compiled for the K-Touch |
 | `include/filament_accounting_controller.h`, `src/printer/filament_accounting_controller.cpp` | `active_spool_owner_now`, `helix_sets_active_spool`, `helix_sets_active_spool_on_edit` (every app path that sets the active spool asks one of these); `FilamentAccountingController` keeps the map current and is the app fallback at a tool change |
 | `include/ams_backend.h#feed_slot_signals` | Capability: the status fields that say which slot feeds now. INDX: `save_variables.variables.active_tool` (one extruder with docked nozzles, so `toolhead.extruder` never changes) |
-| `include/ams_backend.h#sets_active_spool_on_link` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
+| `include/ams_backend.h#"bool sets_active_spool_on_link() const"` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
 | `src/printer/ams_state.cpp#commit_slot_edit`, `src/printer/ams_state_external_spool.cpp` | The explicit edits: a lane link or unlink, the external spool |
 | `src/ui/print/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
 

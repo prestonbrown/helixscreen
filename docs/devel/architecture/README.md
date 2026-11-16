@@ -50,9 +50,11 @@ committed.
 Only one thing needs you: a citation whose named symbol was **renamed or deleted**.
 The name is the whole anchor, so when it goes the thing the sentence points at is
 not there any more, and no generator can decide whether the sentence around it is
-still true. `make check-doc-anchors` reports those; it is advisory and never blocks
-a commit or a push, because a doc pointing at a name that moved is a stale sentence,
-not a broken build.
+still true. The `qc_doc_anchors` gate checks the citations in the docs a change
+touches (the staged docs at commit, the branch's changed docs at push and in
+land-gate), so a doc you edit cannot point at a name that is gone. A rename in the
+code never fails a commit that leaves the citing doc alone: `make check-doc-anchors`
+sweeps the whole tree, by hand.
 
 The citation is also what keeps the chapters honest:
 [`check_doc_refs.py`](../../../scripts/check_doc_refs.py) proves the path resolves

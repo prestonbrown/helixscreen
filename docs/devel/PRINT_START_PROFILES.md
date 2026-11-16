@@ -670,12 +670,3 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 ## Pre-Print ETA Prediction
 
 The ETA during preparation - `PreprintPredictor` history buckets, the thermal model, weighted averaging, and the live countdown - is documented in full in [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
-
----
-
-## Future Extensions
-
-- **User-editable profiles**: `config/print_start_profiles.d/` for user overrides (same pattern as `printer_database.d/`)
-- **Temporal predicates**: windowed conditions for `status_signals` (Z oscillation -> BED_MESH probing, sustained zero velocity with hot heaters -> soak) - needs an `over_ms` condition type
-- **Voron profile**: Map Voron `status_*` LED macro calls to phases
-- **Bambu/Prusa profiles**: For future printer support

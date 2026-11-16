@@ -3,9 +3,9 @@
 How home-dashboard widgets are built, and the reference pattern for making
 one size itself responsively. The nozzle-temps widget is the exemplar to copy:
 `src/ui/panel_widgets/nozzle_temps_widget.{h,cpp}`,
-`src/ui/panel_widgets/nozzle_layout.h`, and its three XML components. Seven widgets
+`src/ui/panel_widgets/nozzle_layout.h`, and its three XML components. Ten widgets
 are built on the shared size ladder (`speed_flow`, `z_offset`, `dryer`, `host_health`,
-`toolhead`, `bed_mesh_tile`, `exclude_map`); `speed_flow` is the smallest worked example:
+`toolhead`, `bed_mesh_tile`, `exclude_map`, `job_queue`, `print_stats`, `maintenance`); `speed_flow` is the smallest worked example:
 `src/ui/panel_widgets/speed_flow_widget.{h,cpp}`,
 `src/ui/panel_widgets/speed_flow_layout.h`, and its two XML components. The ladder,
 the helpers around it and the checklist every one of them satisfies are in
@@ -62,7 +62,7 @@ header-only function next to the widget (`nozzle_layout.h`) taking measured
 pixel inputs and returning a small verdict struct. It is unit-testable
 without a display, and the tests' fixtures are the widths the widget really
 measured, so the boundaries they pin are the live ones. Split the decision
-the way the questions actually split — for nozzle-temps, the font tier is a
+the way the questions actually split - for nozzle-temps, the font tier is a
 HEIGHT question (a stack that overflows the tile overflows it at any width)
 and the label rung a WIDTH question (a row is one line tall whatever it
 says, so label richness never costs height). When two axes both matter,
@@ -71,7 +71,7 @@ model both explicitly rather than folding one into constants.
 **2. Measurement in the widget, one composer for render and measure.**
 `on_size_changed()` measures text in the fonts the rows actually render, and
 the strings it measures come from the same composer that `update_row_display`
-renders — measurement and rendering cannot drift apart, or the ladder decides
+renders - measurement and rendering cannot drift apart, or the ladder decides
 on widths the row does not draw. Measure the values the rows are ACTUALLY
 showing, not worst-case glyphs: an "888°" budget excludes normal-font rungs
 from tiles where every real value fits.
@@ -79,13 +79,13 @@ from tiles where every real value fits.
 **3. Publish the verdict as subjects.** One int subject per axis
 (`nozzle_row_label_mode`, `nozzle_row_columns`, `nozzle_row_compact`),
 registered via `register_widget_subjects("<id>", fn)` so they exist before
-any XML that binds them is parsed — the parser permanently skips a binding
+any XML that binds them is parsed - the parser permanently skips a binding
 whose subject does not exist at parse time. `on_size_changed()` becomes
 measure-and-publish with zero widget calls. Enum values ARE the subject ints
 (`NozzleLabelMode`), so XML `ref_value`s cannot drift from C++.
 
 **4. Bind every appearance in XML.** Row widths, container flow, label
-visibility, fonts — all `bind_flag_if_*` / `bind_style_if_*` off the
+visibility, fonts - all `bind_flag_if_*` / `bind_style_if_*` off the
 subjects. A row created by a late rebuild reads the current values at
 creation and agrees with its siblings with no seeding pass. Prefer one
 threshold bind (`bind_flag_if_lt subject=... ref_value="2"`) over enumerated
@@ -99,7 +99,7 @@ dotted name (`bind_style_if_eq name="styles.<name>" ...`).
 Let content degrade before identity does: the nozzle-temps value drops its
 target half (one tap away in a detail view) before the row drops its tool
 number, and the number before the icon. Budget each rung for what it
-ACTUALLY draws at that rung — the target-hiding rungs measure the
+ACTUALLY draws at that rung - the target-hiding rungs measure the
 current-only value. Re-decide when the value's width class changes (a
 target setting or clearing), so a tile sized under idle values never draws
 the wide value in the narrow rung.
@@ -485,7 +485,7 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   can fire first, so the cache reads the DECLARED size
   (`src/ui/panel_widgets/exact_size_image.cpp#declared_image_size`), never the coords.
   A generated copy whose size no longer matches the declared rect is dropped and the check
-  rescheduled. An exact copy is shown 1:1: `show_exact_copy()` sets the inner align to
+  rescheduled. An exact copy is shown 1:1: `ExactSizeImage::show_exact()` sets the inner align to
   CENTER, then `LV_SCALE_NONE`, then the source, because LVGL keeps the scale CONTAIN
   computed until the align changes and refuses a scale while CONTAIN is still set.
 - **Pinned chips slide apart.** After the pinned chips are placed on their points (and
@@ -507,7 +507,7 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   `stack()` records the elbow in `CalloutChipOut::line_xm` / `line_ym`.
 - **Leader lines keep their points alive.** `<leader_line>` (`include/ui_leader_line.h`)
   is a bare `lv_line`, and `lv_line` keeps the pointer it is given, so each line's three
-  points live in the widget (`callout_line_pts_`, one set per `CalloutKind` that can draw
+  points live in the presenter (`CalloutPresenter::line_pts_` in `include/callout_presenter.h`, one set per `CalloutKind` that can draw
   a line) for as long as the line exists.
 - **A chip's shown int has three values.** `callout_<kind>_shown` is 0 hidden, 1 active,
   2 residual: a heater that is off but still above 50C. XML hides a chip on `eq 0`, and
@@ -612,7 +612,7 @@ other than the main page. Motion, Filament Operations and the three heater tiles
   only schedules its deactivate for the next tick; a main panel's tree must not die, so
   `PanelBase::host_deleting()` hands it back right there. This is the one exception to
   "never reparent from `on_hooked_root_deleted()`": LVGL sends LV_EVENT_DELETE before it
-  deletes any child (`lib/lvgl/src/core/lv_obj_tree.c#obj_delete_core`), so the borrowed
+  deletes any child (`lib/lvgl/src/core/lv_obj_tree.c#"lv_result_t res = lv_obj_send_event(obj, LV_EVENT_DELETE, NULL);"`), so the borrowed
   subtree is still whole, and moving it out is what keeps LVGL from freeing it. The same
   holds when the delete starts at the page or further up. When the panel container is
   itself going (a printer switch deletes the whole layout), there is nowhere to return
@@ -636,13 +636,13 @@ other than the main page. Motion, Filament Operations and the three heater tiles
 
 ### Engine contracts this pattern relies on
 
-- A `<style>` carrying `flex_flow` must ALSO carry `layout="flex"` — the
+- A `<style>` carrying `flex_flow` must ALSO carry `layout="flex"` - the
   inline attribute path sets both, the style path does not, and a container
   without an active layout piles every child onto the first while
   `lv_obj_get_style_flex_flow` still reports the flow. Test layouts by
   asserting `LV_STYLE_LAYOUT` and child positions, not the flow value.
 - Inline `style_*` attributes write LOCAL styles that outrank any bound
-  style (declarative rule 6) — including `style_pad_all`, which shadows a
+  style (declarative rule 6) - including `style_pad_all`, which shadows a
   per-state bound `pad_top`. Split the inline all-sides form when any side
   is bound.
 - A measured-exact fit renders as an overlap: measurement and rendered width
@@ -660,7 +660,7 @@ other than the main page. Motion, Filament Operations and the three heater tiles
 - Pure decision tests on measured-live fixtures, every boundary exact
   (`[nozzle][layout]`).
 - Widget tests asserting the BOUND OUTCOME: which label carries HIDDEN, the
-  resolved width/flow/layout, distinct cell positions — not cached decisions
+  resolved width/flow/layout, distinct cell positions - not cached decisions
   (`[widget_size][nozzle_temps]`). Drive value-shape transitions through the
   real subjects to pin the re-decide.
 - The shared helpers have their own boundary tests (`[size_rung]`,
