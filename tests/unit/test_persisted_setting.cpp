@@ -15,6 +15,7 @@
 #include "bed_drying.h"
 #include "completion_alert_mode.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "input_settings_manager.h"
@@ -428,6 +429,22 @@ void init_all() {
 }
 
 } // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Persisted settings: a subject not yet initialized reads the row default",
+                 "[persisted_setting][subject]") {
+    const helix::settings::PersistedSetting row{
+        "test_unit_row", "/test/unit_row", helix::settings::Scope::Global, false, 7, 0, 10,
+        nullptr};
+    helix::Subject subject; // built after lv_init: its node exists, holding 0
+    REQUIRE(subject.get() != nullptr);
+    CHECK(helix::settings::detail::get_setting(row, subject) == 7);
+
+    subject.init_int(3);
+    CHECK(helix::settings::detail::get_setting(row, subject) == 3);
+    subject.reset();
+    CHECK(helix::settings::detail::get_setting(row, subject) == 7);
+}
 
 TEST_CASE_METHOD(LVGLTestFixture, "Persisted settings: default when the key is absent",
                  "[persisted_setting]") {

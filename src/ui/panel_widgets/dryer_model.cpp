@@ -41,7 +41,7 @@ bool s_pinned = false;
 bool s_bed_watched = false;
 
 bool subject_ready(const lv_subject_t* subject) {
-    return subject != nullptr && subject->type != LV_SUBJECT_TYPE_INVALID;
+    return helix::subject_is_live(subject);
 }
 
 // Sources notify far more often than the summary changes (every unit's humidity and

@@ -84,6 +84,12 @@ class Subject {
 /// orphaned node, never its former owner, so it is safe to run at any later point.
 constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
 
+/// Whether `subject` holds a value right now: initialized and not reset since. The one test
+/// for "has this subject been initialized": an owned node asks its Subject, and an unowned
+/// one (helix-xml's own, or by-value storage) needs a type and no deinit. A Subject's node
+/// exists from construction as an INT placeholder, so its type alone says nothing.
+[[nodiscard]] bool subject_is_live(const lv_subject_t* subject) noexcept;
+
 /// lv_subject_deinit() for code holding only the pointer (SubjectManager, registries):
 /// resets the owning Subject.
 void subject_reset(lv_subject_t* subject);

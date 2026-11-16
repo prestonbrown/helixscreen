@@ -3,6 +3,7 @@
 
 #include "ui_breakpoint.h"
 
+#include "core/subject.h"
 #include "display_metrics.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
@@ -145,7 +146,7 @@ inline int scaled_band(const std::array<int, std::size(kFontBodyPx)>& table, UiB
 /// itself computes the subject's value.
 inline UiBreakpoint current_breakpoint() {
     lv_subject_t* subject = theme_manager_get_breakpoint_subject();
-    if (subject != nullptr && subject->type == LV_SUBJECT_TYPE_INT) {
+    if (helix::subject_is_live(subject)) {
         return as_breakpoint(lv_subject_get_int(subject));
     }
     return breakpoint_for(responsive_dimension(nullptr));

@@ -72,6 +72,12 @@ void reset_node(lv_subject_t* subject) {
     subject->deinitialized = 1;
 }
 
+constexpr bool same_text(const char* a, const char* b) {
+    for (; *a != '\0' && *a == *b; ++a, ++b) {
+    }
+    return *a == *b;
+}
+
 bool on_main_thread() {
     return helix::ui::is_main_thread();
 }
@@ -86,7 +92,9 @@ void release_node(lv_subject_t* node) {
     if (helix::ui::UpdateQueue::destroyed()) {
         return; // atexit chain: the process is ending and LVGL keeps the node in its list
     }
-    // The literal is kSubjectReleaseTag; queue_update tags must be literals at the call.
+    // queue_update tags are literals at the call; the assert ties this one to the constant.
+    static_assert(same_text(kSubjectReleaseTag, "helix::Subject::release_node"),
+                  "release tag literal and kSubjectReleaseTag differ");
     helix::ui::queue_update("helix::Subject::release_node", [node]() {
         if (lv_is_initialized()) {
             lv_subject_delete(node);
@@ -142,6 +150,11 @@ lv_subject_t* Subject::prepare(lv_subject_type_t type) {
     }
     if (!on_main_thread()) {
         report("subject_init_off_main_thread", "helix::Subject::init_* off the LVGL thread");
+        if (!handle_) {
+            // Creating would insert into LVGL's global subject list from this thread.
+            live_ = false;
+            return nullptr;
+        }
     }
     if (!handle_) {
         handle_ = lv_subject_create(type);
@@ -233,6 +246,16 @@ void Subject::reset() {
 
 uint32_t Subject::anomalies_reported() noexcept {
     return g_anomalies.load(std::memory_order_relaxed);
+}
+
+bool subject_is_live(const lv_subject_t* subject) noexcept {
+    if (subject == nullptr || subject->user_data == &g_orphan_tag) {
+        return false;
+    }
+    if (const Subject* owner = Subject::owner_of(subject)) {
+        return owner->is_live();
+    }
+    return subject->type != LV_SUBJECT_TYPE_INVALID && subject->deinitialized == 0;
 }
 
 Subject* Subject::owner_of(const lv_subject_t* subject) noexcept {

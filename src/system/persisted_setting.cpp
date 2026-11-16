@@ -32,11 +32,10 @@ int load_value(const PersistedSetting& s) {
 } // namespace
 
 namespace {
-/// True once the subject has held an int. A subject built before lv_init() has no node
-/// until init(); a reset one keeps its node and its type.
+/// True while the setting's subject holds its value: after init_setting() and before a
+/// reset. A Subject's node is an INT placeholder from construction, so its type says nothing.
 bool holds_int(const Subject& subject) {
-    const lv_subject_t* node = subject.get();
-    return node != nullptr && node->type == LV_SUBJECT_TYPE_INT;
+    return subject.is_live();
 }
 } // namespace
 

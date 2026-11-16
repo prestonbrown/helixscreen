@@ -183,7 +183,7 @@
  * @param fallback Value to report while the subject is uninitialized
  */
 inline bool subject_get_bool_or(const lv_subject_t& subject, bool fallback) {
-    if (subject.type != LV_SUBJECT_TYPE_INT) {
+    if (!helix::subject_is_live(&subject) || subject.type != LV_SUBJECT_TYPE_INT) {
         return fallback;
     }
     return lv_subject_get_int(const_cast<lv_subject_t*>(&subject)) != 0;
@@ -193,10 +193,7 @@ inline bool subject_get_bool_or(const lv_subject_t& subject, bool fallback) {
 /// placeholder, so the type check above cannot tell "not yet initialized"; is_live() can.
 // NAMESPACE_OK: overload of the global subject_get_bool_or above, same scope
 inline bool subject_get_bool_or(const helix::Subject& subject, bool fallback) {
-    if (!subject.is_live()) {
-        return fallback;
-    }
-    return subject_get_bool_or(*subject.get(), fallback);
+    return subject.get() != nullptr ? subject_get_bool_or(*subject.get(), fallback) : fallback;
 }
 
 namespace helix::ui {

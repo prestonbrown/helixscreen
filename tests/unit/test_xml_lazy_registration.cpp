@@ -11,6 +11,7 @@
 #include "../test_fixtures.h"
 #include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "xml_hot_reloader.h"
 #include "xml_registration.h"
@@ -23,7 +24,6 @@
 #include "../catch_amalgamated.hpp"
 
 extern "C" {
-#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 }
