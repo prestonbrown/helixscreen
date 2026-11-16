@@ -124,7 +124,7 @@ class SpoolmanPanel : public OverlayBase {
     void show_spool_list();
     void update_spool_count();
 
-    void handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt);
+    void handle_spool_clicked(lv_obj_t* row);
     void handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action, int spool_id);
     void set_active_spool(int spool_id);
     void duplicate_spool(int spool_id);

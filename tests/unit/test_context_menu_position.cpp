@@ -230,9 +230,9 @@ TEST_CASE("compute_card_pos: at 480x272 the tile callout stays on screen beside 
           "[context-menu][position][edit-callout]") {
     // The grid host at Micro spans x 42..479 beside the navbar. A 1x1 tile is
     // 70x64, a 2x2 142x132. The cards: 112x78 as measured with both rows, and
-    // the 120x84 worst case.
+    // the 120x84 worst case. The gap is space_xs plus the caret, 2 + 5.
     constexpr int32_t kMargin = 6;
-    constexpr int32_t kGap = 2;
+    constexpr int32_t kGap = 7;
     constexpr int32_t kLeft = 46;
     constexpr int32_t kTop = 4;
     constexpr int32_t kRight = 476;
@@ -258,4 +258,105 @@ TEST_CASE("compute_card_pos: at 480x272 the tile callout stays on screen beside 
                    placed.y1 > anchor.y2));
         }
     }
+}
+
+// ============================================================================
+// side_of_anchor + compute_caret
+// ============================================================================
+
+namespace {
+
+using CaretPlacement = ContextMenu::CaretPlacement;
+
+constexpr int32_t kRadius = 8;
+constexpr int32_t kCaret = 8;
+// Closest the caret's centre may come to either end of an edge.
+constexpr int32_t kInset = kRadius + kCaret;
+
+/// A card at (x, y), w by h, placed against @p anchor; side read off the geometry.
+CaretPlacement caret_for(lv_area_t card, lv_area_t anchor) {
+    return ContextMenu::compute_caret(card, anchor, ContextMenu::side_of_anchor(card, anchor),
+                                      kRadius, kCaret);
+}
+
+} // namespace
+
+TEST_CASE("side_of_anchor: reads the side off the two rectangles", "[context-menu][caret]") {
+    const lv_area_t anchor = tile(100, 100, 50, 50); // 100..149
+    CHECK(ContextMenu::side_of_anchor(tile(80, 150, 90, 40), anchor) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(tile(80, 59, 90, 41), anchor) == AnchorSide::Above);
+    CHECK(ContextMenu::side_of_anchor(tile(150, 90, 60, 80), anchor) == AnchorSide::Right);
+    CHECK(ContextMenu::side_of_anchor(tile(40, 90, 60, 80), anchor) == AnchorSide::Left);
+    // Touching on one row overlaps: a card sharing the anchor's last row covers it.
+    CHECK(ContextMenu::side_of_anchor(tile(80, 149, 90, 40), anchor) == AnchorSide::Over);
+    CHECK(ContextMenu::side_of_anchor(tile(110, 110, 20, 20), anchor) == AnchorSide::Over);
+    // Right of a small anchor, then clamped down so it is below it too: the
+    // side it was placed on wins, and a preference it does not clear is ignored.
+    const lv_area_t small = tile(235, 140, 10, 10);
+    const lv_area_t card = tile(250, 163, 350, 307);
+    CHECK(ContextMenu::side_of_anchor(card, small) == AnchorSide::Below);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Right) == AnchorSide::Right);
+    CHECK(ContextMenu::side_of_anchor(card, small, AnchorSide::Left) == AnchorSide::Below);
+}
+
+TEST_CASE("compute_card_pos: a click-anchored card covers its point and has no caret",
+          "[context-menu][caret]") {
+    AnchorSide side = AnchorSide::Below;
+    ContextMenu::compute_card_pos({353, 307}, {235, 200, 235, 200}, {800, 480}, kMargin, kGap,
+                                  AnchorMode::ClickPoint, AnchorAlign::Center, &side);
+    CHECK(side == AnchorSide::Over);
+}
+
+TEST_CASE("compute_caret: centred on the anchor below and above it", "[context-menu][caret]") {
+    // Anchor midpoint x = (300 + 359) / 2 = 329; the card starts at 250.
+    const lv_area_t anchor = tile(300, 200, 60, 40);
+    const CaretPlacement below = caret_for(tile(250, 260, 200, 100), anchor);
+    CHECK(below.side == AnchorSide::Below);
+    CHECK(below.offset == 79);
+    const CaretPlacement above = caret_for(tile(250, 80, 200, 100), anchor);
+    CHECK(above.side == AnchorSide::Above);
+    CHECK(above.offset == 79);
+}
+
+TEST_CASE("compute_caret: clamps clear of the card's corners", "[context-menu][caret]") {
+    // A small anchor near the card's left end, then near its right end.
+    const CaretPlacement left = caret_for(tile(100, 100, 200, 80), tile(98, 60, 6, 20));
+    CHECK(left.side == AnchorSide::Below);
+    CHECK(left.offset == kInset);
+    const CaretPlacement right = caret_for(tile(100, 100, 200, 80), tile(296, 60, 6, 20));
+    CHECK(right.side == AnchorSide::Below);
+    CHECK(right.offset == 200 - 1 - kInset);
+    // An anchor wholly beyond the card's span (the card was clamped to the
+    // screen edge): the caret stays on the facing edge, at the nearer end.
+    const CaretPlacement p = caret_for(tile(400, 100, 200, 80), tile(700, 20, 60, 40));
+    CHECK(p.side == AnchorSide::Below);
+    CHECK(p.offset == 200 - 1 - kInset);
+    const CaretPlacement q = caret_for(tile(400, 100, 200, 80), tile(10, 300, 60, 40));
+    CHECK(q.side == AnchorSide::Above);
+    CHECK(q.offset == kInset);
+}
+
+TEST_CASE("compute_caret: on the left and right edges it follows the anchor's vertical middle",
+          "[context-menu][caret]") {
+    // Anchor rows 125..472 (a tall tile), midpoint 298; cards top-aligned at 125.
+    const lv_area_t anchor = tile(560, 125, 233, 348);
+    const CaretPlacement left = caret_for(tile(375, 125, 180, 138), anchor);
+    CHECK(left.side == AnchorSide::Left);
+    // 298 - 125 = 173 runs past the card's 138 rows: clamped to the bottom end.
+    CHECK(left.offset == 138 - 1 - kInset);
+    const CaretPlacement right = caret_for(tile(10, 200, 180, 300), tile(0, 250, 5, 21));
+    CHECK(right.side == AnchorSide::Right);
+    CHECK(right.offset == 260 - 200);
+}
+
+TEST_CASE("compute_caret: none over the anchor, the middle of a short edge",
+          "[context-menu][caret]") {
+    const CaretPlacement p = caret_for(tile(100, 100, 200, 100), tile(150, 120, 20, 20));
+    CHECK(p.side == AnchorSide::Over);
+    CHECK_FALSE(p.visible());
+    CHECK_FALSE(ContextMenu::compute_caret(tile(0, 0, 10, 10), tile(0, 20, 10, 10),
+                                           AnchorSide::Above, kRadius, 0)
+                    .visible());
+    // An edge too short for the inset gets the caret at its middle.
+    CHECK(caret_for(tile(100, 100, 24, 80), tile(90, 60, 10, 10)).offset == 12);
 }

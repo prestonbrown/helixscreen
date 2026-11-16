@@ -1133,7 +1133,8 @@ void AmsPanel::on_bypass_spool_clicked(void* user_data) {
 
 void AmsPanel::handle_bypass_spool_click() {
     helix::ui::show_external_spool_menu(parent_screen_, path_canvas_, context_menu_,
-                                        helix::ui::sidebar_external_spool_hooks(sidebar_.get()));
+                                        helix::ui::sidebar_external_spool_hooks(sidebar_.get()),
+                                        /*at_tap=*/true);
 }
 
 void AmsPanel::on_buffer_clicked(void* user_data) {
@@ -1237,18 +1238,11 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_slot_clicked");
     auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
     if (self) {
-        // Capture click point from the input device while event is still active
-        lv_point_t click_pt = {0, 0};
-        lv_indev_t* indev = lv_indev_active();
-        if (indev) {
-            lv_indev_get_point(indev, &click_pt);
-        }
-
         // Use current_target (widget callback was registered on) not target (originally clicked
         // child)
         lv_obj_t* slot = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
         auto slot_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)));
-        self->handle_slot_tap(slot_index, click_pt);
+        self->handle_slot_tap(slot_index);
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -1264,7 +1258,7 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
 // Action Handlers
 // ============================================================================
 
-void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
+void AmsPanel::handle_slot_tap(int slot_index) {
     spdlog::info("[{}] Slot {} tapped", get_name(), slot_index);
 
     // Validate slot index against configured slot count
@@ -1277,7 +1271,7 @@ void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
 
     // Show context menu near the tapped slot
     if (slot_index >= 0 && slot_index < kMaxVisibleSlots && slot_widgets_[slot_index]) {
-        show_context_menu(slot_index, slot_widgets_[slot_index], click_pt);
+        show_context_menu(slot_index, slot_widgets_[slot_index]);
     }
 }
 
@@ -1285,7 +1279,8 @@ void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
 // Context Menu Management (delegates to helix::ui::open_slot_context_menu)
 // ============================================================================
 
-void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt) {
+void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget,
+                                 std::optional<lv_point_t> tap) {
     if (!parent_screen_ || !near_widget) {
         return;
     }
@@ -1300,7 +1295,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
     host.log_tag = "[AmsPanel]";
     host.path_canvas = [this]() -> lv_obj_t* { return path_canvas_; };
     host.sidebar = [this] { return sidebar_.get(); };
-    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, click_pt);
+    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, tap);
 }
 
 void AmsPanel::show_loading_error_modal() {
