@@ -49,7 +49,7 @@ The title names the box, and the line under it gives its slot range.
 
 - **Temperature** is always shown.
 - **Humidity** is shown only where that box has its own humidity sensor. A box without one reads `--`, and the **Material Comfort** strip is hidden rather than guessed at. That is deliberate: with no humidity reading, a comfort verdict would be a made-up all-clear.
-- **While a cycle runs**, the temperature reads current then target, a countdown gives the time left, and a progress bar fills.
+- **While a cycle runs**, the temperature reads current then target, a countdown gives the time left, and a progress bar fills. On a box whose firmware says what the cycle is doing (OpenAMS does), the status line reads "Heating to 55°C: 3:25 left" while the box climbs to its target and "Drying: 3:25 left" once it is holding.
 
 The same rule reaches the status column in the box list: a box with a heater but no humidity sensor reads `--` there instead of a status word, and a box with no heater at all reads **passive**.
 
@@ -62,14 +62,14 @@ The reverse case also shows up: a heated box with no sensor of its own still get
 The controls are on the right of the box's screen:
 
 1. **Pick a preset** from the dropdown. Each entry names a material with its temperature and time, like "PLA 55°C/4h", and fills in both fields below.
-2. **Or set the values yourself.** Tap the temperature field or the minutes field to bring up a keypad.
+2. **Or set the values yourself.** Tap the temperature field or the hours field to bring up a keypad.
 3. Tap **Start Drying**.
 
 While a cycle runs, that same button reads **Stop Drying**, and it is also the cancel - there is no separate cancel button. Stopping is safe at any point: the heater goes off and the remaining time is discarded. There is no fan control.
 
 Three things about the fields are worth knowing:
 
-- **The duration field is in minutes**, not hours. Only the preset labels read in hours, so a preset called "4h" puts `240` in the field. Cycles shorter than an hour are fine.
+- **The duration field is in hours.** A preset called "4h" puts `4` in the field. The field takes halves and quarters, so `4.5` is four and a half hours and `0.25` is fifteen minutes. The keypad shows two decimal places at most. Your printer still receives the time in minutes.
 - **The temperature range is that box's range**, and it is printed in the field's own label - "Temp °C (35-65)". The keypad won't accept anything outside it. A preset whose usual temperature sits above the ceiling is shown and sent clamped, so a 70 °C preset on a 65 °C box reads 65 °C, and 65 °C is what runs.
 - **Your last values come back.** HelixScreen remembers the temperature and duration you last started a dry with, per printer, and fills them in the next time you open a box.
 
@@ -119,7 +119,7 @@ These are general-purpose starting points. Your filament manufacturer's guidance
 
 Filament that has been stored open for a long time may need the longer end of the range.
 
-Remember that the duration field takes minutes: 4 hours is `240`, 12 hours is `720`.
+Enter the duration in hours: `4` for 4 hours, `12` for 12.
 
 ## Several Boxes at Once
 

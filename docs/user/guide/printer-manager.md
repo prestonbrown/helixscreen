@@ -162,6 +162,10 @@ Turn on **Show Printer Switcher** on the Manage Printers screen and a printer ic
 2. The setup wizard starts. Enter the new printer's address, pick its hardware and finish the wizard.
 3. When the wizard ends you are connected to the new printer. If you cancel the wizard, you go back to the printer you were using.
 
+The wizard's connection step shows an **API Key (if Moonraker requires a login)** field when the new printer's Moonraker asks for one.
+
+On the BTT K-Touch, **+ Add Printer** opens an **Add Printer** dialog instead of the wizard. Enter the printer's **Host** and **Port**, or pick one from **Discovered Printers**, and enter its **API Key** if its Moonraker requires a login. The key is saved with the new printer. If you type an address that is already in your list, HelixScreen switches to that printer and updates its key only when you entered one. **Test Connection** checks the address first, and if the printer cannot be reached, HelixScreen asks whether to save it anyway.
+
 ### Switching printers
 
 Tap the printer in the Switch Printer menu, or tap it in **Settings > Connection > Printers**. The active printer is marked with a check and a connection dot. HelixScreen shows a **Switching to** card with "Loading..." and then "Connecting..." while it reloads, then lands on the new printer's home screen. If the printer you are leaving is printing, HelixScreen asks first: "[name] is still printing. The print keeps running after you switch." Tap **Switch Printer** to continue. The print is not affected.

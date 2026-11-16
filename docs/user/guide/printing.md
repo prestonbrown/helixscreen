@@ -108,11 +108,12 @@ Which tiles you see depends on your printer. HelixScreen shows a tile only when 
 | **Z tilt** | Runs Z-tilt adjustment |
 | **Cleaning nozzle** | Runs your nozzle cleaning macro |
 | **Purge** | Draws the purge line that primes the nozzle |
+| **Heat soak** | Runs your printer's heat soak macro (`HEAT_SOAK`, `CHAMBER_SOAK` or `SOAK`) before the print starts, so the enclosure can warm up. It is off by default, because a soak adds minutes to a print. The tile is hidden when your start macro already soaks by itself, when the sliced file soaks, and when Heat Soak is turned off in the macro settings (see [Settings > Printing](settings/printing.md)). It runs the macro with its own default values |
 | **Timelapse** or **Record Timelapse** | Records a timelapse of this print. Shown when timelapse recording is available |
 | **AI detection** | Switches the printer's camera-based failure detection on or off for this print. Shown on printers that have it |
 | **Pressure Advance Calibration** | Snapmaker U1 only: measures each toolhead's pressure advance before the print (see [Snapmaker U1: flow calibration](#snapmaker-u1-flow-calibration)) |
 
-The bed mesh, gantry, tilt, nozzle cleaning and purge tiles use the same names as the steps in the checklist the print screen shows while the printer gets ready.
+The bed mesh, gantry, tilt, nozzle cleaning, purge and heat soak tiles use the same names as the steps in the checklist the print screen shows while the printer gets ready.
 
 **How a tile takes effect.** When your slicer's file or your printer's start macro runs a step you switched off, HelixScreen skips it for this print. It does this in whichever way your printer allows: by turning the step off in the file's own start command (for example `SKIP_BED_MESH=1`), by commenting out the step's line in the file, or by telling the printer's firmware.
 
@@ -220,6 +221,10 @@ K2 Plus with **Auto Bed Mesh** enabled it regularly takes seven to ten minutes.
 The Print Status panel shows the pre-print steps and an estimated time for this
 whole period, with the new file's thumbnail - the previous job's result is
 cleared the moment you tap Print. Finished steps show how long they took, the current step is amber with a countdown, and the steps still to come show an estimate. On small screens it shows the current step and a dot per step instead. A step the printer has not announced is never listed ahead of time. The heater chips show a progress bar while they warm up.
+
+A file that has no thumbnail shows no stand-in picture while it prepares. Instead, a few seconds in, its toolpath is drawn under the checklist, with a dark backing behind each step name and time so the text stays readable. A file with a thumbnail keeps the plain checklist.
+
+The time estimate for this period comes from how long the same steps took on your earlier prints. If your `PRINT_START` macro knows how long a step will take, it can say so, and the countdown then uses that figure. Macro authors do this with `_HELIX_PLAN`, for example `_HELIX_PLAN SOAKING=600 BED_MESH=90` (seconds per step, and `0` for a step that will not run); it needs the helper macros from the **Advanced** panel, version 2.2.0 or newer. While a step with a declared length runs, HelixScreen does not treat a quiet macro as stuck, and a step that runs past its declared length shows **Running over** on the time label.
 
 While the pre-print steps are showing:
 
@@ -422,7 +427,7 @@ Choose a step size (0.05, 0.025, 0.01 or 0.005 mm), then tap the two arrow butto
 2. After the print finishes or is canceled, tap **Save Z-Offset** on the Controls panel (it appears once you have an unsaved change). The button is grayed out while a print is running or paused, so your adjustment waits until then. HelixScreen asks you to confirm, because saving restarts Klipper and the printer briefly disconnects.
 3. Future prints use the saved value as their starting point.
 
-Next to the Z-Offset reading, the Tune overlay can show a line such as "Saved 0.150 mm", the offset stored in your printer config, or "Saved 0.150 mm, 0.200 mm after Save" when saving now would change it.
+Next to the Z-Offset reading, the Tune overlay can show a line such as "Saved 0.150 mm", the offset stored in your printer config, or "Saved 0.150 mm, 0.200 mm after Save" when saving now would change it. The line does not appear on printers whose firmware keeps the Z offset itself, when saving is turned off, or on printers that keep a separate Z offset for each tool.
 
 An adjustment made from the Tune overlay is temporary: it lasts for this print unless you save it.
 
