@@ -34,7 +34,7 @@ class SpoolmanPanelTestAccess {
     /// Opens the context menu the way a tap on a spool row does: the row's
     /// user_data carries the spool id.
     static void open_context_menu(SpoolmanPanel& panel, lv_obj_t* row) {
-        panel.handle_spool_clicked(row, lv_point_t{0, 0});
+        panel.handle_spool_clicked(row);
     }
 
     static void hide_context_menu(SpoolmanPanel& panel) {

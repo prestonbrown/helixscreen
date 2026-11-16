@@ -453,6 +453,28 @@ If a key is being wrongly reported, prefer making the reference visible (or add
 an `// i18n:` note explaining the indirection, as in `tour_steps.cpp`) over
 re-adding it after a delete.
 
+## Temperature Units, Date Order and Region Defaults
+
+Two display settings sit beside the language: the temperature unit and the date order. Neither changes what the printer or the config stores.
+
+### Temperature unit
+
+Every temperature in state, settings and G-code stays in Celsius. Only what is shown and what is typed crosses `include/core/temperature_units.h`: `helix::units::to_display_temp()` and `format_display_temp()` for readings, `display_temp_to_celsius()` for a typed target, `to_display_temp_delta()` for a band or a rate (a difference scales and has no offset), and `temp_axis_ticks()` for a graph axis, whose Fahrenheit ticks fall on round values. Both directions round with `std::lround`. New temperature UI calls these and never converts by hand.
+
+The setting is `/display/temp_unit` (0 Celsius, 1 Fahrenheit), owned by `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#set_temp_unit`) and shown as a row in Settings > Appearance. A change sets the process-wide display unit, updates the `settings_temp_unit_symbol` subject that XML labels bind for their "(°C)" suffix, refreshes the preset labels, and calls `units::publish_temp_unit()`.
+
+A string formatted in C++ from a cached Celsius value keeps its unit until its owner formats it again. `include/core/temp_unit_subject.h` is the trigger for that: `helix::ui::observe_temp_unit_change(owner, on_change)` runs `on_change` only when the unit really changes, never on registration, and queues it so it runs on the main thread. A panel, widget or state object that caches formatted temperature text observes it and reformats (examples: `src/ui/controls/temperature_service.cpp`, `src/printer/printer_temperature_state.cpp`, `src/ui/panel_widgets/nozzle_temps_widget.cpp`). The printer's own temperature subjects are not touched by a unit switch, so their observers do not fire.
+
+### Date order
+
+`/display/date_format` holds 0 for day-month-year, 1 for month-day-year and 2 for year-month-day. `src/ui/locale_formats.cpp#get_date_pattern` takes the arrangement from the saved order and falls back to the language's default while none is saved; the language still supplies day and month names and the punctuation German writes. The order is kept in an atomic (`saved_date_format()` in `include/region_defaults.h`) because dates are also formatted off the main thread. The row lives in Settings > Language & Time, and `DisplaySettingsManager::on_language_changed` updates it while it still follows the language.
+
+### Region defaults and the wizard step
+
+`src/system/region_defaults.cpp#region_defaults` turns a language and an IANA timezone into the defaults: a United States zone reads Fahrenheit and month-first, every other zone reads Celsius, an English speaker in a known non-US zone writes the day first, and with no zone the language alone decides the date order (Chinese and Japanese year first, English month first, the other languages day first).
+
+The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance.cpp`, `ui_xml/wizard_appearance.xml`) follows the Language step. It offers timezone, 12 or 24-hour clock, theme (applied live), dark mode, speed and flow units, temperature unit and date order. Each row reuses its Settings twin's subject and callback, so there is one copy of the state. Picking a timezone applies the region defaults to the unit rows that still follow the region, meaning rows nobody had saved when the page opened and nobody has picked on it since. A pick on a row stops that row following the region. The step is skipped when a printer is added after the first run, because every row is global.
+
 ## Key Files Reference
 
 | File | Purpose |
@@ -466,6 +488,8 @@ re-adding it after a delete.
 | `ui_xml/translations/translations.xml` | Generated combined LVGL XML pack |
 | `ui_xml/translations/<lang>.xml` | Generated per-locale packs (loaded at runtime) |
 | `src/system/translation_loader.cpp` | Per-locale pack loader (`ensure_translation_loaded()`) |
+| `include/core/temperature_units.h`, `include/core/temp_unit_subject.h` | Celsius/Fahrenheit conversion and the unit-change observer |
+| `include/region_defaults.h`, `src/system/region_defaults.cpp` | Region defaults for temperature unit and date order |
 | `src/application/application.cpp` | Translation startup / language switching |
 | `src/system/system_settings_manager.cpp` | Locale switching (`ensure_translation_loaded()` + `lv_translation_set_language()`) |
 

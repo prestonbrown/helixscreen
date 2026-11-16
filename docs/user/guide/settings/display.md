@@ -113,6 +113,12 @@ Appears under the Screensaver row when a screensaver is selected. Tap it to see 
 
 ---
 
+## Prompts That Wake the Screen
+
+A sleeping screen wakes by itself for two things that need you: a prompt from one of your macros (a Klipper action prompt) and the recovery dialog Klipper raises when the printer shuts down or reports an error. The dialog is then on screen when you look, instead of waiting behind a dark display. A lost connection to the printer does not wake the screen, because it usually clears by itself.
+
+---
+
 ## Sleep While Printing
 
 Lets the screen dim and sleep during a print, on the same timers as the rest of the time. **On** by default. Turn it off to keep the screen lit for the whole print, so you can check progress at a glance without touching it.

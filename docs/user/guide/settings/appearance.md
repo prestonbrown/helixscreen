@@ -121,6 +121,18 @@ Shows a text label under icon-only widgets on the home screen. **Off** by defaul
 
 ---
 
+## Speed & Flow in mm/s
+
+Shows print speed and flow as mm/s and mm³/s instead of percent. **Off** by default.
+
+---
+
+## Temperature Unit
+
+**Celsius (°C)** or **Fahrenheit (°F)**. Every temperature readout, keypad, graph axis and preset label changes at once, and what you type is read in the unit you picked. Your printer and its G-code stay in Celsius. Until you pick one, a printer in a United States timezone reads Fahrenheit and every other timezone reads Celsius.
+
+---
+
 ## Printer Visuals
 
 The rows under **PRINTER VISUALS** change how your printer and its data are drawn. The printer behaves exactly the same whatever you pick.

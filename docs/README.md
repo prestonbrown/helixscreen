@@ -72,6 +72,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 |----------|-------------|
 | [**Label Printer System**](devel/LABEL_PRINTER_SYSTEM.md) | Brother QL, Phomemo, Niimbot, MakeID; USB/TCP/Bluetooth |
 | [**Filament Management**](devel/FILAMENT_MANAGEMENT.md) | Shared filament-system architecture: multi-backend, dispatch ladder, slot metadata, endless spool, dryer, device ops |
+| [**Unit Art**](devel/UNIT_ART.md) | Drawn filament units and toolheads: art kit, baked layers, tray shapes, adding a unit |
 | **Filament Backend Leaves** | Per-backend docs: [AFC](devel/FILAMENT_BACKEND_AFC.md), [Happy Hare](devel/FILAMENT_BACKEND_HAPPY_HARE.md), [ACE](devel/FILAMENT_BACKEND_ACE.md), [Tool Changer](devel/FILAMENT_BACKEND_TOOLCHANGER.md), [AD5X IFS](devel/FILAMENT_BACKEND_AD5X_IFS.md), [CFS](devel/FILAMENT_BACKEND_CFS.md), [QIDI Box](devel/FILAMENT_BACKEND_QIDI_BOX.md), [Snapmaker U1](devel/FILAMENT_BACKEND_SNAPMAKER_U1.md), [multiACE](devel/FILAMENT_BACKEND_MULTIACE.md), [INDX](devel/FILAMENT_BACKEND_INDX.md), [Lane Status](devel/FILAMENT_BACKEND_LANE_STATUS.md), [MedusaHC](devel/FILAMENT_BACKEND_MEDUSAHC.md) |
 | [**Filament Slot Metadata (internal)**](devel/FILAMENT_SLOT_METADATA.md) | `FilamentSlotOverrideStore` implementation: per-backend hooks, hardware-event clearing, cache, migration |
 | [**Creality CFS Internals (K1)**](devel/printer-research/CREALITY_CFS_K1_INTERNALS.md) | K1-family CFS box-wrapper RE reference: `BOX_*` semantics, the printer-side tn_data.json userdata, deferred-failure/resume traps |

@@ -176,7 +176,8 @@ void AmsContextMenu::set_action_callback(ActionCallback callback) {
 }
 
 bool AmsContextMenu::show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t* near_widget,
-                                      bool is_loaded, AmsBackend* backend) {
+                                      bool is_loaded, AmsBackend* backend,
+                                      std::optional<lv_point_t> tap) {
     // Register callbacks once (idempotent)
     register_callbacks();
 
@@ -187,14 +188,23 @@ bool AmsContextMenu::show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t
 
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
-    bool result = ContextMenu::show_near_widget(parent, slot_index, near_widget);
+    bool result = show_anchored(parent, slot_index, near_widget, tap);
 
     spdlog::debug("[AmsContextMenu] Shown for slot {}", slot_index);
     return result;
 }
 
+bool AmsContextMenu::show_anchored(lv_obj_t* parent, int item_index, lv_obj_t* anchor,
+                                   std::optional<lv_point_t> tap) {
+    if (tap) {
+        set_click_point(*tap);
+        return ContextMenu::show_near_widget(parent, item_index, anchor);
+    }
+    return show_around_widget(parent, item_index, anchor);
+}
+
 bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_widget,
-                                             bool offer_toggle) {
+                                             bool offer_toggle, std::optional<lv_point_t> tap) {
     // Register callbacks once (idempotent)
     register_callbacks();
 
@@ -206,7 +216,7 @@ bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_
 
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
-    bool result = ContextMenu::show_near_widget(parent, -2, anchor_widget);
+    bool result = show_anchored(parent, -2, anchor_widget, tap);
     if (!result) {
         external_spool_mode_ = false;
     }
@@ -998,7 +1008,7 @@ void dispatch_slot_menu_action(const SlotMenuHost& host, AmsContextMenu::MenuAct
 } // namespace
 
 void open_slot_context_menu(AmsContextMenu& menu, const SlotMenuHost& host, int slot_index,
-                            lv_obj_t* near_widget, lv_point_t click_pt) {
+                            lv_obj_t* near_widget, std::optional<lv_point_t> tap) {
     if (!host.parent_screen || !near_widget) {
         return;
     }
@@ -1018,8 +1028,7 @@ void open_slot_context_menu(AmsContextMenu& menu, const SlotMenuHost& host, int 
     // (#995).
     const bool is_loaded = backend && backend->can_unload_from_toolhead(slot_index);
 
-    menu.set_click_point(click_pt);
-    menu.show_near_widget(host.parent_screen, slot_index, near_widget, is_loaded, backend);
+    menu.show_near_widget(host.parent_screen, slot_index, near_widget, is_loaded, backend, tap);
 }
 
 } // namespace helix::ui

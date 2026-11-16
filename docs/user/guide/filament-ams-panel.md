@@ -26,6 +26,12 @@ The slot view shows all your filament slots in a visual tray layout:
 - **Tool badge**: A small badge (T0, T1, etc.) on a slot shows which tool prints from it. When every tool feeds the slot of its own number (T0 the first slot, T1 the second, and so on), the badges would only repeat the slot numbers, so they are hidden. They appear when the tools are mapped any other way, for example after you change a slot's [Assigned Tool](#assigned-tool) or when two tools share a slot. A badge in the warning color marks a mapping you set yourself rather than the one your system reports.
 - **Environment pill**: On a box that reports temperature or humidity, a pill stands at the right end of the box: a thermometer with the temperature over a water drop with the humidity. The drop fills to the humidity reading, so a wet box shows a full drop at a glance; a box whose sensor gives no reading shows an empty outline. While the box dries, the temperature line shows the heat icon and the time left. Tap the pill to open that box's drying and humidity screen (see [Filament Drying and Humidity](filament-drying.md)). Boxes with no readings have no pill, and the box takes the full width.
 
+**Units drawn as the real hardware.** Each unit HelixScreen knows is drawn as its own hardware rather than a generic tray: a Box Turtle (open or enclosed), an AMS HT or AMS 2 Pro (which OpenAMS shows by lane count), a Creality CFS, a QIDI Box, an ERCF or Tradrack and many others, with the real spool size and lane count. The same drawing appears on the unit cards and on the drying page. On the detail screen, the spool of the lane that is printing turns slowly, and a lane that is loading or unloading spins its spool fast, forward or back. The spool motion is off when **Animations** is off in [Appearance settings](settings/appearance.md), and both it and the drying glow below are left out on boards that run with reduced effects.
+
+**Selector systems.** On an ERCF or Tradrack, the path screen draws the selector rail with one gate under each spool and a carriage that slides under the active gate. Units with a built-in selector draw a single line out of the unit.
+
+**The drying glow.** While a unit is drying, a soft amber glow pulses inside its drawing on the drying page, lighting only the chamber around the spools. With **Animations** off, the glow holds steady.
+
 Below the slot grid, a **filament path diagram** shows the routing from slots through the hub/selector to the toolhead. This updates in real time during load/unload operations, including eject animations when retracting filament at the slot sensor. On the Anycubic ACE the path reads the hub and toolhead sensors the driver publishes, so a strand parked partway down the tube is drawn where it actually sits - short of the hub - rather than back at the spool.
 
 ### Reading Error States
@@ -59,6 +65,8 @@ A narrow color bar matching the loaded filament sits beside two lines of text:
 
 - **Position and weight**: Which slot is feeding the toolhead, such as "Current: Slot 2" (or "Current: Bypass" when bypass is enabled), followed by the estimated filament remaining (e.g., "750g") when your system knows it
 - **Filament name**: e.g., "Red PLA", "Prusament PETG". A long name is cut short with "..."
+
+Tap the strip to open the loaded lane's spool. It opens the spool editor, or the spool picker when Spoolman is connected and that lane has no linked spool. In the picker the lane's linked spool is listed first and checked. With nothing loaded, the strip does not respond to taps.
 
 When your system has a buffer or flow sensor, its meters sit under the two lines on a landscape screen and to their right on a portrait screen. On smaller screens each meter shrinks to a small icon or arc beside its reading. The meters hide while a load or unload runs, so the step progress has the room.
 

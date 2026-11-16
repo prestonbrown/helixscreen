@@ -571,6 +571,16 @@ Theme-aware markdown viewer for rich text content.
 <ui_markdown bind_text="release_notes" width="100%"/>
 ```
 
+### Text fields: long-press menu and clipboard
+
+Every `<text_input>` that `KeyboardManager` manages (`src/ui/components/ui_keyboard_manager.cpp`) gets a long-press menu with Cut, Copy and Paste. A hold raises `TextEditMenu` (`include/ui_text_edit_menu.h`) around the field through the shared `text_edit_long_press_cb`, and a field that offers no edit at all shows nothing and leaves the press alone. You add no wiring for a new field.
+
+The clipboard (`include/text_clipboard.h`) is one in-memory string capped at 4 KiB and never persisted. The pure rules (`clip_to_limit`, `sanitize_for_field`, `actions_for_field`) take no LVGL, so they test directly. A paste into a one-line field turns line breaks into spaces, and it goes through the textarea's own insert path, so `max_length` and accepted characters still apply. Each edit fires `VALUE_CHANGED`, so a bound subject follows.
+
+On the desktop and Android builds, where the display is SDL (`HELIX_DISPLAY_SDL`), `set_text()` also writes the OS clipboard and `get_text()` reads it when it holds text, so a value moves between the app and other programs. That bridge works only while SDL's video subsystem runs, so tests and headless runs use the in-app string alone. The printers' framebuffer and DRM displays have no OS clipboard.
+
+A field that holds a secret offers no menu actions: its text never reaches the clipboard and takes no paste. `<text_input password_mode>`, `register_textarea_ex` and the text-entry modal mark their masked fields with `mark_secret_field()` when they are made, and a field seen masked is marked from then on. Marking lasts for the widget's life, so a "show password" toggle that unmasks the text does not make it copyable. Call `mark_secret_field()` yourself when you build a field that holds a secret without password mode (`src/xml_registration.cpp` does so in the reveal toggle).
+
 ### Widget Defaults -- DON'T re-specify
 
 These widgets come pre-themed. Adding redundant style attributes clutters the XML and can conflict with theming:
