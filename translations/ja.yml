@@ -183,6 +183,7 @@ translations:
   A print is running. Apply the result after it ends.: 印刷中です。終了後に結果を適用してください。
   A print started: '印刷が開始されました'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"
+  A print started, so the calibration did not start.: "印刷が開始されたため、キャリブレーションは開始されませんでした。"
   A print took the printer.: "印刷がプリンターを使用し始めました。"
   A restart is already in progress: 再起動はすでに進行中です
   A right, B left: "A右・B左"

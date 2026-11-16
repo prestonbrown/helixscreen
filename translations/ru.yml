@@ -234,6 +234,7 @@ translations:
   A print is running. Apply the result after it ends.: Идёт печать. Примените результат после её завершения.
   A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
+  A print started, so the calibration did not start.: "Началась печать, поэтому калибровка не запущена."
   A print took the printer.: "Печать заняла принтер."
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"

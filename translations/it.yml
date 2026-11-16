@@ -187,6 +187,7 @@ translations:
   A print is running. Apply the result after it ends.: È in corso una stampa. Applica il risultato quando finisce.
   A print started: 'È iniziata una stampa'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "È partita una stampa mentre le bobine risultano sul piano. Se sono ancora lì, ferma subito la stampante con l'arresto emergenza."
+  A print started, so the calibration did not start.: "È partita una stampa, quindi la calibrazione non è stata avviata."
   A print took the printer.: "Una stampa ha preso la stampante."
   A restart is already in progress: Un riavvio è già in corso
   A right, B left: "A destra, B sinistra"
