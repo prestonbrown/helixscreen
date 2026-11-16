@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "axis.h"
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 #include "tool_offsets.h"
@@ -392,7 +393,8 @@ class ToolState {
 
   private:
     /// The X, Y or Z member of a subject trio.
-    static lv_subject_t* axis_member(Axis axis, lv_subject_t& x, lv_subject_t& y, lv_subject_t& z) {
+    static lv_subject_t* axis_member(Axis axis, helix::Subject& x, helix::Subject& y,
+                                     helix::Subject& z) {
         lv_subject_t* members[] = {&x, &y, &z};
         return members[axis_index(axis)];
     }
@@ -429,26 +431,26 @@ class ToolState {
     /// `subjects_` so reverse-order member destruction invalidates it before the
     /// subjects it protects; also invalidated by deinit_subjects() (#1165, #1146).
     helix::AsyncLifetimeGuard async_lifetime_;
-    lv_subject_t active_tool_{};
-    lv_subject_t tool_count_{};
-    lv_subject_t tools_version_{};
+    helix::Subject active_tool_{};
+    helix::Subject tool_count_{};
+    helix::Subject tools_version_{};
 
     // Tool badge subjects for nozzle_icon component (XML-bound).
     // Updated automatically by update_from_status() and init_tools().
-    lv_subject_t tool_badge_text_{};
+    helix::Subject tool_badge_text_{};
     char tool_badge_text_buf_[16] = {};
-    lv_subject_t show_tool_badge_{};
-    lv_subject_t names_mounted_nozzle_{};
-    lv_subject_t extruder_count_{};
+    helix::Subject show_tool_badge_{};
+    helix::Subject names_mounted_nozzle_{};
+    helix::Subject extruder_count_{};
 
     // Per-tool offsets (helix::tool_offsets). Only a tool changer has any; on
     // every other printer the *_supported trio stays 0 and the aggregate is
     // never published. Individual members rather than arrays because
     // INIT_SUBJECT_INT derives the XML name from the member name.
-    lv_subject_t per_tool_x_supported_{};
-    lv_subject_t per_tool_y_supported_{};
-    lv_subject_t per_tool_z_supported_{};
-    lv_subject_t any_tool_offset_dirty_{};
+    helix::Subject per_tool_x_supported_{};
+    helix::Subject per_tool_y_supported_{};
+    helix::Subject per_tool_z_supported_{};
+    helix::Subject any_tool_offset_dirty_{};
 
     std::vector<ToolInfo> tools_;
     /// physical_heads() of tools_, built on first ask after the list changes.

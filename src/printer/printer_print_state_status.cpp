@@ -511,8 +511,8 @@ void PrinterPrintState::apply_extruder_filament_used(const nlohmann::json& statu
             continue;
         }
         auto& info = map_it->second;
-        if (info.subject && lv_subject_get_int(info.subject.get()) != mm) {
-            lv_subject_set_int(info.subject.get(), mm);
+        if (info.subject && lv_subject_get_int(info.subject->get()) != mm) {
+            lv_subject_set_int(info.subject->get(), mm);
         }
     }
 }

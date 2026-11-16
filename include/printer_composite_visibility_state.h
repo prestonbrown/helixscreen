@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "printer_capabilities_state.h"
 #include "subject_managed_panel.h"
 
@@ -112,9 +113,9 @@ class PrinterCompositeVisibilityState {
     int last_any_ = -1;
     bool last_plugin_ = false;
 
-    lv_subject_t has_any_preprint_options_{};
-    lv_subject_t timelapse_owner_{};
-    lv_subject_t timelapse_enabled_{};
+    helix::Subject has_any_preprint_options_{};
+    helix::Subject timelapse_owner_{};
+    helix::Subject timelapse_enabled_{};
 };
 
 } // namespace helix

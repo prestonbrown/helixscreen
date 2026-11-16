@@ -11,6 +11,7 @@
 #include "printer_plugin_status_state.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "macro_manager.h"
 #include "plr_backend.h"
 #include "state/subject_macros.h"
@@ -67,12 +68,12 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(helix_plugin_probe_seq, 0, subjects_, register_xml);
     for (size_t i = 0; i < kPluginSwitchFeatures.size(); ++i) {
         const PluginSwitchFeature& f = kPluginSwitchFeatures[i];
-        lv_subject_init_int(&switch_mode_[i], static_cast<int>(PluginSwitchMode::Hidden));
+        switch_mode_[i].init_int(static_cast<int>(PluginSwitchMode::Hidden));
         subjects_.register_subject(&switch_mode_[i], register_xml ? f.mode_subject : nullptr);
         if (register_xml) {
             helix::xml::register_subject_in_current_scope(f.mode_subject, &switch_mode_[i]);
         }
-        lv_subject_init_int(&switch_on_[i], 0);
+        switch_on_[i].init_int(0);
         const char* on_name = register_xml ? f.on_subject : nullptr;
         subjects_.register_subject(&switch_on_[i], on_name);
         if (on_name != nullptr) {

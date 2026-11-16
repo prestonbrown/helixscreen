@@ -2,6 +2,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "detection_source.h"
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
@@ -170,11 +171,11 @@ class DetectionManager {
     static void show_bed_check_refusal(const std::string& refusal);
 
     SubjectManager subjects_;
-    lv_subject_t detection_available_subject_{};
-    lv_subject_t detection_pause_applicable_subject_{};
-    lv_subject_t bed_check_available_subject_{};
-    lv_subject_t bed_check_enabled_subject_{};
-    lv_subject_t bed_check_switchable_subject_{};
+    helix::Subject detection_available_subject_{};
+    helix::Subject detection_pause_applicable_subject_{};
+    helix::Subject bed_check_available_subject_{};
+    helix::Subject bed_check_enabled_subject_{};
+    helix::Subject bed_check_switchable_subject_{};
     bool availability_subject_ready_ = false;
 
     helix::IMoonrakerClient* client_ = nullptr;

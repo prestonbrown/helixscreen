@@ -3,6 +3,7 @@
 
 #include "chamber_heater_backend.h"
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -57,9 +58,9 @@ struct ExtruderInfo {
     /// reported). Stock Klipper reports neither.
     double nozzle_diameter = 0.0;
     std::string nozzle_volume_type;
-    std::unique_ptr<lv_subject_t> temp_subject;   ///< Decidegrees (value * 10)
-    std::unique_ptr<lv_subject_t> target_subject; ///< Decidegrees
-    std::unique_ptr<lv_subject_t> power_subject;  ///< Duty in whole percent, -1 until reported
+    std::unique_ptr<helix::Subject> temp_subject;   ///< Decidegrees (value * 10)
+    std::unique_ptr<helix::Subject> target_subject; ///< Decidegrees
+    std::unique_ptr<helix::Subject> power_subject;  ///< Duty in whole percent, -1 until reported
     SubjectLifetime temp_lifetime;   ///< Lifetime token for temp_subject (for ObserverGuard safety)
     SubjectLifetime target_lifetime; ///< Lifetime token for target_subject
     SubjectLifetime power_lifetime;  ///< Lifetime token for power_subject
@@ -577,29 +578,29 @@ class PrinterTemperatureState {
     // Active extruder subjects (decidegrees: 205.3C stored as 2053)
     // These track whichever extruder is currently active, defaulting to "extruder".
     // Registered in XML as "extruder_temp"/"extruder_target" for binding compatibility.
-    lv_subject_t active_extruder_temp_{};
-    lv_subject_t active_extruder_target_{};
-    lv_subject_t bed_temp_{};
-    lv_subject_t bed_target_{};
+    helix::Subject active_extruder_temp_{};
+    helix::Subject active_extruder_target_{};
+    helix::Subject bed_temp_{};
+    helix::Subject bed_target_{};
     // Duty cycle in whole percent, -1 until a heater reports one. Klipper sends
     // 0.0-1.0 on a heater object; a temperature_fan reports a speed instead and
     // never publishes power, so -1 is a lasting state, not just a startup one.
-    lv_subject_t active_extruder_power_{};
-    lv_subject_t active_extruder_pa_{};
-    lv_subject_t bed_power_{};
-    lv_subject_t chamber_power_{};
+    helix::Subject active_extruder_power_{};
+    helix::Subject active_extruder_pa_{};
+    helix::Subject bed_power_{};
+    helix::Subject chamber_power_{};
     SubjectLifetime bed_temp_lifetime_;
     SubjectLifetime bed_target_lifetime_;
     // XML display subjects: chamber_effective_target + chamber_mode are THE canonical
     // chamber display bindings (XML-registered). chamber_target / chamber_fan_target are
     // internal synthesis inputs only — intentionally NOT XML-registered.
-    lv_subject_t chamber_temp_{};
-    lv_subject_t
+    helix::Subject chamber_temp_{};
+    helix::Subject
         chamber_target_{}; ///< Internal: raw heater target (0 in Maintaining mode) — NOT XML
-    lv_subject_t chamber_fan_target_{};       ///< Internal: cooling-fan target — NOT XML
-    lv_subject_t chamber_effective_target_{}; ///< XML display: heater target (Heating) or fan
-                                              ///< target (Maintaining) or 0 (Off)
-    lv_subject_t
+    helix::Subject chamber_fan_target_{};       ///< Internal: cooling-fan target — NOT XML
+    helix::Subject chamber_effective_target_{}; ///< XML display: heater target (Heating) or fan
+                                                ///< target (Maintaining) or 0 (Off)
+    helix::Subject
         chamber_mode_{}; ///< XML display: ChamberMode int Off/Heating/Maintaining (resting-aware)
     SubjectLifetime chamber_temp_lifetime_;
     SubjectLifetime chamber_target_lifetime_;
@@ -609,22 +610,22 @@ class PrinterTemperatureState {
 
     // Chamber-heater diagnostics (backend-provided, issue #1290). Absent
     // objects in a delta status frame = no news: subjects keep last values.
-    lv_subject_t chamber_heater_fault_{};                 ///< XML: 0/1
-    lv_subject_t chamber_heater_inhibited_{};             ///< XML: 0/1
-    lv_subject_t chamber_heater_externally_controlled_{}; ///< XML: 0/1
-    lv_subject_t chamber_heater_offline_{};               ///< XML: 0/1
-    lv_subject_t chamber_heater_fault_reason_text_{};     ///< XML: translated reason, "" when none
-    lv_subject_t chamber_filter_fan_on_{};                ///< XML: -1 unknown / 0 / 1 (fan RUNNING)
-    lv_subject_t chamber_filter_fan_requested_{};     ///< XML: -1 unknown / 0 / 1 (our pin request)
-    lv_subject_t chamber_filter_fan_device_driven_{}; ///< XML: 0/1 (device runs the fan itself)
-    lv_subject_t chamber_heater_element_temp_text_{}; ///< XML: display string ("--"/"106.2°C")
-    lv_subject_t chamber_filter_fan_percent_text_{};  ///< XML: display string ("--"/"100%")
+    helix::Subject chamber_heater_fault_{};                 ///< XML: 0/1
+    helix::Subject chamber_heater_inhibited_{};             ///< XML: 0/1
+    helix::Subject chamber_heater_externally_controlled_{}; ///< XML: 0/1
+    helix::Subject chamber_heater_offline_{};               ///< XML: 0/1
+    helix::Subject chamber_heater_fault_reason_text_{}; ///< XML: translated reason, "" when none
+    helix::Subject chamber_filter_fan_on_{};            ///< XML: -1 unknown / 0 / 1 (fan RUNNING)
+    helix::Subject chamber_filter_fan_requested_{}; ///< XML: -1 unknown / 0 / 1 (our pin request)
+    helix::Subject chamber_filter_fan_device_driven_{}; ///< XML: 0/1 (device runs the fan itself)
+    helix::Subject chamber_heater_element_temp_text_{}; ///< XML: display string ("--"/"106.2°C")
+    helix::Subject chamber_filter_fan_percent_text_{};  ///< XML: display string ("--"/"100%")
     char chamber_heater_fault_reason_text_buf_[64] = {};
     char chamber_heater_element_temp_text_buf_[32] = {};
     char chamber_filter_fan_percent_text_buf_[32] = {};
-    lv_subject_t chamber_dryer_active_{}; ///< XML: 0/1
-    lv_subject_t chamber_dryer_reported_{};
-    lv_subject_t chamber_dryer_text_{}; ///< XML: countdown string, "" when idle
+    helix::Subject chamber_dryer_active_{}; ///< XML: 0/1
+    helix::Subject chamber_dryer_reported_{};
+    helix::Subject chamber_dryer_text_{}; ///< XML: countdown string, "" when idle
     char chamber_dryer_text_buf_[64] = {};
     /// Last reported drying state; frames name only what changed.
     bool chamber_dryer_running_ = false;
@@ -637,9 +638,9 @@ class PrinterTemperatureState {
     void publish_chamber_heater_element_temp();
     /// Re-formats the C++-built temperature strings when the display unit changes.
     ObserverGuard unit_observer_;
-    lv_subject_t chamber_heater_command_rejected_{}; ///< XML: 0/1
-    lv_subject_t chamber_heater_rejection_seq_{};    ///< Internal: rejection event count
-    lv_subject_t chamber_heater_rejection_text_{};   ///< XML: translated sentence
+    helix::Subject chamber_heater_command_rejected_{}; ///< XML: 0/1
+    helix::Subject chamber_heater_rejection_seq_{};    ///< Internal: rejection event count
+    helix::Subject chamber_heater_rejection_text_{};   ///< XML: translated sentence
     char chamber_heater_rejection_text_buf_[160] = {};
     SubjectLifetime chamber_heater_command_rejected_lifetime_;
     SubjectLifetime chamber_heater_rejection_seq_lifetime_;
@@ -681,7 +682,7 @@ class PrinterTemperatureState {
 
     // Dynamic per-extruder tracking
     std::unordered_map<std::string, ExtruderInfo> extruders_;
-    lv_subject_t extruder_version_{}; ///< Bumped when extruder list changes
+    helix::Subject extruder_version_{}; ///< Bumped when extruder list changes
 
     // Active extruder name (defaults to "extruder"). Follows the machine's
     // toolhead status; a surface that wants to show a different tool reads the

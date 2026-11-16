@@ -2,6 +2,7 @@
 #pragma once
 
 #include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "fan_tachometers.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
@@ -329,10 +330,10 @@ class PrinterFanState {
     bool subjects_initialized_ = false;
 
     // Static fan subjects
-    lv_subject_t fan_speed_{};            ///< Main part-cooling fan, 0-100%
-    lv_subject_t fans_version_{};         ///< Increments on fan list (structural) changes
-    lv_subject_t primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
-    lv_subject_t fan_rpm_version_{};      ///< Increments on any fan's rpm change (#2071)
+    helix::Subject fan_speed_{};            ///< Main part-cooling fan, 0-100%
+    helix::Subject fans_version_{};         ///< Increments on fan list (structural) changes
+    helix::Subject primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    helix::Subject fan_rpm_version_{};      ///< Increments on any fan's rpm change (#2071)
 
     /// Object names exactly as discovery handed them over — before the bare-[fan]
     /// shadowing rule filters them into fans_. apply_roles() re-runs that filter,
@@ -345,7 +346,7 @@ class PrinterFanState {
     PrimaryFans primary_fans_cache_;
 
     // Dynamic per-fan subjects (unique_ptr prevents invalidation on rehash)
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> fan_speed_subjects_;
+    std::unordered_map<std::string, std::unique_ptr<helix::Subject>> fan_speed_subjects_;
     // Lifetime tokens for dynamic fan subjects — destroyed when subject is deinited,
     // expiring weak_ptrs in ObserverGuards to prevent use-after-free.
     std::unordered_map<std::string, SubjectLifetime> fan_speed_lifetimes_;

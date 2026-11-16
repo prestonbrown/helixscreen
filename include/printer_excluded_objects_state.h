@@ -2,6 +2,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -245,7 +246,7 @@ class PrinterExcludedObjectsState {
     bool subjects_initialized_ = false;
 
     // Excluded objects version subject (incremented when excluded_objects_ changes)
-    lv_subject_t excluded_objects_version_{};
+    helix::Subject excluded_objects_version_{};
 
     // Set of excluded object names (NOT a subject - sets aren't natively supported)
     std::unordered_set<std::string> excluded_objects_;
@@ -257,11 +258,11 @@ class PrinterExcludedObjectsState {
     std::string current_object_;
 
     // Version subject for defined objects list (incremented when list changes)
-    lv_subject_t defined_objects_version_{};
+    helix::Subject defined_objects_version_{};
 
     // Count of defined objects (held in sync with defined_objects_.size()) — used for
     // declarative XML visibility gating of list/empty-state widgets.
-    lv_subject_t defined_objects_count_{};
+    helix::Subject defined_objects_count_{};
 
     // Geometry map: object name -> ObjectInfo (center + bbox)
     // Populated by set_defined_objects_with_geometry(); empty if only names are known

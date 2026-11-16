@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -260,15 +261,15 @@ class PrinterNetworkState {
     bool subjects_initialized_ = false;
 
     // Network state subjects
-    lv_subject_t printer_connection_state_{};   // Integer: ConnectionState enum values
-    lv_subject_t printer_connection_message_{}; // String buffer
-    lv_subject_t network_status_{};             // Integer: NetworkStatus enum values
-    lv_subject_t klippy_state_{};               // Integer: KlippyState enum values
-    lv_subject_t nav_buttons_enabled_{};        // Derived: 1 when connected AND klippy ready
-    lv_subject_t moonraker_connection_state_{}; // Derived: 1 when Moonraker WebSocket connected
-    lv_subject_t moonraker_is_remote_{};        // 1 when connected Moonraker is not this host
-    lv_subject_t moonraker_locality_{};         // MoonrakerLocality for this connection
-    lv_subject_t klippy_state_message_seq_{};   // Bumped on every state message change
+    helix::Subject printer_connection_state_{};   // Integer: ConnectionState enum values
+    helix::Subject printer_connection_message_{}; // String buffer
+    helix::Subject network_status_{};             // Integer: NetworkStatus enum values
+    helix::Subject klippy_state_{};               // Integer: KlippyState enum values
+    helix::Subject nav_buttons_enabled_{};        // Derived: 1 when connected AND klippy ready
+    helix::Subject moonraker_connection_state_{}; // Derived: 1 when Moonraker WebSocket connected
+    helix::Subject moonraker_is_remote_{};        // 1 when connected Moonraker is not this host
+    helix::Subject moonraker_locality_{};         // MoonrakerLocality for this connection
+    helix::Subject klippy_state_message_seq_{};   // Bumped on every state message change
 
     // String buffer for connection message
     char printer_connection_message_buf_[128];

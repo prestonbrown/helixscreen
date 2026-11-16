@@ -4,6 +4,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "moonraker_types.h"
 
@@ -86,7 +87,7 @@ class PowerDeviceState {
         std::string name;
         std::string type;
         bool locked_while_printing = false;
-        std::unique_ptr<lv_subject_t> status_subject;
+        std::unique_ptr<helix::Subject> status_subject;
         SubjectLifetime lifetime;
         int raw_status = 0;        ///< 0=off, 1=on (before lock evaluation)
         bool reported_off = false; ///< Moonraker said "off"; "error" says nothing about services

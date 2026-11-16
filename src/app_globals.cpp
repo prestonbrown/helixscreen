@@ -30,6 +30,7 @@
 #include "moonraker_client_mock.h"
 #endif
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "env_knobs.h"
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
@@ -78,16 +79,16 @@ static TemperatureHistoryManager* g_temp_history_manager = nullptr;
 
 // Global reactive subjects with RAII cleanup
 static SubjectManager g_subjects;
-static lv_subject_t g_notification_subject;
-static lv_subject_t g_show_beta_features_subject;
-static lv_subject_t g_home_edit_mode_subject;
-static lv_subject_t g_home_edit_page_deletable_subject;
-static lv_subject_t g_platform_extras_subject;
-static lv_subject_t g_host_power_supported_subject;
-static lv_subject_t g_camera_supported_subject;
-static lv_subject_t g_console_supported_subject;
-static lv_subject_t g_platform_tier_subject;
-static lv_subject_t g_wizard_active_subject;
+static helix::Subject g_notification_subject;
+static helix::Subject g_show_beta_features_subject;
+static helix::Subject g_home_edit_mode_subject;
+static helix::Subject g_home_edit_page_deletable_subject;
+static helix::Subject g_platform_extras_subject;
+static helix::Subject g_host_power_supported_subject;
+static helix::Subject g_camera_supported_subject;
+static helix::Subject g_console_supported_subject;
+static helix::Subject g_platform_tier_subject;
+static helix::Subject g_wizard_active_subject;
 
 // Application quit flag. Set from signal handlers and from worker threads
 // (remote control, update checks) and read by the main loop, so it must be a
@@ -185,17 +186,19 @@ PrinterState& get_printer_state() {
     return instance;
 }
 
+// The subjects above are constructed before lv_init(), so their nodes exist only from
+// app_globals_init_subjects() on; these getters are valid from then.
 lv_subject_t& get_notification_subject() {
-    return g_notification_subject;
+    return *g_notification_subject.get();
 }
 
 lv_subject_t& get_home_edit_mode_subject() {
-    return g_home_edit_mode_subject;
+    return *g_home_edit_mode_subject.get();
 }
 
 // NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
 lv_subject_t& get_home_edit_page_deletable_subject() {
-    return g_home_edit_page_deletable_subject;
+    return *g_home_edit_page_deletable_subject.get();
 }
 
 // NAMESPACE_OK: definition of a file-scope declaration in app_globals.h
@@ -204,7 +207,7 @@ SubjectLifetime get_app_globals_subjects_lifetime() {
 }
 
 lv_subject_t& get_wizard_active_subject() {
-    return g_wizard_active_subject;
+    return *g_wizard_active_subject.get();
 }
 
 // Track if subjects are initialized
@@ -219,19 +222,19 @@ void app_globals_init_subjects() {
     // Initialize notification subject (stores NotificationData pointer)
     // Note: Not using UI_MANAGED_SUBJECT_POINTER because this subject is accessed
     // programmatically via get_notification_subject(), not through XML bindings
-    lv_subject_init_pointer(&g_notification_subject, nullptr);
+    g_notification_subject.init_pointer(nullptr);
     g_subjects.register_subject(&g_notification_subject);
 
     // Initialize beta features visibility subject (config-driven, used by multiple panels)
     Config* config = Config::get_instance();
     bool beta_enabled = config->is_beta_features_enabled();
-    lv_subject_init_int(&g_show_beta_features_subject, beta_enabled ? 1 : 0);
+    g_show_beta_features_subject.init_int(beta_enabled ? 1 : 0);
     g_subjects.publish("show_beta_features", &g_show_beta_features_subject);
 
     // Initialize home edit mode subject (controls navbar done button visibility)
-    lv_subject_init_int(&g_home_edit_mode_subject, 0);
+    g_home_edit_mode_subject.init_int(0);
     g_subjects.publish("home_edit_mode", &g_home_edit_mode_subject);
-    lv_subject_init_int(&g_home_edit_page_deletable_subject, 0);
+    g_home_edit_page_deletable_subject.init_int(0);
     g_subjects.publish("home_edit_page_deletable", &g_home_edit_page_deletable_subject);
 
     // Platform-availability gate for excluded v1 (ESP32 / K-Touch) hardware
@@ -245,9 +248,9 @@ void app_globals_init_subjects() {
     // app_globals_deinit_subjects() (registered with StaticSubjectRegistry above)
     // deinits before lv_deinit().
 #if defined(HELIX_PLATFORM_ESP32)
-    lv_subject_init_int(&g_platform_extras_subject, 0);
+    g_platform_extras_subject.init_int(0);
 #else
-    lv_subject_init_int(&g_platform_extras_subject, 1);
+    g_platform_extras_subject.init_int(1);
 #endif
     g_subjects.publish("platform_extras_available", &g_platform_extras_subject);
 
@@ -258,8 +261,7 @@ void app_globals_init_subjects() {
     // change mid-run). XML gates via:
     //   <bind_flag_if_eq subject="platform_host_power_supported" flag="hidden" ref_value="0"/>
     // and the shutdown home widget's hardware gate reads it by name.
-    lv_subject_init_int(&g_host_power_supported_subject,
-                        helix::platform_host_power_supported() ? 1 : 0);
+    g_host_power_supported_subject.init_int(helix::platform_host_power_supported() ? 1 : 0);
     g_subjects.publish("platform_host_power_supported", &g_host_power_supported_subject);
 
     // Whether this build can show a camera at all. HELIX_HAS_CAMERA (lv_conf.h)
@@ -267,13 +269,13 @@ void app_globals_init_subjects() {
     // a webcam Moonraker reports must still not offer a camera entry point. XML
     // gates via:
     //   <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
-    lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
+    g_camera_supported_subject.init_int(HELIX_HAS_CAMERA ? 1 : 0);
     g_subjects.publish("platform_camera_supported", &g_camera_supported_subject);
 
     // Whether this build has the G-code console (HELIX_HAS_CONSOLE, off in the K-Touch
     // feature profile). XML gates via:
     //   <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
-    lv_subject_init_int(&g_console_supported_subject, HELIX_HAS_CONSOLE ? 1 : 0);
+    g_console_supported_subject.init_int(HELIX_HAS_CONSOLE ? 1 : 0);
     g_subjects.publish("platform_console_supported", &g_console_supported_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
@@ -282,14 +284,13 @@ void app_globals_init_subjects() {
     //   <bind_style_if_lt name="..." subject="platform_tier" ref_value="2"/>
     static_assert(static_cast<int>(PlatformTier::STANDARD) == 2,
                   "XML binds platform_tier < 2 as the limited tiers");
-    lv_subject_init_int(&g_platform_tier_subject,
-                        static_cast<int>(PlatformCapabilities::detect().tier));
+    g_platform_tier_subject.init_int(static_cast<int>(PlatformCapabilities::detect().tier));
     g_subjects.publish("platform_tier", &g_platform_tier_subject);
 
     // Initialize wizard-active subject (observable mirror of is_wizard_active()).
     // Seed from the current flag so it is correct even when set_wizard_active()
     // ran before this init. Not XML-bound — observed programmatically only.
-    lv_subject_init_int(&g_wizard_active_subject, g_wizard_active ? 1 : 0);
+    g_wizard_active_subject.init_int(g_wizard_active ? 1 : 0);
     g_subjects.register_subject(&g_wizard_active_subject);
 
     // Initialize modal dialog subjects (for modal_dialog.xml binding)

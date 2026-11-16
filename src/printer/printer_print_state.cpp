@@ -12,6 +12,7 @@
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "core/timer_guard.h" // lv_timer_cancel_safe
 #include "core/update_queue.h"
 #include "format_utils.h"
@@ -180,7 +181,7 @@ void PrinterPrintState::deinit_subjects() {
         }
         info.lifetime.reset();
         if (info.subject) {
-            lv_subject_deinit(info.subject.get());
+            info.subject->reset();
         }
     }
     extruder_filament_used_.clear();
@@ -198,8 +199,8 @@ void PrinterPrintState::deinit_subjects() {
 
 void PrinterPrintState::create_extruder_filament_entry(int extruder_idx) {
     ExtruderFilamentInfo info;
-    info.subject = std::make_unique<lv_subject_t>();
-    lv_subject_init_int(info.subject.get(), 0);
+    info.subject = std::make_unique<helix::Subject>();
+    info.subject->init_int(0);
     info.lifetime = std::make_shared<bool>(true);
     extruder_filament_used_.emplace(extruder_idx, std::move(info));
 }
@@ -216,7 +217,7 @@ lv_subject_t* PrinterPrintState::get_extruder_filament_used_subject(int extruder
         return nullptr;
     }
     lifetime = it->second.lifetime;
-    return it->second.subject.get();
+    return it->second.subject->get();
 }
 
 void PrinterPrintState::publish_progress_display(int percent) {

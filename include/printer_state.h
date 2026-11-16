@@ -9,6 +9,7 @@
 #include "busy_episode_owner.h"
 #include "capability_overrides.h"
 #include "chamber_air_state.h"
+#include "core/subject.h"
 #include "hardware_validator.h"
 #include "heater_type.h" // helix::HeaterType
 #include "json_fwd.h"
@@ -418,7 +419,7 @@ class PrinterState {
      * Any observer whose owner can outlive a `deinit_subjects()` cycle MUST pass
      * this (or a narrower token for the same subject) to `observe_*`. Panels held
      * in process-lifetime singletons are exactly that case: `deinit_subjects()`
-     * runs `lv_subject_deinit()`, which frees every observer node, and an
+     * resets every subject, which frees every observer node, and an
      * ObserverGuard that never learned the subject died then calls
      * `lv_observer_delete()` on freed memory the next time it resets.
      *
@@ -950,7 +951,7 @@ class PrinterState {
     helix::PrinterProfileState profile_state_;
 
     // Multi-printer subjects (owned directly by PrinterState)
-    lv_subject_t active_printer_name_{};
+    helix::Subject active_printer_name_{};
     char active_printer_name_buf_[128];
 
     // Initialization guard to prevent multiple subject initializations

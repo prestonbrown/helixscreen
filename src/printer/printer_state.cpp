@@ -18,6 +18,7 @@
 #include "chamber_heater_assignment.h"
 #include "connection_state.h" // For ConnectionState enum
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "enclosure_top.h"
@@ -113,7 +114,7 @@ PrinterState::PrinterState() {
 PrinterState::~PrinterState() {
     // Backstop for the path that skips deinit_subjects() entirely: the subjects
     // are members, so they die with this object even though nothing called
-    // lv_subject_deinit() on them. Any ObserverGuard still holding one would
+    // reset() on them. Any ObserverGuard still holding one would
     // otherwise reset() against freed storage. Flipping costs nothing when
     // deinit_subjects() already ran — that installed a fresh token, and flipping
     // it just tells holders registered since then that the state is gone too.
@@ -157,7 +158,7 @@ void PrinterState::deinit_subjects() {
     // deinit_all() runs — so the flip cannot wait for it. Observers held by
     // objects that outlive this call — process-lifetime panel singletons, most
     // of all — check this token in ObserverGuard::reset() and skip
-    // lv_observer_delete() on observer nodes that lv_subject_deinit() is about
+    // lv_observer_delete() on observer nodes that reset() is about
     // to free. Flipping the bool (rather than only dropping the shared_ptr) is
     // what makes it work when a holder still has a copy. The later
     // subjects_.deinit_all() flips again; that lands on the renewed token,
@@ -181,7 +182,7 @@ void PrinterState::deinit_subjects() {
     profile_state_.deinit_subjects();
 
     // Deinit PrinterState's own subjects (multi-printer)
-    lv_subject_deinit(&active_printer_name_);
+    active_printer_name_.reset();
     subjects_.deinit_all();
 
     subjects_initialized_ = false;

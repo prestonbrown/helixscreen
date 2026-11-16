@@ -675,10 +675,7 @@ void ToolState::update_from_status(const nlohmann::json& status) {
 }
 
 bool ToolState::per_tool_offsets_supported() const {
-    // lv_subject_get_int takes a non-const pointer but only reads.
-    auto get = [](const lv_subject_t& subject) {
-        return lv_subject_get_int(const_cast<lv_subject_t*>(&subject));
-    };
+    auto get = [](const helix::Subject& subject) { return lv_subject_get_int(&subject); };
     return get(per_tool_x_supported_) == 1 || get(per_tool_y_supported_) == 1 ||
            get(per_tool_z_supported_) == 1;
 }
