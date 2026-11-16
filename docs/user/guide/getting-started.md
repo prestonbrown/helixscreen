@@ -230,6 +230,12 @@ While you hold a key, its characters pop up above it. Slide onto one and lift to
 
 On the comma and period keys, the character you pick becomes the new first choice. Hold `,`, slide to `<`, and from then on a plain hold of `,` types `<`, with the key's corner mark updated to match. This lasts until HelixScreen restarts.
 
+### Cut, Copy and Paste
+
+Hold your finger on a text field to open a small menu with **Cut**, **Copy** and **Paste**. Copy and Cut act on the whole field, and Cut also empties it. Paste inserts the copied text at the cursor. A row appears only when it applies: Cut and Copy need some text in the field, and Paste needs something copied. Pasting into a one-line field turns line breaks into spaces.
+
+Fields that hold a password or an API key show no menu, even after you tap the eye icon to reveal them. HelixScreen keeps the copied text in memory only, up to 4 KB, and forgets it when it restarts. In the desktop app and on Android, the copied text is shared with the operating system's clipboard as well.
+
 ---
 
 ## USB Mouse and Keyboard
