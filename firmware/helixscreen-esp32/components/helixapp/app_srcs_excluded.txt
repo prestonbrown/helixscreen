@@ -21,12 +21,16 @@
 
 # --- whole directories excluded ---
 src/bluetooth/  # all 9 src/ files beneath
+src/calibration/motor_ripple_plan.cpp  # not in the v1 Core+AMS cut
+src/calibration/motor_ripple_runner.cpp  # not in the v1 Core+AMS cut
 src/config/  # all 1 src/ files beneath
 src/input/  # all 1 src/ files beneath
 src/lvgl-demo/  # all 1 src/ files beneath
+src/mock/ripple_batch_source_mock.cpp  # not in the v1 Core+AMS cut
 src/remote/  # all 8 src/ files beneath
 src/system/timelapse_local_installer.cpp  # not in the v1 Core+AMS cut
 src/tools/  # all 1 src/ files beneath
+src/ui/calibration/ui_panel_motor_ripple.cpp  # not in the v1 Core+AMS cut
 src/ui/screensaver/  # all 33 src/ files beneath
 
 # --- individual files (same dir, partially compiled) ---

@@ -81,6 +81,7 @@ All developer documentation lives here. When working on features, look up the re
 | `INPUT_SHAPER.md` | Calibration panels, frequency response charts, CSV parser, PID |
 | `PRESSURE_ADVANCE_TUNING.md` | Pressure advance tuning by eye: tower, ramp, band picker, the Moonraker key slicers read |
 | `BELT_TUNER.md` | Pluck-based belt tuner. **Read its Validation status first: green in CI, never measured a real belt, thresholds circular** |
+| `MOTOR_RIPPLE_CHECK.md` | Vertical Artifact Check: motor ripple speed sweep, band rule, FlashForge compensation compare, print-start warning, mock stream |
 | `BELT_TENSION.md` | Belt Tension: `TEST_RESONANCES` sweep comparison, the Start gate, the guided tuning loop, mock knobs |
 | `PREPRINT_PREDICTION.md` | ETA prediction engine, phase timing, weighted history |
 | `EXCLUDE_OBJECTS.md` | Object exclusion, per-object thumbnails, slicer setup, the read-only home tile and the map's Mini mode |
