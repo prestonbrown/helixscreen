@@ -4,6 +4,7 @@
 #include "ui_nav_backdrop.h"
 
 #include "ui_effects.h"
+#include "ui_modal.h"
 #include "ui_utils.h"
 
 #include "backdrop_blur.h"
@@ -66,14 +67,27 @@ uint32_t longest_running_transition(lv_obj_t* screen) {
 void OverlayBackdrop::adopt(lv_obj_t* screen, lv_obj_t* arriving, lv_event_cb_t click_cb) {
     {
         ScopedHideChrome chrome_hidden;
-        const bool arriving_shown = arriving && !lv_obj_is_hidden(arriving);
-        if (arriving_shown) {
-            lv_obj_set_hidden(arriving, true);
+        // The arriving overlay, and any dialog still on screen: a confirm button
+        // that opens an overlay runs before its dialog has finished closing.
+        std::vector<lv_obj_t*> left_out;
+        if (arriving && !lv_obj_is_hidden(arriving)) {
+            left_out.push_back(arriving);
+        }
+        const uint32_t child_count = lv_obj_get_child_count(screen);
+        for (uint32_t i = 0; i < child_count; i++) {
+            lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
+            if (child && child != arriving && !lv_obj_is_hidden(child) &&
+                ModalStack::instance().backdrop_for_backdrop(child)) {
+                left_out.push_back(child);
+            }
+        }
+        for (lv_obj_t* obj : left_out) {
+            lv_obj_set_hidden(obj, true);
         }
         primary_ = create_darkened_backdrop(screen, 40);
         palette_key_ = active_palette_key();
-        if (arriving_shown) {
-            lv_obj_set_hidden(arriving, false);
+        for (lv_obj_t* obj : left_out) {
+            lv_obj_set_hidden(obj, false);
         }
     }
     if (!primary_)
