@@ -7,6 +7,7 @@
 #include "ui_overlay_network_settings.h"
 
 #include "core/log_redact.h"
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "lvgl.h"
@@ -22,14 +23,14 @@
 static constexpr uint32_t kSignalPollIntervalMs = 5000;
 
 // Subjects owned by NetworkWidget module — created before XML bindings resolve
-static lv_subject_t s_network_icon_state;
+static helix::Subject s_network_icon_state;
 static helix::WidgetSubjects s_subjects{"NetworkWidgetSubjects"};
 
 static void network_widget_init_subjects() {
     s_subjects.ensure_init([] {
         // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet,
         // 6=wifi joined without an address yet
-        lv_subject_init_int(&s_network_icon_state, 0);
+        s_network_icon_state.init_int(0);
         s_subjects.publish("home_network_icon_state", &s_network_icon_state);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_network_icon_state, "home_network_icon_state",
                                      LV_SUBJECT_TYPE_INT);

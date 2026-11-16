@@ -12,6 +12,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
@@ -59,8 +60,8 @@ void FilamentSensorWidget::init_static_subjects() {
     s_static_subjects.ensure_init([] {
         // -1 = no sensor, matching FilamentSensorManager's encoding, so the tile
         // reads "hidden" until the first real value arrives rather than "empty".
-        lv_subject_init_int(&tile_state_subject_, -1);
-        lv_subject_init_int(&source_subject_, static_cast<int>(ui::FilamentTileSource::Auto));
+        tile_state_subject_.init_int(-1);
+        source_subject_.init_int(static_cast<int>(ui::FilamentTileSource::Auto));
 
         // Global scope (not the "panel_widget_filament" component scope): the
         // mirror is also read as a `subject`-type prop by the nested

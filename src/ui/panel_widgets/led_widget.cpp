@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
@@ -84,8 +85,8 @@ namespace {
 /// The picker's rows. One picker is open at a time, so these are process-wide.
 struct PickerSubjects {
     xml::IndexedSubjectPool names{"led_picker_name", xml::IndexedSubjectPool::Type::String};
-    lv_subject_t count{};
-    lv_subject_t selected{};
+    helix::Subject count{};
+    helix::Subject selected{};
 };
 
 helix::WidgetSubjects s_picker_subjects{"LedPicker"};

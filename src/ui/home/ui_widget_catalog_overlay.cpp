@@ -13,6 +13,7 @@
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "home_layout_sync.h"
@@ -87,8 +88,8 @@ struct CatalogState {
     // Search state. Entries are parallel to the search_results children (one row
     // per registry def, both in registry order) and to nothing else — the
     // category pages build their own rows per dive.
-    lv_subject_t view = {};        // kCatalogView*; bound by the XML view flip
-    lv_subject_t match_count = {}; // visible search rows; drives the empty message
+    helix::Subject view = {};        // kCatalogView*; bound by the XML view flip
+    helix::Subject match_count = {}; // visible search rows; drives the empty message
     std::vector<ui::SelectorEntry> entries;
     // The result rows exist. They are built on the first query, not at open:
     // a row per registry def is most of what the catalog costs to show, and

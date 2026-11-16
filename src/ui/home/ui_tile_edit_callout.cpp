@@ -5,6 +5,7 @@
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
 
+#include "core/subject.h"
 #include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
@@ -21,16 +22,15 @@ constexpr const char* kTitleSubject = "tile_callout_title";
 constexpr const char* kConfigureSubject = "tile_callout_configure";
 
 std::array<char, 96> s_title_buf{};
-lv_subject_t s_title_subject{};
-lv_subject_t s_configure_subject{};
+helix::Subject s_title_subject{};
+helix::Subject s_configure_subject{};
 helix::WidgetSubjects s_subjects{"TileEditCallout", StaticSubjectRegistry::Lifetime::Process};
 
 void ensure_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_string(&s_title_subject, s_title_buf.data(), nullptr, s_title_buf.size(),
-                               "");
+        s_title_subject.init_string(s_title_buf.data(), nullptr, s_title_buf.size(), "");
         s_subjects.publish(kTitleSubject, &s_title_subject);
-        lv_subject_init_int(&s_configure_subject, 0);
+        s_configure_subject.init_int(0);
         s_subjects.publish(kConfigureSubject, &s_configure_subject);
     });
 }

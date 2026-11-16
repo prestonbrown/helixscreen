@@ -12,6 +12,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
@@ -43,15 +44,15 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-lv_subject_t s_rung_subject{};
-lv_subject_t s_show_save_subject{};
-lv_subject_t s_show_steppers_subject{};
-lv_subject_t s_show_tool_label_subject{};
-lv_subject_t s_status_subject{};
-lv_subject_t s_value_text_subject{};
-lv_subject_t s_caption_text_subject{};
-lv_subject_t s_step_text_subject{};
-lv_subject_t s_tool_text_subject{};
+helix::Subject s_rung_subject{};
+helix::Subject s_show_save_subject{};
+helix::Subject s_show_steppers_subject{};
+helix::Subject s_show_tool_label_subject{};
+helix::Subject s_status_subject{};
+helix::Subject s_value_text_subject{};
+helix::Subject s_caption_text_subject{};
+helix::Subject s_step_text_subject{};
+helix::Subject s_tool_text_subject{};
 char s_value_text_buf[32];
 char s_caption_text_buf[48];
 char s_step_text_buf[16];

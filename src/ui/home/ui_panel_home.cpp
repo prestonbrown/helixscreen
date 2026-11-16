@@ -19,6 +19,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "first_run_tour.h"
@@ -313,7 +314,7 @@ void HomePanel::build_carousel(int initial_page) {
     }
 
     // Init page subject and connect to carousel
-    lv_subject_init_int(&page_subject_, 0);
+    page_subject_.init_int(0);
     subjects_.register_subject(&page_subject_);
 
     CarouselState* cstate = ui_carousel_get_state(carousel_);

@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
 
@@ -87,9 +88,9 @@ class FanStackWidget : public PanelWidget {
     /// One stack row's text, bound by the component: the name the measured
     /// layout picked and the speed.
     struct RowText {
-        lv_subject_t name{};
+        helix::Subject name{};
         char name_buf[64] = {};
-        lv_subject_t speed{};
+        helix::Subject speed{};
         char speed_buf[8] = {};
     };
     // This instance's stack state, named after its instance id because two
@@ -98,7 +99,7 @@ class FanStackWidget : public PanelWidget {
     RowText hotend_text_;
     RowText aux_text_;
     /// 1 while an aux fan is bound, which shows its row.
-    lv_subject_t has_aux_subject_{};
+    helix::Subject has_aux_subject_{};
     SubjectManager subjects_;
     std::vector<std::string> attr_storage_;
     std::vector<const char*> attrs_;

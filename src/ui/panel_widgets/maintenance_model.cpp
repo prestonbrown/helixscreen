@@ -15,6 +15,7 @@
 #include "chamber_air_modes.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -134,16 +135,16 @@ constexpr std::array<MeterText, kMeterCount> kMeterText = {{
 // clang-format on
 
 struct MeterSubjects {
-    lv_subject_t on{};
-    lv_subject_t pct{};
-    lv_subject_t status{};
-    lv_subject_t interval{};
-    lv_subject_t name{};
-    lv_subject_t short_name{};
-    lv_subject_t left{};
-    lv_subject_t line{};
-    lv_subject_t days{};
-    lv_subject_t desc{};
+    helix::Subject on{};
+    helix::Subject pct{};
+    helix::Subject status{};
+    helix::Subject interval{};
+    helix::Subject name{};
+    helix::Subject short_name{};
+    helix::Subject left{};
+    helix::Subject line{};
+    helix::Subject days{};
+    helix::Subject desc{};
     char name_buf[64]{};
     char short_buf[32]{};
     char left_buf[24]{};
@@ -153,12 +154,12 @@ struct MeterSubjects {
 
 /// One row of the home tile, filled from due_order().
 struct RankSubjects {
-    lv_subject_t on{};
-    lv_subject_t pct{};
-    lv_subject_t status{};
-    lv_subject_t name{};
-    lv_subject_t short_name{};
-    lv_subject_t left{};
+    helix::Subject on{};
+    helix::Subject pct{};
+    helix::Subject status{};
+    helix::Subject name{};
+    helix::Subject short_name{};
+    helix::Subject left{};
     char name_buf[64]{};
     char short_buf[32]{};
     char left_buf[24]{};
@@ -166,14 +167,14 @@ struct RankSubjects {
 
 /// The task page: the one meter it is open on.
 struct TaskSubjects {
-    lv_subject_t pct{};
-    lv_subject_t status{};
-    lv_subject_t name{};
-    lv_subject_t left{};
-    lv_subject_t line{};
-    lv_subject_t last{};
-    lv_subject_t what{};
-    lv_subject_t steps{};
+    helix::Subject pct{};
+    helix::Subject status{};
+    helix::Subject name{};
+    helix::Subject left{};
+    helix::Subject line{};
+    helix::Subject last{};
+    helix::Subject what{};
+    helix::Subject steps{};
     char name_buf[64]{};
     char left_buf[24]{};
     char line_buf[96]{};
@@ -183,14 +184,14 @@ struct TaskSubjects {
 };
 
 struct Subjects {
-    lv_subject_t version{};
-    lv_subject_t any_on{};
-    lv_subject_t worst_pct{};
-    lv_subject_t worst_status{};
-    lv_subject_t worst_left{};
-    lv_subject_t worst_name{};
-    lv_subject_t total_text{};
-    lv_subject_t belt_available{};
+    helix::Subject version{};
+    helix::Subject any_on{};
+    helix::Subject worst_pct{};
+    helix::Subject worst_status{};
+    helix::Subject worst_left{};
+    helix::Subject worst_name{};
+    helix::Subject total_text{};
+    helix::Subject belt_available{};
     char worst_left_buf[24]{};
     char worst_name_buf[32]{};
     char total_text_buf[96]{};

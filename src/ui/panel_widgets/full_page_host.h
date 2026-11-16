@@ -5,6 +5,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "full_page_content.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
@@ -105,7 +106,7 @@ class FullPageHost {
     std::function<FullPageContent&()> content_;
     EmbedFn embed_;
     SubjectManager subjects_;
-    lv_subject_t full_page_subject_{};
+    helix::Subject full_page_subject_{};
     /// Null once the tile is detached or its tree deleted.
     helix::ui::WidgetRef tile_root_;
     bool full_page_ = false;

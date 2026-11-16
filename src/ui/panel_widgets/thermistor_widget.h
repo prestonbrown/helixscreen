@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"
@@ -192,18 +193,18 @@ class ThermistorWidget : public TiledPanelWidget {
     // per-instance subjects the tile's temp_display binds to. The manager's
     // own per-sensor subjects are not XML-registered.
     SubjectManager subjects_;
-    lv_subject_t temp_subject_{};
-    lv_subject_t target_subject_{};
-    lv_subject_t available_subject_{}; ///< 1 while the selected sensor is reported
+    helix::Subject temp_subject_{};
+    helix::Subject target_subject_{};
+    helix::Subject available_subject_{}; ///< 1 while the selected sensor is reported
     /// The sensor's name, and 1 while one is selected (0 draws "Select sensor").
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char name_buffer_[96] = {};
-    lv_subject_t named_subject_{};
+    helix::Subject named_subject_{};
     /// The unit text drawn after the reading (unit_text()).
-    lv_subject_t unit_subject_{};
+    helix::Subject unit_subject_{};
     char unit_buffer_[40] = {};
     /// 1 while a unit override is set: the reading then shows as reported, unconverted.
-    lv_subject_t raw_subject_{};
+    helix::Subject raw_subject_{};
 
     // Carousel mode: each page binds the reading and name subjects of its slot
     // in these pools (thermistor_carousel_page). Declared before the observers

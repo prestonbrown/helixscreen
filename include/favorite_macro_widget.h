@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "macro_param_cache.h"
 #include "macro_param_modal.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
@@ -65,11 +66,11 @@ class FavoriteMacroWidget : public TiledPanelWidget {
 
     // This instance's name and badge colour, bound by its component. Owned per
     // instance because two macro tiles can sit on the home grid at once.
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char name_buffer_[128] = {};
     /// 1 while a macro is assigned; 0 draws the "Configure" prompt.
-    lv_subject_t named_subject_{};
-    lv_subject_t badge_color_subject_{};
+    helix::Subject named_subject_{};
+    helix::Subject badge_color_subject_{};
     SubjectManager subjects_;
 
     IMoonrakerAPI* get_api() const;

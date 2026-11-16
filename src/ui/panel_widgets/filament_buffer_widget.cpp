@@ -7,6 +7,7 @@
 
 #include "ams_state.h"
 #include "buffer_status_modal.h"
+#include "core/subject.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_registry.h"
@@ -23,12 +24,12 @@ namespace {
 
 // 1 when the tile is two cells wide, which is what draws the trace and the
 // lean in words. Registered before the XML that binds it is parsed.
-lv_subject_t s_wide_subject{};
+helix::Subject s_wide_subject{};
 helix::WidgetSubjects s_subjects{"FilamentBufferWidgetSubjects"};
 
 void filament_buffer_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_int(&s_wide_subject, 0);
+        s_wide_subject.init_int(0);
         s_subjects.publish("filament_buffer_wide", &s_wide_subject);
     });
 }

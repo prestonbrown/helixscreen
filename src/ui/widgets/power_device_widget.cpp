@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
@@ -83,25 +84,24 @@ PowerDeviceWidget::PowerDeviceWidget(const std::string& instance_id)
     // binding whose subject is missing at parse time. The initial values are
     // the component's own defaults, so a tile reads the same before its first
     // update as it always has.
-    lv_subject_init_int(&has_status_subject_, 0);
+    has_status_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &has_status_subject_, "status_subject",
                                      "has_status");
-    lv_subject_init_int(&state_subject_, -1);
+    state_subject_.init_int(-1);
     sizing_.publish_instance_subject(subjects_, &state_subject_, "state_subject", "state");
-    lv_subject_init_int(&named_subject_, 0);
+    named_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
-    lv_subject_init_string(&name_subject_, name_buf_, nullptr, sizeof(name_buf_), "");
+    name_subject_.init_string(name_buf_, nullptr, sizeof(name_buf_), "");
     sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
-    lv_subject_init_string(&status_text_subject_, status_text_buf_, nullptr,
-                           sizeof(status_text_buf_), "");
+    status_text_subject_.init_string(status_text_buf_, nullptr, sizeof(status_text_buf_), "");
     sizing_.publish_instance_subject(subjects_, &status_text_subject_, "status_text_subject",
                                      "status_text");
-    lv_subject_init_color(&accent_subject_, theme_manager_get_color("secondary"));
+    accent_subject_.init_color(theme_manager_get_color("secondary"));
     sizing_.publish_instance_subject(subjects_, &accent_subject_, "accent_subject", "accent");
-    lv_subject_init_int(&badge_opa_subject_, 40);
+    badge_opa_subject_.init_int(40);
     sizing_.publish_instance_subject(subjects_, &badge_opa_subject_, "badge_opa_subject",
                                      "badge_opa");
-    lv_subject_init_color(&status_color_subject_, theme_manager_get_color("text_muted"));
+    status_color_subject_.init_color(theme_manager_get_color("text_muted"));
     sizing_.publish_instance_subject(subjects_, &status_color_subject_, "status_color_subject",
                                      "status_color");
 }

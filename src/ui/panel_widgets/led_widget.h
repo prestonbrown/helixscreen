@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
@@ -148,9 +149,9 @@ class LedWidget : public TiledPanelWidget {
     helix::ui::WidgetRef light_icon_;
 
     SubjectManager subjects_;
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char name_buf_[64] = {};
-    lv_subject_t wide_subject_{};
+    helix::Subject wide_subject_{};
     std::string name_subject_name_;
     std::string wide_subject_name_;
     std::vector<std::string> attr_storage_;

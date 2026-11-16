@@ -9,6 +9,7 @@
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "job_queue_start.h"
@@ -42,21 +43,21 @@ namespace {
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
 struct Subjects {
-    lv_subject_t state{};
-    lv_subject_t action{};
-    lv_subject_t rung{};
-    lv_subject_t show_thumb{};
-    lv_subject_t show_detail{};
-    lv_subject_t show_auto{};
-    lv_subject_t show_more{};
-    lv_subject_t list_rows{};
-    lv_subject_t hero{};
-    lv_subject_t count{};
-    lv_subject_t cell_name{};
-    lv_subject_t detail{};
-    lv_subject_t more{};
-    lv_subject_t action_text{};
-    lv_subject_t after[helix::kJobQueueTileListRows]{};
+    helix::Subject state{};
+    helix::Subject action{};
+    helix::Subject rung{};
+    helix::Subject show_thumb{};
+    helix::Subject show_detail{};
+    helix::Subject show_auto{};
+    helix::Subject show_more{};
+    helix::Subject list_rows{};
+    helix::Subject hero{};
+    helix::Subject count{};
+    helix::Subject cell_name{};
+    helix::Subject detail{};
+    helix::Subject more{};
+    helix::Subject action_text{};
+    helix::Subject after[helix::kJobQueueTileListRows]{};
     char hero_buf[320]{};
     char count_buf[16]{};
     char cell_name_buf[320]{};

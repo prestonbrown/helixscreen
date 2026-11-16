@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
@@ -158,12 +159,12 @@ struct PickerRowSubjects {
 
 PickerRowSubjects s_sel_rows{"thermistor_sel"}; ///< single-select sensor picker
 PickerRowSubjects s_cfg_rows{"thermistor_cfg"}; ///< multi-select configure picker
-HELIX_PSRAM_BSS lv_subject_t s_sel_count_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_sel_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_count_subject{};
 /// The configure card's Unit row: the text it shows, and 1 while an override is set.
-HELIX_PSRAM_BSS lv_subject_t s_cfg_unit_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_unit_subject{};
 char s_cfg_unit_buf[48] = {};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_unit_custom_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_unit_custom_subject{};
 helix::WidgetSubjects s_subjects{"ThermistorWidgetSubjects"};
 
 /// A sensor's reading as a picker row shows it.
@@ -207,14 +208,13 @@ namespace helix {
 void thermistor_widget_init_subjects() {
     s_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_sel_count_subject, 0);
+            s_sel_count_subject.init_int(0);
             s_subjects.publish("thermistor_sel_rows", &s_sel_count_subject);
-            lv_subject_init_int(&s_cfg_count_subject, 0);
+            s_cfg_count_subject.init_int(0);
             s_subjects.publish("thermistor_cfg_rows", &s_cfg_count_subject);
-            lv_subject_init_string(&s_cfg_unit_subject, s_cfg_unit_buf, nullptr,
-                                   sizeof(s_cfg_unit_buf), "");
+            s_cfg_unit_subject.init_string(s_cfg_unit_buf, nullptr, sizeof(s_cfg_unit_buf), "");
             s_subjects.publish("thermistor_cfg_unit", &s_cfg_unit_subject);
-            lv_subject_init_int(&s_cfg_unit_custom_subject, 0);
+            s_cfg_unit_custom_subject.init_int(0);
             s_subjects.publish("thermistor_cfg_unit_custom", &s_cfg_unit_custom_subject);
         },
         [] {
@@ -234,23 +234,23 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
     // A widget built outside the panel-subject phase still publishes into live
     // subjects. A no-op once they exist.
     thermistor_widget_init_subjects();
-    lv_subject_init_int(&temp_subject_, 0);
+    temp_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &temp_subject_, "temp_subject", "thermistor_temp");
-    lv_subject_init_int(&target_subject_, 0);
+    target_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &target_subject_, "target_subject",
                                      "thermistor_target");
-    lv_subject_init_int(&available_subject_, 0);
+    available_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &available_subject_, "available_subject",
                                      "thermistor_available");
-    lv_subject_init_string(&name_subject_, name_buffer_, nullptr, sizeof(name_buffer_), "");
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
     sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "thermistor_name");
-    lv_subject_init_int(&named_subject_, 0);
+    named_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject",
                                      "thermistor_named");
-    lv_subject_init_string(&unit_subject_, unit_buffer_, nullptr, sizeof(unit_buffer_),
-                           helix::units::display_temp_symbol());
+    unit_subject_.init_string(unit_buffer_, nullptr, sizeof(unit_buffer_),
+                              helix::units::display_temp_symbol());
     sizing_.publish_instance_subject(subjects_, &unit_subject_, "unit_subject", "thermistor_unit");
-    lv_subject_init_int(&raw_subject_, 0);
+    raw_subject_.init_int(0);
     sizing_.publish_instance_subject(subjects_, &raw_subject_, "raw_subject", "thermistor_raw");
 }
 

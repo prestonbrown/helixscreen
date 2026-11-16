@@ -5,6 +5,7 @@
 
 #include "ui_format_utils.h"
 
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "helix/ui/text_metrics.h"
 #include "locale_formats.h"
@@ -27,16 +28,16 @@
 static constexpr uint32_t kClockUpdateIntervalMs = 1000;
 
 // Subjects owned by ClockWidget module — created before XML bindings resolve
-static lv_subject_t s_time_subject;
+static helix::Subject s_time_subject;
 static char s_time_buffer[32];
 
-static lv_subject_t s_date_subject;
+static helix::Subject s_date_subject;
 static char s_date_buffer[32];
 
-static lv_subject_t s_uptime_subject;
+static helix::Subject s_uptime_subject;
 static char s_uptime_buffer[64];
 
-static lv_subject_t s_size_mode_subject;
+static helix::Subject s_size_mode_subject;
 
 static helix::WidgetSubjects s_subjects{"ClockWidgetSubjects"};
 
@@ -52,25 +53,23 @@ static void format_uptime(char* buf, size_t buf_size) {
 static void clock_widget_init_subjects() {
     s_subjects.ensure_init([] {
         // Time text (e.g. "2:30 PM" or "14:30")
-        lv_subject_init_string(&s_time_subject, s_time_buffer, nullptr, sizeof(s_time_buffer),
-                               "--:--");
+        s_time_subject.init_string(s_time_buffer, nullptr, sizeof(s_time_buffer), "--:--");
         s_subjects.publish("clock_time_text", &s_time_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_time_subject, "clock_time_text", LV_SUBJECT_TYPE_STRING);
 
         // Date text (e.g. "Fri, Feb 28")
-        lv_subject_init_string(&s_date_subject, s_date_buffer, nullptr, sizeof(s_date_buffer), "");
+        s_date_subject.init_string(s_date_buffer, nullptr, sizeof(s_date_buffer), "");
         s_subjects.publish("clock_date_text", &s_date_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_date_subject, "clock_date_text", LV_SUBJECT_TYPE_STRING);
 
         // Uptime text (e.g. "Up: 3d 14h")
-        lv_subject_init_string(&s_uptime_subject, s_uptime_buffer, nullptr, sizeof(s_uptime_buffer),
-                               "");
+        s_uptime_subject.init_string(s_uptime_buffer, nullptr, sizeof(s_uptime_buffer), "");
         s_subjects.publish("clock_uptime_text", &s_uptime_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_uptime_subject, "clock_uptime_text",
                                      LV_SUBJECT_TYPE_STRING);
 
         // Size mode (0=compact/1x1, 1=normal/2x1, 2=expanded/2x2+)
-        lv_subject_init_int(&s_size_mode_subject, 1);
+        s_size_mode_subject.init_int(1);
         s_subjects.publish("clock_size_mode", &s_size_mode_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_size_mode_subject, "clock_size_mode", LV_SUBJECT_TYPE_INT);
 

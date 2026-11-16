@@ -19,6 +19,7 @@
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/temp_unit_subject.h"
 #include "core/timer_guard.h"
 #include "display_settings_manager.h"
@@ -53,34 +54,35 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 // Subjects owned by PrinterImageWidget module — created before XML bindings resolve
-static lv_subject_t s_printer_type_subject;
+static helix::Subject s_printer_type_subject;
 static char s_printer_type_buffer[64];
-static lv_subject_t s_printer_info_visible;
+static helix::Subject s_printer_info_visible;
 
 // Live callout subjects (printer image overlay chips), driven from PrinterState
 // by PrinterImageWidget::update_callouts() and apply_callout_layout().
-static lv_subject_t s_printer_callout_mode;
-static lv_subject_t s_callout_toolhead_merged;
-static lv_subject_t s_callout_nozzle_shown;
-static lv_subject_t s_callout_bed_shown;
-static lv_subject_t s_callout_chamber_shown;
-static lv_subject_t s_callout_fan_shown;
-static lv_subject_t s_callout_light_shown;
-static lv_subject_t s_callout_light_on;
-static lv_subject_t s_callout_bed_heating;
-static lv_subject_t s_callout_bed_glow_level;
-static lv_subject_t s_callout_chamber_glow_level;
-static lv_subject_t s_callout_nozzle_text;
+static helix::Subject s_printer_callout_mode;
+static helix::Subject s_callout_toolhead_merged;
+static helix::Subject s_callout_nozzle_shown;
+static helix::Subject s_callout_bed_shown;
+static helix::Subject s_callout_chamber_shown;
+static helix::Subject s_callout_fan_shown;
+static helix::Subject s_callout_light_shown;
+static helix::Subject s_callout_light_on;
+static helix::Subject s_callout_bed_heating;
+static helix::Subject s_callout_bed_glow_level;
+static helix::Subject s_callout_chamber_glow_level;
+static helix::Subject s_callout_nozzle_text;
 static char s_callout_nozzle_text_buf[32];
-static lv_subject_t s_callout_bed_text;
+static helix::Subject s_callout_bed_text;
 static char s_callout_bed_text_buf[32];
-static lv_subject_t s_callout_chamber_text;
+static helix::Subject s_callout_chamber_text;
 static char s_callout_chamber_text_buf[32];
-static lv_subject_t s_callout_fan_text;
+static helix::Subject s_callout_fan_text;
 static char s_callout_fan_text_buf[32];
-static lv_subject_t s_callout_toolhead_text;
+static helix::Subject s_callout_toolhead_text;
 static char s_callout_toolhead_text_buf[32];
 
 static helix::WidgetSubjects s_subjects{"PrinterImageWidgetSubjects"};
@@ -103,17 +105,18 @@ bool publish_callout_text(lv_subject_t* text, const std::string& full) {
     return true;
 }
 
-/// The text chips, indexed like PrinterImageWidget::callout_full_text_.
+/// The text chips, indexed like PrinterImageWidget::callout_full_text_. It holds the
+/// Subjects, not their nodes: a node does not exist until the first init.
 struct CalloutTextSubject {
     helix::CalloutKind kind;
-    lv_subject_t* subject;
+    helix::Subject* subject;
 };
 const CalloutTextSubject kCalloutTexts[] = {
-    {helix::CalloutKind::Nozzle, &s_callout_nozzle_text},
-    {helix::CalloutKind::Bed, &s_callout_bed_text},
-    {helix::CalloutKind::Chamber, &s_callout_chamber_text},
-    {helix::CalloutKind::Fan, &s_callout_fan_text},
-    {helix::CalloutKind::Toolhead, &s_callout_toolhead_text},
+    {helix::CalloutKind::Nozzle, std::addressof(s_callout_nozzle_text)},
+    {helix::CalloutKind::Bed, std::addressof(s_callout_bed_text)},
+    {helix::CalloutKind::Chamber, std::addressof(s_callout_chamber_text)},
+    {helix::CalloutKind::Fan, std::addressof(s_callout_fan_text)},
+    {helix::CalloutKind::Toolhead, std::addressof(s_callout_toolhead_text)},
 };
 
 } // namespace
@@ -121,8 +124,8 @@ const CalloutTextSubject kCalloutTexts[] = {
 static void printer_image_widget_init_subjects() {
     s_subjects.ensure_init([] {
         // String subject for printer model name
-        lv_subject_init_string(&s_printer_type_subject, s_printer_type_buffer, nullptr,
-                               sizeof(s_printer_type_buffer), "");
+        s_printer_type_subject.init_string(s_printer_type_buffer, nullptr,
+                                           sizeof(s_printer_type_buffer), "");
         s_subjects.publish("printer_type_text", &s_printer_type_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_type_subject, "printer_type_text",
                                      LV_SUBJECT_TYPE_STRING);
@@ -130,7 +133,7 @@ static void printer_image_widget_init_subjects() {
         // String subject for hostname/IP
 
         // Integer subject: 0=hidden, 1=visible
-        lv_subject_init_int(&s_printer_info_visible, 0);
+        s_printer_info_visible.init_int(0);
         s_subjects.publish("printer_info_visible", &s_printer_info_visible);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_info_visible, "printer_info_visible",
                                      LV_SUBJECT_TYPE_INT);
@@ -141,50 +144,50 @@ static void printer_image_widget_init_subjects() {
         // callout_<kind>_shown int is 0 hidden, 1 active, 2 residual (a heater off
         // but still hot, its chip text greyed).
         static const struct {
-            lv_subject_t* subject;
+            helix::Subject* subject;
             const char* name;
         } int_subjects[] = {
-            {&s_printer_callout_mode, "printer_callout_mode"},
-            {&s_callout_toolhead_merged, "callout_toolhead_merged"},
-            {&s_callout_nozzle_shown, "callout_nozzle_shown"},
-            {&s_callout_bed_shown, "callout_bed_shown"},
-            {&s_callout_chamber_shown, "callout_chamber_shown"},
-            {&s_callout_fan_shown, "callout_fan_shown"},
-            {&s_callout_light_shown, "callout_light_shown"},
-            {&s_callout_light_on, "callout_light_on"},
-            {&s_callout_bed_heating, "callout_bed_heating"},
-            {&s_callout_bed_glow_level, "callout_bed_glow_level"},
-            {&s_callout_chamber_glow_level, "callout_chamber_glow_level"},
+            {std::addressof(s_printer_callout_mode), "printer_callout_mode"},
+            {std::addressof(s_callout_toolhead_merged), "callout_toolhead_merged"},
+            {std::addressof(s_callout_nozzle_shown), "callout_nozzle_shown"},
+            {std::addressof(s_callout_bed_shown), "callout_bed_shown"},
+            {std::addressof(s_callout_chamber_shown), "callout_chamber_shown"},
+            {std::addressof(s_callout_fan_shown), "callout_fan_shown"},
+            {std::addressof(s_callout_light_shown), "callout_light_shown"},
+            {std::addressof(s_callout_light_on), "callout_light_on"},
+            {std::addressof(s_callout_bed_heating), "callout_bed_heating"},
+            {std::addressof(s_callout_bed_glow_level), "callout_bed_glow_level"},
+            {std::addressof(s_callout_chamber_glow_level), "callout_chamber_glow_level"},
         };
         for (const auto& s : int_subjects) {
             // 0 doubles as CalloutMode::ImageOnly for the mode subject and as
             // "not shown"/"not merged"/"not heating" for the rest.
-            lv_subject_init_int(s.subject, 0);
-            s_subjects.publish(s.name, s.subject);
-            HELIX_SUBJECT_DEBUG_REGISTER(s.subject, s.name, LV_SUBJECT_TYPE_INT);
+            s.subject->init_int(0);
+            s_subjects.publish(s.name, s.subject->get());
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject->get(), s.name, LV_SUBJECT_TYPE_INT);
         }
 
         static const struct {
-            lv_subject_t* subject;
+            helix::Subject* subject;
             char* buf;
             size_t buf_size;
             const char* name;
         } text_subjects[] = {
-            {&s_callout_nozzle_text, s_callout_nozzle_text_buf, sizeof(s_callout_nozzle_text_buf),
-             "callout_nozzle_text"},
-            {&s_callout_bed_text, s_callout_bed_text_buf, sizeof(s_callout_bed_text_buf),
-             "callout_bed_text"},
-            {&s_callout_chamber_text, s_callout_chamber_text_buf,
+            {std::addressof(s_callout_nozzle_text), s_callout_nozzle_text_buf,
+             sizeof(s_callout_nozzle_text_buf), "callout_nozzle_text"},
+            {std::addressof(s_callout_bed_text), s_callout_bed_text_buf,
+             sizeof(s_callout_bed_text_buf), "callout_bed_text"},
+            {std::addressof(s_callout_chamber_text), s_callout_chamber_text_buf,
              sizeof(s_callout_chamber_text_buf), "callout_chamber_text"},
-            {&s_callout_fan_text, s_callout_fan_text_buf, sizeof(s_callout_fan_text_buf),
-             "callout_fan_text"},
-            {&s_callout_toolhead_text, s_callout_toolhead_text_buf,
+            {std::addressof(s_callout_fan_text), s_callout_fan_text_buf,
+             sizeof(s_callout_fan_text_buf), "callout_fan_text"},
+            {std::addressof(s_callout_toolhead_text), s_callout_toolhead_text_buf,
              sizeof(s_callout_toolhead_text_buf), "callout_toolhead_text"},
         };
         for (const auto& s : text_subjects) {
-            lv_subject_init_string(s.subject, s.buf, nullptr, s.buf_size, "");
-            s_subjects.publish(s.name, s.subject);
-            HELIX_SUBJECT_DEBUG_REGISTER(s.subject, s.name, LV_SUBJECT_TYPE_STRING);
+            s.subject->init_string(s.buf, nullptr, s.buf_size, "");
+            s_subjects.publish(s.name, s.subject->get());
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject->get(), s.name, LV_SUBJECT_TYPE_STRING);
         }
 
         spdlog::debug(
@@ -1014,7 +1017,7 @@ void PrinterImageWidget::apply_callout_layout() {
     lv_subject_set_int(&s_printer_callout_mode, static_cast<int>(out.mode));
     update_glow_pulses();
     for (const auto& t : kCalloutTexts)
-        publish_callout_text(t.subject, callout_full_text_[static_cast<size_t>(t.kind)]);
+        publish_callout_text(t.subject->get(), callout_full_text_[static_cast<size_t>(t.kind)]);
     if (presenter_.image_changed())
         schedule_image_refresh();
 }

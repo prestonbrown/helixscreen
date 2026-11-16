@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tile_color.h"
 
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
@@ -39,7 +40,7 @@ constexpr size_t kPaletteSize = std::size(kPalette);
 constexpr lv_opa_t kMutedShare = 110;
 
 /// Index of the ringed swatch, or -1.
-lv_subject_t s_selected_subject{};
+helix::Subject s_selected_subject{};
 /// tile_color_grid's swatches bind tile_color_swatch_color_<i>.
 std::unique_ptr<helix::xml::IndexedSubjectPool> s_color_pool;
 // Registered once with the widget factories, so it outlives a printer switch.
@@ -94,7 +95,7 @@ lv_color_t muted(lv_color_t custom, lv_color_t muted_ref) {
 void register_subjects() {
     s_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_selected_subject, -1);
+            s_selected_subject.init_int(-1);
             s_color_pool = std::make_unique<helix::xml::IndexedSubjectPool>(
                 "tile_color_swatch_color", helix::xml::IndexedSubjectPool::Type::Color);
             s_color_pool->ensure_size(kPaletteSize);

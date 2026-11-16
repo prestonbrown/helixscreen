@@ -16,6 +16,7 @@
 #include "bed_plate_context.h"
 #include "bed_plate_draw.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "helix_psram_attr.h"
 #include "home_macro_run.h"
@@ -58,36 +59,36 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_letters_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_z_only_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_rows_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_plate_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_home_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_homed_subjects[3]{};
-HELIX_PSRAM_BSS lv_subject_t s_x_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_y_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_z_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_tool_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_speed_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_plate_interactive_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_ghost_active_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_target_shown_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_ghost_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_letters_subject{};
+HELIX_PSRAM_BSS helix::Subject s_z_only_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_plate_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_home_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_homed_subjects[3]{};
+HELIX_PSRAM_BSS helix::Subject s_x_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_y_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_z_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_tool_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_speed_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_plate_interactive_subject{};
+HELIX_PSRAM_BSS helix::Subject s_ghost_active_subject{};
+HELIX_PSRAM_BSS helix::Subject s_target_shown_subject{};
+HELIX_PSRAM_BSS helix::Subject s_ghost_text_subject{};
 HELIX_PSRAM_BSS char s_x_text_buf[16];
 HELIX_PSRAM_BSS char s_y_text_buf[16];
 HELIX_PSRAM_BSS char s_z_text_buf[16];
 HELIX_PSRAM_BSS char s_tool_text_buf[32];
 HELIX_PSRAM_BSS char s_speed_text_buf[24];
 HELIX_PSRAM_BSS char s_ghost_text_buf[256];
-HELIX_PSRAM_BSS lv_subject_t s_show_presets_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_chip_icon_only_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_lift_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_presets_subject{};
+HELIX_PSRAM_BSS helix::Subject s_chip_icon_only_subject{};
+HELIX_PSRAM_BSS helix::Subject s_lift_text_subject{};
 HELIX_PSRAM_BSS char s_lift_text_buf[160];
-HELIX_PSRAM_BSS lv_subject_t s_preset_icon_subjects[helix::kToolheadPresetSlotCount]{};
-HELIX_PSRAM_BSS lv_subject_t s_preset_label_subjects[helix::kToolheadPresetSlotCount]{};
-HELIX_PSRAM_BSS lv_subject_t s_preset_state_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS helix::Subject s_preset_icon_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS helix::Subject s_preset_label_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS helix::Subject s_preset_state_subjects[helix::kToolheadPresetSlotCount]{};
 HELIX_PSRAM_BSS char s_preset_icon_bufs[helix::kToolheadPresetSlotCount][32];
 HELIX_PSRAM_BSS char s_preset_label_bufs[helix::kToolheadPresetSlotCount][64];
 helix::WidgetSubjects s_subjects{"ToolheadWidgetSubjects"};

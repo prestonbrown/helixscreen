@@ -8,6 +8,7 @@
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
@@ -35,7 +36,7 @@ static constexpr uint32_t kTipRotationIntervalMs = 60000;
 static constexpr uint32_t kTipFadeDurationMs = 300;
 
 // Subject owned by TipsWidget module — created before XML bindings resolve
-static lv_subject_t s_status_subject;
+static helix::Subject s_status_subject;
 static HELIX_PSRAM_BSS char s_status_buffer[512];
 static helix::WidgetSubjects s_subjects{"TipsWidgetSubjects"};
 
@@ -69,8 +70,8 @@ static int tips_component_px(const char* name) {
 
 static void tips_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_string(&s_status_subject, s_status_buffer, nullptr, sizeof(s_status_buffer),
-                               "Welcome to HelixScreen");
+        s_status_subject.init_string(s_status_buffer, nullptr, sizeof(s_status_buffer),
+                                     "Welcome to HelixScreen");
         s_subjects.publish("status_text", &s_status_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING);
 

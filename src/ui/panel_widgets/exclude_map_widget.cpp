@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "bed_dimensions.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "observe_language.h"
@@ -44,18 +45,18 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_placeholder_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_map_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_skip_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_has_current_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_count_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_objects_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_skipped_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_printing_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_current_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_placeholder_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_placeholder_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_map_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_skip_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_has_current_subject{};
+HELIX_PSRAM_BSS helix::Subject s_count_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_objects_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_skipped_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_printing_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_current_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_placeholder_text_subject{};
 HELIX_PSRAM_BSS char s_count_text_buf[16];
 HELIX_PSRAM_BSS char s_objects_text_buf[32];
 HELIX_PSRAM_BSS char s_skipped_text_buf[32];

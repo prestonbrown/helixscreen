@@ -8,6 +8,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "panel_widget.h"
 #include "sensor_state.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
@@ -171,19 +172,19 @@ class PowerDeviceWidget : public TiledPanelWidget {
     // This instance's tile state, bound by its component. Owned per instance
     // because two power tiles can sit on the home grid at once.
     /// 1 while a device is configured, so the state line is drawn.
-    lv_subject_t has_status_subject_{};
+    helix::Subject has_status_subject_{};
     /// 0=off, 1=on, 2=locked, -1=unconfigured: the lock overlay follows it.
-    lv_subject_t state_subject_{};
+    helix::Subject state_subject_{};
     /// 1 while name_subject_ holds a name; 0 draws the "Configure" prompt.
-    lv_subject_t named_subject_{};
-    lv_subject_t name_subject_{};
+    helix::Subject named_subject_{};
+    helix::Subject name_subject_{};
     char name_buf_[128] = {};
-    lv_subject_t status_text_subject_{};
+    helix::Subject status_text_subject_{};
     char status_text_buf_[32] = {};
     /// The badge disc's fill and opacity and the state line's colour.
-    lv_subject_t accent_subject_{};
-    lv_subject_t badge_opa_subject_{};
-    lv_subject_t status_color_subject_{};
+    helix::Subject accent_subject_{};
+    helix::Subject badge_opa_subject_{};
+    helix::Subject status_color_subject_{};
     SubjectManager subjects_;
 
     static TileSizing::Content status_content(bool has_status) {
