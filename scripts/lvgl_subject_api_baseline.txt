@@ -73,7 +73,7 @@
 1 include/ui_color_picker.h
 3 include/ui_crash_report_modal.h
 5 include/ui_debug_bundle_modal.h
-6 include/ui_emergency_stop.h
+5 include/ui_emergency_stop.h
 2 include/ui_exclude_object_map_view.h
 1 include/ui_fan_control_overlay.h
 3 include/ui_filament_product_edit_modal.h
