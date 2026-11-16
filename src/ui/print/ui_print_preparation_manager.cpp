@@ -14,6 +14,7 @@
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_edit_list.h"
@@ -311,7 +312,7 @@ bool PrintPreparationManager::restart_stale_macro_analysis() {
 
 void PrintPreparationManager::ensure_estimate_subject_initialized() {
     if (!estimate_subject_initialized_) {
-        lv_subject_init_int(&preprint_estimate_subject_, 0);
+        preprint_estimate_subject_.init_int(0);
         subjects_.register_subject(&preprint_estimate_subject_);
         estimate_subject_initialized_ = true;
     }

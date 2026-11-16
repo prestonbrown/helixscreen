@@ -10,6 +10,7 @@
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
 #include "sound_manager.h"
@@ -92,19 +93,19 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
 void PrintSelectCardView::clear_cached_state() {
     stop_prebuild();
 
-    // Deinitialize subjects - this properly removes all attached observers.
-    // We use lv_subject_deinit() instead of lv_observer_delete() because
+    // Reset subjects - this properly removes all attached observers.
+    // We reset each subject instead of calling lv_observer_delete() because
     // widget-bound observers (from lv_label_bind_text, lv_obj_bind_flag_if_*)
     // can be auto-removed by LVGL when widgets are deleted, leaving dangling
     // pointers. Working from the subject side is always safe since we own them.
     if (lv_is_initialized()) {
         for (auto& data : card_data_pool_) {
             if (data) {
-                lv_subject_deinit(&data->filename_subject);
-                lv_subject_deinit(&data->time_subject);
-                lv_subject_deinit(&data->filament_subject);
-                lv_subject_deinit(&data->folder_type_subject);
-                lv_subject_deinit(&data->thumbnail_state_subject);
+                data->filename_subject.reset();
+                data->time_subject.reset();
+                data->filament_subject.reset();
+                data->folder_type_subject.reset();
+                data->thumbnail_state_subject.reset();
             }
         }
     }
@@ -290,16 +291,15 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             // Create per-card data with subjects for declarative text binding
             auto data = std::make_unique<CardWidgetData>();
 
-            lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
-                                   sizeof(data->filename_buf), "");
-            lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
-                                   sizeof(data->time_buf), "--");
-            lv_subject_init_string(&data->filament_subject, data->filament_buf, nullptr,
-                                   sizeof(data->filament_buf), "--");
+            data->filename_subject.init_string(data->filename_buf, nullptr,
+                                               sizeof(data->filename_buf), "");
+            data->time_subject.init_string(data->time_buf, nullptr, sizeof(data->time_buf), "--");
+            data->filament_subject.init_string(data->filament_buf, nullptr,
+                                               sizeof(data->filament_buf), "--");
             // folder_type: 0=file, 1=directory, 2=parent directory (..)
-            lv_subject_init_int(&data->folder_type_subject, 0);
+            data->folder_type_subject.init_int(0);
             // thumbnail_state: 0=real thumbnail, 1=placeholder (show icon), 2=directory
-            lv_subject_init_int(&data->thumbnail_state_subject, 1);
+            data->thumbnail_state_subject.init_int(1);
 
             lv_obj_t* filename_label = lv_obj_find_by_name(card, "filename_label");
             if (filename_label) {

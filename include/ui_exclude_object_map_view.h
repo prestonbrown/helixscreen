@@ -7,6 +7,7 @@
 #include "bed_coord_mapper.h"
 #include "bed_dimensions.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "gcode_parser.h"
 #include "instance_subjects.h"
 
@@ -109,9 +110,9 @@ class ExcludeObjectMapView {
     // The interactive map's plate size line and empty-state flag. Published per
     // view under unique names: the print status overlay and a home tile can each
     // hold a map at once.
-    lv_subject_t dims_text_{};
+    helix::Subject dims_text_{};
     char dims_buf_[32] = {};
-    lv_subject_t has_objects_{};
+    helix::Subject has_objects_{};
     helix::InstanceSubjects view_subjects_{"exclude_map"}; ///< After the subjects it publishes
 
     // The printer's bed, and the extent the map shows (the objects plus a

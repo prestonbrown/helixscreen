@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl/lvgl.h>
@@ -122,7 +123,7 @@ class PrintLightTimelapseControls {
 
     ObserverGuard led_state_observer_;
     ObserverGuard language_observer_;
-    lv_subject_t light_button_subject_{};
+    helix::Subject light_button_subject_{};
     char light_button_buf_[8] = "\xF3\xB0\x8C\xB6"; // MDI lightbulb_outline (off state)
 
     //
@@ -131,7 +132,7 @@ class PrintLightTimelapseControls {
 
     bool timelapse_enabled_ = false;
     ObserverGuard timelapse_enabled_observer_;
-    lv_subject_t timelapse_button_subject_{};
+    helix::Subject timelapse_button_subject_{};
     char timelapse_button_buf_[8] = ""; // MDI video/video-off icon
 
     helix::AsyncLifetimeGuard lifetime_;

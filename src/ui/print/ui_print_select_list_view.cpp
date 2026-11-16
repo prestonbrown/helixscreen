@@ -9,6 +9,7 @@
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -63,17 +64,17 @@ bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_c
 }
 
 void PrintSelectListView::clear_cached_state() {
-    // Deinitialize subjects - this properly removes all attached observers.
-    // We use lv_subject_deinit() instead of lv_observer_delete() because
+    // Reset subjects - this properly removes all attached observers.
+    // We reset each subject instead of calling lv_observer_delete() because
     // widget-bound observers can be auto-removed by LVGL when widgets are
     // deleted, leaving dangling pointers.
     if (lv_is_initialized()) {
         for (auto& data : list_data_pool_) {
             if (data) {
-                lv_subject_deinit(&data->filename_subject);
-                lv_subject_deinit(&data->size_subject);
-                lv_subject_deinit(&data->modified_subject);
-                lv_subject_deinit(&data->time_subject);
+                data->filename_subject.reset();
+                data->size_subject.reset();
+                data->modified_subject.reset();
+                data->time_subject.reset();
             }
         }
     }
@@ -139,14 +140,12 @@ void PrintSelectListView::init_pool() {
             // Create per-row data with subjects
             auto data = std::make_unique<ListRowWidgetData>();
 
-            lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
-                                   sizeof(data->filename_buf), "");
-            lv_subject_init_string(&data->size_subject, data->size_buf, nullptr,
-                                   sizeof(data->size_buf), "--");
-            lv_subject_init_string(&data->modified_subject, data->modified_buf, nullptr,
-                                   sizeof(data->modified_buf), "--");
-            lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
-                                   sizeof(data->time_buf), "--");
+            data->filename_subject.init_string(data->filename_buf, nullptr,
+                                               sizeof(data->filename_buf), "");
+            data->size_subject.init_string(data->size_buf, nullptr, sizeof(data->size_buf), "--");
+            data->modified_subject.init_string(data->modified_buf, nullptr,
+                                               sizeof(data->modified_buf), "--");
+            data->time_subject.init_string(data->time_buf, nullptr, sizeof(data->time_buf), "--");
 
             lv_obj_t* filename_label =
                 helix::ui::find_required(row, "row_filename", "PrintSelectListView");

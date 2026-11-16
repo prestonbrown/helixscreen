@@ -4,6 +4,7 @@
 #include "ui_print_cancel_modal.h"
 
 #include "core/observer_guard.h"
+#include "core/subject.h"
 #include "print_control_view.h"
 #include "print_job_ref.h"
 #include "subject_managed_panel.h"
@@ -214,11 +215,11 @@ class PrintControlButtons {
     bool cancel_for_printer_start_ = false;
 
     SubjectManager subjects_;
-    lv_subject_t primary_icon_subject_{};
-    lv_subject_t primary_label_subject_{};
-    lv_subject_t primary_enabled_subject_{};
-    lv_subject_t stop_enabled_subject_{};
-    lv_subject_t pending_action_subject_{};
+    helix::Subject primary_icon_subject_{};
+    helix::Subject primary_label_subject_{};
+    helix::Subject primary_enabled_subject_{};
+    helix::Subject stop_enabled_subject_{};
+    helix::Subject pending_action_subject_{};
     char primary_icon_buf_[32] = "\xF3\xB0\x8F\xA4";
     char primary_label_buf_[16] = "Pause";
 

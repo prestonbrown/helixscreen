@@ -6,6 +6,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
@@ -105,9 +106,9 @@ class TimelapseVideosOverlay : public OverlayBase {
 
     SubjectManager subjects_;
     /// 1 = the listing came back with no video: the empty state replaces the grid
-    lv_subject_t videos_empty_subject_{};
+    helix::Subject videos_empty_subject_{};
     /// 1 = a player exists on this host, so each card carries the play glyph
-    lv_subject_t can_play_subject_{};
+    helix::Subject can_play_subject_{};
 
     void on_ui_destroyed() override {
         thumb_lifetime_.invalidate();

@@ -8,6 +8,7 @@
 
 #include "core/http_executor.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "print_file_data.h"
@@ -64,30 +65,30 @@ UsbScan scan_usb_drives(UsbBackend& backend, const std::vector<UsbDrive>& drives
 }
 
 // Subject for source tab state: 0 = Printer (default), 1 = USB
-static lv_subject_t s_print_source_is_usb;
+static helix::Subject s_print_source_is_usb;
 // Whether at least one USB drive is currently connected.
-static lv_subject_t s_print_source_usb_present;
+static helix::Subject s_print_source_usb_present;
 // Whether Moonraker has direct symlink access to USB files (e.g. Klipper's
 // mod creates gcodes/usb -> /media/sda1) — when true, our own source
 // selector is redundant, since the files already show up under Printer.
-static lv_subject_t s_print_source_moonraker_usb_access;
+static helix::Subject s_print_source_moonraker_usb_access;
 static bool s_source_subject_initialized = false;
 static SubjectManager s_subjects;
 
 void PrintSelectUsbSource::init_subjects() {
     if (s_source_subject_initialized)
         return;
-    lv_subject_init_int(&s_print_source_is_usb, 0);
+    s_print_source_is_usb.init_int(0);
     s_subjects.publish("print_source_is_usb", &s_print_source_is_usb);
     HELIX_SUBJECT_DEBUG_REGISTER(&s_print_source_is_usb, "print_source_is_usb",
                                  LV_SUBJECT_TYPE_INT);
 
-    lv_subject_init_int(&s_print_source_usb_present, 0);
+    s_print_source_usb_present.init_int(0);
     s_subjects.publish("print_source_usb_present", &s_print_source_usb_present);
     HELIX_SUBJECT_DEBUG_REGISTER(&s_print_source_usb_present, "print_source_usb_present",
                                  LV_SUBJECT_TYPE_INT);
 
-    lv_subject_init_int(&s_print_source_moonraker_usb_access, 0);
+    s_print_source_moonraker_usb_access.init_int(0);
     s_subjects.publish("print_source_moonraker_usb_access", &s_print_source_moonraker_usb_access);
     HELIX_SUBJECT_DEBUG_REGISTER(&s_print_source_moonraker_usb_access,
                                  "print_source_moonraker_usb_access", LV_SUBJECT_TYPE_INT);

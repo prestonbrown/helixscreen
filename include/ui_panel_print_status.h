@@ -34,6 +34,7 @@ struct MemoryInfo;
 #include "ui_print_status_more_menu.h"
 #include "ui_print_status_tiles.h"
 
+#include "core/subject.h"
 #include "filament_mapper.h" // helix::GcodeToolInfo
 #include "print_preview_controller.h"
 #include "print_progress_text.h"
@@ -357,40 +358,40 @@ class PrintStatusPanel : public OverlayBase {
 
     SubjectManager subjects_; ///< RAII manager for automatic subject cleanup
 
-    lv_subject_t
+    helix::Subject
         view_toggle_icon_subject_{}; ///< MDI codepoint for btn_view_toggle_icon (cube/layers)
 
     // Preparing state subjects
-    lv_subject_t preparing_visible_subject_{};  // int: 1 if preparing, 0 otherwise
-    lv_subject_t preparing_progress_subject_{}; // int: 0-100 progress percentage
+    helix::Subject preparing_visible_subject_{};  // int: 1 if preparing, 0 otherwise
+    helix::Subject preparing_progress_subject_{}; // int: 0-100 progress percentage
 
     // Viewer mode subject (0=thumbnail mode, 1=gcode viewer mode)
-    lv_subject_t gcode_viewer_mode_subject_{};
+    helix::Subject gcode_viewer_mode_subject_{};
 
     // 1 while the exclude-object overhead map overlay covers the thumbnail
     // section; drives XML bindings that hide print_thumbnail/gradient underneath.
-    lv_subject_t exclude_map_active_subject_{};
+    helix::Subject exclude_map_active_subject_{};
 
     // print_status_camera_available: 1 when this screen may show the printer's
     // camera (a webcam, a remote screen, platform extras). Shared by the
     // preview card's camera button and the More menu's Camera row.
-    lv_subject_t camera_available_subject_{};
+    helix::Subject camera_available_subject_{};
     // print_status_camera_showing: 1 while the preview card shows the camera
     // in place of the preview (available, chosen, exclude map closed).
-    lv_subject_t camera_showing_subject_{};
+    helix::Subject camera_showing_subject_{};
     // print_status_camera_has_frame: 1 once the running stream's first frame
     // is on screen; hides the connecting indicator.
-    lv_subject_t camera_has_frame_subject_{};
+    helix::Subject camera_has_frame_subject_{};
 
     // 1 once the user taps the print end overlay to dismiss it. Reset to 0
     // on new-print transitions so the next outcome's overlay appears normally.
-    lv_subject_t end_overlay_dismissed_subject_{};
+    helix::Subject end_overlay_dismissed_subject_{};
 
     // The tile arrangement PrintStatusLayoutFitter measures (ps_arrangement,
     // ps_strip_stacked, ps_checklist_compact).
-    lv_subject_t arrangement_subject_{};
-    lv_subject_t strip_stacked_subject_{};
-    lv_subject_t checklist_compact_subject_{};
+    helix::Subject arrangement_subject_{};
+    helix::Subject strip_stacked_subject_{};
+    helix::Subject checklist_compact_subject_{};
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;
@@ -402,26 +403,26 @@ class PrintStatusPanel : public OverlayBase {
     // independent XML bind_flag observers on the same hidden flag raced at
     // startup (issue L042) — the second observer unhid the overlay even when
     // outcome was NONE. Computed in recompute_end_overlay_visibility().
-    lv_subject_t show_complete_overlay_subject_{};
-    lv_subject_t show_cancelled_overlay_subject_{};
-    lv_subject_t show_error_overlay_subject_{};
+    helix::Subject show_complete_overlay_subject_{};
+    helix::Subject show_cancelled_overlay_subject_{};
+    helix::Subject show_error_overlay_subject_{};
 
     // Pause overlay: 1 iff print_state_enum == PAUSED. Not gated on a
     // dismiss flag — paused is a transient runtime state, not a terminal
     // outcome, so the overlay auto-clears when the print resumes/ends.
-    lv_subject_t show_paused_overlay_subject_{};
+    helix::Subject show_paused_overlay_subject_{};
     // Optional reason text shown as a second label *inside* the bubble below the
     // title (print_stats.message from Klipper, or "Filament Runout" derived from
     // a tripped sensor). The visible flag drives the reason label's hidden flag.
-    lv_subject_t print_pause_reason_subject_{};
-    lv_subject_t print_pause_reason_visible_subject_{};
+    helix::Subject print_pause_reason_subject_{};
+    helix::Subject print_pause_reason_visible_subject_{};
 
-    lv_subject_t exclude_objects_available_subject_{}; ///< Int: 1 if multi-object print
-    lv_subject_t objects_text_subject_{};              ///< String: "X of Y obj" display text
+    helix::Subject exclude_objects_available_subject_{}; ///< Int: 1 if multi-object print
+    helix::Subject objects_text_subject_{};              ///< String: "X of Y obj" display text
 
     // Button enable subjects — XML bind_state_if_eq drives LV_STATE_DISABLED
     // declaratively based on lifecycle state and macro-slot availability.
-    lv_subject_t print_controls_enabled_subject_{}; ///< 1 when lifecycle.is_active()
+    helix::Subject print_controls_enabled_subject_{}; ///< 1 when lifecycle.is_active()
 
     // Subject storage buffers
     char objects_text_buf_[32] = "";        ///< "X of Y obj" buffer
