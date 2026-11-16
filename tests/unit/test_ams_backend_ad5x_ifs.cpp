@@ -648,7 +648,7 @@ TEST_CASE("AD5X IFS set_tool_mapping emits IFS_MAP_TOOL", "[ams][ad5x_ifs]") {
     // The wire owns the table: no optimistic local write, so a firmware
     // refusal (a lane with no filament) leaves get_tool_mapping() reporting
     // what the printer actually has until an echo frame lands.
-    REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[2] == 3);
+    REQUIRE(backend.get_tool_mapping()[2] == 2);
 
     // The echo frame is what promotes the new mapping.
     backend.fire_status(make_ifs_frame(json{{"0", 1}, {"1", 2}, {"2", 4}, {"3", 4}}));
