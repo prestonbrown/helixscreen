@@ -1029,8 +1029,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             // the row has no height for.
             lv_label_set_long_mode(mat,
                                    ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
-            if (ellipsize)
-                helix::ui::label_hold_one_line(mat);
+            lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
             lv_obj_set_style_text_opa(mat, text_opa, LV_PART_MAIN);
             // Same helper measure_widest_material() sized text_w from, so the
             // string drawn here is the one the column was reserved for.
