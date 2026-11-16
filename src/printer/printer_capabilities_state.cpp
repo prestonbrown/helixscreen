@@ -13,6 +13,7 @@
 #include "core/update_queue.h"
 #include "layer_pause.h"
 #include "lvgl.h"
+#include "motor_ripple_view.h"
 #include "pa_calibration.h"
 #include "printer_fan_state.h"
 #include "sound_manager.h"
@@ -71,6 +72,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
+    {Capability::SupportsRippleCheck, "printer_supports_ripple_check", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
     {Capability::HasExtraFans, "printer_has_extra_fans", 0},
@@ -301,6 +303,13 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
                    helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
+    set_capability(
+        Capability::SupportsRippleCheck,
+        helix::calibration::ripple::ripple_check_supported(
+            hardware.kinematics(), hardware.has_accelerometer(),
+            hardware.motor_geometry(helix::calibration::ripple::MotorId::StepperX).has_value())
+            ? 1
+            : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 
