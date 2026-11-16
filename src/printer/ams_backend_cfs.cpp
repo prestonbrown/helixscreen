@@ -1413,6 +1413,12 @@ void AmsBackendCfs::file_box_readings(const AmsSystemInfo& new_info,
                 if (slot.spoolman_id > 0)
                     cache.spoolman_id = slot.spoolman_id;
                 helix::ams::ingest(lane, cache);
+                // The flat schema states what the box holds, set by
+                // _BOX_SLOT_SET or read off a tag, without saying which, so
+                // none of it is a tag reading.
+                if (schema_ == CfsSchema::Flat) {
+                    continue;
+                }
                 // The temperatures are the catalog's for the material code.
                 helix::ams::keep_tag_reading(
                     tag_readings_, slot.global_index, cache,
@@ -2290,7 +2296,14 @@ AmsError AmsBackendCfs::reset() {
     auto err = check_preconditions();
     if (err.result != AmsResult::SUCCESS)
         return err;
-    return execute_gcode(reset_gcode());
+    const std::string gcode = reset_gcode(macro_variant_);
+    if (gcode.empty()) {
+        // Nothing to clear on this dialect: re-read the box so the sidebar
+        // shows what the firmware holds now.
+        query_box_state();
+        return AmsErrorHelper::success();
+    }
+    return execute_gcode(gcode);
 }
 
 AmsError AmsBackendCfs::recover() {
@@ -2499,11 +2512,14 @@ AmsError AmsBackendCfs::push_slot_identity_to_firmware(
             }
         }
         // `_BOX_SLOT_SET` requires a material, so an edit that empties it
-        // empties the slot's profile.
-        const std::string gcode =
-            info.material.empty() ? "_BOX_SLOT_CLEAR SLOT=" + std::to_string(firmware_slot)
-                                  : slot_set_gcode(firmware_slot, info.material, color_rgb,
-                                                   info.brand, info.spool_name, info.spoolman_id);
+        // empties the slot's profile. NAME is the product the bay holds, which
+        // the box reports back as the product (file_box_readings), so a catalog
+        // pick writes the product's name; without one, the spool's own name.
+        const std::string& name = info.product_name.empty() ? info.spool_name : info.product_name;
+        const std::string gcode = info.material.empty()
+                                      ? "_BOX_SLOT_CLEAR SLOT=" + std::to_string(firmware_slot)
+                                      : slot_set_gcode(firmware_slot, info.material, color_rgb,
+                                                       info.brand, name, info.spoolman_id);
         if (gcode.empty()) {
             return AmsErrorHelper::invalid_slot(lane_noun(), global_index,
                                                 system_info_.total_slots - 1);
@@ -3860,14 +3876,16 @@ std::optional<helix::ErrorEvent> AmsBackendCfs::current_error() const {
     // "load failed" modal, and nobody on the project has a CFS to prove it out.
     // Tracked with the rest of the K1 hardware work in #968.
     std::vector<helix::RecoveryAction> actions;
-    actions.push_back({lv_tr("Reset CFS"), reset_gcode(), "cfs::error_clear", "danger"});
+    if (const std::string clear = reset_gcode(macro_variant_); !clear.empty()) {
+        actions.push_back({lv_tr("Reset CFS"), clear, "cfs::error_clear", "danger"});
+    }
     return helix::make_ams_fault_event(helix::ErrorSource::CFS, lv_tr("Filament operation failed"),
                                        lv_tr(system_info_.operation_detail.c_str()),
                                        std::move(actions));
 }
 
-std::string AmsBackendCfs::reset_gcode() {
-    return "BOX_ERROR_CLEAR";
+std::string AmsBackendCfs::reset_gcode(CfsMacroVariant variant) {
+    return variant == CfsMacroVariant::Fork ? std::string{} : std::string{"BOX_ERROR_CLEAR"};
 }
 
 std::string AmsBackendCfs::recover_gcode(CfsMacroVariant variant) {
@@ -3886,7 +3904,7 @@ std::string AmsBackendCfs::recover_gcode(CfsMacroVariant variant) {
     // already prefers it on K2: the firmware reaches the box half of recovery FROM
     // RESUME, and it is the only command that also restarts the job. A latched box
     // error still needs reset_gcode() (BOX_ERROR_CLEAR), which K1 does have.
-    return variant == CfsMacroVariant::K1 ? "RESUME" : "BOX_ERROR_RESUME_PROCESS";
+    return variant == CfsMacroVariant::K2 ? "BOX_ERROR_RESUME_PROCESS" : "RESUME";
 }
 
 // --- Error-center bridge ---
@@ -3913,7 +3931,9 @@ std::vector<helix::RecoveryAction> AmsBackendCfs::build_recovery_actions() const
     // classifier offers for key840 so the button reads the same wherever it
     // appears; reset_gcode() rather than a second "BOX_ERROR_CLEAR" literal.
     // Clears state only — no filament moves, so it stays tappable cold.
-    actions.push_back({lv_tr("Reset CFS"), reset_gcode(), "cfs::error_clear", "danger"});
+    if (const std::string clear = reset_gcode(macro_variant_); !clear.empty()) {
+        actions.push_back({lv_tr("Reset CFS"), clear, "cfs::error_clear", "danger"});
+    }
     return actions;
 }
 
@@ -4163,15 +4183,21 @@ std::vector<helix::printer::DeviceSection> AmsBackendCfs::get_device_sections() 
 
 std::vector<helix::printer::DeviceAction> AmsBackendCfs::get_device_actions() const {
     using DA = helix::printer::DeviceAction;
-    std::vector<DA> actions = {
-        DA::button("refresh_rfid", "Refresh RFID", "maintenance", "",
-                   "Re-read spool RFID tags and remaining length"),
+    std::vector<DA> actions;
+    // The Fork reads tags on insert and at startup and has no command to
+    // re-read one.
+    if (macro_variant_ != CfsMacroVariant::Fork) {
+        actions.push_back(DA::button("refresh_rfid", "Refresh RFID", "maintenance", "",
+                                     "Re-read spool RFID tags and remaining length"));
+    }
+    std::vector<DA> common = {
         DA::button("nozzle_clean", "Clean Nozzle", "maintenance", "",
                    "Wipe nozzle on silicone cleaning strip")
             .with_machine_motion(),
         DA::button("comm_test", "Communication Test", "maintenance", "",
                    "Test RS-485 link to CFS units"),
     };
+    actions.insert(actions.end(), common.begin(), common.end());
     // Every calibration action moves the toolhead (the cutter and chute home it,
     // the K2 belt macro may), and only one calibration may run at a time.
     std::vector<DA> calibration;
@@ -4236,7 +4262,8 @@ AmsError AmsBackendCfs::do_execute_device_action(const std::string& action_id,
     }
 
     if (action_id == "nozzle_clean") {
-        return execute_gcode("BOX_NOZZLE_CLEAN");
+        return execute_gcode(macro_variant_ == CfsMacroVariant::Fork ? "NOZZLE_CLEAN"
+                                                                     : "BOX_NOZZLE_CLEAN");
     }
 
     if (action_id == "comm_test") {

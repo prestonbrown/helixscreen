@@ -161,6 +161,9 @@ class CfsRemapHelper : public AmsBackendCfs {
         info.color_rgb = color_rgb;
         return push_slot_identity_to_firmware(slot, info);
     }
+    AmsError push_info(int slot, const SlotInfo& info) {
+        return push_slot_identity_to_firmware(slot, info);
+    }
 
     // Capture the assembled load/swap/unload script that change_tool /
     // load_filament / unload_filament hand to dispatch_action_script. Returns
@@ -6372,6 +6375,64 @@ TEST_CASE("CFS fork: commands name the firmware slot, not the bay position",
     SECTION("slot clear") {
         backend.push(6, "", "", "", kAmsDefaultSlotColor);
         CHECK(backend.captured == std::vector<std::string>{"_BOX_SLOT_CLEAR SLOT=6"});
+    }
+
+    // The box's NAME is the product the bay holds, the same field it reports
+    // back as the product, so a catalog pick writes the product's name.
+    SECTION("slot identity write names the product") {
+        SlotInfo info;
+        info.material = "PLA";
+        info.brand = "Creality";
+        info.color_rgb = 0xD74242;
+        info.product_name = "Hyper PLA";
+        REQUIRE(backend.push_info(6, info).success());
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0].find(R"( NAME="Hyper PLA" )") != std::string::npos);
+    }
+    SECTION("with no product the spool's own name is written") {
+        SlotInfo info;
+        info.material = "PLA";
+        info.brand = "Creality";
+        info.color_rgb = 0xD74242;
+        info.spool_name = "Shelf 3 red";
+        REQUIRE(backend.push_info(6, info).success());
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0].find(R"( NAME="Shelf 3 red" )") != std::string::npos);
+    }
+}
+
+// The fork's slots[] states what the box holds, set by _BOX_SLOT_SET or read
+// off a tag, and says nothing about which: none of it is badged as a tag read.
+TEST_CASE("CFS fork: slot data is not a tag reading", "[ams][cfs][fork][tag_link]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    backend.fire_status(make_cfs_notification(make_flat_fork_box()));
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+    CHECK_FALSE(backend.tag_reading(0));
+    CHECK_FALSE(backend.tag_reading(2));
+}
+
+// The fork's box.py registers NOZZLE_CLEAN and no error-clear, error-resume
+// or tag re-read command (Jacob10383/k2-plus-custom-firmware extras/box.py).
+TEST_CASE("CFS fork: buttons send only commands the fork registers", "[ams][cfs][fork]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    backend.fire_status(make_cfs_notification(make_flat_fork_box()));
+    backend.captured.clear();
+
+    SECTION("Reset sends no stock error clear") {
+        REQUIRE(backend.reset().success());
+        CHECK(backend.captured.empty());
+    }
+    SECTION("Recover resumes through RESUME") {
+        REQUIRE(backend.recover().success());
+        CHECK(backend.captured == std::vector<std::string>{"RESUME"});
+    }
+    SECTION("Clean Nozzle sends the fork's NOZZLE_CLEAN") {
+        REQUIRE(find_action(backend, "nozzle_clean").has_value());
+        REQUIRE(backend.execute_device_action("nozzle_clean", {}).success());
+        CHECK(backend.captured == std::vector<std::string>{"NOZZLE_CLEAN"});
+    }
+    SECTION("Refresh RFID is not offered") {
+        CHECK_FALSE(find_action(backend, "refresh_rfid").has_value());
     }
 }
 

@@ -2358,6 +2358,38 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unknown material shows as its own selected 
     CHECK(access.working_info().brand == "NoName Co");
 }
 
+// Firmware that reports a product by name and carries no catalog id (the CFS
+// fork's NAME) opens on that product, not the brand's first line.
+TEST_CASE_METHOD(LVGLUITestFixture, "a product named without a catalog id opens selected",
+                 "[ams_edit_overlay][dropdown][product]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.material = "PLA";
+    info.brand = "Creality";
+    REQUIRE(info.catalog_id.empty());
+
+    SECTION("a catalog product") {
+        info.product_name = "Hyper PLA";
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.dropdown_selected("dropdown_product") == "Hyper PLA");
+        CHECK(access.sel().product_id == "creality-hyper-pla");
+        CHECK_FALSE(access.is_dirty());
+    }
+    SECTION("a name the catalog does not carry") {
+        info.product_name = "Shop Special";
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.dropdown_selected("dropdown_product") == "Shop Special");
+        CHECK(access.sel().product_id.empty());
+    }
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
                  "[ams_edit_overlay][weight]") {
     auto& overlay = get_ams_edit_overlay();

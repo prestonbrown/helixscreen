@@ -3535,15 +3535,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "a Snapmaker entry with no card behind it is n
 TEST_CASE_METHOD(LVGLTestFixture, "a CFS bay's tag reading outlives a user's edit",
                  "[lane][cfs][tag_reading]") {
     CfsHarness harness;
-    const nlohmann::json box = flat_box(nlohmann::json::array({nlohmann::json{{"index", 0},
-                                                                              {"material", "PETG"},
-                                                                              {"brand", "Creality"},
-                                                                              {"color", "#ED2C2C"},
-                                                                              {"present", true}}}));
+    const nlohmann::json box =
+        stock_box("T1", nlohmann::json{{"vender", nlohmann::json::array({"Creality"})},
+                                       {"remain_len", nlohmann::json::array({"100"})},
+                                       {"color_value", nlohmann::json::array({"0ED2C2C"})},
+                                       {"material_type", nlohmann::json::array({"101001"})}});
     feed_cfs_box(*harness, box);
 
     REQUIRE(harness->tag_reading(0).has_value());
-    CHECK(harness->tag_reading(0)->material == "PETG");
+    CHECK(harness->tag_reading(0)->material == "PLA");
     CHECK(harness->tag_provenance(0).from_tag(TagField::Brand));
 
     auto edit = harness->get_slot_info(0);
@@ -3557,7 +3557,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a CFS bay's tag reading outlives a user's edi
     REQUIRE(shown.color_rgb == 0x00FF00u);
     const auto tag = harness->tag_reading(0);
     REQUIRE(tag.has_value());
-    CHECK(tag->material == "PETG");
+    CHECK(tag->material == "PLA");
     CHECK(tag->color_rgb == std::optional<uint32_t>(0xED2C2Cu));
     const auto p = harness->tag_provenance(0);
     CHECK_FALSE(p.from_tag(TagField::Material));
@@ -3565,7 +3565,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a CFS bay's tag reading outlives a user's edi
     CHECK(p.from_tag(TagField::Brand));
 
     const auto reset = helix::ams::reset_to_tag(shown, *tag);
-    CHECK(reset.material == "PETG");
+    CHECK(reset.material == "PLA");
     CHECK(reset.color_rgb == 0xED2C2Cu);
 }
 
@@ -3689,8 +3689,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "a restart forgets the box's tag readings",
         CfsHarness harness;
         feed_cfs_box(
             *harness,
-            flat_box(nlohmann::json::array({nlohmann::json{
-                {"index", 0}, {"material", "PETG"}, {"color", "#ED2C2C"}, {"present", true}}})));
+            stock_box("T1", nlohmann::json{{"vender", nlohmann::json::array({"Creality"})},
+                                           {"remain_len", nlohmann::json::array({"100"})},
+                                           {"color_value", nlohmann::json::array({"0ED2C2C"})},
+                                           {"material_type", nlohmann::json::array({"101001"})}}));
         REQUIRE(harness->tag_reading(0).has_value());
         CfsTestAccess::call_on_started(*harness);
         CHECK_FALSE(harness->tag_reading(0).has_value());
