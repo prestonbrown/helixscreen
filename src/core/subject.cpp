@@ -86,7 +86,8 @@ void release_node(lv_subject_t* node) {
     if (helix::ui::UpdateQueue::destroyed()) {
         return; // atexit chain: the process is ending and LVGL keeps the node in its list
     }
-    helix::ui::queue_update(kSubjectReleaseTag, [node]() {
+    // The literal is kSubjectReleaseTag; queue_update tags must be literals at the call.
+    helix::ui::queue_update("helix::Subject::release_node", [node]() {
         if (lv_is_initialized()) {
             lv_subject_delete(node);
         }
