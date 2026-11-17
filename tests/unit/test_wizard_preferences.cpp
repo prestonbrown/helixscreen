@@ -56,10 +56,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Preference rows write the same setting as t
     auto& settings = SettingsManager::instance();
     settings.init_subjects();
 
+    auto& audio = helix::AudioSettingsManager::instance();
+    const int volume = audio.get_volume();
+    audio.set_volume(42);
     auto* step = helix::wizard::get_wizard_preferences_step();
     step->register_callbacks();
     lv_obj_t* root = step->create(test_screen());
     REQUIRE(root != nullptr);
+    // The slider opens on the saved volume, not its static XML value.
+    lv_obj_t* slider = lv_obj_find_by_name(lv_obj_find_by_name(root, "row_volume"), "slider");
+    REQUIRE(slider != nullptr);
+    CHECK(lv_slider_get_value(slider) == 42);
 
     // Each row starts unchecked (setting off) and must turn its setting on.
     auto flip_on = [&](const char* row_name, auto set, auto get) {
@@ -96,16 +103,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Preference rows write the same setting as t
         "row_sleep_while_printing", [&](bool v) { display.set_sleep_while_printing(v); },
         [&] { return display.get_sleep_while_printing(); });
 
-    auto& audio = helix::AudioSettingsManager::instance();
     flip_on(
         "row_sounds", [&](bool v) { audio.set_sounds_enabled(v); },
         [&] { return audio.get_sounds_enabled(); });
 
     // The volume slider previews on drag and saves on release, as in Settings > Sound.
-    const int volume = audio.get_volume();
     audio.set_volume(80);
-    lv_obj_t* slider = lv_obj_find_by_name(lv_obj_find_by_name(root, "row_volume"), "slider");
-    REQUIRE(slider != nullptr);
     lv_slider_set_value(slider, 35, LV_ANIM_OFF);
     lv_obj_send_event(slider, LV_EVENT_RELEASED, nullptr);
     CHECK(audio.get_volume() == 35);
