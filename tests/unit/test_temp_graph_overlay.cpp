@@ -141,29 +141,31 @@ TEST_CASE_METHOD(
                                                 "temp_graph_chamber_preset_1_text",
                                                 "temp_graph_chamber_preset_2_text",
                                                 "temp_graph_chamber_preset_3_text"};
+    // Entries under these names, counted per subject: the app's global overlay holds
+    // its own set whenever an earlier case in the process has initialized it.
     auto present = [&published]() {
         auto all = SubjectDebugRegistry::instance().list_all();
         size_t n = 0;
         for (const auto& name : published) {
-            n += std::any_of(all.begin(), all.end(),
-                             [&](const auto& entry) { return entry.first == name; });
+            n += std::count_if(all.begin(), all.end(),
+                               [&](const auto& entry) { return entry.first == name; });
         }
         return n;
     };
 
     const size_t before = SubjectDebugRegistry::instance().list_all().size();
-    REQUIRE(present() == 0);
+    const size_t baseline = present();
 
     {
         TempGraphOverlay overlay;
         overlay.ensure_subjects();
         REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + published.size());
-        REQUIRE(present() == published.size());
+        REQUIRE(present() == baseline + published.size());
         // Destructor runs here.
     }
 
     REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
-    REQUIRE(present() == 0);
+    REQUIRE(present() == baseline);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects does not crash",

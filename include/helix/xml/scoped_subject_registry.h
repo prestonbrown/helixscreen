@@ -49,6 +49,25 @@ lv_result_t unregister_subject_in_current_scope(const char* name);
 /// re-published the name keeps its record when the previous owner tears down.
 lv_result_t unregister_subject_in_current_scope(const char* name, const lv_subject_t* subject);
 
+/// Owned publications. Several owners can publish one name at once (a test's local
+/// panel beside the app's global one, a modal reopened before the old instance is
+/// freed); the newest wins the name. These keep the owners of each name in publish
+/// order so that when the newest withdraws, the name goes back to the newest owner
+/// still holding it instead of resolving to nothing while that owner lives.
+///
+/// Record that `subject` is published as `name` in the active scope and will be
+/// withdrawn with withdraw_owned_subject(). Main thread only.
+void note_subject_owner(const char* name, lv_subject_t* subject);
+
+/// Drop `subject`'s hold on `name`. When the name resolves to `subject` it is
+/// unregistered and handed to the newest remaining owner, if any. Safe during static
+/// destruction: it never logs and its bookkeeping is never destroyed.
+void withdraw_owned_subject(const char* name, const lv_subject_t* subject);
+
+/// Drop `subject`'s hold on `name` without touching the XML registry, for an owner
+/// tearing down after LVGL is gone.
+void forget_owned_subject(const char* name, const lv_subject_t* subject);
+
 // Access the active scope (nullptr if none). For debug assertions only.
 lv_xml_component_scope_t* current_scope();
 

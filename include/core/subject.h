@@ -102,6 +102,10 @@ constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
 /// later lv_init().
 void subjects_note_lvgl_deinit() noexcept;
 
+/// Bumped by subjects_note_lvgl_deinit(): a pointer recorded under an earlier value names a
+/// node lv_deinit() has freed.
+[[nodiscard]] uint32_t subjects_lvgl_generation() noexcept;
+
 /// Resets the Subject that owns `subject`, for code holding only the pointer
 /// (SubjectManager, registries). A node whose Subject is gone is reset in place. A pointer no
 /// Subject owns is reported as the anomaly `subject_reset_unowned` and left alone: the only

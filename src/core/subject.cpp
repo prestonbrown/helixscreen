@@ -117,6 +117,10 @@ void release_node(lv_subject_t* node, uint32_t generation) {
 
 } // namespace
 
+uint32_t subjects_lvgl_generation() noexcept {
+    return current_generation();
+}
+
 void subjects_note_lvgl_deinit() noexcept {
     g_generation.fetch_add(1, std::memory_order_acq_rel);
     ObserverGuard::forget_all_teardown_exempt_subjects();
