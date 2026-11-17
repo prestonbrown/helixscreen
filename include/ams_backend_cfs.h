@@ -727,8 +727,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
 
     /// Human-facing sentence for a non-Ok verdict, or empty for `Ok` /
     /// `Unverifiable`. Separate from the rule so the wording can move without
-    /// touching the policy or its tests.
-    [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict);
+    /// touching the policy or its tests. @p spool_used_up (box.filament_useup)
+    /// turns UnloadLeftFilament into hand-removal guidance: the strand has left
+    /// the box, so no box retract can pull it back and retrying cannot help.
+    [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict,
+                                                           bool spool_used_up = false);
 
     /// True when the toolhead switch now contradicts the condition a failed
     /// verdict reported: filament gone after UnloadLeftFilament, or arrived
@@ -1404,6 +1407,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // The verdict behind a phase-verification ERROR, so a later sensor edge can
     // tell whether it resolves that fault. Ok when no such fault is raised.
     PhaseVerdict phase_fault_ = PhaseVerdict::Ok;
+    // The box reported its spool used up when phase_fault_ was raised, which
+    // picks the fault's wording (phase_verdict_message()).
+    bool phase_fault_spool_used_up_ = false;
     /// A phase-verification ERROR is CFS's own judgement, so it may be cleared.
     [[nodiscard]] bool fault_is_own_locked() const override {
         return phase_fault_ != PhaseVerdict::Ok;
@@ -1449,11 +1455,6 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // not). Takes mutex_ itself. Named rather than inline so tests drive the
     // real completion path instead of a copy of it.
     void finish_action();
-
-    // The box reports its spool used up (box.filament_useup) while the toolhead
-    // switch reads filament: a strand the box no longer holds, which no box
-    // retract can pull back. False without a real switch reading. Takes mutex_.
-    [[nodiscard]] bool leftover_strand_without_spool() const;
 
     // Drive phase machine on signal changes. Caller must hold mutex_.
     void on_filament_transition_locked(bool new_detected);
