@@ -616,22 +616,6 @@ class AmsBackend : public AmsCapabilityHost {
         return std::nullopt;
     }
 
-    /// Whether the firmware prompt titled @p title is this backend's own dialog
-    /// for a fault the recovery popup already shows. The presenter closes such a
-    /// prompt when it raises the popup, so one fault reads as one dialog.
-    [[nodiscard]] virtual bool duplicates_firmware_prompt(const std::string& /*title*/) const {
-        return false;
-    }
-
-    /// Whether a button sending @p gcode on a prompt duplicates_firmware_prompt()
-    /// claims is one of that dialog's own actions, which the recovery popup
-    /// covers. A firmware dialog can carry buttons a user's macros added, and
-    /// closing it would take those away, so the presenter keeps a prompt with
-    /// any button this answers false for.
-    [[nodiscard]] virtual bool firmware_prompt_button_is_own(const std::string& /*gcode*/) const {
-        return true;
-    }
-
     /// Channel B: the current actionable fault, derived from backend STATUS
     /// rather than from a console line. Read through AmsState::standing_fault()
     /// by the surfaces that raise a standing fault, and by AmsState to know

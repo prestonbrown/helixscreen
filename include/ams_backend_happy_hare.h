@@ -6,6 +6,7 @@
 #include "ams_clog_detection.h"
 #include "ams_dryer.h"
 #include "ams_environment_zone.h"
+#include "ams_firmware_prompt_dedup.h"
 #include "ams_gate_selector.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
@@ -71,7 +72,8 @@ struct HappyHareGateSensor {
 class AmsBackendHappyHare : public AmsSubscriptionBackend,
                             public helix::IGateSelector,
                             public helix::IDryer,
-                            public helix::IClogDetectionConfig {
+                            public helix::IClogDetectionConfig,
+                            public helix::IFirmwarePromptDedup {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IGateSelector>()) {
@@ -82,6 +84,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::IClogDetectionConfig>()) {
             return static_cast<helix::IClogDetectionConfig*>(this);
+        }
+        if (tag == helix::type_tag<helix::IFirmwarePromptDedup>()) {
+            return static_cast<helix::IFirmwarePromptDedup*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

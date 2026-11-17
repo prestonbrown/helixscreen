@@ -3669,6 +3669,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IClogDetectionConfig` (`include/ams_clog_detection.h`) -- The clog detection mode command and the configured
   manual detection length, for the clog config modal. Happy Hare implements it. Without it the modal's mode and
   length controls hide and nothing is sent.
+- `IFirmwarePromptDedup` (`include/ams_firmware_prompt_dedup.h`) -- Whether a firmware prompt is the backend's own
+  dialog for a fault the recovery popup shows, and which of its buttons are the dialog's own. The recovery
+  presenter closes such a prompt. Happy Hare implements it.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

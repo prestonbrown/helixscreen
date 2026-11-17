@@ -401,5 +401,5 @@ button, and pass `severity = "error"` for the error icon.
 Use `ActionPromptManager::is_showing()` and `current_prompt_name()`. They are safe to call from
 any thread: they read a title the main thread publishes with `std::atomic_store` on each state
 change. A reader on another thread can see a value one transition old, so treat them as hints. If your feature replaces a backend's
-own firmware dialog, implement `AmsBackend::duplicates_firmware_prompt()` rather than calling
+own firmware dialog, implement `IFirmwarePromptDedup` (`include/ams_firmware_prompt_dedup.h`) rather than calling
 `dismiss_active()` yourself.
