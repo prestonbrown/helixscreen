@@ -221,7 +221,7 @@ writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC
   `SET_MAP`. A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
 - **Fields AFC cannot hold** (brand, name, color name, catalog pick, total weight) go to
   HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
-  every lane record; a spool id, material or colour found there is ignored. AFC's DEV branch
+  every lane record; a spool id, material or color found there is ignored. AFC's DEV branch
   adds `SET_FILAMENT_INFO LANE=<lane> VENDOR=<vendor> NAME=<name>` (AFC #893), which stores a
   lane's vendor and filament name and keeps them across restarts. HelixScreen does not send it
   yet, so brand and name still go to the extras namespace.
