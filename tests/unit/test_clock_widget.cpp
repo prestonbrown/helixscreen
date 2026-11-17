@@ -215,6 +215,15 @@ TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting", "[clock_widget][i18
         REQUIRE(helix::ui::format_localized_date(&test_tm) == "Fri, 28 Feb");
     }
 
+    SECTION("A regional code dates like its base language") {
+        helix::ui::locale_set_language("de-AT");
+        CHECK(helix::ui::format_localized_long_date(&test_tm) == "28. Februar 2026");
+        helix::ui::locale_set_language("pt-BR");
+        CHECK(helix::ui::format_localized_long_date(&test_tm) == "28 de fevereiro de 2026");
+        helix::ui::locale_set_language("ja-JP");
+        CHECK(helix::ui::format_localized_long_date(&test_tm) == "2026年2月28日");
+    }
+
     SECTION("Unknown language falls back to English") {
         helix::SystemSettingsManager::instance().set_language("xx");
         helix::ui::locale_set_language("xx");
