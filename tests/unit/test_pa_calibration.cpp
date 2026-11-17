@@ -189,28 +189,30 @@ class PACalibrateTestFixture : public LVGLTestFixture {
         api_ = std::make_unique<MoonrakerAPI>(mock_client_, state_);
 
         hw_ = u1();
-        proc_ = pacal::procedure_for(hw_, 0, 245).value();
     }
     ~PACalibrateTestFixture() {
+        run_.reset();
         api_.reset();
     }
 
+    /// Through pacal::start_run, as the calibration panel starts it.
     void start() {
-        cancel_ = api_->advanced().start_pa_calibrate(
-            proc_,
-            [this](float k) {
-                captured_k_ = k;
-                result_received_.store(true);
-            },
-            [this](const MoonrakerError& err) {
-                captured_error_ = err.message;
-                error_received_.store(true);
-            },
-            [this](int attempt, int expected, float k_so_far) {
-                attempts_.push_back(attempt);
-                expected_ = expected;
-                last_k_so_far_ = k_so_far;
-            });
+        pacal::RunCallbacks cb;
+        cb.on_result = [this](float k) {
+            captured_k_ = k;
+            result_received_.store(true);
+        };
+        cb.on_error = [this](const std::string& message) {
+            captured_error_ = message;
+            error_received_.store(true);
+        };
+        cb.on_attempt = [this](const pacal::Attempt& a) {
+            attempts_.push_back(a.index);
+            expected_ = a.expected;
+            last_k_so_far_ = a.k_tried;
+        };
+        run_ = pacal::start_run(*api_, mock_client_, hw_, {0, 245, "extruder"}, std::move(cb));
+        REQUIRE(run_);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
@@ -223,8 +225,7 @@ class PACalibrateTestFixture : public LVGLTestFixture {
     PrinterState state_;
     std::unique_ptr<MoonrakerAPI> api_;
     PrinterDiscovery hw_;
-    pacal::Procedure proc_;
-    std::function<void()> cancel_;
+    std::shared_ptr<pacal::Run> run_;
 
     std::atomic<bool> result_received_{false};
     std::atomic<bool> error_received_{false};
@@ -301,8 +302,7 @@ TEST_CASE_METHOD(PACalibrateTestFixture,
 TEST_CASE_METHOD(PACalibrateTestFixture, "PA collector is silent after it is cancelled",
                  "[pa_collector]") {
     start();
-    REQUIRE(cancel_);
-    cancel_();
+    run_->stop();
 
     // The firmware finishes the run it is in; its result is no longer news.
     say("// Got pressure advance: 0.0412");

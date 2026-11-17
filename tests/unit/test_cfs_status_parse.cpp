@@ -246,6 +246,7 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
         REQUIRE(slots[3].brand.empty());
         CHECK(cfs::brand_from_vender("04A1B2C3D4E5F6").empty());
         CHECK(cfs::brand_from_vender("ACE") == "ACE");
+        CHECK(cfs::brand_from_vender("Elegoo2") == "Elegoo2"); // a digit alone is no UID
     }
 }
 
