@@ -22,6 +22,7 @@ All developer documentation lives here. When working on features, look up the re
 | `LOGGING.md` | spdlog levels, when to use info vs debug vs trace |
 | `COPYRIGHT_HEADERS.md` | SPDX license headers |
 | `RELEASE_PROCESS.md` | Release workflow, versioning |
+| `RELEASE_SIGNING.md` | Signed channel manifests: the `release-signing` environment and secrets, who verifies them, rollout order |
 | `CHANGELOG_STYLE.md` | How `CHANGELOG.md` entries are written: user-facing voice, hyphen separator, bare `(#N)` links, daily vs milestone shapes. Read before drafting a release's changelog section |
 | `CHANGELOG_1_1_DRAFT.md` | Running release notes for everything on `main` that is not in the 1.0 release. Kept out of `CHANGELOG.md` so the release tooling owns that file; becomes the `## [1.1]` entry at release, then delete |
 | `CI_CD_GUIDE.md` | CI pipeline, GitHub Actions |

@@ -86,6 +86,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Print Start Profiles**](devel/PRINT_START_PROFILES.md) | Print start phase detection, developer guide: pipeline, signal sources, evidence kinds, profiles |
 | [**Print Start Integration**](devel/PRINT_START_INTEGRATION.md) | User-facing macro setup guide |
 | [**Update System**](devel/UPDATE_SYSTEM.md) | Channels, R2 CDN, downloads, Moonraker updater |
+| [**Release Signing**](devel/RELEASE_SIGNING.md) | Signed channel manifests, the release key and who verifies it |
 | [**Sound System**](devel/SOUND_SYSTEM.md) | Audio architecture, JSON themes, backends |
 | [**Built-in Screen Server**](devel/REMOTE_SCREEN.md) | The screen as a Mainsail/Fluidd webcam, remote touch, pairing and the nginx route |
 | [**Screensavers**](devel/SCREENSAVERS.md) | Registry, shared parts, CPU gate and stored levels, adding a saver |
