@@ -1334,6 +1334,36 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of 
     CHECK(lv_obj_find_by_name(plain, "slot_count") == nullptr);
 }
 
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview tile: in an overflowing row, art is never narrower than a bars tile",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 6);
+        for (int u : {1, 3, 5})
+            f.specs[static_cast<size_t>(u)].slots = kNoArtLanes;
+    });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    int32_t bars_width = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+        if (bars && lv_obj_get_child_count(bars) > 0)
+            bars_width = LV_MAX(bars_width, lv_obj_get_width(card));
+    }
+    REQUIRE(bars_width > 0);
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
+        if (!art || lv_obj_is_hidden(art))
+            continue;
+        INFO("art tile " << lv_obj_get_width(card) << " px, bars tile " << bars_width << " px");
+        CHECK(lv_obj_get_width(card) >= bars_width);
+    }
+}
+
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a tile",
                  "[ams][overview-tiles]") {
     PagedFleet* fleet = install([](PagedFleet& f) {
