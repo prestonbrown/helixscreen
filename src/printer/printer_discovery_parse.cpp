@@ -875,10 +875,9 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
     // Extract kinematics from [printer] section
     // Klipper's toolhead.kinematics status field returns null (it's an object reference),
     // so configfile.config.printer.kinematics is the reliable source
-    if (config.contains("printer") && config["printer"].is_object()) {
-        const auto& printer = config["printer"];
-        if (printer.contains("kinematics") && printer["kinematics"].is_string()) {
-            kinematics_ = printer["kinematics"].get<std::string>();
+    if (const auto* printer = json_util::find_object(config, "printer")) {
+        if (auto kinematics = json_util::read_field<std::string>(*printer, "kinematics")) {
+            kinematics_ = std::move(*kinematics);
             spdlog::debug("[PrinterDiscovery] Kinematics from config: {}", kinematics_);
         }
     }

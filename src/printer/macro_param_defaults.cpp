@@ -61,8 +61,8 @@ MacroParamDefaultRecord MacroParamDefaults::get(const std::string& macro_name) c
     if (!node.is_object()) {
         return record;
     }
-    if (node.contains("values") && node["values"].is_object()) {
-        for (auto it = node["values"].begin(); it != node["values"].end(); ++it) {
+    if (const json* values = helix::json_util::find_object(node, "values")) {
+        for (auto it = values->begin(); it != values->end(); ++it) {
             if (it.value().is_string()) {
                 record.values[it.key()] = it.value().get<std::string>();
             }

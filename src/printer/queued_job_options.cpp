@@ -30,17 +30,18 @@ namespace {
 /// Shared row rule: a well-formed entry is an object with a string filename
 /// and, when present, an object of booleans. Anything else is not an entry.
 bool entry_shape_ok(const json& entry) {
-    if (!entry.is_object() || !entry.contains("filename") || !entry["filename"].is_string()) {
+    const json* filename = helix::json_util::find_member(entry, "filename");
+    if (!filename || !filename->is_string()) {
         return false;
     }
-    if (!entry.contains("options")) {
+    const json* options = helix::json_util::find_member(entry, "options");
+    if (!options) {
         return true;
     }
-    const json& options = entry["options"];
-    if (!options.is_object()) {
+    if (!options->is_object()) {
         return false;
     }
-    for (auto opt = options.begin(); opt != options.end(); ++opt) {
+    for (auto opt = options->begin(); opt != options->end(); ++opt) {
         if (!opt.value().is_boolean()) {
             return false;
         }
@@ -58,9 +59,8 @@ QueuedJobOptions decode_queued_job_entry(const json& value) {
     // entry_shape_ok() proved the key holds a string; the defaulted read keeps
     // a malformed row from ever reaching a hard assert.
     parsed.filename = helix::json_util::safe_string(value, "filename");
-    if (value.contains("options")) {
-        const json& options = value["options"];
-        for (auto opt = options.begin(); opt != options.end(); ++opt) {
+    if (const json* options = helix::json_util::find_member(value, "options")) {
+        for (auto opt = options->begin(); opt != options->end(); ++opt) {
             parsed.options[opt.key()] = opt.value().get<bool>();
         }
     }

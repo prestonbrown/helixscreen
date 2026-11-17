@@ -3,6 +3,7 @@
 #include "macro_param_cache.h"
 
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -207,17 +208,10 @@ void MacroParamCache::populate_from_configfile(
         std::string macro_name_lower = key.substr(PREFIX.size());
         to_lower_inplace(macro_name_lower);
 
-        std::string gcode_template;
-        if (it.value().is_object() && it.value().contains("gcode") &&
-            it.value()["gcode"].is_string()) {
-            gcode_template = it.value()["gcode"].get<std::string>();
-        }
-
-        std::string description;
-        if (it.value().is_object() && it.value().contains("description") &&
-            it.value()["description"].is_string()) {
-            description = it.value()["description"].get<std::string>();
-        }
+        const std::string gcode_template =
+            json_util::read_field<std::string>(it.value(), "gcode").value_or("");
+        std::string description =
+            json_util::read_field<std::string>(it.value(), "description").value_or("");
 
         CachedMacroInfo info;
         info.description = std::move(description);
