@@ -811,13 +811,17 @@ class PrinterState {
     /**
      * @brief Get the configured (saved) z-offset in microns
      *
-     * Returns the printer's saved z-offset value before calibration started.
-     * For probe printers: reads probe z_offset from ProbeSensorManager.
-     * For endstop printers: reads stepper_z position_endstop from config.
+     * Returns the printer's saved z-offset value before calibration started:
+     * the probe's z_offset where z_offset_reference_is_probe(), otherwise
+     * stepper_z's position_endstop from config.
      *
      * @return Z-offset in microns (e.g., -1500 for -1.500mm)
      */
     int get_configured_z_offset_microns();
+
+    /// The saved Z offset is the probe's z_offset: a probe, and a strategy that
+    /// does not save to stepper_z's position_endstop.
+    bool z_offset_reference_is_probe();
 
     // ========================================================================
     // PRINTER TYPE
@@ -856,6 +860,18 @@ class PrinterState {
     /// Main-thread bodies; tests reach these directly.
     void set_z_offset_external_persistence_internal(const std::string& provider_name);
     void clear_z_offset_external_persistence_internal();
+
+    /**
+     * @brief Record whether stepper_z reports a numeric position_endstop
+     *
+     * set_hardware() takes it from the discovery snapshot; this is the path for
+     * a configfile read that lands after it (the safety-limits fetch), and it
+     * re-resolves the calibration strategy when the answer changes.
+     * Thread-safe: defers to the main thread.
+     */
+    void set_z_position_endstop_known(bool numeric);
+    /// Main-thread body; tests reach it directly.
+    void set_z_position_endstop_known_internal(bool numeric);
 
     // ========================================================================
     // MULTI-PRINTER SUBJECTS

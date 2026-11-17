@@ -444,7 +444,7 @@ std::optional<SavedOffsetLine> saved_offset_line() {
     // theirs in their own models). The probe subject's -1 is "no Z probe".
     std::optional<int> saved;
     const int configured = ps.get_configured_z_offset_microns();
-    const bool probe = ps.capabilities_state().has_probe();
+    const bool probe = ps.z_offset_reference_is_probe();
     if (configured != 0 && !(probe && configured == -1)) {
         saved = configured;
     }

@@ -221,6 +221,31 @@ TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
 }
 
 TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
+                 "Controls save on a probe printer that homes Z on a switch applies to the endstop",
+                 "[controls][zoffset][save-flow][zoffset_strategy]") {
+    // A stock Voron 2.4: Z0 is the Z switch's position_endstop, so the save
+    // writes it; the probe's z_offset would not move Z0.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"gcode_move", "toolhead", "probe", "quad_gantry_level"}));
+    hw.parse_config_keys(json{{"printer", {{"kinematics", "corexy"}}}});
+    hw.parse_z_position_endstop(json{{"stepper_z", {{"position_endstop", 0.5}}}});
+    state().set_hardware(hw);
+    state().set_printer_type_sync("Unknown Printer");
+
+    set_global_offset_mm(-0.15);
+    click_save();
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    confirm_save();
+    REQUIRE(wait_for_sent("SAVE_CONFIG"));
+    CHECK(sent("Z_OFFSET_APPLY_ENDSTOP") == 1);
+    CHECK(sent("Z_OFFSET_APPLY_PROBE") == 0);
+
+    // The state is process-wide: leave no type for the next case to re-resolve.
+    state().set_printer_type_sync("");
+    state().set_hardware(helix::PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
                  "Controls save honours saving turned off while the confirm is open",
                  "[controls][zoffset][save-flow][save-toggle]") {
     // The positive control is the case above: the same flow, left on, sends

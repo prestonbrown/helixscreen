@@ -985,6 +985,21 @@ bool PrinterDiscovery::parse_build_volume(const nlohmann::json& settings) {
     return true;
 }
 
+std::optional<double> PrinterDiscovery::read_z_position_endstop(const nlohmann::json& settings) {
+    if (!settings.is_object()) {
+        return std::nullopt;
+    }
+    const auto section = settings.find("stepper_z");
+    if (section == settings.end() || !section->is_object()) {
+        return std::nullopt;
+    }
+    const auto value = section->find("position_endstop");
+    if (value == section->end() || !value->is_number()) {
+        return std::nullopt;
+    }
+    return value->get<double>();
+}
+
 void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
     probe_xy_offset_.reset();
     if (!settings.is_object()) {
@@ -1106,6 +1121,7 @@ void PrinterDiscovery::clear() {
     fit_machine_.reset();
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
+    z_position_endstop_.reset();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
     fan_tachometers_.clear();

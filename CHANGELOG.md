@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Z offset saves on printers that home Z on a switch** - on a printer with a probe that homes Z on its own endstop switch, such as a stock Voron 2.4 or an Ender with a BLTouch used only for the bed mesh, Z offset calibration and Save now set the Z endstop position, so the change survives a restart. Before, they changed the probe offset, which does not move the nozzle on those printers. A delta without a probe now adjusts the offset for the session only, because Klipper has no endstop calibration for deltas.
 - **Timelapse settings show the real values** - the Timelapse Settings screen reads the plugin's settings as Moonraker sends them, so Enable Timelapse, Auto-render and the other options show what is actually set instead of the defaults.
 - **Timelapse frames are captured after setup** - when Klipper has not loaded the timelapse macros, HelixScreen adds them to its own helix_macros.cfg and offers Restart Klipper, on the setup screen and on Timelapse Settings. When it can't, it shows the line to add to printer.cfg. Before this, a new install never captured a frame until printer.cfg was edited by hand.
 - **Timelapse updates after a reinstall** - when HelixScreen runs on the printer, setting up timelapse or opening Timelapse Settings puts an older moonraker-timelapse checkout back on its main branch when that is safe, so Moonraker can update it again.
