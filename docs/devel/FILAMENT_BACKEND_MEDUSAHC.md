@@ -356,7 +356,10 @@ only, since one prompt and one restore cover the run. `get_operation_step_model(
 it from the live run and `Run::phase_index()` publishes the index into it. A batch from the
 head picker names its operation to the sidebar, which rebuilds the bar once the run exists. A
 sidebar opened mid-run asks `running_step_operation()` (load or unload, from the run) instead
-of guessing from the action frames, where a load still heating reads like a swap. Each Heat
+of guessing from the action frames, where a load still heating reads like a swap. The
+reverse holds too: a swap under way with no run behind it (the Filament panel's Pick up,
+another client's `T<n>` or park) gets the changer's own Release / Pick up / Grip steps,
+even on an empty carriage, where the sidebar's guess names it a fresh load. Each Heat
 row's live readout follows that tool's own heater (`step_heater()`, `mount_feed::heater_name()`
 of the row's head), not Klipper's active extruder: a MedusaHC without klipper-toolchanger never
 runs `ACTIVATE_EXTRUDER`, so the active extruder stays `extruder` whatever is mounted. The

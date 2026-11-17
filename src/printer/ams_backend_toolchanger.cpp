@@ -531,13 +531,20 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
         }
     }
     const size_t run_tools = run_heads.size();
+    const bool feed_running = feed_run_.has_value();
 
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // A swap under way with no run of ours behind it (the Filament panel's
+    // Pick up, another client's T<n> or park) is a tool change, whatever the
+    // carriage held: its bar is the changer's own steps, not a filament op's.
+    const bool foreign_swap = !feed_running && (system_info_.action == AmsAction::SELECTING ||
+                                                system_info_.action == AmsAction::UNLOADING);
 
     OperationStepModel model;
     // A load or unload through the carriage has its own stages. Mount and
     // Restore are skipped when the tool is already on the carriage.
-    if (mounts_to_feed_ && op != StepOperationType::LOAD_SWAP) {
+    if (mounts_to_feed_ && op != StepOperationType::LOAD_SWAP && !foreign_swap) {
         const bool load = op != StepOperationType::UNLOAD;
         // Each row names the real tool it works and where it falls in the
         // run: "Tool 3 (2/3): Purge" while the second of heads {0, 2, 4} purges.

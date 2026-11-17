@@ -3,11 +3,12 @@
 
 /**
  * @file test_ams_sidebar_batch_steps.cpp
- * @brief The step bar a head-picker batch shows on a changer that mounts to feed.
+ * @brief The step bar on a changer that mounts to feed.
  *
  * The batch path names its operation to the bar. Left to read the first frame,
  * the bar takes an unload of a loaded head for a tool swap and an unload of an
- * empty one for a load.
+ * empty one for a load. A tool change the sidebar did not start is a swap, not
+ * a filament load, even when the carriage starts out empty.
  */
 
 #include "ui_ams_sidebar.h"
@@ -356,4 +357,40 @@ TEST_CASE_METHOD(BatchStepsFixture, "The sidebar withholds Cancel when the backe
     changer_->cancellable_ = false;
     pick(HeadPickOp::Unload, {0, 1, 2});
     CHECK_FALSE(cancel_shown());
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
+                 "A pickup onto an empty carriage shows the pickup steps, not a filament load",
+                 "[ams][sidebar][mount_feed][pickup]") {
+    // MedusaHC: dock sensors name the carriage, the controller names the
+    // direction and reports the gripper.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array(
+        {"medusahc", "pin_watch io", "extruder", "extruder1", "extruder2", "extruder3"}));
+    changer_->set_tool_sensor(helix::toolchanger_addon::resolve_tool_sensor(hw));
+    changer_->feed(nlohmann::json{
+        {"medusahc", {{"operation", "idle"}, {"current_tool", -1}, {"feeder_open", false}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    AmsState::instance().sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(AmsState::instance().system_info()->current_slot < 0);
+    changer_->sent_.clear();
+
+    // The Filament panel's Pick up: a tool change this sidebar did not start.
+    REQUIRE(changer_->change_tool(0).success());
+    helix::ui::UpdateQueue::instance().drain();
+    AmsState::instance().sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+    changer_->feed(nlohmann::json{
+        {"medusahc", {{"operation", "picking"}, {"current_tool", -1}, {"feeder_open", true}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    AmsState::instance().sync_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(labels() ==
+          std::vector<std::string>{"Release filament", "Pick up tool", "Grip filament"});
+    // The swap alone goes out: nothing heats, feeds or purges.
+    REQUIRE(changer_->sent_.size() == 1);
+    CHECK(changer_->sent_.front().find("SET_HEATER_TEMPERATURE") == std::string::npos);
+    CHECK(changer_->sent_.front().find("G1 E") == std::string::npos);
 }
