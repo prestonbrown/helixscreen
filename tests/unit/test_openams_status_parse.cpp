@@ -104,9 +104,15 @@ TEST_CASE("OpenAMS status parse keeps a unit's stop and pause faults", "[openams
 
 TEST_CASE("OpenAMS status parse reads each unit's environment and dryer",
           "[openams][status_parse][dryer]") {
+    json ht = dryer_device(true);
+    ht["family"] = "ams_ht";
     json ams2 = dryer_device(false);
     ams2["environment"] = {{"temp_c", 30.0}};
-    const auto s = parse(dryer_manager(-1, dryer_device(true), ams2));
+    ams2["capabilities"]["family"] = "ams1";
+    const auto s = parse(dryer_manager(-1, ht, ams2));
+    // The family is the unit's model, from the device or its capabilities.
+    CHECK(s.units[0].model == "ams_ht");
+    CHECK(s.units[1].model == "ams1");
     REQUIRE(s.units[0].environment.has_value());
     CHECK(s.units[0].environment->temperature_c == Catch::Approx(26.1f));
     CHECK(s.units[0].environment->humidity_pct == Catch::Approx(29.0f));

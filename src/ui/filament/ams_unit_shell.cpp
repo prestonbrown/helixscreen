@@ -62,7 +62,9 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "tradrack", "tradrack_rail", nullptr, 0, true},
     {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
-    // An OpenAMS hub reports no model: its single-lane unit is the AMS HT.
+    // openams publishes each unit's family as its model; klipper_openams publishes none,
+    // and its single-lane unit is the AMS HT.
+    {"openams", "\nams1", "ams", nullptr, 0},
     {"openams", nullptr, "ams_ht", nullptr, 1},
     {"openams", nullptr, "ams_2_pro", nullptr, 0},
 };

@@ -41,6 +41,8 @@ constexpr OpenAmsUnitSpec kAmsHt{"ams_ht", "AMS HT", "ams_ht", "fps", 1, 80.0, f
 constexpr OpenAmsUnitSpec kAms2{"ams2", "AMS 2 Pro", "ams2", "fps", 4, 65.0, true};
 constexpr OpenAmsUnitSpec kAms2b{"ams2b", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
 constexpr OpenAmsUnitSpec kAms2c{"ams2c", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
+// The original AMS has no dryer.
+constexpr OpenAmsUnitSpec kAms1{"ams1", "AMS", "ams1", "fps", 4, 0.0, false};
 
 std::vector<OpenAmsUnitSpec> openams_unit_specs() {
     const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
@@ -50,6 +52,9 @@ std::vector<OpenAmsUnitSpec> openams_unit_specs() {
     }
     if (shape == "shared") {
         return {kAmsHt, kAms2};
+    }
+    if (shape == "ams1") {
+        return {kAmsHt, kAms1};
     }
     if (shape == "fleet") {
         // An AMS HT then eleven AMS 2 Pro: units 1-10 feed lane `fps`, the last two `fps2`.
@@ -77,7 +82,7 @@ const char* openams_lane_extruder(const std::string& lane) {
 
 bool MoonrakerClientMock::openams_shared_lane_units() {
     const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
-    return units && std::string(units) == "shared";
+    return units && (std::string(units) == "shared" || std::string(units) == "ams1");
 }
 
 bool MoonrakerClientMock::openams_fleet_lane_units() {
@@ -275,6 +280,14 @@ nlohmann::json MoonrakerClientMock::openams_device_json(int unit) const {
                        {"clear_errors", "load", "unload", "follower", "dryer_stop", "clear_fault"})
                  : nlohmann::json::array({"clear_errors", "load", "unload", "follower",
                                           "dryer_start", "dryer_stop", "clear_fault"})}};
+    if (spec.dryer_max_c <= 0.0) {
+        // A unit without a dryer publishes `dryer: null` and no dryer actions.
+        device["capabilities"]["dryer"] = false;
+        device["dryer"] = nullptr;
+        device.erase("telemetry");
+        device["supported_actions"] =
+            nlohmann::json::array({"clear_errors", "load", "unload", "follower", "clear_fault"});
+    }
     return device;
 }
 

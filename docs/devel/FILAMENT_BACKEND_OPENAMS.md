@@ -242,6 +242,7 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
 | Endless spool | Read-only once the manager is ready: each group of two or more slots is a runout-backup group (`FirmwareManaged`, `src/printer/ams_backend_openams.cpp#get_endless_spool_capabilities`) |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
 | Environment sensors | Per unit from `devices.<unit>.environment` (`temp_c`, `rh_pct`), into `AmsUnit::environment`; openams only |
+| Unit hardware | `devices.<unit>.family` (or `capabilities.family`: `ams1`, `ams2`, `ams_ht`, a klipper-mmu device id) into `AmsUnit::model`, which picks the unit art; openams only |
 | Dryer | Per unit, see below; openams only |
 | Filament pressure | Per lane, from `lanes[].pressure` and `set_point`; drawn as the FPS box with bias tint and the buffer slider |
 
