@@ -293,8 +293,6 @@ struct FilamentPathData {
     int32_t lane_entry_offset = INT32_MIN;
     static constexpr int kMaxSlots = helix::kAmsMaxSlots;
     lv_obj_t* spool_containers[kMaxSlots] = {};
-    // Each slot's number badge, drawn again over the lanes that leave below it.
-    lv_obj_t* lane_badges[kMaxSlots] = {};
 
     // Per-slot filament state (for showing all installed filaments, not just active)
     SlotFilamentState slot_filament_states[kMaxSlots] = {};
@@ -622,5 +620,9 @@ void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* 
 /// Paint the per-frame animation overlay (flow chevrons, heat glow, segment tip).
 /// Called from the widget's DRAW_POST event every frame.
 void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data);
+
+/// The number badges of the slots now in the canvas's slot grid, read live from each slot, so a
+/// rebuilt grid never leaves a stale badge behind. Returns how many it wrote to @p out.
+int lane_badges(const FilamentPathData& data, lv_obj_t* out[FilamentPathData::kMaxSlots]);
 
 } // namespace helix::ui::fpath
