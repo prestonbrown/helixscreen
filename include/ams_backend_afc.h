@@ -1071,6 +1071,17 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      */
     void apply_unit_object(AfcUnitInfo& unit_info, const afc::UnitObjectDelta& data);
 
+    /// Derive one unit's topology from its lists, the lanes' hub routing and
+    /// the printer's extruder count.
+    void refresh_unit_topology(AfcUnitInfo& unit_info);
+
+    /// Re-derive every unit that has lanes; for a change in the printer's
+    /// extruder count, which no unit object re-announces.
+    void refresh_all_unit_topologies();
+
+    /// rebuild_unit_map_from_klipper() once every known unit has lanes.
+    void rebuild_unit_map_when_complete();
+
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
      *

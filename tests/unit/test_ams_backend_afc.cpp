@@ -3858,7 +3858,7 @@ TEST_CASE("AFC one-lane direct unit beside hub units is PARALLEL, not HUB",
     REQUIRE(unit_infos[1].topology == PathTopology::PARALLEL);
 }
 
-TEST_CASE("AFC one-lane direct unit on a single-extruder printer stays HUB",
+TEST_CASE("AFC one-lane direct unit is HUB until the printer reports several extruders",
           "[ams][afc][topology]") {
     // A direct lane on a printer with one extruder shares the nozzle with the hub
     // unit, so loading it must unload the hub lane first.
@@ -3899,6 +3899,15 @@ TEST_CASE("AFC one-lane direct unit on a single-extruder printer stays HUB",
     REQUIRE(unit_infos[0].topology == PathTopology::HUB);
     REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
     REQUIRE(unit_infos[1].topology == PathTopology::HUB);
+
+    // The printer's extruder list arrives in a later frame than the unit objects.
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1", "extruder2", "extruder3"}}});
+    REQUIRE(helper.get_unit_infos()[1].topology == PathTopology::PARALLEL);
+    const auto info = helper.get_system_info();
+    const auto tools = std::find_if(info.units.begin(), info.units.end(),
+                                    [](const AmsUnit& u) { return u.name == "Toolchanger Tools"; });
+    REQUIRE(tools != info.units.end());
+    REQUIRE(tools->topology == PathTopology::PARALLEL);
 }
 
 TEST_CASE("AFC unit topology: all-direct lanes need an extruder per lane to be PARALLEL",
