@@ -5346,13 +5346,14 @@ int lane_extruder_temp(const SlotInfo& slot) {
     return std::max(slot.nozzle_temp_min, slot.nozzle_temp_max);
 }
 
-/// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, naming only
-/// the temperatures the edit states; nullopt when there is nothing to send.
+/// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, or for any
+/// edit when @p resend (AFC has just wiped the lane's), naming only the
+/// temperatures the edit states; nullopt when there is nothing to send.
 std::optional<std::string> spool_temp_command(const std::string& lane_name, const SlotInfo& before,
-                                              const SlotInfo& after) {
+                                              const SlotInfo& after, bool resend) {
     const int extruder = lane_extruder_temp(after);
     const int bed = std::max(after.bed_temp, 0);
-    const bool changed = extruder != lane_extruder_temp(before) || bed != before.bed_temp;
+    const bool changed = resend || extruder != lane_extruder_temp(before) || bed != before.bed_temp;
     if (!changed || (extruder <= 0 && bed <= 0)) {
         return std::nullopt;
     }
@@ -5405,8 +5406,12 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         // fetch lands after anything sent here, so only an unlinked lane sends them.
         const std::string& edited_lane = slots_.name_of(slot_index);
         const bool unlinked = info.spoolman_id <= 0;
+        // An unlink is an empty SET_SPOOL_ID, and AFC's clear_values() then wipes
+        // the lane's temperatures, vendor and filament name (unless the lane
+        // remembers its spool), so whatever the edit keeps of them goes out again.
+        const bool unlinking = unlinked && before.spoolman_id > 0;
         const auto temp_command = unlinked && has_spool_temp_command_
-                                      ? spool_temp_command(edited_lane, before, info)
+                                      ? spool_temp_command(edited_lane, before, info, unlinking)
                                       : std::nullopt;
         // SET_FILAMENT_INFO stores both; a value it cannot carry keeps both in
         // HelixScreen's own record instead.
@@ -5420,8 +5425,9 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         const bool record_holds_info =
             prior_record != overrides_.end() &&
             (!prior_record->second.brand.empty() || !prior_record->second.spool_name.empty());
-        const bool info_changed =
-            info.brand != before.brand || info.spool_name != before.spool_name || record_holds_info;
+        const bool info_changed = info.brand != before.brand ||
+                                  info.spool_name != before.spool_name || record_holds_info ||
+                                  unlinking;
 
         // Record the user's identity in the override store as well. AFC cannot
         // hold total_weight / color name / filament+vendor ids at all, nor a

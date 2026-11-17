@@ -982,6 +982,9 @@ lists them. Both are LANE-keyed mux commands, which Klipper lists once under the
 
 Neither goes out for a Spoolman-linked lane: AFC's `set_spoolID` fills temperatures,
 vendor and name from Spoolman, and that fetch lands after anything sent with the edit.
+An unlink sends both again whether or not the edit changed them: its empty `SET_SPOOL_ID`
+runs AFC's `clear_values()`, which wipes the temperatures, vendor and name the editor keeps
+(a lane with `remember_spool` keeps them, and the resend is harmless there).
 When `SET_FILAMENT_INFO` is sent, the lane's `helix-screen-afc-overrides` record no longer
 keeps the vendor and name; AFC publishes them (`spool_vendor`, `filament_name`) and clears
 them with the rest of the spool on a swap. A vendor or name the command cannot carry (a `#`,

@@ -39,6 +39,12 @@ class AfcLaneInfoHelper : public AmsBackendAfc {
         running_ = true;
     }
 
+    void feed(const nlohmann::json& params) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({params, 0.0});
+        handle_status_update(notification);
+    }
+
     /// What HelixScreen's own lane record holds for @p slot.
     [[nodiscard]] const ams::FilamentSlotOverride& record(int slot) const {
         return overrides_.at(slot);
@@ -122,6 +128,35 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(afc.sent_starting("SET_SPOOL_ID LANE=lane2 SPOOL_ID=7"));
         CHECK_FALSE(afc.sent_starting("AFC_SET_SPOOL_TEMP"));
         CHECK_FALSE(afc.sent_starting("SET_FILAMENT_INFO"));
+    }
+    SECTION("an unlink sends again what AFC's empty SET_SPOOL_ID wipes") {
+        // A lane AFC filled from Spoolman spool 7. Unlinking keeps the vendor and
+        // temperatures in the editor, but AFC's clear_values() wipes them.
+        afc.feed({{"AFC_stepper lane2",
+                   {{"spool_id", 7},
+                    {"spool_vendor", "Elegoo"},
+                    {"material", "PLA"},
+                    {"color", "#112233"},
+                    {"extruder_temp", 210},
+                    {"bed_temp", 70}}}});
+        const SlotInfo linked = afc.get_slot_info(1);
+        REQUIRE(linked.spoolman_id == 7);
+        SlotInfo unlinked = linked;
+        unlinked.unlink_as_different_filament(linked);
+        afc.gcodes.clear();
+        REQUIRE(afc.apply_user_edit(1, unlinked).success());
+        const auto at = [&](const std::string& prefix) {
+            return std::find_if(afc.gcodes.begin(), afc.gcodes.end(),
+                                [&](const std::string& g) { return g.rfind(prefix, 0) == 0; }) -
+                   afc.gcodes.begin();
+        };
+        const long sent = static_cast<long>(afc.gcodes.size());
+        const auto unlink = at("SET_SPOOL_ID LANE=lane2 SPOOL_ID=");
+        const auto temps = at("AFC_SET_SPOOL_TEMP LANE=lane2 EXTRUDER_TEMP=210 BED_TEMP=70");
+        const auto vendor = at("SET_FILAMENT_INFO LANE=lane2 VENDOR=\"Elegoo\" NAME=");
+        REQUIRE(unlink < sent);
+        CHECK((temps > unlink && temps < sent));
+        CHECK((vendor > unlink && vendor < sent));
     }
     SECTION("a vendor that cannot be sent stays in HelixScreen's record") {
         afc.gcodes.clear();
