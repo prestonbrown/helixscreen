@@ -16,6 +16,7 @@
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
 #include "static_subject_registry.h"
+#include "test_helpers/afc_test_access.h"
 #include "test_helpers/ams_backend_probes.h"
 #include "test_helpers/log_capture.h"
 #include "test_helpers/registered_backend.h"
@@ -890,6 +891,39 @@ TEST_CASE("A lane backend's topology does not allow an empty carriage",
     auto topo = helix::build_ams_topology(&afc, 0);
     REQUIRE(topo.has_value());
     CHECK_FALSE(topo->allows_empty_carriage);
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "An AFC toolchanger with every head parked shows no tool mounted",
+                 "[tool-state][ams-topology][empty-carriage][afc]") {
+    helix::AmsBackendAfc afc(nullptr, nullptr);
+    helix::AfcTestAccess::initialize_slots(afc,
+                                           std::vector<std::string>{"lane1", "lane2", "lane3"});
+    const auto feed = [&afc](const nlohmann::json& frame) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({frame, 0.0});
+        helix::AfcTestAccess::handle_status_update(afc, notification);
+    };
+    const auto publish = [&afc] {
+        auto topo = helix::build_ams_topology(&afc, 0);
+        REQUIRE(topo.has_value());
+        ToolState::instance().set_ams_topology(*topo);
+        UpdateQueue::instance().drain();
+    };
+    feed({{"AFC", {{"extruders", {"extruder", "extruder1", "extruder2"}}}}});
+
+    feed({{"toolchanger", {{"tool_number", 2}, {"status", "ready"}}}});
+    publish();
+    CHECK(ToolState::instance().active_tool_index() == 2);
+
+    feed({{"toolchanger", {{"tool_number", -1}, {"status", "ready"}}}});
+    feed({{"AFC", {{"current_load", "lane1"}}}});
+    publish();
+    CHECK(ToolState::instance().active_tool_index() == -1);
+    CHECK(ToolState::instance().active_tool() == nullptr);
+
+    ToolState::instance().clear_ams_topology();
+    UpdateQueue::instance().drain();
 }
 
 TEST_CASE_METHOD(ToolStateFixture, "multiple toolheads means a tool changer, never AMS slots",

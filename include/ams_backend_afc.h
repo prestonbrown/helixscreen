@@ -349,6 +349,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// signals and NOT system_info_.filament_loaded.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
+    /// True on a toolchanger: an AFC_Toolchanger unit is configured, or a
+    /// carriage has reported its mount state (toolchanger.status/tool_number,
+    /// or AFC_extruder on_shuttle on a multi-extruder machine). Its heads dock,
+    /// so a current tool of -1 means every head is parked. A single-toolhead
+    /// AFC never reports a carriage and keeps -1 meaning "no lane loaded".
+    [[nodiscard]] bool carriage_can_be_empty() const override;
+
     /// Status-driven fault, surfaced by AmsErrorBridge on the AmsAction::ERROR
     /// edge. Keyed on AFC's error_state, which upstream sets in lockstep with
     /// current_state = State.ERROR — the same transition that produced the edge.

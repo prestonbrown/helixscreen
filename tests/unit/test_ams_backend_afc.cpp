@@ -15,6 +15,7 @@
 #include "ams_backend_afc.h"
 #include "ams_remap.h"
 #include "ams_state.h"
+#include "ams_tool_topology.h"
 #include "ams_types.h"
 #include "config.h"
 #include "error_event.h"
@@ -9434,4 +9435,72 @@ TEST_CASE("AFC units report a toolhead sensor only when an AFC_extruder pin wire
             AmsBackendAfc::parse_configfile_topology(settings({{"extruder_name", "extruder"}})));
         CHECK_FALSE(helper.get_system_info().units[0].has_toolhead_sensor);
     }
+}
+
+// ============================================================================
+// Empty carriage: an AFC toolchanger with every head parked mounts no tool
+// ============================================================================
+
+TEST_CASE("AFC toolchanger with every head parked mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == 1);
+    CHECK(helper.carriage_can_be_empty());
+    {
+        auto topo = helix::build_ams_topology(&helper, 0);
+        REQUIRE(topo.has_value());
+        CHECK(topo->active_tool == 1);
+    }
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", -1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == -1);
+
+    // AFC.current_load can keep naming the lane of a docked head. Its mapped
+    // tool is not mounted: the carriage holds nothing.
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK(helper.get_system_info().current_tool == -1);
+    CHECK(helper.get_system_info().current_slot == -1);
+
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK(topo->allows_empty_carriage);
+    CHECK(topo->active_tool == -1);
+}
+
+TEST_CASE("AFC on_shuttle reporting an empty carriage mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    nlohmann::json frame;
+    frame["AFC"] = {{"current_load", "lane2"}};
+    frame["AFC_extruder extruder"] = {{"on_shuttle", false}};
+    frame["AFC_extruder extruder1"] = {{"on_shuttle", false}};
+    helper.feed_status_update(frame);
+
+    CHECK(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == -1);
+}
+
+TEST_CASE("Single-toolhead AFC keeps a carriage that cannot be empty",
+          "[ams][afc][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == 1);
+
+    helper.feed_afc_state({{"current_load", nullptr}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK_FALSE(topo->allows_empty_carriage);
 }

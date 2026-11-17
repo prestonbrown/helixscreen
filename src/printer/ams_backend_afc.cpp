@@ -3410,6 +3410,11 @@ bool AmsBackendAfc::has_toolchanger_unit_locked() const {
                        [](const AfcUnitInfo& u) { return u.type == "Toolchanger"; });
 }
 
+bool AmsBackendAfc::carriage_can_be_empty() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return has_toolchanger_unit_locked() || system_info_.mount_state != MountState::UNKNOWN;
+}
+
 bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) const {
     if (!configfile_answered_) {
         return true;
@@ -4767,6 +4772,7 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
             if (mounted == nullptr) {
                 system_info_.mount_state = MountState::NONE;
                 system_info_.mounted_tool = -1;
+                system_info_.current_tool = -1;
                 system_info_.current_slot = -1;
                 system_info_.filament_loaded = false;
                 return;
@@ -4826,6 +4832,10 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
                           "was {})",
                           system_info_.current_slot, system_info_.filament_loaded);
         }
+        // A lane mapped to a parked head (AFC.current_load can still name it)
+        // does not mount that head either: with every head docked no tool is
+        // current.
+        system_info_.current_tool = -1;
         system_info_.current_slot = -1;
         system_info_.filament_loaded = false;
         return;

@@ -4239,8 +4239,9 @@ bool AmsBackendMock::owns_tool_mapping_table() const {
 }
 
 bool AmsBackendMock::carriage_can_be_empty() const {
-    // AmsBackendSnapmaker and AmsBackendToolChanger dock their heads; every
-    // other mode answers what the backend it stands in for answers.
+    // AmsBackendSnapmaker and AmsBackendToolChanger dock their heads. The mock
+    // AFC rigs never park every head, so they answer as an AFC that has not
+    // reported an empty carriage does.
     std::lock_guard<std::mutex> lock(mutex_);
     return snapmaker_mode_ || system_info_.type == AmsType::TOOL_CHANGER;
 }
