@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Fixed
+
+- **A finished print wakes the display on Print Status** - when a print ended while the Print Status screen was open, the display stayed asleep. On panels that keep showing their last picture while asleep, the screen kept showing the print as running, with its progress and Pause and Cancel buttons, until someone touched it. The end of a print now wakes the display on Print Status just as it does on every other screen, unless print completion alerts are turned off.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added
