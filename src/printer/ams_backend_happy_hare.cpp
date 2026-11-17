@@ -1455,6 +1455,11 @@ bool AmsBackendHappyHare::duplicates_firmware_prompt(const std::string& title) c
     return title == "Happy Hare Error Notice";
 }
 
+bool AmsBackendHappyHare::firmware_prompt_button_is_own(const std::string& gcode) const {
+    const std::string command = helix::text_io::to_upper(std::string(helix::text_io::trim(gcode)));
+    return command == "RESUME" || command == "MMU_UNLOCK" || command == "CANCEL_PRINT";
+}
+
 std::vector<AmsBackend::ToolchangePhase>
 AmsBackendHappyHare::toolchange_phase_template(StepOperationType op) const {
     switch (op) {

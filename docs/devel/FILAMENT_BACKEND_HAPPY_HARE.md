@@ -315,4 +315,16 @@ says the hardware is there, so a printer without it lists nothing and the base r
 
 ---
 
+### The pause dialog
+
+Happy Hare raises its own Mainsail/Fluidd pause dialog for a fault the recovery popup also
+shows, so `duplicates_firmware_prompt()` claims it by title and the presenter
+(`src/ui/notify/recovery_modal_presenter.cpp#present`) closes it. Print-start macros can add
+buttons to that dialog (`MMU_ERROR_DIALOG BUTTONS=` on development builds, 59234df5; the v4.2
+dialog, f5f251f4, adds ABORT); a prompt carrying any button other than `RESUME`, `MMU_UNLOCK` or
+`CANCEL_PRINT` (`firmware_prompt_button_is_own()`) is left up, since closing it would take that
+action away.
+
+---
+
 Part of the filament system - see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) for the shared architecture, slot metadata, and endless spool model.

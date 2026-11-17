@@ -237,6 +237,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::ErrorEvent>
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
     [[nodiscard]] bool duplicates_firmware_prompt(const std::string& title) const override;
+    /// RESUME, MMU_UNLOCK and CANCEL_PRINT: the footer Happy Hare's pause dialog
+    /// builds. Print-start macros can add others (MMU_ERROR_DIALOG BUTTONS=).
+    [[nodiscard]] bool firmware_prompt_button_is_own(const std::string& gcode) const override;
 
     [[nodiscard]] std::vector<ToolchangePhase>
     toolchange_phase_template(StepOperationType op) const override;

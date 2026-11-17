@@ -3974,6 +3974,47 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ActionPromptManager::set_instance(nullptr);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare's error notice with a macro's own button survives the popup",
+                 "[ams][happy_hare][error-center][pause_dialog_buttons]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+    CHECK(hh.firmware_prompt_button_is_own("RESUME"));
+    CHECK(hh.firmware_prompt_button_is_own("mmu_unlock "));
+    CHECK(hh.firmware_prompt_button_is_own("CANCEL_PRINT"));
+    CHECK_FALSE(hh.firmware_prompt_button_is_own("_BOX_RETRY_LOAD"));
+
+    const bool extra = GENERATE(false, true);
+    INFO("extra button: " << extra);
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    prompts.process_line("// action:prompt_begin Happy Hare Error Notice");
+    prompts.process_line("// action:prompt_text Reason: Gate 2 is empty!");
+    if (extra) {
+        prompts.process_line("// action:prompt_footer_button Retry load|_BOX_RETRY_LOAD|primary");
+    }
+    prompts.process_line("// action:prompt_footer_button ABORT|CANCEL_PRINT|error");
+    prompts.process_line("// action:prompt_footer_button RESUME|RESUME|warning");
+    prompts.process_line("// action:prompt_footer_button UNLOCK|MMU_UNLOCK|primary");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK(helix::ActionPromptManager::is_showing() == extra);
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "An unrelated firmware prompt survives the HH recovery popup",
                  "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
