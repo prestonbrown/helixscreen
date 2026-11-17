@@ -122,6 +122,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_required_names.py` | Fail if a `find_required()` name is missing from the XML its unit creates |
 | `check_orphan_callbacks.py` | Ratchet on XML callbacks nobody registers, registrations nobody uses, double registrations |
 | `check_esp32_xml_bindings.py` | XML subjects and callbacks the desktop registers but the ESP32 firmware does not |
+| `check_esp32_stub_coverage.py` | Fail on a virtual or constructor the firmware links that only an excluded file defines; `ESP32_STUB_OK` |
 | `check_overlay_boilerplate.py` | Shrink-only ratchet on overlay boilerplate `OverlayBase` replaces |
 | `check_duplicate_xml_names.py` | Fail on a widget `name=` used twice in one XML file |
 | `check_responsive_token_scope.py` | Fail on a responsive token declared below the top level of `ui_xml/` |

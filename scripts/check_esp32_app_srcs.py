@@ -639,26 +639,52 @@ VARIABLE_DEFINITION = re.compile(r"^[ \t]*(?:(?:static|extern|const|constexpr|in
                                  r"((?:\w+::)*\w+)\s*(?:[{=;\[])", re.M)
 
 
-def defined_functions(code: str) -> set[str]:
+PAREN = re.compile(r"[()]")
+QUALIFIED_CALLEE = re.compile(r"(?<![\w.>:~])((?:\w+::)+~?\w+)\s*\(")
+
+
+def defined_functions(code: str, callee: re.Pattern = CALLEE) -> set[str]:
     """Names, as written (`Cls::fn`, `fn`), of each function `code` gives a body.
 
     A name counts when its closing parenthesis is followed, past cv/noexcept
     qualifiers, by `{`, a constructor's `:` or `= default`. A call is followed by
     `;`, `)`, `.` or an operator instead. Namespace-scope variables count too: a
     declaration with a type before the name and an initializer or `;` after it.
+    `callee` narrows the names considered (QUALIFIED_CALLEE: class members only).
     """
     out = set(VARIABLE_DEFINITION.findall(code))
-    for m in CALLEE.finditer(code):
+    for m in callee.finditer(code):
         if m.group(1).rsplit("::", 1)[-1] in NOT_A_FUNCTION:
             continue
-        depth, k = 0, m.end() - 1
-        while k < len(code):
-            depth += {"(": 1, ")": -1}.get(code[k], 0)
+        depth, k = 0, len(code)
+        for p in PAREN.finditer(code, m.end() - 1):
+            depth += 1 if p.group() == "(" else -1
             if depth == 0:
+                k = p.start()
                 break
-            k += 1
         if AFTER_PARAMS.match(code, k + 1):
             out.add(m.group(1))
+    return out
+
+
+def firmware_local_code(firmware_root: Path, defines: dict[str, str | None],
+                        include_dirs: list[Path]) -> dict[Path, str]:
+    """Each firmware-tree source's compiled code, comments and strings blanked.
+
+    A single-header library defines its functions in the source that sets its
+    *_IMPLEMENTATION macro before including it, so that header's code joins the source's.
+    """
+    out = {}
+    for p in sorted(firmware_root.rglob("*")):
+        if p.suffix not in SRC_SUFFIXES:
+            continue
+        text = p.read_text(errors="replace")
+        if re.search(r"^\s*#\s*define\s+\w+_IMPLEMENTATION\b", text, re.M):
+            for header in re.findall(r'^\s*#\s*include\s*"([^"]+)"', text, re.M):
+                hits = [d / header for d in (p.parent, *include_dirs) if (d / header).is_file()]
+                if hits:
+                    text += "\n" + hits[0].read_text(errors="replace")
+        out[p] = "\n".join(c for _, c in firmware_code_lines(text, defines))
     return out
 
 
@@ -739,23 +765,11 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     base = src_root.parent
     defines = firmware_defines(cmake_text, base)
     include_dirs = [base / d for d in re.findall(r"\$\{REPO_ROOT\}/([\w./-]+)", cmake_text)]
-    firmware_defined: set[str] = set()
-    firmware_namespaces: set[str] = set()
-    for p in sorted(firmware_root.rglob("*")):
-        if p.suffix not in SRC_SUFFIXES:
-            continue
-        text = p.read_text(errors="replace")
-        # A single-header library defines its functions in the source that sets
-        # its *_IMPLEMENTATION macro before including it.
-        if re.search(r"^\s*#\s*define\s+\w+_IMPLEMENTATION\b", text, re.M):
-            for header in re.findall(r'^\s*#\s*include\s*"([^"]+)"', text, re.M):
-                hits = [d / header for d in (p.parent, *include_dirs) if (d / header).is_file()]
-                if hits:
-                    text += "\n" + hits[0].read_text(errors="replace")
-        code = "\n".join(c for _, c in firmware_code_lines(text, defines))
-        firmware_defined |= defined_functions(code)
-        for ns in re.findall(r"\bnamespace\s+([\w:]+)", code):
-            firmware_namespaces |= set(ns.split("::"))
+    local_code = firmware_local_code(firmware_root, defines, include_dirs).values()
+    firmware_defined = {name for code in local_code for name in defined_functions(code)}
+    firmware_namespaces = {part for code in local_code
+                           for ns in re.findall(r"\bnamespace\s+([\w:]+)", code)
+                           for part in ns.split("::")}
     firmware_classes = {d.split("::")[-2] for d in firmware_defined if "::" in d}
     header_dirs = [base / "include", *include_dirs]
     forced = [base / h for h in re.findall(r"-include\b[^$]*?\$\{REPO_ROOT\}/([\w./-]+)",
