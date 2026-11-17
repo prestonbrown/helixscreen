@@ -1588,9 +1588,9 @@ json DebugBundleCollector::bound_status(json status, size_t max_field_bytes,
 
 json DebugBundleCollector::fetch_object_list(const std::string& base_url) {
     json resp = moonraker_get(base_url, "/printer/objects/list");
-    if (resp.contains("result") && resp["result"].contains("objects") &&
-        resp["result"]["objects"].is_array()) {
-        return resp["result"]["objects"];
+    const json* objects = helix::json_util::find_path(resp, "result", "objects");
+    if (objects && objects->is_array()) {
+        return *objects;
     }
     return resp.contains("error") ? resp : json{{"error", "No objects in /printer/objects/list"}};
 }
@@ -1814,8 +1814,8 @@ json DebugBundleCollector::collect_platform_files() {
             // Files that Moonraker can't serve come back as {"error": "..."};
             // skip 404 silently (file simply doesn't exist on this device —
             // common on non-zmod AD5M installs), keep other errors inline.
-            if (fetched.is_object() && fetched.contains("error")) {
-                std::string err = fetched["error"].get<std::string>();
+            if (const json* error = helix::json_util::find_member(fetched, "error")) {
+                std::string err = error->get<std::string>();
                 if (err.find("HTTP 404") != std::string::npos) {
                     spdlog::debug("[DebugBundle] platform file '{}' not present (404)", f.name);
                     continue;
@@ -1959,10 +1959,10 @@ json DebugBundleCollector::collect_printer_config() {
     std::vector<std::string> available;
     try {
         auto listing = moonraker_get(base_url, "/server/files/list?root=config");
-        if (listing.contains("result") && listing["result"].is_array()) {
-            for (const auto& entry : listing["result"]) {
-                if (entry.is_object() && entry.contains("path") && entry["path"].is_string()) {
-                    available.push_back(entry["path"].get<std::string>());
+        if (const json* entries = helix::json_util::find_array(listing, "result")) {
+            for (const auto& entry : *entries) {
+                if (auto path = helix::json_util::read_field<std::string>(entry, "path")) {
+                    available.push_back(*path);
                 }
             }
         }
@@ -2435,18 +2435,20 @@ DebugBundleCollector::fetch_log_listing(const std::string& base_url) {
 
     try {
         auto resp = moonraker_get(base_url, "/server/files/list?root=logs");
-        if (!resp.is_object() || !resp.contains("result") || !resp["result"].is_array())
+        const json* items = helix::json_util::find_array(resp, "result");
+        if (!items)
             return out;
 
-        for (const auto& item : resp["result"]) {
-            if (!item.is_object() || !item.contains("path") || !item["path"].is_string())
+        for (const auto& item : *items) {
+            auto path = helix::json_util::read_field<std::string>(item, "path");
+            if (!path)
                 continue;
             LogFileEntry e;
-            e.path = item["path"].get<std::string>();
-            if (item.contains("size") && item["size"].is_number())
-                e.size = item["size"].get<uint64_t>();
-            if (item.contains("modified") && item["modified"].is_number())
-                e.modified = item["modified"].get<double>();
+            e.path = std::move(*path);
+            if (auto size = helix::json_util::read_field<uint64_t>(item, "size"))
+                e.size = *size;
+            if (auto modified = helix::json_util::read_field<double>(item, "modified"))
+                e.modified = *modified;
             out.push_back(std::move(e));
         }
     } catch (const std::exception& e) {
@@ -2883,14 +2885,15 @@ std::string DebugBundleCollector::collect_device_id(const std::string& path) {
         }
 
         json data = json::parse(file);
-        if (!data.contains("uuid") || !data["uuid"].is_string() || !data.contains("salt") ||
-            !data["salt"].is_string()) {
+        auto uuid_field = helix::json_util::read_field<std::string>(data, "uuid");
+        auto salt_field = helix::json_util::read_field<std::string>(data, "salt");
+        if (!uuid_field || !salt_field) {
             spdlog::debug("[DebugBundle] telemetry_device.json missing uuid/salt");
             return {};
         }
 
-        std::string uuid = data["uuid"].get<std::string>();
-        std::string salt = data["salt"].get<std::string>();
+        std::string uuid = std::move(*uuid_field);
+        std::string salt = std::move(*salt_field);
 
         // Use the same double-hash as TelemetryManager for consistency
         return TelemetryManager::hash_device_id(uuid, salt);
@@ -3039,8 +3042,9 @@ void DebugBundleCollector::upload_async(const BundleOptions& options, ResultCall
                 // Parse share_code from response
                 try {
                     json resp_json = json::parse(response_body);
-                    if (resp_json.contains("share_code")) {
-                        result.share_code = resp_json["share_code"].get<std::string>();
+                    if (const json* share_code =
+                            helix::json_util::find_member(resp_json, "share_code")) {
+                        result.share_code = share_code->get<std::string>();
                     }
                 } catch (const json::parse_error&) {
                     // Response might not be JSON, but upload succeeded
