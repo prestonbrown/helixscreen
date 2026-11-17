@@ -4,6 +4,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -42,9 +43,18 @@ std::string capture_backtrace_hex() {
     return std::string{};
 #endif
 }
+
+std::atomic<helix_lvgl_anomaly_observer_fn> g_observer{nullptr};
 } // namespace
 
+extern "C" void helix_lvgl_anomaly_set_observer(helix_lvgl_anomaly_observer_fn observer) {
+    g_observer.store(observer, std::memory_order_release);
+}
+
 extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
+    if (auto observer = g_observer.load(std::memory_order_acquire)) {
+        observer(code, context);
+    }
     // HELIX_LOG_ANOMALIES=1 also writes each anomaly to the log. Telemetry drops them in
     // tests and rate-limits them in the app, so this is how a run counts them.
     static const bool log_anomalies = [] {

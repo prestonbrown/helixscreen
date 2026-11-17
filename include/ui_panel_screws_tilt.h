@@ -233,6 +233,7 @@ class ScrewsTiltPanel : public OverlayBase {
     // Subjects for status labels
     static constexpr size_t kProbeCountBufSize = 64;
     static constexpr size_t kErrorMsgBufSize = 256;
+    helix::Subject state_subject_{}; ///< 0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR
     helix::Subject probe_count_subject_{};
     helix::Subject error_message_subject_{};
     helix::Subject recenter_hint_subject_{};   ///< Alternative that turns fewer screws
