@@ -705,7 +705,9 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
                  "[ams][happy_hare][clear]") {
     // Happy Hare up to v4.2.0 reads an omitted TEMP as default_extruder_temp;
     // later versions keep the gate's own. Naming the default resets the gate
-    // on both. The connect-time configfile read supplies it.
+    // on both. The connect-time configfile read supplies it. From 4.2 the gate
+    // map holds the weights, so the wipe clears them too.
+    std::string tail = " QUIET=1";
     SECTION("v3 keeps it in [mmu]") {
         connect_with_fixture(
             helper, client, {{"configfile_settings", {{"mmu", {{"default_extruder_temp", 215}}}}}});
@@ -716,6 +718,7 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
                                {{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
                                 {"mmu_parameters", {{"default_extruder_temp", 215.0}}}}},
                               {"mmu_machine", {{"happy_hare_version", "4.2.0"}}}});
+        tail = " WEIGHT=-1 INITIAL_WEIGHT=-1 QUIET=1";
     }
 
     SlotInfo* slot = helper.get_mutable_slot(1);
@@ -727,7 +730,7 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
     helix::test::apply_edit(helper, 1, funnel_cleared_copy(*slot));
 
     REQUIRE(helper.has_gcode(
-        "MMU_GATE_MAP GATE=1 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP=215 QUIET=1"));
+        "MMU_GATE_MAP GATE=1 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP=215" + tail));
 }
 
 TEST_CASE_METHOD(HhHelper, "Happy Hare clear: a material edit does not take the wipe path",
