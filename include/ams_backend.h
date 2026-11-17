@@ -1862,26 +1862,6 @@ class AmsBackend : public AmsCapabilityHost {
         }
     }
 
-    /**
-     * @brief True when the current runout signal looks like a stale-sensor
-     *        false positive rather than a genuine filament-out.
-     *
-     * On Snapmaker U1 the encoder-based motion sensor latches
-     * filament_detected=false whenever no extrusion has happened recently —
-     * so it can fire pause_on_runout at print start, before filament has
-     * physically moved. The port/buffer sensor at the spool side still reads
-     * filament present in that case. Callers use this to suppress the runout
-     * guidance modal and auto-trigger prepare_for_resume + RESUME silently.
-     *
-     * Default: false (treat every runout signal as real).
-     *
-     * @param slot_index Slot to check (typically current active slot)
-     */
-    [[nodiscard]] virtual bool is_stuck_motion_sensor_runout(int slot_index) const {
-        (void)slot_index;
-        return false;
-    }
-
     // ========================================================================
     // Configuration Operations
     // ========================================================================
@@ -2983,17 +2963,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
   protected:
-    /**
-     * @brief Whether filament reaches @p head only through the mounted tool.
-     *
-     * A backend answering true mounts the tool inside its own load and unload
-     * and puts the carriage back afterwards. Never a question the UI asks: to
-     * every surface the op is simply a Load or an Unload.
-     */
-    [[nodiscard]] virtual bool needs_mount_to_feed(int /*head*/) const {
-        return false;
-    }
-
     /**
      * @brief Send this backend's tool-mapping verb.
      *

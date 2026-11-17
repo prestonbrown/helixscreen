@@ -594,7 +594,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     }
     void on_stopping() override;
     void on_stopped() override;
-    [[nodiscard]] bool needs_mount_to_feed(int head) const override;
+    /// Whether filament reaches @p head only through the mounted tool: load and
+    /// unload mount it themselves and put the carriage back afterwards.
+    [[nodiscard]] bool needs_mount_to_feed(int head) const;
 
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.

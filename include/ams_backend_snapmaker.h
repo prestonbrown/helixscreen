@@ -396,11 +396,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
 
     // True when the motion sensor reports runout but the port sensor still
-    // reads filament present — i.e. the encoder is stale (e.g., it never
-    // saw the start-of-print purge) but physical filament is in the buffer.
-    // Callers (FilamentRunoutHandler) auto-recover silently instead of
-    // showing the modal.
-    [[nodiscard]] bool is_stuck_motion_sensor_runout(int slot_index) const override;
+    // reads filament present: the encoder is stale (it never saw the
+    // start-of-print purge) but physical filament is in the buffer. No caller:
+    // the signal cannot tell a stale encoder from a short preload
+    // (FILAMENT_BACKEND_SNAPMAKER_U1.md).
+    [[nodiscard]] bool is_stuck_motion_sensor_runout(int slot_index) const;
 
     // Snapmaker U1 uses firmware-native print_task_config gcode
     // (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) emitted before
