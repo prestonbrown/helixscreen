@@ -445,7 +445,7 @@ void NavigationManager::clear_overlay_stack() {
         spdlog::trace("[NavigationManager] Cleared overlay {} from stack", (void*)overlay);
     }
 
-    overlay_is_destination_.clear();
+    overlay_geometry_.clear();
     overlay_width_unmanaged_.clear();
 
     backdrop_.release_primary();
@@ -1346,11 +1346,13 @@ void NavigationManager::rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new
         overlay_close_callbacks_[new_widget] = std::move(cb);
     }
 
-    auto wc_it = overlay_is_destination_.find(old_widget);
-    if (wc_it != overlay_is_destination_.end()) {
-        bool cls = wc_it->second;
-        overlay_is_destination_.erase(wc_it);
-        overlay_is_destination_[new_widget] = cls;
+    auto wc_it = overlay_geometry_.find(old_widget);
+    if (wc_it != overlay_geometry_.end()) {
+        // The new root's own built padding is the base the content cap adds to.
+        const OverlayGeometry geometry{wc_it->second.is_destination,
+                                       helix::content_cap_base_pad(new_widget)};
+        overlay_geometry_.erase(wc_it);
+        overlay_geometry_[new_widget] = geometry;
     }
 
     std::replace(panel_stack_.begin(), panel_stack_.end(), old_widget, new_widget);
@@ -1422,9 +1424,9 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
     // back() is the main panel rather than an overlay.
     bool parent_is_destination = false;
     if (!is_first_overlay && !panel_stack_.empty()) {
-        auto it = overlay_is_destination_.find(panel_stack_.back());
-        if (it != overlay_is_destination_.end()) {
-            parent_is_destination = it->second;
+        auto it = overlay_geometry_.find(panel_stack_.back());
+        if (it != overlay_geometry_.end()) {
+            parent_is_destination = it->second.is_destination;
         }
     }
 
@@ -1432,13 +1434,20 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
         helix::resolve_overlay_is_destination(requested, !is_first_overlay, parent_is_destination,
                                               helix::nav_root_is_destination(active_panel_));
 
-    overlay_is_destination_[overlay] = is_destination;
+    // The first push of a widget records the padding it was built with; a
+    // cached widget pushed again already carries the cap's overflow in it.
+    auto geometry_it =
+        overlay_geometry_
+            .try_emplace(overlay,
+                         OverlayGeometry{is_destination, helix::content_cap_base_pad(overlay)})
+            .first;
+    geometry_it->second.is_destination = is_destination;
 
     // Re-applied on EVERY push, not just at creation: OverlayBase caches its
     // root widget across show/hide cycles, and the same cached widget can be
     // reached from a transient parent one time and a destination parent the
     // next.
-    ui_set_overlay_geometry(overlay, is_destination);
+    write_overlay_geometry(overlay, geometry_it->second);
 
     // LV_STATE_USER_1 == "this is a transient layer". overlay_panel.xml hangs a
     // leading-edge treatment off it so the panel reads as something sitting ON
@@ -1456,17 +1465,24 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
     return is_destination;
 }
 
+void NavigationManager::write_overlay_geometry(lv_obj_t* overlay, const OverlayGeometry& geometry) {
+    ui_set_overlay_geometry(overlay, geometry.is_destination);
+    helix::apply_content_cap(overlay, geometry.base_pad_right,
+                             helix::content_capped(resolve_overlay_lifecycle(overlay)));
+}
+
 void NavigationManager::reapply_overlay_widths() {
-    for (const auto& [overlay, is_destination] : overlay_is_destination_) {
+    for (const auto& [overlay, geometry] : overlay_geometry_) {
         // Entries are erased on widget delete (scrub_deleted_widget), but guard
         // anyway — this runs from a display resize callback, outside the normal
         // push/pop ordering.
         if (lv_obj_is_valid(overlay)) {
-            ui_set_overlay_geometry(overlay, is_destination);
+            write_overlay_geometry(overlay, geometry);
         }
     }
+    panels_.reapply_content_caps();
     spdlog::debug("[NavigationManager] Re-applied width to {} overlay(s)",
-                  overlay_is_destination_.size());
+                  overlay_geometry_.size());
 }
 
 void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
@@ -1483,7 +1499,7 @@ void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
     // Drop the backdrop map entry only — out of scope to delete the backdrop here.
     backdrop_.scrub(widget);
     overlay_close_callbacks_.erase(widget);
-    overlay_is_destination_.erase(widget);
+    overlay_geometry_.erase(widget);
     overlay_width_unmanaged_.erase(widget);
     panel_stack_.erase(std::remove(panel_stack_.begin(), panel_stack_.end(), widget),
                        panel_stack_.end());
@@ -2144,7 +2160,7 @@ void NavigationManager::shutdown() {
     // Clear panel stack
     panel_stack_.clear();
     pending_pushes_.clear();
-    overlay_is_destination_.clear();
+    overlay_geometry_.clear();
     overlay_width_unmanaged_.clear();
 
     spdlog::trace("[NavigationManager] Shutdown complete");
@@ -2193,7 +2209,7 @@ void NavigationManager::deinit_subjects() {
     overlay_instances_.clear();
     persistent_overlay_instances_.clear();
     overlay_close_callbacks_.clear();
-    overlay_is_destination_.clear();
+    overlay_geometry_.clear();
     overlay_width_unmanaged_.clear();
     delete_hooked_.clear();
     rebuilt_overlays_.clear();

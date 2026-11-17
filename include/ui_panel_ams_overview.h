@@ -117,6 +117,11 @@ class AmsOverviewPanel : public PanelBase {
         return "AMS Overview";
     }
 
+    /// The multi-unit overview canvas lays units out across the width.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
+
     /// Multi-unit filament overview — same reasoning as AmsPanel: a place
     /// users park, so full width, and its drill-downs inherit that. #1178
     [[nodiscard]] bool is_destination() const override {

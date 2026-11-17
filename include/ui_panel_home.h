@@ -63,6 +63,11 @@ class HomePanel : public PanelBase {
     const char* get_name() const override {
         return "Home Panel";
     }
+
+    /// The widget grid fills the width by design: more width is more columns.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
     const char* get_xml_component_name() const override {
         return "home_panel";
     }

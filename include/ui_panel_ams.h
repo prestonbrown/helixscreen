@@ -93,6 +93,11 @@ class AmsPanel : public PanelBase {
         return "AMS Panel";
     }
 
+    /// The unit canvas and filament path drawing scale to the width.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
+
     /// Filament management is a place users park, not a tool they dip into —
     /// full width, and its drill-downs (edit spool, environment, device
     /// operations) inherit that. Declared here rather than at the push sites

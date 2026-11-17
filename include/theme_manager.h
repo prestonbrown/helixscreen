@@ -1013,6 +1013,42 @@ bool is_icon_font(const lv_font_t* font);
  */
 void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination);
 
+namespace helix {
+/**
+ * @brief The content width cap for @p obj's screen (content_max_width const)
+ *
+ * Falls back to content_max_width() of the screen height when the theme
+ * has not registered the const yet. See include/content_width_cap.h.
+ */
+int32_t live_content_max_width(lv_obj_t* obj);
+
+/**
+ * @brief The style that marks a view's chrome for the content cap
+ *
+ * Chrome is a header or footer that spans the whole view while the content
+ * between them is capped. A component declares the role in XML with
+ * <style name="styles.cap_chrome"/>; header_bar, wizard_header_bar and the
+ * wizard footer do. Null before ui_xml/styles.xml is registered.
+ */
+const lv_style_t* cap_chrome_style();
+
+/// The right padding @p root was built with: what apply_content_cap() adds to.
+int32_t content_cap_base_pad(lv_obj_t* root);
+
+/**
+ * @brief Cap a view's content at content_max_width, kept at its leading edge
+ *
+ * The one place the cap is written, for overlays, the main panel container
+ * and the wizard alike. @p root keeps its full width, so an overlay still
+ * occludes the backdrop, and whatever overshoots the cap becomes extra right
+ * padding on top of @p base_pad_right (content_cap_base_pad() of the freshly
+ * built root, remembered by the caller so a resize can shrink or remove the
+ * overflow). Direct children carrying cap_chrome_style() keep the full width.
+ * With @p capped false the root and its chrome return to their built geometry.
+ */
+void apply_content_cap(lv_obj_t* root, int32_t base_pad_right, bool capped);
+} // namespace helix
+
 /**
  * @brief Get spacing value from unified space_* system
  *

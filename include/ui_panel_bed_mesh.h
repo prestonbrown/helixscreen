@@ -76,6 +76,11 @@ class BedMeshPanel : public OverlayBase {
     const char* get_name() const override {
         return "Bed Mesh Panel";
     }
+
+    /// The 3D mesh viewer uses all the room it is given.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
     const char* xml_component() const override {
         return "bed_mesh_panel";
     }
