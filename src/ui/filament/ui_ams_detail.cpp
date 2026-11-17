@@ -536,6 +536,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         s_tray.lid_h = crest * shell_scale - box.back_extra / 2.0f;
     }
     s_tray.shell = shell;
+    s_tray.flat = loose;
     s_tray.spool_size = size;
     s_tray.lane_half = half;
     s_tray.lane_count = n;
