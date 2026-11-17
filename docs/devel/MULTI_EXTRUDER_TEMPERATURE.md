@@ -325,7 +325,7 @@ The print status tiles also observe `ToolState`'s tools version and map each too
 | `src/printer/printer_temperature_state.cpp` | Discovery, status parsing, subject management, chamber setpoint synthesis |
 | `include/temperature_rules.h` / `src/temperature/temperature_rules.cpp` | `chamber_effective_setpoint()`, `build_heater_gcode()` / `chamber_uses_m141()`: the widget-free rules state code shares with the UI |
 | `include/ui_temperature_utils.h` / `src/ui/controls/ui_temperature_utils.cpp` | `chamber_mode_word()` and the display helpers |
-| `include/temperature_controller.h` / `src/ui/controls/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
+| `include/temperature_controller.h` / `src/temperature/temperature_controller.cpp` | `TemperatureController::set_target(HeaterType::Chamber, ...)` send path |
 | `src/api/moonraker_api_controls.cpp` | `MoonrakerAPI::set_temperature()`: M141 routing gate |
 | `include/unit_conversions.h` | `json_to_decidegrees()` conversion helper |
 | `include/printer_discovery.h` | Heater discovery: `heaters()` list |
