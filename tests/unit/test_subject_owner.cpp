@@ -11,6 +11,7 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/strict_anomalies.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
@@ -327,6 +328,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(observer_count(&s) == 1);
     const uint32_t reported = Subject::anomalies_reported();
 
+    helix::test::AllowAnomaly allow("subject_reinit_while_live");
     s.init_int(9);
     CHECK(Subject::anomalies_reported() == reported + 1);
     CHECK(observer_count(&s) == 0);
