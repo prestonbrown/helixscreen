@@ -192,10 +192,12 @@ class TempGraphOverlay : public OverlayBase {
     // Color palette — uses shared kTempGraphSeriesColors from temp_graph_controller.h
 };
 
+namespace helix::ui {
 /// Register the heater rows' tap callbacks (heater_row.xml): each opens the
 /// graph on its heater, the nozzle on the target tool. Before any XML that
 /// holds heater_rows is built.
 void register_heater_row_callbacks();
+} // namespace helix::ui
 
 /// Lazy singleton shared by every entry point that opens the graph.
 inline TempGraphOverlay& get_global_temp_graph_overlay() {

@@ -24,7 +24,8 @@
                                  index="${i}" size="tool_switcher_picker_cell" band_h="tool_switcher_picker_band_h"
                                  band_labelled="tool_switcher_picker_band_labelled"
                                  two_line="tool_switcher_picker_two_line" label_key="_pick" sub_key="_pick_sub"
-                                 state_key="_pick_state" blocked="tool_picker_blocked"/>
+                                 state_key="_pick_state" blocked="tool_picker_blocked"
+                                 callback="tool_switcher_segment_cb"/>
         </repeat>
       </lv_obj>
       <!-- Park and the feeder under the grid, each half of it; either is

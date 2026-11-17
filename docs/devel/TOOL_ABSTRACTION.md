@@ -414,7 +414,7 @@ user's pick; reopening a surface never resets it; a pick past a shrunk tool list
 to T0. Subscribing replays the mounted tool, which is not a change, so a surface may
 `attach()` its PrinterState on every setup.
 
-`TargetTool` publishes what the surfaces bind: `target_tool`, `target_tool_head`,
+`TargetTool` publishes what the surfaces bind: `target_tool`,
 `target_tool_multi_head` (`ToolState::has_multiple_toolheads()`, never `is_multi_tool()`,
 which counts lanes a hub feeds into one head), `target_tool_name` ("Tool 2" or a configured
 name), `target_tool_number` ("2", empty with one head), `target_nozzle_label` ("Nozzle 2"),

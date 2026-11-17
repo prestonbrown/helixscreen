@@ -25,8 +25,8 @@ namespace helix::ui {
  * tools by itself.
  *
  * It publishes what the surfaces bind:
- *  - `target_tool` (tool index), `target_tool_head` (its physical head) and
- *    `target_tool_multi_head` (the printer has several heads);
+ *  - `target_tool` (tool index) and `target_tool_multi_head` (the printer
+ *    has several heads);
  *  - `target_tool_name` ("Tool 2" or a configured name), `target_tool_number`
  *    ("2", empty with one head) and `target_nozzle_label` ("Nozzle 2"), all
  *    in the display numbering, so a chip, a segment and a row agree;
@@ -100,7 +100,6 @@ class TargetTool {
 
     SubjectManager subjects_;
     lv_subject_t tool_subject_{};
-    lv_subject_t head_subject_{};
     lv_subject_t multi_head_subject_{};
     lv_subject_t name_subject_{};
     char name_buf_[64] = {};

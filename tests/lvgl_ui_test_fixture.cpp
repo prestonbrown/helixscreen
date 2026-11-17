@@ -210,7 +210,7 @@ void LVGLUITestFixture::register_event_callbacks() {
     helix::ui::notification_register_callbacks();
 
     // Heater rows open the temperature graph
-    register_heater_row_callbacks();
+    helix::ui::register_heater_row_callbacks();
 
     // Calibration panel callbacks
     ui_panel_screws_tilt_register_callbacks();

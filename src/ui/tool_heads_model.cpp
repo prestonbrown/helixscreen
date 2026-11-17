@@ -135,9 +135,11 @@ void ToolHeadsModel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(row_off_subject_, 0, "tool_row_off", subjects_);
     // A row cell's size: flex shares the row's width, so the width stays 0;
     // the height is one touch target.
-    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, 0, "tool_row_cell_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(row_cell_w_subject_, 0, "tool_row_cell_w",
+                           subjects_); // SUBJECT_OK: bound as ${size}_w by tool_switcher_segment
     UI_MANAGED_SUBJECT_INT(row_cell_h_subject_, resolve_px_token("touch_target_min", 48),
-                           "tool_row_cell_h", subjects_);
+                           "tool_row_cell_h",
+                           subjects_); // SUBJECT_OK: bound as ${size}_h by tool_switcher_segment
     // Every slot a cell can bind exists before any XML is parsed.
     for (IndexedSubjectPool* pool : s_pools) {
         pool->ensure_size(kPoolSize);

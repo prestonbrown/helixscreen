@@ -43,7 +43,6 @@ void TargetTool::init_subjects() {
         return;
     }
     UI_MANAGED_SUBJECT_INT(tool_subject_, 0, "target_tool", subjects_);
-    UI_MANAGED_SUBJECT_INT(head_subject_, 0, "target_tool_head", subjects_);
     UI_MANAGED_SUBJECT_INT(multi_head_subject_, 0, "target_tool_multi_head", subjects_);
     UI_MANAGED_SUBJECT_STRING(name_subject_, name_buf_, "", "target_tool_name", subjects_);
     UI_MANAGED_SUBJECT_STRING(number_subject_, number_buf_, "", "target_tool_number", subjects_);
@@ -244,7 +243,6 @@ void TargetTool::publish() {
         name = active_tool_name_label(info.name, info.index);
         number = tool_number_or_name(info.name, info.index);
     }
-    set_int_if_changed(&head_subject_, head());
     set_int_if_changed(&multi_head_subject_, multi ? 1 : 0);
     copy_if_changed(&name_subject_, name);
     copy_if_changed(&number_subject_, number);

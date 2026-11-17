@@ -233,7 +233,7 @@ void SubjectInitializer::init_ams_subjects() {
     helix::ui::TargetTool::instance().attach(get_printer_state());
     helix::ui::ToolHeadsModel::instance().attach(get_printer_state());
     helix::ui::ToolPicker::init_subjects();
-    register_heater_row_callbacks();
+    helix::ui::register_heater_row_callbacks();
 
     // Initialize SpoolmanManager AFTER AmsState (it reads slot data from AmsState)
     SpoolmanManager::instance().init_subjects();

@@ -862,7 +862,7 @@ static void open_from_heater_row(lv_event_t* e, TempGraphOverlay::Mode mode) {
     }
 }
 
-void register_heater_row_callbacks() {
+void helix::ui::register_heater_row_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_heater_row_nozzle", [](lv_event_t* e) {
         open_from_heater_row(e, TempGraphOverlay::Mode::Nozzle);
     });
