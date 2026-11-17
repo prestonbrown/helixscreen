@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Load picker rows say only what the sensor knows** - a slot is called ready to load only when its sensor sees filament, and empty when the sensor sees none. A slot with no sensor shows only its material.
 - **Tool choosers number tools the way the screen does** - the closed tool choosers on Controls and Filament show the tool's name or number as the rest of the screen counts it, instead of the G-code name, and fit their text without running under the arrow.
 - **Motion shows what the Z keys move** - the Z column on the Motion panel draws your printer's toolhead, or the bed on printers where the bed moves, instead of the words Print Head or Bed.
+- **Controls fits portrait screens** - on tall screens such as 272x480 and 320x480, tapping the Position card opens Motion, and Motors Off is a small button in the card header. The Cooling card shows Part Fan with its speed on the left and the other fans on the right, so nothing runs past the card.
+- **Temperature targets are buttons** - the Controls temperature card shows each target in an outlined button that opens the keypad, instead of a pencil icon that cut off the values on narrow screens. Tapping the rest of the row still opens the temperature graph.
 
 ### Fixed
 
@@ -41,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Clearer debug bundles when Klipper is down** - a debug bundle taken while Klipper has never reported a state says so instead of calling it a shutdown, and a log read straight from the printer's disk names the file and how old it is.
 - **Screensaver on screens that dim** (#2120) - choosing a screensaver now starts it after the timeout on every screen. On a screen with a dimmable backlight the timeout row is called Screensaver after while a screensaver is chosen, and picking one while that timeout is Never sets it to 10 minutes. Before, a screensaver chosen with Screen Dim set to Never never appeared.
 - **Bypass spool the same size as the others** - on the filament system screens the bypass spool is now drawn the same size as the spools in each unit, instead of smaller.
+- **Part Fan slider sets the part fan** - on printers whose part cooling fan is a named fan rather than the plain fan, the Controls slider now changes that fan instead of a different one.
+- **Part Fan slider knob shows whole** - the slider knob on the Controls Cooling card is no longer cut off at its ends or along its top and bottom on small screens.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
