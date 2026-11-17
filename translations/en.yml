@@ -3266,6 +3266,7 @@ translations:
   Remove the PEI Sheet: Remove the PEI Sheet
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results'
   Remove the bypass spool from the toolhead first: Remove the bypass spool from the toolhead first
+  Remove the leftover filament from the toolhead by hand before loading another spool.: Remove the leftover filament from the toolhead by hand before loading another spool.
   Remove the spools: Remove the spools
   Remove the spools from the bed: Remove the spools from the bed
   Remove the spools now?: Remove the spools now?
@@ -4285,6 +4286,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: This replaces this screen's home layout for this printer with the one on the printer's own screen.
   This resume needs a newer version of HelixScreen.: This resume needs a newer version of HelixScreen.
   This slot feeds no tool: This slot feeds no tool
+  This spool ran out, so the CFS cannot pull the leftover filament back.: This spool ran out, so the CFS cannot pull the leftover filament back.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.
   This system does not support bypass mode: This system does not support bypass mode
   This tool probes each bed screw and tells you how much to adjust.: This tool probes

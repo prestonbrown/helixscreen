@@ -3335,6 +3335,7 @@ translations:
   Remove the PEI Sheet: Retirar la lámina PEI
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Retira la lámina PEI de la cama e inténtalo de nuevo: sondear a través de la lámina da resultados incorrectos'
   Remove the bypass spool from the toolhead first: 'Primero retira la bobina de bypass del cabezal'
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Retire a mano el filamento sobrante del cabezal antes de cargar otra bobina.'
   Remove the spools: Retira las bobinas
 
   Remove the spools from the bed: Retira las bobinas de la cama
@@ -4385,6 +4386,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Esto reemplaza el diseño de la pantalla de inicio de esta pantalla para esta impresora por el de la pantalla de la propia impresora."
   This resume needs a newer version of HelixScreen.: Esta reanudación necesita una versión más reciente de HelixScreen.
   This slot feeds no tool: 'Esta ranura no alimenta ninguna herramienta'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar.'
   This system does not support bypass mode: 'Este sistema no es compatible con el modo bypass'
   This tool probes each bed screw and tells you how much to adjust.: Esta herramienta
