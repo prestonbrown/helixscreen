@@ -79,10 +79,10 @@ The sequencer thread sleeps on a condition variable when idle (no sound playing,
 |-------|---------|-----------|-----------------|
 | 0 | PWM | `/sound/pwm_channel` setting (or the `HELIX_PWM_SOUND` override) names `<chip>:<channel>` (pi, pi32, x86, yocto, native and ad5m builds) and the channel exports | A buzzer the user wired to a PWM pin |
 | 1 | SDL | `#ifdef HELIX_DISPLAY_SDL` + `SDL_OpenAudioDevice` succeeds | Desktop/simulator |
-| 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware |
+| 2 | ALSA | `#ifdef HELIX_HAS_ALSA` + ALSA PCM device opens (saved/env device, then `default`) | Linux SBCs with audio hardware; Creality K1 series (the unified MIPS build links the static alsa-lib in `docker/Dockerfile.mips`, which reads the board's `/usr/share/alsa`) |
 | 3 | JzPwm | `#ifdef HELIX_HAS_JZ_PWM` (unified MIPS build) + the board row says it has the piezo (AD5X, Creator 5, Creator 5 Pro) + `/dev/jz_pwm` exists and fx-pwm is executable | FlashForge MIPS boards' piezo (on-rig install) |
 | 4 | PWM | ad5m/ad5m-br builds only, unnamed: `pwmchip0/pwm6`, auto-exported by `initialize()` | AD5M hardware buzzer |
-| 5 | PcmPipe | `#ifdef HELIX_HAS_PCM_PIPE` (unified MIPS + k1-dynamic builds) + an executable `aplay` (`/usr/bin/aplay` and friends, or `HELIX_PCM_PLAYER`) + a playback node `pcmC*D*p` under `/dev/snd` | Creality K1 series: an ALSA codec the static musl binary cannot open itself |
+| 5 | PcmPipe | `#ifdef HELIX_HAS_PCM_PIPE` (unified MIPS + k1-dynamic builds) + an executable `aplay` (`/usr/bin/aplay` and friends, or `HELIX_PCM_PLAYER`) + a playback node `pcmC*D*p` under `/dev/snd` | A card the in-process ALSA open failed on (unified MIPS: the static alsa-lib rejecting the board's ALSA config); k1-dynamic builds, which carry no ALSA |
 | 6 | M300 | Printer answers M300 gcode: a beeper `output_pin` or an M300 macro in objects/list, or the `speaker` capability override forced on, plus a `MoonrakerClient` set via `set_moonraker_client()` | Klipper printers with a gcode beeper (no local audio) |
 | 7 | None | All above failed | Sounds silently disabled |
 

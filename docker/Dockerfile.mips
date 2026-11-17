@@ -108,7 +108,7 @@ USER root
 FROM debian:bookworm-slim
 
 LABEL maintainer="HelixScreen <dev@helixscreen.io>"
-LABEL description="Cross-compilation toolchain for the unified MIPS binary (K1 series + AD5X, NaN2008 musl 1.2.4, static)"
+LABEL description="Cross-compilation toolchain for the unified MIPS binary (K1 series + AD5X, NaN2008 musl 1.2.4, static, with OpenSSL, zlib and alsa-lib)"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -180,6 +180,36 @@ RUN export PATH="/opt/k1-toolchain/bin:$PATH" && \
     make install && \
     cd .. && \
     rm -rf zlib-1.3.2 zlib-1.3.2.tar.gz
+
+# ==============================================================================
+# alsa-lib 1.2.8 - Static Cross-Compiled Library
+# ==============================================================================
+# The K1 series has an ALSA card (icodec) and ships /usr/share/alsa, but a
+# static musl binary cannot load the board's libasound.so.2, so the ALSA sound
+# backend links this archive instead. --prefix=/usr compiles in
+# /usr/share/alsa as the config dir, which is where the K1 keeps alsa.conf.
+# With --disable-shared every PCM plugin is built into the archive and the
+# config functions resolve from alsa-lib's built-in symbol table, so nothing is
+# dlopened. Only PCM and control are used; the other interfaces are left out.
+# Boards without the config dir or a card (the AD5X) fail snd_pcm_open and the
+# backend ladder falls through.
+WORKDIR /tmp
+ARG ALSA_LIB_VERSION=1.2.8
+ARG ALSA_LIB_SHA256=1ab01b74e33425ca99c2e36c0844fd6888273193bd898240fe8f93accbcbf347
+RUN export PATH="/opt/k1-toolchain/bin:$PATH" && \
+    fetch https://www.alsa-project.org/files/pub/lib/alsa-lib-${ALSA_LIB_VERSION}.tar.bz2 && \
+    echo "${ALSA_LIB_SHA256}  alsa-lib-${ALSA_LIB_VERSION}.tar.bz2" | sha256sum -c - && \
+    tar xjf alsa-lib-${ALSA_LIB_VERSION}.tar.bz2 && \
+    cd alsa-lib-${ALSA_LIB_VERSION} && \
+    ./configure --host=mipsel-k1-linux-musl --prefix=/usr --sysconfdir=/etc \
+        --enable-static --disable-shared --without-versioned --disable-old-symbols \
+        --without-libdl --disable-python --disable-alisp --disable-topology \
+        --disable-ucm --disable-rawmidi --disable-hwdep --disable-seq --disable-mixer \
+        CFLAGS="-march=mips32r2 -mtune=mips32r2 -mnan=2008 -mfp64 -Os -ffunction-sections -fdata-sections" && \
+    make -j$(nproc) && \
+    make DESTDIR=/opt/k1-toolchain/mipsel-k1-linux-musl/sysroot install && \
+    cd .. && \
+    rm -rf alsa-lib-${ALSA_LIB_VERSION} alsa-lib-${ALSA_LIB_VERSION}.tar.bz2
 
 # ==============================================================================
 # Cross-Compilation Environment
