@@ -168,6 +168,7 @@ tests/shell/test_runtime_file_lists.bats	android/app/build.gradle config/ mk/cro
 tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl scripts/code_lint.sh
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/
 tests/shell/test_screenshot_printer_ids.bats	include/mock_persona.h scripts/screenshot.sh
+tests/shell/test_section_return_gate.bats	scripts/check_section_returns.py scripts/code_lint.sh scripts/source_strip.py
 tests/shell/test_shard_batching.bats	mk/tests.mk
 tests/shell/test_shellcheck_gate.bats	config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/shellcheck.sh src/ui/controls/ui_panel_macros.cpp ui_xml/globals.xml
 tests/shell/test_shipped_spacing_tokens_gate.bats	mk/cross.mk scripts/check_shipped_spacing_tokens.py scripts/source_strip.py

@@ -3263,49 +3263,48 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
     SECTION("a refused RESET_FAILURE keeps the marking") {
         REQUIRE(h.get_slot_info(2).error.has_value());
         REQUIRE(h.has_clearable_fault(2));
-        return;
     }
+    SECTION("an accepted RESET_FAILURE drops it") {
+        // AFC answers RESET_FAILURE with error_state false and no lane status delta.
+        h.accept_notify_gcode();
+        h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+        h.feed_afc_stepper("lane3", {{"prep", true}});
 
-    // AFC answers RESET_FAILURE with error_state false and no lane status delta.
-    h.accept_notify_gcode();
-    h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
-    h.feed_afc_stepper("lane3", {{"prep", true}});
-
-    REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
-    REQUIRE_FALSE(h.has_clearable_fault(2));
-
-    SECTION("the lane failing again outside a print brings it back") {
-        // handle_lane_failure(pause=False): status stays Error (no delta) and
-        // error_state never rises. Only the new message says so.
-        h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
-        h.feed_afc_state(
-            {{"message",
-              {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
-               {"type", "error"}}}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-        REQUIRE(h.has_clearable_fault(2));
-    }
-    SECTION("a new error naming no lane brings every acknowledged lane back") {
-        h.feed_afc_state(
-            {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-    }
-    SECTION("a new error naming another lane leaves this one cleared") {
-        h.feed_afc_state(
-            {{"message",
-              {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
-               {"type", "error"}}}});
         REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
-    }
+        REQUIRE_FALSE(h.has_clearable_fault(2));
 
-    SECTION("a new AFC error brings the marking back") {
-        h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-    }
-    SECTION("the lane failing again after moving on brings it back") {
-        h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
-        h.feed_afc_stepper("lane3", {{"status", "Error"}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
+        SECTION("the lane failing again outside a print brings it back") {
+            // handle_lane_failure(pause=False): status stays Error (no delta) and
+            // error_state never rises. Only the new message says so.
+            h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
+            h.feed_afc_state(
+                {{"message",
+                  {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+                   {"type", "error"}}}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+            REQUIRE(h.has_clearable_fault(2));
+        }
+        SECTION("a new error naming no lane brings every acknowledged lane back") {
+            h.feed_afc_state(
+                {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
+        SECTION("a new error naming another lane leaves this one cleared") {
+            h.feed_afc_state(
+                {{"message",
+                  {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+                   {"type", "error"}}}});
+            REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+        }
+        SECTION("a new AFC error brings the marking back") {
+            h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
+        SECTION("the lane failing again after moving on brings it back") {
+            h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
+            h.feed_afc_stepper("lane3", {{"status", "Error"}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
     }
 }
 

@@ -75,6 +75,7 @@ tests test_displays_deleted
 tests ams_state_published
 tests app_skip_require_app
 tests fork_assertions
+tests section_returns
 tests bats_real_tree_make
 ui chamber_target_binding
 ui zoffset_save_rule
@@ -1722,6 +1723,21 @@ lint_fork_assertions() {
     [ -n "$files" ] || { echo "code_lint: found no fork() in tests/; this lint is looking in the wrong place"; return 1; }
     # shellcheck disable=SC2086  # one path per word
     none_found "$(fork_assertion_offenders $files)"
+}
+
+# A return inside a Catch2 SECTION ends the run before Catch reaches the later
+# sibling SECTIONs, so they are never discovered and never run.
+# scripts/check_section_returns.py; opt-out // SECTION_RETURN_OK: <reason>.
+lint_section_returns() {
+    local offenders
+    # shellcheck disable=SC2046  # paths have no spaces
+    offenders=$(python3 "$CODE_LINT_DIR/check_section_returns.py" \
+        $(git ls-files --cached --others --exclude-standard tests | grep -E '\.(cpp|h)$'))
+    [ -z "$offenders" ] && return 0
+    echo "return inside a SECTION hides its later sibling SECTIONs (they never run):"
+    printf '%s\n' "$offenders"
+    echo "Move the rest of the case into a sibling SECTION instead of returning."
+    return 1
 }
 
 # A bats test that runs make in the tree under test races the developer's own
