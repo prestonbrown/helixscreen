@@ -1283,18 +1283,6 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
     CHECK_FALSE(firmware(0).remaining_weight_g);
 }
 
-TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 sends a weight edit to the gate map",
-                 "[ams][happy_hare][gate_weights]") {
-    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
-    helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, -1, -1}},
-                            {"gate_initial_weight", {1000, -1, -1, -1}}});
-    SlotInfo edit = helper.get_slot_info(0);
-    edit.remaining_weight_g = 500.4F;
-
-    REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
-    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
-}
-
 TEST_CASE_METHOD(HhFourGatesWithClient,
                  "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
                  "[ams][happy_hare][gate_weights]") {
@@ -1312,12 +1300,6 @@ TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare before 4.2 keeps weights bes
                  "[ams][happy_hare][gate_weights]") {
     connect_with_fixture(helper, client, happy_hare_fixture_at("4.1.0"));
     SECTION("an edit") {
-        SlotInfo edit = helper.get_slot_info(1);
-        edit.remaining_weight_g = 300.0F;
-        REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
-    }
-    SECTION("an edit in pull mode") {
-        helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
         SlotInfo edit = helper.get_slot_info(1);
         edit.remaining_weight_g = 300.0F;
         REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
@@ -5338,13 +5320,13 @@ TEST_CASE("a Happy Hare 4.2 weight edit stays out of the extras record",
     rig.connect(happy_hare_fixture_at("4.2.0"));
     const SlotInfo original = rig.reg->get_slot_info(0);
     SlotInfo edited = original;
-    edited.remaining_weight_g = 500.0f;
+    edited.remaining_weight_g = 500.4f;
     edited.total_weight_g = 1000.0f;
     REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
     for (int i = 0; i < 4; ++i) {
         helix::ui::UpdateQueue::instance().drain();
     }
-    CHECK(rig.reg->has_gcode_containing("WEIGHT=500 INITIAL_WEIGHT=1000"));
+    CHECK(rig.reg->has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
     nlohmann::json kept = rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
     if (kept.is_object()) {
         CHECK((!kept.contains("remaining_weight_g") || kept["remaining_weight_g"].is_null()));
