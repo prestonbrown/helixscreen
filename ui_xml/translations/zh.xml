@@ -185,6 +185,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." zh="饱和的滤网无法再吸附烟雾和颗粒。"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." zh="测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。"/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." zh="读取腔体内空气温度的传感器。在腔体温度界面查看。"/>
+  <translation tag="A shell on the machine running this screen" zh="运行此屏幕的机器上的 Shell"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" zh="料盘可能缠绕，或驱动齿轮卡住"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." zh="向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。"/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" zh="工具头偏移校准正在进行，可能来自另一个屏幕。现在结束吗?"/>
@@ -363,6 +364,7 @@
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
+  <translation tag="Auto Belt Tension" zh="自动皮带张紧"/>
   <translation tag="Auto Cal" zh="自动校准"/>
   <translation tag="Auto Fans" zh="自动风扇"/>
   <translation tag="Auto loading" zh="自动装料"/>
@@ -487,6 +489,7 @@
   <translation tag="Border Width" zh="边框宽度"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" zh="边框透明度（0 = 不可见，255 = 实心）"/>
   <translation tag="Both" zh="两者"/>
+  <translation tag="Both belts" zh="两条皮带"/>
   <translation tag="Bouncing Logo" zh="弹跳标志"/>
   <translation tag="Bouncing Printer" zh="弹跳打印机"/>
   <translation tag="Bowden" zh="远程挤出"/>
@@ -1015,6 +1018,7 @@
   <translation tag="Creating bed mesh..." zh="正在创建热床网格..."/>
   <translation tag="Creating spool..." zh="正在创建料盘…"/>
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
+  <translation tag="Ctrl" zh="Ctrl"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
   <translation tag="Current Configuration" zh="当前配置"/>
   <translation tag="Current Mesh" zh="当前网格"/>
@@ -1040,6 +1044,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." zh="剪掉拉出的尖端，将耗材重新推入挤出机直到推不动为止，然后点击“挤出”。"/>
   <translation tag="Cut position saved: {}" zh="切割位置已保存: {}"/>
   <translation tag="Cut tip" zh="切断尖端"/>
+  <translation tag="Cutter Calibration" zh="切刀校准"/>
   <translation tag="Cutter Enabled" zh="切刀已启用"/>
   <translation tag="Cutter and purge chute calibration" zh="切刀与排料口校准"/>
   <translation tag="Cutter blade didn&apos;t sever filament" zh="切刀未能切断耗材"/>
@@ -1310,6 +1315,7 @@
   <translation tag="Error: `unzip` not installed" zh="错误: 未安装 `unzip`"/>
   <translation tag="Error: cannot write the service file in {}" zh="错误: 无法将服务文件写入 {}"/>
   <translation tag="Errors only" zh="仅错误"/>
+  <translation tag="Esc" zh="Esc"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" zh="如果取消无响应则升级为紧急停止"/>
   <translation tag="Escalation Timeout" zh="升级超时"/>
   <translation tag="Est. Duration" zh="预计时长"/>
@@ -1607,6 +1613,7 @@
   <translation tag="Filename" zh="文件名"/>
   <translation tag="Filter" zh="滤网"/>
   <translation tag="Filter Fan" zh="过滤风扇"/>
+  <translation tag="Find the filament cutter&apos;s position" zh="确定耗材切刀的位置"/>
   <translation tag="Find the print speeds that shake the printer" zh="找出使打印机抖动的打印速度"/>
   <translation tag="Finding where the print stopped..." zh="正在查找打印停止的位置..."/>
   <translation tag="Fine" zh="细调"/>
@@ -1716,6 +1723,7 @@
   <translation tag="HEPA filter" zh="HEPA 过滤器"/>
   <translation tag="HEPA filter interval" zh="HEPA 过滤器间隔"/>
   <translation tag="HOST" zh="主机"/>
+  <translation tag="HOST ACCESS" zh="主机访问"/>
   <translation tag="HTTP Code" zh="HTTP 代码"/>
   <translation tag="HTTP error: {} {}" zh="HTTP 错误: {} {}"/>
   <translation tag="HUMIDITY SENSORS" zh="湿度传感器"/>
@@ -1862,6 +1870,7 @@
   <translation tag="Horizontal" zh="水平"/>
   <translation tag="Host" zh="主机"/>
   <translation tag="Host Health" zh="主机状态"/>
+  <translation tag="Host Terminal" zh="主机终端"/>
   <translation tag="Host and MCU load, temperature, and memory" zh="主机和 MCU 的负载、温度和内存"/>
   <translation tag="Host: " zh="主机: "/>
   <translation tag="Hotend" zh="热端"/>
@@ -2132,6 +2141,7 @@
   <translation tag="Length of the cooling tube section" zh="冷却管段的长度"/>
   <translation tag="Length:" zh="长度："/>
   <translation tag="Let a browser tap and drag on this screen" zh="允许浏览器在此屏幕上点击和拖动"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" zh="由打印机的张紧器调整皮带"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." zh="让我们快速浏览一下，帮助您快速找到所需内容。"/>
   <translation tag="Level" zh="级别"/>
   <translation tag="Leveling Gantry..." zh="正在调平龙门..."/>
@@ -2475,6 +2485,7 @@
   <translation tag="Next Zone (~{} min)" zh="下一区间(约 {} 分钟)"/>
   <translation tag="Next: {}" zh="下一个：{}"/>
   <translation tag="Niimbot (Bluetooth)" zh="Niimbot（蓝牙）"/>
+  <translation tag="Nixie Clock" zh="辉光管时钟"/>
   <translation tag="No" zh="否"/>
   <translation tag="No ACE unit was found." zh="未找到 ACE 单元。"/>
   <translation tag="No AMS Detected" zh="未检测到 AMS"/>
@@ -2715,6 +2726,7 @@
   <translation tag="Open" zh="打开"/>
   <translation tag="Open Fans" zh="打开风扇"/>
   <translation tag="Open Source Licenses" zh="开源许可证"/>
+  <translation tag="Open Terminal" zh="打开终端"/>
   <translation tag="Open color and brightness controls" zh="打开颜色和亮度控制"/>
   <translation tag="Open feeder" zh="打开送料器"/>
   <translation tag="Open feeder macro" zh="打开送料器宏"/>
@@ -3626,6 +3638,7 @@
   <translation tag="Show Sections" zh="显示区段"/>
   <translation tag="Show Touch Points" zh="显示触摸点"/>
   <translation tag="Show a confirmation dialog when tapping a macro" zh="点击宏时显示确认对话框"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." zh="在“工具”中显示此机器的 Shell。任何在屏幕前的人都可以在其上运行命令。"/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" zh="以 °C 或 °F 显示和输入温度"/>
   <translation tag="Show instead of dimming" zh="显示而非变暗"/>
   <translation tag="Show light controls for a light connected to this printer" zh="显示连接到此打印机的灯的控制"/>
@@ -3888,6 +3901,7 @@
   <translation tag="TOGGLE: {}" zh="切换: {}"/>
   <translation tag="TOOLS" zh="工具"/>
   <translation tag="TPU" zh="TPU"/>
+  <translation tag="Tab" zh="Tab"/>
   <translation tag="Tag Parts" zh="标记部件"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." zh="从热床上取下 PEI 板，然后点击下一步。工具头将直接在热床表面探测。"/>
   <translation tag="Takes 3-5 min. Do not interrupt." zh="需要 3-5 分钟。请勿中断。"/>
@@ -4094,6 +4108,8 @@
   <translation tag="The printer has not reported its axis limits yet." zh="打印机尚未报告其轴限位。"/>
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." zh="打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." zh="打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." zh="打印机将归零并扫过切刀（约1分钟）。请保持料路畅通。"/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." zh="打印机将按需归零，然后确定切刀的位置。请保持料路畅通。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." zh="打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。"/>
@@ -4132,6 +4148,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." zh="已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。"/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." zh="屏幕将与打印机断开连接几秒钟。"/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" zh="无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修"/>
+  <translation tag="The shell could not start: {}" zh="无法启动 Shell：{}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." zh="Shell 已退出。点击终端以启动新的 Shell。"/>
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." zh="子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。"/>
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
@@ -4198,10 +4216,12 @@
   <translation tag="This firmware can only switch slots by loading them" zh="此固件只能通过装载来切换槽位"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." zh="这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。"/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." zh="这会在打印机上安装 HelixScreen 帮助宏，添加到 printer.cfg，并重启 Klipper。"/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." zh="这是运行此屏幕的机器上的 Shell，以用户“{}”身份运行。在此输入的命令以该用户的权限执行，可能会更改或破坏系统，包括打印机固件。"/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." zh="这是紧急停止：打印机将停机并重启 Klipper。"/>
   <translation tag="This is exactly the data that will be sent" zh="这正是将要发送的数据"/>
   <translation tag="This is what data would be sent if enabled" zh="这是启用后将发送的数据"/>
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." zh="此耗材通道仍显示为已装载，但耗材已离开喷嘴。打印前请将其重新推入挤出机并挤出，直到耗材流出。"/>
+  <translation tag="This light chip controls" zh="此灯光标签控制"/>
   <translation tag="This looks like a {}, but it is set up as a {}" zh="这台打印机看起来是 {}，但被设置为 {}"/>
   <translation tag="This may take up to 30 seconds" zh="这可能需要 30 秒"/>
   <translation tag="This plugin asks for no special permissions." zh="此插件不请求任何特殊权限。"/>
@@ -4664,6 +4684,7 @@
   <translation tag="X axis applied, but Y axis failed" zh="X 轴已应用，但 Y 轴失败"/>
   <translation tag="X axis done, starting Y..." zh="X 轴完成，开始 Y 轴..."/>
   <translation tag="X axis limit reached" zh="已到达 X 轴限位"/>
+  <translation tag="X belt" zh="X 皮带"/>
   <translation tag="X is at its limit ({}mm)" zh="X 轴已到达限位 ({}mm)"/>
   <translation tag="X motor" zh="X 电机"/>
   <translation tag="X:" zh="X："/>
@@ -4673,6 +4694,7 @@
   <translation tag="Y Axis" zh="Y 轴"/>
   <translation tag="Y Offset" zh="Y 偏移"/>
   <translation tag="Y axis limit reached" zh="已到达 Y 轴限位"/>
+  <translation tag="Y belt" zh="Y 皮带"/>
   <translation tag="Y is at its limit ({}mm)" zh="Y 轴已到达限位 ({}mm)"/>
   <translation tag="Y motor" zh="Y 电机"/>
   <translation tag="Y:" zh="Y："/>

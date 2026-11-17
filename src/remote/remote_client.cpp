@@ -95,8 +95,8 @@ static const HelpEntry HELP[] = {
     {nullptr, "wake", "Reset idle timer / dismiss the screensaver", nullptr},
     {nullptr, "screensaver <name|off>", "Preview a screensaver by name, as Test Screensaver does",
      "toasters, starfield, pipes, bounce, fireworks, logo, maze,\n"
-     "hyperspace, flipclock, fireflies; a saver too heavy for the board\n"
-     "runs its fallback. `off` is wake"},
+     "hyperspace, flipclock, fireflies, aqua, highfly, nixie; a saver\n"
+     "too heavy for the board runs its fallback. `off` is wake"},
     {nullptr, "demo <name>", "Show a sample-data overlay unreachable in mock mode",
      "preflight-check, runout-modal, lock-screen, print-status,\n"
      "print-tune, ams, camera"},

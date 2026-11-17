@@ -2,6 +2,8 @@
 
 #include "region_defaults.h"
 
+#include "core/locale_code.h"
+
 #include <array>
 #include <atomic>
 
@@ -34,15 +36,42 @@ void set_saved_date_format(std::optional<DateFormat> format) {
                               std::memory_order_relaxed);
 }
 
+namespace {
+/// What a language writes by default. A regional variant ("en-GB") has its own row only
+/// where it differs from its base language; any other variant reads the base's row.
+struct LanguageDefaults {
+    const char* code;
+    DateFormat date_format;
+    bool clock_24h;
+};
+
+constexpr LanguageDefaults kLanguageDefaults[] = {
+    {"en", DateFormat::MDY, false}, {"en-GB", DateFormat::DMY, true}, {"de", DateFormat::DMY, true},
+    {"fr", DateFormat::DMY, true},  {"es", DateFormat::DMY, true},    {"it", DateFormat::DMY, true},
+    {"pt", DateFormat::DMY, true},  {"ru", DateFormat::DMY, true},    {"zh", DateFormat::YMD, true},
+    {"ja", DateFormat::YMD, true},
+};
+
+const LanguageDefaults* find_language_defaults(std::string_view language) {
+    for (const std::string_view code : {language, locale_base_language(language)}) {
+        for (const auto& row : kLanguageDefaults) {
+            if (code == row.code) {
+                return &row;
+            }
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
 DateFormat default_date_format_for_language(const std::string& language) {
-    if (language == "zh" || language == "ja") {
-        return DateFormat::YMD;
-    }
-    if (language == "de" || language == "fr" || language == "es" || language == "it" ||
-        language == "pt" || language == "ru") {
-        return DateFormat::DMY;
-    }
-    return DateFormat::MDY;
+    const LanguageDefaults* row = find_language_defaults(language);
+    return row ? row->date_format : DateFormat::MDY;
+}
+
+bool default_24h_clock_for_language(const std::string& language) {
+    const LanguageDefaults* row = find_language_defaults(language);
+    return row && row->clock_24h;
 }
 
 bool is_us_timezone(const std::string& timezone_iana) {

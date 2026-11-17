@@ -21,6 +21,7 @@ If you are a developer building from source, see [DEVELOPMENT.md](../devel/DEVEL
 - [Display Configuration](#display-configuration)
 - [Updating HelixScreen](#updating-helixscreen)
 - [Uninstalling](#uninstalling)
+- [For Image Builders: Preinstalling HelixScreen](#for-image-builders-preinstalling-helixscreen)
 - [Getting Help](#getting-help)
 
 ---
@@ -612,6 +613,66 @@ sudo rm -rf /opt/helixscreen
 
 Then delete the `[update_manager helixscreen]` section from `moonraker.conf`, and re-enable your previous screen program if you had one.
 </details>
+
+---
+
+## For Image Builders: Preinstalling HelixScreen
+
+This section is for people who build SD card images for Raspberry Pi and similar boards: a MainsailOS-style image, a board vendor's image, or a printer maker's factory image. It puts HelixScreen into the image while you build it, so the printer boots straight into HelixScreen with nobody running an installer.
+
+The image needs Klipper and Moonraker installed first, with the user that runs them (often `pi`) already created. HelixScreen supports the 64-bit (`pi`) and 32-bit (`pi32`) Raspberry Pi OS images.
+
+### With a CustomPiOS or MainsailOS build
+
+HelixScreen ships a ready-made image module in its source repository: [scripts/custompios/helixscreen](https://github.com/prestonbrown/helixscreen/tree/main/scripts/custompios/helixscreen). It downloads the release for the image's architecture, adds the libraries HelixScreen needs, and installs it.
+
+For a CustomPiOS build, copy that folder into your build's `src/modules/`, then add `helixscreen` to your `MODULES` line after the modules that install Klipper and Moonraker:
+
+```bash
+export MODULES="base(network,klipper,moonraker,mainsail,helixscreen)"
+```
+
+MainsailOS builds its images with CustoPiZer instead. In a fork of MainsailOS, copy the module's `start_chroot_script` to `modules/generic/56-helixscreen`, so it runs after Moonraker is installed.
+
+By default the module installs the latest release. To pin a version, check the download, or let HelixScreen take the screen from KlipperScreen, set these in your build's config (for MainsailOS, as `export` lines in `modules/generic/files/00-config`):
+
+```bash
+HELIXSCREEN_VERSION="v1.2.0"         # a release tag; "latest" is the default
+HELIXSCREEN_SHA256="<sha256 of the archive>"
+HELIXSCREEN_OWN_DISPLAY="1"          # turn KlipperScreen off in the image
+```
+
+The module's README lists every setting. It needs HelixScreen 1.2 or newer.
+
+### With your own build script
+
+Mount the image's root filesystem (or work from the directory you build it in), download the release archive for its platform, take `install.sh` out of the archive, and run it against that directory. It runs as root, since it writes into the image:
+
+```bash
+tar -xzf helixscreen-pi-v1.2.0.tar.gz -O helixscreen/install.sh > install.sh
+sudo sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi-v1.2.0.tar.gz
+```
+
+Run it inside the image's chroot instead and the target root is `/`. Outside a chroot, the installer refuses `/` on a running system, so it can never install onto the machine you build on.
+
+| Option | What it does |
+|--------|--------------|
+| `--target-root DIR` | The image's root filesystem |
+| `--platform pi` or `pi32` | 64-bit or 32-bit Raspberry Pi OS |
+| `--local FILE` | The release archive to install. Nothing is downloaded |
+| `--user NAME` | The user that runs Klipper. Found from the image when you leave it out |
+| `--own-display` | Turn KlipperScreen off in the image so HelixScreen owns the screen |
+| `--dry-run` | Print what would be installed and change nothing |
+
+### What happens at build time and at first boot
+
+At build time the installer copies HelixScreen into the Klipper user's home folder, installs and enables its service, and adds HelixScreen to Moonraker's update manager in the image's `moonraker.conf`, so Mainsail and Fluidd can update it later. It starts nothing and never touches the machine you build on.
+
+If the image has the libraries HelixScreen needs missing, it stops and prints the `apt-get install` line that adds them. Run that inside the image's chroot and try again.
+
+On the printer's first boot, HelixScreen finishes the steps that need the real hardware and a running Moonraker, then starts. The setup wizard runs on the printer's own screen as it does after any install.
+
+If the image also runs KlipperScreen, KlipperScreen keeps the screen unless you passed `--own-display`, and HelixScreen is installed but not started. Uninstalling HelixScreen on the printer later is the normal `--uninstall` from [Uninstalling](#uninstalling), and it turns KlipperScreen back on if the image install turned it off.
 
 ---
 

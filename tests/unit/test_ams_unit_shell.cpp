@@ -49,9 +49,6 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
     CHECK(id(AmsType::AFC, "Night_Owl Turtle_1") == "night_owl");
-    // AFC DEV's ACE and CFS units carry their type token.
-    CHECK(id(AmsType::AFC, "ACE Ace_1") == "ace_pro");
-    CHECK(id(AmsType::AFC, "CFS cfs_1") == "cfs");
     CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
@@ -88,7 +85,6 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
-    CHECK(unit_shell_for(one_unit(AmsType::AFC, "ACE2 Ace_1"), 0) == nullptr);
     const UnitShell* bmcu = helix::ui::tray::unit_shell_by_id("bmcu");
     REQUIRE(bmcu != nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);
@@ -112,16 +108,46 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "none");
     CHECK(id(AmsType::AFC, "Box_Turtle my_htlf") == "box_turtle");
     CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
+    // AFC types an ACE Pro "ACE", an ACE Pro 2 "ACE2" and a CFS "CFS", only as the leading token.
+    CHECK(id(AmsType::AFC, "ACE ACE_1") == "ace_pro");
+    CHECK(id(AmsType::AFC, "ACE2 Turtle_1") == "ace_pro");
+    CHECK(id(AmsType::AFC, "CFS CFS_1") == "cfs");
+    CHECK(id(AmsType::AFC, "Claymore ace 2") == "none");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
-    CHECK(id(AmsType::HAPPY_HARE, "KMS") == "kms");
-    // A renamed unit still reports its vendor, which Happy Hare publishes as "KMS".
-    AmsSystemInfo renamed = one_unit(AmsType::HAPPY_HARE, "Dry box");
-    renamed.units[0].model = "KMS";
-    REQUIRE(unit_shell_for(renamed, 0) != nullptr);
-    CHECK(std::string(unit_shell_for(renamed, 0)->id) == "kms");
     // The Canvas is drawn, but no backend reports one.
     CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
+}
+
+TEST_CASE("unit shell: a Happy Hare unit is found by the vendor it reports", "[ams][unit-art]") {
+    // Vendor strings from Happy Hare's mmu_constants.py, with the display name each unit
+    // gets when its config sets none.
+    struct Case {
+        const char* vendor;
+        const char* default_name;
+        const char* shell;
+    };
+    const Case cases[] = {
+        {"KMS", "KMS", "kms"},
+        {"VVD", "BTT ViViD", "btt_vivid"},
+        {"QIDI", "QIDI Box", "qidi_box"},
+        {"HTLF", "HTLF", "htlf"},
+        {"NightOwl", "Night Owl", "night_owl"},
+        {"BoxTurtle", "Box Turtle", "box_turtle"},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.vendor);
+        AmsSystemInfo info = one_unit(AmsType::HAPPY_HARE, c.default_name);
+        info.units[0].model = c.vendor;
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
+        info.units[0].name = "Dry box"; // renamed, still reporting its vendor
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
+    }
+    AmsSystemInfo turtle = one_unit(AmsType::HAPPY_HARE, "Box Turtle");
+    turtle.units[0].model = "BoxTurtle";
+    CHECK(std::string(unit_shell_for(turtle, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
 }
 
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {

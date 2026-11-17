@@ -133,6 +133,22 @@ TrayFaces tray_faces(const TrayBox& b) {
             {fr_t, br_t, br_b, fr_b}};
 }
 
+std::array<Edge, 7> near_edges(const TrayFaces& f) {
+    const PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
+    const PointF br_t = f.back_wall[1], br_b = f.back_wall[2];
+    return {{{fl_t, fr_t},
+             {fl_b, fr_b},
+             {fl_t, fl_b},
+             {fr_t, fr_b},
+             {fr_t, br_t},
+             {fr_b, br_b},
+             {br_t, br_b}}};
+}
+
+std::array<Edge, 2> far_edges(const TrayFaces& f) {
+    return {{{f.front[0], f.back_wall[0]}, {f.front[3], f.back_wall[3]}}};
+}
+
 float spool_front_cy(const TrayBox& b, float flange_ry) {
     return b.fb - flange_ry - kSpoolFloorGap;
 }

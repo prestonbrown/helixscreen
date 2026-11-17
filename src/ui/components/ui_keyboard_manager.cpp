@@ -1440,6 +1440,9 @@ void KeyboardManager::show(lv_obj_t* textarea) {
 
     lv_keyboard_set_textarea(keyboard_, textarea);
     lv_obj_set_hidden(keyboard_, false);
+    // Published before the layout pass below, so a view that changes shape for
+    // the keyboard has done so by the time the page lift is measured.
+    DisplaySettingsManager::instance().set_soft_keyboard_visible(true);
     lv_obj_move_to_index(keyboard_, -1);
     lv_obj_update_layout(screen);
     {
@@ -1536,6 +1539,7 @@ void KeyboardManager::hide() {
 
     // Cancel any in-progress show animation
     lv_anim_delete(keyboard_, nullptr);
+    DisplaySettingsManager::instance().set_soft_keyboard_visible(false);
 
     longpress_reset();
     longpress_state_ = LP_IDLE;

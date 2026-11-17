@@ -1361,6 +1361,15 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             }
         }
 
+        // A unit's topology also depends on its lanes' hub routing and the
+        // printer's extruder count, and AFC does not re-send a unit object when
+        // either changes.
+        if (unit_topology_stale_) {
+            unit_topology_stale_ = false;
+            refresh_all_unit_topologies();
+            state_changed = true;
+        }
+
         // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
             if (auto it = frame.buffers.find(buf_name); it != frame.buffers.end()) {
@@ -1787,6 +1796,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
     // function. See the tail block for why the comparison is frame-scoped.
     const AmsAction action_at_frame_start = system_info_.action;
     const std::string detail_at_frame_start = system_info_.operation_detail;
+    const int extruders_at_frame_start = num_extruders_;
 
     // Version, when upstream supplies it here (AFCProject/AFC-Klipper-Add-On
     // PR #807 adds AFC.version to get_status()). Prefer status when present and
@@ -2160,6 +2170,9 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
     if (afc.num_extruders) {
         num_extruders_ = *afc.num_extruders;
         spdlog::debug("[AMS AFC] num_extruders: {}", num_extruders_);
+    }
+    if (num_extruders_ != extruders_at_frame_start) {
+        unit_topology_stale_ = true;
     }
     if (afc.system_extruders) {
         toolhead_led_state_.clear();
@@ -2602,7 +2615,13 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     }
 
     if (data.hub) {
-        lane_hub_routing_[lane_name] = *data.hub;
+        auto [route, inserted] = lane_hub_routing_.try_emplace(lane_name, *data.hub);
+        if (inserted || route->second != *data.hub) {
+            route->second = *data.hub;
+            if (lane_in_applied_unit(lane_name)) {
+                unit_topology_stale_ = true;
+            }
+        }
         spdlog::trace("[AMS AFC] Lane {} hub routing: {}", lane_name, *data.hub);
     }
 
@@ -3108,18 +3127,46 @@ void AmsBackendAfc::apply_unit_object(AfcUnitInfo& unit_info, const afc::UnitObj
         unit_info.buffers = *data.buffers;
     }
 
-    // The per-lane "hub" field ("direct" vs hub name) is the authoritative
-    // source; the extruder/hub counts decide when it is unavailable.
-    afc::UnitTopology topo = afc::derive_unit_topology(unit_info.lanes, unit_info.extruders.size(),
-                                                       !unit_info.hubs.empty(), lane_hub_routing_);
-    unit_info.topology = topo.topology;
-    unit_info.lane_is_hub_routed = std::move(topo.lane_is_hub_routed);
+    refresh_unit_topology(unit_info);
 
     spdlog::debug("[AMS AFC] Unit object '{}': {} lanes, {} extruders, {} hubs, {} buffers → {}",
                   unit_info.klipper_key, unit_info.lanes.size(), unit_info.extruders.size(),
                   unit_info.hubs.size(), unit_info.buffers.size(),
                   path_topology_to_string(unit_info.topology));
 
+    rebuild_unit_map_when_complete();
+}
+
+void AmsBackendAfc::refresh_unit_topology(AfcUnitInfo& unit_info) {
+    // The per-lane "hub" field ("direct" vs hub name) is the authoritative
+    // source; the extruder/hub counts decide when it is unavailable.
+    afc::UnitTopology topo = afc::derive_unit_topology(
+        unit_info.lanes, unit_info.extruders.size(), unit_info.hubs.size(),
+        static_cast<size_t>(std::max(num_extruders_, 0)), lane_hub_routing_);
+    unit_info.topology = topo.topology;
+    unit_info.lane_is_hub_routed = std::move(topo.lane_is_hub_routed);
+}
+
+void AmsBackendAfc::refresh_all_unit_topologies() {
+    bool any_with_lanes = false;
+    for (auto& unit_info : unit_infos_) {
+        if (!unit_info.lanes.empty()) {
+            refresh_unit_topology(unit_info);
+            any_with_lanes = true;
+        }
+    }
+    if (any_with_lanes) {
+        rebuild_unit_map_when_complete();
+    }
+}
+
+bool AmsBackendAfc::lane_in_applied_unit(const std::string& lane_name) const {
+    return std::any_of(unit_infos_.begin(), unit_infos_.end(), [&](const AfcUnitInfo& ui) {
+        return std::find(ui.lanes.begin(), ui.lanes.end(), lane_name) != ui.lanes.end();
+    });
+}
+
+void AmsBackendAfc::rebuild_unit_map_when_complete() {
     // Reorganize only when ALL known units have lane data.
     // Triggering early (e.g., >=2) causes the slot registry rebuild to consume
     // stashed lane data before all units are accounted for, resulting in the

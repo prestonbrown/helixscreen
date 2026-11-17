@@ -983,8 +983,6 @@ TEST_CASE_METHOD(CalibrationSendFixture, "Calibration warm-up holds SIGTERM for 
         panel.reset();
         CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
-
-    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,

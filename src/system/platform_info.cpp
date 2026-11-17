@@ -2,6 +2,7 @@
 #include "platform_info.h"
 
 #include "board_identity.h"
+#include "helix_features.h"
 
 #include <spdlog/spdlog.h>
 
@@ -46,6 +47,10 @@ void set_external_updates_default_override(int override_value) {
 
 bool platform_host_power_supported() {
     return !is_android_platform();
+}
+
+bool platform_host_terminal_supported() {
+    return HELIX_HAS_HOST_TERMINAL && !is_android_platform();
 }
 
 // -1 = use compile-time default, 0 = force "beside the printer", 1 = force "on it"

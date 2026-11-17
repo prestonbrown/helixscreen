@@ -8,6 +8,10 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -40,15 +44,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager default values after in
 TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code conversion",
                  "[system_settings]") {
     SECTION("language_index_to_code valid indices") {
-        REQUIRE(SystemSettingsManager::language_index_to_code(0) == "en");
-        REQUIRE(SystemSettingsManager::language_index_to_code(1) == "de");
-        REQUIRE(SystemSettingsManager::language_index_to_code(2) == "fr");
-        REQUIRE(SystemSettingsManager::language_index_to_code(3) == "es");
-        REQUIRE(SystemSettingsManager::language_index_to_code(4) == "ru");
-        REQUIRE(SystemSettingsManager::language_index_to_code(5) == "pt");
-        REQUIRE(SystemSettingsManager::language_index_to_code(6) == "it");
-        REQUIRE(SystemSettingsManager::language_index_to_code(7) == "zh");
-        REQUIRE(SystemSettingsManager::language_index_to_code(8) == "ja");
+        const char* codes[] = {"en", "en-GB", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
+        for (int i = 0; i < 10; ++i) {
+            CAPTURE(i);
+            REQUIRE(SystemSettingsManager::language_index_to_code(i) == codes[i]);
+        }
     }
 
     SECTION("language_index_to_code out-of-range defaults to en") {
@@ -58,9 +58,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language index/code con
 
     SECTION("language_code_to_index valid codes") {
         REQUIRE(SystemSettingsManager::language_code_to_index("en") == 0);
-        REQUIRE(SystemSettingsManager::language_code_to_index("de") == 1);
-        REQUIRE(SystemSettingsManager::language_code_to_index("fr") == 2);
-        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 8);
+        REQUIRE(SystemSettingsManager::language_code_to_index("en-GB") == 1);
+        REQUIRE(SystemSettingsManager::language_code_to_index("de") == 2);
+        REQUIRE(SystemSettingsManager::language_code_to_index("ja") == 9);
     }
 
     SECTION("language_code_to_index unknown code defaults to 0") {
@@ -148,6 +148,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager language options string
     std::string opts(options);
     REQUIRE(opts.find("English") == 0);
     REQUIRE(opts.find("Deutsch") != std::string::npos);
+
+    // Each option sits at its code's index: a regional variant is named in its own words.
+    std::vector<std::string> names;
+    for (size_t pos = 0, end; pos <= opts.size(); pos = end + 1) {
+        end = std::min(opts.find('\n', pos), opts.size());
+        names.push_back(opts.substr(pos, end - pos));
+    }
+    REQUIRE(names.at(SystemSettingsManager::language_code_to_index("en")) == "English");
+    REQUIRE(names.at(SystemSettingsManager::language_code_to_index("en-GB")) == "English (UK)");
+    REQUIRE(names.at(SystemSettingsManager::language_code_to_index("de")) == "Deutsch");
 }
 
 // ============================================================================

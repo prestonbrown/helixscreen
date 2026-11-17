@@ -110,7 +110,11 @@ def looks(body, cx, depth, tubes):
 
 
 def tray_strip(body_rgb, lane_rgb, **kw):
-    """The detail screen shape of a feeder: a slim strip in the unit's colours."""
+    """The detail screen shape of a feeder: a slim strip in the unit's colours.
+
+    A feeder holds no spools, so on the detail screen its loose spools stand in the plain tray.
+    """
+    kw.setdefault("plain_tray", True)
     return TrayShellDef(
         cheek=[(0.0, 0.0), (1.0, 0.0)],
         dome=[],

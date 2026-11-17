@@ -214,6 +214,18 @@ class DisplaySettingsManager {
     }
 
     /**
+     * @brief Record whether the on-screen keyboard is up.
+     *
+     * KeyboardManager calls this as it raises and lowers the keyboard; the
+     * soft_keyboard_visible subject publishes it for views that lay out around
+     * the keyboard. A keyboard suppressed by a hardware one never counts as up.
+     */
+    void set_soft_keyboard_visible(bool visible);
+
+    /** @brief Whether the on-screen keyboard is up (or rising), per KeyboardManager */
+    bool soft_keyboard_visible() const;
+
+    /**
      * @brief Whether text entry goes to the hardware keyboard alone.
      *
      * True only while the preference is on AND a physical keyboard is attached;
@@ -298,6 +310,7 @@ class DisplaySettingsManager {
     /** @brief Set G-code render mode; an explicit pick also clears the GPU crash blocks */
     void set_gcode_render_mode(int mode);
 
+    /// The clock format: the saved choice, or the active language's while none is saved.
     TimeFormat get_time_format() const {
         return static_cast<TimeFormat>(std::clamp(settings_.get(Key::TimeFormat), 0, 1));
     }
@@ -319,7 +332,10 @@ class DisplaySettingsManager {
     /// Whether the user (or the setup wizard) has saved a date order.
     bool has_saved_date_format() const;
 
-    /// Re-read the language's date order into the subject while none is saved.
+    /// Whether the user has saved a clock format.
+    bool has_saved_time_format() const;
+
+    /// Re-read the language's date order and clock into their subjects while none is saved.
     void on_language_changed();
 
     /// Whether the dropdown offers "System": the host's own zone. The ESP32 has
@@ -591,6 +607,11 @@ class DisplaySettingsManager {
         return settings_.subject(Key::HideKeyboardWithHardware);
     }
 
+    /** @brief On-screen keyboard up (integer: 0=down, 1=up) */
+    lv_subject_t* subject_soft_keyboard_visible() {
+        return &soft_keyboard_visible_subject_;
+    }
+
     /** @brief Physical keyboard presence (integer: 0=none, 1=attached) */
     lv_subject_t* subject_hardware_keyboard_present() {
         return &hardware_keyboard_present_subject_;
@@ -662,6 +683,9 @@ class DisplaySettingsManager {
     DisplaySettingsManager();
     ~DisplaySettingsManager() = default;
 
+    /// Set the clock subject to the language's format while no choice is saved.
+    void follow_language_clock();
+
     SubjectManager subjects_;
 
     /// Keeps the XML style engine's transition scale following
@@ -698,6 +722,7 @@ class DisplaySettingsManager {
     helix::Subject dim_row_kind_subject_{};
     helix::Subject animations_enabled_subject_{};
     helix::Subject hardware_keyboard_present_subject_{};
+    helix::Subject soft_keyboard_visible_subject_{};
     helix::Subject is_android_subject_{};
     helix::Subject rotation_available_subject_{};
     helix::Subject timezone_subject_{};

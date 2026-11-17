@@ -42,9 +42,6 @@ using namespace helix;
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
 // ============================================================================
 
-// State subject (0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR)
-static helix::Subject s_screws_tilt_state;
-
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();
 
@@ -99,8 +96,7 @@ void ScrewsTiltPanel::init_subjects() {
     }
 
     // Initialize state subject for state machine visibility
-    // Note: s_screws_tilt_state is file-static, managed separately
-    UI_MANAGED_SUBJECT_INT(s_screws_tilt_state, 0, "screws_tilt_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(state_subject_, 0, "screws_tilt_state", subjects_);
 
     // Initialize subjects for reactive list rows (4 slots max)
     for (size_t i = 0; i < kMaxScrews; i++) {
@@ -275,7 +271,7 @@ void ScrewsTiltPanel::set_state(State new_state) {
 
     // Update subject - XML bindings handle visibility automatically
     // State mapping: 0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR
-    lv_subject_set_int(&s_screws_tilt_state, static_cast<int>(new_state));
+    lv_subject_set_int(&state_subject_, static_cast<int>(new_state));
 }
 
 // ============================================================================

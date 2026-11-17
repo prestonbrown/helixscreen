@@ -185,6 +185,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." fr="Un filtre saturé ne retient plus les fumées et particules."/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." fr="Un capteur qui mesure la distance au plateau. HelixScreen l&apos;utilise pour la calibration du Z Offset et les tests de sonde sur l&apos;écran Sonde."/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." fr="Un capteur qui mesure la température de l&apos;air dans l&apos;enceinte. Suivez-la sur l&apos;écran de température de l&apos;enceinte."/>
+  <translation tag="A shell on the machine running this screen" fr="Un shell sur la machine qui exécute cet écran"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" fr="Une bobine est peut-être emmêlée ou l&apos;engrenage d&apos;entraînement est bloqué"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." fr="Un système qui alimente plusieurs filaments vers la tête d&apos;outil, affiché avec son nombre de slots. Gérez les slots sur l&apos;écran du système de filament."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" fr="Une calibration des offsets des têtes d&apos;outil est en cours, peut-être depuis un autre écran. La terminer maintenant ?"/>
@@ -363,6 +364,7 @@
   <translation tag="Authentication failed" fr="Échec de l&apos;authentification"/>
   <translation tag="Auto" fr="Auto"/>
   <translation tag="Auto Bed Mesh" fr="Maillage auto du plateau"/>
+  <translation tag="Auto Belt Tension" fr="Tension automatique des courroies"/>
   <translation tag="Auto Cal" fr="Cal auto"/>
   <translation tag="Auto Fans" fr="Ventilateurs automatiques"/>
   <translation tag="Auto loading" fr="Chargement automatique"/>
@@ -487,6 +489,7 @@
   <translation tag="Border Width" fr="Largeur de la bordure"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" fr="Transparence de la bordure (0 = invisible, 255 = solide)"/>
   <translation tag="Both" fr="Les deux"/>
+  <translation tag="Both belts" fr="Les deux courroies"/>
   <translation tag="Bouncing Logo" fr="Bouncing Logo"/>
   <translation tag="Bouncing Printer" fr="Bouncing Printer"/>
   <translation tag="Bowden" fr="Bowden"/>
@@ -1015,6 +1018,7 @@
   <translation tag="Creating bed mesh..." fr="Création du maillage du plateau..."/>
   <translation tag="Creating spool..." fr="Création de la bobine..."/>
   <translation tag="Critical hardware missing: {}" fr="Matériel critique manquant : {}"/>
+  <translation tag="Ctrl" fr="Ctrl"/>
   <translation tag="Current / Target" fr="Actuel / Cible"/>
   <translation tag="Current Configuration" fr="Configuration actuelle"/>
   <translation tag="Current Mesh" fr="Maillage du plateau actuel"/>
@@ -1040,6 +1044,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." fr="Coupez la pointe extraite et repoussez le filament dans l&apos;extrudeur jusqu&apos;en butée, puis appuyez sur Extruder."/>
   <translation tag="Cut position saved: {}" fr="Position de coupe enregistrée : {}"/>
   <translation tag="Cut tip" fr="Couper la pointe"/>
+  <translation tag="Cutter Calibration" fr="Calibrage du coupeur"/>
   <translation tag="Cutter Enabled" fr="Coupeur activé"/>
   <translation tag="Cutter and purge chute calibration" fr="Calibration du coupeur et de la goulotte de purge"/>
   <translation tag="Cutter blade didn&apos;t sever filament" fr="La lame n&apos;a pas sectionné le filament"/>
@@ -1310,6 +1315,7 @@
   <translation tag="Error: `unzip` not installed" fr="Erreur : `unzip` non installé"/>
   <translation tag="Error: cannot write the service file in {}" fr="Erreur : impossible d&apos;écrire le fichier de service dans {}"/>
   <translation tag="Errors only" fr="Erreurs uniquement"/>
+  <translation tag="Esc" fr="Échap"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" fr="Escalader vers l&apos;arrêt d&apos;urgence si l&apos;annulation ne répond pas"/>
   <translation tag="Escalation Timeout" fr="Délai d&apos;escalade"/>
   <translation tag="Est. Duration" fr="Durée est."/>
@@ -1607,6 +1613,7 @@
   <translation tag="Filename" fr="Nom du fichier"/>
   <translation tag="Filter" fr="Filtre"/>
   <translation tag="Filter Fan" fr="Ventilateur de filtre"/>
+  <translation tag="Find the filament cutter&apos;s position" fr="Trouver la position du coupe-filament"/>
   <translation tag="Find the print speeds that shake the printer" fr="Trouver les vitesses d&apos;impression qui font vibrer l&apos;imprimante"/>
   <translation tag="Finding where the print stopped..." fr="Recherche de l&apos;endroit où l&apos;impression s&apos;est arrêtée..."/>
   <translation tag="Fine" fr="Fin"/>
@@ -1716,6 +1723,7 @@
   <translation tag="HEPA filter" fr="Filtre HEPA"/>
   <translation tag="HEPA filter interval" fr="Intervalle du filtre HEPA"/>
   <translation tag="HOST" fr="Hôte"/>
+  <translation tag="HOST ACCESS" fr="ACCÈS À L&apos;HÔTE"/>
   <translation tag="HTTP Code" fr="Code HTTP"/>
   <translation tag="HTTP error: {} {}" fr="Erreur HTTP : {} {}"/>
   <translation tag="HUMIDITY SENSORS" fr="CAPTEURS D&apos;HUMIDITÉ"/>
@@ -1862,6 +1870,7 @@
   <translation tag="Horizontal" fr="Horizontal"/>
   <translation tag="Host" fr="Hôte"/>
   <translation tag="Host Health" fr="État de l&apos;hôte"/>
+  <translation tag="Host Terminal" fr="Terminal de l&apos;hôte"/>
   <translation tag="Host and MCU load, temperature, and memory" fr="Charge, température et mémoire de l&apos;hôte et du MCU"/>
   <translation tag="Host: " fr="Hôte : "/>
   <translation tag="Hotend" fr="Hotend"/>
@@ -2132,6 +2141,7 @@
   <translation tag="Length of the cooling tube section" fr="Longueur de la section du tube de refroidissement"/>
   <translation tag="Length:" fr="Longueur :"/>
   <translation tag="Let a browser tap and drag on this screen" fr="Permettre à un navigateur de toucher et faire glisser sur cet écran"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" fr="Laisser les tendeurs de l&apos;imprimante régler les courroies"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." fr="Faisons une visite rapide pour que vous puissiez trouver vos marques rapidement."/>
   <translation tag="Level" fr="Niveau"/>
   <translation tag="Leveling Gantry..." fr="Nivellement du portique..."/>
@@ -2475,6 +2485,7 @@
   <translation tag="Next Zone (~{} min)" fr="Zone suiv. (~{} min)"/>
   <translation tag="Next: {}" fr="À suivre : {}"/>
   <translation tag="Niimbot (Bluetooth)" fr="Niimbot (Bluetooth)"/>
+  <translation tag="Nixie Clock" fr="Horloge Nixie"/>
   <translation tag="No" fr="Non"/>
   <translation tag="No ACE unit was found." fr="Aucune unité ACE trouvée."/>
   <translation tag="No AMS Detected" fr="Aucun AMS détecté"/>
@@ -2715,6 +2726,7 @@
   <translation tag="Open" fr="Ouvrir"/>
   <translation tag="Open Fans" fr="Ouvrir Ventilateurs"/>
   <translation tag="Open Source Licenses" fr="Licences open source"/>
+  <translation tag="Open Terminal" fr="Ouvrir le terminal"/>
   <translation tag="Open color and brightness controls" fr="Ouvrir couleur et luminosité"/>
   <translation tag="Open feeder" fr="Ouvrir l&apos;alimentateur"/>
   <translation tag="Open feeder macro" fr="Macro d&apos;ouverture de l&apos;alimentateur"/>
@@ -3626,6 +3638,7 @@
   <translation tag="Show Sections" fr="Afficher les sections"/>
   <translation tag="Show Touch Points" fr="Afficher les points de contact"/>
   <translation tag="Show a confirmation dialog when tapping a macro" fr="Afficher une boîte de dialogue de confirmation lors de l&apos;appui sur une macro"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." fr="Affiche un shell de cette machine dans Outils. Toute personne devant l&apos;écran pourra alors y exécuter des commandes."/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" fr="Afficher et saisir les températures en Celsius ou en Fahrenheit"/>
   <translation tag="Show instead of dimming" fr="Afficher au lieu d&apos;atténuer"/>
   <translation tag="Show light controls for a light connected to this printer" fr="Afficher les commandes d&apos;éclairage d&apos;une lumière connectée à cette imprimante"/>
@@ -3888,6 +3901,7 @@
   <translation tag="TOGGLE: {}" fr="BASCULER : {}"/>
   <translation tag="TOOLS" fr="OUTILS"/>
   <translation tag="TPU" fr="TPU"/>
+  <translation tag="Tab" fr="Tab"/>
   <translation tag="Tag Parts" fr="Repérer les éléments"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." fr="Retirez la plaque PEI du plateau chauffant, puis appuyez sur Suivant. Les têtes d&apos;outil palpent le plateau nu."/>
   <translation tag="Takes 3-5 min. Do not interrupt." fr="Prend 3-5 min. Ne pas interrompre."/>
@@ -4094,6 +4108,8 @@
   <translation tag="The printer has not reported its axis limits yet." fr="L&apos;imprimante n&apos;a pas encore signalé les limites de ses axes."/>
   <translation tag="The printer has not reported its maximum velocity yet." fr="L&apos;imprimante n&apos;a pas encore signalé sa vitesse maximale."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." fr="L&apos;imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu&apos;à ce que les mesures concordent, puis indique un seul chiffre."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." fr="L&apos;imprimante prend l&apos;origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d&apos;abord le filament."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." fr="L&apos;imprimante prend l&apos;origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l&apos;origine avant de déplacer l&apos;imprimante."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." fr="L&apos;imprimante prend l&apos;origine et balaie le coupeur (environ 1 minute). Laissez le chemin du filament dégagé."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." fr="L&apos;imprimante prend l&apos;origine si nécessaire, puis localise la position du coupeur. Laissez le chemin du filament dégagé."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." fr="L&apos;imprimante fait sa prise d&apos;origine, puis éloigne le plateau de la buse autant que possible. Certaines bobines ne supportent pas assez la chaleur et peuvent se déformer. Rien ne bouge depuis cet écran tant que vous n&apos;avez pas confirmé que les bobines ne sont plus sur le plateau ; Mainsail, les macros et les impressions envoyées depuis un slicer ne sont pas bloqués."/>
@@ -4132,6 +4148,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." fr="La position enregistrée est conservée. Reconnectez ou redémarrez l&apos;écran pour que la reprise soit à nouveau proposée."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." fr="L&apos;écran perdra la connexion à l&apos;imprimante pendant quelques secondes."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" fr="Le capteur de cette unité CFS ne peut pas être lu. Vérifiez son raccordement, sinon l&apos;unité nécessite une intervention"/>
+  <translation tag="The shell could not start: {}" fr="Le shell n&apos;a pas pu démarrer : {}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." fr="Le shell s&apos;est terminé. Touchez le terminal pour en démarrer un nouveau."/>
   <translation tag="The speed of one fan you choose" fr="La vitesse d&apos;un ventilateur choisi"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." fr="Le masque de sous-réseau n&apos;est pas valide. Utilisez une forme comme 255.255.255.0 ou 24."/>
   <translation tag="The temperature was changed elsewhere." fr="La température a été modifiée ailleurs."/>
@@ -4198,10 +4216,12 @@
   <translation tag="This firmware can only switch slots by loading them" fr="Ce firmware ne peut changer de slot qu&apos;en le chargeant"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante et les ajoute à printer.cfg. Une impression est en cours, Klipper redémarrera une fois terminée."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante, les ajoute à printer.cfg et redémarre Klipper."/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." fr="Ceci est un shell sur la machine qui exécute cet écran, en tant qu&apos;utilisateur « {} ». Les commandes saisies ici s&apos;exécutent avec les droits de cet utilisateur et peuvent modifier ou casser le système, y compris le firmware de l&apos;imprimante."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." fr="Ceci est un arrêt d&apos;urgence : l&apos;imprimante s&apos;arrête et Klipper redémarre."/>
   <translation tag="This is exactly the data that will be sent" fr="Voici exactement les données qui seront envoyées"/>
   <translation tag="This is what data would be sent if enabled" fr="Voici les données qui seraient envoyées si activé"/>
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." fr="Cette voie apparaît encore comme chargée, mais son filament est sorti de la buse. Avant d&apos;imprimer, repoussez-le dans l&apos;extrudeur et extrudez jusqu&apos;à ce qu&apos;il s&apos;écoule."/>
+  <translation tag="This light chip controls" fr="Cette puce lumineuse contrôle"/>
   <translation tag="This looks like a {}, but it is set up as a {}" fr="Cette imprimante ressemble à une {}, mais elle est configurée comme {}"/>
   <translation tag="This may take up to 30 seconds" fr="Cela peut prendre jusqu&apos;à 30 secondes"/>
   <translation tag="This plugin asks for no special permissions." fr="Ce plugin ne demande aucune autorisation particulière."/>
@@ -4664,6 +4684,7 @@
   <translation tag="X axis applied, but Y axis failed" fr="Axe X appliqué, mais l&apos;axe Y a échoué"/>
   <translation tag="X axis done, starting Y..." fr="Axe X terminé, démarrage de Y..."/>
   <translation tag="X axis limit reached" fr="Limite de l&apos;axe X atteinte"/>
+  <translation tag="X belt" fr="Courroie X"/>
   <translation tag="X is at its limit ({}mm)" fr="X est à sa limite ({}mm)"/>
   <translation tag="X motor" fr="Moteur X"/>
   <translation tag="X:" fr="X :"/>
@@ -4673,6 +4694,7 @@
   <translation tag="Y Axis" fr="Axe Y"/>
   <translation tag="Y Offset" fr="Décalage Y"/>
   <translation tag="Y axis limit reached" fr="Limite de l&apos;axe Y atteinte"/>
+  <translation tag="Y belt" fr="Courroie Y"/>
   <translation tag="Y is at its limit ({}mm)" fr="Y est à sa limite ({}mm)"/>
   <translation tag="Y motor" fr="Moteur Y"/>
   <translation tag="Y:" fr="Y :"/>

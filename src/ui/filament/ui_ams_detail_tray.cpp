@@ -91,8 +91,13 @@ void tray_back_draw_cb(lv_event_t* e) {
             tray::fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
     tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
-    if (s_tray.shell)
+    if (s_tray.shell) {
         tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
+    } else {
+        // The far wall's top and bottom edges run behind the leftmost spool.
+        for (const tray::Edge& ab : tray::far_edges(f))
+            tray::edge(layer, o, ab.a, ab.b, c.edge, s_tray.opa.edge);
+    }
 
     if (simple || s_tray.lid == tray::LidMode::None)
         return;
@@ -179,15 +184,14 @@ void tray_front_draw_cb(lv_event_t* e) {
         lv_draw_rect(layer, &front, &area);
         tray::fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
     }
-    const tray::PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
-    const tray::PointF bl_t = f.back_wall[0], br_t = f.back_wall[1], br_b = f.back_wall[2],
-                       bl_b = f.back_wall[3];
-    const tray::PointF edges[][2] = {{fl_t, fr_t}, {fl_b, fr_b}, {fl_t, fl_b},
-                                     {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
-                                     {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
     if (!s_tray.shell || simple) {
-        for (const auto& ab : edges)
-            tray::edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+        for (const tray::Edge& ab : tray::near_edges(f))
+            tray::edge(layer, o, ab.a, ab.b, c.edge, s_tray.opa.edge);
+        // Without a shell the far wall's edges were drawn behind the spools.
+        if (s_tray.shell) {
+            for (const tray::Edge& ab : tray::far_edges(f))
+                tray::edge(layer, o, ab.a, ab.b, c.edge, s_tray.opa.edge);
+        }
     } else {
         tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
     }

@@ -87,6 +87,7 @@ static helix::Subject g_platform_extras_subject;
 static helix::Subject g_host_power_supported_subject;
 static helix::Subject g_camera_supported_subject;
 static helix::Subject g_console_supported_subject;
+static helix::Subject g_host_terminal_supported_subject;
 static helix::Subject g_platform_tier_subject;
 static helix::Subject g_wizard_active_subject;
 
@@ -277,6 +278,11 @@ void app_globals_init_subjects() {
     //   <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
     g_console_supported_subject.init_int(HELIX_HAS_CONSOLE ? 1 : 0);
     g_subjects.publish("platform_console_supported", &g_console_supported_subject);
+
+    // Whether the Host Terminal can run here (helix::platform_host_terminal_supported()).
+    // Its Advanced rows bind hidden on 0, whatever the opt-in setting says.
+    g_host_terminal_supported_subject.init_int(helix::platform_host_terminal_supported() ? 1 : 0);
+    g_subjects.publish("platform_host_terminal_supported", &g_host_terminal_supported_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
     // 2 STANDARD), the same classification that turns animations off. XML

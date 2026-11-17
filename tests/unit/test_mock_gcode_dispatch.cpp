@@ -260,6 +260,14 @@ const std::vector<DispatchCase>& cases() {
          {"SET_PIN PIN=x VALUE=1"},
          R"G(SET_PIN PIN=x VALUE=1 => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
 
+        // An LED on an output pin reports its new value, as Klipper does.
+        {PT::VORON_24,
+         nullptr,
+         nullptr,
+         true,
+         {"SET_PIN PIN=Enclosure_LEDs VALUE=0.0000", "SET_PIN PIN=Enclosure_LEDs VALUE=1.0000"},
+         R"G(SET_PIN PIN=Enclosure_LEDs VALUE=0.0000 => rc=0 err=[] {{"method":"notify_status_update","params":[{"output_pin Enclosure_LEDs":{"value":0.0}},0.0]}} ;; SET_PIN PIN=Enclosure_LEDs VALUE=1.0000 => rc=0 err=[] {{"method":"notify_status_update","params":[{"output_pin Enclosure_LEDs":{"value":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+
         // --- display message -------------------------------------------------
         {PT::VORON_24, nullptr, nullptr, true, {"M117 hello"}, R"G(M117 hello => rc=0 err=[] {{"method":"notify_status_update","params":[{"display_status":{"message":"hello"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,

@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u layers'
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
+  "Auto Belt Tension": "Auto Belt Tension"
+  "Both belts": "Both belts"
+  "Cutter Calibration": "Cutter Calibration"
+  "Find the filament cutter's position": "Find the filament cutter's position"
+  "Let the printer's tensioners set the belts": "Let the printer's tensioners set the belts"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
+  "X belt": "X belt"
+  "Y belt": "Y belt"
   "'{}' already exists. Replace the stored mesh?": "'{}' already exists. Replace the stored mesh?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' and '{}' already exist. Replace the stored meshes?"
   (different grade): (different grade)
@@ -189,6 +198,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.
+  A shell on the machine running this screen: A shell on the machine running this screen
   A spool may be tangled or the drive gear is jammed: A spool may be tangled or the drive gear is jammed
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
@@ -1106,6 +1116,7 @@ translations:
   'Creating bed mesh...': 'Creating bed mesh...'
   Creating spool...: Creating spool...
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
+  Ctrl: Ctrl
   Current / Target: Current / Target
   Current Configuration: Current Configuration
   Current Mesh: Current Mesh
@@ -1406,6 +1417,7 @@ translations:
   'Error: `unzip` not installed': 'Error: `unzip` not installed'
   'Error: cannot write the service file in {}': 'Error: cannot write the service file in {}'
   Errors only: Errors only
+  Esc: Esc
   Escalate to emergency stop if cancel doesn't respond: Escalate to emergency stop
     if cancel doesn't respond
   Escalation Timeout: Escalation Timeout
@@ -1825,6 +1837,7 @@ translations:
   HEPA filter: HEPA filter
   HEPA filter interval: HEPA filter interval
   HOST: HOST
+  HOST ACCESS: HOST ACCESS
   HTTP Code: HTTP Code
   'HTTP error: {} {}': 'HTTP error: {} {}'
   HUMIDITY SENSORS: HUMIDITY SENSORS
@@ -1984,6 +1997,7 @@ translations:
   Horizontal: Horizontal
   Host: Host
   Host Health: Host Health
+  Host Terminal: Host Terminal
   Host and MCU load, temperature, and memory: Host and MCU load, temperature, and memory
   'Host: ': 'Host: '
   Hotend: Hotend
@@ -2633,6 +2647,7 @@ translations:
   Next Layer: Next Layer
   'Next: {}': 'Next: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
+  Nixie Clock: Nixie Clock
   'No': 'No'
   No ACE unit was found.: No ACE unit was found.
   No AMS Detected: No AMS Detected
@@ -2884,6 +2899,7 @@ translations:
   Open: Open
   Open Fans: Open Fans
   Open Source Licenses: Open Source Licenses
+  Open Terminal: Open Terminal
   Open color and brightness controls: Open color and brightness controls
   Open feeder: Open feeder
   Open feeder macro: Open feeder macro
@@ -3856,6 +3872,7 @@ translations:
   Show Touch Points: Show Touch Points
   Show a confirmation dialog when tapping a macro: Show a confirmation dialog when
     tapping a macro
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.
   Show and enter temperatures in Celsius or Fahrenheit: Show and enter temperatures in Celsius or Fahrenheit
   Show instead of dimming: Show instead of dimming
   Show light controls for a light connected to this printer: 'Show light controls for a light connected to this printer'
@@ -4135,6 +4152,7 @@ translations:
   'TOGGLE: {}': 'TOGGLE: {}'
   TOOLS: TOOLS
   TPU: TPU
+  Tab: Tab
   Tag Parts: Tag Parts
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.
   Takes 3-5 min. Do not interrupt.: Takes 3-5 min. Do not interrupt.
@@ -4407,6 +4425,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: The saved position is kept. Reconnect or restart the screen to be offered the resume again.
   The screen will lose its connection to the printer for a few seconds.: The screen will lose its connection to the printer for a few seconds.
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service
+  'The shell could not start: {}': 'The shell could not start: {}'
+  The shell exited. Tap the terminal to start a new one.: The shell exited. Tap the terminal to start a new one.
   The speed of one fan you choose: The speed of one fan you choose
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
@@ -4497,12 +4517,15 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
   'This is an emergency stop: the printer halts and Klipper restarts.': 'This is an emergency stop: the printer halts and Klipper restarts.'
   This is exactly the data that will be sent: This is exactly the data that will be
     sent
   This is what data would be sent if enabled: This is what data would be sent if enabled
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  This light chip controls: This light chip controls
   This looks like a {}, but it is set up as a {}: This looks like a {}, but it is set up as a {}
   This may take up to 30 seconds: This may take up to 30 seconds
   Needs file analysis, which isn't running.: "Needs file analysis, which isn't running."

@@ -1218,6 +1218,7 @@ EXCLUDES=(
     "!lib/mdns/"
     "!lib/minilzo"
     "!lib/quirc"
+    "!lib/libvterm"
     "node_modules"
     ".venv"
     "build/"

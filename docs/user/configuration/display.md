@@ -37,7 +37,7 @@ You only need these if your screen misbehaves at sleep or at low brightness. Eac
 
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
-| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
+| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"nixie"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
 | `screensaver_print_progress` | `true` | `true` or `false` | Whether screensavers without a print display of their own (all but the Flip Clock, Aqua Surface and High Fly) show a small progress card during a print. **Settings > Display > Show Print Progress**. A paused or finished print shows the card either way. |
 | `screensaver_levels` | absent | written by HelixScreen | Do not edit. |
 
@@ -74,6 +74,6 @@ Each screensaver measures how much processor time it uses on your hardware. If i
 
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
-| `language` (top level) | `"en"` | `"en"`, `"de"`, `"fr"`, `"es"`, `"ru"`, `"pt"`, `"it"`, `"zh"`, `"ja"` | The language: English, German, French, Spanish, Russian, Portuguese, Italian, Chinese and Japanese. ESP32 screens such as the BTT K-Touch offer the first seven only. **Settings > Language & Time > Language**. |
+| `language` (top level) | `"en"` | `"en"`, `"en-GB"`, `"de"`, `"fr"`, `"es"`, `"ru"`, `"pt"`, `"it"`, `"zh"`, `"ja"` | The language: English, British English, German, French, Spanish, Russian, Portuguese, Italian, Chinese and Japanese. ESP32 screens such as the BTT K-Touch offer the first eight only. **Settings > Language & Time > Language**. |
 | `time_format` | `0` | `0` 12-hour, `1` 24-hour | Whether the time reads "2:30 PM" or "14:30". **Settings > Language & Time > Time Format**. |
 | `timezone` | absent | an IANA name such as `"America/New_York"` | The time zone for every clock and print-time estimate. When absent, HelixScreen follows the system's time zone (the **System** entry in the list). The BTT K-Touch has no system time zone, so it uses UTC until you pick one; its Wi-Fi setup page offers your phone's. **Settings > Language & Time > Timezone**. |

@@ -625,6 +625,34 @@ std::string AmsBackend::normalize_material(const std::string& material) const {
 
 #ifdef HELIX_ENABLE_MOCKS
 
+namespace {
+
+/// A HELIX_MOCK_AMS value that shows one Happy Hare unit of a vendor we have art for: the
+/// vendor string Happy Hare publishes, and the path its selector type gives the lanes.
+struct MockVendorUnit {
+    std::string_view mock_value;
+    const char* vendor;
+    PathTopology topology;
+};
+
+const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
+    static constexpr MockVendorUnit kRows[] = {
+        {"kms", "KMS", PathTopology::HUB},
+        {"hh_vivid", "VVD", PathTopology::LINEAR},
+        {"hh_qidi", "QIDI", PathTopology::HUB},
+        {"hh_htlf", "HTLF", PathTopology::LINEAR},
+        {"hh_night_owl", "NightOwl", PathTopology::HUB},
+        {"hh_box_turtle", "BoxTurtle", PathTopology::HUB},
+    };
+    for (const MockVendorUnit& row : kRows) {
+        if (row.mock_value == mock_value)
+            return &row;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 // Helper to create mock backend with optional features.
 //
 // `mock_client` (when non-null) is the client the caller wants the AMS mock
@@ -673,9 +701,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "ercf" || ams_type == "tradrack") {
             mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
             spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
-        } else if (ams_type == "kms") {
-            mock->set_unit_model("KMS", PathTopology::HUB);
-            spdlog::info("[AMS Backend] Mock KMS unit");
+        } else if (const MockVendorUnit* vendor = mock_vendor_unit(ams_type)) {
+            mock->set_unit_model(vendor->vendor, vendor->topology);
+            spdlog::info("[AMS Backend] Mock Happy Hare {} unit", vendor->vendor);
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");
@@ -688,6 +716,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "stealth") {
             mock->set_stealth_mode(true);
             spdlog::info("[AMS Backend] Mock stealth profile enabled (5 units / 7 toolheads)");
+        } else if (ams_type == "afc_direct") {
+            mock->set_afc_direct_mode(true);
+            spdlog::info("[AMS Backend] Mock direct-tool profile enabled (6 units / 4 extruders)");
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");

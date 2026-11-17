@@ -37,7 +37,7 @@ is out.
 - **AD5X with Z-Mod: more than four IFS ports** (#2039) - an AD5X with Z-Mod follows Z-Mod's color limit past four IFS ports and keeps a lane seated past four across restarts.
 - **ACE Pro dryer through AFC** - an Anycubic ACE Pro run by AFC (its development branch) shows the box temperature and humidity and its dryer on the dryer page, which can start and stop a drying cycle.
 - **AFC lanes heat to your filament** - editing a lane on AFC sends its nozzle and bed temperatures to AFC, so a load heats to the spool's temperature instead of AFC's default for the material. On AFC's development branch the vendor and filament name go to AFC too, which shares them with the slicer.
-- **ACE and CFS units under AFC** - an Anycubic ACE Pro or a Creality CFS run by AFC (its development branch) is drawn as the real unit, and the spool tags they read show up as the lane's tag, ready for Reset to tag in the spool editor.
+- **ACE and CFS units under AFC** - an Anycubic ACE Pro, ACE Pro 2 or Creality CFS run by AFC (its development branch) is drawn as the real unit, and the spool tags they read show up as the lane's tag, ready for Reset to tag in the spool editor.
 
 **Home screen and display**
 
@@ -45,11 +45,13 @@ is out.
 - **Chinese and Japanese file names on every screen** - print file names in Chinese and Japanese show their characters in any interface language, not only when the interface is set to Chinese or Japanese.
 - **Full-page widgets** (#1931) - the Motion, heater and Filament operations widgets can take a whole home page, with the controls laid out for that space.
 - **Temperature in Fahrenheit and a date format** (#2099) - Settings > Appearance has a Temperature Unit row, and Settings > Language & Time has a Date Format row (day-month-year, month-day-year or year-month-day). Every temperature on screen, in the keypad, on the graph axis and in notices follows the unit as soon as you change it. Both follow your region until you pick one.
+- **English (UK)** - Settings > Language & Time and the first-run language list offer British English: British spellings such as colour, centre, levelling and cancelled, with day-month-year dates and a 24-hour clock by default. The clock format, like the date order, now follows the language until you pick one.
 - **Appearance & Region in the setup wizard** (#2022) - the first-run wizard has a step after Language for timezone, 12 or 24-hour clock, theme, dark mode, speed and flow units, temperature unit and date order. Settings > Appearance gained the speed and flow units row.
 - **Cut, Copy and Paste in text fields** (#1227) - holding a text field opens a menu with Cut, Copy and Paste. Password fields offer nothing. On the desktop build the clipboard is shared with the system clipboard.
 - **Screensavers show the print** - every screensaver can show the print's progress, and the flip clock spells the state of the print (printing, paused, done, failed or cancelled). Aqua's tank fills with the print, High Fly counts down under a sky that warms with the print, fireflies spell the percentage, and the bouncing sprites show it too. An ended print stays on the saver until someone touches the screen instead of waking it, and a saver that is too heavy during a print gives way to the flip clock.
 - **Hold a home tile to open its menu** (#2025) - in home edit mode, a tap on the selected tile or a hold opens a menu with Configure and Remove next to the tile, replacing the floating buttons.
 - **Alerts wake a sleeping screen** (#2037) - a macro's prompt and the Klipper error dialog wake the display instead of waiting unseen.
+- **Choose the lights the printer picture's light chip switches** - in home edit mode, Configure on the printer picture picks which light its light chip switches, one light or All lights, from the same list a light button uses. The chip shows lit while any of those lights is on, and holding it opens the LEDs screen on that light. Until you pick one it switches the chamber light, as before.
 - **Printer pictures glow where the heat is** - a heated bed fills its plate with a warm haze on the home printer widget and the Print Status screen, and chamber heat and the light stay inside the printer's windows. The pictures of printers with an enclosure are tagged with window regions for this.
 - **Stepper driver, MCU and host temperatures on the graph** (#2080) - the temperature graph can chart TMC driver, MCU and host temperatures, remembered per printer, and a rising driver over-temperature flag raises a warning.
 

@@ -940,10 +940,11 @@ ACE and CFS backends. AFC applies a tag itself (`SET_COLOR` / `SET_MATERIAL` /
 
 #### Unit drawings
 
-The `kShellRows` table in `src/ui/filament/ams_unit_shell.cpp` draws an `ACE <name>` unit as the ACE Pro and
-a `CFS <name>` unit as the CFS. `ACE2` (the ACE 2 Pro, a different body) and `Claymore` units
-keep the generic tray: no drawing of either exists, and the HTLF drawing is deliberately
-not matched to a Claymore.
+The `kShellRows` table in `src/ui/filament/ams_unit_shell.cpp` matches AFC's type token at the
+start of the unit's name: an `ACE <name>` or `ACE2 <name>` unit draws as the ACE Pro (one
+drawing serves the ACE Pro and the ACE Pro 2), and a `CFS <name>` unit as the CFS. A
+`Claymore` unit keeps the generic tray: no drawing of it exists, and the HTLF drawing is
+deliberately not matched to it.
 
 #### Lane temperatures, vendor and filament name
 

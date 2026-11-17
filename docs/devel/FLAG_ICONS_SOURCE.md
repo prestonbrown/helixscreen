@@ -46,6 +46,20 @@ curl -sL "https://flagcdn.com/48x36/de.png" -o flag_de.png
 curl -sL "https://flagcdn.com/48x36.zip" -o flags_48x36.zip
 ```
 
+### How the shipped icons are made
+
+`assets/images/flags/flag_<lang>.png` is the 48×36 waving flag scaled to 32×24 with Pillow's
+Lanczos filter, and `flag_<lang>.bin` is that PNG converted to an uncompressed ARGB8888 LVGL
+image. `en` uses `us`, `en-GB` uses `gb`.
+
+```bash
+curl -sfL "https://flagcdn.com/48x36/gb.png" -o gb.png
+.venv/bin/python3 -c "from PIL import Image; Image.open('gb.png').convert('RGBA').resize((32, 24), Image.LANCZOS).save('assets/images/flags/flag_en-GB.png', optimize=True)"
+.venv/bin/python3 scripts/LVGLImage.py --cf ARGB8888 --ofmt BIN -o assets/images/flags --name flag_en-GB assets/images/flags/flag_en-GB.png
+```
+
+Register the new image in `src/application/asset_manager.cpp` beside the others.
+
 ### Notes
 - Waving flags look nicer than flat rectangles
 - 48x36 is a good size for touch buttons

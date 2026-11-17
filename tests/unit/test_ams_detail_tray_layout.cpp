@@ -194,6 +194,13 @@ class AmsTrayPanelFixture : public XMLTestFixture {
             CHECK((float)(ba.y1 - origin_.y) >= box_.ft - 1);
             CHECK((float)(ba.y2 - origin_.y) <= box_.fb + 1);
         }
+        // The path canvas finds these same badges, to draw them over the lanes leaving below.
+        auto* path = helix::ui::fpath::get_data(lv_obj_find_by_name(panel_obj_, "path_canvas"));
+        REQUIRE(path != nullptr);
+        lv_obj_t* found[helix::ui::fpath::FilamentPathData::kMaxSlots] = {};
+        REQUIRE(helix::ui::fpath::lane_badges(*path, found) == gates);
+        for (int i = 0; i < gates; ++i)
+            CHECK(lv_obj_get_parent(found[i]) == badges);
     }
 
     bool flat_ = false;
@@ -662,6 +669,31 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(canvas != nullptr);
     CHECK(std::abs(helix::ui::fpath::get_data(canvas)->lane_entry_offset -
                    (origin_.y + (int32_t)std::lround(box_.fb) - g.y1)) <= 1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: the path follows the slots rebuilt in its grid before it is told",
+                 "[ams][tray][ui_integration]") {
+    build("passive");
+    auto* path = helix::ui::fpath::get_data(lv_obj_find_by_name(panel_obj_, "path_canvas"));
+    REQUIRE(path != nullptr);
+    AmsDetailWidgets w = ams_detail_find_widgets(lv_obj_find_by_name(panel_obj_, "unit_detail"));
+    helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+    int count = (int)lv_obj_get_child_count(slot_grid_);
+    for (int i = 0; i < count; ++i)
+        slots[i].reset(slot(i));
+    ams_detail_destroy_slots(w, slots, count);
+    REQUIRE(
+        ams_detail_create_slots(w, slots, kAmsDetailMaxSlots, -1, nullptr, nullptr).slot_count ==
+        4);
+    // The new row stands where the old one did; shift it so a stale read shows.
+    lv_obj_set_style_translate_x(slot_grid_, 7, LV_PART_MAIN);
+    lv_obj_update_layout(test_screen());
+    for (int i = 0; i < 4; ++i) {
+        lv_area_t sa;
+        lv_obj_get_coords(ui_ams_slot_get_spool_container(slot(i)), &sa);
+        CHECK(helix::ui::fpath::get_slot_x(path, i, 0) == (sa.x1 + sa.x2) / 2);
+    }
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on the box front",

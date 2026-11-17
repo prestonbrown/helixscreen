@@ -101,8 +101,8 @@
              builds without screensavers (settings_has_screensaver = 0). -->
         <setting_dropdown_row name="row_screensaver"
                               label="Screensaver" icon="television_classic" description="Show instead of dimming"
-                              options="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Random"
-                              options_tag="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Random"
+                              options="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Nixie Clock&#10;Random"
+                              options_tag="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Nixie Clock&#10;Random"
                               callback="on_screensaver_changed" hidden="true">
           <bind_flag_if_eq subject="settings_has_screensaver" flag="hidden" ref_value="0"/>
         </setting_dropdown_row>

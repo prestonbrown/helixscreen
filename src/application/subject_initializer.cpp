@@ -4,6 +4,7 @@
 #include "subject_initializer.h"
 
 #include "ui_bed_drying_modal.h"
+#include "ui_belt_cutter_cal.h"
 #include "ui_chamber_air_notices.h"
 #include "ui_component_keypad.h"
 #include "ui_emergency_stop.h"
@@ -328,6 +329,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_zoffset_row_handler();
     helix::ui::init_tool_offset_row_handler();
     helix::ui::init_stepper_resonance_cal_row_handler();
+    helix::ui::init_belt_cutter_cal_row_handlers();
     helix::ui::init_motor_ripple_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();

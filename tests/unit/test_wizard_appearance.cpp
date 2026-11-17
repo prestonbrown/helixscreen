@@ -48,14 +48,6 @@ TEST_CASE("Appearance step shows on the first printer only", "[wizard][appearanc
     CHECK(step->should_skip(later));
 }
 
-TEST_CASE("Appearance: the clock format default follows the language", "[wizard][appearance]") {
-    using helix::wizard::default_time_format_for_language;
-    CHECK(default_time_format_for_language("en") == TimeFormat::HOUR_12);
-    CHECK(default_time_format_for_language("") == TimeFormat::HOUR_12);
-    CHECK(default_time_format_for_language("de") == TimeFormat::HOUR_24);
-    CHECK(default_time_format_for_language("ja") == TimeFormat::HOUR_24);
-}
-
 TEST_CASE("Appearance: the timezone row draws attention only on an accidental UTC",
           "[wizard][appearance]") {
     using helix::wizard::timezone_needs_attention;
@@ -156,7 +148,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Appearance: an unpicked clock format takes 
     step->register_callbacks();
     REQUIRE(step->create(test_screen()) != nullptr);
     CHECK(display.get_time_format() == TimeFormat::HOUR_24);
-    CHECK(config->exists("/display/time_format"));
+    // Shown, not saved: the clock keeps following the language until picked.
+    CHECK_FALSE(config->exists("/display/time_format"));
     step->cleanup();
 
     // A format the user already picked is left alone.

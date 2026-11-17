@@ -151,6 +151,7 @@ src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
+src/printer/belt_cutter_calibration.cpp
 src/printer/fault_path_position.cpp
 src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
@@ -489,6 +490,7 @@ src/ui/panel_widgets/humidity_widget.cpp
 src/ui/panel_widgets/job_queue_widget.cpp
 src/ui/panel_widgets/led_controls_widget.cpp
 src/ui/panel_widgets/led_widget.cpp
+src/ui/panel_widgets/light_target_picker.cpp
 src/ui/panel_widgets/lock_widget.cpp
 src/ui/panel_widgets/macros_widget.cpp
 src/ui/panel_widgets/motion_widget.cpp

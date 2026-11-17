@@ -392,6 +392,11 @@ void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen,
         picked_extruder_ = mounted ? std::string{} : nozzle_extruder;
         pick_tool_ = kNoPickTool;
     }
+    // The requested mode is the overlay's mode from here on, whether or not show()
+    // can build a tree; before_show() repeats it for a tree built below.
+    if (are_subjects_initialized()) {
+        lv_subject_set_int(&mode_subject_, static_cast<int>(mode_));
+    }
 
     show(parent_screen);
 }

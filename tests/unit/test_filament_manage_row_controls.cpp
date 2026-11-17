@@ -364,7 +364,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // callback in this file), and the harness panel is a local instance — so
     // observe the call at the overlay: open() resyncs its mode subject to
     // GraphOnly, and nothing else in this test touches it.
-    get_global_temp_graph_overlay().init_subjects();
+    get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode != nullptr);
     lv_subject_set_int(mode, 3);

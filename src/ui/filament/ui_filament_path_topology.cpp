@@ -334,9 +334,42 @@ void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i
                   f.toolhead_y, noz_color, f.tool_scale, toolhead_opa);
 }
 
+namespace {
+
+// One baked layer of a rail's head-on art, scaled to @p w x @p h. nullptr when it cannot load.
+lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32_t w, int32_t h) {
+    const std::string path = std::string("assets/images/units/") + data.rail_unit + "/face/" +
+                             std::to_string(data.rail_art->lanes) + "/" + layer + ".png";
+    return helix::ui::baked_art_cached(
+        path + "#" + std::to_string(w) + "x" + std::to_string(h), [&] {
+            return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
+        });
+}
+
+// Art laid out at @p r whose layers do not load gives the layout back to the plain drawing:
+// marks the art failed and says so, so the caller lays out again. A sliding selector also needs
+// its carriage layer.
+bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r, bool with_carriage) {
+    if (r.w <= 0 || (rail_layer(data, "body", r.w, r.h) &&
+                     (!with_carriage || rail_layer(data, "carriage", r.w, r.h))))
+        return false;
+    data.rail_art_failed = true;
+    return true;
+}
+
+// A pass-through unit's art, drawn over the lanes that run behind its face.
+void draw_through_art(const RenderCtx& ctx, const RailArtRect& r) {
+    if (lv_draw_buf_t* body = rail_layer(*ctx.data, "body", r.w, r.h))
+        helix::ui::baked_art_draw(ctx.layer, body, r.x, r.y);
+}
+
+} // namespace
+
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
-    const MixedFrame f = compute_mixed_frame(*data, ctx.geo);
+    MixedFrame f = compute_mixed_frame(*data, ctx.geo);
+    if (drop_unloadable_art(*data, f.through, false))
+        f = compute_mixed_frame(*data, ctx.geo);
     PathPlan& plan = plan_scratch();
     plan_mixed(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
@@ -352,6 +385,9 @@ void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     };
     draw_tools(ToolPass::Glyph);
     paint_tubes(layer, plan, pal);
+    // Over the lanes, which run behind its face between inlet and outlet.
+    if (f.through.w > 0)
+        draw_through_art(ctx, f.through);
 
     if (f.hub_count > 0) {
         draw_hub_box(ctx, f.hub_cx, f.hub_cy, f.hub_w, f.hub_h, data->theme.color_hub_bg,
@@ -428,20 +464,6 @@ void fill_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2
     lv_area_t area = {x1, y1, x2, y2};
     lv_draw_fill(layer, &dsc, &area);
 }
-
-namespace {
-
-// One baked layer of a rail's head-on art, scaled to @p w x @p h. nullptr when it cannot load.
-lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32_t w, int32_t h) {
-    const std::string path = std::string("assets/images/units/") + data.rail_unit + "/face/" +
-                             std::to_string(data.rail_art->lanes) + "/" + layer + ".png";
-    return helix::ui::baked_art_cached(
-        path + "#" + std::to_string(w) + "x" + std::to_string(h), [&] {
-            return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
-        });
-}
-
-} // namespace
 
 // The selector rail as seen from the front. The carriage is the per-frame overlay's, so a
 // slide never repaints this layer. False when the art cannot load.
@@ -657,10 +679,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
-    if (const RailArtRect r = rail_art_rect(*data, ctx.geo); r.w > 0) {
-        if (!rail_layer(*data, "body", r.w, r.h) || !rail_layer(*data, "carriage", r.w, r.h))
-            data->rail_art_failed = true;
-    }
+    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo), true);
 
     // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
@@ -670,9 +689,11 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
         data->anim.output_x_target = data->anim.output_x_current;
     }
 
-    const LinearHubFrame f = compute_linear_hub_frame(
-        *data, ctx.geo,
-        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale));
+    const int32_t glyph_top =
+        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
+    LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
+    if (drop_unloadable_art(*data, f.through, false))
+        f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
@@ -685,6 +706,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     const TubePalette pal = tube_palette(*data);
     paint_tubes(layer, plan, pal);
+    if (f.through.w > 0)
+        draw_through_art(ctx, f.through);
     draw_offpage_stubs(ctx, f);
 
     draw_hub_section(ctx, f);

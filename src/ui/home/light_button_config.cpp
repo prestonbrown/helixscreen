@@ -86,13 +86,17 @@ std::vector<std::string> home_light_button_targets() {
     return led::union_light_targets(keys, ctrl.switchable_ids(), ctrl.chamber_light());
 }
 
-bool home_light_buttons_lit() {
+bool lights_lit(const std::vector<std::string>& ids) {
     auto& ctrl = led::LedController::instance();
     std::vector<led::DeviceState> states;
-    for (const auto& id : home_light_button_targets()) {
+    for (const auto& id : ids) {
         states.push_back(ctrl.device_state(id));
     }
     return light_icon_look(states).brightness > 0;
+}
+
+bool home_light_buttons_lit() {
+    return lights_lit(home_light_button_targets());
 }
 
 LightToggleResult toggle_lights(const std::vector<std::string>& ids, const char* caller) {

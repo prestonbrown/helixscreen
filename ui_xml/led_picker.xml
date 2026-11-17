@@ -7,7 +7,8 @@
        user_data is its index, -1 for All lights. Rows read like the fan
        picker's: left-aligned names, the chosen one highlighted. -->
   <view name="led_picker" extends="context_menu_backdrop">
-    <context_menu_card title="This button controls" pad_gap="#space_xs">
+    <!-- The title comes from the caller: each surface names itself. -->
+    <context_menu_card title_subject="led_picker_title" pad_gap="#space_xs">
       <!-- max_height set by C++ to a share of the screen -->
       <lv_obj name="led_picker_list"
               width="100%" height="content" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="0"

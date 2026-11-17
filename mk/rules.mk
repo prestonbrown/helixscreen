@@ -160,7 +160,7 @@ endif
 
 # Link binary (SDL2_LIB is empty if using system SDL2)
 # Keep broad filtering so non-object prerequisites can be added safely later.
-$(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP_C_OBJS) $(APP_OBJS) $(APP_MODULE_OBJS) $(REMOTE_LINENOISE_OBJ) $(OBJCPP_OBJS) $(LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LVGL_OPENGLES_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(APP_DNS_RESOLV_OBJ) $(WPA_DEPS)
+$(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP_C_OBJS) $(APP_OBJS) $(APP_MODULE_OBJS) $(REMOTE_LINENOISE_OBJ) $(OBJCPP_OBJS) $(LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LVGL_OPENGLES_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(VTERM_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(APP_DNS_RESOLV_OBJ) $(WPA_DEPS)
 	$(call check_abi_unchanged)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) $@"
@@ -228,6 +228,7 @@ HELIX_XML_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 SPDLOG_COMPILE = $(CXX) $(SUBMODULE_CXXFLAGS) $(1) $(SPDLOG_DEFINES) $(SPDLOG_INC)
 LV_MARKDOWN_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 QUIRC_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES)
+VTERM_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) -I$(VTERM_DIR)/include
 LUA_COMPILE = $(CXX) -x c++ $(SUBMODULE_CXXFLAGS) $(1) $(INCLUDES)
 FONT_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 
@@ -466,6 +467,16 @@ $(OBJ_DIR)/quirc/%.o: $(QUIRC_DIR)/%.c
 		exit 1; \
 	}
 	$(call emit-compile-command,$(call QUIRC_COMPILE),$<,$@)
+
+# Compile libvterm sources (vendored C library - use SUBMODULE_CFLAGS)
+$(OBJ_DIR)/libvterm/%.o: $(VTERM_DIR)/%.c $(ABI_STAMP) $(FLAGS_STAMP)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
+	$(Q)$(call VTERM_COMPILE) -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
+		exit 1; \
+	}
+	$(call emit-compile-command,$(call VTERM_COMPILE),$<,$@)
 
 # Compile Lua sources (vendored C compiled as C++ so a Lua error unwinds as an exception)
 $(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)

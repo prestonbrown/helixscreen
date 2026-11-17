@@ -338,6 +338,8 @@ target_compile_definitions(main PRIVATE
     # listed. The Belt Tension panel reads Klipper's /tmp results, so it needs
     # the screen co-located with Klipper.
     HELIX_HAS_BELT_TUNER=0
+    # An app has no shell of its own to offer, and the Host Terminal is never on Android.
+    HELIX_HAS_HOST_TERMINAL=0
     # FONT_SOURCES above globs every face under assets/fonts/*.c with no tier
     # filtering, so every tier is linked.
     HELIX_MAX_FONT_TIER=6

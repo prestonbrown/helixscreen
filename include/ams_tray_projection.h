@@ -17,6 +17,7 @@
 #include "ams_unit_shell.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 
 namespace helix::ui::tray {
@@ -67,6 +68,16 @@ struct TrayFaces {
     PointF back_wall[4], floor[4], left_wall[4], front[4], right_side[4];
 };
 TrayFaces tray_faces(const TrayBox& b);
+
+/// One edge of the tray box, between two of its corners.
+struct Edge {
+    PointF a, b;
+};
+/// The edges that stand in front of the spools: the front face, the right side and the back's
+/// right corner.
+std::array<Edge, 7> near_edges(const TrayFaces& f);
+/// The far wall's top and floor edges, which run behind the leftmost spool.
+std::array<Edge, 2> far_edges(const TrayFaces& f);
 
 /// Front-plane centre y of a spool standing on the floor.
 float spool_front_cy(const TrayBox& b, float flange_ry);

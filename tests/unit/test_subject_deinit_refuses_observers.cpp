@@ -246,7 +246,6 @@ helix::Subject& deinit_probe_subject() {
     static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
-        subject.init_int(0);
         lv_xml_register_subject(nullptr, "deinit_probe_subject", &subject);
         registered = true;
     }
@@ -284,8 +283,6 @@ TEST_CASE("XML bind_style_if_eq on a deinitialized subject leaves the style off"
     lv_obj_t* refused = create_bind_style_probe(fixture.test_screen());
     CHECK(lv_obj_get_style_bg_opa(refused, LV_PART_MAIN) != 77);
     CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
-
-    subject.init_int(0);
 }
 
 TEST_CASE("A refused observer maps to one anomaly code whatever subject it names",

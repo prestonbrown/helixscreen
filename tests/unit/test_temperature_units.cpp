@@ -232,6 +232,13 @@ TEST_CASE("temperature units: region defaults follow the zone, then the language
     CHECK(region_defaults("de", "").date_format == DateFormat::DMY);
     CHECK(helix::default_date_format_for_language("xx") == DateFormat::MDY);
     CHECK(region_defaults("ja", "Asia/Tokyo").date_format == DateFormat::YMD);
+    // British English writes the day first with no zone; a US zone still wins.
+    CHECK(region_defaults("en-GB", "").date_format == DateFormat::DMY);
+    CHECK(region_defaults("en-GB", "").temp_unit == kC);
+    CHECK(region_defaults("en-GB", "America/Chicago").date_format == DateFormat::MDY);
+    // A variant with no row of its own takes its base language's.
+    CHECK(helix::default_date_format_for_language("zh-TW") == DateFormat::YMD);
+    CHECK(helix::default_date_format_for_language("en-US") == DateFormat::MDY);
 }
 
 // ============================================================================
@@ -302,6 +309,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "temperature units: both settings persist",
         helix::SystemSettingsManager::instance().set_language("ja");
         CHECK(display.get_date_format() == DateFormat::YMD);
         CHECK_FALSE(config->exists("/display/date_format"));
+    }
+
+    SECTION("an unsaved clock follows the language") {
+        erase_display_key("time_format");
+        helix::SystemSettingsManager::instance().set_language("en-GB");
+        CHECK(display.get_time_format() == helix::TimeFormat::HOUR_24);
+        CHECK(lv_subject_get_int(display.subject_time_format()) == 1);
+        helix::SystemSettingsManager::instance().set_language("en");
+        CHECK(display.get_time_format() == helix::TimeFormat::HOUR_12);
+        CHECK_FALSE(config->exists("/display/time_format"));
+    }
+
+    SECTION("a saved clock wins over the language's") {
+        display.set_time_format(helix::TimeFormat::HOUR_12);
+        helix::SystemSettingsManager::instance().set_language("en-GB");
+        CHECK(display.get_time_format() == helix::TimeFormat::HOUR_12);
+        display.set_time_format(helix::TimeFormat::HOUR_24);
+        helix::SystemSettingsManager::instance().set_language("en");
+        CHECK(display.get_time_format() == helix::TimeFormat::HOUR_24);
+        erase_display_key("time_format");
     }
 }
 
