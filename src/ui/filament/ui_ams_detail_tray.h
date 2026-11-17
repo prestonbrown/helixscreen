@@ -49,7 +49,6 @@ struct TrayState {
     TrayColors color{};
     TrayOpacities opa = kDarkOpa;
     const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
-    bool flat = false; // a plain strip under loose spools: no depth, square ends
     float spool_size = 0;
 };
 

@@ -507,8 +507,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     box.depth = tray::box_depth(size);
     box.rise = tray::box_rise(box.depth);
     const float shell_scale = size / tray::kShellReferenceSpool;
-    box.back_extra =
-        shell ? shell->back_extra_px * shell_scale : (float)theme_manager_get_spacing("space_md");
+    // The tray under loose spools has a back wall as low as its front, so its ends are level.
+    box.back_extra = shell   ? shell->back_extra_px * shell_scale
+                     : loose ? 0.0f
+                             : (float)theme_manager_get_spacing("space_md");
     const float skew = tray::kDepthSkew * box.depth;
     for (int i = 0; i < n; ++i)
         s_tray.lane_x[i] = cx[i] - skew / 2;
@@ -519,7 +521,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // front-plane centre, whose flange bottom sits the floor gap above FB.
     box.fb = cy_sum / n + flange_ry + tray::spool_floor_gap(shell, shell_scale) + box.rise / 2;
     lv_obj_update_layout(w.slot_grid);
-    // The flat strip under loose spools stands half the generic box's height.
+    // The tray under loose spools stands half the generic box's height.
     const float generic_h = std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
     const float front_h = shell   ? shell->front_wall_px * shell_scale
                           : loose ? generic_h / 2.0f
@@ -539,7 +541,6 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         s_tray.lid_h = crest * shell_scale - box.back_extra / 2.0f;
     }
     s_tray.shell = shell;
-    s_tray.flat = loose;
     s_tray.spool_size = size;
     s_tray.lane_half = half;
     s_tray.lane_count = n;

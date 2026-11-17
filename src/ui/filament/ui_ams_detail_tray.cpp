@@ -81,9 +81,6 @@ void tray_back_draw_cb(lv_event_t* e) {
     const tray::TrayFaces f = tray::tray_faces(s_tray.box);
     const TrayColors& c = s_tray.color;
     const bool simple = helix::ui::reduced_effects();
-    // A flat strip has no depth: nothing of it stands behind the spools.
-    if (s_tray.flat)
-        return;
 
     if (!simple) {
         tray::fill_convex(layer, o, f.back_wall, 4, c.back, LV_OPA_COVER);
@@ -180,8 +177,7 @@ void tray_front_draw_cb(lv_event_t* e) {
         const lv_area_t area = {o.x + (int32_t)f.front[0].x, o.y + (int32_t)f.front[0].y,
                                 o.x + (int32_t)f.front[2].x, o.y + (int32_t)f.front[2].y};
         lv_draw_rect(layer, &front, &area);
-        if (!s_tray.flat)
-            tray::fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
+        tray::fill_convex(layer, o, f.right_side, 4, c.side, LV_OPA_COVER);
     }
     const tray::PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
     const tray::PointF bl_t = f.back_wall[0], br_t = f.back_wall[1], br_b = f.back_wall[2],
@@ -190,10 +186,8 @@ void tray_front_draw_cb(lv_event_t* e) {
                                      {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
     if (!s_tray.shell || simple) {
-        // A flat strip shows only its front face's four edges.
-        const int n_edges = s_tray.flat ? 4 : (int)(sizeof(edges) / sizeof(edges[0]));
-        for (int i = 0; i < n_edges; ++i)
-            tray::edge(layer, o, edges[i][0], edges[i][1], c.edge, s_tray.opa.edge);
+        for (const auto& ab : edges)
+            tray::edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
     } else {
         tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
     }
