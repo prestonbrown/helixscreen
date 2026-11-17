@@ -1871,6 +1871,7 @@ translations:
   Gray: Grau
   Grip filament: Filament greifen
   Grip the filament: Filament greifen
+  Groups follow each slot's material and color: "Gruppen folgen Material und Farbe jedes Slots"
   Guide the toolhead to the chute's extrude position: Werkzeugkopf zur Extrusionsposition der Rinne führen
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Geführte Kalibrierung: Sensor zur Düse, Entladeweg und Einzug des Schneiders'
   H: H
@@ -2517,8 +2518,10 @@ translations:
     zuordnen
   Mapping Error: 'Zuordnungsfehler'
   Marginal: Grenzwertig
+  Mark Available: "Als verfügbar markieren"
   Mark a printer you enclosed yourself: Einen selbst eingehausten Drucker markieren
 
+  Mark available failed: "Als verfügbar markieren fehlgeschlagen"
   Mark done: "Erledigt"
   Mark {} done?: "{} als erledigt markieren?"
   Master volume level: Hauptlautstärke

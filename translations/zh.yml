@@ -1771,6 +1771,7 @@ translations:
   Gray: 灰色
   Grip filament: 夹持耗材
   Grip the filament: 夹持耗材
+  Groups follow each slot's material and color: "分组跟随各槽位的材料和颜色"
   Guide the toolhead to the chute's extrude position: 引导工具头到排料口的挤出位置
   Guided sensor-to-nozzle, unload and cutter retract calibration: '引导式校准：传感器至喷嘴、卸载和切刀回抽'
   H: 头
@@ -2380,8 +2381,10 @@ translations:
   Map to closest colors with matching material: 按匹配材料映射最接近的颜色
   Mapping Error: '映射错误'
   Marginal: 偏高
+  Mark Available: "标记为可用"
   Mark a printer you enclosed yourself: 将自行加装机箱的打印机标记为封闭
 
+  Mark available failed: "标记为可用失败"
   Mark done: "标记完成"
   Mark {} done?: "将 {} 标记为完成？"
   Master volume level: 主音量

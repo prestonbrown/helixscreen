@@ -1707,6 +1707,7 @@
   <translation tag="Gray" ja="グレー"/>
   <translation tag="Grip filament" ja="フィラメントを把持"/>
   <translation tag="Grip the filament" ja="フィラメントを把持"/>
+  <translation tag="Groups follow each slot&apos;s material and color" ja="グループは各スロットの素材と色に従います"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" ja="ツールヘッドをシュートの押出し位置へ誘導します"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" ja="ガイド付きキャリブレーション：センサーからノズルまで、アンロード、カッターの引き戻し"/>
   <translation tag="H" ja="H"/>
@@ -2300,7 +2301,9 @@
   <translation tag="Map to closest colors with matching material" ja="一致する素材で最も近い色に割り当て"/>
   <translation tag="Mapping Error" ja="マッピングエラー"/>
   <translation tag="Marginal" ja="やや不良"/>
+  <translation tag="Mark Available" ja="利用可能にする"/>
   <translation tag="Mark a printer you enclosed yourself" ja="自分で筐体を付けたプリンターとして設定"/>
+  <translation tag="Mark available failed" ja="利用可能にできませんでした"/>
   <translation tag="Mark done" ja="完了にする"/>
   <translation tag="Mark {} done?" ja="{} を完了にしますか？"/>
   <translation tag="Master volume level" ja="マスター音量"/>

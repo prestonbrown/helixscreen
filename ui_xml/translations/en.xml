@@ -1707,6 +1707,7 @@
   <translation tag="Gray" en="Gray"/>
   <translation tag="Grip filament" en="Grip filament"/>
   <translation tag="Grip the filament" en="Grip the filament"/>
+  <translation tag="Groups follow each slot&apos;s material and color" en="Groups follow each slot&apos;s material and color"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" en="Guide the toolhead to the chute&apos;s extrude position"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" en="Guided sensor-to-nozzle, unload and cutter retract calibration"/>
   <translation tag="H" en="H"/>
@@ -2300,7 +2301,9 @@
   <translation tag="Map to closest colors with matching material" en="Map to closest colors with matching material"/>
   <translation tag="Mapping Error" en="Mapping Error"/>
   <translation tag="Marginal" en="Marginal"/>
+  <translation tag="Mark Available" en="Mark Available"/>
   <translation tag="Mark a printer you enclosed yourself" en="Mark a printer you enclosed yourself"/>
+  <translation tag="Mark available failed" en="Mark available failed"/>
   <translation tag="Mark done" en="Mark done"/>
   <translation tag="Mark {} done?" en="Mark {} done?"/>
   <translation tag="Master volume level" en="Master volume level"/>

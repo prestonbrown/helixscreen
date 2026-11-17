@@ -1862,6 +1862,7 @@ translations:
   Gray: Cinza
   Grip filament: Segurar filamento
   Grip the filament: Segurar o filamento
+  Groups follow each slot's material and color: "Os grupos seguem o material e a cor de cada slot"
   Guide the toolhead to the chute's extrude position: Leve o cabeçote até a posição de extrusão da calha
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Calibração guiada: sensor ao bico, descarregamento e retração do cortador'
   H: H
@@ -2510,8 +2511,10 @@ translations:
     material compatível
   Mapping Error: 'Erro de mapeamento'
   Marginal: Marginal
+  Mark Available: "Marcar disponível"
   Mark a printer you enclosed yourself: Marque uma impressora que você mesmo fechou
 
+  Mark available failed: "Falha ao marcar disponível"
   Mark done: "Marcar feito"
   Mark {} done?: "Marcar {} como feito?"
   Master volume level: Nível de volume principal

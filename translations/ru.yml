@@ -1909,6 +1909,7 @@ translations:
   Gray: Серый
   Grip filament: Зажать филамент
   Grip the filament: Зажать филамент
+  Groups follow each slot's material and color: "Группы следуют материалу и цвету каждого слота"
   Guide the toolhead to the chute's extrude position: Подведите печатающую головку к позиции экструзии жёлоба
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Пошаговая калибровка: датчик до сопла, выгрузка и ретракция резака'
   H: Х
@@ -2555,8 +2556,10 @@ translations:
     материалом
   Mapping Error: 'Ошибка привязки'
   Marginal: Допустимо
+  Mark Available: "Отметить доступным"
   Mark a printer you enclosed yourself: Отметить принтер, который вы закрыли сами
 
+  Mark available failed: "Ошибка отметки доступности"
   Mark done: "Выполнено"
   Mark {} done?: "Отметить {} выполненным?"
   Master volume level: Основной уровень громкости

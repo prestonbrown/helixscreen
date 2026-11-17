@@ -1755,6 +1755,7 @@
   <translation tag="Gray" ru="Серый"/>
   <translation tag="Grip filament" ru="Зажать филамент"/>
   <translation tag="Grip the filament" ru="Зажать филамент"/>
+  <translation tag="Groups follow each slot&apos;s material and color" ru="Группы следуют материалу и цвету каждого слота"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" ru="Подведите печатающую головку к позиции экструзии жёлоба"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" ru="Пошаговая калибровка: датчик до сопла, выгрузка и ретракция резака"/>
   <translation tag="H" ru="Х"/>
@@ -2348,7 +2349,9 @@
   <translation tag="Map to closest colors with matching material" ru="Подобрать ближайшие цвета с подходящим материалом"/>
   <translation tag="Mapping Error" ru="Ошибка привязки"/>
   <translation tag="Marginal" ru="Допустимо"/>
+  <translation tag="Mark Available" ru="Отметить доступным"/>
   <translation tag="Mark a printer you enclosed yourself" ru="Отметить принтер, который вы закрыли сами"/>
+  <translation tag="Mark available failed" ru="Ошибка отметки доступности"/>
   <translation tag="Mark done" ru="Выполнено"/>
   <translation tag="Mark {} done?" ru="Отметить {} выполненным?"/>
   <translation tag="Master volume level" ru="Основной уровень громкости"/>
