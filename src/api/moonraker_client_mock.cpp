@@ -1240,8 +1240,7 @@ void MoonrakerClientMock::populate_capabilities() {
             mock_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
         }
         // The chamber heater object separates the Pro from the heater-free
-        // Creator 5, so a persona modelling the Pro must publish it.
-        mock_objects.push_back("heater_generic chamber_heater");
+        // Creator 5; it arrives once, from the persona's heater list above.
         mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
         mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
         // The enclosure's door and top-cover switches.
@@ -1278,8 +1277,8 @@ void MoonrakerClientMock::populate_capabilities() {
             mock_objects.push_back("gcode_button extruder_pos" + std::to_string(i));
             mock_objects.push_back("gcode_button extruder_grab" + std::to_string(i));
         }
-        // Same Pro-separating chamber heater as the Reforge persona above.
-        mock_objects.push_back("heater_generic chamber_heater");
+        // The Pro-separating chamber heater comes from the persona's heater
+        // list above, as on the Reforge persona.
         mock_objects.push_back("gcode_button frontDoor");
         mock_objects.push_back("gcode_button topDoor");
         // c5pro_generic.cfg's calibration macros.
