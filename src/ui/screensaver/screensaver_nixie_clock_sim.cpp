@@ -69,7 +69,8 @@ constexpr float kColonRows[] = {0.34f, 0.66f};
 constexpr Rgb kGlassInside{9, 8, 11};
 constexpr Rgb kGlassRim{64, 60, 68};
 constexpr Rgb kGlassStreak{46, 46, 54};
-/// The glint on the tip's bulb.
+/// The tip's thin glass, lighter than the tube's thick wall, and the glints on it.
+constexpr Rgb kTipInside{34, 34, 40};
 constexpr Rgb kTipGlint{150, 150, 162};
 constexpr Rgb kMesh{46, 42, 40};
 /// The mesh at the cylinder's sides, where it turns away.
@@ -175,16 +176,19 @@ struct GlassTip {
         const float overlap = 2.0f;
         float best = bulb_r - std::hypot(fx - cx, fy - bulb_cy);
         if (fy >= bulb_cy && fy <= crown + overlap) {
-            const float t =
-                std::clamp((fy - bulb_cy) / std::max(1.0f, crown - bulb_cy), 0.0f, 1.0f);
-            const float hw = neck + (base - neck) * t * t;
-            best = std::max(best, std::min({hw - dx, fy - bulb_cy, crown + overlap - fy}));
+            best = std::max(best, std::min({neck_at(fy) - dx, fy - bulb_cy, crown + overlap - fy}));
         }
         if (fy >= top && fy <= bulb_cy) {
             const float hw = 0.7f * bulb_r * (fy - top) / std::max(1.0f, bulb_cy - top);
             best = std::max(best, std::min(hw - dx, fy - top));
         }
         return best;
+    }
+
+    /// Half width of the nub between its bulb and the crown, flaring into the crown.
+    float neck_at(float fy) const {
+        const float t = std::clamp((fy - bulb_cy) / std::max(1.0f, crown - bulb_cy), 0.0f, 1.0f);
+        return neck + (base - neck) * t * t;
     }
 
     DirtyRect box() const {
@@ -199,13 +203,21 @@ Rgb glass_at(float inside, float rim) {
     return mix_rgb(kGlassInside, kGlassRim, std::clamp(1.0f - inside / rim, 0.0f, 1.0f));
 }
 
-/// The tip's thin glass, with a glint on its bulb.
+/// The tip's thin, clear glass: lighter than the tube's, with a glint on its bulb and a second
+/// highlight down the left of its neck.
 Rgb tip_at(const GlassTip& tip, float inside, float rim, float fx, float fy) {
-    const Rgb t = glass_at(inside, std::max(1.0f, 0.5f * rim));
+    const Rgb t = mix_rgb(kTipInside, kGlassRim,
+                          std::clamp(1.0f - inside / std::max(1.0f, 0.5f * rim), 0.0f, 1.0f));
     const float gr = std::max(0.8f, 0.4f * tip.bulb_r);
     const float glint = edge_coverage(gr - std::hypot(fx - (tip.cx - 0.35f * tip.bulb_r),
                                                       fy - (tip.bulb_cy - 0.35f * tip.bulb_r)));
-    return add_glow(t, kTipGlint, to_amount(glint));
+    float neck_light = 0.0f;
+    if (fy > tip.bulb_cy + tip.bulb_r && fy < tip.crown) {
+        const float hw = tip.neck_at(fy);
+        const float across = (fx - (tip.cx - 0.45f * hw)) / std::max(0.6f, 0.3f * hw);
+        neck_light = 0.7f * std::exp(-across * across);
+    }
+    return add_glow(t, kTipGlint, to_amount(std::max(glint, neck_light)));
 }
 
 /// The glass's highlights: a soft streak down the left and a fainter edge reflection on the
