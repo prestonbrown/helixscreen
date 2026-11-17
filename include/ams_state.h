@@ -1161,6 +1161,18 @@ class AmsState {
     }
 
     /**
+     * @brief The overview's unit cards carry their environment line
+     *
+     * 1 when every unit card with temperature or humidity has room for its
+     * one-line readout under a full row of lane bars; 0 leaves the readout to
+     * each unit's own page. Written by AmsOverviewPanel from measured widths;
+     * read by ams_unit_card.xml.
+     */
+    lv_subject_t* get_cards_env_line_subject() {
+        return &ams_cards_env_line_;
+    }
+
+    /**
      * @brief Get slots version subject
      *
      * Incremented whenever slot data changes. UI can observe this
@@ -2640,6 +2652,7 @@ class AmsState {
     lv_subject_t supports_bypass_{};
     lv_subject_t ams_slot_count_{};
     lv_subject_t ams_cards_compact_{};
+    lv_subject_t ams_cards_env_line_{};
     lv_subject_t ams_feeder_open_{};
     lv_subject_t slots_version_{};
     lv_subject_t tool_map_version_{};

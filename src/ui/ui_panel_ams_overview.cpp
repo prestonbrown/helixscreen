@@ -120,6 +120,58 @@ static uint32_t upstream_lane_mask(const AmsUnit& unit) {
     return mask;
 }
 
+/// The bars a card draws for @p unit: its lanes less the ones @p skip_mask hands upstream.
+static int drawn_lane_count(const AmsUnit& unit, uint32_t skip_mask) {
+    const int lanes = static_cast<int>(unit.slots.size());
+    int drawn = 0;
+    for (int s = 0; s < lanes; ++s) {
+        if (s >= 32 || !(skip_mask & (1u << s))) {
+            ++drawn;
+        }
+    }
+    return drawn;
+}
+
+/// How @p unit's card fits in @p bars_container's width, with the environment
+/// line @p env_line_w wide (0 for none).
+static helix::ui::UnitCardFit card_fit(lv_obj_t* bars_container, const AmsUnit& unit,
+                                       int32_t env_line_w) {
+    return helix::ui::decide_unit_card_fit(
+        lv_obj_get_content_width(bars_container), drawn_lane_count(unit, upstream_lane_mask(unit)),
+        kMiniBarMinWidthPx, theme_manager_get_spacing("space_xxs"), env_line_w);
+}
+
+/// @p unit's skip mask with every drawn lane past the first @p bars_shown added,
+/// so a unit with more lanes than fit draws the ones that do.
+static uint32_t bars_mask(const AmsUnit& unit, int bars_shown) {
+    uint32_t mask = upstream_lane_mask(unit);
+    const int lanes = static_cast<int>(unit.slots.size());
+    int drawn = 0;
+    for (int s = 0; s < lanes && s < 32; ++s) {
+        if (mask & (1u << s)) {
+            continue;
+        }
+        if (drawn >= bars_shown) {
+            mask |= (1u << s);
+        }
+        ++drawn;
+    }
+    return mask;
+}
+
+/// How many of @p unit's lanes to hand ams_lane_bar_create_range() with @p mask:
+/// up to the last lane drawn, since the mask holds no more than 32 lanes.
+static int bars_end(const AmsUnit& unit, uint32_t mask) {
+    const int lanes = static_cast<int>(unit.slots.size());
+    int end = 0;
+    for (int s = 0; s < lanes && s < 32; ++s) {
+        if (!(mask & (1u << s))) {
+            end = s + 1;
+        }
+    }
+    return end;
+}
+
 // ============================================================================
 // Construction
 // ============================================================================
@@ -521,6 +573,11 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         // knows which unit's overlay to open.
         if (lv_obj_t* ind = helix::ui::find_required(uc.card, "env_indicator", get_name())) {
             lv_obj_set_user_data(ind, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+            uc.env_line = ind;
+            // DECLARATIVE_OK: LV_EVENT_SIZE_CHANGED has no declarative equivalent; a
+            // reading or a dryer that changes the line's width re-decides whether it fits.
+            lv_obj_add_event_cb(ind, &AmsOverviewPanel::on_env_line_size_changed,
+                                LV_EVENT_SIZE_CHANGED, this);
         }
 
         // Set logo image based on AMS system type
@@ -581,10 +638,11 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
     if (card.bars_container) {
         lv_obj_update_layout(card.bars_container);
         int slot_count = static_cast<int>(unit.slots.size());
+        const int bars_shown = card_fit(card.bars_container, unit, 0).bars_shown;
         if (helix::ui::lane_bars_stale(card.bars_built,
                                        {unit.first_slot_global_index, slot_count,
                                         measured_bar_width(card.bars_container, slot_count),
-                                        upstream_lane_mask(unit)})) {
+                                        bars_mask(unit, bars_shown)})) {
             helix::ui::safe_clean_children(card.bars_container);
             create_mini_bars(card, unit);
         }
@@ -617,12 +675,14 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
     // active and error decorations - flows from AmsState's per-slot subjects
     // inside ams_lane_bar, so the bars repaint in place instead of being
     // rebuilt on every refresh.
+    // The bars take the card's full width; a unit with more lanes than fit at
+    // the floor width draws the ones that do, and its lane count says how many.
     int32_t bar_width = measured_bar_width(card.bars_container, slot_count);
-    const uint32_t mask = upstream_lane_mask(unit);
+    const uint32_t mask = bars_mask(unit, card_fit(card.bars_container, unit, 0).bars_shown);
     card.bars_built = {unit.first_slot_global_index, slot_count, bar_width, mask};
 
     helix::ui::ams_lane_bar_create_range(card.bars_container, unit.first_slot_global_index,
-                                         slot_count, bar_width, kMiniBarHeightPx, mask);
+                                         bars_end(unit, mask), bar_width, kMiniBarHeightPx, mask);
 }
 
 // ============================================================================
@@ -657,6 +717,58 @@ void AmsOverviewPanel::push_unit_anchors(bool relayout) {
     if (narrowest != LV_COORD_MAX) {
         publish_cards_compact(narrowest);
     }
+    publish_cards_env_line();
+}
+
+// Decide whether every unit card has room for its environment line under a full
+// row of bars, and publish it for ams_unit_card.xml. One answer for the row keeps
+// the cards alike: a unit whose line does not fit, or whose lanes overflow the
+// bars, leaves every card's readout to its unit's page.
+// DECLARATIVE_OK: the widths are measured; the show/hide itself is bound in XML.
+void AmsOverviewPanel::publish_cards_env_line() {
+    auto* backend = AmsState::instance().get_backend();
+    if (!backend || unit_cards_.empty()) {
+        return;
+    }
+    const auto snapshot = AmsState::instance().system_info();
+    const AmsSystemInfo& info = *snapshot;
+    const int unit_count = static_cast<int>(info.units.size());
+
+    bool line = true;
+    for (const auto& uc : unit_cards_) {
+        if (!uc.bars_container || !uc.env_line || uc.unit_index < 0 ||
+            uc.unit_index >= unit_count || uc.unit_index >= AmsState::kMaxUnits) {
+            continue;
+        }
+        lv_subject_t* visible = AmsState::instance().get_env_ind_visible_subject(uc.unit_index);
+        if (!visible || lv_subject_get_int(visible) == 0) {
+            continue;
+        }
+        // The line's own width stands whether it is shown or not: LVGL lays out a
+        // hidden widget's children too, so this never feeds back on the answer.
+        const int32_t line_w = LV_MAX(lv_obj_get_width(uc.env_line), 1);
+        const auto fit = card_fit(uc.bars_container, info.units[uc.unit_index], line_w);
+        if (fit.environment != helix::ui::CardEnvironment::Line) {
+            line = false;
+            spdlog::debug("[{}] Unit {} environment line {}px dropped: card content {}px, {} of "
+                          "its lanes fit",
+                          get_name(), uc.unit_index, line_w,
+                          lv_obj_get_content_width(uc.bars_container), fit.bars_shown);
+        }
+    }
+
+    lv_subject_t* subj = AmsState::instance().get_cards_env_line_subject();
+    if (subj && lv_subject_get_int(subj) != (line ? 1 : 0)) {
+        lv_subject_set_int(subj, line ? 1 : 0);
+        spdlog::debug("[{}] Unit cards environment: {}", get_name(),
+                      line ? "one line under the bars" : "left to each unit's page");
+    }
+}
+
+void AmsOverviewPanel::on_env_line_size_changed(lv_event_t* e) {
+    // DECLARATIVE_OK: LV_EVENT_SIZE_CHANGED has no declarative equivalent.
+    if (auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e)))
+        self->publish_cards_env_line();
 }
 
 // Decide whether the unit cards have to shed decoration to stay readable, and
@@ -1790,6 +1902,10 @@ void AmsOverviewPanel::detach_widget_hooks() {
     helix::ui::remove_event_cb_if_alive(detail_path_canvas_,
                                         &AmsOverviewPanel::on_path_layout_changed, this);
     helix::ui::remove_event_cb_if_alive(page_dots_, &AmsOverviewPanel::on_page_dots_resized, this);
+    for (const auto& uc : unit_cards_) {
+        helix::ui::remove_event_cb_if_alive(uc.env_line,
+                                            &AmsOverviewPanel::on_env_line_size_changed, this);
+    }
 }
 
 AmsOverviewPanel::~AmsOverviewPanel() {
