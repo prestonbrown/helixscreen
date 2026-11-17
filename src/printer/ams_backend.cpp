@@ -643,6 +643,9 @@ const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
         {"hh_htlf", "HTLF", PathTopology::LINEAR},
         {"hh_night_owl", "NightOwl", PathTopology::HUB},
         {"hh_box_turtle", "BoxTurtle", PathTopology::HUB},
+        {"hh_mmx", "MMX", PathTopology::LINEAR},
+        {"hh_3ms", "3MS", PathTopology::HUB},
+        {"hh_emu", "EMU", PathTopology::HUB},
     };
     for (const MockVendorUnit& row : kRows) {
         if (row.mock_value == mock_value)
