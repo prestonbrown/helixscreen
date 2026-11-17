@@ -13,9 +13,14 @@ namespace helix {
 enum class DateFormat : uint8_t { DMY = 0, MDY = 1, YMD = 2 };
 
 /// The date order a language writes: Chinese and Japanese year first, the other
-/// offered languages but English day first. English and any unknown language read
-/// month first.
+/// offered languages but US English day first. US English ("en") and any unknown
+/// language read month first; British English ("en-GB") writes the day first. A
+/// regional variant without its own default takes its base language's.
 DateFormat default_date_format_for_language(const std::string& language);
+
+/// Whether a language's clock reads 24-hour by default: every offered language but
+/// US English ("en"), which reads 12-hour, as does an unknown or empty language.
+bool default_24h_clock_for_language(const std::string& language);
 
 /// The date order the user saved, or nullopt while none is saved (dates then follow
 /// the language). Kept apart from Config and the settings subject because dates are

@@ -120,7 +120,7 @@ For an exact layer count and a steady time-remaining estimate, your slicer has t
 
 GrumpyScreen is an actively developed fork of GuppyScreen, built specifically for Simple AF and OpenCentauri COSMOS. Like its parent it uses LVGL 8, and it supports Spoolman and the AFC and Happy Hare multi-material systems. We have not measured its memory or disk use, so it does not have a column in the table above.
 
-HelixScreen's layouts are XML files, so the look of the interface can change without recompiling. It also has a home screen you design yourself, a database of more than 100 printers for automatic setup, support for the filament systems listed above, and 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese).
+HelixScreen's layouts are XML files, so the look of the interface can change without recompiling. It also has a home screen you design yourself, a database of more than 100 printers for automatic setup, support for the filament systems listed above, and 9 languages (English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese), with English in both US and UK spelling.
 
 ---
 
@@ -331,7 +331,7 @@ Yes. Tap the printer picture on the Home screen to open the Printer Manager, the
 
 ### What languages are supported?
 
-Nine: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese. Change it in **Settings > Language & Time > Language**.
+Nine: English, German, Spanish, French, Italian, Japanese, Portuguese, Russian and Chinese. English comes in US and UK (British) spelling. Change it in **Settings > Language & Time > Language**.
 
 ### Does HelixScreen collect any data?
 

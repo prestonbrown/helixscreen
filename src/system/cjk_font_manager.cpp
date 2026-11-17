@@ -5,6 +5,7 @@
 
 #include "ui_fonts.h"
 
+#include "core/locale_code.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -48,7 +49,8 @@ CjkFontManager& CjkFontManager::instance() {
 }
 
 bool CjkFontManager::needs_cjk(const std::string& lang) {
-    return lang == "zh" || lang == "ja";
+    const std::string_view base = locale_base_language(lang);
+    return base == "zh" || base == "ja";
 }
 
 void CjkFontManager::on_language_changed(const std::string& lang) {

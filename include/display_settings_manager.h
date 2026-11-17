@@ -310,6 +310,7 @@ class DisplaySettingsManager {
     /** @brief Set G-code render mode; an explicit pick also clears the GPU crash blocks */
     void set_gcode_render_mode(int mode);
 
+    /// The clock format: the saved choice, or the active language's while none is saved.
     TimeFormat get_time_format() const {
         return static_cast<TimeFormat>(std::clamp(settings_.get(Key::TimeFormat), 0, 1));
     }
@@ -331,7 +332,10 @@ class DisplaySettingsManager {
     /// Whether the user (or the setup wizard) has saved a date order.
     bool has_saved_date_format() const;
 
-    /// Re-read the language's date order into the subject while none is saved.
+    /// Whether the user has saved a clock format.
+    bool has_saved_time_format() const;
+
+    /// Re-read the language's date order and clock into their subjects while none is saved.
     void on_language_changed();
 
     /// Whether the dropdown offers "System": the host's own zone. The ESP32 has
@@ -678,6 +682,9 @@ class DisplaySettingsManager {
   private:
     DisplaySettingsManager();
     ~DisplaySettingsManager() = default;
+
+    /// Set the clock subject to the language's format while no choice is saved.
+    void follow_language_clock();
 
     SubjectManager subjects_;
 

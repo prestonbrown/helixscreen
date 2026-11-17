@@ -74,6 +74,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `translation_packs.py` | The `ui_xml/translations/` files no locale loads (merged file, identity pack) |
 | `translation_sync.py` | Sync keys (XML/C++ → YAML); also `coverage`, `obsolete`, `glossary` subcommands |
 | `translations/cjk_filename_fonts.py` | CJK glyphs and pixel sizes a print filename can need, for the filename font bins |
+| `translations/locale_variants.py` | Regional variants (`en-GB`): base language, the merged pack, inherited coverage |
 | `translations/yaml_manager.py` | Edits locale YAMLs by line splice, never a re-dump; refuses duplicate keys |
 | `translations/` | Python package: extractor, YAML manager, coverage, glossary, CLI |
 

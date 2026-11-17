@@ -8,6 +8,7 @@ HelixScreen's translation system is built on LVGL's native XML translations. Sou
 |------|------------|
 | de   | German     |
 | en   | English    |
+| en-GB | British English (a regional variant of `en`) |
 | es   | Spanish    |
 | fr   | French     |
 | it   | Italian    |
@@ -94,6 +95,65 @@ translations:
     many: "{} печатей"              # 0, 5-20, 25-30...
     other: "{} печати"              # required: the fallback for any missing category
 ```
+
+## Regional Variants
+
+A locale code is a language (`en`, `pt`), optionally followed by a hyphen and a region
+(`en-GB`, `pt-BR`). A code with a region is a **variant** of its base language. The hyphen
+form is the one canonical spelling: the YAML file name and its `locale:` line, the
+generated pack (`ui_xml/translations/en-GB.xml`), the LVGL language name and the
+`/language` setting all use it. `helix::locale_base_language()` (`include/core/locale_code.h`)
+and `base_locale()` (`scripts/translations/locale_variants.py`) also read an underscore, so a
+POSIX name (`pt_BR`) resolves the same way.
+
+**The file.** `translations/en-GB.yml` carries every key `en.yml` has, like any locale, but
+only the strings the region writes differently get a value. An empty value means "inherit
+from the base language", not "untranslated". `make translation-sync` adds new keys to a
+variant with an empty value, as it does for every other locale, so a variant needs no extra
+upkeep: a new string inherits until someone gives it a regional spelling.
+
+**The fallback chain.** For a key, the UI shows the first of:
+
+1. the variant's own value;
+2. the base language's value;
+3. the tag, which is the English source text.
+
+The generator resolves steps 1 and 2 when it writes the variant's pack
+(`scripts/translations/locale_variants.py#merge_variant`): the pack holds the base's entries
+overlaid with the variant's. Base entries equal to their own key are left out, since the tag
+already says the same thing, so `en-GB.xml` holds only the strings British English respells.
+A variant value replaces the base entry whole: a flat string in `pt-BR` drops `pt`'s plural
+forms for that key. Step 3 is LVGL's own fallback for a key no pack holds. The runtime
+therefore loads one pack per language, as for any other locale. A variant whose base has no
+YAML file fails generation.
+
+**Coverage.** The coverage report and the two coverage gates
+(`tests/python/test_cpp_translation_coverage.py`, `tests/python/test_explicit_tag_coverage.py`)
+count a variant's empty value as translated when its base has a value
+(`scripts/translations/locale_variants.py#effective_value`). The key must still exist in the variant's file. A plain
+language's empty value stays a missing translation, so the gate is as strict for `de` as it
+was. `make translation-coverage` lists a variant with the number of strings it defines itself:
+`en-GB ... variant: N own, rest inherited`.
+
+**Code that branches on a language.** Plural rules, day and month names, the CJK font
+switch, the screensaver's English state words and the long-date wording all read the base
+language, so a variant behaves like its base without a row of its own. The region defaults
+(`src/system/region_defaults.cpp#find_language_defaults`) look up the full code first and
+then the base, so a variant gets its own date order or clock only when it has its own row:
+`en-GB` writes day-month-year and reads a 24-hour clock, while `en` stays month first and
+12-hour.
+
+**Adding one.** Copy `en.yml` with every value emptied (or `make translation-sync` after
+creating a file holding `locale: <code>` and `translations: {}`), fill in the strings that
+differ, and register the code in `SystemSettingsManager`'s language list right after its base,
+named in its own words ("English (UK)"). Add the name to `kLanguageNames`
+(`src/system/translation_loader.cpp`), `LANGUAGE_NAMES` (`scripts/translations/extractor.py`)
+and `tests/fixtures/translation_key_cases.json` so it is never extracted as a key. If the
+region writes dates or reads the clock differently from the base, give it a row in
+`kLanguageDefaults`. The first-run picker (`ui_xml/wizard_language_chooser.xml`) takes a button
+whose `user_data` is the Settings index, plus a flag image registered in
+`src/application/asset_manager.cpp`. Packaging needs nothing: every packager ships every
+`<lang>.xml` but the merged catalogue and `en.xml`.
 
 ## Build Pipeline
 
@@ -471,7 +531,7 @@ A string formatted in C++ from a cached Celsius value keeps its unit until its o
 
 ### Region defaults and the wizard step
 
-`src/system/region_defaults.cpp#region_defaults` turns a language and an IANA timezone into the defaults: a United States zone reads Fahrenheit and month-first, every other zone reads Celsius, an English speaker in a known non-US zone writes the day first, and with no zone the language alone decides the date order (Chinese and Japanese year first, English month first, the other languages day first).
+`src/system/region_defaults.cpp#region_defaults` turns a language and an IANA timezone into the defaults: a United States zone reads Fahrenheit and month-first, every other zone reads Celsius, an English speaker in a known non-US zone writes the day first, and with no zone the language alone decides the date order (Chinese and Japanese year first, US English month first, British English and the other languages day first). The same table answers the clock: `default_24h_clock_for_language()` is 12-hour for US English and 24-hour for every other offered language, British English included. `/display/time_format` follows it the way the date order follows the language: while nothing is saved, `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#follow_language_clock`) sets the clock subject to the language's format at startup and on every language change without saving it, so the Settings row and the wizard's row both show it. A pick on either row saves it and stops it following. `helix::ui::locale_default_24h()` reads the same table.
 
 The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance.cpp`, `ui_xml/wizard_appearance.xml`) follows the Language step. It offers timezone, 12 or 24-hour clock, theme (applied live), dark mode, speed and flow units, temperature unit and date order. Each row reuses its Settings twin's subject and callback, so there is one copy of the state. Picking a timezone applies the region defaults to the unit rows that still follow the region, meaning rows nobody had saved when the page opened and nobody has picked on it since. A pick on a row stops that row following the region. The step is skipped when a printer is added after the first run, because every row is global.
 
@@ -479,7 +539,8 @@ The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance
 
 | File | Purpose |
 |------|---------|
-| `translations/*.yml` | Source translation files (one per language) |
+| `translations/*.yml` | Source translation files (one per language or regional variant) |
+| `scripts/translations/locale_variants.py`, `include/core/locale_code.h` | Regional variants: base language, pack merge, coverage inheritance |
 | `translations/GLOSSARY.md` | Canonical per-language renderings of recurring terms (generated) |
 | `scripts/generate_translations.py` | Main pack generator |
 | `scripts/translation_sync.py` | String extraction, sync, and glossary tool |

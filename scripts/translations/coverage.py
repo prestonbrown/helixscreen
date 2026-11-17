@@ -8,7 +8,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Set, Any
 
+from .locale_variants import effective_value, has_value, is_variant
 from .yaml_manager import load_yaml_file_readonly
+
+
+def _load_catalogs(yaml_dir: Path) -> Dict[str, Dict[str, Any]]:
+    """{locale: raw translations} for every locale file in ``yaml_dir``."""
+    catalogs: Dict[str, Dict[str, Any]] = {}
+    for yaml_path in yaml_dir.glob("*.yml"):
+        data = load_yaml_file_readonly(yaml_path)
+        catalogs[data.get("locale", yaml_path.stem)] = data.get("translations", {}) or {}
+    return catalogs
+
+
+def _is_translated(locale: str, key: str, catalogs: Dict[str, Dict[str, Any]]) -> bool:
+    """Whether ``key`` renders translated in ``locale``. A variant's empty value
+    inherits its base language's, so it counts as translated whenever the base
+    has a value; a plain language needs its own."""
+    return has_value(effective_value(locale, key, catalogs))
 
 
 @dataclass
@@ -49,12 +66,10 @@ def calculate_coverage(
     base_translations = base_data.get("translations", {})
     total_keys = len(base_translations) if base_translations else 0
 
-    # Calculate stats for each language
-    for yaml_path in yaml_dir.glob("*.yml"):
-        data = load_yaml_file_readonly(yaml_path)
-        locale = data.get("locale", yaml_path.stem)
-        translations = data.get("translations", {})
+    catalogs = _load_catalogs(yaml_dir)
 
+    # Calculate stats for each language
+    for locale, translations in catalogs.items():
         if locale == base_locale:
             # Base locale is 100% by definition
             result[locale] = {
@@ -63,24 +78,25 @@ def calculate_coverage(
                 "missing": 0,
                 "percentage": 100.0,
             }
-        else:
-            # Count non-empty translations
-            translated = 0
-            if translations:
-                for key in base_translations or {}:
-                    value = translations.get(key, "")
-                    if value and str(value).strip():
-                        translated += 1
+            continue
 
-            missing = total_keys - translated
-            percentage = (translated / total_keys * 100) if total_keys > 0 else 100.0
+        translated = sum(
+            1 for key in base_translations or {} if _is_translated(locale, key, catalogs)
+        )
+        missing = total_keys - translated
+        percentage = (translated / total_keys * 100) if total_keys > 0 else 100.0
 
-            result[locale] = {
-                "total": total_keys,
-                "translated": translated,
-                "missing": missing,
-                "percentage": round(percentage, 1),
-            }
+        result[locale] = {
+            "total": total_keys,
+            "translated": translated,
+            "missing": missing,
+            "percentage": round(percentage, 1),
+        }
+        if is_variant(locale):
+            # The strings the variant writes its own way; the rest inherit.
+            result[locale]["overrides"] = sum(
+                1 for key in base_translations or {} if has_value(translations.get(key))
+            )
 
     return result
 
@@ -111,22 +127,14 @@ def get_missing_translations(
     if not base_translations:
         return result
 
-    # Check each language
-    for yaml_path in yaml_dir.glob("*.yml"):
-        data = load_yaml_file_readonly(yaml_path)
-        locale = data.get("locale", yaml_path.stem)
+    catalogs = _load_catalogs(yaml_dir)
 
+    # Check each language
+    for locale in catalogs:
         if locale == base_locale:
             continue
 
-        translations = data.get("translations", {})
-        missing = []
-
-        for key in base_translations:
-            value = translations.get(key, "") if translations else ""
-            if not value or not str(value).strip():
-                missing.append(key)
-
+        missing = [key for key in base_translations if not _is_translated(locale, key, catalogs)]
         if missing:
             result[locale] = sorted(missing)
 
@@ -166,7 +174,10 @@ def generate_coverage_report(
         filled = int(s["percentage"] / 100 * bar_width)
         bar = "█" * filled + "░" * (bar_width - filled)
 
-        lines.append(f"{locale:5} [{bar}] {s['percentage']:5.1f}%  ({s['translated']}/{s['total']})")
+        line = f"{locale:5} [{bar}] {s['percentage']:5.1f}%  ({s['translated']}/{s['total']})"
+        if "overrides" in s:
+            line += f"  variant: {s['overrides']} own, rest inherited"
+        lines.append(line)
 
     lines.append("")
     total_translated = sum(s["translated"] for s in stats.values())
