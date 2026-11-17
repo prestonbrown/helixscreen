@@ -1389,6 +1389,9 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             // incoming tool before it is physically picked up, so a raw read
             // would report MOUNTED during the swap.
             const MountState previous_mount = system_info_.mount_state;
+            if (!tc.status.empty()) {
+                toolchanger_error_ = tc.status == "error";
+            }
             if (!tc.status.empty() && tc.status != "ready") {
                 system_info_.mount_state = MountState::CHANGING;
                 system_info_.mounted_tool = -1;
@@ -2809,6 +2812,11 @@ bool AmsBackendAfc::has_toolchanger_unit_locked() const {
 void AmsBackendAfc::refresh_carriage_can_be_empty_locked() {
     carriage_can_be_empty_ =
         has_toolchanger_unit_locked() || system_info_.mount_state != MountState::UNKNOWN;
+}
+
+bool AmsBackendAfc::fault_concerns_carriage() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return toolchanger_error_;
 }
 
 bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) const {

@@ -1087,7 +1087,7 @@ bool ToolSwitcherWidget::changer_fault() {
     // Only a machine whose heads dock can have one out of place; a shared
     // toolhead's filament-system error says nothing about the heads.
     const AmsBackend* backend = AmsState::instance().get_backend();
-    return backend && backend->carriage_can_be_empty() &&
+    return backend && backend->fault_concerns_carriage() &&
            lv_subject_get_int(AmsState::instance().get_ams_action_subject()) ==
                static_cast<int>(AmsAction::ERROR);
 }

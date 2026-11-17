@@ -8412,3 +8412,25 @@ TEST_CASE("Single-toolhead AFC keeps a carriage that cannot be empty",
     REQUIRE(topo.has_value());
     CHECK_FALSE(topo->allows_empty_carriage);
 }
+
+TEST_CASE("AFC toolchanger: only the carriage's own fault marks the docked heads",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 0}, {"status", "ready"}}}});
+    REQUIRE(helper.carriage_can_be_empty());
+
+    // A lane fault: AFC reports Error, the changer stays ready.
+    helper.feed_afc_state({{"current_state", "Error"}});
+    REQUIRE(helper.get_system_info().action == AmsAction::ERROR);
+    CHECK_FALSE(helper.fault_concerns_carriage());
+
+    // klipper-toolchanger itself reports the fault.
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "error"}}}});
+    CHECK(helper.fault_concerns_carriage());
+
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "ready"}}}});
+    CHECK_FALSE(helper.fault_concerns_carriage());
+}
