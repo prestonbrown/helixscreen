@@ -59,6 +59,7 @@ void set_hardware_step(DiscoveryContext& ctx) {
     get_printer_state().fan_state().init_fans(
         fans, FanRoleConfig::from_config(Config::get_instance(), fans), ctx.hw.fan_max_power());
     get_printer_state().fan_state().set_tachometers(ctx.hw.fan_tachometers());
+    get_printer_state().fan_state().set_heater_fans(ctx.hw.heater_fans());
     crash_handler::breadcrumb::note("disc", "post_init_fans", static_cast<long>(fans.size()));
 }
 

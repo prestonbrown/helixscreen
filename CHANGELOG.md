@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Fixed
+
+- **Fan readouts follow the active tool on tool changers** - on a tool changer where every tool has its own part cooling fan and hotend fan, the Part and HE readouts beside the printer picture on Print Status and the Fan readout on the Home printer picture now show the fans of the tool that is printing. Before, they could stay on the first tool's fans while another tool printed, even though the nozzle temperature beside them followed the active tool.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added

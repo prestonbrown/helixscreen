@@ -185,7 +185,9 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
             double speed = fan["speed"].get<double>();
             int speed_pct = units::to_percent(normalize_speed("fan", speed));
             spdlog::trace("[PrinterFanState] Fan speed update: {}%", speed_pct);
-            lv_subject_set_int(&fan_speed_, speed_pct);
+            if (active_tool_part_fan_object().empty()) {
+                lv_subject_set_int(&fan_speed_, speed_pct);
+            }
 
             // Also update multi-fan tracking
             update_fan_speed("fan", speed);
@@ -195,6 +197,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
 
     // Check for other fan types in the status update
     // Moonraker sends fan objects as top-level keys: "heater_fan hotend_fan", "fan_generic xyz"
+    const std::string main_fan = main_speed_fan();
     for (const auto& [key, value] : status.items()) {
         const hw::ObjectKind kind = hw::classify_object(key).kind;
 
@@ -205,9 +208,9 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
                 double speed = value["speed"].get<double>();
                 update_fan_speed(key, speed);
 
-                // If this is the configured part fan, also update the main fan_speed_ subject
-                // so the hero slider tracks the actual part fan speed
-                if (!roles_.part_fan.empty() && key == roles_.part_fan) {
+                // The main fan_speed_ subject reads the part fan, so the hero slider
+                // tracks the fan that is actually cooling the print.
+                if (key == main_fan) {
                     int speed_pct = units::to_percent(normalize_speed(key, speed));
                     lv_subject_set_int(&fan_speed_, speed_pct);
                 }
@@ -222,8 +225,8 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
                 double speed = value["value"].get<double>();
                 update_fan_speed(key, speed);
 
-                // If this is the configured part fan, also update the main fan_speed_ subject
-                if (!roles_.part_fan.empty() && key == roles_.part_fan) {
+                // The main fan_speed_ subject reads the part fan.
+                if (key == main_fan) {
                     int speed_pct = units::to_percent(speed);
                     lv_subject_set_int(&fan_speed_, speed_pct);
                 }
@@ -290,7 +293,12 @@ PrimaryFans PrinterFanState::classify_primary_fans() const {
             out.hotend = fan.object_name;
     }
 
-    out.part = resolve_part_fan(out.part);
+    // A tool carrying its own fans shows them while it prints, whichever fan the
+    // roles or the first-of-type pick named.
+    const std::string tool_part = active_tool_part_fan_object();
+    out.part = tool_part.empty() ? resolve_part_fan(out.part) : tool_part;
+    if (std::string tool_hotend = active_tool_hotend_fan_object(); !tool_hotend.empty())
+        out.hotend = std::move(tool_hotend);
     out.aux = resolve_aux_fan(out.part, out.hotend);
     return out;
 }
@@ -745,6 +753,68 @@ void PrinterFanState::rename_fan(const std::string& object_name, const std::stri
 
     // Bump version so UI rebuilds
     lv_subject_set_int(&fans_version_, lv_subject_get_int(&fans_version_) + 1);
+}
+
+void PrinterFanState::set_heater_fans(fan_heaters::HeaterFanMap map) {
+    if (map == heater_fans_)
+        return;
+    heater_fans_ = std::move(map);
+    if (subjects_initialized_)
+        refresh_primary_fans_selection();
+}
+
+void PrinterFanState::set_active_tool_fans(const std::string& heater, const std::string& part_fan) {
+    if (heater == active_heater_ && part_fan == active_tool_part_fan_)
+        return;
+    active_heater_ = heater;
+    active_tool_part_fan_ = part_fan;
+    if (!subjects_initialized_)
+        return;
+    // A differential feed reports a steady fan once, so the main speed is
+    // re-read from the fan it now follows rather than waiting for a frame.
+    const std::string main = main_speed_fan();
+    for (const auto& fan : fans_) {
+        if (fan.object_name == main) {
+            lv_subject_set_int(&fan_speed_, fan.speed_percent);
+            break;
+        }
+    }
+    refresh_primary_fans_selection();
+}
+
+std::string PrinterFanState::active_tool_part_fan_object() const {
+    if (active_tool_part_fan_.empty())
+        return {};
+    // klipper-toolchanger's `fan:` takes an object name or a bare fan_generic name,
+    // and looks it up in that order.
+    for (const std::string& candidate :
+         {active_tool_part_fan_, "fan_generic " + active_tool_part_fan_}) {
+        for (const auto& fan : fans_)
+            if (fan.object_name == candidate)
+                return candidate;
+    }
+    return {};
+}
+
+std::string PrinterFanState::active_tool_hotend_fan_object() const {
+    if (active_heater_.empty())
+        return {};
+    const std::string heater = text_io::to_lower(active_heater_);
+    const std::string section =
+        fan_heaters::only_fan_for(heater_fans_, [&](const std::string& h) { return h == heater; });
+    if (section.empty())
+        return {};
+    // configfile.settings keys sections lowercased; the fan object keeps its case.
+    for (const auto& fan : fans_)
+        if (text_io::to_lower(fan.object_name) == section)
+            return fan.object_name;
+    return {};
+}
+
+std::string PrinterFanState::main_speed_fan() const {
+    if (std::string tool_part = active_tool_part_fan_object(); !tool_part.empty())
+        return tool_part;
+    return roles_.part_fan;
 }
 
 } // namespace helix

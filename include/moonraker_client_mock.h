@@ -1525,6 +1525,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the rest cold) so each heating state shows, and follow their targets
     /// like the primary: SET_HEATER_TEMPERATURE HEATER=extruder<n> sets one.
     [[nodiscard]] double secondary_extruder_temp(int index) const;
+    /// Toolchanger mock: every tool's own part fan and hotend fan, keyed by object
+    /// name. The mounted tool's part fan runs at @p part_speed (0-1), as
+    /// klipper-toolchanger routes M106 to it; each hotend fan runs at its own
+    /// fan_speed once its own extruder passes 50C. Empty when not a toolchanger mock.
+    [[nodiscard]] nlohmann::json toolchanger_fan_status(double part_speed) const;
+    /// Toolchanger mock: the mounted tool, T0 at start unless
+    /// HELIX_MOCK_TOOLCHANGER_TOOL names another.
+    [[nodiscard]] int toolchanger_tool() const {
+        return toolchanger_tool_.load();
+    }
     [[nodiscard]] double secondary_extruder_target(int index) const;
 
     /**
@@ -1611,6 +1621,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void populate_capabilities();
 
+  public:
     /**
      * @brief Detect toolchanger mock mode
      *
@@ -1623,7 +1634,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     bool is_mock_toolchanger() const;
 
-  public:
     /**
      * @brief Which MedusaHC shipping configuration the mock emulates.
      *
@@ -2325,9 +2335,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::atomic<int> layer_pause_next_armed_at_{0}; ///< layer the request arrived on
     std::atomic<bool> layer_pause_at_enable_{false};
     std::atomic<int> layer_pause_at_layer_{0};
-    std::atomic<int> speed_factor_{100}; // Percentage
-    std::atomic<int> flow_factor_{100};  // Percentage
-    std::atomic<int> fan_speed_{0};      // 0-255
+    std::atomic<int> speed_factor_{100};   // Percentage
+    std::atomic<int> flow_factor_{100};    // Percentage
+    std::atomic<int> fan_speed_{0};        // 0-255
+    std::atomic<int> toolchanger_tool_{0}; ///< Toolchanger mock: the mounted tool
 
     // Enhanced print simulation state (phase-based)
     std::atomic<MockPrintPhase> print_phase_{MockPrintPhase::IDLE};

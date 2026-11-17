@@ -200,6 +200,10 @@ class ToolState {
         return tools_;
     }
     [[nodiscard]] const ToolInfo* active_tool() const;
+    /// The part fan named by the tool that prints through @p extruder, as the tool
+    /// reports it ("T1_part_fan" or a full object name). Empty unless the tools
+    /// carry part fans of their own, which takes two tools naming different fans.
+    [[nodiscard]] std::string own_part_fan_for_extruder(const std::string& extruder) const;
     [[nodiscard]] int active_tool_index() const {
         return active_tool_index_;
     }
