@@ -1197,9 +1197,12 @@ TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
     REQUIRE(backend.unload_filament(1).success());
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
 
-    // And a manual resync is a no-op rather than a re-read.
+    // And a manual resync is a no-op rather than a re-read, of the IFS; the lane
+    // records are still read again.
+    const size_t reads = backend.wire().fake_client().rpc_count("server.database.get_item");
     backend.request_resync();
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
+    CHECK(backend.wire().fake_client().rpc_count("server.database.get_item") > reads);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

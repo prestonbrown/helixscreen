@@ -333,6 +333,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "a read asked for while one is out runs once m
     printer.client.fire_deferred("server.database.get_item");
     settle();
     CHECK(printer.client.call_count("server.database.get_item") == before + 2);
+
+    // A resync reads them again.
+    reg->request_resync();
+    settle();
+    CHECK(printer.client.call_count("server.database.get_item") == before + 3);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
