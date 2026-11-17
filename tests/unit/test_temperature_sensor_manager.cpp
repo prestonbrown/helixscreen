@@ -848,6 +848,12 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     frame("tmc2209 stepper_z", {{"otpw", 1}});
     CHECK(g_driver_notices.size() == 6);
 
+    // Subjects rebuilt for a new session start with no driver remembered as hot.
+    mgr().deinit_subjects();
+    mgr().init_subjects();
+    frame("tmc2209 stepper_z", {{"otpw", 1}});
+    CHECK(g_driver_notices.size() == 7);
+
     helix::set_notice_subscriber(previous);
 }
 

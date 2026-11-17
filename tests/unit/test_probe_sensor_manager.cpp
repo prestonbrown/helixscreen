@@ -467,6 +467,17 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - z_offset subject"
         REQUIRE(z_offset_subject() == -125);
     }
 
+    SECTION("A first reported offset of zero is news: it makes the offset known") {
+        set_role("bltouch", ProbeSensorRole::Z_PROBE);
+        REQUIRE_FALSE(mgr().has_z_offset());
+        const int revision = lv_subject_get_int(mgr().revision_subject());
+        json status;
+        status["bltouch"]["z_offset"] = 0.0f;
+        mgr().update_from_status(status);
+        CHECK(mgr().has_z_offset());
+        CHECK(lv_subject_get_int(mgr().revision_subject()) != revision);
+    }
+
     SECTION("Rounds to the micron rather than truncating") {
         set_role("bltouch", ProbeSensorRole::Z_PROBE);
         json status;
