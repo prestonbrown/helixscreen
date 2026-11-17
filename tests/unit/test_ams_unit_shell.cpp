@@ -49,6 +49,9 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
     CHECK(id(AmsType::AFC, "Night_Owl Turtle_1") == "night_owl");
+    // AFC DEV's ACE and CFS units carry their type token.
+    CHECK(id(AmsType::AFC, "ACE Ace_1") == "ace_pro");
+    CHECK(id(AmsType::AFC, "CFS cfs_1") == "cfs");
     CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
@@ -85,6 +88,7 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
     CHECK(unit_shell_for(one_unit(AmsType::HAPPY_HARE, "MMU"), 0) == nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 5) == nullptr);
+    CHECK(unit_shell_for(one_unit(AmsType::AFC, "ACE2 Ace_1"), 0) == nullptr);
     const UnitShell* bmcu = helix::ui::tray::unit_shell_by_id("bmcu");
     REQUIRE(bmcu != nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);

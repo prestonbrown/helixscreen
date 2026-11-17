@@ -29,6 +29,10 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "htlf ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
+    // AFC DEV runs an ACE Pro and a Creality CFS as units of their own type. The ACE 2
+    // ("ACE2 <instance>") is a different body and has no drawing yet.
+    {"afc", "ace ", "ace_pro", nullptr, 0},
+    {"afc", "cfs ", "cfs", nullptr, 0},
     {"afc", "openams", "ams_ht", nullptr, 1},
     {"afc", "openams", "ams_2_pro", nullptr, 0},
     {"afc", "vivid", "btt_vivid", nullptr, 0},

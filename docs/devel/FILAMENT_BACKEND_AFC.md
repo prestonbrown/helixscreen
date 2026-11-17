@@ -918,6 +918,13 @@ backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that ha
 AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
 a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
 
+#### Unit drawings
+
+The `kShellRows` table in `src/ui/filament/ams_unit_shell.cpp` draws an `ACE <name>` unit as the ACE Pro and
+a `CFS <name>` unit as the CFS. `ACE2` (the ACE 2 Pro, a different body) and `Claymore` units
+keep the generic tray: no drawing of either exists, and the HTLF drawing is deliberately
+not matched to a Claymore.
+
 #### Lane temperatures, vendor and filament name
 
 `AmsBackendAfc::apply_user_edit` sends two more lane commands when `printer.gcode.help`
