@@ -8,6 +8,7 @@
 #include "ams_status_json.h"
 #include "core/text_io.h"
 #include "humidity_sensor_types.h"
+#include "json_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -221,7 +222,7 @@ LaneIdentity read_lane_identity(const nlohmann::json& lane, LaneSurface surface)
     // eject); a float or a string is neither a link nor a clear.
     if (auto v = read_integer_field(lane, "spool_id")) {
         id.spool_id = std::optional<int>{*v};
-    } else if (lane.contains("spool_id") && lane["spool_id"].is_null()) {
+    } else if (const auto* sid = json_util::find_member(lane, "spool_id"); sid && sid->is_null()) {
         id.spool_id = std::optional<int>{};
     }
 
@@ -246,8 +247,8 @@ LaneStatusDelta parse_lane_status(const nlohmann::json& data) {
 
     // TD-1 scanner reading: empty strings mean no scan; the colour is bare hex.
     d.td1_color = read_color(data, "td1_color");
-    if (data.contains("td1_td")) {
-        d.td1_td = ams::read_scalar<float>(data["td1_td"]).value_or(-1.0f);
+    if (const auto* td1_td = json_util::find_member(data, "td1_td")) {
+        d.td1_td = ams::read_scalar<float>(*td1_td).value_or(-1.0f);
     }
     d.td1_scan_time = ams::read_field<std::string>(data, "td1_scan_time");
 
@@ -289,11 +290,11 @@ LaneStatusDelta parse_lane_status(const nlohmann::json& data) {
     d.presence_reading =
         d.tool_loaded || d.status || data.contains("prep") || data.contains("load");
 
-    if (data.contains("map")) {
-        d.map = parse_lane_map(data["map"]);
+    if (const auto* map = json_util::find_member(data, "map")) {
+        d.map = parse_lane_map(*map);
     }
-    if (data.contains("current_map")) {
-        d.current_map = parse_lane_map(data["current_map"]);
+    if (const auto* current_map = json_util::find_member(data, "current_map")) {
+        d.current_map = parse_lane_map(*current_map);
     }
     d.hub = ams::read_field<std::string>(data, "hub");
     d.extruder = ams::read_field<std::string>(data, "extruder");
@@ -429,10 +430,12 @@ StateDelta parse_state(const nlohmann::json& afc) {
     if (d.loaded_lane.empty() && d.current_load) {
         d.loaded_lane = *d.current_load;
     }
-    d.mentions_lane = afc.contains("current_lane");
-    d.mentions_load = afc.contains("current_load");
-    d.lane_stated_null = (d.mentions_load && afc["current_load"].is_null()) ||
-                         (d.mentions_lane && afc["current_lane"].is_null());
+    const auto* current_lane = json_util::find_member(afc, "current_lane");
+    const auto* current_load = json_util::find_member(afc, "current_load");
+    d.mentions_lane = current_lane != nullptr;
+    d.mentions_load = current_load != nullptr;
+    d.lane_stated_null =
+        (current_load && current_load->is_null()) || (current_lane && current_lane->is_null());
 
     d.current_state = ams::read_field<std::string>(afc, "current_state");
 
@@ -469,8 +472,8 @@ StateDelta parse_state(const nlohmann::json& afc) {
     d.position_saved = ams::read_field<bool>(afc, "position_saved");
     // AFC publishes false, not null, when Spoolman is off.
     d.spoolman = ams::read_field<std::string>(afc, "spoolman");
-    if (afc.contains("spoolman")) {
-        d.spoolman_configured = afc["spoolman"].is_string();
+    if (const auto* spoolman = json_util::find_member(afc, "spoolman")) {
+        d.spoolman_configured = spoolman->is_string();
     }
     d.maps = read_string_list(afc, "maps");
     // Virtual-tools firmware (#832) publishes this whatever the opt-in's value;
@@ -677,10 +680,11 @@ parse_cfs_lane_tags(const nlohmann::json& data) {
     }
     std::map<std::string, std::optional<ams::TagReading>> out;
     for (auto it = lanes->begin(); it != lanes->end(); ++it) {
-        if (!it.value().is_object() || !it.value().contains("tag")) {
+        const auto* tag = json_util::find_member(it.value(), "tag");
+        if (!tag) {
             continue;
         }
-        out[it.key()] = cfs_lane_tag(it.value()["tag"]);
+        out[it.key()] = cfs_lane_tag(*tag);
     }
     return out;
 }
@@ -812,9 +816,7 @@ StatusFrame parse_status_frame(const nlohmann::json& params) {
             f.afc_legacy = parse_state(value);
         } else if (key == "toolchanger") {
             ToolchangerDelta tc;
-            if (value.contains("tool_number") && value["tool_number"].is_number_integer()) {
-                tc.tool_number = value["tool_number"].get<int>();
-            }
+            tc.tool_number = ams::read_integer_field(value, "tool_number");
             if (auto v = ams::read_field<std::string>(value, "status")) {
                 tc.status = std::move(*v);
             }

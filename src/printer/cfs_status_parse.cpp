@@ -360,10 +360,10 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
     info.filament_runout = helix::json_util::safe_int(box_json, "filament_useup", 0) == 1;
 
     // Parse tool mapping from "map" object
-    if (box_json.contains("map") && box_json["map"].is_object()) {
+    if (const auto* tool_map = helix::json_util::find_object(box_json, "map")) {
         // Find maximum tool index to size the mapping vector
         int max_tool = -1;
-        for (auto& [tnn_key, tnn_val] : box_json["map"].items()) {
+        for (const auto& [tnn_key, tnn_val] : tool_map->items()) {
             int slot = CfsMaterialDb::tnn_to_slot(tnn_key);
             if (slot >= 0 && slot > max_tool) {
                 max_tool = slot;
@@ -371,7 +371,7 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
         }
         if (max_tool >= 0) {
             info.tool_to_slot_map.resize(max_tool + 1, -1);
-            for (auto& [tnn_key, tnn_val] : box_json["map"].items()) {
+            for (const auto& [tnn_key, tnn_val] : tool_map->items()) {
                 // The map value is a "TnnA" string; anything else (null for an
                 // unmapped tool, or a number) would make get<std::string>()
                 // throw type_error.302 out of parse_box_status and drop the
@@ -398,14 +398,14 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
     // because "no data" (the flat dialect never sends the field) must stay
     // distinguishable from "parsed and nothing groups".
     std::unordered_map<std::string, std::string> same_material_names;
-    if (box_json.contains("same_material") && box_json["same_material"].is_array()) {
+    if (const auto* same_material = helix::json_util::find_array(box_json, "same_material")) {
         info.endless_spool_groups_reported = true;
         // One entry per addressable bay (T1A..T4D, tnn_to_slot's domain), not
         // one per CONNECTED unit: a box whose T1 dropped must not lose T2's
         // groups to a shorter vector.
         info.endless_spool_group_ids.assign(16, -1);
         int group_ordinal = 0;
-        for (const auto& group : box_json["same_material"]) {
+        for (const auto& group : *same_material) {
             if (group.is_array() && group.size() >= 4 && group[0].is_string() &&
                 group[3].is_string()) {
                 same_material_names[group[0].get<std::string>()] = group[3].get<std::string>();

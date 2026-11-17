@@ -128,9 +128,8 @@ MmuSensorsDelta read_sensors(const nlohmann::json& sensors) {
     };
     d.has_toolhead_sensor = fitted("toolhead");
     d.has_extruder_sensor = fitted("extruder");
-    if (sensors.contains("mmu_pre_gate")) {
-        d.aggregate_pre_gate =
-            sensors["mmu_pre_gate"].is_boolean() && sensors["mmu_pre_gate"].get<bool>();
+    if (const auto* pre_gate = json_util::find_member(sensors, "mmu_pre_gate")) {
+        d.aggregate_pre_gate = pre_gate->is_boolean() && pre_gate->get<bool>();
     }
     return d;
 }
@@ -576,8 +575,8 @@ MmuTopologyDelta parse_topology(const nlohmann::json& mmu) {
     }
 
     std::vector<int> counts;
-    if (mmu.contains("num_gates")) {
-        counts = read_num_gates(mmu["num_gates"]);
+    if (const auto* num_gates = json_util::find_member(mmu, "num_gates")) {
+        counts = read_num_gates(*num_gates);
     }
     // An explicit unit_gate_counts array wins over num_gates.
     if (const auto unit_counts = ams::read_array<int>(mmu, "unit_gate_counts", ams::read_integer)) {
@@ -666,11 +665,11 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     d.sync_drive = ams::read_field<bool>(mmu, "sync_drive");
     d.clog_detection_enabled = ams::read_integer_field(mmu, "clog_detection_enabled");
 
-    if (mmu.contains("encoder") && mmu["encoder"].is_object()) {
-        d.encoder = read_encoder(mmu["encoder"]);
+    if (const auto* encoder = json_util::find_object(mmu, "encoder")) {
+        d.encoder = read_encoder(*encoder);
     }
-    if (mmu.contains("flowguard") && mmu["flowguard"].is_object()) {
-        d.flowguard = read_flowguard(mmu["flowguard"]);
+    if (const auto* flowguard = json_util::find_object(mmu, "flowguard")) {
+        d.flowguard = read_flowguard(*flowguard);
     }
     if (const auto it = mmu.find("tangle_prevention"); it != mmu.end() && it->is_object()) {
         TanglePreventionDelta tp;
@@ -681,11 +680,9 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
         tp.release = ams::read_field<float>(*it, "release");
         d.tangle_prevention = tp;
     }
-    if (mmu.contains("leds") && mmu["leds"].is_object()) {
-        const auto& leds = mmu["leds"];
-        if (leds.contains("unit0") && leds["unit0"].is_object()) {
-            d.led_exit_effect = ams::read_field<std::string>(leds["unit0"], "exit_effect");
-        }
+    if (const auto* unit0 = json_util::find_path(mmu, "leds", "unit0");
+        unit0 && unit0->is_object()) {
+        d.led_exit_effect = ams::read_field<std::string>(*unit0, "exit_effect");
     }
 
     d.sync_feedback_flow_rate = ams::read_field<float>(mmu, "sync_feedback_flow_rate");
@@ -696,9 +693,9 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     if (const auto count = ams::read_integer_field(mmu, "num_toolchanges")) {
         d.current_toolchange = (*count > 0) ? (*count - 1) : -1;
     }
-    if (mmu.contains("slicer_tool_map") && mmu["slicer_tool_map"].is_object()) {
+    if (const auto* tool_map = json_util::find_object(mmu, "slicer_tool_map")) {
         d.number_of_toolchanges =
-            ams::read_integer_field(mmu["slicer_tool_map"], "total_toolchanges").value_or(0);
+            ams::read_integer_field(*tool_map, "total_toolchanges").value_or(0);
     }
 
     if (const auto mode = ams::read_field<std::string>(mmu, "spoolman_support")) {
@@ -726,8 +723,8 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
     d.identity = parse_gate_identity(mmu);
     d.telemetry = parse_telemetry(mmu);
 
-    if (mmu.contains("sensors") && mmu["sensors"].is_object()) {
-        d.sensors = read_sensors(mmu["sensors"]);
+    if (const auto* sensors = json_util::find_object(mmu, "sensors")) {
+        d.sensors = read_sensors(*sensors);
     }
 
     if (const auto it = mmu.find("drying"); it != mmu.end() && it->is_array()) {
@@ -749,8 +746,8 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
         d.drying_cycles = std::move(cycles);
     }
 
-    if (mmu.contains("drying_state")) {
-        const auto& drying = mmu["drying_state"];
+    if (const auto* drying_state = json_util::find_member(mmu, "drying_state")) {
+        const auto& drying = *drying_state;
         if (drying.is_object()) {
             DryingDelta dd;
             dd.object = read_drying_object(drying);
@@ -774,7 +771,7 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
     // tagged DEPRECATED in mmu.py's get_status() with no replacement shipped:
     // read the newer spelling and fall back to the older one.
     for (const char* key : {"endless_spool_enabled", "endless_spool"}) {
-        if (mmu.contains(key) && !mmu[key].is_null()) {
+        if (const auto* v = json_util::find_member(mmu, key); v && !v->is_null()) {
             d.endless_spool_enabled = json_util::safe_bool(mmu, key, false);
             break;
         }
