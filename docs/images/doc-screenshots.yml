@@ -643,8 +643,8 @@ images:
     crop: card_temperatures
     margin: 12
     markers:
-      - {n: 1, widget: nozzle_tool_dropdown, at: top_right}
-      - {n: 2, widget: nozzle_temp_edit_container, at: top_right}
+      - {n: 1, widget: target_tool_chip, at: top_right}
+      - {n: 2, widget: btn_nozzle_temp, at: top_right}
   - path: docs/images/user/temp-nozzle-picker.png
     kind: app
     env:
@@ -690,10 +690,10 @@ images:
     steps:
       - navigate filament
       - wait_idle
-    crop: spool_card
+    crop: filament_operations_group
     margin: 12
     markers:
-      - {n: 1, widget: extruder_dropdown, at: top_right}
+      - {n: 1, widget: tool_card_row, at: top_right}
   - path: docs/images/user/spoolman-settings.png
     kind: app
     steps:

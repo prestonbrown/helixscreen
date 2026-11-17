@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The nozzle, bed and chamber rows of a temperature card (heater_row.xml),
+     shared by the Controls temperature card and the Filament panel. The
+     nozzle row is the target tool's (TargetTool): "Nozzle 2" where several
+     heads dock. The chamber row shows only on a printer with a chamber. -->
+<component>
+  <api>
+    <!-- "false" leaves out the status lines. -->
+    <prop name="status_lines" type="string" default="true"/>
+    <!-- An int subject; at 1 the rows sit side by side, a third each. Empty
+         (the default) always stacks them. -->
+    <prop name="across" type="string" default=""/>
+  </api>
+  <styles>
+    <!-- Styles, not inline attributes, so the bound one can outrank the static one. -->
+    <style name="heater_rows_stacked" flex_flow="column" layout="flex"/>
+    <style name="heater_rows_across" flex_flow="row" layout="flex" pad_column="#space_sm"/>
+    <style name="heater_row_across" width="0" flex_grow="1"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xxs" scrollable="false" clickable="false"
+        event_bubble="true">
+    <style name="heater_rows_stacked"/>
+    <bind_style_if_eq name="heater_rows_across" subject="$across" ref_value="1"/>
+    <heater_row name="btn_nozzle_temp"
+                icon="heater" glyph="nozzle_icon_glyph" label_subject="target_nozzle_label"
+                short_subject="target_tool_number" current="target_nozzle_temp" target="target_nozzle_target"
+                state="target_nozzle_status_state" duty="target_nozzle_status" status_line="$status_lines"
+                blocked="ams_nozzle_heat_blocked" callback="on_heater_row_nozzle">
+      <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
+    </heater_row>
+    <heater_row name="btn_bed_temp"
+                icon="radiator" glyph="bed_icon_glyph" label="Bed" current="bed_temp" target="bed_target"
+                state="bed_status_state" duty="bed_status" status_line="$status_lines" callback="on_heater_row_bed">
+      <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
+    </heater_row>
+    <heater_row name="btn_chamber_temp"
+                icon="fridge_industrial" glyph="chamber_icon_glyph" label="Chamber" current="chamber_temp"
+                target="chamber_effective_target" mode="chamber_mode" state="chamber_status_state" duty="chamber_status"
+                status_line="$status_lines" callback="on_heater_row_chamber" hidden="true">
+      <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
+      <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
+    </heater_row>
+  </view>
+</component>

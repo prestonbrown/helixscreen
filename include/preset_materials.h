@@ -65,6 +65,13 @@ struct SlotTemps {
 /// out of range or its material is unknown.
 std::optional<SlotTemps> slot_temps(int slot);
 
+/// The bed target a material preset sends with its nozzle target: @p bed
+/// while "Material presets heat the bed" is on (per printer, the default),
+/// nullopt while it is off, when a preset leaves the bed alone. Every
+/// material preset asks this: the Filament panel's, the Home preheat tile's
+/// and the temperature graph's.
+std::optional<int> bed_target(int bed);
+
 /// "220°C / 60°C" style summary for a slot (branded product temps when attached,
 /// otherwise the filament database recommendation). "---" if the material is unknown.
 std::string temp_label(int slot);

@@ -118,7 +118,7 @@ std::vector<Row> bar_rows(bool load, size_t tools) {
 const char* step_label(Step step) {
     switch (step) {
     case Step::Mount:
-        return "Mount tool";
+        return "Pick up tool";
     case Step::Heat:
         return "Heat nozzle";
     case Step::Insert:

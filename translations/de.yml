@@ -177,6 +177,7 @@ translations:
   A lower, B upper: "A unten, B oben"
   "A macro printed stray template text '{}': check its Jinja tags": "Ein Makro hat überzähligen Vorlagentext '{}' ausgegeben: Jinja-Tags prüfen"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Ein Makro, das die Düse abwischt. HelixScreen kann es vor einem Druck über die Vordruck-Optionen ausführen.'
+  A material preset sets the bed temperature along with the nozzle: 'Ein Material-Preset setzt neben der Düse auch die Betttemperatur'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Ein Motor-IO-Pin konnte nicht wiederhergestellt werden. Drucker aus- und einschalten, um fortzufahren
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Die Parameter eines Motors konnten nicht geschrieben werden. Drucker aus- und einschalten und erneut versuchen
   "A new Print Status screen": "Ein neuer Druckstatus-Bildschirm"
@@ -2408,6 +2409,7 @@ translations:
   'Material Comfort:': 'Materialkomfort:'
   Material Mismatch: Materialabweichung
   Material Temperatures: Material-Temperaturen
+  Material presets heat the bed: 'Material-Presets heizen das Bett'
   Max: Max
   Max Accel: Max. Beschl.
   Max Acceleration: Max. Beschleunigung
@@ -2488,10 +2490,6 @@ translations:
   'Motors disable failed: {}': 'Motoren deaktivieren fehlgeschlagen: {}'
   Motors disabled: Motoren deaktiviert
   Motors stay on while a print is active: Motoren bleiben an, solange ein Druck läuft
-  Mount: Montieren
-  Mount tool: 'Werkzeug montieren'
-  Mount which tool?: 'Welches Werkzeug montieren?'
-  Mount...: 'Montieren...'
   'Mounted: {}': 'Montiert: {}'
   Move: Bewegen
   Move here: Hierhin bewegen
@@ -2939,6 +2937,8 @@ translations:
   Pick up and park each tool in turn: Jedes Werkzeug nacheinander aufnehmen und abstellen
   Pick up the tool, heat it, and pull the filament out: "Werkzeug aufnehmen, aufheizen und das Filament herausziehen"
   Pick up tool: Werkzeug aufnehmen
+  Pick up which tool?: 'Welches Werkzeug montieren?'
+  Pick up...: 'Montieren...'
   Pick-up step cancelled; nothing was sent: 'Abholschritt abgebrochen; nichts wurde gesendet'
   Picking up tool: Werkzeug aufnehmen
   Pill: Pille
@@ -3007,7 +3007,9 @@ translations:
   Preheat PLA: PLA vorheizen
   Preheat canceled: Vorheizen abgebrochen
   'Preheat: all {} tools + bed set': 'Vorheizen: alle {} Werkzeuge + Bett gesetzt'
+  'Preheat: all {} tools set': 'Vorheizen: alle {} Werkzeuge gesetzt'
   'Preheat: {} + bed set': 'Vorheizen: {} + Bett gesetzt'
+  'Preheat: {} set': 'Vorheizen: {} gesetzt'
   Preheating and homing...: Vorheizen und Referenzfahrt...
   Preload: 'Vorladen'
   Preload failed: Vorladen fehlgeschlagen

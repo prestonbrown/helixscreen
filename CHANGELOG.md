@@ -5,6 +5,27 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Added
+
+- **Material presets heat the bed** - a material preset now sets the bed along with the nozzle on every screen: the Filament panel, the Home screen's Preheat widget and the nozzle presets on the temperature graph. To have presets heat only the nozzle, turn off Settings > Printing > Material presets heat the bed. Each printer keeps its own setting, and with it off the bed keeps the target it had.
+
+### Changed
+
+- **Temperature rows read the target after the reading** - on the Controls temperature card and the Filament panel, each heater row reads like "Nozzle 205°C / 210°", with the reading colored by its heating state and the target in smaller text, or "/ Off" when no target is set. The separate target buttons are gone: tap a row to open the temperature graph on that heater and set its target there. Where the card has room, the line under each row now says Heating, At target or Cooling.
+- **Temperature graph chart keeps its height in portrait** - on portrait screens such as 320x480, the temperature graph's sensor chips stay on one line that scrolls sideways, and the nozzle buttons are a little shorter, so the chart keeps a readable height with six tools.
+- **One tool choice for Controls, Filament and the temperature graph** - on multi-head printers the Controls temperature card, the Filament panel and the temperature graph aim at the same tool, so picking a tool on any of them shows it on all three. A tool change still moves them to the mounted tool, and picking a tool never changes tools.
+- **Tool choosers use the tool switcher's cells** - the Controls temperature card has a small tool button in its header that opens the Home tool switcher's picker, highlighting the tool the card shows and leaving out Park and Open feeder. The Filament panel and the temperature graph choose a tool from a row of the same cells, each with its filament color, in place of the tool dropdown and the numbered buttons. Every chooser numbers tools the way the nozzle row does, so a cell and "Nozzle 2" always agree.
+- **Pick up and Park everywhere** - putting a tool on the carriage is called Pick up on every screen, matching the Filament panel: the filament system's slot menu, its sidebar (Pick up...), the tool picker for loading and its step list. Park stays Park, and the confirmation still asks "Switch to Tool 2?".
+- **Filament panel in cards** - the Filament panel is laid out in cards like the Controls panel. The Temperature card at the top left shows the same rows as Controls, with the nozzle row for the tool the panel acts on, above the graph and the lane bars. On the right, the Material card holds the presets, and the Operations card holds compact Load, Unload, Purge, Extrude and Retract buttons. On a multi-head printer the Operations card also holds the row of heads and a Pick up or Park button with its own icon, and the Multi-Filament card keeps a smaller Manage button. The whole row of lane bars opens the filament system panel. On portrait screens the material presets share one row with Cool Down in the Material card's header, and on a multi-head printer the lane bars move into the Operations header, ending in a chevron.
+
+### Fixed
+
+- **No tool chooser for lanes into one hotend** - a printer with one hotend and a multi-material system, such as AFC, Happy Hare or a CFS, no longer shows a T0 to T3 tool dropdown on the Filament panel. Those lanes feed one nozzle, so the panel keeps Manage and the lane bars, and Load and Unload act on the lane in the toolhead.
+- **XY on the Motion home bar** - the Motion panel's home bar now shows an XY button, like the one on the Controls panel, on printers that home their axes separately. Where the bar has room for five buttons at a comfortable touch size, such as on 1024x600, wide strip and portrait screens, it shows All, X, Y, XY and Z. On narrower bars, such as on an 800x480 screen, it shows XY, X, Y and Z, because the home button in the middle of the jog pad already homes all axes.
+- **Tool lists no longer repeat the tool number** - when positions are numbered from zero, the tool choosers on the Controls and Filament panels and the other tool lists showed "Tool 0 (T0)", saying the same number twice. They now show "Tool 0". Numbered from one, they still show "Tool 1 (T0)", so the screen's number and the G-code name both stay visible, and a tool with its own name still shows that name.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added

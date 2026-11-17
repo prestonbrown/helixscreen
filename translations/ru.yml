@@ -218,6 +218,7 @@ translations:
   A lower, B upper: "A снизу, B сверху"
   "A macro printed stray template text '{}': check its Jinja tags": 'Макрос вывел лишний текст шаблона «{}»: проверьте его теги Jinja'
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати.'
+  A material preset sets the bed temperature along with the nozzle: 'Пресет материала задаёт температуру стола вместе с соплом'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   "A new Print Status screen": "Новый экран статуса печати"
@@ -2440,6 +2441,7 @@ translations:
   'Material Comfort:': 'Комфорт материала:'
   Material Mismatch: Несоответствие материала
   Material Temperatures: Температуры материалов
+  Material presets heat the bed: 'Пресеты материалов нагревают стол'
   Max: Макс
   Max Accel: Макс. ускор.
   Max Acceleration: Макс. ускорение
@@ -2519,10 +2521,6 @@ translations:
   'Motors disable failed: {}': 'Ошибка отключения моторов: {}'
   Motors disabled: Моторы отключены
   Motors stay on while a print is active: Моторы остаются включены во время печати
-  Mount: Установить
-  Mount tool: 'Установить инструмент'
-  Mount which tool?: 'Какой инструмент установить?'
-  Mount...: 'Установить...'
   'Mounted: {}': 'Установлен: {}'
   Move: Двигать
   Move here: Переместить сюда
@@ -2968,6 +2966,8 @@ translations:
   Pick up and park each tool in turn: Взять и поставить на место каждый инструмент по очереди
   Pick up the tool, heat it, and pull the filament out: "Возьмите инструмент, нагрейте его и вытяните филамент"
   Pick up tool: Забрать инструмент
+  Pick up which tool?: 'Какой инструмент установить?'
+  Pick up...: 'Установить...'
   Pick-up step cancelled; nothing was sent: 'Шаг после установки отменён; ничего не отправлено'
   Picking up tool: Захват инструмента
   Pill: Овал
@@ -3039,7 +3039,13 @@ translations:
     few: 'Преднагрев: все {} инструмента + стол заданы'
     many: 'Преднагрев: все {} инструментов + стол заданы'
     other: 'Преднагрев: все {} инструмента + стол заданы'
+  'Preheat: all {} tools set':
+    one: 'Преднагрев: все {} инструмент заданы'
+    few: 'Преднагрев: все {} инструмента заданы'
+    many: 'Преднагрев: все {} инструментов заданы'
+    other: 'Преднагрев: все {} инструмента заданы'
   'Preheat: {} + bed set': 'Преднагрев: {} + стол заданы'
+  'Preheat: {} set': 'Преднагрев: {} задан'
   Preheating and homing...: Преднагрев и парковка осей...
   Preload: 'Предзагрузка'
   Preload failed: Ошибка предварительной загрузки

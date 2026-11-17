@@ -10,7 +10,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
-#include "../test_helpers/controls_panel_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/toolchanger_test_helper.h"
@@ -74,24 +73,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "Extruder PID calibration does not start on a 
     for (const auto& line : client.gcode_script_history()) {
         CHECK(line.find("CALIBRATE") == std::string::npos);
     }
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "Controls keypad keeps the printer's target after a refusal",
-                 "[controls][indx][heat]") {
-    EmptyHeadIndx indx;
-    // Wired the way SubjectInitializer wires them at boot: the panel reads its
-    // controller through the temperature service.
-    auto controller = std::make_shared<helix::TemperatureController>(state(), &api());
-    TemperatureService service(state(), &api());
-    service.set_controller(controller.get());
-    {
-        ControlsPanel panel(state(), &api());
-        panel.set_temp_control_panel(&service);
-
-        helix::ui::ControlsPanelTestAccess::confirm_custom_nozzle(panel, 230.0f);
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK(helix::ui::ControlsPanelTestAccess::cached_extruder_target(panel) == 0);
-    }
-    helix::ui::UpdateQueue::instance().drain();
-    service.set_controller(nullptr);
 }

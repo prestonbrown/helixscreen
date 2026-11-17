@@ -21,7 +21,7 @@
 #include "operation_timeout_guard.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
-#include "target_nozzle_observers.h"
+#include "target_tool.h"
 #include "target_tool_selection.h"
 #include "ui/temperature_observer_bundle.h"
 
@@ -242,7 +242,8 @@ class FilamentPanel : public PanelBase {
     /// is at least kPortraitGraphMinHeight tall; otherwise the card stays in
     /// the flex flow as an invisible spacer so the column's slack lands
     /// between the material grid and the Operations divider, keeping the
-    /// multi-filament strip pinned to the bottom. Runs on the column's
+    /// multi-filament strip pinned to the bottom (with several heads, which
+    /// have no strip, the XML takes the card out of the column). Runs on the column's
     /// LV_EVENT_LAYOUT_CHANGED; the remainder is measured without the graph,
     /// so re-styling the card cannot change the answer.
     void fit_portrait_graph(lv_obj_t* column);
@@ -321,10 +322,6 @@ class FilamentPanel : public PanelBase {
      */
     void set_limits(const SafetyLimits& limits);
 
-    /// Keypad ceiling for one heater, preferring the printer's configured
-    /// max_temp over the compiled-in fallback (prestonbrown/helixscreen#1355).
-    float keypad_max_for(helix::HeaterType type, int fallback_deg);
-
     /**
      * @brief Set TemperatureService for combined temperature graph
      *
@@ -371,31 +368,12 @@ class FilamentPanel : public PanelBase {
     lv_subject_t material_nozzle_temp_subject_{};
     lv_subject_t material_bed_temp_subject_{};
 
-    // Nozzle label (dynamic: "Nozzle" or "Nozzle N" for multi-tool)
-    lv_subject_t nozzle_label_subject_{};
-    char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
     ObserverGuard language_observer_;
-    void update_nozzle_label();
 
-    // Tool selector caption (the active backend's noun: "Tool", "Toolhead").
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
-    lv_subject_t tool_noun_subject_{};
-    char tool_noun_buf_[32] = {};
     lv_subject_t target_tool_action_subject_{};
-    lv_subject_t target_tool_action_text_subject_{};
-    char target_tool_action_text_buf_[32] = {};
     helix::ui::ToolArrivalWait tool_arrival_;
-    void update_tool_noun();
-    void sync_tool_dropdown_text();
-
-    // Left card temperature subjects (current and target for nozzle/bed)
-    lv_subject_t nozzle_current_subject_{};
-    lv_subject_t nozzle_target_subject_{};
-    lv_subject_t bed_current_subject_{};
-    lv_subject_t bed_target_subject_{};
-    lv_subject_t chamber_current_subject_{};
-    lv_subject_t chamber_target_subject_{};
 
     // Operation state
     OperationTimeoutGuard operation_guard_;
@@ -521,12 +499,6 @@ class FilamentPanel : public PanelBase {
     char safety_warning_text_buf_[128]; ///< "Heat to at least X°C for filament operations"
     char material_nozzle_buf_[16];
     char material_bed_buf_[16];
-    char nozzle_current_buf_[16];
-    char nozzle_target_buf_[16];
-    char bed_current_buf_[16];
-    char bed_target_buf_[16];
-    char chamber_current_buf_[16] = {};
-    char chamber_target_buf_[16] = {};
 
     //
     // === Instance State ===
@@ -566,11 +538,6 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* spool_preset_temps_ = nullptr;
     std::optional<helix::ActiveMaterial> cached_active_material_;
 
-    // Temperature labels for color updates (4-state heating color)
-    lv_obj_t* nozzle_current_label_ = nullptr;
-    lv_obj_t* bed_current_label_ = nullptr;
-    lv_obj_t* chamber_current_label_ = nullptr;
-
     // Warning dialogs for filament sensor integration
     lv_obj_t* load_warning_dialog_ = nullptr;
     lv_obj_t* unload_warning_dialog_ = nullptr;
@@ -599,20 +566,16 @@ class FilamentPanel : public PanelBase {
     // External Spool presentations; C++ swaps the visible rows.
     lv_obj_t* spool_card_ = nullptr;
     lv_obj_t* spool_card_header_row_ = nullptr;
-    lv_obj_t* extruder_selector_group_ = nullptr;
-    lv_obj_t* extruder_dropdown_ = nullptr;
-    lv_obj_t* btn_manage_slots_ = nullptr;
     lv_obj_t* ams_manage_row_ = nullptr;
     ObserverGuard tools_version_observer_;
-    ObserverGuard extruder_version_observer_;
     ObserverGuard klippy_observer_;
-    helix::ui::TargetNozzleObservers nozzle_observers_;
-    helix::ui::TargetToolSelection target_tool_;
+    // The shared target tool (TargetTool), and its nozzle's reading.
+    ObserverGuard target_tool_observer_;
+    ObserverGuard target_nozzle_temp_observer_;
+    ObserverGuard target_nozzle_target_observer_;
 
-    void populate_extruder_dropdown();
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
-    void handle_extruder_changed();
 
     // External spool display (no-AMS mode)
     lv_obj_t* external_spool_row_ = nullptr;
@@ -719,17 +682,11 @@ class FilamentPanel : public PanelBase {
     void handle_preset_button(int material_id);
     void handle_spool_preset_button();
     void update_spool_preset();
-    void handle_nozzle_temp_tap();
-    void handle_bed_temp_tap();
-    void handle_chamber_temp_tap();
-    void handle_custom_chamber_confirmed(float value);
-    void handle_custom_nozzle_confirmed(float value);
     /// Send nozzle_target_ through TemperatureController; a refusal or failure
     /// puts the printer's real target back on screen.
     void send_nozzle_target();
     /// Show the printer's own nozzle target in place of a request it did not take.
     void show_printer_nozzle_target();
-    void handle_custom_bed_confirmed(float value);
     void handle_load_button();
     /// @param chosen_lane the lane the user named as the one in the toolhead,
     ///        when the backend could not (see helix::ui::choose_unload_lane)
@@ -740,8 +697,6 @@ class FilamentPanel : public PanelBase {
     void handle_extrude_length_select(int amount);
     void handle_cooldown();
     void update_material_temp_display();
-    void update_chamber_temp_display();
-    void update_left_card_temps();
     void update_status_icon_for_state();
     static constexpr uint32_t kOperationTimeoutMs =
         120000; // 2 min — purge/extrude at slow feedrate
@@ -790,10 +745,6 @@ class FilamentPanel : public PanelBase {
     void purge_failed(const MoonrakerError& error);
     void run_filament_macro(const std::string& macro_name, const std::string& op_label,
                             const helix::MacroParamResult& params);
-
-    // Keypad callback bridges (different signature - not LVGL events)
-    static void custom_nozzle_keypad_cb(float value, void* user_data);
-    static void custom_bed_keypad_cb(float value, void* user_data);
 };
 
 // Global instance accessor (needed by main.cpp)

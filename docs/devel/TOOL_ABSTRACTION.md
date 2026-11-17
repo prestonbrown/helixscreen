@@ -360,9 +360,9 @@ On multi-tool printers the nozzle icon carries the active tool's number as a bol
 
 During a print, each tool's temperature is shown with its tool name prefix (e.g., "T0: 205/210"). The panel observes `tools_version` to rebuild its temperature display when tool configuration changes.
 
-### Tool Selector (TempControlPanel)
+### Tool Selector (temperature surfaces)
 
-The temperature control panel provides a dropdown to select which tool's temperature to control. On single-tool printers, the selector is hidden. The dropdown is rebuilt when `tools_version` changes.
+The temperature graph's nozzle card, the Filament panel's Operations card and the Controls temperature card choose their nozzle through the shared target tool; see [The Target Tool](#the-target-tool-filament-panel-controls-temperature-card-temperature-overlay). On a printer with one head none of them shows a chooser.
 
 ### Requesting a Tool Change from the UI
 
@@ -398,27 +398,49 @@ filament panel's Pick up button (`src/ui/ui_panel_filament.cpp#with_target_mount
   `settings_tool_change_confirm`). Its Settings > Printing row is hidden while
   `tool_count` is below 2.
 - **Labels.** The confirmation names the tool with `active_tool_label()`
-  (`include/display_numbering.h`), the same text the switcher and dropdown show
+  (`include/display_numbering.h`), the same text the switcher and its picker show
   ("Toolhead 2 (T1)" on a U1).
 
-### The Target Tool (Filament panel, Controls nozzle row, temperature overlay)
+### The Target Tool (Filament panel, Controls temperature card, temperature overlay)
 
 A surface that heats, loads or extrudes aims at a **target tool**, which need not be the
 mounted one: a toolchanger owner heats or loads a docked tool without picking it up.
-`TargetToolSelection` (`include/target_tool_selection.h`) is the one rule, one instance per
-surface: a tool change anywhere moves the target to the mounted tool; an empty carriage
-keeps the user's pick; reopening the surface never resets it; a pick past a shrunk tool
-list falls back to T0. The temperature overlay keeps its own `picked_extruder_` under the
-same rule (`src/ui/ui_overlay_temp_graph.cpp#watch_extruder_version`).
+There is one target for every such surface: `helix::ui::TargetTool` (`include/target_tool.h`),
+a singleton the Controls temperature card, the Filament panel and the temperature graph
+all read, so a pick on any of them aims all of them. It holds one `TargetToolSelection`
+(`include/target_tool_selection.h`), the rule: until something is chosen it is the mounted
+tool; a tool change anywhere moves it to the mounted tool; an empty carriage keeps the
+user's pick; reopening a surface never resets it; a pick past a shrunk tool list falls back
+to T0. Subscribing replays the mounted tool, which is not a change, so a surface may
+`attach()` its PrinterState on every setup.
 
-- **Selecting never moves the machine.** The Filament panel's dropdown only picks. Its
-  Pick up / Park button (`decide_target_tool_action()`) does the change; Park only where
-  `supports_tool_park()`.
+`TargetTool` publishes what the surfaces bind: `target_tool`,
+`target_tool_multi_head` (`ToolState::has_multiple_toolheads()`, never `is_multi_tool()`,
+which counts lanes a hub feeds into one head), `target_tool_name` ("Tool 2" or a configured
+name), `target_tool_number` ("2", empty with one head), `target_nozzle_label` ("Nozzle 2"),
+all in the display numbering so a chip, a segment and a row never disagree, and the target
+nozzle's `target_nozzle_temp`, `target_nozzle_target`, `target_nozzle_status_state` and
+`target_nozzle_status` (`classify_heater_status()`, the classifier every heater row uses).
+
+**Choosing it.** The Filament panel's Operations card and the temperature graph's nozzle card
+show `ui_xml/components/tool_target_row.xml`: one `tool_switcher_segment` per head, the
+Home switcher's own cell, highlighting `_target_state` and calling `tool_target_segment_cb`.
+The Controls card's header chip opens the Home switcher's picker in Target mode
+(`helix::ui::open_target_tool_picker()`, `include/tool_picker.h`): the target's head is
+highlighted, Park and the feeder are hidden, no cell disables, and a pick only aims.
+The per-head data all of them draw (filament band, temperature, mounted and target looks,
+the row labels) comes from `helix::ui::ToolHeadsModel` (`include/tool_heads_model.h`),
+which exists whenever the printer has several heads, with or without a Home widget.
+
+- **Selecting never moves the machine.** Every chooser above only aims. The Filament
+  panel's Pick up / Park button in the Operations card's header (`decide_target_tool_action()`)
+  does the change; Park only where `supports_tool_park()`.
 - **Mounted means tool index**, never extruder name: after a park Klipper still names the
   last tool's extruder active. With one head the target is always mounted.
-- **Temperatures follow the target.** `TargetNozzleObservers`
-  (`include/target_nozzle_observers.h`) watches the mounted tool through the
-  active-extruder mirror and a docked one through its own extruder's subjects. Sends name a
+- **Temperatures follow the target.** `TargetTool` reads the target's nozzle through
+  `TargetNozzleObservers` (`include/target_nozzle_observers.h`), which watches the mounted
+  tool through the active-extruder mirror and a docked one through its own extruder's
+  subjects; the surfaces bind the mirrors it publishes. Sends name a
   docked tool's extruder (`set_target(name)`) and the mounted one by `HeaterType::Nozzle`;
   both reach the same nozzle guards. A preset aimed at a docked tool skips a configured
   heating macro, which heats the mounted tool. The Filament panel's mini graph charts the

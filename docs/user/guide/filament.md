@@ -45,17 +45,25 @@ If a load, unload or tool change needs the printer homed and it isn't, HelixScre
 
 When the nozzle is too cold to move filament and HelixScreen doesn't know what is loaded, a warning takes the place of the **Operations** heading until the nozzle is hot enough.
 
+### The Filament panel's cards
+
+The Filament panel is laid out in cards, like the Controls panel. In landscape the **Temperature** card, the temperature graph and the **Multi-Filament** card are on the left, and the **Material** and **Operations** cards are on the right. The Temperature card shows the nozzle, bed and chamber rows the Controls panel uses (see [The Temperature Card](temperature.md#the-temperature-card)), with the nozzle row for the tool the panel acts on; tap a row to open the temperature graph on that heater.
+
+In portrait (such as a 320x480 screen) the cards stack in one column, with the readings side by side on one line and the material presets in one row, **Cool Down** in the Material card's header.
+
 ### Choosing a tool on a multi-head printer
 
-On a printer with more than one tool (a tool changer, an IDEX or dual-extruder machine, the Snapmaker U1), and on a single-head printer whose filament system (Happy Hare, AFC, OpenAMS, CFS, QIDI Box, AD5X IFS) counts each lane as a tool, the multi-filament card at the bottom left of the Filament panel has a dropdown that chooses which tool the panel acts on. Its caption uses your printer's own word for a tool (**Toolhead** on the Snapmaker U1). The closed dropdown shows just the tool's G-code name, such as **T0**; open it to see the full list. On a single-head printer the list names the lanes (such as **Slot 1 (T0)**) and the card has no **Manage** button: tap the slot bars to open the Filament System panel. Choosing a lane there aims Load and Unload at it, and no tool is picked up.
+On a printer with more than one toolhead (a tool changer, an IDEX or dual-extruder machine, the Snapmaker U1), the **Operations** card chooses which tool the panel acts on. Under its heading is a row with one cell per head, each with its filament color along the bottom: the same cells as the Home screen's tool switcher. The highlighted cell is the tool the panel is aimed at, and the Temperature card's nozzle row reads **Nozzle 4** for it. The cells name each head as the rest of the screen numbers it, **Tool 4** where they have room, else **4**.
 
-Choosing a tool in the dropdown only aims the panel at it. Nothing moves, and the printer does not change tools. The tool is picked up when you use a button that needs it: **Load**, **Unload**, **Extrude**, **Retract** or **Purge** first pick up the selected tool if it is not the mounted one, then carry on. That pick-up follows **Settings > Printing > Confirm tool changes** (on by default, shown only on multi-tool printers): with it on, the printer asks before switching. A paused print always asks, and the switch is refused while printing, while spools lie on the bed, or while the filament system is waiting for you. If the tool does not arrive, the step is dropped and a message says that nothing was sent.
+A single-head printer has no tool choice, even when its filament system (Happy Hare, AFC, OpenAMS, CFS, QIDI Box, AD5X IFS) counts each lane as a tool: lanes feeding one hotend are not separate heads. There the Multi-Filament card has a **Manage** button beside the lane bars; tap either to open the Filament System panel, where you load or unload a particular lane. Load and Unload on the Filament panel act on the lane in the toolhead.
 
-One button beside the dropdown does the tool change by itself. It reads **Pick up** when the selected tool is not the mounted one, and **Park** when it is mounted and your printer can park a tool in its dock. With a single-head printer, or when neither applies, the button is hidden.
+Tapping a head only aims the panel at it. Nothing moves, and the printer does not change tools. The panel shares its aimed tool with the Controls Temperature card and the temperature graph screen, so a pick on any of them shows on all three. The tool is picked up when you use a button that needs it: **Load**, **Unload**, **Extrude**, **Retract** or **Purge** first pick up the aimed tool if it is not the mounted one, then carry on. That pick-up follows **Settings > Printing > Confirm tool changes** (on by default, shown only on multi-tool printers): with it on, the printer asks before switching. A paused print always asks, and the switch is refused while printing, while spools lie on the bed, or while the filament system is waiting for you. If the tool does not arrive, the step is dropped and a message says that nothing was sent.
 
-![The filament spool card with its tool drop-down](../../images/user/filament-tool-select.png)
+One button at the right of the Operations heading does the tool change by itself. It reads **Pick up** when the aimed tool is not the mounted one, and **Park** (with the same icon as Park on the Home screen's tool switcher) when it is mounted and your printer can park a tool in its dock. When neither applies, the button is hidden.
 
-1. The tool drop-down, which aims the panel at a tool and moves nothing.
+![The Filament panel's Operations card](../../images/user/filament-tool-select.png)
+
+1. The row of heads, which aims the panel at a tool and moves nothing.
 
 ### Customizing which macro runs
 
@@ -110,7 +118,7 @@ With a QIDI Box, box slots load and unload the way the stock screen does them.
 2. What is loaded now.
 3. The action buttons: Load, Unload and the others your system offers (a Happy Hare printer shows Home here).
 
-A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap the slot bars on the Filament panel's multi-filament card to open it (**Manage** does the same, on printers where the card has that button; a printer with several tools shows the tool dropdown instead of **Manage**). The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
+A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap the slot bars on the Filament panel's Multi-Filament card to open it (the whole row of bars is one tap target, and **Manage** beside it does the same; with several heads it is a smaller button, and in portrait, where the bars sit in the Operations header, they end in a chevron instead). The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
 
 | Topic | Page |
 |-------|------|

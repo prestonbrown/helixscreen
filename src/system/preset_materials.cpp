@@ -7,6 +7,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
+#include "settings_manager.h"
 #include "static_subject_registry.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
@@ -101,6 +102,13 @@ std::optional<SlotTemps> slot_temps(int slot) {
         return std::nullopt;
     }
     return SlotTemps{mat->nozzle_recommended(), mat->bed_temp};
+}
+
+std::optional<int> bed_target(int bed) {
+    if (!SettingsManager::instance().get_material_presets_heat_bed()) {
+        return std::nullopt;
+    }
+    return bed;
 }
 
 std::string temp_label(int slot) {

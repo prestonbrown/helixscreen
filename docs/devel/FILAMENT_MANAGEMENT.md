@@ -2027,7 +2027,7 @@ reads a `FilamentHeadView` off the live backend, and three pure functions decide
 
 - `decide_filament_actions()` is the sidebar. Load opens the head picker on every printer;
   Unload is one tap on one head and the picker on several. A docking machine
-  (`carriage_can_be_empty()`) where no head has an automatic filament op shows **Mount...**
+  (`carriage_can_be_empty()`) where no head has an automatic filament op shows **Pick up...**
   and **Park** in their place. Where heads dock and a feed exists, Park stands beside Load
   and Unload. A direction no head can do by machine is disabled with the head's reason,
   shown in the line under the grid.

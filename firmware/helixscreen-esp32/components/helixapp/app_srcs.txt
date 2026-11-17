@@ -495,6 +495,7 @@ src/ui/settings_root_status.cpp
 src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
+src/ui/target_tool.cpp
 src/ui/target_tool_selection.cpp
 src/ui/ui_toolhead_view.cpp
 src/ui/temp_graph_controller.cpp
@@ -507,6 +508,8 @@ src/ui/temperature_service.cpp
 src/ui/theme_loader.cpp
 src/ui/theme_manager_new.cpp
 src/ui/tool_change_request.cpp
+src/ui/tool_heads_model.cpp
+src/ui/tool_picker.cpp
 src/ui/touch_calibration.cpp
 src/ui/touch_calibration_layout.cpp
 src/ui/touch_calibration_controller.cpp

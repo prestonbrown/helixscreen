@@ -167,6 +167,7 @@
   <translation tag="A lower, B upper" ja="A下・B上"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" ja="マクロが不要なテンプレート文字列 &apos;{}&apos; を出力しました: Jinja タグを確認してください"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ja="ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle" ja="材料プリセットはノズルとともにベッド温度も設定します"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ja="モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ja="モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください"/>
   <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>
@@ -2188,6 +2189,7 @@
   <translation tag="Material Comfort:" ja="素材の適合度:"/>
   <translation tag="Material Mismatch" ja="素材の不一致"/>
   <translation tag="Material Temperatures" ja="素材温度"/>
+  <translation tag="Material presets heat the bed" ja="材料プリセットでベッドも加熱"/>
   <translation tag="Max" ja="最大"/>
   <translation tag="Max Accel" ja="最大加速"/>
   <translation tag="Max Acceleration" ja="最大加速度"/>
@@ -2269,10 +2271,6 @@
   <translation tag="Motors disable failed: {}" ja="モーターの無効化に失敗しました: {}"/>
   <translation tag="Motors disabled" ja="モーターを無効化しました"/>
   <translation tag="Motors stay on while a print is active" ja="印刷中はモーターを停止できません"/>
-  <translation tag="Mount" ja="装着"/>
-  <translation tag="Mount tool" ja="ツールを装着"/>
-  <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
-  <translation tag="Mount..." ja="装着..."/>
   <translation tag="Mounted: {}" ja="装着中: {}"/>
   <translation tag="Move" ja="移動"/>
   <translation tag="Move here" ja="ここへ移動"/>
@@ -2693,6 +2691,8 @@
   <translation tag="Pick up and park each tool in turn" ja="各ツールを順に取り付けて戻す"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" ja="ツールを取り付けて加熱し、フィラメントを引き抜いてください"/>
   <translation tag="Pick up tool" ja="ツールを取得"/>
+  <translation tag="Pick up which tool?" ja="どのツールを装着しますか？"/>
+  <translation tag="Pick up..." ja="装着..."/>
   <translation tag="Pick-up step cancelled; nothing was sent" ja="装着後の操作を取り消しました。何も送信していません"/>
   <translation tag="Picking up tool" ja="ツールを取得中"/>
   <translation tag="Pill" ja="ピル"/>
@@ -2751,7 +2751,9 @@
   <translation tag="Preheat PLA" ja="PLA 予熱"/>
   <translation tag="Preheat canceled" ja="予熱がキャンセルされました"/>
   <translation tag="Preheat: all {} tools + bed set" ja="予熱: 全 {} ツール + ベッド設定済み"/>
+  <translation tag="Preheat: all {} tools set" ja="予熱: 全 {} ツール設定済み"/>
   <translation tag="Preheat: {} + bed set" ja="予熱: {} + ベッド設定済み"/>
+  <translation tag="Preheat: {} set" ja="予熱: {} 設定済み"/>
   <translation tag="Preheating and homing..." ja="予熱とホーミング中..."/>
   <translation tag="Preload" ja="事前装填"/>
   <translation tag="Preload failed" ja="事前装填に失敗しました"/>

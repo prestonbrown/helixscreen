@@ -16,9 +16,11 @@
 #include "app_globals.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "panel_widget_manager.h"
+#include "preset_materials.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "static_panel_registry.h"
+#include "target_tool.h"
 #include "temp_graph_tooltip.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
@@ -37,16 +39,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// The trailing number token of an extruder's display name ("Nozzle 3" -> "3").
-/// Empty when the name carries no number (single-extruder "Nozzle").
-static std::string_view extruder_number_token(const std::string& display_name) {
-    const auto pos = display_name.find_last_of(' ');
-    if (pos == std::string::npos) {
-        return {};
-    }
-    return {display_name.data() + pos + 1, display_name.size() - pos - 1};
-}
 
 /**
  * Map overlay Mode to HeaterType for temperature control.
@@ -143,23 +135,6 @@ void TempGraphOverlay::init_subjects() {
         // XML create and the first lv_subject_set_int in open().
         UI_MANAGED_SUBJECT_INT(mode_subject_, static_cast<int>(mode_), "temp_graph_mode",
                                subjects_);
-        // The nozzle digit, kept in step with the extruder the card
-        // displays (picked tool while a pick is held, machine tool otherwise).
-        UI_MANAGED_SUBJECT_STRING(nozzle_badge_subject_, nozzle_badge_buffer_, "",
-                                  "temp_graph_nozzle_badge", subjects_);
-        // The card's current/target, mirrored from that same extruder's own
-        // subjects (repoint_nozzle_card() decides which). The XML binds these
-        // by name; per-extruder data never flows through the active-extruder
-        // subjects from this overlay.
-        UI_MANAGED_SUBJECT_INT(nozzle_card_temp_subject_, 0, "temp_graph_nozzle_temp", subjects_);
-        UI_MANAGED_SUBJECT_INT(nozzle_card_target_subject_, 0, "temp_graph_nozzle_target",
-                               subjects_);
-        // The card's status area (glyph + duty) for those same mirrors. 0 is
-        // HeaterStatusState::None, so an un-repointed card shows no glyph.
-        UI_MANAGED_SUBJECT_INT(nozzle_card_status_state_subject_, 0,
-                               "temp_graph_nozzle_status_state", subjects_);
-        UI_MANAGED_SUBJECT_STRING(nozzle_card_status_subject_, nozzle_card_status_buffer_, "",
-                                  "temp_graph_nozzle_status", subjects_);
     }
 }
 
@@ -180,8 +155,6 @@ lv_obj_t* TempGraphOverlay::create(lv_obj_t* parent) {
     nozzle_strip_ = helix::ui::find_required(overlay_root_, "nozzle_control_strip", get_name());
     bed_strip_ = helix::ui::find_required(overlay_root_, "bed_control_strip", get_name());
     chamber_strip_ = helix::ui::find_required(overlay_root_, "chamber_control_strip", get_name());
-    extruder_selector_row_ =
-        helix::ui::find_required(overlay_root_, "extruder_selector_row", get_name());
 
     return overlay_root_;
 }
@@ -203,28 +176,6 @@ void TempGraphOverlay::on_activate() {
     chamber_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber);
     chamber_hero_icon_binder_.bind(overlay_root_, *printer_state_, helix::HeaterType::Chamber,
                                    "chamber_hero_icon_glyph");
-
-    // Keep the digit's tool number aligned with the card while the overlay
-    // is open: the pair of ToolState subjects fires on every toolchange and
-    // tool-list rebuild (the same pair ui_ams_tool_text observes for the
-    // global badge). Unbound in on_deactivating().
-    auto& tools = helix::ToolState::instance();
-    nozzle_badge_tool_observer_ = helix::ui::observe<int>(
-        tools.get_active_tool_subject(), this,
-        [](TempGraphOverlay* self, int /*tool*/) { self->publish_nozzle_badge(); },
-        tools.get_subjects_lifetime());
-    nozzle_badge_version_observer_ = helix::ui::observe<int>(
-        tools.get_tools_version_subject(), this,
-        [](TempGraphOverlay* self, int /*version*/) { self->publish_nozzle_badge(); },
-        tools.get_subjects_lifetime());
-
-    // Point the card at whatever it should display now, then arm the
-    // rediscovery watch. Armed once per activation: repoint_nozzle_card()
-    // re-fires the card binders, and if it re-armed this watch every call,
-    // each attach notification would queue another repoint and the queue
-    // would never drain while the overlay is open.
-    repoint_nozzle_card();
-    watch_extruder_version();
 
     discover_series();
 
@@ -313,18 +264,6 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
     bed_icon_binder_.unbind();
     chamber_icon_binder_.unbind();
     chamber_hero_icon_binder_.unbind();
-    nozzle_badge_tool_observer_.reset();
-    nozzle_badge_version_observer_.reset();
-    nozzle_card_temp_observer_.reset();
-    nozzle_card_target_observer_.reset();
-    nozzle_card_power_observer_.reset();
-    extruder_version_observer_.reset();
-    active_tool_observer_.reset();
-
-    // picked_extruder_ deliberately survives deactivation and reopening: the
-    // custom-entry keypad stacks on top of this overlay and its confirm still
-    // targets the picked tool, and a user who picked a docked tool expects it
-    // back next visit. A tool change is what drops it.
 
     // Clear any pinned caption before the controller (and its graph) are torn
     // down below.
@@ -358,7 +297,6 @@ void TempGraphOverlay::on_ui_destroyed() {
     nozzle_strip_ = nullptr;
     bed_strip_ = nullptr;
     chamber_strip_ = nullptr;
-    extruder_selector_row_ = nullptr;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,18 +307,9 @@ void TempGraphOverlay::open(Mode mode, lv_obj_t* parent_screen,
                             const std::string& nozzle_extruder) {
     mode_ = mode;
     if (!nozzle_extruder.empty()) {
-        // The caller's tool beats both a remembered pick and the tool-change
-        // check activation runs, so the card opens on what the caller showed.
-        // Mounted means the tool ToolState has on the carriage, the same test
-        // the Controls row uses to decide what it shows.
-        const auto& tools = helix::ToolState::instance();
-        const int active = tools.active_tool_index();
-        const auto& list = tools.tools();
-        const bool mounted =
-            active >= 0 && active < static_cast<int>(list.size()) &&
-            list[static_cast<size_t>(active)].extruder_name.value_or("") == nozzle_extruder;
-        picked_extruder_ = mounted ? std::string{} : nozzle_extruder;
-        pick_tool_ = kNoPickTool;
+        // The caller showed this tool: the card, and every surface sharing the
+        // target, opens on it.
+        helix::ui::TargetTool::instance().pick_extruder(nozzle_extruder);
     }
 
     show(parent_screen);
@@ -756,17 +685,6 @@ void TempGraphOverlay::configure_control_strip() {
             }
         }
     }
-
-    // Extruder selector: show only in nozzle mode with multiple extruders
-    if (extruder_selector_row_) {
-        auto& temp_state = printer_state_->temperature_state();
-        if (mode_ == Mode::Nozzle && temp_state.extruder_count() > 1) {
-            lv_obj_remove_flag(extruder_selector_row_, LV_OBJ_FLAG_HIDDEN);
-            rebuild_extruder_selector();
-        } else {
-            lv_obj_add_flag(extruder_selector_row_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -810,15 +728,11 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     spdlog::debug("[TempGraphOverlay] Preset clicked: {}°C for heater {}", data.preset_value,
                   static_cast<int>(type));
 
-    // A nozzle preset goes to the extruder the card is displaying - the picked
-    // tool when one is held, the machine's active tool otherwise. The service's
-    // nozzle mirror feeds every OTHER surface's card and tracks the machine's
-    // active tool, so the optimistic local set_heater is only correct when the
-    // two are the same extruder.
-    const bool nozzle_pick_non_active =
-        type == helix::HeaterType::Nozzle && self->printer_state_ &&
-        self->displayed_extruder_name() !=
-            self->printer_state_->temperature_state().active_extruder_name();
+    // A nozzle preset goes to the target tool the card displays. The service's
+    // nozzle mirror tracks the machine's active tool, so the optimistic local
+    // set_heater is only correct when the target is mounted.
+    auto& target = helix::ui::TargetTool::instance();
+    const bool nozzle_pick_non_active = type == helix::HeaterType::Nozzle && !target.mounted();
 
     if (!nozzle_pick_non_active) {
         // Update local state
@@ -831,10 +745,20 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
     // never sends a stale HEATER=chamber) and shows the standard error toast.
     if (helix::TemperatureController* c = self->temp_control_panel_->controller()) {
         if (nozzle_pick_non_active) {
-            c->set_target(self->displayed_extruder_name(), static_cast<double>(data.preset_value),
+            c->set_target(target.extruder_name(), static_cast<double>(data.preset_value),
                           {.toast = true});
         } else {
             c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+        }
+        // A nozzle material preset heats the bed with it, unless "Material
+        // presets heat the bed" is off. Off (index 0) touches the nozzle alone.
+        if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
+            if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
+                if (const auto bed = helix::presets::bed_target(temps->bed)) {
+                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                                  {.toast = true});
+                }
+            }
         }
     }
 }
@@ -851,14 +775,14 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
 
     auto& heater = overlay.temp_control_panel_->heater(type);
 
-    // Capture the displayed extruder NOW. Showing the keypad stacks it on top
+    // Capture the target's extruder NOW. Showing the keypad stacks it on top
     // of this overlay, which deactivates the overlay before the user confirms,
     // and the confirm must still send to the tool the user was looking at,
-    // not to whoever the machine considers active by then. The pick survives
-    // deactivation by design; only open() drops it.
+    // not to whoever the machine considers active by then.
     overlay.keypad_ctx_ = {&overlay, type,
-                           type == helix::HeaterType::Nozzle ? overlay.displayed_extruder_name()
-                                                             : std::string()};
+                           type == helix::HeaterType::Nozzle
+                               ? helix::ui::TargetTool::instance().extruder_name()
+                               : std::string()};
 
     // The service answers through the shared keypad-ceiling authority
     // (configured max over the heater default, async fetch triggered inside);
@@ -869,12 +793,13 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
     // Seed the keypad. Chamber uses the effective target (heater target when
     // Heating, fan target when Maintaining) so the keypad pre-fills the value the
     // overlay already shows. The raw heater target reads 0 during M141 maintain
-    // mode and would otherwise seed 0. A nozzle seeds from the card's own target
-    // subject, which is the picked tool's target, not the service's
-    // active-tool mirror.
+    // mode and would otherwise seed 0. A nozzle seeds from the target tool's
+    // own target, not the service's active-tool mirror.
     int seed_deci = heater.target;
-    if (type == helix::HeaterType::Nozzle && overlay.are_subjects_initialized()) {
-        seed_deci = lv_subject_get_int(&overlay.nozzle_card_target_subject_);
+    if (type == helix::HeaterType::Nozzle) {
+        if (lv_subject_t* t = lv_xml_get_subject(nullptr, "target_nozzle_target")) {
+            seed_deci = lv_subject_get_int(t);
+        }
     } else if (type == helix::HeaterType::Chamber && overlay.printer_state_) {
         if (auto* subj = overlay.printer_state_->temperature_state()
                              .get_chamber_effective_target_subject()) {
@@ -882,12 +807,12 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
         }
     }
 
-    // The nozzle card may show a picked tool, not the active one: name the
-    // extruder the card displays.
+    // The card shows the target tool, which need not be the active one: name
+    // its extruder.
     std::string title = helix::ui::temperature::heater_keypad_title(type);
     if (type == helix::HeaterType::Nozzle && overlay.printer_state_) {
         const auto& extruders = overlay.printer_state_->temperature_state().extruders();
-        const auto it = extruders.find(overlay.displayed_extruder_name());
+        const auto it = extruders.find(helix::ui::TargetTool::instance().extruder_name());
         if (it != extruders.end() && !it->second.display_name.empty()) {
             title = it->second.display_name;
         }
@@ -919,8 +844,7 @@ void TempGraphOverlay::keypad_value_cb(float value, void* user_data) {
 
     // Send via the controller — resolves the klipper name internally and shows
     // the standard error toast on failure. A nozzle sends by the klipper name
-    // captured when the keypad opened, which is the picked tool whenever the
-    // card was showing one.
+    // captured when the keypad opened: the target tool's.
     if (helix::TemperatureController* c = ctx->overlay->temp_control_panel_->controller()) {
         if (ctx->type == helix::HeaterType::Nozzle && !ctx->klipper_name.empty()) {
             c->set_target(ctx->klipper_name, static_cast<double>(temp), {.toast = true});
@@ -930,273 +854,22 @@ void TempGraphOverlay::keypad_value_cb(float value, void* user_data) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Extruder selector
-// ─────────────────────────────────────────────────────────────────────────────
-
-void TempGraphOverlay::rebuild_extruder_selector() {
-    if (!extruder_selector_row_ || !printer_state_)
-        return;
-
-    // Called from lifetime_.defer in on_extruder_selected (#80). Use
-    // safe_clean_children so the deletion is scheduled via lv_obj_delete_async
-    // outside UpdateQueue::process_pending() — prevents event-list corruption
-    // (#776).
-    lv_obj_update_layout(extruder_selector_row_);
-    helix::ui::safe_clean_children(extruder_selector_row_);
-
-    auto& temp_state = printer_state_->temperature_state();
-    const auto& extruders = temp_state.extruders();
-
-    // Sort for consistent ordering
-    std::vector<const helix::ExtruderInfo*> sorted;
-    for (const auto& [name, info] : extruders) {
-        sorted.push_back(&info);
-    }
-    std::sort(sorted.begin(), sorted.end(),
-              [](const auto* a, const auto* b) { return a->name < b->name; });
-
-    // Touch-friendly pill sizing (esp. Tiny breakpoint / 480x320): the four tool
-    // pills share the narrow 33% control column. Grow each pill to fill the row
-    // equally and give it a real minimum touch height plus a body-size digit,
-    // instead of shrinking to the glyph (was font_small + content-size, ~18px
-    // tall and near-untappable). Mirrors tool_switcher_widget's pill sizing.
-    const int32_t pill_min_h = theme_manager_get_spacing("button_height_sm");
-    const int32_t pill_pad_ver = theme_manager_get_spacing("space_xxs");
-    const int32_t pill_pad_hor = theme_manager_get_spacing("space_xs");
-    // Rounded-rectangle radius + outline width, matching the preset buttons and
-    // dropdowns (both are breakpoint-aware theme consts, same values used in XML
-    // as #border_radius / #border_width).
-    const int32_t pill_radius = theme_manager_get_spacing("border_radius");
-    const int32_t pill_border_w = theme_manager_get_spacing("border_width");
-
-    for (const auto* ext : sorted) {
-        lv_obj_t* btn = lv_obj_create(extruder_selector_row_);
-        lv_obj_set_height(btn, LV_SIZE_CONTENT);
-        lv_obj_set_flex_grow(btn, 1); // share the column width equally across pills
-        lv_obj_set_style_min_height(btn, pill_min_h, 0);
-        lv_obj_set_style_pad_ver(btn, pill_pad_ver, 0);
-        lv_obj_set_style_pad_hor(btn, pill_pad_hor, 0);
-        // Rounded rectangle rather than a full-circle pill.
-        lv_obj_set_style_radius(btn, pill_radius, 0);
-        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
-
-        // Highlight the pill the card is displaying - the pick, or the
-        // machine's active tool when no pick is held.
-        bool is_active = (ext->name == displayed_extruder_name());
-        lv_obj_set_style_bg_color(
-            btn,
-            is_active ? theme_manager_get_color("primary") : theme_manager_get_color("card_bg"), 0);
-        // Inactive pills get an outline like the "Off" ghost button; the active
-        // pill stays a solid primary fill with no border.
-        lv_obj_set_style_border_width(btn, is_active ? 0 : pill_border_w, 0);
-        if (!is_active) {
-            lv_obj_set_style_border_color(btn, theme_manager_get_color("border"), 0);
-            lv_obj_set_style_border_opa(btn, LV_OPA_COVER, 0);
-        }
-
-        lv_obj_t* label = lv_label_create(btn);
-        // Compact pill label: show only the trailing number from "Nozzle N".
-        // Saves horizontal space so 4+ pills fit without clipping; the full
-        // "Nozzle N" wording still appears in status messages and the heater
-        // icon caption.
-        auto number = extruder_number_token(ext->display_name);
-        std::string pill_text = number.empty() ? ext->display_name : std::string(number);
-        lv_label_set_text(label, pill_text.c_str());
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
-        lv_obj_set_style_text_color(
-            label,
-            is_active ? theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
-                                                                 theme_manager_get_color("primary"))
-                      : theme_manager_get_color("text"),
-            0);
-        lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_center(label); // center the digit within the grown pill
-
-        // Store name as obj name for lookup in callback
-        lv_obj_set_name(btn, ext->name.c_str());
-        // Exception: programmatic widget, can't use XML event_cb
-        lv_obj_add_event_cb(btn, on_extruder_selected, LV_EVENT_CLICKED, this);
+/// Open the graph on @p mode's heater over the screen the tapped row is on.
+static void open_from_heater_row(lv_event_t* e, TempGraphOverlay::Mode mode) {
+    auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    if (row) {
+        get_global_temp_graph_overlay().open(mode, lv_obj_get_screen(row));
     }
 }
 
-void TempGraphOverlay::on_extruder_selected(lv_event_t* e) {
-    auto* self = static_cast<TempGraphOverlay*>(lv_event_get_user_data(e));
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!self || !target)
-        return;
-
-    const char* name = lv_obj_get_name(target);
-    if (!name)
-        return;
-
-    self->select_extruder(name);
-    spdlog::debug("[TempGraphOverlay] Selected extruder: {}", name);
-}
-
-void TempGraphOverlay::select_extruder(const std::string& name) {
-    // A pick, not a toolchange: the card's mirror repoints to this extruder's
-    // own subjects while the machine's active extruder stays wherever the
-    // toolhead is. Other surfaces keep tracking the active tool untouched.
-    picked_extruder_ = name;
-    repoint_nozzle_card();
-
-    // Defer rebuild (#80) AND use safe_clean_children in rebuild_extruder_selector
-    // (#776): lifetime_.defer moves work off the click stack so we don't delete
-    // the clicked chip mid-event; rebuild_extruder_selector's safe_clean_children
-    // then escapes UpdateQueue::process_pending() so sync deletion can't corrupt
-    // LVGL's event linked list.
-    lifetime_.defer("rebuild_extruder_selector", [this]() { rebuild_extruder_selector(); });
-}
-
-const std::string& TempGraphOverlay::displayed_extruder_name() const {
-    static const std::string kFallback = "extruder";
-    if (!printer_state_)
-        return kFallback;
-
-    auto& temp_state = printer_state_->temperature_state();
-    // A pick only counts while its extruder still exists.
-    if (!picked_extruder_.empty() && temp_state.extruders().count(picked_extruder_)) {
-        return picked_extruder_;
-    }
-    return temp_state.active_extruder_name();
-}
-
-void TempGraphOverlay::watch_extruder_version() {
-    if (!printer_state_)
-        return;
-    extruder_version_observer_ = helix::ui::observe<int>(
-        printer_state_->temperature_state().get_extruder_version_subject(), this,
-        [](TempGraphOverlay* self, int /*version*/) { self->repoint_nozzle_card(); },
-        printer_state_->temperature_state().get_subjects_lifetime());
-
-    // A pick lasts across visits until a tool change, which moves the card to
-    // the newly mounted tool. A change while the overlay was closed counts too.
-    const int active = helix::ToolState::instance().active_tool_index();
-    if (pick_tool_ != kNoPickTool && active != pick_tool_) {
-        picked_extruder_.clear();
-    }
-    pick_tool_ = active;
-    active_tool_observer_ = helix::ui::observe<int>(
-        helix::ToolState::instance().get_active_tool_subject(), this,
-        [](TempGraphOverlay* self, int tool) {
-            if (tool == self->pick_tool_) {
-                return; // the attach replay, not a change
-            }
-            self->pick_tool_ = tool;
-            if (!self->picked_extruder_.empty()) {
-                self->picked_extruder_.clear();
-                self->repoint_nozzle_card();
-                self->lifetime_.defer("rebuild_extruder_selector",
-                                      [self]() { self->rebuild_extruder_selector(); });
-            }
-        },
-        helix::ToolState::instance().get_subjects_lifetime());
-}
-
-void TempGraphOverlay::repoint_nozzle_card() {
-    nozzle_card_temp_observer_.reset();
-    nozzle_card_target_observer_.reset();
-    nozzle_card_power_observer_.reset();
-    if (!printer_state_)
-        return;
-
-    auto& temp_state = printer_state_->temperature_state();
-
-    // Rediscovery that dropped the picked extruder falls back to the machine's
-    // tool rather than freezing the card on subjects that no longer exist.
-    // (The version watch that calls this function is armed once per
-    // activation by watch_extruder_version(); re-arming it here would
-    // re-notify on attach and queue a repoint per drain, forever.)
-    if (!picked_extruder_.empty() && !temp_state.extruders().count(picked_extruder_)) {
-        picked_extruder_.clear();
-    }
-
-    lv_subject_t* temp_src = nullptr;
-    lv_subject_t* target_src = nullptr;
-    lv_subject_t* power_src = nullptr;
-    // The temperature state's own token covers the active-extruder mirrors;
-    // the per-extruder getters overwrite it with that extruder's token.
-    SubjectLifetime temp_lifetime = temp_state.get_subjects_lifetime();
-    SubjectLifetime target_lifetime = temp_state.get_subjects_lifetime();
-    SubjectLifetime power_lifetime = temp_state.get_subjects_lifetime();
-
-    if (picked_extruder_.empty()) {
-        temp_src = printer_state_->temperature_state().get_active_extruder_temp_subject();
-        target_src = printer_state_->temperature_state().get_active_extruder_target_subject();
-        power_src = printer_state_->temperature_state().get_extruder_power_subject();
-    } else {
-        temp_src = printer_state_->temperature_state().get_extruder_temp_subject(picked_extruder_,
-                                                                                 temp_lifetime);
-        target_src = printer_state_->temperature_state().get_extruder_target_subject(
-            picked_extruder_, target_lifetime);
-        power_src = printer_state_->temperature_state().get_extruder_power_subject(picked_extruder_,
-                                                                                   power_lifetime);
-    }
-    if (!temp_src || !target_src)
-        return;
-
-    nozzle_card_temp_observer_ = helix::ui::observe<int>(
-        temp_src, this,
-        [](TempGraphOverlay* self, int value) {
-            lv_subject_set_int(&self->nozzle_card_temp_subject_, value);
-            self->update_nozzle_card_status();
-        },
-        temp_lifetime);
-    nozzle_card_target_observer_ = helix::ui::observe<int>(
-        target_src, this,
-        [](TempGraphOverlay* self, int value) {
-            lv_subject_set_int(&self->nozzle_card_target_subject_, value);
-            self->update_nozzle_card_status();
-        },
-        target_lifetime);
-    nozzle_card_power_observer_ = helix::ui::observe<int>(
-        power_src, this,
-        [](TempGraphOverlay* self, int value) {
-            self->nozzle_card_power_ = value;
-            self->update_nozzle_card_status();
-        },
-        power_lifetime);
-
-    // The observer delivers through the update queue, so its first delivery
-    // lands one drain from now; seed synchronously to cover the gap.
-    lv_subject_set_int(&nozzle_card_temp_subject_, lv_subject_get_int(temp_src));
-    lv_subject_set_int(&nozzle_card_target_subject_, lv_subject_get_int(target_src));
-    nozzle_card_power_ = power_src ? lv_subject_get_int(power_src) : -1;
-    update_nozzle_card_status();
-    publish_nozzle_badge();
-}
-
-void TempGraphOverlay::update_nozzle_card_status() {
-    // The same classifier and the same plain-heater mode TemperatureService
-    // passes for the nozzle, so the card's glyph and duty can never disagree
-    // with the service's spelling on any single tool.
-    const auto status = helix::ui::temperature::classify_heater_status(
-        lv_subject_get_int(&nozzle_card_temp_subject_),
-        lv_subject_get_int(&nozzle_card_target_subject_), nozzle_card_power_,
-        helix::ChamberMode::Heating);
-    lv_subject_set_int(&nozzle_card_status_state_subject_, static_cast<int>(status.state));
-    lv_subject_copy_string(&nozzle_card_status_subject_, status.duty.c_str());
-}
-
-void TempGraphOverlay::publish_nozzle_badge() {
-    if (!printer_state_) {
-        return;
-    }
-
-    // The digit names exactly the extruder the card displays - the pick while
-    // one is held, the machine's active tool otherwise.
-    auto& temp_state = printer_state_->temperature_state();
-    const auto& extruders = temp_state.extruders();
-    auto it = extruders.find(displayed_extruder_name());
-    if (it == extruders.end()) {
-        lv_subject_copy_string(&nozzle_badge_subject_, "");
-        return;
-    }
-    auto number = extruder_number_token(it->second.display_name);
-    std::string text(number);
-    lv_subject_copy_string(&nozzle_badge_subject_, text.c_str());
+void helix::ui::register_heater_row_callbacks() {
+    lv_xml_register_event_cb(nullptr, "on_heater_row_nozzle", [](lv_event_t* e) {
+        open_from_heater_row(e, TempGraphOverlay::Mode::Nozzle);
+    });
+    lv_xml_register_event_cb(nullptr, "on_heater_row_bed", [](lv_event_t* e) {
+        open_from_heater_row(e, TempGraphOverlay::Mode::Bed);
+    });
+    lv_xml_register_event_cb(nullptr, "on_heater_row_chamber", [](lv_event_t* e) {
+        open_from_heater_row(e, TempGraphOverlay::Mode::Chamber);
+    });
 }

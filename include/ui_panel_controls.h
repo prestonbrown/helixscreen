@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "ui_component_keypad.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
@@ -17,10 +16,7 @@
 #include "quick_action_buttons.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
-#include "target_nozzle_observers.h"
-#include "target_tool_selection.h"
 #include "ui/position_observer_bundle.h"
-#include "ui/temperature_observer_bundle.h"
 #include "ui/ui_modal_guard.h"
 
 #include <array>
@@ -30,7 +26,6 @@
 #include <string>
 
 // Forward declaration
-class TemperatureService;
 namespace helix {
 class TemperatureController;
 namespace ui {
@@ -74,14 +69,6 @@ class ControlsPanel : public PanelBase {
     ControlsPanel(helix::PrinterState& printer_state, helix::IMoonrakerAPI* api);
 
     ~ControlsPanel() override;
-
-    /**
-     * @brief Set reference to TemperatureService for temperature sub-screens
-     *
-     * Must be called before setup() if temperature panels should work.
-     * @param temp_panel Pointer to TemperatureService instance
-     */
-    void set_temp_control_panel(TemperatureService* temp_panel);
 
     //
     // === PanelBase Implementation ===
@@ -143,17 +130,6 @@ class ControlsPanel : public PanelBase {
     void refresh_all_displays();
 
     //
-    // === Dependencies ===
-    //
-
-    TemperatureService* temp_control_panel_ = nullptr;
-
-    /// Convenience accessor: the temp controller via the temp service, or
-    /// nullptr if no service is wired up. Centralizes the null-guard the
-    /// temperature command sites share.
-    helix::TemperatureController* controller() const;
-
-    //
     // === Subject Manager (RAII cleanup) ===
     //
 
@@ -162,58 +138,6 @@ class ControlsPanel : public PanelBase {
     //
     // === V2 Dashboard Subjects (for XML bind_text/bind_value) ===
     //
-
-    // Nozzle label (dynamic: "Nozzle:" or "Nozzle N:" for multi-tool)
-    lv_subject_t nozzle_label_subject_{};
-    char nozzle_label_buf_[32] = {};
-    ObserverGuard active_tool_observer_;
-    ObserverGuard tools_version_observer_;
-    ObserverGuard extruder_version_observer_;
-
-    // The nozzle row aims at a chosen tool on multi-head printers.
-    helix::ui::TargetToolSelection nozzle_tool_;
-    helix::ui::TargetNozzleObservers nozzle_observers_;
-    lv_subject_t nozzle_cur_deci_subject_{};
-    lv_subject_t nozzle_tgt_deci_subject_{};
-    lv_subject_t nozzle_multi_head_subject_{};
-    lv_obj_t* nozzle_tool_dropdown_ = nullptr;
-    /// The nozzle row's tool, clamped to the current tool list.
-    [[nodiscard]] int nozzle_tool() const;
-    /// Whether the row's tool is the one on the carriage (always, with one head).
-    [[nodiscard]] bool nozzle_tool_mounted() const;
-    /// That tool's Klipper extruder ("extruder" when it names none).
-    [[nodiscard]] std::string nozzle_extruder_name() const;
-    /// Bring the row's label, chooser and temperature source to nozzle_tool().
-    void sync_nozzle_tool();
-    void populate_nozzle_tool_dropdown();
-
-  public:
-    /// The nozzle row's chooser picked @p tool.
-    void select_nozzle_tool(int tool);
-
-  private:
-    void update_nozzle_label();
-
-    // Nozzle temperature display
-    lv_subject_t nozzle_temp_subject_{};
-    char nozzle_temp_buf_[32] = {};
-    lv_subject_t nozzle_pct_subject_{};
-    lv_subject_t nozzle_status_subject_{}; ///< duty text ("" = none)
-    char nozzle_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t nozzle_status_state_subject_{}; ///< HeaterStatusState int
-
-    // Bed temperature display
-    lv_subject_t bed_temp_subject_{};
-    char bed_temp_buf_[32] = {};
-    lv_subject_t bed_pct_subject_{};
-    lv_subject_t bed_status_subject_{}; ///< duty text ("" = none)
-    char bed_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t bed_status_state_subject_{}; ///< HeaterStatusState int
-
-    // Chamber temperature display
-    lv_subject_t chamber_status_subject_{}; ///< duty text ("" = none)
-    char chamber_status_buf_[helix::ui::temperature::kHeaterStatusBufBytes] = {};
-    lv_subject_t chamber_status_state_subject_{}; ///< HeaterStatusState int
 
     // Heating icon animators (nozzle/bed/chamber), bound from the panel's own
     // container so lv_obj_find_by_name() cannot pick up another panel's
@@ -240,43 +164,12 @@ class ControlsPanel : public PanelBase {
     uint32_t last_fan_slider_input_ = 0; // Tick of last slider interaction (suppression window)
 
     //
-    // === Cached Values (for display update efficiency) ===
-    //
-
-    int cached_extruder_temp_ = 0;
-    int cached_extruder_target_ = 0;
-    int cached_bed_temp_ = 0;
-    int cached_bed_target_ = 0;
-    int cached_chamber_temp_ = 0; ///< Chamber current temperature (decidegrees)
-    int cached_chamber_target_ =
-        0; ///< Raw chamber heater target (decidegrees) — used for keypad seed only
-    int cached_chamber_effective_target_ =
-        0; ///< Canonical display target (decidegrees): effective target per chamber_mode
-    int cached_chamber_mode_ = 0; ///< ChamberMode int (Off=0/Heating=1/Maintaining=2)
-
-    // Temperature limits for keypad
-    int nozzle_max_temp_ = 500;  ///< Nozzle max temperature (°C) from heater_generic config
-    int bed_max_temp_ = 150;     ///< Bed max temperature (°C) from heater_bed config
-    int chamber_max_temp_ = 150; ///< Chamber max temperature (°C)
-
-    //
     // === Observer Guards (RAII cleanup) ===
     //
 
-    /// @brief Temperature observer bundle (nozzle + bed temps)
-    helix::ui::TemperatureObserverBundle<ControlsPanel> temp_observers_;
     ObserverGuard fan_observer_;
     ObserverGuard fans_version_observer_;      // Multi-fan list changes
     ObserverGuard temp_sensor_count_observer_; // Temp sensor list changes
-    SubjectLifetime chamber_temp_lifetime_;    // Lifetime token for chamber temp subject
-    SubjectLifetime chamber_target_lifetime_;  // Lifetime token for raw heater target subject
-    SubjectLifetime
-        chamber_effective_target_lifetime_; // Lifetime token for effective target subject
-    SubjectLifetime chamber_mode_lifetime_; // Lifetime token for chamber mode subject
-    ObserverGuard chamber_temp_observer_;   // Chamber temperature observer
-    ObserverGuard chamber_target_observer_; // Chamber raw heater target observer (keypad seed)
-    ObserverGuard chamber_effective_target_observer_; // Chamber effective target observer (status)
-    ObserverGuard chamber_mode_observer_;             // Chamber M141 control mode observer
 
     bool fans_rebuild_pending_ = false; ///< Coalesces rapid fans_version observer notifications
 
@@ -381,9 +274,6 @@ class ControlsPanel : public PanelBase {
     void register_observers();
 
     // Display update helpers
-    void update_nozzle_temp_display();
-    void update_bed_temp_display();
-    void update_chamber_temp_display();
     void update_fan_display();
     void populate_secondary_fans(); // Build fan list from helix::PrinterState
     void update_z_offset_delta_display(int delta_microns); // Format delta for banner
@@ -395,38 +285,9 @@ class ControlsPanel : public PanelBase {
     //
 
     void handle_quick_actions_clicked();
-    void handle_nozzle_temp_clicked();
-    void handle_bed_temp_clicked();
-    void handle_chamber_temp_clicked();
     void handle_cooling_clicked();
     void handle_secondary_fans_clicked();
     void handle_secondary_temps_clicked();
-    void handle_nozzle_target_edit();
-    void handle_bed_target_edit();
-    void handle_chamber_target_edit();
-
-    /// Effective ceiling (°C) a target-edit keypad offers: the shared
-    /// keypad-ceiling authority when the controller is reachable, this panel's
-    /// own compiled-in member otherwise. All three target-edit keypads ask
-    /// this (#1619).
-    int target_edit_max(helix::HeaterType type, int fallback_deg) const;
-    void handle_custom_nozzle_confirmed(float value);
-    void handle_custom_bed_confirmed(float value);
-    void handle_custom_chamber_confirmed(float value);
-
-    /**
-     * @brief Show a temperature keypad dialog for a heater zone.
-     *
-     * @tparam Handler  Pointer-to-member for confirmed callback
-     * @param title     Title shown in the keypad
-     * @param cached_target   Current target in decidegrees
-     * @param default_initial Default initial °C when target is 0
-     * @param max_temp        Maximum allowed temperature in °C
-     */
-    template <void (ControlsPanel::*Handler)(float)>
-    void show_temperature_keypad(const char* title, int cached_target, int default_initial,
-                                 int max_temp);
-
     //
     // === Quick Action Button Handlers ===
     //
@@ -525,37 +386,6 @@ class ControlsPanel : public PanelBase {
     void subscribe_to_secondary_fan_speeds();
     void update_secondary_fan_speed(const std::string& object_name, int speed_pct);
 };
-
-// ============================================================================
-// TEMPLATE DEFINITIONS (must be in header)
-// ============================================================================
-
-template <void (ControlsPanel::*Handler)(float)>
-void ControlsPanel::show_temperature_keypad(const char* title, int cached_target,
-                                            int default_initial, int max_temp) {
-    spdlog::debug("[{}] Opening {} keypad", get_name(), title);
-
-    int initial_deci = cached_target > 0 ? cached_target
-                                         : helix::ui::temperature::degrees_to_deci(default_initial);
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(helix::ui::temperature::deci_to_degrees(initial_deci)),
-        .min_value = 0.0f,
-        .max_value = static_cast<float>(max_temp),
-        .title_label = lv_tr(title),
-        .unit_label = "°C",
-        .allow_decimal = false,
-        .allow_negative = false,
-        .callback =
-            [](float value, void* user_data) {
-                auto* self = static_cast<ControlsPanel*>(user_data);
-                if (self) {
-                    (self->*Handler)(value);
-                }
-            },
-        .user_data = this};
-
-    ui_keypad_show(&config);
-}
 
 // Global instance accessor (needed by main.cpp and XML event_cb trampolines)
 ControlsPanel& get_global_controls_panel();

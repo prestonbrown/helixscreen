@@ -6,12 +6,14 @@
   <view name="tool_switcher_picker" extends="context_menu_backdrop">
     <!-- Sized by the widget to its grid (fit_tool_picker_grid()), which may be
          wider than the tile; ContextMenu keeps the card on screen. The title is
-         one word, the X carries the dismiss. -->
+         one word, the X carries the dismiss. Its cells' look and disable
+         subjects are the picker's own (ToolPicker), which fills them for the
+         mode it opened in. -->
     <context_menu_card title="Tool" pad_all="#space_xs" pad_gap="#space_xs" hide_divider="true">
       <!-- Every head as a square cell, the rail's own segment at the picker's
            size. The grid scrolls under its bound max height where its rows
            do not fit the screen. -->
-      <!-- SIZE_OK: the 2 px gap is kRailGap, which the widget measures cells with -->
+      <!-- SIZE_OK: the 2 px gap is kToolRailGap, which the widget measures cells with -->
       <lv_obj name="tool_list"
               height="content" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="2" style_radius="#border_radius"
               style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="true" clickable="false">
@@ -21,19 +23,23 @@
           <tool_switcher_segment name="tool_picker_cell_${i}"
                                  index="${i}" size="tool_switcher_picker_cell" band_h="tool_switcher_picker_band_h"
                                  band_labelled="tool_switcher_picker_band_labelled"
-                                 two_line="tool_switcher_picker_two_line" label_key="_pick" sub_key="_pick_sub"/>
+                                 two_line="tool_switcher_picker_two_line" label_key="_pick" sub_key="_pick_sub"
+                                 state_key="_pick_state" blocked="tool_picker_blocked"
+                                 callback="tool_switcher_segment_cb"/>
         </repeat>
       </lv_obj>
       <!-- Park and the feeder under the grid, each half of it; either is
-           absent where the backend does not offer it. The buttons grow to
+           absent where the backend does not offer it, and both where the
+           picker only chooses a target tool (tool_picker_target). The buttons grow to
            their icon and label, never under the touch floor, so their labels
            always show (tool_switcher_footer_labels is constantly 1). -->
-      <!-- SIZE_OK: kRailGap -->
+      <!-- SIZE_OK: kToolRailGap -->
       <lv_obj name="tool_picker_footer"
               width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="2"
               style_radius="#border_radius" style_clip_corner="true" style_bg_opa="0" style_border_width="0"
               scrollable="false" clickable="false">
-        <bind_flag_if cond="tool_switcher_park_supported eq 0 and tool_switcher_feeder_supported eq 0" flag="hidden"/>
+        <bind_flag_if cond="tool_picker_target eq 1 or (tool_switcher_park_supported eq 0 and tool_switcher_feeder_supported eq 0)"
+                      flag="hidden"/>
         <tool_switcher_park_segment name="tool_park_btn"
                                     height="content" flex_grow="1" style_min_height="#touch_target_min"
                                     style_pad_ver="#space_xxs" two_line="tool_switcher_footer_labels">
