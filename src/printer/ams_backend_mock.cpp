@@ -20,6 +20,7 @@
 #include "hh_defaults.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "mock_persona.h"
 #include "runtime_config.h"
 #include "simulated_clock.h"
 
@@ -2288,6 +2289,12 @@ void AmsBackendMock::set_tool_changer_mode(bool enabled) {
         // Tool changers have no AMS-style device settings
         mock_device_sections_.clear();
         mock_device_actions_.clear();
+
+        if (const char* env = std::getenv("HELIX_MOCK_TOOLCHANGER_TOOL")) {
+            const int mounted = helix::mock::toolchanger_start_tool(env, slots_.slot_count());
+            system_info_.current_tool = mounted;
+            system_info_.current_slot = mounted;
+        }
 
         spdlog::info("[AmsBackendMock] Tool changer mode enabled ({} tools)", slots_.slot_count());
     } else {

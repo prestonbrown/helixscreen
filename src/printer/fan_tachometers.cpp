@@ -2,6 +2,7 @@
 
 #include "fan_tachometers.h"
 
+#include "fan_heaters.h"
 #include "text_io.h"
 
 #include <algorithm>
@@ -30,25 +31,6 @@ std::string normalize_pin(std::string_view raw) {
     return text_io::to_lower(out);
 }
 
-bool blank(std::string_view s) {
-    return s.find_first_not_of(" \t") == std::string_view::npos;
-}
-
-// configfile.settings holds a string for config.get() and an array for getlist().
-// A blank value is no pin: Creality's module skips it, though Klipper records it.
-std::vector<std::string> string_list(const nlohmann::json& v) {
-    std::vector<std::string> out;
-    if (v.is_string()) {
-        if (!blank(v.get<std::string>()))
-            out.push_back(v.get<std::string>());
-    } else if (v.is_array()) {
-        for (const auto& e : v)
-            if (e.is_string() && !blank(e.get<std::string>()))
-                out.push_back(e.get<std::string>());
-    }
-    return out;
-}
-
 bool starts_with(std::string_view s, std::string_view prefix) {
     return s.substr(0, prefix.size()) == prefix;
 }
@@ -56,22 +38,7 @@ bool starts_with(std::string_view s, std::string_view prefix) {
 // The one heater_fan section whose heater list names a heater accepted by `wanted`;
 // empty when none or several match, since the tach can belong to only one.
 template <typename Pred> std::string heater_fan_for(const nlohmann::json& settings, Pred wanted) {
-    std::string found;
-    for (const auto& [section, vals] : settings.items()) {
-        if (!starts_with(section, "heater_fan ") || !vals.is_object())
-            continue;
-        auto it = vals.find("heater");
-        // Klipper's heater_fan defaults to the extruder.
-        std::vector<std::string> heaters =
-            it == vals.end() ? std::vector<std::string>{"extruder"} : string_list(*it);
-        if (std::any_of(heaters.begin(), heaters.end(),
-                        [&](const std::string& h) { return wanted(text_io::to_lower(h)); })) {
-            if (!found.empty())
-                return {};
-            found = section;
-        }
-    }
-    return found;
+    return fan_heaters::only_fan_for(fan_heaters::map_from_config(settings), wanted);
 }
 
 std::string resolve_fan(const nlohmann::json& settings, Role role) {
@@ -133,7 +100,7 @@ TachMap map_k1_series(const nlohmann::json& fb, const nlohmann::json& settings) 
         auto it = fb.find("fan" + std::to_string(i) + "_pin");
         if (it == fb.end())
             continue;
-        const auto pins = string_list(*it);
+        const auto pins = fan_heaters::config_list(*it);
         if (pins.empty())
             continue;
         const std::string field = "fan" + std::to_string(slot) + "_speed";
@@ -158,7 +125,7 @@ TachMap map_from_config(const nlohmann::json& settings) {
     // fan2_pin is a layout neither module documents.
     const auto pins_of = [&](const char* key) {
         auto p = it->find(key);
-        return p == it->end() ? std::vector<std::string>{} : string_list(*p);
+        return p == it->end() ? std::vector<std::string>{} : fan_heaters::config_list(*p);
     };
     if (pins_of("fan2_pin").empty())
         return map_k1_series(*it, settings);

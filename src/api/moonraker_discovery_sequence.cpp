@@ -1118,6 +1118,8 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     }
                                     hardware_.set_fan_tachometers(
                                         helix::fan_tach::map_from_config(settings));
+                                    hardware_.set_heater_fans(
+                                        helix::fan_heaters::map_from_config(settings));
                                     for (const auto& t : hardware_.fan_tachometers()) {
                                         spdlog::debug("[Discovery] Tachometer {}.{} -> '{}'",
                                                       t.object, t.field, t.fan);

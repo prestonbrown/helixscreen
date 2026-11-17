@@ -17,8 +17,10 @@
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
+#include "printer_discovery.h"
 #include "printer_image_manager.h"
 #include "printer_state.h"
+#include "status_dispatch.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 
@@ -472,6 +474,103 @@ TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger",
     lv_subject_copy_string(tools.get_tool_badge_text_subject(), "");
     settle();
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1", 0) == std::string::npos);
+}
+
+namespace {
+
+/// klipper-toolchanger with a part fan and a hotend fan on every tool, and the
+/// wizard's part and hotend roles left on T0's, as a real printer had them.
+PrinterFanState& load_toolchanger_with_tool_fans(PrinterState& ps) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolhead", "extruder", "extruder1", "extruder2",
+                                            "toolchanger", "tool T0", "tool T1", "tool T2"}));
+    ToolState::instance().init_tools(hw);
+    ps.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    FanRoleConfig roles;
+    roles.part_fan = "fan_generic T0_part_fan";
+    roles.hotend_fan = "heater_fan T0_hotend_fan";
+    fans.init_fans({"fan_generic T0_part_fan", "heater_fan T0_hotend_fan",
+                    "fan_generic T1_part_fan", "heater_fan T1_hotend_fan",
+                    "fan_generic T2_part_fan", "heater_fan T2_hotend_fan",
+                    "heater_fan nevermore_fan", "temperature_fan _leviathan_mcu_fans"},
+                   roles);
+    // configfile.settings keys sections lowercased.
+    fans.set_heater_fans(fan_heaters::map_from_config(
+        nlohmann::json{{"heater_fan t0_hotend_fan", {{"heater", "extruder"}}},
+                       {"heater_fan t1_hotend_fan", {{"heater", "extruder1"}}},
+                       {"heater_fan t2_hotend_fan", {{"heater", "extruder2"}}},
+                       {"heater_fan nevermore_fan", {{"heater", "heater_bed"}}}}));
+    return fans;
+}
+
+void unload_toolchanger(PrinterState& ps) {
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    fans.set_active_tool_fans("", "");
+    fans.set_tool_fans({}, {});
+    fans.set_heater_fans({});
+    fans.init_fans({});
+    ps.temperature_state().init_extruders({"extruder"});
+    ToolState::instance().init_tools(PrinterDiscovery{});
+}
+
+/// That printer's status frame with T2 mounted.
+nlohmann::json t2_mounted_frame() {
+    return nlohmann::json{{"toolhead", {{"extruder", "extruder2"}}},
+                          {"toolchanger", {{"tool_number", 2}}},
+                          {"tool T0", {{"extruder", "extruder"}, {"fan", "T0_part_fan"}}},
+                          {"tool T1", {{"extruder", "extruder1"}, {"fan", "T1_part_fan"}}},
+                          {"tool T2", {{"extruder", "extruder2"}, {"fan", "T2_part_fan"}}},
+                          {"fan_generic T0_part_fan", {{"speed", 0.2}}},
+                          {"fan_generic T1_part_fan", {{"speed", 0.5}}},
+                          {"fan_generic T2_part_fan", {{"speed", 0.7}}},
+                          {"heater_fan T0_hotend_fan", {{"speed", 1.0}}},
+                          {"heater_fan T2_hotend_fan", {{"speed", 0.4}}}};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "fan chips follow the active tool's own fans on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    auto& fans = load_toolchanger_with_tool_fans(state());
+
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    CHECK(fans.classify_primary_fans().part == "fan_generic T2_part_fan");
+    CHECK(fans.classify_primary_fans().hotend == "heater_fan T2_hotend_fan");
+    // The home printer picture's fan chip reads the main fan speed.
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 70);
+    CHECK(subject_str("ps_chip_part_fan_text").find("70%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("40%") != std::string::npos);
+
+    // Back to T0: the chips go with it.
+    dispatch_status(nlohmann::json{{"toolhead", {{"extruder", "extruder"}}},
+                                   {"toolchanger", {{"tool_number", 0}}}});
+    settle();
+    settle();
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 20);
+    CHECK(subject_str("ps_chip_part_fan_text").find("20%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("100%") != std::string::npos);
+
+    unload_toolchanger(state());
+}
+
+TEST_CASE_METHOD(Landscape800, "the aux chip shows no tool's own fan on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    // T1's part fan has run, so it is the commandable fan the aux slot would prefer.
+    auto& fans = load_toolchanger_with_tool_fans(state());
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    const std::string aux = fans.classify_primary_fans().aux;
+    CHECK(aux.find("_part_fan") == std::string::npos);
+    CHECK(aux.find("_hotend_fan") == std::string::npos);
+    CHECK(aux == "temperature_fan _leviathan_mcu_fans");
+
+    unload_toolchanger(state());
 }
 
 namespace {

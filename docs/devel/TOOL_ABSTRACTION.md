@@ -284,6 +284,19 @@ Each tool's status is keyed as `"tool <name>"`:
 
 Any change bumps `tools_version` subject to trigger UI rebuilds.
 
+klipper-toolchanger reports `fan` as its config value: an object name, or a bare
+`fan_generic` name it looks up as `fan_generic <name>`. `ToolState::own_part_fan_for_extruder()`
+hands the active tool's part fan to `PrinterFanState::set_active_tool_fans()` once per status
+frame (`src/printer/status_dispatch.cpp#dispatch_status_frame`), with the active extruder the
+nozzle reading follows. The primary part fan, the main fan speed and the primary hotend fan
+(the one `[heater_fan]` whose `heater` is that extruder, `include/fan_heaters.h`) then follow the
+tool that is printing. A printer whose tools name no part fans of their own keeps the role-based
+pick.
+The same frame hands over every tool's own part fan and, with more than one extruder, every
+tool's extruder (`PrinterFanState::set_tool_fans()`), so the aux slot never shows a parked tool's
+part fan or a `[heater_fan]` on a tool's extruder. `include/tool_fan_names.h` is the one name
+lookup for a tool's `fan`, shared with the MPC `cooling_fan` the PID calibration writes.
+
 The three offsets are **not** parsed in the generic per-tool loop. Which store is
 authoritative for a tool's offset is a per-firmware question (`include/tool_offsets.h`):
 klipper-toolchanger keeps all three on the `tool T{n}` object and edits them with

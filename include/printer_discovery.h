@@ -14,6 +14,7 @@
  */
 
 #include "ams_types.h"
+#include "fan_heaters.h"
 #include "fan_tachometers.h"
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
@@ -372,6 +373,14 @@ class PrinterDiscovery {
     }
     [[nodiscard]] const fan_tach::TachMap& fan_tachometers() const {
         return fan_tachometers_;
+    }
+
+    /// Each [heater_fan] and the heaters that drive it, from configfile.settings.
+    void set_heater_fans(fan_heaters::HeaterFanMap map) {
+        heater_fans_ = std::move(map);
+    }
+    [[nodiscard]] const fan_heaters::HeaterFanMap& heater_fans() const {
+        return heater_fans_;
     }
 
     [[nodiscard]] bool has_led() const {
@@ -1261,6 +1270,7 @@ class PrinterDiscovery {
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
     std::unordered_map<std::string, int> configured_tool_numbers_;
     fan_tach::TachMap fan_tachometers_;
+    fan_heaters::HeaterFanMap heater_fans_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to

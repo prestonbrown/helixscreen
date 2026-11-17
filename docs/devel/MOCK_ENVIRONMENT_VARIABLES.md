@@ -739,6 +739,8 @@ Select the mock AMS topology/type.
 | `multiace` | 1 | **multiACE on a U1 - mock HARDWARE, real backend.** Pushes the U1 feed objects plus the plain `ace` object so real discovery builds the production `AmsBackendMultiAce` and runs it against engine-shaped frames. Pair with `HELIX_MOCK_PRINTER=snapmaker_u1`. See below |
 | `indx` | 1 | **Bondtech INDX - mock HARDWARE, real backend.** Publishes the toolboard module, `save_variables` and Bondtech's macro objects so real discovery builds the production `AmsBackendIndx`. `T<n>` / `CHANGE_TOOL` / `PARK_TOOL` walk park and pickup over a few notifications, and heat is refused with no tool on the head or on a no-hotend tool. See below |
 
+`HELIX_MOCK_AMS=toolchanger` models klipper-toolchanger's per-tool fans: no `[fan]`, and each tool T0-T3 has its own `fan_generic T<n>_part_fan` (the one its `tool T<n>` object names, and the one M106 drives while that tool is mounted) and a `heater_fan T<n>_hotend_fan` on its own extruder. Each hotend fan's `fan_speed` is a step lower per tool (100%, 90%, 80%, 70%) so the fan readouts of different tools read apart. `HELIX_MOCK_TOOLCHANGER_TOOL=<n>` (0-3, default 0) starts with tool `n` mounted, in both the printer mock and the mock tool changer backend.
+
 `HELIX_MOCK_AMS=multiace` takes two knobs (read once at start by `MoonrakerClientMock`):
 
 | Variable | Default | Effect |

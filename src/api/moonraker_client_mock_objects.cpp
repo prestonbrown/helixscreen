@@ -100,6 +100,15 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
              "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
     }
     sections.merge_patch(self->medusa_config_sections());
+    if (self->is_mock_toolchanger()) {
+        // Klipper keys configfile.settings sections lowercased.
+        for (int t = 0; t < 4; ++t) {
+            sections[helix::text_io::to_lower("heater_fan " +
+                                              mock_internal::toolchanger_hotend_fan(t))] = {
+                {"heater", t == 0 ? std::string("extruder") : "extruder" + std::to_string(t)},
+                {"fan_speed", mock_internal::toolchanger_hotend_fan_speed(t)}};
+        }
+    }
     return sections;
 }
 
@@ -876,7 +885,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"homed_axes", self->get_homed_axes()},
                     {"print_time", 0.0},
                     {"estimated_print_time", 0.0},
-                    {"extruder", "extruder"}};
+                    {"extruder", self->is_mock_toolchanger() && self->toolchanger_tool() > 0
+                                     ? "extruder" + std::to_string(self->toolchanger_tool())
+                                     : std::string("extruder")}};
             }
 
             // virtual_sdcard
@@ -1025,8 +1036,10 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     tool_names.push_back(name);
                 }
                 // Beside a MedusaHC, pin_watch keeps tool_number on the docks' tool.
-                const int tool_number =
-                    self->is_mock_medusahc() ? self->sync_medusa_toolchanger_tool() : 0;
+                const int tool_number = self->is_mock_medusahc()
+                                            ? self->sync_medusa_toolchanger_tool()
+                                        : self->is_mock_toolchanger() ? self->toolchanger_tool()
+                                                                      : 0;
                 status_obj["toolchanger"] = {{"status", "ready"},
                                              {"tool_number", tool_number},
                                              {"tool_numbers", tool_numbers},
@@ -1068,7 +1081,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"gcode_y_offset", self->tool_offset(tool_number, helix::Axis::Y)},
                         {"gcode_z_offset", self->tool_offset(tool_number, helix::Axis::Z)},
                         {"extruder", extruder_for_tool},
-                        {"fan", "fan"}};
+                        {"fan", self->is_mock_toolchanger()
+                                    ? mock_internal::toolchanger_part_fan(tool_number)
+                                    : std::string("fan")}};
                 }
             }
 

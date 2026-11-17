@@ -226,6 +226,14 @@ inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
     return {};
 }
 
+/// The tool a toolchanger mock starts with mounted: HELIX_MOCK_TOOLCHANGER_TOOL,
+/// 0 when unset or outside 0..@p tool_count-1. The printer mock and the mock
+/// tool changer backend both read it, so they agree on the mounted tool.
+[[nodiscard]] inline int toolchanger_start_tool(const char* env, int tool_count) {
+    const int tool = env ? helix::text_io::parse_leading<int>(env).value_or(0) : 0;
+    return tool >= 0 && tool < tool_count ? tool : 0;
+}
+
 /// Which MedusaHC shipping configuration a mock AMS mode emulates. Every
 /// MedusaHC mode is mock HARDWARE: the CLI's --real-ams implication, AmsBackend's
 /// mock selection and MoonrakerClientMock all classify the mode through this.

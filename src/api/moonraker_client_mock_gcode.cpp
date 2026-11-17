@@ -1013,6 +1013,14 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tool_change(const st
         json status = {{"toolhead", {{"extruder", extruder_name}}}};
         if (is_mock_toolchanger()) {
             status["toolchanger"] = {{"tool_number", tool_index}};
+            toolchanger_tool_.store(tool_index);
+            double part = fan_speed_.load() / 255.0;
+            {
+                std::lock_guard<std::mutex> lock(fan_mutex_);
+                if (auto it = fan_speeds_.find("fan"); it != fan_speeds_.end())
+                    part = it->second;
+            }
+            status.merge_patch(toolchanger_fan_status(part));
         }
         dispatch_status_update(status);
     } catch (...) {

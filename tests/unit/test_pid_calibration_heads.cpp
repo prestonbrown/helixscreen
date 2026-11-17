@@ -176,6 +176,17 @@ TEST_CASE_METHOD(PidHeadsFixture, "MPC migration names the fan that cools the pi
         Access::head_clicked(panel, 0); // parked: no part fan reaches it
         CHECK(cooling_fan().empty());
     }
+    SECTION("tool changer naming its fan_generic by bare name: the fan object") {
+        // klipper-toolchanger takes `fan: T1_partfan` for [fan_generic T1_partfan]
+        // and reports the name as written; Kalico's cooling_fan needs the object.
+        api.hardware().parse_objects(
+            nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1",
+                                   "heater_bed", "fan_generic T1_partfan"}));
+        toolchanger(1);
+        helix::ToolState::instance().update_from_status({{"tool T1", {{"fan", "T1_partfan"}}}});
+        Access::activate(panel);
+        CHECK(cooling_fan() == "fan_generic T1_partfan");
+    }
     SECTION("the bed has no cooling fan") {
         load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
         Access::activate(panel);
