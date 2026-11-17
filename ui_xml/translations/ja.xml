@@ -2443,6 +2443,7 @@
   <translation tag="Multi-Filament System is busy: {}" ja="マルチフィラメントシステムがビジー状態: {}"/>
   <translation tag="Multi-Filament System not available" ja="マルチフィラメントシステムが利用できません"/>
   <translation tag="Multi-filament system not ready" ja="マルチフィラメントシステムの準備ができていません"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" ja="AFC で複数ツール割り当てが有効なため、ツールは AFC で割り当てます"/>
   <translation tag="Must home axes first" ja="先にホーミングしてください"/>
   <translation tag="Muted" ja="ミュート"/>
   <translation tag="My Custom Theme" ja="マイカスタムテーマ"/>
@@ -4524,6 +4525,7 @@
   <translation tag="Upload unavailable in this build" ja="このビルドではアップロードできません"/>
   <translation tag="Upper belt" ja="上ベルト"/>
   <translation tag="Uptime" ja="稼働時間"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ja="ツールの追加や移動には AFC の割り当てコマンドを使用してください"/>
   <translation tag="Use Android native keyboard for text input" ja="テキスト入力に Android ネイティブキーボードを使用"/>
   <translation tag="Use DHCP" ja="DHCPを使用"/>
   <translation tag="Use G10/G11 firmware retraction" ja="G10/G11 ファームウェアリトラクションを使用"/>

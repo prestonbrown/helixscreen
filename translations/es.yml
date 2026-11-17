@@ -2662,6 +2662,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Sistema multi-filamento ocupado: {}'
   Multi-Filament System not available: Sistema multi-filamento no disponible
   Multi-filament system not ready: Sistema multifilamento no preparado
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'La asignación múltiple de herramientas está activada en AFC, así que las herramientas se asignan allí'
   Must home axes first: Debe posicionar los ejes primero
   Muted: Silenciado
   My Custom Theme: Mi Tema Personalizado
@@ -4953,6 +4954,7 @@ translations:
   Upload unavailable in this build: Subida no disponible en esta compilación
   Upper belt: "Correa superior"
   Uptime: Tiempo de actividad
+  Use AFC's mapping commands to add or move a tool: 'Usa los comandos de asignación de AFC para añadir o mover una herramienta'
   Use Android native keyboard for text input: Usar el teclado nativo de Android para
     entrada de texto
   Use DHCP: 'Usar DHCP'

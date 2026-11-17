@@ -2443,6 +2443,7 @@
   <translation tag="Multi-Filament System is busy: {}" zh="多耗材系统忙碌中: {}"/>
   <translation tag="Multi-Filament System not available" zh="多耗材系统不可用"/>
   <translation tag="Multi-filament system not ready" zh="多耗材系统未就绪"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" zh="AFC 已开启多工具映射，因此工具需在 AFC 中分配"/>
   <translation tag="Must home axes first" zh="请先归位"/>
   <translation tag="Muted" zh="静音"/>
   <translation tag="My Custom Theme" zh="我的自定义主题"/>
@@ -4524,6 +4525,7 @@
   <translation tag="Upload unavailable in this build" zh="此构建版本无法上传"/>
   <translation tag="Upper belt" zh="上皮带"/>
   <translation tag="Uptime" zh="运行时长"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" zh="请使用 AFC 的映射命令添加或移动工具"/>
   <translation tag="Use Android native keyboard for text input" zh="使用 Android 原生键盘进行文本输入"/>
   <translation tag="Use DHCP" zh="使用 DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" zh="使用 G10/G11 固件回抽"/>

@@ -2443,6 +2443,7 @@
   <translation tag="Multi-Filament System is busy: {}" de="Multi-Filament-System ist beschäftigt: {}"/>
   <translation tag="Multi-Filament System not available" de="Multi-Filament-System nicht verfügbar"/>
   <translation tag="Multi-filament system not ready" de="Multi-Filament-System nicht bereit"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" de="Die Mehrfach-Werkzeugzuordnung ist in AFC aktiv, daher werden Werkzeuge dort zugewiesen"/>
   <translation tag="Must home axes first" de="Achsen müssen zuerst referenziert werden"/>
   <translation tag="Muted" de="Stumm"/>
   <translation tag="My Custom Theme" de="Mein benutzerdefiniertes Thema"/>
@@ -4524,6 +4525,7 @@
   <translation tag="Upload unavailable in this build" de="Hochladen in diesem Build nicht verfügbar"/>
   <translation tag="Upper belt" de="Riemen oben"/>
   <translation tag="Uptime" de="Betriebszeit"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" de="Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben"/>
   <translation tag="Use Android native keyboard for text input" de="Native Android-Tastatur für Texteingabe verwenden"/>
   <translation tag="Use DHCP" de="DHCP verwenden"/>
   <translation tag="Use G10/G11 firmware retraction" de="G10/G11-Firmware-Retraktion verwenden"/>

@@ -539,6 +539,9 @@ void AmsEditOverlay::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(backup_row_visible_subject_, 0, "ams_edit_backup_row_visible",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(tool_editable_subject_, 1, "ams_edit_tool_editable", subjects_);
+        UI_MANAGED_SUBJECT_STRING(tool_refusal_subject_, tool_refusal_buf_, "",
+                                  "ams_edit_tool_refusal", subjects_);
         UI_MANAGED_SUBJECT_INT(backup_editable_subject_, 0, "ams_edit_backup_editable", subjects_);
         UI_MANAGED_SUBJECT_STRING(backup_label_subject_, backup_label_buf_, "",
                                   "ams_edit_backup_label", subjects_);
@@ -1452,6 +1455,7 @@ void AmsEditOverlay::load_lane_settings() {
     bool tool_row = false;
     bool backup_row = false;
     bool backup_editable = false;
+    std::string tool_refusal;
     if (backend) {
         const AmsSystemInfo info = backend->get_system_info();
         lane_tool_count_ = info.total_slots;
@@ -1459,6 +1463,8 @@ void AmsEditOverlay::load_lane_settings() {
         tool_row = lane_settings::show_tool_row(backend);
         if (tool_row) {
             lane_original_.tool = lane_settings::assigned_tool(*backend, slot_index_);
+            tool_refusal =
+                lane_settings::tool_row_refusal(*backend, slot_index_, lane_original_.tool);
         }
         const auto caps = backend->get_endless_spool_capabilities();
         backup_row =
@@ -1473,6 +1479,8 @@ void AmsEditOverlay::load_lane_settings() {
     lane_working_ = lane_original_;
     lv_subject_set_int(&lane_visible_subject_, backend ? 1 : 0);
     lv_subject_set_int(&tool_row_visible_subject_, tool_row ? 1 : 0);
+    lv_subject_set_int(&tool_editable_subject_, tool_refusal.empty() ? 1 : 0);
+    lv_subject_set_string(&tool_refusal_subject_, tool_refusal.c_str());
     lv_subject_set_int(&backup_row_visible_subject_, backup_row ? 1 : 0);
     lv_subject_set_int(&backup_editable_subject_, backup_editable ? 1 : 0);
 }

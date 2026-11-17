@@ -2708,6 +2708,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Мультифиламентная система занята: {}'
   Multi-Filament System not available: Мультифиламентная система недоступна
   Multi-filament system not ready: Мультифиламентная система не готова
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'В AFC включено множественное назначение инструментов, поэтому инструменты назначаются там'
   Must home axes first: Сначала необходимо запарковать оси
   Muted: Без звука
   My Custom Theme: Моя тема
@@ -4998,6 +4999,7 @@ translations:
   Upload unavailable in this build: Отправка недоступна в этой сборке
   Upper belt: "Верхний ремень"
   Uptime: Время работы
+  Use AFC's mapping commands to add or move a tool: 'Используйте команды назначения AFC, чтобы добавить или переместить инструмент'
   Use Android native keyboard for text input: Использовать нативную клавиатуру Android
     для ввода текста
   Use DHCP: 'Использовать DHCP'

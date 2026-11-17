@@ -2491,6 +2491,7 @@
   <translation tag="Multi-Filament System is busy: {}" ru="Мультифиламентная система занята: {}"/>
   <translation tag="Multi-Filament System not available" ru="Мультифиламентная система недоступна"/>
   <translation tag="Multi-filament system not ready" ru="Мультифиламентная система не готова"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" ru="В AFC включено множественное назначение инструментов, поэтому инструменты назначаются там"/>
   <translation tag="Must home axes first" ru="Сначала необходимо запарковать оси"/>
   <translation tag="Muted" ru="Без звука"/>
   <translation tag="My Custom Theme" ru="Моя тема"/>
@@ -4587,6 +4588,7 @@
   <translation tag="Upload unavailable in this build" ru="Отправка недоступна в этой сборке"/>
   <translation tag="Upper belt" ru="Верхний ремень"/>
   <translation tag="Uptime" ru="Время работы"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ru="Используйте команды назначения AFC, чтобы добавить или переместить инструмент"/>
   <translation tag="Use Android native keyboard for text input" ru="Использовать нативную клавиатуру Android для ввода текста"/>
   <translation tag="Use DHCP" ru="Использовать DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>
