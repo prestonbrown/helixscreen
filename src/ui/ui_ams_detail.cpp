@@ -658,7 +658,7 @@ bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int u
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
     if (!unit_has_physical_tray())
         return calculate_ams_slot_layout(available_width, slot_count);
-    const float spool = (float)theme_manager_get_spacing("ams_slot_spool_size");
+    const float spool = (float)helix::ui::ams_slot_spool_size();
     if (spool <= 0)
         return calculate_ams_slot_layout(available_width, slot_count);
     // Flat spools keep the unit's compact row with no box to clear: a ring,

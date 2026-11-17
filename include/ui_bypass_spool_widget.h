@@ -75,6 +75,7 @@ struct BypassSpoolWidgets {
     lv_obj_t* spool_canvas = nullptr;   ///< The spool icon inside the box
     lv_obj_t* bypass_label = nullptr;   ///< "Bypass" text below the box
     lv_obj_t* material_label = nullptr; ///< Material name above the box (hidden if empty)
+    int32_t box_size = 0;               ///< Box edge: the lane spool size plus padding
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.
@@ -100,6 +101,10 @@ struct BypassSpoolWidgets {
         return box != nullptr;
     }
 };
+
+/// Edge of the bypass card in px: a lane-sized spool plus the card's padding.
+/// The path canvases keep the spool's centre this far from what it must clear.
+[[nodiscard]] int32_t bypass_spool_box_size();
 
 /// Create the bypass spool overlay widgets as floating children of `parent`.
 /// Clicks dispatch to the caller-supplied `on_click` LVGL event handler with
