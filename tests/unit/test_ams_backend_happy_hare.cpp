@@ -420,6 +420,12 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
             happy_hare::read_machine_layout(settings, live_mmu_machine));
     }
 
+    /// Expose apply_config_defaults for testing (simulates the async configfile query result)
+    void test_apply_config_defaults(const nlohmann::json& settings) {
+        HappyHareTestAccess::apply_config_defaults(
+            *this, settings, happy_hare::read_machine_layout(settings, nlohmann::json::object()));
+    }
+
     /// Expose apply_filament_heater_status for testing
     bool test_apply_filament_heater_status(const nlohmann::json& params) {
         return HappyHareTestAccess::apply_filament_heater_status(*this, params);
@@ -659,12 +665,41 @@ TEST_CASE("Happy Hare clear: the wipe names every gate-map field", "[ams][happy_
     // echo out of the printer console.
     REQUIRE(
         helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1"));
-    // RESET ignores GATE on v2/v3 and wipes every gate; an omitted TEMP
-    // returns the gate to default_extruder_temp; AVAILABLE=0 marks the gate
-    // EMPTY, not unknown.
+    // RESET ignores GATE on v2/v3 and wipes every gate; AVAILABLE=0 marks the
+    // gate EMPTY, not unknown. With no configfile read yet there is no default
+    // temperature to name, so TEMP stays off.
     REQUIRE_FALSE(helper.has_gcode_containing("RESET="));
     REQUIRE_FALSE(helper.has_gcode_containing("TEMP="));
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
+}
+
+TEST_CASE("Happy Hare clear: the wipe returns the gate to default_extruder_temp",
+          "[ams][happy_hare][clear]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(2);
+
+    // Happy Hare up to v4.2.0 reads an omitted TEMP as default_extruder_temp;
+    // later versions keep the gate's own. Naming the default resets the gate
+    // on both.
+    SECTION("v3 keeps it in [mmu]") {
+        helper.test_apply_config_defaults({{"mmu", {{"default_extruder_temp", 215}}}});
+    }
+    SECTION("v4 keeps it in [mmu_parameters], as Klipper's parsed float") {
+        helper.test_apply_config_defaults({{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
+                                           {"mmu_parameters", {{"default_extruder_temp", 215.0}}}});
+    }
+
+    SlotInfo* slot = helper.get_mutable_slot(1);
+    REQUIRE(slot != nullptr);
+    slot->material = "PETG";
+    slot->nozzle_temp_min = 240;
+    helper.clear_captured_gcodes();
+
+    helix::test::apply_edit(helper, 1, funnel_cleared_copy(*slot));
+
+    REQUIRE(helper.has_gcode(
+        "MMU_GATE_MAP GATE=1 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP=215 QUIET=1"));
 }
 
 TEST_CASE("Happy Hare clear: a material edit does not take the wipe path",
