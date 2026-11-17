@@ -10,11 +10,13 @@
 //
 // observer_refused_deinit_subject reaches helix_lvgl_anomaly() only through an LVGL
 // warning, so each case starts with a print callback that maps warnings to their
-// anomaly codes. A case that installs its own callback replaces it until the next case.
+// anomaly codes, and ends with the callback it found put back. A case that installs its
+// own callback replaces it for the rest of that case.
 
 #include "../test_helpers/strict_anomalies.h"
 #include "../ui_test_utils.h"
 #include "helix_lvgl_anomaly.h"
+#include "lvgl/lvgl_private.h"
 #include "lvgl_log_handler.h"
 
 #include <spdlog/spdlog.h>
@@ -29,6 +31,7 @@ namespace {
 std::atomic<bool> g_in_case{false};
 std::thread::id g_case_thread;
 int g_tolerated = 0;
+lv_log_print_g_cb_t g_previous_print_cb = nullptr;
 
 void on_anomaly(const char* code, const char* context) {
     if (!helix::test::is_strict_anomaly(code)) {
@@ -72,6 +75,7 @@ class StrictAnomalyListener : public Catch::EventListenerBase {
     void testCaseStarting(Catch::TestCaseInfo const&) override {
         helix::test::allowed_anomalies().clear();
         lv_init_safe();
+        g_previous_print_cb = LV_GLOBAL_DEFAULT()->custom_log_print_cb;
         lv_log_register_print_cb(&on_lvgl_log);
         g_case_thread = std::this_thread::get_id();
         g_in_case.store(true, std::memory_order_release);
@@ -79,6 +83,9 @@ class StrictAnomalyListener : public Catch::EventListenerBase {
 
     void testCaseEnded(Catch::TestCaseStats const&) override {
         g_in_case.store(false, std::memory_order_release);
+        if (lv_is_initialized() && LV_GLOBAL_DEFAULT()->custom_log_print_cb == &on_lvgl_log) {
+            lv_log_register_print_cb(g_previous_print_cb);
+        }
     }
 
     void testRunEnded(Catch::TestRunStats const&) override {
