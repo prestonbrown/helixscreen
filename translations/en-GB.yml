@@ -1783,6 +1783,7 @@ translations:
   Gray: Grey
   Grip filament: ''
   Grip the filament: ''
+  Groups follow each slot's material and color: Groups follow each slot's material and colour
   Guide the toolhead to the chute's extrude position: ''
   Guided sensor-to-nozzle, unload and cutter retract calibration: ''
   H: ''
@@ -2380,7 +2381,9 @@ translations:
   Map to closest colors with matching material: Map to closest colours with matching material
   Mapping Error: ''
   Marginal: ''
+  Mark Available: ''
   Mark a printer you enclosed yourself: ''
+  Mark available failed: ''
   Mark done: ''
   Mark {} done?: ''
   Master volume level: ''

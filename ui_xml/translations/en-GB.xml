@@ -43,6 +43,7 @@
   <translation tag="Favorites" en-GB="Favourites"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." en-GB="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and colour, then resume."/>
   <translation tag="Gray" en-GB="Grey"/>
+  <translation tag="Groups follow each slot&apos;s material and color" en-GB="Groups follow each slot&apos;s material and colour"/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." en-GB="HelixScreen will integrate with your filament changer for multi-spool/colour print operations."/>
   <translation tag="INDX macros not recognized" en-GB="INDX macros not recognised"/>
   <translation tag="Initialized" en-GB="Initialised"/>
