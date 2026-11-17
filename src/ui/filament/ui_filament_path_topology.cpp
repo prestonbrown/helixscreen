@@ -543,14 +543,9 @@ int32_t draw_fixed_selector(const RenderCtx& ctx, int32_t cy, int32_t w, int32_t
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
     data->rail_drawn = false;
-    if (data->built_in_hub) {
-        // A small junction where the lanes meet the trunk; it is not a control.
-        const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
+    if (data->lanes_merge_inside) {
+        // The merge inside the unit is no box; tapping it still opens the unit's settings.
         const int32_t size = LV_MAX(10, f.hub_h / 2);
-        if (!data->lanes_merge_inside) {
-            draw_hub_box(ctx, f.center_x, f.hub_y - f.hub_h / 2, size * 2, size, tint.bg,
-                         tint.border, "", LV_OPA_COVER, /*interactive=*/false);
-        }
         if (data->hub_callback) {
             const int32_t y = f.hub_y - f.hub_h / 2;
             data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
@@ -577,16 +572,6 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     int32_t hub_w = hub_box_width(*data, g, f);
 
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
-
-    if (data->fixed_selector && data->topology == 0) {
-        hub_w = draw_fixed_selector(ctx, f.hub_y, hub_w, f.hub_h, hub_tint);
-        if (data->hub_callback) {
-            data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2, f.center_x + hub_w / 2,
-                              f.hub_y + f.hub_h / 2};
-            data->hits.hub_valid = true;
-        }
-        return;
-    }
 
     // On-toolhead mode draws the passthrough selector first, in its classic
     // spot under the lanes, full slot width like LINEAR's selector.
@@ -678,19 +663,6 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
-    const auto glyph_top_of = [&] {
-        return toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
-    };
-    // A selector whose art has no carriage is its face over the hub its outlets feed, or the
-    // plain bar when the two do not fit.
-    data->topology = data->requested_topology;
-    if (data->topology == static_cast<int>(PathTopology::LINEAR) && data->rail_art &&
-        !data->rail_carriage) {
-        data->topology = static_cast<int>(PathTopology::HUB);
-        const LinearHubFrame face = compute_linear_hub_frame(*data, ctx.geo, glyph_top_of());
-        if (face.through.w == 0 || drop_unloadable_art(*data, face.through))
-            data->topology = static_cast<int>(PathTopology::LINEAR);
-    }
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
     drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo));
 
@@ -702,7 +674,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
         data->anim.output_x_target = data->anim.output_x_current;
     }
 
-    const int32_t glyph_top = glyph_top_of();
+    const int32_t glyph_top =
+        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
     LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     if (drop_unloadable_art(*data, f.through))
         f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);

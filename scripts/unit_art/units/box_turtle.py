@@ -151,7 +151,7 @@ def _shell(**over):
         corner=int(CORNER[1:], 16),
     )
     base.update(over)
-    return TrayShellDef(**base)
+    return TrayShellDef(**base, combiner="internal")
 
 
 UNIT = UnitDef("box_turtle", 4, draw_art, _shell())

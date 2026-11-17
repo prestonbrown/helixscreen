@@ -83,7 +83,7 @@ The tray draws real spool widgets between `tray_back_draw_cb` and `tray_front_dr
 | `dome` | The lid's profile; empty for an open unit |
 | `back_extra_px`, `front_wall_px`, `cap_clearance_px` | Back wall height, front wall height, cap spacing |
 | `lid_spans_row`, `lid_color` | Whether one lid covers every lane, or a box per lane with a solid top around its glass |
-| `lane_join` | How lanes meet on the path screen: `Hub`, `Junction`, `Inside` (a short internal merge) or `FixedBlock` |
+| `combiner`, `port_block` | Where the lanes merge into one output (§ "Combiner"), and whether the unit's on-head selector is a fixed block with a port per lane |
 | `corner`, `body`, `front` | Rear corner block colour, body colour and the front parts (`FrontPart` rectangles) |
 | `spool_lift_px` | How far the base reaches below the spools |
 | `carriage`, `face_art` | Per gate count tracks for a moving selector |
@@ -95,6 +95,25 @@ A unit whose shell sets `lid_color` is a row of separate boxes, such as the EMU.
 On the path screen a selector rail (ERCF, Tradrack) shows its sync sensor as a band on the outlet tube rather than as a buffer box. The band takes its colour from the sensor's state: the accent colour when active, the error colour on error, the lane's filament colour when loaded or in sync, and the idle wall colour when empty (`src/ui/filament/ui_filament_path_plan.cpp#band_color`).
 
 Selecting a unit's shell is the only place that names hardware. `unit_shell_for` walks `kShellRows` in order (backend slug, a part of the unit's name when one backend covers several kinds of unit, the shell id, an enclosed variant used when the unit has climate control, an optional lane count and a selector-rail flag), so a more specific row goes above a general one. Everything else in the UI asks for a shell and never names a vendor.
+
+## Combiner
+
+Every unit with more than one lane merges its lanes into one output that feeds a single extruder. Where that merge happens is Preston's call per unit, recorded as `TrayShellDef.combiner` in the unit's own file and generated into `UnitShell::combiner`:
+
+- **internal**: the unit merges its lanes itself, and one path leaves it. The unit view draws a short merge below the unit and no box.
+- **external**: a separate hub or combiner below the unit, with each lane leaving by its own outlet into it. The unit view draws the hub box, with the unit's head-on art above it when the unit has one.
+- **none**: one lane, so nothing to merge.
+
+| Combiner | Units |
+|----------|-------|
+| internal | Box Turtle (open and enclosed), Bambu AMS 2 Pro, original Bambu AMS, OpenAMS, Creality CFS, Night Owl, ERCF and Tradrack (selectors) |
+| external | ACE Pro and ACE Pro 2 (each ACE under multiACE too), QIDI Box, HTLF, AD5X IFS, Elegoo Canvas, EMU, BTT ViViD, BMCU, MMX, 3MS, KMS, Quattro Box, Bambu AMS Lite |
+| none | AMS HT (one lane) |
+| no combiner at all | Toolchangers, the Snapmaker U1's SnapSwap, INDX, MedusaHC: every lane runs to its own head |
+
+The original AMS and the AMS Lite have no drawing yet; the rows above are for when they get one. **A unit not in this table: ask Preston, don't guess.** `build.py` refuses a unit that leaves `combiner` unset.
+
+The combiner's presence sensor is optional. The hub box draws its sensor band only when the backend reports a hub sensor for that unit (`AmsUnit::has_hub_sensor`); the AD5X IFS has none, only the toolhead sensor. Lanes bound for separate extruders never meet a combiner: a PARALLEL path draws none, and on a MIXED path only the lanes that share an extruder converge. A unit whose selector slides (ERCF, Tradrack) keeps its rail in the selector's place whatever its combiner. The rule is `helix::ui::fpath::combiner_layout` (`src/ui/filament/ui_filament_path_plan.h`); `docs/devel/FILAMENT_PATH_CANVAS.md` § "Topology Renderers" says how the canvas draws each case.
 
 ## Rendering on small boards
 
@@ -109,7 +128,7 @@ Toolheads use the same kit. `scripts/unit_art/heads/<id>.py` defines a head with
 Follow `.claude/skills/unit-art/SKILL.md`. In outline:
 
 1. Collect photos for the proportions. Keep them out of git.
-2. Write `scripts/unit_art/units/<id>.py` with a `UnitDef` and a `TrayShellDef`, and add it to `UNITS` in `build.py`.
+2. Write `scripts/unit_art/units/<id>.py` with a `UnitDef` and a `TrayShellDef`, set its `combiner` from § "Combiner" (ask Preston for a unit not in the table), and add it to `UNITS` in `build.py`.
 3. Add a row to `kShellRows` in `src/ui/filament/ams_unit_shell.cpp`.
 4. Run `make unit-art` and commit the baked layers and the regenerated `src/generated/ams_unit_shells_gen.cpp`.
 5. Run `python3 -m pytest tests/python/test_unit_art_kit.py -q` and `make t F='[ams][tray],[unit-art]'`, then check `build/unit-art/contact_sheet.png` on dark and light at real size.

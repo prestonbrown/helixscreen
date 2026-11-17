@@ -104,25 +104,34 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
-/// The join a unit draws with: routes that do not merge to one nozzle (PARALLEL and MIXED)
-/// keep the separate-tool drawing whatever the unit is.
-inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell,
-                                                 helix::PathTopology reported) {
-    return reported == helix::PathTopology::LINEAR || reported == helix::PathTopology::HUB
-               ? shell
-               : helix::ui::tray::LaneJoin::Hub;
+/// How a unit view draws the lanes of a unit that feeds one extruder.
+struct CombinerLayout {
+    helix::PathTopology topology;
+    bool merge_inside; ///< One line leaves the unit: no hub box below it.
+};
+
+/// The unit's combiner decides how its lanes reach one extruder (docs/devel/UNIT_ART.md
+/// § "Combiner"): merged inside the unit, or each out of its own outlet into a hub box below
+/// it, whatever selector the backend reports. A sliding selector keeps its rail, and paths
+/// that do not end at one nozzle (PARALLEL, MIXED) keep their own drawing.
+inline CombinerLayout combiner_layout(helix::ui::tray::Combiner combiner, bool has_carriage,
+                                      helix::PathTopology reported) {
+    using helix::PathTopology;
+    using helix::ui::tray::Combiner;
+    const bool one_nozzle = reported == PathTopology::LINEAR || reported == PathTopology::HUB;
+    if (!one_nozzle || has_carriage || combiner == Combiner::Absent)
+        return {reported, false};
+    return {PathTopology::HUB, combiner == Combiner::Internal};
 }
 
-/// Whether a unit view draws a unit's head-on art over the path it reports. A sliding selector's
-/// art takes LINEAR's bar, its carriage riding to the active gate. A unit without a carriage
-/// sends each lane out of its own outlet into a hub, on LINEAR as on HUB and MIXED; LINEAR shows
-/// the plain bar where the face and that hub do not fit. Lanes on a PARALLEL path each run to
-/// their own tool, past no unit worth drawing.
+/// Whether a unit view draws a unit's head-on art over the path it lays out: a sliding
+/// selector's in LINEAR's bar, the face of a unit without one above its hub (HUB, or MIXED's
+/// hub and tools). Lanes on a PARALLEL path each run to their own tool, past no unit worth
+/// drawing.
 inline bool unit_art_drawn(helix::PathTopology topology, bool has_carriage) {
     using helix::PathTopology;
-    if (topology == PathTopology::LINEAR)
-        return true;
-    return !has_carriage && (topology == PathTopology::HUB || topology == PathTopology::MIXED);
+    return has_carriage ? topology == PathTopology::LINEAR
+                        : topology == PathTopology::HUB || topology == PathTopology::MIXED;
 }
 
 /// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
@@ -190,11 +199,6 @@ inline int32_t rail_carriage_x(const int32_t* slot_x, int slot_count, int active
         output_x_current <= slot_x[slot_count - 1])
         return output_x_current;
     return slot_count > 0 ? slot_x[0] : output_x_current;
-}
-
-/// Where a built-in selector's lanes join: a short drop below their sensors.
-inline int32_t built_in_bus_y(const LinearHubFrame& f) {
-    return f.prep_y + (f.hub_y - f.hub_h / 2 - f.prep_y) / 2;
 }
 
 /// Width the hub or selector box is drawn at: the frame's fitted width for a HUB, the

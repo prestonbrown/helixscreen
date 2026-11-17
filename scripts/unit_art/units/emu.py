@@ -141,7 +141,7 @@ UNIT = UnitDef(
         # The lane's number badge stands where its status light is on the real dock.
         front=[kit.span(0, 0, 0, _WALL, _BLACK, 2), kit.span(0, 0, _WALL - _DOCK_H, _WALL, int(DOCK_COLOR[1:], 16), 2)],
         # Lanes leave each box through its own sensors and meet in a separate printed combiner.
-        lane_join="junction",
+        combiner="external",
         lid_color=_RED,
         # The spool stands a little up in the box, so its base hides the glow under it.
         spool_lift_px=11.0,

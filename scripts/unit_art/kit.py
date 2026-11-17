@@ -279,7 +279,10 @@ class TrayShellDef:
     accent: int
     corner: int = 0
     front: Optional[list] = None
-    lane_join: str = "hub"  # "hub", "junction", "inside" or "block": how the lanes meet
+    # Where the unit's lanes merge into one output, from Preston's table in docs/devel/UNIT_ART.md
+    # § "Combiner": "internal", "external" or "none". A unit missing from that table: ask him.
+    combiner: Optional[str] = None
+    port_block: bool = False  # its selector is a fixed block with one port per lane
     lid_color: int = 0  # a box per lane: each box's solid top around its glass; 0 for all glass
     spool_lift_px: float = 0.0  # how far the unit's base reaches below its spools
     plain_tray: bool = False  # in front of loose spools: the tray under them is the plain one

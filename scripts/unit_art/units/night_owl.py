@@ -146,7 +146,7 @@ def _tray_shell():
             kit.lane(-19, 19, -_DRUM_PX, 0, int(RUBBER[1:], 16), 5),
             kit.lane(-3, 3, -_DRUM_PX - 3, 1, _FRAME, 1),
         ],
-        lane_join="junction",
+        combiner="internal",
         # The spools ride on the drums: the base's top edge stands at their flange bottoms.
         spool_lift_px=_WALL - 10.0,
     )

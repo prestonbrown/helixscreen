@@ -391,7 +391,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     int32_t hub_top = f.hub_y - f.hub_h / 2;
     // A pass-through unit stands between the lanes' sensors and the hub, as tall as the room
     // above the hub's lowest place allows; the lanes fan into the hub from its outlets.
-    if (!data.lanes_merge_inside && !data.built_in_hub) {
+    if (!data.lanes_merge_inside) {
         const int32_t fan = art_fan_room(data, g);
         const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
         const int32_t lowest_hub_top =
@@ -1156,24 +1156,17 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                 pts[1] = {x, pts[0].y + run};
                 pts[2] = {cx, hub_top - run};
                 pts[3] = {cx, hub_top};
-            } else if (data.built_in_hub) {
-                const float bus = (float)built_in_bus_y(f);
-                pts[1] = {x, bus};
-                pts[2] = {cx, bus};
-                pts[3] = {cx, hub_top};
             }
             pg::FilamentPath fan;
             // Long S-bends: as round as the lane's distance from the trunk allows.
-            const float bend = data.lanes_merge_inside ? std::fabs(x - cx)
-                               : data.built_in_hub     ? bend_radius(x - cx)
-                                                       : 8.0f;
+            const float bend = data.lanes_merge_inside ? std::fabs(x - cx) : 8.0f;
             pg::route_polyline_filleted(fan, pts, 4, bend);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
             const auto through = lane.style(PathSegment::HUB);
             append_line(r, pts[3].x, hub_top, cx, hub_bot,
-                        data.built_in_hub ? through : unpainted(through));
+                        data.lanes_merge_inside ? through : unpainted(through));
         }
 
         out.active_route = i;
@@ -1193,7 +1186,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         if (feeds) {
             out.trunk_route = out.route_count;
             Route& r = new_route(out);
-            if (data.built_in_hub)
+            if (data.lanes_merge_inside)
                 append_line(r, cx, hub_top, cx, hub_bot, idle.style(PathSegment::HUB));
             append_trunk(out, r, idle, f, data, bypass_on_trunk, bypass_owner);
         } else {

@@ -113,4 +113,4 @@ UNIT.tray.front = [
     kit.right(10, 28, 5, 8, 0xe8c72e),
 ]
 
-UNIT.tray.lane_join = "junction"
+UNIT.tray.combiner = "external"

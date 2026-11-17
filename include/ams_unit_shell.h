@@ -62,12 +62,12 @@ struct RailFaceArt {
     float outlet_y;
 };
 
-/// How a unit's lanes meet on the path screen.
-enum class LaneJoin : uint8_t {
-    Hub,        ///< A labelled hub box, or the selector bar of a LINEAR unit.
-    Junction,   ///< Lanes leave the unit and meet at a small unlabelled junction.
-    Inside,     ///< Lanes merge in the unit: a short merge below it, then one tube.
-    FixedBlock, ///< A fixed selector block with one port per lane.
+/// Where a unit's lanes merge into the one output that feeds a single extruder
+/// (docs/devel/UNIT_ART.md § "Combiner").
+enum class Combiner : uint8_t {
+    Absent,   ///< One lane: nothing to merge.
+    Internal, ///< Inside the unit: one path leaves it.
+    External, ///< A separate hub below the unit: each lane leaves by its own outlet into it.
 };
 
 struct UnitShell {
@@ -81,7 +81,8 @@ struct UnitShell {
     float front_wall_px;
     float cap_clearance_px;
     bool lid_spans_row;
-    LaneJoin lane_join;
+    Combiner combiner;
+    bool port_block; ///< Its selector is a fixed block with one port per lane.
     uint32_t body;
     uint32_t corner; ///< Rear corner block colour; 0 when the unit has none.
     const FrontPart* front;

@@ -95,8 +95,9 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
  */
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead);
 
-/// The unit merges its lanes inside: no selector or hub box, one line leaving it.
-void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join);
+/// How the unit's lanes merge: @p merge_inside draws one line leaving the unit and no hub box;
+/// @p port_block draws its on-head selector as a fixed block with one port per lane.
+void ui_filament_path_canvas_set_combiner(lv_obj_t* obj, bool merge_inside, bool port_block);
 
 /// Draw @p unit_id's head-on art: in the LINEAR selector bar's place, or as a pass-through unit
 /// above a hub. @p has_carriage says the art has a carriage layer that rides to the active gate.

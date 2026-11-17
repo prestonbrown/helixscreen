@@ -23,7 +23,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui::fpath;
-using helix::ui::tray::LaneJoin;
 
 namespace {
 
@@ -250,38 +249,6 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK(seg_end(route.segs[route.count - 1]).y == Catch::Approx(inlet_y(c)).margin(0.01));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merges them at a point",
-                 "[filament-path][hub-stack]") {
-    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Junction);
-    render(c);
-    CHECK_FALSE(c.data->hits.hub_valid); // no box, so nothing to tap
-
-    LinearHubFrame f{};
-    const PathPlan& plan = plan_of(c, &f);
-    REQUIRE(plan.active_route == 0);
-    const float top = (float)(f.hub_y - f.hub_h / 2);
-    for (int i = 0; i < 4; ++i) {
-        CAPTURE(i);
-        const auto& route = plan.routes[i].path;
-        REQUIRE(route.count > 0);
-        CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
-        CHECK(passes(route, (float)f.center_x, top));
-    }
-    check_contiguous(plan.routes[0].path);
-    // An outer lane travels sideways on the bus, rather than along a straight diagonal.
-    const float bus = (float)built_in_bus_y(f);
-    bool horizontal = false;
-    for (int s = 0; s < plan.routes[0].path.count; ++s) {
-        const auto& seg = plan.routes[0].path.segs[s];
-        horizontal =
-            horizontal || (seg.type == pg::PathSeg::LINE && std::fabs(seg.p0.y - bus) < 0.5f &&
-                           std::fabs(seg.p1.y - bus) < 0.5f);
-    }
-    CHECK(horizontal);
-}
-
 TEST_CASE("A selector rail's carriage follows the active gate and keeps its place otherwise",
           "[filament-path][selector-rail]") {
     const int32_t slots[] = {100, 160, 220, 280};
@@ -349,10 +316,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     render(c);
     plan_of(c, &f);
     CHECK((!c.data->rail_drawn && f.rail.w == 0 && f.has_buffer));
-    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::FixedBlock);
-    render(c);
-    CHECK(
-        (c.data->hits.hub_valid && c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
+    CHECK((c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
 }
 
 TEST_CASE_METHOD(HubStackFixture,
@@ -400,33 +364,26 @@ TEST_CASE_METHOD(HubStackFixture,
     // A carriage rides LINEAR's bar; a unit without one feeds a hub from its outlets.
     using helix::PathTopology;
     for (bool carriage : {false, true})
-        CHECK((unit_art_drawn(PathTopology::LINEAR, carriage) &&
+        CHECK((unit_art_drawn(PathTopology::LINEAR, carriage) == carriage &&
                unit_art_drawn(PathTopology::HUB, carriage) != carriage &&
                unit_art_drawn(PathTopology::MIXED, carriage) != carriage &&
                !unit_art_drawn(PathTopology::PARALLEL, carriage)));
-    // Reported LINEAR, beside a buffer and the bypass: the face takes the selector's slot, its
-    // outlets fan into a hub below it, and the hub's outlet band carries the buffer's reading.
+    // Beside a buffer and the bypass the face takes the selector's slot, its outlets fan into a
+    // hub below it, and the hub's outlet band carries the buffer's reading.
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::HUB));
     ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
     ui_filament_path_canvas_set_show_bypass(c.obj, true);
-    for (PathTopology reported : {PathTopology::LINEAR, PathTopology::HUB}) {
-        ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(reported));
-        render(c);
-        plan_of(c, &f);
-        REQUIRE((c.data->topology == 1 && f.through.w > 0 && !c.data->rail_drawn));
-        CHECK((f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
-               f.output_y < f.bypass_merge_y));
-        CHECK(f.hub_fan[0].pts[0].x == (float)rail_outlet_x(*art, f.through, 0));
-    }
-    // No room for the face and its hub, or no images: a selector is the plain bar again.
-    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::LINEAR));
-    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art, false);
     render(c);
-    CHECK(c.data->topology == 0);
-    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art, false);
+    plan_of(c, &f);
+    REQUIRE((f.through.w > 0 && !c.data->rail_drawn));
+    CHECK((f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
+           f.output_y < f.bypass_merge_y));
+    CHECK(f.hub_fan[0].pts[0].x == (float)rail_outlet_x(*art, f.through, 0));
+    // No room for the face: the hub alone, the buffer back in its box.
     lv_obj_set_height(c.obj, 160);
     render(c);
     plan_of(c, &f);
-    CHECK((c.data->topology == 0 && f.through.w == 0 && f.rail.w == 0));
+    CHECK((f.through.w == 0 && f.has_buffer && !f.sync_on_output));
 }
 
 TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
@@ -436,22 +393,43 @@ TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor 
         c.data->slot_has_prep_sensor[i] = c.data->slot_has_load_sensor[i] = true;
     ui_filament_path_canvas_set_hub_sensor(c.obj, true, false);
     load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    ui_filament_path_canvas_set_lane_join(c.obj, LaneJoin::Inside);
+    ui_filament_path_canvas_set_combiner(c.obj, /*merge_inside=*/true, /*port_block=*/false);
     ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
     render(c);
     CHECK(c.data->hits.hub_valid); // no box, but the merge still opens the unit's settings
-    // Routes to separate tools never merge, whatever the unit does inside.
-    CHECK(drawn_lane_join(LaneJoin::Inside, helix::PathTopology::PARALLEL) == LaneJoin::Hub);
-    CHECK(drawn_lane_join(LaneJoin::Junction, helix::PathTopology::MIXED) == LaneJoin::Hub);
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
     CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
-    auto junction = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    ui_filament_path_canvas_set_lane_join(junction.obj, LaneJoin::Junction);
-    render(junction);
+    auto external = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    render(external);
     LinearHubFrame outside{};
-    plan_of(junction, &outside);
+    const int plain_bands = plan_of(external, &outside).trunk_band_count;
     CHECK(f.hub_y < outside.hub_y);
+    // An external hub box reads presence only when the backend reports a hub sensor.
+    ui_filament_path_canvas_set_hub_sensor(external.obj, true, false);
+    render(external);
+    CHECK(plan_of(external, &outside).trunk_band_count == plain_bands + 1);
+}
+
+TEST_CASE("A unit's combiner decides how its lanes reach one extruder", "[filament-path]") {
+    using helix::PathTopology;
+    using helix::ui::tray::Combiner;
+    for (PathTopology one : {PathTopology::LINEAR, PathTopology::HUB}) {
+        CAPTURE(static_cast<int>(one));
+        const CombinerLayout inside = combiner_layout(Combiner::Internal, false, one);
+        const CombinerLayout outside = combiner_layout(Combiner::External, false, one);
+        CHECK((inside.topology == PathTopology::HUB && inside.merge_inside));
+        CHECK((outside.topology == PathTopology::HUB && !outside.merge_inside));
+        // A sliding selector keeps its rail; one lane has nothing to merge.
+        CHECK((combiner_layout(Combiner::Internal, true, one).topology == one &&
+               combiner_layout(Combiner::Absent, false, one).topology == one));
+    }
+    // Lanes bound for separate tools keep their own drawing.
+    for (PathTopology split : {PathTopology::PARALLEL, PathTopology::MIXED}) {
+        const CombinerLayout l = combiner_layout(Combiner::External, false, split);
+        CHECK((l.topology == split && !l.merge_inside &&
+               !combiner_layout(Combiner::Internal, false, split).merge_inside));
+    }
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",

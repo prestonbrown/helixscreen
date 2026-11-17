@@ -75,3 +75,4 @@ def _tray_shell() -> TrayShellDef:
 
 
 UNIT = UnitDef("htlf", 4, draw_art, _tray_shell(), face_art=htlf_face.draw)
+UNIT.tray.combiner = "external"

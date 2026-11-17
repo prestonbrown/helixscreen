@@ -439,7 +439,6 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
         if (strcmp(name, "topology") == 0) {
             // Anything but linear is a hub.
             data->topology = strcmp(value, "linear") == 0 || strcmp(value, "0") == 0 ? 0 : 1;
-            data->requested_topology = data->topology;
             needs_redraw = true;
         } else if (strcmp(name, "slot_count") == 0) {
             data->slot_count = LV_CLAMP(1, atoi(value), FilamentPathData::kMaxSlots);
@@ -513,28 +512,19 @@ lv_obj_t* ui_filament_path_canvas_create(lv_obj_t* parent) {
 
 void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     auto* data = get_data(obj);
-    if (!data || data->requested_topology == topology)
+    if (!data || data->topology == topology)
         return;
-    data->requested_topology = topology;
     data->topology = topology;
     layered_mark_dirty(obj);
 }
 
 // NAMESPACE_OK: one of the canvas's C-style setters
-void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join) {
-    using helix::ui::tray::LaneJoin;
+void ui_filament_path_canvas_set_combiner(lv_obj_t* obj, bool merge_inside, bool port_block) {
     auto* data = get_data(obj);
-    if (!data)
+    if (!data || (data->lanes_merge_inside == merge_inside && data->fixed_selector == port_block))
         return;
-    const bool inside = join == LaneJoin::Inside;
-    const bool built_in = inside || join == LaneJoin::Junction;
-    const bool fixed = join == LaneJoin::FixedBlock;
-    if (data->built_in_hub == built_in && data->lanes_merge_inside == inside &&
-        data->fixed_selector == fixed)
-        return;
-    data->built_in_hub = built_in;
-    data->lanes_merge_inside = inside;
-    data->fixed_selector = fixed;
+    data->lanes_merge_inside = merge_inside;
+    data->fixed_selector = port_block;
     layered_mark_dirty(obj);
 }
 

@@ -277,8 +277,7 @@ struct PathCache {
 // subsystem-owned state.
 struct FilamentPathData {
     // --- Configuration ---
-    int topology = 1;                   // drawn: 0=LINEAR, 1=HUB (PathTopology values)
-    int requested_topology = 1;         // as set; a selector face may draw it as HUB
+    int topology = 1;                   // 0=LINEAR, 1=HUB (PathTopology values)
     int slot_count = kDefaultSlotCount; // Number of slots
     int active_slot = -1;               // Currently active slot (-1=none)
     int filament_segment = 0;           // PathSegment enum value (target)
@@ -356,9 +355,8 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
-    bool built_in_hub = false;       // no hub box: the lanes meet at a junction or inside the unit
-    bool lanes_merge_inside = false; // a built_in_hub whose short merge has no junction drawn
-    bool fixed_selector = false;     // the selector is a fixed block with one port per lane
+    bool lanes_merge_inside = false; // one line leaves the unit: a short merge, no hub box
+    bool fixed_selector = false;     // the on-head selector is a fixed block, a port per lane
     // A selector rail drawn head-on in place of the bar: static generated table entry, and the
     // unit whose art it is.
     const helix::ui::tray::RailFaceArt* rail_art = nullptr;
