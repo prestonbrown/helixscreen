@@ -44,7 +44,9 @@ RING_GEAR_Y, RING_GEAR_R = (37.9 * MM, 46.0 * MM), 20.0 * MM
 MOTOR_Y, MOTOR_R = (46.0 * MM, 65.0 * MM), 18.9 * MM
 G2_TOP = 108.4 * MM
 COLLET_Y = 24.9 * MM
-TIP = (0.0, 18.0 * MM, -4.0 * MM)
+# Only the brass tip shows, poking below the duct feet's underside by about 15% of a foot's height as in the v8
+# render. The hotend really sits about 25 mm back, where the front plate would hide it from this camera.
+TIP = (0.0, 4.0 * MM, -3.1 * MM)
 
 
 def _circle(cy, cz, r, n=24):
@@ -204,8 +206,7 @@ def _extruder(d):
 
 def draw_art(scene, tier):
     d = Drawing(scene, tier)
-    d.solid(rounded([(-8.0 * MM, 1.0 * MM), (8.0 * MM, 1.0 * MM), (8.0 * MM, 9.0 * MM), (-8.0 * MM, 9.0 * MM)], 1.5 * MM), TIP[1] - 7.0 * MM, TIP[1] + 7.0 * MM, "#7a1f1c")
-    d.nozzle(TIP[0], TIP[1], 1.0 * MM, r_top=3.0 * MM, r_tip=1.0 * MM, z_tip=TIP[2])
+    d.nozzle(TIP[0], TIP[1], 0.0, r_top=2.6 * MM, r_tip=0.8 * MM, z_tip=TIP[2])
     _mounts(d)
     _duct(d, -1)
     _blower(d, -1)
