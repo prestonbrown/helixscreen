@@ -18,9 +18,7 @@ namespace {
 
 /// {df()}capability_overrides/<name>, as a JSON pointer.
 std::string override_path(Config* cfg, const std::string& name) {
-    const std::string prefix = cfg->df();
-    return (prefix.empty() || prefix[0] != '/') ? "/" + prefix + "capability_overrides/" + name
-                                                : prefix + "capability_overrides/" + name;
+    return cfg->df() + "capability_overrides/" + name;
 }
 
 } // namespace

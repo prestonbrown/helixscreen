@@ -595,6 +595,7 @@ TEST_CASE("cold pull: edits persist per material; unset and corrupt read as defa
 
     msm.set_cold_pull_material(ColdPullMaterial::Cleaning);
     CHECK(msm.get_cold_pull_material() == ColdPullMaterial::Cleaning);
+    CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Nylon) == ColdPullTemps{255, 150});
 
     config->get_json("/cold_pull")["pla"] = {{"soak", 100}, {"pull", 90}};
     CHECK(msm.get_cold_pull_temps(ColdPullMaterial::Pla) == ColdPullTemps{230, 90});

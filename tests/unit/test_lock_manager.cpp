@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "../lvgl_test_fixture.h"
 #include "lock_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -140,4 +141,18 @@ TEST_CASE("LockManager: set_pin while locked updates PIN", "[lock]") {
     CHECK_FALSE(mgr.verify_pin("1234"));
     CHECK(mgr.verify_pin("5678"));
     CHECK(mgr.try_unlock("5678"));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "LockManager: lock_pin_set follows setting and removing the PIN",
+                 "[lock]") {
+    auto& mgr = helix::LockManager::instance();
+    LockManagerTestAccess::reset(mgr);
+    mgr.init_subjects();
+    lv_subject_t* pin_set = lv_xml_get_subject(nullptr, "lock_pin_set");
+    REQUIRE(pin_set != nullptr);
+
+    REQUIRE(mgr.set_pin("1234"));
+    CHECK(lv_subject_get_int(pin_set) == 1);
+    mgr.remove_pin();
+    CHECK(lv_subject_get_int(pin_set) == 0);
 }

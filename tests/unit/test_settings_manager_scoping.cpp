@@ -46,6 +46,7 @@
 #include "ams_backend_cfs.h"
 #include "ams_state.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "settings_manager.h"
 #include "wizard_config_paths.h"
 
@@ -519,6 +520,33 @@ TEST_CASE_METHOD(SettingsScopeFixture,
           static_cast<int>(ToolheadStyle::STEALTHBURNER));
 
     sm.set_toolhead_style(ToolheadStyle::AUTO);
+}
+
+TEST_CASE("SettingsManager: a dropdown index outside the style list reads as Auto",
+          "[settings][toolhead]") {
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(-1) == ToolheadStyle::AUTO);
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(kLastToolheadStyle + 1) ==
+          ToolheadStyle::AUTO);
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(kLastToolheadStyle) ==
+          static_cast<ToolheadStyle>(kLastToolheadStyle));
+}
+
+TEST_CASE_METHOD(
+    SettingsScopeFixture,
+    "SettingsManager: a config reload hands the printer's lane numbering to the labels",
+    "[settings][multi-printer]") {
+    sm.set_number_lanes_from_zero(true);
+    REQUIRE(helix::ui::lane_numbering_from_zero());
+
+    activate(kPrinterB);
+    sm.reload_from_config();
+    CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+
+    activate(kPrinterA);
+    sm.reload_from_config();
+    CHECK(helix::ui::lane_numbering_from_zero());
+
+    sm.set_number_lanes_from_zero(false);
 }
 
 // ============================================================================

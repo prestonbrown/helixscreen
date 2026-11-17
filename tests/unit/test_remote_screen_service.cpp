@@ -115,6 +115,18 @@ TEST_CASE_METHOD(RemoteScreenFixture, "settings: control cannot be on while view
     CHECK(lv_subject_get_int(m.subject_control()) == 0);
 }
 
+TEST_CASE_METHOD(RemoteScreenFixture, "settings: a new pairing code reaches its subject",
+                 "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    lv_subject_t* code = lv_xml_get_subject(nullptr, "remote_screen_pair_code");
+    REQUIRE(code != nullptr);
+    const std::string before = m.get_pair_code();
+    m.set_pair_code("482913");
+    CHECK(std::string(lv_subject_get_string(code)) == "482913");
+    m.set_pair_code(before);
+    CHECK(std::string(lv_subject_get_string(code)) == before);
+}
+
 TEST_CASE_METHOD(RemoteScreenFixture,
                  "settings: a hand-edited config with control but no view loads off",
                  "[remote_screen][settings]") {

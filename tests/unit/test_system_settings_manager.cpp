@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/scoped_config_write_counter.h"
 #include "config.h"
 #include "logging_init.h"
 #include "system_settings_manager.h"
@@ -218,4 +219,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager log level prefers a sav
     config->set<std::string>("/log_level", "");
     SystemSettingsManager::instance().deinit_subjects();
     helix::logging::set_runtime_level(spdlog::level::info);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "SystemSettingsManager: declining the plugin install is saved",
+                 "[system_settings]") {
+    auto& mgr = SystemSettingsManager::instance();
+    Config* config = Config::get_instance();
+    const bool before = config->get<bool>("/plugin_install_declined", false);
+    {
+        ScopedConfigWriteCounter writes;
+        mgr.set_plugin_install_declined();
+        CHECK(mgr.get_plugin_install_declined());
+        CHECK(writes.writes() == 1);
+    }
+    config->set<bool>("/plugin_install_declined", before);
 }
