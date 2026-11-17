@@ -52,6 +52,17 @@ translations:
   '%u layers': ''
   '%zu events queued': ''
   '%zu plugins failed to load': ''
+  Auto Belt Tension: ''
+  Both belts: ''
+  Cutter Calibration: ''
+  Find the filament cutter's position: ''
+  Let the printer's tensioners set the belts: ''
+  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.
+  : ''
+  ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.
+  : ''
+  X belt: ''
+  Y belt: ''
   "'{}' already exists. Replace the stored mesh?": ""
   "'{}' and '{}' already exist. Replace the stored meshes?": ""
   (different grade): ''
@@ -373,7 +384,6 @@ translations:
   Authentication failed: ''
   Auto: ''
   Auto Bed Mesh: ''
-  Auto Belt Tension: ''
   Auto Cal: ''
   Auto Fans: ''
   Auto loading: ''
@@ -497,7 +507,6 @@ translations:
   Border Width: ''
   Border transparency (0 = invisible, 255 = solid): ''
   Both: ''
-  Both belts: ''
   Bouncing Logo: ''
   Bouncing Printer: ''
   Bowden: ''
@@ -1091,7 +1100,6 @@ translations:
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: ''
   'Cut position saved: {}': ''
   Cut tip: ''
-  Cutter Calibration: ''
   Cutter Enabled: ''
   Cutter and purge chute calibration: ''
   Cutter blade didn't sever filament: ''
@@ -1663,7 +1671,6 @@ translations:
   Filename: ''
   Filter: ''
   Filter Fan: ''
-  Find the filament cutter's position: ''
   Find the print speeds that shake the printer: ''
   Finding where the print stopped...: ''
   Fine: ''
@@ -2198,7 +2205,6 @@ translations:
   Length of the cooling tube section: ''
   'Length:': ''
   Let a browser tap and drag on this screen: ''
-  Let the printer's tensioners set the belts: ''
   Let's take a quick tour so you can find things fast.: ''
   Level: ''
   Leveling Gantry...: Levelling Gantry...
@@ -4187,10 +4193,6 @@ translations:
   The printer has not reported its maximum velocity yet.: ''
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : ''
-  ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.
-  : ''
-  ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.
-  : ''
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: ''
   The printer homes if needed, then finds the cutter's position. Keep the filament path clear.: ''
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
@@ -4793,7 +4795,6 @@ translations:
   X axis applied, but Y axis failed: ''
   X axis done, starting Y...: ''
   X axis limit reached: ''
-  X belt: ''
   X is at its limit ({}mm): ''
   X motor: ''
   'X:': ''
@@ -4803,7 +4804,6 @@ translations:
   Y Axis: ''
   Y Offset: ''
   Y axis limit reached: ''
-  Y belt: ''
   Y is at its limit ({}mm): ''
   Y motor: ''
   'Y:': ''
