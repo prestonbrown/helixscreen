@@ -91,9 +91,11 @@ static void load_theme_sizes(SystemPathData* data) {
     data->border_radius = LV_MAX(4, space_xs);
     data->extruder_scale = LV_MAX(8, space_md);
     data->space_md = space_md;
+    data->space_xs = space_xs;
 
     const char* font_name = lv_xml_get_const(nullptr, "font_small");
     data->label_font = font_name ? lv_xml_get_font(nullptr, font_name) : &noto_sans_12;
+    data->label_line_h = data->label_font ? lv_font_get_line_height(data->label_font) : 0;
 }
 
 // ============================================================================
@@ -154,9 +156,10 @@ static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32
 }
 
 // A junction's hub box: "Hub", or "Hub+BUF" in the buffer's tint when the hub
-// carries the buffer; "H" / "H+B" when the box is too narrow.
+// carries the buffer; "H" / "H+B" when the box is too narrow, and no text when
+// it is too short for a line of it.
 static void draw_junction_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
-                              int32_t w, int32_t h, lv_color_t bg, bool short_label,
+                              int32_t w, int32_t h, lv_color_t bg, bool short_label, bool labeled,
                               bool with_buffer, int fault, const char* buffer_label) {
     char label[24];
     const char* hub = short_label ? "H" : "Hub";
@@ -170,16 +173,14 @@ static void draw_junction_box(lv_layer_t* layer, const SystemPathData* data, int
         snprintf(label, sizeof(label), "%s", hub);
     }
     draw_hub_box(layer, cx, cy, w, h, bg, data->color_hub_border, data->color_text,
-                 data->label_font, data->border_radius, label);
+                 data->label_font, data->border_radius, labeled ? label : "");
 }
 
 // The single-toolhead layout's buffer, halfway down the trunk.
 static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
-    const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
-    draw_buffer_box(layer, data, L.center_x, hub_bottom + (nozzle_top - hub_bottom) / 2,
-                    data->hub_width * 2 / 3, L.hub_h * 2 / 3, data->buffer_fault,
-                    data->buffer_label);
+    const TrunkBuffer b = trunk_buffer(*data, L);
+    draw_buffer_box(layer, data, L.center_x, b.y, data->hub_width * 2 / 3, b.h, data->buffer_fault,
+                    b.labeled ? data->buffer_label : "");
 }
 
 // ============================================================================
@@ -234,11 +235,12 @@ static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
         const char* label = has_buffer ? data->unit_buffer_label[hi.buffer_unit] : "";
         if (hi.valid) {
             draw_junction_box(layer, data, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h,
-                              hi.hub_bg_color, hi.short_label, hi.buffer_in_hub, fault, label);
+                              hi.hub_bg_color, hi.short_label, hi.labeled, hi.buffer_in_hub, fault,
+                              label);
         }
         if (hi.buffer_h > 0 && has_buffer)
             draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h, fault,
-                            label);
+                            hi.labeled ? label : "");
     }
 }
 
@@ -313,8 +315,8 @@ static void system_path_draw_cb(lv_event_t* e) {
     } else {
         if (boxes.combiner) {
             draw_junction_box(layer, data, L.center_x, L.hub_y, data->hub_width, L.hub_h,
-                              boxes.combiner_bg, false, boxes.combiner_buffer, data->buffer_fault,
-                              data->buffer_label);
+                              boxes.combiner_bg, false, boxes.combiner_labeled,
+                              boxes.combiner_buffer, data->buffer_fault, data->buffer_label);
         }
         if (data->has_buffer && !boxes.combiner_buffer)
             draw_trunk_buffer(layer, data, L);

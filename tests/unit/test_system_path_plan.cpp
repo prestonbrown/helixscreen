@@ -250,7 +250,7 @@ TEST_CASE("Overview plan: a span too short to clamp into yields its midpoint",
     CHECK(clamp_span(30, 50, 10) == 20);
 }
 
-TEST_CASE("Overview plan: a bypass spool on a canvas too narrow for it stays centred",
+TEST_CASE("Overview plan: a bypass spool on a canvas too narrow for it stays centered",
           "[system_path][filament_path]") {
     auto d = multi();
     d->unit_count = 1;
@@ -982,10 +982,10 @@ struct MockUnit {
     int topology, tool_count, first_tool;
 };
 
-// The overview canvas as the panel fills it for a mock: card centres, tools,
+// The overview canvas as the panel fills it for a mock: card centers, tools,
 // the theme's sizes at that breakpoint, unit 0 active on tool 0.
 std::unique_ptr<SystemPathData> mock_rig(std::initializer_list<MockUnit> units, int tools,
-                                         int32_t extruder_scale) {
+                                         bool micro) {
     auto d = multi();
     d->unit_count = (int)units.size();
     int u = 0;
@@ -1003,7 +1003,11 @@ std::unique_ptr<SystemPathData> mock_rig(std::initializer_list<MockUnit> units, 
     d->active_tool = 0;
     d->hub_width = 70;
     d->tube_gauge = 5;
-    d->extruder_scale = extruder_scale;
+    // The breakpoint's own sizes: extruder scale, space_xs, and the line height
+    // of font_small (noto_sans_light_10 at 480x272, _12 at 800x480).
+    d->extruder_scale = micro ? 8 : 10;
+    d->space_xs = micro ? 2 : 4;
+    d->label_line_h = micro ? 15 : 18;
     d->toolhead_style = helix::ToolheadStyle::DEFAULT;
     return d;
 }
@@ -1017,12 +1021,11 @@ struct Rig {
 constexpr lv_area_t kPanel800 = {0, 0, 429, 283};   // the canvas at 800x480
 constexpr lv_area_t kPanelMicro = {0, 0, 284, 148}; // the canvas at 480x272
 
-// Card centres at 800x480 sit 110 px apart, at 480x272 86 px apart.
+// Card centers at 800x480 sit 110 px apart, at 480x272 86 px apart.
 std::vector<Rig> mock_rigs() {
     std::vector<Rig> rigs;
     for (const bool micro : {false, true}) {
         const int32_t x0 = micro ? 39 : 49, pitch = micro ? 86 : 110;
-        const int32_t scale = micro ? 8 : 10;
         const lv_area_t area = micro ? kPanelMicro : kPanel800;
         auto at = [&](int card) { return x0 + pitch * card; };
         rigs.push_back({micro ? "afc_direct micro" : "afc_direct",
@@ -1032,16 +1035,16 @@ std::vector<Rig> mock_rigs() {
                                   {at(3), 1, 1, 2},
                                   {at(4), 1, 1, 3},
                                   {at(5), 1, 1, 3}},
-                                 4, scale),
+                                 4, micro),
                         area});
         rigs.push_back(
             {micro ? "multi micro" : "multi",
-             mock_rig({{micro ? 80 : 99, 1, 1, 0}, {micro ? 230 : 309, 1, 1, 0}}, 1, scale), area});
+             mock_rig({{micro ? 80 : 99, 1, 1, 0}, {micro ? 230 : 309, 1, 1, 0}}, 1, micro), area});
         rigs.push_back({micro ? "mixed micro" : "mixed",
                         mock_rig({{micro ? 55 : 68, 2, 4, 0},
                                   {micro ? 170 : 215, 1, 1, 4},
                                   {micro ? 285 : 361, 1, 1, 5}},
-                                 6, scale),
+                                 6, micro),
                         area});
         rigs.push_back({micro ? "stealth micro" : "stealth",
                         mock_rig({{at(0), 2, 4, 0},
@@ -1049,7 +1052,7 @@ std::vector<Rig> mock_rigs() {
                                   {at(2), 1, 1, 5},
                                   {at(3), 1, 1, 6},
                                   {at(4), 1, 1, 6}},
-                                 7, scale),
+                                 7, micro),
                         area});
         rigs.push_back({micro ? "torture micro" : "torture",
                         mock_rig({{at(0), 1, 1, 0},
@@ -1057,13 +1060,13 @@ std::vector<Rig> mock_rigs() {
                                   {at(3), 1, 1, 3},
                                   {at(4), 1, 1, 3},
                                   {at(1), 1, 1, 0}},
-                                 4, scale),
+                                 4, micro),
                         area});
     }
     return rigs;
 }
 
-// A route's painted centreline, sampled about every pixel.
+// A route's painted centerline, sampled about every pixel.
 std::vector<pg::PathPoint> sample_route(const Route& r) {
     std::vector<pg::PathPoint> pts;
     for (int k = 0; k < r.path.count; k++) {
@@ -1115,7 +1118,7 @@ struct Clash {
     pg::PathPoint at;
 };
 
-// Every pair of routes whose painted centrelines come closer than @p min_gap
+// Every pair of routes whose painted centerlines come closer than @p min_gap
 // outside the meeting places, with the closest point.
 std::vector<Clash> route_clashes(const PathPlan& plan, const std::vector<Box>& meet,
                                  float min_gap) {
@@ -1169,4 +1172,53 @@ TEST_CASE("Overview plan: routes on the mock rigs keep apart outside their boxes
             CHECK(c.distance >= min_gap);
         }
     }
+}
+
+TEST_CASE("Overview plan: every labelled box on the mock rigs is tall enough for its label",
+          "[system_path][route_spacing]") {
+    for (const Rig& rig : mock_rigs()) {
+        CAPTURE(rig.name);
+        SystemPathData& d = *rig.data;
+        // A buffer on the last unit and on the trunk, so buffer boxes are judged too.
+        d.has_buffer = true;
+        d.unit_has_buffer[d.unit_count - 1] = true;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        for (const HubInfo& h : boxes.hubs) {
+            // Each rig has the room to label its boxes.
+            CHECK(h.labeled);
+            if (h.valid)
+                CHECK(h.mini_hub_h >= d.label_line_h);
+            if (h.buffer_h > 0)
+                CHECK(h.buffer_h >= d.label_line_h);
+        }
+        if (boxes.combiner) {
+            CHECK(boxes.combiner_labeled);
+            CHECK(L.hub_h >= d.label_line_h);
+        }
+        if (!L.multi_tool) {
+            const TrunkBuffer b = trunk_buffer(d, L);
+            CHECK(b.labeled);
+            CHECK(b.h >= d.label_line_h);
+        }
+    }
+}
+
+TEST_CASE("Overview plan: a box too short for its label and without room to grow has none",
+          "[system_path]") {
+    auto d = two_toolheads(false);
+    d->label_line_h = 400; // taller than the whole canvas
+    const auto p = plan_boxes(*d);
+    const HubInfo& hub = p->boxes.hubs[0];
+    REQUIRE(hub.valid);
+    CHECK_FALSE(hub.labeled);
+    CHECK(hub.mini_hub_h < 400);
+
+    auto single = multi();
+    single->label_line_h = 400;
+    const auto q = plan_boxes(*single);
+    CHECK(q->boxes.combiner);
+    CHECK_FALSE(q->boxes.combiner_labeled);
 }
