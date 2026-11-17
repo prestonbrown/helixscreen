@@ -311,6 +311,7 @@ void DisplaySettingsManager::init_subjects() {
         set_saved_date_format(std::nullopt);
         lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
     }
+    follow_language_clock();
 
     // Has backlight control subject (for UI visibility) - check DisplayManager
     bool has_backlight = false;
@@ -895,6 +896,26 @@ void DisplaySettingsManager::on_language_changed() {
     if (subjects_initialized_ && !has_saved_date_format()) {
         lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
     }
+    if (subjects_initialized_) {
+        follow_language_clock();
+    }
+}
+
+bool DisplaySettingsManager::has_saved_time_format() const {
+    Config* config = Config::get_instance();
+    return config &&
+           config->exists(kDisplaySettings[static_cast<size_t>(Key::TimeFormat)].json_path);
+}
+
+void DisplaySettingsManager::follow_language_clock() {
+    if (has_saved_time_format()) {
+        return;
+    }
+    // The subject holds the language's clock without saving it, so get_time_format(),
+    // which formatters on other threads call, reads it as it reads a saved choice.
+    Config* config = Config::get_instance();
+    const bool clock_24h = default_24h_clock_for_language(config ? config->get_language() : "");
+    lv_subject_set_int(settings_.subject(Key::TimeFormat), clock_24h ? 1 : 0);
 }
 
 void DisplaySettingsManager::set_gcode_render_mode(int mode) {

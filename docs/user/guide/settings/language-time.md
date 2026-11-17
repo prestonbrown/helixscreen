@@ -35,7 +35,7 @@ The BTT K-Touch has no System entry, because it has no timezone of its own. The 
 
 ## Time Format
 
-**12 Hour** (such as 3:45 PM, the default) or **24 Hour** (such as 15:45). Applies to every time shown in HelixScreen.
+**12 Hour** (such as 3:45 PM) or **24 Hour** (such as 15:45). Applies to every time shown in HelixScreen. Until you pick one, the format follows your language: English reads 12-hour, and English (UK) and the other languages read 24-hour.
 
 ---
 

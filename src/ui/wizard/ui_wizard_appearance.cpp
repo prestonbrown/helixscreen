@@ -10,6 +10,7 @@
 #include "config.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
+#include "display_settings_manager.h"
 #include "region_defaults.h"
 #include "system_settings_manager.h"
 #include "theme_loader.h"
@@ -22,14 +23,9 @@
 namespace helix::wizard {
 
 namespace {
-constexpr const char* kTimeFormatKey = "/display/time_format";
 constexpr const char* kTempUnitKey = "/display/temp_unit";
 constexpr const char* kDateFormatKey = "/display/date_format";
 } // namespace
-
-TimeFormat default_time_format_for_language(const std::string& language) {
-    return default_24h_clock_for_language(language) ? TimeFormat::HOUR_24 : TimeFormat::HOUR_12;
-}
 
 bool timezone_needs_attention(bool follows_system, bool system_zone_known) {
     return follows_system && !system_zone_known;
@@ -116,13 +112,9 @@ void WizardAppearanceStep::register_callbacks() {
 lv_obj_t* WizardAppearanceStep::create(lv_obj_t* parent) {
     init_subjects();
 
-    // An unpicked clock format takes the chosen language's, persisted so
-    // Settings shows the same value.
+    // An unpicked clock format already shows the chosen language's
+    // (DisplaySettingsManager follows the language until one is picked).
     Config* config = Config::get_instance();
-    if (config && !config->exists(kTimeFormatKey)) {
-        DisplaySettingsManager::instance().set_time_format(
-            default_time_format_for_language(SystemSettingsManager::instance().get_language()));
-    }
     // Units nobody picked follow the region: saved now, and again whenever the
     // timezone changes on this page, until a row is picked by hand.
     temp_unit_follows_region_ = config && !config->exists(kTempUnitKey);

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "core/subject.h"
-#include "display_settings_manager.h" // helix::TimeFormat
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -10,10 +9,6 @@
 #include <string>
 
 namespace helix::wizard {
-
-/// The 12/24-hour default a language implies: English reads a 12-hour clock,
-/// every other offered language a 24-hour one.
-TimeFormat default_time_format_for_language(const std::string& language);
 
 /// Whether the timezone row should draw attention: the zone still follows the
 /// system and the system has none, so every clock reads UTC by accident.
