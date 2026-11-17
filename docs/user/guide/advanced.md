@@ -88,7 +88,7 @@ Browse and execute all of your Klipper macros.
 
 **Opening the Macros panel:**
 
-- Navigate to **Advanced > Macros**, or
+- Navigate to **Advanced > Macro Browser**, or
 - Add the **Macros** widget to your home panel for one-tap access
 
 **Browsing macros:**
