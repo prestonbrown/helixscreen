@@ -31,21 +31,19 @@ void WizardScreenPowerStep::register_callbacks() {
 
 lv_obj_t* WizardScreenPowerStep::create(lv_obj_t* parent) {
     init_subjects();
-    root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_screen_power", nullptr));
-    if (!root_) {
+    auto* root = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_screen_power", nullptr));
+    if (!root) {
         spdlog::error("[{}] Failed to create screen from XML", log_name());
         return nullptr;
     }
-    helix::settings::select_brightness_slider(root_);
-    helix::settings::populate_screensaver_row(root_);
-    helix::settings::select_dim_rows(root_);
-    helix::settings::select_sleep_row(root_);
-    helix::settings::populate_ui_scale_row(root_, UiScaleOffer::Fitting);
-    return root_;
+    helix::settings::select_brightness_slider(root);
+    helix::settings::populate_screensaver_row(root);
+    helix::settings::select_dim_rows(root);
+    helix::settings::select_sleep_row(root);
+    helix::settings::populate_ui_scale_row(root, UiScaleOffer::Fitting);
+    return root;
 }
 
-void WizardScreenPowerStep::cleanup() {
-    root_ = nullptr;
-}
+void WizardScreenPowerStep::cleanup() {}
 
 } // namespace helix::wizard

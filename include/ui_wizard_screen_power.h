@@ -42,7 +42,6 @@ class WizardScreenPowerStep : public Step {
     void cleanup() override;
 
   private:
-    lv_obj_t* root_ = nullptr;
     SubjectManager subjects_;
     helix::Subject show_ui_scale_{};
 };
