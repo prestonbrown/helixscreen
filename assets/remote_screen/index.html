@@ -16,7 +16,7 @@
   .badge { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
            background: rgba(0,0,0,.65); padding: 4px 10px; border-radius: 4px; display: none; }
   #pair { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-          background: rgba(0,0,0,.6); }
+          background: #111; }
   #pair form { background: #222; padding: 20px 24px; border-radius: 8px; max-width: 340px;
                text-align: center; }
   #pair h1 { font-size: 18px; margin: 0 0 8px; }
@@ -53,7 +53,7 @@
   var kRetryMs = 1000;
   var kInfoMs = 5000;
   var timer = null;
-  var info = { w: 0, h: 0, control: false, paired: false };
+  var info = null;
   // The pairing token lives in this page's storage and goes out as a header: Mainsail
   // opened by host name frames this page from the printer's IP, another site, and a
   // cross-site frame is sent no cookies.
@@ -75,14 +75,20 @@
   }
 
   // --- the picture ---------------------------------------------------------
+  // The screen is fetched only once the server has said what this browser may do, and
+  // never while the pairing prompt covers it.
+  function pairing() { return !!(info && info.control && !info.paired); }
+
   function schedule(ms) {
     clearTimeout(timer);
-    if (!document.hidden) timer = setTimeout(next, ms);
+    timer = null;
+    if (!document.hidden && info && !pairing()) timer = setTimeout(next, ms);
   }
 
   function next() {
     var probe = new Image();
     probe.onload = function () {
+      if (pairing()) return;
       img.src = probe.src;
       setStatus("");
       schedule(kPollMs);
@@ -104,12 +110,21 @@
     fetch("info", { cache: "no-store", headers: authHeaders() })
       .then(function (r) { return r.json(); })
       .then(function (j) {
+        var polling = info && !pairing();
         info = j;
         img.classList.toggle("control", !!(info.control && info.paired));
         show(viewonly, !info.control);
-        show(pair, !!(info.control && !info.paired));
+        show(pair, pairing());
+        if (pairing()) {
+          schedule(0);
+          img.removeAttribute("src");
+        } else if (!polling) {
+          schedule(0);
+        }
       })
-      .catch(function () {});
+      .catch(function () {
+        if (!info) setStatus("Waiting for the printer screen…");
+      });
   }
   setInterval(refreshInfo, kInfoMs);
 
@@ -175,14 +190,14 @@
 
   function imagePoint(e) {
     var rect = img.getBoundingClientRect();
-    var w = img.naturalWidth || info.w, h = img.naturalHeight || info.h;
+    var w = img.naturalWidth || (info && info.w), h = img.naturalHeight || (info && info.h);
     if (!rect.width || !rect.height || !w || !h) return null;
     var x = Math.floor((e.clientX - rect.left) * w / rect.width);
     var y = Math.floor((e.clientY - rect.top) * h / rect.height);
     return { x: Math.max(0, Math.min(w - 1, x)), y: Math.max(0, Math.min(h - 1, y)) };
   }
 
-  function canControl() { return info.control && info.paired; }
+  function canControl() { return !!(info && info.control && info.paired); }
 
   img.addEventListener("pointerdown", function (e) {
     if (!canControl()) return;
@@ -208,7 +223,6 @@
   img.addEventListener("pointercancel", release);
 
   refreshInfo();
-  next();
 })();
 </script>
 </body>

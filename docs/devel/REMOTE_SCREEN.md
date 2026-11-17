@@ -16,6 +16,8 @@ HelixScreen serves its own UI as a Mainsail/Fluidd webcam and accepts taps and d
 | `include/remote_screen_settings_manager.h` | The settings and the subjects the Screen Sharing page binds to |
 | `include/ui_settings_screen_sharing.h` | The Screen Sharing page under Settings > Connection: the toggles and the pairing rows |
 | `include/remote_screen_webcam.h` | The Moonraker webcam entry and its sync |
+| `include/screen_secrets.h` | The widgets that show a secret, and whether one is on the display |
+| `include/bitmap_font_5x7.h` | The font the placeholder frame is drawn with |
 | `include/remote_pointer.h` | The synthetic LVGL pointer shared with `helix-screen ctl` |
 | `assets/remote_screen/index.html` | The page: polls snapshots, sends pointer events, pairs |
 | `scripts/lib/installer/remote_screen.sh` | The nginx route and its removal |
@@ -66,7 +68,8 @@ All relative to the mount (`/helixscreen/screen/` behind nginx, `/` on the LAN p
 1. Off until the user turns it on, on the device. Control is a second opt-in and only holds while view is on. View, control and the webcam entry are per printer (`/printers/<id>/remote_screen/{enabled,control,webcam}`); the pairing code, paired tokens and port belong to the screen and stay global.
 2. **Behind nginx** (`config/.remote_screen_route` exists and Moonraker runs on this host): the server binds `127.0.0.1`. The installer's `location /helixscreen/screen/` block runs `auth_request` against Moonraker's `/access/user`, so whoever Moonraker would let in may view and control. The block forwards `Host $http_host`, which the Origin check needs. The installer adds the block only when nginx has `auth_request` and Moonraker answers `/access/user` with 200 or 401; otherwise it writes no route file and the server faces the LAN.
 3. **On the LAN** (no route file, or a screen pointed at another host's Moonraker): the server binds `0.0.0.0`. View is open; control needs a paired browser. The device shows a 6-digit code (`/remote_screen/pair_secret`); `POST pair` with it returns a 128-bit token as an `HttpOnly; SameSite=Strict` one-year cookie. Up to 8 browsers stay paired, least recently used evicted. 5 wrong codes per minute, then 429; 50 cumulative wrong codes rotate the code. "Forget Paired Browsers" clears all tokens and rotates the code.
-4. **Cross-site requests** (`check_touch_request`): `touch` and `pair` need `Content-Type: application/json` and `X-Helix-Touch: 1`, which together force a CORS preflight the server never answers, and an `Origin` (when sent) whose authority matches `Host`.
+4. **The code never leaves the device in a frame.** The Screen Sharing page marks its pairing code row with `helix::ui::mark_screen_secret`. The flush hook stamps every frame with `helix::ui::screen_secret_state()` (main thread): Shown while a marked widget is `lv_obj_is_visible`, Unknown with no display. A frame stamped anything but Absent leaves the shadow unclean, and `ScreenFrameStore::snapshot` then serves a placeholder (gray, `kScreenHiddenMessage` centered) on both `snapshot.jpg` and `stream.mjpg`. The shadow is clean again only when a full repaint drawn with the code Absent completes, which the store asks for through `note_request`. The page itself stops polling while it shows the pairing prompt. Any new widget that renders the code must be marked the same way.
+5. **Cross-site requests** (`check_touch_request`): `touch` and `pair` need `Content-Type: application/json` and `X-Helix-Touch: 1`, which together force a CORS preflight the server never answers, and an `Origin` (when sent) whose authority matches `Host`.
 
 ## Why nginx, and no Moonraker-plugin route
 
@@ -101,6 +104,7 @@ the server faces the LAN with pairing; the Pi's MainsailOS nginx has it.
 | `[remote_screen][blit]` | Format pairs, partial-mode origin, both bounds guards |
 | `[jpeg]` | Encode/decode round trip, conversion |
 | `[remote_screen][server_sink]` | Viewer gating, cache, rate cap, resize |
+| `[remote_screen][secret]` | Placeholder while the code is shown, the full-repaint rule, the marked-widget state, the Screen Sharing page's row |
 | `[remote_screen][http]` | Routes, 503 path, stream, stop() promptness |
 | `[remote_screen][control]` | Gate table, pairing, stale press, indicator, touches through LVGL |
 | `[remote_screen][settings]` | Settings rules, service start/stop |

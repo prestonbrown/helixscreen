@@ -8,6 +8,7 @@
 
 #include "../test_helpers/raw_http_client.h"
 #include "../test_helpers/sanitizer_build.h"
+#include "jpeg_encode.h"
 #include "remote_screen_control.h"
 #include "remote_screen_http_server.h"
 #include "remote_screen_server_sink.h"
@@ -48,6 +49,7 @@ struct Frame {
         f.disp_h = h;
         f.src_stride = static_cast<uint32_t>(w * 4);
         f.src_format = RemoteScreenPixelFormat::BGRA8888;
+        f.secret = ScreenSecret::Absent;
     }
 };
 
@@ -433,6 +435,40 @@ TEST_CASE("stream: first two parts are JPEGs with the boundary", "[remote_screen
         ++parts;
     }
     CHECK(parts >= 2);
+}
+
+namespace {
+
+std::string placeholder_jpeg_bytes(int w, int h) {
+    std::vector<uint8_t> rgb;
+    draw_screen_placeholder_rgb888(w, h, rgb);
+    std::vector<uint8_t> jpeg;
+    REQUIRE(encode_jpeg_rgb888(rgb.data(), w, h, kRemoteScreenJpegQuality, jpeg));
+    return std::string(jpeg.begin(), jpeg.end());
+}
+
+} // namespace
+
+TEST_CASE("http: snapshot and stream serve the placeholder while the pairing code is shown",
+          "[remote_screen][http][secret]") {
+    ServerFixture fx;
+    fx.store->note_request();
+    fx.capture(32, 24);
+    auto live = raw_http(fx.server->port(), "GET", "/snapshot.jpg");
+    REQUIRE(live.status == 200);
+    const std::string placeholder = placeholder_jpeg_bytes(32, 24);
+    REQUIRE(live.body != placeholder);
+
+    Frame code(32, 24);
+    code.f.secret = ScreenSecret::Shown;
+    fx.store->on_frame(code.f);
+    auto hidden = raw_http(fx.server->port(), "GET", "/snapshot.jpg?viewer=1");
+    REQUIRE(hidden.status == 200);
+    CHECK(hidden.body == placeholder);
+
+    const std::string raw = read_stream(fx.server->port(), 1, 5s);
+    CHECK(raw.find(placeholder) != std::string::npos);
+    CHECK(raw.find(live.body) == std::string::npos);
 }
 
 TEST_CASE("stream: stop() ends an open stream within 1s", "[remote_screen][http]") {

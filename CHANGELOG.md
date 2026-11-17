@@ -95,6 +95,7 @@ is out.
 - **Debug bundles explain a Klipper that stopped** - a debug bundle now includes the kernel's out-of-memory and crash records, so it can show whether Klipper was killed for lack of memory or crashed. When Klipper writes its log somewhere other than the file Moonraker serves, the bundle reads the log Klipper is actually writing, and it marks a Klipper log that is older than Klipper's latest start. It also includes the HelixScreen launcher log, which records every time the screen app exited and why.
 - **Unit cards on the Multi-Filament Overview show every lane** - the filament color bars now span the whole card instead of sharing it with the temperature and humidity box, which cut them down to one or two bars and a "..." in place of the lane count. When the card has room, the temperature and humidity sit on one line under the bars. When it does not, the card leaves them out, and tapping the unit still shows them.
 - **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer adds HelixScreen to Moonraker's list of services it may manage, it now restarts Moonraker so the list takes effect. Before, a reinstall that only added HelixScreen to that list left it out until Moonraker next restarted.
+- **Shared screen hides the pairing code** - the remote screen hides the printer's display while it shows the pairing code, and shows the browser a plain screen saying so until the code is gone. The browser page also stops loading the screen while it asks for the code.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
