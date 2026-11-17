@@ -232,6 +232,12 @@ class CfsTestAccess {
         b.system_info_.filament_loaded = detected;
     }
 
+    /// Seed the box's spool-used-up latch (box.filament_useup).
+    static void set_filament_runout(helix::printer::AmsBackendCfs& b, bool runout) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.system_info_.filament_runout = runout;
+    }
+
     /// Run the real completion path (the gcode-script success callback body),
     /// including phase verification.
     static void complete_action(helix::printer::AmsBackendCfs& b) {

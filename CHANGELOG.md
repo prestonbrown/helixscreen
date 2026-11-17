@@ -99,6 +99,7 @@ is out.
 - **One dialog on a Happy Hare 4.2 pause** - when Happy Hare 4.2 pauses a print, HelixScreen now closes Happy Hare's own Pause Notice when its recovery dialog opens, as it already did with the Error Notice of earlier versions. Before, both dialogs stayed on screen.
 - **Screen Sharing behind a reverse proxy** - taps on the shared screen now work through a reverse proxy in front of the printer that sends the browser's host name in `X-Forwarded-Host` or `Forwarded`, on printers where Moonraker decides who gets in. Opening the screen address without its final slash now stays on the proxy's address instead of jumping to the printer's own. An existing setup gets this the next time the HelixScreen installer runs.
 - **No tool shown mounted on a parked AFC toolchanger** - on a toolchanger run by AFC, parking every head now shows no tool on the carriage. Before, the screen kept showing the first tool, or the tool whose lane AFC last loaded, as mounted. AFC printers with a single toolhead are unchanged.
+- **Unloading a CFS spool that ran out** - when the CFS reports that a spool ran out while filament is still in the toolhead, Unload no longer runs the cut and retract that cannot pull it back and then reports a failure. It tells you to remove the leftover filament by hand instead.
 
 ## [1.1.0-rc.2] - UNRELEASED
 

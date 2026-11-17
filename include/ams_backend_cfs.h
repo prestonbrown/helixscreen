@@ -1471,6 +1471,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     // real completion path instead of a copy of it.
     void finish_action();
 
+    // The box reports its spool used up (box.filament_useup) while the toolhead
+    // switch reads filament: a strand the box no longer holds, which no box
+    // retract can pull back. False without a real switch reading. Takes mutex_.
+    [[nodiscard]] bool leftover_strand_without_spool() const;
+
     // Drive phase machine on signal changes. Caller must hold mutex_.
     void on_filament_transition_locked(bool new_detected);
     void on_extruder_temp_change_locked(int new_temp_deci, int new_target_deci);
