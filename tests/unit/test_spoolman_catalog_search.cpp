@@ -197,6 +197,8 @@ TEST_CASE("find_similar_filament offers the nearest colour of the same material"
     // A string that is not a colour normalizes to none, so it offers nothing.
     CHECK(helix::spoolman::normalize_color_hex("red").empty());
     CHECK(helix::spoolman::normalize_color_hex("12345").empty());
+    // Names compare by words: case, padding and whitespace runs do not count.
+    CHECK(helix::spoolman::normalized_name("  PLA \t  Matte\nBlack ") == "pla matte black");
 }
 
 TEST_CASE("filament_display_name names a record with no name by its material and colour",
