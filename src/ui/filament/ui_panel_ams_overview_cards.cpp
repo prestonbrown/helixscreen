@@ -16,6 +16,7 @@
 
 #include "ams_backend.h"
 #include "ams_dryer.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "ams_unit_pages.h"
@@ -113,7 +114,7 @@ static uint32_t upstream_lane_mask(const AmsUnit& unit) {
     uint32_t mask = 0;
     const int lanes = static_cast<int>(unit.slots.size());
     for (int s = 0; s < lanes && s < 32; ++s) {
-        if (backend->upstream_slot(unit.first_slot_global_index + s).has_value()) {
+        if (helix::upstream_slot(*backend, unit.first_slot_global_index + s).has_value()) {
             mask |= (1u << s);
         }
     }

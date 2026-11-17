@@ -13,6 +13,7 @@
 #include "ui_utils.h"
 
 #include "ams_lane_state.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/data_root_resolver.h"
@@ -351,7 +352,7 @@ static void apply_badge_number(AmsSlotData* data) {
     if (!data || !data->slot_badge)
         return;
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
-    const int number = backend ? backend->spool_display_number(data->slot_index)
+    const int number = backend ? helix::spool_display_number(*backend, data->slot_index)
                                : helix::ui::lane_number(data->slot_index);
     lv_label_set_text(data->slot_badge, ams_draw::lane_badge_text(number).c_str());
 }

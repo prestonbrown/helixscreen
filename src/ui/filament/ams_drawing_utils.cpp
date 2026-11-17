@@ -3,6 +3,7 @@
 #include "ui/ams_drawing_utils.h"
 
 #include "ams_backend.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "display_numbering.h"
 #include "sort_small.h"
@@ -906,7 +907,7 @@ std::vector<int> hub_groups_of_tool(const ams_draw::SystemToolLayout& layout, in
 
 std::string upstream_lane_caption(const helix::AmsSystemInfo& info,
                                   const helix::AmsBackend& backend, int slot) {
-    const auto upstream = backend.upstream_slot(slot);
+    const auto upstream = helix::upstream_slot(backend, slot);
     if (!upstream) {
         return {};
     }

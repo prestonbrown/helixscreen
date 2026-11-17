@@ -5,6 +5,7 @@
 
 #include "ams_backend_snapmaker.h"
 #include "ams_dryer.h"
+#include "ams_shared_spool_lanes.h"
 #include "multiace_status.h"
 
 #include <array>
@@ -31,11 +32,16 @@ namespace helix {
  * Until a frame shows api_version 1 and a multi or head mode, this backend
  * answers exactly as the base does: no ACE units, the stock feed path.
  */
-class AmsBackendMultiAce : public AmsBackendSnapmaker, public helix::IDryer {
+class AmsBackendMultiAce : public AmsBackendSnapmaker,
+                           public helix::IDryer,
+                           public helix::ISharedSpoolLanes {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IDryer>()) {
             return static_cast<helix::IDryer*>(this);
+        }
+        if (tag == helix::type_tag<helix::ISharedSpoolLanes>()) {
+            return static_cast<helix::ISharedSpoolLanes*>(this);
         }
         return AmsBackendSnapmaker::capability(tag);
     }

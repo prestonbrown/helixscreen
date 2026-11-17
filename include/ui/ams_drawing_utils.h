@@ -36,7 +36,7 @@ struct HubGroup {
  * @brief Caption naming the lane whose spool feeds @p slot: the upstream
  *        lane's unit and position, "ACE 2 · 3"
  *
- * Built from the backend's upstream_slot(): empty when the lane's spool is its
+ * Built from helix::upstream_slot(): empty when the lane's spool is its
  * own, when it has no backend answer, or when the upstream lane is not one
  * this system shows. The position is 1-based inside its unit, spelled with the
  * shared unit separator.

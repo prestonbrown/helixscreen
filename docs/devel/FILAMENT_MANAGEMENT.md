@@ -3672,6 +3672,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `IFirmwarePromptDedup` (`include/ams_firmware_prompt_dedup.h`) -- Whether a firmware prompt is the backend's own
   dialog for a fault the recovery popup shows, and which of its buttons are the dialog's own. The recovery
   presenter closes such a prompt. Happy Hare implements it.
+- `ISharedSpoolLanes` (`include/ams_shared_spool_lanes.h`) -- A lane showing another lane's spool, and the badge
+  number that counts each spool once. MultiACE implements it. Generic code calls the free `helix::upstream_slot()`
+  and `helix::spool_display_number()`, which answer nullopt and the lane's global number without it.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

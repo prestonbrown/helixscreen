@@ -9,6 +9,7 @@
 #include "ams_backend_lane_status.h"
 #include "ams_backend_openams.h"
 #include "ams_dryer.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
 #include "settings_manager.h"
@@ -415,6 +416,16 @@ std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(i
 DryerInfo dryer_info(const AmsBackend& backend, int unit) {
     const IDryer* const dryer = backend.as<IDryer>();
     return dryer ? dryer->get_dryer_info(unit) : DryerInfo{.supported = false};
+}
+
+std::optional<int> upstream_slot(const AmsBackend& backend, int slot_index) {
+    const auto* const shared = backend.as<ISharedSpoolLanes>();
+    return shared ? shared->upstream_slot(slot_index) : std::nullopt;
+}
+
+int spool_display_number(const AmsBackend& backend, int slot_index) {
+    const auto* const shared = backend.as<ISharedSpoolLanes>();
+    return shared ? shared->spool_display_number(slot_index) : ui::lane_number(slot_index);
 }
 
 HeadFilamentOps AmsBackend::head_filament_ops(int /*head*/) const {

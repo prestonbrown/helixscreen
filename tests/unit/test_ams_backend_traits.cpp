@@ -192,6 +192,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const ISpoolRetention* retention = nullptr;
         const IClogDetectionConfig* clog = nullptr;
         const IFirmwarePromptDedup* prompt_dedup = nullptr;
+        const ISharedSpoolLanes* shared_spools = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -200,7 +201,8 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
          .steps = &multi_ace,
          .insert = &multi_ace,
          .dryer = &multi_ace,
-         .routing = &multi_ace},
+         .routing = &multi_ace,
+         .shared_spools = &multi_ace},
         {.backend = &openams, .dryer = &openams},
         {.backend = &qidi, .dryer = &qidi},
         {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
@@ -230,6 +232,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<ISpoolRetention>() == row.retention);
         CHECK(row.backend->as<IClogDetectionConfig>() == row.clog);
         CHECK(row.backend->as<IFirmwarePromptDedup>() == row.prompt_dedup);
+        CHECK(row.backend->as<ISharedSpoolLanes>() == row.shared_spools);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);

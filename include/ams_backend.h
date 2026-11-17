@@ -1036,32 +1036,6 @@ class AmsBackend : public AmsCapabilityHost {
         return false;
     }
 
-    /**
-     * @brief The lane whose spool is this lane's, when the two lanes share one
-     *
-     * A lane fed from storage upstream (a bay routed to a toolhead lane) shows
-     * another lane's spool: the spool's home is the bay, and the fed lane is
-     * the same filament's path onward. nullopt when the lane's spool is its
-     * own, which is every lane on a backend that does not answer this.
-     */
-    [[nodiscard]] virtual std::optional<int> upstream_slot(int slot_index) const {
-        (void)slot_index;
-        return std::nullopt;
-    }
-
-    /**
-     * @brief The number a spool badge shows for this lane
-     *
-     * The base numbers lanes in global order. A backend whose lanes
-     * share spools resolves through upstream_slot(), so a fed lane and the
-     * storage lane feeding it wear one number and each spool counts once.
-     *
-     * @return the number, or a negative value for a lane with none to show
-     */
-    [[nodiscard]] virtual int spool_display_number(int slot_index) const {
-        return ui::lane_number(slot_index);
-    }
-
     // ========================================================================
     // Filament Operations
     // ========================================================================
