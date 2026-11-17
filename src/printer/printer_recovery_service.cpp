@@ -40,6 +40,20 @@ bool firmware_restart_unrecoverable(const MoonrakerError& err) {
     return false;
 }
 
+/// What the user is told when the last step, machine.services.restart, fails.
+/// A dropped or timed-out request may still be restarting Klipper and keeps its
+/// own error, which callers read to hold their restart window open. Any answer
+/// Moonraker gave is a refusal, such as "not allowed" from a Moonraker with no
+/// service manager, and every step of the chain has now been tried.
+MoonrakerError service_restart_failure(const MoonrakerError& err) {
+    if (err.type == MoonrakerErrorType::CONNECTION_LOST || err.type == MoonrakerErrorType::TIMEOUT)
+        return err;
+    return MoonrakerError::refusal(
+        "machine.services.restart",
+        TR_NOOP("HelixScreen cannot restart Klipper on this printer. Turn the printer off "
+                "and on again to restart it."));
+}
+
 /// One recovery chain at a time, process-wide: two would race their restarts
 /// and each would read the other's Klippy bounce as its own.
 std::atomic<bool> g_chain_running{false};
@@ -308,7 +322,7 @@ void PrinterRecoveryService::recover(SuccessCallback on_success, ErrorCallback o
             [on_error](const MoonrakerError& err) {
                 spdlog::warn("[Recovery] services.restart klipper failed: {} (code={})",
                              err.message, err.code);
-                on_error(err);
+                on_error(service_restart_failure(err));
             });
     };
 

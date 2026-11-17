@@ -243,6 +243,50 @@ TEST_CASE_METHOD(RecoveryFixture,
 }
 
 TEST_CASE_METHOD(RecoveryFixture,
+                 "Recovery: a service restart Moonraker refuses reports why, not Moonraker's text",
+                 "[recovery]") {
+    // A Moonraker with no service manager (`[machine] provider: none`) refuses
+    // machine.services.restart for every service.
+    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN,
+                                          503,
+                                          "Klippy Host not connected",
+                                          "printer.firmware_restart",
+                                          {}};
+    api_->service_error = MoonrakerError{MoonrakerErrorType::JSON_RPC_ERROR,
+                                         400,
+                                         "Service 'klipper' not allowed",
+                                         "machine.services.restart",
+                                         {}};
+
+    recover();
+    run_to_end();
+
+    REQUIRE(api_->service_restarts == 1);
+    REQUIRE(error_.has_value());
+    REQUIRE(error_->message_tag != nullptr);
+    REQUIRE(error_->user_message().find("not allowed") == std::string::npos);
+}
+
+TEST_CASE_METHOD(RecoveryFixture,
+                 "Recovery: a service restart that loses the connection keeps that error",
+                 "[recovery]") {
+    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN,
+                                          503,
+                                          "Klippy Host not connected",
+                                          "printer.firmware_restart",
+                                          {}};
+    api_->service_error = MoonrakerError::connection_lost("machine.services.restart");
+
+    recover();
+    run_to_end();
+
+    // A dropped connection may mean the restart is running; the caller keeps
+    // its restart window open on exactly this type.
+    REQUIRE(error_.has_value());
+    REQUIRE(error_->type == MoonrakerErrorType::CONNECTION_LOST);
+}
+
+TEST_CASE_METHOD(RecoveryFixture,
                  "Recovery: a Klippy still starting up is waited for, never scripted",
                  "[recovery]") {
     install_script(0);

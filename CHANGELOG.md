@@ -103,6 +103,7 @@ is out.
 - **Screen Sharing webcam keeps the screen's shape** - the HelixScreen Screen webcam that Mainsail and Fluidd show now gets the screen's own proportions, such as 5:3 on an 800x480 screen, instead of 4:3, so the tile no longer has bars or cuts off the picture. A webcam added before this update keeps the aspect ratio it has, including one you chose yourself. To have it set from the screen, turn Add to Mainsail/Fluidd Webcams off and on again.
 - **Clear Spool resets the gate temperature on Happy Hare** - clearing a gate now sets its temperature back to the printer's default extruder temperature on every Happy Hare version. Newer Happy Hare builds keep a gate's temperature unless it is named, so a cleared gate kept the old spool's temperature.
 - **Assigned Tool with AFC multiple tool mapping** - when multiple tool mapping is turned on in AFC, the Assigned Tool choice in the lane editor is disabled and says that tools are assigned in AFC. Before, choosing a tool there sent a change that AFC applied differently, so the lane kept showing its old tool.
+- **Clear message when Klipper cannot be restarted** - on a printer where Moonraker cannot restart services and HelixScreen has no recovery script of its own, such as a Snapmaker U1 running the extended firmware, Restart Klipper and Firmware Restart now say that the printer must be turned off and on again, instead of showing Moonraker's "not allowed" error.
 
 ## [1.1.0-rc.2] - UNRELEASED
 

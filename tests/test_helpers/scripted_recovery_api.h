@@ -32,9 +32,13 @@ class ScriptedRecoveryApi : public MoonrakerAPIMock {
     }
 
     void restart_service(const std::string& /*service_name*/, SuccessCallback on_success,
-                         ErrorCallback /*on_error*/) override {
+                         ErrorCallback on_error) override {
         ++service_restarts;
-        on_success();
+        if (service_error) {
+            on_error(*service_error);
+        } else {
+            on_success();
+        }
     }
 
     void get_klippy_status(KlippyStatusCallback on_result, ErrorCallback on_error) override {
@@ -51,6 +55,7 @@ class ScriptedRecoveryApi : public MoonrakerAPIMock {
     std::vector<KlippyStatus> statuses{{"startup", ""}};
     size_t status_errors = 0;
     std::optional<MoonrakerError> firmware_error;
+    std::optional<MoonrakerError> service_error;
     /// Keep the firmware_restart acceptance in held_firmware_ok instead of answering.
     bool hold_firmware_restart = false;
     SuccessCallback held_firmware_ok;
