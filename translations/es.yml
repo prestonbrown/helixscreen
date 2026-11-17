@@ -392,6 +392,9 @@ translations:
   Arrows + Home: 'Flechas + Inicio'
   Arrows: 'Flechas'
   Ask before switching to another tool: 'Preguntar antes de cambiar a otra herramienta'
+  Ask before the Advanced panel shuts down or reboots: 'Preguntar antes de que el panel Avanzado apague o reinicie'
+  Ask before turning off the stepper motors: 'Preguntar antes de desactivar los motores paso a paso'
+  Ask every time: 'Preguntar siempre'
   Ask for parameters: 'Preguntar parámetros'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Asignar macros
     de Klipper para controlar LEDs vía encendido/apagado, alternar o preajustes
@@ -963,7 +966,9 @@ translations:
   Confirm PIN: Confirmar PIN
   Confirm before running macros: Confirmar antes de ejecutar macros
   Confirm clearing the extruder to unload it: 'Confirma el vaciado del extrusor para descargar'
+  Confirm disabling motors: 'Confirmar la desactivación de motores'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Confirma solo cuando la última impresión ya no esté en la cama. Después, los movimientos dejan de elevarse por encima de ella."
+  Confirm shutdown and reboot: 'Confirmar apagado y reinicio'
   Confirm tool changes: 'Confirmar cambios de herramienta'
   Connect: Conectar
   Connect a USB label printer first: Conecte primero una impresora de etiquetas USB
@@ -2888,6 +2893,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Si las flechas Z siguen a la cama o al valor Z"
   Which belt is each path?: "¿Qué correa es cada ruta?"
   Which belt is which?: "¿Qué correa es cuál?"
+  Which computer the Advanced power rows act on: 'Qué equipo afectan las filas de energía de Avanzado'
   'Which lane is in the toolhead?': '¿Qué carril está en el cabezal?'
   'Choose which lane is in the toolhead to unload it': 'Elige qué carril está en el cabezal para descargarlo'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'No se cambió nada. La temperatura y el material se conservan, reintentar es un toque.'
@@ -3203,6 +3209,7 @@ translations:
   Previous: Anterior
   Previous IPv4 settings restored: 'Configuración IPv4 anterior restaurada'
   Price: Precio
+  'Price: {}': 'Precio: {}'
   Primary: Primario
   Priming nozzle...: Cebando boquilla...
   Priming...: Cebando...
@@ -3985,6 +3992,7 @@ translations:
   Shutdown failed: Error al apagar
   Shutdown failed — host is still reachable: Error al apagar — el host sigue accesible
   Shutdown/Reboot: 'Apagar/Reiniciar'
+  Shutdown/reboot target: 'Destino de apagado/reinicio'
   Shutting down printer...: Apagando impresora...
   Shutting down screen...: Apagando pantalla...
   Shutting down...: Apagando...
@@ -4679,6 +4687,7 @@ translations:
   : 'Esto reemplaza las macros de ayuda de la impresora por la versión actual. Hay una impresión en curso, así que Klipper se reiniciará al terminar.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Esto reemplaza el diseño de la pantalla de inicio de esta pantalla para esta impresora por el de la pantalla de la propia impresora."
   This resume needs a newer version of HelixScreen.: Esta reanudación necesita una versión más reciente de HelixScreen.
+  This screen: 'Esta pantalla'
   This slot feeds no tool: 'Esta ranura no alimenta ninguna herramienta'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar.'

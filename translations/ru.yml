@@ -436,6 +436,9 @@ translations:
   Arrows + Home: 'Стрелки + Домой'
   Arrows: 'Стрелки'
   Ask before switching to another tool: 'Спрашивать перед переключением на другой инструмент'
+  Ask before the Advanced panel shuts down or reboots: 'Спрашивать перед выключением или перезагрузкой из раздела Дополнительно'
+  Ask before turning off the stepper motors: 'Спрашивать перед отключением шаговых моторов'
+  Ask every time: 'Спрашивать каждый раз'
   Ask for parameters: 'Спрашивать параметры'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Назначьте
     макросы Klipper для управления LED через вкл/выкл, переключение или пресеты
@@ -1012,7 +1015,9 @@ translations:
   Confirm PIN: Подтвердите PIN
   Confirm before running macros: Подтверждать перед запуском макросов
   Confirm clearing the extruder to unload it: 'Подтвердите очистку экструдера, чтобы выгрузить'
+  Confirm disabling motors: 'Подтверждать отключение моторов'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Подтверждайте, только когда последняя печать снята со стола. После этого перемещения перестанут подниматься над ней."
+  Confirm shutdown and reboot: 'Подтверждать выключение и перезагрузку'
   Confirm tool changes: 'Подтверждать смену инструмента'
   Connect: Подключить
   Connect a USB label printer first: Сначала подключите USB-принтер этикеток
@@ -2933,6 +2938,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Следуют ли стрелки Z за столом или за значением Z"
   Which belt is each path?: "Какой ремень у каждого пути?"
   Which belt is which?: "Где какой ремень?"
+  Which computer the Advanced power rows act on: 'На какой компьютер действуют пункты питания в разделе Дополнительно'
   'Which lane is in the toolhead?': 'Какая дорожка в печатающей головке?'
   'Choose which lane is in the toolhead to unload it': 'Выберите, какая дорожка в печатающей головке, чтобы выгрузить её'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
@@ -3249,6 +3255,7 @@ translations:
   Previous: Прежняя
   Previous IPv4 settings restored: 'Прежние настройки IPv4 восстановлены'
   Price: Цена
+  'Price: {}': 'Цена: {}'
   Primary: Основной
   Priming nozzle...: Подготовка сопла...
   Priming...: Грунтование...
@@ -4035,6 +4042,7 @@ translations:
   Shutdown failed: Ошибка выключения
   Shutdown failed — host is still reachable: Ошибка выключения — хост всё ещё доступен
   Shutdown/Reboot: 'Выключение/Перезагрузка'
+  Shutdown/reboot target: 'Цель выключения/перезагрузки'
   Shutting down printer...: Выключение принтера...
   Shutting down screen...: Выключение экрана...
   Shutting down...: Выключение...
@@ -4727,6 +4735,7 @@ translations:
   : 'Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
+  This screen: 'Этот экран'
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'

@@ -357,6 +357,9 @@
   <translation tag="Arrows" ja="方向キー"/>
   <translation tag="Arrows + Home" ja="方向キー + ホーム"/>
   <translation tag="Ask before switching to another tool" ja="別のツールに切り替える前に確認する"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" ja="詳細設定からシャットダウンまたは再起動する前に確認する"/>
+  <translation tag="Ask before turning off the stepper motors" ja="ステッピングモーターをオフにする前に確認する"/>
+  <translation tag="Ask every time" ja="常に確認する"/>
   <translation tag="Ask for parameters" ja="パラメータを確認する"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
@@ -878,7 +881,9 @@
   <translation tag="Confirm PIN" ja="PIN を確認"/>
   <translation tag="Confirm before running macros" ja="マクロ実行前に確認する"/>
   <translation tag="Confirm clearing the extruder to unload it" ja="取り出すには、エクストルーダーを空にすることを確認してください"/>
+  <translation tag="Confirm disabling motors" ja="モーター無効化を確認する"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." ja="最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"/>
+  <translation tag="Confirm shutdown and reboot" ja="シャットダウンと再起動を確認する"/>
   <translation tag="Confirm tool changes" ja="ツール交換を確認する"/>
   <translation tag="Connect" ja="接続"/>
   <translation tag="Connect a USB label printer first" ja="先にUSBラベルプリンターを接続してください"/>
@@ -2950,6 +2955,7 @@
   <translation tag="Previous IPv4 settings restored" ja="以前のIPv4設定を復元しました"/>
   <translation tag="Price" ja="価格"/>
   <translation tag="Price, location, lot, notes" ja="価格、場所、ロット、メモ"/>
+  <translation tag="Price: {}" ja="価格: {}"/>
   <translation tag="Primary" ja="プライマリ"/>
   <translation tag="Priming nozzle..." ja="ノズルをプライム中..."/>
   <translation tag="Priming..." ja="プライミング中..."/>
@@ -3672,6 +3678,7 @@
   <translation tag="Shutdown failed" ja="シャットダウンに失敗しました"/>
   <translation tag="Shutdown failed — host is still reachable" ja="シャットダウンに失敗しました — ホストに依然として到達可能です"/>
   <translation tag="Shutdown/Reboot" ja="シャットダウン/再起動"/>
+  <translation tag="Shutdown/reboot target" ja="シャットダウン/再起動の対象"/>
   <translation tag="Shutting down printer..." ja="プリンターをシャットダウン中..."/>
   <translation tag="Shutting down screen..." ja="画面をシャットダウン中..."/>
   <translation tag="Shutting down..." ja="シャットダウン中..."/>
@@ -4272,6 +4279,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ja="プリンターのヘルパーマクロを現在のバージョンに置き換えます。印刷中のため、Klipper は印刷完了後に再起動されます。"/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ja="この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"/>
   <translation tag="This resume needs a newer version of HelixScreen." ja="この再開には新しいバージョンのHelixScreenが必要です。"/>
+  <translation tag="This screen" ja="この画面"/>
   <translation tag="This slot feeds no tool" ja="このスロットはどのツールにも供給しません"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ja="このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ja="このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。"/>
@@ -4639,6 +4647,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" ja="ZボタンがベッドとZ値のどちらに従うか"/>
   <translation tag="Which belt is each path?" ja="各パスはどのベルト?"/>
   <translation tag="Which belt is which?" ja="どのベルトがどれ?"/>
+  <translation tag="Which computer the Advanced power rows act on" ja="詳細設定の電源項目が操作するコンピューター"/>
   <translation tag="Which lane is in the toolhead?" ja="ツールヘッドに入っているのはどのレーンですか？"/>
   <translation tag="Which macro switches the ACE path back on" ja="ACE経路を再びオンにするマクロ"/>
   <translation tag="Which macro switches the ACE path off for bypass" ja="バイパスのためにACE経路をオフにするマクロ"/>

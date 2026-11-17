@@ -59,6 +59,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "SafetySettingsManager default values after in
         REQUIRE(SafetySettingsManager::instance().get_tool_change_require_confirmation() == true);
     }
 
+    SECTION("motors_off_require_confirmation defaults to true") {
+        REQUIRE(SafetySettingsManager::instance().get_motors_off_require_confirmation() == true);
+    }
+
+    SECTION("power_require_confirmation defaults to true") {
+        REQUIRE(SafetySettingsManager::instance().get_power_require_confirmation() == true);
+    }
+
+    SECTION("power_target defaults to asking every time") {
+        REQUIRE(SafetySettingsManager::instance().get_power_target() == PowerTarget::Ask);
+    }
+
     SECTION("min_toast_severity defaults to 0 (All) - no change for existing users") {
         // #1213: the gate must not suppress anything out of the box. Defaults to
         // the "All" rung so existing toast behaviour is unchanged until the user

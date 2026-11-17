@@ -11,6 +11,9 @@
  * test drives the real ConfirmationModal buttons over a mock client, so a
  * wording or wiring regression that reaches the wrong button - or no button -
  * shows up as a missing or spurious script in the client's history.
+ *
+ * With the Safety setting "Confirm disabling motors" off, the helper sends
+ * M84 itself and no dialog opens.
  */
 
 #include "ui_modal.h"
@@ -21,6 +24,7 @@
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "safety_settings_manager.h"
 
 #include <string>
 
@@ -119,4 +123,57 @@ TEST_CASE_METHOD(MotorsOffFixture, "motors off refuses a confirm made after a pr
 
     ps.update_from_status({{"print_stats", {{"state", "standby"}}}});
     settle();
+}
+
+TEST_CASE_METHOD(MotorsOffFixture, "motors off asks first while the confirm setting is on",
+                 "[controls][motors][safety]") {
+    auto& safety = helix::SafetySettingsManager::instance();
+    const bool saved = safety.get_motors_off_require_confirmation();
+    safety.set_motors_off_require_confirmation(true);
+
+    helix::ui::WidgetRef guard;
+    helix::ui::show_motors_off_confirm(&api, guard);
+    settle();
+
+    CHECK(guard.get() != nullptr);
+    CHECK_FALSE(sent_m84());
+
+    safety.set_motors_off_require_confirmation(saved);
+}
+
+TEST_CASE_METHOD(MotorsOffFixture, "motors off skips the dialog when the confirm setting is off",
+                 "[controls][motors][safety]") {
+    auto& safety = helix::SafetySettingsManager::instance();
+    const bool saved = safety.get_motors_off_require_confirmation();
+    safety.set_motors_off_require_confirmation(false);
+
+    helix::ui::WidgetRef guard;
+    helix::ui::show_motors_off_confirm(&api, guard);
+    settle();
+
+    CHECK(guard.get() == nullptr);
+    CHECK(Modal::get_top() == nullptr);
+    CHECK(sent_m84());
+
+    safety.set_motors_off_require_confirmation(saved);
+}
+
+TEST_CASE_METHOD(MotorsOffFixture, "motors off without a dialog still refuses during a print",
+                 "[controls][motors][safety]") {
+    auto& safety = helix::SafetySettingsManager::instance();
+    const bool saved = safety.get_motors_off_require_confirmation();
+    safety.set_motors_off_require_confirmation(false);
+    auto& ps = get_printer_state();
+    ps.update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+
+    helix::ui::WidgetRef guard;
+    helix::ui::show_motors_off_confirm(&api, guard);
+    settle();
+
+    CHECK_FALSE(sent_m84());
+
+    ps.update_from_status({{"print_stats", {{"state", "standby"}}}});
+    settle();
+    safety.set_motors_off_require_confirmation(saved);
 }

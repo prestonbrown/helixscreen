@@ -33,6 +33,10 @@ HELIX_PSRAM_BSS char s_filament_buf[128];
 HELIX_PSRAM_BSS helix::Subject s_filament_shown_subject;
 // 0 for the active spool: it is feeding the printer.
 HELIX_PSRAM_BSS helix::Subject s_archive_shown_subject;
+// "Price: €24.99", hidden when neither the spool nor its filament has a price.
+HELIX_PSRAM_BSS helix::Subject s_price_subject;
+HELIX_PSRAM_BSS char s_price_buf[64];
+HELIX_PSRAM_BSS helix::Subject s_price_shown_subject;
 
 void init_menu_subjects() {
     s_subjects.ensure_init([] {
@@ -44,6 +48,9 @@ void init_menu_subjects() {
                                s_subjects);
         UI_MANAGED_SUBJECT_INT(s_archive_shown_subject, 1, "spoolman_menu_archive_shown",
                                s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_price_subject, s_price_buf, "", "spoolman_menu_price",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_price_shown_subject, 0, "spoolman_menu_price_shown", s_subjects);
     });
 }
 } // namespace
@@ -66,7 +73,8 @@ SpoolmanContextMenu::~SpoolmanContextMenu() {
 
 SpoolmanContextMenu::SpoolmanContextMenu(SpoolmanContextMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
-      pending_spool_(std::move(other.pending_spool_)), archive_allowed_(other.archive_allowed_) {}
+      pending_spool_(std::move(other.pending_spool_)), archive_allowed_(other.archive_allowed_),
+      currency_(std::move(other.currency_)) {}
 
 SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other) noexcept {
     if (this != &other) {
@@ -75,6 +83,7 @@ SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other)
         action_callback_ = std::move(other.action_callback_);
         pending_spool_ = std::move(other.pending_spool_);
         archive_allowed_ = other.archive_allowed_;
+        currency_ = std::move(other.currency_);
     }
     return *this;
 }
@@ -88,12 +97,14 @@ void SpoolmanContextMenu::set_action_callback(ActionCallback callback) {
 }
 
 bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool,
-                                         lv_obj_t* near_widget, bool allow_archive) {
+                                         lv_obj_t* near_widget, bool allow_archive,
+                                         const std::string& currency) {
     register_callbacks();
 
     // Store spool info before base class calls on_created
     pending_spool_ = spool;
     archive_allowed_ = allow_archive;
+    currency_ = currency;
 
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
@@ -122,6 +133,12 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_subject_set_string(&s_filament_subject, pending_spool_.filament_name.c_str());
     lv_subject_set_int(&s_filament_shown_subject, pending_spool_.filament_name.empty() ? 0 : 1);
     lv_subject_set_int(&s_archive_shown_subject, archive_allowed_ ? 1 : 0);
+
+    const std::string price =
+        helix::format_price_with_currency(pending_spool_.effective_price(), currency_);
+    const std::string price_line = price.empty() ? "" : fmt::format(lv_tr("Price: {}"), price);
+    lv_subject_set_string(&s_price_subject, price_line.c_str());
+    lv_subject_set_int(&s_price_shown_subject, price.empty() ? 0 : 1);
 
     if (plugin_menu::any_declared(plugin_menu::MenuKind::Spool)) {
         const plugin_menu::json context = plugin_menu::spool_context(pending_spool_);

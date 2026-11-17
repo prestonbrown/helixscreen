@@ -137,6 +137,8 @@ struct SpoolInfo {
     double spool_weight_g = 0;     ///< Empty spool weight in grams
     double initial_weight_g = 0;   ///< Initial filament weight when new
     double price = 0;              ///< Spool price (user currency)
+    double filament_price = 0;     ///< The filament's price, which Spoolman uses when the
+                                   ///< spool has none of its own
     std::string lot_nr;            ///< Lot/batch number
     std::string location;          ///< Physical storage location (max 64 chars)
     std::string comment;           ///< User notes/comment
@@ -185,6 +187,11 @@ struct SpoolInfo {
      */
     [[nodiscard]] bool is_multi_color() const {
         return !multi_color_hexes.empty();
+    }
+
+    /// What this spool cost: its own price, else its filament's, else 0.
+    [[nodiscard]] double effective_price() const {
+        return price > 0 ? price : filament_price;
     }
 
     /**
@@ -333,6 +340,17 @@ inline std::string format_spool_price(double price) {
     snprintf(buf, sizeof(buf), "%.2f", price);
     return buf;
 }
+
+/**
+ * @brief A price for display, in Spoolman's configured currency
+ *
+ * @p currency is an ISO 4217 code ("EUR", "USD"). Codes with a symbol the
+ * screen's fonts carry get the symbol in front ("$24.99", "€24.99"); any other
+ * code follows the amount ("24.99 CHF"). Yen and won take no decimals. Empty
+ * for no price (zero or negative), and the bare amount when no currency is
+ * known.
+ */
+std::string format_price_with_currency(double price, const std::string& currency);
 } // namespace helix
 
 // ============================================================================

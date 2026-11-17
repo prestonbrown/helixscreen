@@ -357,6 +357,9 @@
   <translation tag="Arrows" en="Arrows"/>
   <translation tag="Arrows + Home" en="Arrows + Home"/>
   <translation tag="Ask before switching to another tool" en="Ask before switching to another tool"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" en="Ask before the Advanced panel shuts down or reboots"/>
+  <translation tag="Ask before turning off the stepper motors" en="Ask before turning off the stepper motors"/>
+  <translation tag="Ask every time" en="Ask every time"/>
   <translation tag="Ask for parameters" en="Ask for parameters"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
@@ -878,7 +881,9 @@
   <translation tag="Confirm PIN" en="Confirm PIN"/>
   <translation tag="Confirm before running macros" en="Confirm before running macros"/>
   <translation tag="Confirm clearing the extruder to unload it" en="Confirm clearing the extruder to unload it"/>
+  <translation tag="Confirm disabling motors" en="Confirm disabling motors"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." en="Confirm only once the last print is off the bed. Moves then stop lifting above it."/>
+  <translation tag="Confirm shutdown and reboot" en="Confirm shutdown and reboot"/>
   <translation tag="Confirm tool changes" en="Confirm tool changes"/>
   <translation tag="Connect" en="Connect"/>
   <translation tag="Connect a USB label printer first" en="Connect a USB label printer first"/>
@@ -2950,6 +2955,7 @@
   <translation tag="Previous IPv4 settings restored" en="Previous IPv4 settings restored"/>
   <translation tag="Price" en="Price"/>
   <translation tag="Price, location, lot, notes" en="Price, location, lot, notes"/>
+  <translation tag="Price: {}" en="Price: {}"/>
   <translation tag="Primary" en="Primary"/>
   <translation tag="Priming nozzle..." en="Priming nozzle..."/>
   <translation tag="Priming..." en="Priming..."/>
@@ -3672,6 +3678,7 @@
   <translation tag="Shutdown failed" en="Shutdown failed"/>
   <translation tag="Shutdown failed — host is still reachable" en="Shutdown failed — host is still reachable"/>
   <translation tag="Shutdown/Reboot" en="Shutdown/Reboot"/>
+  <translation tag="Shutdown/reboot target" en="Shutdown/reboot target"/>
   <translation tag="Shutting down printer..." en="Shutting down printer..."/>
   <translation tag="Shutting down screen..." en="Shutting down screen..."/>
   <translation tag="Shutting down..." en="Shutting down..."/>
@@ -4272,6 +4279,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." en="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes."/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." en="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen."/>
   <translation tag="This resume needs a newer version of HelixScreen." en="This resume needs a newer version of HelixScreen."/>
+  <translation tag="This screen" en="This screen"/>
   <translation tag="This slot feeds no tool" en="This slot feeds no tool"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." en="This spool ran out, so the CFS cannot pull the leftover filament back."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
@@ -4639,6 +4647,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" en="Whether the Z arrows follow the bed or the Z value"/>
   <translation tag="Which belt is each path?" en="Which belt is each path?"/>
   <translation tag="Which belt is which?" en="Which belt is which?"/>
+  <translation tag="Which computer the Advanced power rows act on" en="Which computer the Advanced power rows act on"/>
   <translation tag="Which lane is in the toolhead?" en="Which lane is in the toolhead?"/>
   <translation tag="Which macro switches the ACE path back on" en="Which macro switches the ACE path back on"/>
   <translation tag="Which macro switches the ACE path off for bypass" en="Which macro switches the ACE path off for bypass"/>

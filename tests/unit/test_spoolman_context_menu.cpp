@@ -98,4 +98,35 @@ TEST_CASE_METHOD(XMLTestFixture, "spool menu: a disabled plugin adds nothing",
     process_lvgl(20);
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "spool menu shows the price in Spoolman's currency",
+                 "[spoolman][context_menu][price]") {
+    REQUIRE(register_component("spoolman_context_menu"));
+    helix::ui::SpoolmanContextMenu menu;
+    SpoolInfo spool = test_spool();
+    spool.price = 24.5;
+    REQUIRE(menu.show_for_spool(test_screen(), spool, test_screen(), true, "EUR"));
+    lv_obj_t* price = lv_obj_find_by_name(test_screen(), "spool_price_label");
+    REQUIRE(price);
+    CHECK_FALSE(lv_obj_is_hidden(price));
+    CHECK(std::string(lv_label_get_text(price)) == "Price: \xE2\x82\xAC"
+                                                   "24.50");
+    menu.hide();
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "spool menu hides the price line when there is no price",
+                 "[spoolman][context_menu][price]") {
+    REQUIRE(register_component("spoolman_context_menu"));
+    helix::ui::SpoolmanContextMenu menu;
+    SpoolInfo spool = test_spool();
+    spool.price = 0;
+    spool.filament_price = 0;
+    REQUIRE(menu.show_for_spool(test_screen(), spool, test_screen(), true, "EUR"));
+    lv_obj_t* price = lv_obj_find_by_name(test_screen(), "spool_price_label");
+    REQUIRE(price);
+    CHECK(lv_obj_is_hidden(price));
+    menu.hide();
+    process_lvgl(20);
+}
+
 #endif // HELIX_HAS_PLUGINS

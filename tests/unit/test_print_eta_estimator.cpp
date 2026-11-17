@@ -139,3 +139,68 @@ TEST_CASE("ETA: inputs that support no answer say so rather than saying zero", "
     // Underway, but with neither a clock nor an estimate to go on.
     CHECK(est.remaining_seconds(job(40, 0, 0)) == PrintEtaEstimator::kNoEstimate);
 }
+
+namespace {
+
+PrintEtaInputs excluded(PrintEtaInputs in, double share) {
+    in.excluded_share = share;
+    return in;
+}
+
+} // namespace
+
+TEST_CASE("ETA: excluded work comes out of the slicer's estimate", "[print][eta][exclude_object]") {
+    SECTION("under 5 percent") {
+        // Half the job excluded leaves 500s of a 1000s job, and 96% of that is
+        // still to print.
+        PrintEtaEstimator est;
+        CHECK(est.remaining_seconds(excluded(job(4, 1, 1000), 0.5)) == 480);
+    }
+    SECTION("while preparing") {
+        // Parts excluded before the start shrink the job, not the prep.
+        PrintEtaEstimator est;
+        PrintEtaInputs in;
+        in.preprint_remaining_s = 120;
+        in.slicer_estimate_s = 600;
+        in.excluded_share = 0.5;
+        CHECK(est.remaining_seconds(in) == 420);
+    }
+}
+
+TEST_CASE("ETA: an exclusion mid-print scales the rate seen before it",
+          "[print][eta][exclude_object]") {
+    SECTION("half the work excluded halves what is left, at once") {
+        PrintEtaEstimator est;
+        REQUIRE(est.remaining_seconds(job(50, 600, 0)) == 600);
+        // 12s per percent with every part, 6s per percent with half of them,
+        // over the 50% still to go. No smoothing toward the old 600s.
+        CHECK(est.remaining_seconds(excluded(job(50, 600, 0), 0.5)) == 300);
+    }
+    SECTION("every part but the current one excluded") {
+        PrintEtaEstimator est;
+        REQUIRE(est.remaining_seconds(job(50, 600, 0)) == 600);
+        // Three of four equal parts gone: a quarter of the work per percent.
+        CHECK(est.remaining_seconds(excluded(job(50, 600, 0), 0.75)) == 150);
+    }
+}
+
+TEST_CASE("ETA: after an exclusion the rate observed since then takes over",
+          "[print][eta][exclude_object]") {
+    PrintEtaEstimator est;
+    REQUIRE(est.remaining_seconds(job(50, 600, 0)) == 600);
+    REQUIRE(est.remaining_seconds(excluded(job(50, 600, 0), 0.5)) == 300);
+
+    // The ten points since the exclusion took 90s, 9s per percent rather than
+    // the 6s the share predicted, so 40% left is 360s. Smoothed from 300s at
+    // alpha 0.3: 0.3*360 + 0.7*300.
+    CHECK(est.remaining_seconds(excluded(job(60, 690, 0), 0.5)) == 318);
+}
+
+TEST_CASE("ETA: parts excluded before printing leave the observed rate alone",
+          "[print][eta][exclude_object]") {
+    PrintEtaEstimator est;
+    // Excluded at 0%: no second of the print was spent on the excluded parts.
+    REQUIRE(est.remaining_seconds(excluded(job(0, 0, 1000), 0.5)) ==
+            PrintEtaEstimator::kNoEstimate);
+    CHECK(est.remaining_seconds(excluded(job(50, 600, 1000), 0.5)) == 600);
+}

@@ -107,7 +107,8 @@ void AdvancedPanel::init_subjects() {
          [](lv_event_t*) { get_global_advanced_panel().handle_pa_tuning_clicked(); }},
         {"on_timelapse_videos_clicked", on_timelapse_videos_clicked},
         {"on_timelapse_setup_clicked", on_timelapse_setup_clicked},
-        {"on_advanced_power_clicked", on_advanced_power_clicked},
+        {"on_advanced_shutdown_clicked", on_advanced_shutdown_clicked},
+        {"on_advanced_reboot_clicked", on_advanced_reboot_clicked},
         {"on_cold_pull_row_clicked", [](lv_event_t*) { helix::ui::open_cold_pull_overlay(); }},
     });
 
@@ -288,17 +289,22 @@ void AdvancedPanel::on_timelapse_setup_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_timelapse_setup_clicked();
 }
 
-void AdvancedPanel::on_advanced_power_clicked(lv_event_t* /*e*/) {
-    get_global_advanced_panel().handle_power_clicked();
+void AdvancedPanel::on_advanced_shutdown_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_power_clicked(PowerIntent::Shutdown);
+}
+
+void AdvancedPanel::on_advanced_reboot_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_power_clicked(PowerIntent::Reboot);
 }
 
 // ============================================================================
 // POWER HANDLER — shares the same dialog the home-panel power widget uses
 // ============================================================================
 
-void AdvancedPanel::handle_power_clicked() {
-    spdlog::debug("[{}] Power row clicked — opening shutdown dialog", get_name());
-    helix::show_shutdown_dialog(api_, shutdown_modal_, object_lifetime_, lv_screen_active());
+void AdvancedPanel::handle_power_clicked(PowerIntent intent) {
+    spdlog::debug("[{}] Power row clicked, opening shutdown dialog", get_name());
+    helix::show_shutdown_dialog(api_, shutdown_modal_, object_lifetime_, lv_screen_active(),
+                                intent);
 }
 
 // ============================================================================

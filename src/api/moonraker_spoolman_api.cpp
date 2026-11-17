@@ -58,6 +58,7 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         info.filament_id = safe_int(filament, "id", 0);
         info.material = safe_string(filament, "material");
         info.filament_name = safe_string(filament, "name");
+        info.filament_price = safe_double(filament, "price");
         info.color_hex = safe_string(filament, "color_hex");
         info.multi_color_hexes = safe_string(filament, "multi_color_hexes");
 
@@ -540,6 +541,39 @@ void MoonrakerSpoolmanAPI::update_spoolman_filament_color(int filament_id,
 // ============================================================================
 // Spoolman CRUD Operations
 // ============================================================================
+
+std::string helix::spoolman_detail::parse_spoolman_currency(const nlohmann::json& setting) {
+    if (!setting.is_object()) {
+        return {};
+    }
+    const std::string encoded = safe_string(setting, "value");
+    const json decoded = json::parse(encoded, nullptr, false);
+    if (decoded.is_discarded() || !decoded.is_string()) {
+        return {};
+    }
+    return decoded.get<std::string>();
+}
+
+void MoonrakerSpoolmanAPI::get_spoolman_currency(
+    std::function<void(const std::string& currency)> on_success, ErrorCallback on_error) {
+    json params;
+    params["request_method"] = "GET";
+    params["path"] = "/v1/setting/currency";
+
+    client_.send_jsonrpc(
+        "server.spoolman.proxy", params,
+        [on_success](const json& response) {
+            const auto it = response.find("result");
+            const std::string currency = it == response.end()
+                                             ? std::string{}
+                                             : helix::spoolman_detail::parse_spoolman_currency(*it);
+            spdlog::debug("[SpoolmanAPI] Spoolman currency: '{}'", currency);
+            if (on_success) {
+                on_success(currency);
+            }
+        },
+        on_error, 0, /*silent=*/true);
+}
 
 void MoonrakerSpoolmanAPI::get_spoolman_vendors(VendorListCallback on_success,
                                                 ErrorCallback on_error) {

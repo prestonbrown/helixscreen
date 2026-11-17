@@ -385,6 +385,9 @@ translations:
   Arrows + Home: Arrows + Home
   Arrows: Arrows
   Ask before switching to another tool: Ask before switching to another tool
+  Ask before the Advanced panel shuts down or reboots: 'Ask before the Advanced panel shuts down or reboots'
+  Ask before turning off the stepper motors: 'Ask before turning off the stepper motors'
+  Ask every time: Ask every time
   Ask for parameters: Ask for parameters
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assign Klipper
     macros to control LEDs via on/off, toggle, or presets
@@ -938,7 +941,9 @@ translations:
   Confirm PIN: Confirm PIN
   Confirm before running macros: Confirm before running macros
   Confirm clearing the extruder to unload it: Confirm clearing the extruder to unload it
+  Confirm disabling motors: 'Confirm disabling motors'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: Confirm only once the last print is off the bed. Moves then stop lifting above it.
+  Confirm shutdown and reboot: 'Confirm shutdown and reboot'
   Confirm tool changes: Confirm tool changes
   Connect: Connect
   Connect a USB label printer first: Connect a USB label printer first
@@ -2828,6 +2833,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: Whether the Z arrows follow the bed or the Z value
   Which belt is each path?: Which belt is each path?
   Which belt is which?: Which belt is which?
+  Which computer the Advanced power rows act on: 'Which computer the Advanced power rows act on'
   'Which lane is in the toolhead?': 'Which lane is in the toolhead?'
   'Choose which lane is in the toolhead to unload it': 'Choose which lane is in the toolhead to unload it'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: Nothing was changed. Temperature and material are kept, so a retry is one tap.
@@ -3140,6 +3146,7 @@ translations:
   Previous IPv4 settings restored: Previous IPv4 settings restored
   Price: Price
   Price, location, lot, notes: Price, location, lot, notes
+  'Price: {}': 'Price: {}'
   Primary: Primary
   'Priming nozzle...': 'Priming nozzle...'
   Priming...: Priming...
@@ -3909,6 +3916,7 @@ translations:
   Shutdown failed: Shutdown failed
   Shutdown failed — host is still reachable: Shutdown failed — host is still reachable
   Shutdown/Reboot: Shutdown/Reboot
+  Shutdown/reboot target: Shutdown/reboot target
   Shutting down printer...: Shutting down printer...
   Shutting down screen...: Shutting down screen...
   Shutting down...: Shutting down...
@@ -4581,6 +4589,7 @@ translations:
   : This replaces the printer's helper macros with the current version. A print is running, so Klipper restarts after it finishes.
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: This replaces this screen's home layout for this printer with the one on the printer's own screen.
   This resume needs a newer version of HelixScreen.: This resume needs a newer version of HelixScreen.
+  This screen: This screen
   This slot feeds no tool: This slot feeds no tool
   This spool ran out, so the CFS cannot pull the leftover filament back.: This spool ran out, so the CFS cannot pull the leftover filament back.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.

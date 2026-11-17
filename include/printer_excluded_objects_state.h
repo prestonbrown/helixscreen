@@ -229,6 +229,16 @@ class PrinterExcludedObjectsState {
         return !defined_objects_.empty();
     }
 
+    /**
+     * @brief Share of the print's work that excluded objects account for, 0 to 1
+     *
+     * Weighted by footprint area when every defined object has an outline
+     * polygon, since a small part excluded beside a large one saves far less
+     * than half the time. Falls back to counting objects when any outline is
+     * missing. 0 when no objects are defined.
+     */
+    double excluded_work_share() const;
+
     /// Death signal for the subjects this object owns.
     ///
     /// deinit_subjects() frees every observer node on them without bumping

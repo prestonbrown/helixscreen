@@ -357,6 +357,9 @@
   <translation tag="Arrows" pt="Setas"/>
   <translation tag="Arrows + Home" pt="Setas + Início"/>
   <translation tag="Ask before switching to another tool" pt="Perguntar antes de trocar para outra ferramenta"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" pt="Perguntar antes de o painel Avançado desligar ou reiniciar"/>
+  <translation tag="Ask before turning off the stepper motors" pt="Perguntar antes de desligar os motores de passo"/>
+  <translation tag="Ask every time" pt="Perguntar sempre"/>
   <translation tag="Ask for parameters" pt="Perguntar parâmetros"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" pt="Atribuir macros Klipper para controlar LEDs via ligar/desligar, alternar ou predefinições"/>
   <translation tag="Assign a role to enable sensor monitoring" pt="Atribua uma função para habilitar o monitoramento do sensor"/>
@@ -878,7 +881,9 @@
   <translation tag="Confirm PIN" pt="Confirmar PIN"/>
   <translation tag="Confirm before running macros" pt="Confirmar antes de executar macros"/>
   <translation tag="Confirm clearing the extruder to unload it" pt="Confirme o esvaziamento do extrusor para descarregar"/>
+  <translation tag="Confirm disabling motors" pt="Confirmar desligamento dos motores"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." pt="Confirme apenas quando a última impressão tiver sido retirada da mesa. A partir daí, os movimentos deixam de subir acima dela."/>
+  <translation tag="Confirm shutdown and reboot" pt="Confirmar desligamento e reinício"/>
   <translation tag="Confirm tool changes" pt="Confirmar trocas de ferramenta"/>
   <translation tag="Connect" pt="Conectar"/>
   <translation tag="Connect a USB label printer first" pt="Conecte primeiro uma impressora de etiquetas USB"/>
@@ -2950,6 +2955,7 @@
   <translation tag="Previous IPv4 settings restored" pt="Configurações IPv4 anteriores restauradas"/>
   <translation tag="Price" pt="Preço"/>
   <translation tag="Price, location, lot, notes" pt="Preço, local, lote, notas"/>
+  <translation tag="Price: {}" pt="Preço: {}"/>
   <translation tag="Primary" pt="Primário"/>
   <translation tag="Priming nozzle..." pt="Preparando o bico..."/>
   <translation tag="Priming..." pt="Preparando..."/>
@@ -3672,6 +3678,7 @@
   <translation tag="Shutdown failed" pt="Falha ao desligar"/>
   <translation tag="Shutdown failed — host is still reachable" pt="Falha ao desligar — o host ainda está acessível"/>
   <translation tag="Shutdown/Reboot" pt="Desligar/Reiniciar"/>
+  <translation tag="Shutdown/reboot target" pt="Destino de desligar/reiniciar"/>
   <translation tag="Shutting down printer..." pt="Desligando impressora..."/>
   <translation tag="Shutting down screen..." pt="Desligando tela..."/>
   <translation tag="Shutting down..." pt="Desligando..."/>
@@ -4272,6 +4279,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." pt="Isto substitui as macros de ajuda da impressora pela versão atual. Uma impressão está em andamento, então o Klipper será reiniciado ao término."/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." pt="Isso substitui o layout da tela inicial desta tela para esta impressora pelo layout da tela da própria impressora."/>
   <translation tag="This resume needs a newer version of HelixScreen." pt="Esta retomada precisa de uma versão mais nova do HelixScreen."/>
+  <translation tag="This screen" pt="Esta tela"/>
   <translation tag="This slot feeds no tool" pt="Este slot não alimenta nenhuma ferramenta"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." pt="Este carretel acabou, então o CFS não consegue recolher o filamento restante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." pt="Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente."/>
@@ -4639,6 +4647,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" pt="Se as setas Z seguem a mesa ou o valor Z"/>
   <translation tag="Which belt is each path?" pt="Qual correia é cada caminho?"/>
   <translation tag="Which belt is which?" pt="Qual correia é qual?"/>
+  <translation tag="Which computer the Advanced power rows act on" pt="Qual computador as linhas de energia do Avançado afetam"/>
   <translation tag="Which lane is in the toolhead?" pt="Qual via está na cabeça?"/>
   <translation tag="Which macro switches the ACE path back on" pt="Qual macro religa o caminho do ACE"/>
   <translation tag="Which macro switches the ACE path off for bypass" pt="Qual macro desliga o caminho do ACE para o bypass"/>

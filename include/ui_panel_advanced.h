@@ -17,6 +17,10 @@
 #include <functional>
 #include <memory>
 
+namespace helix {
+enum class PowerIntent; // src/ui/panel_widgets/shutdown_widget.h
+} // namespace helix
+
 namespace helix::ui {
 struct AdvancedPanelTestAccess; // test-only friend (tests/test_helpers/)
 } // namespace helix::ui
@@ -163,7 +167,7 @@ class AdvancedPanel : public PanelBase {
     // Both POWER rows (Shutdown, Reboot) open the same shared dialog — the
     // dialog itself presents shutdown vs. reboot buttons and, on dual-host
     // setups, the printer/screen/both scope. Single handler reflects that.
-    void handle_power_clicked();
+    void handle_power_clicked(helix::PowerIntent intent);
 
     //
     // === Static Event Callbacks (registered via lv_xml_register_event_cb) ===
@@ -181,7 +185,8 @@ class AdvancedPanel : public PanelBase {
     static void on_helix_plugin_uninstall_clicked(lv_event_t* e);
     static void on_helix_macros_install_clicked(lv_event_t* e);
     static void on_helix_macros_update_clicked(lv_event_t* e);
-    static void on_advanced_power_clicked(lv_event_t* e);
+    static void on_advanced_shutdown_clicked(lv_event_t* e);
+    static void on_advanced_reboot_clicked(lv_event_t* e);
 
     //
     // === HelixPrint Plugin Support ===

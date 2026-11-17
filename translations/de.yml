@@ -397,6 +397,9 @@ translations:
   Arrows + Home: 'Pfeile + Home'
   Arrows: 'Pfeile'
   Ask before switching to another tool: 'Vor dem Wechsel zu einem anderen Werkzeug fragen'
+  Ask before the Advanced panel shuts down or reboots: 'Fragen, bevor das Menü Erweitert herunterfährt oder neu startet'
+  Ask before turning off the stepper motors: 'Vor dem Abschalten der Schrittmotoren fragen'
+  Ask every time: 'Jedes Mal fragen'
   Ask for parameters: 'Nach Parametern fragen'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros
     zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
@@ -967,7 +970,9 @@ translations:
   Confirm PIN: PIN bestätigen
   Confirm before running macros: Vor dem Ausführen von Makros bestätigen
   Confirm clearing the extruder to unload it: 'Bestätige das Leeren des Extruders, um zu entladen'
+  Confirm disabling motors: 'Deaktivieren der Motoren bestätigen'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Nur bestätigen, wenn der letzte Druck vom Heizbett entfernt ist. Danach heben Bewegungen nicht mehr darüber an."
+  Confirm shutdown and reboot: 'Herunterfahren und Neustart bestätigen'
   Confirm tool changes: 'Werkzeugwechsel bestätigen'
   Connect: Verbinden
   Connect a USB label printer first: Zuerst einen USB-Etikettendrucker anschließen
@@ -2896,6 +2901,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Ob die Z-Pfeile dem Bett oder dem Z-Wert folgen"
   Which belt is each path?: "Welcher Riemen ist welcher Pfad?"
   Which belt is which?: "Welcher Riemen ist welcher?"
+  Which computer the Advanced power rows act on: 'Welchen Computer die Energie-Zeilen unter Erweitert betreffen'
   'Which lane is in the toolhead?': 'Welche Spur steckt im Druckkopf?'
   'Choose which lane is in the toolhead to unload it': 'Wähle, welche Spur im Druckkopf steckt, um sie zu entladen'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp.'
@@ -3211,6 +3217,7 @@ translations:
   Previous: Zurück
   Previous IPv4 settings restored: 'Vorherige IPv4-Einstellungen wiederhergestellt'
   Price: Preis
+  'Price: {}': 'Preis: {}'
   Primary: Primär
   Priming nozzle...: Düse primen...
   Priming...: Primen...
@@ -3994,6 +4001,7 @@ translations:
   Shutdown failed — host is still reachable: Herunterfahren fehlgeschlagen — Host
     ist weiterhin erreichbar
   Shutdown/Reboot: 'Herunterfahren/Neustart'
+  Shutdown/reboot target: 'Ziel für Herunterfahren/Neustart'
   Shutting down printer...: Drucker wird heruntergefahren...
   Shutting down screen...: Bildschirm wird heruntergefahren...
   Shutting down...: Wird heruntergefahren...
@@ -4685,6 +4693,7 @@ translations:
   : 'Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."
   This resume needs a newer version of HelixScreen.: Dieses Fortsetzen braucht eine neuere Version von HelixScreen.
+  This screen: 'Dieser Bildschirm'
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'

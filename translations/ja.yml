@@ -372,6 +372,9 @@ translations:
   Arrows + Home: '方向キー + ホーム'
   Arrows: '方向キー'
   Ask before switching to another tool: '別のツールに切り替える前に確認する'
+  Ask before the Advanced panel shuts down or reboots: '詳細設定からシャットダウンまたは再起動する前に確認する'
+  Ask before turning off the stepper motors: 'ステッピングモーターをオフにする前に確認する'
+  Ask every time: '常に確認する'
   Ask for parameters: 'パラメータを確認する'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
     LED を制御
@@ -902,7 +905,9 @@ translations:
   Confirm PIN: PIN を確認
   Confirm before running macros: マクロ実行前に確認する
   Confirm clearing the extruder to unload it: '取り出すには、エクストルーダーを空にすることを確認してください'
+  Confirm disabling motors: 'モーター無効化を確認する'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"
+  Confirm shutdown and reboot: 'シャットダウンと再起動を確認する'
   Confirm tool changes: 'ツール交換を確認する'
   Connect: 接続
   Connect a USB label printer first: 先にUSBラベルプリンターを接続してください
@@ -2756,6 +2761,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "ZボタンがベッドとZ値のどちらに従うか"
   Which belt is each path?: "各パスはどのベルト?"
   Which belt is which?: "どのベルトがどれ?"
+  Which computer the Advanced power rows act on: '詳細設定の電源項目が操作するコンピューター'
   'Which lane is in the toolhead?': 'ツールヘッドに入っているのはどのレーンですか？'
   'Choose which lane is in the toolhead to unload it': '取り出すには、ツールヘッドに入っているレーンを選んでください'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: '何も変更されていません。温度と材料は保持されるので、再試行はワンタップです。'
@@ -3063,6 +3069,7 @@ translations:
   Previous: 前回
   Previous IPv4 settings restored: '以前のIPv4設定を復元しました'
   Price: 価格
+  'Price: {}': '価格: {}'
   Primary: プライマリ
   Priming nozzle...: ノズルをプライム中...
   Priming...: プライミング中...
@@ -3798,6 +3805,7 @@ translations:
   Shutdown failed: シャットダウンに失敗しました
   Shutdown failed — host is still reachable: シャットダウンに失敗しました — ホストに依然として到達可能です
   Shutdown/Reboot: 'シャットダウン/再起動'
+  Shutdown/reboot target: 'シャットダウン/再起動の対象'
   Shutting down printer...: プリンターをシャットダウン中...
   Shutting down screen...: 画面をシャットダウン中...
   Shutting down...: シャットダウン中...
@@ -4454,6 +4462,7 @@ translations:
   : 'プリンターのヘルパーマクロを現在のバージョンに置き換えます。印刷中のため、Klipper は印刷完了後に再起動されます。'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"
   This resume needs a newer version of HelixScreen.: この再開には新しいバージョンのHelixScreenが必要です。
+  This screen: 'この画面'
   This slot feeds no tool: 'このスロットはどのツールにも供給しません'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'

@@ -60,6 +60,11 @@ std::string encode_extra_number(const std::string& field_type, double value);
  * object or carries no id. Never throws.
  */
 std::optional<ExternalFilament> parse_external_filament(const nlohmann::json& filament_json);
+
+/// The currency code in Spoolman's `/v1/setting/currency` reply. The setting's
+/// `value` is itself JSON, a quoted string such as "\"EUR\"". Empty when the
+/// reply carries no usable code.
+std::string parse_spoolman_currency(const nlohmann::json& setting);
 } // namespace helix::spoolman_detail
 
 /**
@@ -201,6 +206,12 @@ class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
     // ========================================================================
     // Vendor & Filament Operations
     // ========================================================================
+
+    /**
+     * @brief Get the currency code Spoolman's prices are in (e.g. "EUR")
+     */
+    void get_spoolman_currency(std::function<void(const std::string& currency)> on_success,
+                               ErrorCallback on_error) override;
 
     /**
      * @brief Get list of vendors from Spoolman
