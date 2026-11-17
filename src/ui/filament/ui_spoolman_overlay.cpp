@@ -12,6 +12,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
 
+#include "json_utils.h"
 #include "rest_response.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
@@ -642,31 +643,31 @@ void SpoolmanOverlay::resolve_spoolman_target_with_root(const std::string& confi
             std::vector<helix::LoadedConfigFile> files;
 
             if (resp.data.is_object()) {
-                const json& root = resp.data.contains("result") ? resp.data["result"] : resp.data;
+                const json* result = helix::json_util::find_member(resp.data, "result");
+                const json& root = result ? *result : resp.data;
 
-                if (root.is_object() && root.contains("config") && root["config"].is_object()) {
-                    const json& cfg = root["config"];
-                    if (cfg.contains("server") && cfg["server"].is_object()) {
-                        const json& srv = cfg["server"];
+                if (const json* cfg = helix::json_util::find_object(root, "config")) {
+                    if (const json* srv = helix::json_util::find_object(*cfg, "server")) {
                         // Only newer Moonraker builds expose these. Most do not.
-                        if (srv.contains("config_file") && srv["config_file"].is_string())
-                            config_file = srv["config_file"].get<std::string>();
-                        if (srv.contains("data_path") && srv["data_path"].is_string())
-                            data_path = srv["data_path"].get<std::string>();
+                        config_file = helix::json_util::read_field<std::string>(*srv, "config_file")
+                                          .value_or(config_file);
+                        data_path = helix::json_util::read_field<std::string>(*srv, "data_path")
+                                        .value_or(data_path);
                     }
                 }
 
                 // files[] is the config chain Moonraker actually loaded, each entry
                 // carrying the sections it defines. This is the reliable signal.
-                if (root.is_object() && root.contains("files") && root["files"].is_array()) {
-                    for (const auto& entry : root["files"]) {
+                if (const json* files_arr = helix::json_util::find_array(root, "files")) {
+                    for (const auto& entry : *files_arr) {
                         if (!entry.is_object())
                             continue;
                         helix::LoadedConfigFile lcf;
-                        if (entry.contains("filename") && entry["filename"].is_string())
-                            lcf.filename = entry["filename"].get<std::string>();
-                        if (entry.contains("sections") && entry["sections"].is_array()) {
-                            for (const auto& sec : entry["sections"]) {
+                        lcf.filename = helix::json_util::read_field<std::string>(entry, "filename")
+                                           .value_or(lcf.filename);
+                        if (const json* sections =
+                                helix::json_util::find_array(entry, "sections")) {
+                            for (const auto& sec : *sections) {
                                 if (sec.is_string())
                                     lcf.sections.push_back(sec.get<std::string>());
                             }

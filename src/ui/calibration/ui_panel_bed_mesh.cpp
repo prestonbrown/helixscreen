@@ -40,6 +40,7 @@
 #include "format_utils.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "layout_manager.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
@@ -765,12 +766,12 @@ void BedMeshPanel::setup_moonraker_subscription() {
     SubscriptionId id =
         api->subscribe_notifications([this, api, token](const nlohmann::json& notification) {
             // Check if this notification contains bed_mesh data BEFORE deferring to main thread
-            if (!notification.contains("params") || !notification["params"].is_array() ||
-                notification["params"].empty()) {
+            const nlohmann::json* params_arr = json_util::find_array(notification, "params");
+            if (!params_arr || params_arr->empty()) {
                 return;
             }
-            const nlohmann::json& params = notification["params"][0];
-            if (!params.contains("bed_mesh") || !params["bed_mesh"].is_object()) {
+            const nlohmann::json& params = (*params_arr)[0];
+            if (!json_util::find_object(params, "bed_mesh")) {
                 return;
             }
 
@@ -1267,8 +1268,9 @@ void BedMeshPanel::start_calibration_probing() {
             try {
                 const json& settings =
                     response.contains(kSettings) ? response[kSettings] : kNoSettings;
-                if (settings.contains("bed_mesh") && settings["bed_mesh"].contains("probe_count")) {
-                    const auto& pc = settings["bed_mesh"]["probe_count"];
+                if (const json* probe_count =
+                        json_util::find_path(settings, "bed_mesh", "probe_count")) {
+                    const auto& pc = *probe_count;
                     if (pc.is_array() && pc.size() >= 2) {
                         expected = pc[0].template get<int>() * pc[1].template get<int>();
                     } else if (pc.is_number_integer()) {
@@ -1281,8 +1283,9 @@ void BedMeshPanel::start_calibration_probing() {
                 // load_cell_probe (Centauri Carbon's mainline-Klipper strain
                 // gauge module) has its own samples key.
                 for (const char* section : {"probe", "bltouch", "load_cell_probe"}) {
-                    if (settings.contains(section) && settings[section].contains("samples")) {
-                        int s = settings[section]["samples"].template get<int>();
+                    if (const json* samples_v =
+                            json_util::find_path(settings, section, "samples")) {
+                        int s = samples_v->template get<int>();
                         if (s > 1) {
                             samples = s;
                             break;
@@ -1642,10 +1645,9 @@ void BedMeshPanel::read_stored_meshes(std::function<void(helix::bed_mesh::Stored
         [token, on_read](const json& response) {
             // BG: parse here, hand the result to the main thread.
             auto meshes = std::make_shared<helix::bed_mesh::StoredMeshes>();
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("bed_mesh")) {
-                *meshes = helix::bed_mesh::stored_meshes_from_status(
-                    response["result"]["status"]["bed_mesh"]);
+            if (const json* bed_mesh =
+                    json_util::find_path(response, "result", "status", "bed_mesh")) {
+                *meshes = helix::bed_mesh::stored_meshes_from_status(*bed_mesh);
             }
             token.defer("BedMeshPanel::stored_meshes_read",
                         [on_read, meshes]() { on_read(std::move(*meshes)); });
@@ -1704,11 +1706,11 @@ void BedMeshPanel::save_profile_as(const std::string& name, std::function<void()
     static std::atomic<uint64_t> s_watch_id{0};
     const std::string watch = "bed_mesh_profile_save_" + std::to_string(++s_watch_id);
     api->register_method_callback("notify_gcode_response", watch, [refusal](const json& msg) {
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const json* params = json_util::find_array(msg, "params");
+        if (!params || params->empty() || !(*params)[0].is_string()) {
             return;
         }
-        const auto& line = msg["params"][0].get_ref<const std::string&>();
+        const auto& line = (*params)[0].get_ref<const std::string&>();
         if (!helix::bed_mesh::is_profile_save_refusal(line)) {
             return;
         }

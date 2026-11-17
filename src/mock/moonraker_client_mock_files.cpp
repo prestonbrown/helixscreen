@@ -5,6 +5,7 @@
 #include "core/text_io.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
+#include "json_utils.h"
 #include "mock_disk_usage.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
@@ -25,6 +26,13 @@ static constexpr const char* kThumbnailCacheDir = "build/thumbnail_cache";
 
 // Alias for cleaner code - use shared constant from RuntimeConfig
 #define TEST_GCODE_DIR RuntimeConfig::TEST_GCODE_DIR
+
+/// The string under @p key in a request's params, or empty when it is absent. A
+/// present non-string throws from get<std::string>(), as a malformed request should.
+static std::string string_param(const json& params, const char* key) {
+    const json* value = helix::json_util::find_member(params, key);
+    return value ? value->get<std::string>() : std::string();
+}
 
 /// Append the G-code filenames in @p dir_path to @p files; false if it cannot be opened.
 static bool scan_gcode_dir(const std::string& dir_path, std::vector<std::string>& files) {
@@ -399,14 +407,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
             return true;
         }
 
-        std::string root;
-        std::string path;
-        if (params.contains("root")) {
-            root = params["root"].get<std::string>();
-        }
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string root = string_param(params, "root");
+        std::string path = string_param(params, "path");
         json response = build_mock_file_list_response(root, path);
         spdlog::debug("[MoonrakerClientMock] Returning mock file list for root='{}' path='{}'",
                       root, path.empty() ? "/" : path);
@@ -425,14 +427,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
             return true;
         }
 
-        std::string root;
-        std::string path;
-        if (params.contains("root")) {
-            root = params["root"].get<std::string>();
-        }
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string root = string_param(params, "root");
+        std::string path = string_param(params, "path");
         json response = build_mock_file_list_response(root, path);
         // Moonraker's own get_directory result is an object that carries the disk's
         // usage beside the entries; the gcodes root answers in that shape.
@@ -461,10 +457,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
+        std::string filename = string_param(params, "filename");
         if (metadata_missing(filename) && error_cb) {
             error_cb(MoonrakerError::file_not_found("server.files.metadata", filename));
             return true;
@@ -490,10 +483,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
+        std::string filename = string_param(params, "filename");
         if (metadata_missing(filename) && error_cb) {
             error_cb(MoonrakerError::file_not_found("server.files.metascan", filename));
             return true;
@@ -548,10 +538,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
             return true;
         }
 
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
+        std::string filename = string_param(params, "filename");
 
         if (filename.empty()) {
             if (error_cb) {
@@ -593,10 +580,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string path = string_param(params, "path");
         if (!path.empty()) {
             spdlog::info("[MoonrakerClientMock] Mock delete_file: {}", path);
             if (success_cb) {
@@ -623,10 +607,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string path = string_param(params, "path");
         if (path.empty()) {
             if (error_cb) {
                 MoonrakerError err = MoonrakerError::validation_error("server.files.delete_file",
@@ -665,13 +646,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string source, dest;
-        if (params.contains("source")) {
-            source = params["source"].get<std::string>();
-        }
-        if (params.contains("dest")) {
-            dest = params["dest"].get<std::string>();
-        }
+        std::string source = string_param(params, "source");
+        std::string dest = string_param(params, "dest");
         if (!source.empty() && !dest.empty()) {
             spdlog::info("[MoonrakerClientMock] Mock move_file: {} -> {}", source, dest);
             if (success_cb) {
@@ -692,13 +668,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string source, dest;
-        if (params.contains("source")) {
-            source = params["source"].get<std::string>();
-        }
-        if (params.contains("dest")) {
-            dest = params["dest"].get<std::string>();
-        }
+        std::string source = string_param(params, "source");
+        std::string dest = string_param(params, "dest");
         if (!source.empty() && !dest.empty()) {
             spdlog::info("[MoonrakerClientMock] Mock copy_file: {} -> {}", source, dest);
             if (success_cb) {
@@ -719,10 +690,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string path = string_param(params, "path");
         if (!path.empty()) {
             spdlog::info("[MoonrakerClientMock] Mock create_directory: {}", path);
             if (success_cb) {
@@ -743,10 +711,7 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
+        std::string path = string_param(params, "path");
         if (!path.empty()) {
             spdlog::info("[MoonrakerClientMock] Mock delete_directory: {}", path);
             if (success_cb) {

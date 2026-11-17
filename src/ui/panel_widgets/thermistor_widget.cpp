@@ -24,6 +24,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -704,28 +705,25 @@ void ThermistorWidget::set_config(const nlohmann::json& config) {
     config_ = config;
 
     // Read icon
-    if (config.contains("icon") && config["icon"].is_string()) {
-        icon_name_ = config["icon"].get<std::string>();
-    }
+    icon_name_ = json_util::read_field<std::string>(config, "icon").value_or(icon_name_);
 
     unit_override_.reset();
-    if (config.contains(kUnitOverrideKey) && config[kUnitOverrideKey].is_string()) {
-        unit_override_ = std::string(
-            text_io::utf8_prefix(config[kUnitOverrideKey].get<std::string>(), kMaxUnitBytes));
+    if (auto unit = json_util::read_field<std::string>(config, kUnitOverrideKey)) {
+        unit_override_ = std::string(text_io::utf8_prefix(*unit, kMaxUnitBytes));
     }
     apply_unit();
 
     // Migrate old format: {"sensor": "x"} -> sensors_ vector
-    if (config.contains("sensor") && config["sensor"].is_string()) {
-        selected_sensor_ = config["sensor"].get<std::string>();
+    if (auto sensor = json_util::read_field<std::string>(config, "sensor")) {
+        selected_sensor_ = *sensor;
         sensors_ = {selected_sensor_};
         resolve_display_name();
         spdlog::debug("[ThermistorWidget] Config: sensor={}", selected_sensor_);
     }
     // New format: {"sensors": [...], "display_mode": "carousel"}
-    if (config.contains("sensors") && config["sensors"].is_array()) {
+    if (const nlohmann::json* sensors = json_util::find_array(config, "sensors")) {
         sensors_.clear();
-        for (const auto& s : config["sensors"]) {
+        for (const auto& s : *sensors) {
             if (s.is_string()) {
                 sensors_.push_back(s.get<std::string>());
             }
@@ -754,10 +752,7 @@ bool ThermistorWidget::on_edit_configure() {
 }
 
 bool ThermistorWidget::is_carousel_mode() const {
-    if (config_.contains("display_mode") && config_["display_mode"].is_string()) {
-        return config_["display_mode"].get<std::string>() == "carousel";
-    }
-    return false;
+    return json_util::read_field<std::string>(config_, "display_mode") == "carousel";
 }
 
 void ThermistorWidget::save_config() {

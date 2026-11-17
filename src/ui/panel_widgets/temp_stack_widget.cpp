@@ -14,6 +14,7 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
+#include "json_utils.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -100,10 +101,7 @@ bool TempStackWidget::on_edit_configure() {
 }
 
 bool TempStackWidget::is_carousel_mode() const {
-    if (config_.contains("display_mode") && config_["display_mode"].is_string()) {
-        return config_["display_mode"].get<std::string>() == "carousel";
-    }
-    return false;
+    return helix::json_util::read_field<std::string>(config_, "display_mode") == "carousel";
 }
 
 void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {

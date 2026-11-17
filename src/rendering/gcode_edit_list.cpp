@@ -2,6 +2,7 @@
 
 #include "gcode_edit_list.h"
 
+#include "json_utils.h"
 #include "utf8_validation.h"
 
 #include <cstdint>
@@ -200,11 +201,12 @@ std::optional<EditList> from_server_edits(const json& edits) {
         const auto line = line_it == edit.end() ? std::nullopt : small_int(*line_it);
 
         if (*action == kToolRemap) {
+            const json* map = helix::json_util::find_member(args, "map");
             if (edits.size() != 1 || !line || *line != 0 || !expect.empty() || args.size() != 1 ||
-                !args.contains("map")) {
+                !map) {
                 return std::nullopt;
             }
-            auto remap = parse_map(args["map"]);
+            auto remap = parse_map(*map);
             if (!remap) {
                 return std::nullopt;
             }
@@ -241,8 +243,8 @@ std::optional<EditList> from_server_edits(const json& edits) {
             }
             mod.comment = *comment;
         }
-        if (args.contains("end_line")) {
-            const auto end = small_int(args["end_line"]);
+        if (const json* end_line = helix::json_util::find_member(args, "end_line")) {
+            const auto end = small_int(*end_line);
             if (!end || *end < *line) {
                 return std::nullopt;
             }

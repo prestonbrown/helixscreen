@@ -11,6 +11,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "job_queue_start.h"
+#include "json_utils.h"
 #include "moonraker_types.h"
 #include "printer_print_state.h"
 #include "queued_job_options.h"
@@ -463,23 +464,9 @@ JobQueueTileText compose_job_queue_tile_text(JobQueueTileState state,
 bool parse_automatic_transition(const json& rpc_response) {
     // Defensive walk, no throwing value() lookups: server.config is foreign
     // input and a malformed answer reads as Moonraker's own default (false).
-    if (!rpc_response.is_object() || !rpc_response.contains("result")) {
-        return false;
-    }
-    const json& result = rpc_response["result"];
-    if (!result.is_object() || !result.contains("config")) {
-        return false;
-    }
-    const json& config = result["config"];
-    if (!config.is_object() || !config.contains("job_queue")) {
-        return false;
-    }
-    const json& job_queue = config["job_queue"];
-    if (!job_queue.is_object() || !job_queue.contains("automatic_transition")) {
-        return false;
-    }
-    const json& value = job_queue["automatic_transition"];
-    return value.is_boolean() ? value.get<bool>() : false;
+    const json* job_queue = json_util::find_path(rpc_response, "result", "config", "job_queue");
+    return job_queue &&
+           json_util::read_field<bool>(*job_queue, "automatic_transition").value_or(false);
 }
 
 } // namespace helix

@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "json_utils.h"
 #include "moonraker_client_mock_internal.h"
 
 #include <spdlog/spdlog.h>
@@ -115,7 +116,8 @@ void register_queue_handlers(std::unordered_map<std::string, MethodHandler>& reg
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         // Validate input — malformed params are a client bug, report and bail.
-        if (!params.contains("filenames") || !params["filenames"].is_array()) {
+        const json* filenames = helix::json_util::find_array(params, "filenames");
+        if (!filenames) {
             if (error_cb) {
                 MoonrakerError err = MoonrakerError::validation_error(
                     "server.job_queue.post_job", "post_job: 'filenames' must be a JSON array");
@@ -125,7 +127,7 @@ void register_queue_handlers(std::unordered_map<std::string, MethodHandler>& reg
         }
 
         double now = static_cast<double>(time(nullptr));
-        for (const auto& f : params["filenames"]) {
+        for (const auto& f : *filenames) {
             if (!f.is_string()) {
                 spdlog::warn("[MoonrakerClientMock] post_job: skipping non-string filename");
                 continue;
@@ -148,7 +150,8 @@ void register_queue_handlers(std::unordered_map<std::string, MethodHandler>& reg
         []([[maybe_unused]] MoonrakerClientMock* self, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
-        if (!params.contains("job_ids") || !params["job_ids"].is_array()) {
+        const json* job_ids = helix::json_util::find_array(params, "job_ids");
+        if (!job_ids) {
             if (error_cb) {
                 MoonrakerError err = MoonrakerError::validation_error(
                     "server.job_queue.delete_job", "delete_job: 'job_ids' must be a JSON array");
@@ -157,7 +160,7 @@ void register_queue_handlers(std::unordered_map<std::string, MethodHandler>& reg
             return true;
         }
 
-        for (const auto& id_val : params["job_ids"]) {
+        for (const auto& id_val : *job_ids) {
             if (!id_val.is_string()) {
                 spdlog::warn("[MoonrakerClientMock] delete_job: skipping non-string job_id");
                 continue;
