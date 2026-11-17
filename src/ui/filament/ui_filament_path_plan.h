@@ -71,6 +71,7 @@ struct LinearHubFrame {
     int32_t center_x = 0;
     int32_t output_x = 0; // LINEAR: under the active slot (possibly animating)
     RailArtRect rail;     // LINEAR with rail art: where it is drawn
+    RailArtRect through;  // HUB with a pass-through unit's art: where it is drawn
 
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
@@ -117,6 +118,16 @@ int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
 /// The art's place: between the lanes' sensors and the buffer, centred, as tall as fits.
 /// Empty for a canvas without rail art, and for one too small to show it.
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g);
+
+/// Where a pass-through unit's head-on art goes (HUB and MIXED): a unit whose lanes each leave
+/// through their own outlet, so nothing slides. Between @p top and @p bottom, centred on
+/// @p center_x, as tall as fits. Empty for a canvas without such art, a LINEAR or on-head-hub
+/// layout, and a band too short to show it.
+RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
+                             int32_t bottom, int32_t center_x);
+
+/// The room left above a unit's head-on art for the lanes to bend in to it.
+int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g);
 
 /// Where @p gate's lane goes into the art drawn at @p r.
 inline int32_t rail_gate_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
@@ -194,6 +205,7 @@ struct MixedFrame {
     // distinct hub-top entries.
     pg::MergeLaneOut hub_fan[FilamentPathData::kMaxSlots];
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
+    RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
 
     SlotRenderStates states;
 };

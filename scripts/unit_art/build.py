@@ -116,14 +116,20 @@ def bake_unit(unit, out_dir, render=rsvg_render):
     for target, lanes in stub_dirs(unit, out_dir):
         _bake_layers(unit.id, unit.stub_art, target, lanes, render, False)
     if unit.face_art is not None:
-        for gates in unit.lane_variants:
+        for gates in face_gate_counts(unit):
             scene = face_scene(unit, gates)
             target = Path(out_dir) / unit.id / "face" / str(gates)
             target.mkdir(parents=True, exist_ok=True)
             _, _, vw, vh = scene._viewbox()
             width = round(FACE_HEIGHT * vw / vh)
             render(scene.layers_svg(("back", "front"), width), width, target / "body.png")
-            render(scene.layer_svg("carriage", width), width, target / "carriage.png")
+            if unit.carriage_step is not None:
+                render(scene.layer_svg("carriage", width), width, target / "carriage.png")
+
+
+def face_gate_counts(unit):
+    """The gate counts a unit's head-on art is baked for: each lane variant, or its one count."""
+    return unit.lane_variants or (unit.lanes,)
 
 
 def face_scene(unit, gates):
@@ -227,10 +233,10 @@ def generate_shell_table(units):
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
             track = f", k_{unit.id}_carriage, {len(carriage)}"
-            if unit.face_art is not None:
-                faces = [face_row(face_scene(unit, gates), gates) for gates in unit.lane_variants]
-                out.append(f"constexpr RailFaceArt k_{unit.id}_face[] = {{{', '.join(faces)}}};")
-                track += f", k_{unit.id}_face, {len(faces)}"
+        if unit.face_art is not None:
+            faces = [face_row(face_scene(unit, gates), gates) for gates in face_gate_counts(unit)]
+            out.append(f"constexpr RailFaceArt k_{unit.id}_face[] = {{{', '.join(faces)}}};")
+            track = (track or ", nullptr, 0") + f", k_{unit.id}_face, {len(faces)}"
         if t.lid_color or t.spool_lift_px:
             if not track:
                 track = ", nullptr, 0"

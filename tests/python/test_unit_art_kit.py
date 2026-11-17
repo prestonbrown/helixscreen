@@ -354,6 +354,18 @@ def test_the_htlf_body_continues_below_its_outlets():
     assert htlf.PROFILE[0] == (0.0, 0.0)
 
 
+def test_the_htlf_face_has_an_outlet_under_each_inlet_and_no_carriage(tmp_path):
+    scene = build.face_scene(htlf.UNIT, 4)
+    row = build.face_row(scene, 4)
+    gates, aspect, gate0, step, inlet_y, out_x, out_y = (float(v.rstrip("f")) for v in row.strip("{}").split(", "))
+    assert gates == 4 and step > 0
+    assert out_x == gate0 and out_y > inlet_y
+    assert not [i for i in scene.items if i.layer == "carriage"]
+    build.bake_unit(htlf.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    face = tmp_path / htlf.UNIT.id / "face" / "4"
+    assert (face / "body.png").is_file() and not (face / "carriage.png").exists()
+
+
 def test_the_htlf_stands_in_front_of_its_spools_so_it_draws_a_stub_per_lane_and_none():
     scene = kit.Scene(kit.ART_CAMERA)
     htlf.UNIT.draw_art(scene, ["#ffffff"] * htlf.UNIT.lanes, "full")

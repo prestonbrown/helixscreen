@@ -8,6 +8,7 @@ Each lane leaves through its own collet on the front, under a tan lid with a lam
 """
 from .. import feeder, kit
 from ..kit import TrayShellDef, UnitDef
+from . import htlf_face
 
 W, D, H = 0.46, 0.27, 0.29
 # Front face, bottom up: a plain panel, the row of outlet collets, then the lid.
@@ -73,4 +74,4 @@ def _tray_shell() -> TrayShellDef:
     return feeder.tray_strip(0x3F9A6E, 0xD3B97F)
 
 
-UNIT = UnitDef("htlf", 4, draw_art, _tray_shell())
+UNIT = UnitDef("htlf", 4, draw_art, _tray_shell(), face_art=htlf_face.draw)

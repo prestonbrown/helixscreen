@@ -188,6 +188,8 @@ constexpr float kRailFanRatio = 0.08f;
 constexpr float kRailMaxWidthRatio = 0.9f;
 // Below this the art's detail is lost; the bar is drawn instead.
 constexpr int32_t kRailArtMinH = 40;
+// A pass-through unit's art is never taller than this share of the canvas.
+constexpr float kThroughMaxHRatio = 0.3f;
 } // namespace
 
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
@@ -201,6 +203,10 @@ int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
     return prep_y;
 }
 
+int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g) {
+    return LV_MAX(4 * data.theme.sensor_radius, (int32_t)(g.height * kRailFanRatio));
+}
+
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     if (!data.rail_art || data.rail_art_failed ||
         data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
@@ -208,8 +214,7 @@ RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
         return {};
     const int32_t sensor_r = data.theme.sensor_radius;
     const int32_t buffer_box_h = LV_MAX(16, (int32_t)(g.height * kHubHeightRatio));
-    const int32_t top =
-        lanes_leave_y(data, g) + LV_MAX(4 * sensor_r, (int32_t)(g.height * kRailFanRatio));
+    const int32_t top = lanes_leave_y(data, g) + art_fan_room(data, g);
     // Clear of the buffer box, or of where the exit's jog to the trunk ends above a buffer.
     const int32_t buffer_y = g.y_off + (int32_t)(g.height * kBufferYRatio);
     const int32_t bottom =
@@ -225,6 +230,25 @@ RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     if (h < kRailArtMinH)
         return {};
     return {g.center_x - w / 2, bottom - h, w, h};
+}
+
+RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
+                             int32_t bottom, int32_t center_x) {
+    const bool spread = data.topology == static_cast<int>(PathTopology::HUB) ||
+                        data.topology == static_cast<int>(PathTopology::MIXED);
+    if (!data.rail_art || data.rail_art_failed || !spread || data.hub_on_toolhead ||
+        data.rail_art->aspect <= 0)
+        return {};
+    int32_t h = bottom - top;
+    int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
+    const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
+    if (w > max_w) {
+        w = max_w;
+        h = (int32_t)std::lround(w / data.rail_art->aspect);
+    }
+    if (h < kRailArtMinH)
+        return {};
+    return {center_x - w / 2, top, w, h};
 }
 
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g) {
@@ -339,14 +363,38 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     if (linear)
         return f;
     int32_t hub_top = f.hub_y - f.hub_h / 2;
+    // A pass-through unit stands between the lanes' sensors and the hub, as tall as the room
+    // above the hub's lowest place allows; the lanes fan into the hub from its outlets.
+    if (!data.lanes_merge_inside && !data.built_in_hub) {
+        const int32_t fan = art_fan_room(data, g);
+        const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
+        const int32_t lowest_hub_top =
+            f.hub_stacked ? hub_top : next_y - f.hub_h - 2 * f.sensor_r - 8;
+        // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
+        const int32_t top = f.prep_band_y + 2 * fan;
+        const int32_t bottom =
+            LV_MIN(lowest_hub_top - 2 * fan, top + (int32_t)(g.height * kThroughMaxHRatio));
+        f.through = through_art_rect(data, g, top, bottom, f.center_x);
+        if (f.through.w > 0) {
+            hub_top = LV_MAX(hub_top, f.through.y + f.through.h + 2 * fan);
+            f.hub_y = hub_top + f.hub_h / 2;
+            f.output_y = f.hub_y + f.hub_h / 2;
+        }
+    }
     pg::MergeLaneIn fan_in[FilamentPathData::kMaxSlots];
     const int fan_n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
     for (int i = 0; i < fan_n; i++) {
-        // Tubes leave the on-toolhead selector's bottom edge, else the prep sensor.
+        // Tubes leave the on-toolhead selector's bottom edge, a pass-through unit's outlet,
+        // else the prep sensor.
         int32_t start_y = data.slot_has_prep_sensor[i] ? (f.prep_y + f.sensor_r) : f.prep_y;
+        int32_t start_x = g.slot_x[i];
         if (data.hub_on_toolhead)
             start_y = f.selector_y + f.hub_h / 2;
-        fan_in[i] = {(float)g.slot_x[i], (float)start_y};
+        if (f.through.w > 0) {
+            start_x = rail_outlet_x(*data.rail_art, f.through, i);
+            start_y = f.through.y + (int32_t)std::lround(data.rail_art->outlet_y * f.through.h);
+        }
+        fan_in[i] = {(float)start_x, (float)start_y};
     }
     constexpr int32_t kTargetEntrySpacing = 22;
     constexpr int32_t kEntryMargin = 8;
@@ -483,6 +531,8 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     constexpr float kSensorFraction = 0.36f;
     constexpr float kHubFraction = 0.59f;
     constexpr float kHubHFraction = 0.11f;
+    // A pass-through unit's art ends no lower than this share of the run.
+    constexpr float kMixedArtBottom = 0.5f;
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
     f.tool_scale = LV_MAX(6, data.theme.extruder_scale * 2 / 3);
@@ -507,6 +557,26 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     f.states = compute_slot_render_states(&data);
 
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
+    // A pass-through unit stands between the spools and the lane sensors. The sensors and the
+    // hub move down below it, never so far that the hub reaches the shared head.
+    if (n > 0) {
+        const int32_t fan = art_fan_room(data, g);
+        const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
+        const int32_t nozzle_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
+        const int32_t sensor_to_hub = (f.hub_cy - f.hub_h / 2) - f.sensor_y;
+        const int32_t lowest = nozzle_top - stub - f.hub_h - sensor_to_hub - fan;
+        // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
+        const int32_t top = f.entry_y + 2 * fan;
+        const int32_t bottom =
+            LV_MIN(lowest, row_between(f.entry_y, f.toolhead_y, kMixedArtBottom));
+        f.through = through_art_rect(data, g, top, bottom, (g.slot_x[0] + g.slot_x[n - 1]) / 2);
+        if (f.through.w > 0) {
+            const int32_t shift = LV_MAX(0, f.through.y + f.through.h + fan - f.sensor_y);
+            f.sensor_y += shift;
+            f.hub_cy += shift;
+            f.hub_bottom += shift;
+        }
+    }
     int32_t hub_x_sum = 0;
     for (int i = 0; i < n; i++) {
         if (data.slot_is_hub_routed[i]) {
@@ -801,6 +871,43 @@ Route& start_lane(PathPlan& out, const Lane& lane, float x, int32_t entry_y, int
     return r;
 }
 
+// From (@p x, @p from_y) the lane bends in above a pass-through unit's art to its inlet and runs
+// hidden behind the face to its outlet. Returns the outlet.
+pg::PathPoint route_into_art(Route& r, const FilamentPathData& data, const RailArtRect& art,
+                             int lane, float x, float from_y, SpanStyle s) {
+    const float in_x = (float)rail_gate_x(*data.rail_art, art, lane);
+    const float in_y = (float)(art.y + (int32_t)std::lround(data.rail_art->inlet_y * art.h));
+    const float top = (float)art.y;
+    const pg::PathPoint pts[4] = {
+        {x, from_y}, {x, from_y + (top - from_y) / 3}, {in_x, top}, {in_x, in_y}};
+    pg::FilamentPath fan;
+    pg::route_polyline_filleted(fan, pts, 4, std::clamp(std::fabs(x - in_x) / 2.0f, 0.5f, 18.0f));
+    route_append(r, fan, s);
+    const pg::PathPoint outlet{
+        (float)rail_outlet_x(*data.rail_art, art, lane),
+        (float)(art.y + (int32_t)std::lround(data.rail_art->outlet_y * art.h))};
+    append_line(r, in_x, in_y, outlet.x, outlet.y, unpainted(s));
+    return outlet;
+}
+
+// Spool entry, through a pass-through unit's art, back out to the lane's own column at its
+// sensor, with the sensor's band.
+Route& start_lane_through_art(PathPlan& out, const Lane& lane, const FilamentPathData& data,
+                              const RailArtRect& art, int i, float x, int32_t entry_y,
+                              int32_t sensor_y) {
+    Route& r = new_route(out);
+    const SpanStyle s = lane.style(PathSegment::SPOOL);
+    const pg::PathPoint at = route_into_art(r, data, art, i, x, (float)entry_y, s);
+    const float run = ((float)sensor_y - at.y) / 3;
+    const pg::PathPoint pts[4] = {
+        at, {at.x, at.y + run}, {x, at.y + 2 * run}, {x, (float)sensor_y}};
+    pg::FilamentPath back;
+    pg::route_polyline_filleted(back, pts, 4, std::clamp(std::fabs(x - at.x) / 2.0f, 0.5f, 18.0f));
+    route_append(r, back, s);
+    add_band_at_end(out, BandKind::Lane, r, lane.band(PathSegment::TOOLHEAD), lane.color);
+    return r;
+}
+
 } // namespace
 
 void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan& out) {
@@ -849,7 +956,9 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(f.states[i], error, bg);
         const float x = (float)g.slot_x[i];
-        Route& r = start_lane(out, lane, x, f.entry_y, f.sensor_y);
+        Route& r = f.through.w > 0 ? start_lane_through_art(out, lane, data, f.through, i, x,
+                                                            f.entry_y, f.sensor_y)
+                                   : start_lane(out, lane, x, f.entry_y, f.sensor_y);
         const int fi = f.slot_to_fan[i];
         if (fi >= 0) {
             pg::FilamentPath fan;
@@ -928,7 +1037,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
                      lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
         }
-        if (!data.lanes_merge_inside && f.rail.w == 0)
+        if (!data.lanes_merge_inside && f.rail.w == 0 && f.through.w == 0)
             append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
                         lane.style(PathSegment::LANE));
 
@@ -948,6 +1057,17 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             if (!lane.on)
                 continue;
             append_line(r, in_x, in_y, (float)f.output_x, (float)f.output_y,
+                        unpainted(lane.style(PathSegment::HUB)));
+        } else if (f.through.w > 0) {
+            // Into the unit's art and out of its own outlet, then down the fan to the hub.
+            route_into_art(r, data, f.through, i, x, (float)f.prep_band_y,
+                           lane.style(PathSegment::LANE));
+            pg::FilamentPath fan;
+            pg::route_polyline_filleted(fan, f.hub_fan[i].pts, 4, 8.0f);
+            route_append(r, fan, lane.style(PathSegment::LANE));
+            if (!lane.on)
+                continue;
+            append_line(r, f.hub_fan[i].pts[3].x, hub_top, cx, hub_bot,
                         unpainted(lane.style(PathSegment::HUB)));
         } else if (linear) {
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));

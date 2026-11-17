@@ -46,6 +46,7 @@ constexpr FrontPart k_mmx_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13
 constexpr ProfilePoint k_mmx_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_htlf_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x3f9a6e, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0xd3b97f, 2}};
 constexpr ProfilePoint k_htlf_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
+constexpr RailFaceArt k_htlf_face[] = {{4, 1.69235f, 0.44159f, 0.10514f, -0.00212f, 0.44159f, 0.99392f}};
 constexpr FrontPart k_3ms_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x35c4c4, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0x3e4044, 2}};
 constexpr ProfilePoint k_3ms_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_ad5x_ifs_front[] = {{FrontAnchor::Span, 1.00f, 1.00f, 1.00f, 13.00f, 0x8a7f76, 3}, {FrontAnchor::Lane, -14.00f, 14.00f, 4.00f, 10.00f, 0xe7e4dc, 2}};
@@ -78,7 +79,7 @@ const UnitShell kShells[] = {
     {"night_owl", k_night_owl_cheek, 2, nullptr, 0, 2, 0.00f, 22.0f, 9.0f, false, LaneJoin::Junction, 0x1d2f55, 0x000000, k_night_owl_front, 4, false, 0x0, nullptr, 0, nullptr, 0, 0x000000, 12.0f},
     {"quattro_box", k_quattro_box_cheek, 2, k_quattro_box_dome, 17, 4, 0.00f, 36.0f, 9.0f, true, LaneJoin::Junction, 0x3b3836, 0x000000, k_quattro_box_front, 3, false, 0x34},
     {"mmx", k_mmx_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x1f2022, 0x000000, k_mmx_front, 2, true, 0x0},
-    {"htlf", k_htlf_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x3f9a6e, 0x000000, k_htlf_front, 2, false, 0x0},
+    {"htlf", k_htlf_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x3f9a6e, 0x000000, k_htlf_front, 2, false, 0x0, nullptr, 0, k_htlf_face, 1},
     {"3ms", k_3ms_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::Hub, 0x35c4c4, 0x000000, k_3ms_front, 2, true, 0x0},
     {"ad5x_ifs", k_ad5x_ifs_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x8a7f76, 0x000000, k_ad5x_ifs_front, 2, true, 0x0},
     {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x1a1b1f, 0x000000, k_elegoo_canvas_front, 2, true, 0x0},

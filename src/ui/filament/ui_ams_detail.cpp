@@ -746,10 +746,15 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
     ui_filament_path_canvas_set_lane_join(canvas, join);
-    // Only the gate counts the rail art exists for trade the bar for a rail.
-    const tray::RailFaceArt* rail = drawn_unit && topo == helix::PathTopology::LINEAR
-                                        ? tray::unit_shell_face_art(*drawn_unit, slot_count)
-                                        : nullptr;
+    // Only the gate counts the art exists for draw it. A sliding selector's art stands in for
+    // the LINEAR bar; a unit with no carriage passes each lane through to its own outlet, so its
+    // art stands above a hub or the separate tools.
+    const bool art_fits =
+        drawn_unit && (drawn_unit->carriage_n > 0 ? topo == helix::PathTopology::LINEAR
+                                                  : topo == helix::PathTopology::HUB ||
+                                                        topo == helix::PathTopology::MIXED);
+    const tray::RailFaceArt* rail =
+        art_fits ? tray::unit_shell_face_art(*drawn_unit, slot_count) : nullptr;
     ui_filament_path_canvas_set_selector_rail(canvas, rail ? drawn_unit->id : nullptr, rail);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds
