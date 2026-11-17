@@ -5,6 +5,17 @@ multi-filament systems (MMUs) - one shared extruder fed by a moving selector.
 Topology is `PathTopology::LINEAR`: the selector picks one gate from the spools;
 slot count is the gate count from `[mmu_machine]` (multi-unit EMU rigs appear as multiple units).
 
+**Reviewed against Happy Hare v4.2.0** (tag `v4.2.0`), plus the development-branch fields named
+below as such. Behavior that changed in 4.2 is gated on the parsed version
+(`MachineLayout::since()`), so 4.0, 4.1 and v3 keep their own; a development-only field is gated
+on its presence.
+
+| Since | What changes |
+|-------|--------------|
+| 4.2 | Gate weights in the gate map; empty `form_tip_macro` means no tip step; shared-heater and gear-driven spool rotation while drying |
+| development | `printer.mmu.drying` (dryer time left); `endless_spool_auto_groups` (groups read-only); extra pause-dialog buttons (`MMU_ERROR_DIALOG BUTTONS=`) |
+| every version | Slot menu **Mark Available** (`MMU_GATE_MAP AVAILABLE=1`) |
+
 ## Happy Hare (MMU)
 
 Happy Hare is a Klipper add-on for ERCF, Tradrack, and other selector-based multi-filament systems.
