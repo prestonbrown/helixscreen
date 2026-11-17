@@ -49,6 +49,7 @@
 #include <functional>
 #include <set>
 #include <sstream>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
 #include <zlib.h>
@@ -289,26 +290,47 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
         bundle["event_journal"] = json{{"error", e.what()}};
     }
 
+    std::string klipper_log;
+    LogOrigin klipper_origin;
     if (options.include_klipper_logs) {
         try {
-            auto klipper_log = collect_klipper_log_tail();
-            if (!klipper_log.empty()) {
-                bundle["klipper_log"] = klipper_log;
-            }
+            klipper_log = collect_klipper_log_tail(8000, &klipper_origin);
         } catch (const std::exception& e) {
             spdlog::warn("[DebugBundle] Failed to collect klipper log: {}", e.what());
         }
     }
 
+    std::string moonraker_log;
     if (options.include_moonraker_logs) {
         try {
-            auto moonraker_log = collect_moonraker_log_tail();
+            moonraker_log = collect_moonraker_log_tail();
             if (!moonraker_log.empty()) {
                 bundle["moonraker_log"] = moonraker_log;
             }
         } catch (const std::exception& e) {
             spdlog::warn("[DebugBundle] Failed to collect moonraker log: {}", e.what());
         }
+    }
+
+    // A klippy.log tail is only evidence if it covers the running Klippy: a
+    // file last written before Klippy's latest connection is some earlier
+    // session's, and says so at its top.
+    if (!klipper_log.empty()) {
+        try {
+            std::string from;
+            const std::time_t connected =
+                last_klippy_connection(moonraker_log, LocalEventJournal::instance().snapshot(),
+                                       moonraker_on_this_host(), &from);
+            json meta = assess_klipper_log(klipper_origin, last_klippy_log_stamp(klipper_log),
+                                           connected, from);
+            const std::string banner = stale_klipper_log_banner(meta);
+            if (!banner.empty())
+                klipper_log = banner + "\n" + klipper_log;
+            bundle["klipper_log_meta"] = std::move(meta);
+        } catch (const std::exception& e) {
+            spdlog::warn("[DebugBundle] Failed to assess klipper log: {}", e.what());
+        }
+        bundle["klipper_log"] = klipper_log;
     }
 
     return bundle;
@@ -1006,6 +1028,15 @@ RawHttpResult http_get_raw(const std::string& base_url, const std::string& endpo
     return result;
 }
 
+/// @p t as "YYYY-MM-DDTHH:MM:SSZ".
+std::string iso_utc(std::time_t t) {
+    std::tm utc{};
+    gmtime_r(&t, &utc);
+    char when[32];
+    std::strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    return when;
+}
+
 } // namespace
 
 // Sanitize a multi-line text block by sanitize_value()-ing each line. Avoids
@@ -1026,6 +1057,13 @@ std::string DebugBundleCollector::sanitize_text_block(const std::string& body) {
         pos = nl + 1;
     }
     return result;
+}
+
+bool DebugBundleCollector::moonraker_on_this_host() {
+    std::string host;
+    uint16_t port = helix::kDefaultMoonrakerPort;
+    return helix::diag::split_host_port(get_moonraker_url(), host, port) &&
+           helix::is_moonraker_on_same_host(host);
 }
 
 json DebugBundleCollector::moonraker_get(const std::string& base_url, const std::string& endpoint,
@@ -1371,10 +1409,7 @@ json DebugBundleCollector::collect_kernel_log() {
 
     // The kernel log describes the machine HelixScreen runs on. Whether that is
     // also the printer's host decides whether a Klippy kill could appear in it.
-    std::string host;
-    uint16_t port = helix::kDefaultMoonrakerPort;
-    if (helix::diag::split_host_port(get_moonraker_url(), host, port))
-        section["same_host_as_moonraker"] = helix::is_moonraker_on_same_host(host);
+    section["same_host_as_moonraker"] = moonraker_on_this_host();
 
     return section;
 }
@@ -2145,6 +2180,65 @@ std::string DebugBundleCollector::condense_klipper_log(const std::string& raw, i
     return out;
 }
 
+namespace {
+
+/// The shared back half of every log tail: condense, keep the last
+/// @p num_lines lines, scrub. Condensing runs BEFORE the line cap so the line
+/// budget is spent on events rather than on Klipper's per-second Stats spam.
+std::string shape_log_tail(std::string body, int num_lines, int condense_max_repeats,
+                           const std::string& what) {
+    if (condense_max_repeats > 0) {
+        size_t raw_bytes = body.size();
+        body = DebugBundleCollector::condense_klipper_log(body, condense_max_repeats);
+        spdlog::debug("[DebugBundle] Condensed {} to {} bytes from {}", raw_bytes, body.size(),
+                      what);
+    }
+
+    std::istringstream stream(body);
+    std::deque<std::string> lines;
+    std::string line;
+    while (std::getline(stream, line)) {
+        lines.push_back(std::move(line));
+        if (static_cast<int>(lines.size()) > num_lines) {
+            lines.pop_front();
+        }
+    }
+
+    std::string joined;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (i > 0)
+            joined += '\n';
+        joined += lines[i];
+    }
+    return DebugBundleCollector::sanitize_text_block(joined);
+}
+
+/// The last @p max_bytes of @p path, starting at a line boundary; "" when the
+/// file cannot be read.
+std::string read_file_tail_bytes(const std::string& path, size_t max_bytes) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.good())
+        return {};
+    f.seekg(0, std::ios::end);
+    const std::streamoff size = f.tellg();
+    if (size <= 0)
+        return {};
+    const std::streamoff start = size > static_cast<std::streamoff>(max_bytes)
+                                     ? size - static_cast<std::streamoff>(max_bytes)
+                                     : 0;
+    f.seekg(start);
+    std::string body(static_cast<size_t>(size - start), '\0');
+    f.read(body.data(), static_cast<std::streamsize>(body.size()));
+    body.resize(static_cast<size_t>(f.gcount()));
+    if (start > 0) {
+        const size_t nl = body.find('\n');
+        body = nl == std::string::npos ? std::string{} : body.substr(nl + 1);
+    }
+    return body;
+}
+
+} // namespace
+
 std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
                                                  const std::string& endpoint, int num_lines,
                                                  int tail_bytes, int condense_max_repeats,
@@ -2211,37 +2305,9 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
             body = (nl == std::string::npos) ? std::string{} : body.substr(nl + 1);
         }
 
-        // Condense BEFORE the num_lines cap: the whole point is to spend the
-        // line budget on events rather than on Klipper's per-second Stats spam.
-        if (condense_max_repeats > 0) {
-            size_t raw_bytes = body.size();
-            body = condense_klipper_log(body, condense_max_repeats);
-            spdlog::debug("[DebugBundle] Condensed {} to {} bytes from {}", raw_bytes, body.size(),
-                          endpoint);
-        }
-
-        // Take last N lines from the response
-        std::istringstream stream(body);
-        std::deque<std::string> lines;
-        std::string line;
-
-        while (std::getline(stream, line)) {
-            lines.push_back(std::move(line));
-            if (static_cast<int>(lines.size()) > num_lines) {
-                lines.pop_front();
-            }
-        }
-
-        std::string joined;
-        for (size_t i = 0; i < lines.size(); ++i) {
-            if (i > 0)
-                joined += '\n';
-            joined += lines[i];
-        }
-
-        spdlog::debug("[DebugBundle] Fetched {} lines from {} (HTTP {})", lines.size(), endpoint,
+        spdlog::debug("[DebugBundle] Fetched {} bytes from {} (HTTP {})", body.size(), endpoint,
                       status);
-        return sanitize_text_block(joined);
+        return shape_log_tail(std::move(body), num_lines, condense_max_repeats, endpoint);
     } catch (const std::exception& e) {
         spdlog::debug("[DebugBundle] Exception fetching {}: {}", endpoint, e.what());
         return {};
@@ -2254,14 +2320,11 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
 // refused, while both files sat on the local disk the whole time. moonraker.log
 // in particular is the one artefact that would say why Moonraker stopped.
 std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_name, int num_lines,
-                                                         int condense_max_repeats) {
-    std::string host;
-    uint16_t port = helix::kDefaultMoonrakerPort;
-    if (!helix::diag::split_host_port(get_moonraker_url(), host, port))
-        return {};
+                                                         int condense_max_repeats,
+                                                         LogOrigin* origin) {
     // A remote printer's logs are not on our disk, and reading a same-named file
     // here would attribute this machine's logs to the printer.
-    if (!helix::is_moonraker_on_same_host(host))
+    if (!moonraker_on_this_host())
         return {};
 
     const auto paths =
@@ -2282,15 +2345,15 @@ std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_
     // not a line count.
     if (condense_max_repeats > 0)
         body = condense_klipper_log(body, condense_max_repeats);
-    return local_log_source_line(source.path, source.modified, std::time(nullptr)) + "\n" + body;
+    if (origin != nullptr)
+        *origin = LogOrigin{"local", source.path, source.modified};
+    return local_log_source_line(source.path, source.modified, std::time(nullptr)) + "\n" +
+           sanitize_text_block(body);
 }
 
 std::string DebugBundleCollector::local_log_source_line(const std::string& path,
                                                         std::time_t modified, std::time_t now) {
-    std::tm utc{};
-    gmtime_r(&modified, &utc);
-    char when[32];
-    std::strftime(when, sizeof(when), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    const std::string when = iso_utc(modified);
     const long long age = static_cast<long long>(now) - static_cast<long long>(modified);
     std::string age_text;
     if (age < 0) {
@@ -2407,22 +2470,15 @@ std::string DebugBundleCollector::prepend_rotated_predecessor(const std::string&
            " above, active log below ----\n" + active_body;
 }
 
-std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines) {
+std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines, LogOrigin* origin) {
     std::string base_url = get_moonraker_url();
     if (base_url.empty())
-        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats);
-    // 4 MiB of raw klippy.log is ~80 minutes of Klipper's 1-Stats-line-per-second
-    // output, versus ~10 minutes for the old 512 KiB tail. condense_klipper_log()
-    // then strips the Stats padding, so the retained payload stays in the same
-    // ballpark as before while reaching far enough back to contain the incident
-    // (bundle UJCCQP6S: 615 of 635 captured lines were Stats, and the MCU
-    // shutdown being investigated had scrolled off hours earlier).
-    constexpr int kKlipperTailBytes = 4 * 1024 * 1024;
+        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats, origin);
     int raw_bytes = 0;
     auto body = fetch_log_tail(base_url, "/server/files/klippy.log", num_lines, kKlipperTailBytes,
                                kKlipperCondenseMaxRepeats, &raw_bytes);
     if (body.empty())
-        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats);
+        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats, origin);
 
     // klippy.log is the fragile one. Klipper's handler rotates on a clock jump,
     // and an RTC-less printer jumps its clock on every boot — Vger1700's device
@@ -2430,8 +2486,228 @@ std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines) {
     // "klippy.log" is a Moonraker alias; on AD5M/AD5X the real file is
     // printer.log, so rotations must be matched under both names.
     static const std::vector<std::string> kStems = {"klippy.log", "printer.log"};
+
+    std::time_t served_modified = 0;
+    for (const auto& e : fetch_log_listing(base_url)) {
+        if (std::find(kStems.begin(), kStems.end(), e.path) != kStems.end()) {
+            served_modified = static_cast<std::time_t>(e.modified);
+            break;
+        }
+    }
+
+    // Moonraker serves <its data dir>/logs/klippy.log, but Klippy writes
+    // wherever its -l points. When the running klippy.py's own file is newer,
+    // the served copy is some earlier session's and the live one is the evidence.
+    if (moonraker_on_this_host()) {
+        const std::string live = live_klippy_log_path(helix::diag::find_moonraker_processes());
+        struct ::stat st {};
+        if (!live.empty() && ::stat(live.c_str(), &st) == 0 && st.st_size > 0 &&
+            prefer_live_klippy_log(st.st_mtime, served_modified)) {
+            std::string raw = read_file_tail_bytes(live, kKlipperTailBytes);
+            if (!raw.empty()) {
+                spdlog::info("[DebugBundle] Reading the running Klippy's log {} instead of "
+                             "Moonraker's klippy.log",
+                             live);
+                if (origin != nullptr)
+                    *origin = LogOrigin{"local", live, st.st_mtime};
+                const std::string served_when = served_modified > 0
+                                                    ? iso_utc(served_modified)
+                                                    : std::string("at an unknown time");
+                return local_log_source_line(live, st.st_mtime, std::time(nullptr)) +
+                       "\n[helix] the running klippy.py logs to this file (its -l argument); "
+                       "Moonraker's klippy.log was last written " +
+                       served_when + "\n" +
+                       shape_log_tail(std::move(raw), num_lines, kKlipperCondenseMaxRepeats, live);
+            }
+        }
+    }
+
+    if (origin != nullptr)
+        *origin = LogOrigin{"moonraker", "", served_modified};
     return prepend_rotated_predecessor(base_url, kStems, body, raw_bytes, kKlipperTailBytes,
                                        num_lines, kKlipperCondenseMaxRepeats);
+}
+
+std::string DebugBundleCollector::live_klippy_log_path(const std::vector<diag::ProcMatch>& procs) {
+    for (const auto& p : procs) {
+        if (p.cmdline.find("klippy.py") == std::string::npos)
+            continue;
+        const std::string log_file = diag::parse_log_hints(p.cmdline).log_file;
+        // Relative paths resolve against Klippy's cwd, which we cannot see.
+        if (!log_file.empty() && log_file.front() == '/')
+            return log_file;
+    }
+    return {};
+}
+
+bool DebugBundleCollector::prefer_live_klippy_log(std::time_t live_modified,
+                                                  std::time_t served_modified) {
+    if (served_modified <= 0)
+        return true;
+    return static_cast<long long>(live_modified) >
+           static_cast<long long>(served_modified) + kLogStaleSlackS;
+}
+
+namespace {
+
+/// "YYYY-MM-DD HH:MM:SS" at the start of @p s, as written; "" otherwise.
+std::string leading_iso_stamp(std::string_view s) {
+    if (s.size() < 19)
+        return {};
+    static constexpr const char* kShape = "dddd-dd-dd dd:dd:dd";
+    for (size_t i = 0; i < 19; ++i) {
+        const char c = s[i];
+        const char want = kShape[i];
+        if (want == 'd' ? !std::isdigit(static_cast<unsigned char>(c))
+                        : (c != want && !(i == 10 && c == 'T')))
+            return {};
+    }
+    std::string out(s.substr(0, 19));
+    out[10] = ' ';
+    return out;
+}
+
+/// Python's time.asctime() ("Mon Aug 17 17:46:01 2026") as "YYYY-MM-DD HH:MM:SS".
+std::string asctime_to_iso(const std::string& s) {
+    static constexpr const char* kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    char wday[4] = {}, mon[4] = {};
+    int day = 0, hh = 0, mm = 0, ss = 0, year = 0;
+    if (std::sscanf(s.c_str(), "%3s %3s %d %d:%d:%d %d", wday, mon, &day, &hh, &mm, &ss, &year) !=
+        7)
+        return {};
+    for (int m = 0; m < 12; ++m) {
+        if (std::string_view(mon) == kMonths[m])
+            return fmt::format("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", year, m + 1, day, hh, mm, ss);
+    }
+    return {};
+}
+
+/// The parsed local-time stamp as Unix seconds through this host's zone; 0 if
+/// unparseable.
+std::time_t local_stamp_to_time(const std::string& stamp) {
+    std::tm tm{};
+    if (std::sscanf(stamp.c_str(), "%d-%d-%d %d:%d:%d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday,
+                    &tm.tm_hour, &tm.tm_min, &tm.tm_sec) != 6)
+        return 0;
+    tm.tm_year -= 1900;
+    tm.tm_mon -= 1;
+    tm.tm_isdst = -1;
+    const std::time_t t = std::mktime(&tm);
+    return t < 0 ? 0 : t;
+}
+
+/// Lines of @p text, newest first.
+template <typename Fn> void for_each_line_backward(const std::string& text, Fn&& fn) {
+    size_t end = text.size();
+    while (end > 0) {
+        const size_t nl = text.rfind('\n', end - 1);
+        const size_t begin = nl == std::string::npos ? 0 : nl + 1;
+        if (fn(std::string_view(text).substr(begin, end - begin)))
+            return;
+        if (nl == std::string::npos)
+            return;
+        end = nl;
+    }
+}
+
+} // namespace
+
+std::string DebugBundleCollector::last_klippy_log_stamp(const std::string& log) {
+    static const std::vector<std::string> kMarkers = {"Start printer at ", "Log rollover at "};
+    std::string found;
+    for_each_line_backward(log, [&](std::string_view line) {
+        if (auto iso = leading_iso_stamp(line); !iso.empty()) {
+            found = iso;
+            return true;
+        }
+        for (const auto& marker : kMarkers) {
+            const size_t at = line.find(marker);
+            if (at == std::string_view::npos)
+                continue;
+            if (auto iso = asctime_to_iso(std::string(line.substr(at + marker.size())));
+                !iso.empty()) {
+                found = iso;
+                return true;
+            }
+        }
+        return false;
+    });
+    return found;
+}
+
+std::time_t DebugBundleCollector::last_klippy_connection(const std::string& moonraker_log,
+                                                         const std::vector<JournalEntry>& journal,
+                                                         bool moonraker_clock_is_local,
+                                                         std::string* from) {
+    std::time_t best = 0;
+    std::string best_from;
+
+    // Moonraker stamps its log in the printer's local time, which this host's
+    // zone converts only when this host IS the printer.
+    if (moonraker_clock_is_local) {
+        for_each_line_backward(moonraker_log, [&](std::string_view line) {
+            if (line.find("Klippy Connection Established") == std::string_view::npos)
+                return false;
+            const std::time_t t = local_stamp_to_time(leading_iso_stamp(line));
+            if (t > 0) {
+                best = t;
+                best_from = "moonraker.log";
+            }
+            return true;
+        });
+    }
+
+    for (const auto& e : journal) {
+        if (e.kind != journal_kind::kReady)
+            continue;
+        const auto t = static_cast<std::time_t>(e.time);
+        if (t > best) {
+            best = t;
+            best_from = "event_journal";
+        }
+    }
+
+    if (from != nullptr)
+        *from = best_from;
+    return best;
+}
+
+json DebugBundleCollector::assess_klipper_log(const LogOrigin& origin,
+                                              const std::string& last_stamp,
+                                              std::time_t klippy_connected_at,
+                                              const std::string& connected_from) {
+    json meta;
+    meta["source"] = origin.source;
+    if (!origin.path.empty())
+        meta["path"] = sanitize_value(origin.path);
+    meta["modified"] = origin.modified > 0 ? json(iso_utc(origin.modified)) : json(nullptr);
+    meta["last_stamp"] = last_stamp.empty() ? json(nullptr) : json(last_stamp);
+    if (klippy_connected_at > 0) {
+        meta["klippy_connected_at"] = iso_utc(klippy_connected_at);
+        meta["klippy_connected_from"] = connected_from;
+    } else {
+        meta["klippy_connected_at"] = nullptr;
+    }
+    if (origin.modified > 0 && klippy_connected_at > 0) {
+        meta["stale"] = static_cast<long long>(origin.modified) + kLogStaleSlackS <
+                        static_cast<long long>(klippy_connected_at);
+    } else {
+        meta["stale"] = nullptr;
+    }
+    return meta;
+}
+
+std::string DebugBundleCollector::stale_klipper_log_banner(const json& meta) {
+    const json* stale = helix::json_util::find_member(meta, "stale");
+    if (stale == nullptr || !stale->is_boolean() || !stale->get<bool>())
+        return {};
+    return fmt::format(
+        "[helix] STALE: this klippy.log was last written {}, before Klippy's latest connection "
+        "at {} ({}). It does not cover the running Klippy session.",
+        helix::json_util::safe_string(meta, "modified"),
+        helix::json_util::safe_string(meta, "klippy_connected_at"),
+        helix::json_util::safe_string(meta, "klippy_connected_from"));
 }
 
 std::string DebugBundleCollector::fetch_klipper_log_window(int tail_bytes) {
