@@ -52,14 +52,21 @@
               style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" scrollable="false" align="right_mid">
         <!-- Portrait has no room for a Multi-Filament card under several
              heads, so their lane bars sit here (they open the AMS panel). -->
-        <!-- A wrapper carries the binding: the bars show and hide themselves
-             with the filament system. -->
-        <lv_obj width="content"
-                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                hidden="true">
+        <!-- The lane bars and a chevron, one tap target that opens the AMS
+             panel: the card that carries Manage in landscape has no room in
+             this column. The row carries the binding, because the bars show
+             and hide themselves with the filament system. -->
+        <lv_obj name="operations_lanes_row"
+                width="content" height="#touch_target_min" flex_flow="row" style_flex_cross_place="center"
+                style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0"
+                style_radius="#border_radius" scrollable="false" clickable="true" hidden="true">
+          <style name="styles.press_wash" selector="pressed"/>
           <bind_flag_if cond="ui_is_portrait eq 0 or target_tool_multi_head eq 0" flag="hidden"/>
+          <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
           <ams_mini_status name="operations_lanes"
-                           width="#filament_header_lanes_w" height="#touch_target_min" bars_align="end"/>
+                           width="#filament_header_lanes_w" height="100%" bars_align="end" clickable="false"
+                           event_bubble="true"/>
+          <icon src="chevron_right" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
         </lv_obj>
         <ui_button name="btn_target_tool_pickup"
                    width="content" height="#touch_target_min" style_pad_hor="#space_sm" icon="swap_horizontal"

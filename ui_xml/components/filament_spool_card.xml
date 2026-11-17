@@ -2,6 +2,13 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <styles>
+    <!-- Styles, not inline attributes, so the bound compact one can outrank
+         the full one; the button's height is its content over a minimum. -->
+    <style name="manage_full" min_height="#button_height" pad_left="#space_md" pad_right="#space_md"/>
+    <style name="manage_compact"
+           min_height="#button_height_sm" min_width="#touch_target_min" pad_left="#space_sm" pad_right="#space_sm"/>
+  </styles>
   <!-- Spool card — relevant with or without AMS. C++ swaps between
        Multi-Filament (AMS/multi-tool rows) and External Spool presentations,
        and hides the header row in portrait (FilamentPanel::
@@ -44,19 +51,23 @@
            works when the parent card sizes to content (flex_grow has no
            parent slack to distribute in that mode). Using button_height_lg
            so the AMS slot indicators aren't pinched at MICRO (26px on
-           button_height is below the mini-status 32px floor). -->
+           button_height is below the mini-status 32px floor). The whole row
+           is one tap target that opens the AMS panel; Manage does the same. -->
       <lv_obj name="ams_manage_row"
               width="0" height="#filament_ams_row_h" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="row"
               style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm"
-              hidden="true">
+              style_radius="#border_radius" clickable="true" hidden="true">
+        <style name="styles.press_wash" selector="pressed"/>
+        <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
         <!-- AMS mini status (auto-binds to AmsState, fills width, stretches to row height) -->
-        <ams_mini_status name="ams_mini_status" height="100%" flex_grow="1" bars_align="start"/>
-        <!-- Manage opens the AMS panel. With several heads the bars alone
-             open it: the Operations card is where a head is chosen. -->
-        <ui_button name="btn_manage_slots"
-                   width="content" height="#button_height" text="Manage" style_pad_left="#space_md"
-                   style_pad_right="#space_md">
-          <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
+        <ams_mini_status name="ams_mini_status"
+                         height="100%" flex_grow="1" bars_align="start" clickable="false" event_bubble="true"/>
+        <!-- Manage opens the AMS panel. With several heads, whose tool controls
+             are in the Operations card, it shrinks to a compact button so the
+             lane bars keep the room, but the card always has it. -->
+        <ui_button name="btn_manage_slots" width="content" height="content" style_pad_ver="0" text="Manage">
+          <style name="manage_full"/>
+          <bind_style_if_eq name="manage_compact" subject="target_tool_multi_head" ref_value="1"/>
           <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
         </ui_button>
       </lv_obj>

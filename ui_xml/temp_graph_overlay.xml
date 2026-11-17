@@ -35,6 +35,13 @@
     <px name="tg_preset_h_small" value="48"/>
     <px name="tg_preset_h_medium" value="52"/>
     <px name="tg_preset_h_large" value="72"/>
+    <!-- Portrait nozzle buttons: a 320x480 column gives the chart what these
+         leave, so they sit a little under a touch target there, as the
+         Filament panel's portrait rows do. -->
+    <px name="tg_portrait_btn_h_tiny" value="40"/>
+    <px name="tg_portrait_btn_h_small" value="48"/>
+    <px name="tg_portrait_btn_h_medium" value="48"/>
+    <px name="tg_portrait_btn_h_large" value="48"/>
   </consts>
 
   <!-- Three independent axes drive the layout:
@@ -64,6 +71,11 @@
        (mode-driven via inline cond=) and one container-axis pair
        (orientation-driven). -->
   <styles>
+    <!-- The series chips wrap in landscape; in portrait they stay on one line
+         and scroll sideways, so the chart keeps its height. Styles, not inline
+         attributes, so the bound one can outrank the static one. -->
+    <style name="tg_chips_wrap" flex_flow="row_wrap" layout="flex"/>
+    <style name="tg_chips_row" flex_flow="row" layout="flex"/>
     <style name="tg_content_row" layout="flex" flex_flow="row"/>
     <style name="tg_content_column" layout="flex" flex_flow="column"/>
     <!-- graph_outer width axis: full when GraphOnly OR portrait, else 66%. -->
@@ -132,10 +144,15 @@
                        cond="ui_is_portrait or temp_graph_mode eq 0 or ui_breakpoint ge 2" invert="true"/>
         <bind_style_if name="tg_graph_portrait" cond="ui_is_portrait"/>
         <bind_style_if name="tg_graph_landscape" cond="ui_is_portrait" invert="true"/>
-        <!-- Chip row: wrapping series toggle chips -->
+        <!-- Chip row: series toggle chips, wrapping in landscape, one
+             sideways-scrolling line in portrait -->
         <lv_obj name="chip_row"
                 width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_border_opa="0"
-                scrollable="false" flex_flow="row_wrap" style_pad_gap="#space_xs" style_flex_cross_place="center">
+                scrollable="false" scroll_dir="hor" scrollbar_mode="off" style_pad_gap="#space_xs"
+                style_flex_cross_place="center">
+          <style name="tg_chips_wrap"/>
+          <bind_style_if_eq name="tg_chips_row" subject="ui_is_portrait" ref_value="1"/>
+          <bind_flag_if_eq subject="ui_is_portrait" flag="scrollable" ref_value="1"/>
           <!-- Chips populated programmatically in C++ -->
         </lv_obj>
         <!-- Graph fills remaining space. No min_height floor: flex_grow gives
@@ -308,31 +325,32 @@
           <lv_obj height="content"
                   flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false"
                   style_border_opa="0">
-            <tool_target_row name="extruder_selector_row" labels="_row_graph" hidden="true">
+            <tool_target_row name="extruder_selector_row" labels="_row_graph" size="tool_row_compact_cell" hidden="true">
               <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="0"/>
             </tool_target_row>
             <lv_obj name="nozzle_preset_grid"
                     width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row_wrap"
                     style_flex_main_place="space_between" style_pad_gap="#space_xs">
               <ui_button name="preset_off"
-                         width="48%" text="Off" variant="ghost" style_border_width="#border_width"
-                         style_border_color="#border" style_border_opa="255">
+                         width="48%" height="#tg_portrait_btn_h" text="Off" variant="ghost"
+                         style_border_width="#border_width" style_border_color="#border" style_border_opa="255">
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_1" width="48%" bind_text="preset_material_0_name">
+              <ui_button name="preset_1" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_0_name">
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_2" width="48%" bind_text="preset_material_1_name">
+              <ui_button name="preset_2" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_1_name">
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
-              <ui_button name="preset_3" width="48%" bind_text="preset_material_2_name">
+              <ui_button name="preset_3" width="48%" height="#tg_portrait_btn_h" bind_text="preset_material_2_name">
                 <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
                 <event_cb trigger="clicked" callback="on_temp_graph_preset_clicked"/>
               </ui_button>
             </lv_obj>
-            <ui_button name="nozzle_btn_custom" width="100%" text="Custom..." variant="secondary">
+            <ui_button name="nozzle_btn_custom"
+                       width="100%" height="#tg_portrait_btn_h" text="Custom..." variant="secondary">
               <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_temp_graph_custom_clicked"/>
             </ui_button>

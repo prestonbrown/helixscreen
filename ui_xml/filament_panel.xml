@@ -13,8 +13,8 @@
     <px name="filament_portrait_length_h_small" value="48"/>
     <px name="filament_portrait_length_h_medium" value="48"/>
     <px name="filament_portrait_length_h_large" value="48"/>
-    <!-- The lane bars' width in the portrait Operations header, beside Pick up. -->
-    <px name="filament_header_lanes_w_small" value="96"/>
+    <!-- The lane bars' width in the portrait Operations header, beside its chevron and Pick up. -->
+    <px name="filament_header_lanes_w_small" value="80"/>
     <px name="filament_header_lanes_w_medium" value="96"/>
     <px name="filament_header_lanes_w_large" value="120"/>
     <!-- AMS mini-status row height. Tuned so slot indicators have room

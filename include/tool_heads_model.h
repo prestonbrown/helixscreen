@@ -151,6 +151,8 @@ class ToolHeadsModel {
     lv_subject_t row_off_subject_{};
     lv_subject_t row_cell_w_subject_{};
     lv_subject_t row_cell_h_subject_{};
+    lv_subject_t row_compact_cell_w_subject_{};
+    lv_subject_t row_compact_cell_h_subject_{};
 
     std::vector<HeadTemp> head_temps_;
     std::vector<HeadFilament> filament_;

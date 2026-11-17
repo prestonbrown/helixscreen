@@ -12,11 +12,13 @@
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "printer_state.h"
 #include "target_tool.h"
+#include "theme_manager.h"
 #include "tool_heads_model.h"
 #include "tool_picker.h"
 #include "tool_state.h"
@@ -233,4 +235,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Target tool: one head has no chooser",
     CHECK(subject_text("target_tool_number").empty());
     CHECK(subject_text("target_nozzle_label") == "Nozzle");
     CHECK(TargetTool::instance().mounted());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Temperature graph keeps a readable chart at 320x480 with 6 tools",
+                 "[temp_graph_overlay][portrait][layout]") {
+    lv_display_t* disp = lv_display_get_default();
+    ScopedResolution res(disp, 320, 480);
+    theme_manager_refresh_layout_constants(disp);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 1);
+    helix::ToolChangerRig rig{6};
+    TargetTool::instance().attach(state());
+    ToolHeadsModel::instance().attach(state());
+    ThreeHeads::drain();
+
+    TempGraphOverlay overlay;
+    overlay.init_subjects();
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "temp_graph_mode"), 1); // Nozzle
+    auto* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "temp_graph_overlay", nullptr));
+    REQUIRE(root != nullptr);
+    // What a 320x480 screen leaves an overlay under the navigation bar.
+    lv_obj_set_size(root, 320, 402);
+    // A chip per sensor, as the overlay builds them: six nozzles, bed,
+    // three chambers and two more sensors.
+    lv_obj_t* chips = lv_obj_find_by_name(root, "chip_row");
+    REQUIRE(chips != nullptr);
+    for (int i = 0; i < 12; ++i) {
+        lv_obj_t* chip = lv_obj_create(chips);
+        lv_obj_set_size(chip, 80, 21);
+    }
+    process_lvgl(30);
+    lv_obj_update_layout(root);
+
+    lv_obj_t* chart = lv_obj_find_by_name(root, "graph_container");
+    REQUIRE(chart != nullptr);
+    // The chips keep to one line and the controls are compact, so the chart
+    // keeps a readable height.
+    CHECK(lv_obj_get_height(chips) <= 32);
+    CHECK(lv_obj_get_height(chart) >= 120);
+    lv_obj_delete(root);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 0);
 }

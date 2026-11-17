@@ -99,17 +99,25 @@ struct ManageRowHarness {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Filament panel: several heads get the row of heads, not Manage",
+                 "Filament panel: several heads get the row of heads and a compact Manage",
                  "[filament][ui][tool]") {
-    // With no backend, Manage would navigate to an AMS panel that returns early;
-    // the heads exist in ToolState whether or not a backend claimed them.
+    // The heads exist in ToolState whether or not a backend claimed them.
     ManageRowHarness h(*this, {"extruder", "extruder1"}, GENERATE(AmsType::NONE, AmsType::AFC));
 
     REQUIRE(ToolState::instance().has_multiple_toolheads());
     CHECK_FALSE(h.hidden("tool_card_row"));
     CHECK_FALSE(h.hidden("temp_status_card"));
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
-    CHECK(h.hidden("btn_manage_slots"));
+    // The card always has a way into the AMS panel; with the tool controls in
+    // Operations its Manage is smaller than a one-head printer's.
+    CHECK_FALSE(h.hidden("btn_manage_slots"));
+    lv_obj_update_layout(h.root);
+    lv_obj_t* manage = lv_obj_find_by_name(h.root, "btn_manage_slots");
+    REQUIRE(manage != nullptr);
+    CHECK(lv_obj_get_width(manage) >= 48);
+    const char* full = lv_xml_get_const(nullptr, "button_height");
+    REQUIRE(full != nullptr);
+    CHECK(lv_obj_get_height(manage) < std::atoi(full));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: one head with AMS gets Manage and no chooser",
@@ -313,6 +321,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Portrait 320x480 Filament panel fits with n
     if (multi_head) {
         CHECK(height("tool_target_cell_0") >= 48);
         CHECK(h.hidden("spool_card"));
+        // The lane bars and their chevron open the AMS panel from the
+        // Operations header instead.
+        CHECK_FALSE(h.hidden("operations_lanes_row"));
+        CHECK(height("operations_lanes_row") >= 48);
     } else {
         CHECK_FALSE(h.hidden("spool_card"));
     }

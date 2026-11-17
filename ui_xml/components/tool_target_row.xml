@@ -13,6 +13,9 @@
     <!-- The row label pool: "_row" (Filament panel) or "_row_graph"
          (temperature graph), so each fits its own width. -->
     <prop name="labels" type="string" default="_row"/>
+    <!-- The cells' size subjects: tool_row_cell (one touch target tall), or
+         tool_row_compact_cell (40 px) where a portrait column is short. -->
+    <prop name="size" type="string" default="tool_row_cell"/>
   </api>
   <!-- SIZE_OK: the 2 px gap is kToolRailGap, the rail's and the picker's -->
   <view extends="lv_obj"
@@ -21,7 +24,7 @@
     <event_cb trigger="size_changed" callback="tool_target_row_resized" user_data="$labels"/>
     <repeat count="tool_switcher_heads">
       <tool_switcher_segment name="tool_target_cell_${i}"
-                             width="0" index="${i}" flex_grow="1" size="tool_row_cell" band_h="tool_row_band_h"
+                             width="0" index="${i}" flex_grow="1" size="$size" band_h="tool_row_band_h"
                              band_labelled="tool_row_off" two_line="tool_row_off" label_key="$labels"
                              state_key="_target_state" blocked="tool_row_off" callback="tool_target_segment_cb"/>
     </repeat>
