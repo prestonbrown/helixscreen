@@ -1222,3 +1222,102 @@ TEST_CASE("Overview plan: a box too short for its label and without room to grow
     CHECK(q->boxes.combiner);
     CHECK_FALSE(q->boxes.combiner_labeled);
 }
+
+namespace {
+
+// The two ends of a band's drawn bar, across its tube.
+std::pair<pg::PathPoint, pg::PathPoint> band_ends(const SensorBand& b, int32_t gauge) {
+    const float half = (float)(gauge + kBandExtra) / 2.0f;
+    const pg::PathPoint n{-b.tangent.y, b.tangent.x};
+    return {{b.at.x - n.x * half, b.at.y - n.y * half}, {b.at.x + n.x * half, b.at.y + n.y * half}};
+}
+
+// Distance from @p p to the rectangle @p b (0 inside).
+float distance_to_box(pg::PathPoint p, const Box& b) {
+    const float dx = LV_MAX(LV_MAX(b.x1 - p.x, 0.0f), p.x - b.x2);
+    const float dy = LV_MAX(LV_MAX(b.y1 - p.y, 0.0f), p.y - b.y2);
+    return std::hypot(dx, dy);
+}
+
+} // namespace
+
+TEST_CASE("Overview plan: sensor bands on the mock rigs clear boxes and other lines",
+          "[system_path][route_spacing]") {
+    for (const Rig& rig : mock_rigs()) {
+        CAPTURE(rig.name);
+        const SystemPathData& d = *rig.data;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        const std::vector<Box> meet = meeting_places(d, L, boxes);
+        // A tube keeps half its haloed width plus half the box gap from a box;
+        // a band keeps the same from its drawn end.
+        const float box_gap = (float)LV_MAX(4, d.tube_gauge) / 2.0f;
+        const float tube_half = (float)(d.tube_gauge + helix::ui::kHaloWidthExtra) / 2.0f;
+        std::vector<std::vector<pg::PathPoint>> pts(plan.route_count);
+        for (int i = 0; i < plan.route_count; i++)
+            pts[i] = sample_route(plan.routes[i]);
+        for (int k = 0; k < plan.band_count; k++) {
+            const SensorBand& band = plan.bands[k];
+            if (band.on_box_edge)
+                continue; // painted over its box on purpose
+            CAPTURE(k, band.at.x, band.at.y);
+            const auto [e1, e2] = band_ends(band, d.tube_gauge);
+            for (const Box& b : meet) {
+                CHECK(distance_to_box(e1, b) >= box_gap);
+                CHECK(distance_to_box(e2, b) >= box_gap);
+            }
+            // Other lines stay a haloed tube's half width clear of its ends.
+            for (int i = 0; i < plan.route_count; i++) {
+                if (on_route(plan.routes[i], band.at))
+                    continue;
+                for (const pg::PathPoint& q : pts[i]) {
+                    CHECK(std::hypot(q.x - e1.x, q.y - e1.y) >= tube_half);
+                    CHECK(std::hypot(q.x - e2.x, q.y - e2.y) >= tube_half);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",
+          "[system_path][route_spacing]") {
+    for (const Rig& rig : mock_rigs()) {
+        CAPTURE(rig.name);
+        const SystemPathData& d = *rig.data;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        const std::vector<Box> meet = meeting_places(d, L, boxes);
+        for (int i = 0; i < plan.route_count; i++) {
+            const Route& r = plan.routes[i];
+            for (int k = 0; k + 1 < r.path.count; k++) {
+                const pg::PathSeg& a = r.path.segs[k];
+                const pg::PathSeg& b = r.path.segs[k + 1];
+                if (b.type == pg::PathSeg::ARC && r.style[k + 1].painted) {
+                    CAPTURE(i, k);
+                    CHECK(b.radius >= 2.0f); // a bend drawn as an arc you can see
+                }
+                if (a.type != pg::PathSeg::LINE || b.type != pg::PathSeg::LINE)
+                    continue;
+                if (!r.style[k].painted || !r.style[k + 1].painted)
+                    continue; // a turn under a box
+                bool boxed = false;
+                for (const Box& m : meet)
+                    boxed = boxed || m.contains(a.p1, 0.0f);
+                if (boxed)
+                    continue;
+                const float ax = a.p1.x - a.p0.x, ay = a.p1.y - a.p0.y;
+                const float bx = b.p1.x - b.p0.x, by = b.p1.y - b.p0.y;
+                const float la = std::hypot(ax, ay), lb = std::hypot(bx, by);
+                if (la < 1e-3f || lb < 1e-3f)
+                    continue;
+                CAPTURE(i, k, a.p1.x, a.p1.y);
+                // Two straight pieces meeting at an angle are a hard corner.
+                CHECK(std::fabs(ax * by - ay * bx) / (la * lb) < 0.02f);
+            }
+        }
+    }
+}
