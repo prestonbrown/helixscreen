@@ -875,10 +875,9 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
             data, {L.x_off, L.y_off, L.x_off + L.width - 1, L.y_off + L.height - 1});
         if (Route* b = try_new_route(plan)) {
             plan.bypass_route = plan.route_count - 1;
-            // Spool → merge carries the SPOOL tag: no AMS error lands on it. The
-            // tube starts inside the opaque spool overlay.
-            append_line(*b, (float)bg.bypass_x, (float)y.bypass_merge, cx, (float)y.bypass_merge,
-                        bypass_lane.style(PathSegment::SPOOL));
+            // Spool → merge carries the SPOOL tag: no AMS error lands on it.
+            fpath::append_bypass_feed(*b, (float)bg.bypass_x, (float)y.bypass_merge, cx,
+                                      bypass_lane.style(PathSegment::SPOOL));
             if (bypass_owns) {
                 append_line(*b, cx, (float)y.bypass_merge, cx, (float)y.toolhead,
                             bypass_lane.style(PathSegment::TOOLHEAD));

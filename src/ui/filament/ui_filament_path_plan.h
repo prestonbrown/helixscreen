@@ -352,6 +352,10 @@ void reset_plan(PathPlan& out);
 void total_dropped(PathPlan& out);
 Route& new_route(PathPlan& plan);
 void append_line(Route& r, float x0, float y0, float x1, float y1, SpanStyle s);
+
+/// The bypass feed: out of the bottom of the spool standing over (@p spool_x, @p merge_y),
+/// down into the gap above its label, then along the merge line to @p merge_x.
+void append_bypass_feed(Route& r, float spool_x, float merge_y, float merge_x, SpanStyle s);
 SpanStyle unpainted(SpanStyle s);
 void add_band(PathPlan& plan, BandKind kind, pg::PathPoint at, pg::PathPoint tangent,
               BandState state, lv_color_t fill, bool on_box_edge = false);

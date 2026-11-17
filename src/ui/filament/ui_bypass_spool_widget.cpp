@@ -93,7 +93,15 @@ namespace {
 constexpr int32_t kBoxPad = 4;
 constexpr int32_t kLabelGap = 4;
 constexpr int32_t kLabelHeight = 16;
+// The room the tube's turn takes between the spool and the merge line, and between the
+// line and the "Bypass" label under it.
+constexpr int32_t kTubeDrop = 10;
+constexpr int32_t kTubeClear = 8;
 } // namespace
+
+int32_t bypass_spool_bottom_above_merge() {
+    return kTubeDrop + kBoxPad;
+}
 
 int32_t bypass_spool_box_size() {
     return ams_slot_spool_size() + kBoxPad * 2;
@@ -226,12 +234,11 @@ void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
     }
 
     int32_t box_left = cx - w.box_size / 2;
-    int32_t box_top = cy - w.box_size / 2;
+    int32_t box_top = cy - kTubeDrop - w.box_size;
     lv_obj_set_pos(w.box, box_left, box_top);
 
     if (w.bypass_label) {
-        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2,
-                       box_top + w.box_size + kLabelGap);
+        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2, cy + kTubeClear);
     }
     if (w.material_label) {
         // Material text changes — must measure each call.

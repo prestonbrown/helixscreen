@@ -6,6 +6,7 @@
 
 #include "ui_filament_path_plan.h"
 
+#include "ui_bypass_spool_widget.h"
 #include "ui_icon_codepoints.h"
 
 #include "i18n_plural.h"
@@ -761,6 +762,15 @@ void append_line(Route& r, float x0, float y0, float x1, float y1, SpanStyle s) 
     route_append(r, piece, s);
 }
 
+void append_bypass_feed(Route& r, float spool_x, float merge_y, float merge_x, SpanStyle s) {
+    const float drop = (float)helix::ui::bypass_spool_bottom_above_merge();
+    const pg::PathPoint pts[3] = {
+        {spool_x, merge_y - drop}, {spool_x, merge_y}, {merge_x, merge_y}};
+    pg::FilamentPath piece;
+    pg::route_polyline_filleted(piece, pts, 3, drop);
+    route_append(r, piece, s);
+}
+
 void add_band(PathPlan& plan, BandKind kind, pg::PathPoint at, pg::PathPoint tangent,
               BandState state, lv_color_t fill, bool on_box_edge) {
     const bool full = (kind == BandKind::Lane)
@@ -1196,12 +1206,12 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
 
     if (bypass) {
         const float merge_y = (float)f.bypass_merge_y;
-        // The spool widget is centered at kBypassXRatio; the tube stops at its left edge.
-        const float spool_edge = (float)(g.x_off + (int32_t)(g.width * (kBypassXRatio - 0.05f)));
+        // The spool widget stands over the merge line at kBypassXRatio.
+        const float spool_x = (float)(g.x_off + (int32_t)(g.width * kBypassXRatio));
         out.bypass_route = out.route_count;
         Route& b = new_route(out);
         // Spool → merge carries the SPOOL tag: no AMS error lands on it.
-        append_line(b, spool_edge, merge_y, cx, merge_y, bypass_lane.style(PathSegment::SPOOL));
+        append_bypass_feed(b, spool_x, merge_y, cx, bypass_lane.style(PathSegment::SPOOL));
         if (bypass_owns) {
             append_line(b, cx, merge_y, cx, (float)f.toolhead_y,
                         bypass_lane.style(PathSegment::TOOLHEAD));
