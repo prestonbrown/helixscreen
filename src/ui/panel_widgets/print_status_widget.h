@@ -195,12 +195,12 @@ class PrintStatusWidget : public PanelWidget {
     void on_print_state_changed_for_test(PrintState state) {
         on_print_state_changed(state);
     }
-    // Test-only — destroy the singleton formatter regardless of refcount. Used
-    // by test fixtures that reset PrinterState between cases so the next
-    // formatter's observers bind to fresh subjects rather than freed memory.
+    // Test-only — destroy the shared formatter, as its StaticSubjectRegistry
+    // entry does. Used by test fixtures that reset PrinterState between cases
+    // so the next formatter's observers bind to fresh subjects rather than
+    // freed memory.
     static void destroy_formatter_for_test() {
         s_formatter_.reset();
-        s_formatter_refcount_ = 0;
         // The view subject is shared and outlives every instance; a case left
         // printing would build the next case's tree in the active view.
         if (static_subjects_initialized()) {
@@ -240,19 +240,10 @@ class PrintStatusWidget : public PanelWidget {
                                                                const std::string& raw_file,
                                                                const std::string& identity_file,
                                                                const std::string& thumbnail_file);
-    // Take a reference on the shared DetailedFormatter, building it if this is
-    // the first. Shared by the ctor and ensure_formatter_for_test() so both go
-    // through the same replacement ordering (see the definition).
+    // Build the shared DetailedFormatter unless one is standing. Shared by the
+    // ctor and ensure_formatter_for_test() so both register its teardown.
     static void acquire_formatter();
 
-    // Floor at zero: destroy_formatter_for_test() zeroes the count outright, so a
-    // release_ that follows one would otherwise drive the count negative and leave
-    // the next acquire unable to recognise itself as the first.
-    static void release_formatter_for_test() {
-        if (s_formatter_refcount_ > 0 && --s_formatter_refcount_ == 0) {
-            s_formatter_.reset();
-        }
-    }
     // Test-only — forward nozzle override to active formatter; no-op if none alive
     static void set_nozzle_tool_override_for_test(const std::string& override_name) {
         if (s_formatter_)
@@ -488,7 +479,7 @@ class PrintStatusWidget : public PanelWidget {
     helix::ui::CoalescedTimer library_fit_timer_{0};
 
     // Thermal tint for the detailed-active heater icons. Plain by-value members
-    // of THIS instance — never on the shared/refcounted s_formatter_ below.
+    // of THIS instance — never on the shared s_formatter_ below.
     // Dashboard widget instances are recycled by the panel manager: attach A ->
     // detach A -> attach B, and A's deferred LV_EVENT_DELETE fires after B has
     // taken over. Per-instance ownership is what keeps that safe, since each
@@ -513,8 +504,8 @@ class PrintStatusWidget : public PanelWidget {
     // Job queue
     helix::JobQueueModal job_queue_modal_;
 
-    // First-instance formatter singleton — owns observers + formatted subjects for Detailed layout.
-    // Created on the first widget attach, destroyed on the last detach.
+    // Shared formatter: owns the observers and formatted subjects of the Detailed layout.
+    // Built by the first widget constructed, destroyed by its StaticSubjectRegistry entry.
     class DetailedFormatter {
       public:
         DetailedFormatter();
@@ -619,7 +610,6 @@ class PrintStatusWidget : public PanelWidget {
     };
 
     static inline std::unique_ptr<DetailedFormatter> s_formatter_;
-    static inline int s_formatter_refcount_ = 0;
 
     // Print card update methods
     [[nodiscard]] std::string get_last_print_thumbnail_path() const;

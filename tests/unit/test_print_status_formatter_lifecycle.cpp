@@ -3,21 +3,21 @@
 
 /**
  * @file test_print_status_formatter_lifecycle.cpp
- * @brief The Detailed card's formatter singleton must survive being re-created.
+ * @brief The Detailed card's shared formatter keeps its XML subjects resolvable.
  *
- * `s_formatter_` is refcounted by PrintStatusWidget's ctor/dtor. Removing the
- * last print-status widget from the dashboard drops the count to zero; adding
- * one back builds a second formatter. Both formatters publish the same thirteen
+ * The first PrintStatusWidget builds `s_formatter_`; it stays up while widgets
+ * come and go, and its StaticSubjectRegistry entry destroys it, after which the
+ * next widget builds a replacement. Both formatters publish the same thirteen
  * subject names into helix-xml's process-wide scope, and ~DetailedFormatter
- * withdraws those names — so the order in which the replacement is built and the
- * predecessor is destroyed decides whether the names still resolve afterwards.
- * If they do not, every bind_text on the Detailed card silently binds nothing
- * and the card renders blank for the rest of the session.
+ * withdraws those names, so a replacement built before its predecessor is gone
+ * would lose them. If they do not resolve, every bind_text on the Detailed card
+ * silently binds nothing and the card renders blank for the rest of the session.
  */
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -29,7 +29,24 @@
 using namespace helix;
 using namespace helix::ui;
 
-TEST_CASE_METHOD(HelixTestFixture, "Re-created DetailedFormatter keeps its XML subjects resolvable",
+namespace {
+/// Drives the shared formatter's layer text and reads it back by its XML name.
+std::string layer_text_after(PrinterState& ps, int current, int total) {
+    lv_subject_t* layer_text = lv_xml_get_subject(nullptr, "print_status_layer_text");
+    REQUIRE(layer_text != nullptr);
+    // The formatter prefixes "~" to a layer count it had to guess from the
+    // progress fraction. Writing the subjects directly bypasses the setter that
+    // records real layer data, so state the precondition here.
+    PrinterPrintStateTestAccess::set_has_real_layer_data(
+        PrinterStateTestAccess::get_print_state(ps), true);
+    lv_subject_set_int(ps.print_state().get_print_layer_current_subject(), current);
+    lv_subject_set_int(ps.print_state().get_print_layer_total_subject(), total);
+    UpdateQueue::instance().drain_until_empty();
+    return lv_subject_get_string(layer_text);
+}
+} // namespace
+
+TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter outlives the widgets that share it",
                  "[print_status][formatter]") {
     PrintStatusWidget::destroy_formatter_for_test();
 
@@ -41,23 +58,27 @@ TEST_CASE_METHOD(HelixTestFixture, "Re-created DetailedFormatter keeps its XML s
         PrintStatusWidget first;
         REQUIRE(lv_xml_get_subject(nullptr, "print_status_layer_text") != nullptr);
     }
-    // Refcount is back to zero; the formatter is parked, not destroyed.
+    // The last widget is gone; the formatter is still publishing.
+    CHECK(layer_text_after(ps, 3, 5) == "3 / 5");
 
     PrintStatusWidget second;
+    CHECK(layer_text_after(ps, 7, 9) == "7 / 9");
+}
 
-    lv_subject_t* layer_text = lv_xml_get_subject(nullptr, "print_status_layer_text");
-    REQUIRE(layer_text != nullptr);
+TEST_CASE_METHOD(HelixTestFixture,
+                 "DetailedFormatter rebuilt after its registry teardown keeps its XML subjects",
+                 "[print_status][formatter]") {
+    PrintStatusWidget::destroy_formatter_for_test();
 
-    // The shared formatter prefixes "~" to a layer count it had to guess from
-    // the progress fraction. Writing the subjects directly below bypasses the
-    // setter that records real layer data, so state the precondition here
-    // rather than assert whichever marker happens to fall out.
-    PrinterPrintStateTestAccess::set_has_real_layer_data(
-        PrinterStateTestAccess::get_print_state(ps), true);
+    PrinterState& ps = get_printer_state();
+    PrinterStateTestAccess::reset(ps);
+    ps.init_subjects(false);
 
-    // ...and it is the live formatter's subject, not an orphaned record.
-    lv_subject_set_int(ps.print_state().get_print_layer_current_subject(), 7);
-    lv_subject_set_int(ps.print_state().get_print_layer_total_subject(), 9);
-    UpdateQueue::instance().drain_until_empty();
-    CHECK(std::string(lv_subject_get_string(layer_text)) == "7 / 9");
+    { PrintStatusWidget first; }
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one(
+        "PrintStatusWidgetDetailedFormatter", StaticSubjectRegistry::Scope::PrinterSwitch));
+    CHECK(lv_xml_get_subject(nullptr, "print_status_layer_text") == nullptr);
+
+    PrintStatusWidget second;
+    CHECK(layer_text_after(ps, 7, 9) == "7 / 9");
 }
