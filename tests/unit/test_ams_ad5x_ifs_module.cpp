@@ -21,6 +21,7 @@
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/mock_printer.h"
+#include "test_helpers/scoped_language.h"
 
 #include <algorithm>
 #include <array>
@@ -774,6 +775,17 @@ TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs
                                {"loaded_channels", json::array()}}}});
     CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
     CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
+
+    // Without the board's own words the line is a catalog key, worded when shown.
+    helix::test::StartedBackend<AmsBackendAd5xIfs> bare;
+    bare.fire_status(module_ifs_frame(0, {}, "ready"));
+    bare.fire_status(json{{"ifs",
+                           {{"activity", "driver_error"},
+                            {"active_channel", 0},
+                            {"loaded_channels", json::array()}}}});
+    helix::ScopedLanguage fr("fr");
+    REQUIRE(bare.current_error().has_value());
+    CHECK(bare.current_error()->detail == "Erreur du pilote IFS");
 }
 
 TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends nothing",
