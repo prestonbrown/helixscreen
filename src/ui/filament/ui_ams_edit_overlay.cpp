@@ -598,13 +598,28 @@ void AmsEditOverlay::refresh_dropdowns() {
     fill_dropdown("dropdown_product", "dropdown_product_split", product_options_, sel_.product_id);
 }
 
+std::optional<std::vector<std::string>> AmsEditOverlay::firmware_materials() {
+    const AmsBackend* backend = AmsState::instance().get_backend();
+    auto materials = backend ? backend->get_supported_materials() : std::nullopt;
+    if (materials && materials->empty()) {
+        materials.reset();
+    }
+    return materials;
+}
+
 void AmsEditOverlay::rebuild_option_lists() {
     if (!catalog_) {
         return;
     }
+    // Firmware that validates the material against its own list is offered
+    // only what it accepts; the slot's current value still shows below.
+    const auto allowed = firmware_materials();
+
     // MATERIAL: recents hoisted over all families, then "Browse catalog...".
     std::vector<Option> material;
-    std::vector<std::string> families = hoist_recents(catalog_->all_families(), recent_families_);
+    std::vector<std::string> families =
+        hoist_recents(allowed ? catalog_->families_allowing(*allowed) : catalog_->all_families(),
+                      recent_families_);
     if (recent_families_.empty()) {
         // No recents yet: the common families lead so the row opens useful.
         const char* const common[] = {"PLA", "PETG", "ABS", "ASA", "PA", "TPU", "PC"};
@@ -645,6 +660,9 @@ void AmsEditOverlay::rebuild_option_lists() {
     std::vector<Option> variants;
     bool variant_known = false;
     for (const auto& v : catalog_->variants_in_family(sel_.family)) {
+        if (!printer::type_allowed(allowed, v.sample_type)) {
+            continue;
+        }
         variants.push_back({v.label, v.label, false});
         variant_known = variant_known || helix::text_io::equals_ignore_case(v.label, sel_.variant);
     }
@@ -750,7 +768,8 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
             catalog_sheet_ = std::make_unique<FilamentCatalogPickerModal>();
         }
         catalog_sheet_->show(
-            lv_screen_active(), sel_.family, [](const helix::printer::EffectiveFilament& ef) {
+            lv_screen_active(), sel_.family, firmware_materials(),
+            [](const helix::printer::EffectiveFilament& ef) {
                 auto& editor = get_ams_edit_overlay();
                 const std::string family = filament::display_family(ef.type);
                 const std::string variant = filament::variant_label(ef.type, family);

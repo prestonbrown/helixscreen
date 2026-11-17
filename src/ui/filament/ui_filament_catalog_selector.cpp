@@ -387,14 +387,7 @@ std::string FilamentCatalogSelector::family_of(const std::string& type) {
 }
 
 bool FilamentCatalogSelector::type_allowed(const std::string& type) const {
-    if (!allowed_types_)
-        return true;
-    // Case-insensitive match: a backend whitelist may spell a type differently
-    // than the catalog ("pla" vs "PLA").
-    const std::string type_lc = helix::text_io::to_lower(type);
-    return std::any_of(allowed_types_->begin(), allowed_types_->end(), [&](const std::string& a) {
-        return helix::text_io::to_lower(a) == type_lc;
-    });
+    return helix::printer::type_allowed(allowed_types_, type);
 }
 
 void FilamentCatalogSelector::sync_type_group_visibility() {

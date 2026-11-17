@@ -3041,8 +3041,9 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * Returns a non-empty vector when firmware validates the string against
      * a fixed list (e.g., AD5X IFS rejects anything outside its 7-item set).
-     * Callers should filter dropdowns and normalize outgoing values to this
-     * list. An empty vector is treated the same as nullopt (no restriction).
+     * The spool editor offers only these (helix::printer::type_allowed()), and
+     * the backend normalizes outgoing values to them. An empty vector is
+     * treated the same as nullopt (no restriction).
      */
     [[nodiscard]] virtual std::optional<std::vector<std::string>> get_supported_materials() const {
         return std::nullopt;

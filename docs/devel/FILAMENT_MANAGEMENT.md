@@ -887,7 +887,8 @@ the re-parse cost matters.
 vendor/type/product browser; `FilamentCatalogPickerModal`
 (`src/ui/filament/ui_filament_catalog_picker.cpp`) is a thin `Modal` over it, which the
 spool editor opens from "Browse catalog..." (§ "Edit Spool"). The editor's
-dropdowns read the pure family queries `all_families()`,
+dropdowns read the pure family queries `all_families()` (or `families_allowing()` under a
+firmware list),
 `variants_in_family()`, `brands_in_family()` and `products_in_family()`, keyed
 on `filament::display_family()`; a recycled grade (`rPLA`) files under its
 polymer there as the Recycled variant, while `extract_base_material()` keeps it a
@@ -1563,6 +1564,17 @@ also carries the no-camera build gate). They sit in `header_bar`'s
 `header_content` slot, drawn by `styles.header_icon_button` like the header's own
 `action_icon`, in a row padded by their `ext_click_area` reach so each reaches
 the header's height (or 44px) while staying inside its parent's hit box.
+
+**Materials the firmware accepts.** A backend whose firmware validates the material against
+its own list publishes it through `AmsBackend::get_supported_materials()` (the AD5X IFS
+whitelist plus its user-defined types, the tool changer's `zmod_color.valid_types`). The
+editor's Material and Variant dropdowns then offer only those types, and "Browse
+catalog..." opens the picker on the same list: `helix::printer::type_allowed()`
+(`include/filament_catalog.h`) is the one rule, a case-insensitive match, and
+`FilamentCatalog::families_allowing()` keeps a family when one of its variants is allowed
+and lists an allowed type no variant carries as its own family. The slot's current
+material still shows, selected, when it is off the list. A backend with no list offers the
+whole catalog.
 
 **The lane's own settings** sit in one row above More (`lane_section`): **Assigned
 Tool**, shown only where `helix::printer::can_write_mapping_table()` says a mapping

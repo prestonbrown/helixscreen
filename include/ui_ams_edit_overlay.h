@@ -309,6 +309,10 @@ class AmsEditOverlay : public OverlayBase {
                        const std::vector<Option>& options_list,
                        const std::string& selected_payload);
     void rebuild_option_lists();
+    /// The materials the active filament system's firmware accepts
+    /// (AmsBackend::get_supported_materials()), or nullopt for any material:
+    /// no backend, or one that publishes no list or an empty one.
+    [[nodiscard]] static std::optional<std::vector<std::string>> firmware_materials();
     void handle_option_selected(int row, int index);
 
     // === Lane settings: Assigned Tool and Endless Spool backup ===
