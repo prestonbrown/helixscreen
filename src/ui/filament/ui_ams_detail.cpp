@@ -519,8 +519,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // front-plane centre, whose flange bottom sits the floor gap above FB.
     box.fb = cy_sum / n + flange_ry + tray::spool_floor_gap(shell, shell_scale) + box.rise / 2;
     lv_obj_update_layout(w.slot_grid);
-    const float front_h = shell ? shell->front_wall_px * shell_scale
-                                : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    // The flat strip under loose spools stands half the generic box's height.
+    const float generic_h = std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    const float front_h = shell   ? shell->front_wall_px * shell_scale
+                          : loose ? generic_h / 2.0f
+                                  : generic_h;
     box.ft = box.fb - front_h;
     // A unit with a box per lane ends its base with the outer boxes.
     const float cap = shell && !shell->lid_color ? tray::cap_width(*shell, size, spacing) : half;
