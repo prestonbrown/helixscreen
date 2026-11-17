@@ -9,6 +9,28 @@
 [ -n "${_HELIX_PRINT_CONF_SOURCED:-}" ] && return 0
 _HELIX_PRINT_CONF_SOURCED=1
 
+# Print each [include] target Moonraker config file @1 names, one per line, in
+# file order, resolved the way Moonraker resolves it: a relative include
+# against the directory of @1 as the path was given (a symlinked
+# moonraker.conf resolves against the link's directory), an absolute one with
+# @2 prefixed, when set: the root Moonraker runs under, seen from here. A glob
+# is printed unexpanded; the caller expands it. Nothing when @1 includes
+# nothing or cannot be read. The one [include] pattern every walk shares.
+moonraker_conf_includes() {
+    _mci_root="${2:-}"
+    _mci_dir=$(dirname "$1")
+    # Trailing blanks after "]" include the CR of a file saved on Windows.
+    sed -n 's/^\[include[[:space:]]\{1,\}\([^]]*[^][:space:]]\)[[:space:]]*\][[:space:]]*$/\1/p' "$1" 2>/dev/null |
+        while IFS= read -r _mci_pat; do
+            [ -n "$_mci_pat" ] || continue
+            case "$_mci_pat" in
+                /*) printf '%s\n' "$_mci_root$_mci_pat" ;;
+                *) printf '%s\n' "$_mci_dir/$_mci_pat" ;;
+            esac
+        done
+    return 0
+}
+
 # Print every Moonraker config file reachable from @1 through [include] lines,
 # @1 first, one per line, each once. A relative include resolves against the
 # directory of the file that names it, as the path was given (a symlinked
@@ -34,15 +56,9 @@ moonraker_conf_files() {
         case "$_mcf_seen" in *" $_mcf_key "*) continue ;; esac
         _mcf_seen="$_mcf_seen$_mcf_key "
         printf '%s\n' "$_mcf_file"
-        _mcf_dir=$(dirname "$_mcf_file")
-        # Trailing blanks after "]" include the CR of a file saved on Windows.
-        _mcf_incs=$(sed -n 's/^\[include[[:space:]]\{1,\}\([^]]*[^][:space:]]\)[[:space:]]*\][[:space:]]*$/\1/p' "$_mcf_file" 2>/dev/null)
+        _mcf_incs=$(moonraker_conf_includes "$_mcf_file" "$_mcf_root")
         while IFS= read -r _mcf_pat; do
             [ -n "$_mcf_pat" ] || continue
-            case "$_mcf_pat" in
-                /*) _mcf_pat="$_mcf_root$_mcf_pat" ;;
-                *) _mcf_pat="$_mcf_dir/$_mcf_pat" ;;
-            esac
             # Unquoted on purpose: the pattern expands here, against its own directory.
             for _mcf_inc in $_mcf_pat; do
                 if [ -f "$_mcf_inc" ]; then

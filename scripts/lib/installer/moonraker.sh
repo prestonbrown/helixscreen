@@ -225,19 +225,20 @@ moonraker_conf_answer() {
 }
 
 # Print the user conf mod-owned moonraker.conf @1 includes
-# ([include ...user.moonraker.conf]), resolved the way Moonraker resolves it:
-# a relative include against the directory of @1 as the path was given, so a
-# conf linked into the mod's tree resolves beside the link (Z-Mod's AD5X
-# config dir), not inside the tree. Returns 1 when @1 includes none, or the
-# one it names is mod-owned as well.
+# ([include ...user.moonraker.conf]), resolved the way Moonraker resolves it
+# (moonraker_conf_includes, the same parse the [include] walk uses): a relative
+# include against the directory of @1 as the path was given, so a conf linked
+# into the mod's tree resolves beside the link (Z-Mod's AD5X config dir), not
+# inside the tree. Returns 1 when @1 includes none, or the one it names is
+# mod-owned as well.
 mod_user_moonraker_conf() {
     local inc
-    inc=$(sed -n 's/^\[include[[:space:]]\{1,\}\([^]]*user\.moonraker\.conf\)[[:space:]]*\][[:space:]]*$/\1/p' "$1" 2>/dev/null | sed -n 1p)
+    inc=$(moonraker_conf_includes "$1" "$(running_moonraker_root)" | while IFS= read -r target; do
+        case "$target" in
+            *user.moonraker.conf) printf '%s\n' "$target"; break ;;
+        esac
+    done)
     [ -n "$inc" ] || return 1
-    case "$inc" in
-        /*) inc="$(running_moonraker_root)$inc" ;;
-        *) inc="$(dirname "$1")/$inc" ;;
-    esac
     host_path_is_mod_owned "$inc" && return 1
     printf '%s\n' "$inc"
 }
