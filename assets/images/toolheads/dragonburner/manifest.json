@@ -1,16 +1,16 @@
 {
   "id": "dragonburner",
-  "aspect": 0.5791,
+  "aspect": 0.5424,
   "tiers": {
     "full": {
-      "width": 93,
+      "width": 87,
       "height": 160,
       "back": "full.png",
       "tint": "full_tint.png",
       "shade": "full_shade.png"
     },
     "path": {
-      "width": 42,
+      "width": 39,
       "height": 72,
       "back": "path.png",
       "tint": "path_tint.png",

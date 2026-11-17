@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Dragon Burner v8 with a Galileo 2 standalone extruder, measured from the v8 STEP assembly.
+"""Dragon Burner v8 with a Galileo 2 standalone extruder, measured from the v8 and G2SA STEP assemblies.
 
 A red cowl: a faceted cap, a front plate around the 3010 hotend fan and two duct feet. Black 4010 blowers fill
 the cowl's sides, and the extruder sits on a dark mount behind the cap. Sizes are in millimetres, scaled by MM.
@@ -30,9 +30,18 @@ FAN_R = 13.6 * MM
 MOUNT_FRONT, MOUNT_BACK = 14.0 * MM, 37.0 * MM
 HOTEND_MOUNT_BOTTOM = 44.0 * MM
 EXTRUDER_MOUNT_BOTTOM = 61.0 * MM
-DECK = 67.5 * MM  # the extruder's foot
-EXTRUDER_FRONT, EXTRUDER_BACK = 9.0 * MM, 37.0 * MM
-COLLET_Y = 22.0 * MM
+DECK = 67.4 * MM  # the extruder's foot
+# The Galileo 2 standalone, placed as its mount puts it: everything coaxial with the feed knob, the pancake
+# motor last, standing behind the housing with its round face to the back.
+G2_AXIS = (-8.3 * MM, 87.9 * MM)
+KNOB_FRONT, KNOB_R = 1.4 * MM, 10.9 * MM
+FRONT_PLATE_Y = (12.0 * MM, 18.9 * MM)
+MAIN_BODY_Y = (14.0 * MM, 34.0 * MM)
+REAR_PLATE_Y = (34.0 * MM, 38.9 * MM)
+RING_GEAR_Y, RING_GEAR_R = (37.9 * MM, 46.0 * MM), 20.0 * MM
+MOTOR_Y, MOTOR_R = (46.0 * MM, 65.0 * MM), 18.9 * MM
+G2_TOP = 108.4 * MM
+COLLET_Y = 24.9 * MM
 TIP = (0.0, 18.0 * MM, -4.0 * MM)
 
 
@@ -142,27 +151,53 @@ def _mounts(d):
     d.solid(rounded([(-26.0 * MM, EXTRUDER_MOUNT_BOTTOM), (26.0 * MM, EXTRUDER_MOUNT_BOTTOM), (26.0 * MM, DECK), (-26.0 * MM, DECK)], 1.5 * MM), MOUNT_FRONT, MOUNT_BACK, MOUNT)
 
 
+def _axial_cylinder(d, cx, cz, r, y0, y1, color, n=28):
+    """A cylinder on a front-to-back axis: only the strips that face the camera, its back hidden."""
+    for i in range(n):
+        t0, t1 = 2 * math.pi * i / n, 2 * math.pi * (i + 1) / n
+        mid = (t0 + t1) / 2
+        if math.cos(mid) * d.camera.view[0] + math.sin(mid) * d.camera.view[2] <= 0:
+            continue
+        pts = [(cx + r * math.cos(t), cz + r * math.sin(t)) for t in (t0, t1)]
+        d.facet([(pts[0][0], y0, pts[0][1]), (pts[1][0], y0, pts[1][1]), (pts[1][0], y1, pts[1][1]), (pts[0][0], y1, pts[0][1])], color)
+
+
+def _mm(points):
+    return [(x * MM, z * MM) for x, z in points]
+
+
+# Front views of the Galileo 2's parts, in millimetres, read off its STEP on the Dragon Burner mount.
+G2_LEFT_SIDE = [(-15.5, 108.4), (-21.1, 105.2), (-24.3, 101.4), (-27.0, 96.7), (-28.5, 90.9), (-30.2, 84.2), (-31.2, 80.0), (-31.2, 74.0), (-29.5, 70.0)]
+MAIN_BODY = [(-28.0, 67.4), (26.0, 67.4), (26.0, 74.6), (15.0, 76.0), (15.0, 102.0), (13.3, 104.5), (13.3, 108.4)] + G2_LEFT_SIDE
+REAR_PLATE = [(-29.5, 67.4), (14.8, 67.4), (14.8, 108.4)] + G2_LEFT_SIDE[:-1]
+FRONT_PLATE = [(-27.0, 67.4), (23.6, 67.4), (23.6, 72.8), (21.5, 74.2), (13.5, 74.5), (13.3, 108.2), (-6.6, 108.2), (-14.6, 100.5), (-18.0, 92.0), (-18.0, 84.0), (-15.5, 77.5), (-16.5, 75.0), (-25.0, 74.5), (-27.0, 71.0)]
+TENSIONER_ARM = [(7.8, 98.0), (13.3, 98.0), (13.3, 113.8), (11.5, 114.8), (9.5, 114.4), (7.8, 112.0)]
+
+
 def _extruder(d):
-    """A Galileo 2 standalone: a housing with the feed knob on its face, the tension screw on top and a pancake motor on its right."""
-    z = DECK
-    d.solid(rounded([(-23.0 * MM, z), (22.0 * MM, z), (22.0 * MM, z + 8.0 * MM), (-23.0 * MM, z + 8.0 * MM)], 2.0 * MM), EXTRUDER_FRONT - 1.5 * MM, EXTRUDER_BACK, EXTRUDER, bevel=1.0 * MM)
-    housing = [(-21.0 * MM, z + 8.0 * MM), (12.0 * MM, z + 8.0 * MM), (12.0 * MM, z + 37.0 * MM), (8.5 * MM, z + 40.0 * MM), (-5.0 * MM, z + 40.0 * MM), (-21.0 * MM, z + 29.0 * MM)]
-    d.solid(rounded(housing, 2.5 * MM), EXTRUDER_FRONT, EXTRUDER_BACK - 4.0 * MM, EXTRUDER, bevel=1.2 * MM)
-    # The pancake motor on the right, its face toward the side.
-    _cylinder_x(d, 23.0 * MM, z + 22.0 * MM, 17.0 * MM, 12.0 * MM, 22.0 * MM, "#26272b", "#202124", n=28)
+    """A Galileo 2 standalone: knob, front plate, body, rear plate and motor stacked front to back on one axis."""
+    ax, az = G2_AXIS
+    # Back to front: the motor and its ring gear, then the printed stack.
+    _axial_cylinder(d, ax, az, MOTOR_R, *MOTOR_Y, "#2e2f33")
     if d.detail:
-        _cylinder_x(d, 23.0 * MM, z + 22.0 * MM, 12.0 * MM, 22.0 * MM, 22.6 * MM, "#2e2f33", "#2e2f33", n=20)
-    # The tension screw and spring, across the top right, with its thumb knob.
-    _cylinder_x(d, 15.0 * MM, z + 34.0 * MM, 2.6 * MM, 4.0 * MM, 13.0 * MM, "#b9bbc0", "#b9bbc0", n=10)
-    _cylinder_x(d, 15.0 * MM, z + 34.0 * MM, 5.2 * MM, 13.0 * MM, 16.0 * MM, KNOB, "#25262a", n=16)
-    d.collet(0.0, COLLET_Y, z + 40.0 * MM, color="#1c2452")
-    # The feed knob on the gear shaft, at the face's lower left.
-    _cylinder_y(d, -12.0 * MM, z + 19.0 * MM, 9.0 * MM, EXTRUDER_FRONT - 7.0 * MM, EXTRUDER_FRONT, KNOB, KNOB, n=20)
-    d.face(_hexagon(-12.0 * MM, z + 19.0 * MM, 5.2 * MM, math.pi / 6), EXTRUDER_FRONT - 7.0 * MM - 0.0005, "#2b2c30")
+        # The motor's laminations read as a lighter band round its middle.
+        _axial_cylinder(d, ax, az, MOTOR_R + 0.3 * MM, 50.0 * MM, 58.0 * MM, "#3a3b40")
+    _axial_cylinder(d, ax, az, RING_GEAR_R, *RING_GEAR_Y, "#232427")
+    d.solid(rounded(_mm(REAR_PLATE), 1.0 * MM), *REAR_PLATE_Y, BODY)
+    d.solid(rounded(_mm(MAIN_BODY), 1.0 * MM), *MAIN_BODY_Y, EXTRUDER)
+    d.collet(0.0, COLLET_Y, G2_TOP, color="#1c2452")
+    d.solid(rounded(_mm(FRONT_PLATE), 1.2 * MM), *FRONT_PLATE_Y, BODY, bevel=0.8 * MM)
+    d.solid(rounded(_mm(TENSIONER_ARM), 0.8 * MM), 11.3 * MM, 28.8 * MM, BODY, bevel=0.6 * MM)
+    # The tension spring and its thumb screw, lying across the top right.
+    _cylinder_x(d, 18.3 * MM, 105.0 * MM, 3.4 * MM, 13.3 * MM, 23.0 * MM, "#b9bbc0", "#b9bbc0", n=10)
+    _cylinder_x(d, 18.3 * MM, 105.0 * MM, 6.0 * MM, 23.0 * MM, 25.8 * MM, KNOB, "#25262a", n=18)
+    # The feed knob, on the gearbox's output at the front.
+    _cylinder_y(d, ax, az, KNOB_R, KNOB_FRONT, FRONT_PLATE_Y[0], KNOB, KNOB, n=24)
+    d.face(_hexagon(ax, az, 5.6 * MM, math.pi / 6), KNOB_FRONT - 0.0005, "#2b2c30")
     if d.detail:
-        for x, zz in ((-15.0 * MM, z + 10.5 * MM), (-3.0 * MM, z + 10.5 * MM), (7.0 * MM, z + 10.5 * MM), (-6.0 * MM, z + 33.0 * MM)):
-            d.disc(x, zz, 1.8 * MM, EXTRUDER_FRONT - 0.0005, DARK, sides=12)
-        d.disc(3.0 * MM, z + 24.0 * MM, 1.6 * MM, EXTRUDER_FRONT - 0.0005, "#55575c", sides=12)
+        for x, z in ((-9.6, 72.0), (-0.5, 104.5), (4.8, 77.5)):
+            d.disc(x * MM, z * MM, 2.0 * MM, FRONT_PLATE_Y[0] - 0.0005, DARK, sides=12)
+        d.disc(5.0 * MM, 90.0 * MM, 1.4 * MM, FRONT_PLATE_Y[0] - 0.0005, "#55575c", sides=12)
 
 
 def draw_art(scene, tier):
@@ -179,4 +214,4 @@ def draw_art(scene, tier):
     _extruder(d)
 
 
-HEAD = HeadDef("dragonburner", "DRAGONBURNER", draw_art, TIP, entry=(0.0, COLLET_Y, DECK + 40.0 * MM + 0.035), size=1.29)
+HEAD = HeadDef("dragonburner", "DRAGONBURNER", draw_art, TIP, entry=(0.0, COLLET_Y, G2_TOP + 0.035), size=1.29)
