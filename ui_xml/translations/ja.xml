@@ -167,6 +167,7 @@
   <translation tag="A lower, B upper" ja="A下・B上"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" ja="マクロが不要なテンプレート文字列 &apos;{}&apos; を出力しました: Jinja タグを確認してください"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ja="ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle" ja="材料プリセットはノズルとともにベッド温度も設定します"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ja="モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ja="モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください"/>
   <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>
@@ -2188,6 +2189,7 @@
   <translation tag="Material Comfort:" ja="素材の適合度:"/>
   <translation tag="Material Mismatch" ja="素材の不一致"/>
   <translation tag="Material Temperatures" ja="素材温度"/>
+  <translation tag="Material presets heat the bed" ja="材料プリセットでベッドも加熱"/>
   <translation tag="Max" ja="最大"/>
   <translation tag="Max Accel" ja="最大加速"/>
   <translation tag="Max Acceleration" ja="最大加速度"/>
@@ -2751,7 +2753,9 @@
   <translation tag="Preheat PLA" ja="PLA 予熱"/>
   <translation tag="Preheat canceled" ja="予熱がキャンセルされました"/>
   <translation tag="Preheat: all {} tools + bed set" ja="予熱: 全 {} ツール + ベッド設定済み"/>
+  <translation tag="Preheat: all {} tools set" ja="予熱: 全 {} ツール設定済み"/>
   <translation tag="Preheat: {} + bed set" ja="予熱: {} + ベッド設定済み"/>
+  <translation tag="Preheat: {} set" ja="予熱: {} 設定済み"/>
   <translation tag="Preheating and homing..." ja="予熱とホーミング中..."/>
   <translation tag="Preload" ja="事前装填"/>
   <translation tag="Preload failed" ja="事前装填に失敗しました"/>

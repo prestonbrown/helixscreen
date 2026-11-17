@@ -175,6 +175,7 @@ translations:
   A lower, B upper: "A embaixo, B em cima"
   "A macro printed stray template text '{}': check its Jinja tags": "Uma macro imprimiu texto de modelo solto '{}': verifique as tags Jinja"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Uma macro que limpa o bico. O HelixScreen pode executá-la antes de uma impressão pelas opções de pré-impressão.'
+  A material preset sets the bed temperature along with the nozzle: 'Uma predefinição de material define a temperatura da mesa junto com o bico'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Não foi possível restaurar um pino de E/S do motor. Desligue e ligue a impressora para recuperar
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Não foi possível gravar os parâmetros de um motor. Desligue e ligue a impressora para tentar novamente
   "A new Print Status screen": "Uma nova tela de Status da Impressão"
@@ -2401,6 +2402,7 @@ translations:
   'Material Comfort:': 'Conforto do Material:'
   Material Mismatch: Material Incompatível
   Material Temperatures: Temperaturas de Material
+  Material presets heat the bed: 'Predefinições de material aquecem a mesa'
   Max: Máx
   Max Accel: Acel Máx
   Max Acceleration: Aceleração Máxima
@@ -3000,7 +3002,9 @@ translations:
   Preheat canceled: Pré-aquecimento cancelado
   'Preheat: all {} tools + bed set': 'Pré-aquecer: todas as {} ferramentas + mesa
     configurada'
+  'Preheat: all {} tools set': 'Pré-aquecimento: todas as {} ferramentas definidas'
   'Preheat: {} + bed set': 'Pré-aquecer: {} + mesa configurada'
+  'Preheat: {} set': 'Pré-aquecimento: {} definido'
   Preheating and homing...: Pré-aquecendo e fazendo homing...
   Preload: 'Pré-carregar'
   Preload failed: Falha ao pré-carregar

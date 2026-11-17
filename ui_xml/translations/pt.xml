@@ -167,6 +167,7 @@
   <translation tag="A lower, B upper" pt="A embaixo, B em cima"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" pt="Uma macro imprimiu texto de modelo solto &apos;{}&apos;: verifique as tags Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." pt="Uma macro que limpa o bico. O HelixScreen pode executá-la antes de uma impressão pelas opções de pré-impressão."/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle" pt="Uma predefinição de material define a temperatura da mesa junto com o bico"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" pt="Não foi possível restaurar um pino de E/S do motor. Desligue e ligue a impressora para recuperar"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" pt="Não foi possível gravar os parâmetros de um motor. Desligue e ligue a impressora para tentar novamente"/>
   <translation tag="A new Print Status screen" pt="Uma nova tela de Status da Impressão"/>
@@ -2188,6 +2189,7 @@
   <translation tag="Material Comfort:" pt="Conforto do Material:"/>
   <translation tag="Material Mismatch" pt="Material Incompatível"/>
   <translation tag="Material Temperatures" pt="Temperaturas de Material"/>
+  <translation tag="Material presets heat the bed" pt="Predefinições de material aquecem a mesa"/>
   <translation tag="Max" pt="Máx"/>
   <translation tag="Max Accel" pt="Acel Máx"/>
   <translation tag="Max Acceleration" pt="Aceleração Máxima"/>
@@ -2751,7 +2753,9 @@
   <translation tag="Preheat PLA" pt="Pré-aquecer PLA"/>
   <translation tag="Preheat canceled" pt="Pré-aquecimento cancelado"/>
   <translation tag="Preheat: all {} tools + bed set" pt="Pré-aquecer: todas as {} ferramentas + mesa configurada"/>
+  <translation tag="Preheat: all {} tools set" pt="Pré-aquecimento: todas as {} ferramentas definidas"/>
   <translation tag="Preheat: {} + bed set" pt="Pré-aquecer: {} + mesa configurada"/>
+  <translation tag="Preheat: {} set" pt="Pré-aquecimento: {} definido"/>
   <translation tag="Preheating and homing..." pt="Pré-aquecendo e fazendo homing..."/>
   <translation tag="Preload" pt="Pré-carregar"/>
   <translation tag="Preload failed" pt="Falha ao pré-carregar"/>

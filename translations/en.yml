@@ -169,6 +169,7 @@ translations:
   A lower, B upper: A lower, B upper
   "A macro printed stray template text '{}': check its Jinja tags": "A macro printed stray template text '{}': check its Jinja tags"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.
+  A material preset sets the bed temperature along with the nozzle: A material preset sets the bed temperature along with the nozzle
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: A motor IO pin couldn't be restored. Power-cycle the printer to recover
   A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
   "A new Print Status screen": "A new Print Status screen"
@@ -2338,6 +2339,7 @@ translations:
   'Material Comfort:': 'Material Comfort:'
   Material Mismatch: Material Mismatch
   Material Temperatures: Material Temperatures
+  Material presets heat the bed: Material presets heat the bed
   Max: Max
   Max Accel: Max Accel
   Max Acceleration: Max Acceleration
@@ -2933,7 +2935,9 @@ translations:
   Preheat PLA: Preheat PLA
   Preheat canceled: Preheat canceled
   'Preheat: all {} tools + bed set': 'Preheat: all {} tools + bed set'
+  'Preheat: all {} tools set': 'Preheat: all {} tools set'
   'Preheat: {} + bed set': 'Preheat: {} + bed set'
+  'Preheat: {} set': 'Preheat: {} set'
   Preheating and homing...: Preheating and homing...
   Preload: Preload
   Preload failed: Preload failed

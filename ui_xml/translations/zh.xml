@@ -167,6 +167,7 @@
   <translation tag="A lower, B upper" zh="A 下,B 上"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" zh="宏输出了多余的模板文本 &apos;{}&apos;：请检查其 Jinja 标签"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." zh="用于擦拭喷嘴的宏。HelixScreen 可在打印前通过打印前选项运行它。"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle" zh="材料预设会同时设置热床和喷嘴温度"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" zh="无法恢复电机 IO 引脚。请重新为打印机上电以恢复"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" zh="无法写入电机参数。请重新为打印机上电后重试"/>
   <translation tag="A new Print Status screen" zh="全新的打印状态屏幕"/>
@@ -2188,6 +2189,7 @@
   <translation tag="Material Comfort:" zh="材料适配度："/>
   <translation tag="Material Mismatch" zh="材料不匹配"/>
   <translation tag="Material Temperatures" zh="材料温度"/>
+  <translation tag="Material presets heat the bed" zh="材料预设加热热床"/>
   <translation tag="Max" zh="最大"/>
   <translation tag="Max Accel" zh="最大加速"/>
   <translation tag="Max Acceleration" zh="最大加速度"/>
@@ -2751,7 +2753,9 @@
   <translation tag="Preheat PLA" zh="预热 PLA"/>
   <translation tag="Preheat canceled" zh="预热已取消"/>
   <translation tag="Preheat: all {} tools + bed set" zh="预热: 全部 {} 工具 + 热床已设置"/>
+  <translation tag="Preheat: all {} tools set" zh="预热: 全部 {} 工具已设置"/>
   <translation tag="Preheat: {} + bed set" zh="预热: {} + 热床已设置"/>
+  <translation tag="Preheat: {} set" zh="预热: {} 已设置"/>
   <translation tag="Preheating and homing..." zh="正在预热并归零..."/>
   <translation tag="Preload" zh="预装载"/>
   <translation tag="Preload failed" zh="预装载失败"/>

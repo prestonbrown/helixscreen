@@ -200,6 +200,7 @@
   <translation tag="A lower, B upper" ru="A снизу, B сверху"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" ru="Макрос вывел лишний текст шаблона «{}»: проверьте его теги Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ru="Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати."/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle" ru="Пресет материала задаёт температуру стола вместе с соплом"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ru="Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ru="Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку"/>
   <translation tag="A new Print Status screen" ru="Новый экран статуса печати"/>
@@ -2233,6 +2234,7 @@
   <translation tag="Material Comfort:" ru="Комфорт материала:"/>
   <translation tag="Material Mismatch" ru="Несоответствие материала"/>
   <translation tag="Material Temperatures" ru="Температуры материалов"/>
+  <translation tag="Material presets heat the bed" ru="Пресеты материалов нагревают стол"/>
   <translation tag="Max" ru="Макс"/>
   <translation tag="Max Accel" ru="Макс. ускор."/>
   <translation tag="Max Acceleration" ru="Макс. ускорение"/>
@@ -2799,7 +2801,12 @@
   <translation tag="Preheat: all {} tools + bed set_few" ru="Преднагрев: все {} инструмента + стол заданы"/>
   <translation tag="Preheat: all {} tools + bed set_many" ru="Преднагрев: все {} инструментов + стол заданы"/>
   <translation tag="Preheat: all {} tools + bed set_one" ru="Преднагрев: все {} инструмент + стол заданы"/>
+  <translation tag="Preheat: all {} tools set" ru="Преднагрев: все {} инструмента заданы"/>
+  <translation tag="Preheat: all {} tools set_few" ru="Преднагрев: все {} инструмента заданы"/>
+  <translation tag="Preheat: all {} tools set_many" ru="Преднагрев: все {} инструментов заданы"/>
+  <translation tag="Preheat: all {} tools set_one" ru="Преднагрев: все {} инструмент заданы"/>
   <translation tag="Preheat: {} + bed set" ru="Преднагрев: {} + стол заданы"/>
+  <translation tag="Preheat: {} set" ru="Преднагрев: {} задан"/>
   <translation tag="Preheating and homing..." ru="Преднагрев и парковка осей..."/>
   <translation tag="Preload" ru="Предзагрузка"/>
   <translation tag="Preload failed" ru="Ошибка предварительной загрузки"/>
