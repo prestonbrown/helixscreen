@@ -4857,8 +4857,7 @@ class HeldAckCfs : public AmsBackendCfs {
     }
     void ack() {
         REQUIRE(held_ack);
-        auto done = std::move(held_ack);
-        done();
+        std::exchange(held_ack, nullptr)();
         helix::ui::UpdateQueue::instance().drain();
     }
     std::vector<std::string> sent;
@@ -4905,8 +4904,7 @@ TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull
             // extrude), so it never stops an unload.
             box(/*useup=*/1);
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
-            REQUIRE(backend.sent.size() == 1);
-            CHECK(backend.sent[0] == AmsBackendCfs::unload_gcode(variant));
+            CHECK(backend.sent == std::vector<std::string>{AmsBackendCfs::unload_gcode(variant)});
 
             // The retract could not reach the strand: the switch still reads
             // filament, and the fault says to remove it by hand.
@@ -4922,8 +4920,7 @@ TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull
 
         SECTION("a failed unload without a used-up spool keeps the generic message, " + name) {
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
-            REQUIRE(backend.sent.size() == 1);
-            CHECK(backend.sent[0] == AmsBackendCfs::unload_gcode(variant));
+            CHECK(backend.sent == std::vector<std::string>{AmsBackendCfs::unload_gcode(variant)});
             backend.ack();
             const AmsSystemInfo info = backend.get_system_info();
             CHECK(info.action == AmsAction::ERROR);

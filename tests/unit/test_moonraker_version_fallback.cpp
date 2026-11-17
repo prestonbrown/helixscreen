@@ -164,11 +164,12 @@ TEST_CASE("Discovery reads a placeholder version from update_manager",
         UpdateQueue::instance().drain();
     };
 
-    SECTION("Moonraker, when server.info has none") {
+    SECTION("Moonraker, when server.info has none, and never over printer.info's Klipper") {
         discover();
         CHECK(client.hardware().moonraker_version() == "9e676eb");
         CHECK(std::string(lv_subject_get_string(
                   state.versions_state().get_moonraker_version_subject())) == "9e676eb");
+        CHECK(client.hardware().software_version() == "v0.12.0-mock");
     }
 
     SECTION("Klipper, when printer.info has none") {
@@ -177,10 +178,5 @@ TEST_CASE("Discovery reads a placeholder version from update_manager",
         CHECK(client.hardware().software_version() == "25d8714");
         CHECK(std::string(lv_subject_get_string(
                   state.versions_state().get_klipper_version_subject())) == "25d8714");
-    }
-
-    SECTION("never over the version printer.info reports") {
-        discover();
-        CHECK(client.hardware().software_version() == "v0.12.0-mock");
     }
 }
