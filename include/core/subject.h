@@ -41,6 +41,9 @@ class Subject {
     Subject& operator=(Subject&& other) noexcept;
 
     void init_int(int32_t value);
+    /// init_int() the first time, then a plain set: for owners that re-publish a value
+    /// (each open, each theme load) without orphaning the observers bound to it.
+    void publish_int(int32_t value);
     void init_float(float value);
     void init_pointer(void* value);
     void init_color(lv_color_t value);

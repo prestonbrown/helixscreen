@@ -21,7 +21,7 @@ struct MacrosPanelTestAccess {
         // The test build's get_moonraker_api() stub always returns nullptr
         // (ui_test_utils.cpp), so refresh_macros() no-ops and keeps the
         // injected list — no live API can clobber it.
-        p.init_subjects();
+        p.ensure_subjects();
         p.ui_alive_ = true;
         p.edit_mode_ = false;
         p.pending_hidden_.clear();

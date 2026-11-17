@@ -31,6 +31,16 @@ class NetworkSettingsOverlayTestAccess {
     }
     /// The overlay's manager pointer — tests point it at a locally owned
     /// WiFiManager instead of the process-global singleton, before create().
+    /// Tears the subjects down and initializes them again, which publishes their XML
+    /// names afresh: another instance's destructor withdraws the names it shares with
+    /// the process-wide overlay.
+    static void republish_subjects(NetworkSettingsOverlay& o) {
+        if (o.subjects_initialized_) {
+            o.subjects_.deinit_all();
+            o.subjects_initialized_ = false;
+        }
+        o.ensure_subjects();
+    }
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
         return o.wifi_manager_;
     }

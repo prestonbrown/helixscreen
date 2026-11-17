@@ -8,6 +8,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "panel_widget_manager.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
 #include "src/ui/panel_widgets/tips_widget.h"
 
@@ -17,6 +18,7 @@ using namespace helix;
 
 TEST_CASE_METHOD(LVGLUITestFixture, "harness builds the widget's own component",
                  "[widget_size][harness]") {
+    PanelWidgetManager::instance().init_widget_subjects();
     PanelWidgetHarness<TipsWidget> h(test_screen());
     REQUIRE(h.root() != nullptr);
     REQUIRE(h.child("status_text_label") != nullptr);

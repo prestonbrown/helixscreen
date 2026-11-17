@@ -138,6 +138,10 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
     static int find_printer_type_index(const std::string& printer_name);
 
   private:
+    /// Clears the init flag and resets the subjects, so the next init_subjects()
+    /// seeds them again.
+    void forget_subjects();
+
     friend class WizardPrinterIdentifyStepTestAccess;
 
     lv_obj_t* screen_root_ = nullptr;

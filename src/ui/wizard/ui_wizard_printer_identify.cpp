@@ -162,6 +162,17 @@ static PrinterDetectionHint detect_printer_type(const std::string& kinematics,
 // Subject Initialization
 // ============================================================================
 
+void WizardPrinterIdentifyStep::forget_subjects() {
+    subjects_initialized_ = false;
+    // The next init_subjects() seeds them again; drop their observers first.
+    for (helix::Subject* subject :
+         {std::addressof(printer_name_), std::addressof(printer_type_selected_),
+          std::addressof(printer_detection_status_), std::addressof(printer_view_),
+          std::addressof(vendor_title_), std::addressof(match_count_)}) {
+        subject->reset();
+    }
+}
+
 void WizardPrinterIdentifyStep::init_subjects() {
     // Check if we're connected to a DIFFERENT printer than last time
     std::string current_url;
@@ -174,14 +185,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
     if (printer_changed) {
         spdlog::info("[{}] Printer URL changed from '{}' to '{}' - forcing re-detection",
                      get_name(), last_detected_url_, current_url);
-        subjects_initialized_ = false; // Force re-initialization
-        // Re-initialization re-seeds live subjects; drop their observers first.
-        for (helix::Subject* subject :
-             {std::addressof(printer_name_), std::addressof(printer_type_selected_),
-              std::addressof(printer_detection_status_), std::addressof(printer_view_),
-              std::addressof(vendor_title_), std::addressof(match_count_)}) {
-            subject->reset();
-        }
+        forget_subjects();
 
         // Invalidate cached list — kinematics filter may differ for new printer
         if (list_cache_container_) {

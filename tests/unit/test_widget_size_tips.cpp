@@ -22,6 +22,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "panel_widget_manager.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/tips_widget.h"
 
@@ -36,6 +37,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "tips text font follows width, not colspan",
                  "[widget_size][tips]") {
     require_font_tokens_distinct();
 
+    PanelWidgetManager::instance().init_widget_subjects();
     PanelWidgetHarness<TipsWidget> h(test_screen());
 
     lv_obj_t* tip_container = h.child("tip_container");
@@ -68,6 +70,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "tips text font follows width, not colspan",
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a long tip title fills the tile's height and stops inside it",
                  "[widget_size][tips]") {
+    PanelWidgetManager::instance().init_widget_subjects();
     PanelWidgetHarness<TipsWidget> h(test_screen());
 
     lv_obj_t* tip_container = h.child("tip_container");

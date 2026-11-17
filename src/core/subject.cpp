@@ -311,6 +311,14 @@ void subject_reset(lv_subject_t* subject) {
     report("subject_reset_unowned", "helix::subject_reset on a subject no helix::Subject owns");
 }
 
+void Subject::publish_int(int32_t value) {
+    if (live_) {
+        lv_subject_set_int(handle_, value);
+    } else {
+        init_int(value);
+    }
+}
+
 void subject_init_int(Subject& subject, int32_t value) {
     subject.init_int(value);
 }
