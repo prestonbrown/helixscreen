@@ -8,6 +8,7 @@
 #include "ams_dryer.h"
 #include "ams_lane_recovery.h"
 #include "ams_narration_matcher.h"
+#include "ams_spool_retention.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -159,7 +160,8 @@ struct AfcUnitInfo {
 class AmsBackendAfc : public AmsSubscriptionBackend,
                       public helix::ILaneRecovery,
                       public helix::INarrationMatcher,
-                      public helix::IDryer {
+                      public helix::IDryer,
+                      public helix::ISpoolRetention {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IDryer>()) {
@@ -170,6 +172,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::INarrationMatcher>()) {
             return static_cast<helix::INarrationMatcher*>(this);
+        }
+        if (tag == helix::type_tag<helix::ISpoolRetention>()) {
+            return static_cast<helix::ISpoolRetention*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
@@ -510,7 +515,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     /// Per-lane remember_spool = true on EVERY reporting lane (ALL
     /// semantics — a mixed config still leaves the toggle governing the
-    /// false lanes). See AmsBackend::printer_retains_spool_info().
+    /// false lanes). See ISpoolRetention::printer_retains_spool_info().
     [[nodiscard]] bool printer_retains_spool_info() const override;
 
     /// Every lane reports remember_spool, so AFC's setting decides.

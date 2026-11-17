@@ -195,10 +195,10 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     helix::Subject tags_name_spools_subject_{};
 
     /// The firmware's own Keep Spool Info value on every lane
-    /// (AmsBackend::printer_retains_spool_info()), shown by the switch when
+    /// (ISpoolRetention::printer_retains_spool_info()), shown by the switch when
     /// the firmware owns the setting.
     helix::Subject printer_retains_spool_info_subject_{};
-    /// AmsBackend::firmware_owns_spool_retention(): which Keep Spool Info row shows.
+    /// ISpoolRetention::firmware_owns_spool_retention(): which Keep Spool Info row shows.
     helix::Subject firmware_owns_spool_retention_subject_{};
 
     /// Subject gating the "Reset Endless Spool" row (0=hidden, 1=shown).

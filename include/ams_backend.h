@@ -3086,23 +3086,6 @@ class AmsBackend : public AmsCapabilityHost {
         return traits().printer_reports_spool_ids;
     }
 
-    /// Whether the firmware is retaining spool identity across an eject on
-    /// every lane (AFC's per-lane remember_spool = true everywhere). Dynamic,
-    /// unlike the capabilities above: it reflects a config choice, not a
-    /// firmware property. Read alongside firmware_owns_spool_retention().
-    [[nodiscard]] virtual bool printer_retains_spool_info() const {
-        return false;
-    }
-
-    /// Whether the firmware has its own setting for what an eject does to a
-    /// lane's spool details, reported on every lane. When true that setting
-    /// decides, and HelixScreen's "Keep Spool Info on Eject" does not apply:
-    /// the switch shows printer_retains_spool_info() and writes through
-    /// set_firmware_spool_retention().
-    [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
-        return false;
-    }
-
     /// Whether the firmware's own state is the authority for a lane's material
     /// and colour, so a linked spool never overrides them. The editor shows what
     /// the lane holds and names the spool when the two disagree.
@@ -3124,12 +3107,6 @@ class AmsBackend : public AmsCapabilityHost {
     virtual void lane_emptied(int slot_index, bool keep_identity) {
         (void)slot_index;
         (void)keep_identity;
-    }
-
-    /// Write the firmware's own spool-retention setting on every lane.
-    virtual AmsError set_firmware_spool_retention(bool keep) {
-        (void)keep;
-        return AmsErrorHelper::not_supported("Firmware spool retention");
     }
 
   protected:

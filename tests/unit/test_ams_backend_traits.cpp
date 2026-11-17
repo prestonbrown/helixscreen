@@ -189,6 +189,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IInsertSignals* insert = nullptr;
         const IDryer* dryer = nullptr;
         const IPrintRouting* routing = nullptr;
+        const ISpoolRetention* retention = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -203,7 +204,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
         {.backend = &indx, .feeder = &indx, .steps = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
-        {.backend = &afc, .recovery = &afc, .narration = &afc, .dryer = &afc},
+        {.backend = &afc, .recovery = &afc, .narration = &afc, .dryer = &afc, .retention = &afc},
         {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
         {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
         {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},
@@ -220,6 +221,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IInsertSignals>() == row.insert);
         CHECK(row.backend->as<IDryer>() == row.dryer);
         CHECK(row.backend->as<IPrintRouting>() == row.routing);
+        CHECK(row.backend->as<ISpoolRetention>() == row.retention);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);

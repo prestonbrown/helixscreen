@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
+#include "ams_spool_retention.h"
 #include "ams_state.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -28,10 +29,16 @@ using helix::ui::get_ams_device_operations_overlay;
 namespace {
 
 /// A backend whose firmware keeps its own per-lane retention setting.
-class FirmwareRetentionMock : public AmsBackendMock {
+class FirmwareRetentionMock : public AmsBackendMock, public ISpoolRetention {
   public:
     FirmwareRetentionMock(bool owns, bool keeps, std::vector<bool>* writes)
         : AmsBackendMock(4), owns_(owns), keeps_(keeps), writes_(writes) {}
+    [[nodiscard]] void* capability(TypeTag tag) override {
+        if (tag == type_tag<ISpoolRetention>()) {
+            return static_cast<ISpoolRetention*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
     [[nodiscard]] bool firmware_owns_spool_retention() const override {
         return owns_;
     }

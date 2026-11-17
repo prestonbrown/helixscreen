@@ -569,7 +569,7 @@ owns it.** AFC reports a per-lane `remember_spool`; a lane at `false` that
 empties drops every HelixScreen record of its spool
 (`AmsBackendAfc::forget_lane_spool_locked()`), so the screen shows what AFC and
 Mainsail show. Once every lane reports it,
-`AmsBackend::firmware_owns_spool_retention()` is true and the overlay shows a
+`ISpoolRetention::firmware_owns_spool_retention()` (`include/ams_spool_retention.h`) is true and the overlay shows a
 switch bound to `ams_device_ops_printer_retains_spool_info`
 (`printer_retains_spool_info()`, true when every lane remembers) that writes
 through `set_firmware_spool_retention()` (`AFC_SET_REMEMBER_SPOOL` per lane).
@@ -3663,6 +3663,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   MultiACE, CFS, the AD5X IFS and the mock implement it. Without it nothing is sent. Whether a start runs the
   step is `requires_preprint_send()` in `BackendTraits`, and `firmware_default_routing()` (§ 1b) stays on
   `AmsBackend`, since every backend answers it.
+- `ISpoolRetention` (`include/ams_spool_retention.h`) -- The firmware's own setting for what an eject does
+  to a lane's spool details: whether it is reported on every lane, its value, and the write. AFC implements
+  it with `remember_spool`. Without it HelixScreen's "Keep Spool Info on Eject" applies.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 
