@@ -43,6 +43,12 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "3ms", "3ms", nullptr, 0},
     {"happy_hare", "emu", "emu", nullptr, 0},
     {"happy_hare", "kms", "kms", nullptr, 0},
+    // Happy Hare publishes the vendor as "VVD" and names the unit "BTT ViViD" by default.
+    {"happy_hare", "vvd", "btt_vivid", nullptr, 0},
+    {"happy_hare", "qidi", "qidi_box", nullptr, 0},
+    {"happy_hare", "htlf", "htlf", nullptr, 0},
+    {"happy_hare", "nightowl", "night_owl", nullptr, 0},
+    {"happy_hare", "boxturtle", "box_turtle", "box_turtle_enclosed", 0},
     {"ifs", nullptr, "ad5x_ifs", nullptr, 0},
     // Happy Hare's vendor constants; only a real selector is one of these rails.
     {"happy_hare", "ercf", "ercf_rail", nullptr, 0, true},

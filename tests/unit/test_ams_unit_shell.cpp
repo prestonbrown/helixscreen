@@ -110,14 +110,40 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
-    CHECK(id(AmsType::HAPPY_HARE, "KMS") == "kms");
-    // A renamed unit still reports its vendor, which Happy Hare publishes as "KMS".
-    AmsSystemInfo renamed = one_unit(AmsType::HAPPY_HARE, "Dry box");
-    renamed.units[0].model = "KMS";
-    REQUIRE(unit_shell_for(renamed, 0) != nullptr);
-    CHECK(std::string(unit_shell_for(renamed, 0)->id) == "kms");
     // The Canvas is drawn, but no backend reports one.
     CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
+}
+
+TEST_CASE("unit shell: a Happy Hare unit is found by the vendor it reports", "[ams][unit-art]") {
+    // Vendor strings from Happy Hare's mmu_constants.py, with the display name each unit
+    // gets when its config sets none.
+    struct Case {
+        const char* vendor;
+        const char* default_name;
+        const char* shell;
+    };
+    const Case cases[] = {
+        {"KMS", "KMS", "kms"},
+        {"VVD", "BTT ViViD", "btt_vivid"},
+        {"QIDI", "QIDI Box", "qidi_box"},
+        {"HTLF", "HTLF", "htlf"},
+        {"NightOwl", "Night Owl", "night_owl"},
+        {"BoxTurtle", "Box Turtle", "box_turtle"},
+    };
+    for (const Case& c : cases) {
+        CAPTURE(c.vendor);
+        AmsSystemInfo info = one_unit(AmsType::HAPPY_HARE, c.default_name);
+        info.units[0].model = c.vendor;
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
+        // A renamed unit still reports its vendor.
+        info.units[0].name = "Dry box";
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
+    }
+    AmsSystemInfo turtle = one_unit(AmsType::HAPPY_HARE, "Box Turtle");
+    turtle.units[0].model = "BoxTurtle";
+    CHECK(std::string(unit_shell_for(turtle, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
 }
 
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {

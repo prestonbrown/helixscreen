@@ -760,6 +760,11 @@ Select the mock AMS topology/type.
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
 | `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
+| `hh_vivid` | 1 | Happy Hare on a BTT ViViD: the mock backend with the unit reporting vendor `VVD`, LINEAR, 4 lanes |
+| `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, 4 lanes |
+| `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
+| `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB. Its drawing has 2 lanes, so set `HELIX_AMS_GATES=2` |
+| `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, 4 lanes; the enclosed drawing while the mock reports a dryer or climate |
 | `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
