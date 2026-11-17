@@ -47,6 +47,7 @@ std::string capture_backtrace_hex() {
 std::atomic<helix_lvgl_anomaly_observer_fn> g_observer{nullptr};
 } // namespace
 
+// NAMESPACE_OK: C-linkage API beside helix_lvgl_anomaly(), declared in a C header
 extern "C" void helix_lvgl_anomaly_set_observer(helix_lvgl_anomaly_observer_fn observer) {
     g_observer.store(observer, std::memory_order_release);
 }
