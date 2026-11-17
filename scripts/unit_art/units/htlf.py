@@ -9,6 +9,7 @@ Each lane leaves through its own collet on the front, under a tan lid with a lam
 from .. import feeder, kit
 from ..kit import TrayShellDef, UnitDef
 from . import htlf_face
+from .htlf_face import BODY, GOLD, LAMP, LID
 
 W, D, H = 0.46, 0.27, 0.29
 # Front face, bottom up: a plain panel, the row of outlet collets, then the lid.
@@ -19,8 +20,7 @@ WALL = 0.025
 LID_X1 = 0.396
 SEGMENTS = [0.132, 0.198, 0.264, 0.33, 0.396, W - WALL]
 CENTERS = [0.165, 0.231, 0.297, 0.363]
-BODY, LID, GOLD, MOTOR = "#3f9a6e", "#d3b97f", "#b9a05a", "#141517"
-LAMP = "#54e04a"
+MOTOR = "#141517"
 PROFILE = [(0.0, 0.0), (0.0, LID_Z0), (D, LID_Z0), (D, 0.0)]
 WALL_PROFILE = [(0.0, 0.0), (0.0, H - 0.03), (0.03, H), (D, H), (D, 0.0)]
 LID_PROFILE = [(0.0, LID_Z0), (0.0, H - 0.035), (0.035, H), (D - 0.01, H), (D - 0.01, LID_Z0)]
@@ -71,7 +71,7 @@ def draw_art(scene, colors, tier):
 
 
 def _tray_shell() -> TrayShellDef:
-    return feeder.tray_strip(0x3F9A6E, 0xD3B97F)
+    return feeder.tray_strip(int(BODY[1:], 16), int(LID[1:], 16))
 
 
 UNIT = UnitDef("htlf", 4, draw_art, _tray_shell(), face_art=htlf_face.draw)

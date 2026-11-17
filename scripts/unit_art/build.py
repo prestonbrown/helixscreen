@@ -178,6 +178,12 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
+def _trailing_fields(fields):
+    """Optional trailing initialisers: every field up to the last that differs from its default."""
+    last = max((i for i, (value, default) in enumerate(fields) if value != default), default=-1)
+    return "".join(f", {value}" for value, _ in fields[: last + 1])
+
+
 def generate_shell_table(units):
     """The C++ table of every unit's tray shape."""
 
@@ -228,23 +234,17 @@ def generate_shell_table(units):
         dome = f"k_{unit.id}_dome" if dome_points else "nullptr"
         lid = "true" if t.lid_spans_row else "false"
         variants = sum(1 << lanes for lanes in unit.lane_variants)
-        track = ""
+        # The row's optional tail, in UnitShell's field order, each with its default.
+        tail = [("nullptr, 0", "nullptr, 0"), ("nullptr, 0", "nullptr, 0"), (f"0x{t.lid_color:06x}", "0x000000"), (f"{t.spool_lift_px:.1f}f", "0.0f"), ("true" if t.plain_tray else "false", "false")]
         if unit.carriage_step is not None:
             carriage = carriage_rows(unit)
             out.append(f"constexpr CarriageTrack k_{unit.id}_carriage[] = {{{', '.join(carriage)}}};")
-            track = f", k_{unit.id}_carriage, {len(carriage)}"
+            tail[0] = (f"k_{unit.id}_carriage, {len(carriage)}", "nullptr, 0")
         if unit.face_art is not None:
             faces = [face_row(face_scene(unit, gates), gates) for gates in face_gate_counts(unit)]
             out.append(f"constexpr RailFaceArt k_{unit.id}_face[] = {{{', '.join(faces)}}};")
-            track = (track or ", nullptr, 0") + f", k_{unit.id}_face, {len(faces)}"
-        if t.lid_color or t.spool_lift_px or t.plain_tray:
-            if not track:
-                track = ", nullptr, 0"
-            if ", k_" + unit.id + "_face" not in track:
-                track += ", nullptr, 0"
-            track += f", 0x{t.lid_color:06x}, {t.spool_lift_px:.1f}f"
-            if t.plain_tray:
-                track += ", true"
+            tail[1] = (f"k_{unit.id}_face, {len(faces)}", "nullptr, 0")
+        track = _trailing_fields(tail)
         rows.append(
             f'    {{"{unit.id}", k_{unit.id}_cheek, {len(t.cheek)}, {dome}, {len(dome_points)}, {unit.lanes}, '
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "

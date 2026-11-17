@@ -77,14 +77,16 @@ void clear_translate(lv_obj_t* obj) {
 
 // Tool changers have no housing around their spools.
 /// The shell for a view; the whole-backend view of a one-unit system counts as that unit.
-const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
-    auto* backend = helix::AmsState::instance().get_backend(0);
-    if (!backend)
-        return nullptr;
-    const helix::AmsSystemInfo info = backend->get_system_info();
+const tray::UnitShell* view_shell(const helix::AmsSystemInfo& info, int unit_index,
+                                  bool has_dryer) {
     if (unit_index < 0 && info.units.size() == 1)
         unit_index = 0;
     return tray::unit_shell_for(info, unit_index, has_dryer);
+}
+
+const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
+    auto* backend = helix::AmsState::instance().get_backend(0);
+    return backend ? view_shell(backend->get_system_info(), unit_index, has_dryer) : nullptr;
 }
 
 bool unit_has_physical_tray() {
@@ -747,8 +749,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
         topo = helix::PathTopology::HUB;
     // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
     // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
-    const tray::UnitShell* drawn_unit = tray::unit_shell_for(
-        info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
+    const tray::UnitShell* drawn_unit = view_shell(info, unit_index, false);
     const tray::LaneJoin join = helix::ui::fpath::drawn_lane_join(
         drawn_unit ? drawn_unit->lane_join : tray::LaneJoin::Hub, topo);
     if (join == tray::LaneJoin::Junction || join == tray::LaneJoin::Inside)

@@ -346,9 +346,15 @@ lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32
         });
 }
 
-// Whether a pass-through unit's art loads at the size it is laid out at.
-bool through_art_loads(const FilamentPathData& data, const RailArtRect& r) {
-    return rail_layer(data, "body", r.w, r.h) != nullptr;
+// Art laid out at @p r whose layers do not load gives the layout back to the plain drawing:
+// marks the art failed and says so, so the caller lays out again. A sliding selector also needs
+// its carriage layer.
+bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r, bool with_carriage) {
+    if (r.w <= 0 || (rail_layer(data, "body", r.w, r.h) &&
+                     (!with_carriage || rail_layer(data, "carriage", r.w, r.h))))
+        return false;
+    data.rail_art_failed = true;
+    return true;
 }
 
 // A pass-through unit's art, drawn over the lanes that run behind its face.
@@ -362,11 +368,8 @@ void draw_through_art(const RenderCtx& ctx, const RailArtRect& r) {
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     MixedFrame f = compute_mixed_frame(*data, ctx.geo);
-    // Art whose image does not load gives way to the plain lanes before they are planned.
-    if (f.through.w > 0 && !through_art_loads(*data, f.through)) {
-        data->rail_art_failed = true;
+    if (drop_unloadable_art(*data, f.through, false))
         f = compute_mixed_frame(*data, ctx.geo);
-    }
     PathPlan& plan = plan_scratch();
     plan_mixed(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
@@ -676,10 +679,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
-    if (const RailArtRect r = rail_art_rect(*data, ctx.geo); r.w > 0) {
-        if (!rail_layer(*data, "body", r.w, r.h) || !rail_layer(*data, "carriage", r.w, r.h))
-            data->rail_art_failed = true;
-    }
+    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo), true);
 
     // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
@@ -692,10 +692,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     const int32_t glyph_top =
         toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
     LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
-    if (f.through.w > 0 && !through_art_loads(*data, f.through)) {
-        data->rail_art_failed = true;
+    if (drop_unloadable_art(*data, f.through, false))
         f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
-    }
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);

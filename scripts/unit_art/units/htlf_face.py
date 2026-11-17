@@ -10,6 +10,7 @@ PITCH = 90
 GATE0 = 395  # left edge of lane 0
 FLOOR = 640
 TOP = 170
+# The HTLF palette, shared with its three-quarter drawing.
 BODY, BODY_D, LID, LID_D = "#3f9a6e", "#2f7a56", "#d3b97f", "#b89c62"
 MOTOR, MOTOR_D = "#1d1e21", "#141517"
 GOLD, BLUE, LAMP = "#b9a05a", "#1e2f73", "#54e04a"

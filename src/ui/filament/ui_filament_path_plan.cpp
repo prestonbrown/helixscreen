@@ -195,6 +195,21 @@ constexpr float kThroughMaxHRatio = 0.3f;
 int32_t tube_cap(const FilamentPathData& data) {
     return (data.theme.tube_gauge + 1) / 2;
 }
+
+// The size head-on art takes in a band @p band_h tall: as tall as fits, never wider than most of
+// the canvas. Empty when the art would be too small to read.
+RailArtRect fit_art(const FilamentPathData& data, const BaseGeometry& g, int32_t band_h) {
+    int32_t h = band_h;
+    int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
+    const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
+    if (w > max_w) {
+        w = max_w;
+        h = (int32_t)std::lround(w / data.rail_art->aspect);
+    }
+    if (h < kRailArtMinH)
+        return {};
+    return {0, 0, w, h};
+}
 } // namespace
 
 int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
@@ -229,16 +244,10 @@ RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t bottom =
         (data.buffer_present ? buffer_y - buffer_box_h : buffer_y - buffer_box_h / 2) -
         2 * sensor_r;
-    int32_t h = bottom - top;
-    int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
-    const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
-    if (w > max_w) {
-        w = max_w;
-        h = (int32_t)std::lround(w / data.rail_art->aspect);
-    }
-    if (h < kRailArtMinH)
-        return {};
-    return {g.center_x - w / 2, bottom - h, w, h};
+    // The rail hangs above the buffer: it sits on the band's bottom.
+    const RailArtRect size = fit_art(data, g, bottom - top);
+    return size.w > 0 ? RailArtRect{g.center_x - size.w / 2, bottom - size.h, size.w, size.h}
+                      : RailArtRect{};
 }
 
 RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
@@ -248,16 +257,9 @@ RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g
     if (!data.rail_art || data.rail_art_failed || !spread || data.hub_on_toolhead ||
         data.rail_art->aspect <= 0)
         return {};
-    int32_t h = bottom - top;
-    int32_t w = (int32_t)std::lround(h * data.rail_art->aspect);
-    const int32_t max_w = (int32_t)(g.width * kRailMaxWidthRatio);
-    if (w > max_w) {
-        w = max_w;
-        h = (int32_t)std::lround(w / data.rail_art->aspect);
-    }
-    if (h < kRailArtMinH)
-        return {};
-    return {center_x - w / 2, top, w, h};
+    // The lanes come in just above a pass-through unit: it sits on the band's top.
+    const RailArtRect size = fit_art(data, g, bottom - top);
+    return size.w > 0 ? RailArtRect{center_x - size.w / 2, top, size.w, size.h} : RailArtRect{};
 }
 
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g) {
@@ -344,7 +346,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     if (f.rail.w > 0) {
         // The art stands in for the bar; the filament leaves at the carriage's coupler. A rail
         // has no buffer: its sync sensor is that outlet's band.
-        f.output_y = f.rail.y + (int32_t)std::lround(data.rail_art->outlet_y * f.rail.h);
+        f.output_y = rail_outlet_y(*data.rail_art, f.rail);
         f.has_buffer = false;
     }
 
@@ -401,7 +403,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             start_y = f.selector_y + f.hub_h / 2;
         if (f.through.w > 0) {
             start_x = rail_outlet_x(*data.rail_art, f.through, i);
-            start_y = f.through.y + (int32_t)std::lround(data.rail_art->outlet_y * f.through.h);
+            start_y = rail_outlet_y(*data.rail_art, f.through);
         }
         fan_in[i] = {(float)start_x, (float)start_y};
     }
@@ -881,22 +883,34 @@ Route& start_lane(PathPlan& out, const Lane& lane, float x, int32_t entry_y, int
     return r;
 }
 
-// From (@p x, @p from_y) the lane bends in above a pass-through unit's art to its inlet and runs
-// hidden behind the face to its outlet. Returns the outlet.
-pg::PathPoint route_into_art(Route& r, const FilamentPathData& data, const RailArtRect& art,
+// The fillet of an S-bend between two columns @p dx apart: as round as half the offset allows.
+float bend_radius(float dx) {
+    return std::clamp(std::fabs(dx) / 2.0f, 0.5f, 18.0f);
+}
+
+// From (@p x, @p from_y) the lane bends in above head-on art to its gate's inlet. Returns the
+// inlet; the lane goes on behind the art's face from there.
+pg::PathPoint route_to_inlet(Route& r, const FilamentPathData& data, const RailArtRect& art,
                              int lane, float x, float from_y, SpanStyle s) {
     const float in_x = (float)rail_gate_x(*data.rail_art, art, lane);
-    const float in_y = (float)(art.y + (int32_t)std::lround(data.rail_art->inlet_y * art.h));
+    const float in_y = (float)rail_inlet_y(*data.rail_art, art);
     const float top = (float)art.y;
     const pg::PathPoint pts[4] = {
         {x, from_y}, {x, from_y + (top - from_y) / 3}, {in_x, top}, {in_x, in_y}};
     pg::FilamentPath fan;
-    pg::route_polyline_filleted(fan, pts, 4, std::clamp(std::fabs(x - in_x) / 2.0f, 0.5f, 18.0f));
+    pg::route_polyline_filleted(fan, pts, 4, bend_radius(x - in_x));
     route_append(r, fan, s);
-    const pg::PathPoint outlet{
-        (float)rail_outlet_x(*data.rail_art, art, lane),
-        (float)(art.y + (int32_t)std::lround(data.rail_art->outlet_y * art.h))};
-    append_line(r, in_x, in_y, outlet.x, outlet.y, unpainted(s));
+    return pts[3];
+}
+
+// Into a pass-through unit's art and hidden behind its face to the lane's own outlet. Returns
+// the outlet.
+pg::PathPoint route_into_art(Route& r, const FilamentPathData& data, const RailArtRect& art,
+                             int lane, float x, float from_y, SpanStyle s) {
+    const pg::PathPoint in = route_to_inlet(r, data, art, lane, x, from_y, s);
+    const pg::PathPoint outlet{(float)rail_outlet_x(*data.rail_art, art, lane),
+                               (float)rail_outlet_y(*data.rail_art, art)};
+    append_line(r, in.x, in.y, outlet.x, outlet.y, unpainted(s));
     return outlet;
 }
 
@@ -912,7 +926,7 @@ Route& start_lane_through_art(PathPlan& out, const Lane& lane, const FilamentPat
     const pg::PathPoint pts[4] = {
         at, {at.x, at.y + run}, {x, at.y + 2 * run}, {x, (float)sensor_y}};
     pg::FilamentPath back;
-    pg::route_polyline_filleted(back, pts, 4, std::clamp(std::fabs(x - at.x) / 2.0f, 0.5f, 18.0f));
+    pg::route_polyline_filleted(back, pts, 4, bend_radius(x - at.x));
     route_append(r, back, s);
     add_band_at_end(out, BandKind::Lane, r, lane.band(PathSegment::TOOLHEAD), lane.color);
     return r;
@@ -1053,20 +1067,11 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
 
         if (linear && f.rail.w > 0) {
             // Each lane bends in above the art to its gate and goes in behind the art's face.
-            const float in_x = (float)rail_gate_x(*data.rail_art, f.rail, i);
-            const float in_y =
-                (float)(f.rail.y + (int32_t)std::lround(data.rail_art->inlet_y * f.rail.h));
-            const float top = (float)f.rail.y;
-            const float leave = (float)f.prep_band_y;
-            const pg::PathPoint pts[4] = {
-                {x, leave}, {x, leave + (top - leave) / 3}, {in_x, top}, {in_x, in_y}};
-            pg::FilamentPath fan;
-            pg::route_polyline_filleted(fan, pts, 4,
-                                        std::clamp(std::fabs(x - in_x) / 2.0f, 0.5f, 18.0f));
-            route_append(r, fan, lane.style(PathSegment::LANE));
+            const pg::PathPoint in = route_to_inlet(r, data, f.rail, i, x, (float)f.prep_band_y,
+                                                    lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
-            append_line(r, in_x, in_y, (float)f.output_x, (float)f.output_y,
+            append_line(r, in.x, in.y, (float)f.output_x, (float)f.output_y,
                         unpainted(lane.style(PathSegment::HUB)));
         } else if (f.through.w > 0) {
             // Into the unit's art and out of its own outlet, then down the fan to the hub.
@@ -1130,9 +1135,8 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             pg::FilamentPath fan;
             // Long S-bends: as round as the lane's distance from the trunk allows.
             const float bend = data.lanes_merge_inside ? std::fabs(x - cx)
-                               : data.built_in_hub
-                                   ? std::clamp(std::fabs(x - cx) / 2.0f, 0.5f, 18.0f)
-                                   : 8.0f;
+                               : data.built_in_hub     ? bend_radius(x - cx)
+                                                       : 8.0f;
             pg::route_polyline_filleted(fan, pts, 4, bend);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)

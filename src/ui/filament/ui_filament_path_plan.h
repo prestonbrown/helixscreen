@@ -140,6 +140,16 @@ inline int32_t rail_gate_x(const helix::ui::tray::RailFaceArt& art, const RailAr
     return r.x + static_cast<int32_t>(std::lround((art.gate0_x + gate * art.gate_step_x) * r.w));
 }
 
+/// The height every lane goes into the art drawn at @p r.
+inline int32_t rail_inlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.inlet_y * r.h));
+}
+
+/// The height the filament leaves the art drawn at @p r.
+inline int32_t rail_outlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.outlet_y * r.h));
+}
+
 /// Where the filament leaves the carriage when it stands at @p gate.
 inline int32_t rail_outlet_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
                              int gate) {
