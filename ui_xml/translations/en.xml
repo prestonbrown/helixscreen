@@ -185,6 +185,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." en="A saturated filter stops trapping fumes and particles."/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." en="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen."/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." en="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen."/>
+  <translation tag="A shell on the machine running this screen" en="A shell on the machine running this screen"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" en="A spool may be tangled or the drive gear is jammed"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." en="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" en="A toolhead offset calibration is in progress, possibly from another screen. End it now?"/>
@@ -1015,6 +1016,7 @@
   <translation tag="Creating bed mesh..." en="Creating bed mesh..."/>
   <translation tag="Creating spool..." en="Creating spool..."/>
   <translation tag="Critical hardware missing: {}" en="Critical hardware missing: {}"/>
+  <translation tag="Ctrl" en="Ctrl"/>
   <translation tag="Current / Target" en="Current / Target"/>
   <translation tag="Current Configuration" en="Current Configuration"/>
   <translation tag="Current Mesh" en="Current Mesh"/>
@@ -1310,6 +1312,7 @@
   <translation tag="Error: `unzip` not installed" en="Error: `unzip` not installed"/>
   <translation tag="Error: cannot write the service file in {}" en="Error: cannot write the service file in {}"/>
   <translation tag="Errors only" en="Errors only"/>
+  <translation tag="Esc" en="Esc"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" en="Escalate to emergency stop if cancel doesn&apos;t respond"/>
   <translation tag="Escalation Timeout" en="Escalation Timeout"/>
   <translation tag="Est. Duration" en="Est. Duration"/>
@@ -1716,6 +1719,7 @@
   <translation tag="HEPA filter" en="HEPA filter"/>
   <translation tag="HEPA filter interval" en="HEPA filter interval"/>
   <translation tag="HOST" en="HOST"/>
+  <translation tag="HOST ACCESS" en="HOST ACCESS"/>
   <translation tag="HTTP Code" en="HTTP Code"/>
   <translation tag="HTTP error: {} {}" en="HTTP error: {} {}"/>
   <translation tag="HUMIDITY SENSORS" en="HUMIDITY SENSORS"/>
@@ -1862,6 +1866,7 @@
   <translation tag="Horizontal" en="Horizontal"/>
   <translation tag="Host" en="Host"/>
   <translation tag="Host Health" en="Host Health"/>
+  <translation tag="Host Terminal" en="Host Terminal"/>
   <translation tag="Host and MCU load, temperature, and memory" en="Host and MCU load, temperature, and memory"/>
   <translation tag="Host: " en="Host: "/>
   <translation tag="Hotend" en="Hotend"/>
@@ -2715,6 +2720,7 @@
   <translation tag="Open" en="Open"/>
   <translation tag="Open Fans" en="Open Fans"/>
   <translation tag="Open Source Licenses" en="Open Source Licenses"/>
+  <translation tag="Open Terminal" en="Open Terminal"/>
   <translation tag="Open color and brightness controls" en="Open color and brightness controls"/>
   <translation tag="Open feeder" en="Open feeder"/>
   <translation tag="Open feeder macro" en="Open feeder macro"/>
@@ -3626,6 +3632,7 @@
   <translation tag="Show Sections" en="Show Sections"/>
   <translation tag="Show Touch Points" en="Show Touch Points"/>
   <translation tag="Show a confirmation dialog when tapping a macro" en="Show a confirmation dialog when tapping a macro"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." en="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it."/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" en="Show and enter temperatures in Celsius or Fahrenheit"/>
   <translation tag="Show instead of dimming" en="Show instead of dimming"/>
   <translation tag="Show light controls for a light connected to this printer" en="Show light controls for a light connected to this printer"/>
@@ -3888,6 +3895,7 @@
   <translation tag="TOGGLE: {}" en="TOGGLE: {}"/>
   <translation tag="TOOLS" en="TOOLS"/>
   <translation tag="TPU" en="TPU"/>
+  <translation tag="Tab" en="Tab"/>
   <translation tag="Tag Parts" en="Tag Parts"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." en="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed."/>
   <translation tag="Takes 3-5 min. Do not interrupt." en="Takes 3-5 min. Do not interrupt."/>
@@ -4132,6 +4140,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." en="The saved position is kept. Reconnect or restart the screen to be offered the resume again."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." en="The screen will lose its connection to the printer for a few seconds."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" en="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service"/>
+  <translation tag="The shell could not start: {}" en="The shell could not start: {}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." en="The shell exited. Tap the terminal to start a new one."/>
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." en="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24."/>
   <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
@@ -4198,6 +4208,7 @@
   <translation tag="This firmware can only switch slots by loading them" en="This firmware can only switch slots by loading them"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." en="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." en="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper."/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." en="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." en="This is an emergency stop: the printer halts and Klipper restarts."/>
   <translation tag="This is exactly the data that will be sent" en="This is exactly the data that will be sent"/>
   <translation tag="This is what data would be sent if enabled" en="This is what data would be sent if enabled"/>

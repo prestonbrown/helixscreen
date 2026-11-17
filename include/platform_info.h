@@ -16,6 +16,12 @@ bool is_android_platform();
 /// is seeded from it and the shutdown widget/dialog gate on that.
 bool platform_host_power_supported();
 
+/// True when this build and platform can open the Host Terminal: a shell on a pty on
+/// the machine HelixScreen runs on. Never on Android, where an app has no shell to
+/// offer, and never in a build without HELIX_HAS_HOST_TERMINAL. The single source of
+/// this rule; the platform_host_terminal_supported subject is seeded from it.
+bool platform_host_terminal_supported();
+
 /// True when this platform's software is owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///

@@ -191,6 +191,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。'
+  A shell on the machine running this screen: 'この画面を動かしているマシンのシェル'
   A spool may be tangled or the drive gear is jammed: スプールが絡まっているか、駆動ギアが詰まっている可能性があります
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '複数のフィラメントをツールヘッドに送るシステムで、スロット数を表示します。スロットはフィラメントシステム画面で管理できます。'
@@ -1069,6 +1070,7 @@ translations:
   Creating bed mesh...: ベッドメッシュを作成中...
   Creating spool...: スプールを作成中...
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
+  Ctrl: 'Ctrl'
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
   Current Mesh: 現在のメッシュ
@@ -1373,6 +1375,7 @@ translations:
   'Error: `unzip` not installed': 'エラー: `unzip` がインストールされていません'
   'Error: cannot write the service file in {}': 'エラー: {} にサービスファイルを書き込めません'
   Errors only: 'エラーのみ'
+  Esc: 'Esc'
   Escalate to emergency stop if cancel doesn't respond: キャンセルが応答しない場合は緊急停止にエスカレート
   Escalation Timeout: エスカレーションタイムアウト
   Est. Duration: 予想時間
@@ -1784,6 +1787,7 @@ translations:
   HEPA filter: 'HEPAフィルター'
   HEPA filter interval: 'HEPAフィルターの間隔'
   HOST: ホスト
+  HOST ACCESS: 'ホストへのアクセス'
   HTTP Code: HTTP コード
   'HTTP error: {} {}': 'HTTP エラー: {} {}'
   HUMIDITY SENSORS: 湿度センサー
@@ -1937,6 +1941,7 @@ translations:
   Horizontal: 水平
   Host: ホスト
   Host Health: ホストの状態
+  Host Terminal: 'ホストターミナル'
   Host and MCU load, temperature, and memory: ホストと MCU の負荷、温度、メモリ
   'Host: ': 'ホスト: '
   Hotend: ホットエンド
@@ -2812,6 +2817,7 @@ translations:
   Open: 開く
   Open Fans: 'ファンを開く'
   Open Source Licenses: オープンソースライセンス
+  Open Terminal: 'ターミナルを開く'
   Open color and brightness controls: 色と明るさの調整を開く
   Open feeder macro: フィーダーを開くマクロ
   Open feeder: フィーダーを開く
@@ -3748,6 +3754,7 @@ translations:
   Show Sections: セクションを表示
   Show Touch Points: タッチポイントを表示
   Show a confirmation dialog when tapping a macro: マクロをタップした際に確認ダイアログを表示
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: 'ツールにこのマシンのシェルを表示します。画面の前にいる人はだれでもコマンドを実行できるようになります。'
   Show and enter temperatures in Celsius or Fahrenheit: 温度を°Cまたは°Fで表示・入力します
   Show instead of dimming: 暗くする代わりに表示
   Show light controls for a light connected to this printer: 'このプリンターに接続したライトの操作を表示'
@@ -4018,6 +4025,7 @@ translations:
   'TOGGLE: {}': '切り替え: {}'
   TOOLS: ツール
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: 部位をタグ付け
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: PEIシートを加熱ベッドから外し、「次へ」をタップしてください。ツールヘッドはベッド面を直接計測します。
   Takes 3-5 min. Do not interrupt.: 3〜5分かかります。中断しないでください。
@@ -4287,6 +4295,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。
   The screen will lose its connection to the printer for a few seconds.: "画面とプリンターの接続が数秒間切断されます。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です
+  'The shell could not start: {}': 'シェルを起動できませんでした: {}'
+  The shell exited. Tap the terminal to start a new one.: 'シェルが終了しました。ターミナルをタップすると新しいシェルを開始します。'
   The speed of one fan you choose: 選んだファン1つの速度
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
@@ -4371,6 +4381,8 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加します。印刷中のため、Klipper は印刷完了後に再起動されます。'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加して、Klipper を再起動します。'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : 'これはこの画面を動かしているマシンのシェルで、ユーザー「{}」として動作します。ここで入力したコマンドはそのユーザーの権限で実行され、プリンターのファームウェアを含むシステムを変更したり破損させたりする可能性があります。'
   'This is an emergency stop: the printer halts and Klipper restarts.': これは緊急停止です：プリンターが停止し、Klipperが再起動します。
   This is exactly the data that will be sent: これが送信されるデータです
   This is what data would be sent if enabled: これは有効にした場合に送信されるデータです

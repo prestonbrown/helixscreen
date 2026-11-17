@@ -141,6 +141,8 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # and the Snake easter egg stay off the 4.3-inch panel.
     HELIX_HAS_CONSOLE=0
     HELIX_HAS_SNAKE_GAME=0
+    # No pty and no shell on the firmware: the Host Terminal and libvterm stay out.
+    HELIX_HAS_HOST_TERMINAL=0
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0
     HELIX_HAS_LABEL_PRINTER=0

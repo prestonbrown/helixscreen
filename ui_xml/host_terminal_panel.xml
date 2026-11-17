@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Host Terminal (#1573): a shell on the machine HelixScreen runs on. libvterm
+     parses the shell's output into a grid; the C++ side sizes the grid to the
+     view and draws it as text in the monospace face. -->
+<component>
+  <view name="host_terminal_panel" extends="overlay_panel" title="Host Terminal">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_top="0" scrollable="false" flex_flow="column"
+            style_pad_gap="#space_xs">
+      <!-- Why there is no shell: it exited, or it could not start -->
+      <text_small name="status_message" width="100%" text="" bind_text="host_terminal_status" long_mode="wrap">
+        <bind_flag_if_eq subject="host_terminal_status_visible" flag="hidden" ref_value="0"/>
+      </text_small>
+      <!-- Keys a shell needs that the keyboard has no key for, then the field that
+           takes typing. Characters go to the shell as they are typed; the field
+           itself stays empty. No key here takes focus from the field, so the
+           keyboard stays up while they are tapped. The row sits above the terminal
+           so the on-screen keyboard never has to lift the page to reach the field;
+           it covers the bottom of the terminal instead, and the grid shrinks to
+           the rows left in view. -->
+      <lv_obj name="key_row"
+              width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
+              style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <!-- Ctrl latches for the next key: secondary while off, primary while armed -->
+        <ui_button name="key_ctrl" height="#button_height_sm" text="Ctrl" variant="secondary" click_focusable="false">
+          <bind_flag_if_eq subject="host_terminal_ctrl" flag="hidden" ref_value="1"/>
+          <event_cb trigger="clicked" callback="on_host_terminal_ctrl"/>
+        </ui_button>
+        <ui_button name="key_ctrl_armed"
+                   height="#button_height_sm" text="Ctrl" variant="primary" click_focusable="false">
+          <bind_flag_if_eq subject="host_terminal_ctrl" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_host_terminal_ctrl"/>
+        </ui_button>
+        <ui_button name="key_esc" height="#button_height_sm" text="Esc" variant="secondary" click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_esc"/>
+        </ui_button>
+        <ui_button name="key_tab" height="#button_height_sm" text="Tab" variant="secondary" click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_tab"/>
+        </ui_button>
+        <ui_button name="key_left"
+                   width="#button_height_sm" height="#button_height_sm" icon="arrow_left" variant="secondary"
+                   click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_left"/>
+        </ui_button>
+        <ui_button name="key_up"
+                   width="#button_height_sm" height="#button_height_sm" icon="arrow_up" variant="secondary"
+                   click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_up"/>
+        </ui_button>
+        <ui_button name="key_down"
+                   width="#button_height_sm" height="#button_height_sm" icon="arrow_down" variant="secondary"
+                   click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_down"/>
+        </ui_button>
+        <ui_button name="key_right"
+                   width="#button_height_sm" height="#button_height_sm" icon="arrow_right" variant="secondary"
+                   click_focusable="false">
+          <event_cb trigger="clicked" callback="on_host_terminal_right"/>
+        </ui_button>
+        <!-- Multiline so the keyboard's Enter reaches the shell as an insert and the
+             keyboard stays up, where a one-line field would close it. -->
+        <text_input name="key_capture"
+                    height="#button_height_sm" flex_grow="1" placeholder="" multiline="true" style_text_opa="0"
+                    scrollable="false">
+          <event_cb trigger="insert" callback="on_host_terminal_insert"/>
+          <event_cb trigger="key" callback="on_host_terminal_key"/>
+          <event_cb trigger="ready" callback="on_host_terminal_ready"/>
+          <event_cb trigger="focused" callback="on_host_terminal_focus_changed"/>
+          <event_cb trigger="defocused" callback="on_host_terminal_focus_changed"/>
+        </text_input>
+      </lv_obj>
+      <!-- The terminal: lines that scrolled off above the live grid. A tap opens
+           the keyboard, or starts a new shell after the last one exited. -->
+      <lv_obj name="terminal_view"
+              width="100%" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255"
+              style_border_width="#border_width" style_border_color="#border" style_radius="#border_radius"
+              style_pad_all="#space_xs" style_pad_gap="0" flex_flow="column" scrollable="true" scroll_dir="ver"
+              clickable="true" click_focusable="false">
+        <event_cb trigger="clicked" callback="on_host_terminal_view_clicked"/>
+        <event_cb trigger="size_changed" callback="on_host_terminal_view_resized"/>
+        <event_cb trigger="scroll" callback="on_host_terminal_view_scrolled"/>
+        <lv_label name="scrollback_text"
+                  width="content" bind_text="host_terminal_scrollback" style_text_font="#font_mono"
+                  style_text_color="#text_muted" clickable="false">
+          <bind_flag_if_eq subject="host_terminal_has_scrollback" flag="hidden" ref_value="0"/>
+        </lv_label>
+        <!-- The live grid. The C++ side sets its height to the grid's and puts the
+             cursor block on the cursor's cell. -->
+        <lv_obj name="screen_area"
+                width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false" clickable="false">
+          <lv_label name="screen_text"
+                    width="content" bind_text="host_terminal_screen" style_text_font="#font_mono"
+                    style_text_color="#text" clickable="false"/>
+          <lv_obj name="cursor"
+                  style_bg_color="#primary" style_bg_opa="160" style_border_width="0" style_radius="0" style_pad_all="0"
+                  scrollable="false" clickable="false">
+            <bind_flag_if_eq subject="host_terminal_cursor_visible" flag="hidden" ref_value="0"/>
+          </lv_obj>
+        </lv_obj>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

@@ -197,6 +197,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Un capteur qui mesure la distance au plateau. HelixScreen l''utilise pour la calibration du Z Offset et les tests de sonde sur l''écran Sonde.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un capteur qui mesure la température de l''air dans l''enceinte. Suivez-la sur l''écran de température de l''enceinte.'
+  A shell on the machine running this screen: 'Un shell sur la machine qui exécute cet écran'
   A spool may be tangled or the drive gear is jammed: Une bobine est peut-être emmêlée ou l'engrenage d'entraînement est bloqué
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Un système qui alimente plusieurs filaments vers la tête d''outil, affiché avec son nombre de slots. Gérez les slots sur l''écran du système de filament.'
@@ -1142,6 +1143,7 @@ translations:
   Creating bed mesh...: Création du maillage du plateau...
   Creating spool...: Création de la bobine...
   'Critical hardware missing: {}': 'Matériel critique manquant : {}'
+  Ctrl: 'Ctrl'
   Current / Target: Actuel / Cible
   Current Configuration: Configuration actuelle
   Current Mesh: Maillage du plateau actuel
@@ -1455,6 +1457,7 @@ translations:
   'Error: `unzip` not installed': 'Erreur : `unzip` non installé'
   'Error: cannot write the service file in {}': 'Erreur : impossible d''écrire le fichier de service dans {}'
   Errors only: 'Erreurs uniquement'
+  Esc: 'Échap'
   Escalate to emergency stop if cancel doesn't respond: Escalader vers l'arrêt d'urgence
     si l'annulation ne répond pas
   Escalation Timeout: Délai d'escalade
@@ -1885,6 +1888,7 @@ translations:
   HEPA filter: 'Filtre HEPA'
   HEPA filter interval: 'Intervalle du filtre HEPA'
   HOST: Hôte
+  HOST ACCESS: 'ACCÈS À L''HÔTE'
   HTTP Code: Code HTTP
   'HTTP error: {} {}': 'Erreur HTTP : {} {}'
   HUMIDITY SENSORS: CAPTEURS D'HUMIDITÉ
@@ -2045,6 +2049,7 @@ translations:
   Horizontal: Horizontal
   Host: Hôte
   Host Health: 'État de l''hôte'
+  Host Terminal: 'Terminal de l''hôte'
   Host and MCU load, temperature, and memory: 'Charge, température et mémoire de l''hôte et du MCU'
   'Host: ': 'Hôte : '
   Hotend: Hotend
@@ -2959,6 +2964,7 @@ translations:
   Open: Ouvrir
   Open Fans: 'Ouvrir Ventilateurs'
   Open Source Licenses: Licences open source
+  Open Terminal: 'Ouvrir le terminal'
   Open color and brightness controls: Ouvrir couleur et luminosité
   Open feeder macro: Macro d'ouverture de l'alimentateur
   Open feeder: Ouvrir l'alimentateur
@@ -3954,6 +3960,7 @@ translations:
   Show Touch Points: Afficher les points de contact
   Show a confirmation dialog when tapping a macro: Afficher une boîte de dialogue
     de confirmation lors de l'appui sur une macro
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: 'Affiche un shell de cette machine dans Outils. Toute personne devant l''écran pourra alors y exécuter des commandes.'
   Show and enter temperatures in Celsius or Fahrenheit: Afficher et saisir les températures en Celsius ou en Fahrenheit
   Show instead of dimming: Afficher au lieu d'atténuer
   Show light controls for a light connected to this printer: 'Afficher les commandes d''éclairage d''une lumière connectée à cette imprimante'
@@ -4244,6 +4251,7 @@ translations:
   'TOGGLE: {}': 'BASCULER : {}'
   TOOLS: OUTILS
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: Repérer les éléments
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: Retirez la plaque PEI du plateau chauffant, puis appuyez sur Suivant. Les têtes d'outil palpent le plateau nu.
   Takes 3-5 min. Do not interrupt.: Prend 3-5 min. Ne pas interrompre.
@@ -4528,6 +4536,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La position enregistrée est conservée. Reconnectez ou redémarrez l'écran pour que la reprise soit à nouveau proposée.
   The screen will lose its connection to the printer for a few seconds.: "L'écran perdra la connexion à l'imprimante pendant quelques secondes."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Le capteur de cette unité CFS ne peut pas être lu. Vérifiez son raccordement, sinon l'unité nécessite une intervention
+  'The shell could not start: {}': 'Le shell n''a pas pu démarrer : {}'
+  The shell exited. Tap the terminal to start a new one.: 'Le shell s''est terminé. Touchez le terminal pour en démarrer un nouveau.'
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Le masque de sous-réseau n''est pas valide. Utilisez une forme comme 255.255.255.0 ou 24.'
   The temperature was changed elsewhere.: "La température a été modifiée ailleurs."
@@ -4621,6 +4631,8 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Cela installe les macros d''aide HelixScreen sur l''imprimante et les ajoute à printer.cfg. Une impression est en cours, Klipper redémarrera une fois terminée.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Cela installe les macros d''aide HelixScreen sur l''imprimante, les ajoute à printer.cfg et redémarre Klipper.'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : 'Ceci est un shell sur la machine qui exécute cet écran, en tant qu''utilisateur « {} ». Les commandes saisies ici s''exécutent avec les droits de cet utilisateur et peuvent modifier ou casser le système, y compris le firmware de l''imprimante.'
   'This is an emergency stop: the printer halts and Klipper restarts.': "Ceci est un arrêt d'urgence : l'imprimante s'arrête et Klipper redémarre."
   This is exactly the data that will be sent: Voici exactement les données qui seront
     envoyées

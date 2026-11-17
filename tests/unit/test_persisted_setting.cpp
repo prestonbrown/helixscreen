@@ -335,6 +335,12 @@ const std::vector<Row>& rows() {
         {"temp_graph_show_drivers", Mgr::Settings, true, "temp_graph/show_drivers", true, 0, 0, 1,
          "temp_graph_show_drivers", true, SETB(sm().set_temp_graph_show_drivers),
          GET(sm().get_temp_graph_show_drivers), NOSUBJ},
+        {"host_terminal_enabled", Mgr::Settings, false, "/host_terminal/enabled", true, 0, 0, 1,
+         "host_terminal_enabled", true, SETB(sm().set_host_terminal_enabled),
+         GET(sm().get_host_terminal_enabled), SUBJ(sm().subject_host_terminal_enabled)},
+        {"host_terminal_warning_seen", Mgr::Settings, false, "/host_terminal/warning_seen", true, 0,
+         0, 1, "host_terminal_warning_seen", true, SETB(sm().set_host_terminal_warning_seen),
+         GET(sm().get_host_terminal_warning_seen), NOSUBJ},
     };
     return r;
 }

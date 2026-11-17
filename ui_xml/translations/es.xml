@@ -185,6 +185,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." es="Un filtro saturado deja de atrapar humos y partículas."/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." es="Un sensor que mide la distancia a la cama. HelixScreen lo usa para calibrar el Z Offset y para las pruebas de sonda en la pantalla Sonda."/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." es="Un sensor que mide la temperatura del aire dentro de la cámara. Consúltalo en la pantalla de temperatura de la cámara."/>
+  <translation tag="A shell on the machine running this screen" es="Una shell en la máquina que ejecuta esta pantalla"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" es="Puede que una bobina esté enredada o que el engranaje de arrastre esté atascado"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." es="Un sistema que alimenta varios filamentos al cabezal, mostrado con su número de ranuras. Gestiona las ranuras en la pantalla del sistema de filamento."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" es="Hay una calibración de offsets de cabezales en curso, quizá desde otra pantalla. ¿Terminarla ahora?"/>
@@ -1015,6 +1016,7 @@
   <translation tag="Creating bed mesh..." es="Creando malla de cama..."/>
   <translation tag="Creating spool..." es="Creando bobina..."/>
   <translation tag="Critical hardware missing: {}" es="Falta hardware crítico: {}"/>
+  <translation tag="Ctrl" es="Ctrl"/>
   <translation tag="Current / Target" es="Actual / Objetivo"/>
   <translation tag="Current Configuration" es="Configuración Actual"/>
   <translation tag="Current Mesh" es="Malla Actual"/>
@@ -1310,6 +1312,7 @@
   <translation tag="Error: `unzip` not installed" es="Error: `unzip` no está instalado"/>
   <translation tag="Error: cannot write the service file in {}" es="Error: no se puede escribir el archivo de servicio en {}"/>
   <translation tag="Errors only" es="Solo errores"/>
+  <translation tag="Esc" es="Esc"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" es="Escalar a parada de emergencia si cancelar no responde"/>
   <translation tag="Escalation Timeout" es="Tiempo de Espera de Escalado"/>
   <translation tag="Est. Duration" es="Duración est."/>
@@ -1716,6 +1719,7 @@
   <translation tag="HEPA filter" es="Filtro HEPA"/>
   <translation tag="HEPA filter interval" es="Intervalo del filtro HEPA"/>
   <translation tag="HOST" es="Host"/>
+  <translation tag="HOST ACCESS" es="ACCESO AL HOST"/>
   <translation tag="HTTP Code" es="Código HTTP"/>
   <translation tag="HTTP error: {} {}" es="Error HTTP: {} {}"/>
   <translation tag="HUMIDITY SENSORS" es="SENSORES DE HUMEDAD"/>
@@ -1862,6 +1866,7 @@
   <translation tag="Horizontal" es="Horizontal"/>
   <translation tag="Host" es="Host"/>
   <translation tag="Host Health" es="Estado del host"/>
+  <translation tag="Host Terminal" es="Terminal del host"/>
   <translation tag="Host and MCU load, temperature, and memory" es="Carga, temperatura y memoria del host y la MCU"/>
   <translation tag="Host: " es="Host: "/>
   <translation tag="Hotend" es="Hotend"/>
@@ -2715,6 +2720,7 @@
   <translation tag="Open" es="Abrir"/>
   <translation tag="Open Fans" es="Abrir Ventiladores"/>
   <translation tag="Open Source Licenses" es="Licencias de código abierto"/>
+  <translation tag="Open Terminal" es="Abrir terminal"/>
   <translation tag="Open color and brightness controls" es="Abrir controles de color y brillo"/>
   <translation tag="Open feeder" es="Abrir alimentador"/>
   <translation tag="Open feeder macro" es="Macro de apertura del alimentador"/>
@@ -3626,6 +3632,7 @@
   <translation tag="Show Sections" es="Mostrar Secciones"/>
   <translation tag="Show Touch Points" es="Mostrar puntos de toque"/>
   <translation tag="Show a confirmation dialog when tapping a macro" es="Mostrar un diálogo de confirmación al tocar una macro"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." es="Muestra una shell de esta máquina en Herramientas. Cualquiera frente a la pantalla podrá ejecutar comandos en ella."/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" es="Mostrar e introducir temperaturas en Celsius o Fahrenheit"/>
   <translation tag="Show instead of dimming" es="Mostrar en lugar de atenuar"/>
   <translation tag="Show light controls for a light connected to this printer" es="Mostrar los controles de luz de una luz conectada a esta impresora"/>
@@ -3888,6 +3895,7 @@
   <translation tag="TOGGLE: {}" es="CONMUTAR: {}"/>
   <translation tag="TOOLS" es="HERRAMIENTAS"/>
   <translation tag="TPU" es="TPU"/>
+  <translation tag="Tab" es="Tab"/>
   <translation tag="Tag Parts" es="Marcar Componentes"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." es="Retira la lámina PEI de la cama caliente y pulsa Siguiente. Los cabezales miden sobre la cama desnuda."/>
   <translation tag="Takes 3-5 min. Do not interrupt." es="Tarda 3-5 min. No interrumpa."/>
@@ -4132,6 +4140,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." es="La posición guardada se conserva. Vuelva a conectar o reinicie la pantalla para que se le ofrezca de nuevo la reanudación."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." es="La pantalla perderá la conexión con la impresora durante unos segundos."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" es="No se puede leer el sensor de esta unidad CFS. Compruebe su conexión o puede que la unidad necesite servicio"/>
+  <translation tag="The shell could not start: {}" es="La shell no pudo iniciarse: {}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." es="La shell terminó. Toca el terminal para iniciar una nueva."/>
   <translation tag="The speed of one fan you choose" es="La velocidad de un ventilador elegido"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." es="La máscara de subred no es válida. Usa un formato como 255.255.255.0 o 24."/>
   <translation tag="The temperature was changed elsewhere." es="La temperatura se cambió desde otro lugar."/>
@@ -4198,6 +4208,7 @@
   <translation tag="This firmware can only switch slots by loading them" es="Este firmware solo puede cambiar de ranura cargándola"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." es="Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." es="Esto instala las macros de ayuda de HelixScreen en la impresora, las añade a printer.cfg y reinicia Klipper."/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." es="Esta es una shell en la máquina que ejecuta esta pantalla, como el usuario &apos;{}&apos;. Los comandos escritos aquí se ejecutan con los permisos de ese usuario y pueden cambiar o dañar el sistema, incluido el firmware de la impresora."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." es="Esto es una parada de emergencia: la impresora se detiene y Klipper se reinicia."/>
   <translation tag="This is exactly the data that will be sent" es="Estos son exactamente los datos que se enviarán"/>
   <translation tag="This is what data would be sent if enabled" es="Estos son los datos que se enviarían si se activa"/>

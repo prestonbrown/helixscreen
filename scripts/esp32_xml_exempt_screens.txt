@@ -29,6 +29,7 @@ components/upgrade_banner.xml
 console_panel.xml
 console_settings_overlay.xml
 crash_report_modal.xml
+host_terminal_panel.xml
 input_shaper_panel.xml
 label_printer_settings.xml
 memory_stats_overlay.xml

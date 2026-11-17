@@ -195,6 +195,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Un sensore che misura la distanza dal piano. HelixScreen lo usa per la calibrazione dello Z Offset e per i test della sonda nella schermata Sonda.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un sensore che legge la temperatura dell''aria dentro la camera. Controllala nella schermata della temperatura camera.'
+  A shell on the machine running this screen: 'Una shell sulla macchina che esegue questo schermo'
   A spool may be tangled or the drive gear is jammed: Una bobina potrebbe essere aggrovigliata o l'ingranaggio di trascinamento è bloccato
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Un sistema che alimenta più filamenti alla testina, mostrato con il numero di slot. Gestisci gli slot nella schermata del sistema filamento.'
@@ -1132,6 +1133,7 @@ translations:
   Creating bed mesh...: Creazione mesh piano...
   Creating spool...: Creazione bobina...
   'Critical hardware missing: {}': 'Hardware critico mancante: {}'
+  Ctrl: 'Ctrl'
   Current / Target: Attuale / Target
   Current Configuration: Configurazione attuale
   Current Mesh: Mesh attuale
@@ -1444,6 +1446,7 @@ translations:
   'Error: `unzip` not installed': 'Errore: `unzip` non installato'
   'Error: cannot write the service file in {}': 'Errore: impossibile scrivere il file di servizio in {}'
   Errors only: 'Solo errori'
+  Esc: 'Esc'
   Escalate to emergency stop if cancel doesn't respond: Escalation ad arresto di emergenza
     se annulla non risponde
   Escalation Timeout: Timeout escalation
@@ -1869,6 +1872,7 @@ translations:
   HEPA filter: 'Filtro HEPA'
   HEPA filter interval: 'Intervallo filtro HEPA'
   HOST: Host
+  HOST ACCESS: 'ACCESSO ALL''HOST'
   HTTP Code: Codice HTTP
   'HTTP error: {} {}': 'Errore HTTP: {} {}'
   HUMIDITY SENSORS: SENSORI DI UMIDITÀ
@@ -2029,6 +2033,7 @@ translations:
   Horizontal: Orizzontale
   Host: Host
   Host Health: 'Stato dell''host'
+  Host Terminal: 'Terminale dell''host'
   Host and MCU load, temperature, and memory: Carico, temperatura e memoria di host e MCU
   'Host: ': 'Host: '
   Hotend: Hotend
@@ -2944,6 +2949,7 @@ translations:
   Open: Apri
   Open Fans: 'Apri Ventole'
   Open Source Licenses: Licenze open source
+  Open Terminal: 'Apri terminale'
   Open color and brightness controls: Apri controlli colore e luminosità
   Open feeder macro: Macro di apertura alimentatore
   Open feeder: Apri alimentatore
@@ -3932,6 +3938,7 @@ translations:
   Show Touch Points: Mostra punti di tocco
   Show a confirmation dialog when tapping a macro: Mostra una finestra di conferma
     quando si tocca una macro
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: 'Mostra una shell di questa macchina in Strumenti. Chiunque davanti allo schermo potrà eseguirvi comandi.'
   Show and enter temperatures in Celsius or Fahrenheit: Mostra e inserisci le temperature in Celsius o Fahrenheit
   Show instead of dimming: Mostra invece di attenuare
   Show light controls for a light connected to this printer: 'Mostra i controlli di una luce collegata a questa stampante'
@@ -4220,6 +4227,7 @@ translations:
   'TOGGLE: {}': 'COMMUTA: {}'
   TOOLS: STRUMENTI
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: Contrassegna componenti
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: Rimuovi il foglio PEI dal piano riscaldato, poi tocca Avanti. Le testine sondano il piano nudo.
   Takes 3-5 min. Do not interrupt.: Richiede 3-5 min. Non interrompere.
@@ -4500,6 +4508,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La posizione salvata viene mantenuta. Riconnetti o riavvia lo schermo per vederti proporre di nuovo la ripresa.
   The screen will lose its connection to the printer for a few seconds.: "Lo schermo perderà la connessione alla stampante per alcuni secondi."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Il sensore di questa unità CFS non può essere letto. Controllare il collegamento, altrimenti l'unità richiede assistenza
+  'The shell could not start: {}': 'Impossibile avviare la shell: {}'
+  The shell exited. Tap the terminal to start a new one.: 'La shell è terminata. Tocca il terminale per avviarne una nuova.'
   The speed of one fan you choose: La velocità di una ventola a scelta
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'La subnet mask non è valida. Usa una forma come 255.255.255.0 o 24.'
   The temperature was changed elsewhere.: "La temperatura è stata modificata altrove."
@@ -4591,6 +4601,8 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Installa le macro di ausilio di HelixScreen sulla stampante e le aggiunge a printer.cfg. Una stampa è in corso, quindi Klipper verrà riavviato al termine.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Installa le macro di ausilio di HelixScreen sulla stampante, le aggiunge a printer.cfg e riavvia Klipper.'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : 'Questa è una shell sulla macchina che esegue questo schermo, come utente ''{}''. I comandi digitati qui vengono eseguiti con i permessi di quell''utente e possono modificare o danneggiare il sistema, compreso il firmware della stampante.'
   'This is an emergency stop: the printer halts and Klipper restarts.': 'Questo è uno stop di emergenza: la stampante si ferma e Klipper si riavvia.'
   This is exactly the data that will be sent: Questi sono esattamente i dati che verranno
     inviati
