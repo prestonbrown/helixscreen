@@ -1204,6 +1204,9 @@ TEST_CASE_METHOD(MultiAceFixture, "spool numbering counts a routed bay once", "[
     for (int gi = 0; gi < plain.get_system_info().total_slots; ++gi) {
         CHECK(plain.spool_display_number(gi) == gi + 1);
     }
+    CHECK(plain.spool_display_number(-1) == -1);
+    ScopedZeroLaneNumbering from_zero;
+    CHECK(plain.spool_display_number(0) == 0);
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "an ACE-fed head's upstream caption names its unit and bay",

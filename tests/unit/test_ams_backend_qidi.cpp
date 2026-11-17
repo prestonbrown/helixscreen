@@ -6,6 +6,7 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_qidi.h"
 #include "ams_device_action_value.h"
@@ -137,6 +138,10 @@ TEST_CASE("QIDI Box default system_info shape", "[ams][qidi_box]") {
     // Only an explicit enable_box=0 disconnects the unit; one that has not
     // reported yet reads connected, so the UI does not flash "Disconnected".
     REQUIRE(info.units[0].connected);
+
+    // A box is an ordinal, not a lane position: zero-based lane numbers leave it alone.
+    ScopedZeroLaneNumbering from_zero;
+    CHECK(AmsBackendQidi(nullptr, nullptr).get_system_info().units[0].name == "QIDI Box 1");
 }
 
 // =====================================================================

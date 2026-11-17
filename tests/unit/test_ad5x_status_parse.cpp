@@ -42,6 +42,10 @@ TEST_CASE("AD5X GET_ZCOLOR parse takes hex from the last segment and the extrude
     REQUIRE(r.slots[2]);
     CHECK(r.slots[2]->material == "PLA");
     CHECK(r.slots[2]->hex == "00000000");
+
+    // A slot number past the IFS's ports names no slot.
+    CHECK_FALSE(ad5x::parse_zcolor_silent({"// Extruder: 17: PLA/FFFFFF | IFS: True"})
+                    .extruder_slot.has_value());
 }
 
 TEST_CASE("AD5X GET_ZCOLOR parse flags slot lines without hex as old format",
@@ -147,7 +151,7 @@ TEST_CASE("AD5X module colour normalisation", "[ad5x][status_parse]") {
 TEST_CASE("AD5X ifs module object discards loaded_channels with a non-integer entry",
           "[ad5x][status_parse]") {
     auto obj = ad5x::parse_ifs_module_object(
-        json{{"loaded_channels", {1, 4, 7}}, {"active_channel", 4}, {"activity", "loading"}});
+        json{{"loaded_channels", {0, 1, 4, 7}}, {"active_channel", 4}, {"activity", "loading"}});
     REQUIRE(obj.loaded_ports);
     CHECK(*obj.loaded_ports == std::array<bool, 4>{true, false, false, true});
     CHECK(obj.active_channel == 4);
