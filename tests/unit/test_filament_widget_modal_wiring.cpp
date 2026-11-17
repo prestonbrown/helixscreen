@@ -39,7 +39,6 @@
 #include "filament_sensor_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
-#include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/filament_sensor_widget.h"
@@ -73,8 +72,7 @@ class TapModalFixture : public LVGLUITestFixture {
         // mock's gcode history can see them.
         helix::AmsState::instance().clear_backends();
 
-        // As in the app: the tile's subjects and the sensor roles it mirrors exist.
-        helix::PanelWidgetManager::instance().init_widget_subjects();
+        // The sensor roles the tile mirrors, published as in the app.
         helix::FilamentSensorManager::instance().init_subjects();
         widget.attach(test_screen(), test_screen());
     }

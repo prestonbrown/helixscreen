@@ -82,7 +82,6 @@ namespace {
 
 struct DisplayMessageFixture : public LVGLUITestFixture {
     DisplayMessageFixture() {
-        PanelWidgetManager::instance().init_widget_subjects();
         set_message(nullptr);
     }
     ~DisplayMessageFixture() override {

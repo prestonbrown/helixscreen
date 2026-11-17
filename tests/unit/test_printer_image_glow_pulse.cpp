@@ -7,7 +7,6 @@
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl_private.h"
-#include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "printer_image_regions.h"
 #include "printer_state.h"
@@ -31,8 +30,6 @@ void settle() {
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "callouts: a climbing bed's glow breathes in image opacity and rests at full",
                  "[printer_image][callouts]") {
-    helix::init_widget_registrations();
-    helix::PanelWidgetManager::instance().init_widget_subjects();
     ImageRegions r;
     r.src_w = 1601;
     r.src_h = 1204;

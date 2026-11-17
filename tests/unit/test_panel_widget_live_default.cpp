@@ -95,7 +95,6 @@ struct TestModeGuard {
 class LiveDefaultFixture : public LVGLUITestFixture {
   public:
     LiveDefaultFixture() : test_mode_(get_runtime_config()) {
-        PanelWidgetManager::instance().init_widget_subjects();
         ToolState::instance().deinit_subjects();
         ToolState::instance().init_subjects(false);
         ToolTopology topo;

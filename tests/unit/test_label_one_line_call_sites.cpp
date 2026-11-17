@@ -21,7 +21,6 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "job_queue_state.h"
-#include "panel_widget_manager.h"
 #include "panel_widget_size.h"
 #include "printer_fan_state.h"
 #include "printer_state.h"
@@ -40,7 +39,6 @@ using helix::test::held_to_one_line;
 
 TEST_CASE_METHOD(LVGLUITestFixture, "job queue tile holds the filename to one line",
                  "[one_line][job_queue]") {
-    PanelWidgetManager::instance().init_widget_subjects();
     JobQueueState jqs(nullptr, nullptr);
     ScopedJobQueueSubjects subject_guard;
     jqs.init_subjects();

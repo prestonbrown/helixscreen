@@ -6,6 +6,7 @@
 #include "ui_test_utils.h"
 
 #include "core/update_queue.h"
+#include "panel_widget_manager.h"
 #include "refresh_period_hold.h"
 #include "screen_hide_hold.h"
 #include "test_helpers/refresh_period_hold_test_access.h"
@@ -279,4 +280,8 @@ bool LVGLTestFixture::advance_until(const std::function<bool()>& condition, uint
                  "condition holding",
                  budget_ms);
     return false;
+}
+
+void helix::test::init_panel_widget_subjects() {
+    helix::PanelWidgetManager::instance().init_widget_subjects();
 }

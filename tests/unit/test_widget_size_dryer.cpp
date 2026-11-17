@@ -23,7 +23,6 @@
 #include "../test_helpers/zero_lane_numbering.h"
 #include "core/update_queue.h"
 #include "dryer_summary.h"
-#include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/dryer_widget.h"
@@ -45,7 +44,6 @@ namespace {
 
 struct DryerFixture : public LVGLUITestFixture {
     DryerFixture() {
-        PanelWidgetManager::instance().init_widget_subjects();
         publish({});
     }
     ~DryerFixture() override {

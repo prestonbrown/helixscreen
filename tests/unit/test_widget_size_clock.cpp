@@ -26,7 +26,6 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
-#include "panel_widget_manager.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/clock_widget.h"
 
@@ -48,9 +47,6 @@ int clock_size_mode() {
 
 TEST_CASE_METHOD(LVGLUITestFixture, "clock mode follows pixels on both axes, not spans",
                  "[widget_size][clock]") {
-    // Widget-owned subjects (clock_size_mode, clock_time_text, ...) are
-    // registered lazily; the harness alone does not trigger it.
-    PanelWidgetManager::instance().init_widget_subjects();
     require_font_tokens_distinct();
 
     PanelWidgetHarness<ClockWidget> h(test_screen());
