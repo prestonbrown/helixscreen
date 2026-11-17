@@ -728,6 +728,25 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
         d.sensors = read_sensors(mmu["sensors"]);
     }
 
+    if (const auto it = mmu.find("drying"); it != mmu.end() && it->is_array()) {
+        std::vector<std::optional<DryingCycle>> cycles;
+        cycles.reserve(it->size());
+        for (const auto& entry : *it) {
+            if (!entry.is_object()) {
+                cycles.emplace_back();
+                continue;
+            }
+            DryingCycle cycle;
+            cycle.temp_c = ams::read_field<float>(entry, "temp");
+            cycle.time_min = ams::read_integer_field(entry, "time");
+            cycle.humidity_target = ams::read_field<float>(entry, "humidity_target");
+            cycle.start_time = ams::read_field<double>(entry, "start_time");
+            cycle.end_time = ams::read_field<double>(entry, "end_time");
+            cycles.emplace_back(cycle);
+        }
+        d.drying_cycles = std::move(cycles);
+    }
+
     if (mmu.contains("drying_state")) {
         const auto& drying = mmu["drying_state"];
         if (drying.is_object()) {

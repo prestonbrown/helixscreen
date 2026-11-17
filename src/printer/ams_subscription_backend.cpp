@@ -127,6 +127,8 @@ void AmsSubscriptionBackend::handle_status_update(const nlohmann::json& notifica
         !(*params)[0].is_object()) {
         return;
     }
+    status_eventtime_ =
+        params->size() > 1 && (*params)[1].is_number() ? (*params)[1].get<double>() : 0.0;
     handle_status((*params)[0]);
 }
 

@@ -1363,6 +1363,51 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare empty form_tip_macro shows no tip step fr
     CHECK(tip_method_for("4.1.0", "") == TipMethod::TIP_FORM);
 }
 
+// ============================================================================
+// printer.mmu.drying: the cycle Happy Hare is running, whoever started it
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare drying cycle reports its time left from end_time",
+                 "[ams][happy_hare][dryer][drying_cycle]") {
+    std::time_t wall = 1'000'000;
+    helper.test_set_clock([&wall] { return wall; });
+    helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+    const auto feed = [&](const nlohmann::json& mmu, double eventtime) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({{{"mmu", mmu}}, eventtime});
+        HappyHareTestAccess::handle_status_update(helper, notification);
+    };
+
+    SECTION("a cycle started elsewhere") {
+        // Started at reactor 1000 s for 240 min; this frame is a minute in.
+        feed({{"drying",
+               {{{"temp", 55},
+                 {"time", 240},
+                 {"humidity_target", nullptr},
+                 {"start_time", 1000.0},
+                 {"end_time", 1000.0 + 240 * 60}}}}},
+             1060.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 239);
+        CHECK(helper.get_dryer_info(0).duration_min == 240);
+        // Ten minutes later on the wall clock, with no frame in between.
+        wall += 600;
+        CHECK(helper.get_dryer_info(0).remaining_min == 229);
+    }
+    SECTION("the subscription's snapshot carries no eventtime; the next frame does") {
+        feed({{"drying", {{{"time", 60}, {"start_time", 50.0}, {"end_time", 3650.0}}}}}, 0.0);
+        feed({{"action", "Idle"}}, 650.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 50);
+    }
+    SECTION("no cycle, or a Happy Hare without the field, keeps HelixScreen's own clock") {
+        if (GENERATE(true, false)) {
+            feed({{"drying", {nullptr}}}, 500.0);
+        }
+        REQUIRE(helper.start_drying(50.0f, 90, -1, 0).success());
+        wall += 30 * 60;
+        CHECK(helper.get_dryer_info(0).remaining_min == 60);
+    }
+}
+
 TEST_CASE_METHOD(HhHelper,
                  "Happy Hare advertises lane eject, gate select and gate check; Reset reads Home",
                  "[ams][happy_hare][capability]") {

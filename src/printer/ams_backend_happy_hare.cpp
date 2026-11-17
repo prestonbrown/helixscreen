@@ -413,6 +413,11 @@ void AmsBackendHappyHare::handle_status(const nlohmann::json& params) {
         std::lock_guard<std::mutex> lock(mutex_);
         entry_sensor_objects_seen_ = true;
     }
+    if (status_eventtime_ > 0.0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        clock_anchor_eventtime_ = status_eventtime_;
+        clock_anchor_epoch_ = now_fn_();
+    }
 
     // Parse MMU core state if present.
     const bool mmu_present = params.contains("mmu") && params["mmu"].is_object();
@@ -1140,6 +1145,9 @@ void AmsBackendHappyHare::apply_mmu_sensors_locked(const happy_hare::MmuStatusDe
 
     if (delta.drying) {
         apply_mmu_drying_locked(*delta.drying);
+    }
+    if (delta.drying_cycles) {
+        drying_cycles_ = *delta.drying_cycles;
     }
 
     // The endless-spool ENABLE bit gates apply_endless_spool_backup(), because
@@ -3433,10 +3441,35 @@ DryerInfo AmsBackendHappyHare::dryer_capabilities_locked(int unit) const {
     return out;
 }
 
+std::optional<double> AmsBackendHappyHare::firmware_dry_seconds_left_locked(int unit) const {
+    if (clock_anchor_eventtime_ <= 0.0) {
+        return std::nullopt;
+    }
+    for (int u = 0; u < static_cast<int>(drying_cycles_.size()); ++u) {
+        const auto& cycle = drying_cycles_[static_cast<size_t>(u)];
+        if ((unit < 0 || u == unit) && cycle && cycle->end_time) {
+            const double now =
+                clock_anchor_eventtime_ + static_cast<double>(now_fn_() - clock_anchor_epoch_);
+            return *cycle->end_time - now;
+        }
+    }
+    return std::nullopt;
+}
+
 DryerInfo AmsBackendHappyHare::get_dryer_info(int unit) const {
     std::lock_guard<std::mutex> lock(mutex_);
     DryerInfo out = dryer_capabilities_locked(unit);
-    if (dry_end_epoch_ > 0) {
+    // Happy Hare's own cycle, when it publishes one, covers a cycle started
+    // anywhere; the end HelixScreen computed at its own start is the fallback.
+    if (const auto left = firmware_dry_seconds_left_locked(unit)) {
+        out.remaining_min = std::max(static_cast<int>(*left / 60.0), 0);
+        if (unit >= 0) {
+            const auto& cycle = drying_cycles_[static_cast<size_t>(unit)];
+            if (cycle && cycle->time_min) {
+                out.duration_min = *cycle->time_min;
+            }
+        }
+    } else if (dry_end_epoch_ > 0) {
         const int remaining = static_cast<int>((dry_end_epoch_ - now_fn_()) / 60);
         out.remaining_min = remaining > 0 ? remaining : 0;
     }

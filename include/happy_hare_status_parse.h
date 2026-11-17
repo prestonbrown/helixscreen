@@ -173,6 +173,18 @@ struct DryingObjectDelta {
     std::optional<int> fan_pct;
 };
 
+/// One unit's running cycle from `drying` (Happy Hare development builds,
+/// 798f83a6). Times are Klipper's reactor clock, the clock of a status frame's
+/// eventtime.
+struct DryingCycle {
+    std::optional<float> temp_c;
+    std::optional<int> time_min;
+    std::optional<float> humidity_target;
+    std::optional<double> start_time;
+    /// nullopt while a queued gate has not started, so the end is not known.
+    std::optional<double> end_time;
+};
+
 /// `drying_state`: an object (KMS) or one string per gate (EMU).
 struct DryingDelta {
     std::optional<DryingObjectDelta> object;
@@ -186,6 +198,8 @@ struct MmuStatusDelta {
     MmuTelemetryDelta telemetry;
     std::optional<MmuSensorsDelta> sensors;
     std::optional<DryingDelta> drying;
+    /// `drying`: per unit in unit order, nullopt for a unit not drying.
+    std::optional<std::vector<std::optional<DryingCycle>>> drying_cycles;
     /// The endless-spool ENABLE bit, from `endless_spool_enabled` or its older
     /// spelling `endless_spool`.
     std::optional<bool> endless_spool_enabled;

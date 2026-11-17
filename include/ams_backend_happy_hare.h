@@ -761,6 +761,16 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     // Dryer state (v4 - KMS/EMU hardware)
     DryerInfo dryer_info_;
     std::time_t dry_end_epoch_ = 0; ///< HelixScreen-initiated drying end (epoch s), 0 = none
+    /// printer.mmu.drying per unit: the cycle Happy Hare is running, whoever
+    /// started it. Empty on a Happy Hare that does not publish it.
+    std::vector<std::optional<happy_hare::DryingCycle>> drying_cycles_;
+    /// The last frame's Klipper eventtime and the wall clock it arrived at, so a
+    /// reactor-clock end_time reads as seconds left. Eventtime 0 = none yet.
+    double clock_anchor_eventtime_ = 0.0;
+    std::time_t clock_anchor_epoch_ = 0;
+    /// Seconds left in @p unit's firmware-reported cycle (any unit's when
+    /// negative), or nullopt when Happy Hare does not say.
+    [[nodiscard]] std::optional<double> firmware_dry_seconds_left_locked(int unit) const;
     /// Humidity target of the cycle HelixScreen started, carried across a restart
     std::optional<float> dry_humidity_target_;
     /// Gates still drying in a gate-selected cycle HelixScreen started, so a restart or a

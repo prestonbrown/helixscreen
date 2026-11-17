@@ -366,6 +366,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// and hand its status object to handle_status(). Any other shape is ignored.
     void handle_status_update(const nlohmann::json& notification);
 
+    /// Klipper's eventtime (reactor clock, seconds) of the frame handle_status()
+    /// is reading; 0 for a frame that carries none, such as the subscription's
+    /// first snapshot.
+    double status_eventtime_ = 0.0;
+
     /// Parse one status object, `{<object_name>: <fields>, ...}`, as a notify
     /// frame or a printer.objects.query result carries it. Runs on the main
     /// thread.

@@ -25,6 +25,7 @@ Klipper object `mmu` in `printer.objects.list` sets `AmsType::HAPPY_HARE`.
 | `printer.mmu.gate_color_rgb` | int[] | Per-gate RGB colors (0xRRGGBB) |
 | `printer.mmu.gate_material` | string[] | Per-gate material names |
 | `printer.mmu.filament_pos` | int | 0-8 filament position for path visualization |
+| `printer.mmu.drying` | (dict \| null)[] | Development builds (798f83a6): per unit, the running cycle `{temp, time, humidity_target, start_time, end_time}` or null. Times are Klipper's reactor clock; `get_dryer_info()` reads the time left as `end_time` minus the last frame's eventtime (`AmsSubscriptionBackend::status_eventtime_`) advanced by the wall clock since, and falls back to the end HelixScreen computed at its own start when the field is absent, the unit's entry is null or `end_time` is null (a queued gate) |
 | `printer.mmu.gate_remaining_weight` / `gate_initial_weight` | int[] | 4.2+: per-gate net grams, -1 unknown. Filed as the lane's `Firmware` weights (see [Lane identity and edits](#lane-identity-and-edits)) |
 | `printer.mmu.sync_feedback_bias_modelled` | float | -1 (tight) to +1 (loose); `AmsSystemInfo::sync_feedback_bias`, the one buffer reading Happy Hare gives (`sync_feedback_bias_raw` is the raw sensor value). `helix::buffer_reading()` draws it as the "Sync" buffer on every buffer surface |
 
