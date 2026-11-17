@@ -100,7 +100,7 @@ Selecting a unit's shell is the only place that names hardware. `unit_shell_for`
 
 Every unit with more than one lane merges its lanes into one output that feeds a single extruder. Where that merge happens is Preston's call per unit, recorded as `TrayShellDef.combiner` in the unit's own file and generated into `UnitShell::combiner`:
 
-- **internal**: the unit merges its lanes itself, and one path leaves it. The unit view draws it the way Bambu's own screen does: each lane runs straight down over the unit's front face as a thin line (on top of the art), carrying its prep and load sensors, then along a horizontal run into a small block standing on the unit's bottom edge, inside its outline. One line leaves the block's bottom.
+- **internal**: the unit merges its lanes itself, and one path leaves it. The unit view draws a short merge below the unit and no box.
 - **external**: a separate hub or combiner below the unit, with each lane leaving by its own outlet into it. The unit view draws the hub box, with the unit's head-on art above it when the unit has one.
 - **none**: one lane, so nothing to merge.
 
@@ -113,7 +113,7 @@ Every unit with more than one lane merges its lanes into one output that feeds a
 
 The original AMS and the AMS Lite have no drawing yet; the rows above are for when they get one. **A unit not in this table: ask Preston, don't guess.** `build.py` refuses a unit that leaves `combiner` unset.
 
-The combiner's presence sensor is optional. The hub box, or an internal unit's block, draws its sensor band only when the backend reports a hub sensor for that unit (`AmsUnit::has_hub_sensor`); the AD5X IFS has none, only the toolhead sensor. Lanes bound for separate extruders never meet a combiner: a PARALLEL path draws none, and on a MIXED path only the lanes that share an extruder converge. A unit whose selector slides (ERCF, Tradrack) keeps its rail in the selector's place whatever its combiner. The combiner shows only in the unit view. On the AMS overview a unit's own combiner is implicit, since the unit card stands for the merge of its lanes, and a hub box appears only where two or more routes meet (`nozzle_feed` in `src/ui/filament/ui_system_path_plan.h`). The rule is `helix::ui::fpath::combiner_layout` (`src/ui/filament/ui_filament_path_plan.h`); `docs/devel/FILAMENT_PATH_CANVAS.md` § "Topology Renderers" says how the canvas draws each case.
+The combiner's presence sensor is optional. The hub box draws its sensor band only when the backend reports a hub sensor for that unit (`AmsUnit::has_hub_sensor`); the AD5X IFS has none, only the toolhead sensor. Lanes bound for separate extruders never meet a combiner: a PARALLEL path draws none, and on a MIXED path only the lanes that share an extruder converge. A unit whose selector slides (ERCF, Tradrack) keeps its rail in the selector's place whatever its combiner. The combiner shows only in the unit view. On the AMS overview a unit's own combiner is implicit, since the unit card stands for the merge of its lanes, and a hub box appears only where two or more routes meet (`nozzle_feed` in `src/ui/filament/ui_system_path_plan.h`). The rule is `helix::ui::fpath::combiner_layout` (`src/ui/filament/ui_filament_path_plan.h`); `docs/devel/FILAMENT_PATH_CANVAS.md` § "Topology Renderers" says how the canvas draws each case.
 
 ## Rendering on small boards
 

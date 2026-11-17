@@ -420,7 +420,7 @@ decides the layout, and `ams_detail_setup_path_canvas()` applies it:
 
 | Combiner | Drawn as |
 |----------|----------|
-| internal | HUB with `lanes_merge_inside`: each lane runs thin down the unit's front face from its top (`set_lane_entry`'s face offset) and along into a small block standing on the unit's bottom edge; one line leaves the block |
+| internal | HUB with `lanes_merge_inside`: the lanes merge just below the unit and one line leaves it; no box |
 | external | HUB: each lane leaves by its own outlet (through the unit's head-on art when it has one) and the fan converges into the hub box |
 | none, or a sliding selector (ERCF, Tradrack) | The topology as reported: the selector rail in LINEAR's bar |
 

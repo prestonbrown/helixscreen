@@ -364,13 +364,11 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     if (!canvas)
         return;
     int32_t offset = INT32_MIN;
-    int32_t face_top = INT32_MIN;
     if (slot_grid && s_tray.valid && s_tray.container == lv_obj_get_parent(slot_grid)) {
         lv_area_t c, g;
         lv_obj_get_coords(s_tray.container, &c);
         lv_obj_get_coords(slot_grid, &g);
         offset = c.y1 + (int32_t)std::lround(s_tray.box.fb) - g.y1;
-        face_top = c.y1 + (int32_t)std::lround(s_tray.box.ft) - g.y1;
     } else if (slot_grid && !draws_tray()) {
         // With no housing the lanes leave from under the spools' flanges.
         lv_obj_update_layout(slot_grid);
@@ -381,7 +379,7 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         if (spool_centre(slot_grid, {g.x1, g.y1}, x, y, size))
             offset = (int32_t)std::lround(y + tray::kSpoolFlangeRadius * size);
     }
-    ui_filament_path_canvas_set_lane_entry(canvas, offset, face_top);
+    ui_filament_path_canvas_set_lane_entry(canvas, offset);
 }
 
 bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int unit_index) {

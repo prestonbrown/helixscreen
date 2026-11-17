@@ -386,8 +386,7 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK((f.through.w == 0 && f.has_buffer && !f.sync_on_output));
 }
 
-TEST_CASE_METHOD(HubStackFixture,
-                 "A unit that merges inside runs its lanes down its face into a block on its edge",
+TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     for (int i = 0; i < 4; ++i)
@@ -397,25 +396,10 @@ TEST_CASE_METHOD(HubStackFixture,
     ui_filament_path_canvas_set_combiner(c.obj, /*merge_inside=*/true, /*port_block=*/false);
     ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
     render(c);
-    CHECK(c.data->hits.hub_valid); // the block opens the unit's settings
+    CHECK(c.data->hits.hub_valid); // no box, but the merge still opens the unit's settings
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
     CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
-    // Thin over the art from the face's top, along the block's height into it; the block stands
-    // on the edge the lanes would otherwise leave by.
-    BaseGeometry g = compute_base_geometry(c.obj, c.data);
-    g.face_top_y = g.y_off + 4;
-    static PathPlan face_plan;
-    const LinearHubFrame face = compute_linear_hub_frame(
-        *c.data, g, toolhead_top_y(linear_hub_nozzle_y(*c.data, g), c.data->theme.extruder_scale));
-    plan_linear_hub(face, *c.data, g, face_plan);
-    CHECK((face.hub_y + face.hub_h / 2 == face.prep_band_y && face.face_top_y == g.face_top_y));
-    for (int i = 0; i < 4; ++i) {
-        CAPTURE(i);
-        const Route& lane = face_plan.routes[i];
-        CHECK((seg_start(lane.path.segs[0]).y == (float)g.face_top_y && lane.style[0].thin));
-        CHECK(passes(lane.path, (float)face.center_x, (float)face.hub_y));
-    }
     auto external = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
     render(external);
     LinearHubFrame outside{};
