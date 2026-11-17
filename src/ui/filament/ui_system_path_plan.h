@@ -66,8 +66,10 @@ struct SystemPathData {
     int buffer_fault = 0; // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
     char buffer_label[8] = {};
 
-    // Per-unit hub (several-toolhead layout). Units carrying the same non-zero
-    // group join one hub box; 0 is a unit on a hub of its own.
+    // Per-unit hub (several-toolhead layout): units carrying the same non-zero
+    // group are on one physical hub; 0 is a unit on a hub of its own. The plan
+    // draws every route into a nozzle through one junction box, so a shared hub
+    // needs no handling of its own there.
     int unit_hub_group[kMaxUnits] = {};
     // Per-unit buffer under that unit's hub, in the same terms as buffer_*.
     bool unit_has_buffer[kMaxUnits] = {};
@@ -148,27 +150,56 @@ int32_t calc_tool_x(int tool_index, int total_tools, int32_t x_off, int32_t widt
 /// Scale of the toolhead glyphs in the multi-tool row.
 int32_t small_tool_scale(const SystemPathData& data);
 
-// One box the canvas draws over the tubes: a multi-tool hub. A hub shared by
-// several units is recorded once, at its lowest unit index.
+// What feeds one nozzle. A hub is a combiner: it is drawn only where two or
+// more routes enter and one leaves. One route into a nozzle is a unit's own
+// line (the unit card stands for the merge of its lanes), so it gets no hub
+// box; two or more routes, from any units and topologies, meet in ONE box
+// just above the nozzle.
+struct NozzleFeed {
+    int routes = 0;          // routes entering the nozzle
+    bool junction = false;   // routes >= 2: one hub box joins them
+    bool hub_sensor = false; // a hub at the junction reads filament presence
+    // A buffer on the way into the nozzle: inside the junction's hub box, or
+    // inline on the one route. buffer_unit is the unit whose buffer it is
+    // (unit_buffer_*), or -1 for the system reading (buffer_*).
+    bool buffer = false;
+    int buffer_unit = -1;
+};
+
+/// The routes into physical nozzle @p tool and what joins them. With one
+/// toolhead every present unit feeds it; with several, a PARALLEL or MIXED unit
+/// feeds each of its tools and any other unit feeds its first tool. The hub
+/// sensor and the buffer come from the units with a hub on the way in (a HUB or
+/// LINEAR unit, a MIXED unit's hub-routed tool).
+NozzleFeed nozzle_feed(const SystemPathData& data, int tool);
+
+// What the canvas draws over the tubes at one nozzle of the several-toolhead
+// layout: the junction's hub box, or the buffer on a lone route.
 struct HubInfo {
-    int32_t hub_x;  // centre of the hub box
-    int32_t tool_x; // nozzle the hub feeds (== hub_x when nothing is shared)
+    int32_t hub_x;  // centre of the hub box (or of the lone route's buffer)
+    int32_t tool_x; // nozzle the box feeds (== hub_x unless the row moved it)
     int32_t mini_hub_y;
     int32_t mini_hub_w;
     int32_t mini_hub_h;
     lv_color_t hub_bg_color;
-    int first_tool;
-    bool valid;
-    // The hub's buffer box on its outlet; buffer_h == 0 when the hub has none.
+    bool valid; // a junction: the hub box is drawn
+    // The buffer box on a lone route, between where its lanes merged and the
+    // nozzle; buffer_h == 0 when there is none.
     int32_t buffer_y = 0;
     int32_t buffer_w = 0;
     int32_t buffer_h = 0;
-    bool short_label = false; // too narrow for "Hub": draw "H"
+    bool short_label = false;   // too narrow for "Hub": draw "H"
+    bool buffer_in_hub = false; // the junction's hub carries the buffer: one box
+    int buffer_unit = -1;       // whose unit_buffer_* the buffer shows
 };
 
 // What the canvas draws on top of the planned tubes.
 struct OverviewBoxes {
-    HubInfo hubs[SystemPathData::kMaxUnits] = {};
+    HubInfo hubs[SystemPathData::kMaxTools] = {}; // by physical tool
+    // One toolhead: the combiner hub box, drawn when two or more units meet,
+    // and whether it carries the system buffer.
+    bool combiner = false;
+    bool combiner_buffer = false;
     lv_color_t combiner_bg; // single-tool combiner hub fill
 };
 

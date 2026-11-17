@@ -91,6 +91,7 @@ is out.
 - **Job queue and Spoolman screens** (#1140, #1141) - the job queue says it is empty while the printer is disconnected, and Spoolman settings always open on the configured state.
 - **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
+- **Hubs on the overview only where lines meet** - the Multi-Filament overview now draws a hub only where two or more units feed the same toolhead, as one box where their lines join. A unit that feeds a toolhead on its own goes straight to it, and its hub sensor shows on that line. A hub with a buffer is drawn as one Hub+BUF box.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
