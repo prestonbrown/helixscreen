@@ -349,12 +349,6 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
 
     if (linear)
         f.hub_y = f.prep_y + f.sensor_r + f.hub_h / 2;
-    if (data.lanes_merge_inside) {
-        // No box to clear: the lanes curve in from where they leave the unit.
-        const int32_t drop = (f.hub_y - f.hub_h / 2 - f.prep_band_y) / 2;
-        f.hub_h = 2 * f.sensor_r;
-        f.hub_y = f.prep_band_y + drop + f.hub_h / 2;
-    }
     // Output sensor butted against the hub bottom (mirrors the hub-top entries)
     f.output_y = f.hub_y + f.hub_h / 2;
     f.rail = rail_art_rect(data, g);
@@ -392,36 +386,32 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     int32_t hub_top = f.hub_y - f.hub_h / 2;
     // A pass-through unit stands between the lanes' sensors and the hub, as tall as the room
     // above the hub's lowest place allows; the lanes fan into the hub from its outlets.
-    if (!data.lanes_merge_inside) {
-        const int32_t fan = art_fan_room(data, g);
-        const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
-        const int32_t lowest_hub_top =
-            f.hub_stacked ? hub_top : next_y - f.hub_h - 2 * f.sensor_r - 8;
-        // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
-        const int32_t top = f.prep_band_y + 2 * fan;
-        const int32_t bottom =
-            LV_MIN(lowest_hub_top - 2 * fan, top + (int32_t)(g.height * kThroughMaxHRatio));
-        f.through = through_art_rect(data, g, top, bottom, f.center_x);
-        if (f.through.w > 0) {
-            hub_top = LV_MAX(hub_top, f.through.y + f.through.h + 2 * fan);
-        } else if (has_through_art(data)) {
-            // No room above the hub's place: the art takes the selector's slot and the hub
-            // hangs below it, clear of the bypass merge. The buffer box gives way, and its
-            // sync reading moves to the hub's outlet band.
-            const RailArtRect slot = selector_slot_rect(data, g);
-            const int32_t below = slot.y + slot.h + fan;
-            const int32_t limit =
-                (data.show_bypass ? f.bypass_merge_y : glyph_top) - 2 * f.sensor_r;
-            if (slot.w > 0 && below + f.hub_h <= limit) {
-                f.through = slot;
-                hub_top = below;
-                f.has_buffer = false;
-                f.sync_on_output = data.buffer_present;
-            }
+    const int32_t fan = art_fan_room(data, g);
+    const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
+    const int32_t lowest_hub_top = f.hub_stacked ? hub_top : next_y - f.hub_h - 2 * f.sensor_r - 8;
+    // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
+    const int32_t top = f.prep_band_y + 2 * fan;
+    const int32_t bottom =
+        LV_MIN(lowest_hub_top - 2 * fan, top + (int32_t)(g.height * kThroughMaxHRatio));
+    f.through = through_art_rect(data, g, top, bottom, f.center_x);
+    if (f.through.w > 0) {
+        hub_top = LV_MAX(hub_top, f.through.y + f.through.h + 2 * fan);
+    } else if (has_through_art(data)) {
+        // No room above the hub's place: the art takes the selector's slot and the hub
+        // hangs below it, clear of the bypass merge. The buffer box gives way, and its
+        // sync reading moves to the hub's outlet band.
+        const RailArtRect slot = selector_slot_rect(data, g);
+        const int32_t below = slot.y + slot.h + fan;
+        const int32_t limit = (data.show_bypass ? f.bypass_merge_y : glyph_top) - 2 * f.sensor_r;
+        if (slot.w > 0 && below + f.hub_h <= limit) {
+            f.through = slot;
+            hub_top = below;
+            f.has_buffer = false;
+            f.sync_on_output = data.buffer_present;
         }
-        f.hub_y = hub_top + f.hub_h / 2;
-        f.output_y = f.hub_y + f.hub_h / 2;
     }
+    f.hub_y = hub_top + f.hub_h / 2;
+    f.output_y = f.hub_y + f.hub_h / 2;
     pg::MergeLaneIn fan_in[FilamentPathData::kMaxSlots];
     const int fan_n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
     for (int i = 0; i < fan_n; i++) {
@@ -474,7 +464,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
     // Outer tube + its halo + 2 px between halos, and never less than two bands.
     const int32_t separation = LV_MAX(theme.tube_gauge + kHaloWidthExtra + 2, 2 * f.sensor_r + 2);
-    if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked && !data.lanes_merge_inside) {
+    if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked) {
         // Borrow unused output-run height before widening the hub. Keep the
         // buffer/bypass area clear and leave on-toolhead hubs in place.
         float deepest_start = fit_in[0].start_y;
@@ -823,7 +813,7 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         fill = buffer_box_colors(data, false, fill).border;
     }
     add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
-             /*on_box_edge=*/!data.lanes_merge_inside);
+             /*on_box_edge=*/true);
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1101,7 +1091,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
                      lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
         }
-        if (!data.lanes_merge_inside && f.rail.w == 0 && f.through.w == 0)
+        if (f.rail.w == 0 && f.through.w == 0)
             append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
                         lane.style(PathSegment::LANE));
 
@@ -1149,10 +1139,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                 }
                 append_line(r, x, sel_top, x, pts[0].y, unpainted(lane.style(PathSegment::LANE)));
             } else {
-                pts[0].y = (float)(data.lanes_merge_inside ? f.prep_band_y : f.prep_y);
-                // A short merge leaves the lane's straight run its first third.
-                if (data.lanes_merge_inside)
-                    pts[1].y = pts[0].y + (hub_top - pts[0].y) / 3;
+                pts[0].y = (float)f.prep_y;
                 if (load_band) {
                     const float load_y = load_band_y(f, pts[1].y);
                     append_line(r, x, pts[0].y, x, load_y, lane.style(PathSegment::LANE));
@@ -1160,23 +1147,13 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                     pts[0].y = load_y;
                 }
             }
-            // With no box to land on, every lane drops to a shared bus and meets on the trunk.
-            if (data.lanes_merge_inside) {
-                const float run = (hub_top - pts[0].y) / 5;
-                pts[1] = {x, pts[0].y + run};
-                pts[2] = {cx, hub_top - run};
-                pts[3] = {cx, hub_top};
-            }
             pg::FilamentPath fan;
-            // Long S-bends: as round as the lane's distance from the trunk allows.
-            const float bend = data.lanes_merge_inside ? std::fabs(x - cx) : 8.0f;
-            pg::route_polyline_filleted(fan, pts, 4, bend);
+            pg::route_polyline_filleted(fan, pts, 4, 8.0f);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
             const auto through = lane.style(PathSegment::HUB);
-            append_line(r, pts[3].x, hub_top, cx, hub_bot,
-                        data.lanes_merge_inside ? through : unpainted(through));
+            append_line(r, pts[3].x, hub_top, cx, hub_bot, unpainted(through));
         }
 
         out.active_route = i;
@@ -1196,8 +1173,6 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         if (feeds) {
             out.trunk_route = out.route_count;
             Route& r = new_route(out);
-            if (data.lanes_merge_inside)
-                append_line(r, cx, hub_top, cx, hub_bot, idle.style(PathSegment::HUB));
             append_trunk(out, r, idle, f, data, bypass_on_trunk, bypass_owner);
         } else {
             add_hub_output_band(out, idle, f, data);

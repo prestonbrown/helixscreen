@@ -415,13 +415,12 @@ NOZZLE`.
 
 A unit view draws the unit's combiner, not the selector its backend reports
 (`docs/devel/UNIT_ART.md` § "Combiner"). For a unit with art whose path ends at one
-nozzle (LINEAR or HUB), `combiner_layout()` (`src/ui/filament/ui_filament_path_plan.h`)
+nozzle (LINEAR or HUB), `combined_topology()` (`src/ui/filament/ui_filament_path_plan.h`)
 decides the layout, and `ams_detail_setup_path_canvas()` applies it:
 
 | Combiner | Drawn as |
 |----------|----------|
-| internal | HUB with `lanes_merge_inside`: the lanes merge just below the unit and one line leaves it; no box |
-| external | HUB: each lane leaves by its own outlet (through the unit's head-on art when it has one) and the fan converges into the hub box |
+| internal or external | HUB: each lane leaves the unit (through its head-on art when it has one) and the fan converges into the hub box below it |
 | none, or a sliding selector (ERCF, Tradrack) | The topology as reported: the selector rail in LINEAR's bar |
 
 PARALLEL and MIXED keep their own drawings. The hub box carries an output sensor band

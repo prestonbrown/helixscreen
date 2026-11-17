@@ -355,8 +355,7 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
-    bool lanes_merge_inside = false; // one line leaves the unit: a short merge, no hub box
-    bool fixed_selector = false;     // the on-head selector is a fixed block, a port per lane
+    bool fixed_selector = false; // the on-head selector is a fixed block, a port per lane
     // A selector rail drawn head-on in place of the bar: static generated table entry, and the
     // unit whose art it is.
     const helix::ui::tray::RailFaceArt* rail_art = nullptr;

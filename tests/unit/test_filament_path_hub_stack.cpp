@@ -386,49 +386,33 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK((f.through.w == 0 && f.has_buffer && !f.sync_on_output));
 }
 
-TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
+TEST_CASE_METHOD(HubStackFixture,
+                 "A unit's hub box reads presence only when the backend reports it",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    for (int i = 0; i < 4; ++i)
-        c.data->slot_has_prep_sensor[i] = c.data->slot_has_load_sensor[i] = true;
-    ui_filament_path_canvas_set_hub_sensor(c.obj, true, false);
-    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
-    ui_filament_path_canvas_set_combiner(c.obj, /*merge_inside=*/true, /*port_block=*/false);
-    ui_filament_path_canvas_set_hub_callback(c.obj, [](lv_point_t, void*) {}, nullptr);
     render(c);
-    CHECK(c.data->hits.hub_valid); // no box, but the merge still opens the unit's settings
     LinearHubFrame f{};
-    const PathPlan& plan = plan_of(c, &f);
-    CHECK((plan.band_count - plan.trunk_band_count == 8 && plan.trunk_band_count >= 1)); // + hub
-    auto external = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
-    render(external);
-    LinearHubFrame outside{};
-    const int plain_bands = plan_of(external, &outside).trunk_band_count;
-    CHECK(f.hub_y < outside.hub_y);
-    // An external hub box reads presence only when the backend reports a hub sensor.
-    ui_filament_path_canvas_set_hub_sensor(external.obj, true, false);
-    render(external);
-    CHECK(plan_of(external, &outside).trunk_band_count == plain_bands + 1);
+    const int plain_bands = plan_of(c, &f).trunk_band_count;
+    ui_filament_path_canvas_set_hub_sensor(c.obj, true, false);
+    render(c);
+    CHECK(plan_of(c, &f).trunk_band_count == plain_bands + 1);
 }
 
 TEST_CASE("A unit's combiner decides how its lanes reach one extruder", "[filament-path]") {
     using helix::PathTopology;
     using helix::ui::tray::Combiner;
     for (PathTopology one : {PathTopology::LINEAR, PathTopology::HUB}) {
-        const CombinerLayout inside = combiner_layout(Combiner::Internal, false, one);
-        const CombinerLayout outside = combiner_layout(Combiner::External, false, one);
-        CHECK((inside.topology == PathTopology::HUB && inside.merge_inside));
-        CHECK((outside.topology == PathTopology::HUB && !outside.merge_inside));
+        // Inside the unit or below it, the lanes meet in a hub box.
+        CHECK((combined_topology(Combiner::Internal, false, one) == PathTopology::HUB &&
+               combined_topology(Combiner::External, false, one) == PathTopology::HUB));
         // A sliding selector keeps its rail; one lane has nothing to merge.
-        CHECK((combiner_layout(Combiner::Internal, true, one).topology == one &&
-               combiner_layout(Combiner::Absent, false, one).topology == one));
+        CHECK((combined_topology(Combiner::Internal, true, one) == one &&
+               combined_topology(Combiner::Absent, false, one) == one));
     }
     // Lanes bound for separate tools keep their own drawing.
-    for (PathTopology split : {PathTopology::PARALLEL, PathTopology::MIXED}) {
-        const CombinerLayout l = combiner_layout(Combiner::External, false, split);
-        CHECK((l.topology == split && !l.merge_inside &&
-               !combiner_layout(Combiner::Internal, false, split).merge_inside));
-    }
+    for (PathTopology split : {PathTopology::PARALLEL, PathTopology::MIXED})
+        CHECK((combined_topology(Combiner::External, false, split) == split &&
+               combined_topology(Combiner::Internal, false, split) == split));
 }
 
 TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",

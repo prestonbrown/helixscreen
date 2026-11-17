@@ -104,24 +104,18 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
-/// How a unit view draws the lanes of a unit that feeds one extruder.
-struct CombinerLayout {
-    helix::PathTopology topology;
-    bool merge_inside; ///< One line leaves the unit: no hub box below it.
-};
-
-/// The unit's combiner decides how its lanes reach one extruder (docs/devel/UNIT_ART.md
-/// § "Combiner"): merged inside the unit, or each out of its own outlet into a hub box below
-/// it, whatever selector the backend reports. A sliding selector keeps its rail, and paths
-/// that do not end at one nozzle (PARALLEL, MIXED) keep their own drawing.
-inline CombinerLayout combiner_layout(helix::ui::tray::Combiner combiner, bool has_carriage,
-                                      helix::PathTopology reported) {
+/// The layout a unit view draws a unit's lanes with (docs/devel/UNIT_ART.md § "Combiner"):
+/// lanes that reach one nozzle meet in a hub box below the unit, whether its combiner is
+/// inside it or not, and whatever selector the backend reports. A sliding selector keeps its
+/// rail, a one-lane unit has nothing to merge, and paths that do not end at one nozzle
+/// (PARALLEL, MIXED) keep their own drawing.
+inline helix::PathTopology combined_topology(helix::ui::tray::Combiner combiner, bool has_carriage,
+                                             helix::PathTopology reported) {
     using helix::PathTopology;
-    using helix::ui::tray::Combiner;
     const bool one_nozzle = reported == PathTopology::LINEAR || reported == PathTopology::HUB;
-    if (!one_nozzle || has_carriage || combiner == Combiner::Absent)
-        return {reported, false};
-    return {PathTopology::HUB, combiner == Combiner::Internal};
+    if (!one_nozzle || has_carriage || combiner == helix::ui::tray::Combiner::Absent)
+        return reported;
+    return PathTopology::HUB;
 }
 
 /// Whether a unit view draws a unit's head-on art over the path it lays out: a sliding

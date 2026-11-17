@@ -543,16 +543,6 @@ int32_t draw_fixed_selector(const RenderCtx& ctx, int32_t cy, int32_t w, int32_t
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
     data->rail_drawn = false;
-    if (data->lanes_merge_inside) {
-        // The merge inside the unit is no box; tapping it still opens the unit's settings.
-        const int32_t size = LV_MAX(10, f.hub_h / 2);
-        if (data->hub_callback) {
-            const int32_t y = f.hub_y - f.hub_h / 2;
-            data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
-            data->hits.hub_valid = true;
-        }
-        return;
-    }
     if (f.rail.w > 0 && draw_selector_rail(ctx, f))
         return;
     const BaseGeometry& g = ctx.geo;

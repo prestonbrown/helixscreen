@@ -519,11 +519,10 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
 }
 
 // NAMESPACE_OK: one of the canvas's C-style setters
-void ui_filament_path_canvas_set_combiner(lv_obj_t* obj, bool merge_inside, bool port_block) {
+void ui_filament_path_canvas_set_port_block(lv_obj_t* obj, bool port_block) {
     auto* data = get_data(obj);
-    if (!data || (data->lanes_merge_inside == merge_inside && data->fixed_selector == port_block))
+    if (!data || data->fixed_selector == port_block)
         return;
-    data->lanes_merge_inside = merge_inside;
     data->fixed_selector = port_block;
     layered_mark_dirty(obj);
 }

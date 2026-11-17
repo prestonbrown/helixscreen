@@ -750,13 +750,11 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
     const tray::UnitShell* drawn_unit = view_shell(info, unit_index, false);
     const bool carriage = drawn_unit && drawn_unit->carriage_n > 0;
-    const helix::ui::fpath::CombinerLayout combined = helix::ui::fpath::combiner_layout(
+    topo = helix::ui::fpath::combined_topology(
         drawn_unit ? drawn_unit->combiner : tray::Combiner::Absent, carriage, topo);
-    topo = combined.topology;
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
-    ui_filament_path_canvas_set_combiner(canvas, combined.merge_inside,
-                                         drawn_unit && drawn_unit->port_block);
+    ui_filament_path_canvas_set_port_block(canvas, drawn_unit && drawn_unit->port_block);
     // Only the gate counts the art exists for draw it.
     const tray::RailFaceArt* rail = drawn_unit && helix::ui::fpath::unit_art_drawn(topo, carriage)
                                         ? tray::unit_shell_face_art(*drawn_unit, slot_count)
