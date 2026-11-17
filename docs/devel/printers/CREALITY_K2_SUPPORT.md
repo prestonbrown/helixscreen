@@ -275,7 +275,7 @@ The Kalico commands come from the port's own source
 ([`Jacob10383/k2-plus-custom-firmware`](https://github.com/Jacob10383/k2-plus-custom-firmware)):
 [belt_mdl.py](https://github.com/Jacob10383/k2-plus-custom-firmware/blob/main/extras/belt_mdl.py) registers `BELT_TENSION_SET AXIS=X|Y`, which runs `G28 X Y`, settles
 the belt around the bed centre, adjusts it and releases the motors; the port's
-`macros.cfg` (in its rootfs image, not the repo; read from a debug bundle's config) `BELT_TENSION` calls it at 140 for each axis in `AXES` (default `XY`).
+`macros.cfg` (in its rootfs image, not the repo) `BELT_TENSION` calls it at 140 for each axis in `AXES` (default `XY`).
 [motor_control.py](https://github.com/Jacob10383/k2-plus-custom-firmware/blob/main/extras/motor_control.py)'s `CALIBRATE_CUT_POS` runs `HOME_IF_NEEDED AXIS=XY`, refuses with
 filament loaded, and stores `cut_pos_x` under `[box]`. Neither needs HelixScreen to home
 first. The CFS device section's own cutter and belt buttons are separate
