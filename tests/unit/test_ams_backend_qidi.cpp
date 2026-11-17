@@ -12,6 +12,7 @@
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "filament_slot_override.h"
@@ -1170,6 +1171,13 @@ TEST_CASE("QIDI Box dries with the box's timer commands, else the bare heater",
             CHECK(backend.sent.empty());
         }
     }
+
+    // The refusal names the range in the display unit (the per-test reset restores °C).
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    const std::string hint = backend.start_drying(150.0f, 240).suggestion;
+    CHECK(hint.find("°F") != std::string::npos);
+    CHECK(hint.find("°C") == std::string::npos);
 }
 
 // =====================================================================
