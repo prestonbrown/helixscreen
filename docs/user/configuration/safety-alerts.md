@@ -16,6 +16,12 @@ These are in the `safety` section.
 2. Cancel Escalation.
 3. Confirm before running macros.
 
+![The motor and power confirmation rows](../../images/user/config-safety-power-confirmations.png)
+
+1. Confirm disabling motors.
+2. Confirm shutdown and reboot.
+3. Shutdown/reboot target, shown only when the printer is a different computer.
+
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
 | `estop_require_confirmation` | `true` | `true` or `false` | Asks for confirmation before an emergency stop. With `false` the E-Stop acts immediately. The default protects against accidental stops. **Settings > Safety & Alerts > E-Stop Confirmation**. |
@@ -24,7 +30,8 @@ These are in the `safety` section.
 | `cancel_escalation_timeout_seconds` | `30` | `15`, `30`, `60`, `120` | How long to wait after sending a cancel before escalating. It applies only while `cancel_escalation_enabled` is `true`. **Escalation Timeout**. Other values round up to the next of these four, and anything above 60 becomes 120. |
 | `tool_change_require_confirmation` | `true` | `true` or `false` | Asks before switching to another tool from the Home screen's tool switcher, from a toolhead on the filament system's screen, or from the Filament screen's tool list on printers where that list switches tools. With `false` those taps switch straight away. A tool change during a paused print always asks. **Settings > Printing > Confirm tool changes**, shown only on printers with more than one tool. |
 | `motors_off_require_confirmation` | `true` | `true` or `false` | Asks before Disable Motors releases the stepper motors. With `false` the motors are released straight away. While a print is running the motors stay on either way. **Settings > Safety & Alerts > Confirm disabling motors**. |
-| `power_require_confirmation` | `true` | `true` or `false` | Asks before the **Shutdown** and **Reboot** rows on the Advanced panel act. With `false` they act straight away on a screen that runs on the printer's own computer. The Home screen's power button, a screen on a different computer, and any request made during a print still open the dialog. **Settings > Safety & Alerts > Confirm shutdown and reboot**. |
+| `power_require_confirmation` | `true` | `true` or `false` | Asks before the **Shutdown** and **Reboot** rows on the Advanced panel act. With `false` they act straight away on a screen that runs on the printer's own computer, or on the `power_target` of a screen on a different computer. The Home screen's power button, `power_target` set to ask, and any request made during a print still open the dialog. **Settings > Safety & Alerts > Confirm shutdown and reboot**. |
+| `power_target` | `0` | `0`, `1`, `2` | For a screen on a different computer from the printer: what the Advanced panel's **Shutdown** and **Reboot** rows act on. `0` asks every time, `1` is the printer, `2` is this screen. With `power_require_confirmation` off the rows act on the target straight away; with it on, the dialog opens with the target selected. **Settings > Safety & Alerts > Shutdown/reboot target**, shown only on a screen whose printer is another computer. |
 | `allow_cold_extrude` | `false` | `true` or `false` | Lets filament loading and unloading run with a cold nozzle. **Settings > Printing > Allow cold load/unload**. |
 
 ---

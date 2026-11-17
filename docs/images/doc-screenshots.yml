@@ -606,7 +606,7 @@ images:
       - navigate settings
       - click row_safety
       - wait_idle
-      - scroll overlay_content 0 -150
+      - scroll row_detection_pause
     crop: container_detection
     margin: 12
     markers:
@@ -866,3 +866,16 @@ images:
       - {n: 1, widget: row_estop_confirm, at: top_right}
       - {n: 2, widget: row_cancel_escalation, at: top_right}
       - {n: 3, widget: row_macro_confirm, at: top_right}
+  - path: docs/images/user/config-safety-power-confirmations.png
+    kind: app
+    env:
+      HELIX_MOCK_REMOTE_PRINTER: "1"
+    steps:
+      - navigate settings
+      - click row_safety
+      - wait_idle
+      - scroll row_power_target
+    markers:
+      - {n: 1, widget: row_motors_off_confirm, at: top_right}
+      - {n: 2, widget: row_power_confirm, at: top_right}
+      - {n: 3, widget: row_power_target, at: top_right}
