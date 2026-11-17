@@ -117,6 +117,7 @@ class NozzleTempsWidget : public PanelWidget {
     void on_hooked_root_deleted() override;
 
     void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
+    void handle_extruder_row_clicked(lv_obj_t* row_obj);
     void create_bed_row(lv_obj_t* container);
 
     /// Re-format every row from its cached readings (language or unit switch).

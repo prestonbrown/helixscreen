@@ -31,6 +31,8 @@
  * populate `ToolState` and `PrinterState` directly to reach it.
  */
 
+#include "ui_overlay_temp_graph.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
@@ -391,4 +393,26 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     state().update_from_status(nlohmann::json{{"heater_bed", {{"target", 200.0}}}});
     helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
+}
+
+TEST_CASE_METHOD(NozzleTempsFixture,
+                 "nozzle_temps: tapping a row opens the graph on that row's tool",
+                 "[nozzle_temps][temp_graph_overlay]") {
+    configure_one_extruder(state());
+    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+    lv_obj_t* container = h.child("nozzle_temps_container");
+    REQUIRE(container != nullptr);
+    add_second_extruder(state());
+    REQUIRE(lv_obj_get_child_count(container) == 3); // 2 extruder rows + bed row
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ToolState::instance().active_tool_index() == 0); // T0 (extruder) mounted
+
+    auto& overlay = get_global_temp_graph_overlay();
+    lv_obj_send_event(lv_obj_get_child(container, 1), LV_EVENT_CLICKED, nullptr);
+    CHECK(overlay.picked_extruder() == "extruder1");
+
+    // The mounted tool's row opens the graph following the mounted tool.
+    lv_obj_send_event(lv_obj_get_child(container, 0), LV_EVENT_CLICKED, nullptr);
+    CHECK(overlay.picked_extruder().empty());
 }
