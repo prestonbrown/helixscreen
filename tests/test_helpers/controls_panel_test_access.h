@@ -31,6 +31,9 @@ struct ControlsPanelTestAccess {
         p.init_subjects();
         p.register_observers();
     }
+    static void part_fan_slider_changed(ControlsPanel& p, int pct) {
+        p.handle_fan_slider_changed(pct);
+    }
     static void nozzle_row_clicked(ControlsPanel& p) {
         p.handle_nozzle_temp_clicked();
     }
