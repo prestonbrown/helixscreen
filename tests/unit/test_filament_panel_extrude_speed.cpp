@@ -1,7 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The panel's speed dropdown edits extrude_speed; Extrude / Retract move at it.
+// The panel's speed dropdown edits extrude_speed and a held length button edits
+// its length setting; Extrude / Retract move at both.
 
+#include "ui_button.h"
+#include "ui_component_keypad.h"
+#include "ui_nav_manager.h"
 #include "ui_panel_filament.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -12,6 +16,7 @@
 #include "settings_manager.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -35,6 +40,7 @@ struct SpeedHarness {
 
     explicit SpeedHarness(LVGLUITestFixture& f) : fx(f) {
         sm().set_extrude_speed(5);
+        sm().set_extrude_length_preset(2, 25);
         helix::SafetySettingsManager::instance().set_allow_cold_extrude(true);
         root = static_cast<lv_obj_t*>(lv_xml_create(fx.test_screen(), "filament_panel", nullptr));
         REQUIRE(root != nullptr);
@@ -47,6 +53,7 @@ struct SpeedHarness {
         lv_obj_delete(root);
         fx.process_lvgl(10);
         sm().set_extrude_speed(saved_speed);
+        sm().set_extrude_length_preset(2, 25);
         helix::SafetySettingsManager::instance().set_allow_cold_extrude(saved_cold);
     }
     void settle() {
@@ -77,7 +84,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the speed dropdown sets the
                  "[filament][extrude_speed]") {
     SpeedHarness s(*this);
     CHECK(s.shown() == "5 mm/s");
-    s.choose(2); // presets 2, 5, 10, 20 mm/s
+    s.choose(5); // SettingsManager::kExtrudeSpeedPresets[5]
     CHECK(sm().get_extrude_speed() == 10);
     CHECK(s.shown() == "10 mm/s");
 
@@ -90,7 +97,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the speed dropdown sets the
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: extrude and retract move at the chosen speed",
                  "[filament][extrude_speed]") {
     SpeedHarness s(*this);
-    s.choose(3); // 20 mm/s
+    s.choose(7); // 20 mm/s
     s.h.client.clear_gcode_script_history();
     SECTION("extrude") {
         TA::handle_extrude_button(*s.h.panel);
@@ -102,4 +109,36 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: extrude and retract move at
         s.settle();
         CHECK(s.sent("G1 E-10 F1200"));
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: holding a length button sets its length",
+                 "[filament][extrude_speed][extrude_length]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+    ui_keypad_init(lv_screen_active());
+    {
+        SpeedHarness s(*this);
+        REQUIRE(s.h.panel->handle_extrude_length_longpress(2));
+        s.settle();
+        lv_obj_t* keypad = lv_obj_find_by_name(lv_screen_active(), "keypad_panel");
+        REQUIRE(keypad != nullptr);
+        for (const char* key : {"btn_4", "btn_0"}) {
+            lv_obj_send_event(lv_obj_find_by_name(keypad, key), LV_EVENT_CLICKED, nullptr);
+        }
+        lv_xml_get_event_cb(nullptr, "on_keypad_confirm")(nullptr);
+        s.fx.process_lvgl(600);
+        s.settle();
+
+        CHECK(sm().get_extrude_length_preset(2) == 40);
+        lv_obj_t* button = lv_obj_find_by_name(s.root, "extrude_length_2");
+        CHECK(std::string(lv_label_get_text(ui_button_get_label(button))) == "40mm");
+        s.h.client.clear_gcode_script_history();
+        TA::handle_extrude_button(*s.h.panel); // the edited button is the chosen one
+        s.settle();
+        CHECK(s.sent("G1 E40 F300"));
+    }
+    NavigationManager::instance().shutdown();
 }

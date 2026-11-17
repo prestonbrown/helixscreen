@@ -1525,6 +1525,7 @@ translations:
   Extra distance to move once sensors clear: 'Zusätzlicher Weg, sobald die Sensoren frei sind'
   Extra prime to compensate ooze: Zusätzliches Primen zum Ausgleich von Auslaufen
   Extrude: Extrudieren
+  Extrude Length: Extrusionslänge
   Extrude Speed: Extrusionsgeschwindigkeit
   'Extrude failed: {}': 'Extrusion fehlgeschlagen: {}'
   Extrude may still be running — response timed out: Extrusion läuft möglicherweise

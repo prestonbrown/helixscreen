@@ -1375,6 +1375,7 @@
   <translation tag="Extra distance to move once sensors clear" it="Distanza aggiuntiva da percorrere quando i sensori si liberano"/>
   <translation tag="Extra prime to compensate ooze" it="Priming extra per compensare la fuoriuscita"/>
   <translation tag="Extrude" it="Estrusione"/>
+  <translation tag="Extrude Length" it="Lunghezza di estrusione"/>
   <translation tag="Extrude Speed" it="Velocità di estrusione"/>
   <translation tag="Extrude failed: {}" it="Estrusione fallita: {}"/>
   <translation tag="Extrude may still be running — response timed out" it="Estrusione potrebbe essere ancora in corso — tempo scaduto"/>

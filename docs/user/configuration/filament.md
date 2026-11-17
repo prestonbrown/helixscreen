@@ -15,6 +15,7 @@ These are in the `filament` section of the printer entry.
 | `filament.auto_cooldown` | `true` | `true` or `false` | Whether HelixScreen turns the extruder heater off after a filament load or unload finishes. Turn it off if your filament system runs its own cooldown, as recent AFC versions do, so the two do not both drive the heater. **Settings > Printing > Cool nozzle after filament ops**. |
 | `filament.cooldown_delay_seconds` | `120` | seconds | How long to wait after a load or unload before turning the heater off, so you can run several operations back to back without the nozzle cooling in between. `0` also turns auto-cooldown off, but prefer `auto_cooldown`, which is the one the switch writes. |
 | `filament.extrude_speed` | `5` | `1` to `50` | The extrude and retract speed of the Filament panel, in mm/s. **Settings > Printing > Machine Limits > Extrude Speed**, or the speed dropdown on the Filament panel. This is a HelixScreen setting, not a Klipper limit. |
+| `filament.extrude_length_0`, `_1`, `_2` | `5`, `10`, `25` | `1` to `500` | The lengths of the Filament panel's three length buttons, in mm. Press and hold a button to change it. |
 | `filament.auto_open_editor` | `false` | `true` or `false` | Opens the slot editor when a filament is inserted. **Settings > Printing > Edit filament on insert**. |
 | `filament.auto_color_map` | `false` | `true` or `false` | How a print's colours are matched to slots. Off maps by position; on matches by colour. See [Filament mapping](../guide/filament-mapping.md). |
 

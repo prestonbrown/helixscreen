@@ -290,7 +290,7 @@ class SettingsManager {
 
     /// Quick choices the Filament panel offers for extrude_speed, in mm/s. Each
     /// lies inside the setting's 1-50 range; Machine Limits sets any value in it.
-    static constexpr int kExtrudeSpeedPresets[] = {2, 5, 10, 20};
+    static constexpr int kExtrudeSpeedPresets[] = {1, 2, 3, 5, 8, 10, 15, 20, 30, 50};
 
     /** @brief Get extrude/retract speed in mm/s (default 5, range 1-50) */
     int get_extrude_speed() const {
@@ -313,6 +313,29 @@ class SettingsManager {
     /** @brief Extrude speed subject (integer: mm/s) for UI binding */
     lv_subject_t* subject_extrude_speed() {
         return settings_.subject(Key::ExtrudeSpeed);
+    }
+
+    // =========================================================================
+    // EXTRUDE/RETRACT LENGTH PRESETS (persisted per-printer)
+    // =========================================================================
+
+    /// The Filament panel's three length buttons, each a persisted length in mm
+    /// (defaults 5, 10, 25). XML binds their labels to settings_extrude_length_<i>.
+    static constexpr int kExtrudeLengthPresetCount = 3;
+    static constexpr int kExtrudeLengthMinMm = 1;
+    static constexpr int kExtrudeLengthMaxMm = 500;
+
+    /// Length of preset button @p index in mm; an index outside the presets reads 0.
+    int get_extrude_length_preset(int index) const {
+        return extrude_length_key(index) ? settings_.get(*extrude_length_key(index)) : 0;
+    }
+
+    /// Sets preset button @p index to @p mm (clamped to kExtrudeLengthMinMm..MaxMm,
+    /// persisted); an index outside the presets changes nothing.
+    void set_extrude_length_preset(int index, int mm) {
+        if (const auto key = extrude_length_key(index)) {
+            settings_.set(*key, mm);
+        }
     }
 
     // =========================================================================
@@ -1030,6 +1053,9 @@ class SettingsManager {
         ZMovementStyle,
         EnclosureStyle,
         ExtrudeSpeed,
+        ExtrudeLength0,
+        ExtrudeLength1,
+        ExtrudeLength2,
         JogSpeedXy,
         JogSpeedZ,
         MotionShowActualPosition,
@@ -1066,6 +1092,13 @@ class SettingsManager {
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
+
+    static constexpr std::optional<Key> extrude_length_key(int index) {
+        if (index < 0 || index >= kExtrudeLengthPresetCount) {
+            return std::nullopt;
+        }
+        return static_cast<Key>(static_cast<int>(Key::ExtrudeLength0) + index);
+    }
 
     // Jog step distances in mm, [static_cast<int>(JogMode)][outer]. Cached
     // config values rather than subjects: read on every jog, not widget-bound.

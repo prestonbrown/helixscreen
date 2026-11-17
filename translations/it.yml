@@ -1517,6 +1517,7 @@ translations:
   Extra distance to move once sensors clear: 'Distanza aggiuntiva da percorrere quando i sensori si liberano'
   Extra prime to compensate ooze: Priming extra per compensare la fuoriuscita
   Extrude: Estrusione
+  Extrude Length: Lunghezza di estrusione
   Extrude Speed: Velocità di estrusione
   'Extrude failed: {}': 'Estrusione fallita: {}'
   Extrude may still be running — response timed out: Estrusione potrebbe essere ancora

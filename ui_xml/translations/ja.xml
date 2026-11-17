@@ -1375,6 +1375,7 @@
   <translation tag="Extra distance to move once sensors clear" ja="センサーが解除された後に追加で移動する距離"/>
   <translation tag="Extra prime to compensate ooze" ja="滲み出しを補正するための追加プライム"/>
   <translation tag="Extrude" ja="押し出し"/>
+  <translation tag="Extrude Length" ja="押し出し長"/>
   <translation tag="Extrude Speed" ja="押し出し速度"/>
   <translation tag="Extrude failed: {}" ja="押出に失敗しました: {}"/>
   <translation tag="Extrude may still be running — response timed out" ja="押出がまだ実行中の可能性があります — 応答タイムアウト"/>

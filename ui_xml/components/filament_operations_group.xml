@@ -77,7 +77,7 @@
         <event_cb trigger="clicked" callback="on_filament_purge"/>
       </ui_button>
     </lv_obj>
-    <!-- Length Selector -->
+    <!-- Length Selector: tap picks a length, hold edits that button's length -->
     <lv_obj name="extrude_length_row"
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
@@ -86,23 +86,29 @@
       <text_small text="Length:">
         <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
       </text_small>
-      <ui_button name="extrude_length_5mm"
-                 height="#button_height_sm" flex_grow="1" text="5mm" style_text_font="#font_small">
-        <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_5mm_active" ref_value="1"/>
-        <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_5mm_active" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_5mm"/>
+      <ui_button name="extrude_length_0"
+                 height="#button_height_sm" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
+                 style_text_font="#font_small">
+        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="0"/>
+        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="0"/>
+        <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
+        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
       </ui_button>
-      <ui_button name="extrude_length_10mm"
-                 height="#button_height_sm" flex_grow="1" text="10mm" style_text_font="#font_small">
-        <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_10mm_active" ref_value="1"/>
-        <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_10mm_active" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_10mm"/>
+      <ui_button name="extrude_length_1"
+                 height="#button_height_sm" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
+                 style_text_font="#font_small">
+        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="1"/>
+        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
+        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
       </ui_button>
-      <ui_button name="extrude_length_25mm"
-                 height="#button_height_sm" flex_grow="1" text="25mm" style_text_font="#font_small">
-        <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_25mm_active" ref_value="1"/>
-        <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_25mm_active" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_25mm"/>
+      <ui_button name="extrude_length_2"
+                 height="#button_height_sm" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
+                 style_text_font="#font_small">
+        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="2"/>
+        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="2"/>
+        <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
+        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
       </ui_button>
       <!-- Extrude/retract speed: presets of the extrude_speed setting that
            Machine Limits also edits. C++ fills the options and the shown speed. -->
