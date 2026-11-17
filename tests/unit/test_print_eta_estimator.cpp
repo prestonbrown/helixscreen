@@ -15,9 +15,14 @@
  * returning 0 where there is no answer reads as "finished" on the panel.
  */
 
+#include "../helix_test_fixture.h"
+#include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "print_eta_estimator.h"
+#include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::PrintEtaEstimator;
 using helix::PrintEtaInputs;
@@ -215,4 +220,34 @@ TEST_CASE(
     // Still 12s per percent ten points on, so 40% left is 480s. Smoothed from
     // 600s at alpha 0.3: 0.3*480 + 0.7*600.
     CHECK(est.remaining_seconds(excluded(job(60, 720, 0), 0.5)) == 564);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "ETA: a first status frame mid-print with parts already excluded leaves the rate "
+                 "alone",
+                 "[print][eta][exclude_object][printer_state]") {
+    lv_init_safe();
+    helix::PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    state.update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
+
+    // The snapshot at an app start mid-print: half way through, one of two
+    // parts excluded, all in one frame.
+    nlohmann::json snapshot = {
+        {"print_stats",
+         {{"state", "printing"}, {"print_duration", 600.0}, {"total_duration", 620.0}}},
+        {"virtual_sdcard", {{"progress", 0.5}}},
+        {"exclude_object",
+         {{"objects", {{{"name", "a"}}, {{"name", "b"}}}},
+          {"excluded_objects", {"a"}},
+          {"current_object", "b"}}}};
+    state.update_from_status(snapshot);
+    auto* time_left = state.print_state().get_print_time_left_subject();
+
+    // The next print_stats tick is the first sample with progress. 12s per
+    // percent over the 50% left is 600s; anchoring the exclusion at 50% would
+    // halve the earlier rate and read 300s.
+    state.update_from_status(
+        nlohmann::json{{"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}});
+    CHECK(lv_subject_get_int(time_left) == 600);
 }
