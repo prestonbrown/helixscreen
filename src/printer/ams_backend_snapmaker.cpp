@@ -4108,12 +4108,13 @@ void AmsBackendSnapmaker::finish_nozzle_change(int head, const nlohmann::json* a
         const auto h = static_cast<size_t>(head);
         nozzle_change_in_flight_[h] = false;
         if (accepted != nullptr && h < extruder_states_.size()) {
-            extruder_states_[h].apply(snapmaker::parse_extruder_delta(nlohmann::json{
-                {"nozzle_diameter",
-                 accepted->contains("diameter") ? (*accepted)["diameter"] : nlohmann::json()},
-                {"nozzle_volume_type", accepted->contains("volume_type")
-                                           ? (*accepted)["volume_type"]
-                                           : nlohmann::json()}}));
+            auto member_or_null = [accepted](const char* key) {
+                const auto* v = json_util::find_member(*accepted, key);
+                return v ? *v : nlohmann::json();
+            };
+            extruder_states_[h].apply(snapmaker::parse_extruder_delta(
+                nlohmann::json{{"nozzle_diameter", member_or_null("diameter")},
+                               {"nozzle_volume_type", member_or_null("volume_type")}}));
         }
     }
     emit_event(EVENT_STATE_CHANGED);
