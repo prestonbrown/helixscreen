@@ -96,6 +96,7 @@ is out.
 - **Unit cards on the Multi-Filament Overview show every lane** - the filament color bars now span the whole card instead of sharing it with the temperature and humidity box, which cut them down to one or two bars and a "..." in place of the lane count. When the card has room, the temperature and humidity sit on one line under the bars. When it does not, the card leaves them out, and tapping the unit still shows them.
 - **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer adds HelixScreen to Moonraker's list of services it may manage, it now restarts Moonraker so the list takes effect. Before, a reinstall that only added HelixScreen to that list left it out until Moonraker next restarted.
 - **Shared screen hides the pairing code** - the remote screen hides the printer's display while it shows the pairing code, and shows the browser a plain screen saying so until the code is gone. The browser page also stops loading the screen while it asks for the code.
+- **One dialog on a Happy Hare 4.2 pause** - when Happy Hare 4.2 pauses a print, HelixScreen now closes Happy Hare's own Pause Notice when its recovery dialog opens, as it already did with the Error Notice of earlier versions. Before, both dialogs stayed on screen.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
