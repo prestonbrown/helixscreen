@@ -13,6 +13,7 @@
 #include "screensaver_print_colors.h"
 
 #include <algorithm>
+#include <array>
 #include <set>
 #include <vector>
 
@@ -158,6 +159,7 @@ TEST_CASE("a changed numeral fades out as the new one warms up, and only its tub
     sim.init(frame.target, 0, clock_face(hms(10, 8), true));
     const DirtyRect glow = sim.glow_box(3);
     const std::vector<uint8_t> start = box_bytes(frame, glow);
+    const uint64_t red_start = red_in(frame, glow);
 
     std::vector<DirtyRect> dirty;
     const FlipFace next = clock_face(hms(10, 9), true);
@@ -174,6 +176,7 @@ TEST_CASE("a changed numeral fades out as the new one warms up, and only its tub
     REQUIRE(dirty.size() == 1);
     CHECK(dirty[0] == glow);
     const std::vector<uint8_t> half = box_bytes(frame, glow);
+    const uint64_t red_half = red_in(frame, glow);
     CHECK(bytes_differing(half, start) > 0);
 
     sim.step(kNixieFadeMs / 2, frame.target, next, dirty);
@@ -181,23 +184,15 @@ TEST_CASE("a changed numeral fades out as the new one warms up, and only its tub
     const std::vector<uint8_t> end = box_bytes(frame, glow);
     CHECK(bytes_differing(end, half) > 0);
 
-    // Halfway, both numerals glow at half strength, so the box is dimmer than either end
-    // wherever only one of them has wire.
-    TestFrame fresh_frame(480, 272, PixelFormat::XRGB8888);
+    // Halfway both numerals glow at half strength: less than both at full, more than none.
+    const uint64_t red_end = red_in(frame, glow);
+    CHECK(red_half < red_start + red_end);
+    CHECK(red_half > std::min(red_start, red_end) / 2);
+    // The finished fade draws exactly what a still tube of the new numeral draws.
+    TestFrame still(480, 272, PixelFormat::XRGB8888);
     NixieClockSim fresh;
-    fresh.init(fresh_frame.target, 0, next);
-    CHECK(bytes_differing(end, box_bytes(fresh_frame, glow)) == 0);
-    TestFrame mid(480, 272, PixelFormat::XRGB8888);
-    NixieClockSim mid_sim;
-    mid_sim.init(mid.target, 0, clock_face(hms(10, 8), true));
-    mid_sim.step(0, mid.target, next, dirty);
-    mid_sim.step(kNixieFadeMs / 2, mid.target, next, dirty);
-    TestFrame old_frame(480, 272, PixelFormat::XRGB8888);
-    NixieClockSim old_sim;
-    old_sim.init(old_frame.target, 0, clock_face(hms(10, 8), true));
-    const uint64_t mid_red = red_in(mid, glow);
-    CHECK(mid_red < red_in(old_frame, glow) + red_in(fresh_frame, glow));
-    CHECK(mid_red > std::min(red_in(old_frame, glow), red_in(fresh_frame, glow)) / 2);
+    fresh.init(still.target, 0, next);
+    CHECK(bytes_differing(end, box_bytes(still, glow)) == 0);
 }
 
 TEST_CASE("between changes a nixie frame writes nothing",
@@ -369,39 +364,31 @@ TEST_CASE("a print's state colours the neon: green done, red failed",
     TestFrame frame(480, 272, PixelFormat::XRGB8888);
     NixieClockSim sim;
     const PixelWriter writer(frame.target);
-    struct Sums {
-        uint64_t r = 0;
-        uint64_t g = 0;
-        uint64_t b = 0;
-    };
-    // Over the glowing pixels only: the grey glass around them carries no ink.
+    // Channel sums over the glowing pixels only: the grey glass around them carries no ink.
     const auto sums = [&](const DirtyRect& box) {
-        Sums out;
+        std::array<uint64_t, 3> out{};
         for (int32_t y = box.y1; y <= box.y2; y++) {
             for (int32_t x = box.x1; x <= box.x2; x++) {
                 const Rgb c = writer.get(x, y);
-                if (std::max({c.r, c.g, c.b}) < 150) {
-                    continue;
-                }
-                out.r += c.r;
-                out.g += c.g;
-                out.b += c.b;
+                const uint64_t glows = std::max({c.r, c.g, c.b}) >= 150 ? 1 : 0;
+                out = {out[0] + glows * c.r, out[1] + glows * c.g, out[2] + glows * c.b};
             }
         }
         return out;
     };
-    sim.init(frame.target, 0,
-             helix::ui::flip_face(helix::test::print_reading_for(ClockMode::DONE, 100)));
-    const Sums done = sums(sim.glow_box(0));
-    CHECK(done.g > done.r);
-    sim.init(frame.target, 0,
-             helix::ui::flip_face(helix::test::print_reading_for(ClockMode::FAILED, 40)));
-    const Sums failed = sums(sim.glow_box(0));
-    CHECK(failed.r > failed.g * 5 / 4);
+    const auto print = [](ClockMode mode) {
+        return helix::ui::flip_face(helix::test::print_reading_for(mode, 40));
+    };
+    sim.init(frame.target, 0, print(ClockMode::DONE));
+    const auto done = sums(sim.glow_box(0));
+    CHECK(done[1] > done[0]);
+    sim.init(frame.target, 0, print(ClockMode::FAILED));
+    const auto failed = sums(sim.glow_box(0));
+    CHECK(failed[0] > failed[1] * 5 / 4);
     sim.init(frame.target, 0, clock_face(hms(10, 8), true));
-    const Sums neon = sums(sim.glow_box(0));
-    CHECK(neon.r > neon.g * 5 / 4);
-    CHECK(neon.g > neon.b);
+    const auto neon = sums(sim.glow_box(0));
+    CHECK(neon[0] > neon[1] * 5 / 4);
+    CHECK(neon[1] > neon[2]);
 }
 
 TEST_CASE("the cached tube art is sized for the screen and freed by clear",
