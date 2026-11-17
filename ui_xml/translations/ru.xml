@@ -200,7 +200,7 @@
   <translation tag="A lower, B upper" ru="A снизу, B сверху"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" ru="Макрос вывел лишний текст шаблона «{}»: проверьте его теги Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ru="Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати."/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle" ru="Пресет материала задаёт температуру стола вместе с соплом"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" ru="Пресет материала задаёт температуру стола вместе с соплом. Материал, макрос преднагрева которого сам управляет нагревом, задаётся этим макросом"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ru="Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ru="Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку"/>
   <translation tag="A new Print Status screen" ru="Новый экран статуса печати"/>

@@ -64,7 +64,7 @@
                             subject="filament_auto_open_editor" callback="on_filament_auto_open_editor_changed"/>
         <setting_toggle_row name="row_material_presets_heat_bed"
                             label="Material presets heat the bed" icon="radiator"
-                            description="A material preset sets the bed temperature along with the nozzle"
+                            description="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead"
                             subject="material_presets_heat_bed" callback="on_material_presets_heat_bed_changed"/>
         <setting_toggle_row name="row_number_lanes_from_zero"
                             label="Number slots from 0" icon="filament"
