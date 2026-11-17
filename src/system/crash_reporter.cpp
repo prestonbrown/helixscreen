@@ -189,85 +189,72 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     report.recorded_by = crash_data.value("recorded_by", "");
     report.uptime_sec = crash_data.value("uptime_sec", 0);
 
-    if (crash_data.contains("exception"))
-        report.exception_what = crash_data["exception"];
+    // Copies the crash-file field @p key into @p dst when it is present.
+    auto copy_field = [&](const char* key, auto& dst) {
+        const json* v = helix::json_util::find_member(crash_data, key);
+        if (v)
+            dst = *v;
+        return v != nullptr;
+    };
 
-    if (crash_data.contains("abort_msg"))
-        report.abort_msg = crash_data["abort_msg"];
+    copy_field("exception", report.exception_what);
+    copy_field("abort_msg", report.abort_msg);
+    copy_field("abort_msg_state", report.abort_msg_state);
+    copy_field("terminate_msg", report.terminate_msg);
 
-    if (crash_data.contains("abort_msg_state"))
-        report.abort_msg_state = crash_data["abort_msg_state"];
-
-    if (crash_data.contains("terminate_msg"))
-        report.terminate_msg = crash_data["terminate_msg"];
-
-    if (crash_data.contains("recent_errors") && crash_data["recent_errors"].is_array()) {
-        for (const auto& e : crash_data["recent_errors"]) {
+    if (const json* recent_errors = helix::json_util::find_array(crash_data, "recent_errors")) {
+        for (const auto& e : *recent_errors) {
             report.recent_errors.push_back(e.get<std::string>());
         }
     }
 
-    if (crash_data.contains("backtrace") && crash_data["backtrace"].is_array()) {
-        for (const auto& addr : crash_data["backtrace"]) {
+    if (const json* backtrace = helix::json_util::find_array(crash_data, "backtrace")) {
+        for (const auto& addr : *backtrace) {
             report.backtrace.push_back(addr.get<std::string>());
         }
     }
 
     // Fault info
-    if (crash_data.contains("fault_addr"))
-        report.fault_addr = crash_data["fault_addr"];
-    if (crash_data.contains("fault_code"))
-        report.fault_code = crash_data["fault_code"];
-    if (crash_data.contains("fault_code_name"))
-        report.fault_code_name = crash_data["fault_code_name"];
+    copy_field("fault_addr", report.fault_addr);
+    copy_field("fault_code", report.fault_code);
+    copy_field("fault_code_name", report.fault_code_name);
 
     // Memory map (from /proc/self/maps)
-    if (crash_data.contains("memory_map") && crash_data["memory_map"].is_array()) {
-        for (const auto& line : crash_data["memory_map"]) {
+    if (const json* memory_map = helix::json_util::find_array(crash_data, "memory_map")) {
+        for (const auto& line : *memory_map) {
             report.memory_map.push_back(line.get<std::string>());
         }
     }
 
     // Register state
-    if (crash_data.contains("reg_pc"))
-        report.reg_pc = crash_data["reg_pc"];
-    if (crash_data.contains("reg_sp"))
-        report.reg_sp = crash_data["reg_sp"];
-    if (crash_data.contains("reg_lr"))
-        report.reg_lr = crash_data["reg_lr"];
-    else if (crash_data.contains("reg_ra"))
-        report.reg_lr = crash_data["reg_ra"]; // MIPS spells link register "ra"
-    if (crash_data.contains("reg_bp"))
-        report.reg_bp = crash_data["reg_bp"];
+    copy_field("reg_pc", report.reg_pc);
+    copy_field("reg_sp", report.reg_sp);
+    if (!copy_field("reg_lr", report.reg_lr))
+        copy_field("reg_ra", report.reg_lr); // MIPS spells link register "ra"
+    copy_field("reg_bp", report.reg_bp);
 
     // ASLR load base (for symbol resolution)
-    if (crash_data.contains("load_base"))
-        report.load_base = crash_data["load_base"];
+    copy_field("load_base", report.load_base);
 
     // UpdateQueue callback tag
-    if (crash_data.contains("queue_callback"))
-        report.queue_callback = crash_data["queue_callback"];
+    copy_field("queue_callback", report.queue_callback);
 
     // Current LVGL event (from event_send_core hook)
-    if (crash_data.contains("event_target"))
-        report.event_target = crash_data["event_target"];
-    if (crash_data.contains("event_original_target"))
-        report.event_original_target = crash_data["event_original_target"];
-    if (crash_data.contains("event_code"))
-        report.event_code = crash_data["event_code"];
-    if (crash_data.contains("lvgl_version"))
-        report.lvgl_version = crash_data["lvgl_version"];
+    copy_field("event_target", report.event_target);
+    copy_field("event_original_target", report.event_original_target);
+    copy_field("event_code", report.event_code);
+    copy_field("lvgl_version", report.lvgl_version);
 
     // Heap snapshot (cached from main loop)
     auto copy_heap = [&](const char* key, long& dst) {
-        if (crash_data.contains(key)) {
-            dst = crash_data[key].get<long>();
+        if (const json* v = helix::json_util::find_member(crash_data, key)) {
+            dst = v->get<long>();
             report.heap.present = true;
         }
     };
     auto copy_heap_int = [&](const char* key, int& dst) {
-        if (crash_data.contains(key)) {
-            dst = static_cast<int>(crash_data[key].get<long>());
+        if (const json* v = helix::json_util::find_member(crash_data, key)) {
+            dst = static_cast<int>(v->get<long>());
             report.heap.present = true;
         }
     };
@@ -286,25 +273,21 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     copy_heap("lv_heap_free_biggest_kb", report.heap.lv_free_biggest_kb);
 
     // Activity breadcrumbs from the in-process ring buffer
-    if (crash_data.contains("breadcrumbs") && crash_data["breadcrumbs"].is_array()) {
-        for (const auto& line : crash_data["breadcrumbs"]) {
+    if (const json* breadcrumbs = helix::json_util::find_array(crash_data, "breadcrumbs")) {
+        for (const auto& line : *breadcrumbs) {
             report.breadcrumbs.push_back(line.get<std::string>());
         }
     }
 
     // Stack-scanned backtrace metadata
-    if (crash_data.contains("bt_source"))
-        report.bt_source = crash_data["bt_source"];
-    if (crash_data.contains("text_start"))
-        report.text_start = crash_data["text_start"];
-    if (crash_data.contains("text_end"))
-        report.text_end = crash_data["text_end"];
+    copy_field("bt_source", report.bt_source);
+    copy_field("text_start", report.text_start);
+    copy_field("text_end", report.text_end);
 
     // Stack dump (ARM32/MIPS: raw stack words for offline analysis)
-    if (crash_data.contains("stack_base"))
-        report.stack_base = crash_data["stack_base"];
-    if (crash_data.contains("stack_dump") && crash_data["stack_dump"].is_array()) {
-        for (const auto& word : crash_data["stack_dump"]) {
+    copy_field("stack_base", report.stack_base);
+    if (const json* stack_dump = helix::json_util::find_array(crash_data, "stack_dump")) {
+        for (const auto& word : *stack_dump) {
             report.stack_dump.push_back(word.get<std::string>());
         }
     }
@@ -315,8 +298,8 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
         "reg_r7", "reg_r8", "reg_r9", "reg_r10", "reg_fp", "reg_ip", "reg_ra",
     };
     for (const auto& reg : extra_reg_names) {
-        if (crash_data.contains(reg)) {
-            report.extra_registers.emplace_back(reg.substr(4), crash_data[reg].get<std::string>());
+        if (const json* v = helix::json_util::find_member(crash_data, reg.c_str())) {
+            report.extra_registers.emplace_back(reg.substr(4), v->get<std::string>());
         }
     }
 
