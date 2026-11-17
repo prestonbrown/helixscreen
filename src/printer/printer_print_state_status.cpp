@@ -423,6 +423,7 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
         eta_in.print_duration_s = lv_subject_get_int(&print_duration_);
         eta_in.slicer_estimate_s = estimated_print_time_;
         eta_in.preprint_remaining_s = lv_subject_get_int(&preprint_remaining_);
+        eta_in.excluded_share = excluded_work_share_;
 
         const int remaining = eta_estimator_.remaining_seconds(eta_in);
         if (remaining != PrintEtaEstimator::kNoEstimate &&

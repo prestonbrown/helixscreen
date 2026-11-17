@@ -275,6 +275,7 @@ void PrinterState::init_subjects(bool register_xml) {
         // overrides with the OLD printer's still-cached discovery_.
         capability_overrides_.load_from_config();
         excluded_objects_state_.clear_objects();
+        print_domain_.set_excluded_work_share(0.0);
     });
 
     spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
@@ -380,6 +381,7 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     fan_state_.update_from_status(state);
 
     excluded_objects_state_.update_from_status(state);
+    print_domain_.set_excluded_work_share(excluded_objects_state_.excluded_work_share());
 
     // Klippy state from webhooks (shutdown/error detection), gated on freshness.
     if (auto it = state.find("webhooks"); it != state.end()) {

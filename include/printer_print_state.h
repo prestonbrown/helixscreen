@@ -1110,6 +1110,17 @@ class PrinterPrintState {
      */
     int get_estimated_print_time() const;
 
+    /**
+     * @brief Set the share of the job's work that excluded objects account for
+     *
+     * The remaining-time estimate takes it out of the slicer's estimate and of
+     * the rate observed before the exclusion. Main-thread only.
+     * @param share 0 to 1, from PrinterExcludedObjectsState::excluded_work_share()
+     */
+    void set_excluded_work_share(double share) {
+        excluded_work_share_ = share;
+    }
+
     // ========================================================================
     // State queries
     // ========================================================================
@@ -1454,6 +1465,9 @@ class PrinterPrintState {
 
     // The remaining-time ladder, including its smoothing state.
     PrintEtaEstimator eta_estimator_;
+
+    // Share of the job's work in excluded objects, fed to eta_estimator_.
+    double excluded_work_share_ = 0.0;
 
     // Layer tracking: true when real layer data received from print_stats.info or gcode fallback.
     // When false, current_layer is estimated from progress * total_layers.

@@ -14,6 +14,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 #include <glm/common.hpp>
 
 #include "hv/json.hpp"
@@ -187,6 +188,52 @@ void PrinterExcludedObjectsState::set_current_object(const std::string& name) {
         spdlog::debug("[PrinterExcludedObjectsState] Current object: '{}' (version {})",
                       current_object_, version + 1);
     }
+}
+
+namespace {
+
+/// Shoelace area of an outline polygon, 0 for fewer than three points.
+double polygon_area(const std::vector<glm::vec2>& polygon) {
+    if (polygon.size() < 3) {
+        return 0.0;
+    }
+    double twice_area = 0.0;
+    for (size_t i = 0; i < polygon.size(); ++i) {
+        const auto& a = polygon[i];
+        const auto& b = polygon[(i + 1) % polygon.size()];
+        twice_area += static_cast<double>(a.x) * b.y - static_cast<double>(b.x) * a.y;
+    }
+    return std::abs(twice_area) / 2.0;
+}
+
+} // namespace
+
+double PrinterExcludedObjectsState::excluded_work_share() const {
+    if (defined_objects_.empty() || excluded_objects_.empty()) {
+        return 0.0;
+    }
+
+    double total_area = 0.0;
+    double excluded_area = 0.0;
+    size_t excluded_count = 0;
+    bool every_object_has_area = true;
+    for (const auto& name : defined_objects_) {
+        const bool excluded = excluded_objects_.count(name) > 0;
+        excluded_count += excluded ? 1 : 0;
+        const auto geo = object_geometry_.find(name);
+        const double area = geo == object_geometry_.end() ? 0.0 : polygon_area(geo->second.polygon);
+        if (area <= 0.0) {
+            every_object_has_area = false;
+            continue;
+        }
+        total_area += area;
+        excluded_area += excluded ? area : 0.0;
+    }
+
+    if (every_object_has_area) {
+        return excluded_area / total_area;
+    }
+    return static_cast<double>(excluded_count) / static_cast<double>(defined_objects_.size());
 }
 
 void PrinterExcludedObjectsState::clear_objects() {

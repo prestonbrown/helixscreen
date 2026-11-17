@@ -27,6 +27,10 @@ struct PrintEtaInputs {
     int slicer_estimate_s = 0;
     /// Predicted pre-print time still to run, while the job is still preparing.
     int preprint_remaining_s = 0;
+    /// Share of the job's work that excluded objects account for, 0 to 1.
+    /// The slicer's estimate and the file still include that work, but the
+    /// printer skips it.
+    double excluded_share = 0.0;
 };
 
 /**
@@ -55,8 +59,26 @@ class PrintEtaEstimator {
     /// estimate, weighted toward the slicer as progress approaches zero.
     static constexpr int kBlendBelowPct = 15;
 
+    /// Progress points after an exclusion over which the rate observed since
+    /// then takes over from the earlier rate scaled down by the excluded share.
+    static constexpr int kSettleAfterExclusionPct = 10;
+
+    /// Remaining seconds extrapolated from the observed print rate, with the
+    /// work of excluded objects taken out.
+    [[nodiscard]] double rate_remaining(const PrintEtaInputs& in) const;
+
+    /// Records where the excluded share last changed, so the rate before the
+    /// change and the rate after it can each be judged against the right work.
+    void note_excluded_share(const PrintEtaInputs& in);
+
     double smoothed_remaining_ = 0.0;
     bool has_smoothed_ = false;
+
+    double excluded_share_ = 0.0;
+    /// The share in force before the most recent change.
+    double prior_excluded_share_ = 0.0;
+    int anchor_progress_pct_ = 0;
+    int anchor_duration_s_ = 0;
 };
 
 } // namespace helix

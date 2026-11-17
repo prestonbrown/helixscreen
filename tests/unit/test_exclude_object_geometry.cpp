@@ -140,3 +140,44 @@ TEST_CASE("A status polygon with no usable point gives no bbox",
     CHECK_FALSE(geom->has_bbox);
     state.deinit_subjects();
 }
+
+namespace {
+
+std::vector<glm::vec2> square(float x, float y, float side) {
+    return {{x, y}, {x + side, y}, {x + side, y + side}, {x, y + side}};
+}
+
+} // namespace
+
+TEST_CASE("Excluded work share", "[exclude_object][geometry][eta]") {
+    PrinterExcludedObjectsState state;
+    state.init_subjects();
+
+    SECTION("nothing defined is nothing excluded") {
+        state.set_excluded_objects({"ghost"});
+        CHECK(state.excluded_work_share() == 0.0);
+    }
+
+    SECTION("outlines weight the share by footprint") {
+        // 100 mm2 beside 400 mm2: the small part is a fifth of the work, not half.
+        state.set_defined_objects_with_geometry({
+            PrinterExcludedObjectsState::make_object_info("small", std::nullopt, square(0, 0, 10)),
+            PrinterExcludedObjectsState::make_object_info("large", std::nullopt,
+                                                          square(50, 50, 20)),
+        });
+        state.set_excluded_objects({"small"});
+        CHECK(state.excluded_work_share() == Approx(0.2));
+    }
+
+    SECTION("one missing outline falls back to counting objects") {
+        state.set_defined_objects_with_geometry({
+            PrinterExcludedObjectsState::make_object_info("small", std::nullopt, square(0, 0, 10)),
+            PrinterExcludedObjectsState::make_object_info("large", std::nullopt,
+                                                          square(50, 50, 20)),
+            PrinterExcludedObjectsState::make_object_info("bare", std::nullopt, {}),
+            PrinterExcludedObjectsState::make_object_info("other", std::nullopt, {}),
+        });
+        state.set_excluded_objects({"small", "bare", "other"});
+        CHECK(state.excluded_work_share() == Approx(0.75));
+    }
+}
