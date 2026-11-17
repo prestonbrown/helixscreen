@@ -448,16 +448,15 @@ namespace helix::config_detail {
 ///        than sliding to whichever printer happens to sort first.
 /// @return the resolved printer id, or "" when the map holds no printer object.
 std::string find_active_printer_key(const json& config, const std::string& preferred) {
-    if (!config.contains("printers") || !config["printers"].is_object()) {
+    const json* printers_ptr = helix::json_util::find_object(config, "printers");
+    if (!printers_ptr) {
         return "";
     }
-    const json& printers = config["printers"];
+    const json& printers = *printers_ptr;
 
-    std::string active = preferred;
-    if (config.contains("active_printer_id") && config["active_printer_id"].is_string()) {
-        active = config["active_printer_id"].get<std::string>();
-    }
-    if (!active.empty() && printers.contains(active) && printers[active].is_object()) {
+    std::string active =
+        helix::json_util::read_field<std::string>(config, "active_printer_id").value_or(preferred);
+    if (!active.empty() && helix::json_util::find_object(printers, active.c_str())) {
         return active;
     }
 
@@ -607,7 +606,7 @@ static bool is_installer_seed_document(const json& config) {
     if (helix::json_util::safe_int(config, "config_version", 0) != 0) {
         return false;
     }
-    if (config.contains("printer") && config["printer"].is_object()) {
+    if (helix::json_util::find_object(config, "printer")) {
         return false;
     }
     const auto printers = config.find("printers");
@@ -1205,8 +1204,8 @@ bool Config::set_active_printer(const std::string& printer_id) {
 
 std::vector<std::string> Config::get_printer_ids() const {
     std::vector<std::string> ids;
-    if (data.contains("printers") && data["printers"].is_object()) {
-        for (auto& [key, val] : data["printers"].items()) {
+    if (const json* printers = helix::json_util::find_object(data, "printers")) {
+        for (auto& [key, val] : printers->items()) {
             if (!val.is_object())
                 continue;
             ids.push_back(key);
@@ -1347,8 +1346,8 @@ int64_t Config::next_archive_stamp() const {
     // too coarse to order two archives in the same second, and a device whose
     // clock steps backwards (no RTC until NTP lands — common on these boards)
     // would otherwise stamp a new entry older than the ones it must outlive.
-    if (data.contains("removed_printers") && data["removed_printers"].is_object()) {
-        for (const auto& [key, val] : data["removed_printers"].items()) {
+    if (const json* removed = helix::json_util::find_object(data, "removed_printers")) {
+        for (const auto& [key, val] : removed->items()) {
             const int64_t existing = helix::json_util::safe_int64(val, kArchivedAtKey, 0);
             if (existing >= stamp) {
                 stamp = existing + 1;
@@ -1687,12 +1686,13 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             return false;
         }
         const std::optional<json> preset_json = load_preset(preset_name, false);
-        if (!preset_json || !preset_json->contains("printer") ||
-            !(*preset_json)["printer"].is_object()) {
+        const json* preset_printer_ptr =
+            preset_json ? helix::json_util::find_object(*preset_json, "printer") : nullptr;
+        if (!preset_printer_ptr) {
             spdlog::info("[Config] Wizard completed, skipping preset '{}' merge", preset_name);
             return false;
         }
-        const auto& preset_printer = (*preset_json)["printer"];
+        const auto& preset_printer = *preset_printer_ptr;
         bool changed = false;
 
         // Migration 1: filament_sensors. Two cases:
@@ -1704,8 +1704,9 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         //     specific sensors. User-edited role=runout entries are never
         //     downgraded; role=none entries the preset also wants at none
         //     are left alone.
-        if (preset_printer.contains("filament_sensors")) {
-            const auto& preset_fs = preset_printer["filament_sensors"];
+        if (const json* preset_fs_ptr =
+                helix::json_util::find_member(preset_printer, "filament_sensors")) {
+            const auto& preset_fs = *preset_fs_ptr;
             json::json_pointer sensors_ptr(df() + "filament_sensors/sensors");
 
             if (!data.contains(sensors_ptr) ||
@@ -1719,10 +1720,11 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                              "(existing block was empty)",
                              preset_name);
                 changed = true;
-            } else if (preset_fs.contains("sensors") && preset_fs["sensors"].is_array() &&
-                       data.at(sensors_ptr).is_array()) {
+            } else if (const json* preset_sensors =
+                           helix::json_util::find_array(preset_fs, "sensors");
+                       preset_sensors && data.at(sensors_ptr).is_array()) {
                 auto& user_sensors = data.at(sensors_ptr);
-                for (const auto& preset_sensor : preset_fs["sensors"]) {
+                for (const auto& preset_sensor : *preset_sensors) {
                     if (!preset_sensor.is_object())
                         continue;
                     std::string preset_klipper =
@@ -1769,14 +1771,14 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         // user's own edit, or an already-migrated macro, never matches and is
         // left untouched. Idempotent: once migrated the stored text equals the
         // current text, not the stale one, so a second run finds nothing to do.
-        if (preset_printer.contains("default_macros") &&
-            preset_printer["default_macros"].is_object()) {
+        if (const json* preset_macros_ptr =
+                helix::json_util::find_object(preset_printer, "default_macros")) {
             auto stale_it = stale_default_macro_text().find(preset_name);
             json::json_pointer macros_ptr(df() + "default_macros");
             if (stale_it != stale_default_macro_text().end() && data.contains(macros_ptr) &&
                 data.at(macros_ptr).is_object()) {
                 auto& user_macros = data.at(macros_ptr);
-                const auto& preset_macros = preset_printer["default_macros"];
+                const auto& preset_macros = *preset_macros_ptr;
                 for (const auto& [macro_key, stale_text] : stale_it->second) {
                     if (!user_macros.contains(macro_key) || !user_macros[macro_key].is_string()) {
                         continue;
@@ -1784,11 +1786,12 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                     if (user_macros[macro_key].get<std::string>() != stale_text) {
                         continue;
                     }
-                    if (!preset_macros.contains(macro_key) ||
-                        !preset_macros[macro_key].is_string()) {
+                    auto preset_text =
+                        helix::json_util::read_field<std::string>(preset_macros, macro_key.c_str());
+                    if (!preset_text) {
                         continue;
                     }
-                    user_macros[macro_key] = preset_macros[macro_key].get<std::string>();
+                    user_macros[macro_key] = *preset_text;
                     changed = true;
                     spdlog::info(
                         "[Config] Migrated default_macros.{} from preset '{}' (stale text)",
@@ -1810,11 +1813,12 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                 printer_node = json::object();
             }
             for (const char* group : {"fans", "heaters", "temp_sensors"}) {
-                if (!preset_printer.contains(group) || !preset_printer[group].is_object() ||
+                const json* preset_group = helix::json_util::find_object(preset_printer, group);
+                if (!preset_group ||
                     (printer_node.contains(group) && !printer_node[group].is_object())) {
                     continue;
                 }
-                for (const auto& [key, val] : preset_printer[group].items()) {
+                for (const auto& [key, val] : preset_group->items()) {
                     if (!val.is_string() || val.get<std::string>().empty()) {
                         continue;
                     }
@@ -1835,9 +1839,9 @@ bool Config::apply_preset_file(const std::string& preset_name) {
         // expected_missing warning ("AMS/MMU system not detected"), so unioning one
         // could invent that warning; every other name only ever suppresses a false
         // "new hardware" report.
-        if (preset_printer.contains("hardware") && preset_printer["hardware"].is_object() &&
-            preset_printer["hardware"].contains("expected") &&
-            preset_printer["hardware"]["expected"].is_array()) {
+        const json* preset_expected =
+            helix::json_util::find_path(preset_printer, "hardware", "expected");
+        if (preset_expected && preset_expected->is_array()) {
             const char* why = nullptr;
             json* expected = node_for_write(data, df() + "hardware/expected", &why);
             if (expected == nullptr) {
@@ -1848,7 +1852,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                     *expected = json::array();
                 }
                 json& stored = *expected;
-                for (const auto& entry : preset_printer["hardware"]["expected"]) {
+                for (const auto& entry : *preset_expected) {
                     if (!entry.is_string()) {
                         continue;
                     }
@@ -1892,10 +1896,10 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     // "127.0.0.1", so merging them here clobbered the user's entered IP and made
     // HelixScreen connect to localhost on the next restart. Strip those keys so the
     // preset can never overwrite them.
-    if (preset_json.contains("printer") && preset_json["printer"].is_object() &&
-        !active_printer_id_.empty() &&
+    const json* preset_printer = helix::json_util::find_object(preset_json, "printer");
+    if (preset_printer && !active_printer_id_.empty() &&
         (!data.contains("printers") || data["printers"].is_object())) {
-        json patch = preset_json["printer"];
+        json patch = *preset_printer;
         patch.erase("moonraker_host");
         patch.erase("moonraker_port");
         patch.erase("moonraker_api_key");
@@ -1932,11 +1936,13 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     }
 
     // Deep-merge device-level display settings (preserves keys not in preset)
-    if (on_this_device && preset_json.contains("display") && preset_json["display"].is_object()) {
+    const json* preset_display =
+        on_this_device ? helix::json_util::find_object(preset_json, "display") : nullptr;
+    if (preset_display) {
         if (!data.contains("display") || !data["display"].is_object()) {
             data["display"] = json::object();
         }
-        data["display"].merge_patch(preset_json["display"]);
+        data["display"].merge_patch(*preset_display);
     }
 
     // Deep-merge device-level input settings (preserves keys not in preset).
@@ -1944,19 +1950,23 @@ bool Config::apply_preset_file(const std::string& preset_name) {
     // /input/calibration/*) — which is distinct from the
     // per-printer "printer.input" block above. Pre-wizard only (guarded by
     // wizard_completed), so it's safe to seed scaffolded defaults.
-    if (on_this_device && preset_json.contains("input") && preset_json["input"].is_object()) {
+    const json* preset_input =
+        on_this_device ? helix::json_util::find_object(preset_json, "input") : nullptr;
+    if (preset_input) {
         if (!data.contains("input") || !data["input"].is_object()) {
             data["input"] = json::object();
         }
-        data["input"].merge_patch(preset_json["input"]);
+        data["input"].merge_patch(*preset_input);
     }
 
     // A printer whose only speaker is its own beeper sounds through M300, which waits in
     // the same G-code queue as the print, so its preset can ship sound off. The host case
     // keeps its own audio. Pre-wizard only, like the blocks above: a user's choice stands.
-    if (on_this_device && preset_json.contains("sounds_enabled") &&
-        preset_json["sounds_enabled"].is_boolean()) {
-        data["sounds_enabled"] = preset_json["sounds_enabled"].get<bool>();
+    const auto preset_sounds =
+        on_this_device ? helix::json_util::read_field<bool>(preset_json, "sounds_enabled")
+                       : std::nullopt;
+    if (preset_sounds) {
+        data["sounds_enabled"] = *preset_sounds;
     }
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
