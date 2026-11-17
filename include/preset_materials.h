@@ -65,12 +65,20 @@ struct SlotTemps {
 /// out of range or its material is unknown.
 std::optional<SlotTemps> slot_temps(int slot);
 
-/// The bed target a material preset sends with its nozzle target: @p bed
-/// while "Material presets heat the bed" is on (per printer, the default),
-/// nullopt while it is off, when a preset leaves the bed alone. Every
-/// material preset asks this: the Filament panel's, the Home preheat tile's
-/// and the temperature graph's.
-std::optional<int> bed_target(int bed);
+/// The bed and chamber targets a material preset sends with its nozzle
+/// target, whole °C. nullopt means the preset leaves that heater alone.
+struct HeaterTargets {
+    std::optional<int> bed;
+    std::optional<int> chamber;
+};
+
+/// What a material preset sends besides the nozzle. While "Material presets
+/// heat the bed and chamber" is on (per printer, the default), @p bed, and
+/// @p chamber when it is above 0 (a material with a chamber temperature).
+/// Off, neither: the preset heats the nozzle alone. Every material preset
+/// asks this: the Filament panel's, the Home preheat tile's and the
+/// temperature graph's.
+HeaterTargets heater_targets(int bed, int chamber = 0);
 
 /// "220°C / 60°C" style summary for a slot (branded product temps when attached,
 /// otherwise the filament database recommendation). "---" if the material is unknown.

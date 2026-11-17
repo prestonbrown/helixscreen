@@ -173,7 +173,7 @@
   <translation tag="A lower, B upper" fr="A en bas, B en haut"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" fr="Une macro a émis du texte de modèle parasite &apos;{}&apos; : vérifiez ses balises Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." fr="Une macro qui nettoie la buse. HelixScreen peut l&apos;exécuter avant une impression depuis les options de pré-impression."/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" fr="Un préréglage de matériau règle la température du plateau en même temps que la buse. Un matériau dont la macro de préchauffage gère la chauffe est réglé par cette macro"/>
+  <translation tag="A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets" fr="Un préréglage de matériau règle le plateau et l&apos;enceinte en même temps que la buse ; désactivé, il ne chauffe que la buse. Une macro de préchauffage qui gère la chauffe règle elle-même les éléments chauffants qu&apos;elle choisit"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" fr="Une broche d&apos;E/S moteur n&apos;a pas pu être restaurée. Éteignez et rallumez l&apos;imprimante pour récupérer"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" fr="Les paramètres d&apos;un moteur n&apos;ont pas pu être écrits. Éteignez et rallumez l&apos;imprimante pour réessayer"/>
   <translation tag="A new Print Status screen" fr="Un nouvel écran d&apos;état de l&apos;impression"/>
@@ -2195,7 +2195,7 @@
   <translation tag="Material Comfort:" fr="Confort du matériau :"/>
   <translation tag="Material Mismatch" fr="Matériau incompatible"/>
   <translation tag="Material Temperatures" fr="Températures des matériaux"/>
-  <translation tag="Material presets heat the bed" fr="Les préréglages de matériau chauffent le plateau"/>
+  <translation tag="Material presets heat the bed and chamber" fr="Les préréglages de matériau chauffent le plateau et l&apos;enceinte"/>
   <translation tag="Max" fr="Max"/>
   <translation tag="Max Accel" fr="Accél. max"/>
   <translation tag="Max Acceleration" fr="Accélération max"/>

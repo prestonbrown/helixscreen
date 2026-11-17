@@ -87,7 +87,7 @@ class PreheatWidget : public PanelWidget {
     void update_tool_target_label();
     void set_temperatures(int nozzle, int bed);
     void set_temperatures_multi(int nozzle, int bed);
-    /// Send @p bed when material presets heat the bed (presets::bed_target());
+    /// Send @p bed when material presets heat the bed (presets::heater_targets());
     /// whether it went out.
     bool send_bed(int bed);
     void cycle_tool_target();

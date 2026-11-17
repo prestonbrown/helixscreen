@@ -141,9 +141,10 @@ void PrintingSettingsOverlay::register_callbacks() {
                  PostOpCooldownManager::instance().cancel();
              }
          }},
-        {"on_material_presets_heat_bed_changed",
+        {"on_material_presets_heat_bed_and_chamber_changed",
          [](lv_event_t* e) {
-             SettingsManager::instance().set_material_presets_heat_bed(event_checked(e));
+             SettingsManager::instance().set_material_presets_heat_bed_and_chamber(
+                 event_checked(e));
          }},
         {"on_tool_change_confirm_changed",
          [](lv_event_t* e) {

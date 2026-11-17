@@ -171,8 +171,8 @@ translations:
   A lower, B upper: "A下・B上"
   "A macro printed stray template text '{}': check its Jinja tags": "マクロが不要なテンプレート文字列 '{}' を出力しました: Jinja タグを確認してください"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。'
-  ? A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead
-  : '材料プリセットはノズルとともにベッド温度も設定します。予熱マクロが加熱を行う材料は、そのマクロが設定します'
+  ? A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets
+  : 材料プリセットはノズルとともにベッドとチャンバーも設定します。オフにするとノズルのみを加熱します。加熱を行う予熱マクロは、設定するヒーターを自分で決めます
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください
   A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
   "A new Print Status screen": "新しい印刷ステータス画面"
@@ -2277,7 +2277,7 @@ translations:
   'Material Comfort:': '素材の適合度:'
   Material Mismatch: 素材の不一致
   Material Temperatures: 素材温度
-  Material presets heat the bed: '材料プリセットでベッドも加熱'
+  Material presets heat the bed and chamber: 材料プリセットでベッドとチャンバーも加熱
   Max: 最大
   Max Accel: 最大加速
   Max Acceleration: 最大加速度

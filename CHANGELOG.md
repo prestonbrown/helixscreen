@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Material presets heat the bed** - a material preset now sets the bed along with the nozzle on every screen: the Filament panel, the Home screen's Preheat widget and the nozzle presets on the temperature graph. To have presets heat only the nozzle, turn off Settings > Printing > Material presets heat the bed. Each printer keeps its own setting, and with it off the bed keeps the target it had.
+- **Material presets heat the bed and chamber** - a material preset now sets the bed along with the nozzle on every screen: the Filament panel, the Home screen's Preheat widget and the nozzle presets on the temperature graph. The Filament panel's presets also set the chamber when the material has a chamber temperature. With Settings > Printing > Material presets heat the bed and chamber turned off, a preset heats only the nozzle, and the bed and the chamber keep the targets they had. Each printer keeps its own setting.
 - **Readable panels on ultrawide screens** - on a screen much wider than it is tall, such as 1480x320 or 1920x440, panels and overlays stop at 2.4 times the screen height and stay next to the navigation bar, so a settings list or the jog pad is no longer stretched across the whole display. The home screen, print file list, Print Status, bed mesh and the AMS screens still use the full width. Screens such as 800x480, 1024x600 and portrait panels look the same as before.
 
 ### Changed

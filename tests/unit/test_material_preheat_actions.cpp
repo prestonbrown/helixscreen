@@ -201,8 +201,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material presets heat the bed only while th
     MaterialSettingsScope settings;
     auto& sm = helix::SettingsManager::instance();
     sm.init_subjects();
-    const bool saved = sm.get_material_presets_heat_bed();
-    sm.set_material_presets_heat_bed(heat_bed);
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed);
     Harness h;
     discover_macros(h);
     helix_test::ScopedSharedResource<helix::TemperatureController> controller(
@@ -216,7 +216,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Material presets heat the bed only while th
     // is left as it is, never turned off.
     const Scripts nozzle_only{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250"};
     CHECK(h.client.gcode_script_history() == (heat_bed ? kAbsTargets : nozzle_only));
-    sm.set_material_presets_heat_bed(saved);
+    sm.set_material_presets_heat_bed_and_chamber(saved);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -332,13 +332,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                   "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45", "HEAT_ABS"});
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "A preset that leaves the bed alone still sets its chamber",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Material presets heat the bed and chamber only while the setting is on",
                  "[material_preheat][preheat][chamber][preset_bed]") {
+    const bool heat_bed_and_chamber = GENERATE(true, false);
+    CAPTURE(heat_bed_and_chamber);
     MaterialSettingsScope settings;
     auto& sm = helix::SettingsManager::instance();
     sm.init_subjects();
-    const bool saved = sm.get_material_presets_heat_bed();
-    sm.set_material_presets_heat_bed(false);
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed_and_chamber);
     Harness h;
     discover_macros(h);
     helix_test::ScopedSharedResource<helix::TemperatureController> controller(
@@ -351,11 +354,41 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A preset that leaves the bed alone still se
 
     PanelAccess::handle_preset_button(*h.panel, 2);
 
-    // "Material presets heat the bed" is about the bed alone.
+    // ABS asks for a 45°C chamber. Off, the nozzle alone: the bed and the
+    // chamber keep the targets they had.
+    const Scripts all_three{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
+                            "SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=105",
+                            "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45"};
+    const Scripts nozzle_only{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250"};
+    CHECK(h.client.gcode_script_history() == (heat_bed_and_chamber ? all_three : nozzle_only));
+    sm.set_material_presets_heat_bed_and_chamber(saved);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Home preheat on several tools heats only the nozzles while presets leave the bed",
+                 "[material_preheat][preheat][panel_widget][preset_bed]") {
+    MaterialSettingsScope settings;
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    sm.set_material_presets_heat_bed_and_chamber(false);
+    Harness h;
+    discover_macros(h);
+    h.use_two_extruders();
+    REQUIRE(ToolState::instance().has_multiple_extruders());
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override("ABS", abs_override(std::nullopt));
+    helix::PreheatWidget widget(h.state);
+    widget.set_config({{"material_index", 2}});
+    WidgetAccess::set_tool_target(widget, -1);
+
+    WidgetAccess::handle_apply(widget);
+
     CHECK(h.client.gcode_script_history() ==
           Scripts{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
-                  "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45"});
-    sm.set_material_presets_heat_bed(saved);
+                  "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=250"});
+    sm.set_material_presets_heat_bed_and_chamber(saved);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

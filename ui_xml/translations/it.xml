@@ -167,7 +167,7 @@
   <translation tag="A lower, B upper" it="A sotto, B sopra"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" it="Una macro ha stampato testo di template spurio &apos;{}&apos;: controlla i suoi tag Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." it="Una macro che pulisce l&apos;ugello. HelixScreen può eseguirla prima di una stampa dalle opzioni di pre-stampa."/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" it="Un preset materiale imposta la temperatura del piatto insieme all&apos;ugello. Un materiale la cui macro di preriscaldamento gestisce il riscaldamento è impostato da quella macro"/>
+  <translation tag="A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets" it="Un preset materiale imposta piatto e camera insieme all&apos;ugello; se disattivato, scalda solo l&apos;ugello. Una macro di preriscaldamento che gestisce il riscaldamento imposta da sé i riscaldatori che sceglie"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" it="Impossibile ripristinare un pin IO del motore. Spegnere e riaccendere la stampante per ripristinare"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" it="Impossibile scrivere i parametri di un motore. Spegnere e riaccendere la stampante e riprovare"/>
   <translation tag="A new Print Status screen" it="Una nuova schermata Stato stampa"/>
@@ -2189,7 +2189,7 @@
   <translation tag="Material Comfort:" it="Comfort del materiale:"/>
   <translation tag="Material Mismatch" it="Materiale non corrispondente"/>
   <translation tag="Material Temperatures" it="Temperature materiali"/>
-  <translation tag="Material presets heat the bed" it="I preset materiale scaldano il piatto"/>
+  <translation tag="Material presets heat the bed and chamber" it="I preset materiale scaldano piatto e camera"/>
   <translation tag="Max" it="Max"/>
   <translation tag="Max Accel" it="Accel. max"/>
   <translation tag="Max Acceleration" it="Accelerazione massima"/>

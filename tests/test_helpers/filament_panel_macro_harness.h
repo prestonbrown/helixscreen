@@ -67,6 +67,9 @@ struct FilamentPanelMacroHarness {
         nlohmann::json objects = {"extruder", "gcode_macro LOAD_FILAMENT",
                                   "gcode_macro UNLOAD_FILAMENT", "gcode_macro PURGE"};
         hardware.parse_objects(objects);
+        // ToolState is process-wide: a case that called use_two_extruders()
+        // leaves two tools behind unless every harness starts from one.
+        ToolState::instance().init_tools(hardware);
         StandardMacros::instance().reset();
         StandardMacros::instance().init(hardware);
 
