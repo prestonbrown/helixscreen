@@ -1,0 +1,13 @@
+{
+  "version": "99.0.0",
+  "tag": "v99.0.0",
+  "notes": "Signed test manifest",
+  "published_at": "2026-11-17T12:00:00Z",
+  "assets": {
+    "pi": {
+      "zip_url": "https://releases.helixscreen.org/dev/helixscreen-pi.zip",
+      "zip_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "zip_size": 8123456
+    }
+  }
+}

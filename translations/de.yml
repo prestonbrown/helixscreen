@@ -1470,6 +1470,7 @@ translations:
   'Error: Not enough disk space': 'Fehler: Nicht genügend Speicherplatz'
   'Error: Previous download still finishing': 'Fehler: Vorheriger Download läuft noch'
   "Error: This install can't update itself": 'Fehler: Diese Installation kann sich nicht selbst aktualisieren'
+  "Error: Update can't be verified": ''
   'Error: Verification failed': 'Fehler: Überprüfung fehlgeschlagen'
   'Error: Wrong architecture': 'Fehler: Falsche Architektur'
   'Error: `unzip` not installed': 'Fehler: `unzip` nicht installiert'

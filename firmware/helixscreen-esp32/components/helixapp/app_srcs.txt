@@ -38,7 +38,7 @@
 #   binary assets now, not compiled here). Do not trust a running total — count
 #   what CMake actually reads:
 #       grep -cE '^[^#].*\.(cpp|c)$' app_srcs.txt
-#   Today that is 443 src/ + 3 lib/ = 446 source files.
+#   Today that is 835 src/ + 5 lib/ = 840 source files.
 #
 # EXCLUDED, and why (NOT in the list below):
 #   Moonraker transport/HTTP:
@@ -79,6 +79,8 @@
 lib/lv_markdown/deps/md4c/md4c.c
 lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
+lib/monocypher/monocypher.c
+lib/monocypher/monocypher-ed25519.c
 src/abort/abort_manager.cpp
 src/application/asset_manager.cpp
 src/core/data_root_resolver.cpp
@@ -388,6 +390,7 @@ src/system/runtime_config.cpp
 src/system/remote_screen_settings_manager.cpp
 src/system/safety_settings_manager.cpp
 src/system/settings_manager.cpp
+src/system/release_signature.cpp
 src/system/sha256_util.cpp
 src/system/simulated_clock.cpp
 src/system/sound_manager.cpp

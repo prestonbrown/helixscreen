@@ -1322,6 +1322,7 @@
   <translation tag="Error: Not enough disk space" de="Fehler: Nicht genügend Speicherplatz"/>
   <translation tag="Error: Previous download still finishing" de="Fehler: Vorheriger Download läuft noch"/>
   <translation tag="Error: This install can&apos;t update itself" de="Fehler: Diese Installation kann sich nicht selbst aktualisieren"/>
+  <translation tag="Error: Update can&apos;t be verified"/>
   <translation tag="Error: Verification failed" de="Fehler: Überprüfung fehlgeschlagen"/>
   <translation tag="Error: Wrong architecture" de="Fehler: Falsche Architektur"/>
   <translation tag="Error: `unzip` not installed" de="Fehler: `unzip` nicht installiert"/>

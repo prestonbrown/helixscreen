@@ -36,6 +36,9 @@ class UpdateCheckerTestAccess {
         info.download_url =
             download_url.empty() ? "https://invalid.test/helixscreen-pi.zip" : download_url;
         info.download_bytes = 1024;
+        // As a signed manifest delivers it: start_download() refuses anything else.
+        info.sha256 = std::string(64, '0');
+        info.signature_verified = true;
         c.cached_info_ = std::move(info);
         c.status_ = UpdateChecker::Status::UpdateAvailable;
     }

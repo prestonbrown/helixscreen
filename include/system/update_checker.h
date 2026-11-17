@@ -31,6 +31,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -113,6 +114,9 @@ class UpdateChecker {
         /// channel back to a slower one. Offered explicitly and confirmed, never
         /// auto-notified.
         bool is_downgrade = false;
+        /// True only when the manifest this came from carried a minisign signature that
+        /// verified against the release key. Nothing unverified is ever downloaded.
+        bool signature_verified = false;
     };
 
     /**
@@ -735,8 +739,20 @@ class UpdateChecker {
     bool fetch_beta_release(ReleaseInfo& info, std::string& error);
     bool fetch_dev_release(ReleaseInfo& info, std::string& error);
 
+    /// How fetching a channel manifest ended. Unreachable lets stable and beta fall back to
+    /// GitHub, whose answer can announce a release but never install one (it carries no
+    /// signature); Refused does not: a manifest whose signature fails is reported, not
+    /// papered over with an unverifiable source.
+    enum class ManifestFetch { Ok, Unreachable, Refused };
+
     // R2 CDN fetch (used as primary source before GitHub fallback)
-    bool fetch_r2_manifest(const std::string& channel, ReleaseInfo& info, std::string& error);
+    ManifestFetch fetch_r2_manifest(const std::string& channel, ReleaseInfo& info,
+                                    std::string& error);
+
+    /// GETs @p manifest_url and `<manifest_url>.minisig` and parses the manifest only when
+    /// the signature verifies against cached_release_pubkey_.
+    ManifestFetch fetch_verified_manifest(const std::string& manifest_url, ReleaseInfo& info,
+                                          std::string& error);
     std::string get_r2_base_url() const;
 
     /**
@@ -806,6 +822,9 @@ class UpdateChecker {
     UpdateChannel cached_channel_{UpdateChannel::Stable};
     std::string cached_dev_url_;
     std::string cached_r2_base_url_;
+    /// The key channel manifests must verify against: the compiled-in release key unless
+    /// update_urls.json names another.
+    std::string cached_release_pubkey_;
 
     // Diagnostics-only mirror of the two Config-derived values above, deliberately
     // SEPARATE from cached_* so it can be refreshed at any time on the main thread
@@ -966,6 +985,25 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
  */
 bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                             std::string& error, const std::vector<std::string>& asset_keys);
+
+/**
+ * @brief parse_release_manifest() only after the manifest's minisign signature verifies
+ *
+ * @p sig_status and @p sig_body are the HTTP result of fetching `<manifest URL>.minisig`.
+ * A missing signature, one by another key, a legacy (not prehashed) one, or a manifest
+ * changed after signing fails with @p error set and @p info untouched. On success
+ * info.signature_verified is true. docs/devel/RELEASE_SIGNING.md.
+ *
+ * @param public_key Base64 minisign key line the signature must verify against
+ */
+bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
+                                   const std::string& sig_body, std::string_view public_key,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys);
+
+/// Whether @p info may be downloaded and installed: it came from a manifest whose signature
+/// verified and carries the SHA-256 the download is checked against.
+bool release_is_verified(const UpdateChecker::ReleaseInfo& info);
 
 /// True when @p info carries a download under one of @p asset_keys, or the build has
 /// no asset keys at all (an Android APK updates outside the release assets). A release

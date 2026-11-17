@@ -72,7 +72,7 @@ PY
     [ "$status" -eq 0 ] || fail "$output"
 }
 
-@test "the release key reaches only the signing step, and only in a release" {
+@test "the release key reaches only the signing step, only in a release, behind its environment" {
     run python3 - "$YML" <<'PY'
 import re, sys, yaml
 jobs = yaml.safe_load(open(sys.argv[1]))["jobs"]
@@ -96,6 +96,11 @@ for jname, job in jobs.items():
             bad.append(f"{where}: run text reads the release key")
 if "HELIX_RELEASE_MINISIGN_KEY" not in seen:
     bad.append("no step is given HELIX_RELEASE_MINISIGN_KEY")
+# The key is an environment secret: a release reads it only after a reviewer approves
+# release-signing; a dry run takes no environment.
+env = jobs["upload-r2"].get("environment")
+if env != "${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}":
+    bad.append(f"upload-r2 is not gated on the release-signing environment: {env}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"

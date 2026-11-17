@@ -171,4 +171,5 @@ target_include_directories(${COMPONENT_LIB} SYSTEM PRIVATE
     ${REPO_ROOT}/lib/lvgl/src
     ${REPO_ROOT}/lib/stb
     ${REPO_ROOT}/lib/lv_markdown/src
-    ${REPO_ROOT}/lib/lv_markdown/deps/md4c)
+    ${REPO_ROOT}/lib/lv_markdown/deps/md4c
+    ${REPO_ROOT}/lib/monocypher)

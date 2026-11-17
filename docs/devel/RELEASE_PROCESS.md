@@ -113,22 +113,12 @@ A dry run creates no GitHub release and sends nothing to Play, Discord or the we
 
 ### Signed channel manifests
 
-Every channel's `manifest.json` is published with a prehashed minisign signature beside it, `<channel>/manifest.json.minisig` in R2 (#1834). The easy installer checks it against the release key compiled into it before it trusts any hash in the manifest, and refuses a missing or failing signature. The `upload-r2` job's "Generate and sign channel manifests" step runs `scripts/sign-release-manifest.sh` before anything uploads; the upload puts each signature up before its manifest and checks that R2 serves it unchanged.
+Every channel's `manifest.json` is published with a prehashed minisign signature beside it, `<channel>/manifest.json.minisig` in R2 (#1834). The easy installer and HelixScreen's own update checker check it against the release key compiled into them before they trust any hash in the manifest, and refuse a missing or failing signature. The `upload-r2` job's "Generate and sign channel manifests" step runs `scripts/sign-release-manifest.sh` before anything uploads; the upload puts each signature up before its manifest and checks that R2 serves it unchanged.
 
-- **A release** signs with the `HELIX_RELEASE_MINISIGN_KEY` repository secret (the text of the minisign `.key` file; its password in `HELIX_RELEASE_MINISIGN_PASSWORD`) and verifies the result against `.github/release-minisign.pub`, the same public key the installer compiles in. A missing secret, a placeholder `.pub` or a secret that is not that key's pair fails the release before any manifest goes live.
-- **A dry run** never reads the secret. It signs with a key generated in the job, so the whole signing path runs on any ref, and nothing a dry run leaves in R2 verifies against the release key. `dry-run-verify` checks that each channel's signature reached R2.
+- **A release** waits for a reviewer to approve the `release-signing` environment, which holds the `HELIX_RELEASE_MINISIGN_KEY` secret (the text of the minisign `.key` file; its password in `HELIX_RELEASE_MINISIGN_PASSWORD`). It verifies the result against `.github/release-minisign.pub`, the same public key the clients compile in. A missing secret, a placeholder `.pub` or a secret that is not that key's pair fails the release before any manifest goes live.
+- **A dry run** uses no environment and never reads the secret. It signs with a key generated in the job, so the whole signing path runs on any ref, and nothing a dry run leaves in R2 verifies against the release key. `dry-run-verify` checks that each channel's signature reached R2.
 
-Setting it up (once, on an offline machine; the key is permanent once installers compile it in, so back it up):
-
-```bash
-minisign -G -p helixscreen-release.pub -s helixscreen-release.key   # choose a strong password
-R=prestonbrown/helixscreen
-gh secret set HELIX_RELEASE_MINISIGN_KEY -R $R < helixscreen-release.key
-gh secret set HELIX_RELEASE_MINISIGN_PASSWORD -R $R                  # prompts for the password
-cp helixscreen-release.pub .github/release-minisign.pub             # commit, on main and every release/* branch that tags
-```
-
-Then, once both `stable/manifest.json.minisig` and `beta/manifest.json.minisig` are served, paste the second line of `helixscreen-release.pub` (the key starting `RW`) into `RELEASE_PUBKEY` in helix-installer's `crates/core/src/keys.rs` ([its SIGNING.md](https://github.com/prestonbrown/helix-installer/blob/main/docs/SIGNING.md), "HelixScreen release lists"). Until then the installer reads release lists unsigned.
+Setup (the environment, the exact `gh secret set` commands), what each client checks, the ESP32 and `install.sh` status and the rollout order: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
 
 ### Pipeline Stages
 

@@ -1377,6 +1377,7 @@ translations:
   'Error: Not enough disk space': ''
   'Error: Previous download still finishing': ''
   "Error: This install can't update itself": ""
+  "Error: Update can't be verified": ''
   'Error: Verification failed': ''
   'Error: Wrong architecture': ''
   'Error: `unzip` not installed': ''
