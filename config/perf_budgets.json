@@ -35,12 +35,13 @@
     {
       "name": "ad5m",
       "ssh": "root@192.168.1.67",
+      "chroot": "/data/.mod/.forge-x",
       "binary": "/opt/config/mod_data/helixscreen/bin/helix-screen",
-      "service_stop": "",
-      "service_start": "",
+      "service_stop": "chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop",
+      "service_start": "chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen start",
       "extra_flags": "",
       "idle_budget_pct": 10,
-      "note": "Cortex-A7 with NEON, 110 MB - the tightest box in the fleet on memory. Klipper Mod install with no init script, so service_stop/start are unknown and it is measured idle only until its supervisor is identified. Finding that is the one thing that would complete this gate's coverage."
+      "note": "Cortex-A7 with NEON, 110 MB and about 50 MB available - the tightest box in the fleet on memory. Forge-X runs the app inside its chroot, so the row names it and the binary path is the one inside the root. The root fs is over 80 percent full: stage test builds under /data. Release binaries have no mock; a mock-enabled ad5m build needs ENABLE_MOCKS=yes."
     },
     {
       "name": "cc1",

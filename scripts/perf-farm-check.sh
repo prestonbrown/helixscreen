@@ -60,6 +60,10 @@
 #   whatever is on screen. The whole run must fit inside the device's dim timeout.
 # * Percent of one core is (delta_jiffies / HZ) / window * 100. A jiffie delta is
 #   NOT a percentage unless the window is exactly one second.
+# * A device row may name a "chroot": the root the service runs the app under.
+#   Then binary and every path the app sees are paths inside that root, the app
+#   is launched with `chroot <root>`, and its config and work dirs live in the
+#   root's /tmp. Paths the host reads directly are prefixed with the root.
 
 set -uo pipefail
 
@@ -86,6 +90,11 @@ command -v jq >/dev/null || { echo "${RED}jq is required${RESET}" >&2; exit 2; }
 read -r -d '' REMOTE <<'REMOTE_EOF'
 set -u
 BIN="$1"; FLAGS="$2"; STOP="$3"; START="$4"; SETTLE="$5"; WINDOW="$6"; SAMPLES="$7"; IDLE_ONLY="$8"
+CHROOT="${9:-}"
+# Unquoted as a command prefix, so a backgrounded launch execs straight into the app
+# and $! is the app's own PID, not a wrapper's.
+INROOT=""
+[ -n "$CHROOT" ] && INROOT="chroot $CHROOT"
 
 say() { echo "RESULT $*"; }
 find_pid() { ps w 2>/dev/null | grep '[h]elix-screen' | grep -v watchdog | grep -v ' ctl ' \
@@ -120,16 +129,18 @@ refuse_unless_idle
 
 # Does this build carry the mock? CC1 ships without it and cannot do the print phase.
 HAS_MOCK=0
-strings -a "$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
-echo "VERSION $("$BIN" --version 2>/dev/null | head -n 1)"
+strings -a "$CHROOT$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
+echo "VERSION $($INROOT "$BIN" --version 2>/dev/null | head -n 1)"
 
+# WORK is the path the app sees; HWORK is the same directory as the host sees it.
 WORK=/tmp/.hsperf
-rm -rf "$WORK"; mkdir -p "$WORK/gc" "$WORK/cfg"
+HWORK="$CHROOT$WORK"
+rm -rf "$HWORK"; mkdir -p "$HWORK/gc" "$HWORK/cfg"
 MYPID=""
 
 restore() {
     [ -n "$MYPID" ] && { kill "$MYPID" 2>/dev/null; sleep 3; kill -9 "$MYPID" 2>/dev/null; }
-    rm -rf "$WORK"
+    rm -rf "$HWORK"
     sh -c "$START" >/dev/null 2>&1
     sleep 4
     if [ -n "$(find_pid)" ]; then echo "RESTORED ok"; else echo "RESTORED FAILED"; fi
@@ -143,13 +154,15 @@ sleep 5
 # One sample = SAMPLES windows against a freshly launched instance.
 measure() {
     _extra="$1"; _anim="$2"; _auto="${3:-0}"
-    rm -rf "$WORK/cfg"; mkdir -p "$WORK/cfg"
-    cp "$(dirname "$(dirname "$BIN")")/config/settings.json" "$WORK/cfg/settings-test.json" 2>/dev/null
-    [ -f "$WORK/cfg/settings-test.json" ] || return 1
-    sed -i "s/\"animations_enabled\"[[:space:]]*:[[:space:]]*[a-z]*/\"animations_enabled\": $_anim/" "$WORK/cfg/settings-test.json"
+    rm -rf "$HWORK/cfg"; mkdir -p "$HWORK/cfg"
+    # Copied inside the root: an install's settings.json may be a symlink that only
+    # resolves there.
+    $INROOT cp "$(dirname "$(dirname "$BIN")")/config/settings.json" "$WORK/cfg/settings-test.json" 2>/dev/null
+    [ -f "$HWORK/cfg/settings-test.json" ] || return 1
+    sed -i "s/\"animations_enabled\"[[:space:]]*:[[:space:]]*[a-z]*/\"animations_enabled\": $_anim/" "$HWORK/cfg/settings-test.json"
     # shellcheck disable=SC2086
     HELIX_CONFIG_DIR="$WORK/cfg" HELIX_MOCK_AUTO_PRINT="$_auto" \
-        $BIN --test $FLAGS $_extra \
+        $INROOT $BIN --test $FLAGS $_extra \
         --log-level=warn --log-dest=file --log-file="$WORK/run.log" >/dev/null 2>&1 &
     MYPID=$!
     sleep "$SETTLE"
@@ -179,10 +192,11 @@ fi
 # First match in this order: the printer's own files, then the install's test gcode.
 # ls sorts its operands, so the order is kept by testing each candidate in turn.
 GC=""
-for _gc in /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
-        /usr/data/printer_data/gcodes/**/*.gcode /usr/data/gcodes/*.gcode \
-        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
-    [ -f "$_gc" ] && { GC="$_gc"; break; }
+for _gc in "$CHROOT"/usr/data/printer_data/gcodes/*.gcode "$CHROOT"/mnt/UDISK/printer_data/gcodes/*.gcode \
+        "$CHROOT"/usr/data/printer_data/gcodes/**/*.gcode "$CHROOT"/usr/data/gcodes/*.gcode \
+        "$CHROOT"/root/printer_data/gcodes/*.gcode \
+        "$CHROOT$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
+    [ -f "$_gc" ] && { GC="${_gc#"$CHROOT"}"; break; }
 done
 if [ -z "$GC" ]; then
     say "MEASURED hz=$HZ idle=$IDLE print= printoff= (no gcode on device for the print phase)"
@@ -190,7 +204,7 @@ if [ -z "$GC" ]; then
 fi
 LONG="$WORK/gc/Delta_filament_barrel_base_Hyper_PLA_49m_overflowing_name.gcode"
 # A link, not a copy: /tmp is RAM, and a large gcode copied there squeezes a small board.
-ln -s "$GC" "$LONG" 2>/dev/null || cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
+ln -s "$GC" "$CHROOT$LONG" 2>/dev/null || cp "$CHROOT$GC" "$CHROOT$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
 
 refuse_unless_idle
 PRINT=$(measure "--sim-speed 3 --gcode-file $LONG" true 1)  || PRINT=""
@@ -243,6 +257,7 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     stop=$(jq -r  ".devices[$i].service_stop // \"\"" "$BUDGETS")
     start=$(jq -r ".devices[$i].service_start // \"\"" "$BUDGETS")
     flags=$(jq -r ".devices[$i].extra_flags // \"\"" "$BUDGETS")
+    croot=$(jq -r ".devices[$i].chroot // \"\"" "$BUDGETS")
     b_idle=$(jq -r ".devices[$i].idle_budget_pct" "$BUDGETS")
     b_print=$(jq -r ".devices[$i].print_budget_pct // empty" "$BUDGETS")
     b_poff=$(jq -r  ".devices[$i].print_anim_off_budget_pct // empty" "$BUDGETS")
@@ -260,7 +275,7 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     fi
 
     out=$("${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" \
-          "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY" \
+          "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY '$croot'" \
           <<<"$REMOTE" 2>/dev/null)
     res=$(grep '^RESULT ' <<<"$out" | head -n 1 | sed 's/^RESULT //')
     restored=$(grep '^RESTORED ' <<<"$out" | head -n 1 | sed 's/^RESTORED //')
