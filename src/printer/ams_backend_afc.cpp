@@ -4026,12 +4026,16 @@ bool AmsBackendAfc::apply_gcode_help_response(const nlohmann::json& response) {
     if (!has_toolhead_cal) {
         return false;
     }
+    // A LANE-keyed mux command, which Klipper lists once under the bare name.
+    const bool has_spool_temp = gcode_help_lists(response, "AFC_SET_SPOOL_TEMP").value_or(false);
     {
         std::lock_guard<std::mutex> lock(mutex_);
         has_toolhead_calibration_ = *has_toolhead_cal;
+        has_spool_temp_command_ = has_spool_temp;
     }
-    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}",
-                  *has_toolhead_cal ? "available" : "not registered");
+    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}, AFC_SET_SPOOL_TEMP {}",
+                  *has_toolhead_cal ? "available" : "not registered",
+                  has_spool_temp ? "available" : "not registered");
     return true;
 }
 
@@ -6082,6 +6086,26 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
             // Weight (if valid)
             if (info.remaining_weight_g > 0) {
                 execute_gcode(set_weight_command(lane_name, info.remaining_weight_g));
+            }
+
+            // The unlink above runs AFC's clear_values(), which also wipes the
+            // lane's temperatures (unless it remembers its spool), so the ones the
+            // edit keeps go back. AFC holds one nozzle temperature: the middle of
+            // the slot's range, which is what the UI preheats to.
+            if (info.spoolman_id == 0 && old_spoolman_id > 0 && has_spool_temp_command_) {
+                const int extruder = info.nozzle_temp_min > 0 && info.nozzle_temp_max > 0
+                                         ? (info.nozzle_temp_min + info.nozzle_temp_max) / 2
+                                         : std::max(info.nozzle_temp_min, info.nozzle_temp_max);
+                std::string temps;
+                if (extruder > 0) {
+                    temps += " EXTRUDER_TEMP=" + std::to_string(extruder);
+                }
+                if (info.bed_temp > 0) {
+                    temps += " BED_TEMP=" + std::to_string(info.bed_temp);
+                }
+                if (!temps.empty()) {
+                    execute_gcode("AFC_SET_SPOOL_TEMP LANE=" + lane_name + temps);
+                }
             }
 
             // Tool mapping (lane → tool number) via SET_MAP.

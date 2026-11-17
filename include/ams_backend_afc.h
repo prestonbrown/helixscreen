@@ -186,6 +186,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// alive; the destructor cannot, since the client may already be gone.
     void on_stopping() override;
 
+    /**
+     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
+     *
+     * Sets the command-presence flags the device actions and lane edits read.
+     *
+     * @return true when the reply carried a command table
+     */
+    bool apply_gcode_help_response(const nlohmann::json& response);
+
   public:
     /**
      * @brief Bare filament-sensor names AFC owns (no AMS keyword).
@@ -990,15 +999,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// action backed by one learns whether the installed AFC has it.
     void detect_afc_commands();
 
-    /**
-     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
-     *
-     * Sets the command-presence flags the device actions read.
-     *
-     * @return true when the reply carried a command table
-     */
-    bool apply_gcode_help_response(const nlohmann::json& response);
-
     /// Issue the one-shot unscoped query that check_afc_feature_level() needs.
     /// @param lane_object Full Klipper object name, e.g. "AFC_stepper lane1".
     void probe_feature_level(const std::string& lane_object);
@@ -1268,6 +1268,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     /// AFC_TOOLHEAD_CALIBRATION is registered (from printer.gcode.help). Guarded by mutex_.
     bool has_toolhead_calibration_{false};
+    /// AFC_SET_SPOOL_TEMP is registered (AFC v1.2.0): an unlink can put the lane's
+    /// temperatures back. Guarded by mutex_.
+    bool has_spool_temp_command_{false};
 
     /// "AFC_stepper " or "AFC_lane ", learned from the first status frame that
     /// carries a lane. Only the prefix is learnable from a frame; the fields are
