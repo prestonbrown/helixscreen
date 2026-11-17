@@ -772,3 +772,15 @@ TEST_CASE("decide_completion_alert follows the alert mode away from print status
         }
     }
 }
+
+TEST_CASE("only a print error the firmware leaves to the app turns the heaters off",
+          "[print_completion][completion_alert]") {
+    using helix::should_turn_heaters_off;
+
+    CHECK(should_turn_heaters_off(true, false));
+    // The firmware has already turned them off.
+    CHECK_FALSE(should_turn_heaters_off(true, true));
+    // A completed or cancelled print's own end gcode decides.
+    const bool owned = GENERATE(false, true);
+    CHECK_FALSE(should_turn_heaters_off(false, owned));
+}
