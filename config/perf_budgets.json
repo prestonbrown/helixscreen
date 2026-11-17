@@ -5,7 +5,7 @@
     "print": "Mock print with a deliberately long filename and animations ON. A short filename does not overflow its label, no scroll animation starts, and the regression this gate exists to catch is invisible.",
     "print_anim_off": "Same, animations OFF. The sharpest probe we have: with the preference off, any remaining per-frame animation is one that IGNORES it, which is the defect class of prestonbrown/helixscreen#1440. Should sit close to the short-filename floor."
   },
-  "_calibration": "Measured 2026-11-04 and 2026-11-05 on a K1C and an AD5X. Print phases, with a 1.2-dev mock-enabled build on the print status panel: animations on with a long filename K1C 16.4 and AD5X 15.8, animations off K1C 7.2 and AD5X 6.4. Idle, on the installed release: K1C 5.1, AD5X 3.5. Mock prints carry no real status stream or Klipper load, so these are a floor. Each budget leaves about 25-40 percent above the measurement. Creator 5 Pro on 2026-11-06 with the display-sleep and hidden-spinner fixes: mock idle 3.6, print with animations on 20.4, off 10.3; its print phases run hotter than the K1C and AD5X.",
+  "_calibration": "Measured 2026-11-04 and 2026-11-05 on a K1C and an AD5X. Print phases, with a 1.2-dev mock-enabled build on the print status panel: animations on with a long filename K1C 16.4 and AD5X 15.8, animations off K1C 7.2 and AD5X 6.4. Idle, on the installed release: K1C 5.1, AD5X 3.5. Mock prints carry no real status stream or Klipper load, so these are a floor. Each budget leaves about 25-40 percent above the measurement. Creator 5 Pro on 2026-11-06 with the display-sleep and hidden-spinner fixes: mock idle 3.6, print with animations on 20.4, off 10.3; its print phases run hotter than the K1C and AD5X. AD5M on 2026-11-16, a mock-enabled 1.2-dev build in Forge-X's chroot: idle 2.5, print with animations on 21.2, off 8.2; the installed 1.1.0-beta.12 release idles at 3.9.",
   "devices": [
     {
       "name": "k1c",
@@ -40,7 +40,9 @@
       "service_stop": "chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen stop",
       "service_start": "chroot /data/.mod/.forge-x /etc/init.d/S90helixscreen start",
       "extra_flags": "",
-      "idle_budget_pct": 10,
+      "idle_budget_pct": 5,
+      "print_budget_pct": 27,
+      "print_anim_off_budget_pct": 11,
       "note": "Cortex-A7 with NEON, 110 MB and about 50 MB available - the tightest box in the fleet on memory. Forge-X runs the app inside its chroot, so the row names it and the binary path is the one inside the root. The root fs is over 80 percent full: stage test builds under /data. Release binaries have no mock; a mock-enabled ad5m build needs ENABLE_MOCKS=yes."
     },
     {

@@ -138,7 +138,9 @@ HWORK="$CHROOT$WORK"
 rm -rf "$HWORK"; mkdir -p "$HWORK/gc" "$HWORK/cfg"
 MYPID=""
 
+WATCHER=""
 restore() {
+    [ -n "$WATCHER" ] && kill "$WATCHER" 2>/dev/null
     [ -n "$MYPID" ] && { kill "$MYPID" 2>/dev/null; sleep 3; kill -9 "$MYPID" 2>/dev/null; }
     rm -rf "$HWORK"
     sh -c "$START" >/dev/null 2>&1
@@ -147,6 +149,12 @@ restore() {
 }
 refuse_unless_idle
 trap restore EXIT HUP INT TERM
+# A dropped SSH connection sends no signal to a shell with no terminal, so the run would
+# carry on and leave test instances beside the restarted service. The watcher writes to
+# the connection; once a write fails the connection is gone, and it ends the run so the
+# trap brings the service back.
+( trap '' PIPE; while echo KEEPALIVE 2>/dev/null; do sleep 2; done; kill -TERM $$ 2>/dev/null ) &
+WATCHER=$!
 
 sh -c "$STOP" >/dev/null 2>&1
 sleep 5
