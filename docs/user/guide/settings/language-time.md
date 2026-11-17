@@ -10,7 +10,7 @@ On the Settings screen, the **Language & Time** row shows your choices, for exam
 
 ## Language
 
-The language for everything on screen. The list shows each language in its own name: English, Deutsch, Français, Español, Русский, Português, Italiano, 中文 and 日本語. The screen switches as soon as you pick one. No restart needed.
+The language for everything on screen. The list shows each language in its own name: English, English (UK), Deutsch, Français, Español, Русский, Português, Italiano, 中文 and 日本語. English (UK) is British English: British spellings, with day-month-year dates and a 24-hour clock until you pick otherwise. The screen switches as soon as you pick one. No restart needed.
 
 ![The Language & Time page](../../../images/user/language-time-rows.png)
 
@@ -41,7 +41,7 @@ The BTT K-Touch has no System entry, because it has no timezone of its own. The 
 
 ## Date Format
 
-The order of day, month and year: **Day Month Year**, **Month Day Year** or **Year Month Day**. Applies to every date HelixScreen writes out. Until you pick one, the order follows your language and timezone: English reads month first in a United States timezone and day first in another known timezone, Chinese and Japanese read year first, and the other languages read day first.
+The order of day, month and year: **Day Month Year**, **Month Day Year** or **Year Month Day**. Applies to every date HelixScreen writes out. Until you pick one, the order follows your language and timezone: English reads month first in a United States timezone and day first in another known timezone, English (UK) reads day first outside a United States timezone, Chinese and Japanese read year first, and the other languages read day first.
 
 ---
 

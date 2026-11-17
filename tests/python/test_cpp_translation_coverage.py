@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from translations.extractor import extract_strings_from_cpp_directory  # noqa: E402
+from translations.locale_variants import effective_value, has_value  # noqa: E402
 from translations.yaml_manager import load_yaml_file_readonly  # noqa: E402
 
 # The trees `make translation-sync` passes as its C++ sources.
@@ -51,14 +52,16 @@ def test_every_cpp_string_translated_in_every_locale():
     found = _cpp_strings()
 
     locales = sorted((REPO_ROOT / "translations").glob("*.yml"))
-    assert len(locales) == 9, f"expected 9 locale files, found {[p.name for p in locales]}"
+    assert len(locales) == 10, f"expected 10 locale files, found {[p.name for p in locales]}"
+    catalogs = {p.stem: load_yaml_file_readonly(p)["translations"] for p in locales}
 
+    # A regional variant (en-GB) carries every key, but an empty value inherits
+    # its base language's, so only a key empty in both is untranslated.
     missing = []
-    for yml in locales:
-        entries = load_yaml_file_readonly(yml)["translations"]
+    for locale, entries in sorted(catalogs.items()):
         for text in sorted(found):
-            if not entries.get(text):
-                missing.append(f"{yml.name}: {text!r}")
+            if text not in entries or not has_value(effective_value(locale, text, catalogs)):
+                missing.append(f"{locale}.yml: {text!r}")
 
     assert not missing, (
         "lv_tr() strings missing or empty in a locale:\n  " + "\n  ".join(missing)

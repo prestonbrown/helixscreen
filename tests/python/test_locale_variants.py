@@ -140,3 +140,11 @@ def test_coverage_counts_an_inherited_key_as_translated(tmp_path):
     assert missing["pt"] == ["Cancel"]
     assert "overrides" not in stats["pt"]
 
+
+def test_shipped_en_gb_catalog_carries_every_en_key():
+    import yaml
+
+    en = yaml.safe_load((REPO_ROOT / "translations" / "en.yml").read_text(encoding="utf-8"))
+    gb = yaml.safe_load((REPO_ROOT / "translations" / "en-GB.yml").read_text(encoding="utf-8"))
+    assert gb["locale"] == "en-GB"
+    assert list(gb["translations"]) == list(en["translations"])
