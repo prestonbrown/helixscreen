@@ -65,19 +65,19 @@ bool is_placeholder_version(const std::string& version) {
     return trimmed.empty() || trimmed == "?" || helix::text_io::to_lower(trimmed) == "unknown";
 }
 
-std::string moonraker_version_from_update_status(const nlohmann::json& result) {
+std::string version_from_update_status(const nlohmann::json& result, const std::string& app) {
     const auto* version_info = helix::json_util::find_member(result, "version_info");
-    const auto* moonraker =
-        version_info ? helix::json_util::find_member(*version_info, "moonraker") : nullptr;
-    if (!moonraker || !moonraker->is_object()) {
+    const auto* entry =
+        version_info ? helix::json_util::find_member(*version_info, app.c_str()) : nullptr;
+    if (!entry || !entry->is_object()) {
         return {};
     }
-    const std::string version = trim(helix::json_util::safe_string(*moonraker, "version"));
+    const std::string version = trim(helix::json_util::safe_string(*entry, "version"));
     if (!is_placeholder_version(version) && !is_untagged_checkout_version(version)) {
         return version;
     }
     constexpr size_t kShortHashLength = 7;
-    const std::string hash = trim(helix::json_util::safe_string(*moonraker, "current_hash"));
+    const std::string hash = trim(helix::json_util::safe_string(*entry, "current_hash"));
     if (hash.size() >= kShortHashLength && !is_placeholder_version(hash)) {
         return hash.substr(0, kShortHashLength);
     }
