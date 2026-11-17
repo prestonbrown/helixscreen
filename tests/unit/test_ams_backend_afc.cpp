@@ -4623,11 +4623,59 @@ TEST_CASE("AFC one-lane direct unit beside hub units is PARALLEL, not HUB",
     REQUIRE(unit_infos[1].topology == PathTopology::PARALLEL);
 }
 
+TEST_CASE("AFC one-lane direct unit on a single-extruder printer stays HUB",
+          "[ams][afc][topology]") {
+    // A direct lane on a printer with one extruder shares the nozzle with the hub
+    // unit, so loading it must unload the hub lane first.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(5);
+    helper.initialize_slots_from_discovery();
+
+    for (const char* lane : {"lane0", "lane1", "lane2", "lane3"}) {
+        helper.feed_afc_stepper(
+            lane, {{"hub", "Turtle_1"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+    }
+    helper.feed_afc_stepper("lane4",
+                            {{"hub", "direct"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+
+    nlohmann::json afc_state;
+    afc_state["units"] = nlohmann::json::array({"Box_Turtle Turtle_1", "Toolchanger Tools"});
+    helper.feed_afc_state(afc_state);
+
+    nlohmann::json bt_data;
+    bt_data["lanes"] = nlohmann::json::array({"lane0", "lane1", "lane2", "lane3"});
+    bt_data["extruders"] = nlohmann::json::array({"extruder"});
+    bt_data["hubs"] = nlohmann::json::array({"Turtle_1"});
+    bt_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json tools_data;
+    tools_data["lanes"] = nlohmann::json::array({"lane4"});
+    tools_data["extruders"] = nlohmann::json::array({"extruder"});
+    tools_data["hubs"] = nlohmann::json::array();
+    tools_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json params;
+    params["AFC_BoxTurtle Turtle_1"] = bt_data;
+    params["AFC_Toolchanger Tools"] = tools_data;
+    helper.feed_status_update(params);
+
+    const auto& unit_infos = helper.get_unit_infos();
+    REQUIRE(unit_infos.size() == 2);
+    REQUIRE(unit_infos[0].topology == PathTopology::HUB);
+    REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
+    REQUIRE(unit_infos[1].topology == PathTopology::HUB);
+}
+
 TEST_CASE("AFC unit topology: all-direct lanes need an extruder per lane to be PARALLEL",
           "[ams][afc][topology]") {
     using helix::printer::afc_unit_topology;
-    // One direct lane on one extruder: nothing to merge.
-    CHECK(afc_unit_topology({true, false, 1, 1, 0}) == PathTopology::PARALLEL);
+    // One direct lane on its own extruder of a toolchanger: nothing to merge.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 4}) == PathTopology::PARALLEL);
+    // The same lane on a single-extruder printer shares the nozzle with the other
+    // units, so a load must unload first.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 1}) == PathTopology::HUB);
+    // The printer's extruder count has not arrived: stay with the shared answer.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 0}) == PathTopology::HUB);
     // Four direct lanes on four extruders: a toolchanger unit.
     CHECK(afc_unit_topology({true, false, 4, 4, 0}) == PathTopology::PARALLEL);
     // Four "direct" lanes on one extruder must still merge somewhere.

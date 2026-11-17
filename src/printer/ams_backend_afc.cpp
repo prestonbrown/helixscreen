@@ -3668,9 +3668,9 @@ void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann
         }
     }
 
-    unit_info.topology =
-        helix::printer::afc_unit_topology({has_direct, has_hub_routed, unit_info.lanes.size(),
-                                           unit_info.extruders.size(), unit_info.hubs.size()});
+    unit_info.topology = helix::printer::afc_unit_topology(
+        {has_direct, has_hub_routed, unit_info.lanes.size(), unit_info.extruders.size(),
+         unit_info.hubs.size(), static_cast<size_t>(std::max(num_extruders_, 0))});
 
     spdlog::debug("[AMS AFC] Unit object '{}': {} lanes, {} extruders, {} hubs, {} buffers → {}",
                   unit_info.klipper_key, unit_info.lanes.size(), unit_info.extruders.size(),

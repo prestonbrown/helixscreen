@@ -73,6 +73,8 @@ struct AfcUnitRouting {
     size_t lane_count = 0;
     size_t extruder_count = 0;
     size_t hub_count = 0;
+    /// Extruders on the whole printer (AFC `system.num_extruders`); 0 while unknown.
+    size_t printer_extruder_count = 0;
 };
 
 /**
@@ -80,8 +82,10 @@ struct AfcUnitRouting {
  *
  * Per-lane routing decides first; the extruder and hub counts decide only
  * while no lane routing is known. A unit whose known lanes are all direct is
- * PARALLEL when every lane can have an extruder of its own (several extruders,
- * or one per lane, as on a one-lane "Tools" unit): no hub sits on any route.
+ * PARALLEL when every lane can have an extruder of its own: several extruders,
+ * or one per lane on a printer with more than one extruder, as on a toolchanger's
+ * one-lane "Tools" unit. On a single-extruder printer a direct lane shares the
+ * nozzle with every other unit, so it stays HUB and a load unloads first.
  */
 constexpr PathTopology afc_unit_topology(const AfcUnitRouting& r) {
     if (r.has_direct_lane && r.has_hub_routed_lane) {
@@ -96,7 +100,8 @@ constexpr PathTopology afc_unit_topology(const AfcUnitRouting& r) {
     if (r.has_hub_routed_lane) {
         return PathTopology::HUB;
     }
-    if (r.has_direct_lane && (r.extruder_count > 1 || r.extruder_count == r.lane_count)) {
+    if (r.has_direct_lane && (r.extruder_count > 1 ||
+                              (r.extruder_count == r.lane_count && r.printer_extruder_count > 1))) {
         return PathTopology::PARALLEL;
     }
     if (r.hub_count > 0 && r.extruder_count <= 1) {
