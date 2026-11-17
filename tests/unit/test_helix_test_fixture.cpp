@@ -8,6 +8,7 @@
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
+#include "thermal_rate_model.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -71,4 +72,18 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     HelixTestFixture::reset_all();
     REQUIRE(sensors.get_sensors_sorted().empty());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "HelixTestFixture::reset_all forgets the heating rates",
+                 "[test-fixture][isolation]") {
+    // The rates price every pre-print phase and its fallback timeout, so one
+    // left set moves the next test's deadlines.
+    auto& rates = ThermalRateManager::instance();
+    const float fresh = rates.estimate_heating_seconds("heater_bed", 0.0f, 100.0f);
+
+    rates.get_model("heater_bed").set_default_rate(7.0f);
+    REQUIRE(rates.estimate_heating_seconds("heater_bed", 0.0f, 100.0f) != fresh);
+
+    HelixTestFixture::reset_all();
+    REQUIRE(rates.estimate_heating_seconds("heater_bed", 0.0f, 100.0f) == fresh);
 }
