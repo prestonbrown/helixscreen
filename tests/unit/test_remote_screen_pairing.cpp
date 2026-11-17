@@ -71,21 +71,73 @@ TEST_CASE("check_touch_request gates control, CSRF, origin and pairing",
           "[remote_screen][control]") {
     const std::string json = "application/json";
     const std::string host = "192.168.1.9:7130";
-    CHECK(check_touch_request(false, false, json, "1", "", host, false) == TouchGate::ControlOff);
-    CHECK(check_touch_request(true, false, "text/plain", "1", "", host, false) ==
+    CHECK(check_touch_request(false, false, json, "1", "", host, "", false) ==
+          TouchGate::ControlOff);
+    CHECK(check_touch_request(true, false, "text/plain", "1", "", host, "", false) ==
           TouchGate::BadContentType);
-    CHECK(check_touch_request(true, false, json, "", "", host, false) == TouchGate::MissingHeader);
-    CHECK(check_touch_request(true, false, json, "1", "http://evil.example", host, false) ==
+    CHECK(check_touch_request(true, false, json, "", "", host, "", false) ==
+          TouchGate::MissingHeader);
+    CHECK(check_touch_request(true, false, json, "1", "http://evil.example", host, "", false) ==
           TouchGate::OriginMismatch);
-    CHECK(check_touch_request(true, true, json, "1", "http://" + host, host, false) ==
+    CHECK(check_touch_request(true, true, json, "1", "http://" + host, host, "", false) ==
           TouchGate::NotPaired);
-    CHECK(check_touch_request(true, true, json, "1", "http://" + host, host, true) ==
+    CHECK(check_touch_request(true, true, json, "1", "http://" + host, host, "", true) ==
           TouchGate::Allowed);
     // Behind nginx, auth_request already decided: no cookie needed.
-    CHECK(check_touch_request(true, false, json, "1", "", host, false) == TouchGate::Allowed);
+    CHECK(check_touch_request(true, false, json, "1", "", host, "", false) == TouchGate::Allowed);
     // A charset parameter on the content type is still JSON.
-    CHECK(check_touch_request(true, false, "application/json; charset=utf-8", "1", "", host,
+    CHECK(check_touch_request(true, false, "application/json; charset=utf-8", "1", "", host, "",
                               false) == TouchGate::Allowed);
+}
+
+TEST_CASE("a forwarded host counts for the origin check only behind nginx",
+          "[remote_screen][control]") {
+    const std::string json = "application/json";
+    // A reverse proxy at https://proxy.example/printer/ in front of the printer's nginx:
+    // the browser's Origin names the proxy, Host names the printer.
+    const std::string origin = "https://proxy.example";
+    const std::string host = "printer.local";
+
+    SECTION("X-Forwarded-Host: the first entry is the one the browser addressed") {
+        CHECK(trusted_forwarded_host(true, "proxy.example", "") == "proxy.example");
+        CHECK(trusted_forwarded_host(true, "proxy.example, inner.lan", "") == "proxy.example");
+        CHECK(trusted_forwarded_host(true, " proxy.example:8443 ", "") == "proxy.example:8443");
+    }
+    SECTION("Forwarded: host= of the first element, quoted or not") {
+        CHECK(trusted_forwarded_host(true, "", "for=10.0.0.2;host=proxy.example;proto=https") ==
+              "proxy.example");
+        CHECK(trusted_forwarded_host(true, "",
+                                     R"(proto=https;Host="proxy.example:8443", )"
+                                     R"(host=inner.lan)") == "proxy.example:8443");
+        CHECK(trusted_forwarded_host(true, "", "for=10.0.0.2;proto=https").empty());
+        CHECK(trusted_forwarded_host(true, "proxy.example", "host=other.example") ==
+              "proxy.example");
+    }
+    SECTION("a server facing the LAN ignores both headers") {
+        CHECK(trusted_forwarded_host(false, "proxy.example", "").empty());
+        CHECK(trusted_forwarded_host(false, "", "host=proxy.example").empty());
+    }
+    SECTION("through nginx, an Origin naming the forwarded host is accepted") {
+        const std::string fwd = trusted_forwarded_host(true, "proxy.example", "");
+        CHECK(check_touch_request(true, false, json, "1", origin, host, fwd, false) ==
+              TouchGate::Allowed);
+        // Any other origin is still refused.
+        CHECK(check_touch_request(true, false, json, "1", "https://evil.example", host, fwd,
+                                  false) == TouchGate::OriginMismatch);
+    }
+    SECTION("a direct request with a mismatched Origin is refused whatever it forwards") {
+        const std::string fwd = trusted_forwarded_host(false, "proxy.example", "");
+        CHECK(check_touch_request(true, true, json, "1", origin, host, fwd, true) ==
+              TouchGate::OriginMismatch);
+    }
+    SECTION("through nginx without forwarding headers the mismatch is still refused") {
+        CHECK(check_touch_request(true, false, json, "1", origin, host, "", false) ==
+              TouchGate::OriginMismatch);
+    }
+    SECTION("an accepted forwarded origin on the LAN still needs pairing") {
+        CHECK(check_touch_request(true, true, json, "1", origin, host, "proxy.example", false) ==
+              TouchGate::NotPaired);
+    }
 }
 
 TEST_CASE("pairing: right code mints a token that is_paired accepts; wrong code does not",

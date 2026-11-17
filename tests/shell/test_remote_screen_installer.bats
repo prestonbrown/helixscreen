@@ -151,12 +151,15 @@ server_block() {
         contains "proxy_pass http://127.0.0.1:7130/;" "$blk"
         contains 'proxy_set_header Host $http_host;' "$blk"
         contains "proxy_pass http://apiserver/access/user;" "$blk"
+        # The mount without its slash redirects relative to the request, so a
+        # path-prefixing or TLS reverse proxy in front keeps its own URL.
+        [ "$(printf '%s\n' "$blk" | grep -c 'location = /helixscreen/screen { return 301 screen/; }')" -eq 1 ]
     done
     # Every inserted line carries the tag, so removal can be a plain line delete.
-    [ "$(grep -c 'helixscreen/screen' "$HELIX_NGINX_CONF")" -eq 6 ]
+    [ "$(grep -c 'helixscreen/screen' "$HELIX_NGINX_CONF")" -eq 8 ]
     refute_sh "grep -n 'helixscreen' \"$HELIX_NGINX_CONF\" | grep -v 'helix-managed-remote-screen'"
     # The upstream block is not a server block and gets nothing.
-    [ "$(grep -c 'helix-managed-remote-screen' "$HELIX_NGINX_CONF")" -eq 28 ]
+    [ "$(grep -c 'helix-managed-remote-screen' "$HELIX_NGINX_CONF")" -eq 30 ]
 
     [ "$(cat "$ROUTE_FILE")" = "/helixscreen/screen/" ]
     [ -f "$ROUTE_MARKER" ]
@@ -190,6 +193,50 @@ server_block() {
     cmp "$HELIX_NGINX_CONF" "$BATS_TEST_TMPDIR/after-first"
     [ -f "$ROUTE_MARKER" ]
     [ "$(cat "$ROUTE_FILE")" = "/helixscreen/screen/" ]
+}
+
+@test "a route from an older installer gains the relative redirect on the next run" {
+    write_two_server_conf
+    stub_nginx auth ok
+    install_remote_screen_route
+    cp "$HELIX_NGINX_CONF" "$BATS_TEST_TMPDIR/current"
+    # The route as an installer without the redirect wrote it.
+    grep -v 'location = /helixscreen/screen {' "$BATS_TEST_TMPDIR/current" > "$HELIX_NGINX_CONF"
+    ! grep -q 'return 301' "$HELIX_NGINX_CONF"
+    [ -f "$ROUTE_MARKER" ]
+
+    run install_remote_screen_route
+    [ "$status" -eq 0 ]
+    [ "$(grep -c 'location = /helixscreen/screen { return 301 screen/; }' "$HELIX_NGINX_CONF")" -eq 2 ]
+    # The same config a fresh install writes.
+    cmp "$HELIX_NGINX_CONF" "$BATS_TEST_TMPDIR/current"
+    [ "$(cat "$ROUTE_FILE")" = "/helixscreen/screen/" ]
+}
+
+@test "the upgrade adds nothing to configs and blocks without the route" {
+    write_two_server_conf
+    cp "$HELIX_NGINX_CONF" "$BATS_TEST_TMPDIR/plain"
+    # Untagged blocks are left alone in upgrade mode.
+    _remote_screen_filter upgrade "$BATS_TEST_TMPDIR/plain" > "$BATS_TEST_TMPDIR/filtered"
+    cmp "$BATS_TEST_TMPDIR/filtered" "$BATS_TEST_TMPDIR/plain"
+
+    stub_nginx auth ok
+    install_remote_screen_route
+    # A Moonraker site added after the route went in.
+    cat > "$HELIX_NGINX_SITES_DIR/mainsail" <<'EOF'
+server {
+    listen 80 default_server;
+
+    location /websocket {
+        proxy_pass http://apiserver/websocket;
+    }
+}
+EOF
+    cp "$HELIX_NGINX_SITES_DIR/mainsail" "$BATS_TEST_TMPDIR/site"
+
+    run install_remote_screen_route
+    [ "$status" -eq 0 ]
+    cmp "$HELIX_NGINX_SITES_DIR/mainsail" "$BATS_TEST_TMPDIR/site"
 }
 
 @test "failing nginx -t restores the original byte for byte and writes no route marker" {

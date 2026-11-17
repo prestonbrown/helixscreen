@@ -4,6 +4,7 @@
 #include "remote_screen_control.h"
 
 #include "random_bytes.h"
+#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
@@ -58,11 +59,46 @@ std::string origin_authority(const std::string& origin) {
     return slash == std::string::npos ? rest : rest.substr(0, slash);
 }
 
+/// The text before the first comma of a comma-separated header value.
+std::string_view first_list_entry(std::string_view value) {
+    return value.substr(0, value.find(','));
+}
+
 } // namespace
+
+std::string trusted_forwarded_host(bool behind_nginx, const std::string& x_forwarded_host,
+                                   const std::string& forwarded) {
+    if (!behind_nginx) {
+        return {};
+    }
+    // Each proxy on the way appends its own entry; the first is what the browser used.
+    if (const auto first = text_io::trim(first_list_entry(x_forwarded_host)); !first.empty()) {
+        return std::string(first);
+    }
+    // RFC 7239: `Forwarded: for=...;host=...;proto=..., <next proxy's element>`.
+    const std::string_view element = first_list_entry(forwarded);
+    size_t pos = 0;
+    while (pos <= element.size()) {
+        const size_t semi = std::min(element.find(';', pos), element.size());
+        const std::string_view pair = text_io::trim(element.substr(pos, semi - pos));
+        const size_t eq = pair.find('=');
+        if (eq != std::string_view::npos &&
+            text_io::equals_ignore_case(text_io::trim(pair.substr(0, eq)), "host")) {
+            std::string_view value = text_io::trim(pair.substr(eq + 1));
+            if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                value = value.substr(1, value.size() - 2);
+            }
+            return std::string(value);
+        }
+        pos = semi + 1;
+    }
+    return {};
+}
 
 TouchGate check_touch_request(bool control_allowed, bool lan_mode, const std::string& content_type,
                               const std::string& x_helix_touch, const std::string& origin,
-                              const std::string& host, bool paired) {
+                              const std::string& host, const std::string& forwarded_host,
+                              bool paired) {
     if (!control_allowed) {
         return TouchGate::ControlOff;
     }
@@ -72,7 +108,8 @@ TouchGate check_touch_request(bool control_allowed, bool lan_mode, const std::st
     if (x_helix_touch != "1") {
         return TouchGate::MissingHeader;
     }
-    if (!origin.empty() && origin_authority(origin) != host) {
+    if (!origin.empty() && origin_authority(origin) != host &&
+        (forwarded_host.empty() || origin_authority(origin) != forwarded_host)) {
         return TouchGate::OriginMismatch;
     }
     if (lan_mode && !paired) {
