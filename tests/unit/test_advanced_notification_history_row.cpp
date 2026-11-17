@@ -17,11 +17,13 @@
 #include "config.h"
 #include "core/static_panel_registry.h"
 #include "grid_layout.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 
 #include <string>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -122,5 +124,40 @@ TEST_CASE_METHOD(NotificationRowFixture,
         REQUIRE_FALSE(row_hidden_after_activate());
         home.set(home_layout(nlohmann::json::array({bell(true, 0, 0)})));
         CHECK(row_hidden_after_activate());
+    }
+}
+
+namespace {
+
+/// True when @p obj or a descendant runs @p cb on a click.
+bool clicks_run(lv_obj_t* obj, lv_event_cb_t cb) {
+    for (uint32_t i = 0; i < lv_obj_get_event_count(obj); ++i) {
+        lv_event_dsc_t* dsc = lv_obj_get_event_dsc(obj, i);
+        if (lv_event_dsc_get_cb(dsc) == cb) {
+            return true;
+        }
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+        if (clicks_run(lv_obj_get_child(obj, static_cast<int32_t>(i)), cb)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(NotificationRowFixture,
+                 "Advanced Shutdown and Reboot rows each run their own intent",
+                 "[advanced][power]") {
+    for (const auto& [row_name, cb_name] :
+         {std::pair<const char*, const char*>{"row_shutdown", "on_advanced_shutdown_clicked"},
+          {"row_reboot", "on_advanced_reboot_clicked"}}) {
+        CAPTURE(row_name);
+        lv_event_cb_t cb = lv_xml_get_event_cb(nullptr, cb_name);
+        REQUIRE(cb != nullptr);
+        lv_obj_t* row = lv_obj_find_by_name(root, row_name);
+        REQUIRE(row != nullptr);
+        CHECK(clicks_run(row, cb));
     }
 }
