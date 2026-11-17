@@ -42,6 +42,7 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "mmx", "mmx", nullptr, 0},
     {"happy_hare", "3ms", "3ms", nullptr, 0},
     {"happy_hare", "emu", "emu", nullptr, 0},
+    {"happy_hare", "kms", "kms", nullptr, 0},
     {"ifs", nullptr, "ad5x_ifs", nullptr, 0},
     // Happy Hare's vendor constants; only a real selector is one of these rails.
     {"happy_hare", "ercf", "ercf_rail", nullptr, 0, true},

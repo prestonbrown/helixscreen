@@ -110,6 +110,12 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
+    CHECK(id(AmsType::HAPPY_HARE, "KMS") == "kms");
+    // A renamed unit still reports its vendor, which Happy Hare publishes as "KMS".
+    AmsSystemInfo renamed = one_unit(AmsType::HAPPY_HARE, "Dry box");
+    renamed.units[0].model = "KMS";
+    REQUIRE(unit_shell_for(renamed, 0) != nullptr);
+    CHECK(std::string(unit_shell_for(renamed, 0)->id) == "kms");
     // The Canvas is drawn, but no backend reports one.
     CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
 }
