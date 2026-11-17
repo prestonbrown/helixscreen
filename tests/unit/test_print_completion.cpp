@@ -707,3 +707,68 @@ TEST_CASE("started_new_job decides when the last print's result is stale",
         REQUIRE_FALSE(started_new_job(PrintState::Error));
     }
 }
+
+// ============================================================================
+// How the end of a print is announced
+// ============================================================================
+
+TEST_CASE("decide_completion_alert wakes the display on the print status panel",
+          "[print_completion][completion_alert]") {
+    using helix::CompletionAlertMode;
+    using helix::decide_completion_alert;
+
+    SECTION("a print that ends with the print status panel open wakes the display") {
+        // A sleeping panel that is not woken goes on showing the print as running.
+        for (auto mode : {CompletionAlertMode::NOTIFICATION, CompletionAlertMode::ALERT}) {
+            CAPTURE(static_cast<int>(mode));
+            const auto d = decide_completion_alert(false, mode, true);
+            CHECK(d.wake);
+            CHECK_FALSE(d.modal);
+            CHECK_FALSE(d.toast);
+        }
+    }
+
+    SECTION("with alerts off, nothing wakes the display on any panel") {
+        for (bool on_print_status : {false, true}) {
+            CAPTURE(on_print_status);
+            const auto d =
+                decide_completion_alert(false, CompletionAlertMode::OFF, on_print_status);
+            CHECK_FALSE(d.wake);
+            CHECK_FALSE(d.modal);
+            CHECK_FALSE(d.toast);
+        }
+    }
+}
+
+TEST_CASE("decide_completion_alert follows the alert mode away from print status",
+          "[print_completion][completion_alert]") {
+    using helix::CompletionAlertMode;
+    using helix::decide_completion_alert;
+
+    SECTION("notification mode wakes and shows the toast") {
+        const auto d = decide_completion_alert(false, CompletionAlertMode::NOTIFICATION, false);
+        CHECK(d.wake);
+        CHECK(d.toast);
+        CHECK_FALSE(d.modal);
+    }
+
+    SECTION("alert mode wakes and shows the modal") {
+        const auto d = decide_completion_alert(false, CompletionAlertMode::ALERT, false);
+        CHECK(d.wake);
+        CHECK(d.modal);
+        CHECK_FALSE(d.toast);
+    }
+
+    SECTION("an error wakes and shows the modal whatever the mode and panel") {
+        for (auto mode : {CompletionAlertMode::OFF, CompletionAlertMode::NOTIFICATION,
+                          CompletionAlertMode::ALERT}) {
+            for (bool on_print_status : {false, true}) {
+                CAPTURE(static_cast<int>(mode), on_print_status);
+                const auto d = decide_completion_alert(true, mode, on_print_status);
+                CHECK(d.wake);
+                CHECK(d.modal);
+                CHECK_FALSE(d.toast);
+            }
+        }
+    }
+}

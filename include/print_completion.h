@@ -4,6 +4,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "completion_alert_mode.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 
@@ -100,6 +101,26 @@ struct PreparingExitAction {
  * Cooling down on Superseded would sabotage the print that just took over.
  */
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason);
+
+/// How the end of a print is announced. Sounds and the heater shutdown after an
+/// error happen whatever this says.
+struct CompletionAlertDecision {
+    bool wake = false;  ///< wake the display
+    bool modal = false; ///< show the rich completion modal
+    bool toast = false; ///< show the short completion toast
+};
+
+/**
+ * @brief Decide how the end of a print is announced
+ *
+ * An error always wakes the display and shows the modal. Otherwise `mode`
+ * decides: Off announces nothing, and Notification and Alert wake the display.
+ * The print status panel already shows the result, so it gets no toast or
+ * modal, but it still wakes: a sleeping panel would otherwise go on showing
+ * the print as running until someone touches it.
+ */
+CompletionAlertDecision decide_completion_alert(bool ended_in_error, CompletionAlertMode mode,
+                                                bool on_print_status);
 
 /**
  * @brief Rendered stat strings for the print-completion modal
