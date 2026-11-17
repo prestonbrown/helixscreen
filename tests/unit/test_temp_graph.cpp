@@ -21,8 +21,10 @@ class TempGraphTestFixture : public LVGLTestFixture {
         screen = lv_obj_create(NULL);
     }
 
-    ~TempGraphTestFixture() {
-        // Cleanup is handled by LVGL
+    /// A destroyed graph's chart waits on an async delete; deleting the screen
+    /// cancels it, so it cannot fire inside a later case.
+    ~TempGraphTestFixture() override {
+        lv_obj_delete(screen);
     }
 
     lv_obj_t* screen;

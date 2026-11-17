@@ -28,6 +28,11 @@ class TooltipTestFixture : public LVGLTestFixture {
     TooltipTestFixture() {
         screen = lv_obj_create(NULL);
     }
+    /// A destroyed graph's chart waits on an async delete; deleting the screen
+    /// cancels it, so it cannot fire inside a later case.
+    ~TooltipTestFixture() override {
+        lv_obj_delete(screen);
+    }
     lv_obj_t* screen;
 
     /// Graph with a settled layout, a 0-300 deci range, and a known plot rect.
