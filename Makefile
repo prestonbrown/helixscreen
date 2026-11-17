@@ -884,7 +884,7 @@ FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h
 # This allows `make strict` to catch issues in project code while ignoring third-party header warnings
 # stb_image headers (used for thumbnail processing)
 STB_INC := -isystem lib/stb
-INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) $(WPA_INC) $(SDL2_INC)
+INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) -isystem lib/libvterm/include $(WPA_INC) $(SDL2_INC)
 
 # The folded helixctl client (src/remote/remote_client.cpp) includes linenoise.h.
 ifeq ($(ENABLE_REMOTE_CONTROL),yes)
@@ -1217,6 +1217,14 @@ LUA_SRCS := $(filter-out $(addprefix $(LUA_DIR)/,$(LUA_EXCLUDED)),$(wildcard $(L
 LUA_OBJS := $(patsubst $(LUA_DIR)/%.c,$(OBJ_DIR)/lua/%.o,$(LUA_SRCS))
 else
 LUA_OBJS :=
+endif
+# libvterm (vendored, MIT) parses the Host Terminal's output into a screen grid.
+VTERM_DIR := lib/libvterm
+ifeq ($(HELIX_HAS_HOST_TERMINAL),1)
+VTERM_SRCS := $(wildcard $(VTERM_DIR)/src/*.c)
+VTERM_OBJS := $(patsubst $(VTERM_DIR)/%.c,$(OBJ_DIR)/libvterm/%.o,$(VTERM_SRCS))
+else
+VTERM_OBJS :=
 endif
 # Lowest raw backlight level the panel renders visibly, as a percent of the raw
 # range. Nonzero percent scales across [floor, max] so the dimmest slider level
@@ -1577,6 +1585,7 @@ PRINT_COMPILE_RULES := \
 	$(if $(SPDLOG_DIR),$(SPDLOG_DIR)/src/%.cpp=SPDLOG_COMPILE) \
 	$(LV_MARKDOWN_DIR)/%.c=LV_MARKDOWN_COMPILE \
 	$(QUIRC_DIR)/%.c=QUIRC_COMPILE \
+	$(VTERM_DIR)/%.c=VTERM_COMPILE \
 	$(LUA_DIR)/%.c=LUA_COMPILE \
 	assets/fonts/%.c=FONT_COMPILE
 print_compile_rule = $(firstword $(foreach r,$(PRINT_COMPILE_RULES),$(if $(filter $(firstword $(subst =, ,$(r))),$(1)),$(lastword $(subst =, ,$(r))))))

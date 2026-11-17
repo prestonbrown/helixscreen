@@ -946,6 +946,29 @@ class SettingsManager {
     }
 
     // =========================================================================
+    // HOST TERMINAL
+    // =========================================================================
+
+    /// Whether Advanced offers the Host Terminal row (default false, #1573).
+    bool get_host_terminal_enabled() const {
+        return settings_.get_bool(Key::HostTerminalEnabled);
+    }
+    void set_host_terminal_enabled(bool enabled) {
+        settings_.set(Key::HostTerminalEnabled, enabled);
+    }
+    lv_subject_t* subject_host_terminal_enabled() {
+        return settings_.subject(Key::HostTerminalEnabled);
+    }
+
+    /// Whether the terminal's first-open warning was acknowledged (default false).
+    bool get_host_terminal_warning_seen() const {
+        return settings_.get_bool(Key::HostTerminalWarningSeen);
+    }
+    void set_host_terminal_warning_seen(bool seen) {
+        settings_.set(Key::HostTerminalWarningSeen, seen);
+    }
+
+    // =========================================================================
     // BARCODE SCANNER (owned by SettingsManager — manual device selection)
     // =========================================================================
 
@@ -1025,6 +1048,8 @@ class SettingsManager {
         TempGraphShowMcu,
         TempGraphShowHost,
         TempGraphShowDrivers,
+        HostTerminalEnabled,
+        HostTerminalWarningSeen,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;

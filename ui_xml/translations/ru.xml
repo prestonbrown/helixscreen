@@ -221,6 +221,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." ru="Насыщенный фильтр перестаёт задерживать пары и частицы."/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ru="Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд»."/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ru="Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры."/>
+  <translation tag="A shell on the machine running this screen" ru="Командная оболочка на машине, где работает этот экран"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" ru="Катушка может быть запутана или заклинило приводную шестерню"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." ru="Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" ru="Идёт калибровка смещений головок, возможно, с другого экрана. Завершить её сейчас?"/>
@@ -1062,6 +1063,7 @@
   <translation tag="Creating bed mesh..." ru="Создание сетки стола..."/>
   <translation tag="Creating spool..." ru="Создание катушки..."/>
   <translation tag="Critical hardware missing: {}" ru="Отсутствует критическое оборудование: {}"/>
+  <translation tag="Ctrl" ru="Ctrl"/>
   <translation tag="Current / Target" ru="Текущая / Цель"/>
   <translation tag="Current Configuration" ru="Текущая конфигурация"/>
   <translation tag="Current Mesh" ru="Текущая сетка"/>
@@ -1358,6 +1360,7 @@
   <translation tag="Error: `unzip` not installed" ru="Ошибка: `unzip` не установлен"/>
   <translation tag="Error: cannot write the service file in {}" ru="Ошибка: не удалось записать файл службы в {}"/>
   <translation tag="Errors only" ru="Только ошибки"/>
+  <translation tag="Esc" ru="Esc"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" ru="Эскалация до аварийной остановки, если отмена не отвечает"/>
   <translation tag="Escalation Timeout" ru="Тайм-аут эскалации"/>
   <translation tag="Est. Duration" ru="Ожид. длительность"/>
@@ -1768,6 +1771,7 @@
   <translation tag="HEPA filter" ru="HEPA-фильтр"/>
   <translation tag="HEPA filter interval" ru="Интервал HEPA-фильтра"/>
   <translation tag="HOST" ru="Хост"/>
+  <translation tag="HOST ACCESS" ru="ДОСТУП К ХОСТУ"/>
   <translation tag="HTTP Code" ru="Код HTTP"/>
   <translation tag="HTTP error: {} {}" ru="Ошибка HTTP: {} {}"/>
   <translation tag="HUMIDITY SENSORS" ru="ДАТЧИКИ ВЛАЖНОСТИ"/>
@@ -1914,6 +1918,7 @@
   <translation tag="Horizontal" ru="Горизонтально"/>
   <translation tag="Host" ru="Хост"/>
   <translation tag="Host Health" ru="Состояние хоста"/>
+  <translation tag="Host Terminal" ru="Терминал хоста"/>
   <translation tag="Host and MCU load, temperature, and memory" ru="Нагрузка, температура и память хоста и MCU"/>
   <translation tag="Host: " ru="Хост: "/>
   <translation tag="Hotend" ru="Хотенд"/>
@@ -2768,6 +2773,7 @@
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open Fans" ru="Открыть «Вентиляторы»"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
+  <translation tag="Open Terminal" ru="Открыть терминал"/>
   <translation tag="Open color and brightness controls" ru="Управление цветом и яркостью"/>
   <translation tag="Open feeder" ru="Открыть фидер"/>
   <translation tag="Open feeder macro" ru="Макрос для открытия фидера"/>
@@ -3688,6 +3694,7 @@
   <translation tag="Show Sections" ru="Показать разделы"/>
   <translation tag="Show Touch Points" ru="Показывать точки касания"/>
   <translation tag="Show a confirmation dialog when tapping a macro" ru="Показывать диалог подтверждения при нажатии на макрос"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." ru="Показывает в разделе «Инструменты» командную оболочку этой машины. Любой у экрана сможет выполнять на ней команды."/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" ru="Показывать и вводить температуру в градусах Цельсия или Фаренгейта"/>
   <translation tag="Show instead of dimming" ru="Показывать вместо затемнения"/>
   <translation tag="Show light controls for a light connected to this printer" ru="Показывать управление подсветкой, подключённой к этому принтеру"/>
@@ -3956,6 +3963,7 @@
   <translation tag="TOGGLE: {}" ru="ПЕРЕКЛЮЧИТЬ: {}"/>
   <translation tag="TOOLS" ru="ИНСТРУМЕНТЫ"/>
   <translation tag="TPU" ru="TPU"/>
+  <translation tag="Tab" ru="Tab"/>
   <translation tag="Tag Parts" ru="Отметить узлы"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." ru="Снимите лист PEI с подогреваемого стола и нажмите «Далее». Головки измеряют по голому столу."/>
   <translation tag="Takes 3-5 min. Do not interrupt." ru="Занимает 3-5 мин. Не прерывайте."/>
@@ -4202,6 +4210,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ru="Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." ru="Экран потеряет связь с принтером на несколько секунд."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ru="Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание"/>
+  <translation tag="The shell could not start: {}" ru="Не удалось запустить оболочку: {}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." ru="Оболочка завершилась. Коснитесь терминала, чтобы запустить новую."/>
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
@@ -4268,6 +4278,7 @@
   <translation tag="This firmware can only switch slots by loading them" ru="Эта прошивка может переключать слоты только загрузкой"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." ru="Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." ru="Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper."/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." ru="Это командная оболочка на машине, где работает этот экран, от имени пользователя «{}». Введённые здесь команды выполняются с правами этого пользователя и могут изменить или повредить систему, включая прошивку принтера."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ru="Это аварийный останов: принтер останавливается, и Klipper перезапускается."/>
   <translation tag="This is exactly the data that will be sent" ru="Это именно те данные, которые будут отправлены"/>
   <translation tag="This is what data would be sent if enabled" ru="Эти данные были бы отправлены при включении"/>

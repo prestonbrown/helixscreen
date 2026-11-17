@@ -40,6 +40,14 @@
           <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_console_row_clicked"/>
         </setting_action_row>
+        <!-- Host Terminal (#1573): a shell on the machine HelixScreen runs on. Offered only
+             where it can run and once the owner turns it on in HOST ACCESS below. -->
+        <setting_action_row name="row_host_terminal"
+                            label="Host Terminal" icon="console"
+                            description="A shell on the machine running this screen">
+          <bind_flag_if cond="platform_host_terminal_supported eq 0 or host_terminal_enabled eq 0" flag="hidden"/>
+          <event_cb trigger="clicked" callback="on_host_terminal_row_clicked"/>
+        </setting_action_row>
         <!-- Guided cold pull (#2011) -->
         <setting_action_row name="row_cold_pull"
                             label="Cold Pull" icon="nozzle" description="Clean a clogged nozzle, step by step">
@@ -322,6 +330,19 @@
                             description="Adjusts individual characteristics of your heaters for optimal control">
           <event_cb trigger="clicked" callback="on_pid_tuning_clicked"/>
         </setting_action_row>
+      </setting_group>
+      <!-- ================================================================== -->
+      <!-- HOST ACCESS SECTION -->
+      <!-- ================================================================== -->
+      <!-- The opt-in for the Host Terminal row in TOOLS. Off by default: the shell runs
+           as the user HelixScreen runs as, which is root on most printer firmware. -->
+      <setting_group name="group_host_access">
+        <bind_flag_if_eq subject="platform_host_terminal_supported" flag="hidden" ref_value="0"/>
+        <setting_group_header title="HOST ACCESS" icon="console" hide_icon="false"/>
+        <setting_toggle_row name="row_host_terminal_enabled"
+                            label="Host Terminal" icon="console"
+                            description="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it."
+                            subject="host_terminal_enabled" callback="on_host_terminal_enabled_changed"/>
       </setting_group>
       <!-- ================================================================== -->
       <!-- POWER SECTION -->

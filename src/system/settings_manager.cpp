@@ -169,6 +169,12 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
      "temp_graph_show_host"},
     {"temp_graph_show_drivers", "temp_graph/show_drivers", Scope::PerPrinter, true, 0, 0, 1,
      "temp_graph_show_drivers"},
+    // Off: a shell on the host, often as root, is something an owner turns on (#1573).
+    {"host_terminal_enabled", "/host_terminal/enabled", Scope::Global, true, 0, 0, 1,
+     "host_terminal_enabled"},
+    // The one-time warning the terminal shows the first time it opens.
+    {"host_terminal_warning_seen", "/host_terminal/warning_seen", Scope::Global, true, 0, 0, 1,
+     "host_terminal_warning_seen"},
 };
 
 namespace {

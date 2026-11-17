@@ -118,6 +118,7 @@ class AdvancedPanel : public PanelBase {
     void handle_spoolman_clicked();
     void handle_macros_clicked();
     void handle_console_clicked();
+    void handle_host_terminal_clicked();
     void handle_history_clicked();
     void handle_pid_tuning_clicked();
     void handle_pa_tuning_clicked();
@@ -171,6 +172,7 @@ class AdvancedPanel : public PanelBase {
     static void on_spoolman_clicked(lv_event_t* e);
     static void on_macros_clicked(lv_event_t* e);
     static void on_console_clicked(lv_event_t* e);
+    static void on_host_terminal_clicked(lv_event_t* e);
     static void on_history_clicked(lv_event_t* e);
     static void on_pid_tuning_clicked(lv_event_t* e);
     static void on_timelapse_videos_clicked(lv_event_t* e);

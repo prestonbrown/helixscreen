@@ -199,6 +199,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : '测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: '读取腔体内空气温度的传感器。在腔体温度界面查看。'
+  A shell on the machine running this screen: '运行此屏幕的机器上的 Shell'
   A spool may be tangled or the drive gear is jammed: 料盘可能缠绕，或驱动齿轮卡住
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。'
@@ -1076,6 +1077,7 @@ translations:
   Creating bed mesh...: 正在创建热床网格...
   Creating spool...: 正在创建料盘…
   'Critical hardware missing: {}': '缺少关键硬件: {}'
+  Ctrl: 'Ctrl'
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格
@@ -1378,6 +1380,7 @@ translations:
   'Error: `unzip` not installed': '错误: 未安装 `unzip`'
   'Error: cannot write the service file in {}': '错误: 无法将服务文件写入 {}'
   Errors only: '仅错误'
+  Esc: 'Esc'
   Escalate to emergency stop if cancel doesn't respond: 如果取消无响应则升级为紧急停止
   Escalation Timeout: 升级超时
   Est. Duration: 预计时长
@@ -1789,6 +1792,7 @@ translations:
   HEPA filter: 'HEPA 过滤器'
   HEPA filter interval: 'HEPA 过滤器间隔'
   HOST: 主机
+  HOST ACCESS: '主机访问'
   HTTP Code: HTTP 代码
   'HTTP error: {} {}': 'HTTP 错误: {} {}'
   HUMIDITY SENSORS: 湿度传感器
@@ -1942,6 +1946,7 @@ translations:
   Horizontal: 水平
   Host: 主机
   Host Health: 主机状态
+  Host Terminal: '主机终端'
   Host and MCU load, temperature, and memory: 主机和 MCU 的负载、温度和内存
   'Host: ': '主机: '
   Hotend: 热端
@@ -2814,6 +2819,7 @@ translations:
   Open: 打开
   Open Fans: '打开风扇'
   Open Source Licenses: 开源许可证
+  Open Terminal: '打开终端'
   Open color and brightness controls: 打开颜色和亮度控制
   Open feeder macro: 打开送料器宏
   Open feeder: 打开送料器
@@ -3748,6 +3754,7 @@ translations:
   Show Sections: 显示区段
   Show Touch Points: 显示触摸点
   Show a confirmation dialog when tapping a macro: 点击宏时显示确认对话框
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: '在“工具”中显示此机器的 Shell。任何在屏幕前的人都可以在其上运行命令。'
   Show and enter temperatures in Celsius or Fahrenheit: 以 °C 或 °F 显示和输入温度
   Show instead of dimming: 显示而非变暗
   Show light controls for a light connected to this printer: '显示连接到此打印机的灯的控制'
@@ -4019,6 +4026,7 @@ translations:
   'TOGGLE: {}': '切换: {}'
   TOOLS: 工具
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: 标记部件
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: 从热床上取下 PEI 板，然后点击下一步。工具头将直接在热床表面探测。
   Takes 3-5 min. Do not interrupt.: 需要 3-5 分钟。请勿中断。
@@ -4287,6 +4295,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
   The screen will lose its connection to the printer for a few seconds.: "屏幕将与打印机断开连接几秒钟。"
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: 无法读取此 CFS 单元的传感器。请检查其连接，否则该单元可能需要维修
+  'The shell could not start: {}': '无法启动 Shell：{}'
+  The shell exited. Tap the terminal to start a new one.: 'Shell 已退出。点击终端以启动新的 Shell。'
   The speed of one fan you choose: 所选风扇的转速
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
@@ -4371,6 +4381,8 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : '这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: '这会在打印机上安装 HelixScreen 帮助宏，添加到 printer.cfg，并重启 Klipper。'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : '这是运行此屏幕的机器上的 Shell，以用户“{}”身份运行。在此输入的命令以该用户的权限执行，可能会更改或破坏系统，包括打印机固件。'
   'This is an emergency stop: the printer halts and Klipper restarts.': 这是紧急停止：打印机将停机并重启 Klipper。
   This is exactly the data that will be sent: 这正是将要发送的数据
   This is what data would be sent if enabled: 这是启用后将发送的数据

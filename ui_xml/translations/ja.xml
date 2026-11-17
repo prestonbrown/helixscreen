@@ -185,6 +185,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." ja="飽和したフィルターは煙や粒子を捕集できません。"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ja="ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。"/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ja="チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。"/>
+  <translation tag="A shell on the machine running this screen" ja="この画面を動かしているマシンのシェル"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" ja="スプールが絡まっているか、駆動ギアが詰まっている可能性があります"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." ja="複数のフィラメントをツールヘッドに送るシステムで、スロット数を表示します。スロットはフィラメントシステム画面で管理できます。"/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" ja="ツールヘッドオフセットのキャリブレーションが実行中です（別の画面からの可能性があります）。今すぐ終了しますか?"/>
@@ -1017,6 +1018,7 @@
   <translation tag="Creating bed mesh..." ja="ベッドメッシュを作成中..."/>
   <translation tag="Creating spool..." ja="スプールを作成中..."/>
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
+  <translation tag="Ctrl" ja="Ctrl"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>
@@ -1313,6 +1315,7 @@
   <translation tag="Error: `unzip` not installed" ja="エラー: `unzip` がインストールされていません"/>
   <translation tag="Error: cannot write the service file in {}" ja="エラー: {} にサービスファイルを書き込めません"/>
   <translation tag="Errors only" ja="エラーのみ"/>
+  <translation tag="Esc" ja="Esc"/>
   <translation tag="Escalate to emergency stop if cancel doesn&apos;t respond" ja="キャンセルが応答しない場合は緊急停止にエスカレート"/>
   <translation tag="Escalation Timeout" ja="エスカレーションタイムアウト"/>
   <translation tag="Est. Duration" ja="予想時間"/>
@@ -1720,6 +1723,7 @@
   <translation tag="HEPA filter" ja="HEPAフィルター"/>
   <translation tag="HEPA filter interval" ja="HEPAフィルターの間隔"/>
   <translation tag="HOST" ja="ホスト"/>
+  <translation tag="HOST ACCESS" ja="ホストへのアクセス"/>
   <translation tag="HTTP Code" ja="HTTP コード"/>
   <translation tag="HTTP error: {} {}" ja="HTTP エラー: {} {}"/>
   <translation tag="HUMIDITY SENSORS" ja="湿度センサー"/>
@@ -1866,6 +1870,7 @@
   <translation tag="Horizontal" ja="水平"/>
   <translation tag="Host" ja="ホスト"/>
   <translation tag="Host Health" ja="ホストの状態"/>
+  <translation tag="Host Terminal" ja="ホストターミナル"/>
   <translation tag="Host and MCU load, temperature, and memory" ja="ホストと MCU の負荷、温度、メモリ"/>
   <translation tag="Host: " ja="ホスト: "/>
   <translation tag="Hotend" ja="ホットエンド"/>
@@ -2720,6 +2725,7 @@
   <translation tag="Open" ja="開く"/>
   <translation tag="Open Fans" ja="ファンを開く"/>
   <translation tag="Open Source Licenses" ja="オープンソースライセンス"/>
+  <translation tag="Open Terminal" ja="ターミナルを開く"/>
   <translation tag="Open color and brightness controls" ja="色と明るさの調整を開く"/>
   <translation tag="Open feeder" ja="フィーダーを開く"/>
   <translation tag="Open feeder macro" ja="フィーダーを開くマクロ"/>
@@ -3631,6 +3637,7 @@
   <translation tag="Show Sections" ja="セクションを表示"/>
   <translation tag="Show Touch Points" ja="タッチポイントを表示"/>
   <translation tag="Show a confirmation dialog when tapping a macro" ja="マクロをタップした際に確認ダイアログを表示"/>
+  <translation tag="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it." ja="ツールにこのマシンのシェルを表示します。画面の前にいる人はだれでもコマンドを実行できるようになります。"/>
   <translation tag="Show and enter temperatures in Celsius or Fahrenheit" ja="温度を°Cまたは°Fで表示・入力します"/>
   <translation tag="Show instead of dimming" ja="暗くする代わりに表示"/>
   <translation tag="Show light controls for a light connected to this printer" ja="このプリンターに接続したライトの操作を表示"/>
@@ -3893,6 +3900,7 @@
   <translation tag="TOGGLE: {}" ja="切り替え: {}"/>
   <translation tag="TOOLS" ja="ツール"/>
   <translation tag="TPU" ja="TPU"/>
+  <translation tag="Tab" ja="Tab"/>
   <translation tag="Tag Parts" ja="部位をタグ付け"/>
   <translation tag="Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed." ja="PEIシートを加熱ベッドから外し、「次へ」をタップしてください。ツールヘッドはベッド面を直接計測します。"/>
   <translation tag="Takes 3-5 min. Do not interrupt." ja="3〜5分かかります。中断しないでください。"/>
@@ -4139,6 +4147,8 @@
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ja="保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。"/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." ja="画面とプリンターの接続が数秒間切断されます。"/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ja="この CFS ユニットのセンサーを読み取れません。接続を確認してください。改善しない場合は修理が必要です"/>
+  <translation tag="The shell could not start: {}" ja="シェルを起動できませんでした: {}"/>
+  <translation tag="The shell exited. Tap the terminal to start a new one." ja="シェルが終了しました。ターミナルをタップすると新しいシェルを開始します。"/>
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ja="サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。"/>
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
@@ -4205,6 +4215,7 @@
   <translation tag="This firmware can only switch slots by loading them" ja="このファームウェアはスロットを装填して切り替えることしかできません"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." ja="HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加します。印刷中のため、Klipper は印刷完了後に再起動されます。"/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." ja="HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加して、Klipper を再起動します。"/>
+  <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." ja="これはこの画面を動かしているマシンのシェルで、ユーザー「{}」として動作します。ここで入力したコマンドはそのユーザーの権限で実行され、プリンターのファームウェアを含むシステムを変更したり破損させたりする可能性があります。"/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ja="これは緊急停止です：プリンターが停止し、Klipperが再起動します。"/>
   <translation tag="This is exactly the data that will be sent" ja="これが送信されるデータです"/>
   <translation tag="This is what data would be sent if enabled" ja="これは有効にした場合に送信されるデータです"/>

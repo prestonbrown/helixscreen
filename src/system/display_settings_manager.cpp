@@ -369,6 +369,8 @@ void DisplaySettingsManager::init_subjects() {
     // Presence is ephemeral: it is whatever the display backend opened this run.
     UI_MANAGED_SUBJECT_INT(hardware_keyboard_present_subject_, hardware_keyboard_present_ ? 1 : 0,
                            "settings_hardware_keyboard_present", subjects_);
+    // Ephemeral too: the keyboard starts down.
+    UI_MANAGED_SUBJECT_INT(soft_keyboard_visible_subject_, 0, "soft_keyboard_visible", subjects_);
 
 #ifdef __ANDROID__
     android_set_navbar_always_visible(get_keep_navbar_visible());
@@ -805,6 +807,17 @@ void DisplaySettingsManager::set_hardware_keyboard_present(bool present) {
     if (subjects_initialized_) {
         lv_subject_set_int(&hardware_keyboard_present_subject_, present ? 1 : 0);
     }
+}
+
+void DisplaySettingsManager::set_soft_keyboard_visible(bool visible) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&soft_keyboard_visible_subject_, visible ? 1 : 0);
+    }
+}
+
+bool DisplaySettingsManager::soft_keyboard_visible() const {
+    return subjects_initialized_ &&
+           lv_subject_get_int(const_cast<lv_subject_t*>(&soft_keyboard_visible_subject_)) != 0;
 }
 
 bool DisplaySettingsManager::soft_keyboard_suppressed() const {
