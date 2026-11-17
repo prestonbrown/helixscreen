@@ -53,8 +53,8 @@ MoonrakerAPI::MoonrakerAPI(IMoonrakerClient& client, PrinterState& state)
             std::lock_guard<std::mutex> lock(bed_mesh_presence_mutex_);
             observer = bed_mesh_presence_observer_;
         }
-        if (bed_mesh.contains("probed_matrix")) {
-            const bool present = helix::probed_matrix_has_mesh(bed_mesh["probed_matrix"]);
+        if (const json* matrix = json_util::find_member(bed_mesh, "probed_matrix")) {
+            const bool present = helix::probed_matrix_has_mesh(*matrix);
             if (observer) {
                 observer(present);
             } else {
@@ -195,9 +195,7 @@ void MoonrakerAPI::database_get_item(const std::string& namespace_name, const st
             // before extracting the "value" field — the shape is
             // {"jsonrpc","id","result":{"namespace","key","value": <payload>}}.
             if (on_success) {
-                const json& result =
-                    response.contains("result") ? response["result"] : json::object();
-                const json* value = json_util::find_member(result, "value");
+                const json* value = json_util::find_path(response, "result", "value");
                 on_success(value ? *value : json{});
             }
         },
@@ -236,9 +234,7 @@ void MoonrakerAPI::database_get_namespace(const std::string& namespace_name,
         [on_success](const json& response) {
             // See database_get_item above: unwrap response["result"] first.
             if (on_success) {
-                const json& result =
-                    response.contains("result") ? response["result"] : json::object();
-                const json* value = json_util::find_member(result, "value");
+                const json* value = json_util::find_path(response, "result", "value");
                 on_success(value ? *value : json::object());
             }
         },

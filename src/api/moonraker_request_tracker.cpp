@@ -151,18 +151,19 @@ bool MoonrakerRequestTracker::route_response(const json& msg,
                                              helix::MoonrakerEventCallback emit_event,
                                              std::function<bool()> suppress_error_toast) {
     // Check if this is a response message (has "id" field)
-    if (!msg.contains("id")) {
+    const json* id_field = json_util::find_member(msg, "id");
+    if (!id_field) {
         return false;
     }
 
     // Validate 'id' field type
-    if (!msg["id"].is_number_integer()) {
+    if (!id_field->is_number_integer()) {
         spdlog::error("[INTERNAL] [Request Tracker] Invalid 'id' type in response: {}",
-                      msg["id"].type_name());
+                      id_field->type_name());
         return false;
     }
 
-    uint64_t id = msg["id"].get<uint64_t>();
+    uint64_t id = id_field->get<uint64_t>();
 
     spdlog::trace("[Request Tracker] Got response for id={}", id);
 

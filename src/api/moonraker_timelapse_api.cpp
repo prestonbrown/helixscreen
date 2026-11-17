@@ -270,13 +270,12 @@ void MoonrakerTimelapseAPI::get_last_frame_info(
         "machine.timelapse.lastframeinfo", json::object(),
         [on_success](const json& response) {
             LastFrameInfo info;
-            const auto& result = response.contains("result") ? response["result"] : response;
-            if (result.contains("count") && result["count"].is_number()) {
-                info.frame_count = result["count"].get<int>();
-            }
-            if (result.contains("lastframefile") && result["lastframefile"].is_string()) {
-                info.last_frame_file = result["lastframefile"].get<std::string>();
-            }
+            const json* wrapped = json_util::find_member(response, "result");
+            const json& result = wrapped ? *wrapped : response;
+            info.frame_count =
+                json_util::read_field<int>(result, "count").value_or(info.frame_count);
+            info.last_frame_file = json_util::read_field<std::string>(result, "lastframefile")
+                                       .value_or(info.last_frame_file);
             if (on_success)
                 on_success(info);
         },
@@ -294,8 +293,8 @@ void MoonrakerTimelapseAPI::get_webcam_list(WebcamListCallback on_success, Error
         "server.webcams.list", json::object(),
         [on_success](const json& response) {
             std::vector<WebcamInfo> webcams;
-            if (response.contains("result") && response["result"].contains("webcams")) {
-                for (const auto& cam : response["result"]["webcams"]) {
+            if (const json* cams = json_util::find_path(response, "result", "webcams")) {
+                for (const auto& cam : *cams) {
                     WebcamInfo info = webcam::parse_webcam_entry(cam);
                     if (info.enabled) {
                         webcams.push_back(std::move(info));

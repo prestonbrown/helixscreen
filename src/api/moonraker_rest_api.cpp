@@ -155,11 +155,12 @@ void MoonrakerRestAPI::call_rest_get(const std::string& endpoint, RestCallback o
             if (!resp->body.empty()) {
                 try {
                     auto error_json = json::parse(resp->body);
-                    if (error_json.contains("error") && error_json["error"].is_string()) {
-                        result.error = error_json["error"].get<std::string>();
-                    } else if (error_json.contains("message") &&
-                               error_json["message"].is_string()) {
-                        result.error = error_json["message"].get<std::string>();
+                    if (auto error =
+                            helix::json_util::read_field<std::string>(error_json, "error")) {
+                        result.error = std::move(*error);
+                    } else if (auto message = helix::json_util::read_field<std::string>(
+                                   error_json, "message")) {
+                        result.error = std::move(*message);
                     }
                 } catch (const std::exception& e) {
                     spdlog::trace("[MoonrakerRestAPI] Error response parsing failed: {}", e.what());
@@ -269,11 +270,12 @@ void MoonrakerRestAPI::call_rest_post(const std::string& endpoint, const json& p
             if (!resp->body.empty()) {
                 try {
                     auto error_json = json::parse(resp->body);
-                    if (error_json.contains("error") && error_json["error"].is_string()) {
-                        result.error = error_json["error"].get<std::string>();
-                    } else if (error_json.contains("message") &&
-                               error_json["message"].is_string()) {
-                        result.error = error_json["message"].get<std::string>();
+                    if (auto error =
+                            helix::json_util::read_field<std::string>(error_json, "error")) {
+                        result.error = std::move(*error);
+                    } else if (auto message = helix::json_util::read_field<std::string>(
+                                   error_json, "message")) {
+                        result.error = std::move(*message);
                     }
                 } catch (const std::exception& e) {
                     spdlog::trace("[MoonrakerRestAPI] Error response parsing failed: {}", e.what());

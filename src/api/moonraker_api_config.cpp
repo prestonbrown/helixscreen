@@ -24,8 +24,9 @@ void MoonrakerAPI::query_configfile(JsonCallback on_success, ErrorCallback on_er
         "printer.objects.query", params,
         [on_success, on_error](const json& response) {
             // Navigate to result.status.configfile.config
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile")) {
+            const json* configfile =
+                helix::json_util::find_path(response, "result", "status", "configfile");
+            if (!configfile) {
                 spdlog::warn("[Moonraker API] Configfile not available in response");
                 if (on_error) {
                     MoonrakerError err;
@@ -36,9 +37,8 @@ void MoonrakerAPI::query_configfile(JsonCallback on_success, ErrorCallback on_er
                 return;
             }
 
-            const json& configfile = response["result"]["status"]["configfile"];
-
-            if (!configfile.contains("config")) {
+            const json* config = helix::json_util::find_member(*configfile, "config");
+            if (!config) {
                 spdlog::warn("[Moonraker API] Config section not available in configfile");
                 if (on_error) {
                     MoonrakerError err;
@@ -49,13 +49,11 @@ void MoonrakerAPI::query_configfile(JsonCallback on_success, ErrorCallback on_er
                 return;
             }
 
-            const json& config = configfile["config"];
-
             spdlog::debug("[Moonraker API] Configfile query successful, {} sections",
-                          config.size());
+                          config->size());
 
             if (on_success) {
-                on_success(config);
+                on_success(*config);
             }
         },
         on_error);

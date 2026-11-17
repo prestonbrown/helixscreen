@@ -4,6 +4,7 @@
 #include "webcam_service_health.h"
 
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include <algorithm>
 #include <array>
@@ -175,12 +176,12 @@ nlohmann::json extract_service_state(const nlohmann::json& system_info_response)
     if (!system_info_response.is_object())
         return nlohmann::json::object();
     const nlohmann::json* node = &system_info_response;
-    if (node->contains("result") && (*node)["result"].is_object())
-        node = &(*node)["result"];
-    if (node->contains("system_info") && (*node)["system_info"].is_object())
-        node = &(*node)["system_info"];
-    if (node->contains("service_state") && (*node)["service_state"].is_object())
-        return (*node)["service_state"];
+    if (const auto* result = helix::json_util::find_object(*node, "result"))
+        node = result;
+    if (const auto* system_info = helix::json_util::find_object(*node, "system_info"))
+        node = system_info;
+    if (const auto* service_state = helix::json_util::find_object(*node, "service_state"))
+        return *service_state;
     return nlohmann::json::object();
 }
 

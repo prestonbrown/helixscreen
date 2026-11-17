@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace moonraker_internal {
 
@@ -308,15 +309,15 @@ inline std::vector<double> parse_filament_weights(const nlohmann::json& obj) {
         return weights;
     };
 
-    if (obj.contains("filament_weights") && obj["filament_weights"].is_array()) {
-        return parse_array(obj["filament_weights"]);
+    if (const auto* arr = helix::json_util::find_array(obj, "filament_weights")) {
+        return parse_array(*arr);
     }
-    if (obj.contains("filament_used") && obj["filament_used"].is_array()) {
-        return parse_array(obj["filament_used"]);
+    if (const auto* arr = helix::json_util::find_array(obj, "filament_used")) {
+        return parse_array(*arr);
     }
     std::vector<double> weights;
-    if (obj.contains("filament_used") && obj["filament_used"].is_string()) {
-        std::string used_str = obj["filament_used"].get<std::string>();
+    if (auto used = helix::json_util::read_field<std::string>(obj, "filament_used")) {
+        std::string used_str = std::move(*used);
         const char* delims = ";,";
         size_t pos = 0;
         while (pos < used_str.size()) {
