@@ -7,7 +7,8 @@
 # and which size class a package ships were restated in shell, make, C++ and prose, and
 # the copies disagreed. It is ADVISORY, so the one thing these tests must pin hardest is
 # that advisory does not mean inert - it has to report a real regression and it has to
-# exit non-zero under --strict. A gate that cannot go red is a gate that reports nothing
+# exit non-zero under --strict. config-in-payload is the exception: user config inside
+# the payload is deleted by the next update, so that finding fails without --strict. A gate that cannot go red is a gate that reports nothing
 # forever and reads exactly like a passing one.
 #
 # The deriver half matters just as much: an unknown platform must fail loudly rather than
@@ -258,11 +259,31 @@ json.dump(d,open(p,"w"),indent=2)' "$TREE/assets/config/platforms.json" "$@"
     contains "ad5x: user_config_dir /srv/helixscreen/config is inside the payload root" "$output"
 }
 
-@test "check_user_config_outside_payload reports a platform that names no config dir" {
+@test "check_user_config_outside_payload fails a platform that names no config dir" {
     make_tree
+    run python3 "$GATE" --quiet --root "$TREE"
+    [ "$status" -eq 0 ] || fail "the shipped manifest fails the gate: $output"
+
     set_storage ad5x user_config_dir null
     run python3 "$GATE" --quiet --root "$TREE"
+    [ "$status" -ne 0 ] || fail "a config dir left inside the payload passed without --strict"
     contains "ad5x: no user_config_dir, so user config stays in /srv/helixscreen/config" "$output"
+}
+
+@test "check_user_config_outside_payload fails a detected root that declares nothing" {
+    make_tree
+    set_storage pi user_config_dir null
+    run python3 "$GATE" --quiet --root "$TREE"
+    [ "$status" -ne 0 ] || fail "an undeclared config dir passed without --strict"
+    contains "pi: storage declares no user_config_dir" "$output"
+}
+
+@test "check_user_config_outside_payload takes null only with a reason" {
+    make_tree
+    set_storage x86-desktop user_config_dir_reason null
+    run python3 "$GATE" --quiet --root "$TREE"
+    [ "$status" -ne 0 ] || fail "a bare null user_config_dir passed"
+    contains "x86-desktop: storage declares no user_config_dir" "$output"
 }
 
 @test "check_user_config_outside_payload checks each firmware's root" {
