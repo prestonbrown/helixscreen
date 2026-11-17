@@ -16,6 +16,7 @@
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -214,22 +215,22 @@ void PowerDeviceState::update_device_status(const std::string& device, const std
 void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
     // Moonraker sends: {"method": "notify_power_changed", "params": [{"device": "...", "status":
     // "on|off", ...}]}
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty()) {
         return;
     }
 
     auto tok = lifetime_.token();
 
-    for (const auto& param : msg["params"]) {
-        if (!param.is_object() || !param.contains("device") || !param.contains("status")) {
-            continue;
-        }
-        if (!param["device"].is_string() || !param["status"].is_string()) {
+    for (const auto& param : *params) {
+        auto device = json_util::read_field<std::string>(param, "device");
+        auto status = json_util::read_field<std::string>(param, "status");
+        if (!device || !status) {
             continue;
         }
 
-        std::string device_name = param["device"].get<std::string>();
-        std::string new_status = param["status"].get<std::string>();
+        std::string device_name = std::move(*device);
+        std::string new_status = std::move(*status);
         int new_raw = status_string_to_int(new_status);
 
         spdlog::debug("[PowerDeviceState] notify_power_changed: device='{}' status='{}'",
