@@ -167,6 +167,8 @@ struct ParamRow {
 // (Toolhead).
 constexpr ParamRow kParams[] = {
     {"form_tip_macro", "form_tip_macro", "form_tip_macro", "form_tip_macro", ParamScope::Machine},
+    {"default_extruder_temp", "default_extruder_temp", "default_extruder_temp",
+     "default_extruder_temp", ParamScope::Machine},
     {"extruder_load_speed", "extruder_load_speed", "extruder_load_speed", "extruder_load_speed",
      ParamScope::Machine},
     {"extruder_unload_speed", "extruder_unload_speed", "extruder_unload_speed",

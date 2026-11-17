@@ -786,6 +786,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         std::optional<float> detection_length;
         /// v4 [mmu_unit_parameters] autotune_rotation_distance, when the config names it
         std::optional<bool> autotune_rotation_distance;
+        /// The temperature Happy Hare gives a gate with no spool, when the
+        /// config names one. Clear Spool sends it as the wipe's TEMP.
+        std::optional<int> default_extruder_temp;
         bool loaded = false;
     };
     ConfigDefaults config_defaults_;
