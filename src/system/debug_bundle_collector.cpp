@@ -165,6 +165,18 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
         spdlog::warn("[DebugBundle] Failed to collect log meta: {}", e.what());
     }
 
+    // The launcher records every helix-screen exit code; the app's own log
+    // cannot outlive the process it describes.
+    try {
+        auto launcher_log =
+            collect_launcher_log(helix::logs::launcher_log_paths(diag.paths.install_root));
+        if (!launcher_log.empty()) {
+            bundle["launcher_log"] = launcher_log;
+        }
+    } catch (const std::exception& e) {
+        spdlog::warn("[DebugBundle] Failed to collect launcher log: {}", e.what());
+    }
+
     try {
         auto crash_txt = collect_crash_txt();
         if (!crash_txt.empty()) {
@@ -1234,6 +1246,25 @@ json DebugBundleCollector::collect_moonraker_local_probe() {
     }
 
     return probe;
+}
+
+// =============================================================================
+// Launcher log
+// =============================================================================
+
+std::string DebugBundleCollector::collect_launcher_log(const std::vector<std::string>& paths,
+                                                       int max_lines) {
+    helix::logs::TailSource source;
+    std::string body = helix::logs::tail_file(paths, max_lines, &source);
+    if (body.empty())
+        return {};
+    if (body.size() > kLauncherLogMaxBytes) {
+        body.erase(0, body.size() - kLauncherLogMaxBytes);
+        const size_t nl = body.find('\n');
+        body = nl == std::string::npos ? std::string{} : body.substr(nl + 1);
+    }
+    return local_log_source_line(source.path, source.modified, std::time(nullptr)) + "\n" +
+           sanitize_text_block(body);
 }
 
 // =============================================================================

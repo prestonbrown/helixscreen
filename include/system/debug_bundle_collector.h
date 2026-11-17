@@ -404,6 +404,17 @@ class DebugBundleCollector {
     /// own /proc says nothing about it.
     static nlohmann::json collect_moonraker_local_probe();
 
+    /// The `launcher_log` section: the tail of the freshest file in @p paths
+    /// (helix::logs::launcher_log_paths()), opening with its path and age, at
+    /// most @p max_lines lines and kLauncherLogMaxBytes, scrubbed. "" when none
+    /// exists, as on systemd hosts where the launcher logs to the journal.
+    static std::string collect_launcher_log(const std::vector<std::string>& paths,
+                                            int max_lines = kLauncherLogMaxLines);
+    /// A launcher start-to-exit cycle is a dozen lines, so this spans the last
+    /// couple of dozen restarts and their exit codes.
+    static constexpr int kLauncherLogMaxLines = 300;
+    static constexpr size_t kLauncherLogMaxBytes = 64 * 1024;
+
     /// The `kernel_log` section: the kernel's kill and crash records from this
     /// host, and nothing else. A daemon that vanished mid-print was either
     /// OOM-killed or crashed, and only the kernel says which. Reads `dmesg`,

@@ -13,6 +13,7 @@
 #include "platform_table.h"
 #include "printer_state.h"
 #include "system/debug_bundle_collector.h"
+#include "system/log_collector.h"
 #include "system/update_checker.h"
 #include "test_helpers/scoped_update_urls.h"
 #include "test_helpers/unique_temp_dir.h"
@@ -2448,4 +2449,64 @@ TEST_CASE("DebugBundleCollector: klipper_log_meta scrubs the log path", "[debug-
     const json meta = DebugBundleCollector::assess_klipper_log(
         {"local", "/home/someone@example.com/logs/klippy.log", 100}, "", 0, "");
     CHECK(meta["path"].get<std::string>().find("someone@example.com") == std::string::npos);
+}
+
+// ============================================================================
+// launcher_log [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: launcher_log tails the freshest launcher log, capped and "
+          "scrubbed",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    DebugBundleTestFixture fx;
+    std::string live;
+    for (int i = 0; i < 400; ++i)
+        live += "[2026-11-14 14:0" + std::to_string(i % 10) + ":00] [helix-launcher] run " +
+                std::to_string(i) + "\n";
+    live += "[2026-11-14 14:09:59] [helix-launcher] helix-screen exited with code 139 for "
+            "admin@example.com on 8.8.4.4\n";
+    fx.write_file("launcher.log", live);
+    fx.write_file("old_launcher.log", "[2026-08-01 00:00:00] [helix-launcher] ancient\n");
+    const std::string fresh = (fx.temp_dir_ / "launcher.log").string();
+    const std::string stale = (fx.temp_dir_ / "old_launcher.log").string();
+    const auto old_time = fs::file_time_type::clock::now() - std::chrono::hours(24 * 90);
+    fs::last_write_time(stale, old_time);
+
+    const std::string out = DebugBundleCollector::collect_launcher_log(
+        {stale, fresh, (fx.temp_dir_ / "missing.log").string()});
+    REQUIRE_FALSE(out.empty());
+    CHECK(out.rfind("[read from local disk: " + fresh, 0) == 0);
+    CHECK(out.find("ancient") == std::string::npos);
+    CHECK(out.find("exited with code 139") != std::string::npos);
+    CHECK(out.find("admin@example.com") == std::string::npos);
+    CHECK(out.find("8.8.4.4") == std::string::npos);
+    // Header line plus the capped tail.
+    CHECK(std::count(out.begin(), out.end(), '\n') == DebugBundleCollector::kLauncherLogMaxLines);
+    CHECK(out.find("run 100\n") == std::string::npos);
+    CHECK(out.find("run 399\n") != std::string::npos);
+
+    std::string wide;
+    for (int i = 0; i < 200; ++i)
+        wide += std::string(1000, 'w') + " line " + std::to_string(i) + "\n";
+    fx.write_file("wide.log", wide);
+    const std::string wide_out =
+        DebugBundleCollector::collect_launcher_log({(fx.temp_dir_ / "wide.log").string()});
+    CHECK(wide_out.size() <= DebugBundleCollector::kLauncherLogMaxBytes + 512);
+
+    CHECK(
+        DebugBundleCollector::collect_launcher_log({(fx.temp_dir_ / "none.log").string()}).empty());
+}
+
+TEST_CASE("DebugBundleCollector: launcher log paths put the running install first",
+          "[debug-bundle]") {
+    const auto paths = helix::logs::launcher_log_paths("/custom/helixscreen");
+    REQUIRE(paths.size() >= 2);
+    CHECK(paths[0] == "/var/log/helixscreen/launcher.log");
+    CHECK(paths[1] == "/custom/helixscreen/logs/launcher.log");
+    CHECK(std::find(paths.begin(), paths.end(), "/userdata/helixscreen/logs/launcher.log") !=
+          paths.end());
+    CHECK(std::count(paths.begin(), paths.end(), "/opt/helixscreen/logs/launcher.log") == 1);
+    const auto defaults = helix::logs::launcher_log_paths("");
+    CHECK(std::find(defaults.begin(), defaults.end(), "/logs/launcher.log") == defaults.end());
 }
