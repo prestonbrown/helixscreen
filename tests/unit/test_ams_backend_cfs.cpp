@@ -884,7 +884,9 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
 
 TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
           "[ams][cfs][calib][2007]") {
-    CfsCalibHelper backend;
+    helix::test::FakeMoonrakerClient console;
+    CfsCalibHelper backend(nullptr, &console);
+    const auto handlers = console.live_handlers();
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     bool failed = false;
@@ -907,6 +909,8 @@ TEST_CASE("CFS chute park failure after a good save reports the position as save
     CHECK(backend.captured ==
           std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
+    // The save's console watch goes with the failed park.
+    CHECK(console.live_handlers() == handlers);
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
