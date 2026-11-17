@@ -739,7 +739,7 @@ Select the mock AMS topology/type.
 | `multiace` | 1 | **multiACE on a U1 - mock HARDWARE, real backend.** Pushes the U1 feed objects plus the plain `ace` object so real discovery builds the production `AmsBackendMultiAce` and runs it against engine-shaped frames. Pair with `HELIX_MOCK_PRINTER=snapmaker_u1`. See below |
 | `indx` | 1 | **Bondtech INDX - mock HARDWARE, real backend.** Publishes the toolboard module, `save_variables` and Bondtech's macro objects so real discovery builds the production `AmsBackendIndx`. `T<n>` / `CHANGE_TOOL` / `PARK_TOOL` walk park and pickup over a few notifications, and heat is refused with no tool on the head or on a no-hotend tool. See below |
 
-`HELIX_MOCK_AMS=toolchanger` models klipper-toolchanger's per-tool fans: no `[fan]`, and each tool T0-T3 has its own `fan_generic T<n>_part_fan` (the one its `tool T<n>` object names, and the one M106 drives while that tool is mounted) and a `heater_fan T<n>_hotend_fan` on its own extruder. Each hotend fan's `fan_speed` is a step lower per tool (100%, 90%, 80%, 70%) so the fan readouts of different tools read apart. `HELIX_MOCK_TOOLCHANGER_TOOL=<n>` (0-3, default 0) starts with tool `n` mounted, in both the printer mock and the mock tool changer backend.
+`HELIX_MOCK_AMS=toolchanger` models klipper-toolchanger's per-tool fans: no `[fan]`, and each tool T0-T3 has its own `fan_generic T<n>_part_fan` (the one its `tool T<n>` object names, and the one M106 drives while that tool is mounted) and a `heater_fan T<n>_hotend_fan` on its own extruder. Each hotend fan's `fan_speed` is a step lower per tool (100%, 90%, 80%, 70%) so the fan readouts of different tools read apart. A persona whose machine names its own fans omits these (`kToolchangerToolFans` in `include/mock_persona.h`): the Creator 5 personas keep their FlashForge fans. `HELIX_MOCK_TOOLCHANGER_TOOL=<n>` (0-3, default 0) starts with tool `n` mounted, in both the printer mock and the mock tool changer backend.
 
 `HELIX_MOCK_AMS=multiace` takes two knobs (read once at start by `MoonrakerClientMock`):
 
@@ -1443,9 +1443,11 @@ Both Creator 5 personas model the **Creator 5 Pro** (the heated-chamber model), 
 `creator5` here names the mock persona, not the printer: the preset it mirrors is
 `assets/config/presets/creator5_pro.json`. The mock and the shipped preset
 describe the same machine: 4 extruders (`extruder`, `extruder1..3`), chamber heater
-`heater_generic chamber_heater`, fans `heater_fan heat_fan` / `fan_generic fanM106`
-/ `fan_generic chamber_fan` / `fan_generic chamber_loop_fan`, LED `led chamber_led`,
-and one runout switch per head (`fd_ex0..fd_ex3`).
+`heater_generic chamber_heater`, fans `fan_generic fanM106` (the one part fan, which
+M106 drives) / `heater_fan heat_fan`, `heat_fan1..3` (one per head) /
+`fan_generic chamber_fan` / `fan_generic chamber_loop_fan`, LED `led chamber_led`,
+and one runout switch per head (`fd_ex0..fd_ex3`). The toolchanger mock's generic
+`T<n>_part_fan` / `T<n>_hotend_fan` are left out: a Creator 5 has none.
 
 It also advertises the Creator 5 Pro fingerprint in `printer.objects.list`
 (`ff_toolchange`, `gcode_button extruder_grab0..3`, `heater_generic chamber_heater`,

@@ -8,11 +8,13 @@
 #include "test_helpers/scoped_runtime_config.h"
 #include "toolchanger_addon.h"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -316,4 +318,42 @@ TEST_CASE("An older Z-Mod AD5X without an AFC surface keeps the IFS backend",
                                   "filament_motion_sensor ifs_motion_sensor", "extruder"}));
     CHECK_FALSE(hw.has_zmod_afc());
     CHECK(hw.mmu_type() == helix::AmsType::AD5X_IFS);
+}
+
+// A Creator 5 Pro has one part fan (fanM106, the one M106 drives) and a
+// heater_fan per head (heat_fan, heat_fan1..3), as assets/config/presets/
+// creator5_pro.json lists them. The toolchanger mock's generic per-tool fans
+// model klipper-toolchanger configs, not this machine.
+TEST_CASE("The Reforge persona carries the Creator 5's own fans, not generic tool fans",
+          "[mock][creator5][fan]") {
+    MockTopologyGuards guards;
+
+    SECTION("creator5 under its default toolchanger mock") {
+        helix::ScopedEnv reforge{"HELIX_MOCK_PRINTER", "creator5"};
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::FLASHFORGE_CREATOR5);
+        const helix::PrinterDiscovery hw = mock.hardware();
+        REQUIRE(hw.has_tool_changer());
+        const auto& fans = hw.fans();
+        for (const auto& fan : fans) {
+            INFO(fan);
+            CHECK(fan.find("_part_fan") == std::string::npos);
+            CHECK(fan.find("_hotend_fan") == std::string::npos);
+        }
+        for (const char* own :
+             {"fan_generic fanM106", "heater_fan heat_fan", "heater_fan heat_fan1",
+              "heater_fan heat_fan2", "heater_fan heat_fan3"}) {
+            INFO(own);
+            CHECK(std::find(fans.begin(), fans.end(), own) != fans.end());
+        }
+    }
+
+    SECTION("another persona under the toolchanger mock keeps the per-tool fans") {
+        helix::ScopedEnv tc{"HELIX_MOCK_AMS", "toolchanger"};
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        const auto fans = mock.hardware().fans();
+        for (const char* tool_fan : {"fan_generic T0_part_fan", "heater_fan T3_hotend_fan"}) {
+            INFO(tool_fan);
+            CHECK(std::find(fans.begin(), fans.end(), tool_fan) != fans.end());
+        }
+    }
 }

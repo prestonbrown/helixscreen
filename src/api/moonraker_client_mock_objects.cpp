@@ -100,7 +100,7 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
              "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
     }
     sections.merge_patch(self->medusa_config_sections());
-    if (self->is_mock_toolchanger()) {
+    if (self->has_toolchanger_tool_fans()) {
         // Klipper keys configfile.settings sections lowercased.
         for (int t = 0; t < 4; ++t) {
             sections[helix::text_io::to_lower("heater_fan " +
@@ -1081,7 +1081,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"gcode_y_offset", self->tool_offset(tool_number, helix::Axis::Y)},
                         {"gcode_z_offset", self->tool_offset(tool_number, helix::Axis::Z)},
                         {"extruder", extruder_for_tool},
-                        {"fan", self->is_mock_toolchanger()
+                        {"fan", self->has_toolchanger_tool_fans()
                                     ? mock_internal::toolchanger_part_fan(tool_number)
                                     : std::string("fan")}};
                 }

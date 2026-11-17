@@ -1888,6 +1888,11 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
     return mock_toolchanger_selected();
 }
 
+bool MoonrakerClientMock::has_toolchanger_tool_fans() const {
+    return is_mock_toolchanger() && (helix::mock::descriptor(printer_type_).omit &
+                                     helix::mock::default_object::kToolchangerToolFans) == 0;
+}
+
 MoonrakerClientMock::MedusaVariant MoonrakerClientMock::mock_medusa_variant() {
     return helix::mock::medusa_variant(effective_mock_ams_env());
 }
@@ -3030,7 +3035,7 @@ double MoonrakerClientMock::secondary_extruder_temp(int index) const {
 
 json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
     json out = json::object();
-    if (!is_mock_toolchanger()) {
+    if (!has_toolchanger_tool_fans()) {
         return out;
     }
     const int mounted = toolchanger_tool_.load();
@@ -3719,8 +3724,11 @@ void MoonrakerClientMock::populate_hardware() {
                                 "extruder3",
                                 "heater_generic chamber_heater",
                                 "temperature_sensor mcu_temp"};
-        discovery_.fans() = {"heater_fan heat_fan", "fan_generic fanM106",
-                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan"};
+        // One part fan, the one M106 drives, and a heater_fan per head.
+        discovery_.fans() = {"heater_fan heat_fan",     "fan_generic fanM106",
+                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan",
+                             "heater_fan heat_fan1",    "heater_fan heat_fan2",
+                             "heater_fan heat_fan3"};
         discovery_.leds() = {"led chamber_led"};
         break;
 
@@ -3865,7 +3873,7 @@ void MoonrakerClientMock::populate_hardware() {
     }
     // klipper-toolchanger refuses a [fan] beside tool fans: each tool carries a
     // fan_generic part fan and a heater_fan on its own extruder instead.
-    if (is_mock_toolchanger()) {
+    if (has_toolchanger_tool_fans()) {
         auto& fans = discovery_.fans();
         fans.erase(std::remove_if(fans.begin(), fans.end(),
                                   [](const std::string& f) {
@@ -3876,6 +3884,8 @@ void MoonrakerClientMock::populate_hardware() {
             fans.push_back("fan_generic " + mock_internal::toolchanger_part_fan(t));
             fans.push_back("heater_fan " + mock_internal::toolchanger_hotend_fan(t));
         }
+    }
+    if (is_mock_toolchanger()) {
         toolchanger_tool_.store(
             helix::mock::toolchanger_start_tool(std::getenv("HELIX_MOCK_TOOLCHANGER_TOOL"), 4));
     }
@@ -6174,7 +6184,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         {
             std::lock_guard<std::mutex> lock(fan_mutex_);
             for (const auto& [name, spd] : fan_speeds_) {
-                if (name == "fan" && is_mock_toolchanger()) {
+                if (name == "fan" && has_toolchanger_tool_fans()) {
                     status_obj.merge_patch(toolchanger_fan_status(spd));
                 } else if (name == "fan") {
                     status_obj["fan"] = mock_internal::part_fan_status(spd);

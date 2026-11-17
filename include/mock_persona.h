@@ -48,6 +48,10 @@ inline constexpr DefaultObjects kWidthSensor = 1u << 6; // "hall_filament_width_
 inline constexpr DefaultObjects kRunoutSensor = 1u << 7;
 /// led_effect objects + LIGHTS_* / LED_* macros.
 inline constexpr DefaultObjects kLedEffects = 1u << 8;
+/// The toolchanger mock's klipper-toolchanger fans: a `fan_generic T<n>_part_fan`
+/// and a `heater_fan T<n>_hotend_fan` per tool, in place of `fan`. A persona whose
+/// machine names its own fans omits them and keeps its own.
+inline constexpr DefaultObjects kToolchangerToolFans = 1u << 9;
 } // namespace default_object
 
 struct AxisMax {
@@ -85,7 +89,7 @@ struct PersonaDescriptor {
     case PrinterType::FLASHFORGE_AD5M:
         return {"ad5m-mock", {220.0, 220.0, 220.0}, "corexy", NONE, "", false};
     case PrinterType::FLASHFORGE_CREATOR5:
-        return {"mock-printer", standard, "corexy", NONE, "toolchanger", false};
+        return {"mock-printer", standard, "corexy", kToolchangerToolFans, "toolchanger", false};
     case PrinterType::ELEGOO_CC1:
         return {"cosmos",
                 {256.0, 265.0, 258.0},
@@ -122,7 +126,7 @@ struct PersonaDescriptor {
                 "snapmaker",
                 false};
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
-        return {"mock-printer", standard, "corexy", kHappyHareMmu, "", true};
+        return {"mock-printer", standard, "corexy", kHappyHareMmu | kToolchangerToolFans, "", true};
     case PrinterType::VORON_24:
         return {"mock-printer",       {175.0, 175.0, 300.0}, "corexy", NONE, "", false, {},
                 {-175.0, -175.0, 0.0}};
