@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Up next: the first queued job, up while the queue is not empty. Tap
+     starts it when the printer is free, otherwise opens the job queue. Shared
+     by the strip and the ultrawide info column. A micro landscape strip gives
+     its height to the tiles; the queue stays reachable from the job queue. -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+        style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" clickable="true"
+        style_radius="#border_radius">
+    <style name="styles.press_wash" selector="pressed"/>
+    <bind_flag_if cond="job_queue_count eq 0 or (ui_breakpoint eq 0 and ps_strip_stacked eq 0)" flag="hidden"/>
+    <event_cb trigger="clicked" callback="on_up_next_tap"/>
+    <icon src="progress_clock" size="xs" variant="muted" clickable="false" event_bubble="true"/>
+    <text_small name="up_next_label"
+                flex_grow="1" bind_text="job_queue_up_next_text" style_text_color="#text_muted" long_mode="dots"
+                clickable="false" event_bubble="true"/>
+  </view>
+</component>

@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Changed
+
+- **Print Status fits ultrawide screens** - on very wide screens such as 1480x320 and 1920x440, Print Status now lays its content out in columns instead of stretching the normal layout. The model preview is a square at the full height, the progress, times, layer, filament and next job sit in a column with larger type, the printer picture keeps its natural shape with its callouts, a new card lists the nozzle, bed and chamber temperatures with their targets alongside speed, flow and the fans, and Pause, Tune, More and Cancel stack on the right. Tapping a temperature opens the temperature graph, and tapping speed opens Print Tune.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- metadata_clip_height and the font_ps_hero tokens are declared in
+       ui_xml/print_status_panel.xml, where token discovery registers them
+       globally. -->
+  <!-- Print Status Panel, ultrawide: one row of columns at shapes that suit
+       them (components/print_status_ultrawide_body.xml) in place of the
+       tiles above a strip, which a screen this short stretches. -->
+  <view name="print_status_panel"
+        extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
+        style_bg_color="#screen_bg" style_pad_all="0" style_border_width="0" flex_flow="column" clickable="true">
+    <!-- The Files action button opens print select mid-print so files can be
+         browsed and managed (prestonbrown/helixscreen#1395). The E-stop lives
+         on the navbar. -->
+    <header_bar name="overlay_header"
+                title="Print Status" hide_action_icon="false" action_icon="folder"
+                action_icon_callback="on_print_status_files"/>
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_md" style_pad_gap="0" scrollable="false">
+      <!-- Disable content when printer not connected or klippy not ready -->
+      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+      <print_status_ultrawide_body name="print_status_body"/>
+    </lv_obj>
+  </view>
+</component>

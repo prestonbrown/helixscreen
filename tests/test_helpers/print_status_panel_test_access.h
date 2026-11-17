@@ -73,6 +73,11 @@ class PrintStatusPanelTestAccess {
         return panel.tiles_;
     }
 
+    /// Measure overlay_content and publish the arrangement, as a resize does.
+    static void relayout(PrintStatusPanel& panel) {
+        panel.relayout();
+    }
+
     /// The preview card's camera stream exists (it may still be connecting).
     static bool camera_streaming(const PrintStatusPanel& panel) {
 #if HELIX_HAS_CAMERA

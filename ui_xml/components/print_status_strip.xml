@@ -21,7 +21,6 @@
     <style name="progress_row"
            height="content" flex_grow="1" min_height="#ps_strip_button" flex_main_place="space_evenly"/>
     <style name="progress_stacked" width="100%" height="content"/>
-    <style name="button_square" max_width="#ps_strip_button"/>
   </styles>
   <view extends="ui_card"
         width="100%" height="content" style_pad_all="#space_sm" style_pad_gap="#space_md" style_radius="#border_radius"
@@ -65,101 +64,15 @@
       <progress_bar_estimate name="preparing_progress_bar" bind_value="preparing_progress">
         <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="0"/>
       </progress_bar_estimate>
-      <!-- Filament: the runout glyph without an AMS, the active lane with one,
-           and tool changes done of expected. -->
-      <lv_obj name="filament_ams_status_row"
-              width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
-              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-        <!-- Stands down whenever ams_status_row shows, which carries the same
-             glyph beside its lane; an AMS printer between lanes (no active
-             tool) shows it here instead. -->
-        <lv_obj name="filament_status_row"
-                width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-          <bind_flag_if cond="filament_sensor_count eq 0 or (ams_slot_count gt 0 and ams_current_tool ge 0)"
-                        flag="hidden"/>
-          <filament_sensor_indicator subject="filament_runout_scoped"/>
-        </lv_obj>
-        <lv_obj name="ams_status_row"
-                height="content" flex_grow="1" style_min_width="0" style_pad_all="0" style_bg_opa="0"
-                style_border_width="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-          <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
-          <ams_current_tool name="ams_current_tool_indicator" runout_subject="filament_runout_scoped"/>
-        </lv_obj>
-        <lv_obj name="toolchange_status"
-                width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs">
-          <bind_flag_if_eq subject="toolchange_visible" flag="hidden" ref_value="0"/>
-          <icon src="swap_vertical" size="xs" variant="muted"/>
-          <text_small name="toolchange_label" bind_text="toolchange_text" style_text_color="#text_muted"/>
-        </lv_obj>
-      </lv_obj>
-      <!-- Up next: the first queued job, up while the queue is not empty. Tap
-           starts it when the printer is free, otherwise opens the job queue. -->
-      <lv_obj name="up_next_row"
-              width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
-              style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false" clickable="true"
-              style_radius="#border_radius">
-        <style name="styles.press_wash" selector="pressed"/>
-        <bind_flag_if_eq subject="job_queue_count" flag="hidden" ref_value="0"/>
-        <!-- A micro landscape strip gives its height to the tiles; the queue
-             stays reachable from the job queue. -->
-        <bind_flag_if cond="ui_breakpoint eq 0 and ps_strip_stacked eq 0" flag="hidden"/>
-        <event_cb trigger="clicked" callback="on_up_next_tap"/>
-        <icon src="progress_clock" size="xs" variant="muted" clickable="false" event_bubble="true"/>
-        <text_small name="up_next_label"
-                    flex_grow="1" bind_text="job_queue_up_next_text" style_text_color="#text_muted" long_mode="dots"
-                    clickable="false" event_bubble="true"/>
-      </lv_obj>
+      <!-- Filament: the runout glyph, or the active lane with an AMS, and tool changes. -->
+      <print_status_filament_row width="100%"/>
+      <print_status_up_next name="up_next_row" width="100%"/>
     </lv_obj>
 
     <!-- Pause, Tune, More, Cancel / Reprint. -->
-    <lv_obj name="ps_strip_buttons"
-            style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row" style_flex_main_place="end"
-            style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+    <print_status_actions name="ps_strip_buttons">
       <bind_style_if_eq name="buttons_row" subject="ps_strip_stacked" ref_value="0"/>
       <bind_style_if_eq name="buttons_stacked" subject="ps_strip_stacked" ref_value="1"/>
-      <ui_button name="btn_pause"
-                 height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" icon="pause"
-                 bind_icon="print_control_primary_icon" text="Pause" bind_text="print_control_primary_label"
-                 icon_position="top">
-        <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_print_control_primary"/>
-        <bind_state_if_eq subject="print_control_primary_enabled" state="disabled" ref_value="0"/>
-      </ui_button>
-      <ui_button name="btn_tune"
-                 height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" icon="tune"
-                 text="Tune" icon_position="top">
-        <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_print_status_tune"/>
-        <bind_state_if_eq subject="print_controls_enabled" state="disabled" ref_value="0"/>
-      </ui_button>
-      <!-- Filled grey: the actions behind it are secondary. Hidden when every
-           entry of the menu is. -->
-      <ui_button name="btn_more"
-                 height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" variant="ghost"
-                 style_bg_color="#elevated_bg" style_bg_opa="255" icon="dots_vertical" text="More" icon_position="top">
-        <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <bind_flag_if cond="print_status_camera_available or timelapse_owner eq 1 or led_controllable"
-                      flag="hidden" invert="true"/>
-        <event_cb trigger="clicked" callback="on_print_status_more"/>
-      </ui_button>
-      <!-- Cancel while a print runs (outcome NONE), Reprint once it has an outcome. -->
-      <ui_button name="btn_cancel"
-                 height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" variant="danger"
-                 icon="stop" text="Cancel" icon_position="top">
-        <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <bind_flag_if_not_eq subject="print_outcome" flag="hidden" ref_value="0"/>
-        <bind_state_if_eq subject="print_control_stop_enabled" state="disabled" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_print_control_stop"/>
-      </ui_button>
-      <ui_button name="btn_reprint"
-                 height="100%" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs" icon="refresh"
-                 text="Reprint" icon_position="top" hidden="true">
-        <bind_style_if_eq name="button_square" subject="ps_strip_stacked" ref_value="0"/>
-        <bind_flag_if_eq subject="print_outcome" flag="hidden" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_print_status_reprint"/>
-      </ui_button>
-    </lv_obj>
+    </print_status_actions>
   </view>
 </component>
