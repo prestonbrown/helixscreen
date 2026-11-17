@@ -135,6 +135,9 @@ Your computer isn't on Moonraker's trusted list and Moonraker requires logins. A
 **Nothing at `http://<printer address>:7130/` (pairing printers).**
 Check **Share Screen** is on, and that nothing on your network blocks port 7130.
 
+**Behind my own reverse proxy (for example `https://example.com/printer/`), the webcam tile is blank or taps are refused.**
+Mainsail and Fluidd look for webcams at the root of your site, so the **HelixScreen Screen** tile does not follow a path like `/printer/`. Open the screen page itself instead: `https://example.com/printer/helixscreen/screen/` on printers that need no code. For taps to work, your proxy must pass the browser's host name on, either by keeping the `Host` header or by sending `X-Forwarded-Host` (Caddy and Traefik send it; in nginx add `proxy_set_header X-Forwarded-Host $host;`). Printers that use a pairing code serve the screen on port 7130 over plain `http`, which a proxy has to forward separately.
+
 **I use HelixScreen on a separate screen (for example a Pi) to drive a different printer.**
 Then it always uses a pairing code, and its webcam is named **HelixScreen Screen (your-pi's-name)** so it never replaces the printer's own entry.
 

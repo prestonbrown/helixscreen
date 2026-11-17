@@ -66,9 +66,23 @@ _remote_screen_firmware_serves() {
 # proxy_pass to port 7125 or to an upstream in the same file that points there.
 # The auth subrequest goes where that block already sends Moonraker traffic
 # (its /websocket proxy_pass first), else 127.0.0.1:7125. A block that already
-# carries the tag is left as it is.
+# carries the tag gets only the mount's trailing-slash redirect, if it lacks it.
+# With $1 "upgrade" (then the config is $2), untagged blocks are left alone.
+#
+# The redirect is relative ("screen/"): nginx's own redirect for the mount
+# without its slash names this server's scheme, host and root path, which sends
+# a browser behind a TLS or path-prefixing reverse proxy somewhere else.
 _remote_screen_filter() {
-    awk -v tag="$NGINX_REMOTE_SCREEN_TAG" -v mount="$REMOTE_SCREEN_MOUNT" '
+    local only_tagged=0
+    if [ "$1" = "upgrade" ]; then
+        only_tagged=1
+        shift
+    fi
+    awk -v tag="$NGINX_REMOTE_SCREEN_TAG" -v mount="$REMOTE_SCREEN_MOUNT" -v only_tagged="$only_tagged" '
+        BEGIN {
+            bare = mount; sub(/\/$/, "", bare)
+            leaf = bare; sub(/.*\//, "", leaf)
+        }
         function code(s) { sub(/#.*/, "", s); return s }
         function count(s, re,   t) { t = s; return gsub(re, "", t) }
         function pp_host(s,   t) {
@@ -95,6 +109,7 @@ _remote_screen_filter() {
             }
             if (in_srv) {
                 if (index($0, tag)) tagged[n] = 1
+                if (index($0, "location = " bare " {")) redirected[n] = 1
                 if (l ~ /^[[:space:]]*location[[:space:]]+(=[[:space:]]*)?\/websocket/) { ws[n] = 1; want_ws = 1 }
                 h = pp_host(l)
                 if (h != "") {
@@ -109,7 +124,12 @@ _remote_screen_filter() {
         }
         FNR == 1 {
             for (i = 1; i <= n; i++) {
-                if (tagged[i] || !close_line[i]) continue
+                if (!close_line[i]) continue
+                if (tagged[i]) {
+                    if (!redirected[i]) { ins_at[close_line[i]] = i; redirect_only[i] = 1 }
+                    continue
+                }
+                if (only_tagged) continue
                 target = ""
                 if (ws_host[i] != "") target = ws_host[i]
                 k = split(hosts[i], hl, " ")
@@ -126,20 +146,24 @@ _remote_screen_filter() {
         }
         FNR in ins_at {
             i = ins_at[FNR]; p = indent[i]; q = p "    "; c = " # " tag
-            print p "location " mount " {" c
-            print q "auth_request /helixscreen/screen-auth;" c
-            print q "proxy_pass http://127.0.0.1:7130/;" c
-            print q "proxy_set_header Host $http_host;" c
-            print q "proxy_buffering off;" c
-            print q "access_log off;" c
-            print p "}" c
-            print p "location = /helixscreen/screen-auth {" c
-            print q "internal;" c
-            print q "proxy_pass http://" ins_up[i] "/access/user;" c
-            print q "proxy_pass_request_body off;" c
-            print q "proxy_set_header Content-Length \"\";" c
-            print q "proxy_set_header X-Real-IP $remote_addr;" c
-            print p "}" c
+            if (!redirect_only[i]) {
+                print p "location " mount " {" c
+                print q "auth_request /helixscreen/screen-auth;" c
+                print q "proxy_pass http://127.0.0.1:7130/;" c
+                print q "proxy_set_header Host $http_host;" c
+                print q "proxy_buffering off;" c
+                print q "access_log off;" c
+                print p "}" c
+                print p "location = /helixscreen/screen-auth {" c
+                print q "internal;" c
+                print q "proxy_pass http://" ins_up[i] "/access/user;" c
+                print q "proxy_pass_request_body off;" c
+                print q "proxy_set_header Content-Length \"\";" c
+                print q "proxy_set_header X-Real-IP $remote_addr;" c
+                print p "}" c
+            }
+            # Last, so an upgrade that adds only this line matches a fresh install.
+            print p "location = " bare " { return 301 " leaf "/; }" c
         }
         { print }
     ' "$1" "$1"
@@ -153,6 +177,7 @@ install_remote_screen_route() {
     marker="$(_remote_screen_marker_file)"
     if [ -f "$marker" ]; then
         log_info "Remote screen: nginx route already installed"
+        _remote_screen_upgrade_route
         return 0
     fi
     if _remote_screen_firmware_serves; then
@@ -220,6 +245,21 @@ EOF
     printf '%s\n' "$REMOTE_SCREEN_MOUNT" | $SUDO tee "$(_remote_screen_route_file)" >/dev/null
     $SUDO touch "$marker"
     log_info "Remote screen: added nginx route ${REMOTE_SCREEN_MOUNT} (auth via Moonraker)"
+    return 0
+}
+
+# Bring a route an older installer added up to date (the relative trailing-slash
+# redirect). Best effort: a file nginx refuses is put back as it was, and the
+# route keeps working without the redirect.
+_remote_screen_upgrade_route() {
+    local conf
+    while IFS= read -r conf; do
+        [ -n "$conf" ] || continue
+        grep -q "$NGINX_REMOTE_SCREEN_TAG" "$conf" 2>/dev/null || continue
+        _nginx_edit_validated "$conf" _remote_screen_filter upgrade </dev/null || true
+    done <<EOF
+$(_remote_screen_conf_files)
+EOF
     return 0
 }
 

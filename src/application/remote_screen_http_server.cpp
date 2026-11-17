@@ -29,6 +29,12 @@ namespace {
 /// Open MJPEG streams served at once; each costs a socket and a write per frame.
 constexpr size_t kMaxStreams = 4;
 constexpr const char* kStreamBoundary = "helixframe";
+
+/// The host a proxy in front of the nginx route forwarded, for the Origin check.
+std::string forwarded_host(bool lan_mode, HttpRequest* req) {
+    return trusted_forwarded_host(!lan_mode, req->GetHeader("X-Forwarded-Host"),
+                                  req->GetHeader("Forwarded"));
+}
 } // namespace
 
 struct ScreenHttpServer::Impl {
@@ -132,7 +138,7 @@ bool ScreenHttpServer::start(const ScreenServerConfig& cfg) {
         const TouchGate gate = check_touch_request(
             control_allowed_.load(), cfg_.lan_mode, req->GetHeader("Content-Type"),
             req->GetHeader("X-Helix-Touch"), req->GetHeader("Origin"), req->GetHeader("Host"),
-            request_paired(req));
+            forwarded_host(cfg_.lan_mode, req), request_paired(req));
         if (gate != TouchGate::Allowed) {
             spdlog::debug("[RemoteScreen] touch refused ({})", static_cast<int>(gate));
             return static_cast<int>(gate == TouchGate::NotPaired ? HTTP_STATUS_UNAUTHORIZED
@@ -156,7 +162,7 @@ bool ScreenHttpServer::start(const ScreenServerConfig& cfg) {
         const TouchGate gate =
             check_touch_request(control_allowed_.load(), false, req->GetHeader("Content-Type"),
                                 req->GetHeader("X-Helix-Touch"), req->GetHeader("Origin"),
-                                req->GetHeader("Host"), false);
+                                req->GetHeader("Host"), forwarded_host(cfg_.lan_mode, req), false);
         if (gate != TouchGate::Allowed || !hooks_.pairing) {
             return static_cast<int>(HTTP_STATUS_FORBIDDEN);
         }

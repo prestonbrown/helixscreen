@@ -97,6 +97,7 @@ is out.
 - **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer adds HelixScreen to Moonraker's list of services it may manage, it now restarts Moonraker so the list takes effect. Before, a reinstall that only added HelixScreen to that list left it out until Moonraker next restarted.
 - **Shared screen hides the pairing code** - the remote screen hides the printer's display while it shows the pairing code, and shows the browser a plain screen saying so until the code is gone. The browser page also stops loading the screen while it asks for the code.
 - **One dialog on a Happy Hare 4.2 pause** - when Happy Hare 4.2 pauses a print, HelixScreen now closes Happy Hare's own Pause Notice when its recovery dialog opens, as it already did with the Error Notice of earlier versions. Before, both dialogs stayed on screen.
+- **Screen Sharing behind a reverse proxy** - taps on the shared screen now work through a reverse proxy in front of the printer that sends the browser's host name in `X-Forwarded-Host` or `Forwarded`, on printers where Moonraker decides who gets in. Opening the screen address without its final slash now stays on the proxy's address instead of jumping to the printer's own. An existing setup gets this the next time the HelixScreen installer runs.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
