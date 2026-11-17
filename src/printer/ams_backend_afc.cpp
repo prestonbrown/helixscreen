@@ -3378,12 +3378,21 @@ bool AmsBackendAfc::apply_gcode_help_response(const nlohmann::json& response) {
     if (!has_toolhead_cal) {
         return false;
     }
+    // Both lane commands are LANE-keyed mux commands, which Klipper lists once
+    // under the bare name.
+    const bool has_spool_temp = gcode_help_lists(response, "AFC_SET_SPOOL_TEMP").value_or(false);
+    const bool has_filament_info = gcode_help_lists(response, "SET_FILAMENT_INFO").value_or(false);
     {
         std::lock_guard<std::mutex> lock(mutex_);
         has_toolhead_calibration_ = *has_toolhead_cal;
+        has_spool_temp_command_ = has_spool_temp;
+        has_filament_info_command_ = has_filament_info;
     }
-    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}",
-                  *has_toolhead_cal ? "available" : "not registered");
+    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}, AFC_SET_SPOOL_TEMP {}, "
+                  "SET_FILAMENT_INFO {}",
+                  *has_toolhead_cal ? "available" : "not registered",
+                  has_spool_temp ? "available" : "not registered",
+                  has_filament_info ? "available" : "not registered");
     return true;
 }
 
@@ -5238,6 +5247,35 @@ std::string set_weight_command(const std::string& lane_name, float remaining_wei
     return fmt::format("SET_WEIGHT LANE={} WEIGHT={:.0f}", lane_name, remaining_weight_g);
 }
 
+/// The one nozzle temperature AFC holds for a lane: the middle of the slot's
+/// range, which is also what the UI preheats to. 0 when the slot states none.
+int lane_extruder_temp(const SlotInfo& slot) {
+    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
+        return (slot.nozzle_temp_min + slot.nozzle_temp_max) / 2;
+    }
+    return std::max(slot.nozzle_temp_min, slot.nozzle_temp_max);
+}
+
+/// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, naming only
+/// the temperatures the edit states; nullopt when there is nothing to send.
+std::optional<std::string> spool_temp_command(const std::string& lane_name, const SlotInfo& before,
+                                              const SlotInfo& after) {
+    const int extruder = lane_extruder_temp(after);
+    const int bed = std::max(after.bed_temp, 0);
+    const bool changed = extruder != lane_extruder_temp(before) || bed != before.bed_temp;
+    if (!changed || (extruder <= 0 && bed <= 0)) {
+        return std::nullopt;
+    }
+    std::string gcode = "AFC_SET_SPOOL_TEMP LANE=" + lane_name;
+    if (extruder > 0) {
+        gcode += " EXTRUDER_TEMP=" + std::to_string(extruder);
+    }
+    if (bed > 0) {
+        gcode += " BED_TEMP=" + std::to_string(bed);
+    }
+    return gcode;
+}
+
 } // namespace
 
 AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
@@ -5256,6 +5294,7 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         }
 
         // Capture old spoolman_id before updating for clear detection
+        const SlotInfo before = entry->info;
         const int old_spoolman_id = entry->info.spoolman_id;
         const int old_mapped_tool = entry->info.mapped_tool;
         // Without Spoolman, AFC drops SET_SPOOL_ID and answers OK, so the link
@@ -5271,11 +5310,41 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
                          info.color_name);
         }
 
+        // A Spoolman-linked lane takes its temperatures, vendor and filament name
+        // from Spoolman when AFC links it (AFC_spool.py set_spoolID), and that
+        // fetch lands after anything sent here, so only an unlinked lane sends them.
+        const std::string& edited_lane = slots_.name_of(slot_index);
+        const bool unlinked = info.spoolman_id <= 0;
+        const auto temp_command = unlinked && has_spool_temp_command_
+                                      ? spool_temp_command(edited_lane, before, info)
+                                      : std::nullopt;
+        // SET_FILAMENT_INFO stores both; a value it cannot carry keeps both in
+        // HelixScreen's own record instead.
+        const bool info_sendable =
+            unlinked && has_filament_info_command_ &&
+            (info.brand.empty() || IMoonrakerAPI::is_safe_text_param(info.brand)) &&
+            (info.spool_name.empty() || IMoonrakerAPI::is_safe_text_param(info.spool_name));
+        // A vendor or name still in HelixScreen's record has never reached AFC, so
+        // it goes out once, edited or not, before the record lets go of it.
+        const auto prior_record = overrides_.find(slot_index);
+        const bool record_holds_info =
+            prior_record != overrides_.end() &&
+            (!prior_record->second.brand.empty() || !prior_record->second.spool_name.empty());
+        const bool info_changed =
+            info.brand != before.brand || info.spool_name != before.spool_name || record_holds_info;
+
         // Record the user's identity in the override store as well. AFC cannot
-        // hold brand / spool_name / total_weight / colour name / filament+vendor
-        // ids at all, and the fields it DOES hold get cleared by its own
-        // clear_values() on eject.
-        persist_user_record_locked(slot_index, info);
+        // hold total_weight / colour name / filament+vendor ids at all, nor a
+        // vendor or filament name without SET_FILAMENT_INFO, and the fields it
+        // DOES hold get cleared by its own clear_values() on eject.
+        if (info_sendable) {
+            SlotInfo recorded = info;
+            recorded.brand.clear();
+            recorded.spool_name.clear();
+            persist_user_record_locked(slot_index, recorded, info.material);
+        } else {
+            persist_user_record_locked(slot_index, info);
+        }
 
         // Persistence is never version-gated. These SET_* commands have existed
         // since well before any version we would recognize, and the version string
@@ -5362,6 +5431,18 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
             // Weight (if valid)
             if (info.remaining_weight_g > 0) {
                 execute_gcode(set_weight_command(lane_name, info.remaining_weight_g));
+            }
+
+            if (temp_command) {
+                execute_gcode(*temp_command);
+            }
+            // An empty value clears that field on AFC.
+            if (info_sendable && info_changed) {
+                const auto quoted = [](const std::string& v) {
+                    return v.empty() ? std::string() : IMoonrakerAPI::quoted_gcode_param_value(v);
+                };
+                execute_gcode(fmt::format("SET_FILAMENT_INFO LANE={} VENDOR={} NAME={}", lane_name,
+                                          quoted(info.brand), quoted(info.spool_name)));
             }
 
             // Tool mapping (lane → tool number) via SET_MAP.

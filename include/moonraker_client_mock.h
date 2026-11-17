@@ -2774,10 +2774,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::string name; ///< filament_name, "" when unlinked
         std::string material;
         std::string color;
-        int spool_id;  ///< 0 = not linked
-        double weight; ///< < 0 = unknown
-        int map;       ///< T number, -1 = none
-        bool present;  ///< prep/load sensors see filament
+        int spool_id;          ///< 0 = not linked
+        double weight;         ///< < 0 = unknown
+        int map;               ///< T number, -1 = none
+        bool present;          ///< prep/load sensors see filament
+        std::string vendor;    ///< spool_vendor, from SET_FILAMENT_INFO
+        int extruder_temp = 0; ///< 0 = none, from AFC_SET_SPOOL_TEMP
+        int bed_temp = 0;      ///< 0 = none
     };
     mutable std::mutex afc_mutex_;
     std::vector<AfcLane> afc_lanes_;

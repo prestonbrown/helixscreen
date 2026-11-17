@@ -918,6 +918,23 @@ backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that ha
 AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
 a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
 
+#### Lane temperatures, vendor and filament name
+
+`AmsBackendAfc::apply_user_edit` sends two more lane commands when `printer.gcode.help`
+lists them. Both are LANE-keyed mux commands, which Klipper lists once under the bare name.
+
+| Command | Since | Sent when |
+|---------|-------|-----------|
+| `AFC_SET_SPOOL_TEMP LANE=<lane> EXTRUDER_TEMP=<°C> BED_TEMP=<°C>` | v1.2.0 (b11084e) | An edit changes a stated temperature. AFC holds one nozzle temperature, so it gets the middle of the slot's range, the value the UI preheats to; a temperature the edit does not state is left out. AFC heats to it on load (AFC.py `_get_default_material_temps`), before its material default |
+| `SET_FILAMENT_INFO LANE=<lane> VENDOR="<vendor>" NAME="<name>"` | DEV (a7828f3) | An edit changes the vendor or name, or HelixScreen's record still holds one AFC was never sent. Values are always quoted (an unquoted apostrophe opens a quote for Klipper's tokenizer) and must pass `IMoonrakerAPI::is_safe_text_param`; an empty value clears the field on AFC |
+
+Neither goes out for a Spoolman-linked lane: AFC's `set_spoolID` fills temperatures,
+vendor and name from Spoolman, and that fetch lands after anything sent with the edit.
+When `SET_FILAMENT_INFO` is sent, the lane's `helix-screen-afc-overrides` record no longer
+keeps the vendor and name; AFC publishes them (`spool_vendor`, `filament_name`) and clears
+them with the rest of the spool on a swap. A vendor or name the command cannot carry (a `#`,
+a quote, non-ASCII) stays in the record as before.
+
 #### AFC's own prompts
 
 An `AFC.message` toast is held back (it goes to the notification list only) while one of

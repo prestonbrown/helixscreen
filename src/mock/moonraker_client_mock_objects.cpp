@@ -316,6 +316,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 commands[name] = desc;
             }
         }
+        if (self->is_mock_afc_boxturtle()) {
+            // The AFC DEV lane commands the AFC mock answers.
+            commands["AFC_SET_SPOOL_TEMP"] = "Set spool temperatures for a lane";
+            commands["SET_FILAMENT_INFO"] = "Sets filament vendor and name for a lane";
+        }
         if (success_cb) {
             success_cb(json{{"result", commands}});
         }

@@ -1235,6 +1235,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     /// AFC_TOOLHEAD_CALIBRATION is registered (from printer.gcode.help). Guarded by mutex_.
     bool has_toolhead_calibration_{false};
+    /// AFC_SET_SPOOL_TEMP is registered: a lane's temperatures can be sent. Guarded by mutex_.
+    bool has_spool_temp_command_{false};
+    /// SET_FILAMENT_INFO is registered (AFC DEV): AFC holds a lane's vendor and
+    /// filament name. Guarded by mutex_.
+    bool has_filament_info_command_{false};
 
     /// "AFC_stepper " or "AFC_lane ", learned from the first status frame that
     /// carries a lane. Only the prefix is learnable from a frame; the fields are

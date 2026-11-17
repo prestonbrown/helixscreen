@@ -18,6 +18,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -105,7 +106,8 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
     afc_lanes_.clear();
     for (int i = 0; i < std::clamp(lanes, 1, kMaxLanes); ++i) {
         const LaneSpool& s = kLaneSpools[i];
-        afc_lanes_.push_back({s.name, s.material, s.color, s.spool_id, s.weight, i, true});
+        afc_lanes_.push_back(
+            {s.name, s.material, s.color, s.spool_id, s.weight, i, true, "", 0, 0});
     }
     afc_loaded_ = 0;
 }
@@ -227,7 +229,10 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
             {"weight", l.weight >= 0.0 ? nlohmann::json(l.weight) : nlohmann::json(nullptr)},
             {"initial_weight", l.weight >= 0.0 ? nlohmann::json(1000.0) : nlohmann::json(nullptr)},
             {"filament_name", l.name},
-            {"extruder_temp", nullptr},
+            {"spool_vendor", l.vendor},
+            {"extruder_temp",
+             l.extruder_temp > 0 ? nlohmann::json(l.extruder_temp) : nlohmann::json(nullptr)},
+            {"bed_temp", l.bed_temp > 0 ? nlohmann::json(l.bed_temp) : nlohmann::json(nullptr)},
             {"runout_lane", nullptr},
             {"filament_status", tooled ? "In Tool" : (l.present ? "Ready" : "Not Ready")},
             {"status", tooled ? "Tooled" : (l.present ? "Loaded" : "None")},
@@ -368,6 +373,37 @@ MoonrakerClientMock::gcode_afc_boxturtle(const std::string& gcode) {
             return reject("AFC: " + gcode + " names no tool");
         }
         return edit([&](AfcLane& l) { l.map = *number; });
+    }
+    if (cmd == "AFC_SET_SPOOL_TEMP") {
+        const auto extruder = text_io::parse_leading<int>(param(gcode, "EXTRUDER_TEMP"));
+        const auto bed = text_io::parse_leading<int>(param(gcode, "BED_TEMP"));
+        return edit([&](AfcLane& l) {
+            l.extruder_temp = extruder.value_or(l.extruder_temp);
+            l.bed_temp = bed.value_or(l.bed_temp);
+        });
+    }
+    if (cmd == "SET_FILAMENT_INFO") {
+        // A value AFC reads with gcmd.get(): quoted on the wire, absent leaves it.
+        const auto quoted = [&](const char* key) -> std::optional<std::string> {
+            const std::string needle = std::string(" ") + key + "=";
+            const size_t at = gcode.find(needle);
+            if (at == std::string::npos) {
+                return std::nullopt;
+            }
+            size_t start = at + needle.size();
+            if (start < gcode.size() && gcode[start] == '"') {
+                const size_t end = gcode.find('"', start + 1);
+                return gcode.substr(start + 1,
+                                    end == std::string::npos ? std::string::npos : end - start - 1);
+            }
+            return param(gcode, key);
+        };
+        const auto vendor = quoted("VENDOR");
+        const auto name = quoted("NAME");
+        return edit([&](AfcLane& l) {
+            l.vendor = vendor.value_or(l.vendor);
+            l.name = name.value_or(l.name);
+        });
     }
     if (cmd == "AFC_ACE_DRY" || cmd == "AFC_ACE_DRY_STOP") {
         if (!is_mock_afc_ace() || param(gcode, "UNIT") != kAce.name) {

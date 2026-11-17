@@ -247,6 +247,16 @@ class IMoonrakerAPI {
     ///        keeps it as one parameter. Values without whitespace pass through unchanged.
     static std::string gcode_param_value(const std::string& value);
 
+    /// @brief Check if free text (a filament vendor or name) can go out as one quoted
+    ///        G-code parameter value. Wider again than is_safe_material_param(): any
+    ///        printable ASCII but the characters Klipper's parser acts on inside quotes.
+    ///        Pair with quoted_gcode_param_value().
+    static bool is_safe_text_param(const std::string& str);
+
+    /// @brief Render a value is_safe_text_param() accepts inside double quotes, always:
+    ///        an apostrophe left unquoted opens a quote of its own for Klipper's tokenizer.
+    static std::string quoted_gcode_param_value(const std::string& value);
+
     /// @brief Exclude an object from the current print
     virtual void exclude_object(const std::string& object_name, SuccessCallback on_success,
                                 ErrorCallback on_error) = 0;

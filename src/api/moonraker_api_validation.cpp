@@ -27,3 +27,11 @@ bool helix::IMoonrakerAPI::is_safe_material_param(const std::string& str) {
 std::string helix::IMoonrakerAPI::gcode_param_value(const std::string& value) {
     return moonraker_internal::gcode_param_value(value);
 }
+
+bool helix::IMoonrakerAPI::is_safe_text_param(const std::string& str) {
+    return moonraker_internal::is_safe_text_param(str);
+}
+
+std::string helix::IMoonrakerAPI::quoted_gcode_param_value(const std::string& value) {
+    return moonraker_internal::quoted_gcode_param_value(value);
+}
