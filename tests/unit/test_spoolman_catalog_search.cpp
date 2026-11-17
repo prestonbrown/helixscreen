@@ -4,6 +4,7 @@
 #include "filament_variants.h"
 #include "moonraker_error.h"
 #include "spoolman_catalog_search.h"
+#include "spoolman_slot_saver.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -209,4 +210,19 @@ TEST_CASE("filament_display_name names a record with no name by its material and
     CHECK(helix::spoolman::filament_display_name(f, "Gray") == "ABS Gray");
     f.filament_name = "Grey ABS+HS";
     CHECK(helix::spoolman::filament_display_name(f, "Gray") == "Grey ABS+HS");
+}
+
+TEST_CASE("SpoolmanSlotSaver::is_cancellation needs the declined-offer type and code together",
+          "[spoolman]") {
+    const auto error = [](MoonrakerErrorType type, int code) {
+        MoonrakerError e;
+        e.type = type;
+        e.code = code;
+        return e;
+    };
+    using helix::SpoolmanSlotSaver;
+    CHECK(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, -32800)));
+    CHECK_FALSE(
+        SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, 400)));
+    CHECK_FALSE(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::UNKNOWN, -32800)));
 }

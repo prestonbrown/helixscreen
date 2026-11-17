@@ -1639,17 +1639,3 @@ TEST_CASE("SpoolmanSlotSaver apply_save_result_identity: Use existing adopts the
     CHECK(committed.nozzle_temp_max == 250);
     CHECK(committed.bed_temp == 100);
 }
-
-TEST_CASE("SpoolmanSlotSaver::is_cancellation needs the declined-offer type and code together",
-          "[spoolman]") {
-    const auto error = [](MoonrakerErrorType type, int code) {
-        MoonrakerError e;
-        e.type = type;
-        e.code = code;
-        return e;
-    };
-    CHECK(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, -32800)));
-    CHECK_FALSE(
-        SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, 400)));
-    CHECK_FALSE(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::UNKNOWN, -32800)));
-}
