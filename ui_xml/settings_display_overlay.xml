@@ -80,7 +80,7 @@
                               callback="on_dim_changed">
           <bind_flag_if_not_eq subject="settings_dim_row_kind" flag="hidden" ref_value="1"/>
         </setting_dropdown_row>
-        <!-- No dimmable backlight: the same dim timeout starts the screensaver -->
+        <!-- A screensaver is selected: the same dim timeout starts it -->
         <setting_dropdown_row name="row_screensaver_after"
                               label="Screensaver after" icon="television_classic"
                               description="Screensaver starts after this period of inactivity"

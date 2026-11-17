@@ -451,15 +451,19 @@ class DisplaySettingsManager {
     // DISPLAY DIM OPTIONS (for dropdown population)
     // =========================================================================
 
+    /// The dim timeout a fresh install starts with (10 minutes).
+    static constexpr int kDefaultDimSec = 600;
+
     /** @brief Get dropdown index for current dim seconds value */
     static int dim_seconds_to_index(int seconds);
 
     /** @brief Convert dropdown index to dim seconds */
     static int index_to_dim_seconds(int index);
 
-    /// The form the dim-timeout row takes in Display settings. Without a dimmable
-    /// backlight the same timeout starts the screensaver, so the row is offered
-    /// under that name while one is enabled, and hidden when nothing would happen.
+    /// The form the dim-timeout row takes in Display settings. While a screensaver is
+    /// enabled the timeout starts it, dimmable backlight or not, so the row is offered
+    /// under that name; with no saver it is Screen Dim on a dimmable backlight, and
+    /// hidden when nothing would happen.
     /// should_couple_sleep_to_dim() holds exactly when this is not Hidden.
     enum class DimRowKind { Hidden = 0, ScreenDim = 1, ScreensaverAfter = 2 };
     static DimRowKind dim_row_kind(bool has_dimming, bool screensaver_enabled);
