@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bypass spool the same size as the others** - on the filament system screens the bypass spool is now drawn the same size as the spools in each unit, instead of smaller.
 - **Part Fan slider sets the part fan** - on printers whose part cooling fan is a named fan rather than the plain fan, the Controls slider now changes that fan instead of a different one.
 - **Part Fan slider knob shows whole** - the slider knob on the Controls Cooling card is no longer cut off at its ends or along its top and bottom on small screens.
+- **Nozzle Temps rows open their own tool** - on multi-head printers, tapping a tool in the home screen Nozzle Temps widget opens the temperature graph on that tool instead of the one on the carriage.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
