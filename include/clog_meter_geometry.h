@@ -68,11 +68,6 @@ struct ClogMeterTint {
 /// the scale, so tinting the middle of a symmetrical range says nothing.
 ClogMeterTint clog_meter_tint(int mode, int value, int warning);
 
-/// clog_meter_tint() with its tokens resolved against the live theme, for the
-/// two widgets that actually paint. Kept beside the rule so the arc and the bar
-/// cannot drift into resolving it differently.
-lv_color_t resolve_clog_tint(int mode, int value, int warning);
-
 /// Severity of the current reading, as `clog_meter_status` carries it to the
 /// status glyph. Ordered, so a renderer can compare rather than switch.
 enum class ClogMeterStatus : int {

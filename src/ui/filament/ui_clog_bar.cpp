@@ -3,6 +3,7 @@
 
 #include "ui_clog_bar.h"
 
+#include "ui_clog_meter.h"
 #include "ui_utils.h"
 
 #include "clog_meter_geometry.h"

@@ -4,7 +4,6 @@
 #include "clog_meter_geometry.h"
 
 #include "ams_types.h"
-#include "theme_manager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,11 +42,6 @@ ClogMeterTint clog_meter_tint(int mode, int value, int warning) {
         return {"warning", "primary", static_cast<uint8_t>(val * 255 / 50)};
     }
     return {"danger", "warning", static_cast<uint8_t>((val - 50) * 255 / 50)};
-}
-
-lv_color_t resolve_clog_tint(int mode, int value, int warning) {
-    const ClogMeterTint t = clog_meter_tint(mode, value, warning);
-    return lv_color_mix(theme_manager_get_color(t.a), theme_manager_get_color(t.b), t.mix_a);
 }
 
 ClogNote clog_meter_note(bool tripped, bool has_reason, bool tangle_active, bool tangle_boosted) {

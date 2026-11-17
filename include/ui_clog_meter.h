@@ -61,4 +61,9 @@ class UiClogMeter {
     std::optional<ClogMeterModel> model_;
 };
 
+/// clog_meter_tint() with its tokens resolved against the live theme, for the
+/// two widgets that paint it (this arc and the clog bar), so they cannot drift
+/// into resolving it differently.
+lv_color_t resolve_clog_tint(int mode, int value, int warning);
+
 } // namespace helix::ui
