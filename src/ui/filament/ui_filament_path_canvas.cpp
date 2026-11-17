@@ -202,6 +202,20 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
 // Event handlers
 // ============================================================================
 
+// The slots' number badges sit on the spool box's front edge, where the lanes leave it: they are
+// drawn again over the lanes so a tube never covers a lane's number.
+static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) {
+    const lv_opa_t layer_opa = layer->opa;
+    for (lv_obj_t* badge : data->lane_badges) {
+        if (!badge || !lv_obj_is_visible(badge))
+            continue;
+        // A pressed slot fades its spool and badge together.
+        layer->opa = LV_OPA_MIX2(layer_opa, lv_obj_get_style_opa_recursive(badge, LV_PART_MAIN));
+        lv_obj_redraw(layer, badge);
+    }
+    layer->opa = layer_opa;
+}
+
 // DRAW_POST: child canvases hold the heavyweight static + state-tied painting
 // (refreshed by the layers module); this pass only contributes the cheap
 // per-frame animation overlay on top.
@@ -218,6 +232,7 @@ static void filament_path_draw_cb(lv_event_t* e) {
         layered_schedule_repaint(obj, data);
     layered_on_draw(obj, data);
     render_animation_overlay(obj, layer, data);
+    redraw_lane_badges(layer, data);
 }
 
 static void filament_path_click_cb(lv_event_t* e) {
@@ -626,6 +641,9 @@ void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid) {
 
     data->slot_grid = slot_grid;
     std::memcpy(data->spool_containers, containers, sizeof(containers));
+    for (int i = 0; i < FilamentPathData::kMaxSlots; i++)
+        data->lane_badges[i] =
+            containers[i] ? lv_obj_find_by_name(containers[i], "status_badge") : nullptr;
     if (slot_grid) {
         spdlog::debug("[FilamentPath] Cached {} spool_container pointers from slot_grid",
                       child_count);

@@ -293,6 +293,8 @@ struct FilamentPathData {
     int32_t lane_entry_offset = INT32_MIN;
     static constexpr int kMaxSlots = helix::kAmsMaxSlots;
     lv_obj_t* spool_containers[kMaxSlots] = {};
+    // Each slot's number badge, drawn again over the lanes that leave below it.
+    lv_obj_t* lane_badges[kMaxSlots] = {};
 
     // Per-slot filament state (for showing all installed filaments, not just active)
     SlotFilamentState slot_filament_states[kMaxSlots] = {};
