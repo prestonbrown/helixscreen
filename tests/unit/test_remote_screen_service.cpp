@@ -15,6 +15,7 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
+#include "display_wake_request.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_cache_registry.h"
@@ -474,6 +475,13 @@ struct WakeTouchFixture : TouchFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(WakeTouchFixture, "a wake request reaches the active display",
+                 "[remote_screen][wake]") {
+    go_idle(/*dimmed=*/false);
+    helix::request_display_wake();
+    CHECK_FALSE(display.is_display_sleeping());
+}
 
 TEST_CASE_METHOD(WakeTouchFixture, "remote wake gesture never reaches the button underneath",
                  "[remote_screen][control][wake]") {
