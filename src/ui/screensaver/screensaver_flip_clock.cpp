@@ -18,6 +18,19 @@ constexpr Rgb kTextColor{150, 150, 150};
 
 } // namespace
 
+bool FlipClockScreensaver::on_start() {
+    if (!ClockSaver::on_start()) {
+        return false;
+    }
+    FrameTarget frame = canvas().frame();
+    std::vector<DirtyRect> dirty;
+    sim_.spin_up(frame, dirty);
+    // The marker goes back over the cards spun back beneath it.
+    const std::vector<DirtyRect> spun = dirty;
+    draw_clock_text(spun, dirty);
+    return true;
+}
+
 void FlipClockScreensaver::reset_clock_text() {
     meridiem_.reset();
 }

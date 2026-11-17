@@ -39,8 +39,28 @@ inline constexpr FlipClockLevel kFlipClockLevels[] = {
 
 inline constexpr size_t kFlipClockLevelCount = std::size(kFlipClockLevels);
 
-/// How long one card takes to flip.
+/// How long one card takes to flip, and the last flip of a run.
 inline constexpr uint32_t kFlipDurationMs = 300;
+/// A run's quick flips through the values between: each at most this long, and the whole run
+/// no longer than kFlipRunMaxMs.
+inline constexpr uint32_t kFlipRunStepMs = 50;
+inline constexpr uint32_t kFlipRunMaxMs = 1000;
+
+/**
+ * @brief The next value a card's drum shows on its way from `from` to `to`
+ *
+ * A digit card turns forward through 0 to 9 and wraps, a blank card first turning to 0, so
+ * 2 to 9 passes 3 to 8 and 8 to 1 passes 9 and 0. A change of one step back (a countdown's
+ * tick) flips straight to it, as does any change to or from a letter, a symbol or a blank.
+ */
+char flip_drum_next(char from, char to);
+
+/// Flips `from` takes to reach `to` through flip_drum_next(), 0 when they are equal.
+int flip_drum_steps(char from, char to);
+
+/// How long the flip that starts with `steps` still to go lasts: kFlipDurationMs for the last,
+/// a quick one before it.
+uint32_t flip_step_ms(int steps);
 
 /// One card: a single character, or blank.
 struct FlipCard {
@@ -224,10 +244,13 @@ DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
 /**
  * @brief Draws the clock into a frame, redrawing only the cards that change
  *
- * Each digit has its own card. A card whose digit changes folds its top half down over
- * kFlipDurationMs at an animating level, or swaps at once otherwise; cards that change
- * together fold together, and the rest are not touched. A changed shape or a drift step
- * repaints the whole layout. Between changes a frame writes nothing.
+ * Each digit has its own card. A card whose digit changes folds its top half down at an
+ * animating level, or swaps at once otherwise. A change of one step takes one flip of
+ * kFlipDurationMs; a longer one runs through every value between with quick flips, like a
+ * station board, and settles with a full one (flip_drum_next(), flip_step_ms()). A card whose
+ * value changes again mid-run carries on forward to the new one. Cards that change together
+ * flip together, and the rest are not touched. A changed shape or a drift step repaints the
+ * whole layout. Between changes a frame writes nothing.
  */
 class FlipClockSim {
   public:
@@ -248,6 +271,15 @@ class FlipClockSim {
     /// Draws card `i` again as it stands and adds its box to `dirty`, for text drawn over it
     /// that has to go.
     void redraw_card(FrameTarget& frame, size_t i, std::vector<DirtyRect>& dirty) const;
+
+    /// Turns every digit card back to blank and runs it up to its value, as a board spins up,
+    /// when the level animates; adds the cards' boxes to `dirty`.
+    void spin_up(FrameTarget& frame, std::vector<DirtyRect>& dirty);
+
+    /// The value card `i` shows, or is flipping to.
+    FlipCard shown(size_t i) const {
+        return i < anims_.size() ? anims_[i].to : FlipCard{};
+    }
 
     /// Runs at `level` (clamped) from now on; a flip in progress finishes at once when the new
     /// level does not animate.
@@ -284,7 +316,18 @@ class FlipClockSim {
         FlipCard from;
         FlipCard to;
         uint32_t elapsed_ms = kFlipDurationMs;
+        /// The value the run ends on, and how long the flip under way lasts.
+        FlipCard target;
+        uint32_t duration_ms = kFlipDurationMs;
     };
+
+    /// A card at rest showing `card`.
+    static CardAnim still(const FlipCard& card) {
+        return {card, card, kFlipDurationMs, card, kFlipDurationMs};
+    }
+    /// Moves card `i`'s flip on by `dt_ms` and starts the run's next flips as each one ends;
+    /// true when the card moved.
+    bool advance(size_t i, uint32_t dt_ms);
 
     void relayout(FrameTarget& frame, const FlipFace& face, std::vector<DirtyRect>& dirty);
     /// Sizes the glyph sets for the layout and builds every character `face` shows.

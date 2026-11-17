@@ -249,6 +249,46 @@ FlipFace countdown_face(int32_t seconds) {
     return face;
 }
 
+// ---------- The drum ----------
+
+namespace {
+
+bool is_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+} // namespace
+
+char flip_drum_next(char from, char to) {
+    if (from == to || !is_digit(to) || (from != '\0' && !is_digit(from))) {
+        return to;
+    }
+    if (from == '\0') {
+        return '0';
+    }
+    // One step back is a countdown's tick: flip straight to it.
+    if ((from - '0' + 9) % 10 == to - '0') {
+        return to;
+    }
+    return static_cast<char>('0' + (from - '0' + 1) % 10);
+}
+
+int flip_drum_steps(char from, char to) {
+    int steps = 0;
+    for (char c = from; c != to && steps < 12; c = flip_drum_next(c, to)) {
+        steps++;
+    }
+    return steps;
+}
+
+uint32_t flip_step_ms(int steps) {
+    if (steps <= 1) {
+        return kFlipDurationMs;
+    }
+    const uint32_t share = (kFlipRunMaxMs - kFlipDurationMs) / static_cast<uint32_t>(steps - 1);
+    return std::min(kFlipRunStepMs, share);
+}
+
 // ---------- FlipClockState ----------
 
 FlipFace flip_face(const ClockReading& reading) {
@@ -456,7 +496,7 @@ void FlipClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face) 
         layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0, face.sub_colons);
     build_glyphs(face);
     for (size_t i = 0; i < anims_.size(); i++) {
-        anims_[i] = {face_card(face, i), face_card(face, i), kFlipDurationMs};
+        anims_[i] = still(face_card(face, i));
     }
     for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
         draw_card(frame, i);
@@ -478,7 +518,7 @@ void FlipClockSim::request_level(size_t level) {
 
 bool FlipClockSim::flipping() const {
     for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
-        if (anims_[i].elapsed_ms < kFlipDurationMs) {
+        if (anims_[i].elapsed_ms < anims_[i].duration_ms) {
             return true;
         }
     }
@@ -489,8 +529,9 @@ float FlipClockSim::flip_progress(size_t i) const {
     if (i >= anims_.size()) {
         return 1.0f;
     }
-    return static_cast<float>(std::min(anims_[i].elapsed_ms, kFlipDurationMs)) /
-           static_cast<float>(kFlipDurationMs);
+    const CardAnim& anim = anims_[i];
+    return static_cast<float>(std::min(anim.elapsed_ms, anim.duration_ms)) /
+           static_cast<float>(std::max<uint32_t>(1, anim.duration_ms));
 }
 
 size_t FlipClockSim::heap_bytes() const {
@@ -523,10 +564,10 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
         const bool same_shape = !shape_differs(face, layout_) && ink == ink_;
         for (size_t i = 0; i < anims_.size(); i++) {
             const FlipCard card = face_card(face, i);
-            if (same_shape && animate && anims_[i].to == card) {
-                anims_[i].elapsed_ms = std::min(anims_[i].elapsed_ms + dt_ms, kFlipDurationMs);
+            if (same_shape && animate && anims_[i].target == card) {
+                advance(i, dt_ms);
             } else {
-                anims_[i] = {card, card, kFlipDurationMs};
+                anims_[i] = still(card);
             }
         }
         ink_ = ink;
@@ -538,21 +579,60 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
         CardAnim& anim = anims_[i];
         const FlipCard card = face_card(face, i);
         bool redraw = false;
-        if (card != anim.to) {
-            (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(card.digit);
-            anim.from = anim.to;
-            anim.to = card;
-            anim.elapsed_ms = animate ? 0 : kFlipDurationMs;
-            redraw = true;
-        } else if (anim.elapsed_ms < kFlipDurationMs) {
-            anim.elapsed_ms =
-                animate ? std::min(anim.elapsed_ms + dt_ms, kFlipDurationMs) : kFlipDurationMs;
-            redraw = true;
+        if (!animate) {
+            // Straight to the value, finishing any flip or run under way.
+            redraw = card != anim.to || anim.elapsed_ms < anim.duration_ms;
+            if (card != anim.to) {
+                (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(card.digit);
+            }
+            anim = still(card);
+        } else {
+            anim.target = card;
+            redraw = advance(i, dt_ms);
         }
         if (redraw) {
             draw_card(frame, i);
             dirty.push_back(layout_.cards[i]);
         }
+    }
+}
+
+bool FlipClockSim::advance(size_t i, uint32_t dt_ms) {
+    CardAnim& anim = anims_[i];
+    bool moved = false;
+    if (anim.elapsed_ms < anim.duration_ms) {
+        anim.elapsed_ms += dt_ms;
+        moved = true;
+    }
+    // Each flip that ends hands what is left of the frame to the next one of the run.
+    while (anim.elapsed_ms >= anim.duration_ms && anim.to != anim.target) {
+        const uint32_t over = anim.elapsed_ms - anim.duration_ms;
+        const char next = flip_drum_next(anim.to.digit, anim.target.digit);
+        (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(next);
+        anim.from = anim.to;
+        anim.to.digit = next;
+        anim.duration_ms = flip_step_ms(flip_drum_steps(anim.from.digit, anim.target.digit));
+        anim.elapsed_ms = over;
+        moved = true;
+    }
+    anim.elapsed_ms = std::min(anim.elapsed_ms, anim.duration_ms);
+    return moved;
+}
+
+void FlipClockSim::spin_up(FrameTarget& frame, std::vector<DirtyRect>& dirty) {
+    if (!kFlipClockLevels[level_].animate) {
+        return;
+    }
+    for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
+        CardAnim& anim = anims_[i];
+        const char value = anim.target.digit;
+        if (value < '0' || value > '9') {
+            continue;
+        }
+        anim = still(FlipCard{});
+        anim.target.digit = value;
+        draw_card(frame, i);
+        dirty.push_back(layout_.cards[i]);
     }
 }
 
@@ -660,9 +740,8 @@ void FlipClockSim::draw_card(FrameTarget& frame, size_t i) const {
     const int32_t h = box.y2 - box.y1 + 1;
     const int32_t top_h = row.split_top;
     const int32_t bottom_h = h - row.split_bottom;
-    const float p = static_cast<float>(std::min(anim.elapsed_ms, kFlipDurationMs)) /
-                    static_cast<float>(kFlipDurationMs);
-    const bool moving = anim.elapsed_ms < kFlipDurationMs;
+    const float p = flip_progress(i);
+    const bool moving = anim.elapsed_ms < anim.duration_ms;
 
     // The top half folds down: first the old digits' top half shrinks onto the split line,
     // then the new digits' bottom half unfolds below it. The projected height of the flap is

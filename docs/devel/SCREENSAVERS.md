@@ -426,7 +426,13 @@ gives larger cards (portrait), one group per row. `FlipClockSim` draws the digit
 strokes (lines and arcs, `build_stroke_digits` at a stroke of 0.2) into a coverage cache
 sized to the layout, so they scale to any screen and draw at both depths. Only the cards (small ones too) whose character changes flip, each with its own
 fold and dirty box, all at once when several change (09:59 to 10:00 flips four, 10:59 to
-11:00 three); nothing is written between changes. A new shape (the clock becoming a
+11:00 three); nothing is written between changes. A card more than one step from its new value runs
+forward through its drum, a station board's run: digits turn through 0 to 9 and wrap
+(`flip_drum_next`), each value between in a quick flip of at most `kFlipRunStepMs` and the
+last in a full `kFlipDurationMs`, the whole run within `kFlipRunMaxMs`; one step back (a
+countdown's tick) and letters flip straight to the value. A value that changes mid-run is run
+on to from where the drum stands. When the saver starts, every digit card spins up from blank
+(`FlipClockSim::spin_up`). A level that does not animate swaps at once. A new shape (the clock becoming a
 countdown, the hours gaining a digit) and the drift every `kClockDriftStepMs` repaint the
 layout whole. The AM/PM marker is `lv_draw_label` text on the canvas (`SaverLabel`), which is
 why its canvas uses `kLvDrawCanvasFormat`.
