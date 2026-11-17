@@ -344,8 +344,8 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.output_y = f.hub_y + f.hub_h / 2;
     f.rail = rail_art_rect(data, g);
     if (f.rail.w > 0) {
-        // The art stands in for the bar; the filament leaves at the carriage's coupler. A rail
-        // has no buffer: its sync sensor is that outlet's band.
+        // The art stands in for the bar; the filament leaves at the selected gate's outlet. A
+        // rail has no buffer: its sync sensor is that outlet's band.
         f.output_y = rail_outlet_y(*data.rail_art, f.rail);
         f.has_buffer = false;
     }

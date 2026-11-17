@@ -347,11 +347,11 @@ lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32
 }
 
 // Art laid out at @p r whose layers do not load gives the layout back to the plain drawing:
-// marks the art failed and says so, so the caller lays out again. A sliding selector also needs
-// its carriage layer.
-bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r, bool with_carriage) {
+// marks the art failed and says so, so the caller lays out again. Art with a carriage also needs
+// that layer.
+bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r) {
     if (r.w <= 0 || (rail_layer(data, "body", r.w, r.h) &&
-                     (!with_carriage || rail_layer(data, "carriage", r.w, r.h))))
+                     (!data.rail_carriage || rail_layer(data, "carriage", r.w, r.h))))
         return false;
     data.rail_art_failed = true;
     return true;
@@ -368,7 +368,7 @@ void draw_through_art(const RenderCtx& ctx, const RailArtRect& r) {
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     MixedFrame f = compute_mixed_frame(*data, ctx.geo);
-    if (drop_unloadable_art(*data, f.through, false))
+    if (drop_unloadable_art(*data, f.through))
         f = compute_mixed_frame(*data, ctx.geo);
     PathPlan& plan = plan_scratch();
     plan_mixed(f, *data, ctx.geo, plan);
@@ -486,7 +486,7 @@ bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
 }
 
 void draw_rail_carriage(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
-    if (!data->rail_art || !data->rail_drawn)
+    if (!data->rail_art || !data->rail_drawn || !data->rail_carriage)
         return;
     lv_draw_buf_t* carriage = rail_layer(*data, "carriage", data->rail_w, data->rail_h);
     if (!carriage)
@@ -679,7 +679,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
-    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo), true);
+    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo));
 
     // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
@@ -692,7 +692,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     const int32_t glyph_top =
         toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
     LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
-    if (drop_unloadable_art(*data, f.through, false))
+    if (drop_unloadable_art(*data, f.through))
         f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);

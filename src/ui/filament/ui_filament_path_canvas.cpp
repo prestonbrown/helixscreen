@@ -541,7 +541,8 @@ void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJ
 
 // NAMESPACE_OK: one of the canvas C-style setters
 void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
-                                               const helix::ui::tray::RailFaceArt* art) {
+                                               const helix::ui::tray::RailFaceArt* art,
+                                               bool has_carriage) {
     auto* data = get_data(obj);
 #if defined(HELIX_PLATFORM_ESP32)
     // The firmware image carries no unit art.
@@ -549,10 +550,12 @@ void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_i
 #endif
     if (!art)
         unit_id = nullptr;
-    if (!data || (data->rail_art == art && data->rail_unit == unit_id))
+    if (!data || (data->rail_art == art && data->rail_unit == unit_id &&
+                  data->rail_carriage == has_carriage))
         return;
     data->rail_art = art;
     data->rail_unit = unit_id;
+    data->rail_carriage = has_carriage;
     data->rail_art_failed = false;
     layered_mark_dirty(obj);
 }

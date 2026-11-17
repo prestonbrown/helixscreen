@@ -98,10 +98,12 @@ void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead
 /// The unit merges its lanes inside: no selector or hub box, one line leaving it.
 void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join);
 
-/// Draw the LINEAR selector as @p unit_id's head-on rail art in place of its bar; nullptr keeps
-/// the bar.
+/// Draw @p unit_id's head-on art: in the LINEAR selector bar's place, or as a pass-through unit
+/// above a hub. @p has_carriage says the art has a carriage layer that rides to the active gate.
+/// nullptr keeps the plain drawing.
 void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
-                                               const helix::ui::tray::RailFaceArt* art);
+                                               const helix::ui::tray::RailFaceArt* art,
+                                               bool has_carriage);
 
 /**
  * @brief Whether the LINEAR/HUB path continues past the hub to a toolhead

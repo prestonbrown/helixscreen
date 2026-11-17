@@ -81,6 +81,16 @@ pg::PathPoint seg_end(const pg::PathSeg& s) {
     return {s.center.x + s.radius * std::cos(a), s.center.y + s.radius * std::sin(a)};
 }
 
+// Whether one of @p path's segments ends within half a pixel of (@p x, @p y).
+bool passes(const pg::FilamentPath& path, float x, float y) {
+    for (int s = 0; s < path.count; ++s) {
+        const pg::PathPoint p = seg_end(path.segs[s]);
+        if (std::fabs(p.x - x) < 0.5f && std::fabs(p.y - y) < 0.5f)
+            return true;
+    }
+    return false;
+}
+
 void check_contiguous(const pg::FilamentPath& route) {
     REQUIRE(route.count > 2);
     for (int i = 1; i < route.count; ++i) {
@@ -257,11 +267,7 @@ TEST_CASE_METHOD(HubStackFixture, "A built-in selector keeps every tube and merg
         const auto& route = plan.routes[i].path;
         REQUIRE(route.count > 0);
         CHECK(seg_start(route.segs[0]).y == Catch::Approx((float)f.entry_y).margin(0.01));
-        bool meets = false;
-        for (int s = 0; s < route.count; ++s)
-            meets = meets || (std::fabs(seg_end(route.segs[s]).x - (float)f.center_x) < 0.5f &&
-                              std::fabs(seg_end(route.segs[s]).y - top) < 0.5f);
-        CHECK(meets);
+        CHECK(passes(route, (float)f.center_x, top));
     }
     check_contiguous(plan.routes[0].path);
     // An outer lane travels sideways on the bus, rather than along a straight diagonal.
@@ -302,7 +308,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     REQUIRE(ercf != nullptr);
     CHECK(helix::ui::tray::unit_shell_face_art(*ercf, 5) == nullptr);
     const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*ercf, 4);
-    ui_filament_path_canvas_set_selector_rail(c.obj, ercf->id, art);
+    ui_filament_path_canvas_set_selector_rail(c.obj, ercf->id, art, true);
     render(c);
     LinearHubFrame f{};
     const PathPlan& plan = plan_of(c, &f);
@@ -313,13 +319,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     const float in_y = (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h));
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
-        const float gate = (float)rail_gate_x(*art, f.rail, i);
-        bool reaches = false;
-        for (int s = 0; s < plan.routes[i].path.count; ++s) {
-            const pg::PathPoint p = seg_end(plan.routes[i].path.segs[s]);
-            reaches = reaches || (std::fabs(p.x - gate) < 0.5f && std::fabs(p.y - in_y) < 0.5f);
-        }
-        CHECK(reaches);
+        CHECK(passes(plan.routes[i].path, (float)rail_gate_x(*art, f.rail, i), in_y));
     }
     // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
     CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
@@ -345,7 +345,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     CHECK(rail_art_rect(*c.data, short_canvas).w == 0);
 
     // Art whose images are missing gives the whole layout back to the bar.
-    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
+    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art, true);
     render(c);
     plan_of(c, &f);
     CHECK((!c.data->rail_drawn && f.rail.w == 0 && f.has_buffer));
@@ -364,7 +364,7 @@ TEST_CASE_METHOD(HubStackFixture,
     REQUIRE((htlf != nullptr && htlf->carriage_n == 0));
     const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*htlf, 4);
     REQUIRE(art != nullptr);
-    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art);
+    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art, false);
     render(c);
 
     // HUB: lanes bend in to their inlets, leave through their own outlets and fan into the hub.
@@ -379,13 +379,7 @@ TEST_CASE_METHOD(HubStackFixture,
         CAPTURE(i);
         const float out_x = (float)rail_outlet_x(*art, f.through, i);
         CHECK((f.hub_fan[i].pts[0].x == out_x && f.hub_fan[i].pts[0].y == out_y));
-        const float gate = (float)rail_gate_x(*art, f.through, i);
-        bool reaches = false;
-        for (int s = 0; s < plan.routes[i].path.count; ++s) {
-            const pg::PathPoint p = seg_end(plan.routes[i].path.segs[s]);
-            reaches = reaches || (std::fabs(p.x - gate) < 0.5f && std::fabs(p.y - in_y) < 0.5f);
-        }
-        CHECK(reaches);
+        CHECK(passes(plan.routes[i].path, (float)rail_gate_x(*art, f.through, i), in_y));
     }
 
     // MIXED: the lane sensors move below the art, and each lane returns to its own column.
@@ -400,21 +394,27 @@ TEST_CASE_METHOD(HubStackFixture,
     plan_mixed(m, *c.data, g, mixed);
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
-        const pg::FilamentPath& path = mixed.routes[i].path;
-        bool at_sensor = false;
-        for (int s = 0; s < path.count; ++s) {
-            const pg::PathPoint p = seg_end(path.segs[s]);
-            at_sensor = at_sensor || (std::fabs(p.x - (float)g.slot_x[i]) < 0.5f &&
-                                      std::fabs(p.y - (float)m.sensor_y) < 0.5f);
-        }
-        CHECK(at_sensor);
+        CHECK(passes(mixed.routes[i].path, (float)g.slot_x[i], (float)m.sensor_y));
     }
 
-    // LINEAR draws no pass-through art, and art whose images are missing draws none at all.
-    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::LINEAR));
-    CHECK(through_art_rect(*c.data, g, g.y_off, g.y_off + 200, g.center_x).w == 0);
+    // Only a unit without a carriage stands above a hub; any art takes LINEAR's bar.
+    using helix::PathTopology;
+    CHECK((unit_art_drawn(PathTopology::LINEAR, true) &&
+           unit_art_drawn(PathTopology::LINEAR, false) &&
+           unit_art_drawn(PathTopology::HUB, false) && unit_art_drawn(PathTopology::MIXED, false)));
+    CHECK_FALSE((unit_art_drawn(PathTopology::HUB, true) ||
+                 unit_art_drawn(PathTopology::MIXED, true) ||
+                 unit_art_drawn(PathTopology::PARALLEL, false)));
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::LINEAR));
+    ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
+    ui_filament_path_canvas_set_show_bypass(c.obj, true);
+    render(c);
+    const PathPlan& linear = plan_of(c, &f); // no carriage layer; lane 1 leaves its own outlet
+    REQUIRE((c.data->rail_drawn && f.output_x == rail_outlet_x(*art, f.rail, 0)));
+    CHECK(passes(linear.routes[0].path, (float)rail_gate_x(*art, f.rail, 0),
+                 (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h))));
     ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::HUB));
-    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
+    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art, false);
     render(c);
     plan_of(c, &f);
     CHECK(f.through.w == 0);

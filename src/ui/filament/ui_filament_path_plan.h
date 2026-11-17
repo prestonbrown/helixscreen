@@ -111,6 +111,18 @@ inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell
                : helix::ui::tray::LaneJoin::Hub;
 }
 
+/// Whether a unit view draws a unit's head-on art over the path it reports. LINEAR puts any art
+/// in the selector bar's place: a sliding selector's carriage rides it, and a unit without one
+/// takes each lane in at its inlet and sends the selected lane out of its own outlet. A unit
+/// without a carriage also stands above a hub, or above MIXED's hub and tools. Lanes on a
+/// PARALLEL path each run to their own tool, past no unit worth drawing.
+inline bool unit_art_drawn(helix::PathTopology topology, bool has_carriage) {
+    using helix::PathTopology;
+    if (topology == PathTopology::LINEAR)
+        return true;
+    return !has_carriage && (topology == PathTopology::HUB || topology == PathTopology::MIXED);
+}
+
 /// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
 /// above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
 int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
