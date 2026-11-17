@@ -3666,6 +3666,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
 - `ISpoolRetention` (`include/ams_spool_retention.h`) -- The firmware's own setting for what an eject does
   to a lane's spool details: whether it is reported on every lane, its value, and the write. AFC implements
   it with `remember_spool`. Without it HelixScreen's "Keep Spool Info on Eject" applies.
+- `IClogDetectionConfig` (`include/ams_clog_detection.h`) -- The clog detection mode command and the configured
+  manual detection length, for the clog config modal. Happy Hare implements it. Without it the modal's mode and
+  length controls hide and nothing is sent.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

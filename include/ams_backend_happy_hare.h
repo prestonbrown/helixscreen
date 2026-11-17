@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ams_clog_detection.h"
 #include "ams_dryer.h"
 #include "ams_environment_zone.h"
 #include "ams_gate_selector.h"
@@ -69,7 +70,8 @@ struct HappyHareGateSensor {
 
 class AmsBackendHappyHare : public AmsSubscriptionBackend,
                             public helix::IGateSelector,
-                            public helix::IDryer {
+                            public helix::IDryer,
+                            public helix::IClogDetectionConfig {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IGateSelector>()) {
@@ -77,6 +79,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::IDryer>()) {
             return static_cast<helix::IDryer*>(this);
+        }
+        if (tag == helix::type_tag<helix::IClogDetectionConfig>()) {
+            return static_cast<helix::IClogDetectionConfig*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }

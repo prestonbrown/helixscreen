@@ -2,6 +2,7 @@
 
 #include "clog_detection_config_modal.h"
 
+#include "ams_clog_detection.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -126,8 +127,10 @@ void ClogDetectionConfigModal::on_show() {
         detection_mode_ = info.encoder_info.detection_mode;
         // The length a manual-mode write sets, where the backend reports it;
         // the live encoder length is a different number on some firmware.
-        detection_length_ =
-            backend->clog_detection_length_setting().value_or(info.encoder_info.detection_length);
+        const auto* clog = backend->as<helix::IClogDetectionConfig>();
+        const std::optional<float> setting =
+            clog ? clog->clog_detection_length_setting() : std::nullopt;
+        detection_length_ = setting.value_or(info.encoder_info.detection_length);
 
         has_encoder_ = info.encoder_info.enabled;
         has_flowguard_ = info.flowguard_info.enabled;
@@ -237,8 +240,9 @@ ClogDetectionConfigModal::build_detection_mode_gcode(const helix::AmsBackend* ba
                                                      float det_length) {
     // The clog widget is offered whenever clog_meter_mode > 0, which includes
     // AFC buffer fault detection, so backends with no detection mode reach this
-    // modal too; they answer nullopt.
-    return backend ? backend->clog_detection_mode_gcode(mode, det_length) : std::nullopt;
+    // modal too; they have no IClogDetectionConfig and send nothing.
+    const auto* clog = backend ? backend->as<helix::IClogDetectionConfig>() : nullptr;
+    return clog ? clog->clog_detection_mode_gcode(mode, det_length) : std::nullopt;
 }
 
 std::optional<std::string>

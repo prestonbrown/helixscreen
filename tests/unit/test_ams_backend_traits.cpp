@@ -190,6 +190,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IDryer* dryer = nullptr;
         const IPrintRouting* routing = nullptr;
         const ISpoolRetention* retention = nullptr;
+        const IClogDetectionConfig* clog = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -206,7 +207,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
         {.backend = &afc, .recovery = &afc, .narration = &afc, .dryer = &afc, .retention = &afc},
         {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
-        {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
+        {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare, .clog = &happy_hare},
         {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},
     };
     struct NothingImplementsThis {};
@@ -222,6 +223,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IDryer>() == row.dryer);
         CHECK(row.backend->as<IPrintRouting>() == row.routing);
         CHECK(row.backend->as<ISpoolRetention>() == row.retention);
+        CHECK(row.backend->as<IClogDetectionConfig>() == row.clog);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);

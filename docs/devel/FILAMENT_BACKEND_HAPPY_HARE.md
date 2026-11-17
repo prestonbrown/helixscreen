@@ -283,7 +283,7 @@ encoder's detection rather than buffer FlowGuard, so `flowguard_info.enabled` fo
 `has_bypass` shows no bypass, and a v4 `espooler` list is read per gate (v3's covers only the
 gates fitted with one, so it is read per gate only when it covers every gate).
 
-The clog config modal asks `AmsBackend::clog_detection_mode_gcode()` for its command and
+The clog config modal asks `IClogDetectionConfig::clog_detection_mode_gcode()` (`include/ams_clog_detection.h`) for its command and
 pre-fills its length from `clog_detection_length_setting()`: the configured
 `flowguard_encoder_max_motion` from 3.42 on, else the live encoder length. Save sends the
 length only when the user moved it. `MMU_FLOWGUARD ENABLE=` switches buffer FlowGuard as a whole; no HelixScreen control
