@@ -1793,6 +1793,7 @@ translations:
   Gray: グレー
   Grip filament: フィラメントを把持
   Grip the filament: フィラメントを把持
+  Groups follow each slot's material and color: "グループは各スロットの素材と色に従います"
   Guide the toolhead to the chute's extrude position: ツールヘッドをシュートの押出し位置へ誘導します
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'ガイド付きキャリブレーション：センサーからノズルまで、アンロード、カッターの引き戻し'
   H: H
@@ -2407,8 +2408,10 @@ translations:
   Map to closest colors with matching material: 一致する素材で最も近い色に割り当て
   Mapping Error: 'マッピングエラー'
   Marginal: やや不良
+  Mark Available: "利用可能にする"
   Mark a printer you enclosed yourself: 自分で筐体を付けたプリンターとして設定
 
+  Mark available failed: "利用可能にできませんでした"
   Mark done: "完了にする"
   Mark {} done?: "{} を完了にしますか？"
   Master volume level: マスター音量

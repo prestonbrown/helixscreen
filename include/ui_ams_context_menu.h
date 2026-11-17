@@ -80,7 +80,8 @@ class AmsContextMenu : public ContextMenu {
         TOGGLE_BYPASS,    ///< Engage or disengage bypass (external spool only)
         MOUNT,            ///< Mount the tool this slot feeds
         PARK,             ///< Put the mounted tool back in its dock
-        CLEAR_FAULT       ///< Clear a fault the firmware still latches on this slot
+        CLEAR_FAULT,      ///< Clear a fault the firmware still latches on this slot
+        MARK_AVAILABLE    ///< Tell the firmware a gate it marked empty has filament
     };
 
     using ActionCallback = std::function<void(MenuAction action, int slot_index)>;
@@ -226,6 +227,9 @@ class AmsContextMenu : public ContextMenu {
     // Clear error for a fault that outlived its dialog
     // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
     static helix::Subject slot_clear_error_subject_;
+    // Mark Available for a gate the firmware marked empty
+    // (IGateSelector::gate_marked_empty()): 0 hidden, 1 disabled, 2 enabled.
+    static helix::Subject slot_mark_available_subject_;
     // Card header: the lane's own name, or "External Spool".
     static helix::Subject slot_header_subject_;
     static char slot_header_buf_[64];
@@ -280,6 +284,7 @@ class AmsContextMenu : public ContextMenu {
     void handle_edit();
     void handle_clear_spool();
     void handle_clear_fault();
+    void handle_mark_available();
     void handle_purge();
     void handle_bypass_toggle();
     void handle_spoolman();
@@ -423,6 +428,7 @@ class AmsContextMenu : public ContextMenu {
     static void on_edit_cb(lv_event_t* e);
     static void on_clear_spool_cb(lv_event_t* e);
     static void on_clear_fault_cb(lv_event_t* e);
+    static void on_mark_available_cb(lv_event_t* e);
     static void on_purge_cb(lv_event_t* e);
     static void on_bypass_toggle_cb(lv_event_t* e);
     static void on_spoolman_cb(lv_event_t* e);

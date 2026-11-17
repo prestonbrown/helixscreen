@@ -63,6 +63,9 @@ struct GateIdentityDelta {
     GateArray<std::string> name;          ///< gate_name
     GateArray<std::string> filament_name; ///< gate_filament_name (EMU)
     GateArray<int> endless_spool_group;
+    /// 4.2 gate_remaining_weight / gate_initial_weight: net grams, -1 unknown.
+    GateArray<int> remaining_weight;
+    GateArray<int> initial_weight;
 };
 
 struct EncoderDelta {
@@ -170,6 +173,18 @@ struct DryingObjectDelta {
     std::optional<int> fan_pct;
 };
 
+/// One unit's running cycle from `drying` (Happy Hare development builds,
+/// 798f83a6). Times are Klipper's reactor clock, the clock of a status frame's
+/// eventtime.
+struct DryingCycle {
+    std::optional<float> temp_c;
+    std::optional<int> time_min;
+    std::optional<float> humidity_target;
+    std::optional<double> start_time;
+    /// nullopt while a queued gate has not started, so the end is not known.
+    std::optional<double> end_time;
+};
+
 /// `drying_state`: an object (KMS) or one string per gate (EMU).
 struct DryingDelta {
     std::optional<DryingObjectDelta> object;
@@ -183,6 +198,8 @@ struct MmuStatusDelta {
     MmuTelemetryDelta telemetry;
     std::optional<MmuSensorsDelta> sensors;
     std::optional<DryingDelta> drying;
+    /// `drying`: per unit in unit order, nullopt for a unit not drying.
+    std::optional<std::vector<std::optional<DryingCycle>>> drying_cycles;
     /// The endless-spool ENABLE bit, from `endless_spool_enabled` or its older
     /// spelling `endless_spool`.
     std::optional<bool> endless_spool_enabled;
@@ -205,7 +222,17 @@ struct MachineLayout {
     /// Whether any unit has a bypass, from mmu_machine.unit_N.has_bypass. v4
     /// only: v4 publishes printer.mmu.has_bypass as a constant true.
     std::optional<bool> has_bypass;
+
+    /// Whether the install is Happy Hare @p version or later. An unknown
+    /// version is none of them, so an install that names none keeps the
+    /// oldest behavior.
+    [[nodiscard]] bool since(double version) const {
+        return version_number >= version;
+    }
 };
+
+/// The release that added each capability a version gate asks about.
+inline constexpr double kGateWeightsSince = 4.2; ///< gate_*_weight, MMU_GATE_MAP WEIGHT=
 
 /// One unit's machine fields. v3 and v4 both publish them on the live
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
@@ -226,6 +253,10 @@ struct MachineUnit {
     /// From the unit's configfile `[mmu_unit <name>] encoder`; nullopt when the
     /// install does not say (v3)
     std::optional<bool> has_encoder;
+    /// The gear motor itself turns the spool (a type-B unit without an
+    /// eSpooler): `[mmu_unit <name>] gear_rotates_spool`, else Happy Hare's own
+    /// default for the unit's vendor (ViViD and QIDI Box).
+    bool gear_rotates_spool = false;
 };
 
 /// A per-unit capability v4 checks before it accepts a command or a

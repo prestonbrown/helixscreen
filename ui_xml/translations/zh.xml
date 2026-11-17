@@ -1720,6 +1720,7 @@
   <translation tag="Gray" zh="灰色"/>
   <translation tag="Grip filament" zh="夹持耗材"/>
   <translation tag="Grip the filament" zh="夹持耗材"/>
+  <translation tag="Groups follow each slot&apos;s material and color" zh="分组跟随各槽位的材料和颜色"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" zh="引导工具头到排料口的挤出位置"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" zh="引导式校准：传感器至喷嘴、卸载和切刀回抽"/>
   <translation tag="H" zh="头"/>
@@ -2317,7 +2318,9 @@
   <translation tag="Map to closest colors with matching material" zh="按匹配材料映射最接近的颜色"/>
   <translation tag="Mapping Error" zh="映射错误"/>
   <translation tag="Marginal" zh="偏高"/>
+  <translation tag="Mark Available" zh="标记为可用"/>
   <translation tag="Mark a printer you enclosed yourself" zh="将自行加装机箱的打印机标记为封闭"/>
+  <translation tag="Mark available failed" zh="标记为可用失败"/>
   <translation tag="Mark done" zh="标记完成"/>
   <translation tag="Mark {} done?" zh="将 {} 标记为完成？"/>
   <translation tag="Master volume level" zh="主音量"/>

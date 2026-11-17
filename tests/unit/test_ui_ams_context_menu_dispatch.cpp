@@ -481,6 +481,91 @@ LatchedFaultMock* install_latched_fault_mock() {
 
 } // namespace
 
+// ============================================================================
+// Mark Available: a gate the firmware marked empty after a failed pickup
+// ============================================================================
+
+namespace {
+
+/// A selector backend with one gate the firmware has marked empty.
+class EmptyGateMock : public helix::AmsBackendMock {
+  public:
+    using helix::AmsBackendMock::AmsBackendMock;
+    bool gate_marked_empty(int slot_index) const override {
+        return slot_index == empty_slot;
+    }
+    helix::AmsError mark_gate_available(int slot_index) override {
+        marked_slots.push_back(slot_index);
+        return helix::AmsErrorHelper::success();
+    }
+    int empty_slot = 1;
+    std::vector<int> marked_slots;
+};
+
+EmptyGateMock* install_empty_gate_mock() {
+    helix::AmsState::instance().init_subjects(true);
+    auto owned = std::make_unique<EmptyGateMock>(4);
+    EmptyGateMock* backend = owned.get();
+    helix::AmsState::instance().set_backend(std::move(owned));
+    helix::AmsState::instance().sync_from_backend();
+    return backend;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: Mark Available reaches the gate selector",
+                 "[ui][ams][context_menu][dispatch][mark_available]") {
+    EmptyGateMock* backend = install_empty_gate_mock();
+
+    REQUIRE(helix::ui::ams_dispatch_backend_action(MenuAction::MARK_AVAILABLE, 1, nullptr));
+    REQUIRE(backend->marked_slots == std::vector<int>{1});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams context menu: Mark Available shows only on a gate marked empty",
+                 "[ui][ams][context_menu][mark_available]") {
+    EmptyGateMock* backend = install_empty_gate_mock();
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+    { helix::ui::AmsContextMenu registers_subjects; }
+    lv_subject_t* mark = lv_xml_get_subject(nullptr, "ams_slot_mark_available");
+    REQUIRE(mark != nullptr);
+
+    SECTION("the empty gate, idle") {
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 2);
+        lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_mark_available");
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(btn));
+        CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+    }
+
+    SECTION("the empty gate, paused") {
+        LifecycleGuard hold(PrintState::Paused);
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 2);
+    }
+
+    SECTION("the empty gate, printing") {
+        LifecycleGuard hold(PrintState::Printing);
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 1);
+    }
+
+    SECTION("another gate, after the empty one was shown") {
+        {
+            helix::ui::AmsContextMenu first;
+            REQUIRE(first.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+            REQUIRE(lv_subject_get_int(mark) == 2);
+        }
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 0, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 0);
+    }
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: Clear error reaches the backend's clear_fault",
                  "[ui][ams][context_menu][dispatch][stale_fault]") {
     LatchedFaultMock* backend = install_latched_fault_mock();

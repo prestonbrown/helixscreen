@@ -371,6 +371,13 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         system_info_.spoolman_mode = mode;
     }
 
+    /// Feed a printer.mmu status object in a frame stamped with Klipper's @p eventtime.
+    void feed_mmu_status_at(const nlohmann::json& mmu, double eventtime) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({{{"mmu", mmu}}, eventtime});
+        handle_status_update(notification);
+    }
+
     void set_selector_type(const std::string& type) {
         HappyHareTestAccess::selector_type(*this) = type;
     }
@@ -1221,6 +1228,206 @@ TEST_CASE("Happy Hare preload_lane is refused while printing", "[ams][happy_hare
 
     CHECK(helper.preload_lane(1).result == AmsResult::WRONG_STATE);
     CHECK(helper.captured_gcodes.empty());
+}
+
+// ============================================================================
+// mark_gate_available(): the recovery Happy Hare's failed-pickup error names
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare marks an empty gate available with MMU_GATE_MAP",
+                 "[ams][happy_hare][mark_available]") {
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, -1, 2});
+
+    CHECK_FALSE(helper.gate_marked_empty(0));
+    CHECK(helper.gate_marked_empty(1));
+    CHECK_FALSE(helper.gate_marked_empty(2)); // unknown is not empty
+    CHECK_FALSE(helper.gate_marked_empty(3));
+    CHECK_FALSE(helper.gate_marked_empty(4));
+    CHECK_FALSE(helper.gate_marked_empty(-1));
+
+    REQUIRE(helper.mark_gate_available(1).success());
+    // TEMP=0 keeps the gate's temperature; an omitted TEMP resets it.
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_GATE_MAP GATE=1 AVAILABLE=1 TEMP=0 QUIET=1"});
+
+    helper.clear_captured_gcodes();
+    CHECK(helper.mark_gate_available(4).result == AmsResult::INVALID_SLOT);
+    CHECK(helper.captured_gcodes.empty());
+}
+
+TEST_CASE("Happy Hare mark available waits for a running print to pause",
+          "[ams][happy_hare][mark_available]") {
+    PrintLifecycleFixture fx;
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(fx.api.get(),
+                                                                             &fx.mock_client);
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, 1, 1});
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PRINTING);
+    CHECK(helper.mark_gate_available(1).result == AmsResult::WRONG_STATE);
+    CHECK(helper.captured_gcodes.empty());
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PAUSED);
+    REQUIRE(helper.mark_gate_available(1).success());
+    CHECK(helper.has_gcode_containing("MMU_GATE_MAP GATE=1 AVAILABLE=1"));
+}
+
+namespace {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
+
+/// The single-unit v4 fixture, reporting Happy Hare @p version.
+nlohmann::json happy_hare_fixture_at(const std::string& version) {
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    return fx;
+}
+} // namespace
+
+// ============================================================================
+// Gate weights (Happy Hare 4.2): the gate map holds remaining and initial weight
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 gate weights reach the slot as the firmware's",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+    helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, 0, 120}},
+                            {"gate_initial_weight", {1000, -1, 1000, -1}}});
+
+    CHECK(helper.get_slot_info(0).remaining_weight_g == Catch::Approx(750.0F));
+    CHECK(helper.get_slot_info(0).total_weight_g == Catch::Approx(1000.0F));
+    CHECK(helper.get_slot_info(2).remaining_weight_g == Catch::Approx(0.0F));
+    CHECK(helper.get_slot_info(3).remaining_weight_g == Catch::Approx(120.0F));
+    // -1 is Happy Hare not knowing: no firmware weight on the lane.
+    const auto firmware = [&](int gate) {
+        const auto sources = helix::ams::lane_sources(helper.lane_id(gate));
+        REQUIRE(sources.firmware.has_value());
+        return *sources.firmware;
+    };
+    CHECK_FALSE(firmware(1).remaining_weight_g);
+    CHECK_FALSE(firmware(3).total_weight_g);
+    CHECK(firmware(0).remaining_weight_g == Catch::Approx(750.0F));
+
+    // A gate whose weight Happy Hare forgets drops the firmware's figure.
+    helper.feed_mmu_status({{"gate_remaining_weight", {-1, -1, 0, 120}}});
+    CHECK_FALSE(firmware(0).remaining_weight_g);
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+    helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+    SlotInfo edit = helper.get_slot_info(1);
+    edit.remaining_weight_g = 300.0F;
+
+    const AmsError err = helix::test::apply_edit(helper, 1, edit);
+    CHECK(err.result == AmsResult::COMMAND_FAILED);
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare before 4.2 keeps weights beside the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.1.0"));
+    SECTION("an edit") {
+        SlotInfo edit = helper.get_slot_info(1);
+        edit.remaining_weight_g = 300.0F;
+        REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
+    }
+    SECTION("a metered weight") {
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+    }
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 writes a metered weight to the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+
+    SECTION("an unlinked gate") {
+        helper.persist_slot_weight(1, 280.4F, 1000.0F);
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_GATE_MAP GATE=1 WEIGHT=280 INITIAL_WEIGHT=1000 "
+                                       "TEMP=0 QUIET=1"});
+    }
+    SECTION("a gate linked to a spool, whose weight is Spoolman's") {
+        helper.get_mutable_slot(1)->spoolman_id = 7;
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("pull mode") {
+        helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
+}
+
+// ============================================================================
+// form_tip_macro: empty means no tip forming from Happy Hare 4.2
+// ============================================================================
+
+TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
+                 "[ams][happy_hare][tip_method]") {
+    helper.initialize_test_gates(4);
+    const auto tip_method_for = [&](const std::string& version, const std::string& macro) {
+        nlohmann::json fx = happy_hare_fixture_at(version);
+        fx["configfile_settings"]["mmu_parameters"]["form_tip_macro"] = macro;
+        connect_with_fixture(helper, client, fx);
+        return helper.get_system_info().tip_method;
+    };
+    CHECK(tip_method_for("4.2.0", "") == TipMethod::NONE);
+    CHECK(tip_method_for("4.2.0", "_MMU_FORM_TIP") == TipMethod::TIP_FORM);
+    CHECK(tip_method_for("4.2.0", "_MMU_CUT_TIP") == TipMethod::CUT);
+    // Before 4.2 an empty macro made Happy Hare fail the unload looking for it.
+    CHECK(tip_method_for("4.1.0", "") == TipMethod::TIP_FORM);
+}
+
+// ============================================================================
+// printer.mmu.drying: the cycle Happy Hare is running, whoever started it
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare drying cycle reports its time left from end_time",
+                 "[ams][happy_hare][dryer][drying_cycle]") {
+    std::time_t wall = 1'000'000;
+    helper.test_set_clock([&wall] { return wall; });
+    helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+    const auto feed = [&](const nlohmann::json& mmu, double eventtime) {
+        helper.feed_mmu_status_at(mmu, eventtime);
+    };
+
+    SECTION("a cycle started elsewhere") {
+        // Started at reactor 1000 s for 240 min; this frame is a minute in.
+        feed({{"drying",
+               {{{"temp", 55},
+                 {"time", 240},
+                 {"humidity_target", nullptr},
+                 {"start_time", 1000.0},
+                 {"end_time", 1000.0 + 240 * 60}}}}},
+             1060.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 239);
+        CHECK(helper.get_dryer_info(0).duration_min == 240);
+        // Ten minutes later on the wall clock, with no frame in between.
+        wall += 600;
+        CHECK(helper.get_dryer_info(0).remaining_min == 229);
+    }
+    SECTION("the subscription's snapshot carries no eventtime; the next frame does") {
+        feed({{"drying", {{{"time", 60}, {"start_time", 50.0}, {"end_time", 3650.0}}}}}, 0.0);
+        feed({{"action", "Idle"}}, 650.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 50);
+    }
+    SECTION("no cycle, or a Happy Hare without the field, keeps HelixScreen's own clock") {
+        if (GENERATE(true, false)) {
+            feed({{"drying", {nullptr}}}, 500.0);
+        }
+        REQUIRE(helper.start_drying(50.0f, 90, -1, 0).success());
+        wall += 30 * 60;
+        CHECK(helper.get_dryer_info(0).remaining_min == 60);
+    }
 }
 
 TEST_CASE_METHOD(HhHelper,
@@ -3868,6 +4075,47 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ActionPromptManager::set_instance(nullptr);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare's pause notice with a macro's own button survives the popup",
+                 "[ams][happy_hare][error-center][pause_dialog_buttons]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+    CHECK(hh.firmware_prompt_button_is_own("RESUME"));
+    CHECK(hh.firmware_prompt_button_is_own("mmu_unlock "));
+    CHECK(hh.firmware_prompt_button_is_own("CANCEL_PRINT"));
+    CHECK_FALSE(hh.firmware_prompt_button_is_own("_BOX_RETRY_LOAD"));
+
+    const bool extra = GENERATE(false, true);
+    INFO("extra button: " << extra);
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    prompts.process_line("// action:prompt_begin Happy Hare Pause Notice");
+    prompts.process_line("// action:prompt_text Reason: Gate 2 is empty!");
+    if (extra) {
+        prompts.process_line("// action:prompt_footer_button Retry load|_BOX_RETRY_LOAD|primary");
+    }
+    prompts.process_line("// action:prompt_footer_button ABORT|CANCEL_PRINT|error");
+    prompts.process_line("// action:prompt_footer_button RESUME|RESUME|warning");
+    prompts.process_line("// action:prompt_footer_button UNLOCK|MMU_UNLOCK|primary");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK(helix::ActionPromptManager::is_showing() == extra);
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "An unrelated firmware prompt survives the HH recovery popup",
                  "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
@@ -5088,6 +5336,35 @@ TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has ou
     CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
 }
 
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare endless spool groups follow the gate map with auto groups on",
+                 "[ams][happy_hare][endless_spool][auto_groups]") {
+    helper.initialize_test_gates(4);
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    SECTION("auto groups on") {
+        fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 1;
+        connect_with_fixture(helper, client, fx);
+
+        const auto caps = helper.get_endless_spool_capabilities();
+        CHECK_FALSE(caps.editable());
+        CHECK(caps.restriction == helix::printer::EndlessSpoolRestriction::GroupsFollowSlots);
+        CHECK_FALSE(helix::printer::endless_spool_restriction_text(caps.restriction).empty());
+        // ENABLE= is still honored.
+        CHECK(caps.switchable);
+        helper.clear_captured_gcodes();
+        CHECK_FALSE(helper.set_endless_spool_backup(0, 1).success());
+        CHECK_FALSE(helper.has_gcode_containing("GROUPS="));
+    }
+    SECTION("auto groups off, or a Happy Hare without the option") {
+        if (GENERATE(true, false)) {
+            fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 0;
+        }
+        connect_with_fixture(helper, client, fx);
+        CHECK(helper.get_endless_spool_capabilities().editability ==
+              helix::printer::EndlessSpoolEditability::Group);
+    }
+}
+
 TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes",
           "[ams][happy_hare][review]") {
     TuningRig rig;
@@ -5104,6 +5381,26 @@ TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes"
     REQUIRE(kept.is_object());
     CHECK(kept["remaining_weight_g"] == Catch::Approx(500.0));
     CHECK_FALSE(helix::ams::lane_sources(rig.reg->lane_id(0)).pending.has_value());
+}
+
+TEST_CASE("a Happy Hare 4.2 weight edit stays out of the extras record",
+          "[ams][happy_hare][gate_weights]") {
+    TuningRig rig;
+    rig.connect(happy_hare_fixture_at("4.2.0"));
+    const SlotInfo original = rig.reg->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.remaining_weight_g = 500.4f;
+    edited.total_weight_g = 1000.0f;
+    REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(rig.reg->has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
+    nlohmann::json kept = rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
+    if (kept.is_object()) {
+        CHECK((!kept.contains("remaining_weight_g") || kept["remaining_weight_g"].is_null()));
+        CHECK((!kept.contains("total_weight_g") || kept["total_weight_g"].is_null()));
+    }
 }
 
 TEST_CASE("a gate name another client clears shows as cleared", "[ams][happy_hare][review]") {
@@ -5652,6 +5949,51 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
         CHECK(helper.captured_gcodes ==
               std::vector<std::string>{"MMU_SYNC_FEEDBACK ENABLE=0 UNIT=1",
                                        "MMU_FAN FAN_FORCED=2 UNIT=bt"});
+    }
+}
+
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare 4.2 rotates spools on a shared heater without GATES",
+                 "[ams][happy_hare][hh_v4][dry_gates][shared_rotation]") {
+    // Unit 0 (ERCF) shares one heater; unit 1 (Box Turtle) has one per gate.
+    auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    fx["mmu_machine"]["unit_0"]["filament_heater"] = "heater_generic ercf_heater";
+    const std::string version = GENERATE(std::string("4.2.0"), std::string("4.1.0"));
+    INFO("Happy Hare " << version);
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    const bool v42 = version == "4.2.0";
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+
+    SECTION("a gear that turns its spool counts") {
+        // No eSpooler anywhere; the ERCF unit's gear turns its spools.
+        fx["configfile_settings"]["mmu_unit ercf"]["gear_rotates_spool"] = 1;
+        connect_with_fixture(helper, client, fx);
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_gate_selection);
+        CHECK(helper.get_dryer_info(0).supports_rotation == v42);
+
+        DryingRequest req{.temp_c = 50.0f, .duration_min = 60, .unit = 0};
+        req.rotate = true;
+        helper.clear_captured_gcodes();
+        const AmsError err = helper.start_drying_request(req);
+        if (v42) {
+            REQUIRE(err.success());
+            CHECK(helper.captured_gcodes ==
+                  std::vector<std::string>{"MMU_HEATER DRY=1 TEMP=50 TIMER=60 ROTATE=1 UNIT=0"});
+        } else {
+            CHECK(err.result == AmsResult::NOT_SUPPORTED);
+            CHECK(helper.captured_gcodes.empty());
+        }
+    }
+    SECTION("a unit whose gear grips but does not turn the spool") {
+        connect_with_fixture(helper, client, fx);
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_rotation);
     }
 }
 

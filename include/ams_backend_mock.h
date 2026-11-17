@@ -194,6 +194,8 @@ class AmsBackendMock : public AmsBackend,
     AmsError clear_fault(int slot_index) override;
     AmsError recover_with_state(const RecoverStateRequest& request) override;
     AmsError preload_lane(int slot_index) override;
+    [[nodiscard]] bool gate_marked_empty(int slot_index) const override;
+    AmsError mark_gate_available(int slot_index) override;
 
     // Gate select / check (Happy Hare selector-based systems only)
     AmsError select_gate(int slot_index) override;

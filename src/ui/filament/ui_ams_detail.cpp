@@ -1021,6 +1021,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     case MenuAction::MOUNT:
     case MenuAction::PARK:
     case MenuAction::CLEAR_FAULT:
+    case MenuAction::MARK_AVAILABLE:
         break;
     default:
         return false; // caller's own switch owns it
@@ -1098,6 +1099,16 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                                : AmsErrorHelper::not_supported("Gate check not supported");
         if (error.result != AmsResult::SUCCESS) {
             notify_ams_error(error, lv_tr("Check slot failed"));
+        }
+        break;
+    }
+
+    case MenuAction::MARK_AVAILABLE: {
+        IGateSelector* const gates = backend->as<IGateSelector>();
+        AmsError error = gates ? gates->mark_gate_available(slot)
+                               : AmsErrorHelper::not_supported("Mark available not supported");
+        if (error.result != AmsResult::SUCCESS) {
+            notify_ams_error(error, lv_tr("Mark available failed"));
         }
         break;
     }

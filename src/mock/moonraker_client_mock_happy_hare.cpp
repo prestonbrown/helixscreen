@@ -49,7 +49,7 @@ constexpr SampleSpool kSampleSpools[] = {
 };
 constexpr int kNumSampleSpools = sizeof(kSampleSpools) / sizeof(kSampleSpools[0]);
 constexpr int kMaxGates = 16;
-constexpr const char* kVersion = "4.1.0";
+constexpr const char* kVersion = "4.2.0";
 constexpr const char* kUnitName = "unit0";
 constexpr const char* kUnitDisplayName = "ERCF";
 
@@ -82,12 +82,14 @@ HappyHareReply done() {
 
 } // namespace
 
-HappyHareSim::HappyHareSim(int gates, std::string environment_sensor)
-    : environment_sensor_(std::move(environment_sensor)) {
+HappyHareSim::HappyHareSim(int gates, std::string environment_sensor, bool development)
+    : environment_sensor_(std::move(environment_sensor)), development_(development) {
     const int n = std::clamp(gates, 1, kMaxGates);
     for (int i = 0; i < n; ++i) {
         const SampleSpool& s = kSampleSpools[i % kNumSampleSpools];
-        gates_.push_back({1, s.rgb, s.material, s.vendor, s.name, i + 1, s.temperature});
+        // 1 kg spools at a spread of fill levels.
+        gates_.push_back({1, s.rgb, s.material, s.vendor, s.name, i + 1, s.temperature,
+                          1000 - 130 * (i % kNumSampleSpools), 1000});
         ttg_map_.push_back(i);
         endless_spool_groups_.push_back(i);
     }
@@ -113,7 +115,7 @@ json HappyHareSim::status() const {
     json status = json::array(), rgb = json::array(), color = json::array(),
          material = json::array(), vendor = json::array(), name = json::array(),
          spool_id = json::array(), temperature = json::array(), espooler = json::array(),
-         drying = json::array();
+         drying = json::array(), remaining = json::array(), initial = json::array();
     json sensors = json::object();
     for (size_t i = 0; i < n; ++i) {
         const HappyHareGate& g = gates_[i];
@@ -125,6 +127,8 @@ json HappyHareSim::status() const {
         name.push_back(g.name);
         spool_id.push_back(g.spool_id);
         temperature.push_back(g.temperature);
+        remaining.push_back(g.remaining_weight);
+        initial.push_back(g.initial_weight);
         const bool feeding = filament_pos_ == kPosLoaded && static_cast<int>(i) == gate_;
         espooler.push_back(feeding ? "assist" : "");
         drying.push_back("");
@@ -138,7 +142,7 @@ json HappyHareSim::status() const {
                            : filament_pos_ == kPosUnloaded ? "Unloaded"
                                                            : "Unknown";
     const bool feeding = filament_pos_ == kPosLoaded;
-    return {
+    json out = {
         {"enabled", true},
         {"num_units", 1},
         {"num_gates", static_cast<int>(n)},
@@ -201,7 +205,14 @@ json HappyHareSim::status() const {
           {"boosted", false},
           {"threshold", 0.6},
           {"release", 0.3}}},
+        {"gate_remaining_weight", remaining},
+        {"gate_initial_weight", initial},
     };
+    if (development_) {
+        // One entry per unit: the running drying cycle, null while not drying.
+        out["drying"] = json::array({nullptr});
+    }
+    return out;
 }
 
 json HappyHareSim::machine_status() const {
@@ -235,24 +246,28 @@ json HappyHareSim::config_sections() const {
     if (const size_t sp = environment_sensor_.find(' '); sp != std::string::npos) {
         unit["environment_sensor"] = environment_sensor_.substr(sp + 1);
     }
-    return {{"mmu_machine", {{"happy_hare_version", kVersion}, {"units", {kUnitName}}}},
-            {"mmu_parameters",
-             {{"form_tip_macro", "_MMU_FORM_TIP"},
-              {"extruder_load_speed", 15.0},
-              {"extruder_unload_speed", 20.0}}},
-            {std::string("mmu_unit ") + kUnitName, unit},
-            {std::string("mmu_unit_parameters ") + kUnitName,
-             {{"gear_load_speed", 150.0},
-              {"gear_from_filament_buffer_speed", 150.0},
-              {"gear_unload_speed", 150.0},
-              {"sync_to_extruder", 1},
-              {"flowguard_encoder_mode", 2}}},
-            {"mmu_toolhead default",
-             {{"toolhead_extruder_to_nozzle", 72.0},
-              {"toolhead_sensor_to_nozzle", 62.0},
-              {"toolhead_entry_to_extruder", 8.0},
-              {"toolhead_residual_filament", 0.0},
-              {"toolhead_ooze_reduction", 0.0}}}};
+    json sections = {{"mmu_machine", {{"happy_hare_version", kVersion}, {"units", {kUnitName}}}},
+                     {"mmu_parameters",
+                      {{"form_tip_macro", "_MMU_FORM_TIP"},
+                       {"extruder_load_speed", 15.0},
+                       {"extruder_unload_speed", 20.0}}},
+                     {std::string("mmu_unit ") + kUnitName, unit},
+                     {std::string("mmu_unit_parameters ") + kUnitName,
+                      {{"gear_load_speed", 150.0},
+                       {"gear_from_filament_buffer_speed", 150.0},
+                       {"gear_unload_speed", 150.0},
+                       {"sync_to_extruder", 1},
+                       {"flowguard_encoder_mode", 2}}},
+                     {"mmu_toolhead default",
+                      {{"toolhead_extruder_to_nozzle", 72.0},
+                       {"toolhead_sensor_to_nozzle", 62.0},
+                       {"toolhead_entry_to_extruder", 8.0},
+                       {"toolhead_residual_filament", 0.0},
+                       {"toolhead_ooze_reduction", 0.0}}}};
+    if (development_) {
+        sections["mmu_parameters"]["endless_spool_auto_groups"] = 1;
+    }
+    return sections;
 }
 
 void HappyHareSim::append_unload(std::vector<HappyHareStep>& steps) const {
@@ -332,8 +347,15 @@ HappyHareReply HappyHareSim::gate_map(const std::string& gcode) {
     if (const auto v = int_param(gcode, "SPOOLID")) {
         g.spool_id = *v;
     }
-    if (const auto v = int_param(gcode, "TEMP")) {
+    // TEMP=0 keeps the gate's temperature, as Happy Hare reads it.
+    if (const auto v = int_param(gcode, "TEMP"); v && *v != 0) {
         g.temperature = *v;
+    }
+    if (const auto v = int_param(gcode, "WEIGHT")) {
+        g.remaining_weight = *v;
+    }
+    if (const auto v = int_param(gcode, "INITIAL_WEIGHT")) {
+        g.initial_weight = *v;
     }
     if (const auto v = int_param(gcode, "AVAILABLE")) {
         g.status = *v;
@@ -551,8 +573,10 @@ bool MoonrakerClientMock::is_mock_happy_hare() const {
 void MoonrakerClientMock::init_happy_hare(int gates) {
     const bool dryer_sensor =
         helix::mock::inherits_default(printer_type_, helix::mock::default_object::kHtu21dDryer);
+    const char* development = std::getenv("HELIX_MOCK_HH_DEVELOPMENT");
     hh_sim_ = std::make_unique<helix::mock::HappyHareSim>(
-        gates, dryer_sensor ? "temperature_sensor dryer" : "");
+        gates, dryer_sensor ? "temperature_sensor dryer" : "",
+        development != nullptr && std::string(development) == "1");
 }
 
 json MoonrakerClientMock::happy_hare_mmu_status() const {

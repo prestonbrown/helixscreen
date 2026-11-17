@@ -1252,6 +1252,29 @@ AmsError AmsBackendMock::preload_lane(int slot_index) {
     return AmsErrorHelper::success();
 }
 
+bool AmsBackendMock::gate_marked_empty(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto* entry = slots_.get(slot_index);
+    return entry && entry->info.status == SlotStatus::EMPTY;
+}
+
+AmsError AmsBackendMock::mark_gate_available(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        auto* entry = slots_.get_mut(slot_index);
+        if (!entry) {
+            return AmsErrorHelper::invalid_slot(lane_noun_locked(), slot_index,
+                                                slots_.slot_count() - 1);
+        }
+        spdlog::info("[AMS Mock] Executing G-code: {}",
+                     AmsBackendHappyHare::mark_available_command(slot_index));
+        entry->info.status = SlotStatus::AVAILABLE;
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
+    return AmsErrorHelper::success();
+}
+
 AmsError AmsBackendMock::check_gate(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);

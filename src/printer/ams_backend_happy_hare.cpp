@@ -413,6 +413,11 @@ void AmsBackendHappyHare::handle_status(const nlohmann::json& params) {
         std::lock_guard<std::mutex> lock(mutex_);
         entry_sensor_objects_seen_ = true;
     }
+    if (status_eventtime_ > 0.0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        clock_anchor_eventtime_ = status_eventtime_;
+        clock_anchor_epoch_ = now_fn_();
+    }
 
     // Parse MMU core state if present.
     const bool mmu_present = params.contains("mmu") && params["mmu"].is_object();
@@ -761,6 +766,30 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_spool_id for {} gates", spool_ids.size());
     }
+
+    // gate_remaining_weight / gate_initial_weight (4.2): the gate map's own
+    // weights in net grams. -1 is Happy Hare not knowing, which leaves the
+    // weight to whatever else knows it.
+    const auto file_weights = [this](const happy_hare::GateArray<int>& weights,
+                                     std::optional<float> ams::Observation::*field) {
+        if (!weights) {
+            return;
+        }
+        for (size_t i = 0; i < weights->size(); ++i) {
+            const auto& grams = (*weights)[i];
+            if (!grams || !slots_.get(static_cast<int>(i))) {
+                continue;
+            }
+            auto& reading = gate_reading_locked(static_cast<int>(i));
+            if (*grams >= 0) {
+                reading.*field = static_cast<float>(*grams);
+            } else {
+                (reading.*field).reset();
+            }
+        }
+    };
+    file_weights(identity.remaining_weight, &ams::Observation::remaining_weight_g);
+    file_weights(identity.initial_weight, &ams::Observation::total_weight_g);
 
     // gate_temperature (v4): per-gate nozzle temperature recommendations
     if (identity.temperature) {
@@ -1117,6 +1146,9 @@ void AmsBackendHappyHare::apply_mmu_sensors_locked(const happy_hare::MmuStatusDe
     if (delta.drying) {
         apply_mmu_drying_locked(*delta.drying);
     }
+    if (delta.drying_cycles) {
+        drying_cycles_ = *delta.drying_cycles;
+    }
 
     // The endless-spool ENABLE bit gates apply_endless_spool_backup(), because
     // cmd_MMU_ENDLESS_SPOOL ignores GROUPS while disabled. A future HH that drops
@@ -1433,6 +1465,11 @@ bool AmsBackendHappyHare::duplicates_firmware_prompt(const std::string& title) c
     return title == "Happy Hare Error Notice" || title == "Happy Hare Pause Notice";
 }
 
+bool AmsBackendHappyHare::firmware_prompt_button_is_own(const std::string& gcode) const {
+    const std::string command = helix::text_io::to_upper(std::string(helix::text_io::trim(gcode)));
+    return command == "RESUME" || command == "MMU_UNLOCK" || command == "CANCEL_PRINT";
+}
+
 std::vector<AmsBackend::ToolchangePhase>
 AmsBackendHappyHare::toolchange_phase_template(StepOperationType op) const {
     switch (op) {
@@ -1668,6 +1705,12 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
     refresh_hub_sensors_locked();
 }
 
+namespace {
+/// Happy Hare 4.2 reads an empty form_tip_macro as no tip forming; before it,
+/// an unload failed looking for a macro named ''.
+constexpr double kEmptyTipMacroSkipsSince = 4.2;
+} // namespace
+
 void AmsBackendHappyHare::apply_tip_method_config(const nlohmann::json& settings,
                                                   const happy_hare::MachineLayout& layout) {
     // form_tip_macro decides the tip method the way Happy Hare does internally: a macro
@@ -1688,7 +1731,9 @@ void AmsBackendHappyHare::apply_tip_method_config(const nlohmann::json& settings
         // Convert to lowercase for comparison (same as Happy Hare)
         std::string lower_macro = helix::text_io::to_lower(macro);
 
-        if (lower_macro.find("cut") != std::string::npos) {
+        if (lower_macro.empty() && layout.since(kEmptyTipMacroSkipsSince)) {
+            method = TipMethod::NONE;
+        } else if (lower_macro.find("cut") != std::string::npos) {
             method = TipMethod::CUT;
         } else {
             method = TipMethod::TIP_FORM;
@@ -2060,6 +2105,11 @@ void AmsBackendHappyHare::query_config_from_printer() {
                 {
                     std::lock_guard<std::mutex> lock(mutex_);
                     machine_layout_ = layout;
+                    endless_spool_auto_groups_ =
+                        happy_hare::read_config_number(
+                            happy_hare::find_config_param(settings, layout,
+                                                          "endless_spool_auto_groups"))
+                            .value_or(0.0F) != 0.0F;
                     system_info_.version = layout.version;
                     apply_bypass_support_locked();
                     sync_extras_fields_locked();
@@ -2564,6 +2614,40 @@ AmsError AmsBackendHappyHare::preload_lane(int slot_index) {
     return execute_gcode("MMU_PRELOAD GATE=" + std::to_string(slot_index));
 }
 
+bool AmsBackendHappyHare::gate_marked_empty(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return slot_index >= 0 && slot_index < static_cast<int>(gate_status_raw_.size()) &&
+           slots_.is_valid_index(slot_index) && gate_status_raw_[slot_index] == 0;
+}
+
+std::string AmsBackendHappyHare::mark_available_command(int gate) {
+    return fmt::format("MMU_GATE_MAP GATE={} AVAILABLE=1 TEMP=0 QUIET=1", gate);
+}
+
+// Bookkeeping like MMU_RECOVER, but it asserts filament the user can see and
+// Happy Hare cannot, so it waits for a running print to pause. Spoolman pull
+// mode still takes it: gate status stays local there.
+AmsError AmsBackendHappyHare::mark_gate_available(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!running_) {
+            return AmsErrorHelper::not_connected("Happy Hare backend not started");
+        }
+        AmsError slot_err = validate_slot_index_locked(slot_index);
+        if (!slot_err) {
+            return slot_err;
+        }
+        AmsError printing = refuse_if_printing();
+        if (!printing) {
+            return printing;
+        }
+    }
+
+    spdlog::info("[AMS HappyHare] Marking gate {} available", slot_index);
+    return execute_gcode(mark_available_command(slot_index));
+}
+
 AmsError AmsBackendHappyHare::eject_lane(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -2701,12 +2785,25 @@ AmsError pull_mode_refusal() {
                     lv_tr("Make color, material and spool changes in Spoolman."));
 }
 
+/// A weight as the gate map's whole grams, -1 for unknown.
+int gate_map_grams(float grams) {
+    return grams >= 0.0F ? static_cast<int>(std::lround(grams)) : -1;
+}
+
+/// Whether @p info moves a weight the gate map holds for the gate @p old
+/// describes, compared in the gate map's whole grams.
+bool edits_gate_weights(const SlotInfo& old, const SlotInfo& info) {
+    return gate_map_grams(info.remaining_weight_g) != gate_map_grams(old.remaining_weight_g) ||
+           gate_map_grams(info.total_weight_g) != gate_map_grams(old.total_weight_g);
+}
+
 /// True when @p info moves anything the gate map holds for the gate @p old
-/// describes. A tool remap or a weight is not a gate-map field.
-bool edits_gate_map(const SlotInfo& old, const SlotInfo& info) {
+/// describes. A tool remap is not a gate-map field, and a weight is one only
+/// when @p weights (Happy Hare 4.2).
+bool edits_gate_map(const SlotInfo& old, const SlotInfo& info, bool weights) {
     return info.material != old.material || info.color_rgb != old.color_rgb ||
            info.spool_name != old.spool_name || info.brand != old.brand ||
-           info.spoolman_id != old.spoolman_id;
+           info.spoolman_id != old.spoolman_id || (weights && edits_gate_weights(old, info));
 }
 
 /// The one nozzle temperature a gate map holds, from a slot's range: the
@@ -2732,6 +2829,8 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     std::string old_name;
     int old_temp = 0;
     std::optional<int> default_extruder_temp;
+    bool weights = false;
+    SlotInfo old_weights;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2755,14 +2854,18 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         old_color_rgb = entry->info.color_rgb;
         old_name = entry->info.spool_name;
         old_temp = gate_map_temperature(entry->info);
+        weights = gate_map_holds_weights_locked();
+        old_weights.remaining_weight_g = entry->info.remaining_weight_g;
+        old_weights.total_weight_g = entry->info.total_weight_g;
         spoolman_mode = system_info_.spoolman_mode;
         current_slot = system_info_.current_slot;
         default_extruder_temp = config_defaults_.default_extruder_temp;
         // Spoolman pull mode: Happy Hare refuses local writes to material,
         // colour, name, vendor and spool id, and logs the refusal rather than
         // returning it. The gate map is Spoolman's on this printer, so the
-        // edit is refused whole before anything is written.
-        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info)) {
+        // edit is refused whole before anything is written. 4.2 refuses the
+        // weights there too.
+        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info, weights)) {
             spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} edit "
                          "refused",
                          slot_index);
@@ -2901,6 +3004,14 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         has_changes = true;
     }
 
+    // Weights (4.2): the gate map holds them in whole grams, -1 unknown, and
+    // keeps an omitted one.
+    if (weights && edits_gate_weights(old_weights, info)) {
+        cmd += fmt::format(" WEIGHT={} INITIAL_WEIGHT={}", gate_map_grams(info.remaining_weight_g),
+                           gate_map_grams(info.total_weight_g));
+        has_changes = true;
+    }
+
     // Temperature: one per gate, named on every write. Happy Hare reads an
     // omitted TEMP as default_extruder_temp, which would overwrite the gate's
     // own, and TEMP=0 as "keep the stored value".
@@ -2940,6 +3051,33 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     }
 
     return AmsErrorHelper::success();
+}
+
+void AmsBackendHappyHare::persist_slot_weight(int slot_index, float remaining_weight_g,
+                                              float total_weight_g) {
+    bool to_gate_map = false;
+    bool send = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        to_gate_map = gate_map_holds_weights_locked();
+        const auto* entry = slots_.get(slot_index);
+        send = to_gate_map && entry && system_info_.spoolman_mode != SpoolmanMode::PULL &&
+               entry->info.spoolman_id <= 0 && remaining_weight_g >= 0.0F;
+    }
+    if (!to_gate_map) {
+        AmsSubscriptionBackend::persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+        return;
+    }
+    if (!send) {
+        return;
+    }
+    std::string cmd = fmt::format("MMU_GATE_MAP GATE={} WEIGHT={}", slot_index,
+                                  gate_map_grams(remaining_weight_g));
+    if (total_weight_g >= 0.0F) {
+        cmd += fmt::format(" INITIAL_WEIGHT={}", gate_map_grams(total_weight_g));
+    }
+    cmd += " TEMP=0 QUIET=1";
+    execute_gcode(cmd);
 }
 
 SlotInfo* AmsBackendHappyHare::identity_slot_locked(int slot_index) {
@@ -3094,6 +3232,14 @@ AmsBackendHappyHare::get_endless_spool_capabilities() const {
         caps.editability = EndlessSpoolEditability::ReadOnly;
         caps.restriction = EndlessSpoolRestriction::NotReady;
         caps.enabled = EndlessSpoolEnabled::Unknown;
+        return caps;
+    }
+    // endless_spool_auto_groups: Happy Hare rebuilds the groups from the gate
+    // map and ignores GROUPS= without saying so. ENABLE= still works.
+    if (endless_spool_auto_groups_) {
+        caps.editability = EndlessSpoolEditability::ReadOnly;
+        caps.restriction = EndlessSpoolRestriction::GroupsFollowSlots;
+        caps.switchable = system_info_.units.size() <= 1;
         return caps;
     }
     // MMU_ENDLESS_SPOOL has no UNIT= and acts on the currently-selected unit, so
@@ -3272,6 +3418,21 @@ bool AmsBackendHappyHare::unit_turns_spools_locked(int unit) const {
     return false;
 }
 
+bool AmsBackendHappyHare::unit_gear_rotates_spool_locked(int unit) const {
+    for (int u = 0; u < static_cast<int>(machine_units_.size()); ++u) {
+        if ((unit < 0 || u == unit) && machine_units_[u].gear_rotates_spool) {
+            return true;
+        }
+    }
+    return false;
+}
+
+namespace {
+/// Happy Hare 4.2 rotates every empty gate on a shared heater without GATES=,
+/// and counts a gear that turns its spool as able to rotate.
+constexpr double kSharedHeaterRotationSince = 4.2;
+} // namespace
+
 DryerInfo AmsBackendHappyHare::dryer_capabilities_locked(int unit) const {
     DryerInfo out = dryer_info_;
     // MMU_HEATER takes HUMIDITY= from Happy Hare 4 on.
@@ -3280,18 +3441,50 @@ DryerInfo AmsBackendHappyHare::dryer_capabilities_locked(int unit) const {
         out.default_humidity_target.reset();
     }
     // GATES= picks what heats only where every gate has its own heater; on a shared
-    // enclosure the one heater warms them all whatever the list says. ROTATE=1 needs
-    // that explicit list and an eSpooler to turn the spools.
+    // enclosure the one heater warms them all whatever the list says. Before 4.2,
+    // ROTATE=1 needs that explicit list and an eSpooler to turn the spools. From
+    // 4.2 a gear that turns its spool counts too, and a shared heater rotates every
+    // empty gate with no list.
     out.supports_gate_selection =
         out.supported && is_v4_locked() && unit_has_per_gate_heaters_locked(unit);
-    out.supports_rotation = out.supports_gate_selection && unit_turns_spools_locked(unit);
+    if (machine_layout_.since(kSharedHeaterRotationSince)) {
+        out.supports_rotation = out.supported && (unit_turns_spools_locked(unit) ||
+                                                  unit_gear_rotates_spool_locked(unit));
+    } else {
+        out.supports_rotation = out.supports_gate_selection && unit_turns_spools_locked(unit);
+    }
     return out;
+}
+
+std::optional<double> AmsBackendHappyHare::firmware_dry_seconds_left_locked(int unit) const {
+    if (clock_anchor_eventtime_ <= 0.0) {
+        return std::nullopt;
+    }
+    for (int u = 0; u < static_cast<int>(drying_cycles_.size()); ++u) {
+        const auto& cycle = drying_cycles_[static_cast<size_t>(u)];
+        if ((unit < 0 || u == unit) && cycle && cycle->end_time) {
+            const double now =
+                clock_anchor_eventtime_ + static_cast<double>(now_fn_() - clock_anchor_epoch_);
+            return *cycle->end_time - now;
+        }
+    }
+    return std::nullopt;
 }
 
 DryerInfo AmsBackendHappyHare::get_dryer_info(int unit) const {
     std::lock_guard<std::mutex> lock(mutex_);
     DryerInfo out = dryer_capabilities_locked(unit);
-    if (dry_end_epoch_ > 0) {
+    // Happy Hare's own cycle, when it publishes one, covers a cycle started
+    // anywhere; the end HelixScreen computed at its own start is the fallback.
+    if (const auto left = firmware_dry_seconds_left_locked(unit)) {
+        out.remaining_min = std::max(static_cast<int>(*left / 60.0), 0);
+        if (unit >= 0) {
+            const auto& cycle = drying_cycles_[static_cast<size_t>(unit)];
+            if (cycle && cycle->time_min) {
+                out.duration_min = *cycle->time_min;
+            }
+        }
+    } else if (dry_end_epoch_ > 0) {
         const int remaining = static_cast<int>((dry_end_epoch_ - now_fn_()) / 60);
         out.remaining_min = remaining > 0 ? remaining : 0;
     }
@@ -3566,10 +3759,11 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
 
     std::vector<int> selected;
     std::optional<float> humidity;
+    bool shared_heater_rotation = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         const DryerInfo caps = dryer_capabilities_locked(request.unit);
-        if (!caps.supports_gate_selection) {
+        if (!request.gates.empty() && !caps.supports_gate_selection) {
             return AmsErrorHelper::not_supported("Drying selected gates");
         }
         if (request.rotate && !caps.supports_rotation) {
@@ -3578,6 +3772,8 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
         if (request.humidity_pct) {
             humidity = caps.humidity_target(*request.humidity_pct);
         }
+        // A shared heater (4.2) rotates every empty gate on its own: no GATES=.
+        shared_heater_rotation = !caps.supports_gate_selection;
         // ROTATE=1 is refused without an explicit GATES list, so a rotation with no
         // selection names every gate on the unit.
         std::vector<int> gates = request.gates;
@@ -3600,6 +3796,10 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
             }
         }
         std::sort(selected.begin(), selected.end());
+    }
+    if (shared_heater_rotation) {
+        return start_drying_cycle(request.temp_c, request.duration_min, humidity, request.unit, {},
+                                  /*rotate=*/true);
     }
     if (selected.empty()) {
         return AmsError{AmsResult::WRONG_STATE, "None of the selected gates exist",
@@ -3634,27 +3834,30 @@ AmsError AmsBackendHappyHare::start_drying_cycle(float temp_c, int duration_min,
         cmd += fmt::format(" HUMIDITY={:.0f}", *humidity_pct);
     }
     const bool gate_selection = !gates.empty();
-    if (gate_selection && rotate) {
+    if (rotate) {
         cmd += " ROTATE=1";
     }
 
     // heater_targets_for_unit() locks internally, so it is called with no lock held.
     std::vector<std::string> targets;
-    if (!gate_selection) {
+    if (!gate_selection && !rotate) {
         targets = heater_targets_for_unit(unit);
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (gate_selection) {
             targets = heater_targets_for_gates_locked(gates);
+        } else if (rotate) {
+            // A shared heater rotates every empty gate when GATES= is left out.
+            targets = {unit_suffix_locked(unit)};
         }
         dryer_info_.duration_min = duration_min;
         dry_end_epoch_ = now_fn_() + static_cast<std::time_t>(duration_min) * 60;
         dry_humidity_target_ = humidity_pct;
         forget_dry_gates_locked();
+        dry_rotate_ = rotate;
         if (gate_selection) {
             dry_gates_ = std::move(gates);
-            dry_rotate_ = rotate;
         }
     }
 

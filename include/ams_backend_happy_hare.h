@@ -200,6 +200,18 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
      * @brief Park a gate's filament ready for a later load (MMU_PRELOAD GATE=n).
      */
     AmsError preload_lane(int slot_index) override;
+    /// gate_status 0: Happy Hare has the gate marked empty.
+    [[nodiscard]] bool gate_marked_empty(int slot_index) const override;
+    /**
+     * @brief Mark an empty gate available again (MMU_GATE_MAP AVAILABLE=1).
+     *
+     * The way back Happy Hare's own error text names after a load that could
+     * not pick filament up. Refused while printing; allowed while paused.
+     */
+    AmsError mark_gate_available(int slot_index) override;
+    /// The MMU_GATE_MAP line that marks @p gate available. TEMP=0 keeps the
+    /// gate's temperature: an omitted TEMP is default_extruder_temp.
+    [[nodiscard]] static std::string mark_available_command(int gate);
     /**
      * @brief Move the selector to a gate without loading filament (MMU_SELECT).
      */
@@ -225,12 +237,21 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::ErrorEvent>
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
     [[nodiscard]] bool duplicates_firmware_prompt(const std::string& title) const override;
+    /// RESUME, MMU_UNLOCK and CANCEL_PRINT: the footer Happy Hare's pause dialog
+    /// builds. Print-start macros can add others (MMU_ERROR_DIALOG BUTTONS=).
+    [[nodiscard]] bool firmware_prompt_button_is_own(const std::string& gcode) const override;
 
     [[nodiscard]] std::vector<ToolchangePhase>
     toolchange_phase_template(StepOperationType op) const override;
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+    /// From 4.2 the gate map holds the weights, so a metered weight goes there
+    /// (MMU_GATE_MAP WEIGHT=) rather than to the extras record. Not in Spoolman
+    /// pull mode, which refuses it, nor on a gate linked to a spool, whose
+    /// weight is Spoolman's.
+    void persist_slot_weight(int slot_index, float remaining_weight_g,
+                             float total_weight_g) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -381,17 +402,23 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
-    /// The gate map holds the name on every version and the vendor on v4,
-    /// and no remaining weight: the extras record keeps the rest.
+    /// The gate map holds the name on every version, the vendor on v4 and
+    /// both weights from 4.2: the extras record keeps the rest.
     void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override {
         store.set_extras_fields(extras_fields_locked());
     }
     [[nodiscard]] helix::ams::ExtrasFields extras_fields_locked() const {
         helix::ams::ExtrasFields fields;
-        fields.remaining_weight = true;
+        fields.remaining_weight = !gate_map_holds_weights_locked();
+        fields.total_weight = !gate_map_holds_weights_locked();
         fields.spool_name = false;
         fields.brand = !is_v4_locked();
         return fields;
+    }
+    /// Happy Hare 4.2 keeps each gate's remaining and initial weight in its
+    /// gate map (MMU_GATE_MAP WEIGHT= / INITIAL_WEIGHT=).
+    [[nodiscard]] bool gate_map_holds_weights_locked() const {
+        return machine_layout_.since(happy_hare::kGateWeightsSince);
     }
     /// Re-point the store's extras fields once the layout names the version.
     /// Caller holds mutex_.
@@ -468,6 +495,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// Does @p unit (any unit for a negative one) have a motor that turns its spools?
     /// Caller holds mutex_.
     [[nodiscard]] bool unit_turns_spools_locked(int unit) const;
+    /// Whether @p unit's gear motor turns its spools (any unit when negative).
+    [[nodiscard]] bool unit_gear_rotates_spool_locked(int unit) const;
     /// MMU_HEATER DRY=1 with TEMP and TIMER, plus HUMIDITY when @p humidity_pct is set and
     /// ROTATE=1 when @p rotate, sent to @p gates (empty: @p unit's whole-unit targets).
     AmsError start_drying_cycle(float temp_c, int duration_min, std::optional<float> humidity_pct,
@@ -732,6 +761,16 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     // Dryer state (v4 - KMS/EMU hardware)
     DryerInfo dryer_info_;
     std::time_t dry_end_epoch_ = 0; ///< HelixScreen-initiated drying end (epoch s), 0 = none
+    /// printer.mmu.drying per unit: the cycle Happy Hare is running, whoever
+    /// started it. Empty on a Happy Hare that does not publish it.
+    std::vector<std::optional<happy_hare::DryingCycle>> drying_cycles_;
+    /// The last frame's Klipper eventtime and the wall clock it arrived at, so a
+    /// reactor-clock end_time reads as seconds left. Eventtime 0 = none yet.
+    double clock_anchor_eventtime_ = 0.0;
+    std::time_t clock_anchor_epoch_ = 0;
+    /// Seconds left in @p unit's firmware-reported cycle (any unit's when
+    /// negative), or nullopt when Happy Hare does not say.
+    [[nodiscard]] std::optional<double> firmware_dry_seconds_left_locked(int unit) const;
     /// Humidity target of the cycle HelixScreen started, carried across a restart
     std::optional<float> dry_humidity_target_;
     /// Gates still drying in a gate-selected cycle HelixScreen started, so a restart or a
@@ -764,6 +803,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         sensor_temp_; ///< live ambient temp (°C) keyed by env-sensor object name
 
     // Error state tracking
+    /// [mmu_parameters] endless_spool_auto_groups: Happy Hare builds the
+    /// endless spool groups from the gate map and ignores GROUPS=.
+    bool endless_spool_auto_groups_ = false;
     std::string reason_for_pause_; ///< Last reason_for_pause from MMU (descriptive error text)
 
     // --- Config defaults from configfile.settings ---

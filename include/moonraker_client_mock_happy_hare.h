@@ -27,6 +27,8 @@ struct HappyHareGate {
     std::string name; ///< gate_name: the filament's name
     int spool_id = -1;
     int temperature = 0;
+    int remaining_weight = -1; ///< gate_remaining_weight (4.2): net grams, -1 unknown
+    int initial_weight = -1;   ///< gate_initial_weight (4.2)
 };
 
 /// One frame of an operation in progress: what printer.mmu reads while it runs.
@@ -55,7 +57,9 @@ class HappyHareSim {
     /// @p gates gates (clamped to 1..16) filled from the mock Spoolman's spools 1-8 in
     /// turn, gate 0 loaded in the toolhead and gate 3 empty.
     /// @p environment_sensor the unit's environment_sensor object, "" for none.
-    HappyHareSim(int gates, std::string environment_sensor);
+    /// @p development also publishes what only Happy Hare's development branch has:
+    /// `drying` and `endless_spool_auto_groups`.
+    HappyHareSim(int gates, std::string environment_sensor, bool development = false);
 
     /// The whole printer.mmu object.
     [[nodiscard]] nlohmann::json status() const;
@@ -106,6 +110,7 @@ class HappyHareSim {
     std::vector<int> ttg_map_;
     std::vector<int> endless_spool_groups_;
     std::string environment_sensor_;
+    bool development_ = false;
     int gate_ = 0;
     int tool_ = 0;
     int filament_pos_ = kPosLoaded;

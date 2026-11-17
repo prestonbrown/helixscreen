@@ -15,6 +15,7 @@
 
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
+#include "ams_gate_selector.h"
 #include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -66,6 +67,7 @@ HELIX_PSRAM_BSS char AmsContextMenu::slot_load_hint_buf_[192];
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_mount_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_park_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_clear_error_subject_;
+HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_mark_available_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_header_subject_;
 HELIX_PSRAM_BSS char AmsContextMenu::slot_header_buf_[64];
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_purge_shown_subject_;
@@ -107,6 +109,8 @@ void AmsContextMenu::init_subjects() {
         UI_MANAGED_SUBJECT_INT(slot_mount_subject_, 0, "ams_slot_mount", s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_park_subject_, 0, "ams_slot_park", s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_clear_error_subject_, 0, "ams_slot_clear_error", s_subjects);
+        UI_MANAGED_SUBJECT_INT(slot_mark_available_subject_, 0, "ams_slot_mark_available",
+                               s_subjects);
         UI_MANAGED_SUBJECT_STRING(slot_header_subject_, slot_header_buf_, "", "ams_slot_header",
                                   s_subjects);
         UI_MANAGED_SUBJECT_INT(slot_purge_shown_subject_, 0, "ams_slot_purge_shown", s_subjects);
@@ -236,6 +240,7 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     // has no gate to preload and no fault of its own.
     lv_subject_set_int(&slot_preload_subject_, 0);
     lv_subject_set_int(&slot_clear_error_subject_, 0);
+    lv_subject_set_int(&slot_mark_available_subject_, 0);
     // Rows only one of the two modes offers start hidden; each mode below
     // shows its own. The subjects outlive any one show, so a value left over
     // from the previous menu must not reach this one.
@@ -449,6 +454,14 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
         lv_subject_set_int(&slot_clear_error_subject_, system_busy ? 1 : 2);
     }
 
+    // A gate the firmware marked empty after a load could not pick its
+    // filament up usually still holds the spool. Moves nothing, but asserts
+    // filament for the job to draw on, so a running print waits for a pause.
+    if (const IGateSelector* gates = backend_ ? backend_->as<IGateSelector>() : nullptr;
+        gates && gates->gate_marked_empty(slot_index)) {
+        lv_subject_set_int(&slot_mark_available_subject_, system_busy || print_blocks_op ? 1 : 2);
+    }
+
     // Show Clear Spool whenever the slot carries an assignment, present or not
     // (should_show_clear_spool). It used to be gated on an EMPTY slot, so it
     // disappeared the moment a spool went in — exactly when stale metadata does
@@ -565,6 +578,11 @@ void AmsContextMenu::handle_gate_check() {
 void AmsContextMenu::handle_clear_fault() {
     spdlog::info("[AmsContextMenu] Clear error requested for slot {}", get_item_index());
     dispatch_ams_action(MenuAction::CLEAR_FAULT);
+}
+
+void AmsContextMenu::handle_mark_available() {
+    spdlog::info("[AmsContextMenu] Mark available requested for slot {}", get_item_index());
+    dispatch_ams_action(MenuAction::MARK_AVAILABLE);
 }
 
 void AmsContextMenu::handle_preload() {
@@ -761,6 +779,7 @@ void AmsContextMenu::register_callbacks() {
         {"ams_context_edit_cb", on_edit_cb},
         {"ams_context_clear_spool_cb", on_clear_spool_cb},
         {"ams_context_clear_fault_cb", on_clear_fault_cb},
+        {"ams_context_mark_available_cb", on_mark_available_cb},
         {"ams_context_spoolman_cb", on_spoolman_cb},
         {"ams_context_scan_qr_cb", on_scan_qr_cb},
         {"ams_context_purge_cb", on_purge_cb},
@@ -819,6 +838,12 @@ void AmsContextMenu::on_park_cb(lv_event_t* /*e*/) {
 void AmsContextMenu::on_clear_fault_cb(lv_event_t* /*e*/) {
     if (auto* self = get_active_instance()) {
         self->handle_clear_fault();
+    }
+}
+
+void AmsContextMenu::on_mark_available_cb(lv_event_t* /*e*/) {
+    if (auto* self = get_active_instance()) {
+        self->handle_mark_available();
     }
 }
 
@@ -945,7 +970,8 @@ void dispatch_slot_menu_action(const SlotMenuHost& host, AmsContextMenu::MenuAct
                                int slot) {
     using MenuAction = AmsContextMenu::MenuAction;
 
-    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL / CLEAR_FAULT are
+    // EJECT / RECOVER_POSITION / CHECK_GATE / PRELOAD / CLEAR_SPOOL / CLEAR_FAULT /
+    // MARK_AVAILABLE are
     // pure backend calls; see ams_dispatch_backend_action().
     if (ams_dispatch_backend_action(action, slot,
                                     host.path_canvas ? host.path_canvas() : nullptr)) {

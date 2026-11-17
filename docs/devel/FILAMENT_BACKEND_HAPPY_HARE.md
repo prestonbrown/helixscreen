@@ -5,6 +5,17 @@ multi-filament systems (MMUs) - one shared extruder fed by a moving selector.
 Topology is `PathTopology::LINEAR`: the selector picks one gate from the spools;
 slot count is the gate count from `[mmu_machine]` (multi-unit EMU rigs appear as multiple units).
 
+**Reviewed against Happy Hare v4.2.0** (tag `v4.2.0`), plus the development-branch fields named
+below as such. Behavior that changed in 4.2 is gated on the parsed version
+(`MachineLayout::since()`), so 4.0, 4.1 and v3 keep their own; a development-only field is gated
+on its presence.
+
+| Since | What changes |
+|-------|--------------|
+| 4.2 | Gate weights in the gate map; empty `form_tip_macro` means no tip step; shared-heater and gear-driven spool rotation while drying |
+| development | `printer.mmu.drying` (dryer time left); `endless_spool_auto_groups` (groups read-only); extra pause-dialog buttons (`MMU_ERROR_DIALOG BUTTONS=`) |
+| every version | Slot menu **Mark Available** (`MMU_GATE_MAP AVAILABLE=1`) |
+
 ## Happy Hare (MMU)
 
 Happy Hare is a Klipper add-on for ERCF, Tradrack, and other selector-based multi-filament systems.
@@ -25,6 +36,8 @@ Klipper object `mmu` in `printer.objects.list` sets `AmsType::HAPPY_HARE`.
 | `printer.mmu.gate_color_rgb` | int[] | Per-gate RGB colors (0xRRGGBB) |
 | `printer.mmu.gate_material` | string[] | Per-gate material names |
 | `printer.mmu.filament_pos` | int | 0-8 filament position for path visualization |
+| `printer.mmu.drying` | (dict \| null)[] | Development builds (798f83a6): per unit, the running cycle `{temp, time, humidity_target, start_time, end_time}` or null. Times are Klipper's reactor clock; `get_dryer_info()` reads the time left as `end_time` minus the last frame's eventtime (`AmsSubscriptionBackend::status_eventtime_`) advanced by the wall clock since, and falls back to the end HelixScreen computed at its own start when the field is absent, the unit's entry is null or `end_time` is null (a queued gate) |
+| `printer.mmu.gate_remaining_weight` / `gate_initial_weight` | int[] | 4.2+: per-gate net grams, -1 unknown. Filed as the lane's `Firmware` weights (see [Lane identity and edits](#lane-identity-and-edits)) |
 | `printer.mmu.sync_feedback_bias_modelled` | float | -1 (tight) to +1 (loose); `AmsSystemInfo::sync_feedback_bias`, the one buffer reading Happy Hare gives (`sync_feedback_bias_raw` is the raw sensor value). `helix::buffer_reading()` draws it as the "Sync" buffer on every buffer surface |
 
 Happy Hare has both a buffer reading (sync feedback, above) and clog detection: the
@@ -50,8 +63,10 @@ encoder (`clog_detection` 1 or 2) and FlowGuard (`flowguard.enabled`) feed the
 | `MMU_TTG_MAP TOOL={n} GATE={g}` | Set tool-to-gate mapping |
 | `MMU_GATE_MAP GATE={n} [COLOR=..] [MATERIAL=..] [VENDOR=..] [NAME=..] [TEMP=..] [SPOOLID=..]` | Write a slot edit to the gate map (`mmu_vars.cfg`). Omitted params keep their current value, so a field is only cleared by naming it with an explicit empty value. `VENDOR` is v4-only; `TEMP` is sent only when the edit moves it, never 0. In Spoolman pull mode an edit is refused - see [Lane identity and edits](#lane-identity-and-edits) |
 | `MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP={default} QUIET=1` | **Clear Spool**: wipe every field the gate map holds for one gate and return its temperature to `default_extruder_temp` - see [Clear Spool](#clear-spool) |
+| `MMU_GATE_MAP GATE={n} AVAILABLE=1 TEMP=0 QUIET=1` | Slot menu **Mark Available**, offered while `gate_status` is 0 (empty): Happy Hare's failed-pickup error names this as the recovery, and from 65e3656d (after 4.2.0) the gate keeps its attributes then. `TEMP=0` keeps the gate's temperature. Refused while printing, allowed while paused; pull mode accepts it, since gate status stays local there. Every version takes `AVAILABLE=` |
 | `MMU_SELECT_BYPASS` | Select bypass position |
 | `MMU_SYNC_FEEDBACK ENABLE=0\|1` / `AUTOTUNE=0\|1` / `RESET=1` / `ADJUST_TENSION=1` [`UNIT=n`] | v4 Accessories **Sync Feedback**, **Save Autotuned Rotation**, **Reset Sync Feedback**, **Neutralize Tension** - see [Sync feedback and fan controls](#sync-feedback-and-fan-controls) |
+| `MMU_HEATER DRY=1 ... ROTATE=1` [`GATES=`] | Dryer **Rotate**. Before 4.2: only with per-gate heaters, an explicit `GATES=` list and an eSpooler. From 4.2 (Happy Hare's MMU_HEATER command, 3e0b82ae era): a unit whose gear turns its spool (`[mmu_unit] gear_rotates_spool`, default on for vendors `VVD` and `QIDI`, `MachineUnit::gear_rotates_spool`) counts too, and a shared heater takes `ROTATE=1` with no `GATES=` (Happy Hare rotates every empty gate); per-gate heaters still need `GATES=` |
 | `MMU_FAN ENABLE=0\|1` / `FAN_FORCED=0\|1\|2` [`UNIT=<name>`] | v4.1 Accessories **Fan Control** and **Fan Mode** (Off / On / Auto), one pair per unit in `printer.mmu.fans` |
 
 ### Path Topology
@@ -64,7 +79,7 @@ Happy Hare's `filament_pos` (0-8) maps to `PathSegment` via `path_segment_from_h
 
 | Feature | Supported | Editable |
 |---------|-----------|----------|
-| Endless Spool | `Available` | `Group` on a single-unit MMU; `ReadOnly` + `MultiUnit` on multi-unit, `ReadOnly` + `NotReady` before the gate registry initialises (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
+| Endless Spool | `Available` | `ReadOnly` + `GroupsFollowSlots` when `[mmu_parameters] endless_spool_auto_groups` is on (development builds, 1c178141: groups are rebuilt from gate material and color and `GROUPS=` is ignored; `ENABLE=` still works, so the switch stays); else `Group` on a single-unit MMU; `ReadOnly` + `MultiUnit` on multi-unit, `ReadOnly` + `NotReady` before the gate registry initialises (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
 | Tool Mapping | Yes | Yes (via `MMU_TTG_MAP`) |
 | Bypass Mode | Yes | Yes (selector position -2), when `[mmu_machine] has_bypass` is set (v4: any unit's `has_bypass`). `has_bypass: 0` hides the UI but `MMU_SELECT_BYPASS` still works - see [the force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) |
 | Spoolman | Yes | -- (pull mode: the gate map is Spoolman's, and an edit that moves a gate-map field is refused) |
@@ -161,9 +176,17 @@ lane shows the gate map, filed as the lane's `Firmware` source.
   version reads `TEMP=0` as "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py
   cmd_MMU_GATE_MAP). Clear Spool names `TEMP={default_extruder_temp}`, so a cleared gate returns
   to the default temperature whether the firmware keeps or resets an omitted `TEMP`.
-- **Fields the gate map cannot hold** (brand before v4, total and remaining weight, colour name,
-  catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the
-  same 10 s poll as every lane record. The name, and the vendor on v4, are the gate map's alone,
+- **Fields the gate map cannot hold** (brand before v4, total and remaining weight before 4.2,
+  colour name, catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`,
+  read by the same 10 s poll as every lane record.
+- **Weights from 4.2** (`MachineLayout::since(kGateWeightsSince)`): the gate map holds
+  `gate_remaining_weight` and `gate_initial_weight`, so an edit that moves either names both as
+  `WEIGHT=` / `INITIAL_WEIGHT=` (whole grams, -1 unknown) and the extras record keeps neither
+  (`ExtrasFields::remaining_weight` / `total_weight` off). A metered weight
+  (`persist_slot_weight`) is sent as `MMU_GATE_MAP GATE=n WEIGHT=.. INITIAL_WEIGHT=.. TEMP=0
+  QUIET=1`, except on a gate linked to a Spoolman spool (Spoolman's weight wins on the lane) and in
+  pull mode. In pull mode Happy Hare refuses weights, so a weight edit is refused like any other
+  gate-map edit. The name, and the vendor on v4, are the gate map's alone,
   so another client clearing them shows as cleared.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
@@ -186,6 +209,7 @@ publishes, sets its v4 flag before the query answers.
 |------|----|----|
 | Machine fields (selector type, heaters, env sensors) | live `mmu_machine.unit_N` on v3.4, else `configfile.settings.mmu_machine` | live `mmu_machine.unit_N` |
 | Version (`AmsSystemInfo::version`) | `[mmu] happy_hare_version` (a number such as 3.42) | `mmu_machine.happy_hare_version` |
+| Tip method (`apply_tip_method_config`) | `form_tip_macro` naming `cut` is a cutter, else tip forming | the same, except an empty `form_tip_macro` on 4.2+ is `TipMethod::NONE` (Happy Hare skips tip forming; before 4.2 the unload failed looking for the macro) |
 | Tunables (tip macro, speeds, toolhead distances, `heater_max_temp`, `sync_to_extruder`) | `[mmu]` | `[mmu_parameters]`, `[mmu_unit_parameters <unit>]`, `[mmu_toolhead <toolhead of that unit>]`; `happy_hare::find_config_param()` owns which |
 | `MMU_TEST_CONFIG` gear speeds | `GEAR_FROM_SPOOL_SPEED`, `GEAR_FROM_BUFFER_SPEED`; `GEAR_UNLOAD_SPEED` from 3.10 | `GEAR_LOAD_SPEED`, `GEAR_FROM_FILAMENT_BUFFER_SPEED`, `GEAR_UNLOAD_SPEED` |
 | Bypass support | `printer.mmu.has_bypass` | any `mmu_machine.unit_N.has_bypass` (`printer.mmu.has_bypass` is a constant true) |
@@ -308,6 +332,18 @@ says the hardware is there, so a printer without it lists nothing and the base r
   `MMU_RECOVER GATE=<n>`, and `slot_index < 0` (what both UI callers pass whenever nothing is
   loaded, which is the state Reset is pressed in) drops the parameter and sends bare
   `MMU_RECOVER`, re-syncing the whole selector.
+
+---
+
+### The pause dialog
+
+Happy Hare raises its own Mainsail/Fluidd pause dialog for a fault the recovery popup also
+shows, so `duplicates_firmware_prompt()` claims it by title and the presenter
+(`src/ui/notify/recovery_modal_presenter.cpp#present`) closes it. Print-start macros can add
+buttons to that dialog (`MMU_ERROR_DIALOG BUTTONS=` on development builds, 59234df5; the v4.2
+dialog, f5f251f4, adds ABORT); a prompt carrying any button other than `RESUME`, `MMU_UNLOCK` or
+`CANCEL_PRINT` (`firmware_prompt_button_is_own()`) is left up, since closing it would take that
+action away.
 
 ---
 

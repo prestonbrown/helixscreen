@@ -38,6 +38,22 @@
 
 namespace {
 
+/// Whether every button on the showing firmware prompt is one of @p backend's
+/// own dialog actions. A prompt carrying any other button keeps that action
+/// only while it stays up.
+bool prompt_buttons_all_own(const helix::AmsBackend& backend) {
+    const auto* prompts = helix::ActionPromptManager::instance();
+    const helix::PromptData* prompt = prompts ? prompts->get_current_prompt() : nullptr;
+    if (prompt == nullptr) {
+        return true;
+    }
+    return std::all_of(prompt->buttons.begin(), prompt->buttons.end(),
+                       [&backend](const helix::PromptButton& button) {
+                           return backend.firmware_prompt_button_is_own(
+                               button.gcode.empty() ? button.label : button.gcode);
+                       });
+}
+
 /// Poll cadence while waiting for the nozzle. Fast enough that the recovery
 /// fires within a frame of reaching temperature, slow enough to cost nothing.
 constexpr uint32_t kPreheatPollMs = 250;
@@ -199,7 +215,8 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
         AmsState& ams = AmsState::instance();
         for (int i = 0; i < ams.backend_count(); ++i) {
             const AmsBackend* backend = ams.get_backend(i);
-            if (backend && backend->duplicates_firmware_prompt(title)) {
+            if (backend && backend->duplicates_firmware_prompt(title) &&
+                prompt_buttons_all_own(*backend)) {
                 spdlog::debug("[RecoveryModal] closing duplicate firmware prompt: {}", title);
                 helix::ActionPromptManager::dismiss_active();
                 break;

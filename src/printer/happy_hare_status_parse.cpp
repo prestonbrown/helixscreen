@@ -183,6 +183,9 @@ constexpr ParamRow kParams[] = {
      ParamScope::Unit},
     {"sync_to_extruder", "sync_to_extruder", "sync_to_extruder", "sync_to_extruder",
      ParamScope::Unit},
+    // Endless spool groups built from the gate map's material and color. Happy
+    // Hare development builds only; MMU_ENDLESS_SPOOL then ignores GROUPS=.
+    {"endless_spool_auto_groups", "", "", "endless_spool_auto_groups", ParamScope::Machine},
     {"heater_max_temp", "heater_max_temp", "heater_max_temp", "heater_max_temp", ParamScope::Unit},
     // The HUMIDITY= target MMU_HEATER applies when a start names none. v4 only.
     {"heater_default_dry_humidity", "", "", "heater_default_dry_humidity", ParamScope::Unit},
@@ -286,8 +289,19 @@ MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::js
     // v4 names the unit's encoder on its own [mmu_unit <name>] section; Klipper
     // lowercases section names in configfile.settings.
     const std::string name = tio::to_lower(read_string_member(fields, "name"));
-    if (const auto* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name)) {
+    const nlohmann::json* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name);
+    if (cfg) {
         u.has_encoder = !read_string_member(*cfg, "encoder").empty();
+    }
+    const nlohmann::json* gear_turns = cfg ? find_member(*cfg, "gear_rotates_spool") : nullptr;
+    if (gear_turns && gear_turns->is_boolean()) {
+        u.gear_rotates_spool = gear_turns->get<bool>();
+    } else if (const auto n = read_config_number(gear_turns)) {
+        u.gear_rotates_spool = *n != 0.0F;
+    } else {
+        // mmu_unit.py's vendor profiles: VVD and QIDI default it on.
+        const std::string vendor = tio::to_upper(u.vendor);
+        u.gear_rotates_spool = vendor == "VVD" || vendor == "QIDI";
     }
     return u;
 }
@@ -608,6 +622,8 @@ GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu) {
     d.name = ams::read_array<std::string>(mmu, "gate_name");
     d.filament_name = ams::read_array<std::string>(mmu, "gate_filament_name");
     d.endless_spool_group = ams::read_array<int>(mmu, "endless_spool_groups", ams::read_integer);
+    d.remaining_weight = ams::read_array<int>(mmu, "gate_remaining_weight", read_number_as_int);
+    d.initial_weight = ams::read_array<int>(mmu, "gate_initial_weight", read_number_as_int);
     return d;
 }
 
@@ -712,6 +728,25 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
 
     if (mmu.contains("sensors") && mmu["sensors"].is_object()) {
         d.sensors = read_sensors(mmu["sensors"]);
+    }
+
+    if (const auto it = mmu.find("drying"); it != mmu.end() && it->is_array()) {
+        std::vector<std::optional<DryingCycle>> cycles;
+        cycles.reserve(it->size());
+        for (const auto& entry : *it) {
+            if (!entry.is_object()) {
+                cycles.emplace_back();
+                continue;
+            }
+            DryingCycle cycle;
+            cycle.temp_c = ams::read_field<float>(entry, "temp");
+            cycle.time_min = ams::read_integer_field(entry, "time");
+            cycle.humidity_target = ams::read_field<float>(entry, "humidity_target");
+            cycle.start_time = ams::read_field<double>(entry, "start_time");
+            cycle.end_time = ams::read_field<double>(entry, "end_time");
+            cycles.emplace_back(cycle);
+        }
+        d.drying_cycles = std::move(cycles);
     }
 
     if (mmu.contains("drying_state")) {
