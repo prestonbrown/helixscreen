@@ -11,6 +11,7 @@
 #include "core/observer_guard.h"
 #include "exact_size_image.h"
 #include "panel_widget.h"
+#include "src/ui/panel_widgets/light_target_picker.h"
 
 #include <array>
 #include <string>
@@ -63,6 +64,21 @@ class PrinterImageWidget : public PanelWidget {
         return kWidgetId;
     }
 
+    /// Its `led` config: which lights the light chip switches, with the same
+    /// values as a home light button's (unset: the chamber light).
+    void set_config(const nlohmann::json& config) override;
+    bool has_edit_configure() const override {
+        return true;
+    }
+    /// Opens the light button's picker for the light chip's lights.
+    bool on_edit_configure() override;
+
+    const std::string& light_key() const {
+        return light_key_;
+    }
+    /// The device ids a light chip tap switches and its lit state reads.
+    std::vector<std::string> light_targets() const;
+
     /// Called when panel activates — re-check if printer image changed in settings
     void on_activate();
 
@@ -83,13 +99,19 @@ class PrinterImageWidget : public PanelWidget {
     static void printer_callout_chamber_cb(lv_event_t* e);
     static void printer_callout_fan_cb(lv_event_t* e);
     static void printer_callout_light_cb(lv_event_t* e);
-    /// Long-press on the light chip: opens the LEDs overlay on the chamber light.
+    /// Long-press on the light chip: opens the LEDs overlay on light_overlay_device()
+    /// of its `led` config.
     static void printer_callout_light_hold_cb(lv_event_t* e);
 
   protected:
     void on_hooked_root_deleted() override;
 
   private:
+    std::string light_key_;
+    LightTargetPicker light_picker_;
+    /// Point the light chip at @p key (a device id or kLightButtonAll) and save it.
+    void select_light(const std::string& key);
+
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 

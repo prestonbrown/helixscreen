@@ -4622,6 +4622,7 @@ translations:
     si se activa
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "Este carril aún figura como cargado, pero su filamento está fuera de la boquilla. Antes de imprimir, empújalo de nuevo por el extrusor y extruye hasta que fluya."
+  This light chip controls: Este chip de luz controla
   This looks like a {}, but it is set up as a {}: Esta impresora parece una {}, pero está configurada como {}
   This may take up to 30 seconds: Esto puede tardar hasta 30 segundos
   Needs file analysis, which isn't running.: "Necesita el análisis de archivos, que no está en marcha."

@@ -4671,6 +4671,7 @@ translations:
   This is what data would be sent if enabled: Эти данные были бы отправлены при включении
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "Этот канал всё ещё показан как загруженный, но филамент вышел из сопла. Перед печатью вставьте его обратно через экструдер и выдавливайте, пока он не потечёт."
+  This light chip controls: Этот значок света управляет
   This looks like a {}, but it is set up as a {}: Похоже, это {}, но принтер настроен как {}
   This may take up to 30 seconds: Это может занять до 30 секунд
   Needs file analysis, which isn't running.: "Нужен анализ файлов, который не запущен."

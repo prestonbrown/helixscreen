@@ -4389,6 +4389,7 @@ translations:
   This is what data would be sent if enabled: 这是启用后将发送的数据
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "此耗材通道仍显示为已装载，但耗材已离开喷嘴。打印前请将其重新推入挤出机并挤出，直到耗材流出。"
+  This light chip controls: 此灯光标签控制
   This looks like a {}, but it is set up as a {}: 这台打印机看起来是 {}，但被设置为 {}
   This may take up to 30 seconds: 这可能需要 30 秒
   Needs file analysis, which isn't running.: "需要文件分析，但它未在运行。"

@@ -4398,6 +4398,7 @@ translations:
   This is what data would be sent if enabled: これは有効にした場合に送信されるデータです
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "このレーンはロード済みと表示されていますが、フィラメントはノズルから抜けています。印刷前にエクストルーダーに戻し、流れ出るまで押し出してください。"
+  This light chip controls: このライトチップの制御対象
   This looks like a {}, but it is set up as a {}: このプリンターは{}のようですが、{}として設定されています
   This may take up to 30 seconds: 最大30秒かかる場合があります
   Needs file analysis, which isn't running.: "ファイル解析が必要ですが、実行されていません。"

@@ -4221,6 +4221,7 @@
   <translation tag="This is exactly the data that will be sent" en="This is exactly the data that will be sent"/>
   <translation tag="This is what data would be sent if enabled" en="This is what data would be sent if enabled"/>
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." en="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows."/>
+  <translation tag="This light chip controls" en="This light chip controls"/>
   <translation tag="This looks like a {}, but it is set up as a {}" en="This looks like a {}, but it is set up as a {}"/>
   <translation tag="This may take up to 30 seconds" en="This may take up to 30 seconds"/>
   <translation tag="This plugin asks for no special permissions." en="This plugin asks for no special permissions."/>

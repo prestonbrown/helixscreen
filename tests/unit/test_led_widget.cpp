@@ -357,6 +357,9 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     w.on_edit_configure();
     lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
     REQUIRE(row != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "This button controls");
 
     // The device list reorders while the picker is open.
     LedController::instance().native().clear();
@@ -569,4 +572,33 @@ TEST_CASE_METHOD(LedWidgetFixture,
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(scripts_naming(client, "chamber_light") > 0);
     w.detach_tile();
+}
+
+TEST_CASE_METHOD(
+    LedWidgetFixture,
+    "toggle_lights: All lights alternates on and off with a stateless device in the set",
+    "[led][light_button]") {
+    auto& ctrl = LedController::instance();
+    const auto all = ctrl.light_targets(kLightButtonAll);
+    REQUIRE(std::find(all.begin(), all.end(), "macro:Lamp") != all.end());
+    REQUIRE(ctrl.device_state("macro:Lamp").power == PowerState::Unknown);
+
+    // Klipper reports every strip after each send; the TOGGLE macro never reports.
+    const auto report = [&](bool on) {
+        const double v = on ? 1.0 : 0.0;
+        ctrl.update_from_status({{"neopixel chamber_light", {{"color_data", {{v, v, v, 0.0}}}}},
+                                 {"neopixel sb_leds", {{"color_data", {{v, v, v, 0.0}}}}}});
+    };
+    report(false);
+    REQUIRE_FALSE(lights_lit(all));
+
+    for (int tap = 0; tap < 4; ++tap) {
+        const bool expect_on = tap % 2 == 0;
+        INFO("tap " << tap);
+        const auto result = toggle_lights(all, "test");
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(result.outcome == (expect_on ? LightToggle::On : LightToggle::Off));
+        report(expect_on);
+        CHECK(lights_lit(all) == expect_on);
+    }
 }

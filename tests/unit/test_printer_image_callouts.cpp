@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_context_menu.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_printer_manager_overlay.h"
@@ -10,6 +11,8 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/printer_image_regions_test_access.h"
 #include "../test_helpers/process_async_timers.h"
+#include "../test_helpers/scoped_home_layout.h"
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
@@ -18,6 +21,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_utils.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "light_button_config.h"
@@ -778,10 +782,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: holding the light chip opens the LEDs overlay on the chamber light",
-                 "[printer_image][callouts]") {
+                 "callouts: holding the light chip opens the LEDs overlay on the light it drives",
+                 "[printer_image][callouts][light_chip]") {
     const auto regions = prepare_tagged_widget();
     LightChipRig rig(state());
+    // Unset opens on the chamber light; a chosen strip opens on that strip.
+    const std::string key = GENERATE(std::string(), std::string("neopixel sb_leds"));
+    const std::string expect = key.empty() ? "neopixel chamber_light" : key;
+    const std::string other = key.empty() ? "neopixel sb_leds" : "neopixel chamber_light";
+    INFO("led: '" << key << "'");
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels) {
         p = lv_obj_create(test_screen());
@@ -791,14 +800,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The overlay otherwise reopens on the last focused device. Opened and
     // closed before the widget exists: closing hides every screen child that
     // is not a main panel, the widget's tree included.
-    ScopedLedStrips::report("neopixel sb_leds", true);
-    REQUIRE(helix::open_led_control_overlay(test_screen(), "neopixel sb_leds") != nullptr);
+    ScopedLedStrips::report(other.c_str(), true);
+    REQUIRE(helix::open_led_control_overlay(test_screen(), other) != nullptr);
     settle();
     NavigationManager::instance().go_back();
     settle();
-    REQUIRE(get_led_control_overlay().focused_device() == "neopixel sb_leds");
+    REQUIRE(get_led_control_overlay().focused_device() == other);
 
-    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", key}}});
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
     ScopedLedStrips::report("neopixel chamber_light", true);
@@ -829,12 +838,165 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     finger.hold(3 * finger.long_press_hold_ms());
     finger.release(x, y);
     settle();
-    CHECK(get_led_control_overlay().focused_device() == "neopixel chamber_light");
+    CHECK(get_led_control_overlay().focused_device() == expect);
     CHECK(long_presses_reaching_grid == 0);
     CHECK(holds_on_chip == 1);
     CHECK(scripts_naming(rig.client, "chamber_light") == 0);
+    CHECK(scripts_naming(rig.client, "sb_leds") == 0);
     NavigationManager::instance().go_back();
     settle();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the light chip's targets follow its led setting",
+                 "[printer_image][callouts][light_chip]") {
+    const ScopedLedStrips leds;
+    const auto& ctrl = helix::led::LedController::instance();
+    PrinterImageWidget w;
+    CHECK(w.has_edit_configure());
+
+    w.set_config(nlohmann::json::object());
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel chamber_light"});
+
+    w.set_config({{"led", "all"}});
+    CHECK(w.light_targets() == ctrl.switchable_ids());
+    CHECK(w.light_targets().size() == 2);
+
+    w.set_config({{"led", "neopixel sb_leds"}});
+    CHECK(w.light_key() == "neopixel sb_leds");
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel sb_leds"});
+
+    // A recycled instance whose new entry has no setting goes back to the default.
+    w.set_config(nlohmann::json::object());
+    CHECK(w.light_key().empty());
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel chamber_light"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a light chip set to All lights switches every light",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    LightChipRig rig(state());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", "all"}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    helix::ui::set_event_bubble_recursive(h.root());
+
+    rig.client.clear_gcode_script_history();
+    helix::ui::send_tap(h.child("callout_chip_light"));
+    settle();
+    CHECK(scripts_naming(rig.client, "chamber_light") == 1);
+    CHECK(scripts_naming(rig.client, "sb_leds") == 1);
+    destroy_printer_manager_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a light chip set to one strip switches only it",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    LightChipRig rig(state());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(),
+                                             HarnessConfig{{{"led", "neopixel sb_leds"}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    helix::ui::set_event_bubble_recursive(h.root());
+
+    rig.client.clear_gcode_script_history();
+    helix::ui::send_tap(h.child("callout_chip_light"));
+    settle();
+    CHECK(scripts_naming(rig.client, "sb_leds") == 1);
+    CHECK(scripts_naming(rig.client, "chamber_light") == 0);
+    destroy_printer_manager_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the light chip reads lit from the lights it drives",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    const ScopedLedStrips leds;
+    const std::string key = GENERATE(std::string("all"), std::string("neopixel sb_leds"));
+    INFO("led: " << key);
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", key}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    const auto lit = [&] {
+        return !lv_obj_is_hidden(
+            lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_lit"));
+    };
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    CHECK_FALSE(lit());
+
+    // sb_leds is in both sets.
+    ScopedLedStrips::report("neopixel sb_leds", true);
+    settle();
+    CHECK(lit());
+
+    // The chamber light alone lights only the All lights chip.
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    ScopedLedStrips::report("neopixel chamber_light", true);
+    settle();
+    CHECK(lit() == (key == "all"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "callouts: the light chip's configure picker chooses and saves its lights",
+                 "[printer_image][callouts][light_chip]") {
+    helix::ui::ContextMenu::register_shared_callbacks();
+    const auto regions = prepare_tagged_widget();
+    const ScopedLedStrips leds;
+    helix::test::ScopedHomeLayout layout(nlohmann::json::array(
+        {{{"id", "printer_image"}, {"enabled", true}, {"col", 0}, {"row", 0}}}));
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    h.widget().set_panel_id("home");
+    h.resize(4, 4, 160, 160);
+    settle();
+    REQUIRE(h.widget().has_edit_configure());
+
+    CHECK_FALSE(h.widget().on_edit_configure()); // the tile updates in place
+    process_lvgl(30);
+    lv_subject_t* selected = lv_xml_get_subject(nullptr, "led_picker_selected");
+    REQUIRE(selected);
+    CHECK(lv_subject_get_int(selected) == 0); // the chamber light, the default
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "This light chip controls");
+    lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(h.widget().light_key() == "neopixel sb_leds");
+    CHECK(h.widget().light_targets() == std::vector<std::string>{"neopixel sb_leds"});
+    const nlohmann::json saved =
+        PanelWidgetManager::instance().get_widget_config("home").get_widget_config("printer_image");
+    CHECK(json_util::safe_string(saved, "led") == "neopixel sb_leds");
+
+    // All lights is the row under the list.
+    h.widget().on_edit_configure();
+    process_lvgl(30);
+    lv_obj_t* all = lv_obj_find_by_name(test_screen(), "led_picker_all");
+    REQUIRE(all != nullptr);
+    lv_obj_send_event(all, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+    CHECK(h.widget().light_key() == "all");
+
+    // The title follows the interface language.
+    helix::ScopedLanguage de("de");
+    h.widget().on_edit_configure();
+    process_lvgl(30);
+    lv_obj_t* de_title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(de_title != nullptr);
+    CHECK(std::string(lv_label_get_text(de_title)) == "Dieser Lichtchip steuert");
+    lv_obj_send_event(lv_obj_find_by_name(test_screen(), "led_picker_all"), LV_EVENT_CLICKED,
+                      nullptr);
+    process_lvgl(50);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

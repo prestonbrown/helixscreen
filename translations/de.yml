@@ -4628,6 +4628,7 @@ translations:
   This is what data would be sent if enabled: Diese Daten würden bei Aktivierung gesendet
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "Diese Spur wird noch als geladen angezeigt, aber das Filament ist nicht mehr in der Düse. Schiebe es vor dem Druck wieder durch den Extruder und extrudiere, bis es fließt."
+  This light chip controls: Dieser Lichtchip steuert
   This looks like a {}, but it is set up as a {}: Dieser Drucker wirkt wie ein {}, ist aber als {} eingerichtet
   This may take up to 30 seconds: Dies kann bis zu 30 Sekunden dauern
   Needs file analysis, which isn't running.: "Benötigt die Dateianalyse, die nicht läuft."
