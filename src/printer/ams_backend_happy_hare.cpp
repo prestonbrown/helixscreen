@@ -2556,6 +2556,40 @@ AmsError AmsBackendHappyHare::preload_lane(int slot_index) {
     return execute_gcode("MMU_PRELOAD GATE=" + std::to_string(slot_index));
 }
 
+bool AmsBackendHappyHare::gate_marked_empty(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return slot_index >= 0 && slot_index < static_cast<int>(gate_status_raw_.size()) &&
+           slots_.is_valid_index(slot_index) && gate_status_raw_[slot_index] == 0;
+}
+
+std::string AmsBackendHappyHare::mark_available_command(int gate) {
+    return fmt::format("MMU_GATE_MAP GATE={} AVAILABLE=1 TEMP=0 QUIET=1", gate);
+}
+
+// Bookkeeping like MMU_RECOVER, but it asserts filament the user can see and
+// Happy Hare cannot, so it waits for a running print to pause. Spoolman pull
+// mode still takes it: gate status stays local there.
+AmsError AmsBackendHappyHare::mark_gate_available(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!running_) {
+            return AmsErrorHelper::not_connected("Happy Hare backend not started");
+        }
+        AmsError slot_err = validate_slot_index_locked(slot_index);
+        if (!slot_err) {
+            return slot_err;
+        }
+        AmsError printing = refuse_if_printing();
+        if (!printing) {
+            return printing;
+        }
+    }
+
+    spdlog::info("[AMS HappyHare] Marking gate {} available", slot_index);
+    return execute_gcode(mark_available_command(slot_index));
+}
+
 AmsError AmsBackendHappyHare::eject_lane(int slot_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);

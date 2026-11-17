@@ -200,6 +200,18 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
      * @brief Park a gate's filament ready for a later load (MMU_PRELOAD GATE=n).
      */
     AmsError preload_lane(int slot_index) override;
+    /// gate_status 0: Happy Hare has the gate marked empty.
+    [[nodiscard]] bool gate_marked_empty(int slot_index) const override;
+    /**
+     * @brief Mark an empty gate available again (MMU_GATE_MAP AVAILABLE=1).
+     *
+     * The way back Happy Hare's own error text names after a load that could
+     * not pick filament up. Refused while printing; allowed while paused.
+     */
+    AmsError mark_gate_available(int slot_index) override;
+    /// The MMU_GATE_MAP line that marks @p gate available. TEMP=0 keeps the
+    /// gate's temperature: an omitted TEMP is default_extruder_temp.
+    [[nodiscard]] static std::string mark_available_command(int gate);
     /**
      * @brief Move the selector to a gate without loading filament (MMU_SELECT).
      */

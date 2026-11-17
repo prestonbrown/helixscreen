@@ -1188,6 +1188,51 @@ TEST_CASE("Happy Hare preload_lane is refused while printing", "[ams][happy_hare
     CHECK(helper.captured_gcodes.empty());
 }
 
+// ============================================================================
+// mark_gate_available(): the recovery Happy Hare's failed-pickup error names
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare marks an empty gate available with MMU_GATE_MAP",
+                 "[ams][happy_hare][mark_available]") {
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, -1, 2});
+
+    CHECK_FALSE(helper.gate_marked_empty(0));
+    CHECK(helper.gate_marked_empty(1));
+    CHECK_FALSE(helper.gate_marked_empty(2)); // unknown is not empty
+    CHECK_FALSE(helper.gate_marked_empty(3));
+    CHECK_FALSE(helper.gate_marked_empty(4));
+    CHECK_FALSE(helper.gate_marked_empty(-1));
+
+    REQUIRE(helper.mark_gate_available(1).success());
+    // TEMP=0 keeps the gate's temperature; an omitted TEMP resets it.
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_GATE_MAP GATE=1 AVAILABLE=1 TEMP=0 QUIET=1"});
+
+    helper.clear_captured_gcodes();
+    CHECK(helper.mark_gate_available(4).result == AmsResult::INVALID_SLOT);
+    CHECK(helper.captured_gcodes.empty());
+}
+
+TEST_CASE("Happy Hare mark available waits for a running print to pause",
+          "[ams][happy_hare][mark_available]") {
+    PrintLifecycleFixture fx;
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(fx.api.get(),
+                                                                             &fx.mock_client);
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, 1, 1});
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PRINTING);
+    CHECK(helper.mark_gate_available(1).result == AmsResult::WRONG_STATE);
+    CHECK(helper.captured_gcodes.empty());
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PAUSED);
+    REQUIRE(helper.mark_gate_available(1).success());
+    CHECK(helper.has_gcode_containing("MMU_GATE_MAP GATE=1 AVAILABLE=1"));
+}
+
 TEST_CASE_METHOD(HhHelper,
                  "Happy Hare advertises lane eject, gate select and gate check; Reset reads Home",
                  "[ams][happy_hare][capability]") {

@@ -109,6 +109,14 @@
             <bind_state_if_eq subject="ams_slot_clear_error" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="ams_context_clear_fault_cb"/>
           </ui_button>
+          <!-- Mark Available (hidden unless the firmware has this gate marked empty) -->
+          <ui_button name="btn_mark_available"
+                     height="#button_height_sm" icon="check_circle" text="Mark Available" variant="ghost"
+                     clickable="true" style_flex_main_place="start">
+            <bind_flag_if_eq subject="ams_slot_mark_available" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="ams_slot_mark_available" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="ams_context_mark_available_cb"/>
+          </ui_button>
           <!-- Mount the tool this slot feeds, and Park the mounted one: a tool
                action set apart under its own rule, offered where the head's
                filament is all by hand (decide_slot_actions()). -->
