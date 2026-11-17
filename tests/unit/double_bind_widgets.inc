@@ -14,7 +14,7 @@
 // `orders_testable` is false when two bindings share a subject: they cannot be
 // held one at a time, so only the each-alone phase applies to that row.
 //
-// Rows left out are counted in kUndrivableGroups - a cond= expression, a subject
+// Rows left out are counted at the bottom - a cond= expression, a subject
 // the instantiating parent supplies as $param, a ref_value that is a
 // per-iteration ${...} substitution, or an <if> branch whose cond is more than
 // one comparison.
@@ -75,9 +75,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups the scan found but that no test can drive; see the header comment.
-static constexpr int kUndrivableGroups = 57;
-
-// Total groups in ui_xml/. A new double-bind widget moves this, which is the
-// point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 108;
+// Groups in ui_xml/: 51 drivable, 57 that no test can drive (see the header
+// comment), 108 total. qc_double_binds fails a commit that leaves this file
+// behind ui_xml/.
