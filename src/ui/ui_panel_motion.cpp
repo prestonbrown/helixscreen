@@ -273,8 +273,32 @@ lv_obj_t* MotionPanel::create(lv_obj_t* parent) {
 
     setup_jog_pad();
 
+    // Immediate, and registered after create_overlay_from_xml(): the jog row's own <if>
+    // observer rebuilds the branch synchronously first, so the new placeholder is already
+    // there when this runs (BedMeshPanel::setup_orientation_rewire_observer explains why).
+    if (lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait")) {
+        portrait_rewire_observer_ = helix::ui::observe_int_immediate<MotionPanel>(
+            portrait, this,
+            [](MotionPanel* self, int) { self->rewire_jog_pad_after_orientation_flip(); });
+    }
+
     spdlog::info("[{}] Overlay created successfully", get_name());
     return overlay_root_;
+}
+
+void MotionPanel::rewire_jog_pad_after_orientation_flip() {
+    if (!overlay_root_) {
+        return;
+    }
+    if (!lv_obj_find_by_name(overlay_root_, "jog_pad_container")) {
+        // No fresh placeholder: keep the pad only if it is still in the live tree.
+        if (!lv_obj_find_by_name(overlay_root_, "jog_pad")) {
+            jog_pad_ = nullptr;
+        }
+        return;
+    }
+    spdlog::debug("[{}] Orientation flip: rebuilding the jog pad", get_name());
+    setup_jog_pad();
 }
 
 // ============================================================================
@@ -323,6 +347,7 @@ void MotionPanel::on_ui_destroyed() {
     jog_pad_ = nullptr;
     parent_screen_ = nullptr;
     jog_coalescer_.reset();
+    portrait_rewire_observer_.reset();
 }
 
 // ============================================================================

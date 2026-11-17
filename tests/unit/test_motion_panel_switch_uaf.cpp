@@ -143,3 +143,59 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
 }
+
+// motion_panel.xml's jog row is an <if> on ui_is_portrait, so a flip deletes the branch
+// holding the jog pad while the panel keeps its widget tree for the next open.
+TEST_CASE_METHOD(LVGLUITestFixture, "an orientation flip rebuilds the jog pad the panel holds",
+                 "[motion][uaf][rotation]") {
+    std::array<lv_obj_t*, UI_PANEL_COUNT> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+
+    lv_obj_t* cached = nullptr;
+    REQUIRE(helix::ui::lazy_create_and_push_overlay<MotionPanel>(
+        get_global_motion_panel, cached, lv_screen_active(), "Motion", "test"));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_obj_t* old_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(old_pad != nullptr);
+
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int was_portrait = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, was_portrait ? 0 : 1);
+
+    // The rebuilt branch carries a live pad, not the empty placeholder it was built with.
+    lv_obj_t* new_pad = lv_obj_find_by_name(root, "jog_pad");
+    REQUIRE(new_pad != nullptr);
+    CHECK(new_pad != old_pad);
+    CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
+
+    // Flipping back leaves the pad drawn in the original orientation too, with the rebuilt
+    // jog row still above the mode toggles rather than appended below them.
+    process_lvgl(100);
+    lv_subject_set_int(portrait, was_portrait);
+    CHECK(lv_obj_find_by_name(root, "jog_pad") != nullptr);
+    CHECK(lv_obj_find_by_name(root, "jog_pad_container") == nullptr);
+    lv_obj_t* jog_row = lv_obj_find_by_name(root, "jog_row");
+    lv_obj_t* mode_fine = lv_obj_find_by_name(root, "jog_mode_fine");
+    REQUIRE(jog_row != nullptr);
+    REQUIRE(mode_fine != nullptr);
+    lv_obj_update_layout(root);
+    lv_area_t row_area;
+    lv_area_t mode_area;
+    lv_obj_get_coords(jog_row, &row_area);
+    lv_obj_get_coords(mode_fine, &mode_area);
+    CHECK(row_area.y2 <= mode_area.y1);
+
+    // Free the condemned branches, then leave: on_deactivate runs against the live pad.
+    process_lvgl(100);
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(100);
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+}

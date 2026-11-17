@@ -135,6 +135,8 @@ class MotionPanel : public OverlayBase {
     int gcode_z_centimm_ = 0;
     int actual_z_centimm_ = 0;
 
+    // The jog row is an <if> on ui_is_portrait, so a flip deletes the pad with the branch it
+    // sits in; rewire_jog_pad_after_orientation_flip() builds the replacement.
     lv_obj_t* jog_pad_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     bool callbacks_registered_ = false;
@@ -160,8 +162,12 @@ class MotionPanel : public OverlayBase {
     ObserverGuard bed_moves_observer_;
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
+    ObserverGuard portrait_rewire_observer_;
 
     void setup_jog_pad();
+
+    /// Rebuild the pad in the branch an orientation flip just built.
+    void rewire_jog_pad_after_orientation_flip();
     void register_position_observers();
 
     // Enable/dim the jog pad from the current nav_buttons_enabled state
