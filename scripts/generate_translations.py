@@ -18,6 +18,8 @@ from typing import Any
 
 import yaml
 
+from translations.locale_variants import resolve_variants
+
 
 # =============================================================================
 # YAML Parsing
@@ -394,12 +396,22 @@ def generate_all(
         result.errors.append(f"No translation files found in {yaml_dir}")
         return result
 
+    # A variant's pack carries its base language's entries under its own
+    # strings; resolved before the whitelist so a variant can ship without
+    # its base.
+    pack_entries, variant_errors = resolve_variants(translations)
+    if variant_errors:
+        result.success = False
+        result.errors.extend(variant_errors)
+        return result
+
     # Filter to whitelisted languages if requested. Base locale always stays
     # so the app has a fallback if the runtime-selected locale is absent.
     if languages:
         keep = set(languages) | {base_locale}
         dropped = sorted(set(translations.keys()) - keep)
         translations = {k: v for k, v in translations.items() if k in keep}
+        pack_entries = {k: v for k, v in pack_entries.items() if k in keep}
         if dropped:
             result.warnings.append(
                 f"Dropped locales (not in HELIX_LANG whitelist): {', '.join(dropped)}"
@@ -407,7 +419,7 @@ def generate_all(
 
     runtime_tags: dict[str, dict[str, str]] = {}
 
-    for locale, locale_translations in translations.items():
+    for locale, locale_translations in pack_entries.items():
         runtime_tags[locale], plural_errors = expand_plural_entries(
             locale, locale_translations
         )

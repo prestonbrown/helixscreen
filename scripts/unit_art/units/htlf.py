@@ -1,56 +1,77 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""HTLF: a green body under a tan lid, a motor out of each end, four inlets across the front.
+"""HTLF (Happy Turtle Lettuce Feeder): a lane selector that stands in front of the spools.
 
-Each lane leaves through its own outlet: AFC runs them direct or to a hub outside the unit, so
-it has no built-in selector.
+Spools sit elsewhere and feed in at the back. Inside, one drive motor (the left end) turns a
+shaft along the lanes, and a selector motor (the right end) turns a cam drum whose lobes press
+one lane at a time against it, so the selector rotates in place rather than sliding along a rail.
+Each lane leaves through its own collet on the front, under a tan lid with a lamp per lane.
 """
 from .. import feeder, kit
-from ..kit import UnitDef
+from ..kit import TrayShellDef, UnitDef
+from . import htlf_face
+from .htlf_face import BODY, GOLD, LAMP, LID
 
-W, D, MOTOR = 0.46, 0.27, 0.13
-# The height of the lettered panel below the row of inlets.
-PANEL_TOP = 0.09
-H = PANEL_TOP + 0.2
-BODY, LID, GOLD = "#3f9a6e", "#cdb27c", "#b9a05a"
-INLET_Z = PANEL_TOP + 0.09
-CENTERS = [0.12, 0.195, 0.27, 0.345]
-SHOULDER = PANEL_TOP + 0.16
-PROFILE = [(0.0, 0.0), (0.0, PANEL_TOP + 0.13), (0.04, SHOULDER), (D - 0.05, SHOULDER), (D, PANEL_TOP + 0.12), (D, 0.0)]
-LID_PROFILE = [(0.04, PANEL_TOP + 0.14), (0.1, H), (D - 0.02, H), (D - 0.02, PANEL_TOP + 0.13)]
-GLOW = "#54e04a"
+W, D, H = 0.46, 0.27, 0.29
+# Front face, bottom up: a plain panel, the row of outlet collets, then the lid.
+PANEL_TOP = 0.087
+LID_Z0 = 0.157
+OUTLET_Z = (PANEL_TOP + LID_Z0) / 2
+WALL = 0.025
+LID_X1 = 0.396
+SEGMENTS = [0.132, 0.198, 0.264, 0.33, 0.396, W - WALL]
+CENTERS = [0.165, 0.231, 0.297, 0.363]
+MOTOR = "#141517"
+PROFILE = [(0.0, 0.0), (0.0, LID_Z0), (D, LID_Z0), (D, 0.0)]
+WALL_PROFILE = [(0.0, 0.0), (0.0, H - 0.03), (0.03, H), (D, H), (D, 0.0)]
+LID_PROFILE = [(0.0, LID_Z0), (0.0, H - 0.035), (0.035, H), (D - 0.01, H), (D - 0.01, LID_Z0)]
+DIAL_Y, DIAL_Z, DIAL_R = 0.12, H - 0.075, 0.07
+
+
+def _dial(sc, detail):
+    """The cam drum's geared ring, showing in the slot between the lid and the right wall."""
+    x0, x1 = LID_X1 + 0.004, W - WALL - 0.004
+    kit.roller(sc, x0 + 0.008, x1 - 0.008, DIAL_Y, DIAL_Z, DIAL_R, "#1b1c1f", GOLD, flange_k=1.08, flange_w=0.008, solid=True)
+    if detail:
+        for z in (DIAL_Z + DIAL_R * 0.35, DIAL_Z + DIAL_R * 0.7):
+            sc.line([(x0, DIAL_Y - DIAL_R * 0.72, z), (x1, DIAL_Y - DIAL_R * 0.72, z)], GOLD, 0.003, 0.8)
 
 
 def _body(sc, detail):
-    b = PANEL_TOP
-    feeder.box(sc, -MOTOR, 0.0, 0.05, 0.2, b - 0.02, b + 0.12, "#141517")
-    feeder.solid(sc, PROFILE, 0.0, W, BODY)
     front = kit.shade(sc.camera, BODY, (0, -1, 0), amb=0.72, dif=0.5, spec=0.1, power=16)
-    sc.poly(kit.rrect_front(0.012, W - 0.012, 0.014, b + 0.022, 0.006, -0.002), kit.shift(front, 10))
-    sc.line([(0.0, -0.003, b + 0.03), (W, -0.003, b + 0.03)], kit.scale(front, 0.7), 0.003)
-    for x0 in (0.0, W - 0.03):
-        feeder.box(sc, x0, x0 + 0.03, 0.04, D - 0.02, SHOULDER, H - 0.012, kit.shift(BODY, -14))
-    feeder.solid(sc, LID_PROFILE, 0.05, W - 0.1, LID)
-    feeder.box(sc, W - 0.1, W - 0.035, 0.06, D - 0.04, b + 0.12, H - 0.01, "#16171a")
-    sc.poly(kit.rrect_front(0.028, 0.072, b + 0.045, b + 0.125, 0.004, -0.002), "#16171a")
+    feeder.box(sc, -0.09, 0.0, 0.06, 0.16, 0.11, 0.21, MOTOR)
+    feeder.solid(sc, WALL_PROFILE, 0.0, WALL, BODY)
+    feeder.solid(sc, PROFILE, WALL, W - WALL, BODY)
+    # The drive gear shows through a slot left of the outlets.
+    sc.poly(kit.rrect_front(0.07, 0.115, PANEL_TOP + 0.008, LID_Z0 - 0.004, 0.004, -0.002), "#16171a")
     if detail:
-        for x in (W - 0.094, W - 0.06):
-            sc.line([(x, 0.06, H - 0.01), (x, D - 0.04, H - 0.01)], GOLD, 0.008)
-        sc.line([(0.04, -0.003, b + 0.05), (0.04, -0.003, b + 0.12)], GOLD, 0.006)
-        sc.line([(0.06, -0.003, b + 0.05), (0.06, -0.003, b + 0.12)], GOLD, 0.006)
-        for x in CENTERS:
-            sc.poly([(x - 0.016, 0.06, b + 0.161), (x + 0.016, 0.06, b + 0.161), (x + 0.012, 0.085, b + 0.186), (x - 0.012, 0.085, b + 0.186)], GLOW)
-        for x in (0.0825, 0.1575, 0.2325, 0.3075, 0.3825):
-            sc.line([(x, -0.003, b + 0.03), (x, -0.003, b + 0.13)], kit.scale(front, 0.7), 0.002)
-    feeder.box(sc, W, W + MOTOR, 0.05, 0.2, b - 0.02, b + 0.12, "#141517")
+        for x in (0.08, 0.092, 0.104):
+            sc.line([(x, -0.003, PANEL_TOP + 0.012), (x, -0.003, LID_Z0 - 0.008)], GOLD, 0.005)
+    sc.line([(WALL, -0.002, PANEL_TOP), (W - WALL, -0.002, PANEL_TOP)], kit.scale(front, 0.7), 0.003)
+    for x in SEGMENTS:
+        sc.line([(x, -0.002, PANEL_TOP), (x, -0.002, LID_Z0)], kit.scale(front, 0.7), 0.0025)
     for x in CENTERS:
-        feeder.disc(sc, x, -0.002, INLET_Z, 0.019, "#1e2f73")
-        feeder.disc(sc, x, -0.004, INLET_Z, 0.009, "#c4c6ca")
+        feeder.disc(sc, x, -0.002, OUTLET_Z, 0.017, "#1e2f73")
+        feeder.disc(sc, x, -0.004, OUTLET_Z, 0.008, "#c4c6ca")
+    feeder.solid(sc, LID_PROFILE, WALL, LID_X1, LID)
+    lid_front = kit.shade(sc.camera, LID, (0, -1, 0), amb=0.72, dif=0.5, spec=0.1, power=16)
+    sc.line([(WALL, -0.002, LID_Z0 + 0.002), (LID_X1, -0.002, LID_Z0 + 0.002)], kit.scale(lid_front, 0.75), 0.003)
+    for x in CENTERS:
+        sc.poly(kit.rrect_front(x - 0.012, x + 0.012, 0.2, 0.226, 0.004, -0.002), LAMP)
+    _dial(sc, detail)
+    feeder.solid(sc, WALL_PROFILE, W - WALL, W, BODY)
+    feeder.box(sc, W, W + 0.07, DIAL_Y - 0.05, DIAL_Y + 0.05, DIAL_Z - 0.05, DIAL_Z + 0.05, MOTOR)
 
 
-def _tubes(scene, colors, width):
+def draw_art(scene, colors, tier):
+    """The body with a short filament stub leaving each outlet; no spools."""
+    _body(scene, tier == "full")
+    width = feeder.TUBE_FULL if tier == "full" else feeder.TUBE_THUMB
     for lane, (x, col) in enumerate(zip(CENTERS, colors)):
-        feeder.tube(scene, feeder.bend((x, -0.004, INLET_Z), (x, -0.13, INLET_Z), (x - 0.03, -0.26, INLET_Z - 0.15)), col, lane, width)
+        feeder.tube(scene, feeder.bend((x, -0.004, OUTLET_Z), (x, -0.08, OUTLET_Z), (x, -0.13, OUTLET_Z - 0.08)), col, lane, width)
 
 
-SPOOLS, STUBS = feeder.looks(_body, W / 2, D, _tubes)
-UNIT = UnitDef("htlf", 4, SPOOLS, feeder.tray_strip(0x3f9a6e, 0xcdb27c), stub_art=STUBS)
+def _tray_shell() -> TrayShellDef:
+    return feeder.tray_strip(int(BODY[1:], 16), int(LID[1:], 16))
+
+
+UNIT = UnitDef("htlf", 4, draw_art, _tray_shell(), face_art=htlf_face.draw)

@@ -624,6 +624,30 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_set_pin(const std::s
             dispatch_status_update({{pin_obj, {{"value", value}}}});
         }
     }
+    // An LED on an output pin reports its new value, as Klipper's subscription does.
+    for (const auto& led : discovery_.leds()) {
+        if (led.rfind("output_pin ", 0) != 0) {
+            continue;
+        }
+        const std::string pin_param = "PIN=" + led.substr(11);
+        const size_t at = gcode.find(pin_param);
+        const size_t after = at + pin_param.size();
+        if (at == std::string::npos || (after < gcode.size() && gcode[after] != ' ')) {
+            continue;
+        }
+        const size_t value_pos = gcode.find("VALUE=");
+        if (value_pos == std::string::npos) {
+            continue;
+        }
+        const double value =
+            helix::text_io::parse_leading<double>(gcode.substr(value_pos + 6)).value_or(0.0);
+        {
+            std::lock_guard<std::mutex> lock(led_mutex_);
+            led_pin_values_[led] = value;
+        }
+        spdlog::info("[MoonrakerClientMock] LED pin {} set to {}", led, value);
+        dispatch_status_update({{led, {{"value", value}}}});
+    }
     return std::nullopt;
 }
 

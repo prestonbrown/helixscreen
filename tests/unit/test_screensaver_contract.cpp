@@ -17,6 +17,7 @@
 #include "screensaver_highfly.h"
 #include "screensaver_hyperspace.h"
 #include "screensaver_maze.h"
+#include "screensaver_nixie_clock.h"
 #include "screensaver_pipes.h"
 #include "screensaver_registry.h"
 #include "screensaver_starfield.h"
@@ -39,6 +40,7 @@ using helix::ui::HyperspaceScreensaver;
 using helix::ui::kLvDrawCanvasFormat;
 using helix::ui::kSaverBuildCanvasFormat;
 using helix::ui::MazeScreensaver;
+using helix::ui::NixieClockScreensaver;
 
 namespace {
 
@@ -82,6 +84,10 @@ template <> struct CanvasSaverTraits<HighFlyScreensaver> {
     static constexpr lv_color_format_t kFormat = kLvDrawCanvasFormat;
     static constexpr bool kDefersLevel = false;
 };
+template <> struct CanvasSaverTraits<NixieClockScreensaver> {
+    static constexpr lv_color_format_t kFormat = kLvDrawCanvasFormat;
+    static constexpr bool kDefersLevel = false;
+};
 
 /// The sim a SimSaver runs.
 template <typename Saver> using SimOf = std::decay_t<decltype(std::declval<const Saver&>().sim())>;
@@ -100,12 +106,12 @@ template <typename Saver> struct SaverFixture : LVGLTestFixture {};
     FlyingToasterScreensaver, StarfieldScreensaver, PipesScreensaver,                              \
         helix::BouncingPrinterScreensaver, helix::BouncingLogoScreensaver, FireworksScreensaver,   \
         MazeScreensaver, HyperspaceScreensaver, FlipClockScreensaver, FirefliesScreensaver,        \
-        AquaScreensaver, HighFlyScreensaver
+        AquaScreensaver, HighFlyScreensaver, NixieClockScreensaver
 
 #define HELIX_CANVAS_SAVERS                                                                        \
     StarfieldScreensaver, PipesScreensaver, FireworksScreensaver, MazeScreensaver,                 \
         HyperspaceScreensaver, FlipClockScreensaver, FirefliesScreensaver, AquaScreensaver,        \
-        HighFlyScreensaver
+        HighFlyScreensaver, NixieClockScreensaver
 
 // ============================================================================
 // Every saver

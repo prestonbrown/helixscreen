@@ -271,6 +271,7 @@ void AssetManager::register_images() {
 
     // Flag icons (language chooser wizard) - pre-rendered ARGB8888 32x24
     reg_img("flag_en", "assets/images/flags/flag_en.bin");
+    reg_img("flag_en-GB", "assets/images/flags/flag_en-GB.bin");
     reg_img("flag_de", "assets/images/flags/flag_de.bin");
     reg_img("flag_fr", "assets/images/flags/flag_fr.bin");
     reg_img("flag_es", "assets/images/flags/flag_es.bin");

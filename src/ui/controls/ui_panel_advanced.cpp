@@ -14,6 +14,9 @@
 #if HELIX_HAS_CONSOLE
 #include "ui_panel_console.h"
 #endif
+#if HELIX_HAS_HOST_TERMINAL
+#include "ui_panel_host_terminal.h"
+#endif
 #include "ui_panel_macros.h"
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
@@ -33,6 +36,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "src/ui/panel_widgets/shutdown_widget.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -82,6 +86,12 @@ void AdvancedPanel::init_subjects() {
         {"on_advanced_spoolman", on_spoolman_clicked},
         {"on_advanced_macros", on_macros_clicked},
         {"on_console_row_clicked", on_console_clicked},
+        {"on_host_terminal_row_clicked", on_host_terminal_clicked},
+        {"on_host_terminal_enabled_changed",
+         [](lv_event_t* e) {
+             helix::SettingsManager::instance().set_host_terminal_enabled(
+                 helix::ui::event_checked(e));
+         }},
         {"on_history_row_clicked", on_history_clicked},
         {"on_helix_plugin_install_clicked", on_helix_plugin_install_clicked},
         {"on_helix_plugin_uninstall_clicked", on_helix_plugin_uninstall_clicked},
@@ -190,6 +200,12 @@ void AdvancedPanel::handle_console_clicked() {
 #endif
 }
 
+void AdvancedPanel::handle_host_terminal_clicked() {
+#if HELIX_HAS_HOST_TERMINAL
+    helix::ui::open_host_terminal(parent_screen_);
+#endif
+}
+
 void AdvancedPanel::handle_history_clicked() {
     get_global_history_dashboard_panel().show(parent_screen_);
 }
@@ -234,6 +250,10 @@ void AdvancedPanel::on_macros_clicked(lv_event_t* /*e*/) {
 
 void AdvancedPanel::on_console_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_console_clicked();
+}
+
+void AdvancedPanel::on_host_terminal_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_host_terminal_clicked();
 }
 
 void AdvancedPanel::on_history_clicked(lv_event_t* /*e*/) {

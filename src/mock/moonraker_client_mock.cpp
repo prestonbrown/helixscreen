@@ -2276,9 +2276,14 @@ void MoonrakerClientMock::dispatch_initial_state() {
         }
     }
     // Add output_pin status (uses {value:} format, not color_data)
-    for (const auto& led : discovery_.leds()) {
-        if (led.rfind("output_pin ", 0) == 0) {
-            led_json[led] = {{"value", 0.75}}; // Mock: enclosure at 75% brightness
+    {
+        std::lock_guard<std::mutex> lock(led_mutex_);
+        for (const auto& led : discovery_.leds()) {
+            if (led.rfind("output_pin ", 0) == 0) {
+                const auto it = led_pin_values_.find(led);
+                led_json[led] = {
+                    {"value", it != led_pin_values_.end() ? it->second : kMockLedPinValue}};
+            }
         }
     }
 

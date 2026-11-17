@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u Schichten'
   '%zu events queued': '%zu Ereignisse in Warteschlange'
   '%zu plugins failed to load': '%zu Plugins konnten nicht geladen werden'
+  "Auto Belt Tension": "Automatische Riemenspannung"
+  "Both belts": "Beide Riemen"
+  "Cutter Calibration": "Schneider-Kalibrierung"
+  "Find the filament cutter's position": "Position des Filamentschneiders ermitteln"
+  "Let the printer's tensioners set the belts": "Die Spanner des Druckers stellen die Riemen ein"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen."
+  "X belt": "X-Riemen"
+  "Y belt": "Y-Riemen"
   "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' und '{}' existieren bereits. Gespeicherte Netze ersetzen?"
   (different grade): (andere Klasse)
@@ -197,6 +206,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Ein Sensor, der den Abstand zum Heizbett misst. HelixScreen nutzt ihn für die Z-Offset-Kalibrierung und Sondentests im Sonden-Bildschirm.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Ein Sensor, der die Lufttemperatur im Gehäuse misst. Beobachte sie im Kammertemperatur-Bildschirm.'
+  A shell on the machine running this screen: 'Eine Shell auf dem Rechner, auf dem dieser Bildschirm läuft'
   A spool may be tangled or the drive gear is jammed: Eine Spule ist möglicherweise verheddert oder das Antriebsrad blockiert
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Ein System, das mehrere Filamente zum Werkzeugkopf führt, angezeigt mit der Slot-Anzahl. Verwalte die Slots im Filamentsystem-Bildschirm.'
@@ -1145,6 +1155,7 @@ translations:
   Creating bed mesh...: Bettnetz erstellen...
   Creating spool...: Spule wird erstellt...
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
+  Ctrl: 'Strg'
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
   Current Mesh: Aktuelles Netz
@@ -1456,6 +1467,7 @@ translations:
   'Error: `unzip` not installed': 'Fehler: `unzip` nicht installiert'
   'Error: cannot write the service file in {}': 'Fehler: Servicedatei kann nicht in {} geschrieben werden'
   Errors only: 'Nur Fehler'
+  Esc: 'Esc'
   Escalate to emergency stop if cancel doesn't respond: Auf Not-Stopp eskalieren,
     falls Abbruch nicht reagiert
   Escalation Timeout: Eskalations-Zeitüberschreitung
@@ -1884,6 +1896,7 @@ translations:
   HEPA filter: 'HEPA-Filter'
   HEPA filter interval: 'Intervall HEPA-Filter'
   HOST: Host
+  HOST ACCESS: 'HOST-ZUGRIFF'
   HTTP Code: HTTP-Code
   'HTTP error: {} {}': 'HTTP-Fehler: {} {}'
   HUMIDITY SENSORS: FEUCHTIGKEITSSENSOREN
@@ -2044,6 +2057,7 @@ translations:
   Horizontal: Horizontal
   Host: Host
   Host Health: Host-Zustand
+  Host Terminal: 'Host-Terminal'
   Host and MCU load, temperature, and memory: Last, Temperatur und Speicher von Host und MCU
   'Host: ': 'Host: '
   Hotend: Hotend
@@ -2701,6 +2715,7 @@ translations:
   Next Layer: 'Nächste Schicht'
   'Next: {}': 'Als Nächstes: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
+  Nixie Clock: 'Nixie-Röhrenuhr'
   'No': Nein
   No ACE unit was found.: "Keine ACE-Einheit gefunden."
   No AMS Detected: 'Kein AMS erkannt'
@@ -2957,6 +2972,7 @@ translations:
   Open: Öffnen
   Open Fans: 'Lüfter öffnen'
   Open Source Licenses: Open-Source-Lizenzen
+  Open Terminal: 'Terminal öffnen'
   Open color and brightness controls: Farb- und Helligkeitsregler öffnen
   Open feeder macro: Makro zum Öffnen der Zuführung
   Open feeder: Zuführung öffnen
@@ -3946,6 +3962,7 @@ translations:
   Show Touch Points: Berührungspunkte anzeigen
   Show a confirmation dialog when tapping a macro: Bestätigungsdialog beim Antippen
     eines Makros anzeigen
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: 'Zeigt unter Werkzeuge eine Shell auf diesem Rechner. Jeder am Bildschirm kann dann Befehle darauf ausführen.'
   Show and enter temperatures in Celsius or Fahrenheit: Temperaturen in Celsius oder Fahrenheit anzeigen und eingeben
   Show instead of dimming: Anzeigen statt Abdunkeln
   Show light controls for a light connected to this printer: 'Lichtsteuerung für ein an diesen Drucker angeschlossenes Licht anzeigen'
@@ -4231,6 +4248,7 @@ translations:
   'TOGGLE: {}': 'UMSCHALTEN: {}'
   TOOLS: WERKZEUGE
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: Bauteile markieren
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: Nimm die PEI-Platte vom Heizbett und tippe dann auf Weiter. Die Werkzeugköpfe tasten das blanke Bett ab.
   Takes 3-5 min. Do not interrupt.: Dauert 3-5 Min. Nicht unterbrechen.
@@ -4514,6 +4532,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
   The screen will lose its connection to the printer for a few seconds.: "Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
+  'The shell could not start: {}': 'Die Shell konnte nicht starten: {}'
+  The shell exited. Tap the terminal to start a new one.: 'Die Shell wurde beendet. Tippe auf das Terminal, um eine neue zu starten.'
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Die Subnetzmaske ist ungültig. Verwende eine Form wie 255.255.255.0 oder 24.'
   The temperature was changed elsewhere.: "Die Temperatur wurde anderswo geändert."
@@ -4605,12 +4625,15 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker und fügt sie zu printer.cfg hinzu. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker, fügt sie zu printer.cfg hinzu und startet Klipper neu.'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : 'Dies ist eine Shell auf dem Rechner, auf dem dieser Bildschirm läuft, als Benutzer „{}“. Hier eingegebene Befehle laufen mit den Rechten dieses Benutzers und können das System verändern oder beschädigen, auch die Firmware des Druckers.'
   'This is an emergency stop: the printer halts and Klipper restarts.': 'Dies ist ein Not-Aus: Der Drucker hält an und Klipper startet neu.'
   This is exactly the data that will be sent: Dies sind genau die Daten, die gesendet
     werden
   This is what data would be sent if enabled: Diese Daten würden bei Aktivierung gesendet
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "Diese Spur wird noch als geladen angezeigt, aber das Filament ist nicht mehr in der Düse. Schiebe es vor dem Druck wieder durch den Extruder und extrudiere, bis es fließt."
+  This light chip controls: Dieser Lichtchip steuert
   This looks like a {}, but it is set up as a {}: Dieser Drucker wirkt wie ein {}, ist aber als {} eingerichtet
   This may take up to 30 seconds: Dies kann bis zu 30 Sekunden dauern
   Needs file analysis, which isn't running.: "Benötigt die Dateianalyse, die nicht läuft."

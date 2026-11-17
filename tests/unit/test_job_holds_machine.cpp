@@ -311,6 +311,7 @@ struct GuardedFile {
 constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/ams_device_operations.xml", 1},
     {"ui_xml/batch_filament_modal.xml", 1},
+    {"ui_xml/belt_tension_auto_modal.xml", 1},
     {"ui_xml/bed_drying_modal.xml", 1},
     {"ui_xml/calibration_tool_offset_panel.xml", 2},
     {"ui_xml/chamber_dryer_modal.xml", 1},
@@ -543,6 +544,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/history_list_panel.xml",
     "ui_xml/history_list_row.xml",
     "ui_xml/home_panel.xml",
+    // A shell on the host: nothing here commands the printer through Klipper.
+    "ui_xml/host_terminal_panel.xml",
     "ui_xml/info_qr_modal.xml",
     "ui_xml/input_shaper_panel.xml",
     "ui_xml/ipv4_keep_modal.xml",

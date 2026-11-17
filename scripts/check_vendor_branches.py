@@ -97,6 +97,7 @@ VENDOR_OWNERS = (
     r"^(?:src/system|include)/platform_(?:info|table)\.(?:cpp|h)$",
     r"^include/helix_features\.h$",
     r"^(?:src/printer|include)/z_offset_persistence\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/belt_cutter_calibration\.(?:cpp|h)$",
     r"^(?:src/printer|include)/filament_macro_profiles\.(?:cpp|h)$",
     r"^(?:src/printer|include)/plr_(?:backend|profile)\.(?:cpp|h)$",
     r"^(?:src/printer|include)/pause_descriptor\.(?:cpp|h)$",

@@ -39,6 +39,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     for (const std::string value : {"FlashForge Adventurer 5M Pro", "", "Unnamed Printer",
                                     "Heater: extruder, Sensor: heater_bed"}) {
         CAPTURE(value);
+        test_subject.reset();
         UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, value.c_str(), "test_subject");
         CHECK(std::string(buffer) == value);
         CHECK(std::string(lv_subject_get_string(&test_subject)) == value);

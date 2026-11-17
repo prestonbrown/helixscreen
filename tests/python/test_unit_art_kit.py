@@ -210,7 +210,11 @@ def test_manifest_lists_every_lane_mask(tmp_path):
             assert (tmp_path / ace_pro.UNIT.id / name).is_file()
 
 
-@pytest.mark.parametrize("unit", [u for u in build.UNITS if u.carriage_step is None], ids=lambda u: u.id)
+# Selectors that stand in front of the spools draw none: the rails and the HTLF.
+SPOOL_UNITS = [u for u in build.UNITS if u.carriage_step is None and u.id != htlf.UNIT.id]
+
+
+@pytest.mark.parametrize("unit", SPOOL_UNITS, ids=lambda u: u.id)
 def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     scene = kit.Scene(kit.ART_CAMERA)
     unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
@@ -283,7 +287,7 @@ def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     assert vx <= min(xs) and max(xs) <= vx + vw
 
 
-FEEDERS = [bmcu.UNIT, mmx.UNIT, htlf.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
+FEEDERS = [bmcu.UNIT, mmx.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
 
 
 @pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
@@ -332,7 +336,7 @@ def test_the_shell_table_records_which_units_have_a_stub_look():
     def row(uid):
         return next(line for line in table.splitlines() if line.strip().startswith(chr(123) + chr(34) + uid))
 
-    assert row("mmx").rstrip().endswith("true, 0x0},")
+    assert ", 2, true, 0x0" in row("mmx")
     assert row("ace_pro").rstrip().endswith("false, 0x0},")
 
 
@@ -344,10 +348,38 @@ def test_a_tube_ends_clear_of_the_inlet_it_leaves(unit):
         assert math.dist(tube.points[0], tube.points[-1]) > 0.08
 
 
-def test_the_htlf_body_continues_below_its_inlets():
+def test_the_htlf_body_continues_below_its_outlets():
     assert htlf.PANEL_TOP > 0
-    assert htlf.INLET_Z - htlf.PANEL_TOP > 0
+    assert htlf.PANEL_TOP < htlf.OUTLET_Z < htlf.LID_Z0
     assert htlf.PROFILE[0] == (0.0, 0.0)
+
+
+@pytest.mark.parametrize("unit", FEEDERS + [htlf.UNIT, rail.ERCF, rail.TRADRACK], ids=lambda u: u.id)
+def test_a_unit_in_front_of_loose_spools_leaves_them_the_plain_tray(unit):
+    table = build.generate_shell_table([unit, ace_pro.UNIT])
+    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in table.splitlines() if line.startswith("    {\"")}
+    assert unit.tray.plain_tray and rows[unit.id].endswith("true},")
+    assert not ace_pro.UNIT.tray.plain_tray and not rows["ace_pro"].endswith("true},")
+
+
+def test_the_htlf_face_has_an_outlet_under_each_inlet_and_no_carriage(tmp_path):
+    scene = build.face_scene(htlf.UNIT, 4)
+    row = build.face_row(scene, 4)
+    gates, aspect, gate0, step, inlet_y, out_x, out_y = (float(v.rstrip("f")) for v in row.strip("{}").split(", "))
+    assert gates == 4 and step > 0
+    assert out_x == gate0 and out_y > inlet_y
+    assert not [i for i in scene.items if i.layer == "carriage"]
+    build.bake_unit(htlf.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    face = tmp_path / htlf.UNIT.id / "face" / "4"
+    assert (face / "body.png").is_file() and not (face / "carriage.png").exists()
+
+
+def test_the_htlf_stands_in_front_of_its_spools_so_it_draws_a_stub_per_lane_and_none():
+    scene = kit.Scene(kit.ART_CAMERA)
+    htlf.UNIT.draw_art(scene, ["#ffffff"] * htlf.UNIT.lanes, "full")
+    assert scene.spool_radius is None
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(htlf.UNIT.lanes))
+    assert htlf.UNIT.stub_art is None
 
 
 def test_the_canvas_shell_lets_its_dark_frame_show():
@@ -440,7 +472,7 @@ def test_a_rails_face_art_puts_every_gate_in_line_and_the_coupler_inside(unit):
         assert 0 < out_x < 1 and inlet_y < out_y < 1 and aspect > 1
     table = build.generate_shell_table([unit])
     assert f"constexpr RailFaceArt k_{unit.id}_face[] = {{{{4, " in table
-    assert f"k_{unit.id}_face, {len(unit.lane_variants)}}}," in table
+    assert f"k_{unit.id}_face, {len(unit.lane_variants)}," in table
 
 
 def test_a_rails_face_art_bakes_a_body_and_a_carriage_per_gate_count(tmp_path):

@@ -209,6 +209,12 @@ TEST_CASE_METHOD(HelixTestFixture, "Locale date formatting", "[clock_widget][i18
         REQUIRE(result.find(", 28 ") != std::string::npos);
     }
 
+    SECTION("British English: Day, DD Mon in English") {
+        helix::SystemSettingsManager::instance().set_language("en-GB");
+        helix::ui::locale_set_language("en-GB");
+        REQUIRE(helix::ui::format_localized_date(&test_tm) == "Fri, 28 Feb");
+    }
+
     SECTION("Unknown language falls back to English") {
         helix::SystemSettingsManager::instance().set_language("xx");
         helix::ui::locale_set_language("xx");
@@ -449,6 +455,8 @@ TEST_CASE("Locale default 24h", "[clock_widget][i18n]") {
     REQUIRE(helix::ui::locale_default_24h("it"));
     REQUIRE(helix::ui::locale_default_24h("ja"));
     REQUIRE(helix::ui::locale_default_24h("zh"));
+    REQUIRE(helix::ui::locale_default_24h("en-GB"));    // its own row
+    REQUIRE(helix::ui::locale_default_24h("pt-BR"));    // no row: pt's
     REQUIRE_FALSE(helix::ui::locale_default_24h("xx")); // unknown = en default
     REQUIRE_FALSE(helix::ui::locale_default_24h(""));   // empty = en default
 }

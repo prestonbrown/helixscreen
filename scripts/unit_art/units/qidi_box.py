@@ -18,9 +18,22 @@ TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
 
+LID_SET_BACK = 0.02
+
+
+def _side_z(y):
+    """The height of the base's sloped side top at depth y: the line the lid sits on."""
+    return ZR + (SIDE_TOP - ZR) * y / D
+
+
 def _lid_profile():
-    """A vertical front pane and a nearly flat roof, with barely softened corners."""
-    return kit.fillet([(0.02, ZR), (0.02, LID_FRONT), (D - 0.035, LID_REAR), (D - 0.035, SIDE_TOP - 0.01)], [0, 0.012, 0.012, 0], steps=4)
+    """A vertical front pane and a nearly flat roof, with barely softened corners.
+
+    The lid stands on the base's sloped side and ends flush with its rear face, so its feet are
+    on that slope: just behind the base's front top edge, and at the rear top corner.
+    """
+    pts = [(LID_SET_BACK, _side_z(LID_SET_BACK)), (LID_SET_BACK, LID_FRONT), (D, LID_REAR), (D, SIDE_TOP)]
+    return kit.fillet(pts, [0, 0.012, 0.012, 0], steps=4)
 
 
 def draw_art(sc, colors, tier):
@@ -29,7 +42,7 @@ def draw_art(sc, colors, tier):
     c = spool.spool_constants(_REPO)
     cam = sc.camera
     prof = _lid_profile()
-    lidx0, lidx1 = 0.012, W - 0.012
+    lidx0, lidx1 = 0.0, W
     side = [(0.0, ZR), (D, SIDE_TOP), (D, 0.0), (0.0, 0.0)]
 
     sc.poly([(0.0, 0.02, 0), (W + 0.03, 0.02, 0), (W + 0.03, D + 0.03, 0), (0, D + 0.03, 0)], "#000", 0.5, blur=True)
@@ -63,11 +76,15 @@ def draw_art(sc, colors, tier):
     edge = "#8f949c"
     sc.line([(lidx1, y, z) for y, z in prof], edge, 0.003 * thick, 0.85)
     sc.line([(lidx0, y, z) for y, z in prof[:7]], edge, 0.0025 * thick, 0.6)
-    sc.line([(lidx0, 0.02, LID_FRONT), (lidx1, 0.02, LID_FRONT)], edge, 0.003 * thick, 0.75)
+    # The front pane meets the roof in a bright rim joining the lid's two top front corners.
+    rim = [p for p in prof if p[0] < 0.04 and p[1] > LID_FRONT - 0.02]
+    rim_y, rim_z = rim[len(rim) // 2]
+    sc.line([(lidx0, rim_y - 0.001, rim_z), (lidx1, rim_y - 0.001, rim_z)], "#c3c7cd", 0.004 * thick, 0.95)
 
 
 def _tray_shell():
-    profile = _lid_profile()
+    # The tray's base is level, so the lid's front foot starts on the base top there.
+    profile = [(LID_SET_BACK, ZR)] + _lid_profile()[1:]
     dome = kit.tray_profile(profile, ZR, TRAY_PX_PER_UNIT)
     back_extra = dome[-1][1]
     return TrayShellDef([(0.0, 0.0), (1.0, back_extra)], dome, back_extra, 40.0, 8.0, 6.0, True, True, 0xd6d8dc, 0xc4c7cc, 0xeceef0, 0x3b3f46)

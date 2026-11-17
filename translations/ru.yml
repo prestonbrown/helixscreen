@@ -93,6 +93,15 @@ translations:
     many: '%zu событий в очереди'
     other: '%zu события в очереди'
   '%zu plugins failed to load': Не удалось загрузить %zu плагинов
+  "Auto Belt Tension": "Автонатяжение ремней"
+  "Both belts": "Оба ремня"
+  "Cutter Calibration": "Калибровка резака"
+  "Find the filament cutter's position": "Определить положение резака филамента"
+  "Let the printer's tensioners set the belts": "Натяжители принтера сами настроят ремни"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."
+  "X belt": "Ремень X"
+  "Y belt": "Ремень Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' и '{}' уже существуют. Заменить сохранённые сетки?"
   (different grade): (другая марка)
@@ -242,6 +251,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд».'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры.'
+  A shell on the machine running this screen: 'Командная оболочка на машине, где работает этот экран'
   A spool may be tangled or the drive gear is jammed: Катушка может быть запутана или заклинило приводную шестерню
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента.'
@@ -1188,6 +1198,7 @@ translations:
   Creating bed mesh...: Создание сетки стола...
   Creating spool...: Создание катушки...
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
+  Ctrl: 'Ctrl'
   Current / Target: Текущая / Цель
   Current Configuration: Текущая конфигурация
   Current Mesh: Текущая сетка
@@ -1496,6 +1507,7 @@ translations:
   'Error: `unzip` not installed': 'Ошибка: `unzip` не установлен'
   'Error: cannot write the service file in {}': 'Ошибка: не удалось записать файл службы в {}'
   Errors only: 'Только ошибки'
+  Esc: 'Esc'
   Escalate to emergency stop if cancel doesn't respond: Эскалация до аварийной остановки,
     если отмена не отвечает
   Escalation Timeout: Тайм-аут эскалации
@@ -1922,6 +1934,7 @@ translations:
   HEPA filter: 'HEPA-фильтр'
   HEPA filter interval: 'Интервал HEPA-фильтра'
   HOST: Хост
+  HOST ACCESS: 'ДОСТУП К ХОСТУ'
   HTTP Code: Код HTTP
   'HTTP error: {} {}': 'Ошибка HTTP: {} {}'
   HUMIDITY SENSORS: ДАТЧИКИ ВЛАЖНОСТИ
@@ -2082,6 +2095,7 @@ translations:
   Horizontal: Горизонтально
   Host: Хост
   Host Health: Состояние хоста
+  Host Terminal: 'Терминал хоста'
   Host and MCU load, temperature, and memory: Нагрузка, температура и память хоста и MCU
   'Host: ': 'Хост: '
   Hotend: Хотенд
@@ -2738,6 +2752,7 @@ translations:
   Next Layer: 'Следующий слой'
   'Next: {}': 'Далее: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
+  Nixie Clock: 'Часы на газоразрядных лампах'
   'No': Нет
   No ACE unit was found.: "Блок ACE не найден."
   No AMS Detected: 'AMS не обнаружен'
@@ -2993,6 +3008,7 @@ translations:
   Open: Открыть
   Open Fans: 'Открыть «Вентиляторы»'
   Open Source Licenses: Лицензии с открытым кодом
+  Open Terminal: 'Открыть терминал'
   Open color and brightness controls: Управление цветом и яркостью
   Open feeder macro: Макрос для открытия фидера
   Open feeder: Открыть фидер
@@ -3988,6 +4004,7 @@ translations:
   Show Touch Points: Показывать точки касания
   Show a confirmation dialog when tapping a macro: Показывать диалог подтверждения
     при нажатии на макрос
+  Show a shell on this machine under Tools. Anyone at the screen can then run commands on it.: 'Показывает в разделе «Инструменты» командную оболочку этой машины. Любой у экрана сможет выполнять на ней команды.'
   Show and enter temperatures in Celsius or Fahrenheit: Показывать и вводить температуру в градусах Цельсия или Фаренгейта
   Show instead of dimming: Показывать вместо затемнения
   Show light controls for a light connected to this printer: 'Показывать управление подсветкой, подключённой к этому принтеру'
@@ -4280,6 +4297,7 @@ translations:
   'TOGGLE: {}': 'ПЕРЕКЛЮЧИТЬ: {}'
   TOOLS: ИНСТРУМЕНТЫ
   TPU: TPU
+  Tab: 'Tab'
   Tag Parts: Отметить узлы
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: Снимите лист PEI с подогреваемого стола и нажмите «Далее». Головки измеряют по голому столу.
   Takes 3-5 min. Do not interrupt.: Занимает 3-5 мин. Не прерывайте.
@@ -4557,6 +4575,8 @@ translations:
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить.
   The screen will lose its connection to the printer for a few seconds.: "Экран потеряет связь с принтером на несколько секунд."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
+  'The shell could not start: {}': 'Не удалось запустить оболочку: {}'
+  The shell exited. Tap the terminal to start a new one.: 'Оболочка завершилась. Коснитесь терминала, чтобы запустить новую.'
   The speed of one fan you choose: Скорость выбранного вентилятора
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
@@ -4648,12 +4668,15 @@ translations:
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper.'
+  ? This is a shell on the machine running this screen, as the user '{}'. Commands typed here run with that user's rights and can change or break the system, including the printer's firmware.
+  : 'Это командная оболочка на машине, где работает этот экран, от имени пользователя «{}». Введённые здесь команды выполняются с правами этого пользователя и могут изменить или повредить систему, включая прошивку принтера.'
   'This is an emergency stop: the printer halts and Klipper restarts.': 'Это аварийный останов: принтер останавливается, и Klipper перезапускается.'
   This is exactly the data that will be sent: Это именно те данные, которые будут
     отправлены
   This is what data would be sent if enabled: Эти данные были бы отправлены при включении
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : "Этот канал всё ещё показан как загруженный, но филамент вышел из сопла. Перед печатью вставьте его обратно через экструдер и выдавливайте, пока он не потечёт."
+  This light chip controls: Этот значок света управляет
   This looks like a {}, but it is set up as a {}: Похоже, это {}, но принтер настроен как {}
   This may take up to 30 seconds: Это может занять до 30 секунд
   Needs file analysis, which isn't running.: "Нужен анализ файлов, который не запущен."

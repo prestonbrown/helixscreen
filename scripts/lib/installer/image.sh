@@ -29,6 +29,12 @@ _HELIX_IMAGE_SOURCED=1
 # after it (`--first-boot-moonraker`), so the screen never waits on Moonraker.
 IMAGE_FIRST_BOOT_MARKER=".first_boot_pending"
 
+# Whether / is a booted system rather than an image's chroot: systemd creates
+# /run/systemd/system at boot, and a chroot's /run is the image's own, empty.
+_image_host_is_booted() {
+    [ -d /run/systemd/system ]
+}
+
 # The image's passwd fields for user $1 as "uid:gid:home", from the image's own
 # /etc/passwd: the build host's accounts say nothing about the printer's.
 _image_passwd_entry() {
@@ -93,6 +99,12 @@ image_resolve() {
     IMAGE_ROOT="${IMAGE_TARGET_ROOT%/}"
     while [ "${IMAGE_ROOT%/}" != "$IMAGE_ROOT" ]; do IMAGE_ROOT="${IMAGE_ROOT%/}"; done
     [ -d "${IMAGE_ROOT:-/}" ] || _image_refuse "Target root not found: $IMAGE_TARGET_ROOT"
+    # / (in any spelling: //, /., a symlink to it) is the image only inside the
+    # image's chroot, as a CustomPiOS module runs. On a booted system it is the
+    # build host itself.
+    if { [ -z "$IMAGE_ROOT" ] || [ "$(cd "$IMAGE_ROOT" && pwd -P)" = / ]; } && _image_host_is_booted; then
+        _image_refuse "--target-root $IMAGE_TARGET_ROOT is this running system's own root; name the mounted image's root filesystem, or run inside the image's chroot"
+    fi
     [ -f "$IMAGE_ROOT/etc/passwd" ] ||
         _image_refuse "$IMAGE_TARGET_ROOT has no etc/passwd; name the image's root filesystem"
     [ -d "$IMAGE_ROOT/etc/systemd" ] ||

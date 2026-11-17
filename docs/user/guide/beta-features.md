@@ -51,7 +51,7 @@ What works today:
 - Live printer status and bed mesh over WiFi through Moonraker
 - WiFi setup on first boot: the panel broadcasts its own setup hotspot — join it from your phone to configure the network
 - Updating over USB that keeps your WiFi and settings. There are no over-the-air updates yet
-- Seven languages (English, German, French, Spanish, Russian, Portuguese, Italian); Chinese and Japanese need a font the panel has no room for
+- Eight languages (English, British English, German, French, Spanish, Russian, Portuguese, Italian); Chinese and Japanese need a font the panel has no room for
 - Printer pictures for the DIY and Klipper-converted machines an add-on panel usually drives (Voron, RatRig, Sovol SV08, Zero G and others); other printers show a generic picture
 - Notification history: tap the bell to see past alerts
 - Temperature graphs that start from the printer's recent history

@@ -200,6 +200,7 @@ class SubjectManager {
 
         subjects_.push_back(subject);
         subject_names_.emplace_back(xml_name ? xml_name : "");
+        helix::xml::note_subject_owner(xml_name, subject);
     }
 
     /// Publish an initialized subject under `xml_name` in the current XML scope and
@@ -254,6 +255,11 @@ class SubjectManager {
         // LVGL is gone, so the subjects cannot be deinitialized. Drop the
         // bookkeeping and let their storage die with the manager.
         if (!lv_is_initialized()) {
+            for (size_t i = 0; i < subjects_.size() && i < subject_names_.size(); ++i) {
+                if (!subject_names_[i].empty()) {
+                    helix::xml::forget_owned_subject(subject_names_[i].c_str(), subjects_[i]);
+                }
+            }
             subjects_.clear();
             subject_names_.clear();
             return;
@@ -278,8 +284,10 @@ class SubjectManager {
             if (registered_name) {
                 // Only while the name is still ours: a successor owner (a modal
                 // reopened before the old instance is freed) may have re-published
-                // it, and dropping its record would strand its bindings.
-                helix::xml::unregister_subject_in_current_scope(registered_name, subject);
+                // it, and dropping its record would strand its bindings. When it is
+                // ours and an earlier owner still holds it (the app's global panel
+                // beside a local one), the name goes back to that owner.
+                helix::xml::withdraw_owned_subject(registered_name, subject);
             } else if (const SubjectDebugInfo* info =
                            SubjectDebugRegistry::instance().lookup(subject)) {
                 // Registered without a name while the subject IS published

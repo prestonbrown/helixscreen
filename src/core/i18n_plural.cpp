@@ -3,16 +3,12 @@
 
 #include "i18n_plural.h"
 
+#include "core/locale_code.h"
 #include "lvgl.h"
 
 namespace helix::ui {
 
 namespace {
-
-std::string_view primary_subtag(std::string_view lang) {
-    const auto cut = lang.find_first_of("_-");
-    return cut == std::string_view::npos ? lang : lang.substr(0, cut);
-}
 
 /// CLDR's `many` for es, fr, it and pt: a non-zero exact multiple of a million
 /// ("1 millón de", "1 million de").
@@ -23,7 +19,7 @@ bool is_exact_million(uint64_t n) {
 } // namespace
 
 PluralCategory plural_category(std::string_view lang, uint64_t n) {
-    const std::string_view code = primary_subtag(lang);
+    const std::string_view code = locale_base_language(lang);
 
     if (code == "ja" || code == "zh") {
         return PluralCategory::Other;

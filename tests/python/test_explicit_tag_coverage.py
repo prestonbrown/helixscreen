@@ -30,6 +30,7 @@ from translations.extractor import (  # noqa: E402
     iter_elements,
     should_skip_text,
 )
+from translations.locale_variants import effective_value, has_value, is_variant  # noqa: E402
 from translations.yaml_manager import load_yaml_file_readonly  # noqa: E402
 
 # Floor per attribute, only to guard the scan against silently matching
@@ -122,24 +123,25 @@ def test_every_explicit_tag_translated_in_every_locale():
     assert not thin, "scan found too few literals:\n  " + "\n  ".join(thin)
 
     locales = sorted((REPO_ROOT / "translations").glob("*.yml"))
-    assert len(locales) == 9, f"expected 9 locale files, found {[p.name for p in locales]}"
+    assert len(locales) == 10, f"expected 10 locale files, found {[p.name for p in locales]}"
+    catalogs = {p.stem: load_yaml_file_readonly(p)["translations"] for p in locales}
 
     missing = []
     translated_after_all = set()
-    for yml in locales:
-        data = load_yaml_file_readonly(yml)
-        entries = data["translations"]
+    for locale, entries in sorted(catalogs.items()):
         for attr, tags in sorted(found.items()):
             for tag in sorted(tags):
-                value = entries.get(tag)
+                # A regional variant's empty value inherits its base language's.
+                value = effective_value(locale, tag, catalogs) if tag in entries else None
                 if tag in KNOWN_UNTRANSLATED:
-                    # en.yml holds the key as its own value, so it is never
-                    # evidence that a tag left the baseline.
-                    if value and yml.stem != "en":
+                    # en.yml holds the key as its own value, and a variant
+                    # only inherits or respells it, so neither is evidence
+                    # that a tag left the baseline.
+                    if has_value(value) and locale != "en" and not is_variant(locale):
                         translated_after_all.add(tag)
                     continue
-                if not value:
-                    missing.append(f"{yml.name}: {attr}={tag!r}")
+                if not has_value(value):
+                    missing.append(f"{locale}.yml: {attr}={tag!r}")
     assert not missing, "explicit tag keys missing or empty:\n  " + "\n  ".join(missing)
     assert not translated_after_all, (
         "these are translated now -- drop them from KNOWN_UNTRANSLATED:\n  "

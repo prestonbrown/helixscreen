@@ -121,3 +121,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "Missing-language warning is logged once per l
     }
     REQUIRE(ScopedLogCounter::count() == 2);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "A regional variant reads its own string, else its base's",
+                 "[translation][i18n]") {
+    ScopedLanguage restore_lang;
+
+    helix::ui::ensure_translation_loaded("en-GB");
+    lv_translation_set_language("en-GB");
+
+    // The variant's own value.
+    CHECK(std::string(lv_translation_get("Color")) == "Colour");
+    CHECK(std::string(lv_translation_get("Bed Leveling")) == "Bed Levelling");
+    // Empty in en-GB.yml: the base language's text, which for en is the tag.
+    CHECK(std::string(lv_translation_get("Cancel")) == "Cancel");
+
+    // A variant whose pack does not exist reads the English source text, never
+    // an empty string or a dotted key.
+    helix::ui::ensure_translation_loaded("qq-ZZ");
+    lv_translation_set_language("qq-ZZ");
+    const char* tag = "Color";
+    CHECK(lv_translation_get(tag) == tag);
+}

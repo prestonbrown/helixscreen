@@ -16,7 +16,9 @@ namespace {
 /// row, because a drawing of the wrong unit is worse than the generic tray.
 struct ShellRow {
     const char* backend_slug;
-    const char* unit_name_part; ///< Lowercase; nullptr when the backend names one kind of unit.
+    /// Lowercase; nullptr when the backend names one kind of unit. A leading '\n' anchors it to
+    /// the start of the unit's name or model.
+    const char* unit_name_part;
     const char* shell_id;
     const char* enclosed_shell_id; ///< nullptr when the unit is never enclosed.
     int only_lanes;                ///< Match only this many lanes; 0 for any.
@@ -25,6 +27,11 @@ struct ShellRow {
 
 constexpr ShellRow kShellRows[] = {
     {"ace", nullptr, "ace_pro", nullptr, 0},
+    // Anchored type tokens come first, since an AFC instance name can be anything.
+    // AFC calls the ACE Pro "ACE" and the ACE Pro 2 "ACE2"; one drawing is both.
+    {"afc", "\nace ", "ace_pro", nullptr, 0},
+    {"afc", "\nace2 ", "ace_pro", nullptr, 0},
+    {"afc", "\ncfs ", "cfs", nullptr, 0},
     // "htlf " is the type token: Claymore instances are often named HTLF_claymore_N.
     {"afc", "htlf ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
@@ -43,6 +50,12 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "3ms", "3ms", nullptr, 0},
     {"happy_hare", "emu", "emu", nullptr, 0},
     {"happy_hare", "kms", "kms", nullptr, 0},
+    // Happy Hare publishes the vendor as "VVD" and names the unit "BTT ViViD" by default.
+    {"happy_hare", "vvd", "btt_vivid", nullptr, 0},
+    {"happy_hare", "qidi", "qidi_box", nullptr, 0},
+    {"happy_hare", "htlf", "htlf", nullptr, 0},
+    {"happy_hare", "nightowl", "night_owl", nullptr, 0},
+    {"happy_hare", "boxturtle", "box_turtle", "box_turtle_enclosed", 0},
     {"ifs", nullptr, "ad5x_ifs", nullptr, 0},
     // Happy Hare's vendor constants; only a real selector is one of these rails.
     {"happy_hare", "ercf", "ercf_rail", nullptr, 0, true},
@@ -79,7 +92,7 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
         return nullptr;
     const char* slug = ams_type_telemetry_slug(info.type);
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
-    const std::string unit_name = helix::text_io::to_lower(unit.name + "\n" + unit.model);
+    const std::string unit_name = helix::text_io::to_lower("\n" + unit.name + "\n" + unit.model);
     for (const ShellRow& row : kShellRows) {
         if (std::strcmp(row.backend_slug, slug) == 0 &&
             (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&

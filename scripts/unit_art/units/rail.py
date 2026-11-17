@@ -154,6 +154,8 @@ def _unit(style, body, panel, rail_color, face_art):
             panel=panel,
             rail=rail_color,
             accent=rail_color,
+            # The rail stands in front of loose spools: they keep the plain tray.
+            plain_tray=True,
         ),
         lane_variants=GATE_COUNTS,
         carriage_step=_step,

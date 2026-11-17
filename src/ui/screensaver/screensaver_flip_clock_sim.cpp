@@ -77,27 +77,9 @@ std::string state_text(ClockMode mode, bool spell) {
 
 // ---------- Layout ----------
 //
-// Sizes in glyph units: a card holds one digit box.
+// Sizes in glyph units: a card holds one glyph box, inset by the geometry's pads.
 
-/// The cards' bold digits.
-constexpr float kGlyphStroke = 0.2f;
-constexpr float kGlyphW = 1.0f + kGlyphStroke;
-constexpr float kGlyphH = kStrokeDigitPathH + kGlyphStroke;
-
-constexpr float kCardPadX = 0.32f;
-constexpr float kCardPadY = 0.45f;
-/// Between the cards of one group.
-constexpr float kCardGap = 0.12f;
-/// Between groups in a row, where the colon sits.
-constexpr float kGroupGap = 0.6f;
-/// Between rows when the groups stack.
-constexpr float kRowGap = 0.3f;
-constexpr float kColonR = kGlyphStroke * 0.55f;
-/// Between the cards and the small row.
-constexpr float kSubGap = 0.25f;
-/// On the small row, between groups with no colon (the time and the percent): wide enough to
-/// read as two values, not one.
-constexpr float kSubSpacer = 1.6f;
+constexpr float kColonR = kFlipCardGeometry.stroke * 0.55f;
 /// Share of the screen the layout fills along its tighter axis; the rest is drift room.
 constexpr float FILL = 0.9f;
 
@@ -105,7 +87,8 @@ struct Metrics {
     int32_t glyph_w;
     int32_t glyph_h;
     int32_t pad_x;
-    int32_t pad_y;
+    int32_t pad_top;
+    int32_t pad_bottom;
     int32_t card_w;
     int32_t card_h;
     int32_t card_gap;
@@ -115,21 +98,27 @@ struct Metrics {
     int32_t spacer;
 };
 
-Metrics metrics_for(int32_t unit) {
+Metrics metrics_for(int32_t unit, const CardGeometry& g) {
     const auto px = [unit](float v) { return static_cast<int32_t>(std::lround(v * unit)); };
     Metrics m{};
-    m.glyph_w = px(kGlyphW);
-    m.glyph_h = px(kGlyphH);
-    m.pad_x = px(kCardPadX);
-    m.pad_y = px(kCardPadY);
+    m.glyph_w = px(1.0f + g.stroke);
+    m.glyph_h = px(kStrokeDigitPathH + g.stroke);
+    m.pad_x = px(g.pad_x);
+    m.pad_top = px(g.pad_top);
+    m.pad_bottom = px(g.pad_bottom);
     m.card_w = m.glyph_w + 2 * m.pad_x;
-    m.card_h = m.glyph_h + 2 * m.pad_y;
-    m.card_gap = std::max(1, px(kCardGap));
-    m.group_gap = px(kGroupGap);
-    m.row_gap = px(kRowGap);
-    m.sub_gap = px(kSubGap);
-    m.spacer = px(kSubSpacer);
+    m.card_h = m.glyph_h + m.pad_top + m.pad_bottom;
+    m.card_gap = std::max(1, px(g.card_gap));
+    m.group_gap = px(g.group_gap);
+    m.row_gap = px(g.row_gap);
+    m.sub_gap = px(g.sub_gap);
+    m.spacer = px(g.sub_spacer);
     return m;
+}
+
+/// The small row's glyph scale for main cards at `unit`.
+int32_t sub_unit_for(int32_t unit, const CardGeometry& g) {
+    return std::max(1, static_cast<int32_t>(std::lround(g.sub_scale * static_cast<float>(unit))));
 }
 
 struct Arrangement {
@@ -165,35 +154,33 @@ int32_t sub_spacers(const FlipShape& sub, uint8_t sub_colons) {
 }
 
 Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShape& sub,
-                    uint8_t sub_colons) {
+                    uint8_t sub_colons, const CardGeometry& g) {
     const auto groups = static_cast<float>(std::max<uint8_t>(1, shape.group_count));
-    const float card_w = kGlyphW + 2 * kCardPadX;
-    const float card_h = kGlyphH + 2 * kCardPadY;
+    const float card_w = 1.0f + g.stroke + 2 * g.pad_x;
+    const float card_h = kStrokeDigitPathH + g.stroke + g.pad_top + g.pad_bottom;
     const bool has_sub = sub.group_count > 0;
     // The small row in main units: a scaled copy of the cards.
-    const float sub_w =
-        has_sub ? kSubCardScale *
-                      (row_width(sub, card_w, kCardGap, kGroupGap) +
-                       static_cast<float>(sub_spacers(sub, sub_colons)) * (kSubSpacer - kGroupGap))
-                : 0;
-    const float tail = has_sub ? kSubGap + kSubCardScale * card_h : 0.0f;
-    const float row_w = std::max(row_width(shape, card_w, kCardGap, kGroupGap), sub_w);
+    const float sub_w = has_sub ? g.sub_scale * (row_width(sub, card_w, g.card_gap, g.group_gap) +
+                                                 static_cast<float>(sub_spacers(sub, sub_colons)) *
+                                                     (g.sub_spacer - g.group_gap))
+                                : 0;
+    const float tail = has_sub ? g.sub_gap + g.sub_scale * card_h : 0.0f;
+    const float row_w = std::max(row_width(shape, card_w, g.card_gap, g.group_gap), sub_w);
     const float row = std::min(FILL * static_cast<float>(w) / row_w,
                                FILL * static_cast<float>(h) / (card_h + tail));
-    const float col_w = std::max(group_width(widest_group(shape), card_w, kCardGap), sub_w);
-    const float col =
-        std::min(FILL * static_cast<float>(w) / col_w,
-                 FILL * static_cast<float>(h) / (groups * card_h + (groups - 1) * kRowGap + tail));
+    const float col_w = std::max(group_width(widest_group(shape), card_w, g.card_gap), sub_w);
+    const float col = std::min(FILL * static_cast<float>(w) / col_w,
+                               FILL * static_cast<float>(h) /
+                                   (groups * card_h + (groups - 1) * g.row_gap + tail));
     Arrangement a{};
     a.column = shape.group_count > 1 && col > row;
     a.unit = std::max(1, static_cast<int32_t>(std::floor(a.column ? col : row)));
-    const Metrics m = metrics_for(a.unit);
+    const Metrics m = metrics_for(a.unit, g);
     const int32_t n = std::max<int32_t>(1, shape.group_count);
     int32_t sub_w_px = 0;
     int32_t tail_px = 0;
     if (has_sub) {
-        const Metrics sm =
-            metrics_for(std::max(1, static_cast<int32_t>(std::lround(kSubCardScale * a.unit))));
+        const Metrics sm = metrics_for(sub_unit_for(a.unit, g), g);
         const int32_t sn = sub.group_count;
         sub_w_px = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
                    (sn - 1) * (sm.group_gap - sm.card_gap) +
@@ -213,12 +200,12 @@ Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShap
 }
 
 /// The split line and corner of a row of cards at `unit`.
-FlipRowMetrics row_metrics(int32_t unit) {
-    const Metrics m = metrics_for(unit);
+FlipRowMetrics row_metrics(int32_t unit, const CardGeometry& g) {
+    const Metrics m = metrics_for(unit, g);
     FlipRowMetrics r;
     r.unit = unit;
     r.pad_x = m.pad_x;
-    r.pad_y = m.pad_y;
+    r.pad_y = m.pad_top;
     const int32_t split = std::max(2, static_cast<int32_t>(std::lround(0.04f * unit)));
     r.split_top = (m.card_h - split) / 2;
     r.split_bottom = r.split_top + split;
@@ -260,6 +247,46 @@ FlipFace countdown_face(int32_t seconds) {
     add_group(face, s / 60 % 60, 2, true);
     add_group(face, s % 60, 2, true);
     return face;
+}
+
+// ---------- The drum ----------
+
+namespace {
+
+bool is_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+} // namespace
+
+char flip_drum_next(char from, char to) {
+    if (from == to || !is_digit(to) || (from != '\0' && !is_digit(from))) {
+        return to;
+    }
+    if (from == '\0') {
+        return '0';
+    }
+    // One step back is a countdown's tick: flip straight to it.
+    if ((from - '0' + 9) % 10 == to - '0') {
+        return to;
+    }
+    return static_cast<char>('0' + (from - '0' + 1) % 10);
+}
+
+int flip_drum_steps(char from, char to) {
+    int steps = 0;
+    for (char c = from; c != to && steps < 12; c = flip_drum_next(c, to)) {
+        steps++;
+    }
+    return steps;
+}
+
+uint32_t flip_step_ms(int steps) {
+    if (steps <= 1) {
+        return kFlipDurationMs;
+    }
+    const uint32_t share = (kFlipRunMaxMs - kFlipDurationMs) / static_cast<uint32_t>(steps - 1);
+    return std::min(kFlipRunStepMs, share);
 }
 
 // ---------- FlipClockState ----------
@@ -342,15 +369,15 @@ FlipShape fit_shape(const FlipShape& shape, size_t max_cards) {
 } // namespace
 
 FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
-                             const FlipShape& sub_shape, int32_t dx, int32_t dy,
-                             uint8_t sub_colons) {
+                             const FlipShape& sub_shape, int32_t dx, int32_t dy, uint8_t sub_colons,
+                             const CardGeometry& g) {
     FlipShape fit = fit_shape(shape, kFlipMaxCards);
     if (fit.group_count == 0) {
         fit.groups[fit.group_count++] = 1;
     }
     const FlipShape sub = fit_shape(sub_shape, kFlipMaxSubCards);
-    const Arrangement a = arrange(w, h, fit, sub, sub_colons);
-    const Metrics m = metrics_for(a.unit);
+    const Arrangement a = arrange(w, h, fit, sub, sub_colons, g);
+    const Metrics m = metrics_for(a.unit, g);
     FlipLayout layout;
     layout.unit = a.unit;
     layout.shape = fit;
@@ -381,13 +408,12 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
         gx += width + m.group_gap;
     }
     layout.main_colon_count = layout.colon_count;
-    layout.main = row_metrics(a.unit);
+    layout.main = row_metrics(a.unit, g);
 
     if (sub.group_count > 0) {
-        const int32_t sub_unit =
-            std::max(1, static_cast<int32_t>(std::lround(kSubCardScale * a.unit)));
-        const Metrics sm = metrics_for(sub_unit);
-        layout.small = row_metrics(sub_unit);
+        const int32_t sub_unit = sub_unit_for(a.unit, g);
+        const Metrics sm = metrics_for(sub_unit, g);
+        layout.small = row_metrics(sub_unit, g);
         layout.sub_count = sub.card_count();
         const int32_t sub_w = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
                               (sub.group_count - 1) * (sm.group_gap - sm.card_gap) +
@@ -419,13 +445,15 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
     const int32_t my = first.y1 + std::max(1, static_cast<int32_t>(std::lround(0.06f * a.unit)));
     layout.meridiem = {mx, my, mx + static_cast<int32_t>(std::lround(0.9f * a.unit)) - 1,
                        my + std::max(8, static_cast<int32_t>(std::lround(0.34f * a.unit))) - 1};
-    layout.meridiem.y2 = std::min(layout.meridiem.y2, first.y1 + m.pad_y - 1);
+    layout.meridiem.y2 = std::min(layout.meridiem.y2, first.y1 + m.pad_top - 1);
     return layout;
 }
 
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
-                              const FlipShape& sub_shape, uint8_t sub_colons) {
-    const Arrangement a = arrange(w, h, shape, fit_shape(sub_shape, kFlipMaxSubCards), sub_colons);
+                              const FlipShape& sub_shape, uint8_t sub_colons,
+                              const CardGeometry& g) {
+    const Arrangement a =
+        arrange(w, h, shape, fit_shape(sub_shape, kFlipMaxSubCards), sub_colons, g);
     const int32_t x1 = (w - a.content_w) / 2;
     const int32_t y1 = (h - a.content_h) / 2;
     return {x1, y1, x1 + a.content_w - 1, y1 + a.content_h - 1};
@@ -468,7 +496,7 @@ void FlipClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face) 
         layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0, face.sub_colons);
     build_glyphs(face);
     for (size_t i = 0; i < anims_.size(); i++) {
-        anims_[i] = {face_card(face, i), face_card(face, i), kFlipDurationMs};
+        anims_[i] = still(face_card(face, i));
     }
     for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
         draw_card(frame, i);
@@ -490,7 +518,7 @@ void FlipClockSim::request_level(size_t level) {
 
 bool FlipClockSim::flipping() const {
     for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
-        if (anims_[i].elapsed_ms < kFlipDurationMs) {
+        if (anims_[i].elapsed_ms < anims_[i].duration_ms) {
             return true;
         }
     }
@@ -501,8 +529,9 @@ float FlipClockSim::flip_progress(size_t i) const {
     if (i >= anims_.size()) {
         return 1.0f;
     }
-    return static_cast<float>(std::min(anims_[i].elapsed_ms, kFlipDurationMs)) /
-           static_cast<float>(kFlipDurationMs);
+    const CardAnim& anim = anims_[i];
+    return static_cast<float>(std::min(anim.elapsed_ms, anim.duration_ms)) /
+           static_cast<float>(std::max<uint32_t>(1, anim.duration_ms));
 }
 
 size_t FlipClockSim::heap_bytes() const {
@@ -535,10 +564,10 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
         const bool same_shape = !shape_differs(face, layout_) && ink == ink_;
         for (size_t i = 0; i < anims_.size(); i++) {
             const FlipCard card = face_card(face, i);
-            if (same_shape && animate && anims_[i].to == card) {
-                anims_[i].elapsed_ms = std::min(anims_[i].elapsed_ms + dt_ms, kFlipDurationMs);
+            if (same_shape && animate && anims_[i].target == card) {
+                advance(i, dt_ms);
             } else {
-                anims_[i] = {card, card, kFlipDurationMs};
+                anims_[i] = still(card);
             }
         }
         ink_ = ink;
@@ -550,21 +579,60 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
         CardAnim& anim = anims_[i];
         const FlipCard card = face_card(face, i);
         bool redraw = false;
-        if (card != anim.to) {
-            (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(card.digit);
-            anim.from = anim.to;
-            anim.to = card;
-            anim.elapsed_ms = animate ? 0 : kFlipDurationMs;
-            redraw = true;
-        } else if (anim.elapsed_ms < kFlipDurationMs) {
-            anim.elapsed_ms =
-                animate ? std::min(anim.elapsed_ms + dt_ms, kFlipDurationMs) : kFlipDurationMs;
-            redraw = true;
+        if (!animate) {
+            // Straight to the value, finishing any flip or run under way.
+            redraw = card != anim.to || anim.elapsed_ms < anim.duration_ms;
+            if (card != anim.to) {
+                (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(card.digit);
+            }
+            anim = still(card);
+        } else {
+            anim.target = card;
+            redraw = advance(i, dt_ms);
         }
         if (redraw) {
             draw_card(frame, i);
             dirty.push_back(layout_.cards[i]);
         }
+    }
+}
+
+bool FlipClockSim::advance(size_t i, uint32_t dt_ms) {
+    CardAnim& anim = anims_[i];
+    bool moved = false;
+    if (anim.elapsed_ms < anim.duration_ms) {
+        anim.elapsed_ms += dt_ms;
+        moved = true;
+    }
+    // Each flip that ends hands what is left of the frame to the next one of the run.
+    while (anim.elapsed_ms >= anim.duration_ms && anim.to != anim.target) {
+        const uint32_t over = anim.elapsed_ms - anim.duration_ms;
+        const char next = flip_drum_next(anim.to.digit, anim.target.digit);
+        (i < layout_.card_count ? glyphs_ : sub_glyphs_).ensure(next);
+        anim.from = anim.to;
+        anim.to.digit = next;
+        anim.duration_ms = flip_step_ms(flip_drum_steps(anim.from.digit, anim.target.digit));
+        anim.elapsed_ms = over;
+        moved = true;
+    }
+    anim.elapsed_ms = std::min(anim.elapsed_ms, anim.duration_ms);
+    return moved;
+}
+
+void FlipClockSim::spin_up(FrameTarget& frame, std::vector<DirtyRect>& dirty) {
+    if (!kFlipClockLevels[level_].animate) {
+        return;
+    }
+    for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
+        CardAnim& anim = anims_[i];
+        const char value = anim.target.digit;
+        if (value < '0' || value > '9') {
+            continue;
+        }
+        anim = still(FlipCard{});
+        anim.target.digit = value;
+        draw_card(frame, i);
+        dirty.push_back(layout_.cards[i]);
     }
 }
 
@@ -588,11 +656,12 @@ void FlipClockSim::relayout(FrameTarget& frame, const FlipFace& face,
 
 void FlipClockSim::build_glyphs(const FlipFace& face) {
     // A new size rebuilds; the same size keeps what is built and adds what this face needs.
-    if (glyphs_.w != metrics_for(layout_.main.unit).glyph_w) {
-        glyphs_.init(layout_.main.unit, kGlyphStroke);
+    if (glyphs_.w != metrics_for(layout_.main.unit, kFlipCardGeometry).glyph_w) {
+        glyphs_.init(layout_.main.unit, kFlipCardGeometry.stroke);
     }
-    if (layout_.sub_count > 0 && sub_glyphs_.w != metrics_for(layout_.small.unit).glyph_w) {
-        sub_glyphs_.init(layout_.small.unit, kGlyphStroke);
+    if (layout_.sub_count > 0 &&
+        sub_glyphs_.w != metrics_for(layout_.small.unit, kFlipCardGeometry).glyph_w) {
+        sub_glyphs_.init(layout_.small.unit, kFlipCardGeometry.stroke);
     }
     for (size_t i = 0; i < layout_.card_count; i++) {
         glyphs_.ensure(face.cards[i].digit);
@@ -671,9 +740,8 @@ void FlipClockSim::draw_card(FrameTarget& frame, size_t i) const {
     const int32_t h = box.y2 - box.y1 + 1;
     const int32_t top_h = row.split_top;
     const int32_t bottom_h = h - row.split_bottom;
-    const float p = static_cast<float>(std::min(anim.elapsed_ms, kFlipDurationMs)) /
-                    static_cast<float>(kFlipDurationMs);
-    const bool moving = anim.elapsed_ms < kFlipDurationMs;
+    const float p = flip_progress(i);
+    const bool moving = anim.elapsed_ms < anim.duration_ms;
 
     // The top half folds down: first the old digits' top half shrinks onto the split line,
     // then the new digits' bottom half unfolds below it. The projected height of the flap is

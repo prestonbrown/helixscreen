@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen image module: installs HelixScreen into the image being built.
+#
+# Runs inside the image's chroot, as a CustomPiOS module's start_chroot_script
+# or as a numbered CustoPiZer script (MainsailOS's modules/generic/). It hands
+# the work to the release's own install.sh in its image mode
+# (--target-root /), which starts nothing, leaves the display and Moonraker
+# steps that need the booted printer to first boot, and writes Moonraker's
+# update_manager block into the image's moonraker.conf. Settings: README.md.
+set -x
+set -e
+export LC_ALL=C
+
+# CustomPiOS and CustoPiZer both put their helpers at /common.sh in the chroot.
+if [ -f /common.sh ]; then
+    # shellcheck disable=SC1091
+    source /common.sh
+    if declare -F install_cleanup_trap >/dev/null; then install_cleanup_trap; fi
+fi
+# A CustoPiZer build's shared settings (BASE_USER and the like), as MainsailOS
+# keeps them; HELIXSCREEN_* exports placed there reach this script too.
+if [ -f /files/00-config ]; then
+    # shellcheck disable=SC1091
+    source /files/00-config
+fi
+
+: "${HELIXSCREEN_VERSION:=latest}"
+: "${HELIXSCREEN_PLATFORM:=}"
+: "${HELIXSCREEN_ARCHIVE:=}"
+: "${HELIXSCREEN_SHA256:=}"
+: "${HELIXSCREEN_USER:=${BASE_USER:-}}"
+: "${HELIXSCREEN_OWN_DISPLAY:=0}"
+: "${HELIXSCREEN_INSTALL_ARGS:=}"
+: "${HELIXSCREEN_REPO:=prestonbrown/helixscreen}"
+# The libraries the release's installer checks for. A package missing from
+# this list still stops the install, with the apt-get line that adds it.
+: "${HELIXSCREEN_DEPS:=libdrm2 libinput10 libgbm1 libegl1 libgles2}"
+
+die() {
+    echo "helixscreen module: $*" >&2
+    exit 1
+}
+
+# fetch URL FILE: download with whichever of curl and wget the image has.
+fetch() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --retry 3 -o "$2" "$1"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q --tries=3 -O "$2" "$1"
+    else
+        die "the image has neither curl nor wget to download $1"
+    fi
+}
+
+# The image's own architecture names the release: dpkg inside the chroot
+# answers for the image, never for the build machine.
+image_platform() {
+    case "$(dpkg --print-architecture)" in
+        arm64) echo pi ;;
+        armhf) echo pi32 ;;
+        *) die "no HelixScreen release for a $(dpkg --print-architecture) image; set HELIXSCREEN_PLATFORM to pi or pi32" ;;
+    esac
+}
+
+platform="${HELIXSCREEN_PLATFORM:-$(image_platform)}"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+archive="$HELIXSCREEN_ARCHIVE"
+if [ -n "$archive" ]; then
+    [ -f "$archive" ] || die "HELIXSCREEN_ARCHIVE not found in the image: $archive"
+else
+    tag="$HELIXSCREEN_VERSION"
+    if [ "$tag" = latest ]; then
+        fetch "https://api.github.com/repos/${HELIXSCREEN_REPO}/releases/latest" "$work/latest.json"
+        tag=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$work/latest.json" | head -n 1)
+        [ -n "$tag" ] || die "could not read the latest release tag of $HELIXSCREEN_REPO"
+    fi
+    archive="$work/helixscreen-${platform}-${tag}.tar.gz"
+    fetch "https://github.com/${HELIXSCREEN_REPO}/releases/download/${tag}/helixscreen-${platform}-${tag}.tar.gz" "$archive"
+fi
+
+if [ -n "$HELIXSCREEN_SHA256" ]; then
+    echo "${HELIXSCREEN_SHA256}  ${archive}" | sha256sum -c - || die "$archive does not match HELIXSCREEN_SHA256"
+fi
+
+case "$archive" in
+    *.zip) unzip -p "$archive" helixscreen/install.sh > "$work/install.sh" ;;
+    *) tar -xzf "$archive" -O helixscreen/install.sh > "$work/install.sh" ;;
+esac
+[ -s "$work/install.sh" ] || die "$archive holds no helixscreen/install.sh; is it a HelixScreen release archive?"
+grep -q -- '--target-root' "$work/install.sh" ||
+    die "$archive predates image installs; use HelixScreen 1.2 or newer"
+
+missing=""
+for dep in $HELIXSCREEN_DEPS; do
+    dpkg-query -W -f='${Status}' "$dep" 2>/dev/null | grep -q "install ok installed" ||
+        missing="$missing $dep"
+done
+if [ -n "$missing" ]; then
+    apt-get update
+    # shellcheck disable=SC2086  # a package list
+    apt-get install -y --no-install-recommends $missing
+fi
+
+args=(--target-root / --platform "$platform" --local "$archive")
+[ -z "$HELIXSCREEN_USER" ] || args+=(--user "$HELIXSCREEN_USER")
+[ "$HELIXSCREEN_OWN_DISPLAY" != 1 ] || args+=(--own-display)
+if [ -n "$HELIXSCREEN_INSTALL_ARGS" ]; then
+    read -r -a extra <<<"$HELIXSCREEN_INSTALL_ARGS"
+    args+=("${extra[@]}")
+fi
+sh "$work/install.sh" "${args[@]}"

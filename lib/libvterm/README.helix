@@ -1,0 +1,7 @@
+libvterm, vendored for the Host Terminal (prestonbrown/helixscreen#1573).
+
+Upstream: https://github.com/neovim/libvterm (branch nvim), the maintained mirror of
+Paul Evans' libvterm. MIT licensed (LICENSE). Taken at commit
+934bc2fbf21800ac3458a499df8820ca5fb45fd3: include/, src/ (with its generated
+encoding/*.inc and fullwidth.inc), LICENSE. Nothing is modified; the build compiles
+src/*.c with SUBMODULE_CFLAGS when HELIX_HAS_HOST_TERMINAL is 1.

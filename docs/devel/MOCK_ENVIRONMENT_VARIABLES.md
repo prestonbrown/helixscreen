@@ -748,7 +748,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `happy_hare` / `hh`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -760,12 +760,18 @@ Select the mock AMS topology/type.
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
 | `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
+| `hh_vivid` | 1 | Happy Hare on a BTT ViViD: the mock backend with the unit reporting vendor `VVD`, LINEAR, 4 lanes |
+| `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, 4 lanes |
+| `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
+| `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB. Its drawing has 2 lanes, so set `HELIX_AMS_GATES=2` |
+| `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, 4 lanes; the enclosed drawing while the mock reports a dryer or climate |
 | `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 | `torture` | **5** | **Its unit-card row overflows.** See below |
 | `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
+| `afc_direct` | 6 | AFC toolchanger with five hub units on 3 extruders plus a one-lane "Tools" unit wired straight to a fourth. Each unit's topology comes from the AFC backend's own rule (`helix::printer::afc_unit_topology`), so the overview shows whether a direct unit gets a hub box |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
 | `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
@@ -1896,6 +1902,16 @@ Make the mock report Kalico-style MPC heater control instead of Klipper's PID. T
 ```bash
 # Mock a Kalico (Danger Klipper) firmware with MPC heater control
 HELIX_MOCK_KALICO=1 ./build/bin/helix-screen --test -vv
+```
+
+With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
+`belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
+`CALIBRATE_CUT_POS` macro (the port registers it as a Python command). Advanced >
+Calibration then shows Auto Belt Tension; add `HELIX_MOCK_AMS=cfs` for the `box` object
+that Cutter Calibration also needs.
+
+```bash
+HELIX_MOCK_KALICO=1 HELIX_MOCK_PRINTER=k2 HELIX_MOCK_AMS=cfs ./build/bin/helix-screen --test -vv
 ```
 
 **Strict equality:** the check is `std::string(env) == "1"`. `true`, `yes` and `on` do *not* work here, unlike most other mock flags.

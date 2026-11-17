@@ -101,6 +101,7 @@ static helix::Subject g_host_power_supported_subject;
 static helix::Subject g_platform_extras_subject;
 static helix::Subject g_camera_supported_subject;
 static helix::Subject g_console_supported_subject;
+static helix::Subject g_host_terminal_supported_subject;
 static bool g_subjects_initialized = false;
 
 // Namespace-scope Subjects get their node at app_globals_init_subjects(), which app_boot_ui()
@@ -158,6 +159,10 @@ void app_globals_init_subjects() {
     // The K-Touch feature profile leaves the G-code console out (HELIX_HAS_CONSOLE=0).
     g_console_supported_subject.init_int(0);
     lv_xml_register_subject(nullptr, "platform_console_supported", &g_console_supported_subject);
+    // No pty on the firmware (HELIX_HAS_HOST_TERMINAL=0): the Host Terminal rows bind hidden.
+    g_host_terminal_supported_subject.init_int(0);
+    lv_xml_register_subject(nullptr, "platform_host_terminal_supported",
+                            &g_host_terminal_supported_subject);
     // The shutdown home widget's hardware gate reads it by name.
     g_host_power_supported_subject.init_int(helix::platform_host_power_supported() ? 1 : 0);
     lv_xml_register_subject(nullptr, "platform_host_power_supported",

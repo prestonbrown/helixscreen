@@ -267,7 +267,7 @@ I18N_SKIP_FILE_RE = re.compile(r"<!--[^>]*\bi18n:\s*skip-file", re.IGNORECASE)
 
 # Language names displayed in their native script (never translated)
 LANGUAGE_NAMES = {
-    "Deutsch", "English", "Español", "Français", "Italiano", "Português",
+    "Deutsch", "English", "English (UK)", "Español", "Français", "Italiano", "Português",
     "Русский", "中文", "日本語", "한국어", "العربية", "हिन्दी", "Türkçe",
     "Nederlands", "Polski", "Svenska", "Norsk", "Dansk", "Suomi",
     "Čeština", "Magyar", "Română", "Українська", "Ελληνικά",

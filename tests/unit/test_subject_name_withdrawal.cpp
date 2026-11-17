@@ -184,22 +184,26 @@ TEST_CASE_METHOD(XMLTestFixture, "A destroyed PrinterState withdraws the extrude
     // lv_xml_create(). The names differ from their members, so no macro derives
     // them - they are handed to the SubjectManager at the call site or not at all.
     static constexpr const char* kNames[] = {"extruder_temp", "extruder_target"};
+    const lv_subject_t* scoped_subjects[2] = {};
 
     {
         helix::PrinterState scoped;
         scoped.init_subjects(true);
+        scoped_subjects[0] = scoped.temperature_state().get_active_extruder_temp_subject();
+        scoped_subjects[1] = scoped.temperature_state().get_active_extruder_target_subject();
 
-        // The absence assertions below only mean anything if the names were
-        // there to withdraw, resolving to THIS state's storage.
-        REQUIRE(lv_xml_get_subject(nullptr, "extruder_temp") ==
-                scoped.temperature_state().get_active_extruder_temp_subject());
-        REQUIRE(lv_xml_get_subject(nullptr, "extruder_target") ==
-                scoped.temperature_state().get_active_extruder_target_subject());
+        // The assertions below only mean anything if the names were there to
+        // withdraw, resolving to THIS state's storage.
+        REQUIRE(lv_xml_get_subject(nullptr, kNames[0]) == scoped_subjects[0]);
+        REQUIRE(lv_xml_get_subject(nullptr, kNames[1]) == scoped_subjects[1]);
     }
 
-    for (const char* name : kNames) {
-        INFO(name);
-        CHECK(lv_xml_get_subject(nullptr, name) == nullptr);
+    // Gone, or handed back to an owner that is still alive (the fixture's own state).
+    for (size_t i = 0; i < 2; ++i) {
+        INFO(kNames[i]);
+        const lv_subject_t* resolved = lv_xml_get_subject(nullptr, kNames[i]);
+        CHECK(resolved != scoped_subjects[i]);
+        CHECK((resolved == nullptr || helix::subject_is_live(resolved)));
     }
 }
 
@@ -239,4 +243,38 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     StaticPanelRegistry::instance().destroy_all();
     CHECK(lv_xml_get_subject(nullptr, "ams_device_ops_system_info") == nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "A withdrawn name goes back to the newest owner still holding it",
+                 "[subject-scope][2116]") {
+    constexpr const char* kName = "owner_stack_probe";
+    helix::Subject global_subject{};
+    helix::Subject local_subject{};
+    helix::Subject reset_subject{};
+    SubjectManager global;
+    UI_MANAGED_SUBJECT_INT(global_subject, 1, kName, global);
+
+    {
+        SubjectManager reset_owner;
+        UI_MANAGED_SUBJECT_INT(reset_subject, 2, kName, reset_owner);
+        reset_subject.reset();
+        {
+            SubjectManager local;
+            UI_MANAGED_SUBJECT_INT(local_subject, 3, kName, local);
+            REQUIRE(lv_xml_get_subject(nullptr, kName) == local_subject.get());
+        }
+        // The owner whose subject is reset would only refuse bindings: skipped.
+        CHECK(lv_xml_get_subject(nullptr, kName) == global_subject.get());
+    }
+    CHECK(lv_xml_get_subject(nullptr, kName) == global_subject.get());
+
+    // The older owner leaving first keeps the newer one's name, and the last
+    // owner out leaves nothing behind.
+    {
+        SubjectManager local;
+        UI_MANAGED_SUBJECT_INT(local_subject, 4, kName, local);
+        global.deinit_all();
+        CHECK(lv_xml_get_subject(nullptr, kName) == local_subject.get());
+    }
+    CHECK(lv_xml_get_subject(nullptr, kName) == nullptr);
 }
