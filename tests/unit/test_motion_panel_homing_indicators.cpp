@@ -110,15 +110,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion panel homes single axes",
     REQUIRE(individual != nullptr);
     lv_subject_set_int(individual, 1);
 
-    for (const char* name : {"btn_home_all", "btn_home_x", "btn_home_y", "btn_home_z"}) {
+    for (const char* name : {"btn_home_x", "btn_home_y", "btn_home_z"}) {
         CAPTURE(name);
         lv_obj_t* btn = lv_obj_find_by_name(root, name);
         REQUIRE(btn != nullptr);
         CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
     }
-    lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
-    REQUIRE(xy != nullptr);
-    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
 
     client.clear_gcode_script_history();
     lv_obj_send_event(lv_obj_find_by_name(root, "btn_home_x"), LV_EVENT_CLICKED, nullptr);
@@ -161,20 +158,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "
     helix::ui::UpdateQueue::instance().drain();
 }
 
-TEST_CASE("the home bar holds XY only at a touch target per segment", "[motion][homed]") {
-    using helix::home_bar_fits_xy;
+TEST_CASE("the motion home bar trades All for XY when five segments do not fit",
+          "[motion][homed]") {
     using helix::kHomeBarSegmentsWithXy;
+    using helix::motion_home_bar_segments;
     constexpr int32_t kMin = 48;
-    CHECK(home_bar_fits_xy(kHomeBarSegmentsWithXy * kMin, kMin));
-    CHECK_FALSE(home_bar_fits_xy(kHomeBarSegmentsWithXy * kMin - 1, kMin));
-    CHECK(home_bar_fits_xy(640, kMin));
-    // Four touch targets is not five.
-    CHECK_FALSE(home_bar_fits_xy(4 * kMin, kMin));
-    // An unknown minimum keeps XY out rather than squeezing every segment.
-    CHECK_FALSE(home_bar_fits_xy(1000, 0));
+    auto shows = [](helix::HomeBarSegments s, bool all, bool xy) {
+        return s.all == all && s.xy == xy;
+    };
+    // Room for five touch targets: All, X, Y, XY, Z.
+    CHECK(shows(motion_home_bar_segments(true, kHomeBarSegmentsWithXy * kMin, kMin), true, true));
+    // One pixel short: the jog pad's center button homes all, so All goes.
+    CHECK(shows(motion_home_bar_segments(true, kHomeBarSegmentsWithXy * kMin - 1, kMin), false,
+                true));
+    CHECK(shows(motion_home_bar_segments(true, 196, kMin), false, true));
+    // A printer that homes every axis together keeps All alone, at any width.
+    CHECK(shows(motion_home_bar_segments(false, 196, kMin), true, false));
+    CHECK(shows(motion_home_bar_segments(false, 1000, kMin), true, false));
+    // An unknown minimum is never room for five.
+    CHECK(shows(motion_home_bar_segments(true, 1000, 0), false, true));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar shows XY when it is wide enough",
+TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar fits its segments to its width",
                  "[motion][homed][xml]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -197,8 +202,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar shows XY when it is wid
     lv_subject_set_int(individual, 1);
 
     lv_obj_t* bar = lv_obj_find_by_name(root, "motion_home_bar");
+    lv_obj_t* all = lv_obj_find_by_name(root, "btn_home_all");
     lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
     REQUIRE(bar != nullptr);
+    REQUIRE(all != nullptr);
     REQUIRE(xy != nullptr);
     const int32_t min_segment = theme_manager_get_spacing("touch_target_min");
     REQUIRE(min_segment > 0);
@@ -214,6 +221,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar shows XY when it is wid
     };
 
     resize(helix::kHomeBarSegmentsWithXy * min_segment + 40);
+    CHECK_FALSE(lv_obj_has_flag(all, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
 
     client.clear_gcode_script_history();
@@ -222,14 +230,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar shows XY when it is wid
     const auto& h = client.gcode_script_history();
     CHECK(std::find(h.begin(), h.end(), "G28 X Y") != h.end());
 
-    // A printer that cannot home axes separately shows All alone.
-    lv_subject_set_int(individual, 0);
-    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
-    lv_subject_set_int(individual, 1);
-
+    // Too narrow for five: XY, X, Y, Z; the jog pad's center button homes all.
     resize(helix::kHomeBarSegmentsWithXy * min_segment - 10);
-    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(all, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(root, "btn_home_z"), LV_OBJ_FLAG_HIDDEN));
+
+    // A printer that cannot home axes separately shows All alone, however narrow.
+    lv_subject_set_int(individual, 0);
+    CHECK_FALSE(lv_obj_has_flag(all, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
 
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();

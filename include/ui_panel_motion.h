@@ -55,13 +55,25 @@ std::optional<AxisKeypadParams> keypad_params_for_axis(const AxisBounds& bounds,
 bool z_direction_blocked(bool z_homed, bool bounds_known, double z, double z_min, double z_max,
                          double direction_mm);
 
-/// Segments the home bar shows with XY: All, X, Y, XY and Z.
+/// Segments the home bar shows with both All and XY: All, X, Y, XY and Z.
 inline constexpr int kHomeBarSegmentsWithXy = 5;
 
-/// Whether a home bar @p bar_content_w px wide holds the XY segment: every one
-/// of its kHomeBarSegmentsWithXy segments must stay at least @p min_segment_w
-/// (touch_target_min) wide, or XY stays out and the other four keep their room.
-bool home_bar_fits_xy(int32_t bar_content_w, int32_t min_segment_w);
+/// Which of the Motion home bar's optional segments show. X, Y and Z follow
+/// the printer's individual-homing capability on their own.
+struct HomeBarSegments {
+    bool all = true;
+    bool xy = false;
+};
+
+/**
+ * @brief The Motion home bar's All and XY segments for a bar @p bar_content_w px wide.
+ *
+ * A printer that homes every axis together shows All alone. Otherwise all five
+ * show when each keeps at least @p min_segment_w (touch_target_min); a narrower
+ * bar drops All, which the jog pad's center button already does, and keeps XY.
+ */
+HomeBarSegments motion_home_bar_segments(bool individual_xyz_homing, int32_t bar_content_w,
+                                         int32_t min_segment_w);
 
 /// A block's size in px.
 struct BlockSize {
@@ -295,8 +307,8 @@ class MotionPanel : public OverlayBase {
     /// SIZE_CHANGED event calls this, and so does a change in the step count.
     void fit_jog_layout(lv_obj_t* root);
 
-    /// Publish whether @p bar, a home_axis_bar, is wide enough for its XY
-    /// segment (home_bar_fits_xy()). Its SIZE_CHANGED event calls this.
+    /// Measure @p bar, a home_axis_bar, and publish its segments
+    /// (motion_home_bar_segments()). Its SIZE_CHANGED event calls this.
     void fit_home_bar(lv_obj_t* bar);
 
     /// Bed tab: draw the reference grid and the print's outlines on the plate
@@ -332,9 +344,13 @@ class MotionPanel : public OverlayBase {
     lv_subject_t motion_x_homed_{};
     lv_subject_t motion_y_homed_{};
     lv_subject_t motion_z_homed_{};
-    lv_subject_t motion_all_homed_{};   ///< the home bar's All segment
-    lv_subject_t motion_xy_homed_{};    ///< the home bar's XY segment
-    lv_subject_t motion_home_bar_xy_{}; ///< 1: the bar is wide enough for XY
+    lv_subject_t motion_all_homed_{};    ///< the home bar's All segment
+    lv_subject_t motion_xy_homed_{};     ///< the home bar's XY segment
+    lv_subject_t motion_home_bar_all_{}; ///< 1: the home bar shows All
+    lv_subject_t motion_home_bar_xy_{};  ///< 1: the home bar shows XY
+    int32_t home_bar_content_w_ = 0;     ///< the home bar's last measured content width
+    /// Publish motion_home_bar_segments() for the last measured width.
+    void apply_home_bar_segments();
     // Z button limit state (1=render disabled): a further move in that
     // button's G-code direction is impossible. up/down are screen directions,
     // the bed_moves inversion inside update_z_button_blocked() maps them.
@@ -464,6 +480,7 @@ class MotionPanel : public OverlayBase {
     ObserverGuard coordinate_mode_observer_;
     ObserverGuard language_observer_;
     ObserverGuard bed_moves_observer_;
+    ObserverGuard individual_homing_observer_;
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
     ObserverGuard layout_observer_;

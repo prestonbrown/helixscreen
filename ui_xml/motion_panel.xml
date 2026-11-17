@@ -365,13 +365,14 @@
              carries three to five buttons depending on the printer; the jog
              modes are Jog-tab-only. -->
         <!-- Home single axes, a row of its own above the modes; the pad gives up
-             the height. The pad's centre button homes all. XY joins the row
-             when the bar is wide enough (MotionPanel::fit_home_bar). -->
+             the height. The pad's centre button homes all, so a bar too narrow
+             for five segments drops All for XY (MotionPanel::fit_home_bar). -->
         <home_axis_bar name="motion_home_bar"
                        width="100%" flex_grow="0" all_callback="on_motion_home_all" x_callback="on_motion_home_x"
                        y_callback="on_motion_home_y" xy_callback="on_motion_home_xy" z_callback="on_motion_home_z"
-                       xy_gate="motion_home_bar_xy" all_homed="motion_all_homed" x_homed="motion_x_homed"
-                       y_homed="motion_y_homed" xy_homed="motion_xy_homed" z_homed="motion_z_homed">
+                       xy_gate="motion_home_bar_xy" all_gate="motion_home_bar_all" all_homed="motion_all_homed"
+                       x_homed="motion_x_homed" y_homed="motion_y_homed" xy_homed="motion_xy_homed"
+                       z_homed="motion_z_homed">
           <event_cb trigger="size_changed" callback="on_motion_home_bar_size_changed"/>
           <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="0"/>
           <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
@@ -509,9 +510,9 @@
               <home_axis_bar name="motion_home_bar"
                              width="0" height="#motion_mode_row_h" flex_grow="2" all_callback="on_motion_home_all"
                              x_callback="on_motion_home_x" y_callback="on_motion_home_y" xy_callback="on_motion_home_xy"
-                             z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy" all_homed="motion_all_homed"
-                             x_homed="motion_x_homed" y_homed="motion_y_homed" xy_homed="motion_xy_homed"
-                             z_homed="motion_z_homed">
+                             z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy" all_gate="motion_home_bar_all"
+                             all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
+                             xy_homed="motion_xy_homed" z_homed="motion_z_homed">
                 <event_cb trigger="size_changed" callback="on_motion_home_bar_size_changed"/>
               </home_axis_bar>
             </lv_obj>
