@@ -826,6 +826,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// endless spool groups from the gate map and ignores GROUPS=.
     bool endless_spool_auto_groups_ = false;
     std::string reason_for_pause_; ///< Last reason_for_pause from MMU (descriptive error text)
+    /// What to do next about reason_for_pause_ (pause_hint, v4.2+); empty
+    /// whenever reason_for_pause_ is.
+    std::string pause_hint_;
 
     // --- Config defaults from configfile.settings ---
 

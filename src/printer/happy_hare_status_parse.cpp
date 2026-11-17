@@ -559,6 +559,7 @@ MmuCoreDelta parse_core(const nlohmann::json& mmu) {
         d.filament_loaded = (*filament == "Loaded");
     }
     d.reason_for_pause = ams::read_field<std::string>(mmu, "reason_for_pause");
+    d.pause_hint = ams::read_field<std::string>(mmu, "pause_hint");
     d.action = ams::read_field<std::string>(mmu, "action");
     d.filament_pos = ams::read_integer_field(mmu, "filament_pos");
     if (const auto progress = ams::read_integer_field(mmu, "bowden_progress")) {
