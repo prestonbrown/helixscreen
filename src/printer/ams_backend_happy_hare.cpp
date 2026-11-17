@@ -420,9 +420,10 @@ void AmsBackendHappyHare::handle_status(const nlohmann::json& params) {
     }
 
     // Parse MMU core state if present.
-    const bool mmu_present = params.contains("mmu") && params["mmu"].is_object();
+    const nlohmann::json* mmu = json_util::find_object(params, "mmu");
+    const bool mmu_present = mmu != nullptr;
     if (mmu_present) {
-        const happy_hare::MmuStatusDelta delta = happy_hare::parse_mmu_status(params["mmu"]);
+        const happy_hare::MmuStatusDelta delta = happy_hare::parse_mmu_status(*mmu);
         MmuFrame frame;
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -1732,7 +1733,7 @@ void AmsBackendHappyHare::apply_tip_method_config(const nlohmann::json& settings
     // form_tip_macro decides the tip method the way Happy Hare does internally: a macro
     // name containing "cut" (e.g., _MMU_CUT_TIP) is a cutter system, anything else
     // (e.g., _MMU_FORM_TIP) is tip-forming.
-    if (!layout.v4 && (!settings.contains("mmu") || !settings["mmu"].is_object())) {
+    if (!layout.v4 && !json_util::find_object(settings, "mmu")) {
         spdlog::debug("[AMS HappyHare] No mmu section in configfile settings");
         return;
     }
@@ -2012,7 +2013,7 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
                                                 const happy_hare::MachineLayout& layout) {
     // Initial values of speeds and distances. These serve as defaults until the
     // user overrides them via the UI.
-    if (!layout.v4 && (!settings.contains("mmu") || !settings["mmu"].is_object())) {
+    if (!layout.v4 && !json_util::find_object(settings, "mmu")) {
         spdlog::debug("[AMS HappyHare] No mmu section in configfile for defaults");
         return;
     }
@@ -2096,24 +2097,21 @@ void AmsBackendHappyHare::query_config_from_printer() {
             // dryer_info_, config_defaults_, emit_event) to main thread.
             token.defer("AmsBackendHappyHare::config_apply", [this,
                                                               response = std::move(response)]() {
-                // `response` is const in this non-mutable lambda, so operator[] resolves to
-                // the const overload: on a missing key that is a live assert(), an
-                // uncatchable SIGABRT. Guard every level before indexing.
-                if (!response.contains("result") || !response["result"].contains("status")) {
+                const auto* status = json_util::find_path(response, "result", "status");
+                if (!status) {
                     spdlog::warn("[AMS HappyHare] configfile query returned no status");
                     return;
                 }
-                const auto& status = response["result"]["status"];
-                if (!status.contains("configfile") || !status["configfile"].contains("settings") ||
-                    !status["configfile"]["settings"].is_object()) {
+                const auto* settings_obj = json_util::find_path(*status, "configfile", "settings");
+                if (!settings_obj || !settings_obj->is_object()) {
                     spdlog::warn("[AMS HappyHare] configfile settings unavailable");
                     return;
                 }
 
-                const auto& settings = status["configfile"]["settings"];
+                const auto& settings = *settings_obj;
                 const nlohmann::json* live_mm = &hh_empty_object();
-                if (status.contains("mmu_machine")) {
-                    live_mm = &status["mmu_machine"];
+                if (const auto* mmu_machine = json_util::find_member(*status, "mmu_machine")) {
+                    live_mm = mmu_machine;
                 }
 
                 const happy_hare::MachineLayout layout =
