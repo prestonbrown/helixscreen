@@ -2210,3 +2210,40 @@ TEST_CASE("PrinterDiscovery probe XY offset reads every probe kind's section",
         }
     }
 }
+
+TEST_CASE("PrinterDiscovery reads stepper_z position_endstop only where Z homes on a switch",
+          "[printer_discovery][zoffset_strategy]") {
+    SECTION("Voron 2.4 or Klicky with a homing_override: a switch and a number") {
+        PrinterDiscovery hw;
+        hw.parse_z_position_endstop(
+            json{{"homing_override", {{"axes", "xyz"}}},
+                 {"stepper_z", {{"endstop_pin", "^PG10"}, {"position_endstop", 0.5}}}});
+        REQUIRE(hw.z_position_endstop().has_value());
+        CHECK(*hw.z_position_endstop() == Catch::Approx(0.5));
+    }
+    SECTION("0.0 is a legal endstop") {
+        PrinterDiscovery hw;
+        hw.parse_z_position_endstop(json{{"stepper_z", {{"position_endstop", 0.0}}}});
+        CHECK(hw.z_position_endstop().has_value());
+    }
+    SECTION("a probe as the virtual endstop reports none") {
+        PrinterDiscovery hw;
+        hw.parse_z_position_endstop(
+            json{{"stepper_z", {{"endstop_pin", "probe:z_virtual_endstop"}}}});
+        CHECK_FALSE(hw.z_position_endstop().has_value());
+        hw.parse_z_position_endstop(json{{"stepper_z", {{"position_endstop", nullptr}}}});
+        CHECK_FALSE(hw.z_position_endstop().has_value());
+    }
+    SECTION("a delta has no stepper_z") {
+        PrinterDiscovery hw;
+        hw.parse_z_position_endstop(json{{"stepper_a", {{"position_endstop", 300.0}}}});
+        CHECK_FALSE(hw.z_position_endstop().has_value());
+    }
+    SECTION("clear() forgets it") {
+        PrinterDiscovery hw;
+        hw.parse_z_position_endstop(json{{"stepper_z", {{"position_endstop", 235.0}}}});
+        REQUIRE(hw.z_position_endstop().has_value());
+        hw.clear();
+        CHECK_FALSE(hw.z_position_endstop().has_value());
+    }
+}

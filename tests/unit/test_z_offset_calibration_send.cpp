@@ -397,11 +397,13 @@ struct StartOutcome {
 
 /// Start a calibration on a homed printer with @p hw discovered. @p
 /// travel_known gives it 0-350 XY travel; without it neither the travel nor
-/// the plate is known.
-StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::PrinterDiscovery hw = {},
-                               bool travel_known = true) {
+/// the plate is known. A @p strategy is pinned; none keeps the resolved one.
+StartOutcome start_calibration(std::optional<ZOffsetCalibrationStrategy> strategy,
+                               helix::PrinterDiscovery hw = {}, bool travel_known = true) {
     auto& ps = get_printer_state();
-    helix::PrinterStateTestAccess::pin_z_offset_strategy(ps, strategy);
+    if (strategy) {
+        helix::PrinterStateTestAccess::pin_z_offset_strategy(ps, *strategy);
+    }
     json toolhead{{"homed_axes", "xyz"}};
     if (travel_known) {
         toolhead["axis_minimum"] = json::array({0.0, 0.0, 0.0, 0.0});
@@ -422,8 +424,8 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
 
 /// Every line sent on start, joined, up to and including the one carrying
 /// @p command; empty when @p command was never sent.
-std::string start_script(ZOffsetCalibrationStrategy strategy, const std::string& command,
-                         helix::PrinterDiscovery hw = {}) {
+std::string start_script(std::optional<ZOffsetCalibrationStrategy> strategy,
+                         const std::string& command, helix::PrinterDiscovery hw = {}) {
     std::string sent;
     for (const auto& s : start_calibration(strategy, std::move(hw)).scripts) {
         sent += sent.empty() ? s : "\n" + s;
@@ -441,6 +443,24 @@ TEST_CASE_METHOD(CalibrationSendFixture,
                  "[ui_integration][zoffset][zoffset_center]") {
     CHECK(start_script(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, "PROBE_CALIBRATE") ==
           "G90\nG1 Z5.0 F600\nG1 X175.0 Y175.0 F6000\nPROBE_CALIBRATE");
+}
+
+TEST_CASE_METHOD(
+    CalibrationSendFixture,
+    "Calibration start: a probe printer that homes Z on a switch calibrates the endstop",
+    "[ui_integration][zoffset][zoffset_strategy]") {
+    // A stock Voron 2.4: a probe for QGL and mesh, Z homed on its switch. Z0 is
+    // the endstop, so PROBE_CALIBRATE would save a z_offset that moves nothing.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"gcode_move", "toolhead", "probe", "quad_gantry_level"}));
+    hw.parse_config_keys(json{{"printer", {{"kinematics", "corexy"}}}});
+    hw.parse_z_position_endstop(json{{"stepper_z", {{"position_endstop", 0.5}}}});
+    state().set_hardware(hw);
+    state().set_printer_type_sync("Unknown Printer");
+
+    const std::string sent = start_script(std::nullopt, "_CALIBRATE", hw);
+    CHECK(sent.find("Z_ENDSTOP_CALIBRATE") != std::string::npos);
+    CHECK(sent.find("PROBE_CALIBRATE") == std::string::npos);
 }
 
 TEST_CASE_METHOD(CalibrationSendFixture,

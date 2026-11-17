@@ -9,6 +9,7 @@
 #include <lvgl.h>
 #include <map>
 #include <string>
+#include <string_view>
 
 namespace helix {
 
@@ -62,6 +63,28 @@ ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool per_head = false);
 
 /**
+ * @brief Pick the Z-offset calibration strategy for a printer
+ *
+ * A strategy the printer database names wins. Otherwise Z0 decides: a numeric
+ * stepper_z position_endstop means Z homes on a switch, so the endstop holds Z0
+ * and only Z_ENDSTOP_CALIBRATE / Z_OFFSET_APPLY_ENDSTOP move it, probe or not.
+ * Without one, a probe is the Z endstop (PROBE_CALIBRATE). Klipper registers the
+ * endstop commands only when that option is set (klippy/extras/manual_probe.py);
+ * a delta has no [stepper_z] and registers only its own Z_OFFSET_APPLY_ENDSTOP,
+ * so a delta without a probe gets FIRMWARE_MANAGED, whose commands every
+ * kinematics has. No probe and no endstop reading on any other kinematics stays
+ * ENDSTOP: Klipper requires position_endstop there, so the reading is late.
+ *
+ * @param db_strategy the database's `z_offset_calibration_strategy`, "" for none
+ * @param z_position_endstop_numeric stepper_z position_endstop is a number
+ * @param kinematics `[printer] kinematics`, "" while unknown
+ */
+ZOffsetCalibrationStrategy resolve_z_offset_calibration_strategy(std::string_view db_strategy,
+                                                                 bool has_probe,
+                                                                 bool z_position_endstop_numeric,
+                                                                 std::string_view kinematics);
+
+/**
  * @brief The printer type and what it decides: the pre-print option set and the
  *        z-offset calibration strategy
  *
@@ -113,6 +136,16 @@ class PrinterProfileState {
      * @return true when the flag changed
      */
     bool set_external_persistence(bool persisted);
+
+    /**
+     * @brief Record how Z finds Z0, for the strategy when the database names none
+     *
+     * @param z_position_endstop_numeric stepper_z position_endstop is a number
+     * @param kinematics `[printer] kinematics`
+     * The caller re-resolves the type.
+     * @return true when either input changed
+     */
+    bool set_z_homing(bool z_position_endstop_numeric, const std::string& kinematics);
     bool external_persistence() const {
         return external_persistence_;
     }
@@ -222,6 +255,8 @@ class PrinterProfileState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     bool external_persistence_ = false;
+    bool z_position_endstop_numeric_ = false;
+    std::string kinematics_;
     bool z_offset_per_head_ = false;
 
     void publish_z_offset_reapplied_per_head();

@@ -176,6 +176,8 @@ class PrinterProfileStateTestAccess {
         // A latched external-persistence flag would hold FIRMWARE_MANAGED
         // across every later test in the binary after a mid-test failure.
         s.external_persistence_ = false;
+        s.z_position_endstop_numeric_ = false;
+        s.kinematics_.clear();
         s.db_enclosed_ = false;
         s.timelapse_default_enabled_ = false;
         s.firmware_option_defaults_.clear();

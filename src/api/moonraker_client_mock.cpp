@@ -1670,7 +1670,9 @@ void MoonrakerClientMock::populate_capabilities() {
     const auto axis_min = persona.axis_min;
     mock_config["stepper_x"] = {{"position_min", axis_min.x}, {"position_max", axis_max.x}};
     mock_config["stepper_y"] = {{"position_min", axis_min.y}, {"position_max", axis_max.y}};
-    mock_config["stepper_z"] = {{"position_min", axis_min.z}, {"position_max", axis_max.z}};
+    mock_config["stepper_z"] = {{"position_min", axis_min.z},
+                                {"position_max", axis_max.z},
+                                {"position_endstop", stepper_z_position_endstop()}};
     for (const auto& [name, settings] : extra_config_settings_.items()) {
         mock_config[name] = settings;
     }
@@ -1684,6 +1686,7 @@ void MoonrakerClientMock::populate_capabilities() {
         hw.parse_config_keys(mock_config);
         hw.parse_build_volume(mock_config);
         hw.parse_probe_xy_offset(mock_config);
+        hw.parse_z_position_endstop(mock_config);
         macros_snapshot = hw.macros();
     });
 
@@ -1864,6 +1867,15 @@ std::string effective_mock_ams_env() {
                                            std::getenv("HELIX_MOCK_PRINTER"));
 }
 } // namespace
+
+bool MoonrakerClientMock::is_stepper_z_endstop_null() const {
+    return stepper_z_endstop_null_.value_or(mock_internal::mock_probe_type(printer_type_) !=
+                                            "none");
+}
+
+json MoonrakerClientMock::stepper_z_position_endstop() const {
+    return is_stepper_z_endstop_null() ? json(nullptr) : json(235.0);
+}
 
 bool MoonrakerClientMock::mock_toolchanger_selected() {
     const std::string ams_type = effective_mock_ams_env();
