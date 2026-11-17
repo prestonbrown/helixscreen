@@ -241,6 +241,31 @@ TEST_CASE("Fan characterization: main fan speed updates from JSON",
     }
 }
 
+TEST_CASE("Main fan speed returns to the bare fan when the active tool names no fan",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+    fans.init_fans({"fan", "fan_generic T1_part_fan"});
+    // Both fans steady: a differential feed reports neither again.
+    state.update_from_status(
+        {{"fan", {{"speed", 0.3}}}, {"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("extruder1", "T1_part_fan");
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 80);
+
+    // T0 names no fan of its own, so the main speed reads the bare [fan] again.
+    fans.set_active_tool_fans("extruder", "");
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
 TEST_CASE("Fan characterization: per-fan speed updates from JSON",
           "[characterization][fan][update][per-fan]") {
     lv_init_safe();

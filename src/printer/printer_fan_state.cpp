@@ -792,8 +792,11 @@ void PrinterFanState::set_active_tool_fans(const std::string& heater, const std:
     if (!subjects_initialized_)
         return;
     // A differential feed reports a steady fan once, so the main speed is
-    // re-read from the fan it now follows rather than waiting for a frame.
-    const std::string main = main_speed_fan();
+    // re-read from the fan it now follows rather than waiting for a frame. With
+    // neither a tool part fan nor a configured one, that is the bare [fan].
+    std::string main = main_speed_fan();
+    if (main.empty())
+        main = "fan";
     for (const auto& fan : fans_) {
         if (fan.object_name == main) {
             lv_subject_set_int(&fan_speed_, fan.speed_percent);
