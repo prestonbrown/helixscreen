@@ -287,6 +287,25 @@ TEST_CASE_METHOD(RecoveryFixture,
 }
 
 TEST_CASE_METHOD(RecoveryFixture,
+                 "Recovery: a service restart that never left a full queue keeps that error",
+                 "[recovery]") {
+    api_->firmware_error = MoonrakerError{MoonrakerErrorType::UNKNOWN,
+                                          503,
+                                          "Klippy Host not connected",
+                                          "printer.firmware_restart",
+                                          {}};
+    api_->service_error = MoonrakerError{
+        MoonrakerErrorType::QUEUE_FULL, 0, "request queue full", "machine.services.restart", {}};
+
+    recover();
+    run_to_end();
+
+    // The request never reached Moonraker, so a retry can still work: no power-cycle advice.
+    REQUIRE(error_.has_value());
+    REQUIRE(error_->type == MoonrakerErrorType::QUEUE_FULL);
+}
+
+TEST_CASE_METHOD(RecoveryFixture,
                  "Recovery: a Klippy still starting up is waited for, never scripted",
                  "[recovery]") {
     install_script(0);

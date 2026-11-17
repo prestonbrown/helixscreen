@@ -3037,14 +3037,19 @@ void AmsBackendAfc::refresh_unit_topology(AfcUnitInfo& unit_info) {
 }
 
 void AmsBackendAfc::refresh_all_unit_topologies() {
-    bool any_with_lanes = false;
+    // A MIXED unit can keep its topology while one lane moves between a hub and
+    // a direct route, so the per-lane routing is compared as well.
+    bool routing_changed = false;
     for (auto& unit_info : unit_infos_) {
-        if (!unit_info.lanes.empty()) {
-            refresh_unit_topology(unit_info);
-            any_with_lanes = true;
-        }
+        if (unit_info.lanes.empty())
+            continue;
+        const PathTopology before = unit_info.topology;
+        const std::vector<bool> routed_before = unit_info.lane_is_hub_routed;
+        refresh_unit_topology(unit_info);
+        routing_changed = routing_changed || unit_info.topology != before ||
+                          unit_info.lane_is_hub_routed != routed_before;
     }
-    if (any_with_lanes) {
+    if (routing_changed) {
         rebuild_unit_map_when_complete();
     }
 }

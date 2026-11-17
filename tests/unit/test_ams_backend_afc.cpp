@@ -1351,7 +1351,7 @@ TEST_CASE("AFC refuses a tool remap while multiple tool mapping is on",
         CHECK(err.result == AmsResult::NOT_SUPPORTED);
         CHECK_FALSE(err.user_msg.empty());
         CHECK_FALSE(helper.set_tool_mapping(2, 0).success());
-        // The lane editor greys the Assigned Tool row and says why.
+        // The lane editor grays out the Assigned Tool row and says why.
         CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0) == err.user_msg);
         CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, -1) == err.user_msg);
 
@@ -3677,6 +3677,25 @@ TEST_CASE("AFC HTLF mixed topology classification from per-lane hub routing",
         }
     }
     REQUIRE(found);
+
+    // lane2 moves to a direct route; lane3 keeps the unit MIXED, so only the
+    // per-lane routing changes, and the published unit must follow it.
+    helper.feed_afc_stepper("lane2", {{"map", "T1"},
+                                      {"extruder", "extruder2"},
+                                      {"hub", "direct"},
+                                      {"status", "Loaded"},
+                                      {"color", "0000FF"}});
+    REQUIRE(helper.get_unit_infos()[0].topology == PathTopology::MIXED);
+    bool found_after = false;
+    for (const auto& unit : helper.get_system_info().units) {
+        if (unit.name == "HTLF HTLF_1") {
+            found_after = true;
+            REQUIRE(unit.lane_is_hub_routed.size() == 4);
+            CHECK(unit.lane_is_hub_routed[2] == false);
+            CHECK(unit.lane_is_hub_routed[3] == true);
+        }
+    }
+    REQUIRE(found_after);
 }
 
 TEST_CASE("AFC MIXED unit: a direct-fed lane and a hub-routed lane disagree on unload-before-load",
