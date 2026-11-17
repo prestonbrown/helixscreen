@@ -179,9 +179,9 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");
     if (date_label) {
         // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
-        lv_label_set_text(
-            date_label,
-            helix::ui::format_modified_date(static_cast<time_t>(job.start_time)).c_str());
+        lv_label_set_text(date_label, helix::display_format::format_modified_date(
+                                          static_cast<time_t>(job.start_time))
+                                          .c_str());
     }
 
     lv_obj_t* duration_label = helix::ui::find_required(row, "row_duration", "HistoryListView");

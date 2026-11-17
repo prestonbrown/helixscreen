@@ -1222,7 +1222,7 @@ void PIDCalibrationPanel::start_progress_tracking() {
 
     auto heater_type = (selected_heater_ == Heater::EXTRUDER) ? PidProgressTracker::Heater::EXTRUDER
                                                               : PidProgressTracker::Heater::BED;
-    float current_temp = helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp_subj));
+    float current_temp = helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(temp_subj));
     progress_tracker_.start(heater_type, target_temp_, current_temp);
 
     // Load historical data if available
@@ -1297,7 +1297,7 @@ void PIDCalibrationPanel::on_progress_temperature(int temp_tenths) {
     if (state_ != State::CALIBRATING)
         return;
 
-    float temp = helix::ui::temperature::deci_to_degrees_f(temp_tenths);
+    float temp = helix::temperature_rules::deci_to_degrees_f(temp_tenths);
     uint32_t now = lv_tick_get();
 
     progress_tracker_.on_temperature(temp, now);

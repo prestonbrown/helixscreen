@@ -2231,11 +2231,11 @@ void PrintStatusWidget::DetailedFormatter::update_layer_text() {
     auto& ps = get_printer_state();
     int cur = lv_subject_get_int(ps.print_state().get_print_layer_current_subject());
     int tot = lv_subject_get_int(ps.print_state().get_print_layer_total_subject());
-    std::string text =
-        helix::ui::format_layer_progress_compact(cur, tot, ps.print_state().layer_is_accurate(), 0);
+    std::string text = helix::display_format::format_layer_progress_compact(
+        cur, tot, ps.print_state().layer_is_accurate(), 0);
     snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
     lv_subject_set_string(&layer_text_subject_, layer_text_buf_);
-    std::string z = helix::ui::format_layer_z(ps.print_state().layer_line_z_centimm(
+    std::string z = helix::display_format::format_layer_z(ps.print_state().layer_line_z_centimm(
         cur, lv_subject_get_int(ps.motion_state().get_gcode_position_z_subject())));
     snprintf(layer_z_text_buf_, sizeof(layer_z_text_buf_), "%s", z.c_str());
     lv_subject_set_string(&layer_z_text_subject_, layer_z_text_buf_);
@@ -2479,10 +2479,10 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
         const bool ended =
             job.status == PrintJobStatus::CANCELLED || job.status == PrintJobStatus::ERROR;
         const char* status = ended ? lv_tr(status_to_label(job.status)) : "";
-        const std::string age =
-            when_s > 0
-                ? ui::format_relative_time(static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
-                : "";
+        const std::string age = when_s > 0
+                                    ? helix::display_format::format_relative_time(
+                                          static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
+                                    : "";
         text.when = (*status && !age.empty()) ? fmt::format("{} • {}", status, age) : status + age;
     }
 

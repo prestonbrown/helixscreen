@@ -194,7 +194,7 @@ std::string NotificationHistoryPanel::format_timestamp(uint64_t timestamp_ms) {
     // Handle edge case where timestamp is in future (shouldn't happen)
     uint64_t diff_ms = (timestamp_ms > now) ? 0 : (now - timestamp_ms);
 
-    return helix::ui::format_relative_time(diff_ms);
+    return helix::display_format::format_relative_time(diff_ms);
 }
 
 // ============================================================================

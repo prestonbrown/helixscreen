@@ -46,7 +46,7 @@ static void format_uptime(char* buf, size_t buf_size) {
     const std::optional<double> parsed =
         line ? helix::text_io::parse_leading<double>(*line) : std::nullopt;
     const int uptime_secs = parsed ? static_cast<int>(*parsed) : -1;
-    std::snprintf(buf, buf_size, "%s", helix::ui::format_uptime(uptime_secs).c_str());
+    std::snprintf(buf, buf_size, "%s", helix::display_format::format_uptime(uptime_secs).c_str());
 }
 
 static void clock_widget_init_subjects() {
@@ -146,7 +146,7 @@ int widest_time_px(const lv_font_t* font) {
     for (int hour = 0; hour < 24; ++hour) {
         t.tm_hour = hour;
         widest = std::max(widest, static_cast<int>(helix::ui::text_width(
-                                      helix::ui::format_time(&t).c_str(), font)));
+                                      helix::display_format::format_time(&t).c_str(), font)));
     }
     return widest;
 }
@@ -162,7 +162,7 @@ int widest_date_px(const lv_font_t* font) {
             t.tm_mon = mon;
             t.tm_wday = wday;
             widest = std::max(widest, static_cast<int>(helix::ui::text_width(
-                                          helix::ui::format_localized_date(&t).c_str(), font)));
+                                          helix::locale::format_localized_date(&t).c_str(), font)));
         }
     }
     return widest;
@@ -245,11 +245,11 @@ void ClockWidget::update_clock() {
 
     if (tm_info) {
         // Time — use user's preferred format (12h/24h)
-        std::string time_str = helix::ui::format_time(tm_info);
+        std::string time_str = helix::display_format::format_time(tm_info);
         lv_subject_set_string(&s_time_subject, time_str.c_str());
 
         // Date — locale-aware formatting
-        std::string date_str = helix::ui::format_localized_date(tm_info);
+        std::string date_str = helix::locale::format_localized_date(tm_info);
         lv_subject_set_string(&s_date_subject, date_str.c_str());
     }
 

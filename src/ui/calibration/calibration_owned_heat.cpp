@@ -28,7 +28,7 @@ int live_target_c(const std::string& heater) {
     auto& temps = get_printer_state().temperature_state();
     lv_subject_t* target = heater == "heater_bed" ? temps.get_bed_target_subject()
                                                   : temps.get_extruder_target_subject(heater);
-    return target ? ui::temperature::deci_to_degrees(lv_subject_get_int(target)) : 0;
+    return target ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target)) : 0;
 }
 
 } // namespace

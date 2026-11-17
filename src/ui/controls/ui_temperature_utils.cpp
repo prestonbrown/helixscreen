@@ -25,6 +25,10 @@ namespace helix {
 namespace ui {
 namespace temperature {
 
+using helix::temperature_rules::build_heater_off_gcode;
+using helix::temperature_rules::deci_to_degrees;
+using helix::temperature_rules::format_temp_number;
+
 bool validate_and_clamp(int& temp, int min_temp, int max_temp, const char* context,
                         const char* temp_type) {
     if (temp < min_temp || temp > max_temp) {

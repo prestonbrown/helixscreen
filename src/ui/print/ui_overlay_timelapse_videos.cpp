@@ -326,9 +326,9 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         entry.filename = file.filename;
         entry.size = file.size;
         entry.modified = file.modified;
-        entry.file_info = helix::ui::format_file_size(static_cast<size_t>(file.size)) +
-                          " \xC2\xB7 " +
-                          helix::ui::format_short_date(static_cast<time_t>(file.modified));
+        entry.file_info =
+            helix::display_format::format_file_size(static_cast<size_t>(file.size)) + " \xC2\xB7 " +
+            helix::display_format::format_short_date(static_cast<time_t>(file.modified));
         videos_.push_back(std::move(entry));
     }
 

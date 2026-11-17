@@ -14,12 +14,12 @@
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
-using helix::ui::format_print_time;
-using helix::ui::format_relative_time;
-using helix::ui::format_uptime;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
+using helix::display_format::format_modified_date;
+using helix::display_format::format_print_time;
+using helix::display_format::format_relative_time;
+using helix::display_format::format_uptime;
 
 // ============================================================================
 // format_print_time() Tests

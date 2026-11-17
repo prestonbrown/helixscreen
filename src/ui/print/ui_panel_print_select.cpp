@@ -93,12 +93,12 @@ namespace hfs = helix::fs;
 namespace tio = helix::text_io;
 
 using namespace helix;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_layer_count;
+using helix::display_format::format_layer_height;
+using helix::display_format::format_print_height;
+using helix::display_format::format_print_time;
 using helix::gcode::strip_gcode_extension;
-using helix::ui::format_filament_weight;
-using helix::ui::format_layer_count;
-using helix::ui::format_layer_height;
-using helix::ui::format_print_height;
-using helix::ui::format_print_time;
 
 // ============================================================================
 // Global Instance

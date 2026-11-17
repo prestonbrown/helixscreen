@@ -68,13 +68,13 @@ void nozzle_temps_widget_init_subjects() {
 /// the row does not draw.
 std::pair<std::string, std::string> value_halves(int temp_deci, int target_deci) {
     char num_buf[16];
-    helix::ui::temperature::format_temp_number(helix::ui::temperature::deci_to_degrees_f(temp_deci),
-                                               num_buf, sizeof(num_buf));
+    helix::temperature_rules::format_temp_number(
+        helix::temperature_rules::deci_to_degrees_f(temp_deci), num_buf, sizeof(num_buf));
     std::string current = std::string(num_buf) + "\xC2\xB0";
     if (target_deci <= 0)
         return {current, lv_tr("off")};
-    helix::ui::temperature::format_temp_number(
-        helix::ui::temperature::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
+    helix::temperature_rules::format_temp_number(
+        helix::temperature_rules::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
     return {current, "/ " + std::string(num_buf) + "\xC2\xB0"};
 }
 
@@ -703,8 +703,8 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
     // thresholds, same inputs) so they can never disagree.
     if (is_bed && bed_icon_) {
         const char* variant = helix::ui::temperature::get_heating_state_variant(
-            helix::ui::temperature::deci_to_degrees(temp_deci),
-            helix::ui::temperature::deci_to_degrees(target_deci));
+            helix::temperature_rules::deci_to_degrees(temp_deci),
+            helix::temperature_rules::deci_to_degrees(target_deci));
         helix::ui::icon::set_variant(bed_icon_, variant);
     }
 

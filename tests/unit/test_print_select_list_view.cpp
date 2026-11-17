@@ -16,6 +16,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
+using helix::display_format::format_modified_date;
 
 namespace {
 

@@ -871,7 +871,7 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
         // Update local state
         self->temp_control_panel_->set_heater(
             type, self->temp_control_panel_->heater(type).current,
-            helix::ui::temperature::degrees_to_deci(data.preset_value));
+            helix::temperature_rules::degrees_to_deci(data.preset_value));
     }
 
     // Send via the controller — it resolves the klipper name internally (chamber
@@ -940,7 +940,7 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
         }
     }
     ui_keypad_config_t keypad_config = {
-        .initial_value = static_cast<float>(helix::ui::temperature::deci_to_degrees(seed_deci)),
+        .initial_value = static_cast<float>(helix::temperature_rules::deci_to_degrees(seed_deci)),
         .min_value = heater.config.keypad_range.min,
         .max_value = max_value,
         .title_label = title.c_str(),

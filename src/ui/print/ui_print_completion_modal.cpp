@@ -78,8 +78,8 @@ CompletionStats build_completion_stats(int duration_secs, int estimated_secs, in
     if (estimated_secs > 0) {
         out.estimate = std::string("est") + " " + format::duration_padded(estimated_secs);
     }
-    out.layers =
-        ui::format_layer_count(total_layers > 0 ? static_cast<uint32_t>(total_layers) : 0U);
+    out.layers = helix::display_format::format_layer_count(
+        total_layers > 0 ? static_cast<uint32_t>(total_layers) : 0U);
     if (filament_mm > 0) {
         out.filament =
             format::format_filament_length(static_cast<double>(filament_mm)) + " " + lv_tr("used");

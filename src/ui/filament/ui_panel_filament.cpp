@@ -95,9 +95,9 @@ void reset_to_defaults() {
 }
 } // namespace helix::filament_presets
 
+using helix::temperature_rules::deci_to_degrees;
 using helix::ui::observe;
 using helix::ui::temperature::classify_heat_state;
-using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
 using helix::ui::temperature::format_temperature;
 using helix::ui::temperature::format_temperature_pair;
@@ -1436,7 +1436,7 @@ void FilamentPanel::show_printer_nozzle_target() {
     if (!target) {
         target = printer_state_.temperature_state().get_active_extruder_target_subject();
     }
-    nozzle_target_ = helix::ui::temperature::deci_to_degrees(lv_subject_get_int(target));
+    nozzle_target_ = helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target));
     update_temp_display();
     update_material_temp_display();
     update_status();
@@ -2571,8 +2571,8 @@ void FilamentPanel::handle_cooldown() {
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(nozzle_min_temp_),
-        helix::ui::temperature::degrees_to_deci(nozzle_max_temp_), "Filament");
+        current, target, helix::temperature_rules::degrees_to_deci(nozzle_min_temp_),
+        helix::temperature_rules::degrees_to_deci(nozzle_max_temp_), "Filament");
 
     nozzle_current_ = current;
     nozzle_target_ = target;
@@ -2611,7 +2611,7 @@ void FilamentPanel::set_material(int material_id) {
     // Set chamber target from material preset (clear if material has no chamber requirement)
     if (!printer_state_.temperature_state().chamber_heater_name().empty()) {
         chamber_target_ = mat->chamber_temp_c > 0
-                              ? helix::ui::temperature::degrees_to_deci(mat->chamber_temp_c)
+                              ? helix::temperature_rules::degrees_to_deci(mat->chamber_temp_c)
                               : 0;
         update_chamber_temp_display();
     }

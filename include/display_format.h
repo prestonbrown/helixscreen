@@ -17,7 +17,7 @@
 #include <ctime>
 #include <string>
 
-namespace helix::ui {
+namespace helix::display_format {
 
 /**
  * @brief Format print time from minutes to human-readable string
@@ -204,4 +204,4 @@ std::string format_relative_time(uint64_t elapsed_ms);
  */
 std::string format_uptime(int total_seconds);
 
-} // namespace helix::ui
+} // namespace helix::display_format

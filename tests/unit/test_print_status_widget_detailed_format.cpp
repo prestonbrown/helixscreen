@@ -463,7 +463,7 @@ PrintHistoryJob job_with(PrintJobStatus status, double start_time, double end_ti
 }
 
 std::string relative(double secs) {
-    return helix::ui::format_relative_time(static_cast<uint64_t>(secs * 1000.0));
+    return helix::display_format::format_relative_time(static_cast<uint64_t>(secs * 1000.0));
 }
 
 } // namespace

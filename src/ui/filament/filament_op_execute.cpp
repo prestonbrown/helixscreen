@@ -57,7 +57,8 @@ OpNozzle resolve_op_nozzle(AmsBackend* backend, int slot, PrinterState& state,
 
     OpNozzle nozzle;
     nozzle.extruder = extruder;
-    nozzle.target_c = target ? temperature::deci_to_degrees(lv_subject_get_int(target)) : 0;
+    nozzle.target_c =
+        target ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target)) : 0;
     nozzle.floor_c = temperature::extrusion_floor_c(limits, extruder);
     nozzle.ceiling_c = temperature::nozzle_max_temp_c(limits, extruder);
     return nozzle;

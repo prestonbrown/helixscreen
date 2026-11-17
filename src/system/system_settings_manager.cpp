@@ -104,7 +104,7 @@ void SystemSettingsManager::init_subjects() {
                   lang_index);
 
     // Initialize locale formatting for the loaded language
-    helix::ui::locale_set_language(lang_code);
+    helix::locale::locale_set_language(lang_code);
 
     settings_.init(subjects_);
 
@@ -233,7 +233,7 @@ void SystemSettingsManager::set_language(const std::string& lang) {
     get_printer_state().capabilities_state().on_language_changed();
 
     // 3. Update locale formatting tables
-    helix::ui::locale_set_language(lang);
+    helix::locale::locale_set_language(lang);
 
     // 4. Persist to config
     Config* config = Config::get_instance();

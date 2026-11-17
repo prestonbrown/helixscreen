@@ -265,7 +265,7 @@ void temp_graph_tooltip_draw_cb(lv_event_t* e) {
     time_t sec = static_cast<time_t>(pin->timestamp_ms / 1000);
     struct tm tm_buf {};
     localtime_r(&sec, &tm_buf);
-    std::string t = helix::ui::format_time_with_seconds(&tm_buf);
+    std::string t = helix::display_format::format_time_with_seconds(&tm_buf);
     strncpy(l2_time, t.c_str(), sizeof(l2_time) - 1);
     l2_time[sizeof(l2_time) - 1] = '\0';
 

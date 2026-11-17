@@ -63,8 +63,8 @@
 #include <memory>
 
 using namespace helix;
+using helix::temperature_rules::deci_to_degrees;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees;
 
 // Forward declarations for class-based API
 class MotionPanel;

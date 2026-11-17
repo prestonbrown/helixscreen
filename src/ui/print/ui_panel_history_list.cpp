@@ -1065,8 +1065,8 @@ static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subj
         return;
     }
     const time_t ts = static_cast<time_t>(timestamp);
-    lv_subject_set_string(date, helix::ui::format_month_day(ts).c_str());
-    lv_subject_set_string(time, helix::ui::format_time(ts).c_str());
+    lv_subject_set_string(date, helix::display_format::format_month_day(ts).c_str());
+    lv_subject_set_string(time, helix::display_format::format_time(ts).c_str());
 }
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {

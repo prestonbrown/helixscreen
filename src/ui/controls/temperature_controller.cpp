@@ -238,7 +238,7 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
         lv_subject_t* actual = temps.get_extruder_temp_subject(klipper_name);
         const double actual_deg =
             actual ? static_cast<double>(
-                         helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(actual)))
+                         helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(actual)))
                    : 0.0;
         const auto it = temps.extruders().find(klipper_name);
         const double latched = it != temps.extruders().end()

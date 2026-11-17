@@ -542,7 +542,7 @@ void PACalibrationPanel::begin_run() {
         get_printer_state().temperature_state().get_extruder_target_subject(heater);
     prior_target_c_ =
         prior_target && !inherited_own_heat
-            ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(prior_target))
+            ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(prior_target))
             : 0;
     heat_.own(heater, target_temp_, /*hold=*/prior_target_c_ == 0);
     controller->set_target(heater, static_cast<double>(target_temp_));
@@ -771,7 +771,7 @@ void PACalibrationPanel::start_heat_tracking() {
         return;
     }
 
-    heat_start_temp_ = helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp_subj));
+    heat_start_temp_ = helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(temp_subj));
     phase_start_tick_ms_ = lv_tick_get();
 
     temp_observer_ = helix::ui::observe<int>(
@@ -835,7 +835,7 @@ void PACalibrationPanel::on_nozzle_temp(int temp_deci) {
     if (state_ != HEATING) {
         return;
     }
-    const float temp = helix::ui::temperature::deci_to_degrees_f(temp_deci);
+    const float temp = helix::temperature_rules::deci_to_degrees_f(temp_deci);
 
     lv_subject_set_string(&big_,
                           fmt::format("{}°", helix::units::to_display_temp_whole(temp)).c_str());
@@ -881,7 +881,7 @@ void PACalibrationPanel::update_progress_display() {
         lv_subject_t* temp_subj =
             state.temperature_state().get_extruder_temp_subject(selected_heater(), temp_lifetime_);
         const float temp =
-            temp_subj ? helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp_subj))
+            temp_subj ? helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(temp_subj))
                       : heat_start_temp_;
         const float heat_s = ThermalRateManager::instance().estimate_heating_seconds(
             selected_heater(), temp, static_cast<float>(target_temp_));

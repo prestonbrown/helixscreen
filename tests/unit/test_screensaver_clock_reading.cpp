@@ -512,7 +512,7 @@ namespace {
 /// not), so the expectation is libc's own; with the built-in tables it is the
 /// pinned spelling.
 std::string expected_weekday(const struct tm& day, const char* table_name) {
-    if (!helix::ui::locale_uses_system_locale())
+    if (!helix::locale::locale_uses_system_locale())
         return table_name;
     char buf[64];
     strftime(buf, sizeof(buf), "%A", &day);
@@ -535,38 +535,38 @@ TEST_CASE_METHOD(LVGLTestFixture, "the long date and weekday read in the active 
     const struct tm day = october_21_2019();
     {
         LanguageScope lang("en");
-        CHECK(helix::ui::format_localized_long_date(&day) == "October 21, 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == "Monday");
+        CHECK(helix::locale::format_localized_long_date(&day) == "October 21, 2019");
+        CHECK(helix::locale::format_localized_weekday(&day) == "Monday");
     }
     {
         LanguageScope lang("de");
-        CHECK(helix::ui::format_localized_long_date(&day) == "21. Oktober 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "Montag"));
+        CHECK(helix::locale::format_localized_long_date(&day) == "21. Oktober 2019");
+        CHECK(helix::locale::format_localized_weekday(&day) == expected_weekday(day, "Montag"));
     }
     {
         LanguageScope lang("fr");
-        CHECK(helix::ui::format_localized_long_date(&day) == "21 octobre 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "lundi"));
+        CHECK(helix::locale::format_localized_long_date(&day) == "21 octobre 2019");
+        CHECK(helix::locale::format_localized_weekday(&day) == expected_weekday(day, "lundi"));
     }
     {
         LanguageScope lang("es");
-        CHECK(helix::ui::format_localized_long_date(&day) == "21 de octubre de 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "lunes"));
+        CHECK(helix::locale::format_localized_long_date(&day) == "21 de octubre de 2019");
+        CHECK(helix::locale::format_localized_weekday(&day) == expected_weekday(day, "lunes"));
     }
     {
         LanguageScope lang("ja");
-        CHECK(helix::ui::format_localized_long_date(&day) == "2019年10月21日");
-        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "月曜日"));
+        CHECK(helix::locale::format_localized_long_date(&day) == "2019年10月21日");
+        CHECK(helix::locale::format_localized_weekday(&day) == expected_weekday(day, "月曜日"));
     }
     {
         LanguageScope lang("ru");
-        CHECK(helix::ui::format_localized_long_date(&day) == "21 октября 2019");
+        CHECK(helix::locale::format_localized_long_date(&day) == "21 октября 2019");
     }
     {
         LanguageScope lang("xx");
-        CHECK(helix::ui::format_localized_long_date(&day) == "October 21, 2019");
+        CHECK(helix::locale::format_localized_long_date(&day) == "October 21, 2019");
     }
-    CHECK(helix::ui::format_localized_weekday(nullptr).empty());
+    CHECK(helix::locale::format_localized_weekday(nullptr).empty());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "the print readout says when it ends and how long is left",

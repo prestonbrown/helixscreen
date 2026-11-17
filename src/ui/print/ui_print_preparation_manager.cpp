@@ -340,10 +340,10 @@ void PrintPreparationManager::recalculate_estimate(const FileMetadata* file_meta
     }
 
     auto& temps = printer_state_->temperature_state();
-    const float ext_temp = helix::ui::temperature::deci_to_degrees_f(
+    const float ext_temp = helix::temperature_rules::deci_to_degrees_f(
         lv_subject_get_int(temps.get_active_extruder_temp_subject()));
-    const float bed_temp =
-        helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temps.get_bed_temp_subject()));
+    const float bed_temp = helix::temperature_rules::deci_to_degrees_f(
+        lv_subject_get_int(temps.get_bed_temp_subject()));
     const auto nozzle_target = static_cast<float>(file_metadata->first_layer_extr_temp);
     const auto bed_target = static_cast<float>(file_metadata->first_layer_bed_temp);
 

@@ -6,8 +6,8 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::ui::format_layer_progress_compact;
-using helix::ui::format_layer_z;
+using helix::display_format::format_layer_progress_compact;
+using helix::display_format::format_layer_z;
 
 TEST_CASE_METHOD(HelixTestFixture, "format_layer_progress_compact renders total when known",
                  "[format][layer]") {

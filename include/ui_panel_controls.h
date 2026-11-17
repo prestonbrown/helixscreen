@@ -540,25 +540,26 @@ void ControlsPanel::show_temperature_keypad(const char* title, int cached_target
                                             int default_initial, int max_temp) {
     spdlog::debug("[{}] Opening {} keypad", get_name(), title);
 
-    int initial_deci = cached_target > 0 ? cached_target
-                                         : helix::ui::temperature::degrees_to_deci(default_initial);
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(helix::ui::temperature::deci_to_degrees(initial_deci)),
-        .min_value = 0.0f,
-        .max_value = static_cast<float>(max_temp),
-        .title_label = lv_tr(title),
-        .unit_label = "",
-        .allow_decimal = false,
-        .allow_negative = false,
-        .callback =
-            [](float value, void* user_data) {
-                auto* self = static_cast<ControlsPanel*>(user_data);
-                if (self) {
-                    (self->*Handler)(value);
-                }
-            },
-        .user_data = this,
-        .temperature = true};
+    int initial_deci = cached_target > 0
+                           ? cached_target
+                           : helix::temperature_rules::degrees_to_deci(default_initial);
+    ui_keypad_config_t config = {.initial_value = static_cast<float>(
+                                     helix::temperature_rules::deci_to_degrees(initial_deci)),
+                                 .min_value = 0.0f,
+                                 .max_value = static_cast<float>(max_temp),
+                                 .title_label = lv_tr(title),
+                                 .unit_label = "",
+                                 .allow_decimal = false,
+                                 .allow_negative = false,
+                                 .callback =
+                                     [](float value, void* user_data) {
+                                         auto* self = static_cast<ControlsPanel*>(user_data);
+                                         if (self) {
+                                             (self->*Handler)(value);
+                                         }
+                                     },
+                                 .user_data = this,
+                                 .temperature = true};
 
     ui_keypad_show(&config);
 }

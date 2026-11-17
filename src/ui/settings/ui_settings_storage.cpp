@@ -43,7 +43,7 @@ std::string usage_text(const storage::ConsumerUsage& usage) {
     if (usage.files == 0) {
         return lv_tr("Empty");
     }
-    return helix::ui::format_file_size(static_cast<size_t>(usage.bytes));
+    return helix::display_format::format_file_size(static_cast<size_t>(usage.bytes));
 }
 
 } // namespace
@@ -132,8 +132,8 @@ void StorageSettingsOverlay::show_report(storage::ReportSource source,
         const uint64_t free = std::min(*report->free, total);
         const std::string text =
             fmt::format(fmt::runtime(lv_tr("{} free of {}")),
-                        helix::ui::format_file_size(static_cast<size_t>(free)),
-                        helix::ui::format_file_size(static_cast<size_t>(total)));
+                        helix::display_format::format_file_size(static_cast<size_t>(free)),
+                        helix::display_format::format_file_size(static_cast<size_t>(total)));
         lv_subject_set_string(&volume_text_, text.c_str());
         lv_subject_set_int(&used_pct_, static_cast<int>((total - free) * 100 / total));
     } else {
@@ -181,7 +181,8 @@ void StorageSettingsOverlay::run_cleanup(std::size_t index) {
     spdlog::info("[{}] Cleaning up {}", get_name(), storage::kConsumers[index].key);
     service_->cleanup(source_, index, [this](const storage::CleanupOutcome& outcome) {
         busy_ = false;
-        const std::string freed = helix::ui::format_file_size(static_cast<size_t>(outcome.freed));
+        const std::string freed =
+            helix::display_format::format_file_size(static_cast<size_t>(outcome.freed));
         switch (storage::cleanup_message(outcome)) {
         case storage::CleanupMessage::Freed:
             ToastManager::instance().show(

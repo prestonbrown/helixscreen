@@ -602,7 +602,7 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         auto* cfg = Config::get_instance();
         int temp = cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp);
         warm_bed_target_deci_ =
-            helix::ui::temperature::degrees_to_deci(temp); // Convert °C to decidegrees
+            helix::temperature_rules::degrees_to_deci(temp); // Convert °C to decidegrees
 
         // Send non-blocking M140 to start heating
         char cmd[32];
@@ -637,9 +637,9 @@ void ZOffsetCalibrationPanel::begin_calibration() {
                 if (self->state_ != State::WARMING)
                     return;
 
-                spdlog::trace("[ZOffsetCal] Bed temp: {}.{}°C (target: {}°C)", temp_deci / 10,
-                              temp_deci % 10,
-                              helix::ui::temperature::deci_to_degrees(self->warm_bed_target_deci_));
+                spdlog::trace(
+                    "[ZOffsetCal] Bed temp: {}.{}°C (target: {}°C)", temp_deci / 10, temp_deci % 10,
+                    helix::temperature_rules::deci_to_degrees(self->warm_bed_target_deci_));
 
                 if (temp_deci >= self->warm_bed_target_deci_) {
                     spdlog::info("[ZOffsetCal] Bed reached target temperature, proceeding");

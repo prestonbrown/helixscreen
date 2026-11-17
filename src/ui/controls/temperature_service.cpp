@@ -42,8 +42,8 @@
 #include <string>
 
 using namespace helix;
+using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees_f;
 
 // ============================================================================
 // Helper: heater type index
@@ -400,8 +400,8 @@ void TemperatureService::deinit_subjects() {
 void TemperatureService::set_heater(HeaterType type, int current, int target) {
     auto& h = heaters_[idx(type)];
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(h.min_temp),
-        helix::ui::temperature::degrees_to_deci(h.max_temp), heater_label(type));
+        current, target, helix::temperature_rules::degrees_to_deci(h.min_temp),
+        helix::temperature_rules::degrees_to_deci(h.max_temp), heater_label(type));
     h.current = current;
     h.target = target;
     update_display(type);

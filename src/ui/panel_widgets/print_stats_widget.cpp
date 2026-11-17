@@ -410,7 +410,7 @@ void PrintStatsWidget::refresh() {
         helix::ui::set_int_if_changed(&s_subj.day[i], bars[static_cast<size_t>(i)]);
         helix::ui::copy_string_if_changed(
             &s_subj.day_label[i],
-            weekday_initial(ui::format_localized_weekday_abbr(&local)).c_str());
+            weekday_initial(helix::locale::format_localized_weekday_abbr(&local)).c_str());
     }
 
     spdlog::debug("[PrintStatsWidget] refresh {}x{} content={} rung={} support={} week={} "

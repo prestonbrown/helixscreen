@@ -50,20 +50,6 @@ namespace helix {
 namespace ui {
 namespace temperature {
 
-// The widget-free rules live in temperature_rules.h, where state code reaches
-// them; the UI keeps calling them by these names.
-using helix::temperature_rules::build_heater_gcode;
-using helix::temperature_rules::build_heater_off_gcode;
-using helix::temperature_rules::chamber_effective_setpoint;
-using helix::temperature_rules::chamber_uses_m141;
-using helix::temperature_rules::ChamberSetpoint;
-using helix::temperature_rules::deci_to_degrees;
-using helix::temperature_rules::deci_to_degrees_f;
-using helix::temperature_rules::degrees_to_deci;
-using helix::temperature_rules::format_number_compact;
-using helix::temperature_rules::format_temp_number;
-using helix::temperature_rules::format_temperature_f;
-
 // ============================================================================
 // Displayed Precision
 // ============================================================================

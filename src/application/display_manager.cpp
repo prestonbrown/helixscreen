@@ -898,7 +898,7 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
     };
     // The state words are English stroke glyphs; any other language shows symbols.
     host.spell_states = [] {
-        return helix::locale_base_language(helix::ui::locale_current_language()) == "en";
+        return helix::locale_base_language(helix::locale::locale_current_language()) == "en";
     };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())

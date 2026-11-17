@@ -454,17 +454,17 @@ TEST_CASE("build_completion_stats renders layers through the canonical formatter
     // states the contract directly and survives translation.
     SECTION("zero layers matches the helper's unavailable form") {
         auto stats = helix::build_completion_stats(60, 0, 0, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(0));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(0));
     }
 
     SECTION("a single layer is not pluralised") {
         auto stats = helix::build_completion_stats(60, 0, 1, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(1));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(1));
     }
 
     SECTION("many layers match the helper") {
         auto stats = helix::build_completion_stats(60, 0, 250, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(250));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(250));
     }
 }
 

@@ -367,7 +367,7 @@ int i18n_t(lua_State* L) {
 }
 
 int i18n_locale(lua_State* L) {
-    std::string lang = helix::ui::locale_current_language();
+    std::string lang = helix::locale::locale_current_language();
     lua_pushlstring(L, lang.data(), lang.size());
     return 1;
 }
@@ -378,7 +378,7 @@ int i18n_on_change(lua_State* L) {
     luaL_checktype(L, 1, LUA_TFUNCTION);
     I18nState& st = i18n_state(L);
     if (st.listener == 0) {
-        st.listener = helix::ui::locale_add_language_listener([&st](const std::string& code) {
+        st.listener = helix::locale::locale_add_language_listener([&st](const std::string& code) {
             // A handler may register another handler mid-notification, which
             // reallocates the vector this loop would otherwise read. A handler
             // registered during a change is first called on the next one.
@@ -433,7 +433,7 @@ void install_core_bindings(PluginContext& ctx) {
     lua_rawsetp(L, LUA_REGISTRYINDEX, &g_i18n_key);
     ctx.rt.on_close([i18n] {
         if (i18n->listener != 0)
-            helix::ui::locale_remove_language_listener(i18n->listener);
+            helix::locale::locale_remove_language_listener(i18n->listener);
         delete i18n;
     });
 

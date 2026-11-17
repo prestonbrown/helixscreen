@@ -30,8 +30,8 @@ using helix::Capability;
 using helix::PrinterCapabilitiesState;
 using helix::PrinterDiscovery;
 using helix::PrinterTemperatureState;
-using helix::ui::temperature::build_heater_gcode;
-using helix::ui::temperature::build_heater_off_gcode;
+using helix::temperature_rules::build_heater_gcode;
+using helix::temperature_rules::build_heater_off_gcode;
 
 // ============================================================================
 // Chamber keypad/preset clamping to the Klipper-configured max_temp.
@@ -919,7 +919,7 @@ TEST_CASE("chamber heater_generic target still reads as Heating", "[temperature]
 }
 
 TEST_CASE("chamber_effective_setpoint picks the active control", "[temperature][m141]") {
-    using helix::ui::temperature::chamber_effective_setpoint;
+    using helix::temperature_rules::chamber_effective_setpoint;
 
     // Basic cases with no resting target (default = 0).
     auto heating = chamber_effective_setpoint(600, 0); // heater 60° (×10)
@@ -989,7 +989,7 @@ TEST_CASE("PrinterTemperatureState chamber subjects match chamber_effective_setp
 }
 
 TEST_CASE("chamber_uses_m141 gates only the chamber heater + M141 present", "[temperature][m141]") {
-    using helix::ui::temperature::chamber_uses_m141;
+    using helix::temperature_rules::chamber_uses_m141;
     const std::string chamber = "heater_generic chamber_heater";
     const std::optional<bool> unknown;
     REQUIRE(chamber_uses_m141(chamber, chamber, /*m141_available=*/true, unknown));
@@ -1004,14 +1004,14 @@ TEST_CASE("chamber_uses_m141 gates only the chamber heater + M141 present", "[te
 // macro by that name (a Voron exhaust-fan M141), so the heater is set directly.
 TEST_CASE("chamber_uses_m141 skips an M141 that never sets the chamber heater",
           "[temperature][m141]") {
-    using helix::ui::temperature::chamber_uses_m141;
+    using helix::temperature_rules::chamber_uses_m141;
     const std::string chamber = "heater_generic chamber";
     CHECK(chamber_uses_m141(chamber, chamber, true, std::optional<bool>(true)));
     CHECK_FALSE(chamber_uses_m141(chamber, chamber, true, std::optional<bool>(false)));
 }
 
 TEST_CASE("build_heater_gcode emits M141 when use_m141 is set", "[temperature][m141]") {
-    using helix::ui::temperature::build_heater_gcode;
+    using helix::temperature_rules::build_heater_gcode;
     char buf[128];
     REQUIRE(std::string(build_heater_gcode("heater_generic chamber_heater", 600, buf, sizeof(buf),
                                            /*use_m141=*/true)) == "M141 S60");

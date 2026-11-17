@@ -268,8 +268,8 @@ std::string task_last_text(const Meter& m) {
     std::string text =
         fmt::format(lv_tr("Last done at {} h"), static_cast<int>(std::lround(*m.reset_at_h)));
     if (m.reset_at_s) {
-        text += fmt::format(" ({})",
-                            helix::ui::format_short_date(static_cast<std::time_t>(*m.reset_at_s)));
+        text += fmt::format(" ({})", helix::display_format::format_short_date(
+                                         static_cast<std::time_t>(*m.reset_at_s)));
     }
     return text;
 }

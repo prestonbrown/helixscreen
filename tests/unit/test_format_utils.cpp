@@ -319,7 +319,7 @@ TEST_CASE("format_short_date current year omits year", "[format_utils][date]") {
     target_tm.tm_hour = 12;
     time_t ts = mktime(&target_tm);
 
-    std::string result = helix::ui::format_short_date(ts);
+    std::string result = helix::display_format::format_short_date(ts);
     // Should contain "Mar" and "10" but NOT a year suffix
     CHECK(result.find("Mar") != std::string::npos);
     CHECK(result.find("10") != std::string::npos);
@@ -339,7 +339,7 @@ TEST_CASE("format_short_date previous year includes year", "[format_utils][date]
     target_tm.tm_hour = 12;
     time_t ts = mktime(&target_tm);
 
-    std::string result = helix::ui::format_short_date(ts);
+    std::string result = helix::display_format::format_short_date(ts);
     // Should contain "Jun", "15", and a year indicator
     CHECK(result.find("Jun") != std::string::npos);
     CHECK(result.find("15") != std::string::npos);
@@ -348,7 +348,7 @@ TEST_CASE("format_short_date previous year includes year", "[format_utils][date]
 
 TEST_CASE("format_short_date handles zero timestamp", "[format_utils][date]") {
     // Unix epoch (1970-01-01) — always a different year, should show year
-    std::string result = helix::ui::format_short_date(0);
+    std::string result = helix::display_format::format_short_date(0);
     CHECK(!result.empty());
     CHECK(result != "Unknown");
 }
@@ -423,8 +423,8 @@ TEST_CASE("format_time_with_seconds matches format_time plus seconds", "[format]
     t.tm_min = 32;
     t.tm_sec = 6;
 
-    const std::string with_sec = helix::ui::format_time_with_seconds(&t);
-    const std::string without = helix::ui::format_time(&t);
+    const std::string with_sec = helix::display_format::format_time_with_seconds(&t);
+    const std::string without = helix::display_format::format_time(&t);
 
     // Same 12H/24H shape, one extra :SS field.
     CHECK(with_sec.find(":06") != std::string::npos);
@@ -436,12 +436,12 @@ TEST_CASE("format_time_with_seconds zero-pads seconds", "[format][time]") {
     t.tm_hour = 9;
     t.tm_min = 5;
     t.tm_sec = 3;
-    CHECK(helix::ui::format_time_with_seconds(&t).find(":03") != std::string::npos);
+    CHECK(helix::display_format::format_time_with_seconds(&t).find(":03") != std::string::npos);
 }
 
 TEST_CASE("format_time_with_seconds is null-safe", "[format][time]") {
     // Matches format_time()'s null behavior, not empty() — see format_utils.h.
-    CHECK(helix::ui::format_time_with_seconds(nullptr) == helix::format::UNAVAILABLE);
+    CHECK(helix::display_format::format_time_with_seconds(nullptr) == helix::format::UNAVAILABLE);
 }
 
 TEST_CASE("eta_clock_time formats 24-hour clock when use_24h is true", "[format_utils][eta]") {
@@ -565,14 +565,14 @@ TEST_CASE("parse_http_date rejects what is not an IMF-fixdate", "[format_utils][
 }
 
 TEST_CASE("Object height carries 'tall' only when there is a height", "[ui][metadata][qidi_3mf]") {
-    using helix::ui::format_print_height;
+    using helix::display_format::format_print_height;
     CHECK(format_print_height(42.0, true) == std::string("42 mm ") + lv_tr("tall"));
     CHECK(format_print_height(0.0, true) == helix::format::UNAVAILABLE);
     CHECK(format_print_height(42.0) == "42 mm");
 }
 
 TEST_CASE("Layer height reads as unavailable when unknown", "[ui][metadata][qidi_3mf]") {
-    using helix::ui::format_layer_height;
+    using helix::display_format::format_layer_height;
     CHECK(format_layer_height(0.2) == "0.20 mm");
     CHECK(format_layer_height(0.0) == helix::format::UNAVAILABLE);
 }

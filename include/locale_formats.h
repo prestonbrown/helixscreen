@@ -9,7 +9,7 @@
 
 struct tm;
 
-namespace helix::ui {
+namespace helix::locale {
 
 /// Call when language setting changes. Attempts setlocale(LC_TIME) for the
 /// new language and probes strftime. Caches whether system locale is active
@@ -63,4 +63,4 @@ std::string format_localized_weekday(const struct tm* tm_info);
 /// Get the default time format for a language (true = 24h, false = 12h)
 bool locale_default_24h(const std::string& lang_code);
 
-} // namespace helix::ui
+} // namespace helix::locale

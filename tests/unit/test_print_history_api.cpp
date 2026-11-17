@@ -622,11 +622,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
         done = true;
     });
     for (int i = 0; !done; ++i) {
-        helix::ui::locale_set_language(i % 2 ? "fr" : "en");
+        helix::locale::locale_set_language(i % 2 ? "fr" : "en");
         display.set_time_format(i % 2 ? TimeFormat::HOUR_24 : TimeFormat::HOUR_12);
     }
     worker.join();
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     display.set_time_format(saved_format);
     REQUIRE(complete == 400);
 }

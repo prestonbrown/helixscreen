@@ -690,7 +690,7 @@ std::string ToolSwitcherWidget::head_temp_text(int i) const {
         return {};
     char buf[16];
     return ui::temperature::format_temperature(
-        ui::temperature::deci_to_degrees(head_temps_[i].deci), buf, sizeof(buf));
+        helix::temperature_rules::deci_to_degrees(head_temps_[i].deci), buf, sizeof(buf));
 }
 
 bool ToolSwitcherWidget::head_hot(int i) const {

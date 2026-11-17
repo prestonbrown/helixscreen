@@ -217,7 +217,9 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
     copy_string_if_changed(&data->filename_subject, display_name.c_str());
     copy_string_if_changed(&data->size_subject, file.size_str.c_str());
     const std::string modified =
-        file.modified_timestamp > 0 ? helix::ui::format_modified_date(file.modified_timestamp) : "";
+        file.modified_timestamp > 0
+            ? helix::display_format::format_modified_date(file.modified_timestamp)
+            : "";
     copy_string_if_changed(&data->modified_subject, modified.c_str());
     copy_string_if_changed(&data->time_subject, file.print_time_str.c_str());
 

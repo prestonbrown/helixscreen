@@ -26,6 +26,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
+using helix::display_format::format_modified_date;
 
 // Container-replacement coverage for the #1396 fix as it applies to
 // HistoryListView. The mechanism and the reasoning are the twin of
@@ -135,13 +136,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::TimeFormat time = helix::DisplaySettingsManager::instance().get_time_format();
         std::optional<helix::DateFormat> order = helix::saved_date_format();
         ~Restore() {
-            helix::ui::locale_set_language("en");
+            helix::locale::locale_set_language("en");
             helix::DisplaySettingsManager::instance().set_time_format(time);
             helix::set_saved_date_format(order);
         }
     } restore;
     helix::set_saved_date_format(std::nullopt);
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     display.set_time_format(helix::TimeFormat::HOUR_12);
     std::vector<PrintHistoryJob> jobs = make_test_jobs(3);
     jobs[0].start_time = 1733063400.0;
@@ -149,7 +150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     ScopedGerman german;
     REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     display.set_time_format(helix::TimeFormat::HOUR_24);
 
     HistoryListView view;

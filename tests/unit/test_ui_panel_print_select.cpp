@@ -14,9 +14,9 @@
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
-using helix::ui::format_print_time;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
+using helix::display_format::format_print_time;
 
 // ============================================================================
 // PrintFileData - now defined in ui_panel_print_select.h

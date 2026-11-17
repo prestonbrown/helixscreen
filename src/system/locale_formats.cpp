@@ -21,7 +21,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace helix::ui {
+namespace helix::locale {
 
 // ---------------------------------------------------------------------------
 // Cached locale state
@@ -443,7 +443,7 @@ std::string format_localized_modified_date(const struct tm* tm_info) {
     if (!tm_info) {
         return helix::format::UNAVAILABLE;
     }
-    return format_localized_month_day(tm_info) + " " + format_time(tm_info);
+    return format_localized_month_day(tm_info) + " " + display_format::format_time(tm_info);
 }
 
 std::string format_localized_short_date(const struct tm* tm_info) {
@@ -502,4 +502,4 @@ bool locale_default_24h(const std::string& lang_code) {
     return default_24h_clock_for_language(lang_code);
 }
 
-} // namespace helix::ui
+} // namespace helix::locale

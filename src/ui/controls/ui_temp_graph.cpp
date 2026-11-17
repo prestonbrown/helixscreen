@@ -28,11 +28,11 @@
 #include <utility>
 #include <vector>
 
+using helix::display_format::format_time;
 using helix::temp_graph_internal::temp_graph_compute_geometry;
 using helix::temp_graph_internal::temp_graph_geometry_t;
 using helix::temp_graph_internal::temp_graph_time_axis;
 using helix::temp_graph_internal::temp_graph_time_axis_t;
-using helix::ui::format_time;
 
 // Internal scale factor: store deci-degrees (×10) in the LVGL chart for 0.1°C precision.
 // Without this, float→int32_t truncation creates visible staircases in the line chart.
