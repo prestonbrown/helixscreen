@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Part Fan slider sets the part fan** - on printers whose part cooling fan is a named fan rather than the plain fan, the Controls slider now changes that fan instead of a different one.
 - **Part Fan slider knob shows whole** - the slider knob on the Controls Cooling card is no longer cut off at its ends or along its top and bottom on small screens.
 - **Nozzle Temps rows open their own tool** - on multi-head printers, tapping a tool in the home screen Nozzle Temps widget opens the temperature graph on that tool instead of the one on the carriage.
+- **Debug bundles explain a Klipper that stopped** - a debug bundle now includes the kernel's out-of-memory and crash records, so it can show whether Klipper was killed for lack of memory or crashed. When Klipper writes its log somewhere other than the file Moonraker serves, the bundle reads the log Klipper is actually writing, and it marks a Klipper log that is older than Klipper's latest start. It also includes the HelixScreen launcher log, which records every time the screen app exited and why.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
