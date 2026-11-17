@@ -5068,8 +5068,10 @@ TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs]
     REQUIRE(backend.current_error().has_value());
     backend.captured.clear();
 
+    REQUIRE_FALSE(backend.get_system_info().operation_detail.empty());
     CHECK(backend.clear_fault(0).success());
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK(backend.get_system_info().operation_detail.empty());
     CHECK_FALSE(backend.current_error().has_value());
     CHECK(backend.captured.empty());
 
