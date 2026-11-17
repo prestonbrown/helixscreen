@@ -50,6 +50,8 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "3ms", "3ms", nullptr, 0},
     {"happy_hare", "emu", "emu", nullptr, 0},
     {"happy_hare", "kms", "kms", nullptr, 0},
+    // A YAMMU reports vendor "Other"; only a display_name of "YAMMU" names it.
+    {"happy_hare", "yammu", "yammu", nullptr, 0},
     // Happy Hare publishes the vendor as "VVD" and names the unit "BTT ViViD" by default.
     {"happy_hare", "vvd", "btt_vivid", nullptr, 0},
     {"happy_hare", "qidi", "qidi_box", nullptr, 0},

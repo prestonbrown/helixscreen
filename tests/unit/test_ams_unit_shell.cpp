@@ -115,6 +115,9 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::AFC, "Claymore ace 2") == "none");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
+    // A YAMMU reports vendor "Other": only its opt-in display_name identifies it.
+    CHECK(id(AmsType::HAPPY_HARE, "YAMMU") == "yammu");
+    CHECK(id(AmsType::HAPPY_HARE, "Unit 1") == "none");
     // The Canvas is drawn, but no backend reports one.
     CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
 }

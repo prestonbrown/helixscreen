@@ -1,6 +1,6 @@
 {
   "id": "yammu",
-  "lanes": 8,
+  "lanes": 4,
   "tiers": {
     "full": {
       "width": 320,
@@ -22,22 +22,6 @@
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png"
-        },
-        {
-          "color": "full_lane4.png",
-          "shade": "full_lane4_shade.png"
-        },
-        {
-          "color": "full_lane5.png",
-          "shade": "full_lane5_shade.png"
-        },
-        {
-          "color": "full_lane6.png",
-          "shade": "full_lane6_shade.png"
-        },
-        {
-          "color": "full_lane7.png",
-          "shade": "full_lane7_shade.png"
         }
       ]
     },
@@ -61,22 +45,6 @@
         {
           "color": "thumb_lane3.png",
           "shade": "thumb_lane3_shade.png"
-        },
-        {
-          "color": "thumb_lane4.png",
-          "shade": "thumb_lane4_shade.png"
-        },
-        {
-          "color": "thumb_lane5.png",
-          "shade": "thumb_lane5_shade.png"
-        },
-        {
-          "color": "thumb_lane6.png",
-          "shade": "thumb_lane6_shade.png"
-        },
-        {
-          "color": "thumb_lane7.png",
-          "shade": "thumb_lane7_shade.png"
         }
       ]
     }

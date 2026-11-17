@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """YAMMU: a tall 2020-extrusion cabinet with a glass door, two stacked drawers of four spools.
 
+Happy Hare reports each drawer as a unit of four gates, so one drawing shows one drawer's lanes.
+
 Each drawer holds two coaxial spools across by two deep. The cabinet stands on a skirt with
 hex grills that houses the electronics. Proportions from the project's manual (extrusions
 A 420 deep, B 500 tall, C 200 wide) and its renders.
@@ -27,6 +29,7 @@ PANEL, GLASS = "#8d939b", "#a9b2bc"
 SKIRT_C, GRILL = "#202124", "#4b4e54"
 ACCENT = "#d8432f"
 CARRIER = "#2b2d31"
+OTHER_DRAWER = "#55585e"
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -68,13 +71,17 @@ def _carrier(sc, z):
         _bar(sc, EX, W - EX, y + 35 * S, y + 45 * S, z, z + 10 * S, CARRIER)
 
 
-def _drawer(sc, z_floor, zc, colors, first_lane, c, detail):
+def _drawer(sc, z_floor, zc, colors, c, detail):
+    """One drawer: back row first, then front, left to right. colors None draws the other
+    Happy Hare unit's drawer in a neutral grey, outside every lane."""
     _carrier(sc, z_floor)
-    order = [(BACK_Y, 2), (FRONT_Y, 0)]
-    for y, row in order:
+    for y, row in ((BACK_Y, 2), (FRONT_Y, 0)):
         for i, xc in enumerate(CENTERS_X):
-            lane = first_lane + row + i
-            spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
+            if colors is None:
+                spool.draw_spool(sc, (xc, y, zc), SPOOL_R, OTHER_DRAWER, c, None, detail=detail)
+            else:
+                lane = row + i
+                spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
 
 
 def draw_art(sc, colors, tier):
@@ -101,9 +108,9 @@ def draw_art(sc, colors, tier):
     _bar(sc, 0, EX, 0, D, SKIRT, SKIRT + EX)
     _bar(sc, 0, EX, 0, D, SHELF, SHELF + EX)
 
-    lanes_per_drawer = len(colors) // 2
-    _drawer(sc, SKIRT + EX, LOWER_Z, colors, lanes_per_drawer, c, detail)
-    _drawer(sc, SHELF + EX, UPPER_Z, colors, 0, c, detail)
+    # Happy Hare reports each drawer as its own unit: this unit's four lanes fill the upper one.
+    _drawer(sc, SKIRT + EX, LOWER_Z, None, c, detail)
+    _drawer(sc, SHELF + EX, UPPER_Z, colors, c, detail)
 
     sc.layer = "front"
     # The near frame members: the right side's rails, both front uprights and the roof frame.
@@ -147,10 +154,14 @@ def _tray_shell():
     return TrayShellDef([(0.0, 0.0), (1.0, 0.0)], dome, 0.0, 30.0, 8.0, 6.0, True, True, 0x1c1d20, 0x202124, 0x3a3c41, 0xd8432f)
 
 
-UNIT = UnitDef("yammu", 8, draw_art, _tray_shell())
+UNIT = UnitDef("yammu", 4, draw_art, _tray_shell())
 
 UNIT.tray.front = [
     kit.span(2, 2, 2, UNIT.tray.front_wall_px - 2, 0x202124, 2),
     kit.span(4, 4, 0, 5, 0x3a3c41, 1),
     kit.center(-12, 12, 8, 13, 0xd8432f, 2),
 ]
+
+# A drawer's four paths join in its splitter, and the two drawers join in a Y in the back grill:
+# one tube leaves the cabinet.
+UNIT.tray.lane_join = "inside"

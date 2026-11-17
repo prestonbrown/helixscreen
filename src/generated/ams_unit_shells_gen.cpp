@@ -87,7 +87,7 @@ const UnitShell kShells[] = {
     {"ad5x_ifs", k_ad5x_ifs_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x8a7f76, 0x000000, k_ad5x_ifs_front, 2, true, 0x0, nullptr, 0, nullptr, 0, 0x000000, 0.0f, true},
     {"elegoo_canvas", k_elegoo_canvas_cheek, 2, nullptr, 0, 4, 0.00f, 14.0f, 8.0f, false, LaneJoin::FixedBlock, 0x1a1b1f, 0x000000, k_elegoo_canvas_front, 2, true, 0x0, nullptr, 0, nullptr, 0, 0x000000, 0.0f, true},
     {"emu", k_emu_cheek, 2, k_emu_dome, 17, 4, 33.26f, 30.0f, 6.0f, false, LaneJoin::Junction, 0x4a4b51, 0x000000, k_emu_front, 2, false, 0x17e, nullptr, 0, nullptr, 0, 0xb3201c, 11.0f},
-    {"yammu", k_yammu_cheek, 2, k_yammu_dome, 17, 8, 0.00f, 30.0f, 6.0f, true, LaneJoin::Hub, 0x1c1d20, 0x000000, k_yammu_front, 3, false, 0x0},
+    {"yammu", k_yammu_cheek, 2, k_yammu_dome, 17, 4, 0.00f, 30.0f, 6.0f, true, LaneJoin::Inside, 0x1c1d20, 0x000000, k_yammu_front, 3, false, 0x0},
     {"ercf_rail", k_ercf_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x1d1d20, 0x000000, k_ercf_rail_front, 4, false, 0x1350, k_ercf_rail_carriage, 5, k_ercf_rail_face, 5, 0x000000, 0.0f, true},
     {"tradrack_rail", k_tradrack_rail_cheek, 2, nullptr, 0, 6, 0.00f, 22.0f, 6.0f, false, LaneJoin::Hub, 0x18191b, 0x000000, k_tradrack_rail_front, 4, false, 0x1350, k_tradrack_rail_carriage, 5, k_tradrack_rail_face, 5, 0x000000, 0.0f, true},
 };
