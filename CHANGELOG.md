@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Fixed
+
+- **Picking up a tool onto an empty carriage shows the pickup steps** - on a Medusa HC, picking up a tool with no tool mounted showed the steps of a filament load, including Heat nozzle and Purge, in the progress list. It now shows the steps of the tool change itself. Only the list was wrong: the pickup never heated or purged.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added
