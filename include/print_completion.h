@@ -103,7 +103,7 @@ struct PreparingExitAction {
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason);
 
 /// How the end of a print is announced. Sounds and the heater shutdown after an
-/// error happen whatever this says.
+/// error (should_turn_heaters_off()) happen whatever this says.
 struct CompletionAlertDecision {
     bool wake = false;  ///< wake the display
     bool modal = false; ///< show the rich completion modal
@@ -121,6 +121,15 @@ struct CompletionAlertDecision {
  */
 CompletionAlertDecision decide_completion_alert(bool ended_in_error, CompletionAlertMode mode,
                                                 bool on_print_status);
+
+/**
+ * @brief Whether the app turns the heaters off as a print ends
+ *
+ * Only for an error: Klipper leaves the heaters on when a print errors, and a completed or
+ * cancelled print's own end gcode sets them. Nothing is sent to a firmware that turns the heaters
+ * off itself on an error (PrinterProfileState::firmware_owns_error_heaters()).
+ */
+[[nodiscard]] bool should_turn_heaters_off(bool ended_in_error, bool firmware_owns_error_heaters);
 
 /**
  * @brief Rendered stat strings for the print-completion modal

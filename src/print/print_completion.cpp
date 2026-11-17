@@ -183,6 +183,10 @@ CompletionAlertDecision decide_completion_alert(bool ended_in_error, CompletionA
     return d;
 }
 
+bool should_turn_heaters_off(bool ended_in_error, bool firmware_owns_error_heaters) {
+    return ended_in_error && !firmware_owns_error_heaters;
+}
+
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason) {
     PreparingExitAction action;
     switch (reason) {
@@ -438,7 +442,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             }
         }
 
-        if (current == PrintJobState::ERROR) {
+        if (should_turn_heaters_off(
+                current == PrintJobState::ERROR,
+                get_printer_state().profile_state().firmware_owns_error_heaters())) {
             // Proactively turn off heaters on print error to prevent
             // indefinite heating (Klipper doesn't auto-off on error)
             if (auto* mgr = get_moonraker_manager()) {
