@@ -19,6 +19,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "state/subject_macros.h"
 #include "text_io.h"
+#include "tool_fan_names.h"
 #include "translation_loader.h"
 #include "unit_conversions.h"
 
@@ -367,10 +368,30 @@ std::string PrinterFanState::resolve_aux_fan(const std::string& part,
     // output_pin) — the one a user actually toggles and wants to see — over an
     // auto-controlled controller_fan / temperature_fan whose reading rarely changes
     // and looks "stuck". Falls back to the first auto-controlled fan when there is no
-    // commandable candidate. Excludes the fans already shown in part/hotend (#1124).
+    // commandable candidate. Excludes the fans already shown in part/hotend (#1124),
+    // and every tool's own part and hotend fan: a parked tool's fan is not an aux fan.
+    const auto tool_owns = [this](const std::string& object) {
+        for (const auto& tool_fan : tool_part_fans_)
+            for (const auto& candidate : tool_fans::object_candidates(tool_fan))
+                if (candidate == object)
+                    return true;
+        if (tool_heaters_.empty())
+            return false;
+        const std::string section = text_io::to_lower(object);
+        for (const auto& hf : heater_fans_) {
+            if (hf.section != section)
+                continue;
+            for (const auto& heater : hf.heaters)
+                for (const auto& tool_heater : tool_heaters_)
+                    if (heater == text_io::to_lower(tool_heater))
+                        return true;
+        }
+        return false;
+    };
     std::string commandable, auto_controlled;
     for (const auto& fan : fans_) {
-        if (fan.object_name == part || fan.object_name == hotend || !is_aux_fan(fan.type))
+        if (fan.object_name == part || fan.object_name == hotend || !is_aux_fan(fan.type) ||
+            tool_owns(fan.object_name))
             continue;
         bool user_commandable =
             fan.type == FanType::GENERIC_FAN || fan.type == FanType::OUTPUT_PIN_FAN;
@@ -782,13 +803,20 @@ void PrinterFanState::set_active_tool_fans(const std::string& heater, const std:
     refresh_primary_fans_selection();
 }
 
+void PrinterFanState::set_tool_fans(std::vector<std::string> part_fans,
+                                    std::vector<std::string> heaters) {
+    if (part_fans == tool_part_fans_ && heaters == tool_heaters_)
+        return;
+    tool_part_fans_ = std::move(part_fans);
+    tool_heaters_ = std::move(heaters);
+    if (subjects_initialized_)
+        refresh_primary_fans_selection();
+}
+
 std::string PrinterFanState::active_tool_part_fan_object() const {
     if (active_tool_part_fan_.empty())
         return {};
-    // klipper-toolchanger's `fan:` takes an object name or a bare fan_generic name,
-    // and looks it up in that order.
-    for (const std::string& candidate :
-         {active_tool_part_fan_, "fan_generic " + active_tool_part_fan_}) {
+    for (const std::string& candidate : tool_fans::object_candidates(active_tool_part_fan_)) {
         for (const auto& fan : fans_)
             if (fan.object_name == candidate)
                 return candidate;

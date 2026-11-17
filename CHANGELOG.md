@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Fan readouts follow the active tool on tool changers** - on a tool changer where every tool has its own part cooling fan and hotend fan, the Part and HE readouts beside the printer picture on Print Status and the Fan readout on the Home printer picture now show the fans of the tool that is printing. Before, they could stay on the first tool's fans while another tool printed, even though the nozzle temperature beside them followed the active tool.
+- **Aux fan readout leaves out tool fans on tool changers** - the Aux readout beside the printer picture on Print Status no longer shows a parked tool's part cooling fan or hotend fan. When the printer has no other fan to show there, the readout is hidden.
 
 ## [1.1.0-rc.2] - 2026-11-17
 

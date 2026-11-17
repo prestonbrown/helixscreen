@@ -292,6 +292,10 @@ nozzle reading follows. The primary part fan, the main fan speed and the primary
 (the one `[heater_fan]` whose `heater` is that extruder, `include/fan_heaters.h`) then follow the
 tool that is printing. A printer whose tools name no part fans of their own keeps the role-based
 pick.
+The same frame hands over every tool's own part fan and, with more than one extruder, every
+tool's extruder (`PrinterFanState::set_tool_fans()`), so the aux slot never shows a parked tool's
+part fan or a `[heater_fan]` on a tool's extruder. `include/tool_fan_names.h` is the one name
+lookup for a tool's `fan`, shared with the MPC `cooling_fan` the PID calibration writes.
 
 The three offsets are **not** parsed in the generic per-tool loop. Which store is
 authoritative for a tool's offset is a per-firmware question (`include/tool_offsets.h`):
