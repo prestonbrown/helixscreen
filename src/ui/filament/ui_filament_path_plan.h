@@ -111,6 +111,11 @@ inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell
                : helix::ui::tray::LaneJoin::Hub;
 }
 
+/// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
+/// above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
+int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
+                       int32_t row);
+
 /// Where the lanes leave the unit: the spool box's front edge when it stands clear above the
 /// lane run, else the prep sensors' row.
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);

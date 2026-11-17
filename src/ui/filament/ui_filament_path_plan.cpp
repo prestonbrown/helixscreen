@@ -190,17 +190,26 @@ constexpr float kRailMaxWidthRatio = 0.9f;
 constexpr int32_t kRailArtMinH = 40;
 // A pass-through unit's art is never taller than this share of the canvas.
 constexpr float kThroughMaxHRatio = 0.3f;
+
+// A tube's round cap: how far below the edge it hangs from its top reaches.
+int32_t tube_cap(const FilamentPathData& data) {
+    return (data.theme.tube_gauge + 1) / 2;
+}
 } // namespace
+
+int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
+                       int32_t row) {
+    if (g.lane_entry_y == INT32_MIN)
+        return INT32_MIN;
+    const int32_t y = g.lane_entry_y + cap;
+    return y <= row - 2 * data.theme.tube_gauge - kBandThickness ? y : INT32_MIN;
+}
 
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t prep_y = g.y_off + (int32_t)(g.height * kPrepYRatio);
-    // The lanes leave the spool box at its front edge, through their prep
-    // sensors, when that edge stands clear above the lane run: two tube gauges
-    // and a band of empty tube before the load sensor's row.
-    if (g.lane_entry_y != INT32_MIN &&
-        g.lane_entry_y <= prep_y - 2 * data.theme.tube_gauge - kBandThickness)
-        return g.lane_entry_y;
-    return prep_y;
+    // The lanes leave the spool box at its front edge, through their prep sensors.
+    const int32_t edge = box_edge_above(data, g, 0, prep_y);
+    return edge != INT32_MIN ? edge : prep_y;
 }
 
 int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g) {
@@ -504,15 +513,11 @@ ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) 
     r.toolhead_y = toolhead_standing_on(g.y_off + (int32_t)(g.height * kParallelGlyphBottomRatio),
                                         r.tool_scale);
     r.sensor_y = row_between(r.entry_y, r.toolhead_y, kParallelSensorFraction);
-    // The tubes hang from the spools' bottom edge, the round cap's top on it,
-    // when that leaves two tube gauges and a band of tube above the sensor.
-    if (g.lane_entry_y != INT32_MIN) {
-        const int32_t gauge = data.theme.tube_gauge;
-        const int32_t entry_y = g.lane_entry_y + (gauge + 1) / 2;
-        if (entry_y <= r.sensor_y - 2 * gauge - kBandThickness) {
-            r.entry_y = entry_y;
-            r.sensor_y = row_between(r.entry_y, r.toolhead_y, kParallelSensorFraction);
-        }
+    // The tubes hang from the spools' bottom edge, the round cap's top on it.
+    if (const int32_t edge = box_edge_above(data, g, tube_cap(data), r.sensor_y);
+        edge != INT32_MIN) {
+        r.entry_y = edge;
+        r.sensor_y = row_between(r.entry_y, r.toolhead_y, kParallelSensorFraction);
     }
     // A lane's entry sensor clamps the tube three gauges below its cap, clear
     // of the spool's glow, and keeps two gauges and a band of tube above the
@@ -553,6 +558,11 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         f.hub_cy = row_between(f.entry_y, f.toolhead_y, kHubFraction);
         f.hub_bottom = f.hub_cy + f.hub_h / 2;
     }
+
+    // The tubes hang from the spools' bottom edge, the round cap's top on it; the rows below
+    // keep their places.
+    if (const int32_t edge = box_edge_above(data, g, tube_cap(data), f.sensor_y); edge != INT32_MIN)
+        f.entry_y = edge;
 
     f.states = compute_slot_render_states(&data);
 
