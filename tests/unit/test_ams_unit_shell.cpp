@@ -108,6 +108,11 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "none");
     CHECK(id(AmsType::AFC, "Box_Turtle my_htlf") == "box_turtle");
     CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
+    // AFC types an ACE Pro "ACE", an ACE Pro 2 "ACE2" and a CFS "CFS", only as the leading token.
+    CHECK(id(AmsType::AFC, "ACE ACE_1") == "ace_pro");
+    CHECK(id(AmsType::AFC, "ACE2 Turtle_1") == "ace_pro");
+    CHECK(id(AmsType::AFC, "CFS CFS_1") == "cfs");
+    CHECK(id(AmsType::AFC, "Claymore ace 2") == "none");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
     // The Canvas is drawn, but no backend reports one.
@@ -136,8 +141,7 @@ TEST_CASE("unit shell: a Happy Hare unit is found by the vendor it reports", "[a
         info.units[0].model = c.vendor;
         REQUIRE(unit_shell_for(info, 0) != nullptr);
         CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
-        // A renamed unit still reports its vendor.
-        info.units[0].name = "Dry box";
+        info.units[0].name = "Dry box"; // renamed, still reporting its vendor
         REQUIRE(unit_shell_for(info, 0) != nullptr);
         CHECK(std::string(unit_shell_for(info, 0)->id) == c.shell);
     }
