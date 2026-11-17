@@ -148,17 +148,7 @@ using app_constants::update::env_backup_fallback;
  * @brief Safely get string value from JSON, handling null
  */
 std::string json_string_or_empty(const json& j, const std::string& key) {
-    if (!j.contains(key)) {
-        return "";
-    }
-    const auto& val = j[key];
-    if (val.is_null()) {
-        return "";
-    }
-    if (val.is_string()) {
-        return val.get<std::string>();
-    }
-    return "";
+    return helix::json_util::safe_string(j, key.c_str());
 }
 
 /// "'mips' or 'k1'": the keys a lookup tried, for logs and errors.

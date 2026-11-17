@@ -214,8 +214,9 @@ bool MaterialSettingsManager::migrate_settings_overrides() {
             }
             // A field already in the overlay wins: it is the newer copy.
             for (const auto& [from, to] : kRenames) {
-                if (values.contains(from) && !it->contains(to))
-                    (*it)[to] = values[from];
+                const nlohmann::json* value = json_util::find_member(values, from);
+                if (value && !it->contains(to))
+                    (*it)[to] = *value;
             }
             if (it->size() == 1)
                 entries.erase(it);
