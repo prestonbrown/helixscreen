@@ -33,7 +33,7 @@
       <event_cb trigger="clicked" callback="on_print_status_tune"/>
       <bind_state_if_eq subject="print_controls_enabled" state="disabled" ref_value="0"/>
     </ui_button>
-    <!-- Filled grey: the actions behind it are secondary. Hidden when every
+    <!-- Filled gray: the actions behind it are secondary. Hidden when every
          entry of the menu is. -->
     <ui_button name="btn_more"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"

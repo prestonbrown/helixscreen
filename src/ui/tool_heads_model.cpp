@@ -33,7 +33,7 @@ IndexedSubjectPool s_seg_sub{"tool_switcher_seg", IndexedSubjectPool::Type::Stri
 IndexedSubjectPool s_seg_color{"tool_switcher_seg", IndexedSubjectPool::Type::Color, 0, "_color"};
 IndexedSubjectPool s_seg_has_color{"tool_switcher_seg", IndexedSubjectPool::Type::Int, 0,
                                    "_has_color"};
-// A multi-colour spool's colours (CSV) and the names its finish is read from, for the band.
+// A multi-color spool's colors (CSV) and the names its finish is read from, for the band.
 IndexedSubjectPool s_seg_colors{"tool_switcher_seg", IndexedSubjectPool::Type::String, 96,
                                 "_colors"};
 IndexedSubjectPool s_seg_finish{"tool_switcher_seg", IndexedSubjectPool::Type::String, 160,
@@ -61,7 +61,7 @@ struct RowPool {
     IndexedSubjectPool* pool;
 };
 const RowPool s_row_pools[] = {{"_row", &s_seg_row}, {"_row_graph", &s_seg_row_graph}};
-// The material named on the band, and the text colour that reads on its fill.
+// The material named on the band, and the text color that reads on its fill.
 IndexedSubjectPool s_seg_material{"tool_switcher_seg", IndexedSubjectPool::Type::String, 24,
                                   "_material"};
 IndexedSubjectPool s_seg_band_text{"tool_switcher_seg", IndexedSubjectPool::Type::Color, 0,
@@ -93,8 +93,8 @@ int resolve_px_token(const char* name, int fallback) {
 }
 
 /// A head's filament from its own slot. An empty slot keeps reporting the
-/// colour of whatever was in it, and the default grey is no colour at all, so
-/// neither counts as known: the band is omitted rather than drawn grey.
+/// color of whatever was in it, and the default gray is no color at all, so
+/// neither counts as known: the band is omitted rather than drawn gray.
 HeadFilament read_filament(const ToolInfo& tool) {
     HeadFilament out;
     if (tool.backend_index < 0 || tool.backend_slot < 0)
@@ -196,7 +196,7 @@ void ToolHeadsModel::attach(PrinterState& printer_state) {
             self->publish();
         },
         tools.get_subjects_lifetime());
-    // A slot's colour or material recolours its head; a changer fault marks
+    // A slot's color or material recolors its head; a changer fault marks
     // every head but the mounted one.
     slots_observer_ = observe<int>(AmsState::instance().get_slots_version_subject(), this,
                                    republish, AmsState::instance().get_subjects_lifetime());
