@@ -65,11 +65,11 @@ FBDEV_DISPLAY_API_OBJS := $(patsubst %.cpp,$(FBDEV_DISPLAY_DIR)/%.o,$(notdir $(F
 FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS)
 
 # Build fbdev display objects
-$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp lv_conf.h $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp lv_conf.h $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
