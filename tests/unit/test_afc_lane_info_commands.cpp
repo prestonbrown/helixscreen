@@ -9,7 +9,6 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_afc.h"
-#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 
 #include <algorithm>
@@ -26,8 +25,23 @@ class AfcLaneInfoHelper : public AmsBackendAfc {
   public:
     explicit AfcLaneInfoHelper(const std::vector<std::string>& names)
         : AmsBackendAfc(nullptr, nullptr) {
-        AfcTestAccess::initialize_slots(*this, names);
+        set_discovered_lanes(names, {});
+        nlohmann::json notification;
+        notification["params"] =
+            nlohmann::json::array({nlohmann::json{{"AFC", {{"units", {"Box_Turtle Turtle_1"}}}},
+                                                  {"AFC_BoxTurtle Turtle_1",
+                                                   {{"lanes", names},
+                                                    {"extruders", {"extruder"}},
+                                                    {"hubs", {"Turtle_1"}},
+                                                    {"buffers", nlohmann::json::array()}}}},
+                                   0.0});
+        handle_status_update(notification);
         running_ = true;
+    }
+
+    /// What HelixScreen's own lane record holds for @p slot.
+    [[nodiscard]] const ams::FilamentSlotOverride& record(int slot) const {
+        return overrides_.at(slot);
     }
 
     std::vector<std::string> gcodes;
@@ -47,8 +61,7 @@ class AfcLaneInfoHelper : public AmsBackendAfc {
         for (const char* c : commands) {
             result[c] = "desc";
         }
-        REQUIRE(
-            AfcTestAccess::apply_gcode_help_response(*this, nlohmann::json{{"result", result}}));
+        REQUIRE(apply_gcode_help_response(nlohmann::json{{"result", result}}));
     }
 
     [[nodiscard]] bool sent_starting(const std::string& prefix) const {
@@ -89,7 +102,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(std::count(afc.gcodes.begin(), afc.gcodes.end(),
                      "SET_FILAMENT_INFO LANE=lane1 VENDOR=\"Overture's\" NAME=\"Matte PLA\"") == 1);
     // AFC holds vendor and name now, so HelixScreen's record does not.
-    const auto& record = AfcTestAccess::overrides(afc).at(0);
+    const auto& record = afc.record(0);
     CHECK(record.brand.empty());
     CHECK(record.spool_name.empty());
 
@@ -116,7 +129,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         info.brand = "Red #1";
         REQUIRE(afc.apply_user_edit(1, info).success());
         CHECK_FALSE(afc.sent_starting("SET_FILAMENT_INFO"));
-        CHECK(AfcTestAccess::overrides(afc).at(1).brand == "Red #1");
+        CHECK(afc.record(1).brand == "Red #1");
     }
 }
 
@@ -130,8 +143,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC lane edit: an AFC without the commands is
     CHECK(afc.sent_starting("SET_MATERIAL LANE=lane1"));
     CHECK_FALSE(afc.sent_starting("AFC_SET_SPOOL_TEMP"));
     CHECK_FALSE(afc.sent_starting("SET_FILAMENT_INFO"));
-    CHECK(AfcTestAccess::overrides(afc).at(0).brand == "Overture's");
-    CHECK(AfcTestAccess::overrides(afc).at(0).spool_name == "Matte PLA");
+    CHECK(afc.record(0).brand == "Overture's");
+    CHECK(afc.record(0).spool_name == "Matte PLA");
 
     // Once AFC has the command, the record's vendor and name reach it on the next
     // save even when that save does not change them.
@@ -139,5 +152,5 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC lane edit: an AFC without the commands is
     afc.gcodes.clear();
     REQUIRE(afc.apply_user_edit(0, edited_lane()).success());
     CHECK(afc.sent_starting("SET_FILAMENT_INFO LANE=lane1 VENDOR=\"Overture's\""));
-    CHECK(AfcTestAccess::overrides(afc).at(0).brand.empty());
+    CHECK(afc.record(0).brand.empty());
 }

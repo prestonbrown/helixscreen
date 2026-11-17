@@ -197,17 +197,23 @@ reader, `afc::read_lane_identity`, and apply it through one step,
 
 ### Lane identity and edits
 
-AFC holds a lane's spool id, material, colour, weight, temps, vendor and name, and writes
+AFC holds a lane's spool id, material, color, weight, temps, vendor and name, and writes
 `lane_data` itself (it deletes and republishes the namespace at every boot), so HelixScreen never
 writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC_lane`, plus the
 `lane_data` snapshot), filed as the lane's `Firmware` source.
 
 - **Edits** (`AmsBackendAfc::apply_user_edit`) go to AFC as `SET_SPOOL_ID` (first: both of AFC's
   `set_spoolID()` branches rewrite the lane), `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT` and
-  `SET_MAP`. A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
-- **Fields AFC cannot hold** (brand, name, colour name, catalog pick, total weight) go to
-  HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
-  every lane record; a spool id, material or colour found there is ignored.
+  `SET_MAP`, plus `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` on an unlinked lane when AFC
+  registers them ([Lane temperatures, vendor and filament name](#lane-temperatures-vendor-and-filament-name)).
+  A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
+- **Vendor and filament name** are held by AFC itself on DEV, which has `SET_FILAMENT_INFO`; a
+  Spoolman-linked lane takes both from Spoolman. On v1.2.0, and for a value `SET_FILAMENT_INFO`
+  cannot carry, they stay in HelixScreen's record below.
+- **Fields AFC cannot hold** (color name, catalog pick, total weight, and the vendor and name
+  above where AFC cannot take them) go to HelixScreen's extras namespace
+  `helix-screen-afc-overrides`, read by the same 10 s poll as every lane record; a spool id,
+  material or color found there is ignored.
 - **No Spoolman on AFC** (its status `spoolman` is `false` or null): `SET_SPOOL_ID` does nothing
   and still answers OK (in AFC's AFC_spool.py, cmd_SET_SPOOL_ID runs only with Spoolman configured), so a
   link is refused in the editor ("AFC has no Spoolman configured") before anything is sent. With
@@ -924,10 +930,10 @@ Two DEV unit types read RFID tags themselves and publish what they read on the u
 
 | Unit | Field | Read as |
 |------|-------|---------|
-| ACE (`AFC_ACE`) | `ace_slots[]`: `index`, `rfid`, `material`, `color` (`[r,g,b]`), `sku`, `uid` | A slot whose `rfid` is `2` (identified) states its material and colour, read with the ACE backend's own slot readers (`helix::ace::read_tag_state`, `read_slot_material`, `parse_slot_color`). Any other `rfid` is no reading. The lane is matched to its slot by `AFC_lane.lane`, its 1-based position in the unit (AFC_ACE.py `_build_slot_map`) |
-| CFS (`AFC_CFS`, 1e400e2) | `cfs.lanes.<lane>.tag`: `material`, `color` (bare hex), `weight` (g), `spool_id`, or null | Material, colour, weight as the spool's total, and a Spoolman spool id above 1. A null tag (the last read found none) clears the lane's reading |
+| ACE (`AFC_ACE`) | `ace_slots[]`: `index`, `rfid`, `material`, `color` (`[r,g,b]`), `sku`, `uid` | A slot whose `rfid` is `2` (identified) states its material and color, read with the ACE backend's own slot readers (`helix::ace::read_tag_state`, `read_slot_material`, `parse_slot_color`). Any other `rfid` is no reading. The lane is matched to its slot by `AFC_lane.lane`, its 1-based position in the unit (AFC_ACE.py `_build_slot_map`) |
+| CFS (`AFC_CFS`, 1e400e2) | `cfs.lanes.<lane>.tag`: `material`, `color` (bare hex), `weight` (g), `spool_id`, or null | Material, color, weight as the spool's total, and a Spoolman spool id above 1. A null tag (the last read found none) clears the lane's reading |
 
-`AmsBackendAfc::tag_reading()` returns that tag, with the TD-1's colour standing in where
+`AmsBackendAfc::tag_reading()` returns that tag, with the TD-1's color standing in where
 the tag states none, so the spool editor's tag view and Reset to tag work as on the native
 ACE and CFS backends. AFC applies a tag itself (`SET_COLOR` / `SET_MATERIAL` /
 `SET_SPOOL_ID`), so nothing here writes one back.

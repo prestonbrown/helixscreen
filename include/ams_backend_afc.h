@@ -190,6 +190,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// alive; the destructor cannot, since the client may already be gone.
     void on_stopping() override;
 
+    /**
+     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
+     *
+     * Sets the command-presence flags the device actions and lane edits read.
+     *
+     * @return true when the reply carried a command table
+     */
+    bool apply_gcode_help_response(const nlohmann::json& response);
+
   public:
     /**
      * @brief Bare filament-sensor names AFC owns (no AMS keyword).
@@ -980,15 +989,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// AFC adds in Python never appear in the objects list, so this is how an
     /// action backed by one learns whether the installed AFC has it.
     void detect_afc_commands();
-
-    /**
-     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
-     *
-     * Sets the command-presence flags the device actions read.
-     *
-     * @return true when the reply carried a command table
-     */
-    bool apply_gcode_help_response(const nlohmann::json& response);
 
     /// Issue the one-shot unscoped query that check_afc_feature_level() needs.
     /// @param lane_object Full Klipper object name, e.g. "AFC_stepper lane1".

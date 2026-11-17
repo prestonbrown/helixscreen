@@ -12,13 +12,13 @@
 // AFC_ACE_DRY_STOP.
 
 #include "core/text_io.h"
-#include "lane_translation.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <vector>
@@ -197,9 +197,9 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         nlohmann::json slots = nlohmann::json::array();
         for (size_t i = 0; i < lanes.size(); ++i) {
             const AfcLane& l = lanes[i];
-            const auto color = helix::ams::read_lane_color(l.color);
-            const uint32_t rgb =
-                color.kind == helix::ams::ColorReadingKind::Observed ? color.rgb : 0;
+            // The mock's own colors, all "#RRGGBB".
+            const auto rgb = static_cast<uint32_t>(
+                l.color.size() == 7 ? std::strtoul(l.color.c_str() + 1, nullptr, 16) : 0);
             slots.push_back({{"index", static_cast<int>(i)},
                              {"status", l.present ? "ready" : "empty"},
                              {"rfid", l.present ? 2 : 0},

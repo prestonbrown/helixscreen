@@ -4,13 +4,12 @@
 /**
  * @file test_afc_lane_tags.cpp
  * @brief The RFID tags AFC DEV's ACE and CFS units read reach each lane's tag
- *        reading, beside the TD-1 colour.
+ *        reading, beside the TD-1 color.
  */
 
 #include "../lvgl_test_fixture.h"
 #include "afc_status_parse.h"
 #include "ams_backend_afc.h"
-#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -25,7 +24,8 @@ namespace helix {
 class AfcTagHelper : public AmsBackendAfc {
   public:
     explicit AfcTagHelper(const std::vector<std::string>& names) : AmsBackendAfc(nullptr, nullptr) {
-        AfcTestAccess::initialize_slots(*this, names);
+        // The unit objects build the slots from the discovered lanes.
+        set_discovered_lanes(names, {});
     }
 
     void feed(const nlohmann::json& params) {
@@ -92,15 +92,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: a lane's tag is its slot's RFID
                 {"ace_dryer", "stop"},
                 {"ace_slots",
                  {ace_slot(0, 2, "PLA", {0, 0, 255}), ace_slot(1, 2, "ABS", {255, 255, 255}),
-                  ace_slot(2, 3, "", {0, 0, 0}), ace_slot(3, 0, "", {0, 0, 0})}}}},
-              {"AFC_lane lane1", {{"lane", 2}}},
+                  ace_slot(2, 3, "", {0, 0, 0}), ace_slot(3, 0, "", {0, 0, 0})}}}}});
+    afc.feed({{"AFC_lane lane1", {{"lane", 2}}},
               {"AFC_lane lane2", {{"lane", 1}}},
               {"AFC_lane lane3", {{"lane", 3}}},
               {"AFC_lane lane4", {{"lane", 4}}}});
 
-    const int lane1 = AfcTestAccess::slots(afc).index_of("lane1");
-    const int lane2 = AfcTestAccess::slots(afc).index_of("lane2");
-    const int lane3 = AfcTestAccess::slots(afc).index_of("lane3");
+    // One unit: its lanes fill the slots in the unit's order.
+    const int lane1 = 0;
+    const int lane2 = 1;
+    const int lane3 = 2;
     const auto tag1 = afc.tag_reading(lane1);
     REQUIRE(tag1.has_value());
     CHECK(tag1->material == std::optional<std::string>("ABS"));
@@ -129,7 +130,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC CFS unit: a lane's tag comes from cfs.lan
     };
     afc.feed(frame({{"material", "PETG"}, {"color", "112233"}, {"weight", 500}}));
 
-    const int lane1 = AfcTestAccess::slots(afc).index_of("lane1");
+    const int lane1 = 0;
     auto tag = afc.tag_reading(lane1);
     REQUIRE(tag.has_value());
     CHECK(tag->material == std::optional<std::string>("PETG"));

@@ -5349,7 +5349,7 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
             info.brand != before.brand || info.spool_name != before.spool_name || record_holds_info;
 
         // Record the user's identity in the override store as well. AFC cannot
-        // hold total_weight / colour name / filament+vendor ids at all, nor a
+        // hold total_weight / color name / filament+vendor ids at all, nor a
         // vendor or filament name without SET_FILAMENT_INFO, and the fields it
         // DOES hold get cleared by its own clear_values() on eject.
         if (info_sendable) {
@@ -5525,7 +5525,7 @@ std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index)
     }
     helix::ams::TagReading reading =
         lane_rfid_tag_locked(slots_.name_of(slot_index)).value_or(helix::ams::TagReading{});
-    // The TD-1's colour reading stands in where the tag states none.
+    // The TD-1's color reading stands in where the tag states none.
     if (!reading.color_rgb && slot->has_scan()) {
         reading.color_rgb = *slot->scanned_color_rgb;
     }

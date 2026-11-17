@@ -618,7 +618,7 @@ std::optional<int> read_whole_minutes(const nlohmann::json& data, const char* ke
     return static_cast<int>(std::lround(*v));
 }
 
-// An ACE slot's tag: the material and colour of a slot whose RFID read
+// An ACE slot's tag: the material and color of a slot whose RFID read
 // identified its spool, read as the ACE backend reads the same hub's slots.
 std::optional<ams::TagReading> ace_slot_tag(const nlohmann::json& slot) {
     if (!slot.is_object() || helix::ace::read_tag_state(slot) != helix::ace::TagRead::Identified) {

@@ -11,7 +11,6 @@
 #include "afc_status_parse.h"
 #include "ams_backend_afc.h"
 #include "ams_dryer.h"
-#include "test_helpers/afc_test_access.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -26,7 +25,8 @@ namespace helix {
 class AfcAceHelper : public AmsBackendAfc {
   public:
     explicit AfcAceHelper(const std::vector<std::string>& names) : AmsBackendAfc(nullptr, nullptr) {
-        AfcTestAccess::initialize_slots(*this, names);
+        // The unit objects build the slots from the discovered lanes.
+        set_discovered_lanes(names, {});
         running_ = true;
     }
 

@@ -238,52 +238,6 @@ inline std::string gcode_param_value(const std::string& value) {
 }
 
 /**
- * @brief Validate free text (a filament vendor or product name) as one quoted G-code
- *        parameter value.
- *
- * Vendor and product names carry punctuation no material name does: `Overture's`,
- * `Matte PLA, Black`, `R&D`. Inside double quotes Klipper's `shlex` pass treats all of
- * that as text, so this allows every printable ASCII character except the ones that still
- * act there: `"` and `\` (they end or escape the quoting), and `#`, `;` and `*`, which
- * Klipper's extended-command pattern cuts the line at before `shlex` ever sees it, quotes
- * or not. Control characters, CR/LF and non-ASCII bytes are refused as in
- * is_safe_material_param(). Render the value through quoted_gcode_param_value().
- */
-inline bool is_safe_text_param(const std::string& str) {
-    if (str.empty()) {
-        return false;
-    }
-    return std::all_of(str.begin(), str.end(), [](char c) {
-        const auto byte = static_cast<unsigned char>(c);
-        if (byte < 0x20 || byte > 0x7E) {
-            return false;
-        }
-        switch (c) {
-        case '"':
-        case '\\':
-        case '#':
-        case ';':
-        case '*':
-            return false;
-        default:
-            return true;
-        }
-    });
-}
-
-/**
- * @brief Render a value is_safe_text_param() accepted, always inside double quotes.
- *
- * Unlike gcode_param_value() this quotes every value: an apostrophe in an unquoted value
- * opens a single-quoted string for `shlex`, which then fails with "No closing quotation".
- *
- * @pre The value has passed is_safe_text_param().
- */
-inline std::string quoted_gcode_param_value(const std::string& value) {
-    return "\"" + value + "\"";
-}
-
-/**
  * @brief Validate that a string is safe to percent-encode into a URL query parameter.
  *
  * Moonraker power-device names are arbitrary config section names — `[power -Power-]`,
