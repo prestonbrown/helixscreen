@@ -517,6 +517,16 @@ TEST_CASE_METHOD(HeaterFixture, "A pending cooldown holds the heater and flushes
         CHECK_FALSE(cd.has_pending_timer());
         CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
     }
+    SECTION("flushed while a print holds the machine: the hold ends, nothing is sent") {
+        get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+        drain_all();
+        cd.flush_before_disconnect();
+        drain_all();
+        CHECK_FALSE(sent(std::string(kHeatGcode) + "0"));
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+        get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+        drain_all();
+    }
     SECTION("cancelled") {
         cd.cancel();
         drain_all();
