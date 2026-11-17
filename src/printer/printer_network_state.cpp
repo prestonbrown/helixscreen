@@ -227,8 +227,8 @@ bool PrinterNetworkState::apply_webhooks(const nlohmann::json& webhooks, double 
         bool applied_state = false;
         auto message_describes = static_cast<KlippyState>(lv_subject_get_int(&klippy_state_));
 
-        if (webhooks.contains("state") && webhooks["state"].is_string()) {
-            std::string klippy_state_str = webhooks["state"].get<std::string>();
+        if (const auto state = json_util::read_field<std::string>(webhooks, "state")) {
+            const std::string& klippy_state_str = *state;
             if (const std::optional<KlippyState> parsed = parse_klippy_state(klippy_state_str)) {
                 changed = set_klippy_state_internal(*parsed);
                 applied_state = true;
@@ -245,9 +245,9 @@ bool PrinterNetworkState::apply_webhooks(const nlohmann::json& webhooks, double 
         }
 
         // Capture state_message (error/shutdown reason text)
-        if (webhooks.contains("state_message") && webhooks["state_message"].is_string()) {
-            set_klippy_state_message(webhooks["state_message"].get<std::string>(),
-                                     message_describes);
+        if (const auto state_message =
+                json_util::read_field<std::string>(webhooks, "state_message")) {
+            set_klippy_state_message(*state_message, message_describes);
         }
 
         // Only a frame that actually carried a usable state moves the guard.

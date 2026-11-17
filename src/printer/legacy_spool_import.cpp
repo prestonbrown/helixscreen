@@ -72,8 +72,8 @@ std::optional<nlohmann::json> file_keeping_tools(const nlohmann::json& file,
         return kept;
     }
     nlohmann::json rest = file;
-    if (printers->contains(printer_id)) {
-        nlohmann::json kept = set_keeping_tools((*printers)[printer_id], owed);
+    if (const auto* set = json_util::find_member(*printers, printer_id.c_str())) {
+        nlohmann::json kept = set_keeping_tools(*set, owed);
         if (tool_spools_from_set(kept).empty()) {
             rest[kPrinters].erase(printer_id);
         } else {

@@ -9,6 +9,7 @@
 
 #include "printer_excluded_objects_state.h"
 
+#include "json_utils.h"
 #include "state/subject_macros.h"
 
 #include <spdlog/spdlog.h>
@@ -71,9 +72,9 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
     }
     const auto& eo = *it;
 
-    if (eo.contains("excluded_objects") && eo["excluded_objects"].is_array()) {
+    if (const auto* excluded_objects = json_util::find_array(eo, "excluded_objects")) {
         std::unordered_set<std::string> excluded;
-        for (const auto& obj : eo["excluded_objects"]) {
+        for (const auto& obj : *excluded_objects) {
             if (obj.is_string()) {
                 excluded.insert(obj.get<std::string>());
             }
@@ -83,37 +84,37 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
     }
 
     // Parse defined objects list with geometry (center + polygon bounding box)
-    if (eo.contains("objects") && eo["objects"].is_array()) {
+    if (const auto* defined_objects = json_util::find_array(eo, "objects")) {
         std::vector<ObjectInfo> objects;
-        for (const auto& obj : eo["objects"]) {
-            if (!obj.is_object() || !obj.contains("name") || !obj["name"].is_string())
+        for (const auto& obj : *defined_objects) {
+            auto name = json_util::read_field<std::string>(obj, "name");
+            if (!name)
                 continue;
 
             std::optional<glm::vec2> center;
-            if (obj.contains("center") && obj["center"].is_array() && obj["center"].size() >= 2 &&
-                obj["center"][0].is_number() && obj["center"][1].is_number()) {
-                center = glm::vec2(obj["center"][0].get<float>(), obj["center"][1].get<float>());
+            const auto* c = json_util::find_array(obj, "center");
+            if (c && c->size() >= 2 && (*c)[0].is_number() && (*c)[1].is_number()) {
+                center = glm::vec2((*c)[0].get<float>(), (*c)[1].get<float>());
             }
 
             std::vector<glm::vec2> polygon;
-            if (obj.contains("polygon") && obj["polygon"].is_array()) {
-                for (const auto& pt : obj["polygon"]) {
+            if (const auto* points = json_util::find_array(obj, "polygon")) {
+                for (const auto& pt : *points) {
                     if (pt.is_array() && pt.size() >= 2 && pt[0].is_number() && pt[1].is_number()) {
                         polygon.push_back({pt[0].get<float>(), pt[1].get<float>()});
                     }
                 }
             }
 
-            objects.push_back(
-                make_object_info(obj["name"].get<std::string>(), center, std::move(polygon)));
+            objects.push_back(make_object_info(std::move(*name), center, std::move(polygon)));
         }
         set_defined_objects_with_geometry(objects);
     }
 
-    if (eo.contains("current_object")) {
-        if (eo["current_object"].is_string()) {
-            set_current_object(eo["current_object"].get<std::string>());
-        } else if (eo["current_object"].is_null()) {
+    if (const auto* current = json_util::find_member(eo, "current_object")) {
+        if (current->is_string()) {
+            set_current_object(current->get<std::string>());
+        } else if (current->is_null()) {
             set_current_object("");
         }
     }

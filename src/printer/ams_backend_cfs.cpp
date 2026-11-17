@@ -96,12 +96,13 @@ ObservedMaterialCodes collect_observed_material_codes(const nlohmann::json& box_
     ObservedMaterialCodes out;
     for (int n = 1; n <= 4; ++n) {
         const std::string key = "T" + std::to_string(n);
-        if (!box_json.contains(key) || !box_json[key].is_object())
+        const json* unit_json = helix::json_util::find_object(box_json, key.c_str());
+        if (!unit_json)
             continue;
-        const auto& unit_json = box_json[key];
-        if (!unit_json.contains("material_type") || !unit_json["material_type"].is_array())
+        const json* material_types = helix::json_util::find_array(*unit_json, "material_type");
+        if (!material_types)
             continue;
-        for (const auto& code_val : unit_json["material_type"]) {
+        for (const auto& code_val : *material_types) {
             if (!code_val.is_string())
                 continue;
             const std::string code = code_val.get<std::string>();
@@ -121,8 +122,8 @@ ObservedMaterialCodes collect_observed_material_codes(const nlohmann::json& box_
     // material-family name for codes our catalog cannot resolve — the K1C
     // dumps in #968 show the box reporting these alongside the slot arrays.
     // Covers the type-only lookup for codes that have no catalog entry.
-    if (box_json.contains("same_material") && box_json["same_material"].is_array()) {
-        for (const auto& group : box_json["same_material"]) {
+    if (const json* same_material = helix::json_util::find_array(box_json, "same_material")) {
+        for (const auto& group : *same_material) {
             if (!group.is_array() || group.size() < 4 || !group[0].is_string() ||
                 !group[3].is_string())
                 continue;
@@ -311,17 +312,16 @@ void AmsBackendCfs::query_box_state() {
         client_->send_jsonrpc(
             "printer.objects.query", params,
             [this, token = lifetime_.token()](const nlohmann::json& response) {
-                if (response.contains("result") && response["result"].contains("status") &&
-                    response["result"]["status"].is_object()) {
+                const json* status_obj = helix::json_util::find_path(response, "result", "status");
+                if (status_obj && status_obj->is_object()) {
                     // The response callback runs on the libhv WS thread; the
                     // notify subscription defers handle_status to main, and
                     // this entry point must match it (handle_status reads
                     // LVGL subjects for the insert-probe gate).
-                    token.defer("AmsBackendCfs::initial_state",
-                                [this, status = response["result"]["status"]]() {
-                                    handle_status(status);
-                                    spdlog::info("[AMS CFS] Initial state loaded");
-                                });
+                    token.defer("AmsBackendCfs::initial_state", [this, status = *status_obj]() {
+                        handle_status(status);
+                        spdlog::info("[AMS CFS] Initial state loaded");
+                    });
                 } else {
                     spdlog::warn("[AMS CFS] Initial state query returned unexpected format");
                 }
@@ -812,9 +812,10 @@ AmsBackendCfs::parse_flat_runout_edges(const nlohmann::json& box_json) {
 // with an edit in flight as the echo, not a swap.
 static std::string build_cfs_slot_uid(const nlohmann::json& unit_json, int local_index) {
     auto pick = [&](const char* field) -> std::string {
-        if (!unit_json.contains(field) || !unit_json[field].is_array())
+        const json* values = helix::json_util::find_array(unit_json, field);
+        if (!values)
             return "";
-        const auto& arr = unit_json[field];
+        const auto& arr = *values;
         if (local_index < 0 || local_index >= static_cast<int>(arr.size()))
             return "";
         if (!arr[local_index].is_string())
@@ -1018,8 +1019,8 @@ void AmsBackendCfs::handle_status(const nlohmann::json& params) {
         clear_seated_slot_stamp_locked();
     }
 
-    if (params.contains("box") && params["box"].is_object()) {
-        handle_box_frame(params["box"], print_holds_machine, insert_probes);
+    if (const json* box = helix::json_util::find_object(params, "box")) {
+        handle_box_frame(*box, print_holds_machine, insert_probes);
         // Partial updates (measuring_wheel, etc.) change no state but still
         // re-pump the downstream sync.
         changed = true;
@@ -1095,8 +1096,8 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
     // 1 when no filament at the box gate (pre-load, runout), 0 when loaded
     // and feeding. Reads only the notification's own fields — no
     // system_info_ access, so no lock needed for the transition itself.
-    if (box.contains("filament_useup") && box["filament_useup"].is_number()) {
-        int useup = box["filament_useup"].get<int>();
+    if (const auto filament_useup = helix::json_util::read_field<int>(box, "filament_useup")) {
+        int useup = *filament_useup;
         if (useup != last_filament_useup_) {
             // safe_int, not .value(): spdlog evaluates its arguments before it
             // consults the log level, so a null or wrong-typed "filament"/
@@ -1285,7 +1286,7 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
     // be confirmed against the box rather than against the optimistic
     // write set_tool_mapping() makes before sending (#1270). Bumped here
     // rather than inside parse_box_status because that parser is static.
-    if (box.contains("map") && box["map"].is_object()) {
+    if (helix::json_util::find_object(box, "map")) {
         ++firmware_map_generation_;
     }
 
@@ -1327,9 +1328,10 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
     } else {
         for (int n = 1; n <= 4; ++n) {
             std::string key = "T" + std::to_string(n);
-            if (!box.contains(key) || !box[key].is_object())
+            const json* unit_obj = helix::json_util::find_object(box, key.c_str());
+            if (!unit_obj)
                 continue;
-            const auto& unit_json = box[key];
+            const auto& unit_json = *unit_obj;
             // safe_string for the same reason as the parse_box_status
             // unit loop: a null/wrong-typed `state` must degrade to
             // "disconnected", not throw out of handle_status.

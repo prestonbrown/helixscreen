@@ -175,13 +175,13 @@ void PrinterFanState::update_klipper_rpm(const std::string& object_name,
 }
 
 void PrinterFanState::update_from_status(const nlohmann::json& status) {
-    if (status.contains("fan")) {
-        const auto& fan = status["fan"];
+    if (const auto* fan_obj = json_util::find_member(status, "fan")) {
+        const auto& fan = *fan_obj;
         spdlog::trace("[PrinterFanState] Received fan status update: {}",
                       helix::json_util::safe_dump(fan));
 
-        if (fan.contains("speed") && fan["speed"].is_number()) {
-            double speed = fan["speed"].get<double>();
+        if (const auto fan_speed = json_util::read_field<double>(fan, "speed")) {
+            double speed = *fan_speed;
             int speed_pct = units::to_percent(normalize_speed("fan", speed));
             spdlog::trace("[PrinterFanState] Fan speed update: {}%", speed_pct);
             lv_subject_set_int(&fan_speed_, speed_pct);
@@ -199,8 +199,8 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
         // Fan objects other than the bare part fan and output_pin fans report "speed"
         if (hw::is_fan(kind) && kind != hw::ObjectKind::Fan &&
             kind != hw::ObjectKind::OutputPinFan) {
-            if (value.is_object() && value.contains("speed") && value["speed"].is_number()) {
-                double speed = value["speed"].get<double>();
+            if (const auto fan_speed = json_util::read_field<double>(value, "speed")) {
+                double speed = *fan_speed;
                 update_fan_speed(key, speed);
 
                 // If this is the configured part fan, also update the main fan_speed_ subject
@@ -216,8 +216,8 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
         // Handle output_pin fan objects (Creality-style)
         // These report {"value": 0.0-1.0} instead of {"speed": 0.0-1.0}
         if (kind == hw::ObjectKind::OutputPinFan) {
-            if (value.is_object() && value.contains("value") && value["value"].is_number()) {
-                double speed = value["value"].get<double>();
+            if (const auto pin_value = json_util::read_field<double>(value, "value")) {
+                double speed = *pin_value;
                 update_fan_speed(key, speed);
 
                 // If this is the configured part fan, also update the main fan_speed_ subject

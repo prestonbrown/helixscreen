@@ -17,6 +17,7 @@
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
+#include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "state/subject_macros.h"
@@ -526,10 +527,11 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             return;
         }
         const auto& obj = status[object];
-        if (!obj.contains("power") || !obj["power"].is_number()) {
+        const auto power = json_util::read_field<double>(obj, "power");
+        if (!power) {
             return;
         }
-        int pct = static_cast<int>(std::lround(obj["power"].get<double>() * 100.0));
+        int pct = static_cast<int>(std::lround(*power * 100.0));
         pct = std::clamp(pct, 0, 100);
         lv_subject_set_int(subject, pct);
     };
@@ -550,9 +552,9 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
         }
         const auto& data = status[name];
 
-        if (data.contains("temperature") && data["temperature"].is_number()) {
-            int temp_deci = helix::units::json_to_decidegrees(data, "temperature");
-            info.temperature = data["temperature"].get<float>();
+        if (const auto temperature = json_util::read_field<double>(data, "temperature")) {
+            int temp_deci = helix::units::to_decidegrees(*temperature);
+            info.temperature = static_cast<float>(*temperature);
             int old_temp = lv_subject_get_int(info.temp_subject->get());
             lv_subject_set_int(info.temp_subject->get(), temp_deci);
             if (old_temp == temp_deci) {
@@ -560,9 +562,9 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (data.contains("target") && data["target"].is_number()) {
-            int target_deci = helix::units::json_to_decidegrees(data, "target");
-            info.target = data["target"].get<float>();
+        if (const auto target = json_util::read_field<double>(data, "target")) {
+            int target_deci = helix::units::to_decidegrees(*target);
+            info.target = static_cast<float>(*target);
             // Latch the last non-zero target so it survives cooldown-to-0. The
             // swap-preheat guard consults this to keep the nozzle hot enough to
             // purge the previous material even after it has cooled.
@@ -572,18 +574,16 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             lv_subject_set_int(info.target_subject->get(), target_deci);
         }
 
-        if (data.contains("pressure_advance") && data["pressure_advance"].is_number()) {
-            info.pressure_advance = data["pressure_advance"].get<float>();
-        }
+        info.pressure_advance =
+            json_util::read_field<float>(data, "pressure_advance").value_or(info.pressure_advance);
 
-        if (data.contains("nozzle_diameter") && data["nozzle_diameter"].is_number()) {
-            const double d = data["nozzle_diameter"].get<double>();
-            if (std::isfinite(d) && d > 0.0) {
-                info.nozzle_diameter = d;
+        if (const auto d = json_util::read_field<double>(data, "nozzle_diameter")) {
+            if (std::isfinite(*d) && *d > 0.0) {
+                info.nozzle_diameter = *d;
             }
         }
-        if (data.contains("nozzle_volume_type") && data["nozzle_volume_type"].is_string()) {
-            info.nozzle_volume_type = data["nozzle_volume_type"].get<std::string>();
+        if (auto volume_type = json_util::read_field<std::string>(data, "nozzle_volume_type")) {
+            info.nozzle_volume_type = std::move(*volume_type);
         }
 
         publish_power(name, info.power_subject->get());
@@ -593,8 +593,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
     if (status.contains(active_extruder_name_)) {
         const auto& active = status[active_extruder_name_];
 
-        if (active.contains("temperature") && active["temperature"].is_number()) {
-            int temp_deci = helix::units::json_to_decidegrees(active, "temperature");
+        if (const auto temperature = json_util::read_field<double>(active, "temperature")) {
+            int temp_deci = helix::units::to_decidegrees(*temperature);
             int old_temp = lv_subject_get_int(&active_extruder_temp_);
             lv_subject_set_int(&active_extruder_temp_, temp_deci);
             if (old_temp == temp_deci) {
@@ -602,23 +602,20 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (active.contains("target") && active["target"].is_number()) {
-            int target_deci = helix::units::json_to_decidegrees(active, "target");
+        if (const auto target = json_util::read_field<double>(active, "target")) {
+            int target_deci = helix::units::to_decidegrees(*target);
             lv_subject_set_int(&active_extruder_target_, target_deci);
         }
 
-        if (active.contains("pressure_advance") && active["pressure_advance"].is_number()) {
-            lv_subject_set_int(&active_extruder_pa_,
-                               pa_to_subject(active["pressure_advance"].get<float>()));
+        if (const auto pa = json_util::read_field<float>(active, "pressure_advance")) {
+            lv_subject_set_int(&active_extruder_pa_, pa_to_subject(*pa));
         }
     }
 
     // Update bed temperature (stored as decidegrees for 0.1C resolution)
-    if (status.contains("heater_bed")) {
-        const auto& bed = status["heater_bed"];
-
-        if (bed.contains("temperature") && bed["temperature"].is_number()) {
-            int temp_deci = helix::units::json_to_decidegrees(bed, "temperature");
+    if (const auto* bed = json_util::find_member(status, "heater_bed")) {
+        if (const auto temperature = json_util::read_field<double>(*bed, "temperature")) {
+            int temp_deci = helix::units::to_decidegrees(*temperature);
             int old_temp = lv_subject_get_int(&bed_temp_);
             lv_subject_set_int(&bed_temp_, temp_deci);
             if (old_temp == temp_deci) {
@@ -628,8 +625,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
                           temp_deci % 10);
         }
 
-        if (bed.contains("target") && bed["target"].is_number()) {
-            int target_deci = helix::units::json_to_decidegrees(bed, "target");
+        if (const auto target = json_util::read_field<double>(*bed, "target")) {
+            int target_deci = helix::units::to_decidegrees(*target);
             if (lv_subject_get_int(&bed_target_) != target_deci) {
                 lv_subject_set_int(&bed_target_, target_deci);
                 spdlog::trace("[PrinterTemperatureState] Bed target: {}.{}C", target_deci / 10,
@@ -650,8 +647,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
     if (!chamber_source.empty() && status.contains(chamber_source)) {
         const auto& chamber = status[chamber_source];
 
-        if (chamber.contains("temperature") && chamber["temperature"].is_number()) {
-            int temp_deci = helix::units::json_to_decidegrees(chamber, "temperature");
+        if (const auto temperature = json_util::read_field<double>(chamber, "temperature")) {
+            int temp_deci = helix::units::to_decidegrees(*temperature);
             if (lv_subject_get_int(&chamber_temp_) != temp_deci) {
                 lv_subject_set_int(&chamber_temp_, temp_deci);
                 spdlog::trace("[PrinterTemperatureState] Chamber temp ({}): {}.{}C", chamber_source,
@@ -670,9 +667,11 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
         // that target flows through the cooling-fan branch below instead and
         // is neutralized by the resting-target comparison in
         // chamber_effective_setpoint().
-        if (chamber_heater_name_.rfind("temperature_fan ", 0) != 0 && chamber.contains("target") &&
-            chamber["target"].is_number()) {
-            int target_deci = helix::units::json_to_decidegrees(chamber, "target");
+        const auto target = chamber_heater_name_.rfind("temperature_fan ", 0) != 0
+                                ? json_util::read_field<double>(chamber, "target")
+                                : std::nullopt;
+        if (target) {
+            int target_deci = helix::units::to_decidegrees(*target);
             if (lv_subject_get_int(&chamber_target_) != target_deci) {
                 lv_subject_set_int(&chamber_target_, target_deci);
                 spdlog::trace("[PrinterTemperatureState] Chamber target: {}.{}C", target_deci / 10,
@@ -688,8 +687,8 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
     // a printer can have both a chamber heater AND a separate cooling fan.
     if (!chamber_cooling_fan_name_.empty() && status.contains(chamber_cooling_fan_name_)) {
         const auto& fan = status[chamber_cooling_fan_name_];
-        if (fan.contains("target") && fan["target"].is_number()) {
-            int target_deci = helix::units::json_to_decidegrees(fan, "target");
+        if (const auto target = json_util::read_field<double>(fan, "target")) {
+            int target_deci = helix::units::to_decidegrees(*target);
             if (lv_subject_get_int(&chamber_fan_target_) != target_deci) {
                 lv_subject_set_int(&chamber_fan_target_, target_deci);
                 spdlog::trace("[PrinterTemperatureState] Chamber cooling-fan target: {}.{}C",
@@ -786,11 +785,10 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
     }
     if (!chamber_filter_fan_pin_.empty() && status.contains(chamber_filter_fan_pin_)) {
         const auto& pin = status[chamber_filter_fan_pin_];
-        if (pin.contains("value") && pin["value"].is_number()) {
+        if (const auto value = json_util::read_field<double>(pin, "value")) {
             // The pin is our REQUEST, not the fan: the device also runs this
             // fan on its own (heater warmup, thermal purge).
-            lv_subject_set_int(&chamber_filter_fan_requested_,
-                               pin["value"].get<double>() > 0.5 ? 1 : 0);
+            lv_subject_set_int(&chamber_filter_fan_requested_, *value > 0.5 ? 1 : 0);
         }
     }
     // Filter-fan running state: the speed the backend reports wins when there

@@ -447,9 +447,9 @@ void PrinterPrintState::apply_display_status(const nlohmann::json& status, bool 
     // later display_status carrying only an M117 message leaves this member
     // untouched and still reaches the publish below, handing it the byte
     // position as though it were the slicer's estimate.
-    if (display.contains("progress") && display["progress"].is_number() &&
-        get_print_lifecycle() != PrintState::Paused) {
-        double raw = display["progress"].get<double>();
+    const auto progress = json_util::read_field<double>(display, "progress");
+    if (progress && get_print_lifecycle() != PrintState::Paused) {
+        double raw = *progress;
         slicer_progress_ = raw;
         if (raw > 0.0 && !slicer_progress_active_) {
             slicer_progress_active_ = true;
@@ -464,13 +464,13 @@ void PrinterPrintState::apply_display_status(const nlohmann::json& status, bool 
     // so this is the state the frame reports.
     const bool job_ended =
         job_has_ended(static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_)));
-    if (display.contains("message") && whole_objects && job_ended) {
+    const auto* message = json_util::find_member(display, "message");
+    if (message && whole_objects && job_ended) {
         spdlog::debug("[PrinterPrintState] Subscription response for an ended job: "
                       "display message left as shown");
-    } else if (display.contains("message")) {
-        const char* msg = display["message"].is_string()
-                              ? display["message"].get_ref<const std::string&>().c_str()
-                              : ""; // null or non-string clears the message
+    } else if (message) {
+        const char* msg = message->is_string() ? message->get_ref<const std::string&>().c_str()
+                                               : ""; // null or non-string clears the message
         if (strcmp(lv_subject_get_string(&display_message_), msg) != 0) {
             lv_subject_set_string(&display_message_, msg);
         }
@@ -500,10 +500,11 @@ void PrinterPrintState::apply_extruder_filament_used(const nlohmann::json& statu
         if (json_it == status.end() || !json_it->is_object()) {
             continue;
         }
-        if (!json_it->contains("filament_used") || !(*json_it)["filament_used"].is_number()) {
+        const auto filament_used = json_util::read_field<double>(*json_it, "filament_used");
+        if (!filament_used) {
             continue;
         }
-        int mm = static_cast<int>((*json_it)["filament_used"].get<double>());
+        int mm = static_cast<int>(*filament_used);
         auto map_it = extruder_filament_used_.find(idx);
         if (map_it == extruder_filament_used_.end()) {
             // Cannot happen after init_subjects() pre-population; defensive log.
@@ -544,9 +545,7 @@ void PrinterPrintState::apply_virtual_sdcard(const nlohmann::json& status,
     // SD playback active flag — drives prepare_for_resume's dirty-bed
     // restart UX. Coexists independently with PrintJobState; do not
     // gate on other fields being present.
-    if (sdcard.contains("is_active") && sdcard["is_active"].is_boolean()) {
-        sdcard_active_ = sdcard["is_active"].get<bool>();
-    }
+    sdcard_active_ = json_util::read_field<bool>(sdcard, "is_active").value_or(sdcard_active_);
 
     // Power-loss recovery: plr_backend owns which keys carry the
     // validated-snapshot flag and the recovery file, and their type rules
@@ -559,10 +558,11 @@ void PrinterPrintState::apply_virtual_sdcard(const nlohmann::json& status,
         pl_recovery_file_ = *fp;
     }
 
-    if (!sdcard.contains("progress") || !sdcard["progress"].is_number()) {
+    const auto file_progress = json_util::read_field<double>(sdcard, "progress");
+    if (!file_progress) {
         return;
     }
-    int file_progress_pct = helix::units::json_to_percent(sdcard, "progress");
+    int file_progress_pct = helix::units::to_percent(*file_progress);
 
     // Update print_progress_ subject (skipped when slicer is active
     // but only file progress arrived — slicer is authoritative)
@@ -582,12 +582,15 @@ void PrinterPrintState::apply_virtual_sdcard(const nlohmann::json& status,
     // this same update, since slicer-supplied values are
     // authoritative (cancel-stale-progress semantics during
     // pause/resume, etc.).
-    if (!from_info.current && sdcard.contains("layer") && sdcard["layer"].is_number_integer()) {
-        note_reported_layer(sdcard["layer"].get<int>(), "virtual_sdcard");
+    if (!from_info.current) {
+        if (const auto layer = json_util::read_integer_field(sdcard, "layer")) {
+            note_reported_layer(*layer, "virtual_sdcard");
+        }
     }
-    if (!from_info.total && sdcard.contains("layer_count") &&
-        sdcard["layer_count"].is_number_integer()) {
-        note_reported_layer_total(sdcard["layer_count"].get<int>(), "virtual_sdcard");
+    if (!from_info.total) {
+        if (const auto layer_count = json_util::read_integer_field(sdcard, "layer_count")) {
+            note_reported_layer_total(*layer_count, "virtual_sdcard");
+        }
     }
 
     estimate_layer_from_progress(file_progress_pct);

@@ -16,6 +16,7 @@
 #include "core/timer_guard.h" // lv_timer_cancel_safe
 #include "core/update_queue.h"
 #include "format_utils.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
@@ -449,17 +450,18 @@ void PrinterPrintState::apply_layer_current(int layer, LayerSource kind, const c
 }
 
 bool PrinterPrintState::status_indicates_active_print(const nlohmann::json& status) {
-    if (!status.contains("print_stats")) {
+    const auto* ps = json_util::find_member(status, "print_stats");
+    if (!ps) {
         return false;
     }
-    const auto& ps = status["print_stats"];
-    if (!ps.contains("state") || !ps["state"].is_string()) {
+    const auto state = json_util::read_field<std::string>(*ps, "state");
+    if (!state) {
         return false;
     }
     // Defined in terms of the enum predicate so the subject's notion of "active"
     // and every enum-side caller can never drift apart. parse_print_job_state()
     // maps an unknown string to STANDBY, which lands on false as before.
-    const std::string st = ps["state"].get<std::string>();
+    const std::string& st = *state;
     return printer_has_job(parse_print_job_state(st.c_str()));
 }
 

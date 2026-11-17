@@ -20,6 +20,7 @@
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -3310,14 +3311,14 @@ void AmsBackendAfc::probe_feature_level(const std::string& lane_object) {
         "printer.objects.query", params,
         [this, token, lane_object](const nlohmann::json& response) {
             token.defer("AmsBackendAfc::probe_feature_level", [this, response, lane_object]() {
-                const auto* result = response.contains("result") ? &response["result"] : nullptr;
-                if (!result || !result->contains("status") ||
-                    !(*result)["status"].contains(lane_object)) {
+                const auto* lane =
+                    json_util::find_path(response, "result", "status", lane_object.c_str());
+                if (!lane) {
                     spdlog::debug("[AMS AFC] Feature probe: no status for '{}'", lane_object);
                     return;
                 }
                 std::lock_guard<std::mutex> lock(mutex_);
-                check_afc_feature_level((*result)["status"][lane_object]);
+                check_afc_feature_level(*lane);
             });
         },
         [](const MoonrakerError& err) {
@@ -3542,9 +3543,9 @@ void AmsBackendAfc::query_initial_state() {
             token.defer("AmsBackendAfc::query_initial_state_success", [this, response]() {
                 // Response structure:
                 // {"jsonrpc": "2.0", "result": {"eventtime": ..., "status": {...}}, "id": ...}
-                if (response.contains("result") && response["result"].contains("status") &&
-                    response["result"]["status"].is_object()) {
-                    handle_status(response["result"]["status"]);
+                const auto* status = json_util::find_path(response, "result", "status");
+                if (status && status->is_object()) {
+                    handle_status(*status);
                     spdlog::info("[AMS AFC] Initial state loaded");
                 } else {
                     spdlog::warn("[AMS AFC] Initial state query returned unexpected format");

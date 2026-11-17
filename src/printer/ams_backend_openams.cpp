@@ -6,6 +6,7 @@
 #include "ams_fault_event.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -990,7 +991,8 @@ void AmsBackendOpenAms::query_component_status() {
     client_->send_jsonrpc(
         "server.openams_spoolman.status", json::object(),
         [this, token](const json& response) {
-            json status = response.contains("result") ? response["result"] : response;
+            const json* result = json_util::find_member(response, "result");
+            json status = result ? *result : response;
             token.defer("AmsBackendOpenAms::component_status",
                         [this, status]() { adopt_component_status(status); });
         },

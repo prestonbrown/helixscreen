@@ -9,6 +9,7 @@
 
 #include "printer_calibration_state.h"
 
+#include "json_utils.h"
 #include "state/subject_macros.h"
 #include "unit_conversions_json.h"
 
@@ -78,11 +79,11 @@ void PrinterCalibrationState::deinit_subjects() {
 void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
     // Update manual probe state (for Z-offset calibration)
     // Klipper's manual_probe object is active during PROBE_CALIBRATE and Z_ENDSTOP_CALIBRATE
-    if (status.contains("manual_probe")) {
-        const auto& mp = status["manual_probe"];
+    if (const auto* manual_probe = json_util::find_member(status, "manual_probe")) {
+        const auto& mp = *manual_probe;
 
-        if (mp.contains("is_active") && mp["is_active"].is_boolean()) {
-            bool is_active = mp["is_active"].get<bool>();
+        if (const auto active = json_util::read_field<bool>(mp, "is_active")) {
+            bool is_active = *active;
             int old_active = lv_subject_get_int(&manual_probe_active_);
             int new_active = is_active ? 1 : 0;
 
@@ -93,9 +94,9 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (mp.contains("z_position") && mp["z_position"].is_number()) {
+        if (const auto z_position = json_util::read_field<double>(mp, "z_position")) {
             // Store as microns (multiply by 1000) for integer subject with 0.001mm resolution
-            double z_mm = mp["z_position"].get<double>();
+            double z_mm = *z_position;
             int z_microns = static_cast<int>(z_mm * 1000.0);
             lv_subject_set_int(&manual_probe_z_position_, z_microns);
             spdlog::trace("[PrinterCalibrationState] Manual probe Z: {:.3f}mm", z_mm);
@@ -106,11 +107,9 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
     // as exactly "Printing" / "Ready" / "Idle"; "Printing" is held for the entire
     // duration of any blocking operation (G28, BED_MESH_CALIBRATE, QGL,
     // PROBE_ACCURACY, long macro) or a real file print. Case-sensitive compare.
-    if (status.contains("idle_timeout")) {
-        const auto& it = status["idle_timeout"];
-
-        if (it.contains("state") && it["state"].is_string()) {
-            std::string it_state = it["state"].get<std::string>();
+    if (const auto* idle_timeout = json_util::find_member(status, "idle_timeout")) {
+        if (const auto state = json_util::read_field<std::string>(*idle_timeout, "state")) {
+            const std::string& it_state = *state;
             int new_printing = (it_state == "Printing") ? 1 : 0;
             int old_printing = lv_subject_get_int(&idle_timeout_printing_);
 
@@ -132,11 +131,9 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
     // Update motor enabled state from toolhead.homed_axes (primary) and stepper_enable (fallback)
     // M84 clears homed_axes on all Klipper printers, making it the most reliable indicator.
     // stepper_enable.steppers is more precise but not reported by all firmware (e.g. AD5M).
-    if (status.contains("toolhead")) {
-        const auto& toolhead = status["toolhead"];
-
-        if (toolhead.contains("homed_axes") && toolhead["homed_axes"].is_string()) {
-            std::string axes = toolhead["homed_axes"].get<std::string>();
+    if (const auto* toolhead = json_util::find_member(status, "toolhead")) {
+        if (const auto homed_axes = json_util::read_field<std::string>(*toolhead, "homed_axes")) {
+            const std::string& axes = *homed_axes;
             int new_enabled = axes.empty() ? 0 : 1;
             int old_enabled = lv_subject_get_int(&motors_enabled_);
 
@@ -149,12 +146,10 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
     }
 
     // Fallback: stepper_enable.steppers (not reported by all firmware)
-    if (status.contains("stepper_enable")) {
-        const auto& se = status["stepper_enable"];
-
-        if (se.contains("steppers") && se["steppers"].is_object()) {
+    if (const auto* stepper_enable = json_util::find_member(status, "stepper_enable")) {
+        if (const auto* steppers = json_util::find_object(*stepper_enable, "steppers")) {
             bool any_enabled = false;
-            for (const auto& [name, enabled] : se["steppers"].items()) {
+            for (const auto& [name, enabled] : steppers->items()) {
                 if (enabled.is_boolean() && enabled.get<bool>()) {
                     any_enabled = true;
                     break;
@@ -173,12 +168,12 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
     }
 
     // Parse firmware_retraction settings (G10/G11 retraction parameters)
-    if (status.contains("firmware_retraction")) {
-        const auto& fr = status["firmware_retraction"];
+    if (const auto* firmware_retraction = json_util::find_member(status, "firmware_retraction")) {
+        const auto& fr = *firmware_retraction;
 
-        if (fr.contains("retract_length") && fr["retract_length"].is_number()) {
+        if (const auto retract_length = json_util::read_field<double>(fr, "retract_length")) {
             // Store as centimillimeters (x100) to preserve 0.01mm precision
-            int centimm = helix::units::json_to_centimm(fr, "retract_length");
+            int centimm = helix::units::to_centimm(*retract_length);
             if (lv_subject_get_int(&retract_length_) != centimm) {
                 lv_subject_set_int(&retract_length_, centimm);
                 spdlog::trace("[PrinterCalibrationState] Retract length: {:.2f}mm",
@@ -186,16 +181,16 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (fr.contains("retract_speed") && fr["retract_speed"].is_number()) {
-            int speed = static_cast<int>(fr["retract_speed"].get<double>());
+        if (const auto retract_speed = json_util::read_field<double>(fr, "retract_speed")) {
+            int speed = static_cast<int>(*retract_speed);
             if (lv_subject_get_int(&retract_speed_) != speed) {
                 lv_subject_set_int(&retract_speed_, speed);
                 spdlog::trace("[PrinterCalibrationState] Retract speed: {}mm/s", speed);
             }
         }
 
-        if (fr.contains("unretract_extra_length") && fr["unretract_extra_length"].is_number()) {
-            int centimm = helix::units::json_to_centimm(fr, "unretract_extra_length");
+        if (const auto extra = json_util::read_field<double>(fr, "unretract_extra_length")) {
+            int centimm = helix::units::to_centimm(*extra);
             if (lv_subject_get_int(&unretract_extra_length_) != centimm) {
                 lv_subject_set_int(&unretract_extra_length_, centimm);
                 spdlog::trace("[PrinterCalibrationState] Unretract extra: {:.2f}mm",
@@ -203,8 +198,8 @@ void PrinterCalibrationState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (fr.contains("unretract_speed") && fr["unretract_speed"].is_number()) {
-            int speed = static_cast<int>(fr["unretract_speed"].get<double>());
+        if (const auto unretract_speed = json_util::read_field<double>(fr, "unretract_speed")) {
+            int speed = static_cast<int>(*unretract_speed);
             if (lv_subject_get_int(&unretract_speed_) != speed) {
                 lv_subject_set_int(&unretract_speed_, speed);
                 spdlog::trace("[PrinterCalibrationState] Unretract speed: {}mm/s", speed);

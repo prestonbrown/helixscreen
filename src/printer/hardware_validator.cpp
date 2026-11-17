@@ -107,8 +107,8 @@ json HardwareSnapshot::to_json() const {
 HardwareSnapshot HardwareSnapshot::from_json(const json& j) {
     HardwareSnapshot snapshot;
 
-    if (j.contains("timestamp") && j["timestamp"].is_string()) {
-        snapshot.timestamp = j["timestamp"].get<std::string>();
+    if (auto timestamp = helix::json_util::read_field<std::string>(j, "timestamp")) {
+        snapshot.timestamp = std::move(*timestamp);
     }
 
     // An absent or non-array field leaves that list empty; an array holding a
