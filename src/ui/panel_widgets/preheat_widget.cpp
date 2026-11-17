@@ -300,8 +300,9 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
 }
 
 bool PreheatWidget::send_bed(int bed) {
-    // With "Material presets heat the bed" off, a preset heats the nozzle alone.
-    const auto target = presets::bed_target(bed);
+    // With "Material presets heat the bed and chamber" off, a preset heats the
+    // nozzle alone.
+    const auto target = presets::heater_targets(bed).bed;
     auto* c = get_temperature_controller();
     if (!target || !c) {
         return false;

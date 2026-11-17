@@ -751,10 +751,11 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
             c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
         }
         // A nozzle material preset heats the bed with it, unless "Material
-        // presets heat the bed" is off. Off (index 0) touches the nozzle alone.
+        // presets heat the bed and chamber" is off. Off (index 0) touches the
+        // nozzle alone.
         if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
             if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
-                if (const auto bed = helix::presets::bed_target(temps->bed)) {
+                if (const auto bed = helix::presets::heater_targets(temps->bed).bed) {
                     c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
                                   {.toast = true});
                 }

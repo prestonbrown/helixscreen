@@ -104,11 +104,11 @@ std::optional<SlotTemps> slot_temps(int slot) {
     return SlotTemps{mat->nozzle_recommended(), mat->bed_temp};
 }
 
-std::optional<int> bed_target(int bed) {
-    if (!SettingsManager::instance().get_material_presets_heat_bed()) {
-        return std::nullopt;
+HeaterTargets heater_targets(int bed, int chamber) {
+    if (!SettingsManager::instance().get_material_presets_heat_bed_and_chamber()) {
+        return {};
     }
-    return bed;
+    return {bed, chamber > 0 ? std::optional<int>{chamber} : std::nullopt};
 }
 
 std::string temp_label(int slot) {

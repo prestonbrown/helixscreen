@@ -490,10 +490,10 @@ TEST_CASE_METHOD(
     TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
     auto& sm = helix::SettingsManager::instance();
     sm.init_subjects();
-    const bool saved = sm.get_material_presets_heat_bed();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
     const bool heat_bed = GENERATE(true, false);
     CAPTURE(heat_bed);
-    sm.set_material_presets_heat_bed(heat_bed);
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed);
     const auto slot = helix::presets::slot_temps(0);
     REQUIRE(slot.has_value());
     client.clear_gcode_script_history();
@@ -511,6 +511,6 @@ TEST_CASE_METHOD(
     CHECK(sent("HEATER=heater_bed TARGET=" + std::to_string(slot->bed)) == heat_bed);
     CHECK(sent("HEATER=heater_bed") == heat_bed);
 
-    sm.set_material_presets_heat_bed(saved);
+    sm.set_material_presets_heat_bed_and_chamber(saved);
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }
