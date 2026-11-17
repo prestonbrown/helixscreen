@@ -61,6 +61,15 @@ namespace helix::ui {
 /// cell around the widget subtracts this to know what is left beside it.
 inline constexpr int32_t kAmsLaneSpoolBadgeMarginPx = 8;
 
+/**
+ * @brief Edge of a lane's spool graphic in px at the current breakpoint
+ *
+ * The ams_slot_spool_size token, or four space_lg when a theme leaves it out.
+ * Every spool drawn on a filament path asks this, so the bypass spool and the
+ * lanes beside it stay one size.
+ */
+[[nodiscard]] int32_t ams_slot_spool_size();
+
 /// True when /ams/spool_style asks for the pseudo-3D spools (the default),
 /// false for flat concentric rings. Every AMS surface that draws differently
 /// per style asks this, so the setting is read in one place.

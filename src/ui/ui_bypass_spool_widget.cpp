@@ -3,6 +3,7 @@
 
 #include "ui_bypass_spool_widget.h"
 
+#include "ui_ams_lane_spool.h"
 #include "ui_spool_canvas.h"
 
 #include "ams_backend.h"
@@ -89,12 +90,14 @@ void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {
 }
 
 namespace {
-constexpr int32_t kBypassSpoolSize = 48;
 constexpr int32_t kBoxPad = 4;
-constexpr int32_t kBoxSize = kBypassSpoolSize + kBoxPad * 2;
 constexpr int32_t kLabelGap = 4;
 constexpr int32_t kLabelHeight = 16;
 } // namespace
+
+int32_t bypass_spool_box_size() {
+    return ams_slot_spool_size() + kBoxPad * 2;
+}
 
 BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click, void* user_data) {
     BypassSpoolWidgets w;
@@ -102,8 +105,10 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
         return w;
     }
 
+    const int32_t spool_size = ams_slot_spool_size();
+    w.box_size = bypass_spool_box_size();
     w.box = lv_obj_create(parent);
-    lv_obj_set_size(w.box, kBoxSize, kBoxSize);
+    lv_obj_set_size(w.box, w.box_size, w.box_size);
     lv_obj_set_style_pad_all(w.box, 0, 0);
     lv_obj_set_style_bg_opa(w.box, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_color(w.box, theme_manager_get_color("card_bg"), 0);
@@ -112,7 +117,7 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     lv_obj_remove_flag(w.box, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(w.box, LV_OBJ_FLAG_FLOATING);
 
-    w.spool_canvas = ui_spool_canvas_create(w.box, kBypassSpoolSize);
+    w.spool_canvas = ui_spool_canvas_create(w.box, spool_size);
     if (!w.spool_canvas) {
         lv_obj_delete(w.box);
         w = {};
@@ -220,13 +225,13 @@ void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
         return;
     }
 
-    int32_t box_left = cx - kBoxSize / 2;
-    int32_t box_top = cy - kBoxSize / 2;
+    int32_t box_left = cx - w.box_size / 2;
+    int32_t box_top = cy - w.box_size / 2;
     lv_obj_set_pos(w.box, box_left, box_top);
 
     if (w.bypass_label) {
         lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2,
-                       box_top + kBoxSize + kLabelGap);
+                       box_top + w.box_size + kLabelGap);
     }
     if (w.material_label) {
         // Material text changes — must measure each call.
