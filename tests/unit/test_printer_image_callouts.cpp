@@ -12,6 +12,7 @@
 #include "../test_helpers/printer_image_regions_test_access.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/scoped_home_layout.h"
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
@@ -963,6 +964,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_t* selected = lv_xml_get_subject(nullptr, "led_picker_selected");
     REQUIRE(selected);
     CHECK(lv_subject_get_int(selected) == 0); // the chamber light, the default
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "This light chip controls");
     lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
     REQUIRE(row != nullptr);
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
@@ -982,6 +986,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_send_event(all, LV_EVENT_CLICKED, nullptr);
     process_lvgl(50);
     CHECK(h.widget().light_key() == "all");
+
+    // The title follows the interface language.
+    helix::ScopedLanguage de("de");
+    h.widget().on_edit_configure();
+    process_lvgl(30);
+    lv_obj_t* de_title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(de_title != nullptr);
+    CHECK(std::string(lv_label_get_text(de_title)) == "Dieser Lichtchip steuert");
+    lv_obj_send_event(lv_obj_find_by_name(test_screen(), "led_picker_all"), LV_EVENT_CLICKED,
+                      nullptr);
+    process_lvgl(50);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

@@ -354,7 +354,7 @@ bool LedWidget::on_edit_configure() {
 }
 
 void LedWidget::show_led_picker() {
-    picker_.show_for(parent_screen_, widget_obj_, led_key_,
+    picker_.show_for(parent_screen_, widget_obj_, led_key_, lv_tr("This button controls"),
                      [this](const std::string& key) { select_light(key); });
 }
 

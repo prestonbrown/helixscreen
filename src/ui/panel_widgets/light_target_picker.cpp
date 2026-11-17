@@ -24,6 +24,8 @@ struct PickerSubjects {
     xml::IndexedSubjectPool names{"led_picker_name", xml::IndexedSubjectPool::Type::String};
     helix::Subject count{};
     helix::Subject selected{};
+    helix::Subject title{};
+    char title_buf[96] = {};
 };
 
 helix::WidgetSubjects s_picker_subjects{"LedPicker"};
@@ -35,6 +37,8 @@ PickerSubjects& picker_subjects() {
         [] {
             UI_MANAGED_SUBJECT_INT(s_picker.count, 0, "led_picker_count", s_picker_subjects);
             UI_MANAGED_SUBJECT_INT(s_picker.selected, -1, "led_picker_selected", s_picker_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_picker.title, s_picker.title_buf, "", "led_picker_title",
+                                      s_picker_subjects);
         },
         [] { s_picker.names.reclaim(); });
     return s_picker;
@@ -47,7 +51,7 @@ void register_light_target_picker() {
 }
 
 void LightTargetPicker::show_for(lv_obj_t* parent, lv_obj_t* anchor, const std::string& key,
-                                 OnPick on_pick) {
+                                 const char* title, OnPick on_pick) {
     if (is_visible() || parent == nullptr || anchor == nullptr) {
         return;
     }
@@ -65,6 +69,7 @@ void LightTargetPicker::show_for(lv_obj_t* parent, lv_obj_t* anchor, const std::
             selected = static_cast<int>(i);
         }
     }
+    lv_subject_set_string(&subs.title, title != nullptr ? title : "");
     lv_subject_set_int(&subs.selected, selected);
     lv_subject_set_int(&subs.count, static_cast<int>(devices.size()));
 

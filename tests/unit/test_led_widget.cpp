@@ -357,6 +357,9 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     w.on_edit_configure();
     lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
     REQUIRE(row != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "This button controls");
 
     // The device list reorders while the picker is open.
     LedController::instance().native().clear();

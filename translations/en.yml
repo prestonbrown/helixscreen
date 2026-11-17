@@ -4503,6 +4503,7 @@ translations:
   This is what data would be sent if enabled: This is what data would be sent if enabled
   ? This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
   : This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows.
+  This light chip controls: This light chip controls
   This looks like a {}, but it is set up as a {}: This looks like a {}, but it is set up as a {}
   This may take up to 30 seconds: This may take up to 30 seconds
   Needs file analysis, which isn't running.: "Needs file analysis, which isn't running."

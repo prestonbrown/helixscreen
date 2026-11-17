@@ -4202,6 +4202,7 @@
   <translation tag="This is exactly the data that will be sent" it="Questi sono esattamente i dati che verranno inviati"/>
   <translation tag="This is what data would be sent if enabled" it="Questi sono i dati che verrebbero inviati se abilitato"/>
   <translation tag="This lane still shows as loaded, but its filament is out of the nozzle. Before printing, push it back through the extruder and extrude until it flows." it="Questa corsia risulta ancora caricata, ma il suo filamento è fuori dall&apos;ugello. Prima di stampare, spingilo di nuovo nell&apos;estrusore ed estrudi finché non scorre."/>
+  <translation tag="This light chip controls" it="Questo chip luce controlla"/>
   <translation tag="This looks like a {}, but it is set up as a {}" it="Questa stampante sembra una {}, ma è configurata come {}"/>
   <translation tag="This may take up to 30 seconds" it="Questo potrebbe richiedere fino a 30 secondi"/>
   <translation tag="This plugin asks for no special permissions." it="Questo plugin non richiede permessi speciali."/>

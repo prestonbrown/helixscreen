@@ -15,7 +15,7 @@ namespace helix {
 /// LightTargetPicker calls it from its own registration.
 void register_light_target_picker();
 
-/// "This button controls": one row per light_picker_devices() entry, then All
+/// One row per light_picker_devices() entry, then All
 /// lights. Every home surface that switches a chosen set of lights (a light
 /// button, the printer image's light chip) picks its `led` key here; the key
 /// resolves through LedController::light_targets().
@@ -25,10 +25,12 @@ class LightTargetPicker : public helix::ui::ContextMenu {
   public:
     using OnPick = std::function<void(const std::string& key)>;
 
-    /// Opens below @p anchor with the device @p key resolves to highlighted, or
-    /// the All lights row for kLightButtonAll. A row tap hides the picker and
-    /// hands its key (a device id or kLightButtonAll) to @p on_pick.
-    void show_for(lv_obj_t* parent, lv_obj_t* anchor, const std::string& key, OnPick on_pick);
+    /// Opens below @p anchor under @p title (translated by the caller), with
+    /// the device @p key resolves to highlighted, or the All lights row for
+    /// kLightButtonAll. A row tap hides the picker and hands its key (a device
+    /// id or kLightButtonAll) to @p on_pick.
+    void show_for(lv_obj_t* parent, lv_obj_t* anchor, const std::string& key, const char* title,
+                  OnPick on_pick);
 
     static void row_cb(lv_event_t* e);
 

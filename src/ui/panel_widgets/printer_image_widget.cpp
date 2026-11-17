@@ -384,6 +384,7 @@ std::vector<std::string> PrinterImageWidget::light_targets() const {
 
 bool PrinterImageWidget::on_edit_configure() {
     light_picker_.show_for(parent_screen_, widget_obj_, light_key_,
+                           lv_tr("This light chip controls"),
                            [this](const std::string& key) { select_light(key); });
     return false; // no rebuild: the chip rereads its lights in place
 }
