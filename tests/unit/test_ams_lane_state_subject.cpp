@@ -81,12 +81,14 @@ TEST_CASE_METHOD(XMLTestFixture, "init_subjects(true) after a false init still r
     // Must hold before the re-entry below: proves the names are genuinely absent, so
     // the CHECKs at the end can only pass via the re-entry registration itself.
     REQUIRE(lv_xml_get_subject(nullptr, "ams_slot_0_lane_state") == nullptr);
+    REQUIRE(lv_xml_get_subject(nullptr, "ams_cards_env_line") == nullptr);
 
     AmsState::instance().init_subjects(true); // re-entry asks for registration
     lv_subject_t* lane = lv_xml_get_subject(nullptr, "ams_slot_0_lane_state");
     CHECK(lane != nullptr);
     CHECK(lane == AmsState::instance().get_slot_lane_state_subject(0));
     CHECK(lv_xml_get_subject(nullptr, "ams_slot_count") != nullptr);
+    CHECK(lv_xml_get_subject(nullptr, "ams_cards_env_line") != nullptr);
 
     AmsState::instance().deinit_subjects();
 }
