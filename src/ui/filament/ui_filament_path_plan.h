@@ -73,6 +73,9 @@ struct LinearHubFrame {
     RailArtRect rail;     // LINEAR with rail art: where it is drawn
     RailArtRect through;  // HUB with a pass-through unit's art: where it is drawn
 
+    // A unit that merges inside: where its lanes start down the front face.
+    int32_t face_top_y = 0;
+
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
@@ -259,6 +262,7 @@ struct SpanStyle {
     lv_color_t bore;     // filament color, or the background when empty
     bool filled = false; // filament is in this span
     bool painted = true; // false inside an opaque box: recorded, never stroked
+    bool thin = false;   // drawn over a unit's art: half the tube's gauge
 };
 bool operator==(const SpanStyle& a, const SpanStyle& b);
 

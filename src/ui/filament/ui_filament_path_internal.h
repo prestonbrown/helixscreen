@@ -292,6 +292,8 @@ struct FilamentPathData {
     lv_obj_t* slot_grid = nullptr;
     // The spool box's front edge below slot_grid's top, INT32_MIN when none.
     int32_t lane_entry_offset = INT32_MIN;
+    // The top of the box's front face below slot_grid's top, INT32_MIN when unknown.
+    int32_t face_top_offset = INT32_MIN;
     static constexpr int kMaxSlots = helix::kAmsMaxSlots;
     // The grid's slots at the last set_slot_grid, to tell a changed row; never dereferenced.
     const void* slot_ids[kMaxSlots] = {};
@@ -447,6 +449,8 @@ struct BaseGeometry {
     // The spool box's front edge, where the lanes enter the path; INT32_MIN
     // when no box is drawn above the canvas.
     int32_t lane_entry_y = INT32_MIN;
+    // The top of that box's front face; INT32_MIN when unknown.
+    int32_t face_top_y = INT32_MIN;
 };
 
 BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data);

@@ -1077,11 +1077,14 @@ void ui_filament_path_canvas_set_buffer_callback(lv_obj_t* obj, filament_path_bu
 }
 
 // NAMESPACE_OK: the widget's C setter API, beside its siblings
-void ui_filament_path_canvas_set_lane_entry(lv_obj_t* obj, int32_t offset_from_slot_grid) {
+void ui_filament_path_canvas_set_lane_entry(lv_obj_t* obj, int32_t offset_from_slot_grid,
+                                            int32_t face_top_offset) {
     auto* data = get_data(obj);
-    if (!data || data->lane_entry_offset == offset_from_slot_grid)
+    if (!data || (data->lane_entry_offset == offset_from_slot_grid &&
+                  data->face_top_offset == face_top_offset))
         return;
     data->lane_entry_offset = offset_from_slot_grid;
+    data->face_top_offset = face_top_offset;
     layered_mark_dirty(obj);
 }
 

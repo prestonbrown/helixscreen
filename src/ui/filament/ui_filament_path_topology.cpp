@@ -64,6 +64,8 @@ BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data) 
         lv_area_t grid;
         lv_obj_get_coords(data->slot_grid, &grid);
         g.lane_entry_y = grid.y1 + data->lane_entry_offset;
+        if (data->face_top_offset != INT32_MIN)
+            g.face_top_y = grid.y1 + data->face_top_offset;
     }
 
     // Center X: prefer midpoint of slot bounds so hub/selector/nozzle stay
@@ -544,11 +546,15 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
     data->rail_drawn = false;
     if (data->lanes_merge_inside) {
-        // The merge inside the unit is no box; tapping it still opens the unit's settings.
-        const int32_t size = LV_MAX(10, f.hub_h / 2);
+        // The unit's own combiner: a small block on its bottom edge, no label. Tapping it opens
+        // the unit's settings.
+        const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
+        const int32_t w = 3 * f.hub_h;
+        draw_hub_box(ctx, f.center_x, f.hub_y, w, f.hub_h, tint.bg, tint.border, "", LV_OPA_COVER,
+                     /*interactive=*/false);
         if (data->hub_callback) {
-            const int32_t y = f.hub_y - f.hub_h / 2;
-            data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
+            data->hits.hub = {f.center_x - w / 2, f.hub_y - f.hub_h / 2, f.center_x + w / 2,
+                              f.hub_y + f.hub_h / 2};
             data->hits.hub_valid = true;
         }
         return;
