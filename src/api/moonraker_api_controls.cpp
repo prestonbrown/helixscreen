@@ -135,10 +135,9 @@ void MoonrakerAPI::get_sensors(SensorsCallback on_success, ErrorCallback on_erro
             std::vector<helix::SensorInfo> sensors;
             nlohmann::json initial_values;
 
-            if (response.contains("result") && response["result"].contains("sensors") &&
-                response["result"]["sensors"].is_object()) {
-                for (auto it = response["result"]["sensors"].begin();
-                     it != response["result"]["sensors"].end(); ++it) {
+            const json* sensors_json = helix::json_util::find_path(response, "result", "sensors");
+            if (sensors_json && sensors_json->is_object()) {
+                for (auto it = sensors_json->begin(); it != sensors_json->end(); ++it) {
                     const std::string& sensor_id = it.key();
                     const auto& sensor_data = it.value();
                     if (!sensor_data.is_object())
@@ -151,14 +150,13 @@ void MoonrakerAPI::get_sensors(SensorsCallback on_success, ErrorCallback on_erro
                     info.type = helix::json_util::safe_string(sensor_data, "type", "unknown");
 
                     // Extract value keys and initial values from the "values" object
-                    if (sensor_data.contains("values") && sensor_data["values"].is_object()) {
+                    if (const json* values = helix::json_util::find_object(sensor_data, "values")) {
                         nlohmann::json sensor_values;
-                        for (auto vit = sensor_data["values"].begin();
-                             vit != sensor_data["values"].end(); ++vit) {
+                        for (auto vit = values->begin(); vit != values->end(); ++vit) {
                             info.value_keys.push_back(vit.key());
-                            if (vit.value().is_object() && vit.value().contains("value") &&
-                                vit.value()["value"].is_number()) {
-                                sensor_values[vit.key()] = vit.value()["value"].get<double>();
+                            if (auto value =
+                                    helix::json_util::read_field<double>(vit.value(), "value")) {
+                                sensor_values[vit.key()] = *value;
                             }
                         }
                         if (!sensor_values.empty()) {
@@ -621,9 +619,9 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
     client_.send_jsonrpc(
         "printer.objects.query", params,
         [this, on_success](const json& response) {
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings")) {
+            const json* settings_json =
+                helix::json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings_json) {
                 spdlog::warn("[Moonraker API] Printer configuration not available, using "
                              "default safety limits");
                 if (on_success) {
@@ -632,17 +630,18 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                 return;
             }
 
-            const json& settings = response["result"]["status"]["configfile"]["settings"];
+            const json& settings = *settings_json;
             bool updated = false;
 
             // Extract max_velocity from printer settings.
             // Every read in this callback is is_number()-guarded on purpose: one
             // wrong-typed field must not abort every limit parsed after it (see
             // the position_endstop note below).
-            if (settings.contains("printer") && settings["printer"].is_object() &&
-                settings["printer"].contains("max_velocity") &&
-                settings["printer"]["max_velocity"].is_number()) {
-                double max_velocity_mm_s = settings["printer"]["max_velocity"].get<double>();
+            const json* printer = helix::json_util::find_object(settings, "printer");
+            if (auto max_velocity =
+                    printer ? helix::json_util::read_field<double>(*printer, "max_velocity")
+                            : std::nullopt) {
+                double max_velocity_mm_s = *max_velocity;
                 safety_limits_.max_feedrate_mm_min = max_velocity_mm_s * 60.0;
                 updated = true;
                 spdlog::debug("[Moonraker API] Updated max_feedrate from printer config: {} mm/min",
@@ -655,10 +654,10 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
             bool build_volume_updated = false;
 
             for (const auto& stepper : {"stepper_x", "stepper_y", "stepper_z"}) {
-                if (settings.contains(stepper) && settings[stepper].is_object()) {
-                    if (settings[stepper].contains("position_max") &&
-                        settings[stepper]["position_max"].is_number()) {
-                        double pos_max = settings[stepper]["position_max"].get<double>();
+                if (const json* stepper_cfg = helix::json_util::find_object(settings, stepper)) {
+                    if (auto position_max =
+                            helix::json_util::read_field<double>(*stepper_cfg, "position_max")) {
+                        double pos_max = *position_max;
                         // Use the largest axis max as absolute position limit
                         if (pos_max > safety_limits_.max_absolute_position_mm) {
                             safety_limits_.max_absolute_position_mm = pos_max;
@@ -676,9 +675,9 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                             build_volume_updated = true;
                         }
                     }
-                    if (settings[stepper].contains("position_min") &&
-                        settings[stepper]["position_min"].is_number()) {
-                        double pos_min = settings[stepper]["position_min"].get<double>();
+                    if (auto position_min =
+                            helix::json_util::read_field<double>(*stepper_cfg, "position_min")) {
+                        double pos_min = *position_min;
                         // Use the smallest (most negative) axis min as absolute position limit
                         if (pos_min < safety_limits_.min_absolute_position_mm) {
                             safety_limits_.min_absolute_position_mm = pos_min;
@@ -728,8 +727,9 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                      key.find("heater_") != std::string::npos ||
                      key.rfind("temperature_fan ", 0) == 0) &&
                     value.is_object()) {
-                    if (value.contains("max_temp") && value["max_temp"].is_number()) {
-                        double max_temp = value["max_temp"].get<double>();
+                    if (auto max_temp_field =
+                            helix::json_util::read_field<double>(value, "max_temp")) {
+                        double max_temp = *max_temp_field;
                         // Keyed on the section header, because that IS the
                         // name a send arrives with:
                         // TemperatureController::resolved_name() hands
@@ -749,8 +749,9 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                             safety_limits_.max_temperature_celsius = max_temp;
                         }
                     }
-                    if (value.contains("min_temp") && value["min_temp"].is_number()) {
-                        double min_temp = value["min_temp"].get<double>();
+                    if (auto min_temp_field =
+                            helix::json_util::read_field<double>(value, "min_temp")) {
+                        double min_temp = *min_temp_field;
                         // Use the lowest heater min_temp as temperature limit
                         if (min_temp < safety_limits_.min_temperature_celsius) {
                             safety_limits_.min_temperature_celsius = min_temp;
@@ -760,9 +761,12 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                     // Every extruder section carries its own min_extrude_temp;
                     // the primary one's is also the global floor for callers
                     // with no extruder name to hand.
-                    if (helix::is_extruder_name(key) && value.contains("min_extrude_temp") &&
-                        value["min_extrude_temp"].is_number()) {
-                        double min_extrude = value["min_extrude_temp"].get<double>();
+                    const auto min_extrude_field =
+                        helix::is_extruder_name(key)
+                            ? helix::json_util::read_field<double>(value, "min_extrude_temp")
+                            : std::nullopt;
+                    if (min_extrude_field) {
+                        double min_extrude = *min_extrude_field;
                         safety_limits_.set_min_extrude_temp_for(key, min_extrude);
                         if (key == "extruder") {
                             safety_limits_.min_extrude_temp_celsius = min_extrude;
