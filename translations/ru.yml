@@ -218,8 +218,8 @@ translations:
   A lower, B upper: "A снизу, B сверху"
   "A macro printed stray template text '{}': check its Jinja tags": 'Макрос вывел лишний текст шаблона «{}»: проверьте его теги Jinja'
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Макрос для очистки сопла. HelixScreen может запускать его перед печатью из параметров подготовки к печати.'
-  ? A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead
-  : 'Пресет материала задаёт температуру стола вместе с соплом. Материал, макрос преднагрева которого сам управляет нагревом, задаётся этим макросом'
+  ? A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets
+  : Пресет материала задаёт стол и камеру вместе с соплом; если выключено, нагревается только сопло. Макрос преднагрева, который сам управляет нагревом, сам решает, какие нагреватели задать
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Не удалось восстановить вывод ввода-вывода двигателя. Выключите и включите принтер
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Не удалось записать параметры двигателя. Выключите и включите принтер и повторите попытку
   "A new Print Status screen": "Новый экран статуса печати"
@@ -2442,7 +2442,7 @@ translations:
   'Material Comfort:': 'Комфорт материала:'
   Material Mismatch: Несоответствие материала
   Material Temperatures: Температуры материалов
-  Material presets heat the bed: 'Пресеты материалов нагревают стол'
+  Material presets heat the bed and chamber: Пресеты материалов нагревают стол и камеру
   Max: Макс
   Max Accel: Макс. ускор.
   Max Acceleration: Макс. ускорение
