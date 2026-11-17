@@ -13,16 +13,18 @@ extern "C" {
  * @file ui_system_path_canvas.h
  * @brief System path visualization widget for multi-unit AMS overview panel
  *
- * Draws a schematic "system path" showing unit outputs converging through
- * a combiner/hub to a single toolhead. Each unit is represented by an
- * entry point at the top, with lines converging to a central combiner box,
- * then a single output line to the nozzle.
+ * Draws a schematic "system path" from each unit to the toolhead(s) it feeds.
+ * Each unit card stands for the merge of its own lanes, so one line leaves
+ * it. A hub box is drawn only where two or more lines enter one nozzle: one
+ * box at that junction, one line out to the nozzle (nozzle_feed()).
  *
  * Visual layout (vertical, top to bottom):
  *   - Entry points at top (one per unit, under its unit card)
- *   - Lines from each unit converging toward center_x
- *   - Hub box labeled "Hub"
- *   - Single output line down from hub
+ *   - Lines from each unit toward the nozzle it feeds
+ *   - A hub box ("Hub", or "Hub+BUF" when the hub carries the buffer) where
+ *     two or more lines meet
+ *   - The output line down to the nozzle, with an inline buffer box on a
+ *     lone line that has one
  *   - Simplified nozzle icon at bottom
  *
  * The tubes and sensor bands are planned into the same route plan as the
@@ -183,9 +185,10 @@ void ui_system_path_canvas_set_unit_lane(lv_obj_t* obj, int unit_index, int segm
 /**
  * @brief Set the buffer on the output line (single-toolhead layout)
  *
- * A box between the hub and the nozzle, drawn with the label and tint the unit
- * view's buffer box has: BufferBoxState::label and ::fault of
- * ams_detail_buffer_box(info, -1).
+ * Drawn with the label and tint the unit view's buffer box has:
+ * BufferBoxState::label and ::fault of ams_detail_buffer_box(info, -1). With
+ * two or more units it is part of the combiner's box ("Hub+BUF"); with one,
+ * a box on the output line.
  *
  * @param obj The system_path_canvas widget
  * @param present Whether the system reading has a buffer
@@ -198,9 +201,11 @@ void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, co
 /**
  * @brief Set a unit's hub and the buffer under it (several-toolhead layout)
  *
- * Units given the same non-zero @p hub_group draw one hub box where their
- * lanes join; 0 is a unit on a hub of its own. The buffer box under a shared
- * hub is the one set on its lowest unit.
+ * Units given the same non-zero @p hub_group are on one physical hub; 0 is a
+ * unit on a hub of its own. Every line into one nozzle meets in one box, so a
+ * shared hub is drawn as that box. The buffer is drawn in the junction's hub
+ * box when the lowest unit there with a buffer has one, or as a box on the
+ * line of a unit that feeds its nozzle alone.
  *
  * @param present Whether the hub has a buffer
  * @param fault Severity as in ui_system_path_canvas_set_buffer()

@@ -105,84 +105,40 @@ struct GlobalRoute {
     int32_t start_y;
     int32_t end_x;
     int32_t end_y;
-    int32_t dist;  // absolute horizontal distance (for stagger ordering)
-    bool is_hub;   // HUB topology route (lands on a mini hub)
-    bool via_box;  // MIXED hub-group route: passes through its "H" box above the tool
-    int group = 0; // shared hub this route joins (SystemPathData::unit_hub_group), 0 = own hub
+    int32_t dist;           // absolute horizontal distance (for stagger ordering)
+    bool is_hub;            // a HUB unit's one route: a stem, then a fan onto its nozzle's line
+    bool hub_lane;          // carries its unit's hub: a HUB route, or a MIXED unit's hub lanes
+    bool junction;          // enters its nozzle's hub box with the other routes there
+    pg::MergeLaneOut fan{}; // junction: the stem's fan into its slot on the box top
 };
 
-// A unit that can place a hub box on a nozzle: HUB topology, present, with a tool.
-bool places_hub(const SystemPathData& data, int u) {
-    return u >= 0 && u < data.unit_count && u < SystemPathData::kMaxUnits &&
-           data.unit_topology[u] != kTopoParallel && data.unit_topology[u] != kTopoMixed &&
-           data.unit_tool_count[u] > 0;
+// A PARALLEL or MIXED unit: one route per tool.
+bool per_tool_unit(const SystemPathData& data, int u) {
+    return data.unit_topology[u] == kTopoParallel || data.unit_topology[u] == kTopoMixed;
 }
 
-// Units sharing one hub box: those carrying the same non-zero unit_hub_group on
-// one nozzle. Returns the member count and the lowest member (the box's owner
-// in OverviewBoxes::hubs); a unit on a hub of its own is a group of one.
-int shared_hub_members(const SystemPathData& data, int unit, int* members, int* leader) {
-    const int g = data.unit_hub_group[unit];
-    int n = 0;
-    *leader = unit;
-    if (g <= 0 || !places_hub(data, unit)) {
-        if (members)
-            members[0] = unit;
-        return 1;
-    }
-    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
-        if (data.unit_hub_group[u] != g || !places_hub(data, u) || data.unit_absent[u] ||
-            data.unit_first_tool[u] != data.unit_first_tool[unit])
-            continue;
-        if (n == 0)
-            *leader = u;
-        if (members)
-            members[n] = u;
-        n++;
-    }
-    return n;
+// The hub box row: the junction boxes sit a third of the way from the merge
+// line to the toolheads, and a lone route's merge point sits at the same height.
+struct HubRowYs {
+    int32_t center, height, top, bottom;
+};
+HubRowYs hub_row_ys(const SysLayout& L) {
+    const int32_t h = L.hub_h * 2 / 3;
+    const int32_t y = L.merge_y + (L.tools_y - L.merge_y) / 3;
+    return {y, h, y - h / 2, y + h / 2};
 }
 
-// The shared hub @p unit joins, or 0 when it is on a hub of its own.
-int shared_hub_of(const SystemPathData& data, int unit) {
-    int leader = unit;
-    return shared_hub_members(data, unit, nullptr, &leader) > 1 ? data.unit_hub_group[unit] : 0;
+// Where HUB stems stop and turn toward their nozzle: above the PARALLEL
+// harness runs below.
+int32_t hub_merge_y(const SysLayout& L) {
+    return L.entry_y + (L.merge_y - L.entry_y) * 2 / 3;
 }
 
-// Where unit `unit_index`'s hub sits among the hubs that feed the SAME physical
-// nozzle, and how many there are.
-//
-// compute_system_tool_layout() deliberately merges two HUB units onto one
-// physical tool when they name the same extruder (a Box Turtle and a Claymore
-// both wired to e0). Each unit still owns a real, separate hub, so the boxes
-// fan out around the nozzle to keep every hub visible and its route
-// distinguishable. Units on one shared hub count once. Returns rank 0 / count 1
-// for the common unshared case.
-void hub_group_position(const SystemPathData& data, int unit_index, int* rank, int* count) {
-    *rank = 0;
-    *count = 0;
-    const int my_tool = data.unit_first_tool[unit_index];
-    int my_leader = unit_index;
-    shared_hub_members(data, unit_index, nullptr, &my_leader);
-    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
-        if (!places_hub(data, u) || data.unit_first_tool[u] != my_tool)
-            continue;
-        int leader = u;
-        shared_hub_members(data, u, nullptr, &leader);
-        if (leader != u)
-            continue;
-        if (u < my_leader)
-            (*rank)++;
-        (*count)++;
-    }
-}
-
-// PARALLEL / MIXED unit — one route per unique tool position. For MIXED,
+// PARALLEL / MIXED unit: one route per unique tool position. For MIXED,
 // tool_count already reflects unique nozzles (not lanes), so hub lanes sharing a
-// mapped_tool produce a single route; the hub group's mini-hub is recorded for
-// the last tool.
+// mapped_tool produce a single route: the last tool's, which carries the hub.
 int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L, int i,
-                                  GlobalRoute* routes, int n, OverviewBoxes& boxes) {
+                                  GlobalRoute* routes, int n) {
     int32_t unit_x = unit_stem_x(data, L, i);
     int tool_count = data.unit_tool_count[i];
     int first_tool = data.unit_first_tool[i];
@@ -200,6 +156,7 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
     auto start_x_of = [&](int t) {
         return tool_count > 1 ? unit_x - spread / 2 + (spread * t) / (tool_count - 1) : unit_x;
     };
+    const bool mixed = data.unit_topology[i] == kTopoMixed && tool_count > 1;
     for (int t = 0; t < tool_count && (first_tool + t) < data.total_tools; ++t) {
         if (n >= SystemPathData::kMaxTools)
             break;
@@ -207,126 +164,95 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
         int32_t tool_x = calc_tool_x(tool_idx, data.total_tools, L.x_off, L.width);
         int32_t start_x = start_x_of(t);
         int32_t dist = start_x > tool_x ? (start_x - tool_x) : (tool_x - start_x);
-        routes[n++] = {i, tool_idx, start_x, L.entry_y, tool_x, L.tools_y, dist, false, false, 0};
-    }
-
-    // MIXED: the hub-routed lanes share the group's last tool. Its "H" box
-    // stands just above that tool, where its route is alone: the route enters
-    // the box top and leaves the bottom for the nozzle.
-    if (data.unit_topology[i] == kTopoMixed && tool_count > 1 && n > 0 &&
-        routes[n - 1].tool_idx == first_tool + tool_count - 1) {
-        GlobalRoute& hub_route = routes[n - 1];
-        hub_route.via_box = true;
-        const int32_t mhw = data.hub_width * 2 / 5;
-        const int32_t mhh = L.hub_h * 2 / 3;
-        const int32_t outlet = LV_MAX(10, 3 * data.tube_gauge);
-        const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
-        const int32_t mhy = nozzle_top - outlet - mhh / 2;
-        const bool hub_has_filament =
-            i == data.active_unit && data.filament_loaded && data.active_tool == hub_route.tool_idx;
-        boxes.hubs[i] = {hub_route.end_x,
-                         hub_route.end_x,
-                         mhy,
-                         mhw,
-                         mhh,
-                         hub_fill(data, hub_has_filament),
-                         hub_route.tool_idx,
-                         true,
-                         true};
-        hub_route.end_y = mhy - mhh / 2;
+        routes[n++] = {i,         tool_idx, start_x,
+                       L.entry_y, tool_x,   L.tools_y,
+                       dist,      false,    mixed && t == tool_count - 1,
+                       false};
     }
     return n;
 }
 
-// Clear space between neighboring hub boxes. The fan-out pitch and the row
-// solver must agree on it, or a row that already fits gets moved.
-int32_t hub_box_gap(const SystemPathData& data) {
-    return LV_MAX(4, data.tube_gauge);
-}
-
-// The buffer box on a hub's outlet, between the hub and its nozzle, when the
-// hub's first unit has one. It takes half the run so the outlet shows above and
-// below it.
-void place_hub_buffer(const SystemPathData& data, const SysLayout& L, int unit, HubInfo& hub) {
-    if (!data.unit_has_buffer[unit])
-        return;
-    const int32_t hub_bottom = hub.mini_hub_y + hub.mini_hub_h / 2;
-    const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
-    const int32_t run = nozzle_top - hub_bottom;
-    hub.buffer_h = LV_MIN(hub.mini_hub_h, run / 2);
-    hub.buffer_w = data.hub_width * 2 / 3;
-    hub.buffer_y = hub_bottom + run / 2;
-    if (hub.buffer_h <= 0)
-        hub.buffer_h = 0;
-}
-
-// HUB unit — one route from the unit to its hub: its own mini hub, or the box
-// shared with the other units on its hub.
+// HUB unit: one route from the unit toward its first tool.
 int collect_hub_route(const SystemPathData& data, const SysLayout& L, int i, GlobalRoute* routes,
-                      int n, OverviewBoxes& boxes) {
-    int32_t unit_x = unit_stem_x(data, L, i);
+                      int n) {
     int tool_count = data.unit_tool_count[i];
     int first_tool = data.unit_first_tool[i];
     if (tool_count <= 0 || first_tool >= data.total_tools || n >= SystemPathData::kMaxTools)
         return n;
-
-    int32_t tool_x = calc_tool_x(first_tool, data.total_tools, L.x_off, L.width);
-    int32_t mini_hub_w = data.hub_width * 2 / 3;
-    int32_t mini_hub_h = L.hub_h * 2 / 3;
-    int32_t mini_hub_y = L.merge_y + (L.tools_y - L.merge_y) / 3;
-
-    int members[SystemPathData::kMaxUnits];
-    int leader = i;
-    const int member_count = shared_hub_members(data, i, members, &leader);
-    const int group = member_count > 1 ? data.unit_hub_group[i] : 0;
-
-    // A shared hub is wide enough for one lane per unit.
-    int32_t box_w = mini_hub_w;
-    if (group > 0) {
-        const int32_t pitch = data.tube_gauge + kHaloWidthExtra + 2;
-        box_w = LV_MAX(mini_hub_w, 2 * (int32_t)kFanEntryMargin + member_count * pitch);
-    }
-
-    // Fan the box away from the nozzle center when another hub feeds the same
-    // one. rank 0 / count 1 (nothing shared) leaves hub_x == tool_x.
-    int hub_rank = 0;
-    int hub_group = 1;
-    hub_group_position(data, i, &hub_rank, &hub_group);
-    int32_t hub_pitch = box_w + hub_box_gap(data);
-    int32_t hub_x = tool_x + (2 * hub_rank - (hub_group - 1)) * hub_pitch / 2;
-
-    // HUB stems drop to a shorter merge point, leaving room between hub routes
-    // and the parallel routes below.
-    int32_t hub_merge_y = L.entry_y + (L.merge_y - L.entry_y) * 2 / 3;
-    int32_t dist = unit_x > hub_x ? (unit_x - hub_x) : (hub_x - unit_x);
-    routes[n++] = {i,    first_tool, unit_x, hub_merge_y, hub_x, mini_hub_y - mini_hub_h / 2,
-                   dist, true,       false,  group};
-
-    if (i != leader)
-        return n; // the shared box is recorded once, at its lowest unit
-
-    bool hub_has_filament = false;
-    for (int m = 0; m < member_count; ++m)
-        hub_has_filament =
-            hub_has_filament || (members[m] == data.active_unit && data.filament_loaded);
-    boxes.hubs[i] = {hub_x,      tool_x,     mini_hub_y,
-                     box_w,      mini_hub_h, hub_fill(data, hub_has_filament),
-                     first_tool, true};
-    place_hub_buffer(data, L, i, boxes.hubs[i]);
+    const int32_t unit_x = unit_stem_x(data, L, i);
+    const int32_t tool_x = calc_tool_x(first_tool, data.total_tools, L.x_off, L.width);
+    const int32_t dist = unit_x > tool_x ? (unit_x - tool_x) : (tool_x - unit_x);
+    routes[n++] = {i,    first_tool, unit_x, hub_merge_y(L), tool_x, hub_row_ys(L).top,
+                   dist, true,       true,   false};
     return n;
 }
 
-// ---- Mini-hub row ----------------------------------------------------------
-// Every HUB unit's box wants to sit on its toolhead, but toolheads can sit
-// closer together than a box is wide, and units sharing a nozzle fan out
-// around it. The row is solved as one problem: boxes keep their order, stay
-// inside the canvas, keep a gap from each other and stay clear of the vertical
-// runs of routes that drop to nozzles through the same band.
+// Clear space between neighboring hub boxes. The row solver and the boxes'
+// own widths must agree on it, or a row that already fits gets moved.
+int32_t hub_box_gap(const SystemPathData& data) {
+    return LV_MAX(4, data.tube_gauge);
+}
 
-constexpr int kHubRowMax = SystemPathData::kMaxUnits;
+// One tube's pitch where lanes enter a box side by side.
+int32_t lane_pitch(const SystemPathData& data) {
+    return data.tube_gauge + kHaloWidthExtra + 2;
+}
+
+// The width a junction box's label is sized for: "Hub", or "Hub+BUF" when the
+// hub carries the buffer.
+int32_t junction_label_w(const SystemPathData& data, bool with_buffer) {
+    return with_buffer ? data.hub_width : data.hub_width * 2 / 3;
+}
+
+// The width that fits @p lanes tubes entering a box top side by side.
+int32_t junction_lanes_w(const SystemPathData& data, int lanes) {
+    return 2 * (int32_t)kFanEntryMargin + lanes * lane_pitch(data);
+}
+
+// The box at each junction, centred on its nozzle, and the buffer box on each
+// lone route that has one: half the run from the merge height to the nozzle,
+// no wider than the gap between two neighboring toolheads leaves.
+void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const NozzleFeed* feeds,
+                        int tools, OverviewBoxes& boxes) {
+    const HubRowYs ys = hub_row_ys(L);
+    const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
+    const int32_t run = nozzle_top - ys.bottom;
+    int32_t buffer_w = data.hub_width * 2 / 3;
+    if (data.total_tools > 1) {
+        const int32_t tool_pitch = calc_tool_x(1, data.total_tools, L.x_off, L.width) -
+                                   calc_tool_x(0, data.total_tools, L.x_off, L.width);
+        buffer_w = LV_MIN(buffer_w, tool_pitch - hub_box_gap(data));
+    }
+    for (int t = 0; t < tools; ++t) {
+        const NozzleFeed& f = feeds[t];
+        if (f.routes == 0)
+            continue;
+        HubInfo& h = boxes.hubs[t];
+        const int32_t tool_x = calc_tool_x(t, data.total_tools, L.x_off, L.width);
+        h = {tool_x, tool_x, ys.center, 0, ys.height, data.color_hub_bg, f.junction};
+        h.buffer_unit = f.buffer ? f.buffer_unit : -1;
+        if (f.junction) {
+            h.buffer_in_hub = f.buffer;
+            h.mini_hub_w =
+                LV_MAX(junction_label_w(data, f.buffer), junction_lanes_w(data, f.routes));
+        } else if (f.buffer && run > 0) {
+            h.buffer_h = LV_MIN(ys.height, run / 2);
+            h.buffer_w = LV_MAX(1, buffer_w);
+            h.buffer_y = ys.bottom + run / 2;
+        }
+    }
+}
+
+// ---- Junction row ----------------------------------------------------------
+// Every junction box wants to sit on its toolhead, but toolheads can sit closer
+// together than a box is wide. The row is solved as one problem: boxes keep
+// their order, stay inside the canvas, keep a gap from each other and stay
+// clear of the vertical runs of routes that drop to their nozzles alone.
+
+constexpr int kHubRowMax = SystemPathData::kMaxTools;
 
 struct HubRow {
-    int unit[kHubRowMax];
+    int tool[kHubRowMax];
     int32_t pref[kHubRowMax]; // preferred center
     int32_t w[kHubRowMax];    // box width
     int32_t x[kHubRowMax];    // solved center
@@ -427,39 +353,29 @@ bool solve_row(HubRow& row, const HubRowSpace& sp) {
     return true;
 }
 
-// Places the HUB units' boxes (preferred centers are in boxes.hubs[u].hub_x)
-// and re-aims their routes. A row that fits keeps its preferred positions and
-// full widths; one that does not first narrows the single-unit boxes, then
-// labels them "H". A box shared by several units keeps its width, which its
-// lanes need to enter side by side. A hub's buffer box narrows with its hub.
-void resolve_hub_row(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes, int n,
-                     OverviewBoxes& boxes) {
+// Places the junction boxes (preferred centers are their nozzles). A row that
+// fits keeps its preferred positions and full widths; one that does not
+// narrows the boxes, never below the width their entering lanes need, and a
+// box narrowed below its label's width says "H". Lone-route buffers keep their
+// own width, which already fits between two toolheads.
+void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const NozzleFeed* feeds,
+                     const GlobalRoute* routes, int n, OverviewBoxes& boxes) {
     HubRow row;
-    bool shared[kHubRowMax] = {};
-    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
-        if (!boxes.hubs[u].valid || data.unit_topology[u] == kTopoMixed)
+    int32_t full_w[kHubRowMax];
+    int32_t min_w[kHubRowMax];
+    int32_t label_w[kHubRowMax];
+    for (int t = 0; t < SystemPathData::kMaxTools; ++t) {
+        if (!boxes.hubs[t].valid)
             continue;
-        int members[SystemPathData::kMaxUnits];
-        int leader = u;
-        shared[row.n] = shared_hub_members(data, u, members, &leader) > 1;
-        row.unit[row.n] = u;
-        row.pref[row.n] = boxes.hubs[u].hub_x;
-        row.w[row.n] = boxes.hubs[u].mini_hub_w;
+        row.tool[row.n] = t;
+        row.pref[row.n] = boxes.hubs[t].hub_x;
+        full_w[row.n] = boxes.hubs[t].mini_hub_w;
+        min_w[row.n] = LV_MIN(full_w[row.n], junction_lanes_w(data, feeds[t].routes));
+        label_w[row.n] = junction_label_w(data, boxes.hubs[t].buffer_in_hub);
         ++row.n;
     }
     if (row.n == 0)
         return;
-    // Stable in unit order, so units sharing a nozzle keep their rank order.
-    for (int i = 1; i < row.n; ++i)
-        for (int j = i; j > 0 && row.pref[j] < row.pref[j - 1]; --j) {
-            std::swap(row.pref[j], row.pref[j - 1]);
-            std::swap(row.unit[j], row.unit[j - 1]);
-            std::swap(row.w[j], row.w[j - 1]);
-            std::swap(shared[j], shared[j - 1]);
-        }
-    int32_t full_w[kHubRowMax];
-    for (int i = 0; i < row.n; ++i)
-        full_w[i] = row.w[i];
 
     HubRowSpace sp;
     sp.left = L.x_off;
@@ -467,61 +383,49 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, GlobalRoute
     sp.gap = hub_box_gap(data);
     sp.obstacle_half = (data.tube_gauge + kHaloWidthExtra) / 2 + sp.gap / 2;
     for (int r = 0; r < n && sp.obstacle_count < SystemPathData::kMaxTools; ++r)
-        if (!routes[r].is_hub)
+        if (!routes[r].junction)
             sp.obstacles[sp.obstacle_count++] = routes[r].end_x;
 
-    // Width tiers for single-unit boxes: full, narrow, then short ("H").
+    // Width tiers: full, then narrower caps; a box keeps room for its lanes.
     const int32_t tier_cap[] = {INT32_MAX, data.hub_width / 2, data.hub_width * 2 / 5};
-    int tier = 2;
     bool fits = false;
     for (int k = 0; k < 3 && !fits; ++k) {
-        tier = k;
         for (int i = 0; i < row.n; ++i)
-            row.w[i] = shared[i] ? full_w[i] : LV_MIN(full_w[i], tier_cap[k]);
+            row.w[i] = LV_MAX(min_w[i], LV_MIN(full_w[i], tier_cap[k]));
         fits = solve_row(row, sp);
     }
     if (!fits) {
-        // Even "H" boxes do not fit beside the drops: give the single-unit boxes
-        // an equal share of what the shared ones leave, and let them cover the
-        // drops. Below (n - 1) * gap of canvas they still overlap.
-        int32_t fixed = (row.n - 1) * sp.gap;
-        int singles = 0;
-        for (int i = 0; i < row.n; ++i) {
-            if (shared[i])
-                fixed += full_w[i];
-            else
-                ++singles;
-        }
-        const int32_t share =
-            singles > 0 ? (sp.right - sp.left - fixed) / singles : (sp.right - sp.left);
+        // Even the narrowest boxes do not fit beside the drops: give every box
+        // an equal share of the canvas and let them cover the drops. Below
+        // (n - 1) * gap of canvas they still overlap.
+        const int32_t share = (sp.right - sp.left - (row.n - 1) * sp.gap) / row.n;
         for (int i = 0; i < row.n; ++i)
-            if (!shared[i])
-                row.w[i] = LV_MAX(1, LV_MIN(row.w[i], share));
+            row.w[i] = LV_MAX(1, LV_MIN(row.w[i], share));
         sp.obstacle_count = 0;
         solve_row(row, sp);
     }
 
     for (int i = 0; i < row.n; ++i) {
-        const int u = row.unit[i];
-        boxes.hubs[u].hub_x = row.x[i];
-        boxes.hubs[u].mini_hub_w = row.w[i];
-        boxes.hubs[u].short_label = tier == 2 && !shared[i];
-        boxes.hubs[u].buffer_w = LV_MIN(boxes.hubs[u].buffer_w, row.w[i]);
-        for (int r = 0; r < n; ++r)
-            if (routes[r].is_hub && routes[r].unit_idx == u) {
-                routes[r].end_x = row.x[i];
-                routes[r].dist = LV_ABS(routes[r].start_x - row.x[i]);
-            }
+        HubInfo& h = boxes.hubs[row.tool[i]];
+        h.hub_x = row.x[i];
+        h.mini_hub_w = row.w[i];
+        h.short_label = row.w[i] < label_w[i];
     }
 }
 
-// PARALLEL by end_x ascending (leftmost tool first → bottom horizontal); HUB
-// after parallel, by distance descending.
+// A route that drops a stem from its unit and fans in, rather than running a
+// harness across to its nozzle.
+bool stem_route(const GlobalRoute& r) {
+    return r.is_hub || r.junction;
+}
+
+// Harness routes by end_x ascending (leftmost tool first → bottom horizontal);
+// stem routes after them, by distance descending.
 void sort_routes(GlobalRoute* routes, int n) {
     std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
-        if (a.is_hub != b.is_hub)
-            return !a.is_hub;
-        return a.is_hub ? a.dist > b.dist : a.end_x < b.end_x;
+        if (stem_route(a) != stem_route(b))
+            return !stem_route(a);
+        return stem_route(a) ? a.dist > b.dist : a.end_x < b.end_x;
     });
 }
 
@@ -550,6 +454,111 @@ void append_harness(Route& r, int32_t sx, int32_t sy, int32_t ex, int32_t ey, in
     route_append(r, path, s);
 }
 
+// One route's state. A HUB route is its unit's; a tool route carries filament
+// only when it is the active tool's, and a MIXED unit's hub lanes also when its
+// hub sensor reads filament.
+Lane route_lane(const SystemPathData& data, const GlobalRoute& route) {
+    if (route.is_hub)
+        return unit_lane(data, route.unit_idx);
+    const bool tool_on = route.unit_idx == data.active_unit && route.tool_idx == data.active_tool;
+    Lane lane = unit_lane(data, route.unit_idx);
+    if (!tool_on) {
+        const bool hub_reads = route.hub_lane && data.unit_has_hub_sensor[route.unit_idx] &&
+                               data.unit_hub_triggered[route.unit_idx];
+        lane = unit_lane(data, -1);
+        if (hub_reads) {
+            lane.reached = PathSegment::OUTPUT;
+            if (data.unit_lane_segment[route.unit_idx] != PathSegment::NONE)
+                lane.color = lv_color_hex(data.unit_lane_color[route.unit_idx]);
+        }
+    }
+    lane.on = tool_on;
+    return lane;
+}
+
+// Each junction's routes fan into its box top left to right, in stem order.
+void fan_into_junctions(const OverviewBoxes& boxes, GlobalRoute* routes, int n) {
+    for (int t = 0; t < SystemPathData::kMaxTools; ++t) {
+        const HubInfo& hub = boxes.hubs[t];
+        if (!hub.valid)
+            continue;
+        int members[SystemPathData::kMaxTools];
+        int count = 0;
+        for (int r = 0; r < n; ++r)
+            if (routes[r].junction && routes[r].tool_idx == t)
+                members[count++] = r;
+        std::sort(members, members + count,
+                  [&](int a, int b) { return routes[a].start_x < routes[b].start_x; });
+        pg::MergeLaneIn in[SystemPathData::kMaxTools];
+        pg::MergeLaneOut fans[SystemPathData::kMaxTools];
+        for (int m = 0; m < count; ++m)
+            in[m] = {(float)routes[members[m]].start_x, (float)routes[members[m]].start_y};
+        merge_fan(in, count, hub.hub_x, hub.mini_hub_y - hub.mini_hub_h / 2, hub.mini_hub_w, fans);
+        for (int m = 0; m < count; ++m) {
+            GlobalRoute& r = routes[members[m]];
+            r.fan = fans[m];
+            r.end_x = (int32_t)fans[m].pts[3].x;
+            r.dist = LV_ABS(r.start_x - r.end_x);
+        }
+    }
+}
+
+// The route at each junction that carries the outlet to the nozzle: the
+// active one, else the one loaded furthest, else the first.
+void junction_owners(const SystemPathData& data, const GlobalRoute* routes, int n, int* owner) {
+    for (int t = 0; t < SystemPathData::kMaxTools; ++t)
+        owner[t] = -1;
+    for (int r = 0; r < n; ++r) {
+        if (!routes[r].junction)
+            continue;
+        int& o = owner[routes[r].tool_idx];
+        if (o < 0) {
+            o = r;
+            continue;
+        }
+        const Lane cur = route_lane(data, routes[o]);
+        const Lane cand = route_lane(data, routes[r]);
+        if (cur.on)
+            continue;
+        if (cand.on || cand.reached > cur.reached)
+            o = r;
+    }
+}
+
+// Junction outlet: through the box (unpainted) to its centre and straight down,
+// so the hub sensor's band sits level on its bottom edge; then on to the
+// nozzle, angling in when the row moved the box.
+void append_junction_outlet(PathPlan& plan, Route& r, const Lane& lane, const HubInfo& hub,
+                            bool hub_sensor, float from_x, float nozzle_top) {
+    const float top = (float)(hub.mini_hub_y - hub.mini_hub_h / 2);
+    const float out_y = (float)(hub.mini_hub_y + hub.mini_hub_h / 2);
+    const fpath::SpanStyle inside = unpainted(lane.style(PathSegment::HUB));
+    append_line(r, from_x, top, (float)hub.hub_x, (float)hub.mini_hub_y, inside);
+    append_line(r, (float)hub.hub_x, (float)hub.mini_hub_y, (float)hub.hub_x, out_y, inside);
+    if (hub_sensor)
+        add_band_at_end(plan, BandKind::Lane, r, lane.band(PathSegment::OUTPUT), lane.color,
+                        /*on_box_edge=*/true);
+    if (hub.hub_x == hub.tool_x) {
+        append_line(r, (float)hub.hub_x, out_y, (float)hub.tool_x, nozzle_top,
+                    lane.style(PathSegment::OUTPUT));
+        return;
+    }
+    pg::MergeLaneIn out_in{(float)hub.hub_x, out_y};
+    pg::MergeLaneOut outlet;
+    merge_fan(&out_in, 1, hub.tool_x, (int32_t)nozzle_top, 0, &outlet);
+    append_fan(r, outlet, lane.style(PathSegment::OUTPUT));
+}
+
+// A lone route's last stretch from its merge height (@p from_y) to the nozzle:
+// the hub sensor's band on the line when its unit has one there, then the
+// output tube, past any buffer box drawn over it.
+void append_lone_outlet(PathPlan& plan, Route& r, const Lane& lane, float x, float from_y,
+                        bool hub_sensor, float nozzle_top) {
+    if (hub_sensor)
+        add_band_at_end(plan, BandKind::Lane, r, lane.band(PathSegment::OUTPUT), lane.color);
+    append_line(r, x, from_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
+}
+
 void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
                      OverviewBoxes& boxes) {
     GlobalRoute routes[SystemPathData::kMaxTools];
@@ -557,24 +566,41 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     for (int i = 0; i < data.unit_count && i < SystemPathData::kMaxUnits; i++) {
         if (data.unit_absent[i])
             continue;
-        const int topology = data.unit_topology[i];
-        if (topology == kTopoParallel || topology == kTopoMixed)
-            n = collect_parallel_mixed_routes(data, L, i, routes, n, boxes);
+        if (per_tool_unit(data, i))
+            n = collect_parallel_mixed_routes(data, L, i, routes, n);
         else
-            n = collect_hub_route(data, L, i, routes, n, boxes);
+            n = collect_hub_route(data, L, i, routes, n);
     }
-    resolve_hub_row(data, L, routes, n, boxes);
+
+    const int tools = LV_MIN(data.total_tools, SystemPathData::kMaxTools);
+    NozzleFeed feeds[SystemPathData::kMaxTools];
+    for (int t = 0; t < tools; ++t)
+        feeds[t] = nozzle_feed(data, t);
+    const HubRowYs ys = hub_row_ys(L);
+    for (int r = 0; r < n; ++r) {
+        GlobalRoute& route = routes[r];
+        route.junction = feeds[route.tool_idx].junction;
+        if (route.junction) {
+            route.start_y = hub_merge_y(L);
+            route.end_y = ys.top;
+        }
+    }
+    place_nozzle_boxes(data, L, feeds, tools, boxes);
+    resolve_hub_row(data, L, feeds, routes, n, boxes);
+    fan_into_junctions(boxes, routes, n);
     sort_routes(routes, n);
+    int owner[SystemPathData::kMaxTools];
+    junction_owners(data, routes, n, owner);
 
     const float nozzle_top = (float)(L.tools_y - small_tool_scale(data) * 2);
 
-    // PARALLEL horizontal levels, fixed spacing, centred at 55% between the
+    // Harness horizontal levels, fixed spacing, centred at 55% between the
     // entries and the tool row. The leftmost tool takes the lowest level and
     // the rightmost the highest, so no end drop crosses another route's run.
     int parallel_count = 0;
     for (int r = 0; r < n; ++r)
         parallel_count +=
-            !routes[r].is_hub && LV_ABS(routes[r].end_x - routes[r].start_x) > data.tube_gauge;
+            !stem_route(routes[r]) && LV_ABS(routes[r].end_x - routes[r].start_x) > data.tube_gauge;
     const int32_t arc_r = LV_MAX(8, (L.tools_y - L.entry_y) / 10);
     const int32_t par_step = LV_MAX(10, data.tube_gauge + kHaloWidthExtra + 2);
     const int32_t par_group_h = (parallel_count > 1) ? par_step * (parallel_count - 1) : 0;
@@ -584,30 +610,43 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
 
     for (int k = 0; k < n; ++k) {
         const GlobalRoute& route = routes[k];
-        const bool unit_on = route.unit_idx == data.active_unit;
-        const bool tool_on = unit_on && route.tool_idx == data.active_tool;
+        const Lane lane = route_lane(data, route);
+        const bool hub_sensor = route.hub_lane && data.unit_has_hub_sensor[route.unit_idx];
         Route* r = try_new_route(plan);
         if (!r)
             break;
 
-        if (!route.is_hub) {
-            // A tool route carries filament only when it is the active tool's;
-            // a MIXED hub group's also when its hub sensor reads filament.
-            Lane lane = unit_lane(data, route.unit_idx);
-            if (!tool_on) {
-                const bool hub_reads = route.via_box && data.unit_has_hub_sensor[route.unit_idx] &&
-                                       data.unit_hub_triggered[route.unit_idx];
-                lane = unit_lane(data, -1);
-                if (hub_reads) {
-                    lane.reached = PathSegment::OUTPUT;
-                    if (data.unit_lane_segment[route.unit_idx] != PathSegment::NONE)
-                        lane.color = lv_color_hex(data.unit_lane_color[route.unit_idx]);
-                }
-            }
-            lane.on = tool_on;
+        if (route.junction) {
+            // Stem, then its fan into the junction box top; the owner carries
+            // the outlet on to the nozzle.
+            HubInfo& hub = boxes.hubs[route.tool_idx];
+            append_line(*r, (float)route.start_x, (float)L.entry_y, (float)route.start_x,
+                        (float)route.start_y, lane.style(PathSegment::LANE));
+            append_fan(*r, route.fan, lane.style(PathSegment::HUB));
+            if (lane.on && data.filament_loaded)
+                hub.hub_bg_color = hub_fill(data, true);
+            if (owner[route.tool_idx] != k)
+                continue;
+            append_junction_outlet(plan, *r, lane, hub, feeds[route.tool_idx].hub_sensor,
+                                   route.fan.pts[3].x, nozzle_top);
+        } else if (route.is_hub) {
+            // A lone HUB route: stem, a fan onto its nozzle's line, and straight
+            // down through the merge height.
+            append_line(*r, (float)route.start_x, (float)L.entry_y, (float)route.start_x,
+                        (float)route.start_y, lane.style(PathSegment::LANE));
+            pg::MergeLaneIn in{(float)route.start_x, (float)route.start_y};
+            pg::MergeLaneOut fan;
+            merge_fan(&in, 1, route.end_x, route.end_y, 0, &fan);
+            append_fan(*r, fan, lane.style(PathSegment::HUB));
+            append_line(*r, (float)route.end_x, (float)route.end_y, (float)route.end_x,
+                        (float)ys.center, lane.style(PathSegment::HUB));
+            append_lone_outlet(plan, *r, lane, (float)route.end_x, (float)ys.center, hub_sensor,
+                               nozzle_top);
+        } else {
+            // A tool route: a harness across to its nozzle. A MIXED unit's hub
+            // lanes stop at the merge height for their hub sensor's band.
             const fpath::SpanStyle s = lane.style(PathSegment::LANE);
-            // A hub-group route ends at its box top; the rest at the nozzle.
-            const int32_t end_y = route.via_box ? route.end_y : (int32_t)nozzle_top;
+            const int32_t end_y = hub_sensor ? ys.center : (int32_t)nozzle_top;
             const int32_t dx = route.end_x - route.start_x;
             if (LV_ABS(dx) <= data.tube_gauge) {
                 // Too close to bend into: drop straight onto the glyph.
@@ -619,100 +658,10 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
                 horiz_y = clamp_span(route.start_y + arc_r + 2, horiz_y, end_y - arc_r - 2);
                 append_harness(*r, route.start_x, route.start_y, route.end_x, end_y, horiz_y, s);
             }
-            if (route.via_box) {
-                const HubInfo& hub = boxes.hubs[route.unit_idx];
-                const float x = seg_end_x(*r);
-                const float out_y = (float)(hub.mini_hub_y + hub.mini_hub_h / 2);
-                append_line(*r, x, (float)end_y, x, out_y, unpainted(lane.style(PathSegment::HUB)));
-                if (data.unit_has_hub_sensor[route.unit_idx]) {
-                    add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT),
-                                    lane.color, /*on_box_edge=*/true);
-                }
-                append_line(*r, x, out_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
-            }
-            if (tool_on)
-                plan.active_route = plan.route_count - 1;
-            continue;
+            if (hub_sensor)
+                append_lone_outlet(plan, *r, lane, seg_end_x(*r), (float)end_y, true, nozzle_top);
         }
-
-        // HUB: stem → diagonal into its hub's top → through the box → outlet
-        // (past the hub's buffer box) to the nozzle. On a shared hub every unit
-        // brings its stem to the box top and one of them carries the outlet.
-        const Lane lane = unit_lane(data, route.unit_idx);
-        int members[SystemPathData::kMaxUnits];
-        int leader = route.unit_idx;
-        const int member_count = shared_hub_members(data, route.unit_idx, members, &leader);
-        const bool shared = route.group > 0 && member_count > 1;
-        const HubInfo& hub = boxes.hubs[leader];
-        append_line(*r, (float)route.start_x, (float)L.entry_y, (float)route.start_x,
-                    (float)route.start_y, lane.style(PathSegment::LANE));
-
-        float fan_end_x = (float)hub.hub_x;
-        if (shared) {
-            // Lanes enter the box top left to right, in stem order.
-            std::sort(members, members + member_count, [&](int a, int b) {
-                return unit_stem_x(data, L, a) < unit_stem_x(data, L, b);
-            });
-            pg::MergeLaneIn in[SystemPathData::kMaxUnits];
-            pg::MergeLaneOut fans[SystemPathData::kMaxUnits];
-            int mine = 0;
-            for (int m = 0; m < member_count; ++m) {
-                in[m] = {(float)unit_stem_x(data, L, members[m]), (float)route.start_y};
-                if (members[m] == route.unit_idx)
-                    mine = m;
-            }
-            merge_fan(in, member_count, hub.hub_x, route.end_y, hub.mini_hub_w, fans);
-            append_fan(*r, fans[mine], lane.style(PathSegment::HUB));
-            fan_end_x = fans[mine].pts[3].x;
-        } else {
-            pg::MergeLaneIn in{(float)route.start_x, (float)route.start_y};
-            pg::MergeLaneOut fan;
-            merge_fan(&in, 1, route.end_x, route.end_y, 0, &fan);
-            append_fan(*r, fan, lane.style(PathSegment::HUB));
-        }
-
-        const int32_t out_y = hub.mini_hub_y + hub.mini_hub_h / 2;
-        if (shared) {
-            // One unit carries the outlet: the active one, else the one loaded
-            // furthest, else the first.
-            int owner = members[0];
-            for (int m = 0; m < member_count; ++m) {
-                const int u = members[m];
-                if (u == data.active_unit) {
-                    owner = u;
-                    break;
-                }
-                if (data.unit_lane_segment[u] > data.unit_lane_segment[owner])
-                    owner = u;
-            }
-            if (route.unit_idx != owner)
-                continue;
-        }
-
-        append_line(*r, fan_end_x, (float)route.end_y, (float)hub.hub_x, (float)out_y,
-                    unpainted(lane.style(PathSegment::HUB)));
-        // The hub sensor reads the hub's output.
-        if (data.unit_has_hub_sensor[route.unit_idx]) {
-            add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT), lane.color,
-                            /*on_box_edge=*/true);
-        }
-        const int32_t buffer_bottom = hub.buffer_h > 0 ? hub.buffer_y + hub.buffer_h / 2 : out_y;
-        if (hub.hub_x == hub.tool_x) {
-            append_line(*r, (float)hub.hub_x, (float)out_y, (float)hub.tool_x, nozzle_top,
-                        lane.style(PathSegment::OUTPUT));
-        } else {
-            // Shared nozzle: this hub sits beside it, so the outlet drops past
-            // the buffer and then angles in.
-            if (buffer_bottom > out_y) {
-                append_line(*r, (float)hub.hub_x, (float)out_y, (float)hub.hub_x,
-                            (float)buffer_bottom, lane.style(PathSegment::OUTPUT));
-            }
-            pg::MergeLaneIn out_in{(float)hub.hub_x, (float)buffer_bottom};
-            pg::MergeLaneOut outlet;
-            merge_fan(&out_in, 1, hub.tool_x, (int32_t)nozzle_top, 0, &outlet);
-            append_fan(*r, outlet, lane.style(PathSegment::OUTPUT));
-        }
-        if (unit_on)
+        if (lane.on)
             plan.active_route = plan.route_count - 1;
     }
 }
@@ -780,6 +729,12 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     pg::MergeLaneOut fan[SystemPathData::kMaxUnits];
     merge_fan(in, count, L.center_x, hub_top, data.hub_width, fan);
 
+    // Two or more units meet in the combiner; one unit's line runs on through
+    // where the combiner would stand.
+    const NozzleFeed feed = nozzle_feed(data, 0);
+    boxes.combiner = feed.junction;
+    boxes.combiner_buffer = feed.junction && feed.buffer;
+
     bool trunk_owned = false;
     for (int k = 0; k < count; k++) {
         const int u = units[k];
@@ -798,12 +753,18 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
                         lane.style(PathSegment::LANE));
         }
         append_fan(*r, fan[k], lane.style(PathSegment::OUTPUT));
+        if (!feed.junction) {
+            append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
+                        lane.style(PathSegment::HUB));
+        }
         if (!lane.on)
             continue;
         plan.active_route = plan.route_count - 1;
         trunk_owned = true;
-        append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
-                    unpainted(lane.style(PathSegment::HUB)));
+        if (feed.junction) {
+            append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
+                        unpainted(lane.style(PathSegment::HUB)));
+        }
         append_trunk(plan, *r, lane, data, L, y, bypass_owner);
     }
 
@@ -842,6 +803,50 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
 }
 
 } // namespace
+
+NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
+    NozzleFeed f;
+    const int units = LV_MIN(data.unit_count, SystemPathData::kMaxUnits);
+    if (data.total_tools <= 1) {
+        if (tool != 0)
+            return f;
+        for (int u = 0; u < units; ++u) {
+            if (data.unit_absent[u])
+                continue;
+            f.routes++;
+            f.hub_sensor = f.hub_sensor || data.unit_has_hub_sensor[u];
+        }
+        f.buffer = data.has_buffer;
+    } else {
+        if (tool < 0 || tool >= data.total_tools)
+            return f;
+        for (int u = 0; u < units; ++u) {
+            if (data.unit_absent[u])
+                continue;
+            const int first = data.unit_first_tool[u];
+            const int count = data.unit_tool_count[u];
+            if (per_tool_unit(data, u)) {
+                if (tool < first || tool >= first + count)
+                    continue;
+                f.routes++;
+                const bool mixed_hub =
+                    data.unit_topology[u] == kTopoMixed && count > 1 && tool == first + count - 1;
+                f.hub_sensor = f.hub_sensor || (mixed_hub && data.unit_has_hub_sensor[u]);
+                continue;
+            }
+            if (count <= 0 || first != tool)
+                continue;
+            f.routes++;
+            f.hub_sensor = f.hub_sensor || data.unit_has_hub_sensor[u];
+            if (!f.buffer && data.unit_has_buffer[u]) {
+                f.buffer = true;
+                f.buffer_unit = u;
+            }
+        }
+    }
+    f.junction = f.routes >= 2;
+    return f;
+}
 
 SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_coords) {
     SysLayout L{};
