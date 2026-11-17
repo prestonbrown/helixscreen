@@ -109,8 +109,20 @@ int segment_starting_at(const pg::FilamentPath& route, float y) {
     return -1;
 }
 
+// Where a tube meets the toolhead glyph: its top.
 float inlet_y(const HubCanvas& c) {
-    return (float)(c.data->path_cache.nozzle_y - c.data->theme.extruder_scale * 2);
+    return (float)toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
+}
+
+// The buffer hangs just under the hub, nearer it than the toolhead.
+void check_buffer_under_hub(const HubCanvas& c) {
+    const lv_area_t& hub = c.data->hits.hub;
+    const lv_area_t& buf = c.data->hits.buffer;
+    const int32_t glyph_top =
+        toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
+    CHECK((buf.y1 > hub.y2 &&
+           buf.y1 - hub.y2 <= 2 * c.data->theme.sensor_radius + (buf.y2 - buf.y1) / 2 + 1));
+    CHECK(buf.y1 - hub.y2 < glyph_top - buf.y2);
 }
 
 // The plan the canvas painted, rebuilt from its own state.
@@ -191,30 +203,20 @@ struct ScopedToolheadStyle {
 } // namespace
 
 TEST_CASE_METHOD(HubStackFixture,
-                 "HUB without a bypass stacks the hub and buffer onto the toolhead",
+                 "HUB without a bypass stacks a hub with no buffer onto the toolhead",
                  "[filament-path][hub-stack]") {
     const auto style = GENERATE(helix::ToolheadStyle::DEFAULT, helix::ToolheadStyle::STEALTHBURNER,
                                 helix::ToolheadStyle::A4T);
     ScopedToolheadStyle scoped(style);
     CAPTURE(static_cast<int>(style));
 
-    SECTION("with a buffer") {
+    SECTION("with a buffer, which keeps the hub at its place") {
         auto c = make(true, false);
         load(c, static_cast<int>(helix::PathSegment::NOZZLE));
         render(c);
-        REQUIRE(c.data->hits.hub_valid);
-        REQUIRE(c.data->hits.buffer_valid);
-        CHECK(center_y(c.data->hits.hub) > ratio_y(c, kHubYRatio));
-        CHECK(c.data->hits.hub.y2 < c.data->hits.buffer.y1);
-        const int32_t gap = (c.data->hits.hub.y2 - c.data->hits.hub.y1) / 2;
-        const int32_t glyph_top =
-            toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
-        CHECK(c.data->hits.buffer.y2 + gap <= glyph_top);
-        // The buffer box sits midway between the hub's bottom edge and the glyph.
-        const int32_t above = c.data->hits.buffer.y1 - c.data->hits.hub.y2;
-        const int32_t below = glyph_top - c.data->hits.buffer.y2;
-        CAPTURE(above, below);
-        CHECK(std::abs(above - below) <= 1);
+        REQUIRE((c.data->hits.hub_valid && c.data->hits.buffer_valid));
+        CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
+        check_buffer_under_hub(c);
     }
     SECTION("without a buffer") {
         auto c = make(false, false);
@@ -281,7 +283,7 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     const PathPlan& plan = plan_of(c, &f);
     REQUIRE((art != nullptr && c.data->rail_drawn && f.rail.w > 0));
     CHECK(std::abs(f.rail.x + f.rail.w / 2 - f.center_x) <= 1);
-    CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < f.buffer_y));
+    CHECK((f.rail.y > f.prep_y && f.rail.y + f.rail.h < ratio_y(c, kBufferYRatio)));
     CHECK((c.data->hits.hub.x1 == f.rail.x && c.data->hits.hub.y2 == f.rail.y + f.rail.h));
     const float in_y = (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h));
     for (int i = 0; i < 4; ++i) {
@@ -379,11 +381,11 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK((f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
            f.output_y < f.bypass_merge_y));
     CHECK(f.hub_fan[0].pts[0].x == (float)rail_outlet_x(*art, f.through, 0));
-    // No room for the face: the hub alone, the buffer back in its box.
+    // No room for the face: the hub alone.
     lv_obj_set_height(c.obj, 160);
     render(c);
     plan_of(c, &f);
-    CHECK((f.through.w == 0 && f.has_buffer && !f.sync_on_output));
+    CHECK(f.through.w == 0);
 }
 
 TEST_CASE_METHOD(HubStackFixture,
@@ -423,12 +425,12 @@ TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
     render(c);
     REQUIRE(c.data->hits.hub_valid);
     REQUIRE(c.data->hits.buffer_valid);
-    // The selector butts against the prep sensors; the buffer keeps its ratio.
+    // The selector butts against the prep sensors; the buffer hangs under it.
     const int32_t hub_h = c.data->hits.hub.y2 - c.data->hits.hub.y1;
     CHECK(
         center_y(c.data->hits.hub) ==
         Catch::Approx(ratio_y(c, kPrepYRatio) + c.data->theme.sensor_radius + hub_h / 2).margin(1));
-    CHECK(center_y(c.data->hits.buffer) == Catch::Approx(ratio_y(c, kBufferYRatio)).margin(1));
+    check_buffer_under_hub(c);
 }
 
 TEST_CASE_METHOD(HubStackFixture,
@@ -439,8 +441,7 @@ TEST_CASE_METHOD(HubStackFixture,
     render(shown);
     REQUIRE((shown.data->hits.hub_valid && shown.data->hits.buffer_valid));
     CHECK(center_y(shown.data->hits.hub) == Catch::Approx(ratio_y(shown, kHubYRatio)).margin(1));
-    CHECK(center_y(shown.data->hits.buffer) ==
-          Catch::Approx(ratio_y(shown, kBufferYRatio)).margin(1));
+    check_buffer_under_hub(shown);
 
     auto c = make(false, false);
     lv_obj_set_size(c.obj, kCanvasW, 100);

@@ -310,42 +310,45 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     }
     f.nozzle_y = linear_hub_nozzle_y(data, g);
     const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, theme.extruder_scale);
-    f.inlet_y = inlet.y;
+    // The tube ends where the toolhead art begins; what happens inside the head is the art's.
+    f.inlet_y = toolhead_top_y(f.nozzle_y, theme.extruder_scale);
     f.head_x = g.center_x + inlet.dx;
     f.bypass_merge_y = g.y_off + (int32_t)(g.height * kBypassMergeYRatio);
     f.center_x = g.center_x;
     f.sensor_r = theme.sensor_radius;
 
-    f.buffer_y = g.y_off + (int32_t)(g.height * kBufferYRatio);
     const int32_t buf_box_h = LV_MAX(16, f.hub_h);
     f.has_buffer = data.buffer_present;
-
-    // HUB with no bypass lane: the hub and buffer hang above the toolhead glyph,
-    // giving the lane fan the height they would otherwise occupy. The stack
-    // only ever moves them down; a canvas too short for it keeps the ratio
-    // layout.
-    if (!linear && !data.hub_on_toolhead && !data.show_bypass) {
-        // Equal clearance above and below the buffer box (or above the glyph
-        // when there is none): hub bottom, buffer and glyph top evenly spaced.
-        const int32_t gap = f.hub_h / 2 + 2 * f.sensor_r;
-        int32_t stacked_buffer_y = f.buffer_y;
-        int32_t hub_bottom = glyph_top - 2 * gap;
-        if (f.has_buffer) {
-            hub_bottom = glyph_top - (buf_box_h + 2 * gap);
-            stacked_buffer_y = (hub_bottom + glyph_top) / 2;
+    // The buffer hangs just under the hub or selector: on many units it is built onto the unit
+    // itself, so it never stands down by the toolhead. Where it cannot fit above the bypass
+    // merge (or the toolhead sensor), its reading moves to the hub's outlet band.
+    const int32_t buffer_room = 2 * f.sensor_r + 2 * buf_box_h;
+    const auto hang_buffer = [&] {
+        if (!f.has_buffer)
+            return;
+        f.buffer_y = f.output_y + 2 * f.sensor_r + buf_box_h;
+        f.buf_fil_top = f.buffer_y - buf_box_h;
+        const int32_t floor = data.show_bypass ? f.bypass_merge_y : f.toolhead_y;
+        if (f.buffer_y + buf_box_h / 2 + 2 * f.sensor_r > floor) {
+            f.has_buffer = false;
+            f.sync_on_output = true;
         }
+    };
+
+    // HUB with no bypass lane and no buffer: the hub hangs above the toolhead glyph, giving the
+    // lane fan the height it would otherwise occupy. The stack only ever moves it down; a
+    // canvas too short for it keeps the ratio layout.
+    if (!linear && !data.hub_on_toolhead && !data.show_bypass && !f.has_buffer) {
+        const int32_t gap = f.hub_h / 2 + 2 * f.sensor_r;
+        const int32_t hub_bottom = glyph_top - 2 * gap;
         const int32_t stacked_hub_y = hub_bottom - f.hub_h / 2;
         if (stacked_hub_y > f.hub_y) {
             f.hub_stacked = true;
             f.hub_y = stacked_hub_y;
-            if (f.has_buffer)
-                f.buffer_y = stacked_buffer_y;
             // The toolhead sensor band sits in the clear gap above the glyph.
-            const int32_t last_box_bottom = f.has_buffer ? f.buffer_y + buf_box_h / 2 : hub_bottom;
-            f.toolhead_y = (last_box_bottom + glyph_top) / 2;
+            f.toolhead_y = (hub_bottom + glyph_top) / 2;
         }
     }
-    f.buf_fil_top = f.buffer_y - buf_box_h;
 
     if (linear)
         f.hub_y = f.prep_y + f.sensor_r + f.hub_h / 2;
@@ -381,13 +384,15 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // diagonals apart: the hub is widened until neighbouring tubes clear the
     // tube, its halo and a gap, and drawn at exactly that width.
     f.hub_box_w = theme.hub_width;
-    if (linear)
+    if (linear) {
+        hang_buffer();
         return f;
+    }
     int32_t hub_top = f.hub_y - f.hub_h / 2;
     // A pass-through unit stands between the lanes' sensors and the hub, as tall as the room
     // above the hub's lowest place allows; the lanes fan into the hub from its outlets.
     const int32_t fan = art_fan_room(data, g);
-    const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
+    const int32_t next_y = f.bypass_merge_y - (f.has_buffer ? buffer_room : 0);
     const int32_t lowest_hub_top = f.hub_stacked ? hub_top : next_y - f.hub_h - 2 * f.sensor_r - 8;
     // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
     const int32_t top = f.prep_band_y + 2 * fan;
@@ -470,7 +475,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         float deepest_start = fit_in[0].start_y;
         for (int i = 1; i < fit_n; ++i)
             deepest_start = std::max(deepest_start, fit_in[i].start_y);
-        const int32_t next_y = f.has_buffer ? f.buf_fil_top : f.bypass_merge_y;
+        const int32_t next_y = f.bypass_merge_y - (f.has_buffer ? buffer_room : 0);
         const int32_t max_top = next_y - f.hub_h - 2 * f.sensor_r - 8;
         const int32_t wanted_top = (int32_t)deepest_start + 24 + 2 * separation + f.sensor_r;
         hub_top = LV_MAX(hub_top, LV_MIN(wanted_top, max_top));
@@ -516,6 +521,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             layout_offpage_stub(f.stubs[1], 1, data.offpage_after, data.offpage_after_drying, data,
                                 g, stub_info, hub_top, gap, rise);
     }
+    hang_buffer();
     return f;
 }
 
@@ -969,7 +975,7 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
     const ParallelRows rows = parallel_rows(data, g);
     const int32_t entry_y = rows.entry_y;
     const int32_t sensor_y = rows.sensor_y;
-    const float nozzle_top = (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y;
+    const float nozzle_top = (float)toolhead_top_y(rows.toolhead_y, rows.tool_scale);
     const PathSegment error = static_cast<PathSegment>(data.error_segment);
     const SlotRenderStates states = compute_slot_render_states(&data);
 
@@ -1003,7 +1009,7 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
                 PathPlan& out) {
     reset_plan(out);
     const lv_color_t bg = data.theme.color_bg;
-    const float nozzle_top = (float)path_toolhead_inlet(f.toolhead_y, f.tool_scale).y;
+    const float nozzle_top = (float)toolhead_top_y(f.toolhead_y, f.tool_scale);
     const PathSegment error = static_cast<PathSegment>(data.error_segment);
 
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
