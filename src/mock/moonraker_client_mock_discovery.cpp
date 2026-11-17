@@ -77,6 +77,15 @@ void assign_names(std::vector<std::string>& out, const std::array<std::string_vi
 
 } // namespace
 
+bool MoonrakerClientMock::is_stepper_z_endstop_null() const {
+    return stepper_z_endstop_null_.value_or(mock_internal::mock_probe_type(printer_type_) !=
+                                            "none");
+}
+
+json MoonrakerClientMock::stepper_z_position_endstop() const {
+    return is_stepper_z_endstop_null() ? json(nullptr) : json(235.0);
+}
+
 void MoonrakerClientMock::update_cached_chamber_key() {
     cached_chamber_status_key_.clear();
     for (const auto& h : discovery_.heaters()) {
@@ -798,7 +807,9 @@ void MoonrakerClientMock::populate_capabilities() {
                                 {"position_max", axis_max.y},
                                 {"rotation_distance", 40.0},
                                 {"full_steps_per_rotation", 200}};
-    mock_config["stepper_z"] = {{"position_min", axis_min.z}, {"position_max", axis_max.z}};
+    mock_config["stepper_z"] = {{"position_min", axis_min.z},
+                                {"position_max", axis_max.z},
+                                {"position_endstop", stepper_z_position_endstop()}};
     for (const auto& [name, settings] : extra_config_settings_.items()) {
         mock_config[name] = settings;
     }
@@ -813,6 +824,7 @@ void MoonrakerClientMock::populate_capabilities() {
         hw.parse_config_keys(mock_config);
         hw.parse_build_volume(mock_config);
         hw.parse_probe_xy_offset(mock_config);
+        hw.parse_z_position_endstop(mock_config);
         macros_snapshot = hw.macros();
     });
 

@@ -778,6 +778,30 @@ class PrinterDiscovery {
      */
     void parse_probe_xy_offset(const nlohmann::json& settings);
 
+    /**
+     * @brief stepper_z's position_endstop from a configfile.settings object
+     *
+     * A number means Z homes on a switch: Klipper's stepper.py reads the option
+     * only when the endstop is not a probe's virtual endstop, and only then
+     * registers Z_ENDSTOP_CALIBRATE and Z_OFFSET_APPLY_ENDSTOP
+     * (klippy/extras/manual_probe.py). A virtual endstop leaves the key out or
+     * null, and a kinematics without a [stepper_z] (delta) has no section.
+     * 0.0 is a legal endstop, so absence is nullopt rather than a sentinel.
+     */
+    [[nodiscard]] static std::optional<double>
+    read_z_position_endstop(const nlohmann::json& settings);
+
+    /// Record read_z_position_endstop() for z_position_endstop().
+    void parse_z_position_endstop(const nlohmann::json& settings) {
+        z_position_endstop_ = read_z_position_endstop(settings);
+    }
+
+    /// stepper_z's position_endstop in mm; nullopt when Z homes on a probe or
+    /// the printer has no [stepper_z].
+    [[nodiscard]] std::optional<double> z_position_endstop() const {
+        return z_position_endstop_;
+    }
+
     /// Read whether the firmware runs its print-start macro before streaming
     /// the file (start_macro_injection.h).
     ///
@@ -1242,6 +1266,7 @@ class PrinterDiscovery {
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset
+    std::optional<double> z_position_endstop_;              ///< stepper_z position_endstop (mm)
     bool firmware_runs_start_macro_before_file_ = false;    ///< start_macro_injection.h
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings

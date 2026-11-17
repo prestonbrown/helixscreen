@@ -706,35 +706,20 @@ void MoonrakerAPI::update_safety_limits_from_printer(SuccessCallback on_success,
                               build_vol.z_max);
             }
 
-            // Extract stepper_z position_endstop for non-probe Z-offset reference.
-            //
-            // Klipper emits `position_endstop: null` for any printer using
-            // `endstop_pin: probe:z_virtual_endstop` — i.e. most probe-equipped
-            // machines. is_number() is a PRESENCE test, not a default: 0.0 is a
-            // legal endstop, so there is no value we could substitute that the
-            // reader could tell apart from a real reading. Leaving the setter
-            // uncalled keeps stepper_z_endstop_microns_ at its "not set" 0.
-            //
-            // The guard is load-bearing: a bare .get<double>() on that null
-            // throws type_error.302 (an abort on targets built without
-            // exceptions) and skips the temperature-limit loop below —
-            // max/min temp and min_extrude_temp would silently keep their
-            // compiled defaults.
-            if (settings.contains("stepper_z") && settings["stepper_z"].is_object() &&
-                settings["stepper_z"].contains("position_endstop")) {
-                const json& endstop_val = settings["stepper_z"]["position_endstop"];
-                if (endstop_val.is_number()) {
-                    double endstop = endstop_val.get<double>();
-                    int microns = static_cast<int>(endstop * 1000.0);
-                    state_.capabilities_state().set_stepper_z_endstop_microns(microns);
-                    spdlog::debug(
-                        "[Moonraker API] stepper_z position_endstop: {:.3f}mm ({} microns)",
-                        endstop, microns);
-                } else {
-                    spdlog::debug("[Moonraker API] stepper_z position_endstop is not a "
-                                  "number (virtual endstop / probe) — leaving unset");
-                }
+            // stepper_z position_endstop, the non-probe Z-offset reference. A
+            // virtual endstop reports none; leaving the setter uncalled keeps
+            // stepper_z_endstop_microns_ at its "not set" 0. Reading through the
+            // presence-checked helper keeps a null from throwing type_error.302
+            // and skipping the temperature-limit loop below.
+            const auto endstop = helix::PrinterDiscovery::read_z_position_endstop(settings);
+            if (endstop) {
+                const int microns = static_cast<int>(*endstop * 1000.0);
+                state_.capabilities_state().set_stepper_z_endstop_microns(microns);
+                spdlog::debug("[Moonraker API] stepper_z position_endstop: {:.3f}mm ({} microns)",
+                              *endstop, microns);
             }
+            // Picks the Z-offset strategy when discovery's configfile read missed it.
+            state_.set_z_position_endstop_known(endstop.has_value());
 
             // Extract temperature limits from heater configurations
             for (const auto& [key, value] : settings.items()) {

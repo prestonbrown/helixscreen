@@ -30,6 +30,42 @@ ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
     return temporary;
 }
 
+namespace {
+
+/// Kinematics Klipper builds without a [stepper_z], so stepper_z position_endstop
+/// never exists and manual_probe.py registers no Z_ENDSTOP_CALIBRATE.
+bool kinematics_without_stepper_z(std::string_view kinematics) {
+    return kinematics == "delta" || kinematics == "rotary_delta" || kinematics == "deltesian" ||
+           kinematics == "winch";
+}
+
+} // namespace
+
+ZOffsetCalibrationStrategy resolve_z_offset_calibration_strategy(std::string_view db_strategy,
+                                                                 bool has_probe,
+                                                                 bool z_position_endstop_numeric,
+                                                                 std::string_view kinematics) {
+    if (db_strategy == "firmware_managed") {
+        return ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
+    }
+    if (db_strategy == "endstop") {
+        return ZOffsetCalibrationStrategy::ENDSTOP;
+    }
+    if (db_strategy == "probe_calibrate") {
+        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    }
+    if (z_position_endstop_numeric) {
+        return ZOffsetCalibrationStrategy::ENDSTOP;
+    }
+    if (has_probe) {
+        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    }
+    if (kinematics_without_stepper_z(kinematics)) {
+        return ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
+    }
+    return ZOffsetCalibrationStrategy::ENDSTOP;
+}
+
 void PrinterProfileState::init_subjects(bool register_xml) {
     if (subjects_initialized_) {
         return;
@@ -61,18 +97,9 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
     // Determine what the z-cal strategy would be for this type so we can
     // skip redundant updates (auto-detect often confirms the saved type).
     auto new_options = PrinterDetector::get_pre_print_option_set(type);
-    std::string strategy_str = PrinterDetector::get_z_offset_calibration_strategy(type);
-    ZOffsetCalibrationStrategy new_strategy;
-    if (strategy_str == "firmware_managed") {
-        new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
-    } else if (strategy_str == "endstop") {
-        new_strategy = ZOffsetCalibrationStrategy::ENDSTOP;
-    } else if (strategy_str == "probe_calibrate") {
-        new_strategy = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-    } else {
-        new_strategy = has_probe ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
-                                 : ZOffsetCalibrationStrategy::ENDSTOP;
-    }
+    const std::string db_strategy = PrinterDetector::get_z_offset_calibration_strategy(type);
+    ZOffsetCalibrationStrategy new_strategy = resolve_z_offset_calibration_strategy(
+        db_strategy, has_probe, z_position_endstop_numeric_, kinematics_);
 
     // An installed SET_GCODE_OFFSET wrapper persists the offset itself; the
     // type-derived strategy would fold the gcode offset into the probe and the
@@ -82,7 +109,12 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
         new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
     }
 
-    const bool db_persists = PrinterDetector::z_offset_persists(type);
+    // `z_offset_persists` describes a firmware the database names as managing the
+    // offset; a stock Klipper that only lands on FIRMWARE_MANAGED for want of
+    // endstop commands persists nothing.
+    const bool db_persists = PrinterDetector::z_offset_persists(type) &&
+                             (db_strategy == "firmware_managed" ||
+                              new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
     const bool db_tool_change_resets = PrinterDetector::tool_change_resets_z_offset(type);
     const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
         new_strategy, external_persistence_, db_persists, db_tool_change_resets,
@@ -115,6 +147,16 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
         lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
     publish_z_offset_reapplied_per_head();
+    return true;
+}
+
+bool PrinterProfileState::set_z_homing(bool z_position_endstop_numeric,
+                                       const std::string& kinematics) {
+    if (z_position_endstop_numeric_ == z_position_endstop_numeric && kinematics_ == kinematics) {
+        return false;
+    }
+    z_position_endstop_numeric_ = z_position_endstop_numeric;
+    kinematics_ = kinematics;
     return true;
 }
 

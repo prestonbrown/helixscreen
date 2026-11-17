@@ -1105,6 +1105,7 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
             helix::json_util::safe_dump(helix::fit_machine_json(*hardware_.fit_machine())));
         hardware_.parse_leveling_probe_points(settings);
         hardware_.parse_probe_xy_offset(settings);
+        hardware_.parse_z_position_endstop(settings);
         hardware_.parse_start_macro_injection(settings);
 
         hardware_.set_host_restarting_macros(std::move(restarting));
