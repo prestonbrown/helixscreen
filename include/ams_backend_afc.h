@@ -1105,6 +1105,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * @param data JSON object from the unit-level Klipper object
      */
     void parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann::json& data);
+    /// The unit's lane routing flags and topology, from its lane, extruder and hub lists,
+    /// the lanes' hub routing and the printer's extruder count.
+    void derive_unit_topology(AfcUnitInfo& unit_info);
+    /// Rebuild the unit map once every known unit has its lane list.
+    void rebuild_unit_map_when_complete();
 
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots

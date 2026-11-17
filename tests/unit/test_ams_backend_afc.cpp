@@ -4664,6 +4664,15 @@ TEST_CASE("AFC one-lane direct unit on a single-extruder printer stays HUB",
     REQUIRE(unit_infos[0].topology == PathTopology::HUB);
     REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
     REQUIRE(unit_infos[1].topology == PathTopology::HUB);
+
+    // The printer's extruder count can arrive in a later frame than the unit
+    // objects, which are not re-sent; the unit is re-derived when it does.
+    nlohmann::json late;
+    late["system"]["num_extruders"] = 4;
+    helper.feed_afc_state(late);
+    REQUIRE(helper.get_unit_infos()[1].topology == PathTopology::PARALLEL);
+    CHECK(helper.get_unit_topology(1) == PathTopology::PARALLEL);
+    CHECK(helper.get_unit_infos()[0].topology == PathTopology::HUB);
 }
 
 TEST_CASE("AFC unit topology: all-direct lanes need an extruder per lane to be PARALLEL",
