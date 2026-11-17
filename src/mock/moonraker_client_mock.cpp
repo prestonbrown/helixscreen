@@ -16,6 +16,7 @@
 #include "helix_thread.h"
 #include "home_layout_share.h"
 #include "input_sensor_types.h"
+#include "json_utils.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
@@ -500,10 +501,10 @@ bool MoonrakerClientMock::arm_event_replay(const std::string& json_path) {
         }
         // Optional: serve configfile.settings.bed_mesh.probe_count so the
         // collector's denominator query answers like the real printer did.
-        if (script.contains("config_probe_count") && script["config_probe_count"].is_array() &&
-            script["config_probe_count"].size() == 2) {
-            set_config_bed_mesh_probe_count(script["config_probe_count"][0].get<int>(),
-                                            script["config_probe_count"][1].get<int>());
+        if (const json* probe_count = json_util::find_array(script, "config_probe_count");
+            probe_count && probe_count->size() == 2) {
+            set_config_bed_mesh_probe_count((*probe_count)[0].get<int>(),
+                                            (*probe_count)[1].get<int>());
         }
     } catch (const std::exception& e) {
         replay_events_.clear();
@@ -586,23 +587,23 @@ void MoonrakerClientMock::fire_replay_event(const ReplayEvent& event) {
             mapped = 5;
         }
         print_state_.store(mapped);
-        if (event.payload.contains("filename") && event.payload["filename"].is_string()) {
+        if (auto filename = json_util::read_field<std::string>(event.payload, "filename")) {
             std::lock_guard<std::mutex> lock(print_mutex_);
-            print_filename_ = event.payload["filename"].get<std::string>();
+            print_filename_ = std::move(*filename);
         }
     } else if (event.object == "extruder") {
-        if (event.payload.contains("target") && event.payload["target"].is_number()) {
-            extruder_target_.store(event.payload["target"].get<double>());
+        if (auto target = json_util::read_field<double>(event.payload, "target")) {
+            extruder_target_.store(*target);
         }
-        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
-            extruder_temp_.store(event.payload["temperature"].get<double>());
+        if (auto temperature = json_util::read_field<double>(event.payload, "temperature")) {
+            extruder_temp_.store(*temperature);
         }
     } else if (event.object == "heater_bed") {
-        if (event.payload.contains("target") && event.payload["target"].is_number()) {
-            bed_target_.store(event.payload["target"].get<double>());
+        if (auto target = json_util::read_field<double>(event.payload, "target")) {
+            bed_target_.store(*target);
         }
-        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
-            bed_temp_.store(event.payload["temperature"].get<double>());
+        if (auto temperature = json_util::read_field<double>(event.payload, "temperature")) {
+            bed_temp_.store(*temperature);
         }
     }
 
@@ -1170,18 +1171,18 @@ void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
     // Parse bed mesh JSON from dispatch_status_update into active_bed_mesh_
     // This mirrors the JSON format sent by real Moonraker
 
-    if (bed_mesh.contains("profile_name")) {
-        if (bed_mesh["profile_name"].is_string()) {
-            active_bed_mesh_.name = bed_mesh["profile_name"].get<std::string>();
-        } else if (bed_mesh["profile_name"].is_null()) {
+    if (const json* profile_name = json_util::find_member(bed_mesh, "profile_name")) {
+        if (profile_name->is_string()) {
+            active_bed_mesh_.name = profile_name->get<std::string>();
+        } else if (profile_name->is_null()) {
             active_bed_mesh_.name = "";
         }
     }
 
     // Parse probed_matrix (2D array of Z heights)
-    if (bed_mesh.contains("probed_matrix") && bed_mesh["probed_matrix"].is_array()) {
+    if (const json* probed_matrix = json_util::find_array(bed_mesh, "probed_matrix")) {
         active_bed_mesh_.probed_matrix.clear();
-        const auto& matrix = bed_mesh["probed_matrix"];
+        const auto& matrix = *probed_matrix;
 
         for (const auto& row : matrix) {
             if (!row.is_array()) {
@@ -1208,39 +1209,37 @@ void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
     }
 
     // Parse mesh_min (array [x, y])
-    if (bed_mesh.contains("mesh_min") && bed_mesh["mesh_min"].is_array() &&
-        bed_mesh["mesh_min"].size() >= 2) {
-        if (bed_mesh["mesh_min"][0].is_number()) {
-            active_bed_mesh_.mesh_min[0] = bed_mesh["mesh_min"][0].get<float>();
+    if (const json* mesh_min = json_util::find_array(bed_mesh, "mesh_min");
+        mesh_min && mesh_min->size() >= 2) {
+        if ((*mesh_min)[0].is_number()) {
+            active_bed_mesh_.mesh_min[0] = (*mesh_min)[0].get<float>();
         }
-        if (bed_mesh["mesh_min"][1].is_number()) {
-            active_bed_mesh_.mesh_min[1] = bed_mesh["mesh_min"][1].get<float>();
+        if ((*mesh_min)[1].is_number()) {
+            active_bed_mesh_.mesh_min[1] = (*mesh_min)[1].get<float>();
         }
     }
 
     // Parse mesh_max (array [x, y])
-    if (bed_mesh.contains("mesh_max") && bed_mesh["mesh_max"].is_array() &&
-        bed_mesh["mesh_max"].size() >= 2) {
-        if (bed_mesh["mesh_max"][0].is_number()) {
-            active_bed_mesh_.mesh_max[0] = bed_mesh["mesh_max"][0].get<float>();
+    if (const json* mesh_max = json_util::find_array(bed_mesh, "mesh_max");
+        mesh_max && mesh_max->size() >= 2) {
+        if ((*mesh_max)[0].is_number()) {
+            active_bed_mesh_.mesh_max[0] = (*mesh_max)[0].get<float>();
         }
-        if (bed_mesh["mesh_max"][1].is_number()) {
-            active_bed_mesh_.mesh_max[1] = bed_mesh["mesh_max"][1].get<float>();
+        if ((*mesh_max)[1].is_number()) {
+            active_bed_mesh_.mesh_max[1] = (*mesh_max)[1].get<float>();
         }
     }
 
     // Parse algorithm from mesh_params
-    if (bed_mesh.contains("mesh_params") && bed_mesh["mesh_params"].is_object()) {
-        const auto& params = bed_mesh["mesh_params"];
-        if (params.contains("algo") && params["algo"].is_string()) {
-            active_bed_mesh_.algo = params["algo"].get<std::string>();
-        }
+    if (const json* params = json_util::find_object(bed_mesh, "mesh_params")) {
+        active_bed_mesh_.algo =
+            json_util::read_field<std::string>(*params, "algo").value_or(active_bed_mesh_.algo);
     }
 
     // Parse profiles list
-    if (bed_mesh.contains("profiles") && bed_mesh["profiles"].is_object()) {
+    if (const json* profiles = json_util::find_object(bed_mesh, "profiles")) {
         bed_mesh_profiles_.clear();
-        for (const auto& [key, value] : bed_mesh["profiles"].items()) {
+        for (const auto& [key, value] : profiles->items()) {
             bed_mesh_profiles_.push_back(key);
         }
     }
@@ -1493,9 +1492,9 @@ MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
     last_send_method_ = method;
     last_send_timeout_ms_ = timeout_ms;
     last_send_silent_ = silent;
-    if (method == "printer.gcode.script" && params.contains("script") &&
-        params["script"].is_string()) {
-        last_send_script_ = params["script"].get<std::string>();
+    if (method == "printer.gcode.script") {
+        last_send_script_ =
+            json_util::read_field<std::string>(params, "script").value_or(last_send_script_);
     }
 
     std::optional<MoonrakerError> injected_error;
