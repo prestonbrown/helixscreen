@@ -10,6 +10,7 @@
  */
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/subject_notifications.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
@@ -138,6 +139,7 @@ TEST_CASE_METHOD(BedMeshStateFixture, "BedMeshState publishes a mesh frame with 
     BedMeshState::instance().attach(&mock_api);
     CHECK(number("bed_mesh_available") == 0);
     const int version = number("bed_mesh_version");
+    SubjectNotifications dimensions(lv_xml_get_subject(nullptr, "bed_mesh_dimensions"));
 
     mock.dispatch_status_update(mesh_frame(
         json::array({json::array({0.0, 0.1, 0.3}), json::array({-0.1, 0.05, 0.15})}), "adaptive"));
@@ -146,6 +148,7 @@ TEST_CASE_METHOD(BedMeshStateFixture, "BedMeshState publishes a mesh frame with 
     CHECK(number("bed_mesh_available") == 1);
     CHECK(text("bed_mesh_profile_name") == "adaptive");
     CHECK(text("bed_mesh_dimensions") == "3x2 points");
+    CHECK(dimensions.count == 1);
     CHECK(text("bed_mesh_variance") == "0.400 mm");
     CHECK(number("bed_mesh_profile_count") == 2);
     CHECK(number("bed_mesh_version") > version);

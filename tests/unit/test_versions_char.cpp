@@ -62,57 +62,18 @@ TEST_CASE_METHOD(FreshPrinterState,
 // ============================================================================
 
 TEST_CASE_METHOD(FreshPrinterState,
-                 "Versions characterization: klipper_version subject accepts string updates",
+                 "Versions characterization: each version setter publishes the display form",
                  "[characterization][versions][setter]") {
-    lv_subject_t* subject = state.versions_state().get_klipper_version_subject();
+    state.set_klipper_version(" v0.12.0-108-g2c7a9d58\n");
+    state.set_moonraker_version("v0.8.0");
+    state.set_os_version("Debian GNU/Linux 12 (bookworm)");
+    UpdateQueue::instance().drain();
 
-    SECTION("typical version string") {
-        lv_subject_set_string(subject, "v0.12.0-108-g2c7a9d58");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "v0.12.0-108-g2c7a9d58");
-    }
-
-    SECTION("simple version string") {
-        lv_subject_set_string(subject, "v0.12.0");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "v0.12.0");
-    }
-
-    SECTION("empty version string") {
-        lv_subject_set_string(subject, "");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "");
-    }
-}
-
-TEST_CASE_METHOD(FreshPrinterState,
-                 "Versions characterization: moonraker_version subject accepts string updates",
-                 "[characterization][versions][setter]") {
-    lv_subject_t* subject = state.versions_state().get_moonraker_version_subject();
-
-    SECTION("typical version string") {
-        lv_subject_set_string(subject, "v0.8.0-143-g2c7a9d58");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "v0.8.0-143-g2c7a9d58");
-    }
-
-    SECTION("simple version string") {
-        lv_subject_set_string(subject, "v0.8.0");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "v0.8.0");
-    }
-
-    SECTION("empty version string") {
-        lv_subject_set_string(subject, "");
-
-        const char* version = lv_subject_get_string(subject);
-        REQUIRE(std::string(version) == "");
-    }
+    auto text = [](lv_subject_t* s) { return std::string(lv_subject_get_string(s)); };
+    CHECK(text(state.versions_state().get_klipper_version_subject()) == "v0.12.0-108-g2c7a9d58");
+    CHECK(text(state.versions_state().get_moonraker_version_subject()) == "v0.8.0");
+    CHECK(text(state.versions_state().get_os_version_subject()) ==
+          "Debian GNU/Linux 12 (bookworm)");
 }
 
 // ============================================================================

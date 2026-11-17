@@ -376,6 +376,17 @@ TEST_CASE_METHOD(TimelapsePrintFixture,
     CHECK(capture_info().empty());
 }
 
+TEST_CASE_METHOD(TimelapsePrintFixture, "TimelapseState: a finished render clears the caption",
+                 "[timelapse_state][new_print]") {
+    wire(PrintJobState::PRINTING);
+    frames(2);
+    REQUIRE_FALSE(capture_info().empty());
+    TimelapseState::instance().handle_timelapse_event(
+        json{{"action", "render"}, {"status", "success"}, {"filename", "v.mp4"}});
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(capture_info().empty());
+}
+
 TEST_CASE_METHOD(TimelapsePrintFixture, "TimelapseState: resuming a paused print keeps its frames",
                  "[timelapse_state][new_print]") {
     wire(PrintJobState::PRINTING);
