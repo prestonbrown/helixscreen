@@ -146,6 +146,7 @@ The K1C sleeps with the software overlay, the AD5M with hardware blank.
 | Plus `mcu.last_stats` on the telemetry list | 1.55 (40) | 1.38 (40) |
 | Plus input read on arrival instead of every 33 ms | 1.26 (14) | 1.11 (13) |
 | Plus the update queue, debug-touch and memory-stats timers idle | 1.18 (11) | 1.00 (10) |
+| Plus the plugin-install prompt's wait for the screen stopped while asleep | 1.15 (11) | 0.96 (9) |
 | Every status frame dropped while asleep (the ceiling, on the 1.65 build) | 1.18 (39) | 1.06 (39) |
 | Awake idle | 3.65 (65) | 3.45 (65) |
 
@@ -263,12 +264,11 @@ whether the screen was on or asleep, at about 0.25-0.4 ms per wake:
 
 ## Open costs
 
-- **About 1.2% of a core asleep on the K1C, 1.0% on the AD5M** (the table above).
-  The loop still wakes about 10 times a second: about 4 for status frames and the work
-  other threads queue, about 4 for the 200 ms cap on its wait (`main_loop_sleep_ms`), 1
-  for PrintSelectPanel's plugin-install recheck (a 1 s timer that runs for as long as the
-  install prompt waits for a free screen, awake or asleep) and about 1 for the display
-  refresh when a label changes on the hidden screen. Status processing and the widget
+- **About 1.15% of a core asleep on the K1C, 0.96% on the AD5M** (the table above).
+  The loop still wakes about 10 times a second: about 5 for status frames and the work
+  other threads queue, about 4 for the 200 ms cap on its wait (`main_loop_sleep_ms`) and
+  about 1 for the display refresh when a label changes on the hidden screen. Awake, the
+  plugin-install prompt still looks once a second while it waits for a free screen. Status processing and the widget
   updates behind it are most of the remaining CPU: dropping every frame read 1.18 and 1.06
   on the build before the input wait. Raising the cap would delay what the loop still
   polls (Moonraker request timeouts, a remote screen viewer's arrival). Boards whose input
