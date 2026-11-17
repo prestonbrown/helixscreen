@@ -155,6 +155,15 @@ Preset macro buttons for macros a firmware does not ship (e.g. `TOOLCHANGE_PARK`
 render greyed out, not dead: `ControlsPanel::update_macro_button` keeps the button visible
 and disabled when the macro is absent.
 
+## Reforge tool changer support
+
+Reforge's `[ff_toolchange]` publishes `toolchanger` and `tool T0..T3`, so the C5 runs on
+the tool-changer backend, but its `SELECT_TOOL`/`UNSELECT_TOOL` take a tool number only
+(`T=<n>` or `TOOL=T<n>`). A provider row keyed on `ff_toolchange` makes HelixScreen mount
+with `SELECT_TOOL T=<n>` and park with a bare `UNSELECT_TOOL` (prestonbrown/helixscreen#2027);
+Reforge rejects klipper-toolchanger's quoted `TOOL="tool T0"` with "TOOL must be T0..T3".
+Details in [FILAMENT_BACKEND_TOOLCHANGER.md](../FILAMENT_BACKEND_TOOLCHANGER.md#reforge-on-the-creator-5-pro).
+
 ## Z-Mod tool changer support
 
 On Z-Mod the four heads are driven by the tool changer backend through the Z-Mod row of the
@@ -310,7 +319,9 @@ shows no entry. The chamber air row also requires the Z-Mod changer row
 `AFC_lane lane1..4` under `HELIX_MOCK_ZMOD_AFC=1`) and the `fd_ex`/`fm_ex` sensor pairs, answers
 `_T_IN` / `_T_OUT` / `CHANGE_ZCOLOR` — narrating the swap markers the step bar parses —
 answers the calibration and chamber air macros above, and implies `--real-ams` so the mock
-AMS gate does not stand a mock backend in front of it. The `creator5` persona models the Reforge side only. Details in
+AMS gate does not stand a mock backend in front of it. The `creator5` persona models the Reforge side only, and only its objects: it stands the
+generic mock tool-changer backend in front of the UI, so the Reforge mount commands are
+covered by unit tests, not by the persona. Details in
 [`MOCK_ENVIRONMENT_VARIABLES.md`](../MOCK_ENVIRONMENT_VARIABLES.md).
 
 ## On-device bring-up

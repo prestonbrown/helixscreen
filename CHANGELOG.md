@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Picking up a tool onto an empty carriage shows the pickup steps** - on a Medusa HC, picking up a tool with no tool mounted showed the steps of a filament load, including Heat nozzle and Purge, in the progress list. It now shows the steps of the tool change itself. Only the list was wrong: the pickup never heated or purged.
 - **AFC lanes keep their temperatures when you unlink a spool** - unlinking a Spoolman spool from an AFC lane made AFC forget the lane's nozzle and bed temperatures, so the next load heated to AFC's default for the material. HelixScreen now sends the temperatures from the spool editor back to AFC after the unlink, on AFC v1.2.0 and newer.
 - **A finished print wakes the display on Print Status** - when a print ended while the Print Status screen was open, the display stayed asleep. On panels that keep showing their last picture while asleep, the screen kept showing the print as running, with its progress and Pause and Cancel buttons, until someone touched it. The end of a print now wakes the display on Print Status just as it does on every other screen, unless print completion alerts are turned off.
+- **Tool changes from the Filament panel on Reforge** - on a Creator 5 Pro running Reforge without AFC, picking up a tool from the Filament panel was rejected with "TOOL must be T0..T3", so Load and Unload could not be used either. HelixScreen now sends the tool number in the form Reforge accepts.
 
 ## [1.1.0-rc.2] - 2026-11-17
 
