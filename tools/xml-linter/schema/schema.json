@@ -1788,7 +1788,7 @@
         "hide_target_when_off": {
           "type": "bool"
         },
-        "target_only": {
+        "trailing_target": {
           "type": "string"
         },
         "align_current": {
@@ -4413,11 +4413,6 @@
     "temp_card_height_tiny",
     "temp_card_height_xlarge",
     "temp_card_height_xxlarge",
-    "temp_card_spacing",
-    "temp_card_spacing_large",
-    "temp_card_spacing_medium",
-    "temp_card_spacing_small",
-    "temp_card_spacing_tiny",
     "temp_gradient_cold",
     "temp_gradient_hot",
     "temp_gradient_warm",
@@ -4450,14 +4445,6 @@
     "text_small_line_h_xlarge",
     "text_small_line_h_xxlarge",
     "text_subtle",
-    "tg_picker_gap",
-    "tg_picker_gap_large",
-    "tg_picker_gap_medium",
-    "tg_picker_gap_micro",
-    "tg_picker_gap_small",
-    "tg_picker_gap_tiny",
-    "tg_picker_gap_xlarge",
-    "tg_picker_gap_xxlarge",
     "tg_preset_h",
     "tg_preset_h_large",
     "tg_preset_h_medium",

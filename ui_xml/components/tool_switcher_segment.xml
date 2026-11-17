@@ -1,10 +1,12 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- One head's cell, in the tool switcher rail and in the picker grid, bound
-     to the tool_switcher_seg_<index>_* subjects the widget publishes. The
-     surface names its own size, band, second-line and label subjects through
-     the props, so both draw the same cell at their own size. The widget sizes
+<!-- One head's cell, wherever a head is chosen: the Home tool switcher's
+     rail, the picker grid, and the target-tool rows of the Filament panel and
+     the temperature graph. Bound to the tool_switcher_seg_<index>_* subjects
+     ToolHeadsModel publishes. The surface names its own size, band,
+     second-line, label, look and disable subjects and its tap callback
+     through the props, so every surface draws the same cell at its own size. The widget sizes
      every cell (never under the touch floor) and measures each label against
      the cell less #space_xs on each side, which is the padding the labels
      carry here. Square: the rail clips its outer corners.
@@ -12,11 +14,12 @@
      Its look follows tool_switcher_seg_<index>_state (ToolSwitcherCellState):
      idle, mounted, or faulted while the changer reports an error.
 
-     A tap on a head that is not mounted mounts it; a tap on the mounted head
-     opens the picker. Disabled while tool_switcher_change_blocked: a print that
-     refuses the switch, or spools on the bed. Not moves_machine, which also
-     holds through a pause, where a head change is offered behind its
-     confirmation. -->
+     On the rail, a tap on a head that is not mounted mounts it and a tap on the
+     mounted head opens the picker; disabled while tool_switcher_change_blocked:
+     a print that refuses the switch, or spools on the bed. Not moves_machine,
+     which also holds through a pause, where a head change is offered behind
+     its confirmation. A target row passes its own callback, which only aims
+     the target tool, and the look that highlights the target. -->
 <component>
   <api>
     <prop name="index" type="string" default="0"/>
@@ -30,6 +33,12 @@
     <!-- Suffixes of the per-head label and second-line subjects. -->
     <prop name="label_key" type="string" default="_label"/>
     <prop name="sub_key" type="string" default="_sub"/>
+    <!-- Suffix of the per-head look subject (ToolSwitcherCellState): _state
+         highlights the mounted head, _target_state the target tool's. -->
+    <prop name="state_key" type="string" default="_state"/>
+    <!-- The subject that disables the cell, and the tap callback. -->
+    <prop name="blocked" type="string" default="tool_switcher_change_blocked"/>
+    <prop name="callback" type="string" default="tool_switcher_segment_cb"/>
   </api>
   <styles>
     <!-- Not inline: an inline bg_color would outrank the bound fills. -->
@@ -53,20 +62,20 @@
     <style name="seg_idle"/>
     <style name="styles.press_wash" selector="pressed"/>
     <style name="seg_disabled" selector="disabled"/>
-    <bind_style_if_eq name="seg_mounted" subject="tool_switcher_seg_${index}_state" ref_value="1"/>
-    <bind_state_if_eq subject="tool_switcher_change_blocked" state="disabled" ref_value="1"/>
+    <bind_style_if_eq name="seg_mounted" subject="tool_switcher_seg_${index}${state_key}" ref_value="1"/>
+    <bind_state_if_eq subject="$blocked" state="disabled" ref_value="1"/>
     <lv_obj name="tool_switcher_seg_text"
             width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
             style_flex_track_place="center" style_pad_all="0" style_pad_gap="0" style_radius="0" clickable="false"
             event_bubble="true" scrollable="false">
       <style name="seg_area_clear"/>
-      <bind_style_if_eq name="seg_area_fault" subject="tool_switcher_seg_${index}_state" ref_value="2"/>
+      <bind_style_if_eq name="seg_area_fault" subject="tool_switcher_seg_${index}${state_key}" ref_value="2"/>
       <text_body name="tool_switcher_seg_label"
                  width="content" style_max_width="100%" style_pad_hor="#space_xs" long_mode="dots"
                  bind_text="tool_switcher_seg_${index}${label_key}" style_text_align="center" clickable="false"
                  event_bubble="true">
-        <bind_style_if_eq name="seg_mounted_text" subject="tool_switcher_seg_${index}_state" ref_value="1"/>
-        <bind_style_if_eq name="seg_fault_text" subject="tool_switcher_seg_${index}_state" ref_value="2"/>
+        <bind_style_if_eq name="seg_mounted_text" subject="tool_switcher_seg_${index}${state_key}" ref_value="1"/>
+        <bind_style_if_eq name="seg_fault_text" subject="tool_switcher_seg_${index}${state_key}" ref_value="2"/>
       </text_body>
       <!-- "T0" under a full label, the temperature under a code label (or
            always the temperature, in the picker): a second line shown only
@@ -76,8 +85,8 @@
                   bind_text="tool_switcher_seg_${index}${sub_key}" style_text_align="center" clickable="false"
                   event_bubble="true">
         <bind_flag_if_eq subject="$two_line" flag="hidden" ref_value="0"/>
-        <bind_style_if_eq name="seg_mounted_text" subject="tool_switcher_seg_${index}_state" ref_value="1"/>
-        <bind_style_if_eq name="seg_fault_text" subject="tool_switcher_seg_${index}_state" ref_value="2"/>
+        <bind_style_if_eq name="seg_mounted_text" subject="tool_switcher_seg_${index}${state_key}" ref_value="1"/>
+        <bind_style_if_eq name="seg_fault_text" subject="tool_switcher_seg_${index}${state_key}" ref_value="2"/>
       </text_small>
     </lv_obj>
     <tool_switcher_band name="tool_switcher_seg_band"
@@ -85,6 +94,6 @@
                         colors="tool_switcher_seg_${index}_colors" finish="tool_switcher_seg_${index}_finish"
                         has_color="tool_switcher_seg_${index}_has_color" text="tool_switcher_seg_${index}_material"
                         text_color="tool_switcher_seg_${index}_band_text"/>
-    <event_cb trigger="clicked" callback="tool_switcher_segment_cb" user_data="$index"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
   </view>
 </component>

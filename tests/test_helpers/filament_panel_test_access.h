@@ -4,6 +4,9 @@
 #pragma once
 
 #include "ui_panel_filament.h"
+#include "ui_update_queue.h"
+
+#include "target_tool.h"
 
 #include <lvgl.h>
 
@@ -56,9 +59,6 @@ struct FilamentPanelTestAccess {
         p.handle_preset_button(slot);
     }
 
-    static void confirm_custom_nozzle(FilamentPanel& p, float celsius) {
-        p.handle_custom_nozzle_confirmed(celsius);
-    }
     static void handle_spool_preset_button(FilamentPanel& p) {
         p.handle_spool_preset_button();
     }
@@ -94,19 +94,14 @@ struct FilamentPanelTestAccess {
     static int target_tool(const FilamentPanel& p) {
         return p.target_tool();
     }
+    /// Aim the panel at @p tool as a tap on its Tool card cell does: through
+    /// the shared target tool.
+    static void choose_target(int tool) {
+        helix::ui::TargetTool::instance().pick(tool);
+        helix::ui::UpdateQueue::instance().drain();
+    }
     static int nozzle_target(const FilamentPanel& p) {
         return p.nozzle_target_;
-    }
-    static void populate_extruder_dropdown(FilamentPanel& p) {
-        p.populate_extruder_dropdown();
-    }
-
-    static void handle_extruder_changed(FilamentPanel& p) {
-        p.handle_extruder_changed();
-    }
-
-    static lv_obj_t* extruder_dropdown(FilamentPanel& p) {
-        return p.extruder_dropdown_;
     }
 
     /// Raw member pointers, for asserting an orientation flip re-finds them
@@ -163,15 +158,6 @@ struct FilamentPanelTestAccess {
 
     static void op_succeeded_extrude(FilamentPanel& p) {
         p.op_succeeded(FilamentPanel::FilamentOp::Extrude);
-    }
-
-    // --- Per-heater keypad ceiling (#1355) -------------------------------
-    // The value the three temperature keypads are handed as max_value. Reaching
-    // the real method is what proves the panel asks TemperatureController
-    // rather than reading its compiled-in member.
-
-    static float keypad_max_for(::FilamentPanel& p, helix::HeaterType type, int fallback_deg) {
-        return p.keypad_max_for(type, fallback_deg);
     }
 
     // --- Chamber heater --------------------------------------------------

@@ -651,8 +651,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::AmsState::instance().clear_backends();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "A refused keypad or spool-preset nozzle target is not shown as set",
+TEST_CASE_METHOD(LVGLUITestFixture, "A refused spool-preset nozzle target is not shown as set",
                  "[material_preheat][preheat][indx][heat]") {
     MaterialSettingsScope settings;
     Harness h(empty_head_indx());
@@ -660,17 +659,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix_test::ScopedSharedResource<helix::TemperatureController> controller(
         std::make_shared<helix::TemperatureController>(h.state, &h.api));
 
-    SECTION("keypad") {
-        PanelAccess::confirm_custom_nozzle(*h.panel, 230.0f);
-    }
-    SECTION("spool preset") {
-        helix::MaterialSettingsManager::instance().set_preset_material(2, "ASA");
-        helix::SlotInfo spool;
-        spool.material = "ABS";
-        helix::AmsStateTestAccess::seed_external_spool(spool);
-        PanelAccess::update_spool_preset(*h.panel);
-        PanelAccess::handle_spool_preset_button(*h.panel);
-    }
+    helix::MaterialSettingsManager::instance().set_preset_material(2, "ASA");
+    helix::SlotInfo spool;
+    spool.material = "ABS";
+    helix::AmsStateTestAccess::seed_external_spool(spool);
+    PanelAccess::update_spool_preset(*h.panel);
+    PanelAccess::handle_spool_preset_button(*h.panel);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(shown_nozzle_target(h) == 0);
     for (const auto& line : h.client.gcode_script_history()) {

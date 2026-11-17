@@ -23,13 +23,6 @@
     <style name="slider_container_micro" pad_top="6" pad_bottom="6"/>
     <style name="slider_container_compact" pad_top="6" pad_bottom="6"/>
     <style name="slider_container_standard" pad_top="#space_xs" pad_bottom="#space_xs"/>
-    <!-- Icon-to-label gap: wider on tiny breakpoint (labels hidden/cramped, icons
-         too close), tighter once the layout has room. Duplicated verbatim in
-         temp_card_unified.xml rather than shared via globals.xml: globals.xml is
-         registered before theme_manager_init publishes the space_* consts, so a
-         style defined there resolves #space_xs to nothing. -->
-    <style name="temp_row_gap_standard" pad_column="#space_xs"/>
-    <style name="temp_row_gap_tiny" pad_column="#space_md"/>
     <!-- Top row: Position, Temperature and Cooling side by side in landscape. A
          portrait screen is too narrow for three cards across, so there it wraps:
          Position beside Temperature, Cooling across the full width below. Each
@@ -214,155 +207,45 @@
                  width="100%" height="100%" flex_flow="column" style_flex_main_place="space_between"
                  style_pad_gap="#space_xxs" style_flex_cross_place="center" style_radius="#border_radius"
                  style_pad_all="#space_sm" scrollable="false" clickable="true">
-          <event_cb trigger="clicked" callback="on_nozzle_temp_clicked"/>
+          <event_cb trigger="clicked" callback="on_heater_row_nozzle"/>
+          <!-- Header. Where several heads dock, the target tool's chip sits at
+               the right, where Position carries Motors Off; it opens the tool
+               picker, which only aims the card. A portrait half-width card has
+               no room for the title beside it. -->
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                   style_pad_gap="#space_sm" scrollable="false" clickable="false">
             <icon src="thermometer" size="sm" variant="primary"/>
-            <text_small text="Temperature" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
-          </lv_obj>
-          <!-- Nozzle section (clickable) -->
-          <lv_obj name="btn_nozzle_temp"
-                  width="100%" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_margin_top="#space_xs" clickable="true" scrollable="false" style_radius="#border_radius">
-            <style name="styles.press_wash" selector="pressed"/>
-            <event_cb trigger="clicked" callback="on_nozzle_temp_clicked"/>
-            <!-- Left side: animated heater icon + label -->
-            <lv_obj width="content"
-                    height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" clickable="false" event_bubble="true">
-              <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
-              <icon name="nozzle_icon_glyph"
-                    src="heater" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
-              <!-- The tool chooser names the nozzle where several heads dock -->
-              <text_small bind_text="controls_nozzle_label">
-                <bind_flag_if cond="ui_breakpoint eq 1 or ui_is_portrait eq 1 or controls_nozzle_multi_head eq 1"
-                              flag="hidden"/>
-              </text_small>
-              <!-- Which nozzle the row shows and edits, where several heads dock -->
-              <lv_dropdown name="nozzle_tool_dropdown"
-                           width="content" height="content" style_min_width="56" style_radius="#border_radius_sm"
-                           style_pad_all="#space_xs">
-                <bind_flag_if_eq subject="controls_nozzle_multi_head" flag="hidden" ref_value="0"/>
-                <event_cb trigger="value_changed" callback="on_controls_nozzle_tool_changed"/>
-              </lv_dropdown>
-              <temp_display name="nozzle_temp_display"
-                            size="md" show_target="false" bind_current="controls_nozzle_cur_deci"
-                            bind_target="controls_nozzle_tgt_deci" clickable="false" event_bubble="true"/>
+            <text_small text="Temperature"
+                        flex_grow="1" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+              <bind_flag_if cond="ui_is_portrait eq 1 and target_tool_multi_head eq 1" flag="hidden"/>
+            </text_small>
+            <lv_obj width="0" height="1" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
+              <bind_flag_if cond="ui_is_portrait eq 0 or target_tool_multi_head eq 0" flag="hidden"/>
             </lv_obj>
-            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
-            <lv_obj name="nozzle_temp_edit_container"
-                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
-                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
-                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
-                    ext_click_area="12">
+            <lv_obj name="target_tool_chip"
+                    width="content" height="content" flex_flow="row" style_flex_cross_place="center"
+                    style_pad_hor="#space_xs" style_pad_ver="#space_xxs" style_pad_gap="#space_xxs"
+                    style_radius="#border_radius" clickable="true" scrollable="false" ext_click_area="12" hidden="true">
               <style name="styles.chip_idle"/>
               <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_nozzle_target_edit"/>
-              <temp_display name="nozzle_target_chip"
-                            size="sm" show_target="true" target_only="true" bind_current="controls_nozzle_cur_deci"
-                            bind_target="controls_nozzle_tgt_deci" clickable="false" event_bubble="true"/>
-            </lv_obj>
-          </lv_obj>
-          <lv_obj name="nozzle_status"
-                  width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
-                  scrollable="false" clickable="false">
-            <!-- Hidden on TINY screens (breakpoint 0) -->
-            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            <!-- A portrait half-width card has no height for a status line under each row -->
-            <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
-            <heater_status state_subject="controls_nozzle_status_state" duty_subject="controls_nozzle_status"/>
-          </lv_obj>
-          <!-- Bed section (clickable) -->
-          <lv_obj name="btn_bed_temp"
-                  width="100%" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  clickable="true" scrollable="false" style_radius="#border_radius">
-            <style name="styles.press_wash" selector="pressed"/>
-            <event_cb trigger="clicked" callback="on_bed_temp_clicked"/>
-            <!-- Left side: animated bed icon + label -->
-            <lv_obj width="content"
-                    height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" clickable="false" event_bubble="true">
-              <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
-              <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs"/>
-              <text_small text="Bed">
-                <bind_flag_if cond="ui_breakpoint eq 1 or ui_is_portrait eq 1" flag="hidden"/>
+              <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_controls_target_tool_chip"/>
+              <!-- "Tool 2" where the header has room beside the title, else the
+                   nozzle glyph and "2", the number the row below spells too -->
+              <text_small bind_text="target_tool_name" long_mode="dots" clickable="false" event_bubble="true">
+                <bind_flag_if cond="ui_breakpoint le 3 and ui_is_portrait eq 0" flag="hidden"/>
               </text_small>
-              <temp_display name="bed_temp_display"
-                            size="md" show_target="false" bind_current="bed_temp" bind_target="bed_target"
-                            clickable="false" event_bubble="true"/>
-            </lv_obj>
-            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
-            <lv_obj name="bed_temp_edit_container"
-                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
-                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
-                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
-                    ext_click_area="12">
-              <style name="styles.chip_idle"/>
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_bed_target_edit"/>
-              <temp_display name="bed_target_chip"
-                            size="sm" show_target="true" target_only="true" bind_current="bed_temp"
-                            bind_target="bed_target" clickable="false" event_bubble="true"/>
-            </lv_obj>
-          </lv_obj>
-          <lv_obj name="bed_status"
-                  width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
-                  scrollable="false" clickable="false">
-            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            <!-- A portrait half-width card has no height for a status line under each row -->
-            <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
-            <heater_status state_subject="controls_bed_status_state" duty_subject="controls_bed_status"/>
-          </lv_obj>
-          <!-- Chamber section (visible only if printer has chamber sensor) -->
-          <lv_obj name="btn_chamber_temp"
-                  width="100%" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  hidden="true" clickable="true" scrollable="false" style_radius="#border_radius">
-            <style name="styles.press_wash" selector="pressed"/>
-            <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_chamber_temp_clicked"/>
-            <!-- Left side: icon + label + temp display -->
-            <lv_obj width="content"
-                    height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" clickable="false" event_bubble="true">
-              <bind_style_if_eq name="temp_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_ge name="temp_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
-              <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs"/>
-              <text_small text="Chamb:" clickable="false" event_bubble="true">
-                <bind_flag_if cond="ui_breakpoint eq 1 or ui_is_portrait eq 1" flag="hidden"/>
+              <icon src="heater" size="xs" variant="secondary" clickable="false" event_bubble="true" hidden="true">
+                <bind_flag_if cond="ui_breakpoint gt 3 or ui_is_portrait eq 1" flag="hidden"/>
+              </icon>
+              <text_small bind_text="target_tool_number" clickable="false" event_bubble="true" hidden="true">
+                <bind_flag_if cond="ui_breakpoint gt 3 or ui_is_portrait eq 1" flag="hidden"/>
               </text_small>
-              <temp_display name="chamber_temp_display"
-                            size="md" show_target="false" bind_current="chamber_temp"
-                            bind_target="chamber_effective_target" bind_mode="chamber_mode" clickable="false"
-                            event_bubble="true"/>
-            </lv_obj>
-            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
-            <lv_obj name="chamber_temp_edit_container"
-                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
-                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
-                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
-                    ext_click_area="12">
-              <style name="styles.chip_idle"/>
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_chamber_target_edit"/>
-              <temp_display name="chamber_target_chip"
-                            size="sm" show_target="true" target_only="true" bind_current="chamber_temp"
-                            bind_target="chamber_effective_target" bind_mode="chamber_mode" clickable="false"
-                            event_bubble="true"/>
+              <icon src="chevron_down" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
-          <lv_obj name="chamber_status"
-                  width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
-                  scrollable="false" clickable="false">
-            <!-- Hidden on TINY screens (breakpoint 0) and when printer has no chamber -->
-            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            <!-- A portrait half-width card has no height for a status line under each row -->
-            <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
-            <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-            <heater_status state_subject="controls_chamber_status_state" duty_subject="controls_chamber_status"/>
-          </lv_obj>
+          <heater_rows style_margin_top="#space_xs"/>
           <!-- "N more sensors" link to the sensors overlay; hidden when there are none -->
           <lv_obj name="secondary_temps_list"
                   width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"

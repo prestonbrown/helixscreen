@@ -11,17 +11,17 @@
        filament_panel.xml (top-level files only — see
        bed_mesh_profiles_card.xml for the scope rule). -->
   <view name="spool_card"
-        extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_ver="#space_xs"
-        style_pad_hor="#space_md" style_pad_gap="#space_xxs" flex_flow="column" style_flex_main_place="start"
-        style_flex_cross_place="start">
+        extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_all="#space_sm"
+        style_pad_gap="#space_xxs" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start">
     <!-- Header row with icon (hidden when external spool mode — no AMS —
          or in portrait, where the card is a bottom strip) -->
     <lv_obj name="spool_card_header_row"
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <icon src="filament" size="sm" variant="secondary"/>
-      <text_body bind_text="filament_card_title"
-                 translation_tag="Multi-Filament" text_transform="uppercase" style_translate_y="2"/>
+      <icon src="filament" size="sm" variant="primary"/>
+      <text_small bind_text="filament_card_title"
+                  translation_tag="Multi-Filament" text_transform="uppercase" style_translate_y="2"
+                  style_text_color="#text"/>
     </lv_obj>
 
     <!-- Strip content row: holds the portrait graph button plus whichever of
@@ -51,32 +51,13 @@
               hidden="true">
         <!-- AMS mini status (auto-binds to AmsState, fills width, stretches to row height) -->
         <ams_mini_status name="ams_mini_status" height="100%" flex_grow="1" bars_align="start"/>
-        <!-- Manage Button (shown when single-tool AMS, hidden when multi-tool) -->
+        <!-- Manage opens the AMS panel. With several heads the bars alone
+             open it: the Tool card above is where a head is chosen. -->
         <ui_button name="btn_manage_slots"
                    width="content" height="#button_height" text="Manage" style_pad_left="#space_md"
                    style_pad_right="#space_md">
+          <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
           <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
-        </ui_button>
-        <!-- Extruder Dropdown (shown when multi-tool, replaces Manage button).
-             No caption: the closed field names the tool ("Tool 3"), and the
-             row's width goes to the lane bars. The dropdown and the Pick up
-             button share the row's center line. -->
-        <lv_obj name="extruder_selector_group"
-                width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                style_flex_cross_place="center" hidden="true">
-          <lv_dropdown name="extruder_dropdown"
-                       width="content" height="#button_height" style_min_width="80" style_radius="#border_radius_sm"
-                       style_pad_hor="#space_sm">
-            <event_cb trigger="value_changed" callback="on_extruder_dropdown_changed"/>
-          </lv_dropdown>
-        </lv_obj>
-        <!-- Pick up / Park the tool the selector aims at (hidden when neither applies) -->
-        <ui_button name="btn_target_tool_action"
-                   width="content" height="#button_height" variant="secondary"
-                   bind_text="filament_target_tool_action_text" moves_machine="true" style_pad_left="#space_md"
-                   style_pad_right="#space_md">
-          <bind_flag_if_eq subject="filament_target_tool_action" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
         </ui_button>
       </lv_obj>
 

@@ -9,9 +9,9 @@
 
 namespace helix::ui {
 
-/// The tool a temperature or filament surface aims at. One per surface.
-/// A tool change anywhere moves it to the mounted tool; reopening the
-/// surface does not reset it.
+/// The rule for the tool the temperature and filament surfaces aim at
+/// (TargetTool holds the one instance they share). A tool change anywhere
+/// moves it to the mounted tool; reopening a surface does not reset it.
 class TargetToolSelection {
   public:
     /// ToolState's active tool changed. >= 0 moves the selection there;
@@ -22,6 +22,10 @@ class TargetToolSelection {
     /// The selection clamped to [0, tool_count); 0 when nothing was ever
     /// chosen or the pick no longer exists.
     [[nodiscard]] int current(int tool_count) const;
+    /// Whether anything was ever chosen or followed.
+    [[nodiscard]] bool has_pick() const {
+        return selected_ >= 0;
+    }
 
   private:
     int selected_ = -1;

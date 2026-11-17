@@ -2,16 +2,16 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Filament operations (divider, heading + cold-extrusion warning,
-       Load/Unload/Purge, length selector, Extrude/Retract). Instantiated by both
-       orientation branches of filament_panel.xml so the markup exists exactly
-       once; the group grows into whatever slack its branch's column gives it. -->
+  <!-- The Operations card (heading + cold-extrusion warning, Load/Unload/Purge,
+       length selector, Extrude/Retract). Instantiated by both orientation
+       branches of filament_panel.xml so the markup exists exactly once; the
+       card grows into whatever slack its branch's column gives it. -->
   <styles>
     <!-- Reactive extrude length button state (L040: no inline bg attrs) -->
     <style name="extrude_length_btn_selected" bg_color="#primary" bg_opa="255"/>
     <style name="extrude_length_btn_unselected" bg_color="#primary" bg_opa="40"/>
     <!-- The heading steps aside for the safety warning without leaving layout -->
-    <style name="operations_heading_masked" text_opa="0"/>
+    <style name="operations_heading_masked" opa="0"/>
   </styles>
   <api>
     <!-- Action-row sizing. Landscape rows grow into the column's slack with
@@ -22,16 +22,19 @@
     <prop name="row_min_height" type="string" default="#button_height"/>
   </api>
   <view name="operations_group"
-        extends="lv_obj" width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
-        style_pad_gap="#space_sm">
-    <divider_horizontal/>
+        extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_all="#space_sm"
+        scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
     <!-- Heading row. The cold-extrusion warning floats over the heading,
          one line with dots, rather than taking a row of its own, so the action
          rows keep the same height whether it shows or not. -->
     <lv_obj name="operations_heading_row" width="100%" height="content" style_pad_all="0" scrollable="false">
-      <text_body name="operations_heading" text="Operations" text_transform="uppercase" align="left_mid">
+      <lv_obj name="operations_heading"
+              width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+              style_pad_gap="#space_sm" scrollable="false" clickable="false" align="left_mid">
         <bind_style name="operations_heading_masked" subject="filament_safety_warning_visible" ref_value="1"/>
-      </text_body>
+        <icon src="filament" size="sm" variant="primary"/>
+        <text_small text="Operations" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+      </lv_obj>
       <lv_obj name="safety_warning"
               width="100%" height="100%" style_pad_all="0" scrollable="false" floating="true" align="left_mid"
               flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
