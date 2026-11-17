@@ -40,6 +40,11 @@ setup() {
     . "$WORKTREE_ROOT/scripts/lib/installer/platform.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/release.sh"
+    # helix_print_conf.sh before moonraker.sh, as bundled: the [include] parse
+    # and running_moonraker_root that mod_user_moonraker_conf calls.
+    unset _HELIX_PRINT_CONF_SOURCED
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/helix_print_conf.sh"
     # shellcheck disable=SC1090
     . "$WORKTREE_ROOT/scripts/lib/installer/moonraker.sh"
 
