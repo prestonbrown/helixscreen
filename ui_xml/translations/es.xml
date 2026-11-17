@@ -11,8 +11,11 @@
   <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." es="&quot;Después&quot; es la compensación tal como la aplica tu impresora, con sus ajustes de fábrica."/>
   <translation tag="%d additional fan" es="%d ventilador adicional"/>
   <translation tag="%d additional fans" es="%d ventiladores adicionales"/>
+  <translation tag="%d feeder" es="%d alimentador"/>
   <translation tag="%d feeders" es="%d alimentadores"/>
+  <translation tag="%d gate" es="%d Gate"/>
   <translation tag="%d gates" es="%d Gates"/>
+  <translation tag="%d lane" es="%d carril"/>
   <translation tag="%d lanes" es="%d carriles"/>
   <translation tag="%d min" es="%d min"/>
   <translation tag="%d min left" es="quedan %d min"/>
@@ -22,7 +25,10 @@
   <translation tag="%d of %d printing" es="%d de %d imprimiéndose"/>
   <translation tag="%d profiles" es="%d perfiles"/>
   <translation tag="%d skipped" es="%d omitidos"/>
+  <translation tag="%d slot" es="%d ranura"/>
   <translation tag="%d slots" es="%d ranuras"/>
+  <translation tag="%d tool" es="%d herramienta"/>
+  <translation tag="%d toolhead" es="%d cabezal"/>
   <translation tag="%d toolheads" es="%d cabezales"/>
   <translation tag="%d tools" es="%d herramientas"/>
   <translation tag="%d units" es="%d unidades"/>
@@ -1810,6 +1816,7 @@
   <translation tag="HelixScreen Crashed" es="HelixScreen se Bloqueó"/>
   <translation tag="HelixScreen Macros" es="Macros de HelixScreen"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." es="HelixScreen agrega [include helix-plr/*.cfg] a printer.cfg para que una reanudación vuelva a cargar la malla con la que empezó la impresión. Junto a printer.cfg se guarda una copia de seguridad, y Klipper debe reiniciarse para que surta efecto."/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." es="HelixScreen no puede reiniciar Klipper en esta impresora. Apague y vuelva a encender la impresora para reiniciarlo."/>
   <translation tag="HelixScreen is detecting your display orientation" es="HelixScreen está detectando la orientación de su pantalla"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." es="HelixScreen elimina sus líneas [include helix-plr/*.cfg] de printer.cfg. Junto a printer.cfg se guarda una copia de seguridad, y Klipper debe reiniciarse para que surta efecto. Una reanudación usará entonces el perfil de malla predeterminado de la impresora."/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." es="HelixScreen se integrará con su cambiador de filamento para operaciones de impresión multi-bobina/color."/>
@@ -2437,6 +2444,7 @@
   <translation tag="Multi-Filament System is busy: {}" es="Sistema multi-filamento ocupado: {}"/>
   <translation tag="Multi-Filament System not available" es="Sistema multi-filamento no disponible"/>
   <translation tag="Multi-filament system not ready" es="Sistema multifilamento no preparado"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" es="La asignación múltiple de herramientas está activada en AFC, así que las herramientas se asignan allí"/>
   <translation tag="Must home axes first" es="Debe posicionar los ejes primero"/>
   <translation tag="Muted" es="Silenciado"/>
   <translation tag="My Custom Theme" es="Mi Tema Personalizado"/>
@@ -3249,6 +3257,7 @@
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" es="Retira la lámina PEI de la cama e inténtalo de nuevo: sondear a través de la lámina da resultados incorrectos"/>
   <translation tag="Remove the bypass spool from the toolhead first" es="Primero retira la bobina de bypass del cabezal"/>
   <translation tag="Remove the filter cover." es="Retira la tapa del filtro."/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." es="Retire a mano el filamento sobrante del cabezal antes de cargar otra bobina."/>
   <translation tag="Remove the spools" es="Retira las bobinas"/>
   <translation tag="Remove the spools from the bed" es="Retira las bobinas de la cama"/>
   <translation tag="Remove the spools now?" es="¿Retirar las bobinas ahora?"/>
@@ -4261,6 +4270,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." es="Esto reemplaza el diseño de la pantalla de inicio de esta pantalla para esta impresora por el de la pantalla de la propia impresora."/>
   <translation tag="This resume needs a newer version of HelixScreen." es="Esta reanudación necesita una versión más reciente de HelixScreen."/>
   <translation tag="This slot feeds no tool" es="Esta ranura no alimenta ninguna herramienta"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." es="Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." es="Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar."/>
   <translation tag="This system does not support bypass mode" es="Este sistema no es compatible con el modo bypass"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." es="Esta herramienta sondea cada tornillo de cama y le indica cuánto ajustar."/>
@@ -4516,6 +4526,7 @@
   <translation tag="Upload unavailable in this build" es="Subida no disponible en esta compilación"/>
   <translation tag="Upper belt" es="Correa superior"/>
   <translation tag="Uptime" es="Tiempo de actividad"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" es="Usa los comandos de asignación de AFC para añadir o mover una herramienta"/>
   <translation tag="Use Android native keyboard for text input" es="Usar el teclado nativo de Android para entrada de texto"/>
   <translation tag="Use DHCP" es="Usar DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" es="Usar retracción de firmware G10/G11"/>

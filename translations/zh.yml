@@ -12,8 +12,11 @@ translations:
   '"After" is compensation as your printer applies it, with its factory settings.': '“之后”是打印机按出厂设置应用的补偿。'
   '%d additional fan': '%d 个额外风扇'
   '%d additional fans': '%d 个额外风扇'
+  '%d feeder': '%d 个送料器'
   '%d feeders': '%d 个送料器'
+  '%d gate': '%d 个通道'
   '%d gates': '%d 个通道'
+  '%d lane': '%d 个耗材通道'
   '%d lanes': '%d 个耗材通道'
   '%d min': '%d分钟'
   '%d min left': '剩余 %d 分钟'
@@ -23,7 +26,10 @@ translations:
   '%d of %d printing': '%d / %d 正在打印'
   '%d skipped': '已跳过 %d 个'
   '%d profiles': '%d 个配置'
+  '%d slot': '%d 个槽位'
   '%d slots': '%d 个槽位'
+  '%d tool': '%d 个工具'
+  '%d toolhead': '%d 个工具头'
   '%d toolheads': '%d 个工具头'
   '%d tools': '%d 个工具'
   '%d units': '%d 个单元'
@@ -1885,6 +1891,7 @@ translations:
   HelixScreen Macros: 'HelixScreen 宏'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen 会在 printer.cfg 中添加 [include helix-plr/*.cfg]，使恢复时重新加载打印开始时的网格。printer.cfg 旁边会保留一份备份，且需要重启 Klipper 才能生效。
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen 无法在此打印机上重启 Klipper。请关闭打印机电源后重新开启以重启它。'
   HelixScreen is detecting your display orientation: HelixScreen正在检测显示屏方向
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
   : HelixScreen 会从 printer.cfg 中移除其 [include helix-plr/*.cfg] 行。printer.cfg 旁边会保留一份备份，且需要重启 Klipper 才能生效。恢复时将使用打印机的默认网格配置。
@@ -2524,6 +2531,7 @@ translations:
   'Multi-Filament System is busy: {}': '多耗材系统忙碌中: {}'
   Multi-Filament System not available: 多耗材系统不可用
   Multi-filament system not ready: 多耗材系统未就绪
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'AFC 已开启多工具映射，因此工具需在 AFC 中分配'
   Must home axes first: 请先归位
   Muted: 静音
   My Custom Theme: 我的自定义主题
@@ -3353,6 +3361,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': '请先从热床上取下 PEI 板再重新开始：隔着板材探测会导致结果错误'
   Remove the bypass spool from the toolhead first: '请先将旁路料盘从工具头中取出'
   Remove the filter cover.: "取下滤网盖。"
+  Remove the leftover filament from the toolhead by hand before loading another spool.: '装载其他料盘前，请手动从工具头取出剩余耗材。'
   Remove the spools: 取下料盘
 
   Remove the spools from the bed: 从热床上取下料盘
@@ -4434,6 +4443,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"
   This resume needs a newer version of HelixScreen.: 此恢复需要更新版本的 HelixScreen。
   This slot feeds no tool: '此槽位不向任何工具供料'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
   This system does not support bypass mode: '此系统不支持旁通模式'
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
@@ -4695,6 +4705,7 @@ translations:
   Upload unavailable in this build: 此构建版本无法上传
   Upper belt: "上皮带"
   Uptime: 运行时长
+  Use AFC's mapping commands to add or move a tool: '请使用 AFC 的映射命令添加或移动工具'
   Use Android native keyboard for text input: 使用 Android 原生键盘进行文本输入
   Use DHCP: '使用 DHCP'
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽

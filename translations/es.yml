@@ -12,8 +12,11 @@ translations:
   '"After" is compensation as your printer applies it, with its factory settings.': '"Después" es la compensación tal como la aplica tu impresora, con sus ajustes de fábrica.'
   '%d additional fan': '%d ventilador adicional'
   '%d additional fans': '%d ventiladores adicionales'
+  '%d feeder': '%d alimentador'
   '%d feeders': '%d alimentadores'
+  '%d gate': '%d Gate'
   '%d gates': '%d Gates'
+  '%d lane': '%d carril'
   '%d lanes': '%d carriles'
   '%d min': '%d min'
   '%d min left': 'quedan %d min'
@@ -23,7 +26,10 @@ translations:
   '%d of %d printing': '%d de %d imprimiéndose'
   '%d skipped': '%d omitidos'
   '%d profiles': '%d perfiles'
+  '%d slot': '%d ranura'
   '%d slots': '%d ranuras'
+  '%d tool': '%d herramienta'
+  '%d toolhead': '%d cabezal'
   '%d toolheads': '%d cabezales'
   '%d tools': '%d herramientas'
   '%d units': '%d unidades'
@@ -1980,6 +1986,7 @@ translations:
   HelixScreen Macros: 'Macros de HelixScreen'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen agrega [include helix-plr/*.cfg] a printer.cfg para que una reanudación vuelva a cargar la malla con la que empezó la impresión. Junto a printer.cfg se guarda una copia de seguridad, y Klipper debe reiniciarse para que surta efecto.
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen no puede reiniciar Klipper en esta impresora. Apague y vuelva a encender la impresora para reiniciarlo.'
   HelixScreen is detecting your display orientation: HelixScreen está detectando la
     orientación de su pantalla
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
@@ -2656,6 +2663,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Sistema multi-filamento ocupado: {}'
   Multi-Filament System not available: Sistema multi-filamento no disponible
   Multi-filament system not ready: Sistema multifilamento no preparado
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'La asignación múltiple de herramientas está activada en AFC, así que las herramientas se asignan allí'
   Must home axes first: Debe posicionar los ejes primero
   Muted: Silenciado
   My Custom Theme: Mi Tema Personalizado
@@ -3518,6 +3526,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Retira la lámina PEI de la cama e inténtalo de nuevo: sondear a través de la lámina da resultados incorrectos'
   Remove the bypass spool from the toolhead first: 'Primero retira la bobina de bypass del cabezal'
   Remove the filter cover.: "Retira la tapa del filtro."
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Retire a mano el filamento sobrante del cabezal antes de cargar otra bobina.'
   Remove the spools: Retira las bobinas
 
   Remove the spools from the bed: Retira las bobinas de la cama
@@ -4668,6 +4677,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Esto reemplaza el diseño de la pantalla de inicio de esta pantalla para esta impresora por el de la pantalla de la propia impresora."
   This resume needs a newer version of HelixScreen.: Esta reanudación necesita una versión más reciente de HelixScreen.
   This slot feeds no tool: 'Esta ranura no alimenta ninguna herramienta'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar.'
   This system does not support bypass mode: 'Este sistema no es compatible con el modo bypass'
   This tool probes each bed screw and tells you how much to adjust.: Esta herramienta
@@ -4945,6 +4955,7 @@ translations:
   Upload unavailable in this build: Subida no disponible en esta compilación
   Upper belt: "Correa superior"
   Uptime: Tiempo de actividad
+  Use AFC's mapping commands to add or move a tool: 'Usa los comandos de asignación de AFC para añadir o mover una herramienta'
   Use Android native keyboard for text input: Usar el teclado nativo de Android para
     entrada de texto
   Use DHCP: 'Usar DHCP'

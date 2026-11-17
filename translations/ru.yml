@@ -16,16 +16,19 @@ translations:
     few: '%d дополнительных вентилятора'
     many: '%d дополнительных вентиляторов'
     other: '%d дополнительных вентилятора'
+  '%d feeder': '%d фидер'
   '%d feeders':
     one: '%d фидер'
     few: '%d фидера'
     many: '%d фидеров'
     other: '%d фидера'
+  '%d gate': '%d шлюз'
   '%d gates':
     one: '%d шлюз'
     few: '%d шлюза'
     many: '%d шлюзов'
     other: '%d шлюза'
+  '%d lane': '%d канал'
   '%d lanes':
     one: '%d канал'
     few: '%d канала'
@@ -43,11 +46,14 @@ translations:
   '%d of %d printing': '%d из %d печатается'
   '%d skipped': 'Пропущено: %d'
   '%d profiles': 'Профилей: %d'
+  '%d slot': '%d слот'
   '%d slots':
     one: '%d слот'
     few: '%d слота'
     many: '%d слотов'
     other: '%d слота'
+  '%d tool': '%d инструмент'
+  '%d toolhead': '%d печатающая головка'
   '%d toolheads':
     one: '%d печатающая головка'
     few: '%d печатающие головки'
@@ -2027,6 +2033,7 @@ translations:
   HelixScreen Macros: 'Макросы HelixScreen'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать. Рядом с printer.cfg хранится резервная копия, а чтобы изменение вступило в силу, нужно перезапустить Klipper.
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen не может перезапустить Klipper на этом принтере. Выключите и снова включите принтер, чтобы перезапустить его.'
   HelixScreen is detecting your display orientation: HelixScreen определяет ориентацию
     дисплея
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
@@ -2702,6 +2709,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Мультифиламентная система занята: {}'
   Multi-Filament System not available: Мультифиламентная система недоступна
   Multi-filament system not ready: Мультифиламентная система не готова
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'В AFC включено множественное назначение инструментов, поэтому инструменты назначаются там'
   Must home axes first: Сначала необходимо запарковать оси
   Muted: Без звука
   My Custom Theme: Моя тема
@@ -3571,6 +3579,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Снимите лист PEI со стола и начните заново: щуп через лист даёт неверные результаты'
   Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Remove the filter cover.: "Снимите крышку фильтра."
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Удалите оставшийся филамент из печатающей головки вручную перед загрузкой другой катушки.'
   Remove the spools: Снимите катушки
 
   Remove the spools from the bed: Снимите катушки со стола
@@ -4716,6 +4725,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент
@@ -4990,6 +5000,7 @@ translations:
   Upload unavailable in this build: Отправка недоступна в этой сборке
   Upper belt: "Верхний ремень"
   Uptime: Время работы
+  Use AFC's mapping commands to add or move a tool: 'Используйте команды назначения AFC, чтобы добавить или переместить инструмент'
   Use Android native keyboard for text input: Использовать нативную клавиатуру Android
     для ввода текста
   Use DHCP: 'Использовать DHCP'

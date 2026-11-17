@@ -12,9 +12,18 @@ translations:
   '"After" is compensation as your printer applies it, with its factory settings.': '« Après » correspond à la compensation telle que votre imprimante l''applique, avec ses réglages d''usine.'
   '%d additional fan': '%d ventilateur supplémentaire'
   '%d additional fans': '%d ventilateurs supplémentaires'
-  '%d feeders': '%d alimentateurs'
-  '%d gates': '%d Gates'
-  '%d lanes': '%d voies'
+  '%d feeder': '%d alimentateur'
+  '%d feeders':
+    one: '%d alimentateur'
+    other: '%d alimentateurs'
+  '%d gate': '%d Gate'
+  '%d gates':
+    one: '%d Gate'
+    other: '%d Gates'
+  '%d lane': '%d voie'
+  '%d lanes':
+    one: '%d voie'
+    other: '%d voies'
   '%d min': '%d min'
   '%d min left': '%d min restantes'
   '%d mm/s': '%d mm/s'
@@ -23,9 +32,18 @@ translations:
   '%d of %d printing': '%d sur %d en impression'
   '%d skipped': '%d ignorés'
   '%d profiles': '%d profils'
-  '%d slots': '%d emplacements'
-  '%d toolheads': '%d têtes d''outil'
-  '%d tools': '%d outils'
+  '%d slot': '%d emplacement'
+  '%d slots':
+    one: '%d emplacement'
+    other: '%d emplacements'
+  '%d tool': '%d outil'
+  '%d toolhead': '%d tête d''outil'
+  '%d toolheads':
+    one: '%d tête d''outil'
+    other: '%d têtes d''outil'
+  '%d tools':
+    one: '%d outil'
+    other: '%d outils'
   '%d units': '%d unités'
   '%d:%02d left': '%d:%02d restantes'
   '%dd %dh': '%d j %d h'
@@ -1993,6 +2011,7 @@ translations:
   HelixScreen Macros: 'Macros HelixScreen'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : 'HelixScreen ajoute [include helix-plr/*.cfg] à printer.cfg pour qu''une reprise recharge le maillage avec lequel l''impression a commencé. Une sauvegarde est conservée à côté de printer.cfg, et Klipper doit redémarrer pour que le changement prenne effet.'
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen ne peut pas redémarrer Klipper sur cette imprimante. Éteignez puis rallumez l''imprimante pour le redémarrer.'
   HelixScreen is detecting your display orientation: HelixScreen détecte l'orientation
     de votre écran
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
@@ -2671,6 +2690,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Le système multi-filament est occupé : {}'
   Multi-Filament System not available: Système multi-filament non disponible
   Multi-filament system not ready: Système multi-filaments pas prêt
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'L''attribution multiple d''outils est activée dans AFC, les outils y sont donc attribués'
   Must home axes first: Les axes doivent d'abord être référencés
   Muted: Muet
   My Custom Theme: Mon thème personnalisé
@@ -3537,6 +3557,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Retirez la plaque PEI du plateau, puis recommencez : sonder à travers la plaque donne des résultats erronés'
   Remove the bypass spool from the toolhead first: 'Retirez d''abord la bobine de bypass de la tête d''outil'
   Remove the filter cover.: "Retirez le capot du filtre."
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Retirez à la main le filament restant de la tête d''outil avant de charger une autre bobine.'
   Remove the spools: Retirez les bobines
 
   Remove the spools from the bed: Retirez les bobines du plateau
@@ -4696,6 +4717,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Cela remplace la disposition de l'écran d'accueil de cet écran pour cette imprimante par celle de l'écran de l'imprimante."
   This resume needs a newer version of HelixScreen.: Cette reprise nécessite une version plus récente de HelixScreen.
   This slot feeds no tool: 'Ce slot n''alimente aucun outil'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer.'
   This system does not support bypass mode: 'Ce système ne prend pas en charge le mode bypass'
   This tool probes each bed screw and tells you how much to adjust.: Cet outil palpe
@@ -4976,6 +4998,7 @@ translations:
   Upload unavailable in this build: Téléversement indisponible dans cette version
   Upper belt: "Courroie du haut"
   Uptime: Temps de fonctionnement
+  Use AFC's mapping commands to add or move a tool: 'Utilisez les commandes d''attribution d''AFC pour ajouter ou déplacer un outil'
   Use Android native keyboard for text input: Utiliser le clavier natif Android pour
     la saisie de texte
   Use DHCP: 'Utiliser DHCP'

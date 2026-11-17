@@ -90,7 +90,7 @@ class PagedFleet : public AmsBackendMock {
             // The unit's own number is not its position, as on a backend that numbers its
             // units from elsewhere: the paging screen must key the viewed unit and the
             // env chip on this one.
-            unit.unit_index = kOwnNumberBase + static_cast<int>(pos);
+            unit.unit_index = own_number_base + static_cast<int>(pos);
             unit.name = specs[pos].name;
             unit.display_name = "Box " + specs[pos].name;
             unit.hub_id = specs[pos].hub;
@@ -134,7 +134,10 @@ class PagedFleet : public AmsBackendMock {
     }
 
     std::vector<UnitSpec> specs;
-    std::optional<AmsType> system_type;      ///< set to a type with baked unit art
+    std::optional<AmsType> system_type; ///< set to a type with baked unit art
+    /// The first unit's own number. 0 numbers units by position, which is what the
+    /// overview's per-unit environment subjects are keyed on.
+    int own_number_base = kOwnNumberBase;
     mutable int info_reads = 0;              ///< get_system_info() calls, a full copy each
     int loaded_slot = 2 * kSlotsPerUnit + 1; ///< a bay of unit 2
     int drying_unit = kOwnNumberBase + 6;    ///< by the unit's own number
@@ -1437,4 +1440,95 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of
         }
     }
     CHECK(cut_off == 1);
+}
+
+// ============================================================================
+// Overview cards: the lane bars come first
+// ============================================================================
+
+namespace {
+bool card_shows(lv_obj_t* card, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(card, name);
+    REQUIRE(obj != nullptr);
+    return !lv_obj_is_hidden(obj);
+}
+/// The overview's cards, in the order the row lays them out.
+std::vector<lv_obj_t*> row_cards(lv_obj_t* row) {
+    std::vector<lv_obj_t*> out;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i)
+        out.push_back(lv_obj_get_child(row, static_cast<int32_t>(i)));
+    return out;
+}
+uint32_t bar_count(lv_obj_t* card) {
+    lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+    REQUIRE(bars != nullptr);
+    return lv_obj_get_child_count(bars);
+}
+} // namespace
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a wide card carries its environment on one line under the bars",
+                 "[ams][panel][overview][card_fit]") {
+    install([](PagedFleet& f) {
+        f.specs.resize(2);
+        f.own_number_base = 0;
+    });
+    open();
+
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 1);
+    for (lv_obj_t* card : row_cards(named("unit_cards_row"))) {
+        CHECK(bar_count(card) == kSlotsPerUnit);
+        CHECK(card_shows(card, "env_indicator"));
+        // The line takes the lane count's place, so the card keeps its height.
+        CHECK_FALSE(card_shows(card, "slot_count"));
+        // The bars span the card's content width, with nothing beside them.
+        lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+        CHECK(lv_obj_get_width(bars) == lv_obj_get_content_width(card));
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a narrow row leaves the environment to each unit's page",
+                 "[ams][panel][overview][card_fit]") {
+    // Twelve units: every card at its minimum width.
+    install([](PagedFleet& f) { f.own_number_base = 0; });
+    open();
+
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE_FALSE(card_list.empty());
+    // The cards have readouts to drop; units are numbered by position here.
+    REQUIRE(subject(AmsState::instance().get_env_ind_visible_subject(0)) == 1);
+    for (lv_obj_t* card : card_list) {
+        CHECK(bar_count(card) == kSlotsPerUnit);
+        CHECK_FALSE(card_shows(card, "env_indicator"));
+        CHECK(card_shows(card, "slot_count"));
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a unit with more lanes than fit keeps its lane count",
+                 "[ams][panel][overview][card_fit]") {
+    install([](PagedFleet& f) {
+        f.specs.resize(2);
+        f.specs[0].slots = 40;
+        f.own_number_base = 0;
+    });
+    open();
+
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE(card_list.size() == 2);
+    // The row lays the units out by position: the 40-lane unit is first.
+    lv_obj_t* wide = card_list[0];
+    lv_obj_t* bars = lv_obj_find_by_name(wide, "bars_container");
+    const int32_t width = lv_obj_get_content_width(bars);
+    const int32_t gap = theme_manager_get_spacing("space_xxs");
+    // The bars that fit at the floor width are drawn; the rest are not.
+    const auto fit = helix::ui::decide_unit_card_fit(width, 40, 6, gap, 0);
+    REQUIRE(fit.bars_shown < 40);
+    CHECK(bar_count(wide) == static_cast<uint32_t>(fit.bars_shown));
+    CHECK(card_shows(wide, "slot_count"));
+    // One answer for the row: the overflowing unit leaves every card's readout
+    // to its page.
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);
 }

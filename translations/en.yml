@@ -12,8 +12,11 @@ translations:
   '"After" is compensation as your printer applies it, with its factory settings.': '"After" is compensation as your printer applies it, with its factory settings.'
   '%d additional fan': '%d additional fan'
   '%d additional fans': '%d additional fans'
+  '%d feeder': '%d feeder'
   '%d feeders': '%d feeders'
+  '%d gate': '%d gate'
   '%d gates': '%d gates'
+  '%d lane': '%d lane'
   '%d lanes': '%d lanes'
   '%d min': '%d min'
   '%d min left': '%d min left'
@@ -23,7 +26,10 @@ translations:
   '%d of %d printing': '%d of %d printing'
   '%d skipped': '%d skipped'
   '%d profiles': '%d profiles'
+  '%d slot': '%d slot'
   '%d slots': '%d slots'
+  '%d tool': '%d tool'
+  '%d toolhead': '%d toolhead'
   '%d toolheads': '%d toolheads'
   '%d tools': '%d tools'
   '%d units': '%d units'
@@ -1933,6 +1939,7 @@ translations:
   HelixScreen Macros: HelixScreen Macros
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.
   HelixScreen is detecting your display orientation: HelixScreen is detecting your
     display orientation
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
@@ -2601,6 +2608,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Multi-Filament System is busy: {}'
   Multi-Filament System not available: Multi-Filament System not available
   Multi-filament system not ready: Multi-filament system not ready
+  Multiple tool mapping is on in AFC, so tools are assigned there: Multiple tool mapping is on in AFC, so tools are assigned there
   Must home axes first: Must home axes first
   Muted: Muted
   My Custom Theme: My Custom Theme
@@ -3451,6 +3459,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results'
   Remove the bypass spool from the toolhead first: Remove the bypass spool from the toolhead first
   Remove the filter cover.: Remove the filter cover.
+  Remove the leftover filament from the toolhead by hand before loading another spool.: Remove the leftover filament from the toolhead by hand before loading another spool.
   Remove the spools: Remove the spools
   Remove the spools from the bed: Remove the spools from the bed
   Remove the spools now?: Remove the spools now?
@@ -4570,6 +4579,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: This replaces this screen's home layout for this printer with the one on the printer's own screen.
   This resume needs a newer version of HelixScreen.: This resume needs a newer version of HelixScreen.
   This slot feeds no tool: This slot feeds no tool
+  This spool ran out, so the CFS cannot pull the leftover filament back.: This spool ran out, so the CFS cannot pull the leftover filament back.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.
   This system does not support bypass mode: This system does not support bypass mode
   This tool probes each bed screw and tells you how much to adjust.: This tool probes
@@ -4850,6 +4860,7 @@ translations:
   Upload unavailable in this build: Upload unavailable in this build
   Upper belt: Upper belt
   Uptime: Uptime
+  Use AFC's mapping commands to add or move a tool: Use AFC's mapping commands to add or move a tool
   Use Android native keyboard for text input: Use Android native keyboard for text
     input
   Use DHCP: Use DHCP

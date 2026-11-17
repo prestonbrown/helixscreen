@@ -163,33 +163,54 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
     if (helix::flashforge_mod_tree(probe_root) != helix::FlashForgeModTree::None) {
         paths.emplace_back("/opt/config/mod_data/log/helix.log");
         paths.emplace_back("/usr/data/config/mod_data/log/helix.log");
-        paths.emplace_back("/opt/config/mod_data/log/helixscreen.log");
-        paths.emplace_back("/usr/data/config/mod_data/log/helixscreen.log");
     }
 
-    // helixscreen.init's launcher-subshell shell-stdout-redirect file.
-    // Preferred FHS path (used when /var/log is persistent).
-    paths.emplace_back("/var/log/helixscreen/launcher.log");
-
-    // ${DAEMON_DIR}/logs/ fallback when /var/log is tmpfs/ramfs. The launcher
-    // writes BOTH helix.log (the app's file sink, --log-file) and launcher.log
-    // (the wrapper subshell's stdout) under ${root}/logs. This list is only a
-    // fallback for the crash-reporter-next-boot case; the live process is
-    // covered authoritatively by effective_log_file_path() in tail_best().
+    // ${DAEMON_DIR}/logs/ holds the app's file sink (--log-file) beside
+    // launcher.log. This list is only a fallback for the
+    // crash-reporter-next-boot case; the live process is covered
+    // authoritatively by effective_log_file_path() in tail_best().
     for (const char* root : helix::kInstallRoots) {
         paths.emplace_back(std::string(root) + "/logs/helix.log");
-        paths.emplace_back(std::string(root) + "/logs/launcher.log");
     }
     // Platforms that keep state off the payload log here instead, which is
     // every platform whose install root an update replaces.
     for (const char* root : helix::kStateRoots) {
         paths.emplace_back(std::string(root) + "/logs/helix.log");
-        paths.emplace_back(std::string(root) + "/logs/launcher.log");
     }
+
+    const auto launcher = launcher_log_paths("", probe_root);
+    paths.insert(paths.end(), launcher.begin(), launcher.end());
 
     // Legacy /tmp location — pre-v0.99.62 installs wrote here. Kept for
     // backward compatibility with debug bundles from older devices.
     paths.emplace_back("/tmp/helixscreen.log");
+    return paths;
+}
+
+std::vector<std::string> launcher_log_paths(const std::string& install_root,
+                                            const std::string& probe_root) {
+    std::vector<std::string> paths;
+    auto add = [&paths](std::string p) {
+        if (std::find(paths.begin(), paths.end(), p) == paths.end())
+            paths.push_back(std::move(p));
+    };
+
+    // config/helixscreen.init's LOGFILE: /var/log when it is persistent, else
+    // ${DAEMON_DIR}/logs. The running install's own root comes first.
+    add("/var/log/helixscreen/launcher.log");
+    if (!install_root.empty())
+        add(install_root + "/logs/launcher.log");
+    for (const char* root : helix::kInstallRoots)
+        add(std::string(root) + "/logs/launcher.log");
+    for (const char* root : helix::kStateRoots)
+        add(std::string(root) + "/logs/launcher.log");
+
+    // The AD5X mod's own init script pins LOGFILE to its mod_data tree, under
+    // both bind-mount spellings.
+    if (helix::flashforge_mod_tree(probe_root) != helix::FlashForgeModTree::None) {
+        add("/opt/config/mod_data/log/helixscreen.log");
+        add("/usr/data/config/mod_data/log/helixscreen.log");
+    }
     return paths;
 }
 

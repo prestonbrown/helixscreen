@@ -85,6 +85,14 @@ BackupEligibleFn eligibility_of(const AmsBackend* backend) {
     };
 }
 
+std::string tool_row_refusal(const AmsBackend& backend, int slot, int assigned) {
+    const AmsError err = backend.can_set_tool_mapping(assigned >= 0 ? assigned : 0, slot);
+    if (err.success() || err.result == AmsResult::INVALID_TOOL) {
+        return {};
+    }
+    return err.user_msg;
+}
+
 std::string tool_options(int tool_count) {
     std::string options = lv_tr("None");
     for (int i = 0; i < tool_count; ++i) {

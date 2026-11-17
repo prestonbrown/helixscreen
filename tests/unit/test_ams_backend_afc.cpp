@@ -16,6 +16,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
+#include "ams_tool_topology.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "config.h"
@@ -1320,6 +1321,53 @@ TEST_CASE("AFC reset_tool_mappings sends one reset under the firmware's name",
             CHECK(helper.captured_gcodes.size() == 1);
             CHECK(helper.has_gcode(r.gcode));
         }
+    }
+}
+
+// With AFC's multiple tool mapping on, SET_MAP adds the tool to the target lane
+// and leaves that lane's own tools and current_map in place, so the lane keeps
+// showing its old tool. A remap is refused with a reason rather than sent.
+TEST_CASE("AFC refuses a tool remap while multiple tool mapping is on",
+          "[ams][afc][tool_mapping][multiple_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+
+    SECTION("flag off: the remap is allowed and sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
+        REQUIRE(helper.set_tool_mapping(2, 0).success());
+        CHECK(helper.has_gcode("SET_MAP LANE=lane1 MAP=T2"));
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T3"));
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0).empty());
+    }
+
+    SECTION("flag on: the remap is refused with a reason and nothing is sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        const AmsError err = helper.can_set_tool_mapping(2, 0);
+        CHECK(err.result == AmsResult::NOT_SUPPORTED);
+        CHECK_FALSE(err.user_msg.empty());
+        CHECK_FALSE(helper.set_tool_mapping(2, 0).success());
+        // The lane editor grays out the Assigned Tool row and says why.
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0) == err.user_msg);
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, -1) == err.user_msg);
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        for (const auto& gcode : helper.captured_gcodes) {
+            INFO(gcode);
+            CHECK(gcode.rfind("SET_MAP ", 0) != 0);
+        }
+    }
+
+    SECTION("the flag turning off again allows the remap") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
     }
 }
 
@@ -3629,6 +3677,25 @@ TEST_CASE("AFC HTLF mixed topology classification from per-lane hub routing",
         }
     }
     REQUIRE(found);
+
+    // lane2 moves to a direct route; lane3 keeps the unit MIXED, so only the
+    // per-lane routing changes, and the published unit must follow it.
+    helper.feed_afc_stepper("lane2", {{"map", "T1"},
+                                      {"extruder", "extruder2"},
+                                      {"hub", "direct"},
+                                      {"status", "Loaded"},
+                                      {"color", "0000FF"}});
+    REQUIRE(helper.get_unit_infos()[0].topology == PathTopology::MIXED);
+    bool found_after = false;
+    for (const auto& unit : helper.get_system_info().units) {
+        if (unit.name == "HTLF HTLF_1") {
+            found_after = true;
+            REQUIRE(unit.lane_is_hub_routed.size() == 4);
+            CHECK(unit.lane_is_hub_routed[2] == false);
+            CHECK(unit.lane_is_hub_routed[3] == true);
+        }
+    }
+    REQUIRE(found_after);
 }
 
 TEST_CASE("AFC MIXED unit: a direct-fed lane and a hub-routed lane disagree on unload-before-load",
@@ -8295,4 +8362,94 @@ TEST_CASE("AFC units report a toolhead sensor only when an AFC_extruder pin wire
             AmsBackendAfc::parse_configfile_topology(settings({{"extruder_name", "extruder"}})));
         CHECK_FALSE(helper.get_system_info().units[0].has_toolhead_sensor);
     }
+}
+
+// ============================================================================
+// Empty carriage: an AFC toolchanger with every head parked mounts no tool
+// ============================================================================
+
+TEST_CASE("AFC toolchanger with every head parked mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == 1);
+    CHECK(helper.carriage_can_be_empty());
+    {
+        auto topo = helix::build_ams_topology(&helper, 0);
+        REQUIRE(topo.has_value());
+        CHECK(topo->active_tool == 1);
+    }
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", -1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == -1);
+
+    // AFC.current_load can keep naming the lane of a docked head. Its mapped
+    // tool is not mounted: the carriage holds nothing.
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK(helper.get_system_info().current_tool == -1);
+    CHECK(helper.get_system_info().current_slot == -1);
+
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK(topo->allows_empty_carriage);
+    CHECK(topo->active_tool == -1);
+}
+
+TEST_CASE("AFC on_shuttle reporting an empty carriage mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    nlohmann::json frame;
+    frame["AFC"] = {{"current_load", "lane2"}};
+    frame["AFC_extruder extruder"] = {{"on_shuttle", false}};
+    frame["AFC_extruder extruder1"] = {{"on_shuttle", false}};
+    helper.feed_status_update(frame);
+
+    CHECK(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == -1);
+}
+
+TEST_CASE("Single-toolhead AFC keeps a carriage that cannot be empty",
+          "[ams][afc][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == 1);
+
+    helper.feed_afc_state({{"current_load", nullptr}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK_FALSE(topo->allows_empty_carriage);
+}
+
+TEST_CASE("AFC toolchanger: only the carriage's own fault marks the docked heads",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 0}, {"status", "ready"}}}});
+    REQUIRE(helper.carriage_can_be_empty());
+
+    // A lane fault: AFC reports Error, the changer stays ready.
+    helper.feed_afc_state({{"current_state", "Error"}});
+    REQUIRE(helper.get_system_info().action == AmsAction::ERROR);
+    CHECK_FALSE(helper.fault_concerns_carriage());
+
+    // klipper-toolchanger itself reports the fault.
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "error"}}}});
+    CHECK(helper.fault_concerns_carriage());
+
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "ready"}}}});
+    CHECK_FALSE(helper.fault_concerns_carriage());
 }

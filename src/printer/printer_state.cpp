@@ -548,10 +548,15 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
-    // Per-head Z offset storage changes what the tune hint can promise.
-    if (profile_state_.set_z_offset_per_head(
-            helix::zoffset::firmware_applies_z_offset_per_head(discovery_)) &&
-        !profile_state_.printer_type().empty()) {
+    // Per-head Z offset storage changes what the tune hint can promise, and the
+    // probe, stepper_z's endstop and the kinematics pick the calibration
+    // strategy. A type resolved before this snapshot (the saved type at
+    // startup) is re-resolved against it.
+    profile_state_.set_z_offset_per_head(
+        helix::zoffset::firmware_applies_z_offset_per_head(discovery_));
+    profile_state_.set_z_homing(discovery_.z_position_endstop().has_value(),
+                                discovery_.kinematics());
+    if (!profile_state_.printer_type().empty()) {
         set_printer_type_internal(profile_state_.printer_type());
     }
     chamber_air_state_.set_hardware(discovery_);
@@ -800,8 +805,13 @@ bool PrinterState::is_busy_episode_app_initiated() {
     return busy.blocking() && app_command_episode_.owns(busy.printing_since());
 }
 
+bool PrinterState::z_offset_reference_is_probe() {
+    return capabilities_state_.has_probe() &&
+           profile_state_.z_offset_calibration_strategy() != ZOffsetCalibrationStrategy::ENDSTOP;
+}
+
 int PrinterState::get_configured_z_offset_microns() {
-    if (capabilities_state_.has_probe()) {
+    if (z_offset_reference_is_probe()) {
         // Probe printers: z_offset stored in ProbeSensorManager (already in microns)
         return lv_subject_get_int(
             helix::sensors::ProbeSensorManager::instance().get_probe_z_offset_subject());
@@ -920,6 +930,18 @@ void PrinterState::set_z_offset_external_persistence_internal(const std::string&
     // Re-resolve now; set_printer_type_internal also honors the flag on every
     // later type change.
     if (!profile_state_.printer_type().empty()) {
+        set_printer_type_internal(profile_state_.printer_type());
+    }
+}
+
+void PrinterState::set_z_position_endstop_known(bool numeric) {
+    async_lifetime_.defer("PrinterState::set_z_position_endstop_known",
+                          [this, numeric]() { set_z_position_endstop_known_internal(numeric); });
+}
+
+void PrinterState::set_z_position_endstop_known_internal(bool numeric) {
+    if (profile_state_.set_z_homing(numeric, discovery_.kinematics()) &&
+        !profile_state_.printer_type().empty()) {
         set_printer_type_internal(profile_state_.printer_type());
     }
 }

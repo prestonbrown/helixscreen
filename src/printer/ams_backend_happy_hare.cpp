@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <map>
 
 namespace helix {
@@ -1426,8 +1427,10 @@ AmsBackendHappyHare::classify_error(const std::string& raw_line,
 }
 
 bool AmsBackendHappyHare::duplicates_firmware_prompt(const std::string& title) const {
-    // HH's _MMU_ERROR_DIALOG, shown for the same pause the recovery popup covers.
-    return title == "Happy Hare Error Notice";
+    // HH's own pause dialog, shown for the same pause the recovery popup covers.
+    // v3 to v4.1 title it from the _MMU_ERROR_DIALOG macro; v4.2 builds it in
+    // Python (mmu_dialog.py ERROR_DIALOG_TITLE) under a fixed new title.
+    return title == "Happy Hare Error Notice" || title == "Happy Hare Pause Notice";
 }
 
 std::vector<AmsBackend::ToolchangePhase>
@@ -1984,6 +1987,11 @@ void AmsBackendHappyHare::apply_config_defaults(const nlohmann::json& settings,
         parse_int("clog_detection", config_defaults_.clog_detection);
         config_defaults_.detection_length = happy_hare::read_config_number(
             happy_hare::find_config_param(settings, layout, "detection_length"));
+        if (const auto temp = happy_hare::read_config_number(
+                happy_hare::find_config_param(settings, layout, "default_extruder_temp"));
+            temp && *temp > 0) {
+            config_defaults_.default_extruder_temp = static_cast<int>(std::lround(*temp));
+        }
         if (const auto v = happy_hare::read_config_number(
                 happy_hare::find_config_param(settings, layout, "autotune_rotation_distance"))) {
             config_defaults_.autotune_rotation_distance = *v != 0.0f;
@@ -2723,6 +2731,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     int current_slot = -1;
     std::string old_name;
     int old_temp = 0;
+    std::optional<int> default_extruder_temp;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2748,6 +2757,7 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         old_temp = gate_map_temperature(entry->info);
         spoolman_mode = system_info_.spoolman_mode;
         current_slot = system_info_.current_slot;
+        default_extruder_temp = config_defaults_.default_extruder_temp;
         // Spoolman pull mode: Happy Hare refuses local writes to material,
         // colour, name, vendor and spool id, and logs the refusal rather than
         // returning it. The gate map is Spoolman's on this printer, so the
@@ -2777,10 +2787,13 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     // Hare keeps omitted MATERIAL, COLOR, NAME and VENDOR at their current
     // value, so each is named with an explicit empty value, the only form that
     // empties it (v2/v3 ignore params they do not fetch; VENDOR is v4-only).
-    // TEMP is omitted: an omitted TEMP is default_extruder_temp, the
-    // temperature of a gate with no spool. Never RESET: on v2/v3 it ignores
-    // GATE and wipes every gate. Never AVAILABLE=0 (that marks the gate EMPTY,
-    // not unknown).
+    // TEMP names default_extruder_temp, the temperature of a gate with no
+    // spool: Happy Hare up to v4.2.0 reads an omitted TEMP as that default, and
+    // later versions keep the gate's own, so only the explicit value resets it
+    // on every version. Before the configfile arrives there is no default to
+    // name and TEMP is left off. Never TEMP=0 (that keeps the current value).
+    // Never RESET: on v2/v3 it ignores GATE and wipes every gate. Never
+    // AVAILABLE=0 (that marks the gate EMPTY, not unknown).
     if (is_full_clear(info) && old_had_identity) {
         // A job on this gate: the print UI refuses clears while a job holds
         // the machine, so one reaching here is a backstop - rewriting the gate
@@ -2800,8 +2813,11 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
             return skipped;
         }
 
-        const std::string wipe = fmt::format(
-            "MMU_GATE_MAP GATE={} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1", slot_index);
+        const std::string temp =
+            default_extruder_temp ? fmt::format(" TEMP={}", *default_extruder_temp) : "";
+        const std::string wipe =
+            fmt::format("MMU_GATE_MAP GATE={} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1{} QUIET=1",
+                        slot_index, temp);
         execute_gcode(wipe);
         spdlog::debug("[AMS HappyHare] Sent: {}", wipe);
 

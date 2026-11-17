@@ -11,8 +11,11 @@
   <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." zh="“之后”是打印机按出厂设置应用的补偿。"/>
   <translation tag="%d additional fan" zh="%d 个额外风扇"/>
   <translation tag="%d additional fans" zh="%d 个额外风扇"/>
+  <translation tag="%d feeder" zh="%d 个送料器"/>
   <translation tag="%d feeders" zh="%d 个送料器"/>
+  <translation tag="%d gate" zh="%d 个通道"/>
   <translation tag="%d gates" zh="%d 个通道"/>
+  <translation tag="%d lane" zh="%d 个耗材通道"/>
   <translation tag="%d lanes" zh="%d 个耗材通道"/>
   <translation tag="%d min" zh="%d分钟"/>
   <translation tag="%d min left" zh="剩余 %d 分钟"/>
@@ -22,7 +25,10 @@
   <translation tag="%d of %d printing" zh="%d / %d 正在打印"/>
   <translation tag="%d profiles" zh="%d 个配置"/>
   <translation tag="%d skipped" zh="已跳过 %d 个"/>
+  <translation tag="%d slot" zh="%d 个槽位"/>
   <translation tag="%d slots" zh="%d 个槽位"/>
+  <translation tag="%d tool" zh="%d 个工具"/>
+  <translation tag="%d toolhead" zh="%d 个工具头"/>
   <translation tag="%d toolheads" zh="%d 个工具头"/>
   <translation tag="%d tools" zh="%d 个工具"/>
   <translation tag="%d units" zh="%d 个单元"/>
@@ -1810,6 +1816,7 @@
   <translation tag="HelixScreen Crashed" zh="HelixScreen 崩溃"/>
   <translation tag="HelixScreen Macros" zh="HelixScreen 宏"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." zh="HelixScreen 会在 printer.cfg 中添加 [include helix-plr/*.cfg]，使恢复时重新加载打印开始时的网格。printer.cfg 旁边会保留一份备份，且需要重启 Klipper 才能生效。"/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." zh="HelixScreen 无法在此打印机上重启 Klipper。请关闭打印机电源后重新开启以重启它。"/>
   <translation tag="HelixScreen is detecting your display orientation" zh="HelixScreen正在检测显示屏方向"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." zh="HelixScreen 会从 printer.cfg 中移除其 [include helix-plr/*.cfg] 行。printer.cfg 旁边会保留一份备份，且需要重启 Klipper 才能生效。恢复时将使用打印机的默认网格配置。"/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." zh="HelixScreen 将与您的耗材更换器集成，用于多料盘/多色打印操作。"/>
@@ -2437,6 +2444,7 @@
   <translation tag="Multi-Filament System is busy: {}" zh="多耗材系统忙碌中: {}"/>
   <translation tag="Multi-Filament System not available" zh="多耗材系统不可用"/>
   <translation tag="Multi-filament system not ready" zh="多耗材系统未就绪"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" zh="AFC 已开启多工具映射，因此工具需在 AFC 中分配"/>
   <translation tag="Must home axes first" zh="请先归位"/>
   <translation tag="Muted" zh="静音"/>
   <translation tag="My Custom Theme" zh="我的自定义主题"/>
@@ -3249,6 +3257,7 @@
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" zh="请先从热床上取下 PEI 板再重新开始：隔着板材探测会导致结果错误"/>
   <translation tag="Remove the bypass spool from the toolhead first" zh="请先将旁路料盘从工具头中取出"/>
   <translation tag="Remove the filter cover." zh="取下滤网盖。"/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." zh="装载其他料盘前，请手动从工具头取出剩余耗材。"/>
   <translation tag="Remove the spools" zh="取下料盘"/>
   <translation tag="Remove the spools from the bed" zh="从热床上取下料盘"/>
   <translation tag="Remove the spools now?" zh="现在取下料盘吗?"/>
@@ -4261,6 +4270,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." zh="这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"/>
   <translation tag="This resume needs a newer version of HelixScreen." zh="此恢复需要更新版本的 HelixScreen。"/>
   <translation tag="This slot feeds no tool" zh="此槽位不向任何工具供料"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." zh="此料盘已用完，CFS 无法将剩余耗材抽回。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
@@ -4516,6 +4526,7 @@
   <translation tag="Upload unavailable in this build" zh="此构建版本无法上传"/>
   <translation tag="Upper belt" zh="上皮带"/>
   <translation tag="Uptime" zh="运行时长"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" zh="请使用 AFC 的映射命令添加或移动工具"/>
   <translation tag="Use Android native keyboard for text input" zh="使用 Android 原生键盘进行文本输入"/>
   <translation tag="Use DHCP" zh="使用 DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" zh="使用 G10/G11 固件回抽"/>

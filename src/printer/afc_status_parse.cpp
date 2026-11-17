@@ -474,6 +474,7 @@ StateDelta parse_state(const nlohmann::json& afc) {
     // Virtual-tools firmware (#832) publishes this whatever the opt-in's value;
     // presence alone is the signal.
     d.multiple_tool_mapping = afc.contains("multiple_tool_mapping");
+    d.multiple_tool_mapping_on = ams::read_field<bool>(afc, "multiple_tool_mapping");
     d.quiet_mode = ams::read_field<bool>(afc, "quiet_mode");
     d.led_state = ams::read_field<bool>(afc, "led_state");
 

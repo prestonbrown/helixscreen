@@ -13,6 +13,7 @@
 #include "platform_table.h"
 #include "printer_state.h"
 #include "system/debug_bundle_collector.h"
+#include "system/log_collector.h"
 #include "system/update_checker.h"
 #include "test_helpers/scoped_update_urls.h"
 #include "test_helpers/unique_temp_dir.h"
@@ -2205,4 +2206,307 @@ TEST_CASE("DebugBundleCollector: a printer's Moonraker API key never reaches a b
     json out = helix::DebugBundleCollector::sanitize_json(cfg);
     CHECK(out["printers"]["default"]["moonraker_api_key"].get<std::string>() == "[REDACTED]");
     CHECK(out.dump().find("0123456789abcdef0123456789abcdef") == std::string::npos);
+}
+
+// ============================================================================
+// kernel_log [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: kernel_log keeps kill and crash lines only", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string text =
+        "[    1.000000] Booting Linux on physical CPU 0x0\n"
+        "[  100.000000] usb 1-1: new high-speed USB device number 2\n"
+        "[ 5000.100000] python3 invoked oom-killer: gfp_mask=0x100cca, order=0\n"
+        "[ 5000.200000] Out of memory: Killed process 812 (python3) total-vm:200000kB\n"
+        "[ 5000.300000] oom_reaper: reaped process 812 (python3), now anon-rss:0kB\n"
+        "[ 6000.000000] helix-screen[901]: segfault at 0 ip 00400000 sp 7fff0000 error 4\n"
+        "[ 6001.000000] eth0: link up, 100Mbps\n";
+
+    const json section = DebugBundleCollector::filter_kernel_log(text, "dmesg");
+    CHECK(section["source"] == "dmesg");
+    REQUIRE(section["lines"].size() == 4);
+    CHECK(section["matched"] == 4);
+    CHECK(section["truncated"] == false);
+    for (const auto& l : section["lines"]) {
+        const std::string s = l.get<std::string>();
+        CHECK(s.find("Booting") == std::string::npos);
+        CHECK(s.find("usb 1-1") == std::string::npos);
+        CHECK(s.find("link up") == std::string::npos);
+    }
+    CHECK(section["lines"][1].get<std::string>().find("Killed process 812") != std::string::npos);
+    CHECK(section["lines"][3].get<std::string>().find("segfault") != std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log recognizes each kill and fault spelling",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    CHECK(
+        DebugBundleCollector::is_kernel_kill_line("Memory cgroup out of memory: Killed process 5"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line(
+        "oom-kill:constraint=CONSTRAINT_NONE,task=python3,pid=812"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("traps: a[1] general protection fault ip:1"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line(
+        "do_page_fault(): sending SIGSEGV to python3 for invalid read access"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("python3[3]: unhandled level 2 translation "
+                                                    "fault (11) at 0x0"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("Unhandled fault: page domain fault (0x01b)"));
+    CHECK_FALSE(DebugBundleCollector::is_kernel_kill_line("mmc0: new high speed SDHC card"));
+    CHECK_FALSE(DebugBundleCollector::is_kernel_kill_line(""));
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log keeps only the newest lines up to its cap",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    std::string text;
+    for (int i = 0; i < 50; ++i)
+        text += "Out of memory: Killed process " + std::to_string(1000 + i) + " (x)\n";
+    std::string padding;
+    for (int i = 0; i < 400; ++i)
+        padding += "word ";
+    text += "segfault " + padding + "\n";
+
+    const json capped = DebugBundleCollector::filter_kernel_log(text, "dmesg", 5);
+    REQUIRE(capped["lines"].size() == 5);
+    CHECK(capped["matched"] == 51);
+    CHECK(capped["truncated"] == true);
+    CHECK(capped["lines"][0].get<std::string>().find("1046") != std::string::npos);
+    CHECK(capped["lines"][4].get<std::string>().size() ==
+          DebugBundleCollector::kKernelLogMaxLineBytes);
+
+    const json dflt = DebugBundleCollector::filter_kernel_log(text, "dmesg");
+    CHECK(dflt["lines"].size() == DebugBundleCollector::kKernelLogMaxLines);
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log lines pass through the bundle scrubber",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string text = "Killed process 4 (python3) by admin@example.com via 8.8.8.8 on "
+                             "aa:bb:cc:dd:ee:ff\n";
+    const json section = DebugBundleCollector::filter_kernel_log(text, "/dev/kmsg");
+    REQUIRE(section["lines"].size() == 1);
+    const std::string line = section["lines"][0].get<std::string>();
+    CHECK(line.find("admin@example.com") == std::string::npos);
+    CHECK(line.find("8.8.8.8") == std::string::npos);
+    CHECK(line.find("aa:bb:cc:dd:ee:ff") == std::string::npos);
+    CHECK(line.find("Killed process 4") != std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: a /dev/kmsg record reads as a dmesg line", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    CHECK(DebugBundleCollector::kmsg_record_to_line(
+              "3,812,5000200000,-;Out of memory: Killed process 812 (python3)\n") ==
+          "[ 5000.200000] Out of memory: Killed process 812 (python3)");
+    CHECK(DebugBundleCollector::kmsg_record_to_line(" SUBSYSTEM=usb").empty());
+    CHECK(DebugBundleCollector::kmsg_record_to_line("garbage without separator").empty());
+}
+
+TEST_CASE("DebugBundleCollector: collect() always carries a kernel_log section", "[debug-bundle]") {
+    const json bundle = helix::DebugBundleCollector::collect();
+    REQUIRE(bundle.contains("kernel_log"));
+    CHECK(bundle["kernel_log"].contains("source"));
+    CHECK(bundle["kernel_log"].contains("uptime_s"));
+    if (bundle["kernel_log"]["source"] == "none")
+        CHECK(bundle["kernel_log"].contains("note"));
+}
+
+// ============================================================================
+// klipper_log freshness [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: the running klippy.py's -l names its live log", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    using helix::diag::ProcMatch;
+    const std::vector<ProcMatch> procs = {
+        {10, "/usr/bin/python3 /opt/moonraker/moonraker/moonraker.py -d /data/pd -l "
+             "/data/pd/logs/moonraker.log"},
+        {11, "/usr/bin/python3 /opt/klipper/klippy/klippy.py /cfg/printer.cfg -l "
+             "/live/pd/logs/klippy.log -a /tmp/klippy_uds"},
+    };
+    CHECK(DebugBundleCollector::live_klippy_log_path(procs) == "/live/pd/logs/klippy.log");
+
+    CHECK(DebugBundleCollector::live_klippy_log_path(
+              {{12, "python3 /k/klippy/klippy.py /cfg/printer.cfg --logfile=/eq/klippy.log"}}) ==
+          "/eq/klippy.log");
+    CHECK(DebugBundleCollector::live_klippy_log_path(
+              {{13, "python3 /k/klippy/klippy.py /cfg/printer.cfg -l logs/klippy.log"}})
+              .empty());
+    CHECK(DebugBundleCollector::live_klippy_log_path({{14, "python3 /k/klippy/klippy.py /c.cfg"}})
+              .empty());
+    CHECK(DebugBundleCollector::live_klippy_log_path({procs[0]}).empty());
+}
+
+TEST_CASE("DebugBundleCollector: the live Klippy log wins only when it is newer",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::time_t served = 1'700'000'000;
+    const int slack = DebugBundleCollector::kLogStaleSlackS;
+    CHECK(DebugBundleCollector::prefer_live_klippy_log(served, 0));
+    CHECK(DebugBundleCollector::prefer_live_klippy_log(served + slack + 1, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served + slack, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served - 86400, served));
+}
+
+TEST_CASE("DebugBundleCollector: a klippy.log tail's newest wall-clock stamp is found",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string log = "Start printer at Mon Aug 17 17:46:01 2026 (1.0 2.0)\n"
+                            "Stats 10.0: gcodein=0\n"
+                            "=============== Log rollover at Tue Aug  4 01:02:03 2026 "
+                            "===============\n"
+                            "18:12:04.073:Stats 1828.9: gcodein=0\n";
+    CHECK(DebugBundleCollector::last_klippy_log_stamp(log) == "2026-08-04 01:02:03");
+    CHECK(DebugBundleCollector::last_klippy_log_stamp("2026-09-01T10:11:12 boot\nStats 1.0\n") ==
+          "2026-09-01 10:11:12");
+    CHECK(DebugBundleCollector::last_klippy_log_stamp("Stats 1.0: x\n18:00:00.000:Stats 2\n")
+              .empty());
+}
+
+namespace {
+std::time_t local_time_of(int y, int mo, int d, int h, int mi, int s) {
+    std::tm tm{};
+    tm.tm_year = y - 1900;
+    tm.tm_mon = mo - 1;
+    tm.tm_mday = d;
+    tm.tm_hour = h;
+    tm.tm_min = mi;
+    tm.tm_sec = s;
+    tm.tm_isdst = -1;
+    return std::mktime(&tm);
+}
+} // namespace
+
+TEST_CASE("DebugBundleCollector: Klippy's latest connection comes from moonraker.log or the "
+          "journal",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string mr_log =
+        "2026-11-14 14:00:00,100 [klippy_connection.py:_do_connect()] - Klippy Connection "
+        "Established\n"
+        "2026-11-14 14:06:52,759 [klippy_connection.py:_on_connection_closed()] - Klippy "
+        "Connection Removed\n"
+        "2026-11-14 14:07:00,193 [klippy_connection.py:_do_connect()] - Klippy Connection "
+        "Established\n"
+        "2026-11-14 14:08:00,000 [server.py:x()] - unrelated\n";
+    std::string from;
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {}, true, &from) ==
+          local_time_of(2026, 11, 14, 14, 7, 0));
+    CHECK(from == "moonraker.log");
+
+    // A remote printer's local-time stamps cannot be placed on this clock.
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {}, false, &from) == 0);
+    CHECK(from.empty());
+
+    helix::JournalEntry ready;
+    ready.kind = helix::journal_kind::kReady;
+    ready.time = static_cast<double>(local_time_of(2026, 11, 14, 15, 0, 0));
+    helix::JournalEntry shutdown;
+    shutdown.kind = helix::journal_kind::kShutdown;
+    shutdown.time = static_cast<double>(local_time_of(2026, 11, 14, 16, 0, 0));
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {ready, shutdown}, true, &from) ==
+          local_time_of(2026, 11, 14, 15, 0, 0));
+    CHECK(from == "event_journal");
+}
+
+TEST_CASE("DebugBundleCollector: a klippy.log written before Klippy's connection is stale",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::time_t connected = 1'763'000'000;
+    const DebugBundleCollector::LogOrigin old_copy{"moonraker", "", connected - 90 * 86400};
+    const json stale = DebugBundleCollector::assess_klipper_log(old_copy, "2026-08-17 17:46:01",
+                                                                connected, "moonraker.log");
+    CHECK(stale["stale"] == true);
+    CHECK(stale["source"] == "moonraker");
+    CHECK(stale["last_stamp"] == "2026-08-17 17:46:01");
+    CHECK(stale["klippy_connected_from"] == "moonraker.log");
+    const std::string banner = DebugBundleCollector::stale_klipper_log_banner(stale);
+    CHECK(banner.find("STALE") != std::string::npos);
+    CHECK(banner.find(stale["klippy_connected_at"].get<std::string>()) != std::string::npos);
+
+    const DebugBundleCollector::LogOrigin live{"local", "/live/logs/klippy.log", connected + 5};
+    const json fresh = DebugBundleCollector::assess_klipper_log(live, "", connected, "x");
+    CHECK(fresh["stale"] == false);
+    CHECK(fresh["path"] == "/live/logs/klippy.log");
+    CHECK(fresh["last_stamp"].is_null());
+    CHECK(DebugBundleCollector::stale_klipper_log_banner(fresh).empty());
+
+    const json within_slack = DebugBundleCollector::assess_klipper_log(
+        {"moonraker", "", connected - DebugBundleCollector::kLogStaleSlackS}, "", connected, "x");
+    CHECK(within_slack["stale"] == false);
+
+    const json unknown =
+        DebugBundleCollector::assess_klipper_log({"moonraker", "", 0}, "", connected, "x");
+    CHECK(unknown["stale"].is_null());
+    CHECK(DebugBundleCollector::stale_klipper_log_banner(unknown).empty());
+    const json no_connection = DebugBundleCollector::assess_klipper_log(old_copy, "", 0, "");
+    CHECK(no_connection["stale"].is_null());
+    CHECK(no_connection["klippy_connected_at"].is_null());
+}
+
+TEST_CASE("DebugBundleCollector: klipper_log_meta scrubs the log path", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const json meta = DebugBundleCollector::assess_klipper_log(
+        {"local", "/home/someone@example.com/logs/klippy.log", 100}, "", 0, "");
+    CHECK(meta["path"].get<std::string>().find("someone@example.com") == std::string::npos);
+}
+
+// ============================================================================
+// launcher_log [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: launcher_log tails the freshest launcher log, capped and "
+          "scrubbed",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    DebugBundleTestFixture fx;
+    std::string live;
+    for (int i = 0; i < 400; ++i)
+        live += "[2026-11-14 14:0" + std::to_string(i % 10) + ":00] [helix-launcher] run " +
+                std::to_string(i) + "\n";
+    live += "[2026-11-14 14:09:59] [helix-launcher] helix-screen exited with code 139 for "
+            "admin@example.com on 8.8.4.4\n";
+    fx.write_file("launcher.log", live);
+    fx.write_file("old_launcher.log", "[2026-08-01 00:00:00] [helix-launcher] ancient\n");
+    const std::string fresh = (fx.temp_dir_ / "launcher.log").string();
+    const std::string stale = (fx.temp_dir_ / "old_launcher.log").string();
+    const auto old_time = fs::file_time_type::clock::now() - std::chrono::hours(24 * 90);
+    fs::last_write_time(stale, old_time);
+
+    const std::string out = DebugBundleCollector::collect_launcher_log(
+        {stale, fresh, (fx.temp_dir_ / "missing.log").string()});
+    REQUIRE_FALSE(out.empty());
+    CHECK(out.rfind("[read from local disk: " + fresh, 0) == 0);
+    CHECK(out.find("ancient") == std::string::npos);
+    CHECK(out.find("exited with code 139") != std::string::npos);
+    CHECK(out.find("admin@example.com") == std::string::npos);
+    CHECK(out.find("8.8.4.4") == std::string::npos);
+    // Header line plus the capped tail.
+    CHECK(std::count(out.begin(), out.end(), '\n') == DebugBundleCollector::kLauncherLogMaxLines);
+    CHECK(out.find("run 100\n") == std::string::npos);
+    CHECK(out.find("run 399\n") != std::string::npos);
+
+    std::string wide;
+    for (int i = 0; i < 200; ++i)
+        wide += std::string(1000, 'w') + " line " + std::to_string(i) + "\n";
+    fx.write_file("wide.log", wide);
+    const std::string wide_out =
+        DebugBundleCollector::collect_launcher_log({(fx.temp_dir_ / "wide.log").string()});
+    CHECK(wide_out.size() <= DebugBundleCollector::kLauncherLogMaxBytes + 512);
+
+    CHECK(
+        DebugBundleCollector::collect_launcher_log({(fx.temp_dir_ / "none.log").string()}).empty());
+}
+
+TEST_CASE("DebugBundleCollector: launcher log paths put the running install first",
+          "[debug-bundle]") {
+    const auto paths = helix::logs::launcher_log_paths("/custom/helixscreen");
+    REQUIRE(paths.size() >= 2);
+    CHECK(paths[0] == "/var/log/helixscreen/launcher.log");
+    CHECK(paths[1] == "/custom/helixscreen/logs/launcher.log");
+    CHECK(std::find(paths.begin(), paths.end(), "/userdata/helixscreen/logs/launcher.log") !=
+          paths.end());
+    CHECK(std::count(paths.begin(), paths.end(), "/opt/helixscreen/logs/launcher.log") == 1);
+    const auto defaults = helix::logs::launcher_log_paths("");
+    CHECK(std::find(defaults.begin(), defaults.end(), "/logs/launcher.log") == defaults.end());
 }

@@ -260,8 +260,9 @@ or "Saved 1.250 mm, 1.230 mm after Save" once the session offset is non-zero
 (`include/z_offset_utils.h`) decides it:
 
 - **The saved value** is `PrinterState::get_configured_z_offset_microns()`: the Z probe's
-  `z_offset` on a probe printer, `stepper_z.position_endstop` otherwise, both from
-  `configfile.settings`, so what Klipper loaded at startup.
+  `z_offset` where the probe holds Z0 (`PrinterState::z_offset_reference_is_probe()`),
+  `stepper_z.position_endstop` otherwise, both from `configfile.settings`, so what
+  Klipper loaded at startup.
 - **The projection** is saved minus the session offset on both kinds of printer:
   `Z_OFFSET_APPLY_PROBE` stores `z_offset - homing_origin.z` and
   `Z_OFFSET_APPLY_ENDSTOP` stores `position_endstop - homing_origin.z`. It moves
@@ -274,6 +275,44 @@ or "Saved 1.250 mm, 1.230 mm after Save" once the session offset is non-zero
   `SAVE_CONFIG` straight after the apply, and the restart reseeds the value, so the
   window only opens when someone applies from a console and does not save.
 - The home widget keeps its caption: the line does not fit the widget's smaller rungs.
+
+---
+
+## Picking the calibration strategy
+
+`resolve_z_offset_calibration_strategy()` (`include/printer_profile_state.h`) is the one
+decision, a pure function unit-tested in `tests/unit/test_printer_profile_state.cpp`
+(`[zoffset_strategy]`). What a save must write is whatever holds Z0:
+
+| Printer database | stepper_z position_endstop | Probe | Kinematics | Strategy |
+|---|---|---|---|---|
+| names one | any | any | any | the database's |
+| none | a number | any | any | `ENDSTOP` |
+| none | null or absent | yes | any | `PROBE_CALIBRATE` |
+| none | null or absent | no | delta, rotary_delta, deltesian, winch | `FIRMWARE_MANAGED` |
+| none | null or absent | no | anything else | `ENDSTOP` |
+
+- **A number means a Z switch.** Klipper's klippy/stepper.py reads `position_endstop` only
+  when the endstop is not a probe's virtual endstop, and klippy/extras/manual_probe.py registers
+  `Z_ENDSTOP_CALIBRATE` and `Z_OFFSET_APPLY_ENDSTOP` only when it is set. A stock
+  Voron 2.4, a Klicky that homes Z on its switch, or an Ender with a mesh-only BLTouch
+  takes Z0 from that endstop, so `Z_OFFSET_APPLY_PROBE` there would write a `z_offset`
+  that moves nothing.
+- **A delta has no `[stepper_z]`.** klippy/extras/manual_probe.py registers only the delta form of
+  `Z_OFFSET_APPLY_ENDSTOP` there, never `Z_ENDSTOP_CALIBRATE`, so a delta without a
+  probe gets `FIRMWARE_MANAGED`, whose moves and `SET_GCODE_OFFSET` every kinematics
+  has. Its tune hint is temporary: stock Klipper persists no gcode offset. A delta with
+  a probe gets `PROBE_CALIBRATE`, which klippy/extras/probe.py registers on any kinematics.
+- **No probe and no reading yet** stays `ENDSTOP`: Klipper requires `position_endstop`
+  on a switch-homed `[stepper_z]`, so the reading is only late.
+- **An external persistence provider** still forces `FIRMWARE_MANAGED` on top (above).
+
+**When the inputs arrive.** Discovery reads `stepper_z.position_endstop` from the same
+`configfile.settings` query as the build volume (`PrinterDiscovery::z_position_endstop()`),
+so it is in the snapshot `PrinterState::set_hardware()` receives, and `set_hardware()`
+re-resolves a type set before it (the saved type at startup). The safety-limits fetch
+reads the same key after discovery completes and calls
+`PrinterState::set_z_position_endstop_known()`, which re-resolves if the answer differs.
 
 ---
 

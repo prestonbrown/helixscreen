@@ -860,14 +860,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     }
 
     /**
-     * @brief Report stepper_z position_endstop as JSON null
+     * @brief Report stepper_z position_endstop as JSON null, or as a number
      *
-     * Klipper emits `position_endstop: null` for any printer configured with
-     * `endstop_pin: probe:z_virtual_endstop` — i.e. most probe-equipped
-     * machines. Lets tests reproduce that payload, which is otherwise
-     * unrepresentable against the mock's hardcoded 235.0.
+     * A printer whose Z homes on its probe (`endstop_pin: probe:z_virtual_endstop`)
+     * reports no numeric position_endstop; one with a Z switch reports the number,
+     * probe or not (a stock Voron 2.4). Unset, the mock follows its probe: null
+     * with one, a number without.
      *
-     * @param null_endstop True to emit null instead of a number (default: false)
+     * @param null_endstop True to emit null, false to emit a number
      */
     void set_stepper_z_endstop_null(bool null_endstop) {
         stepper_z_endstop_null_ = null_endstop;
@@ -876,9 +876,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Check whether stepper_z position_endstop is reported as null
      */
-    [[nodiscard]] bool is_stepper_z_endstop_null() const {
-        return stepper_z_endstop_null_;
-    }
+    [[nodiscard]] bool is_stepper_z_endstop_null() const;
+
+    /// stepper_z position_endstop as configfile.settings reports it.
+    [[nodiscard]] nlohmann::json stepper_z_position_endstop() const;
 
     /// Fan a Kalico-mode [extruder] names as `cooling_fan`; "" leaves the key out.
     void set_extruder_cooling_fan(std::string fan) {
@@ -2610,9 +2611,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     double shaper_freq_x_{36.7};
     std::string shaper_type_y_{"ei"};
     double shaper_freq_y_{47.6};
-    bool shaper_csv_writable_{true};     ///< When false, SHAPER_CALIBRATE skips writing the CSV
-    std::string extruder_cooling_fan_;   ///< Kalico-mode [extruder] cooling_fan; "" for none
-    bool stepper_z_endstop_null_{false}; ///< When true, position_endstop is reported as JSON null
+    bool shaper_csv_writable_{true};   ///< When false, SHAPER_CALIBRATE skips writing the CSV
+    std::string extruder_cooling_fan_; ///< Kalico-mode [extruder] cooling_fan; "" for none
+    /// position_endstop reported as JSON null; unset follows the probe.
+    std::optional<bool> stepper_z_endstop_null_;
     std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help
     double extruder_max_temp_{300.0};         ///< Extruder max_temp reported in configfile.settings
     double extruder_min_temp_{0.0};           ///< Extruder min_temp reported in configfile.settings

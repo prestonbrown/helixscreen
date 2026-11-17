@@ -377,6 +377,8 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
     helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
     helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
+    helix::Subject tool_editable_subject_{};      ///< 0 = tool shown read-only
+    helix::Subject tool_refusal_subject_{};       ///< why the tool cannot be changed here
     helix::Subject backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
     helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
     helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
@@ -405,6 +407,7 @@ class AmsEditOverlay : public OverlayBase {
     char weight_hint_buf_[32] = {0};
     char spoolman_id_buf_[16] = {0};
     char backup_label_buf_[64] = {0};
+    char tool_refusal_buf_[160] = {0};
 
     // === Picker state (Spoolman spool selection) ===
     std::vector<SpoolInfo> cached_spools_;

@@ -14,14 +14,17 @@
   <translation tag="%d additional fans_few" ru="%d дополнительных вентилятора"/>
   <translation tag="%d additional fans_many" ru="%d дополнительных вентиляторов"/>
   <translation tag="%d additional fans_one" ru="%d дополнительный вентилятор"/>
+  <translation tag="%d feeder" ru="%d фидер"/>
   <translation tag="%d feeders" ru="%d фидера"/>
   <translation tag="%d feeders_few" ru="%d фидера"/>
   <translation tag="%d feeders_many" ru="%d фидеров"/>
   <translation tag="%d feeders_one" ru="%d фидер"/>
+  <translation tag="%d gate" ru="%d шлюз"/>
   <translation tag="%d gates" ru="%d шлюза"/>
   <translation tag="%d gates_few" ru="%d шлюза"/>
   <translation tag="%d gates_many" ru="%d шлюзов"/>
   <translation tag="%d gates_one" ru="%d шлюз"/>
+  <translation tag="%d lane" ru="%d канал"/>
   <translation tag="%d lanes" ru="%d канала"/>
   <translation tag="%d lanes_few" ru="%d канала"/>
   <translation tag="%d lanes_many" ru="%d каналов"/>
@@ -37,10 +40,13 @@
   <translation tag="%d of %d printing" ru="%d из %d печатается"/>
   <translation tag="%d profiles" ru="Профилей: %d"/>
   <translation tag="%d skipped" ru="Пропущено: %d"/>
+  <translation tag="%d slot" ru="%d слот"/>
   <translation tag="%d slots" ru="%d слота"/>
   <translation tag="%d slots_few" ru="%d слота"/>
   <translation tag="%d slots_many" ru="%d слотов"/>
   <translation tag="%d slots_one" ru="%d слот"/>
+  <translation tag="%d tool" ru="%d инструмент"/>
+  <translation tag="%d toolhead" ru="%d печатающая головка"/>
   <translation tag="%d toolheads" ru="%d печатающие головки"/>
   <translation tag="%d toolheads_few" ru="%d печатающие головки"/>
   <translation tag="%d toolheads_many" ru="%d печатающих головок"/>
@@ -1858,6 +1864,7 @@
   <translation tag="HelixScreen Crashed" ru="HelixScreen аварийно завершился"/>
   <translation tag="HelixScreen Macros" ru="Макросы HelixScreen"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." ru="HelixScreen добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать. Рядом с printer.cfg хранится резервная копия, а чтобы изменение вступило в силу, нужно перезапустить Klipper."/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." ru="HelixScreen не может перезапустить Klipper на этом принтере. Выключите и снова включите принтер, чтобы перезапустить его."/>
   <translation tag="HelixScreen is detecting your display orientation" ru="HelixScreen определяет ориентацию дисплея"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." ru="HelixScreen удаляет свои строки [include helix-plr/*.cfg] из printer.cfg. Рядом с printer.cfg хранится резервная копия, а чтобы изменение вступило в силу, нужно перезапустить Klipper. При возобновлении будет использоваться стандартный профиль сетки принтера."/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." ru="HelixScreen интегрируется с вашим сменщиком филамента для многокатушечной/многоцветной печати."/>
@@ -2485,6 +2492,7 @@
   <translation tag="Multi-Filament System is busy: {}" ru="Мультифиламентная система занята: {}"/>
   <translation tag="Multi-Filament System not available" ru="Мультифиламентная система недоступна"/>
   <translation tag="Multi-filament system not ready" ru="Мультифиламентная система не готова"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" ru="В AFC включено множественное назначение инструментов, поэтому инструменты назначаются там"/>
   <translation tag="Must home axes first" ru="Сначала необходимо запарковать оси"/>
   <translation tag="Muted" ru="Без звука"/>
   <translation tag="My Custom Theme" ru="Моя тема"/>
@@ -3306,6 +3314,7 @@
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" ru="Снимите лист PEI со стола и начните заново: щуп через лист даёт неверные результаты"/>
   <translation tag="Remove the bypass spool from the toolhead first" ru="Сначала извлеките катушку байпаса из печатающей головки"/>
   <translation tag="Remove the filter cover." ru="Снимите крышку фильтра."/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." ru="Удалите оставшийся филамент из печатающей головки вручную перед загрузкой другой катушки."/>
   <translation tag="Remove the spools" ru="Снимите катушки"/>
   <translation tag="Remove the spools from the bed" ru="Снимите катушки со стола"/>
   <translation tag="Remove the spools now?" ru="Снять катушки сейчас?"/>
@@ -4324,6 +4333,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ru="Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."/>
   <translation tag="This resume needs a newer version of HelixScreen." ru="Для этого продолжения нужна более новая версия HelixScreen."/>
   <translation tag="This slot feeds no tool" ru="Этот слот не подаёт филамент ни в один инструмент"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ru="Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
   <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
@@ -4579,6 +4589,7 @@
   <translation tag="Upload unavailable in this build" ru="Отправка недоступна в этой сборке"/>
   <translation tag="Upper belt" ru="Верхний ремень"/>
   <translation tag="Uptime" ru="Время работы"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ru="Используйте команды назначения AFC, чтобы добавить или переместить инструмент"/>
   <translation tag="Use Android native keyboard for text input" ru="Использовать нативную клавиатуру Android для ввода текста"/>
   <translation tag="Use DHCP" ru="Использовать DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>

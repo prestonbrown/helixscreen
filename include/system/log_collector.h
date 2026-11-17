@@ -30,6 +30,14 @@ namespace helix::logs {
 /// a fake layout.
 std::vector<std::string> default_file_paths(const std::string& probe_root = "/");
 
+/// Every place the launcher's stdout/stderr capture (helixscreen.init's
+/// LOGFILE) can live, @p install_root's first when given. That file records
+/// each helix-screen exit code and any stderr written after spdlog is gone.
+/// The AD5X mod-tree spelling is included only when @p probe_root carries that
+/// layout, as in default_file_paths().
+std::vector<std::string> launcher_log_paths(const std::string& install_root,
+                                            const std::string& probe_root = "/");
+
 /// The file tail_file() read: its path and last-modified time.
 struct TailSource {
     std::string path;

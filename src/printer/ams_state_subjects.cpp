@@ -150,6 +150,7 @@ void AmsState::init_subjects(bool register_xml) {
         helix::xml::register_subject_in_current_scope("ams_supports_bypass", &supports_bypass_);
     INIT_SUBJECT_INT(ams_slot_count, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_cards_compact, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_cards_env_line, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_feeder_open, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(slots_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(tool_map_version, 0, subjects_, register_xml);
@@ -792,6 +793,7 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_supports_bypass", &supports_bypass_);
     helix::xml::register_subject_in_current_scope("ams_slot_count", &ams_slot_count_);
     helix::xml::register_subject_in_current_scope("ams_cards_compact", &ams_cards_compact_);
+    helix::xml::register_subject_in_current_scope("ams_cards_env_line", &ams_cards_env_line_);
     helix::xml::register_subject_in_current_scope("ams_feeder_open", &ams_feeder_open_);
     helix::xml::register_subject_in_current_scope("slots_version", &slots_version_);
     helix::xml::register_subject_in_current_scope("tool_map_version", &tool_map_version_);

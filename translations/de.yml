@@ -12,8 +12,11 @@ translations:
   '"After" is compensation as your printer applies it, with its factory settings.': '"Nachher" ist die Kompensation, wie dein Drucker sie mit seinen Werkseinstellungen anwendet.'
   '%d additional fan': '%d zusätzlicher Lüfter'
   '%d additional fans': '%d zusätzliche Lüfter'
+  '%d feeder': '%d Zuführung'
   '%d feeders': '%d Zuführungen'
+  '%d gate': '%d Gate'
   '%d gates': '%d Gates'
+  '%d lane': '%d Spur'
   '%d lanes': '%d Spuren'
   '%d min': '%d Min'
   '%d min left': 'noch %d Min'
@@ -23,7 +26,10 @@ translations:
   '%d of %d printing': '%d von %d werden gedruckt'
   '%d skipped': '%d übersprungen'
   '%d profiles': '%d Profile'
+  '%d slot': '%d Slot'
   '%d slots': '%d Slots'
+  '%d tool': '%d Werkzeug'
+  '%d toolhead': '%d Werkzeugkopf'
   '%d toolheads': '%d Werkzeugköpfe'
   '%d tools': '%d Werkzeuge'
   '%d units': '%d Einheiten'
@@ -1989,6 +1995,7 @@ translations:
   HelixScreen Macros: 'HelixScreen-Makros'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen fügt [include helix-plr/*.cfg] zu printer.cfg hinzu, damit ein Fortsetzen das Bettnetz lädt, mit dem der Druck begonnen hat. Neben printer.cfg wird eine Sicherung aufbewahrt, und Klipper muss neu gestartet werden, damit die Änderung wirksam wird.
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen kann Klipper auf diesem Drucker nicht neu starten. Schalten Sie den Drucker aus und wieder ein, um Klipper neu zu starten.'
   HelixScreen is detecting your display orientation: HelixScreen erkennt Ihre Display-Ausrichtung
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
   : HelixScreen entfernt seine [include helix-plr/*.cfg]-Zeilen aus printer.cfg. Neben printer.cfg wird eine Sicherung aufbewahrt, und Klipper muss neu gestartet werden, damit die Änderung wirksam wird. Ein Fortsetzen verwendet dann das Standard-Bettnetzprofil des Druckers.
@@ -2665,6 +2672,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Multi-Filament-System ist beschäftigt: {}'
   Multi-Filament System not available: Multi-Filament-System nicht verfügbar
   Multi-filament system not ready: Multi-Filament-System nicht bereit
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'Die Mehrfach-Werkzeugzuordnung ist in AFC aktiv, daher werden Werkzeuge dort zugewiesen'
   Must home axes first: Achsen müssen zuerst referenziert werden
   Muted: Stumm
   My Custom Theme: Mein benutzerdefiniertes Thema
@@ -3526,6 +3534,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Entferne die PEI-Platte vom Bett und starte erneut: Messungen durch die Platte liefern falsche Ergebnisse'
   Remove the bypass spool from the toolhead first: 'Zuerst die Bypass-Spule aus dem Werkzeugkopf entfernen'
   Remove the filter cover.: "Filterabdeckung entfernen."
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Entfernen Sie das restliche Filament von Hand aus dem Werkzeugkopf, bevor Sie eine andere Spule laden.'
   Remove the spools: Spulen entnehmen
 
   Remove the spools from the bed: Spulen vom Heizbett nehmen
@@ -4674,6 +4683,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."
   This resume needs a newer version of HelixScreen.: Dieses Fortsetzen braucht eine neuere Version von HelixScreen.
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
   This system does not support bypass mode: 'Dieses System unterstützt den Bypass-Modus nicht'
   This tool probes each bed screw and tells you how much to adjust.: Dieses Werkzeug
@@ -4953,6 +4963,7 @@ translations:
   Upload unavailable in this build: Hochladen in diesem Build nicht verfügbar
   Upper belt: "Riemen oben"
   Uptime: Betriebszeit
+  Use AFC's mapping commands to add or move a tool: 'Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben'
   Use Android native keyboard for text input: Native Android-Tastatur für Texteingabe
     verwenden
   Use DHCP: 'DHCP verwenden'

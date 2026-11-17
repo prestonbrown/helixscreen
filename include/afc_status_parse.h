@@ -207,6 +207,8 @@ struct StateDelta {
     std::optional<bool> spoolman_configured;
     std::optional<std::vector<std::string>> maps;
     bool multiple_tool_mapping = false; ///< Present, whatever its value
+    /// multiple_tool_mapping's value: AFC's enable_multiple_mapping opt-in.
+    std::optional<bool> multiple_tool_mapping_on;
     std::optional<bool> quiet_mode;
     std::optional<bool> led_state;
     std::optional<int> num_extruders;

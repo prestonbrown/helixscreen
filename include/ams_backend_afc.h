@@ -294,6 +294,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         BackendTraits t = kTraits;
         // Only OpenAMS units carry a temperature/humidity sensor.
         t.has_environment_sensors = has_unit_environment_;
+        t.carriage_can_be_empty = carriage_can_be_empty_;
         return t;
     }
 
@@ -344,6 +345,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// tool_loaded. See toolhead_is_free_unlocked() for why these three
     /// signals and NOT system_info_.filament_loaded.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+
+    /// Only klipper-toolchanger's own `status: error` is a carriage fault. A
+    /// lane fault (a jam, a load that timed out) leaves the docked heads where
+    /// they are.
+    [[nodiscard]] bool fault_concerns_carriage() const override;
 
     /// Status-driven fault, surfaced by AmsErrorBridge on the AmsAction::ERROR
     /// edge. Keyed on AFC's error_state, which upstream sets in lockstep with
@@ -1034,6 +1040,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC publishes a `Toolchanger` unit: its heads are mounted by
     /// AFC_SELECT_TOOL, not by T{n}. @pre mutex_ held.
     [[nodiscard]] bool has_toolchanger_unit_locked() const;
+    /// Recompute carriage_can_be_empty_ from the units and the mount state. Caller holds mutex_.
+    void refresh_carriage_can_be_empty_locked();
 
     /// False only when configfile has answered and no AFC_extruder section
     /// named, or resolving to, @p klipper_name sets `toolchanger_unit`. AFC_SELECT_TOOL on such a
@@ -1280,6 +1288,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     // signal.
     bool afc_reset_mapping_renamed_{false};
 
+    // multiple_tool_mapping's VALUE: AFC's enable_multiple_mapping opt-in (#832).
+    // On, SET_MAP adds the tool to the target lane and leaves that lane's other
+    // tools and current_map alone, so a remap from here is refused rather than
+    // sent as an edit that appears to do nothing.
+    bool afc_multiple_tool_mapping_{false};
+
+    // toolchanger.status reads "error": the carriage itself has faulted.
+    bool toolchanger_error_{false};
+
     /// The firmware behind these objects picks each tool's lane at print time
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
     /// raises an error by design.
@@ -1458,6 +1475,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// Lowercased AFC_OpenAMS unit name -> lowercased [AFC_OAMS] name, from configfile.
     std::unordered_map<std::string, std::string> unit_oams_names_;
     std::atomic<bool> has_unit_environment_{false};
+    /// True on a toolchanger: an AFC_Toolchanger unit is configured, or a
+    /// carriage has reported its mount state (toolchanger.status/tool_number,
+    /// or AFC_extruder on_shuttle on a multi-extruder machine). Its heads dock,
+    /// so a current tool of -1 means every head is parked. A single-toolhead
+    /// AFC never reports a carriage and keeps -1 meaning "no lane loaded".
+    /// Set by refresh_carriage_can_be_empty_locked().
+    std::atomic<bool> carriage_can_be_empty_{false};
 
     /// What AFC itself has said about a lane, per observation source, built up
     /// field by field across status frames and keyed by lane name the way the

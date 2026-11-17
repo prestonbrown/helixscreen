@@ -385,3 +385,91 @@ TEST_CASE("PrinterState: the enclosure top follows status frames",
         CHECK_FALSE(caps.enclosure_top_fitted());
     }
 }
+
+// ============================================================================
+// Z-offset strategy from the discovered Z endstop
+// ============================================================================
+
+namespace {
+
+/// A discovery snapshot: a probe when @p probe, stepper_z position_endstop
+/// when @p endstop_mm is set, and the given kinematics.
+helix::PrinterDiscovery z_homing_discovery(bool probe, std::optional<double> endstop_mm,
+                                           const char* kinematics) {
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"gcode_move", "toolhead"});
+    if (probe) {
+        objects.push_back("probe");
+    }
+    hw.parse_objects(objects);
+    hw.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", kinematics}}}});
+    nlohmann::json stepper_z = nlohmann::json::object();
+    if (endstop_mm) {
+        stepper_z["position_endstop"] = *endstop_mm;
+    }
+    hw.parse_z_position_endstop(nlohmann::json{{"stepper_z", stepper_z}});
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("PrinterState: a probe printer that homes Z on a switch saves to the endstop",
+          "[printer_state][capabilities][zoffset_strategy]") {
+    LVGLTestFixture fixture;
+    helix::PrinterState state;
+    state.init_subjects(false);
+
+    state.set_hardware(z_homing_discovery(true, 0.5, "corexy"));
+    state.set_printer_type_sync("Unknown Printer");
+    CHECK(state.profile_state().z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::ENDSTOP);
+    // The saved value the UI shows is the one the save writes.
+    CHECK_FALSE(state.z_offset_reference_is_probe());
+}
+
+TEST_CASE("PrinterState: a type resolved before discovery is re-resolved by its snapshot",
+          "[printer_state][capabilities][zoffset_strategy]") {
+    // The saved type is applied at startup, before hardware is known.
+    LVGLTestFixture fixture;
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_printer_type_sync("Unknown Printer");
+    REQUIRE(state.profile_state().z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::ENDSTOP);
+
+    SECTION("Tap: the probe is the Z endstop") {
+        state.set_hardware(z_homing_discovery(true, std::nullopt, "corexy"));
+        CHECK(state.profile_state().z_offset_calibration_strategy() ==
+              ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+        CHECK(state.z_offset_reference_is_probe());
+    }
+    SECTION("Voron 2.4: a Z switch and a probe") {
+        state.set_hardware(z_homing_discovery(true, 0.5, "corexy"));
+        CHECK(state.profile_state().z_offset_calibration_strategy() ==
+              ZOffsetCalibrationStrategy::ENDSTOP);
+    }
+    SECTION("a probe-less delta") {
+        state.set_hardware(z_homing_discovery(false, std::nullopt, "delta"));
+        CHECK(state.profile_state().z_offset_calibration_strategy() ==
+              ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    }
+}
+
+TEST_CASE("PrinterState: a Z endstop reading that lands after discovery re-resolves",
+          "[printer_state][capabilities][zoffset_strategy]") {
+    LVGLTestFixture fixture;
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_hardware(z_homing_discovery(true, std::nullopt, "corexy"));
+    state.set_printer_type_sync("Unknown Printer");
+    REQUIRE(state.profile_state().z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+
+    state.set_z_position_endstop_known_internal(true);
+    CHECK(state.profile_state().z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::ENDSTOP);
+
+    state.set_z_position_endstop_known_internal(false);
+    CHECK(state.profile_state().z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+}

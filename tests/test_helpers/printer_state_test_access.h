@@ -177,6 +177,8 @@ class PrinterProfileStateTestAccess {
         s.z_offset_save_enabled_ = true;
         s.db_z_offset_persists_ = true;
         s.db_tool_change_resets_z_offset_ = false;
+        s.z_position_endstop_numeric_ = false;
+        s.kinematics_.clear();
         s.db_enclosed_ = false;
         s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;

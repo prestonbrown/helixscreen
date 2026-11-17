@@ -41,15 +41,17 @@ inline constexpr const char* kMinMoonrakerVersion = "0.9.0";
 [[nodiscard]] bool is_placeholder_version(const std::string& version);
 
 /**
- * @brief The Moonraker version update_manager knows, from a machine.update.status result.
+ * @brief The version update_manager knows for @p app, from a machine.update.status result.
  *
- * The fallback for a server.info that reports a placeholder. Takes
- * `version_info.moonraker.version` when it names a release; a checkout with no
+ * The fallback for a placeholder version: Moonraker's from server.info
+ * (@p app "moonraker"), Klipper's from printer.info (@p app "klipper"). Takes
+ * `version_info.<app>.version` when it names a release; a checkout with no
  * release tags reads "v0.0.0-N" there, so it answers the short commit hash
  * (`current_hash`, 7 characters) instead, the form Kalico reports itself in.
  * "" when neither is present.
  */
-[[nodiscard]] std::string moonraker_version_from_update_status(const nlohmann::json& result);
+[[nodiscard]] std::string version_from_update_status(const nlohmann::json& result,
+                                                     const std::string& app);
 
 /**
  * @brief Manages software version subjects for UI display

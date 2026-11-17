@@ -8,8 +8,10 @@
  * Every case drives an injected clock, so idle and rate windows are exact.
  */
 
+#include "jpeg_encode.h"
 #include "remote_screen_server_sink.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -30,7 +32,7 @@ struct FakeClock {
     }
 };
 
-/// A full-screen BGRA frame of one colour.
+/// A full-screen BGRA frame of one color, drawn with no secret on the display.
 struct SolidFrame {
     std::vector<uint8_t> px;
     RemoteScreenFrame f;
@@ -43,10 +45,34 @@ struct SolidFrame {
         f.disp_h = h;
         f.src_stride = static_cast<uint32_t>(w * 4);
         f.src_format = RemoteScreenPixelFormat::BGRA8888;
+        f.secret = ScreenSecret::Absent;
     }
 };
 
 constexpr SnapshotRateCap kCap{5, 2};
+
+std::vector<uint8_t> encode(const std::vector<uint8_t>& rgb, int w, int h) {
+    std::vector<uint8_t> out;
+    REQUIRE(encode_jpeg_rgb888(rgb.data(), w, h, kRemoteScreenJpegQuality, out));
+    return out;
+}
+
+/// The JPEG the store serves for a SolidFrame of @p shade.
+std::vector<uint8_t> solid_jpeg(int w, int h, uint8_t shade) {
+    return encode(std::vector<uint8_t>(static_cast<size_t>(w) * h * 3, shade), w, h);
+}
+
+std::vector<uint8_t> placeholder_jpeg(int w, int h) {
+    std::vector<uint8_t> rgb;
+    draw_screen_placeholder_rgb888(w, h, rgb);
+    return encode(rgb, w, h);
+}
+
+std::vector<uint8_t> served(ScreenFrameStore& store) {
+    auto snap = store.snapshot(false, kCap);
+    REQUIRE(snap.has_value());
+    return *snap->jpeg;
+}
 
 } // namespace
 
@@ -328,4 +354,115 @@ TEST_CASE("store: a rejected last stripe still completes a refresh whose other s
     store.on_frame(bad);
     CHECK(store.generation() == gen + 1);
     CHECK(store.full_generation() == 1);
+}
+
+// ---------------------------------------------------------------------------
+// The pairing code is never served: a frame drawn while it was on the display is
+// replaced by the placeholder until a whole repaint without it has landed.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("secret: a frame drawn with the code shown serves the placeholder, not the screen",
+          "[remote_screen][server_sink][secret]") {
+    FakeClock clock;
+    ScreenFrameStore store(clock.fn());
+    store.note_request();
+    SolidFrame live(32, 24, 0x55);
+    store.on_frame(live.f);
+    REQUIRE(served(store) == solid_jpeg(32, 24, 0x55));
+    const uint64_t live_gen = store.snapshot(false, kCap)->generation;
+
+    SolidFrame code(32, 24, 0x99);
+    code.f.secret = ScreenSecret::Shown;
+    store.on_frame(code.f);
+    const auto snap = store.snapshot(false, kCap);
+    REQUIRE(snap.has_value());
+    CHECK(*snap->jpeg == placeholder_jpeg(32, 24));
+    CHECK(*snap->jpeg != solid_jpeg(32, 24, 0x99));
+    // A new generation, so an open stream sends the placeholder too.
+    CHECK(snap->generation > live_gen);
+    CHECK_FALSE(store.screen_clean());
+
+    // Neither the rate window nor more refreshes with the code shown reveal the screen.
+    clock.now += 10s;
+    store.on_frame(code.f);
+    CHECK(served(store) == placeholder_jpeg(32, 24));
+}
+
+TEST_CASE("secret: a frame drawn with the state unknown serves the placeholder",
+          "[remote_screen][server_sink][secret]") {
+    ScreenFrameStore store;
+    store.note_request();
+    SolidFrame live(16, 16, 0x30);
+    store.on_frame(live.f);
+    REQUIRE(served(store) == solid_jpeg(16, 16, 0x30));
+
+    SolidFrame unknown(16, 16, 0x30);
+    unknown.f.secret = ScreenSecret::Unknown;
+    store.on_frame(unknown.f);
+    CHECK(served(store) == placeholder_jpeg(16, 16));
+}
+
+TEST_CASE("secret: the screen comes back only after a full repaint drawn without the code",
+          "[remote_screen][server_sink][secret]") {
+    FakeClock clock;
+    ScreenFrameStore store(clock.fn());
+    store.note_request();
+    SolidFrame code(32, 24, 0x99);
+    code.f.secret = ScreenSecret::Shown;
+    store.on_frame(code.f);
+    REQUIRE(served(store) == placeholder_jpeg(32, 24));
+
+    // A partial refresh with the code gone may leave its pixels elsewhere in the shadow.
+    SolidFrame gone(32, 24, 0x44);
+    store.on_frame(gone.f);
+    CHECK(served(store) == placeholder_jpeg(32, 24));
+    CHECK(store.note_request() == ScreenFrameStore::Need::FullRedraw);
+
+    // A whole repaint that has the code on it again does not count.
+    store.note_full_invalidate();
+    store.on_frame(code.f);
+    store.on_frame(gone.f);
+    CHECK(served(store) == placeholder_jpeg(32, 24));
+
+    store.note_full_invalidate();
+    store.on_frame(gone.f);
+    CHECK(store.screen_clean());
+    CHECK(served(store) == solid_jpeg(32, 24, 0x44));
+}
+
+TEST_CASE("secret: a repaint in stripes reveals the screen only on its last stripe",
+          "[remote_screen][server_sink][secret]") {
+    ScreenFrameStore store;
+    store.note_request();
+    SolidFrame code(8, 8, 0x99);
+    code.f.secret = ScreenSecret::Shown;
+    store.on_frame(code.f);
+
+    store.note_full_invalidate();
+    SolidFrame stripe(8, 8, 0x22);
+    stripe.f.last_in_refresh = false;
+    store.on_frame(stripe.f);
+    CHECK_FALSE(store.screen_clean());
+    CHECK(served(store) == placeholder_jpeg(8, 8));
+    stripe.f.last_in_refresh = true;
+    store.on_frame(stripe.f);
+    CHECK(store.screen_clean());
+}
+
+TEST_CASE("secret: the placeholder fills the screen size with a centered line of text",
+          "[remote_screen][server_sink][secret]") {
+    std::vector<uint8_t> rgb;
+    draw_screen_placeholder_rgb888(800, 480, rgb);
+    REQUIRE(rgb.size() == 800u * 480u * 3u);
+    const auto lit = std::count_if(rgb.begin(), rgb.end(), [&](uint8_t v) { return v != rgb[0]; });
+    CHECK(lit > 0);
+    // Nothing lit in the top and bottom quarters: the line sits in the middle.
+    const size_t quarter = 800u * 120u * 3u;
+    CHECK(std::all_of(rgb.begin(), rgb.begin() + quarter, [&](uint8_t v) { return v == rgb[0]; }));
+    CHECK(std::all_of(rgb.end() - quarter, rgb.end(), [&](uint8_t v) { return v == rgb[0]; }));
+
+    // Too small to hold the line: a plain fill.
+    draw_screen_placeholder_rgb888(10, 10, rgb);
+    REQUIRE(rgb.size() == 300u);
+    CHECK(std::all_of(rgb.begin(), rgb.end(), [&](uint8_t v) { return v == rgb[0]; }));
 }
