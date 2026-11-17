@@ -9,6 +9,7 @@
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
+#include "ui_update_notify_modal.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -16,7 +17,6 @@
 #include "core/static_panel_registry.h"
 #include "lvgl.h"
 #include "printer_state.h"
-#include "system/update_checker.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -247,7 +247,7 @@ void NotificationHistoryPanel::dispatch_action(const char* action) {
     if (strcmp(action, "show_update_modal") == 0) {
         // Close notification history overlay first, then show update modal
         helix::nav::go_back();
-        UpdateChecker::instance().show_update_notification();
+        helix::ui::show_update_notification();
     } else if (auto handler = helix::ui::notification_action_handler(action)) {
         helix::nav::go_back();
         handler();

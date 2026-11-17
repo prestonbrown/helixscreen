@@ -152,6 +152,7 @@
 #include "ui_toast_manager.h"
 #include "ui_touch_calibration_overlay.h"
 #include "ui_unit_art.h"
+#include "ui_update_notify_modal.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
@@ -1880,7 +1881,7 @@ void Application::apply_startup_cli_actions() {
             lv_subject_set_string(checker.version_text_subject(), version_text);
             lv_subject_set_string(checker.release_notes_subject(), info->release_notes.c_str());
             lv_subject_set_int(checker.changelog_visible_subject(), 1);
-            checker.show_update_notification();
+            helix::ui::show_update_notification();
             spdlog::info("[Application] Showing release notes for v{}", info->version);
         });
     }

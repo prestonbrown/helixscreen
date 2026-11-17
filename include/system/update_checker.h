@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "ui_widget_ref.h"
-
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
@@ -641,12 +639,6 @@ class UpdateChecker {
     lv_subject_t* release_notes_subject();
     lv_subject_t* changelog_visible_subject();
 
-    /** @brief Show the update notification modal */
-    void show_update_notification();
-
-    /** @brief Hide the update notification modal */
-    void hide_update_notification();
-
     /** @brief Result of a portable zip integrity probe. */
     enum class ZipIntegrity {
         Ok,           ///< Archive verified intact.
@@ -905,9 +897,6 @@ class UpdateChecker {
 
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
-
-    // Notification modal
-    helix::ui::WidgetRef notify_modal_;
 
     // Notification subjects
     helix::Subject release_notes_subject_{};

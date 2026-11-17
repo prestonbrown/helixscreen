@@ -61,6 +61,7 @@ enum class UiRequestKind {
     ExpectKlippyDisconnect, ///< Any thread; in effect before publish returns
     ExpectKlippyRestart,    ///< Any thread; @ref UiRequest::api is the connection about to drop
     ExpectMoonrakerRestart, ///< Any thread; in effect before publish returns
+    ShowUpdateNotification, ///< Main thread; the release-notes subjects are already set
     kCount
 };
 

@@ -13,9 +13,11 @@
 
 #include "ui_modal.h"
 #include "ui_settings_updates.h"
+#include "ui_update_notify_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
+#include "notice.h"
 #include "system/update_checker.h"
 
 #include <string>
@@ -122,7 +124,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A closing modal leaves a markdown widget it
                  "[update_checker][modal][ui_markdown]") {
     auto& checker = UpdateChecker::instance();
     checker.init();
-    checker.show_update_notification();
+    helix::ui::show_update_notification();
     settle();
     lv_obj_t* markdown = lv_obj_find_by_name(ModalStack::instance().top_dialog(), "changelog_text");
     REQUIRE(markdown != nullptr);
@@ -144,7 +146,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A closing modal leaves a markdown widget it
         },
         LV_EVENT_DELETE, &seen);
 
-    checker.hide_update_notification();
+    helix::ui::hide_update_notification();
     process_lvgl(400); // the exit animation ends and the tree is deleted
     settle();
     REQUIRE(seen.ran);
@@ -160,7 +162,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update notification shows again after a bac
     auto& checker = UpdateChecker::instance();
     checker.init();
 
-    checker.show_update_notification();
+    helix::ui::show_update_notification();
     settle();
     REQUIRE(ModalStack::instance().top_component_name() == "update_notify_modal");
 
@@ -169,10 +171,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update notification shows again after a bac
     settle();
     REQUIRE(ModalStack::instance().top_component_name().empty());
 
-    checker.show_update_notification();
+    // The way the auto-check asks for it.
+    helix::publish_ui_request({helix::UiRequestKind::ShowUpdateNotification});
     settle();
     CHECK(ModalStack::instance().top_component_name() == "update_notify_modal");
 
-    checker.hide_update_notification();
+    helix::ui::hide_update_notification();
     settle();
 }
