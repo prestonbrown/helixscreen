@@ -176,6 +176,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC owns spool retention once every lane repo
     CHECK(afc.has_gcode("AFC_SET_REMEMBER_SPOOL LANE=lane2 REMEMBER_SPOOL=0"));
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "AFC retains spool info only while every lane remembers",
+                 "[ams][afc][remember_spool]") {
+    AfcRetentionHelper afc;
+
+    // A lane silent on the key is not retaining, so partial information never
+    // disables the toggle.
+    CHECK_FALSE(afc.printer_retains_spool_info());
+    afc.feed_stepper("lane1", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}});
+    CHECK_FALSE(afc.printer_retains_spool_info());
+
+    afc.feed_stepper("lane2", nlohmann::json{{"status", "Loaded"}, {"remember_spool", true}});
+    CHECK(afc.printer_retains_spool_info());
+
+    // Mixed config: the toggle still governs the lanes at false.
+    afc.feed_stepper("lane2", nlohmann::json{{"remember_spool", false}});
+    CHECK_FALSE(afc.printer_retains_spool_info());
+
+    // Moonraker sends deltas: a frame without the key keeps the last value.
+    afc.feed_stepper("lane2", nlohmann::json{{"remember_spool", true}});
+    afc.feed_stepper("lane2", nlohmann::json{{"weight", 750.0}});
+    CHECK(afc.printer_retains_spool_info());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "an AFC weight flush writes the weight and no identity",
                  "[ams][afc][persistence]") {
     helix::test::RegisteredBackend<AfcRetentionHelper> afc_reg;
