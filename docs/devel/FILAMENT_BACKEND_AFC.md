@@ -18,6 +18,15 @@ AFC hardware types register as different Klipper object prefixes:
 | Box Turtle | `AFC_BoxTurtle {name}` | `AFC_stepper lane{N}` | `AFC_hub {name}` or none | HUB (standard) or PARALLEL (toolchanger) |
 | OpenAMS | `AFC_OpenAMS {name}` | `AFC_lane lane{N}` | `AFC_hub Hub_{N}` | HUB (always) |
 | Toolchanger | `AFC_Toolchanger {name}` | — | — | Container only |
+| ACE / ACE 2 (Anycubic ACE Pro) | `AFC_ACE {name}` / `AFC_ACE2 {name}` | `AFC_lane lane{N}` | `AFC_hub {name}` | From the unit's lanes and extruders |
+| CFS (Creality) | `AFC_CFS {name}` | `AFC_lane lane{N}` | `AFC_hub {name}` | From the unit's lanes and extruders |
+| HTLF, ViViD, Claymore | `AFC_HTLF {name}`, `AFC_vivid {name}`, `AFC_Claymore {name}` | `AFC_lane lane{N}` (the unit's own drive and selector are `AFC_stepper`) | `AFC_hub {name}` | From the unit's lanes and extruders |
+| NightOwl, QuattroBox, EMU | `AFC_NightOwl {name}`, `AFC_QuattroBox {name}`, `AFC_EMU {name}` | `AFC_stepper lane{N}` | `AFC_hub {name}` | From the unit's lanes and extruders |
+
+The rows after Toolchanger are read from the unit templates on AFC's DEV branch; ACE, ACE 2
+and CFS are not in v1.2.0. HelixScreen needs no per-type code for them: every AFC object that
+is not a lane, hub, buffer, extruder or LED is subscribed as a unit and read for its `lanes`,
+`extruders`, `hubs` and `buffers` arrays (`src/printer/ams_backend_afc.cpp#"required_status_objects(const std::vector<std::string>& afc_objects)"`).
 
 **Critical: OpenAMS uses `AFC_lane`, not `AFC_stepper`.** Both have the same JSON schema and are parsed through the same `parse_afc_stepper()` function. We subscribe to both object types.
 
@@ -90,6 +99,18 @@ Real production data from a 6-toolhead mixed system:
 **The `map` field represents virtual tool numbers for AFC's internal routing, not physical toolheads.** The UI must use topology to determine physical tool count for drawing nozzles:
 - PARALLEL: `tool_count = max_tool - min_tool + 1` (each map value = different nozzle)
 - HUB: `tool_count = 1` (all map values = same nozzle)
+
+**Multiple tool mapping refuses remaps here.** AFC's `enable_multiple_mapping` (turned on
+with `AFC_ENABLE_MULTIPLE_MAPPING`, published as the `multiple_tool_mapping` value on the
+`AFC` object) changes `SET_MAP`: it removes the tool from the lane that had it and adds it
+to the target lane, leaving the target's own tools and `current_map` in place (`cmd_SET_MAP` in
+AFC_spool.py on AFC's DEV branch). The target lane then keeps showing its old tool, so
+the edit looks like it did nothing. While the value is true,
+`AmsBackendAfc::can_set_tool_mapping_locked()` refuses every remap with a reason, the lane
+editor's Assigned Tool row reads disabled with that reason
+(`src/ui/ui_ams_lane_settings.cpp#tool_row_refusal`), and a slot edit sends no `SET_MAP`.
+The tool is never moved on the user's behalf: `AFC_REMOVE_MAPPING` deletes the tool's
+`T` macro from Klipper. The key's presence alone still selects `AFC_RESET_MAPPING`.
 
 ### Hub Sensor Propagation
 
@@ -198,9 +219,12 @@ writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC
 - **Edits** (`AmsBackendAfc::apply_user_edit`) go to AFC as `SET_SPOOL_ID` (first: both of AFC's
   `set_spoolID()` branches rewrite the lane), `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT` and
   `SET_MAP`. A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
-- **Fields AFC cannot hold** (brand, name, colour name, catalog pick, total weight) go to
+- **Fields AFC cannot hold** (brand, name, color name, catalog pick, total weight) go to
   HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
-  every lane record; a spool id, material or colour found there is ignored.
+  every lane record; a spool id, material or colour found there is ignored. AFC's DEV branch
+  adds `SET_FILAMENT_INFO LANE=<lane> VENDOR=<vendor> NAME=<name>` (AFC #893), which stores a
+  lane's vendor and filament name and keeps them across restarts. HelixScreen does not send it
+  yet, so brand and name still go to the extras namespace.
 - **No Spoolman on AFC** (its status `spoolman` is `false` or null): `SET_SPOOL_ID` does nothing
   and still answers OK (in AFC's AFC_spool.py, cmd_SET_SPOOL_ID runs only with Spoolman configured), so a
   link is refused in the editor ("AFC has no Spoolman configured") before anything is sent. With
@@ -331,11 +355,13 @@ if (tool_load := self.get_current_lane_obj()) is not None:
 ```
 
 So AFC logs the refusal and then retracts the lane anyway, while the extruder still grips the
-filament. Reported as [AFCProject/AFC-Klipper-Add-On#803](https://github.com/AFCProject/AFC-Klipper-Add-On/issues/803),
-open as of 2026-07-28.
+filament. Reported as [AFCProject/AFC-Klipper-Add-On#803](https://github.com/AFCProject/AFC-Klipper-Add-On/issues/803)
+and fixed on AFC's DEV branch by AFC #814 (`6437efb`), which returns after the toolhead
+refusal. v1.2.0, the latest release, still falls through.
 
-*`can_recover_lane_position()`'s `filament_loaded` check is therefore load-bearing safety, not a
-politeness mirror of an upstream guard.* Do not remove it as redundant.
+*`can_recover_lane_position()`'s `filament_loaded` check is therefore load-bearing safety for
+every v1.2.0 install, not a politeness mirror of an upstream guard.* Do not remove it as
+redundant.
 
 **A filament swap resets lane identity when `remember_spool` is false.** AFC re-applies
 `[afc] default_material_type` and `full_weight`, discarding material, colour and weight. Lanes
@@ -859,7 +885,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |
-| Dryer | No | -- |
+| Dryer | No | AFC's DEV branch drives the ACE Pro dryer (`AFC_ACE_DRY` / `AFC_ACE_DRY_STOP`, AFC #879); HelixScreen sends no dryer commands to AFC yet |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
@@ -883,7 +909,9 @@ trustworthy version signal:
 - The `afc-install` database namespace has been an orphan since AFC's `7d20db7` (mid-2025),
   so `detect_afc_version()` finds nothing on any current install.
 - `AFC_VERSION` is a hand-bumped literal that sat at `1.1.37` through the whole v1.2.0 release.
-- v1.2.0's own `get_status()` publishes no version key at all (upstream #807 is an open PR).
+- v1.2.0's own `get_status()` publishes no version key at all. AFC's DEV branch publishes
+  `version` on the `AFC` object (and in `system`) since AFC #804 (`bfe7ba2`), 1.2.14 at the
+  time of writing. It is still the same hand-bumped literal, so it stays display-only.
 - A live BoxTurtle reported `"1.0.0"` while running v1.1.0.
 
 Capabilities therefore come from **feature detection**, not comparison:

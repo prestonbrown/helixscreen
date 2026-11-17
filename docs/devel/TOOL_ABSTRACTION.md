@@ -209,7 +209,16 @@ changer like the FlashForge Creator 5.
 `ToolState::set_ams_topology()` (`src/printer/tool_state.cpp#set_ams_topology`) then
 publishes `active_tool` = -1 and the UI shows no head as active. Lane-based systems
 (AFC, AMS) leave the flag false and keep the fallback: an out-of-range report maps to
-T0, because a lane feeder always has a tool behind it.
+T0, because a lane feeder always has a tool behind it. An AFC install on a toolchanger
+is the exception: `AmsBackendAfc` answers true once it has an `AFC_Toolchanger` unit or
+a carriage has reported its mount state (`toolchanger.tool_number`, or `on_shuttle` on a
+multi-extruder machine), and an empty carriage clears its current tool, so every head
+parked reads -1 (`src/printer/ams_backend_afc.cpp#apply_mount_state`).
+The home tool switcher marks the unmounted heads faulted only when
+`AmsBackend::fault_concerns_carriage()` says the current ERROR is the changer's
+(`src/ui/panel_widgets/tool_switcher_widget.cpp#changer_fault`). It defaults to
+`carriage_can_be_empty()`; AFC answers true only while `toolchanger.status` reads
+`error`, so a lane fault on an AFC toolchanger leaves the heads alone.
 
 The Snapmaker U1 docks every head too: `AmsBackendSnapmaker` answers
 `carriage_can_be_empty()` true, because `PARK_EXTRUDER` leaves the carriage empty. The U1's backend owns no tool table, so no

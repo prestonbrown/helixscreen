@@ -1453,6 +1453,12 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
                 state_changed = true;
             }
         }
+        // A lane's routing or the printer's extruder count can change in a frame that
+        // carries no unit object; every unit is re-derived once that frame is applied.
+        if (unit_topology_stale_) {
+            unit_topology_stale_ = false;
+            refresh_all_unit_topologies();
+        }
 
         // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
@@ -1490,6 +1496,7 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             std::string tc_status;
             if (auto v = ams::read_field<std::string>(tc_data, "status")) {
                 tc_status = std::move(*v);
+                toolchanger_error_ = tc_status == "error";
             }
 
             if (!tc_status.empty() && tc_status != "ready") {
@@ -1883,6 +1890,9 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     // function. See the tail block for why the comparison is frame-scoped.
     const AmsAction action_at_frame_start = system_info_.action;
     const std::string detail_at_frame_start = system_info_.operation_detail;
+    // A unit's topology depends on the printer's extruder count, and unit objects are
+    // not re-sent when that count arrives in a later frame.
+    const int extruders_at_frame_start = num_extruders_;
 
     // Version, when upstream supplies it here. AFC is moving the signal into the
     // status object (AFCProject/AFC-Klipper-Add-On PR #807 adds AFC.version to
@@ -2381,6 +2391,9 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     if (afc_data.contains("multiple_tool_mapping")) {
         afc_reset_mapping_renamed_ = true;
     }
+    if (auto v = ams::read_field<bool>(afc_data, "multiple_tool_mapping")) {
+        afc_multiple_tool_mapping_ = *v;
+    }
 
     // Parse global quiet_mode and LED state
     if (auto v = ams::read_field<bool>(afc_data, "quiet_mode")) {
@@ -2518,6 +2531,9 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     if (system_info_.action != action_at_frame_start) {
         action_start_time_ = std::chrono::steady_clock::now();
     }
+
+    if (num_extruders_ != extruders_at_frame_start)
+        unit_topology_stale_ = true;
 }
 
 // ============================================================================
@@ -3072,7 +3088,12 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Parse hub routing for this lane ("direct" or hub name like "HTLF_1")
     if (data.contains("hub") && data["hub"].is_string()) {
         std::string hub = data["hub"].get<std::string>();
-        lane_hub_routing_[lane_name] = hub;
+        std::string& routing = lane_hub_routing_[lane_name];
+        if (routing != hub) {
+            // Unit objects are not re-sent when a lane's routing changes.
+            routing = hub;
+            unit_topology_stale_ = true;
+        }
         spdlog::trace("[AMS AFC] Lane {} hub routing: {}", lane_name, hub);
     }
 
@@ -3393,6 +3414,16 @@ bool AmsBackendAfc::has_toolchanger_unit_locked() const {
                        [](const AfcUnitInfo& u) { return u.type == "Toolchanger"; });
 }
 
+bool AmsBackendAfc::carriage_can_be_empty() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return has_toolchanger_unit_locked() || system_info_.mount_state != MountState::UNKNOWN;
+}
+
+bool AmsBackendAfc::fault_concerns_carriage() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return toolchanger_error_;
+}
+
 bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) const {
     if (!configfile_answered_) {
         return true;
@@ -3636,6 +3667,11 @@ void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann
         }
     }
 
+    derive_unit_topology(unit_info);
+    rebuild_unit_map_when_complete();
+}
+
+void AmsBackendAfc::derive_unit_topology(AfcUnitInfo& unit_info) {
     // Derive topology from per-lane hub routing data.
     // The per-lane "hub" field ("direct" vs hub name) is the authoritative source.
     // Fallback to extruder/hub count heuristic if per-lane data unavailable.
@@ -3676,7 +3712,22 @@ void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann
                   unit_info.klipper_key, unit_info.lanes.size(), unit_info.extruders.size(),
                   unit_info.hubs.size(), unit_info.buffers.size(),
                   path_topology_to_string(unit_info.topology));
+}
 
+void AmsBackendAfc::refresh_all_unit_topologies() {
+    bool topology_changed = false;
+    for (auto& unit : unit_infos_) {
+        if (unit.lanes.empty())
+            continue;
+        const PathTopology before = unit.topology;
+        derive_unit_topology(unit);
+        topology_changed = topology_changed || unit.topology != before;
+    }
+    if (topology_changed)
+        rebuild_unit_map_when_complete();
+}
+
+void AmsBackendAfc::rebuild_unit_map_when_complete() {
     // Reorganize only when ALL known units have lane data.
     // Triggering early (e.g., >=2) causes the slot registry rebuild to consume
     // stashed lane data before all units are accounted for, resulting in the
@@ -4730,6 +4781,7 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
             if (mounted == nullptr) {
                 system_info_.mount_state = MountState::NONE;
                 system_info_.mounted_tool = -1;
+                system_info_.current_tool = -1;
                 system_info_.current_slot = -1;
                 system_info_.filament_loaded = false;
                 return;
@@ -4789,6 +4841,10 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
                           "was {})",
                           system_info_.current_slot, system_info_.filament_loaded);
         }
+        // A lane mapped to a parked head (AFC.current_load can still name it)
+        // does not mount that head either: with every head docked no tool is
+        // current.
+        system_info_.current_tool = -1;
         system_info_.current_slot = -1;
         system_info_.filament_loaded = false;
         return;
@@ -5731,11 +5787,11 @@ AmsError AmsBackendAfc::eject_lane(int slot_index) {
     // prestonbrown/helixscreen#1258. Send the macro and let AFC decide.
     //
     // What that costs: AFC's own refusals reach the user only as far as AFC
-    // reports them. "Lane is loaded in toolhead" is a bare logger.info, console
-    // only, absent from AFC.message, so it is silent here. Matching that console
-    // string would re-create exactly the coupling this shed; the fix belongs
-    // upstream (promote it to logger.warning, which reaches message_queue and so
-    // AFC.message, which parse_afc_state() already toasts).
+    // reports them. On v1.2.0 "Lane is loaded in toolhead" is a bare
+    // logger.info, console only and absent from AFC.message, so it is silent
+    // here. AFC's DEV branch (AFC #830) sends it as logger.warning, which
+    // reaches AFC.message, and parse_afc_state() toasts it. Matching the
+    // console string for v1.2.0 would re-create exactly the coupling this shed.
     //
     // refuse_if_printing() below is deliberately NOT part of that removal. It is
     // one stable predicate, the first line of cmd_LANE_UNLOAD at every AFC
@@ -6030,7 +6086,8 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
             // Mirrors set_tool_mapping() but is reachable from the slot edit modal,
             // which routes all changes through apply_user_edit().
             if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0 &&
-                !firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
+                !firmware_maps_tools_per_print_.load(std::memory_order_relaxed) &&
+                !afc_multiple_tool_mapping_) {
                 execute_gcode(fmt::format("SET_MAP LANE={} MAP=T{}", lane_name, info.mapped_tool));
             }
         }
@@ -6120,6 +6177,15 @@ int AmsBackendAfc::lane_carrying_tool_locked(int tool_number) const {
 AmsError AmsBackendAfc::can_set_tool_mapping_locked(int tool_number, int slot_index) const {
     if (firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
         return AmsErrorHelper::not_supported("The firmware maps tools per print");
+    }
+    // AFC_REMOVE_MAPPING would move a tool cleanly but deletes its T macro from
+    // Klipper, so the tool is never moved on the user's behalf.
+    if (afc_multiple_tool_mapping_) {
+        return AmsError(AmsResult::NOT_SUPPORTED,
+                        "AFC multiple tool mapping is on: SET_MAP adds the tool to the lane "
+                        "without moving the lane's own",
+                        lv_tr("Multiple tool mapping is on in AFC, so tools are assigned there"),
+                        lv_tr("Use AFC's mapping commands to add or move a tool"), slot_index);
     }
     if (!tool_registered_locked(tool_number)) {
         return AmsErrorHelper::tool_out_of_range(tool_number);

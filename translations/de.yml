@@ -2523,6 +2523,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Multi-Filament-System ist beschäftigt: {}'
   Multi-Filament System not available: Multi-Filament-System nicht verfügbar
   Multi-filament system not ready: Multi-Filament-System nicht bereit
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'Die Mehrfach-Werkzeugzuordnung ist in AFC aktiv, daher werden Werkzeuge dort zugewiesen'
   Must home axes first: Achsen müssen zuerst referenziert werden
   Muted: Stumm
   My Custom Theme: Mein benutzerdefiniertes Thema
@@ -3350,6 +3351,7 @@ translations:
   Remove the PEI Sheet: PEI-Platte entfernen
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Entferne die PEI-Platte vom Bett und starte erneut: Messungen durch die Platte liefern falsche Ergebnisse'
   Remove the bypass spool from the toolhead first: 'Zuerst die Bypass-Spule aus dem Werkzeugkopf entfernen'
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Entfernen Sie das restliche Filament von Hand aus dem Werkzeugkopf, bevor Sie eine andere Spule laden.'
   Remove the spools: Spulen entnehmen
 
   Remove the spools from the bed: Spulen vom Heizbett nehmen
@@ -4398,6 +4400,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."
   This resume needs a newer version of HelixScreen.: Dieses Fortsetzen braucht eine neuere Version von HelixScreen.
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
   This system does not support bypass mode: 'Dieses System unterstützt den Bypass-Modus nicht'
   This tool probes each bed screw and tells you how much to adjust.: Dieses Werkzeug
@@ -4669,6 +4672,7 @@ translations:
   Upload unavailable in this build: Hochladen in diesem Build nicht verfügbar
   Upper belt: "Riemen oben"
   Uptime: Betriebszeit
+  Use AFC's mapping commands to add or move a tool: 'Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben'
   Use Android native keyboard for text input: Native Android-Tastatur für Texteingabe
     verwenden
   Use G10/G11 firmware retraction: G10/G11-Firmware-Retraktion verwenden

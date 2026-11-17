@@ -5248,6 +5248,70 @@ TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[am
     }
 }
 
+TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull by hand",
+          "[ams][cfs][runout]") {
+    using V = helix::printer::CfsMacroVariant;
+    using Verdict = AmsBackendCfs::PhaseVerdict;
+    helix::MacroParamCache::instance().clear();
+    const std::string generic = AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament);
+    const std::string by_hand =
+        AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament, /*spool_used_up=*/true);
+    REQUIRE(by_hand != generic);
+
+    for (V variant : {V::K2, V::K1}) {
+        const std::string name = variant == V::K1 ? "K1" : "K2";
+        CfsRemapHelper backend;
+        backend.mark_running();
+        if (variant == V::K1) {
+            CfsTestAccess::set_macro_variant_k1(backend);
+        }
+        CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/true, /*current_slot=*/0);
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
+
+        SECTION("a used-up spool still sends the unload script, " + name) {
+            // filament_useup can be stale (it survives until a successful
+            // extrude), so it never stops an unload.
+            CfsTestAccess::set_filament_runout(backend, true);
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            REQUIRE(backend.dispatched.size() == 1);
+            CHECK(backend.dispatched[0] == AmsBackendCfs::unload_gcode(variant));
+
+            // The retract could not reach the strand: the switch still reads
+            // filament, and the fault says to remove it by hand.
+            CfsTestAccess::complete_action(backend);
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == by_hand);
+
+            // Pulling it out by hand resolves the fault like any other.
+            CfsTestAccess::handle_status(
+                backend,
+                json{{"params", json::array({json{{"filament_switch_sensor filament_sensor",
+                                                   {{"filament_detected", false}}}},
+                                             0})}});
+            CHECK(backend.get_system_info().action == AmsAction::IDLE);
+        }
+
+        SECTION("a failed unload without a used-up spool keeps the generic message, " + name) {
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            REQUIRE(backend.dispatched.size() == 1);
+            CHECK(backend.dispatched[0] == AmsBackendCfs::unload_gcode(variant));
+            CfsTestAccess::complete_action(backend);
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == generic);
+        }
+
+        SECTION("a used-up spool whose unload cleared the switch raises nothing, " + name) {
+            CfsTestAccess::set_filament_runout(backend, true);
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+            CfsTestAccess::complete_action(backend);
+            CHECK(backend.get_system_info().action != AmsAction::ERROR);
+        }
+    }
+}
+
 TEST_CASE("CFS bypass unload completes instead of erroring with filament still detected",
           "[ams][cfs][bypass]") {
     helix::MacroParamCache::instance().clear();

@@ -349,6 +349,18 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// signals and NOT system_info_.filament_loaded.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
 
+    /// True on a toolchanger: an AFC_Toolchanger unit is configured, or a
+    /// carriage has reported its mount state (toolchanger.status/tool_number,
+    /// or AFC_extruder on_shuttle on a multi-extruder machine). Its heads dock,
+    /// so a current tool of -1 means every head is parked. A single-toolhead
+    /// AFC never reports a carriage and keeps -1 meaning "no lane loaded".
+    [[nodiscard]] bool carriage_can_be_empty() const override;
+
+    /// Only klipper-toolchanger's own `status: error` is a carriage fault. A
+    /// lane fault (a jam, a load that timed out) leaves the docked heads where
+    /// they are.
+    [[nodiscard]] bool fault_concerns_carriage() const override;
+
     /// Status-driven fault, surfaced by AmsErrorBridge on the AmsAction::ERROR
     /// edge. Keyed on AFC's error_state, which upstream sets in lockstep with
     /// current_state = State.ERROR — the same transition that produced the edge.
@@ -1105,6 +1117,13 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      * @param data JSON object from the unit-level Klipper object
      */
     void parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann::json& data);
+    /// The unit's lane routing flags and topology, from its lane, extruder and hub lists,
+    /// the lanes' hub routing and the printer's extruder count.
+    void derive_unit_topology(AfcUnitInfo& unit_info);
+    /// Rebuild the unit map once every known unit has its lane list.
+    void rebuild_unit_map_when_complete();
+    /// Re-derive every unit with lanes; rebuilds the unit map when any topology changed.
+    void refresh_all_unit_topologies();
 
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
@@ -1297,6 +1316,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // opt-in to virtual tools and defaults false, so only presence is a version
     // signal.
     bool afc_reset_mapping_renamed_{false};
+
+    // multiple_tool_mapping's VALUE: AFC's enable_multiple_mapping opt-in (#832).
+    // On, SET_MAP adds the tool to the target lane and leaves that lane's other
+    // tools and current_map alone, so a remap from here is refused rather than
+    // sent as an edit that appears to do nothing.
+    bool afc_multiple_tool_mapping_{false};
+
+    // toolchanger.status reads "error": the carriage itself has faulted.
+    bool toolchanger_error_{false};
 
     /// The firmware behind these objects picks each tool's lane at print time
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
@@ -1524,6 +1552,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // Multi-extruder (toolchanger) state
     int num_extruders_{1}; ///< Number of extruders (1 = standard, 2+ = toolchanger)
+    /// A lane's hub routing or the extruder count changed since units were last derived.
+    bool unit_topology_stale_{false};
     std::vector<AfcExtruderInfo>
         extruders_; ///< Per-extruder info (populated from system.extruders)
 

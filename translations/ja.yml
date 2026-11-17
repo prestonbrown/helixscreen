@@ -2386,6 +2386,7 @@ translations:
   'Multi-Filament System is busy: {}': 'マルチフィラメントシステムがビジー状態: {}'
   Multi-Filament System not available: マルチフィラメントシステムが利用できません
   Multi-filament system not ready: マルチフィラメントシステムの準備ができていません
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'AFC で複数ツール割り当てが有効なため、ツールは AFC で割り当てます'
   Must home axes first: 先にホーミングしてください
   Muted: ミュート
   My Custom Theme: マイカスタムテーマ
@@ -3184,6 +3185,7 @@ translations:
   Remove the PEI Sheet: PEIシートを外す
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'PEIシートをベッドから取り外してから再開してください：シート越しの計測は誤った結果になります'
   Remove the bypass spool from the toolhead first: '先にバイパススプールをツールヘッドから取り外してください'
+  Remove the leftover filament from the toolhead by hand before loading another spool.: '別のスプールを装填する前に、ツールヘッドに残ったフィラメントを手で取り除いてください。'
   Remove the spools: スプールを取り出す
 
   Remove the spools from the bed: ベッドからスプールを取り出す
@@ -4165,6 +4167,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"
   This resume needs a newer version of HelixScreen.: この再開には新しいバージョンのHelixScreenが必要です。
   This slot feeds no tool: 'このスロットはどのツールにも供給しません'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'
   This system does not support bypass mode: 'このシステムはバイパスモードに対応していません'
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
@@ -4418,6 +4421,7 @@ translations:
   Upload unavailable in this build: このビルドではアップロードできません
   Upper belt: "上ベルト"
   Uptime: 稼働時間
+  Use AFC's mapping commands to add or move a tool: 'ツールの追加や移動には AFC の割り当てコマンドを使用してください'
   Use Android native keyboard for text input: テキスト入力に Android ネイティブキーボードを使用
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use New Address: '新しいアドレスを使用'
