@@ -4,6 +4,7 @@
 
 #include "hardware_object_table.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "moonraker_types.h"
 #include "rest_response.h"
 
@@ -44,11 +45,8 @@ void MoonrakerPerformanceSource::start() {
         "notify_proc_stat_update", kHandlerName,
         lifetime_.bg_cb("MoonrakerPerformanceSource::notify_proc_stat", [this](const json& j) {
             // Runs on main thread via bg_cb defer.
-            if (!j.contains("params") || !j["params"].is_array() || j["params"].empty())
-                return;
-            const json& body = j["params"][0];
-            if (body.is_object())
-                on_proc_stat_payload(body);
+            if (const json* body = helix::json_util::notification_payload(j))
+                on_proc_stat_payload(*body);
         }));
 
     // Re-fetch proc_stats on Klippy ready (firmware restart).
@@ -78,11 +76,10 @@ void MoonrakerPerformanceSource::start() {
             // notify_callbacks_ also receives notify_filelist_changed
             // and other methods — filter by the key shape since the
             // params[0] payload differs per method.
-            if (!j.contains("params") || !j["params"].is_array() || j["params"].empty())
+            const json* payload = helix::json_util::notification_payload(j);
+            if (!payload)
                 return;
-            const json& obj = j["params"][0];
-            if (!obj.is_object())
-                return;
+            const json& obj = *payload;
             for (auto it = obj.begin(); it != obj.end(); ++it) {
                 const std::string& key = it.key();
                 if (hw::classify_object(key).kind == hw::ObjectKind::Mcu) {
@@ -104,17 +101,15 @@ void MoonrakerPerformanceSource::start() {
 
 std::optional<MoonrakerPerformanceSource::DiskUsageMb>
 MoonrakerPerformanceSource::parse_disk_usage(const json& response) {
-    if (!response.is_object() || !response.contains("result") || !response["result"].is_object())
+    const json* du = helix::json_util::find_path(response, "result", "disk_usage");
+    if (!du || !du->is_object())
         return std::nullopt;
-    const json& result = response["result"];
-    if (!result.contains("disk_usage") || !result["disk_usage"].is_object())
+    const auto total_field = helix::json_util::read_field<double>(*du, "total");
+    const auto free_field = helix::json_util::read_field<double>(*du, "free");
+    if (!total_field || !free_field)
         return std::nullopt;
-    const json& du = result["disk_usage"];
-    if (!du.contains("total") || !du["total"].is_number() || !du.contains("free") ||
-        !du["free"].is_number())
-        return std::nullopt;
-    const double total = du["total"].get<double>();
-    const double free_bytes = du["free"].get<double>();
+    const double total = *total_field;
+    const double free_bytes = *free_field;
     if (total <= 0.0 || free_bytes < 0.0)
         return std::nullopt;
     constexpr double kBytesPerMb = 1024.0 * 1024.0;
@@ -184,17 +179,17 @@ void MoonrakerPerformanceSource::run_initial_handshake() {
     // payload is under resp.data["result"].
     api_->rest().call_rest_get(
         "/machine/proc_stats",
-        lifetime_.bg_cb("MoonrakerPerformanceSource::initial_proc_stats",
-                        [this](const RestResponse& resp) {
-                            // Runs on main thread via bg_cb defer.
-                            if (!resp.success) {
-                                spdlog::debug("[perf] initial proc_stats failed: {}", resp.error);
-                                return;
-                            }
-                            if (resp.data.contains("result") && resp.data["result"].is_object()) {
-                                on_proc_stat_payload(resp.data["result"]);
-                            }
-                        }));
+        lifetime_.bg_cb(
+            "MoonrakerPerformanceSource::initial_proc_stats", [this](const RestResponse& resp) {
+                // Runs on main thread via bg_cb defer.
+                if (!resp.success) {
+                    spdlog::debug("[perf] initial proc_stats failed: {}", resp.error);
+                    return;
+                }
+                if (const json* result = helix::json_util::find_object(resp.data, "result")) {
+                    on_proc_stat_payload(*result);
+                }
+            }));
 
     // MCU live updates ride the main union subscription set up by
     // MoonrakerDiscoverySequence (see "Hook notify_status_update" in start()).
@@ -235,23 +230,22 @@ void MoonrakerPerformanceSource::on_proc_stat_payload(const json& body) {
         return;
 
     // system_cpu_usage: { "cpu": <aggregate 0-100>, "cpu0": ..., ... }
-    if (body.contains("system_cpu_usage") && body["system_cpu_usage"].is_object()) {
-        const auto& cu = body["system_cpu_usage"];
-        if (cu.contains("cpu") && cu["cpu"].is_number())
-            latest_.host_cpu_pct = cu["cpu"].get<float>();
+    if (const json* cu = helix::json_util::find_object(body, "system_cpu_usage")) {
+        if (auto cpu = helix::json_util::read_field<float>(*cu, "cpu"))
+            latest_.host_cpu_pct = *cpu;
     }
 
     // cpu_temp: scalar °C
-    if (body.contains("cpu_temp") && body["cpu_temp"].is_number())
-        latest_.host_cpu_temp_c = body["cpu_temp"].get<float>();
+    if (auto cpu_temp = helix::json_util::read_field<float>(body, "cpu_temp"))
+        latest_.host_cpu_temp_c = *cpu_temp;
 
     // system_memory: { "total": <kB>, "available": <kB>, ... }
-    if (body.contains("system_memory") && body["system_memory"].is_object()) {
-        const auto& m = body["system_memory"];
-        if (m.contains("total") && m["total"].is_number() && m.contains("available") &&
-            m["available"].is_number()) {
-            const auto total_kb = m["total"].get<uint64_t>();
-            const auto avail_kb = m["available"].get<uint64_t>();
+    if (const json* m = helix::json_util::find_object(body, "system_memory")) {
+        const auto total_field = helix::json_util::read_field<uint64_t>(*m, "total");
+        const auto avail_field = helix::json_util::read_field<uint64_t>(*m, "available");
+        if (total_field && avail_field) {
+            const auto total_kb = *total_field;
+            const auto avail_kb = *avail_field;
             if (total_kb > 0) {
                 latest_.host_mem_free_mb = static_cast<uint32_t>(avail_kb / 1024);
                 latest_.host_mem_pct_used =
@@ -261,14 +255,11 @@ void MoonrakerPerformanceSource::on_proc_stat_payload(const json& body) {
     }
 
     // throttled: { "bits": <uint32>, "flags": [<string>, ...] }
-    if (body.contains("throttled") && body["throttled"].is_object()) {
-        const auto& th = body["throttled"];
-        uint32_t bits = 0;
+    if (const json* th = helix::json_util::find_object(body, "throttled")) {
+        uint32_t bits = helix::json_util::read_field<uint32_t>(*th, "bits").value_or(0);
         std::vector<std::string> flags;
-        if (th.contains("bits") && th["bits"].is_number())
-            bits = th["bits"].get<uint32_t>();
-        if (th.contains("flags") && th["flags"].is_array()) {
-            for (const auto& f : th["flags"])
+        if (const json* flags_arr = helix::json_util::find_array(*th, "flags")) {
+            for (const auto& f : *flags_arr)
                 if (f.is_string())
                     flags.push_back(f.get<std::string>());
         }
@@ -297,10 +288,9 @@ void MoonrakerPerformanceSource::on_mcu_status_update(const std::string& name,
     // mcu_awake: cumulative seconds the MCU spent executing work.
     // Compute load = Δawake / Δwall; gate on minimum dt to avoid noise on
     // the very first sample (where last_t is zero-initialised).
-    if (payload.contains("last_stats") && payload["last_stats"].is_object()) {
-        const auto& ls = payload["last_stats"];
-        if (ls.contains("mcu_awake") && ls["mcu_awake"].is_number()) {
-            const double awake = ls["mcu_awake"].get<double>();
+    if (const json* ls = helix::json_util::find_object(payload, "last_stats")) {
+        if (auto mcu_awake = helix::json_util::read_field<double>(*ls, "mcu_awake")) {
+            const double awake = *mcu_awake;
             const auto now = std::chrono::steady_clock::now();
             // Leave load absent on the first sample and on degenerate deltas;
             // downstream subjects honour `present = 0` for std::nullopt so the
@@ -342,10 +332,9 @@ void MoonrakerPerformanceSource::on_mcu_status_update(const std::string& name,
     // bytes_retransmit: cumulative retransmit byte counter. Klipper publishes
     // this INSIDE last_stats (see Status_Reference.html#mcu: "last_stats.<name>")
     // — it never appears at the top level.
-    if (payload.contains("last_stats") && payload["last_stats"].is_object()) {
-        const auto& ls = payload["last_stats"];
-        if (ls.contains("bytes_retransmit") && ls["bytes_retransmit"].is_number()) {
-            st.retrans = ls["bytes_retransmit"].get<uint64_t>();
+    if (const json* ls = helix::json_util::find_object(payload, "last_stats")) {
+        if (auto retrans = helix::json_util::read_field<uint64_t>(*ls, "bytes_retransmit")) {
+            st.retrans = *retrans;
             for (auto& m : latest_.mcus) {
                 if (m.name == name) {
                     m.retransmits = st.retrans;

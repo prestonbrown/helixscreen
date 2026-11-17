@@ -12,6 +12,7 @@
 #include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "printer_state.h"
 #include "scope_exit.h"
 #include "spdlog/spdlog.h"
@@ -845,8 +846,8 @@ CameraStream::TransformParams CameraStream::resolve_transform(int src_w, int src
 CameraStream::Transform CameraStream::transform_from_config(const nlohmann::json& config,
                                                             const WebcamInfo& feed) {
     Transform t;
-    if (config.contains("rotation") && config["rotation"].is_number_integer()) {
-        switch (config["rotation"].get<int>()) {
+    if (auto rotation = helix::json_util::read_integer_field(config, "rotation")) {
+        switch (*rotation) {
         case 90:
             t.rotation = CameraRotation::Rotate90;
             break;
@@ -860,10 +861,8 @@ CameraStream::Transform CameraStream::transform_from_config(const nlohmann::json
             break;
         }
     }
-    bool user_flip_h =
-        config.contains("flip_h") && config["flip_h"].is_boolean() && config["flip_h"].get<bool>();
-    bool user_flip_v =
-        config.contains("flip_v") && config["flip_v"].is_boolean() && config["flip_v"].get<bool>();
+    bool user_flip_h = helix::json_util::read_field<bool>(config, "flip_h").value_or(false);
+    bool user_flip_v = helix::json_util::read_field<bool>(config, "flip_v").value_or(false);
     t.flip_h = feed.flip_horizontal != user_flip_h;
     t.flip_v = feed.flip_vertical != user_flip_v;
     return t;
