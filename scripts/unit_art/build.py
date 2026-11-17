@@ -54,6 +54,7 @@ UNITS = [
     elegoo_canvas.UNIT,
     emu.UNIT,
     yammu.UNIT,
+    yammu.LOWER,
     rail.ERCF,
     rail.TRADRACK,
 ]

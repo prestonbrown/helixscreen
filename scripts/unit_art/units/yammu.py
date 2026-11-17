@@ -84,7 +84,7 @@ def _drawer(sc, z_floor, zc, colors, c, detail):
                 spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
 
 
-def draw_art(sc, colors, tier):
+def _draw(sc, colors, tier, upper):
     detail = tier == "full"
     thick = 1 if detail else 3
     c = spool.spool_constants(_REPO)
@@ -108,9 +108,9 @@ def draw_art(sc, colors, tier):
     _bar(sc, 0, EX, 0, D, SKIRT, SKIRT + EX)
     _bar(sc, 0, EX, 0, D, SHELF, SHELF + EX)
 
-    # Happy Hare reports each drawer as its own unit: this unit's four lanes fill the upper one.
-    _drawer(sc, SKIRT + EX, LOWER_Z, None, c, detail)
-    _drawer(sc, SHELF + EX, UPPER_Z, colors, c, detail)
+    # Happy Hare reports each drawer as its own unit: this unit's four lanes fill one of them.
+    _drawer(sc, SKIRT + EX, LOWER_Z, None if upper else colors, c, detail)
+    _drawer(sc, SHELF + EX, UPPER_Z, colors if upper else None, c, detail)
 
     sc.layer = "front"
     # The near frame members: the right side's rails, both front uprights and the roof frame.
@@ -147,6 +147,14 @@ def draw_art(sc, colors, tier):
         _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, z0, z0 + 12 * S, ACCENT)
 
 
+def draw_art(sc, colors, tier):
+    _draw(sc, colors, tier, upper=True)
+
+
+def draw_lower_art(sc, colors, tier):
+    _draw(sc, colors, tier, upper=False)
+
+
 def _tray_shell():
     # One drawer on the tray: its floor rail is the front wall, its glass rises to the shelf.
     rise = (SHELF - (SKIRT + EX)) * TRAY_PX_PER_UNIT
@@ -155,8 +163,9 @@ def _tray_shell():
 
 
 UNIT = UnitDef("yammu", 4, draw_art, _tray_shell())
+LOWER = UnitDef("yammu_lower", 4, draw_lower_art, _tray_shell())
 
-UNIT.tray.front = [
+UNIT.tray.front = LOWER.tray.front = [
     kit.span(2, 2, 2, UNIT.tray.front_wall_px - 2, 0x202124, 2),
     kit.span(4, 4, 0, 5, 0x3a3c41, 1),
     kit.center(-12, 12, 8, 13, 0xd8432f, 2),
@@ -164,4 +173,4 @@ UNIT.tray.front = [
 
 # A drawer's four paths join in its splitter, and the two drawers join in a Y in the back grill:
 # one tube leaves the cabinet.
-UNIT.tray.lane_join = "inside"
+UNIT.tray.lane_join = LOWER.tray.lane_join = "inside"

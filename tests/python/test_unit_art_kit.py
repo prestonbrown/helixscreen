@@ -213,7 +213,7 @@ def test_manifest_lists_every_lane_mask(tmp_path):
 # Selectors that stand in front of the spools draw none: the rails and the HTLF.
 SPOOL_UNITS = [u for u in build.UNITS if u.carriage_step is None and u.id != htlf.UNIT.id]
 # Cabinets taller than the shared frame grow it, so their spools draw smaller.
-TALL_UNITS = [yammu.UNIT]
+TALL_UNITS = [yammu.UNIT, yammu.LOWER]
 
 
 @pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u not in TALL_UNITS], ids=lambda u: u.id)
@@ -298,6 +298,17 @@ def test_a_unit_taller_than_the_frame_grows_it_and_keeps_its_shape(unit):
     assert vw / vh == pytest.approx(kit.ART_FRAME[0] / kit.ART_FRAME[1])
     ys = [p[1] for i in scene.items for p in i.points]
     assert vy <= min(ys) and max(ys) <= vy + vh
+
+
+def test_each_yammu_drawing_tints_its_own_drawer():
+    def lane_height(unit):
+        scene = kit.Scene(kit.ART_CAMERA)
+        unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+        ys = [p[1] for i in scene.items if i.lane is not None for p in i.points]
+        return sum(ys) / len(ys)
+
+    # Screen y grows downward: the upper drawer's lanes sit higher.
+    assert lane_height(yammu.UNIT) < lane_height(yammu.LOWER)
 
 
 FEEDERS = [bmcu.UNIT, mmx.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]

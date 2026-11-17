@@ -153,6 +153,25 @@ TEST_CASE("unit shell: a Happy Hare unit is found by the vendor it reports", "[a
     CHECK(std::string(unit_shell_for(turtle, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
 }
 
+TEST_CASE("unit shell: a row can pick the Nth unit carrying its name", "[ams][unit-art]") {
+    // Happy Hare reports a YAMMU's two drawers as two units; another unit ahead of them
+    // does not shift which drawer each one draws.
+    AmsSystemInfo info = one_unit(AmsType::HAPPY_HARE, "Box Turtle");
+    info.units[0].model = "BoxTurtle";
+    for (int i = 0; i < 2; ++i) {
+        AmsUnit drawer;
+        drawer.name = "YAMMU";
+        drawer.model = "Other";
+        drawer.slot_count = 4;
+        info.units.push_back(drawer);
+    }
+    CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle");
+    REQUIRE(unit_shell_for(info, 1) != nullptr);
+    CHECK(std::string(unit_shell_for(info, 1)->id) == "yammu");
+    REQUIRE(unit_shell_for(info, 2) != nullptr);
+    CHECK(std::string(unit_shell_for(info, 2)->id) == "yammu_lower");
+}
+
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {
     const UnitShell* shell = unit_shell_for(one_unit(AmsType::ACE, "ACE 1"), 0);
     REQUIRE(shell != nullptr);
