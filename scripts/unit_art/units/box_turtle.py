@@ -98,22 +98,40 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
 
 
 ENCLOSURE_TOP = 0.65
+RAIL = 0.04
 GLASS = "#8d8579"
+
+
+def _top_rail(sc, x0, x1, y0, y1, z1):
+    """An extrusion along one top edge of the enclosure."""
+    foot = [(x0, y0), (x0, y1), (x1, y1), (x1, y0)][::-1]
+    sc.prism(foot, z1 - RAIL, z1, FRAME, amb=0.9, dif=0.5, spec=0.2, power=16)
+    sc.line([(x0, y0 - 0.001, z1 - RAIL * 0.5), (x1, y0 - 0.001, z1 - RAIL * 0.5)], RAIL_LINE, 0.004)
+
+
+def _top_corner(sc, cx, cy, z1):
+    """A corner block joining the two top rails and the post below them."""
+    top = [(cx, cy), (cx, cy + POST), (cx + POST, cy + POST), (cx + POST, cy)][::-1]
+    sc.prism(top, z1 - RAIL - 0.02, z1 + 0.012, CORNER, amb=0.75, dif=0.55, spec=0.2, power=16)
 
 
 def draw_enclosed_art(sc, colors, tier):
     """The open unit inside the optional extrusion-and-panel enclosure."""
     draw_art(sc, colors, tier, rear_posts_to=ENCLOSURE_TOP)
-    thick = 1 if tier == "full" else 3
     sc.layer = "front"
     z0, z1 = TOP + 0.02, ENCLOSURE_TOP
-    # Rear panels go in first; the near glass then lies over the spools.
+    # Far rails first; the top and near glass then lie over the spools, and the near rails over the glass.
+    _top_rail(sc, 0.0, W, D - 0.05, D, z1)
+    _top_rail(sc, 0.0, 0.05, 0.0, D, z1)
+    _top_corner(sc, 0.0, D - POST, z1)
     sc.poly([(W, 0.0, z0), (W, D, z0), (W, D, z1), (W, 0.0, z1)], GLASS, 0.22)
     sc.poly([(0.0, 0.0, z1), (W, 0.0, z1), (W, D, z1), (0.0, D, z1)], GLASS, 0.3)
     sc.poly([(0.0, 0.0, z0), (W, 0.0, z0), (W, 0.0, z1), (0.0, 0.0, z1)], GLASS, 0.14)
-    _posts(sc, ((0.0, 0.0), (W - 0.05, 0.0)), z0, z1)
-    for a, b in (((0.0, 0.0), (W, 0.0)), ((W, 0.0), (W, D)), ((W, D), (0.0, D)), ((0.0, D), (0.0, 0.0))):
-        sc.line([(a[0], a[1], z1), (b[0], b[1], z1)], "#3a3c41", 0.006 * thick)
+    _posts(sc, ((0.0, 0.0), (W - 0.05, 0.0)), z0, z1 - RAIL)
+    _top_rail(sc, W - 0.05, W, 0.0, D, z1)
+    _top_rail(sc, 0.0, W, 0.0, 0.05, z1)
+    for cx, cy in ((W - POST, D - POST), (0.0, 0.0), (W - POST, 0.0)):
+        _top_corner(sc, cx, cy, z1)
 
 
 def _shell(**over):

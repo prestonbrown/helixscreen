@@ -210,7 +210,11 @@ def test_manifest_lists_every_lane_mask(tmp_path):
             assert (tmp_path / ace_pro.UNIT.id / name).is_file()
 
 
-@pytest.mark.parametrize("unit", [u for u in build.UNITS if u.carriage_step is None], ids=lambda u: u.id)
+# Selectors that stand in front of the spools draw none: the rails and the HTLF.
+SPOOL_UNITS = [u for u in build.UNITS if u.carriage_step is None and u.id != htlf.UNIT.id]
+
+
+@pytest.mark.parametrize("unit", SPOOL_UNITS, ids=lambda u: u.id)
 def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     scene = kit.Scene(kit.ART_CAMERA)
     unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
@@ -283,7 +287,7 @@ def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     assert vx <= min(xs) and max(xs) <= vx + vw
 
 
-FEEDERS = [bmcu.UNIT, mmx.UNIT, htlf.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
+FEEDERS = [bmcu.UNIT, mmx.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
 
 
 @pytest.mark.parametrize("unit", FEEDERS, ids=lambda u: u.id)
@@ -344,10 +348,18 @@ def test_a_tube_ends_clear_of_the_inlet_it_leaves(unit):
         assert math.dist(tube.points[0], tube.points[-1]) > 0.08
 
 
-def test_the_htlf_body_continues_below_its_inlets():
+def test_the_htlf_body_continues_below_its_outlets():
     assert htlf.PANEL_TOP > 0
-    assert htlf.INLET_Z - htlf.PANEL_TOP > 0
+    assert htlf.PANEL_TOP < htlf.OUTLET_Z < htlf.LID_Z0
     assert htlf.PROFILE[0] == (0.0, 0.0)
+
+
+def test_the_htlf_stands_in_front_of_its_spools_so_it_draws_a_stub_per_lane_and_none():
+    scene = kit.Scene(kit.ART_CAMERA)
+    htlf.UNIT.draw_art(scene, ["#ffffff"] * htlf.UNIT.lanes, "full")
+    assert scene.spool_radius is None
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(htlf.UNIT.lanes))
+    assert htlf.UNIT.stub_art is None
 
 
 def test_the_canvas_shell_lets_its_dark_frame_show():

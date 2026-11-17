@@ -63,7 +63,10 @@ def draw_art(sc, colors, tier):
     edge = "#8f949c"
     sc.line([(lidx1, y, z) for y, z in prof], edge, 0.003 * thick, 0.85)
     sc.line([(lidx0, y, z) for y, z in prof[:7]], edge, 0.0025 * thick, 0.6)
-    sc.line([(lidx0, 0.02, LID_FRONT), (lidx1, 0.02, LID_FRONT)], edge, 0.003 * thick, 0.75)
+    # The front pane meets the roof in a bright rim joining the lid's two top front corners.
+    rim = [p for p in prof if p[0] < 0.04 and p[1] > LID_FRONT - 0.02]
+    rim_y, rim_z = rim[len(rim) // 2]
+    sc.line([(lidx0, rim_y - 0.001, rim_z), (lidx1, rim_y - 0.001, rim_z)], "#c3c7cd", 0.004 * thick, 0.95)
 
 
 def _tray_shell():

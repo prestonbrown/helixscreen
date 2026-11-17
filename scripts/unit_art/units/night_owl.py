@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Fysetc Night Owl: two spools riding on rollers above an orange and black base."""
+"""NightOwl: two Filamentalist rewinders on a boxed base, each spool riding on a pair of drums
+at the front and a flanged roller held high at the back by the side plates."""
 import math
 from pathlib import Path
 
@@ -31,9 +32,17 @@ _REPO = Path(__file__).resolve().parents[3]
 
 
 def _plate_profile():
-    """The side plates: low at the front, arching up over the spool, level at the rear."""
-    points = [(0.18, TOP), (0.3, TOP + 0.16), (0.6, TOP + 0.24), (D - 0.02, TOP + 0.14), (D - 0.02, TOP)]
-    return kit.fillet(points, [0, 0.08, 0.14, 0.05, 0], steps=6)
+    """The side plates: low over the drums at the front, rising to carry the rear roller."""
+    points = [
+        (0.1, TOP),
+        (0.1, ROLLER_Z),
+        (0.36, ROLLER_Z + 0.025),
+        (0.6, ROLLER_Z + 0.065),
+        (REAR_Y, REAR_Z + REAR_R + 0.01),
+        (D - 0.02, REAR_Z + 0.02),
+        (D - 0.02, TOP),
+    ]
+    return kit.fillet(points, [0, 0.06, 0.1, 0.08, 0.04, 0.03, 0], steps=6)
 
 
 def _pod_profile():
@@ -49,8 +58,7 @@ def _side_plate(sc, x0, x1, plate, cam, near, thick):
     sc.poly([(x1, y, z) for y, z in plate], kit.shade(cam, PLATE, (1, 0, 0), amb=1.0, dif=0.5, spec=0))
     sc.line([(x1, y, z) for y, z in plate], SHEEN, 0.004 * thick, 0.8)
     if near:
-        inner = [(y, TOP + (z - TOP) * 0.62) for y, z in plate if 0.26 < y < D - 0.08]
-        sc.line([(x1 + 0.001, y, z) for y, z in inner], "#30343c", 0.006 * thick)
+        sc.poly([(x1 + 0.001, y, z) for y, z in kit.circle_yz(REAR_Y, REAR_Z, 0.018, n=12)], "#6c7079")
 
 
 def _bearing(sc, xc, detail):
@@ -92,7 +100,6 @@ def draw_art(scene, colors, tier):
     sc.poly([(0.0, 0.0, TOP), (W, 0.0, TOP), (W, D, TOP), (0.0, D, TOP)], DECK)
     _side_plate(sc, 0.0, 0.03, plate, cam, False, thick)
     for xc in CENTERS:
-        feeder.box(sc, xc - 0.022, xc + 0.022, REAR_Y - 0.03, REAR_Y + 0.03, TOP, REAR_Z, kit.shift(PLATE, 22))
         kit.roller(sc, xc - LANE_HALF, xc + LANE_HALF, REAR_Y, REAR_Z, REAR_R, FRAME, FRAME, flange_k=1.7, solid=True)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(scene, (xc * SCALE, SPOOL_Y * SCALE, SPOOL_Z * SCALE), SPOOL_R, col, c, lane, detail=detail)
@@ -115,14 +122,25 @@ def draw_art(scene, colors, tier):
 
 _WALL = TOP * TRAY_PX_PER_UNIT
 _FRAME = int(FRAME[1:], 16)
-_RISE = 18.0
+
+
+def _tray_cheek():
+    """The side plates' top edge as tray points, from the base's front edge to the back.
+
+    The plates end in a vertical edge at the rear with no wall behind the spools, so the
+    edge drops back to the base there.
+    """
+    top = [(y, z) for y, z in _plate_profile() if z > TOP]
+    edge = [(0.0, 0.0), (top[0][0] / D, 0.0)]
+    return edge + [(y / D, (z - TOP) * TRAY_PX_PER_UNIT) for y, z in top[1:]] + [(1.0, 0.0)]
 
 
 def _tray_shell():
+    cheek = _tray_cheek()
     return TrayShellDef(
-        cheek=[(0.0, 0.0), (0.25, 0.0), (0.62, _RISE), (1.0, _RISE)],
+        cheek=cheek,
         dome=[],
-        back_extra_px=_RISE,
+        back_extra_px=cheek[-1][1],
         front_wall_px=_WALL,
         rail_px=6.0,
         cap_clearance_px=9.0,

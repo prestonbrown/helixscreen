@@ -1710,7 +1710,7 @@ HELIX_FLOW_SEGMENT=HUB ./build/bin/helix-screen --test -vv &
 
 ### `HELIX_UNIT_ART_FEEDER`
 
-Picks which baked drawing a filament unit that holds no spools (BMCU, MMX, HTLF, 3MS, AD5X IFS)
+Picks which baked drawing a filament unit that holds no spools (BMCU, MMX, 3MS, AD5X IFS)
 uses on the overview. Dev-only: read once at first use, not a setting.
 
 | Property | Value |
