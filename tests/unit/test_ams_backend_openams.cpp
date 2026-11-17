@@ -1398,6 +1398,14 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS has no progress for a dry it did not
         CHECK(backend.get_dryer_info(0).duration_min == 120);
         CHECK(backend.get_dryer_info(0).get_progress_pct() == 25);
     }
+    SECTION("a stop forgets the cycle it ends") {
+        backend.feed(dryer_manager());
+        backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 50 * 60)));
+        REQUIRE(backend.get_dryer_info(0).duration_min == 50);
+        REQUIRE(backend.stop_drying(0).success());
+        backend.feed(dryer_manager(-1, dryer_device(true, "heating", 55.0, 20 * 60)));
+        CHECK(backend.get_dryer_info(0).get_progress_pct() == -1);
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "OpenAMS refuses to dry a unit that must be unloaded first",
