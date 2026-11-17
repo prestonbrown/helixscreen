@@ -44,6 +44,7 @@
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
+#include "main_loop_wake.h"
 #include "moonraker_manager.h"
 #include "page_scroll_auto_inject.h"
 #include "panel_factory.h"
@@ -2223,6 +2224,12 @@ int Application::main_loop() {
             // Process Moonraker notifications
             process_notifications();
 
+            // Asleep, queued work wakes the loop (the enqueue hook) and runs here, in the
+            // pass that applied the status behind it, instead of on a polling timer.
+            if (m_display->is_display_sleeping()) {
+                helix::ui::UpdateQueue::instance().drain();
+            }
+
             // Check display sleep
             m_display->check_display_sleep();
 
@@ -2286,9 +2293,17 @@ int Application::main_loop() {
                     helix::active_refresh_period_hold().loop_min_sleep_ms(timing.loop_min_sleep_ms);
                 const bool display_sleeping = m_display->is_display_sleeping();
                 // Set from the sleep state on every pass, so no wake path can leave it slow.
-                if (lv_timer_t* queue = helix::ui::UpdateQueue::instance().timer()) {
+                auto& update_queue = helix::ui::UpdateQueue::instance();
+                update_queue.set_enqueue_hook(display_sleeping ? &helix::main_loop_wake::notify
+                                                               : nullptr);
+                if (lv_timer_t* queue = update_queue.timer()) {
                     lv_timer_set_period(queue, helix::update_queue_period_ms(
                                                    display_sleeping, timing, LV_DEF_REFR_PERIOD));
+                    if (display_sleeping) {
+                        lv_timer_pause(queue);
+                    } else {
+                        lv_timer_resume(queue);
+                    }
                 }
                 m_display->wait_for_work(
                     helix::main_loop_sleep_ms(time_till_next, display_sleeping, timing));

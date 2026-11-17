@@ -14,6 +14,7 @@
 #include "display_manager.h"
 
 #include "image_cache_env.h"
+#include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::timer_cb: LVGL has no getter
 #include "print_lifecycle_state.h"
 
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
@@ -782,6 +783,11 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
     // Asleep, input is read when its fd turns readable rather than every 33 ms. Waking
     // resumes the timers before anything else reads input.
     register_sleep_callback([this](bool sleeping) {
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            if (t->timer_cb == &DisplayManager::debug_touch_tick) {
+                sleeping ? lv_timer_pause(t) : lv_timer_resume(t);
+            }
+        }
         if (sleeping && m_backend) {
             m_input_wait.begin(m_backend->input_wake_sources());
         } else if (!sleeping) {

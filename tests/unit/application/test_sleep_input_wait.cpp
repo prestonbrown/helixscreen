@@ -4,12 +4,15 @@
 // The sleeping main loop waits on input and queued work instead of polling
 // (prestonbrown/helixscreen#2037).
 
+#include "core/update_queue.h"
 #include "lvgl_test_fixture.h"
 #include "main_loop_wake.h"
 #include "sleep_input_wait.h"
 
+#include <atomic>
 #include <fcntl.h>
 #include <poll.h>
+#include <thread>
 #include <unistd.h>
 
 #include "../../catch_amalgamated.hpp"
@@ -117,4 +120,25 @@ TEST_CASE_METHOD(LVGLTestFixture, "the input wait leaves alone what it did not p
 
     wait.end();
     CHECK(already_paused.timer_paused());
+}
+
+namespace {
+std::atomic<int> g_enqueue_hook_calls{0};
+void count_enqueue() {
+    ++g_enqueue_hook_calls;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "work queued from another thread calls the enqueue hook",
+                 "[sleep][sleep_input_wait][update_queue]") {
+    auto& queue = helix::ui::UpdateQueue::instance();
+    g_enqueue_hook_calls = 0;
+    queue.set_enqueue_hook(&count_enqueue);
+    std::thread([] { helix::ui::queue_update("test::from_bg", [] {}); }).join();
+    CHECK(g_enqueue_hook_calls == 1);
+
+    queue.set_enqueue_hook(nullptr);
+    std::thread([] { helix::ui::queue_update("test::from_bg_unhooked", [] {}); }).join();
+    CHECK(g_enqueue_hook_calls == 1);
+    queue.drain();
 }
