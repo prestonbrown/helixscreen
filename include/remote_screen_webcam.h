@@ -22,14 +22,22 @@ class IMoonrakerAPI;
  * inside Mainsail/Fluidd's webcam panel), the MJPEG stream when view only.
  * Behind nginx the URLs are root-relative on @p route; facing the LAN they are
  * absolute on @p lan_ip:@p port. `extra_data` carries kRemoteScreenWebcamMarker so the
- * entry is recognizable under any name.
+ * entry is recognizable under any name. `aspect_ratio` is the served frame's
+ * @p frame_w x @p frame_h (remote_screen_aspect_ratio), left out when unknown; Mainsail
+ * and Fluidd size the iframe tile by it, and Moonraker would otherwise apply 4:3. Only
+ * a new entry takes it: a refresh by uid sends the URLs alone (reconcile_remote_screen_webcam).
  *
  * @return the item for server.webcams.post_item, or nullopt when no entry should
  *         exist: sharing off, or LAN mode with no address a browser could reach.
  */
 std::optional<nlohmann::json> remote_screen_webcam_item(const std::string& name, bool enabled,
                                                         bool control, const std::string& route,
-                                                        const std::string& lan_ip, int port);
+                                                        const std::string& lan_ip, int port,
+                                                        int frame_w, int frame_h);
+
+/// @p w x @p h in lowest terms as Moonraker's `aspect_ratio` ("800x480" -> "5:3"), which
+/// takes any two whole numbers; "" when either side is not positive.
+std::string remote_screen_aspect_ratio(int w, int h);
 
 /// The entry's name: kRemoteScreenWebcamName on the Moonraker of this host, with
 /// @p hostname added on another host's Moonraker so two screens never share one entry.

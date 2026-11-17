@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Part Fan slider knob shows whole** - the slider knob on the Controls Cooling card is no longer cut off at its ends or along its top and bottom on small screens.
 - **Nozzle Temps rows open their own tool** - on multi-head printers, tapping a tool in the home screen Nozzle Temps widget opens the temperature graph on that tool instead of the one on the carriage.
 - **Screen Sharing behind a reverse proxy** - taps on the shared screen now work through a reverse proxy in front of the printer that sends the browser's host name in `X-Forwarded-Host` or `Forwarded`, on printers where Moonraker decides who gets in. Opening the screen address without its final slash now stays on the proxy's address instead of jumping to the printer's own. An existing setup gets this the next time the HelixScreen installer runs.
+- **Screen Sharing webcam keeps the screen's shape** - the HelixScreen Screen webcam that Mainsail and Fluidd show now gets the screen's own proportions, such as 5:3 on an 800x480 screen, instead of 4:3, so the tile no longer has bars or cuts off the picture. A webcam added before this update keeps the aspect ratio it has, including one you chose yourself. To have it set from the screen, turn Add to Mainsail/Fluidd Webcams off and on again.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
