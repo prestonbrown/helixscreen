@@ -1239,6 +1239,10 @@ void AmsOverviewPanel::detach_widget_hooks() {
     helix::ui::remove_event_cb_if_alive(detail_path_canvas_,
                                         &AmsOverviewPanel::on_path_layout_changed, this);
     helix::ui::remove_event_cb_if_alive(page_dots_, &AmsOverviewPanel::on_page_dots_resized, this);
+    for (const auto& uc : unit_cards_) {
+        helix::ui::remove_event_cb_if_alive(uc.env_line,
+                                            &AmsOverviewPanel::on_env_line_size_changed, this);
+    }
 }
 
 AmsOverviewPanel::~AmsOverviewPanel() {

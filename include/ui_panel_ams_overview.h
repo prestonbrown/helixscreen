@@ -50,6 +50,41 @@ inline bool lane_bars_stale(const LaneBarsGeometry& built, const LaneBarsGeometr
            built.width != now.width || built.upstream_mask != now.upstream_mask;
 }
 
+/// What a unit card does with its environment readout.
+enum class CardEnvironment {
+    None,    ///< The unit reports no temperature or humidity
+    Line,    ///< One line under the bars, in place of the lane count
+    Dropped, ///< Left to the unit's own page; the lane count keeps the line
+};
+
+/// How a unit card spends its content width.
+struct UnitCardFit {
+    int bars_shown = 0;
+    CardEnvironment environment = CardEnvironment::None;
+};
+
+/// The bars come first: every lane gets a bar while they fit at @p bar_min_w
+/// apart by @p bar_gap across @p content_w. The environment line only takes the
+/// line under them when it fits the card width and the bars show every lane;
+/// a unit with more lanes than fit keeps its lane count there instead.
+/// @param env_line_w width of the one-line readout, 0 when the unit has none
+inline UnitCardFit decide_unit_card_fit(int32_t content_w, int lanes, int32_t bar_min_w,
+                                        int32_t bar_gap, int32_t env_line_w) {
+    UnitCardFit fit;
+    if (lanes > 0 && bar_min_w > 0 && content_w >= bar_min_w) {
+        const int32_t fitting = (content_w + bar_gap) / (bar_min_w + bar_gap);
+        fit.bars_shown = fitting < lanes ? static_cast<int>(fitting) : lanes;
+    }
+    if (env_line_w <= 0) {
+        fit.environment = CardEnvironment::None;
+    } else if (fit.bars_shown < lanes || env_line_w > content_w) {
+        fit.environment = CardEnvironment::Dropped;
+    } else {
+        fit.environment = CardEnvironment::Line;
+    }
+    return fit;
+}
+
 } // namespace helix::ui
 
 /**
@@ -168,6 +203,7 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
         int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
         bool has_art = false;                 // An art tile rather than a card
+        lv_obj_t* env_line = nullptr;         // One-line environment readout
         int unit_index = -1;
         /// What the lane bars were built for; see lane_bars_stale().
         helix::ui::LaneBarsGeometry bars_built;
@@ -251,6 +287,9 @@ class AmsOverviewPanel : public PanelBase {
     void detach_widget_hooks();
     /// Publish ams_cards_compact from the measured narrowest card width.
     void publish_cards_compact(int32_t narrowest_card_w);
+    /// Publish ams_cards_env_line from each card's measured width and readout.
+    void publish_cards_env_line();
+    static void on_env_line_size_changed(lv_event_t* e);
 
     /// A slot, current-slot or dryer change: resync the unit view's pages, or refresh the
     /// overview's cards on the next tick.
