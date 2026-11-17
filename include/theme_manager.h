@@ -1023,6 +1023,36 @@ bool is_icon_font(const lv_font_t* font);
  */
 void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination);
 
+namespace helix {
+/**
+ * @brief The content width cap for @p obj's screen (content_max_width const)
+ *
+ * Falls back to content_max_width() of the screen height when the theme
+ * has not registered the const yet. See include/content_width_cap.h.
+ */
+int32_t live_content_max_width(lv_obj_t* obj);
+
+/**
+ * @brief Cap an overlay's content at content_max_width, kept against the nav bar
+ *
+ * The overlay keeps the full width ui_set_overlay_geometry() gave it, so it
+ * still occludes the backdrop, and whatever overshoots the cap becomes extra
+ * right padding. @p base_pad_right is the padding the overlay was built with;
+ * the caller remembers it so the overflow can shrink or vanish on a resize.
+ * With @p capped false the padding returns to @p base_pad_right.
+ */
+void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped);
+
+/**
+ * @brief Cap a main panel's width at content_max_width
+ *
+ * Panels sit left-aligned beside the nav bar, so a max_width leaves the excess
+ * empty on the right. Only for panels that do not opt out through
+ * IPanelLifecycle::uses_full_content_width().
+ */
+void set_panel_content_cap(lv_obj_t* panel);
+} // namespace helix
+
 /**
  * @brief Get spacing value from unified space_* system
  *

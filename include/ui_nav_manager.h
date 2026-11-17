@@ -455,7 +455,9 @@ class NavigationManager {
      * Android navigation bar insetting the LVGL surface — #941). Each overlay's
      * resolved class is remembered, so this re-derives the pixel width from the
      * freshly-registered constants rather than guessing it back from the
-     * current width. Call after theme_manager_refresh_layout_constants(). #1178
+     * current width. The ultrawide content cap of every overlay and main panel
+     * is re-derived with it. Call after theme_manager_refresh_layout_constants().
+     * #1178
      */
     void reapply_overlay_widths();
 
@@ -796,9 +798,22 @@ class NavigationManager {
      * @param is_first_overlay True when nothing but the root panel is on the
      *                         stack, so the class comes from the nav root.
      * @return resolved class (true = destination), also stored in
-     *         overlay_is_destination_.
+     *         overlay_geometry_.
      */
     bool apply_overlay_width(lv_obj_t* overlay, bool is_first_overlay);
+
+    // What an overlay's geometry is derived from. is_destination is the
+    // resolved width class (#1178). base_pad_right is the right padding the
+    // widget was built with, read on its first push: the ultrawide content cap
+    // adds its overflow on top, and a resize re-derives that sum from it.
+    struct OverlayGeometry {
+        bool is_destination = false;
+        int32_t base_pad_right = 0;
+    };
+
+    /// Write @p geometry onto @p overlay: its class width, then the ultrawide
+    /// content cap unless its lifecycle opts out (uses_full_content_width()).
+    void write_overlay_geometry(lv_obj_t* overlay, const OverlayGeometry& geometry);
     static void nav_button_clicked_cb(lv_event_t* event);
 
     // Active panel tracking
@@ -844,11 +859,11 @@ class NavigationManager {
     // The dismiss backdrop behind the overlay stack, and its bookkeeping
     helix::ui::OverlayBackdrop backdrop_{[this] { refresh_overlay_backdrop(); }};
 
-    // Resolved width class per overlay (overlay → is_destination). Written by
-    // apply_overlay_width() on every push, read by the next push to inherit and
-    // by Application's resize handler to re-apply the right width without
-    // guessing from the current pixel width. #1178
-    std::unordered_map<lv_obj_t*, bool> overlay_is_destination_;
+    // Per overlay, written by apply_overlay_width() on every push, read by the
+    // next push to inherit and by Application's resize handler to re-apply the
+    // width and cap without guessing from the current pixels. Erased with the
+    // widget by scrub_deleted_widget().
+    std::unordered_map<lv_obj_t*, OverlayGeometry> overlay_geometry_;
 
     // Overlays exempt from push-time width management (deliberate custom
     // widths, e.g. the 70% widget catalog). #1178

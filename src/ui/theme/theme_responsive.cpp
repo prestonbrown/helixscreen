@@ -9,6 +9,7 @@
 #include "ui_switch.h"
 
 #include "asset_manager.h"
+#include "content_width_cap.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "layout_manager.h"
@@ -363,6 +364,13 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
     lv_xml_register_const(scope, "overlay_width_transient", transient_str);
     lv_xml_register_const(scope, "overlay_width_destination", destination_str);
 
+    // The ultrawide content width cap, a ratio of the screen height
+    // (include/content_width_cap.h). Panels and overlays read it at show and
+    // push time; it only binds on screens much wider than they are tall.
+    char content_max_str[16];
+    snprintf(content_max_str, sizeof(content_max_str), "%d", helix::content_max_width(ver_res));
+    lv_xml_register_const(scope, "content_max_width", content_max_str);
+
     spdlog::trace("[Theme] Layout: nav_width={}px, gap={}px, overlay transient={}px "
                   "destination={}px",
                   nav_width, gap, widths.transient, widths.destination);
@@ -457,6 +465,10 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
 
     lv_xml_update_const(scope, "overlay_width_transient", transient_str);
     lv_xml_update_const(scope, "overlay_width_destination", destination_str);
+
+    char content_max_str[16];
+    snprintf(content_max_str, sizeof(content_max_str), "%d", helix::content_max_width(ver_res));
+    lv_xml_update_const(scope, "content_max_width", content_max_str);
 
     // Update breakpoint subject — use shared helper so rotation never
     // downgrades XXLarge to XLarge (previous bug: missing XLARGE_MAX check).

@@ -303,6 +303,11 @@ class PrintSelectPanel : public PanelBase {
     const char* get_name() const override {
         return "Print Select Panel";
     }
+
+    /// The file card grid reflows into more columns.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
     const char* get_xml_component_name() const override {
         return "print_select_panel";
     }

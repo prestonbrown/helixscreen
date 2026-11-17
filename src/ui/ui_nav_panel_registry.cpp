@@ -5,6 +5,8 @@
 
 #include "ui_panel_base.h"
 
+#include "theme_manager.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -33,6 +35,7 @@ lv_obj_t* PanelRegistry::replace_widget(int idx, lv_obj_t* widget) {
     lv_obj_t* displaced = widgets_[idx].get();
     widgets_[idx] = widget;
     stale_[idx] = false;
+    apply_content_cap(idx);
     return displaced;
 }
 
@@ -69,6 +72,7 @@ void PanelRegistry::show_only(int idx) {
         if (widgets_[i] && !lent_to_[i]) {
             if (i == idx) {
                 lv_obj_set_hidden(widgets_[i], false);
+                apply_content_cap(i);
             } else {
                 lv_obj_set_hidden(widgets_[i], true);
             }
@@ -127,6 +131,21 @@ lv_obj_t* PanelRegistry::lent_to(int idx) const {
 void PanelRegistry::set_instance(int idx, PanelBase* panel) {
     if (in_range(idx)) {
         instances_[idx] = panel;
+        apply_content_cap(idx);
+    }
+}
+
+void PanelRegistry::apply_content_cap(int idx) {
+    lv_obj_t* panel = widget(idx);
+    const PanelBase* inst = instance(idx);
+    if (panel && inst && !inst->uses_full_content_width()) {
+        set_panel_content_cap(panel);
+    }
+}
+
+void PanelRegistry::reapply_content_caps() {
+    for (int i = 0; i < kCount; i++) {
+        apply_content_cap(i);
     }
 }
 

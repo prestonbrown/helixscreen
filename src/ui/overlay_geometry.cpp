@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Overlay panel geometry: the nav-bar width ladder, the width and height each
-// overlay class gets, and the one site that writes that geometry onto a widget.
+// overlay class gets, the one site that writes that geometry onto a widget, and
+// the ultrawide content width cap applied to overlays and main panels.
 
 #include "ui_breakpoint.h"
 
+#include "content_width_cap.h"
 #include "layout_manager.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
@@ -140,3 +142,45 @@ void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination) {
     lv_obj_set_height(obj, is_destination ? heights.destination : heights.transient);
     lv_obj_set_align(obj, LV_ALIGN_TOP_MID);
 }
+
+namespace helix {
+
+int32_t live_content_max_width(lv_obj_t* obj) {
+    if (const char* cap_str = lv_xml_get_const(nullptr, "content_max_width")) {
+        return std::atoi(cap_str);
+    }
+    lv_obj_t* screen = obj ? lv_obj_get_screen(obj) : nullptr;
+    return content_max_width(screen ? lv_obj_get_height(screen) : 480);
+}
+
+// DECLARATIVE_OK: the cap depends on the width class resolved at push time
+// (ui_set_overlay_geometry above), so it is written at the same site.
+void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped) {
+    if (!overlay) {
+        return;
+    }
+    const int32_t overflow =
+        capped ? content_cap_overflow(lv_obj_get_style_width(overlay, LV_PART_MAIN),
+                                      live_content_max_width(overlay))
+               : 0;
+    const int32_t pad_right = base_pad_right + overflow;
+    // An overlay that fits keeps whatever its XML or theme gives it; the local
+    // style is written only to add the overflow or to take it away again.
+    if (lv_obj_get_style_pad_right(overlay, LV_PART_MAIN) == pad_right) {
+        return;
+    }
+    lv_obj_set_style_pad_right(overlay, pad_right, LV_PART_MAIN);
+    spdlog::trace("[Theme] Overlay {} content cap: pad_right {} (overflow {})", (void*)overlay,
+                  pad_right, overflow);
+}
+
+// DECLARATIVE_OK: which panels opt out is declared on the panel class
+// (IPanelLifecycle::uses_full_content_width()), which XML cannot see.
+void set_panel_content_cap(lv_obj_t* panel) {
+    if (!panel) {
+        return;
+    }
+    lv_obj_set_style_max_width(panel, live_content_max_width(panel), LV_PART_MAIN);
+}
+
+} // namespace helix

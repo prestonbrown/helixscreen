@@ -88,6 +88,50 @@ rebuilds the views, so a branch decided at creation stays correct. The ordered l
 (`variant_chain()`, under the Developer Reference below) still picks which per-layout table
 of `default_layout.json` the home grid uses.
 
+### Content width cap on ultrawide screens
+
+Panels and overlays fill the space beside the navigation bar, which on an ultrawide panel is
+three or four screen-heights across. A settings list or the jog pad stretched that far is
+hard to read and costs reach, so their content stops at **2.4 x the screen height**, kept
+against the navigation bar. The space to its right stays empty.
+
+| Screen | Cap | Binds? |
+|--------|-----|--------|
+| 1480x320 | 768 | yes |
+| 1920x440 | 1056 | yes |
+| 1920x480 | 1152 | yes |
+| 800x480, 1024x600 | 1152, 1440 | never: wider than the screen |
+| Any portrait screen | above its width | never |
+
+The ratio lives in `include/content_width_cap.h`. `theme_manager_register_responsive_spacing()`
+registers the result as the `content_max_width` const next to `overlay_width_*`, and the
+resize path refreshes it.
+
+- **Main panels** get `max_width = content_max_width` from `PanelRegistry` when shown, when
+  their instance registers, when a rebuilt widget replaces them and on every resize
+  (`NavigationManager::reapply_overlay_widths()`).
+- **Overlays** keep the full opaque width their class gives them, so the backdrop stays
+  covered, and take the overflow as extra right padding on top of the padding they were
+  built with (`helix::set_overlay_content_cap()`). `NavigationManager` remembers that built
+  padding per overlay, so a resize shrinks or removes the overflow.
+- **Modals** are untouched and stay centered on the full screen.
+
+A view opts out by overriding `IPanelLifecycle::uses_full_content_width()` to return true.
+These do, because their content is built to fill the width:
+
+| View | Why it keeps the full width |
+|------|-----------------------------|
+| `home_panel` | The widget grid turns more width into more columns |
+| `print_select_panel` | The file card grid reflows into more columns |
+| `print_status_panel` | The G-code and thumbnail viewer and the printer image use the width |
+| `bed_mesh_panel` | The 3D mesh viewer uses all the room it is given |
+| `ams_panel` | The unit canvas and filament path drawing scale to the width |
+| `ams_overview_panel` | The overview lays units out across the width |
+
+Overlays already exempt from width management through
+`NavigationManager::set_overlay_width_unmanaged()` (camera fullscreen, keypad, widget
+catalog, image tagger) are never capped either.
+
 ## Directory Structure
 
 ```
