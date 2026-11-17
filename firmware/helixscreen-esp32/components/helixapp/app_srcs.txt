@@ -488,6 +488,7 @@ src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print_control_buttons.cpp
 src/ui/print_control_view.cpp
 src/ui/save_config_restart.cpp
+src/ui/screen_secrets.cpp
 src/ui/scroll_blit.cpp
 src/ui/setting_group.cpp
 src/ui/settings_root_status.cpp

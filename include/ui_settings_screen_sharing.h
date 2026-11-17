@@ -28,6 +28,8 @@ class ScreenSharingSettingsOverlay : public OverlayBase {
         return "settings_screen_sharing_overlay";
     }
 
+    /// Builds the page and marks the pairing code row as a screen secret.
+    lv_obj_t* create(lv_obj_t* parent) override;
     void register_callbacks() override;
 };
 

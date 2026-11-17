@@ -42,6 +42,7 @@
 #include "rotation_probe.h"
 #include "runtime_config.h"
 #include "screen_hide_hold.h"
+#include "screen_secrets.h"
 #include "tap_latch.h"
 #include "touch_calibration_wrapper.h"
 #if HELIX_ENABLE_SCREENSAVER
@@ -1454,6 +1455,7 @@ void DisplayManager::install_color_transform_hook() {
                     break;
                 }
                 f.last_in_refresh = lv_display_flush_is_last(d);
+                f.secret = helix::ui::screen_secret_state();
                 self->m_remote_screen.on_frame(f);
             }
         }
