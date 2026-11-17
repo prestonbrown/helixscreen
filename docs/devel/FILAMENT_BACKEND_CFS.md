@@ -145,16 +145,15 @@ toolhead stands, and Creality's own tool change moves to `[box]` `pre_cut_pos` b
 The envelope leaves the head at the purge chute (`extrude_pos`), and on a K2 Pro a strike
 from there runs into the frame, so no HelixScreen script emits `CR_BOX_CUT`.
 
-A bay unload is refused, with nothing sent, when the box reports its spool used up
-(`box.filament_useup`) while the toolhead switch still reads filament
-(`src/printer/ams_backend_cfs.cpp#do_unload_filament`). The strand has
-left the box, so `BOX_RETRUDE_MATERIAL` / `CR_BOX_RETRUDE`, which retract through the box,
-cannot pull it back: the cut-and-retract ends with filament at the switch and phase
-verification raises `UnloadLeftFilament`. The user is told to remove the leftover filament
-by hand instead. With the switch already clear, or no switch reading, the usual script
-runs, as the firmware's own runout refill cuts and retrudes after the switch trips
-([CREALITY_CFS_K2_INTERNALS.md § Runout and auto-refill](printer-research/CREALITY_CFS_K2_INTERNALS.md#runout-and-auto-refill)).
-Fork's `BOX_UNLOAD` keeps its own handling.
+An unload whose spool the box reports used up (`box.filament_useup`) still runs the usual
+script: the latch is set by a runout and cleared only by a successful extrude, so it can be
+stale, and refusing on it would block a valid unload. When the strand really has left the
+box, `BOX_RETRUDE_MATERIAL` / `CR_BOX_RETRUDE`, which retract through the box, cannot pull it
+back, and phase verification raises `UnloadLeftFilament` with the switch still reading
+filament. With the latch set, that fault tells the user to remove the leftover filament by
+hand instead of suggesting the cut or retract may not have completed
+(`src/printer/ams_backend_cfs.cpp#phase_verdict_message`). Every other `UnloadLeftFilament`
+keeps the generic wording.
 
 The K1 envelope is shorter only because `BOX_MODE_WAIT` does not exist on K1 — verified by
 symbol grep, which finds it nowhere in the extension. `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` are

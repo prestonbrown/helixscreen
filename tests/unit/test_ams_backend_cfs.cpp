@@ -4841,12 +4841,18 @@ TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[am
     }
 }
 
-TEST_CASE("CFS unload of a used-up spool does not cut and retract a strand the box lost",
+TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull by hand",
           "[ams][cfs][runout]") {
     using V = helix::printer::CfsMacroVariant;
+    using Verdict = AmsBackendCfs::PhaseVerdict;
     helix::MacroParamCache::instance().clear();
+    const std::string generic = AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament);
+    const std::string by_hand =
+        AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament, /*spool_used_up=*/true);
+    REQUIRE(by_hand != generic);
 
     for (V variant : {V::K2, V::K1}) {
+        const std::string name = variant == V::K1 ? "K1" : "K2";
         CfsRemapHelper backend;
         backend.mark_running();
         if (variant == V::K1) {
@@ -4855,53 +4861,47 @@ TEST_CASE("CFS unload of a used-up spool does not cut and retract a strand the b
         CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/true, /*current_slot=*/0);
         CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
 
-        SECTION(std::string("normal unload sends the cut-and-retract script, variant ") +
-                (variant == V::K1 ? "K1" : "K2")) {
+        SECTION("a used-up spool still sends the unload script, " + name) {
+            // filament_useup can be stale (it survives until a successful
+            // extrude), so it never stops an unload.
+            CfsTestAccess::set_filament_runout(backend, true);
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
             REQUIRE(backend.dispatched.size() == 1);
             CHECK(backend.dispatched[0] == AmsBackendCfs::unload_gcode(variant));
-        }
 
-        SECTION(std::string("used-up spool with filament at the switch is refused, variant ") +
-                (variant == V::K1 ? "K1" : "K2")) {
-            CfsTestAccess::set_filament_runout(backend, true);
-            const AmsError err = backend.unload_filament(0);
-            CHECK(err.result == AmsResult::UNLOAD_FAILED);
-            CHECK_FALSE(err.user_msg.empty());
-            CHECK_FALSE(err.suggestion.empty());
-            CHECK(backend.dispatched.empty());
-            CHECK_FALSE(CfsTestAccess::phase_active(backend));
+            // The retract could not reach the strand: the switch still reads
+            // filament, and the fault says to remove it by hand.
+            CfsTestAccess::complete_action(backend);
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == by_hand);
+
+            // Pulling it out by hand resolves the fault like any other.
+            CfsTestAccess::handle_status(
+                backend,
+                json{{"params", json::array({json{{"filament_switch_sensor filament_sensor",
+                                                   {{"filament_detected", false}}}},
+                                             0})}});
             CHECK(backend.get_system_info().action == AmsAction::IDLE);
         }
 
-        SECTION(std::string("used-up spool with the switch clear keeps the script, variant ") +
-                (variant == V::K1 ? "K1" : "K2")) {
-            CfsTestAccess::set_filament_runout(backend, true);
-            CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+        SECTION("a failed unload without a used-up spool keeps the generic message, " + name) {
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
             REQUIRE(backend.dispatched.size() == 1);
             CHECK(backend.dispatched[0] == AmsBackendCfs::unload_gcode(variant));
+            CfsTestAccess::complete_action(backend);
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == generic);
         }
 
-        SECTION(std::string("used-up spool without a switch reading keeps the script, variant ") +
-                (variant == V::K1 ? "K1" : "K2")) {
+        SECTION("a used-up spool whose unload cleared the switch raises nothing, " + name) {
             CfsTestAccess::set_filament_runout(backend, true);
-            CfsTestAccess::set_filament_sensor(backend, /*seen=*/false, /*detected=*/false);
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
-            REQUIRE(backend.dispatched.size() == 1);
+            CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+            CfsTestAccess::complete_action(backend);
+            CHECK(backend.get_system_info().action != AmsAction::ERROR);
         }
-    }
-
-    SECTION("Fork keeps BOX_UNLOAD with a used-up spool") {
-        CfsRemapHelper backend;
-        backend.mark_running();
-        CfsTestAccess::set_macro_variant_fork(backend);
-        CfsTestAccess::set_loaded_state(backend, true, 0);
-        CfsTestAccess::set_filament_sensor(backend, true, true);
-        CfsTestAccess::set_filament_runout(backend, true);
-        REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
-        REQUIRE(backend.dispatched.size() == 1);
-        CHECK(backend.dispatched[0] == "BOX_UNLOAD");
     }
 }
 

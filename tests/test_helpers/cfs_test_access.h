@@ -38,6 +38,9 @@ class CfsTestAccess {
     }
 
     /// Runs only the startup store load: a null client skips the initial query.
+    static void handle_status(helix::printer::AmsBackendCfs& b, const nlohmann::json& n) {
+        b.handle_status_update(n);
+    }
     static void start_load(helix::printer::AmsBackendCfs& b) {
         b.on_started();
         // The store's first read lands through the update queue.

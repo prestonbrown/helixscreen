@@ -2218,28 +2218,6 @@ AmsError AmsBackendCfs::do_unload_filament(int slot_index) {
     const bool bypass =
         slot_index == helix::ui::kExternalSpoolSlot && macro_variant_ != CfsMacroVariant::Fork;
 
-    // A used-up spool (box.filament_useup) whose tail still crosses the toolhead
-    // switch has left the box: BOX_RETRUDE_MATERIAL / CR_BOX_RETRUDE retract
-    // through the box, which no longer holds the strand, so the cut-and-retract
-    // ends with filament at the switch and the box records the failure rather
-    // than raising it. Nothing the box can send removes that strand, so the user
-    // is told to instead of being sent a fault after the fact. With the switch
-    // already clear the script runs as usual: the firmware's own runout refill
-    // cuts and retrudes in that state. Fork's BOX_UNLOAD decides for itself.
-    if (!bypass && macro_variant_ != CfsMacroVariant::Fork && leftover_strand_without_spool()) {
-        spdlog::warn("[AMS CFS] Unload refused for slot {}: the box reports its spool used up "
-                     "and filament still crosses the toolhead switch",
-                     slot_index);
-        return AmsError(AmsResult::UNLOAD_FAILED,
-                        "spool used up with filament at the toolhead switch; the box cannot "
-                        "retract a strand it no longer holds",
-                        lv_tr("This spool ran out, so the CFS cannot pull the leftover filament "
-                              "back."),
-                        lv_tr("Remove the leftover filament from the toolhead by hand before "
-                              "loading another spool."),
-                        slot_index);
-    }
-
     std::string gcode;
     if (bypass) {
         const bool has_quit_material =
@@ -2260,11 +2238,6 @@ AmsError AmsBackendCfs::do_unload_filament(int slot_index) {
         apply_synthesized_action_locked();
     }
     return dispatch_action_script(std::move(gcode));
-}
-
-bool AmsBackendCfs::leftover_strand_without_spool() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return system_info_.filament_runout && filament_sensor_seen_ && last_filament_detected_;
 }
 
 AmsError AmsBackendCfs::do_select_slot(int) {
@@ -3625,6 +3598,7 @@ AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
 void AmsBackendCfs::begin_phase_tracking() {
     phase_tracker_ = PhaseTracker{};
     phase_fault_ = PhaseVerdict::Ok;
+    phase_fault_spool_used_up_ = false;
     phase_tracker_.active = true;
     // Latch the intent NOW. Every caller sets system_info_.action immediately
     // before calling us, and apply_synthesized_action_locked() will overwrite
@@ -3774,7 +3748,7 @@ AmsBackendCfs::PhaseVerdict AmsBackendCfs::verify_phase_outcome(AmsAction op, bo
     return PhaseVerdict::Ok;
 }
 
-std::string AmsBackendCfs::phase_verdict_message(PhaseVerdict verdict) {
+std::string AmsBackendCfs::phase_verdict_message(PhaseVerdict verdict, bool spool_used_up) {
     switch (verdict) {
     case PhaseVerdict::LoadDidNotReachNozzle:
         // Name the observation (nothing at the nozzle) and the likely causes,
@@ -3783,6 +3757,16 @@ std::string AmsBackendCfs::phase_verdict_message(PhaseVerdict verdict) {
                        "the toolhead sensor still sees no filament. Check that the spool is "
                        "seated and the path is clear, then try again.");
     case PhaseVerdict::UnloadLeftFilament:
+        // The box retract (BOX_RETRUDE_MATERIAL / CR_BOX_RETRUDE) pulls through
+        // the box, which no longer holds a used-up spool's tail. Composed from
+        // two catalog keys, so refresh_translated_texts() re-words it.
+        if (spool_used_up) {
+            return std::string(lv_tr("This spool ran out, so the CFS cannot pull the leftover "
+                                     "filament back.")) +
+                   " " +
+                   lv_tr("Remove the leftover filament from the toolhead by hand before "
+                         "loading another spool.");
+        }
         return TR_NOOP("Filament is still at the nozzle after unloading. The cut or retract may "
                        "not have completed. Clear the toolhead before loading another spool.");
     case PhaseVerdict::Ok:
@@ -3814,13 +3798,25 @@ bool AmsBackendCfs::box_runout_needs_notice(int prev_useup, int useup, bool job_
 
 void AmsBackendCfs::on_fault_cleared_locked() {
     phase_fault_ = PhaseVerdict::Ok;
+    phase_fault_spool_used_up_ = false;
+}
+
+void AmsBackendCfs::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (phase_fault_ == PhaseVerdict::Ok || system_info_.action != AmsAction::ERROR ||
+        system_info_.operation_detail != phase_fault_detail_) {
+        return;
+    }
+    phase_fault_detail_ = phase_verdict_message(phase_fault_, phase_fault_spool_used_up_);
+    system_info_.operation_detail = phase_fault_detail_;
 }
 
 void AmsBackendCfs::retire_resolved_phase_fault_locked(bool filament_detected) {
     // Only the fault finish_action raised. A runout or box error may have
     // replaced it since, and the toolhead switch says nothing about those.
     if (system_info_.action != AmsAction::ERROR ||
-        system_info_.operation_detail != phase_verdict_message(phase_fault_) ||
+        system_info_.operation_detail !=
+            phase_verdict_message(phase_fault_, phase_fault_spool_used_up_) ||
         !phase_fault_resolved(phase_fault_, filament_detected)) {
         return;
     }
@@ -3829,6 +3825,7 @@ void AmsBackendCfs::retire_resolved_phase_fault_locked(bool filament_detected) {
     system_info_.action = AmsAction::IDLE;
     system_info_.operation_detail.clear();
     phase_fault_ = PhaseVerdict::Ok;
+    phase_fault_spool_used_up_ = false;
 }
 
 std::optional<bool> AmsBackendCfs::toolhead_filament_unaccounted() const {
@@ -3855,7 +3852,10 @@ void AmsBackendCfs::finish_action() {
     const AmsAction intent = phase_tracker_.intent;
     const PhaseVerdict verdict = verify_phase_outcome(
         intent, filament_sensor_seen_, last_filament_detected_, phase_tracker_.bypass_unload);
-    const std::string failure = phase_verdict_message(verdict);
+    // filament_useup can be stale (it is set by a runout and cleared only by a
+    // successful extrude), so it only words the fault and never stops an unload.
+    const bool spool_used_up = system_info_.filament_runout;
+    const std::string failure = phase_verdict_message(verdict, spool_used_up);
 
     end_phase_tracking();
 
@@ -3865,6 +3865,8 @@ void AmsBackendCfs::finish_action() {
         system_info_.action = AmsAction::ERROR;
         system_info_.operation_detail = failure;
         phase_fault_ = verdict;
+        phase_fault_spool_used_up_ = spool_used_up;
+        phase_fault_detail_ = failure;
         // No PostOpCooldownManager::schedule() here: the nozzle stays hot so
         // the user can retry or clear without a reheat wait.
         return;
