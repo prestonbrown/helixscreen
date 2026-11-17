@@ -371,11 +371,11 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         system_info_.spoolman_mode = mode;
     }
 
-    /// The version the connect-time query would read off mmu_machine.
-    void set_happy_hare_version(const std::string& version) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        HappyHareTestAccess::machine_layout(*this) = happy_hare::read_machine_layout(
-            nlohmann::json::object(), nlohmann::json{{"happy_hare_version", version}});
+    /// Feed a printer.mmu status object in a frame stamped with Klipper's @p eventtime.
+    void feed_mmu_status_at(const nlohmann::json& mmu, double eventtime) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({{{"mmu", mmu}}, eventtime});
+        handle_status_update(notification);
     }
 
     void set_selector_type(const std::string& type) {
@@ -1240,13 +1240,27 @@ TEST_CASE("Happy Hare mark available waits for a running print to pause",
     CHECK(helper.has_gcode_containing("MMU_GATE_MAP GATE=1 AVAILABLE=1"));
 }
 
+namespace {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
+
+/// The single-unit v4 fixture, reporting Happy Hare @p version.
+nlohmann::json happy_hare_fixture_at(const std::string& version) {
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    return fx;
+}
+} // namespace
+
 // ============================================================================
 // Gate weights (Happy Hare 4.2): the gate map holds remaining and initial weight
 // ============================================================================
 
-TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 gate weights reach the slot as the firmware's",
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 gate weights reach the slot as the firmware's",
                  "[ams][happy_hare][gate_weights]") {
-    helper.set_happy_hare_version("4.2.0");
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
     helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, 0, 120}},
                             {"gate_initial_weight", {1000, -1, 1000, -1}}});
 
@@ -1269,9 +1283,9 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 gate weights reach the slot as the
     CHECK_FALSE(firmware(0).remaining_weight_g);
 }
 
-TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 sends a weight edit to the gate map",
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 sends a weight edit to the gate map",
                  "[ams][happy_hare][gate_weights]") {
-    helper.set_happy_hare_version("4.2.0");
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
     helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, -1, -1}},
                             {"gate_initial_weight", {1000, -1, -1, -1}}});
     SlotInfo edit = helper.get_slot_info(0);
@@ -1279,16 +1293,12 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 sends a weight edit to the gate ma
 
     REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
     CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
-
-    // The extras record keeps neither weight once the gate map holds them.
-    const auto fields = HappyHareTestAccess::extras_fields(helper);
-    CHECK_FALSE(fields.remaining_weight);
-    CHECK_FALSE(fields.total_weight);
 }
 
-TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
                  "[ams][happy_hare][gate_weights]") {
-    helper.set_happy_hare_version("4.2.0");
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
     helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
     SlotInfo edit = helper.get_slot_info(1);
     edit.remaining_weight_g = 300.0F;
@@ -1298,9 +1308,9 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 in Spoolman pull mode refuses a we
     CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
 }
 
-TEST_CASE_METHOD(HhFourGates, "Happy Hare before 4.2 keeps weights beside the gate map",
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare before 4.2 keeps weights beside the gate map",
                  "[ams][happy_hare][gate_weights]") {
-    helper.set_happy_hare_version("4.1.0");
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.1.0"));
     SECTION("an edit") {
         SlotInfo edit = helper.get_slot_info(1);
         edit.remaining_weight_g = 300.0F;
@@ -1316,14 +1326,11 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare before 4.2 keeps weights beside the ga
         helper.persist_slot_weight(1, 280.0F, 1000.0F);
     }
     CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
-    const auto fields = HappyHareTestAccess::extras_fields(helper);
-    CHECK(fields.remaining_weight);
-    CHECK(fields.total_weight);
 }
 
-TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 writes a metered weight to the gate map",
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 writes a metered weight to the gate map",
                  "[ams][happy_hare][gate_weights]") {
-    helper.set_happy_hare_version("4.2.0");
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
 
     SECTION("an unlinked gate") {
         helper.persist_slot_weight(1, 280.4F, 1000.0F);
@@ -1347,13 +1354,13 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 writes a metered weight to the gat
 // form_tip_macro: empty means no tip forming from Happy Hare 4.2
 // ============================================================================
 
-TEST_CASE_METHOD(HhHelper, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
+TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
                  "[ams][happy_hare][tip_method]") {
+    helper.initialize_test_gates(4);
     const auto tip_method_for = [&](const std::string& version, const std::string& macro) {
-        const nlohmann::json live{{"happy_hare_version", version}};
-        const nlohmann::json settings{{"mmu_parameters", {{"form_tip_macro", macro}}}};
-        HappyHareTestAccess::apply_tip_method_config(
-            helper, settings, happy_hare::read_machine_layout(settings, live));
+        nlohmann::json fx = happy_hare_fixture_at(version);
+        fx["configfile_settings"]["mmu_parameters"]["form_tip_macro"] = macro;
+        connect_with_fixture(helper, client, fx);
         return helper.get_system_info().tip_method;
     };
     CHECK(tip_method_for("4.2.0", "") == TipMethod::NONE);
@@ -1373,9 +1380,7 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare drying cycle reports its time left fro
     helper.test_set_clock([&wall] { return wall; });
     helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
     const auto feed = [&](const nlohmann::json& mmu, double eventtime) {
-        nlohmann::json notification;
-        notification["params"] = nlohmann::json::array({{{"mmu", mmu}}, eventtime});
-        HappyHareTestAccess::handle_status_update(helper, notification);
+        helper.feed_mmu_status_at(mmu, eventtime);
     };
 
     SECTION("a cycle started elsewhere") {
@@ -5327,6 +5332,26 @@ TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes"
     CHECK_FALSE(helix::ams::lane_sources(rig.reg->lane_id(0)).pending.has_value());
 }
 
+TEST_CASE("a Happy Hare 4.2 weight edit stays out of the extras record",
+          "[ams][happy_hare][gate_weights]") {
+    TuningRig rig;
+    rig.connect(happy_hare_fixture_at("4.2.0"));
+    const SlotInfo original = rig.reg->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.remaining_weight_g = 500.0f;
+    edited.total_weight_g = 1000.0f;
+    REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(rig.reg->has_gcode_containing("WEIGHT=500 INITIAL_WEIGHT=1000"));
+    nlohmann::json kept = rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
+    if (kept.is_object()) {
+        CHECK((!kept.contains("remaining_weight_g") || kept["remaining_weight_g"].is_null()));
+        CHECK((!kept.contains("total_weight_g") || kept["total_weight_g"].is_null()));
+    }
+}
+
 TEST_CASE("a gate name another client clears shows as cleared", "[ams][happy_hare][review]") {
     TuningRig rig;
     rig.printer.client.mock_db_set(
@@ -5893,7 +5918,7 @@ TEST_CASE_METHOD(HhHelperWithClient,
         // No eSpooler anywhere; the ERCF unit's gear turns its spools.
         fx["configfile_settings"]["mmu_unit ercf"]["gear_rotates_spool"] = 1;
         connect_with_fixture(helper, client, fx);
-        HappyHareTestAccess::dryer_info(helper).supported = true;
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
         helper.test_parse_mmu_state(
             {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
         CHECK_FALSE(helper.get_dryer_info(0).supports_gate_selection);
@@ -5914,7 +5939,7 @@ TEST_CASE_METHOD(HhHelperWithClient,
     }
     SECTION("a unit whose gear grips but does not turn the spool") {
         connect_with_fixture(helper, client, fx);
-        HappyHareTestAccess::dryer_info(helper).supported = true;
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
         helper.test_parse_mmu_state(
             {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
         CHECK_FALSE(helper.get_dryer_info(0).supports_rotation);
