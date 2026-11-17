@@ -23,7 +23,7 @@ protocol itself is Klipper's: [G-Codes: action commands](https://www.klipper3d.o
 | File | Purpose |
 |------|---------|
 | `include/action_prompt_manager.h` | `PromptButton`, `PromptData`, `ActionPromptManager` (parser + state machine, static cross-TU accessors) |
-| `src/ui/notify/action_prompt_manager.cpp` | Line parser, button-spec parser, command handlers, test prompt helpers |
+| `src/printer/action_prompt_manager.cpp` | Line parser, button-spec parser, command handlers, test prompt helpers |
 | `include/action_prompt_modal.h` | `helix::ui::ActionPromptModal` (a `Modal` subclass) and `report_action_prompt_gcode_failure()` |
 | `src/ui/notify/action_prompt_modal.cpp` | Builds text labels and buttons from `PromptData`, button layout, color mapping, click handling |
 | `ui_xml/action_prompt_modal.xml` | Dialog shell: title, one scroll area holding the text, AFC fault diagram and button rows, footer row |
@@ -98,7 +98,7 @@ The teardown rule for `notify_gcode_response` handlers is in
 
 ### Parsing
 
-`ActionPromptManager::parse_action_line()` (`src/ui/notify/action_prompt_manager.cpp#parse_action_line`)
+`ActionPromptManager::parse_action_line()` (`src/printer/action_prompt_manager.cpp#parse_action_line`)
 skips leading spaces and tabs, requires the exact prefix `// action:` (case sensitive), takes the
 command up to the next space or tab, and keeps everything after exactly one separator as the
 payload.
@@ -126,7 +126,7 @@ constexpr std::string_view kActionCommands[] = {
 A glued remainder that starts with `_` is not split, since that looks like a command this build
 does not know rather than a title. A recovered line logs a warning at `[ActionPrompt]`.
 
-`parse_button_spec()` (`src/ui/notify/action_prompt_manager.cpp#parse_button_spec`)
+`parse_button_spec()` (`src/printer/action_prompt_manager.cpp#parse_button_spec`)
 splits on `|`:
 
 | Spec | label | gcode | color | hex_color |
@@ -372,7 +372,7 @@ Logs to grep with `-vv`: `[ActionPrompt]` (wiring, sends, `Closed on screen, sen
 
 ### Adding a directive
 
-1. Add the command to `kActionCommands` in `src/ui/notify/action_prompt_manager.cpp`, keeping the list
+1. Add the command to `kActionCommands` in `src/printer/action_prompt_manager.cpp`, keeping the list
    longest first, or glued-command recovery can match the shorter prefix.
 2. Add a branch in `ActionPromptManager::process_line()` and a private `handle_*` method. Decide
    which states it is valid in and ignore it elsewhere, like the existing handlers.
