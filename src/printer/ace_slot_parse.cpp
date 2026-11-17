@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#if HELIX_HAS_ACE || HELIX_HAS_SNAPMAKER
 
 #include "ace_slot_parse.h"
 
@@ -255,5 +254,3 @@ void yield_to_record(ams::Observation& hub, const std::optional<ams::Observation
 }
 
 } // namespace helix::ace
-
-#endif // HELIX_HAS_ACE || HELIX_HAS_SNAPMAKER

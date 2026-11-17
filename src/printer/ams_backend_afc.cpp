@@ -3,6 +3,7 @@
 
 #include "ams_backend_afc.h"
 
+#include "ace_slot_parse.h"
 #include "action_prompt_manager.h"
 #include "afc_defaults.h"
 #include "ams_bypass_policy.h"
@@ -1344,6 +1345,18 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         for (auto& unit_info : unit_infos_) {
             if (auto it = frame.units.find(unit_info.klipper_key); it != frame.units.end()) {
                 apply_unit_object(unit_info, it->second);
+                if (it->second.ace) {
+                    apply_ace_unit(unit_info, *it->second.ace);
+                }
+                if (it->second.cfs_lane_tags) {
+                    for (const auto& [lane, tag] : *it->second.cfs_lane_tags) {
+                        if (tag) {
+                            cfs_lane_tags_[lane] = *tag;
+                        } else {
+                            cfs_lane_tags_.erase(lane);
+                        }
+                    }
+                }
                 state_changed = true;
             }
         }
@@ -1969,8 +1982,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
                     // An AFC action:prompt on screen already tells the user.
                     const bool afc_prompt_active =
                         helix::ActionPromptManager::is_showing() &&
-                        helix::ActionPromptManager::current_prompt_name().find("AFC") !=
-                            std::string::npos;
+                        afc::is_afc_prompt_title(helix::ActionPromptManager::current_prompt_name());
 
                     if (afc_prompt_active || operation_active) {
                         // Notification history only (no toast)
@@ -2275,6 +2287,9 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     }
     if (data.dist_hub) {
         sensors.dist_hub = *data.dist_hub;
+    }
+    if (data.unit_position) {
+        lane_unit_positions_[lane_name] = *data.unit_position;
     }
     // Presence is latched: a lane that once reported a selector still has one,
     // and a delta that omits the key must not read as "selector cleared".
@@ -2804,6 +2819,113 @@ bool AmsBackendAfc::apply_oams_environment(
     return true;
 }
 
+void AmsBackendAfc::apply_ace_unit(const AfcUnitInfo& unit_info, const afc::AceUnitDelta& data) {
+    AfcAceUnit& ace = ace_units_[unit_info.type + " " + unit_info.name];
+    if (ace.name.empty()) {
+        ace.name = unit_info.name;
+        ace.dryer = helix::ace::ace_pro_dryer_info();
+    }
+    if (data.dryer_status) {
+        ace.has_dryer = true;
+        ace.dryer.active = afc::ace_dryer_running(*data.dryer_status);
+    }
+    if (data.dryer_target_c) {
+        ace.dryer.target_temp_c = *data.dryer_target_c;
+    }
+    if (data.dryer_duration_min) {
+        ace.dryer.duration_min = *data.dryer_duration_min;
+    }
+    if (data.dryer_remaining_min) {
+        ace.dryer.remaining_min = *data.dryer_remaining_min;
+    }
+    if (data.slot_tags) {
+        ace.slot_tags = *data.slot_tags;
+    }
+    if (data.temperature_c || data.humidity_pct) {
+        EnvironmentData env = ace.environment.value_or(EnvironmentData{});
+        if (data.temperature_c) {
+            env.temperature_c = *data.temperature_c;
+            ace.dryer.current_temp_c = *data.temperature_c;
+        }
+        if (data.humidity_pct) {
+            env.humidity_pct = *data.humidity_pct;
+            env.has_humidity = true;
+        }
+        ace.environment = env;
+    }
+    apply_unit_environment();
+}
+
+const AmsBackendAfc::AfcAceUnit* AmsBackendAfc::ace_unit_locked(int unit) const {
+    if (unit < 0 || static_cast<size_t>(unit) >= system_info_.units.size()) {
+        return nullptr;
+    }
+    const auto it = ace_units_.find(system_info_.units[static_cast<size_t>(unit)].name);
+    return it != ace_units_.end() && it->second.has_dryer ? &it->second : nullptr;
+}
+
+DryerInfo AmsBackendAfc::get_dryer_info(int unit) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const AfcAceUnit* ace = ace_unit_locked(unit);
+    return ace ? ace->dryer : DryerInfo{};
+}
+
+AmsError AmsBackendAfc::start_drying(float temp_c, int duration_min, int fan_pct, int unit) {
+    (void)fan_pct;
+    auto err = check_preconditions();
+    if (!err.success()) {
+        return err;
+    }
+    std::string name;
+    DryerInfo dryer;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AfcAceUnit* ace = ace_unit_locked(unit);
+        if (!ace) {
+            return AmsErrorHelper::not_supported("Dryer");
+        }
+        name = ace->name;
+        dryer = ace->dryer;
+    }
+    if (!IMoonrakerAPI::is_safe_gcode_param(name)) {
+        return AmsErrorHelper::invalid_parameter("unit name " + name);
+    }
+    if (auto refusal = helix::ace::check_dryer_request(dryer, temp_c, duration_min)) {
+        return *refusal;
+    }
+    spdlog::info("[AMS AFC] Starting ACE dryer on {}: {}°C for {} minutes", name, temp_c,
+                 duration_min);
+    return execute_gcode(fmt::format("AFC_ACE_DRY UNIT={} TEMP={} DURATION={}", name,
+                                     static_cast<int>(temp_c), duration_min));
+}
+
+AmsError AmsBackendAfc::stop_drying(int unit) {
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AfcAceUnit* ace = ace_unit_locked(unit);
+        if (!ace) {
+            return AmsErrorHelper::not_supported("Dryer");
+        }
+        name = ace->name;
+    }
+    if (!IMoonrakerAPI::is_safe_gcode_param(name)) {
+        return AmsErrorHelper::invalid_parameter("unit name " + name);
+    }
+    spdlog::info("[AMS AFC] Stopping ACE dryer on {}", name);
+    return execute_gcode("AFC_ACE_DRY_STOP UNIT=" + name);
+}
+
+AmsError AmsBackendAfc::update_drying(float temp_c, int duration_min, int fan_pct, int unit) {
+    auto err = stop_drying(unit);
+    if (!err.success()) {
+        return err;
+    }
+    const auto [target_temp, target_duration] =
+        helix::ace::restart_request(get_dryer_info(unit), temp_c, duration_min);
+    return start_drying(target_temp, target_duration, fan_pct, unit);
+}
+
 bool AmsBackendAfc::has_toolchanger_unit_locked() const {
     return std::any_of(unit_infos_.begin(), unit_infos_.end(),
                        [](const AfcUnitInfo& u) { return u.type == "Toolchanger"; });
@@ -2835,6 +2957,13 @@ bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) co
 }
 
 void AmsBackendAfc::apply_unit_environment() {
+    for (auto& unit : system_info_.units) {
+        const auto ace = ace_units_.find(unit.name);
+        if (ace != ace_units_.end() && ace->second.environment) {
+            unit.environment = ace->second.environment;
+            has_unit_environment_ = true;
+        }
+    }
     if (oams_env_.empty()) {
         return;
     }
@@ -3334,12 +3463,21 @@ bool AmsBackendAfc::apply_gcode_help_response(const nlohmann::json& response) {
     if (!has_toolhead_cal) {
         return false;
     }
+    // Both lane commands are LANE-keyed mux commands, which Klipper lists once
+    // under the bare name.
+    const bool has_spool_temp = gcode_help_lists(response, "AFC_SET_SPOOL_TEMP").value_or(false);
+    const bool has_filament_info = gcode_help_lists(response, "SET_FILAMENT_INFO").value_or(false);
     {
         std::lock_guard<std::mutex> lock(mutex_);
         has_toolhead_calibration_ = *has_toolhead_cal;
+        has_spool_temp_command_ = has_spool_temp;
+        has_filament_info_command_ = has_filament_info;
     }
-    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}",
-                  *has_toolhead_cal ? "available" : "not registered");
+    spdlog::debug("[AMS AFC] AFC_TOOLHEAD_CALIBRATION {}, AFC_SET_SPOOL_TEMP {}, "
+                  "SET_FILAMENT_INFO {}",
+                  *has_toolhead_cal ? "available" : "not registered",
+                  has_spool_temp ? "available" : "not registered",
+                  has_filament_info ? "available" : "not registered");
     return true;
 }
 
@@ -5199,6 +5337,35 @@ std::string set_weight_command(const std::string& lane_name, float remaining_wei
     return fmt::format("SET_WEIGHT LANE={} WEIGHT={:.0f}", lane_name, remaining_weight_g);
 }
 
+/// The one nozzle temperature AFC holds for a lane: the middle of the slot's
+/// range, which is also what the UI preheats to. 0 when the slot states none.
+int lane_extruder_temp(const SlotInfo& slot) {
+    if (slot.nozzle_temp_min > 0 && slot.nozzle_temp_max > 0) {
+        return (slot.nozzle_temp_min + slot.nozzle_temp_max) / 2;
+    }
+    return std::max(slot.nozzle_temp_min, slot.nozzle_temp_max);
+}
+
+/// AFC_SET_SPOOL_TEMP for an edit that changed a stated temperature, naming only
+/// the temperatures the edit states; nullopt when there is nothing to send.
+std::optional<std::string> spool_temp_command(const std::string& lane_name, const SlotInfo& before,
+                                              const SlotInfo& after) {
+    const int extruder = lane_extruder_temp(after);
+    const int bed = std::max(after.bed_temp, 0);
+    const bool changed = extruder != lane_extruder_temp(before) || bed != before.bed_temp;
+    if (!changed || (extruder <= 0 && bed <= 0)) {
+        return std::nullopt;
+    }
+    std::string gcode = "AFC_SET_SPOOL_TEMP LANE=" + lane_name;
+    if (extruder > 0) {
+        gcode += " EXTRUDER_TEMP=" + std::to_string(extruder);
+    }
+    if (bed > 0) {
+        gcode += " BED_TEMP=" + std::to_string(bed);
+    }
+    return gcode;
+}
+
 } // namespace
 
 AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
@@ -5217,6 +5384,7 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
         }
 
         // Capture old spoolman_id before updating for clear detection
+        const SlotInfo before = entry->info;
         const int old_spoolman_id = entry->info.spoolman_id;
         const int old_mapped_tool = entry->info.mapped_tool;
         // Without Spoolman, AFC drops SET_SPOOL_ID and answers OK, so the link
@@ -5232,11 +5400,41 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
                          info.color_name);
         }
 
+        // A Spoolman-linked lane takes its temperatures, vendor and filament name
+        // from Spoolman when AFC links it (AFC_spool.py set_spoolID), and that
+        // fetch lands after anything sent here, so only an unlinked lane sends them.
+        const std::string& edited_lane = slots_.name_of(slot_index);
+        const bool unlinked = info.spoolman_id <= 0;
+        const auto temp_command = unlinked && has_spool_temp_command_
+                                      ? spool_temp_command(edited_lane, before, info)
+                                      : std::nullopt;
+        // SET_FILAMENT_INFO stores both; a value it cannot carry keeps both in
+        // HelixScreen's own record instead.
+        const bool info_sendable =
+            unlinked && has_filament_info_command_ &&
+            (info.brand.empty() || IMoonrakerAPI::is_safe_text_param(info.brand)) &&
+            (info.spool_name.empty() || IMoonrakerAPI::is_safe_text_param(info.spool_name));
+        // A vendor or name still in HelixScreen's record has never reached AFC, so
+        // it goes out once, edited or not, before the record lets go of it.
+        const auto prior_record = overrides_.find(slot_index);
+        const bool record_holds_info =
+            prior_record != overrides_.end() &&
+            (!prior_record->second.brand.empty() || !prior_record->second.spool_name.empty());
+        const bool info_changed =
+            info.brand != before.brand || info.spool_name != before.spool_name || record_holds_info;
+
         // Record the user's identity in the override store as well. AFC cannot
-        // hold brand / spool_name / total_weight / colour name / filament+vendor
-        // ids at all, and the fields it DOES hold get cleared by its own
-        // clear_values() on eject.
-        persist_user_record_locked(slot_index, info);
+        // hold total_weight / color name / filament+vendor ids at all, nor a
+        // vendor or filament name without SET_FILAMENT_INFO, and the fields it
+        // DOES hold get cleared by its own clear_values() on eject.
+        if (info_sendable) {
+            SlotInfo recorded = info;
+            recorded.brand.clear();
+            recorded.spool_name.clear();
+            persist_user_record_locked(slot_index, recorded, info.material);
+        } else {
+            persist_user_record_locked(slot_index, info);
+        }
 
         // Persistence is never version-gated. These SET_* commands have existed
         // since well before any version we would recognize, and the version string
@@ -5325,6 +5523,18 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
                 execute_gcode(set_weight_command(lane_name, info.remaining_weight_g));
             }
 
+            if (temp_command) {
+                execute_gcode(*temp_command);
+            }
+            // An empty value clears that field on AFC.
+            if (info_sendable && info_changed) {
+                const auto quoted = [](const std::string& v) {
+                    return v.empty() ? std::string() : IMoonrakerAPI::quoted_gcode_param_value(v);
+                };
+                execute_gcode(fmt::format("SET_FILAMENT_INFO LANE={} VENDOR={} NAME={}", lane_name,
+                                          quoted(info.brand), quoted(info.spool_name)));
+            }
+
             // Tool mapping (lane → tool number) via SET_MAP.
             // Mirrors set_tool_mapping() but is reachable from the slot edit modal,
             // which routes all changes through apply_user_edit().
@@ -5355,14 +5565,49 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
     return AmsErrorHelper::success();
 }
 
+std::optional<helix::ams::TagReading>
+AmsBackendAfc::lane_rfid_tag_locked(const std::string& lane_name) const {
+    if (const auto cfs = cfs_lane_tags_.find(lane_name); cfs != cfs_lane_tags_.end()) {
+        return cfs->second;
+    }
+    for (const auto& unit : unit_infos_) {
+        const auto lane = std::find(unit.lanes.begin(), unit.lanes.end(), lane_name);
+        if (lane == unit.lanes.end()) {
+            continue;
+        }
+        const auto ace = ace_units_.find(unit.type + " " + unit.name);
+        if (ace == ace_units_.end()) {
+            return std::nullopt;
+        }
+        // An ACE lane draws from the slot its `lane` index names; the unit's
+        // lane order stands in until the lane has published it.
+        const auto position = lane_unit_positions_.find(lane_name);
+        const int slot = position != lane_unit_positions_.end()
+                             ? position->second - 1
+                             : static_cast<int>(lane - unit.lanes.begin());
+        if (slot < 0 || static_cast<size_t>(slot) >= ace->second.slot_tags.size()) {
+            return std::nullopt;
+        }
+        return ace->second.slot_tags[static_cast<size_t>(slot)];
+    }
+    return std::nullopt;
+}
+
 std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
     const SlotInfo* slot = slot_info_locked(slot_index);
-    if (!slot || !slot->has_scan()) {
+    if (!slot) {
         return std::nullopt;
     }
-    helix::ams::TagReading reading;
-    reading.color_rgb = *slot->scanned_color_rgb;
+    helix::ams::TagReading reading =
+        lane_rfid_tag_locked(slots_.name_of(slot_index)).value_or(helix::ams::TagReading{});
+    // The TD-1's color reading stands in where the tag states none.
+    if (!reading.color_rgb && slot->has_scan()) {
+        reading.color_rgb = *slot->scanned_color_rgb;
+    }
+    if (reading.empty()) {
+        return std::nullopt;
+    }
     return reading;
 }
 

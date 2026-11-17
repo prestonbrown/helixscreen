@@ -2857,7 +2857,7 @@ The dryer is the `IDryer` capability (`include/ams_dryer.h`), reached with `back
 | Happy Hare | Heated and/or passive, per box or per gate | ✅ | `MMU_HEATER DRY=1 TEMP=<t> TIMER=<mins>` / `MMU_HEATER STOP=1` (TIMER is minutes; see [Happy Hare Specifics](#happy-hare-specifics)) |
 | QIDI Box | Heated, one per box | ✅ | `ENABLE_BOX_DRY BOX=<n> TEMP=<t> END_TIME=<h>` / `DISABLE_BOX_DRY BOX=<n>`, with `SET_HEATER_TEMPERATURE` fallback when `box_extras` is absent. Write-path always enabled (commands verified vs QIDI firmware, #1030). |
 | CFS (Creality K2) | Passive, one per box | ❌ | No drying hardware - CFS reports temperature and humidity only |
-| AFC (Box Turtle / OpenAMS) | None | ❌ | Not supported |
+| AFC (Box Turtle / OpenAMS / ACE) | Heated, one per ACE unit | ✅ ACE units only | `AFC_ACE_DRY UNIT=<name> TEMP=<t> DURATION=<m>` / `AFC_ACE_DRY_STOP UNIT=<name>` ([FILAMENT_BACKEND_AFC.md](FILAMENT_BACKEND_AFC.md#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | AD5X IFS | None | ❌ | Not supported |
 | Snapmaker U1 (SnapSwap) | None | ❌ | Not supported |
 | Tool Changer | None | ❌ | Not applicable |

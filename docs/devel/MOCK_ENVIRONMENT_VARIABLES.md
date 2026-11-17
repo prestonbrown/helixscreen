@@ -748,7 +748,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `happy_hare` / `hh`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -758,7 +758,9 @@ Select the mock AMS topology/type.
 | `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
-| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP` and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
+| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, up to 8; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP`, AFC DEV's `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` (both listed in `printer.gcode.help`) and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
+| `afc_ace` | 1 | **An ACE Pro run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_ACE Ace_1` over `AFC_lane lane1`..`laneN` and no buffer. The unit object carries AFC_ACE.py's `ace_dryer` / `ace_dryer_target` / `ace_dryer_duration` / `ace_dryer_remain` / `ace_temp` / `ace_humidity`, mid cycle at start (50 °C, 205 of 240 minutes left), and `ace_slots` with an identified RFID tag for every loaded spool, and `AFC_ACE_DRY UNIT=Ace_1 TEMP= DURATION=` / `AFC_ACE_DRY_STOP UNIT=Ace_1` start and stop it. Alias: `afc-ace` |
+| `afc_cfs` | 1 | **A Creality CFS run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_CFS cfs_1` over `AFC_lane lane1`..`laneN` and no buffer; the unit object's `cfs.lanes.<lane>.tag` carries each loaded spool's decoded tag (material, color, 1000 g). Alias: `afc-cfs` |
 | `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
 | `hh_vivid` | 1 | Happy Hare on a BTT ViViD: the mock backend with the unit reporting vendor `VVD`, LINEAR, 4 lanes |
 | `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, 4 lanes |

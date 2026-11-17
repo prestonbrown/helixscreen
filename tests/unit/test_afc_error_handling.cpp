@@ -217,18 +217,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC Error Handling: Toast suppression when AF
         ActionPromptManager::set_instance(nullptr);
     }
 
-    SECTION("Toast suppressed only when prompt name contains AFC") {
-        ActionPromptManager manager;
-        ActionPromptManager::set_instance(&manager);
-
-        // "AFC" must appear in the prompt title for suppression
-        manager.process_line("// action:prompt_begin AFC Recovery");
-        manager.process_line("// action:prompt_show");
-
-        REQUIRE(ActionPromptManager::is_showing());
-        REQUIRE(ActionPromptManager::current_prompt_name().find("AFC") != std::string::npos);
-
-        ActionPromptManager::set_instance(nullptr);
+    SECTION("AFC's own prompts are recognized by title, whatever they say") {
+        for (const char* title :
+             {"AFC Lane Error", "Toolhead Calibration", "tool_stn Calibration",
+              "tool_stn_unload Calibration Complete", "Cutter Retract Calibration",
+              "Turtle_1 Calibration", "Bowden Calibration Turtle_1", "TD-1 Calibration",
+              "Capture TD-1 Data", "Calibrate all", "Loading Lane", "Unloading Lane",
+              "Checking toolhead temperature", "Moving extruder", "Iteration Count"}) {
+            INFO(title);
+            CHECK(afc::is_afc_prompt_title(title));
+        }
+        for (const char* title : {"Filament Change", "Load Filament", "Pause", "Loading"}) {
+            INFO(title);
+            CHECK_FALSE(afc::is_afc_prompt_title(title));
+        }
     }
 }
 

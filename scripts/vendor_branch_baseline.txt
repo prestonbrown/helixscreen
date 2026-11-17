@@ -14,7 +14,6 @@
 1 src/application/display_metrics.cpp:vendor-name
 7 src/calibration/screws_tilt_dialect.cpp:vendor-name
 3 src/platform/input/touch_calibration.cpp:vendor-name
-1 src/printer/ace_slot_parse.cpp:vendor-name
 1 src/printer/batch_feed_reconcile.cpp:vendor-name
 5 src/printer/cfs_status_parse.cpp:vendor-name
 20 src/printer/firmware_fault_codes.cpp:vendor-name

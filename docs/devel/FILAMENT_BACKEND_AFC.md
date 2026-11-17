@@ -218,20 +218,24 @@ reader, `afc::read_lane_identity`, and apply it through one step,
 
 ### Lane identity and edits
 
-AFC holds a lane's spool id, material, colour, weight, temps, vendor and name, and writes
+AFC holds a lane's spool id, material, color, weight, temps, vendor and name, and writes
 `lane_data` itself (it deletes and republishes the namespace at every boot), so HelixScreen never
 writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC_lane`, plus the
 `lane_data` snapshot), filed as the lane's `Firmware` source.
 
 - **Edits** (`AmsBackendAfc::apply_user_edit`) go to AFC as `SET_SPOOL_ID` (first: both of AFC's
   `set_spoolID()` branches rewrite the lane), `SET_COLOR`, `SET_MATERIAL`, `SET_WEIGHT` and
-  `SET_MAP`. A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
-- **Fields AFC cannot hold** (brand, name, color name, catalog pick, total weight) go to
-  HelixScreen's extras namespace `helix-screen-afc-overrides`, read by the same 10 s poll as
-  every lane record; a spool id, material or color found there is ignored. AFC's DEV branch
-  adds `SET_FILAMENT_INFO LANE=<lane> VENDOR=<vendor> NAME=<name>` (AFC #893), which stores a
-  lane's vendor and filament name and keeps them across restarts. HelixScreen does not send it
-  yet, so brand and name still go to the extras namespace.
+  `SET_MAP`, plus `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` on an unlinked lane when AFC
+  registers them ([Lane temperatures, vendor and filament name](#lane-temperatures-vendor-and-filament-name)).
+  A refused `SET_COLOR` / `SET_MATERIAL` withdraws the lane's pending edit.
+- **Vendor and filament name** are held by AFC itself on DEV, which has
+  `SET_FILAMENT_INFO LANE=<lane> VENDOR=<vendor> NAME=<name>` (AFC #893) and keeps them across
+  restarts; a Spoolman-linked lane takes both from Spoolman. On v1.2.0, and for a value
+  `SET_FILAMENT_INFO` cannot carry, they stay in HelixScreen's record below.
+- **Fields AFC cannot hold** (color name, catalog pick, total weight, and the vendor and name
+  above where AFC cannot take them) go to HelixScreen's extras namespace
+  `helix-screen-afc-overrides`, read by the same 10 s poll as every lane record; a spool id,
+  material or color found there is ignored.
 - **No Spoolman on AFC** (its status `spoolman` is `false` or null): `SET_SPOOL_ID` does nothing
   and still answers OK (in AFC's AFC_spool.py, cmd_SET_SPOOL_ID runs only with Spoolman configured), so a
   link is refused in the editor ("AFC has no Spoolman configured") before anything is sent. With
@@ -891,7 +895,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |
-| Dryer | No | AFC's DEV branch drives the ACE Pro dryer (`AFC_ACE_DRY` / `AFC_ACE_DRY_STOP`, AFC #879); HelixScreen sends no dryer commands to AFC yet |
+| Dryer | ACE units only | `AFC_ACE_DRY` / `AFC_ACE_DRY_STOP` on AFC's DEV branch (AFC #879; see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
@@ -906,6 +910,94 @@ loaded), and all three home-first prompt sites — the AMS sidebar, the
 filament panel, and `ensure_homed_then()` — skip both the prompt and the
 synthesized G28. Distinct from `filament_ops_self_home()`, which governs
 paused-print refusal.
+
+### AFC DEV unit and lane fields
+
+AFC's DEV branch adds unit types and lane commands that v1.2.0 lacks. Each one below is
+read or sent only where the firmware shows it has it, so a v1.2.0 install sees no change:
+a status field counts once its key is published, a command once `printer.gcode.help`
+lists it (`AmsBackendAfc::detect_afc_commands`).
+
+#### ACE Pro units (`AFC_ACE <name>`, `AFC_ACE2 <name>`)
+
+An ACE Pro run through AFC (AFC_ACE.py, AFC DEV c2103dc) is a unit of type `ACE` or `ACE2`
+whose lanes are `AFC_lane` objects. Its unit object adds the hub's own readings on top of
+the usual `lanes` / `extruders` / `hubs` / `buffers`:
+
+| Field | Meaning | Lands on |
+|-------|---------|----------|
+| `ace_dryer` | Dryer status word. `""`, `stop`, `stopped`, `stopping`, `idle`, `off` and `none` mean no cycle (AFC_ACE.py `_DRYER_IDLE`) | `DryerInfo::active`; its presence makes `DryerInfo::supported` |
+| `ace_dryer_target` | Setpoint, °C | `DryerInfo::target_temp_c` |
+| `ace_dryer_duration` / `ace_dryer_remain` | Cycle length and time left, minutes, as the ACE backend reads the same firmware fields | `DryerInfo::duration_min` / `remaining_min` |
+| `ace_temp` | The box's temperature | `AmsUnit::environment` and `DryerInfo::current_temp_c` |
+| `ace_humidity` | Relative humidity (the ACE 2 always; the ACE Pro when its status carries it) | `AmsUnit::environment` |
+
+`afc::parse_unit_object` reads them into `afc::AceUnitDelta`, and
+`AmsBackendAfc::apply_ace_unit` keeps them per unit across deltas and reorganizes. The
+backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that have published
+`ace_dryer` and reports no dryer for every other unit. Its limits are the ACE Pro's
+(`helix::ace::ace_pro_dryer_info`); AFC also caps `TEMP` at the unit's `max_dryer_temperature`
+(55 °C by default).
+
+| Action | Command |
+|--------|---------|
+| Start | `AFC_ACE_DRY UNIT=<name> TEMP=<°C> DURATION=<minutes>`. `FAN` is left at AFC's default: the ACE Pro firmware ignores it and runs its fan at 7000 rpm. `ROTATE=1` is not offered |
+| Stop | `AFC_ACE_DRY_STOP UNIT=<name>` |
+| Change temp or time | Stop, then start again with what is left (`helix::ace::restart_request`) |
+
+AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
+a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
+
+#### Spool tags from ACE and CFS units
+
+Two DEV unit types read RFID tags themselves and publish what they read on the unit object:
+
+| Unit | Field | Read as |
+|------|-------|---------|
+| ACE (`AFC_ACE`) | `ace_slots[]`: `index`, `rfid`, `material`, `color` (`[r,g,b]`), `sku`, `uid` | A slot whose `rfid` is `2` (identified) states its material and color, read with the ACE backend's own slot readers (`helix::ace::read_tag_state`, `read_slot_material`, `parse_slot_color`). Any other `rfid` is no reading. The lane is matched to its slot by `AFC_lane.lane`, its 1-based position in the unit (AFC_ACE.py `_build_slot_map`) |
+| CFS (`AFC_CFS`, 1e400e2) | `cfs.lanes.<lane>.tag`: `material`, `color` (bare hex), `weight` (g), `spool_id`, or null | Material, color, weight as the spool's total, and a Spoolman spool id above 1. A null tag (the last read found none) clears the lane's reading |
+
+`AmsBackendAfc::tag_reading()` returns that tag, with the TD-1's color standing in where
+the tag states none, so the spool editor's tag view and Reset to tag work as on the native
+ACE and CFS backends. AFC applies a tag itself (`SET_COLOR` / `SET_MATERIAL` /
+`SET_SPOOL_ID`), so nothing here writes one back.
+
+#### Unit drawings
+
+The `kShellRows` table in `src/ui/filament/ams_unit_shell.cpp` matches AFC's type token at the
+start of the unit's name: an `ACE <name>` or `ACE2 <name>` unit draws as the ACE Pro (one
+drawing serves the ACE Pro and the ACE Pro 2), and a `CFS <name>` unit as the CFS. A
+`Claymore` unit keeps the generic tray: no drawing of it exists, and the HTLF drawing is
+deliberately not matched to it.
+
+#### Lane temperatures, vendor and filament name
+
+`AmsBackendAfc::apply_user_edit` sends two more lane commands when `printer.gcode.help`
+lists them. Both are LANE-keyed mux commands, which Klipper lists once under the bare name.
+
+| Command | Since | Sent when |
+|---------|-------|-----------|
+| `AFC_SET_SPOOL_TEMP LANE=<lane> EXTRUDER_TEMP=<°C> BED_TEMP=<°C>` | v1.2.0 (b11084e) | An edit changes a stated temperature. AFC holds one nozzle temperature, so it gets the middle of the slot's range, the value the UI preheats to; a temperature the edit does not state is left out. AFC heats to it on load (AFC.py `_get_default_material_temps`), before its material default |
+| `SET_FILAMENT_INFO LANE=<lane> VENDOR="<vendor>" NAME="<name>"` | DEV (a7828f3) | An edit changes the vendor or name, or HelixScreen's record still holds one AFC was never sent. Values are always quoted (an unquoted apostrophe opens a quote for Klipper's tokenizer) and must pass `IMoonrakerAPI::is_safe_text_param`; an empty value clears the field on AFC |
+
+Neither goes out for a Spoolman-linked lane: AFC's `set_spoolID` fills temperatures,
+vendor and name from Spoolman, and that fetch lands after anything sent with the edit.
+When `SET_FILAMENT_INFO` is sent, the lane's `helix-screen-afc-overrides` record no longer
+keeps the vendor and name; AFC publishes them (`spool_vendor`, `filament_name`) and clears
+them with the rest of the spool on a swap. A vendor or name the command cannot carry (a `#`,
+a quote, non-ASCII) stays in the record as before.
+
+#### AFC's own prompts
+
+An `AFC.message` toast is held back (it goes to the notification list only) while one of
+AFC's action prompts is on screen, since the prompt already tells the user. AFC's prompts
+carry nothing that marks their origin: AFC_respond.py writes plain
+`// action:prompt_begin <title>` lines. So `afc::is_afc_prompt_title` decides by title: a
+title naming AFC, any calibration or TD-1 title (`Toolhead Calibration`,
+`tool_stn Calibration`, `Cutter Retract Calibration`, `<unit> Calibration`, ...), or one
+of the fixed toolhead-load titles (`Loading Lane`, `Unloading Lane`, `Checking toolhead
+temperature`, `Moving extruder`, `Iteration Count`). A new AFC prompt title outside those
+shapes toasts until it is added there.
 
 ### AFC Version Reporting
 

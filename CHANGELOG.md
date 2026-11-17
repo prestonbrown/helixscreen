@@ -42,6 +42,9 @@ is out.
 - **Tap the loaded card to open its spool** (#2094) - on the AMS panel, tapping the loaded card opens the spool in the loaded lane.
 - **Tool Numbers** (#2014) - Settings > Appearance can number tools the way your printer does, 1, 2, 3 or T0, T1, T2. Auto uses T0 style on a klipper-toolchanger printer whose tools are named T plus a number, and every screen that names a tool follows the choice at once.
 - **AD5X with Z-Mod: more than four IFS ports** (#2039) - an AD5X with Z-Mod follows Z-Mod's color limit past four IFS ports and keeps a lane seated past four across restarts.
+- **ACE Pro dryer through AFC** - an Anycubic ACE Pro run by AFC (its development branch) shows the box temperature and humidity and its dryer on the dryer page, which can start and stop a drying cycle.
+- **AFC lanes heat to your filament** - editing a lane on AFC sends its nozzle and bed temperatures to AFC, so a load heats to the spool's temperature instead of AFC's default for the material. On AFC's development branch the vendor and filament name go to AFC too, which shares them with the slicer.
+- **ACE and CFS units under AFC** - an Anycubic ACE Pro, ACE Pro 2 or Creality CFS run by AFC (its development branch) is drawn as the real unit, and the spool tags they read show up as the lane's tag, ready for Reset to tag in the spool editor.
 
 **Home screen and display**
 
@@ -114,6 +117,7 @@ is out.
 - **Klipper version on printers without a git install** - when Klipper reports no version of its own, as it does when it is not installed from git, such as on FlashForge printers running Z-Mod, the Printer Manager and About screens now show the version Moonraker's update manager knows for it instead of Unknown.
 - **Bed mesh shows in the pre-print checklist during an adaptive mesh** - on printers without a dedicated start profile, the checklist now marks Bed mesh active when Klipper starts an adaptive mesh inside the start macro, and counts its probe points against the adapted grid. Before, Klipper's adaptive mesh messages were not recognized, so the step was never shown as running.
 - **Z offset saves on printers that home Z on a switch** - on a printer with a probe that homes Z on its own endstop switch, such as a stock Voron 2.4 or an Ender with a BLTouch used only for the bed mesh, Z offset calibration and Save now set the Z endstop position, so the change survives a restart. Before, they changed the probe offset, which does not move the nozzle on those printers. A delta without a probe now adjusts the offset for the session only, because Klipper has no endstop calibration for deltas.
+- **No stacked AFC errors over AFC's own prompts** - while AFC shows one of its calibration or toolhead-load prompts, its messages go to the notification list instead of popping up over the prompt, as they already did for prompts with AFC in the title.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
