@@ -72,14 +72,20 @@ void PanelRegistry::set_instance(int idx, PanelBase* panel) {
 void PanelRegistry::apply_content_cap(int idx) {
     lv_obj_t* panel = widget(idx);
     const PanelBase* inst = instance(idx);
-    if (panel && inst && !inst->uses_full_content_width()) {
-        set_panel_content_cap(panel);
+    if (!panel || !inst || lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN)) {
+        return;
     }
+    lv_obj_t* container = lv_obj_get_parent(panel);
+    if (container_.get() != container) {
+        container_ = container;
+        container_base_pad_right_ = content_cap_base_pad(container);
+    }
+    helix::apply_content_cap(container, container_base_pad_right_, content_capped(inst));
 }
 
 void PanelRegistry::reapply_content_caps() {
     for (int i = 0; i < kCount; i++) {
-        apply_content_cap(i);
+        apply_content_cap(i); // acts only for the panel shown
     }
 }
 
@@ -123,6 +129,7 @@ void PanelRegistry::clear_instances() {
 }
 
 void PanelRegistry::reset() {
+    container_ = nullptr;
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = nullptr;
     }

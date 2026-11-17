@@ -5,6 +5,7 @@
   <view name="wizard_header_bar"
         extends="lv_obj" width="100%" height="content" flex_flow="column" scrollable="false" style_bg_opa="0"
         style_border_width="0" style_pad_all="#space_lg" style_pad_bottom="#space_sm">
+    <style name="styles.cap_chrome"/>
     <!-- Row 1: Title + Progress -->
     <lv_obj width="100%"
             height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"

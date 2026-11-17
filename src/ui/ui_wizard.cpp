@@ -85,6 +85,16 @@ static char wizard_subtitle_buffer[128];
 
 // Wizard container instance
 static lv_obj_t* wizard_container = nullptr;
+// The right padding wizard_container was built with: what the content cap adds to.
+static int32_t wizard_base_pad_right = 0;
+
+// Header and footer span the screen; the step content between is capped
+// (helix::apply_content_cap()). Re-run on every resize by a layout refresh hook.
+static void apply_wizard_content_cap() {
+    if (wizard_container) {
+        helix::apply_content_cap(wizard_container, wizard_base_pad_right, /*capped=*/true);
+    }
+}
 
 // Track current screen for proper cleanup (nullopt = no screen loaded yet)
 static std::optional<helix::wizard::StepId> current_screen_step;
@@ -579,6 +589,14 @@ lv_obj_t* ui_wizard_create(lv_obj_t* parent) {
 
     // Background color applied automatically by LVGL theme (uses theme->color_card)
     // No explicit styling needed - theme patching in ui_theme.cpp handles this
+
+    wizard_base_pad_right = helix::content_cap_base_pad(wizard_container);
+    static const bool cap_hook_registered = [] {
+        theme_manager_add_layout_refresh_hook([](lv_display_t*) { apply_wizard_content_cap(); });
+        return true;
+    }();
+    (void)cap_hook_registered;
+    apply_wizard_content_cap();
 
     // Update layout to ensure SIZE_CONTENT calculates correctly
     lv_obj_update_layout(wizard_container);

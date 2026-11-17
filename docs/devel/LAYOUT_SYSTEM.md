@@ -118,18 +118,30 @@ The ratio lives in `include/content_width_cap.h`. `theme_manager_register_respon
 registers the result as the `content_max_width` const next to `overlay_width_*`, and the
 resize path refreshes it.
 
-- **Main panels** get `max_width = content_max_width` from `PanelRegistry` when shown, when
-  their instance registers, when a rebuilt widget replaces them and on every resize
-  (`NavigationManager::reapply_overlay_widths()`).
-- **Overlays** keep the full opaque width their class gives them, so the backdrop stays
-  covered, and take the overflow as extra right padding on top of the padding they were
-  built with (`helix::set_overlay_content_cap()`). `NavigationManager` remembers that built
-  padding per overlay, so a resize shrinks or removes the overflow.
-- **Overlay headers** keep the full width: the back button and title stay at the left and
-  the header's right-side items (Motion's position readout, the gear) sit at the screen's
-  right edge. Only the content below the header is capped. The header is the root's direct
-  `overlay_header` child; it gets a pixel width reaching into the cap's padding and a matching
-  negative right margin, so the root gains no horizontal scroll.
+One function writes the cap, `helix::apply_content_cap(root, base_pad_right, capped)`. The
+root keeps its full width and takes the overflow as extra right padding on top of the padding
+it was built with (`helix::content_cap_base_pad()`, recorded by the caller so a resize can
+shrink or remove the overflow). Its callers:
+
+- **Overlays:** each overlay root, on every push and resize. `NavigationManager` records the
+  built padding per overlay. The root keeps the opaque width its class gives it, so the
+  backdrop stays covered.
+- **Main panels:** the container the panels share, when a panel is shown, when its instance
+  registers, when a rebuilt widget replaces it and on every resize, capped or not by the
+  shown panel's declaration (`PanelRegistry`).
+- **The wizard:** `wizard_container`, when it is created and from a layout refresh hook on
+  every resize.
+
+**Chrome spans, content caps.** A header or footer declares the chrome role with
+`<style name="styles.cap_chrome"/>` (a property-less marker in `ui_xml/styles.xml`).
+`header_bar`, `wizard_header_bar` and the wizard footer carry it. A direct child of a capped
+root that carries the role keeps the root's full width: a back button and title stay at the
+left, while right-side items (Motion's position readout, the gear, the wizard's Next button)
+sit at the screen's right edge. It gets a pixel width reaching into the cap's padding and a
+matching negative right margin, so the root gains no horizontal scroll. Chrome nested inside
+the content caps with it: the print file detail's header sits in its left column, so it stays
+there.
+
 - **Modals** are untouched and stay centered on the full screen.
 
 A view opts out by overriding `IPanelLifecycle::uses_full_content_width()` to return true.

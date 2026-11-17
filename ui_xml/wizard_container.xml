@@ -29,6 +29,7 @@
             width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
             style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0" style_pad_gap="0"
             style_pad_bottom="#space_md" scrollable="false">
+      <style name="styles.cap_chrome"/>
 
       <!-- BACK BUTTON (hidden on step 0 via conditional binding) -->
       <ui_button name="btn_back" width="#wizard_button_width" text="Back">
