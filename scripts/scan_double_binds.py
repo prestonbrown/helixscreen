@@ -133,8 +133,87 @@ class Binding:
                                                               self.ref, inv)
 
 
+def is_widget_element(el):
+    """Whether `el` builds an object: <style> and the bind_* and event_cb
+    children carry a name too, but none of them is a widget."""
+    return not el.tag.startswith("bind_") and el.tag not in ("style", "event_cb")
+
+
+# `<if cond="subject OP n">`: the structural conditional, decided once at build
+# time. Only this simple form is drivable; anything richer marks its subtree.
+IF_COND_RE = re.compile(r"^\s*(\w+)\s+(eq|not_eq|gt|ge|lt|le)\s+(-?\d+)\s*$")
+
+
+def branch_value(cond, want):
+    """A value of the cond's subject that makes `cond` evaluate to `want`, nearest
+    zero, or None when the cond is not a simple comparison."""
+    m = IF_COND_RE.match(cond or "")
+    if m is None:
+        return None
+    subject, op, ref = m.group(1), "if_" + m.group(2), int(m.group(3))
+    for value in sorted(set(range(-2, 5)) | {ref - 1, ref, ref + 1}, key=lambda v: (abs(v), v)):
+        if evaluate(op, ref, False, value) == want:
+            return subject, value
+    return None
+
+
+def branches(view):
+    """Map every element under `view` to the <if> branches it sits in, as a tuple
+    of (if element, taken branch, (subject, value) or None) from the outside in.
+
+    Children of an <if> before its <else/> are the true branch, the rest the
+    false one; the engine builds only the branch the condition picks.
+    """
+    out = {}
+
+    def walk(el, path):
+        out[el] = path
+        if el.tag == "if":
+            taken = True
+            for child in el:
+                if child.tag == "else":
+                    taken = False
+                    continue
+                walk(child, path + ((el, taken, branch_value(el.attrib.get("cond"), taken)),))
+        else:
+            for child in el:
+                walk(child, path)
+
+    walk(view, ())
+    return out
+
+
+def compatible(a, b):
+    """Whether two branch paths can be built together: every <if> both sit in
+    takes the same branch for both."""
+    taken = {id(el): t for el, t, _ in a}
+    return all(taken.get(id(el), t) == t for el, t, _ in b)
+
+
+def widget_ordinal(el, paths, view):
+    """`el`'s index among the same-named widgets built beside it.
+
+    A component can repeat a name, one copy per <if> branch or per layout, with
+    the bindings on only one of them. The engine builds widgets in document
+    order, so the index is also the match a depth-first walk of the built tree
+    reaches once the row's branch is selected.
+    """
+    name = el.attrib.get("name")
+    nth = 0
+    for other in view.iter():
+        if other is el:
+            return nth
+        if (other.attrib.get("name") == name and is_widget_element(other)
+                and compatible(paths.get(other, ()), paths.get(el, ()))):
+            nth += 1
+    return 0
+
+
 def scan(path):
-    """Yield (widget_name, kind, bits, [Binding]) for every composed property."""
+    """Yield (widget_name, nth, build, kind, bits, [Binding]) for every composed
+    property. `nth` is the widget's index among the same-named widgets built
+    with it, `build` the (subject, value) pairs that select its <if> branches,
+    or None when a branch condition is not a simple comparison."""
     text = STATE_ATTR_RE.sub(r"\1\2__\3=\4", path.read_text(encoding="utf-8"))
     try:
         root = ET.fromstring(text)
@@ -142,6 +221,11 @@ def scan(path):
         print("  ! %s: %s" % (path, exc), file=sys.stderr)
         return
 
+    # Only the <view> builds anything; <api> props and <styles> are named too.
+    view = root.find("view")
+    if view is None:
+        view = root
+    paths = branches(view)
     for parent in root.iter():
         buckets = {}
         for child in parent:
@@ -169,7 +253,11 @@ def scan(path):
 
         for (kind, bits), binds in sorted(buckets.items()):
             if len(binds) > 1:
-                yield parent.attrib.get("name") or "<%s>" % parent.tag, kind, bits, binds
+                branch = paths.get(parent, ())
+                build = (None if any(sv is None for _, _, sv in branch)
+                         else [sv for _, _, sv in branch])
+                yield (parent.attrib.get("name") or "<%s>" % parent.tag,
+                       widget_ordinal(parent, paths, view), build, kind, bits, binds)
 
 
 def collect(roots):
@@ -181,7 +269,7 @@ def collect(roots):
 
 def report(rows):
     current = None
-    for path, name, kind, bits, binds in rows:
+    for path, name, _nth, _build, kind, bits, binds in rows:
         if path != current:
             print(path)
             current = path
@@ -201,24 +289,28 @@ def emit_cpp(rows, out):
         "// A moves_machine=\"true\" attribute is one of them: the engine installs the",
         "// machine_motion_blocked -> disabled binding for the element itself, so a control",
         "// carrying the attribute and one hand-written state binding is a group of two.",
-        "// Each row names the component to build, the widget in it, the property, the",
-        "// subjects involved with a value that releases every binding on them, and one",
-        "// value per binding that makes exactly that binding ask for the property.",
+        "// Each row names the component to build, the widget in it, which of the",
+        "// component's widgets of that name it is (from 0, in document order, among",
+        "// those built with it), the subject values that select its <if> branches at",
+        "// build time, the property, the subjects involved with a value that releases",
+        "// every binding on them, and one value per binding that makes exactly that",
+        "// binding ask for the property.",
         "//",
         "// `orders_testable` is false when two bindings share a subject: they cannot be",
         "// held one at a time, so only the each-alone phase applies to that row.",
         "//",
         "// Rows left out are counted in kUndrivableGroups - a cond= expression, a subject",
-        "// the instantiating parent supplies as $param, or a ref_value that is a",
-        "// per-iteration ${...} substitution.",
+        "// the instantiating parent supplies as $param, a ref_value that is a",
+        "// per-iteration ${...} substitution, or an <if> branch whose cond is more than",
+        "// one comparison.",
         "",
         "// clang-format off",
         "static const BindGroup kDoubleBindWidgets[] = {",
     ]
     drivable = skipped = 0
-    for path, name, kind, bits, binds in rows:
+    for path, name, nth, build, kind, bits, binds in rows:
         component = str(path).removeprefix("ui_xml/").removesuffix(".xml")
-        if any(b is None for b in binds):
+        if build is None or len(build) > 2 or any(b is None for b in binds):
             skipped += 1
             continue
 
@@ -235,8 +327,9 @@ def emit_cpp(rows, out):
         drivable += 1
         subj_src = ", ".join('{"%s", %d}' % (s, quiets[s]) for s in order)
         hold_src = ", ".join("{%d, %d}" % (order.index(b.subject), b.holds) for b in binds)
-        lines.append('    {"%s", "%s", %s, "%s", {%s}, %d, {%s}, %d, %s},'
-                     % (component, name,
+        build_src = ", ".join('{"%s", %d}' % sv for sv in build)
+        lines.append('    {"%s", "%s", %d, {%s}, %d, %s, "%s", {%s}, %d, {%s}, %d, %s},'
+                     % (component, name, nth, build_src, len(build),
                         "BindKind::State" if kind == "state" else "BindKind::Flag", bits,
                         subj_src, len(order), hold_src, len(binds),
                         "true" if len(order) == len(binds) else "false"))
