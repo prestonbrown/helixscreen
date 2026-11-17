@@ -603,18 +603,35 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     if (row.target_label)
         lv_label_set_long_mode(row.target_label, LV_LABEL_LONG_MODE_CLIP);
 
-    // Tap row → open nozzle temp graph overlay
+    // Tap row → open nozzle temp graph overlay on that row's tool
     lv_obj_add_flag(row_obj, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_t* screen = parent_screen_;
     lv_obj_add_event_cb(
         row_obj,
         [](lv_event_t* e) {
-            auto* scr = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
-            if (scr) {
-                get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, scr);
+            auto* self = static_cast<NozzleTempsWidget*>(lv_event_get_user_data(e));
+            if (self) {
+                self->handle_extruder_row_clicked(
+                    static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
             }
         },
-        LV_EVENT_CLICKED, screen);
+        LV_EVENT_CLICKED, this);
+}
+
+void NozzleTempsWidget::handle_extruder_row_clicked(lv_obj_t* row_obj) {
+    if (!parent_screen_) {
+        return;
+    }
+    // On a multi-head printer each row is one tool; the graph opens on it.
+    std::string extruder;
+    if (ToolState::instance().has_multiple_toolheads()) {
+        for (const auto& row : extruder_rows_) {
+            if (row.row_obj == row_obj) {
+                extruder = row.name;
+                break;
+            }
+        }
+    }
+    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, extruder);
 }
 
 void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
