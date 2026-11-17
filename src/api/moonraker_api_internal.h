@@ -230,7 +230,8 @@ inline uint32_t json_count_or_zero(const nlohmann::json& j, const char* key) {
  * @return Semicolon-delimited string, or empty if not present
  */
 inline std::string json_string_list_or(const nlohmann::json& obj, const char* key) {
-    if (!obj.contains(key))
+    const nlohmann::json* found = helix::json_util::find_member(obj, key);
+    if (!found)
         return {};
 
     auto join_array = [](const nlohmann::json& arr) -> std::string {
@@ -245,7 +246,7 @@ inline std::string json_string_list_or(const nlohmann::json& obj, const char* ke
         return joined;
     };
 
-    const auto& val = obj[key];
+    const auto& val = *found;
 
     if (val.is_array())
         return join_array(val);
