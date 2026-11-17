@@ -3,30 +3,20 @@
 
 #include "print_completion.h"
 
-#include "ui_confetti.h"
-#include "ui_format_utils.h"
-#include "ui_icon.h"
-#include "ui_modal.h"
-#include "ui_toast_manager.h"
-#include "ui_widget_ref.h"
-
 #include "app_globals.h"
 #include "audio_settings_manager.h"
 #include "core/error_reporting.h"
 #include "core/gcode_filename.h"
-#include "core/subject.h"
 #include "display_manager.h"
-#include "display_settings_manager.h"
-#include "format_utils.h"
 #include "heater_type.h"
 #include "moonraker_api.h"
 #include "moonraker_manager.h"
+#include "notice.h"
 #include "print_completion_alert.h"
 #include "printer_state.h"
 #include "screensaver.h"
 #include "sound_manager.h"
 #include "temperature_controller.h"
-#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -43,54 +33,6 @@ PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query) 
     PrintStatusShownQuery previous = s_print_status_shown;
     s_print_status_shown = query;
     return previous;
-}
-
-// --- Subjects for declarative XML bindings in print_completion_modal.xml ---
-static helix::WidgetSubjects s_subjects{"PrintCompletion"};
-
-// String subjects with backing buffers
-static char s_title_buf[64];
-static helix::Subject s_title_subject;
-
-static char s_filename_buf[256];
-static helix::Subject s_filename_subject;
-
-static char s_duration_buf[64];
-static helix::Subject s_duration_subject;
-
-static char s_estimate_buf[64];
-static helix::Subject s_estimate_subject;
-
-static char s_layers_buf[64];
-static helix::Subject s_layers_subject;
-
-static char s_filament_buf[64];
-static helix::Subject s_filament_subject;
-
-// Int subjects for visibility flags (1=visible, 0=hidden)
-static helix::Subject s_has_estimate_subject;
-static helix::Subject s_has_filament_subject;
-
-static void init_completion_subjects() {
-    s_subjects.ensure_init([] {
-        s_title_subject.init_string(s_title_buf, nullptr, sizeof(s_title_buf), "");
-        s_filename_subject.init_string(s_filename_buf, nullptr, sizeof(s_filename_buf), "");
-        s_duration_subject.init_string(s_duration_buf, nullptr, sizeof(s_duration_buf), "");
-        s_estimate_subject.init_string(s_estimate_buf, nullptr, sizeof(s_estimate_buf), "");
-        s_layers_subject.init_string(s_layers_buf, nullptr, sizeof(s_layers_buf), "");
-        s_filament_subject.init_string(s_filament_buf, nullptr, sizeof(s_filament_buf), "");
-        s_has_estimate_subject.init_int(1);
-        s_has_filament_subject.init_int(1);
-
-        s_subjects.publish("print_completion_title", &s_title_subject);
-        s_subjects.publish("print_completion_filename", &s_filename_subject);
-        s_subjects.publish("print_completion_duration", &s_duration_subject);
-        s_subjects.publish("print_completion_estimate", &s_estimate_subject);
-        s_subjects.publish("print_completion_layers", &s_layers_subject);
-        s_subjects.publish("print_completion_filament", &s_filament_subject);
-        s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
-        s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
-    });
 }
 
 // Helper to cleanup the staged G-code copy after a print ends
@@ -180,143 +122,6 @@ PreparingExitAction decide_preparing_exit_action(PreparingExit reason) {
     return action;
 }
 
-CompletionStats build_completion_stats(int duration_secs, int estimated_secs, int total_layers,
-                                       int filament_mm) {
-    CompletionStats out;
-    out.duration = format::duration_padded(duration_secs) + " " + lv_tr("elapsed");
-    if (estimated_secs > 0) {
-        out.estimate = std::string("est") + " " + format::duration_padded(estimated_secs);
-    }
-    out.layers =
-        ui::format_layer_count(total_layers > 0 ? static_cast<uint32_t>(total_layers) : 0U);
-    if (filament_mm > 0) {
-        out.filament =
-            format::format_filament_length(static_cast<double>(filament_mm)) + " " + lv_tr("used");
-    }
-    return out;
-}
-
-// The completion modal currently on screen, if any. Only one can be up: all
-// three outcomes share print_completion_modal and it is shown from one place,
-// so a single handle is enough where the fault registry needs a vector. A
-// handle, not a pointer: it reads nullptr once the dialog dies by any route
-// (the user's OK, a backdrop tap, ESC, our own dismissal, teardown), and a
-// freed address can be reused by a later allocation, so a stale pointer could
-// name an unrelated live widget and we would "dismiss" that instead.
-static helix::ui::WidgetRef s_completion_modal;
-
-// A completion modal is a statement about the job that just ended. Starting
-// another job makes that statement false, so the dialog has outlived its
-// condition and belongs off the screen — the user should not have to dismiss
-// the last print's result to watch the next one begin.
-static void dismiss_completion_modal_for_new_print() {
-    lv_obj_t* dialog = s_completion_modal;
-    if (!dialog) {
-        return;
-    }
-    auto& stack = ::ModalStack::instance();
-    lv_obj_t* backdrop = stack.backdrop_for(dialog);
-    // No backdrop = already acknowledged and gone. Exiting = acknowledged a
-    // frame ago and still animating out. Neither needs dismissing again.
-    if (!backdrop || stack.is_exiting(backdrop)) {
-        return;
-    }
-    // External, not Programmatic: this is not the dialog's caller closing it.
-    ::Modal::hide(dialog, ::ModalCloseReason::External);
-    spdlog::info("[PrintComplete] New print started - dismissed stale completion modal");
-}
-
-static void show_rich_completion_modal(PrintJobState state, const char* filename) {
-    init_completion_subjects();
-
-    auto& printer_state = get_printer_state();
-
-    // Get print stats (wall-clock elapsed including prep time)
-    int duration_secs = lv_subject_get_int(printer_state.print_state().get_print_elapsed_subject());
-    int total_layers =
-        lv_subject_get_int(printer_state.print_state().get_print_layer_total_subject());
-    int estimated_secs = printer_state.print_state().get_estimated_print_time();
-    int filament_mm =
-        lv_subject_get_int(printer_state.print_state().get_print_filament_used_subject());
-
-    spdlog::info("[PrintComplete] Stats: duration={}s, estimated={}s, layers={}, filament={}mm",
-                 duration_secs, estimated_secs, total_layers, filament_mm);
-
-    // Determine icon and title based on state
-    const char* icon_src = "check_circle";
-    const char* icon_variant = "success";
-    const char* title = "Print Complete";
-
-    switch (state) {
-    case PrintJobState::COMPLETE:
-        icon_src = "check_circle";
-        icon_variant = "success";
-        title = "Print Complete";
-        break;
-    case PrintJobState::CANCELLED:
-        icon_src = "cancel";
-        icon_variant = "warning";
-        title = "Print Canceled";
-        break;
-    case PrintJobState::ERROR:
-        icon_src = "alert";
-        icon_variant = "error";
-        title = "Print Failed";
-        break;
-    default:
-        break;
-    }
-
-    // Set all subjects BEFORE showing modal so XML bindings resolve immediately
-    lv_subject_set_string(&s_title_subject, lv_tr(title));
-    lv_subject_set_string(&s_filename_subject, filename);
-
-    const CompletionStats stats =
-        build_completion_stats(duration_secs, estimated_secs, total_layers, filament_mm);
-
-    lv_subject_set_string(&s_duration_subject, stats.duration.c_str());
-    lv_subject_set_string(&s_layers_subject, stats.layers.c_str());
-
-    if (!stats.estimate.empty()) {
-        lv_subject_set_string(&s_estimate_subject, stats.estimate.c_str());
-    }
-    lv_subject_set_int(&s_has_estimate_subject, stats.estimate.empty() ? 0 : 1);
-
-    if (!stats.filament.empty()) {
-        lv_subject_set_string(&s_filament_subject, stats.filament.c_str());
-    }
-    lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
-
-    // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
-    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
-
-    if (!dialog) {
-        spdlog::error("[PrintComplete] Failed to create print_completion_modal");
-        return;
-    }
-
-    s_completion_modal = dialog;
-
-    // Icon src/variant must be set imperatively (no XML binding support for icon properties)
-    lv_obj_t* icon_widget = lv_obj_find_by_name(dialog, "status_icon");
-    if (icon_widget) {
-        helix::ui::icon::set_source(icon_widget, icon_src);
-        helix::ui::icon::set_variant(icon_widget, icon_variant);
-    }
-
-    // Celebrate successful prints with confetti (respects animations setting)
-    if (state == PrintJobState::COMPLETE &&
-        DisplaySettingsManager::instance().get_animations_enabled()) {
-        lv_obj_t* confetti = ui_confetti_create(lv_layer_top());
-        if (confetti) {
-            ui_confetti_burst(confetti, 100);
-            spdlog::debug("[PrintComplete] Confetti burst for successful print");
-        }
-    }
-
-    spdlog::info("[PrintComplete] Showing rich completion modal: {} ({})", title, filename);
-}
-
 // Callback for print state changes - triggers completion notifications
 static void on_print_state_changed_for_notification(lv_observer_t* observer,
                                                     lv_subject_t* subject) {
@@ -343,7 +148,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
     // Level, not edge, is deliberate: the handle is cleared on the dialog's
     // death, so once it has been taken down these calls are no-ops.
     if (started_new_job(lifecycle)) {
-        dismiss_completion_modal_for_new_print();
+        publish_ui_request({UiRequestKind::DismissPrintCompletion});
     }
 
     if (should_notify_print_ended(prev_lifecycle, lifecycle, outcome)) {
@@ -422,8 +227,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             }
         }
         if (plan.toast) {
-            ToastSeverity severity = (current == PrintJobState::COMPLETE) ? ToastSeverity::SUCCESS
-                                                                          : ToastSeverity::WARNING;
+            NoticeSeverity severity = (current == PrintJobState::COMPLETE)
+                                          ? NoticeSeverity::SUCCESS
+                                          : NoticeSeverity::WARNING;
             std::string message = std::string("Print ") +
                                   ((current == PrintJobState::COMPLETE) ? "complete" : "canceled") +
                                   ": " + display_name;
@@ -433,18 +239,18 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
             if (reason && *reason) {
                 message += std::string(" - ") + reason;
             }
-            ToastManager::instance().show(severity, message.c_str(), 5000);
+            publish_notice({severity, message, 5000});
         }
         if (plan.modal) {
-            show_rich_completion_modal(current, display_name.c_str());
+            UiRequest request{UiRequestKind::ShowPrintCompletion};
+            request.code = static_cast<int>(current);
+            request.text = display_name;
+            publish_ui_request(request);
         }
     }
 }
 
 ObserverGuard init_print_completion_observer() {
-    // Initialize subjects early so XML bindings are available when modal is shown
-    init_completion_subjects();
-
     spdlog::debug("[PrintComplete] Observer registered, awaiting first Moonraker update");
     return ObserverGuard(get_printer_state().print_state().get_print_lifecycle_subject(),
                          on_print_state_changed_for_notification, nullptr);

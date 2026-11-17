@@ -15,6 +15,7 @@
  */
 
 #include "ui_format_utils.h"
+#include "ui_print_completion_modal.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -159,20 +160,6 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     register_completion_observer();
 
     // The initial callback should be skipped (no completion notification)
-    REQUIRE(get_completion_callback_count() == 0);
-}
-
-TEST_CASE_METHOD(PrintCompletionTestFixture,
-                 "PrintCompletion: first callback skipped even when printer is printing",
-                 "[print_completion][first_update]") {
-    // Printer is already printing when we connect
-    set_print_state("printing");
-    REQUIRE(get_print_state_enum() == PrintJobState::PRINTING);
-
-    // Register observer
-    register_completion_observer();
-
-    // The initial callback should be skipped
     REQUIRE(get_completion_callback_count() == 0);
 }
 

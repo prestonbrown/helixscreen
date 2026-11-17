@@ -128,6 +128,7 @@ src/print/print_eta_estimator.cpp
 src/print/thumbnail_write_journal.cpp
 src/print/print_completion.cpp
 src/print/print_completion_alert.cpp
+src/ui/print/ui_print_completion_modal.cpp
 src/print/print_stop_reason.cpp
 src/print/print_file_data.cpp
 src/print/print_activity.cpp

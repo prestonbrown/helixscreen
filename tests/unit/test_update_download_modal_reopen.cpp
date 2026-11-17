@@ -171,7 +171,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update notification shows again after a bac
     settle();
     REQUIRE(ModalStack::instance().top_component_name().empty());
 
-    // The way the auto-check asks for it.
     helix::publish_ui_request({helix::UiRequestKind::ShowUpdateNotification});
     settle();
     CHECK(ModalStack::instance().top_component_name() == "update_notify_modal");
