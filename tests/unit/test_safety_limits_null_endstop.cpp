@@ -131,13 +131,3 @@ TEST_CASE_METHOD(SafetyLimitsFixture,
     CHECK(api_->get_safety_limits().max_temperature_celsius ==
           Catch::Approx(kProbeExtruderMaxTemp));
 }
-
-TEST_CASE_METHOD(SafetyLimitsFixture, "null position_endstop still reports success",
-                 "[safety_limits]") {
-    // Documents the trap that made the original bug invisible: the catch calls
-    // on_success() too, so a firing success callback never proved the parse
-    // completed. Kept so nobody mistakes success for correctness again — this
-    // one passes with or without the null-endstop handling, by design.
-    mock_client_.set_stepper_z_endstop_null(true);
-    CHECK(run_update());
-}

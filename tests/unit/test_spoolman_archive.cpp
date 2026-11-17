@@ -252,20 +252,32 @@ TEST_CASE("the spool menu prices a spool in the currency Spoolman reports", "[sp
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
     panel.init_subjects();
+    panel.register_callbacks();
     REQUIRE(panel.create(lv_screen_active()) != nullptr);
     SpoolInfo& spool = f.client.spoolman_mock().get_mock_spools()[0];
     spool.price = 24.5;
     panel.refresh_spools();
     helix::ui::UpdateQueue::instance().drain();
 
-    lv_obj_t* row = make_spool_row(spool.id);
-    SpoolmanPanelTestAccess::open_context_menu(panel, row);
+    // Tap the spool's own row in the list.
+    lv_obj_t* row = nullptr;
+    const auto find_row = [&](auto&& self, lv_obj_t* obj) -> void {
+        if (lv_obj_get_user_data(obj) == reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)))
+            row = obj;
+        for (uint32_t i = 0; !row && i < lv_obj_get_child_count(obj); ++i)
+            self(self, lv_obj_get_child(obj, static_cast<int32_t>(i)));
+    };
+    find_row(find_row, panel.get_panel());
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+
     lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
     REQUIRE(price != nullptr);
     // The mock Spoolman's currency is EUR.
     CHECK(std::string(lv_label_get_text(price)) == "Price: \xE2\x82\xAC"
                                                    "24.50");
-    SpoolmanPanelTestAccess::hide_context_menu(panel);
+    lv_obj_send_event(lv_obj_find_by_name(lv_screen_active(), "context_backdrop"), LV_EVENT_CLICKED,
+                      nullptr);
     f.process_lvgl(50);
-    lv_obj_delete(row);
+    CHECK(lv_obj_find_by_name(lv_screen_active(), "spool_price_label") == nullptr);
 }
