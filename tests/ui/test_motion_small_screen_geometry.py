@@ -79,10 +79,11 @@ def _open_motion(app: HelixApp) -> None:
     app.wait_for("nav_buttons_enabled", 1, timeout=30)
     app.navigate("controls")
     app.wait_idle()
-    app.click("btn_motion")
+    # Portrait has no Motion button: the Position card itself opens Motion.
+    app.click("card_position")
     app.wait_idle()
     assert "motion_panel" in app.current().get("overlays", []), (
-        "clicking btn_motion did not open the motion overlay")
+        "clicking the Position card did not open the motion overlay")
     app.freeze()
     app.set("gcode_position_x", _WIDE_XY)
     app.set("gcode_position_y", _WIDE_XY)
