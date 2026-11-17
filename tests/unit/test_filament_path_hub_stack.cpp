@@ -101,7 +101,7 @@ int segment_starting_at(const pg::FilamentPath& route, float y) {
 }
 
 float inlet_y(const HubCanvas& c) {
-    return (float)(c.data->path_cache.nozzle_y - c.data->theme.extruder_scale * 2);
+    return (float)path_toolhead_inlet(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale).y;
 }
 
 // The plan the canvas painted, rebuilt from its own state.

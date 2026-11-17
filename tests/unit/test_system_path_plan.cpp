@@ -12,9 +12,11 @@
 #include "../lvgl_test_fixture.h"
 #include "filament_path_test_helpers.h"
 #include "src/ui/filament/ui_system_path_plan.h"
+#include "toolhead_art.h"
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -105,7 +107,7 @@ TEST_CASE("Overview plan: each unit's route is continuous with a clamp band on i
 
     // The active route runs on, unbroken, to the nozzle top.
     const Route& active = plan.routes[0];
-    CHECK(near(seg_end(active.path.segs[active.path.count - 1]), 200, 326, 0.5f));
+    CHECK(near(seg_end(active.path.segs[active.path.count - 1]), 200, 315, 0.5f));
     for (int i = 0; i < active.path.count; i++) {
         CAPTURE(i);
         if (!active.style[i].painted)
@@ -160,6 +162,12 @@ TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
         const int32_t inlet_y =
             helix::ui::toolhead_inlet(d->toolhead_style, L.nozzle_y, d->extruder_scale).y;
         art_inlet_seen = art_inlet_seen || inlet_y != L.nozzle_y - 2 * d->extruder_scale;
+        // A drawn (non-art) glyph takes the line at its top edge, not inside its body.
+        if (!helix::ui::toolhead_art_for(d->toolhead_style)) {
+            CHECK(inlet_y ==
+                  helix::ui::toolhead_bounds(d->toolhead_style, 0, L.nozzle_y, d->extruder_scale)
+                      .top);
+        }
         const Route& active = plan_of(*d).routes[0];
         CHECK(seg_end(active.path.segs[active.path.count - 1]).y == (float)inlet_y);
     }
@@ -230,7 +238,7 @@ TEST_CASE("Overview plan: an idle system keeps an idle trunk with its toolhead b
     const Route& trunk = plan.routes[2];
     CHECK(contiguous(trunk.path));
     CHECK(near(seg_start(trunk.path.segs[0]), 200, 213, 0.5f));
-    CHECK(near(seg_end(trunk.path.segs[trunk.path.count - 1]), 200, 326, 0.5f));
+    CHECK(near(seg_end(trunk.path.segs[trunk.path.count - 1]), 200, 315, 0.5f));
     REQUIRE(plan.band_count == 3);
     CHECK(plan.bands[2].state == BandState::Empty);
     CHECK(on_route(trunk, plan.bands[2].at));
@@ -255,7 +263,7 @@ TEST_CASE("Overview plan: an active bypass joins the trunk at the merge",
     const pg::PathPoint merge = seg_end(trunk.path.segs[trunk.path.count - 1]);
     CHECK(on_route(bypass, merge));
     CHECK(near(merge, (float)L.center_x, merge.y));
-    CHECK(near(seg_end(bypass.path.segs[bypass.path.count - 1]), (float)L.center_x, 326, 0.5f));
+    CHECK(near(seg_end(bypass.path.segs[bypass.path.count - 1]), (float)L.center_x, 315, 0.5f));
     CHECK(bypass.style[bypass.path.count - 1].filled);
     CHECK(lv_color_eq(bypass.style[bypass.path.count - 1].bore, lv_color_hex(kOwl)));
 }
@@ -441,7 +449,7 @@ int hub_boxes(const OverviewBoxes& boxes) {
 }
 
 float nozzle_top_of(const SystemPathData& d, const SysLayout& L) {
-    return (float)(L.tools_y - small_tool_scale(d) * 2);
+    return (float)helix::ui::toolhead_inlet(d.toolhead_style, L.tools_y, small_tool_scale(d)).y;
 }
 
 // Some segment of @p r ends on the top edge of @p hub, inside its width.
@@ -547,7 +555,7 @@ TEST_CASE("Overview plan: a single route into a nozzle draws no hub box",
         REQUIRE(p->plan.active_route >= 0);
         const Route& r = p->plan.routes[p->plan.active_route];
         CHECK(contiguous(r.path));
-        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 326, 0.5f));
+        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 315, 0.5f));
         for (int k = 0; k < r.path.count; k++) {
             CAPTURE(k);
             CHECK(r.style[k].painted);
@@ -1222,9 +1230,13 @@ TEST_CASE("Overview plan: every labelled box on the mock rigs is tall enough for
             CHECK(L.hub_h >= d.label_line_h);
         }
         if (!L.multi_tool) {
+            // At micro the trunk from the hub down to the toolhead's top is too short for a
+            // labelled buffer box, so that one box goes bare.
             const TrunkBuffer b = trunk_buffer(d, L);
-            CHECK(b.labeled);
-            CHECK(b.h >= d.label_line_h);
+            const bool micro = std::string(rig.name).find("micro") != std::string::npos;
+            CHECK(b.labeled == !micro);
+            if (b.labeled)
+                CHECK(b.h >= d.label_line_h);
         }
     }
 }
