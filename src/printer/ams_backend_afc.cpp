@@ -3720,8 +3720,10 @@ void AmsBackendAfc::refresh_all_unit_topologies() {
         if (unit.lanes.empty())
             continue;
         const PathTopology before = unit.topology;
+        const std::vector<bool> routed_before = unit.lane_is_hub_routed;
         derive_unit_topology(unit);
-        topology_changed = topology_changed || unit.topology != before;
+        topology_changed =
+            topology_changed || unit.topology != before || unit.lane_is_hub_routed != routed_before;
     }
     if (topology_changed)
         rebuild_unit_map_when_complete();

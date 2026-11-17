@@ -46,7 +46,11 @@ bool firmware_restart_unrecoverable(const MoonrakerError& err) {
 /// Moonraker gave is a refusal, such as "not allowed" from a Moonraker with no
 /// service manager, and every step of the chain has now been tried.
 MoonrakerError service_restart_failure(const MoonrakerError& err) {
-    if (err.type == MoonrakerErrorType::CONNECTION_LOST || err.type == MoonrakerErrorType::TIMEOUT)
+    // Only Moonraker's own answer means this printer cannot restart the service.
+    // A lost connection or timeout may be the restart itself, and a full queue
+    // never reached Moonraker; those keep their own error.
+    if (err.type != MoonrakerErrorType::JSON_RPC_ERROR &&
+        err.type != MoonrakerErrorType::PERMISSION_DENIED)
         return err;
     return MoonrakerError::refusal(
         "machine.services.restart",

@@ -2381,7 +2381,7 @@ TEST_CASE("DebugBundleCollector: kernel_log keeps kill and crash lines only", "[
     CHECK(section["lines"][3].get<std::string>().find("segfault") != std::string::npos);
 }
 
-TEST_CASE("DebugBundleCollector: kernel_log recognises each kill and fault spelling",
+TEST_CASE("DebugBundleCollector: kernel_log recognizes each kill and fault spelling",
           "[debug-bundle]") {
     using helix::DebugBundleCollector;
     CHECK(
