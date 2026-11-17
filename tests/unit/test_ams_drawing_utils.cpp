@@ -6,6 +6,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -242,48 +243,44 @@ TEST_CASE("ams_draw::calc_bar_width handles zero slots", "[ams_draw][bar_width]"
 // Display name tests
 // ============================================================================
 
-TEST_CASE("ams_draw::get_unit_display_name uses name when set", "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name uses name when set", "[ams_draw][display_name]") {
     AmsUnit unit;
     unit.name = "Box Turtle 1";
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "Box Turtle 1");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "Box Turtle 1");
 }
 
-TEST_CASE("ams_draw::get_unit_display_name falls back to Unit N", "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name falls back to Unit N", "[ams_draw][display_name]") {
     AmsUnit unit;
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "Unit 1");
-    REQUIRE(ams_draw::get_unit_display_name(unit, 2) == "Unit 3");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "Unit 1");
+    REQUIRE(helix::ui::unit_display_name(unit, 2) == "Unit 3");
 }
 
-TEST_CASE("ams_draw::get_unit_display_name prefers display_name over name",
-          "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name prefers display_name over name", "[ams_draw][display_name]") {
     AmsUnit unit;
     unit.name = "Box_Turtle Turtle_1";
     unit.display_name = "Turtle_1";
     // display_name is used, and underscores are replaced with spaces
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "Turtle 1");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "Turtle 1");
 }
 
-TEST_CASE("ams_draw::get_unit_display_name replaces underscores with spaces",
-          "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name replaces underscores with spaces", "[ams_draw][display_name]") {
     AmsUnit unit;
     unit.name = "Box_Turtle Turtle_1";
     // No display_name set — falls back to name with underscores replaced
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "Box Turtle Turtle 1");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "Box Turtle Turtle 1");
 }
 
-TEST_CASE("ams_draw::get_unit_display_name leaves clean names unchanged",
-          "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name leaves clean names unchanged", "[ams_draw][display_name]") {
     AmsUnit unit;
     unit.name = "Happy Hare MMU";
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "Happy Hare MMU");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "Happy Hare MMU");
 }
 
-TEST_CASE("ams_draw::get_unit_display_name with display_name no underscores",
-          "[ams_draw][display_name]") {
+TEST_CASE("unit_display_name with display_name no underscores", "[ams_draw][display_name]") {
     AmsUnit unit;
     unit.name = "internal_key";
     unit.display_name = "My Unit";
-    REQUIRE(ams_draw::get_unit_display_name(unit, 0) == "My Unit");
+    REQUIRE(helix::ui::unit_display_name(unit, 0) == "My Unit");
 }
 
 // ============================================================================

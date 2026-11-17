@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
- * @file ui_subject_registry.h
+ * @file subject_registry.h
  * @brief Helper macros and functions for LVGL subject registration
  *
  * This header provides convenience macros to reduce boilerplate when declaring,

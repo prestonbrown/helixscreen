@@ -1,10 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_coalesced_timer.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
+#include "core/coalesced_timer.h"
 
 #include <memory>
 

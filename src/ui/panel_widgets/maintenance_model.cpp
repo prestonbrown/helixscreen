@@ -7,7 +7,6 @@
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_panel_notification_history.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -29,6 +28,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "translation_loader.h"
 #include "wall_clock_trust.h"
 #include "widget_subjects.h"

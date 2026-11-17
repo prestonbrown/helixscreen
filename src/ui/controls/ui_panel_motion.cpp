@@ -12,7 +12,6 @@
 #include "ui_panel_common.h"
 #include "ui_panel_controls.h"
 #include "ui_settings_motion.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -32,6 +31,7 @@
 #include "sort_small.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "tile_grid_fit.h"
 #include "toolhead_homing.h"

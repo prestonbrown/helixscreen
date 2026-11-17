@@ -32,6 +32,7 @@
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
+#include "gcode_preview_cache.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
@@ -718,7 +719,7 @@ std::string PrintSelectDetailView::canonical_gcode_path() const {
     // Keyed on the FULL relative path (not just the filename) so same-name files
     // in different directories never collide on one temp file.
     return get_helix_cache_dir("gcode_temp") + "/" +
-           helix::ui::GcodePreviewFetcher::cache_file_name("detail_", current_file_key());
+           helix::gcode::preview_cache_file_name("detail_", current_file_key());
 }
 
 void PrintSelectDetailView::resolve_local_gcodes_root() {

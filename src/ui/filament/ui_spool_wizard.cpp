@@ -10,7 +10,6 @@
 #include "ui_panel_common.h"
 #include "ui_row_text.h"
 #include "ui_search_debounce.h"
-#include "ui_subject_registry.h"
 #include "ui_swatch.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
@@ -27,6 +26,7 @@
 #include "filament_display_name.h"
 #include "filament_variants.h"
 #include "i_moonraker_api.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

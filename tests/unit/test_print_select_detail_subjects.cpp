@@ -22,7 +22,6 @@
 #include "ui_modal.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_subject_registry.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -31,6 +30,7 @@
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
+#include "system/subject_registry.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif

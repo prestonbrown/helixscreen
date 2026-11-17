@@ -40,12 +40,12 @@
  *   ui_filament_path_layers.cpp   canvas buffer management + async refresh
  */
 
-#include "ui_coalesced_timer.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toolhead_badge.h"
 #include "ui_toolhead_view.h"
 
 #include "ams_types.h"
+#include "core/coalesced_timer.h"
 #include "filament_motion.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"

@@ -48,6 +48,7 @@
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "gcode_ops_detector.h"
+#include "gcode_preview_cache.h"
 #include "gcode_preview_fetcher.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "macro_param_cache.h"
@@ -152,7 +153,7 @@ class DetailDownloadFixture : public LVGLUITestFixture {
     /// PrintSelectDetailView::canonical_gcode_path() names it.
     std::filesystem::path canonical_path_for(const std::string& key) const {
         return std::filesystem::path(::getenv("HELIX_CACHE_DIR")) / "gcode_temp" /
-               helix::ui::GcodePreviewFetcher::cache_file_name("detail_", key);
+               helix::gcode::preview_cache_file_name("detail_", key);
     }
 
     bool ready() const {

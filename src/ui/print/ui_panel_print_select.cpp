@@ -25,7 +25,6 @@
 #include "ui_print_select_file_sorter.h"
 #include "ui_print_select_history.h"
 #include "ui_print_select_path_navigator.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -69,6 +68,7 @@
 #include "queued_job_start.h"
 #include "runtime_config.h"
 #include "storage_report_service.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "try_reserve.h"

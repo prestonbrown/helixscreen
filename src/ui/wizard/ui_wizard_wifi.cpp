@@ -8,7 +8,6 @@
 #include "ui_icon.h"
 #include "ui_keyboard_manager.h"
 #include "ui_modal.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "config.h"
@@ -19,6 +18,7 @@
 #include "ethernet_manager.h"
 #include "lvgl/lvgl.h"
 #include "system/crash_handler.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_coalesced_timer.h"
+#include "core/coalesced_timer.h"
 
 #include "core/timer_guard.h"
 

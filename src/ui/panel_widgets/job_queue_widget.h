@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
-
 #include "async_lifetime_guard.h"
+#include "core/coalesced_timer.h"
 #include "core/observer_guard.h"
 #include "job_queue_tile_state.h"
 #include "panel_widget.h"

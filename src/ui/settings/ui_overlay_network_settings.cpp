@@ -10,7 +10,6 @@
 #include "ui_nav.h"
 #include "ui_overlay_ipv4_settings.h"
 #include "ui_step_progress.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -23,6 +22,7 @@
 #include "network_tester.h"
 #include "settings_root_status.h"
 #include "sort_small.h"
+#include "system/subject_registry.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_country.h"

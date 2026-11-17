@@ -9,12 +9,11 @@
  * mapping subject pointers to metadata (name, type, file, line).
  */
 
-#include "ui_subject_registry.h"
-
 #include "../lvgl_test_fixture.h"
 #include "core/subject.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 
 #include "../catch_amalgamated.hpp"
 

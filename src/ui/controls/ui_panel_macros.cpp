@@ -9,7 +9,6 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 #include "ui_virtual_list.h"
 
@@ -32,6 +31,7 @@
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>

@@ -22,6 +22,7 @@
 #include "ams_types.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "display_numbering.h"
 #include "lvgl.h"
 #include "settings_manager.h"
 #include "sort_small.h"
@@ -312,7 +313,7 @@ std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info) {
         if (unit.absent) {
             continue;
         }
-        const std::string name = ams_draw::get_unit_display_name(unit, static_cast<int>(i));
+        const std::string name = helix::ui::unit_display_name(unit, static_cast<int>(i));
         if (!unit.firmware_version.empty()) {
             rows.push_back(
                 {fmt::format(fmt::runtime(lv_tr("{} firmware")), name), unit.firmware_version});

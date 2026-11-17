@@ -11,7 +11,7 @@
 #include "filament_chip_model.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
-#include "gcode_preview_fetcher.h"
+#include "gcode_preview_cache.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
@@ -565,7 +565,7 @@ void FileStartFactsLoader::download_to_temp(
         return;
     }
     const std::string path = dir + "/" +
-                             ui::GcodePreviewFetcher::cache_file_name(
+                             helix::gcode::preview_cache_file_name(
                                  "start_", file_key + "#" + std::to_string(generation));
     api_->transfers().download_file_to_path(
         "gcodes", file_key, path, [done, path](const std::string&) { done(true, path); },

@@ -9,7 +9,6 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
 
@@ -24,6 +23,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_state.h"
+#include "system/subject_registry.h"
 #include "temp_graph_controller.h"
 #include "temperature_controller.h"
 #include "temperature_history_manager.h"

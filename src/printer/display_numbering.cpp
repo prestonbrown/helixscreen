@@ -9,6 +9,7 @@
 
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
 #include <atomic>
 
 namespace helix::ui {
@@ -288,6 +289,22 @@ bool tool_badges_add_information(const std::vector<int>& tool_to_slot, int slot_
             return true;
     }
     return false;
+}
+
+std::string unit_display_name(const helix::AmsUnit& unit, int unit_index) {
+    // Prefer display_name (short, pretty) over internal name
+    std::string raw;
+    if (!unit.display_name.empty()) {
+        raw = unit.display_name;
+    } else if (!unit.name.empty()) {
+        raw = unit.name;
+    } else {
+        return "Unit " + std::to_string(display_ordinal(unit_index));
+    }
+
+    // Replace underscores with spaces for readability
+    std::replace(raw.begin(), raw.end(), '_', ' ');
+    return raw;
 }
 
 } // namespace helix::ui

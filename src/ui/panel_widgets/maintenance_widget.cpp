@@ -5,7 +5,6 @@
 
 #include "ui_event_safety.h"
 #include "ui_maintenance_overlay.h"
-#include "ui_subject_registry.h"
 
 #include "core/observer_factory.h"
 #include "core/subject.h"
@@ -17,6 +16,7 @@
 #include "src/ui/panel_widgets/live_tile_owner.h"
 #include "src/ui/panel_widgets/maintenance_model.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"

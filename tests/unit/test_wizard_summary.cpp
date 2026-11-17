@@ -14,12 +14,12 @@
  * On some platforms this corrupted the data, causing blank summary screens.
  */
 
-#include "ui_subject_registry.h"
 #include "ui_wizard_summary.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
 #include "core/subject.h"
+#include "system/subject_registry.h"
 
 #include <cstring>
 #include <string>

@@ -33,8 +33,7 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
-
+#include "core/coalesced_timer.h"
 #include "lvgl/lvgl.h"
 
 #include <vector>

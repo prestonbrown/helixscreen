@@ -10,7 +10,6 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_panel_bed_mesh.h"
-#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "bed_mesh_calibration_plan.h"
@@ -34,6 +33,7 @@
 #include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "toolhead_homing.h"

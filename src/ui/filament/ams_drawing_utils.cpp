@@ -98,22 +98,6 @@ int32_t calc_bar_width(int32_t container_width, int slot_count, int32_t gap, int
 // Presentation Helpers
 // ============================================================================
 
-std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
-    // Prefer display_name (short, pretty) over internal name
-    std::string raw;
-    if (!unit.display_name.empty()) {
-        raw = unit.display_name;
-    } else if (!unit.name.empty()) {
-        raw = unit.name;
-    } else {
-        return "Unit " + std::to_string(helix::ui::display_ordinal(unit_index));
-    }
-
-    // Replace underscores with spaces for readability
-    std::replace(raw.begin(), raw.end(), '_', ' ');
-    return raw;
-}
-
 // ============================================================================
 // LVGL Widget Factories
 // ============================================================================
@@ -915,7 +899,7 @@ std::string upstream_lane_caption(const helix::AmsSystemInfo& info,
         if (*upstream >= unit.first_slot_global_index &&
             *upstream < unit.first_slot_global_index + unit.slot_count) {
             const int local = *upstream - unit.first_slot_global_index;
-            return unit_scoped_label(ams_draw::get_unit_display_name(unit, static_cast<int>(u)),
+            return unit_scoped_label(unit_display_name(unit, static_cast<int>(u)),
                                      lane_number_text(local));
         }
     }

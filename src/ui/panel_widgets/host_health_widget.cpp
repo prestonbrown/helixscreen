@@ -8,7 +8,6 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_settings_system.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -25,6 +24,7 @@
 #include "src/ui/panel_widgets/live_tile_owner.h"
 #include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "value_status.h"

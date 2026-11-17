@@ -4,7 +4,6 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
 
@@ -23,6 +22,7 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "tool_state.h"

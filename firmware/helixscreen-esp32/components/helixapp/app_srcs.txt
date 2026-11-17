@@ -113,6 +113,7 @@ src/ui/plugin/ui_plugin_menu_rows.cpp
 src/ui/plugin/ui_plugin_items_menu.cpp
 src/print/active_print_media_manager.cpp
 src/print/crc32.cpp
+src/print/gcode_preview_cache.cpp
 src/print/filament_sensor_manager.cpp
 src/print/firmware_3mf_extract.cpp
 src/print/preprint_predictor.cpp
@@ -548,7 +549,7 @@ src/ui/calibration/touch_calibration_session.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/tour/tour_overlay.cpp
 src/ui/tour/tour_steps.cpp
-src/ui/print/tune_controller.cpp
+src/print/tune_controller.cpp
 src/ui/filament/ui_ams_context_menu.cpp
 src/ui/filament/ui_ams_current_tool.cpp
 src/ui/filament/ui_ams_device_operations_overlay.cpp
@@ -781,7 +782,7 @@ src/ui/components/ui_status_pill.cpp
 src/ui/components/ui_step_progress.cpp
 src/api/subscription_guard.cpp
 src/ui/components/ui_search_debounce.cpp
-src/ui/ui_coalesced_timer.cpp
+src/core/coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
 src/ui/components/ui_switch.cpp
 src/ui/filament/ui_system_path_canvas.cpp

@@ -7,7 +7,6 @@
 #include "ui_nav.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_update_notify_modal.h"
 #include "ui_utils.h"
 
@@ -17,6 +16,7 @@
 #include "display_format.h"
 #include "lvgl.h"
 #include "printer_state.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>

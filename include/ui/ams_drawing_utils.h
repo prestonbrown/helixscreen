@@ -98,9 +98,6 @@ int32_t calc_bar_width(int32_t container_width, int slot_count, int32_t gap, int
 // Presentation Helpers
 // ============================================================================
 
-/** Get display name for a unit (uses unit.name, falls back to "Unit N") */
-std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index);
-
 // ============================================================================
 // LVGL Widget Factories
 // ============================================================================

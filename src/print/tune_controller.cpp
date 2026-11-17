@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tune_controller.h"
 
-#include "ui_error_reporting.h"
-
 #include "filament_database.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "pa_tuning.h"
 #include "spdlog/spdlog.h"
+#include "system/notify_tr.h"
 
 #include <algorithm>
 #include <cstdio>

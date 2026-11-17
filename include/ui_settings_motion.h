@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
 #include "ui_panel_motion.h"
 
+#include "core/coalesced_timer.h"
 #include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"

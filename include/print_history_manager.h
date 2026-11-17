@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
-
 #include "async_lifetime_guard.h"
+#include "core/coalesced_timer.h"
 #include "core/observer_guard.h"
 #include "helix_callback.h"
 #include "print_history_data.h"
