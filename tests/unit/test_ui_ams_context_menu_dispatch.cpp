@@ -32,6 +32,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -532,12 +533,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     SECTION("the empty gate, idle") {
         helix::ui::AmsContextMenu menu;
+        std::optional<MenuAction> fired;
+        menu.set_action_callback([&](MenuAction action, int /*slot*/) { fired = action; });
         REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
         CHECK(lv_subject_get_int(mark) == 2);
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_mark_available");
         REQUIRE(btn != nullptr);
         CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(fired == std::optional<MenuAction>(MenuAction::MARK_AVAILABLE));
     }
 
     SECTION("the empty gate, paused") {

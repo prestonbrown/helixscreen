@@ -20,11 +20,14 @@
  * seeding anything, and each section then writes the values it asserts against.
  */
 
+#include "ui_settings_safety.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "u1_stock_detection_source.h"
 
@@ -237,4 +240,45 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
     lv_subject_set_int(bed_available, 0);
     lv_subject_set_int(bed_enabled, 1);
     lv_subject_set_int(m.subject_bed_check_switchable(), 1);
+}
+
+TEST_CASE_METHOD(DetectionRowsFixture, "Safety rows write the motors-off and power settings",
+                 "[settings][safety][binding]") {
+    helix::settings::get_safety_settings_overlay().register_callbacks();
+    auto& safety = helix::SafetySettingsManager::instance();
+    const bool saved_motors = safety.get_motors_off_require_confirmation();
+    const bool saved_power = safety.get_power_require_confirmation();
+    const helix::PowerTarget saved_target = safety.get_power_target();
+    build();
+    auto inner = [this](const char* row, const char* widget) {
+        lv_obj_t* r = lv_obj_find_by_name(root_, row);
+        REQUIRE(r != nullptr);
+        lv_obj_t* w = lv_obj_find_by_name(r, widget);
+        REQUIRE(w != nullptr);
+        return w;
+    };
+    auto flip = [](lv_obj_t* toggle, bool on) {
+        if (on) {
+            lv_obj_add_state(toggle, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(toggle, LV_STATE_CHECKED);
+        }
+        lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    };
+
+    for (bool on : {false, true}) {
+        CAPTURE(on);
+        flip(inner("row_motors_off_confirm", "toggle"), on);
+        CHECK(safety.get_motors_off_require_confirmation() == on);
+        flip(inner("row_power_confirm", "toggle"), on);
+        CHECK(safety.get_power_require_confirmation() == on);
+    }
+    lv_obj_t* target = inner("row_power_target", "dropdown");
+    lv_dropdown_set_selected(target, 2);
+    lv_obj_send_event(target, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(safety.get_power_target() == helix::PowerTarget::Screen);
+
+    safety.set_motors_off_require_confirmation(saved_motors);
+    safety.set_power_require_confirmation(saved_power);
+    safety.set_power_target(saved_target);
 }

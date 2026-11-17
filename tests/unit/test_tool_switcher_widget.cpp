@@ -1127,10 +1127,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[tool_switcher][band]") {
     ToolChangerRig rig(3);
     // A machine whose heads dock, against a shared toolhead whose filament
-    // system errors: only the first has heads that can be out of place.
+    // system errors: only the first has heads that can be out of place, and
+    // only when the error is the carriage's rather than a lane's.
     const bool docked_heads = GENERATE(true, false);
-    CAPTURE(docked_heads);
+    const bool lane_fault = GENERATE(false, true);
+    CAPTURE(docked_heads, lane_fault);
     rig.backend->set_tool_changer_mode(docked_heads);
+    rig.backend->lane_fault_only = lane_fault;
     REQUIRE(rig.backend->carriage_can_be_empty() == docked_heads);
     PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
     process_lvgl(30);
@@ -1147,7 +1150,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(AmsState::instance().get_ams_action_subject(),
                        static_cast<int>(AmsAction::ERROR));
     process_lvgl(30);
-    const S others = docked_heads ? S::Fault : S::Idle;
+    const bool marked = docked_heads && !lane_fault;
+    const S others = marked ? S::Fault : S::Idle;
     CHECK(state_of(0) == static_cast<int>(S::Mounted));
     CHECK(state_of(1) == static_cast<int>(others));
     CHECK(state_of(2) == static_cast<int>(others));
@@ -1159,8 +1163,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const uint32_t danger = lv_color_to_u32(theme_manager_get_color("danger"));
     const bool red = lv_obj_get_style_bg_opa(area, LV_PART_MAIN) == LV_OPA_COVER &&
                      lv_color_to_u32(lv_obj_get_style_bg_color(area, LV_PART_MAIN)) == danger;
-    CHECK(red == docked_heads);
-    if (docked_heads) {
+    CHECK(red == marked);
+    if (marked) {
         CHECK(lv_obj_get_style_border_width(area, LV_PART_MAIN) == 2);
         CHECK(lv_obj_get_style_border_side(area, LV_PART_MAIN) == LV_BORDER_SIDE_BOTTOM);
         CHECK(lv_color_to_u32(lv_obj_get_style_border_color(area, LV_PART_MAIN)) ==

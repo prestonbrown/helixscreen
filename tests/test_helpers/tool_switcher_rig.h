@@ -73,6 +73,12 @@ class GateBackend : public AmsBackendMock, public IFeederControl {
     /// The action get_system_info() reports in place of the mock's own; IDLE
     /// leaves the mock's.
     AmsAction report_action = AmsAction::IDLE;
+    /// The ERROR is a lane's, not the carriage's, on a machine whose heads dock.
+    bool lane_fault_only = false;
+
+    bool fault_concerns_carriage() const override {
+        return !lane_fault_only && AmsBackendMock::fault_concerns_carriage();
+    }
 
     AmsSystemInfo get_system_info() const override {
         AmsSystemInfo info = AmsBackendMock::get_system_info();

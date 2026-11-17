@@ -99,10 +99,23 @@ TEST_CASE_METHOD(SafetyLimitsFixture, "numeric position_endstop parses the tempe
     // loop, so this passes even with a null-endstop bug. It exists to prove the assertion
     // below is measuring the null case specifically and not a broken harness.
     mock_client_.set_stepper_z_endstop_null(false);
+    // A probe printer whose discovery saw no Z switch: the probe is the reference
+    // until this read finds a numeric position_endstop.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"gcode_move", "toolhead", "probe"}));
+    hw.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", "corexy"}}}});
+    state_.set_hardware(hw);
+    state_.set_printer_type_sync("Unknown Printer");
+    REQUIRE(state_.profile_state().z_offset_calibration_strategy() ==
+            ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
     REQUIRE(run_update());
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK(api_->get_safety_limits().max_temperature_celsius ==
           Catch::Approx(kProbeExtruderMaxTemp));
+    // The Z switch saves the offset, not the probe.
+    CHECK(state_.profile_state().z_offset_calibration_strategy() ==
+          ZOffsetCalibrationStrategy::ENDSTOP);
 }
 
 TEST_CASE_METHOD(SafetyLimitsFixture,
