@@ -209,7 +209,10 @@ void NavigationManager::clear_overlay_stack() {
         spdlog::trace("[NavigationManager] Cleared overlay {} from stack", (void*)overlay);
     }
 
-    overlay_geometry_.clear();
+    // overlay_geometry_ is kept: a cached overlay still carries the cap's
+    // padding, so its recorded base is the only true one, and a fresh read on
+    // its next push would add the overflow twice. Entries go with their widget
+    // (scrub_deleted_widget).
     overlay_width_unmanaged_.clear();
 
     backdrop_.release_primary();

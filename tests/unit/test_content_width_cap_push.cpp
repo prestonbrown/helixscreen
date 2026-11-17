@@ -16,9 +16,11 @@
 
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
+#include "connection_state.h"
 #include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -204,6 +206,42 @@ TEST_CASE_METHOD(UltrawideFixture, "Chrome spans the view while the content betw
     resize(kTestDisplayWidth, kTestDisplayHeight);
     CHECK(lv_obj_get_width(header) == lv_obj_get_width(content));
     CHECK(lv_obj_get_width(footer) == lv_obj_get_width(content));
+}
+
+TEST_CASE_METHOD(UltrawideFixture, "A cached overlay reopened after the stack is cleared caps once",
+                 "[content-cap][overlay]") {
+    FakeOverlay lifecycle(/*full_width=*/false);
+    lv_obj_t* w = push(lifecycle, /*with_chrome=*/true);
+    lv_obj_t* header = lv_obj_get_child(w, 0);
+    const int32_t pad_right = lv_obj_get_style_pad_right(w, LV_PART_MAIN);
+    const int32_t header_width = lv_obj_get_width(header);
+    REQUIRE(pad_right > kBasePadRight);
+
+    // Connection loss on Controls clears the stack; the cached widget is
+    // pushed again. wire_events() installs the connection observer.
+    auto& nav = NavigationManager::instance();
+    get_printer_state().init_subjects(false);
+    nav.wire_events(lv_obj_create(lv_screen_active()));
+    lv_subject_t* conn = get_printer_state().network_state().get_printer_connection_state_subject();
+    REQUIRE(conn != nullptr);
+    for (auto state : {ConnectionState::DISCONNECTED, ConnectionState::CONNECTED}) {
+        lv_subject_set_int(conn, static_cast<int>(state));
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    nav.set_active(PanelId::Controls);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Controls);
+    lv_subject_set_int(conn, static_cast<int>(ConnectionState::DISCONNECTED));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(lv_obj_is_hidden(w));
+    nav.register_overlay_instance(w, &lifecycle);
+    nav.push_overlay(w);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(w);
+
+    CHECK(lv_obj_get_style_pad_right(w, LV_PART_MAIN) == pad_right);
+    CHECK(lv_obj_get_width(header) == header_width);
+    get_printer_state().deinit_subjects();
 }
 
 TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
