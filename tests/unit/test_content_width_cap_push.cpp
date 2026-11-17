@@ -11,6 +11,7 @@
  * view class, and undoing the cap when the screen stops being ultrawide.
  */
 
+#include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 #include "ui_update_queue.h"
@@ -144,6 +145,35 @@ class UltrawideFixture : public LVGLTestFixture {
         return w;
     }
 
+    /// Connection loss on Controls clears the overlay stack, as in the app;
+    /// then the cached @p w is pushed again. wire_events() installs the
+    /// connection observer, which needs the printer-state subjects.
+    static void lose_connection_and_repush(lv_obj_t* w, IPanelLifecycle& lifecycle) {
+        auto& nav = NavigationManager::instance();
+        auto& queue = helix::ui::UpdateQueue::instance();
+        get_printer_state().init_subjects(false);
+        nav.wire_events(lv_obj_create(lv_screen_active()));
+        lv_subject_t* conn =
+            get_printer_state().network_state().get_printer_connection_state_subject();
+        REQUIRE(conn != nullptr);
+        for (auto state : {ConnectionState::DISCONNECTED, ConnectionState::CONNECTED}) {
+            lv_subject_set_int(conn, static_cast<int>(state));
+            queue.drain();
+        }
+        nav.set_active(PanelId::Controls);
+        queue.drain();
+        REQUIRE(nav.get_active() == PanelId::Controls);
+        lv_subject_set_int(conn, static_cast<int>(ConnectionState::DISCONNECTED));
+        queue.drain();
+        REQUIRE(lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN));
+
+        nav.register_overlay_instance(w, &lifecycle);
+        nav.push_overlay(w);
+        queue.drain();
+        lv_obj_update_layout(w);
+        get_printer_state().deinit_subjects();
+    }
+
     static int32_t read_const(const char* name) {
         const char* s = lv_xml_get_const(nullptr, name);
         REQUIRE(s != nullptr);
@@ -217,31 +247,30 @@ TEST_CASE_METHOD(UltrawideFixture, "A cached overlay reopened after the stack is
     const int32_t header_width = lv_obj_get_width(header);
     REQUIRE(pad_right > kBasePadRight);
 
-    // Connection loss on Controls clears the stack; the cached widget is
-    // pushed again. wire_events() installs the connection observer.
-    auto& nav = NavigationManager::instance();
-    get_printer_state().init_subjects(false);
-    nav.wire_events(lv_obj_create(lv_screen_active()));
-    lv_subject_t* conn = get_printer_state().network_state().get_printer_connection_state_subject();
-    REQUIRE(conn != nullptr);
-    for (auto state : {ConnectionState::DISCONNECTED, ConnectionState::CONNECTED}) {
-        lv_subject_set_int(conn, static_cast<int>(state));
-        helix::ui::UpdateQueue::instance().drain();
-    }
-    nav.set_active(PanelId::Controls);
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(nav.get_active() == PanelId::Controls);
-    lv_subject_set_int(conn, static_cast<int>(ConnectionState::DISCONNECTED));
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN));
-    nav.register_overlay_instance(w, &lifecycle);
-    nav.push_overlay(w);
-    helix::ui::UpdateQueue::instance().drain();
-    lv_obj_update_layout(w);
+    lose_connection_and_repush(w, lifecycle);
 
     CHECK(lv_obj_get_style_pad_right(w, LV_PART_MAIN) == pad_right);
     CHECK(lv_obj_get_width(header) == header_width);
-    get_printer_state().deinit_subjects();
+}
+
+TEST_CASE_METHOD(UltrawideFixture,
+                 "An overlay marked unmanaged once stays unmanaged after a stack clear",
+                 "[content-cap][overlay]") {
+    // Marked once at creation, as the printer image tagger does.
+    FakeOverlay lifecycle(/*full_width=*/false);
+    lv_obj_t* w = lv_obj_create(lv_screen_active());
+    lv_obj_set_width(w, 500);
+    helix::nav::set_overlay_width_unmanaged(w);
+    auto& nav = NavigationManager::instance();
+    nav.register_overlay_instance(w, &lifecycle);
+    nav.push_overlay(w);
+    helix::ui::UpdateQueue::instance().drain();
+    const int32_t pad_right = lv_obj_get_style_pad_right(w, LV_PART_MAIN);
+
+    lose_connection_and_repush(w, lifecycle);
+
+    CHECK(lv_obj_get_width(w) == 500);
+    CHECK(lv_obj_get_style_pad_right(w, LV_PART_MAIN) == pad_right);
 }
 
 TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
