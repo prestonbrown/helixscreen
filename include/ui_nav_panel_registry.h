@@ -64,6 +64,11 @@ class PanelRegistry {
     /// against re-entrancy.
     void ensure_built(int idx);
 
+    /// Cap every panel's width at content_max_width again, after the screen
+    /// size changed. A panel whose instance opts out
+    /// (IPanelLifecycle::uses_full_content_width()) is never capped.
+    void reapply_content_caps();
+
     /// Forget every instance; the widgets are left to their owners.
     void clear_instances();
 
@@ -71,6 +76,11 @@ class PanelRegistry {
     void reset();
 
   private:
+    /// Cap slot @p idx's widget unless its instance opts out. A slot with no
+    /// instance yet is left alone: whether it opts out is not known until the
+    /// instance registers, which caps it then.
+    void apply_content_cap(int idx);
+
     WidgetRef widgets_[kCount];
     std::array<PanelBase*, kCount> instances_ = {};
     std::function<void(int)> deferred_builder_;

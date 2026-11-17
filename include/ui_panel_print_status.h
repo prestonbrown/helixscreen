@@ -106,6 +106,11 @@ class PrintStatusPanel : public OverlayBase {
         return "Print Status";
     }
 
+    /// The G-code and thumbnail viewer and the printer image use the width.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
+
     /// The longest-dwell screen in the app — users watch it for hours. A
     /// "you will be leaving shortly" gap against the nav dock is wrong here, so
     /// it renders full width and its drill-downs (fan control, temp graph,

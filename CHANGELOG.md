@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Added
+
+- **Readable panels on ultrawide screens** - on a screen much wider than it is tall, such as 1480x320 or 1920x440, panels and overlays stop at 2.4 times the screen height and stay next to the navigation bar, so a settings list or the jog pad is no longer stretched across the whole display. The home screen, print file list, Print Status, bed mesh and the AMS screens still use the full width. Screens such as 800x480, 1024x600 and portrait panels look the same as before.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added
