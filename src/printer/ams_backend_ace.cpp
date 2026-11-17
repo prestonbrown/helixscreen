@@ -71,9 +71,13 @@ bool rest_result_answered(const json& result) {
     return result.is_object() && !result.contains("error");
 }
 
-bool rest_poll_answered(const RestResponse& resp) {
-    return resp.success && resp.data.contains("result") &&
-           rest_result_answered(resp.data["result"]);
+/// The result of a REST data poll that answered with data, else nullptr.
+const json* rest_poll_result(const RestResponse& resp) {
+    if (!resp.success) {
+        return nullptr;
+    }
+    const json* result = json_util::find_member(resp.data, "result");
+    return result && rest_result_answered(*result) ? result : nullptr;
 }
 
 /// The bypass wrapper names a stock ACE config defines.
@@ -103,8 +107,8 @@ int highest_slot_index(const AmsSystemInfo& info) {
 /// Whether a status object carries real slot data: a non-empty `slots` array,
 /// the exact key parse_ace_object reads.
 bool object_carries_slots(const json& obj) {
-    return obj.is_object() && obj.contains("slots") && obj["slots"].is_array() &&
-           !obj["slots"].empty();
+    const json* slots = json_util::find_array(obj, "slots");
+    return slots && !slots->empty();
 }
 
 /// The name shown for an ACEPRO unit: the product its `protocol` drives.
@@ -247,10 +251,10 @@ void AmsBackendAce::on_started() {
                 // no slots) must fall through to the REST bridge (#1069).
                 const json* ace_data = nullptr;
                 std::string matched_key;
-                if (response.contains("result") && response["result"].contains("status")) {
-                    const json& status = response["result"]["status"];
-                    ace_data = select_ace_object(status, &matched_key);
-                    if (lowest_ace_instance(status)) {
+                const json* status = json_util::find_path(response, "result", "status");
+                if (status) {
+                    ace_data = select_ace_object(*status, &matched_key);
+                    if (lowest_ace_instance(*status)) {
                         // The ACEPRO driver, whether its instances carry the slots or
                         // the REST bridge serves them.
                         std::lock_guard<std::mutex> lock(mutex_);
@@ -270,8 +274,7 @@ void AmsBackendAce::on_started() {
                             instance_objects_ = true;
                         }
                         int unit_count = 0;
-                        for (const auto& [unit, instance] :
-                             ace_instance_objects(response["result"]["status"])) {
+                        for (const auto& [unit, instance] : ace_instance_objects(*status)) {
                             parse_ace_object(*instance, unit);
                             unit_count = unit + 1;
                         }
@@ -284,7 +287,7 @@ void AmsBackendAce::on_started() {
                     // states the seat (current_index); parse it AFTER the
                     // slot-bearing object so the seat stamps onto populated
                     // slots (#1069).
-                    if (const json* manager = manager_ace_object(response["result"]["status"])) {
+                    if (const json* manager = manager_ace_object(*status)) {
                         parse_ace_object(*manager);
                     }
                     info_fetched_.store(true);
@@ -1763,15 +1766,15 @@ const json* AmsBackendAce::select_ace_object(const json& status, std::string* ma
     // Preference order: filament_hub (native GoKlipper), then ace (community
     // ValgACE/BunnyACE), then ace_instance_N (ACEPRO driver —
     // #1107), so the choice is deterministic.
-    if (status.contains("filament_hub") && matches(status["filament_hub"])) {
+    if (const json* hub = json_util::find_member(status, "filament_hub"); hub && matches(*hub)) {
         if (matched_key)
             *matched_key = "filament_hub";
-        return &status["filament_hub"];
+        return hub;
     }
-    if (status.contains("ace") && matches(status["ace"])) {
+    if (const json* ace = json_util::find_member(status, "ace"); ace && matches(*ace)) {
         if (matched_key)
             *matched_key = "ace";
-        return &status["ace"];
+        return ace;
     }
     if (const auto instance = lowest_ace_instance(status, matches)) {
         if (matched_key)
@@ -1821,14 +1824,15 @@ const json* AmsBackendAce::manager_ace_object(const json& status) {
     // spool mode, a sensor or target_index names no current_index, and it
     // arrives beside whatever instance delta Klipper batched with it
     // (prestonbrown/helixscreen#1679).
-    if (!status.is_object() || !status.contains("ace") || !status["ace"].is_object()) {
+    const json* ace_obj = json_util::find_object(status, "ace");
+    if (!ace_obj) {
         return nullptr;
     }
-    const json& ace = status["ace"];
+    const json& ace = *ace_obj;
     if (ace.empty()) {
         return nullptr;
     }
-    if (ace.contains("slots") && ace["slots"].is_array() && !ace["slots"].empty()) {
+    if (const json* slots = json_util::find_array(ace, "slots"); slots && !slots->empty()) {
         return nullptr; // slot-bearing ValgACE `ace` — the primary, not a manager
     }
     return &ace;
@@ -1936,8 +1940,10 @@ void AmsBackendAce::poll_info() {
         // bg thread before returning. The defer becomes a no-op if the owner
         // has been destroyed; the poll_info caller is unblocked either way.
         token.defer("AmsBackendAce::poll_info_apply", [this, resp]() {
-            if (resp.success && resp.data.contains("result")) {
-                parse_info_response(resp.data["result"]);
+            const json* result =
+                resp.success ? json_util::find_member(resp.data, "result") : nullptr;
+            if (result) {
+                parse_info_response(*result);
                 info_fetched_.store(true);
                 info_fetch_failures_ = 0;
             } else {
@@ -1974,8 +1980,8 @@ void AmsBackendAce::poll_status() {
         // L081 Mechanism C: defer member access (parse_status_response,
         // emit_event) to main thread.
         token.defer("AmsBackendAce::poll_status_apply", [this, resp]() {
-            if (rest_poll_answered(resp)) {
-                apply_rest_status(resp.data["result"]);
+            if (const json* result = rest_poll_result(resp)) {
+                apply_rest_status(*result);
             } else {
                 note_rest_status_failure(resp.error);
             }
@@ -2018,8 +2024,8 @@ void AmsBackendAce::poll_slots() {
         // L081 Mechanism C: defer member access (parse_slots_response,
         // emit_event) to main thread.
         token.defer("AmsBackendAce::poll_slots_apply", [this, resp]() {
-            if (rest_poll_answered(resp)) {
-                apply_rest_slots(resp.data["result"]);
+            if (const json* result = rest_poll_result(resp)) {
+                apply_rest_slots(*result);
             } else {
                 spdlog::debug("[ACE] Slots poll failed: {}", resp.error);
             }
