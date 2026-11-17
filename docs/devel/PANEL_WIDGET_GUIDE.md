@@ -426,7 +426,7 @@ Motors Off use the same component; its props are listed in
 
 `PrinterImageWidget` (`src/ui/panel_widgets/printer_image_widget.{h,cpp}`) runs the pattern
 over live chips on the home printer picture (the print status panel's printer tile drives the same engine through `CalloutPresenter`, see [the print status panel](architecture/08-panels-navigation.md#the-print-status-panel)): temperature chips for the nozzle, bed and
-chamber, the part fan's speed, and a light chip (prestonbrown/helixscreen#1397). The pure
+chamber, the part fan's speed, and a light chip (prestonbrown/helixscreen#1397) that switches the lights its `led` config names, chosen from the edit-mode gear like a light button ([LED_CONTROL.md](LED_CONTROL.md#the-printer-image-light-chip)). The pure
 decision is `helix::compute_callout_layout()` (`include/callout_layout.h`),
 which returns a `CalloutMode`, the image rect, and each chip's rect and leader line.
 

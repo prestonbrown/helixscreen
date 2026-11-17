@@ -55,6 +55,7 @@ each list lives.
 | `src/ui/settings/ui_settings_led.cpp` | Startup section, Automatic LED Control's "Applies to" row and per-state editors, macro device editor |
 | `include/ui_led_chip_factory.h` | Chip factory shared by Settings' macro-device editor |
 | `src/ui/panel_widgets/led_widget.cpp` | `LedWidget` - home panel light button: per-instance config, device picker, tile bulb |
+| `src/ui/panel_widgets/light_target_picker.cpp` | `LightTargetPicker` - the "This button controls" picker shared by the light button and the printer-image light chip |
 | `src/ui/panel_widgets/led_controls_widget.cpp` | `LedControlsWidget` - home panel tile that always opens the LEDs overlay |
 | `src/ui/widgets/power_device_widget.cpp` | `PowerDeviceWidget` - home panel power toggle (included here as it interacts with LED-adjacent power state) |
 
@@ -202,8 +203,8 @@ and nothing else names these spellings:
   (`resolve_light_targets()`, same file).
 - The LEDs overlay's fallback focus, when no device was requested and none was last
   focused (`pick_overlay_focus()`).
-- The printer-image widget's light chip, which shows only while the chamber light is on
-  and opens the LEDs overlay on it.
+- The printer-image widget's light chip while its `led` config is empty (see
+  [The printer-image light chip](#the-printer-image-light-chip)).
 
 ## Device Naming
 
@@ -476,7 +477,8 @@ instances can sit on the home screen at once, each independently configured - th
 registry's `multi_instance` flag, the same mechanism `fan` and `favorite_macro` use for
 their extra copies.
 
-- **The picker** ("This button controls") lists every switchable device
+- **The picker** ("This button controls", `LightTargetPicker`,
+  `src/ui/panel_widgets/light_target_picker.h`) lists every switchable device
   (`LedController::switchable_ids()` - a PRESET-only macro device, which cannot be
   toggled, is never listed) plus **All lights** (`kLightButtonAll`,
   `include/led/led_devices.h`). Leaving a button unconfigured (`led` empty) resolves to
@@ -498,6 +500,19 @@ their extra copies.
   after that adoption pass runs even when no light button exists yet to adopt it (a
   button added later must default to the chamber light, not revive a stale migration
   value).
+
+### The printer-image light chip
+
+`PrinterImageWidget`'s light chip takes the same `led` key as a light button, under the
+printer image's own `panel_widgets.home` entry, chosen from the same `LightTargetPicker`
+through the edit-mode gear. `PrinterImageWidget::light_targets()` resolves it with
+`LedController::light_targets()`, so an unset key is the chamber light. The chip shows
+while `printer_has_led` is 1 and the key resolves to at least one device, reads lit
+while any of them is on (`lights_lit()`, `include/light_button_config.h`, the rule
+`home_light_buttons_lit()` uses), toggles them through `toggle_lights()`, and its hold
+opens the LEDs overlay on `light_overlay_device()` (`led_widget.h`), the device a light
+button's arrow zone opens on. Its key is not part of `home_light_button_targets()`, so
+it does not change what LED on at Start turns on.
 
 ### LedControlsWidget
 

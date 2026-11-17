@@ -25,6 +25,7 @@
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "helix_fs.h"
+#include "json_utils.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "led_widget.h"
@@ -215,6 +216,7 @@ void register_printer_image_widget() {
     register_widget_factory(
         "printer_image", [](const std::string&) { return std::make_unique<PrinterImageWidget>(); });
     register_widget_subjects("printer_image", printer_image_widget_init_subjects);
+    register_light_target_picker();
 
     // Register XML event callbacks at startup (before any XML is parsed)
     lv_xml_register_event_cb(nullptr, "printer_manager_clicked_cb",
@@ -291,6 +293,7 @@ void PrinterImageWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void PrinterImageWidget::detach() {
+    light_picker_.hide();
     // Drop the type observer first: any handler it has queued on the
     // UpdateQueue holds a weak alive token that this reset expires, so a
     // deferred refresh can't land on a detached tree.
@@ -369,6 +372,30 @@ void PrinterImageWidget::on_hooked_root_deleted() {
     parent_screen_ = nullptr;
     // The next tree's image holds no src; nothing must count as already shown.
     current_source_path_.clear();
+}
+
+void PrinterImageWidget::set_config(const nlohmann::json& config) {
+    light_key_ = json_util::safe_string(config, "led");
+}
+
+std::vector<std::string> PrinterImageWidget::light_targets() const {
+    return helix::led::LedController::instance().light_targets(light_key_);
+}
+
+bool PrinterImageWidget::on_edit_configure() {
+    light_picker_.show_for(parent_screen_, widget_obj_, light_key_,
+                           [this](const std::string& key) { select_light(key); });
+    return false; // no rebuild: the chip rereads its lights in place
+}
+
+void PrinterImageWidget::select_light(const std::string& key) {
+    light_key_ = key;
+    save_widget_config({{"led", key}});
+    // The chip shows and reads lit from the new set; a set with nothing to
+    // switch takes the chip out of the layout.
+    update_callouts();
+    schedule_callout_layout();
+    spdlog::info("[PrinterImageWidget] light chip now controls '{}'", key);
 }
 
 void PrinterImageWidget::on_activate() {
@@ -644,8 +671,7 @@ void PrinterImageWidget::printer_callout_light_hold_cb(lv_event_t* e) {
     if (self) {
         helix::ui::end_press(e);
         self->record_interaction();
-        open_led_control_overlay(self->parent_screen_,
-                                 helix::led::LedController::instance().chamber_light());
+        open_led_control_overlay(self->parent_screen_, light_overlay_device(self->light_key_));
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -668,8 +694,7 @@ void PrinterImageWidget::handle_callout_clicked(CalloutKind kind) {
     case CalloutKind::Light: {
         if (light_chip_locked())
             break;
-        const auto result = toggle_lights(
-            helix::led::LedController::instance().light_targets(std::string()), "PrinterImage");
+        const auto result = toggle_lights(light_targets(), "PrinterImage");
         // The dark bulb shows while the state is unknown, so it takes the flash.
         if (result.unconfirmed && widget_obj_)
             flash_light_icon(lv_obj_find_by_name(widget_obj_, "callout_light_dark"));
@@ -699,10 +724,9 @@ int read_int_or_zero(lv_subject_t* s) {
     return s ? lv_subject_get_int(s) : 0;
 }
 
-/// The light chip shows, lit or dark, whenever a chamber light can be switched.
-bool light_chip_capable() {
-    return read_int_or_zero(printer_has_led_subject()) &&
-           !helix::led::LedController::instance().chamber_light().empty();
+/// The light chip shows, lit or dark, whenever it has a light to switch.
+bool light_chip_capable(const std::vector<std::string>& targets) {
+    return read_int_or_zero(printer_has_led_subject()) && !targets.empty();
 }
 
 } // namespace
@@ -824,10 +848,11 @@ void PrinterImageWidget::update_callouts() {
     snprintf(fan_buf, sizeof(fan_buf), "%d%%", fan);
     publish(&s_callout_fan_shown, fan > 0 ? 1 : 0, CalloutKind::Fan, &s_callout_fan_text,
             fan > 0 ? fan_buf : "");
-    const bool light_capable = light_chip_capable();
+    const auto lights = light_targets();
+    const bool light_capable = light_chip_capable(lights);
     publish(&s_callout_light_shown, light_capable ? 1 : 0, CalloutKind::Light, nullptr, {});
     // Lit or dark is the same chip size, so it needs no relayout.
-    const int light_on = light_capable && helix::led::chamber_light_on() ? 1 : 0;
+    const int light_on = light_capable && lights_lit(lights) ? 1 : 0;
     if (lv_subject_get_int(&s_callout_light_on) != light_on)
         lv_subject_set_int(&s_callout_light_on, light_on);
     set_text(CalloutKind::Toolhead, &s_callout_toolhead_text,
@@ -977,7 +1002,7 @@ void PrinterImageWidget::apply_callout_layout() {
          icon_px("lightbulb_on"),
          {},
          {},
-         light_chip_capable()},
+         light_chip_capable(light_targets())},
     };
     helix::ui::CalloutPresenter::Parts parts;
     parts.area = container;

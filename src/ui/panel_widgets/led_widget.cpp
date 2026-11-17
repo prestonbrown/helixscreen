@@ -12,10 +12,8 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/subject.h"
-#include "core/text_io.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
-#include "helix/xml/indexed_subject_pool.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "led/led_controller.h"
@@ -25,7 +23,6 @@
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "theme_manager.h"
-#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -43,7 +40,7 @@ void register_led_widget() {
     // Register XML event callbacks at startup (before any XML is parsed)
     lv_xml_register_event_cb(nullptr, "light_toggle_cb", LedWidget::light_toggle_cb);
     lv_xml_register_event_cb(nullptr, "light_more_cb", LedWidget::light_more_cb);
-    lv_xml_register_event_cb(nullptr, "led_picker_row_cb", LedWidget::led_picker_row_cb);
+    register_light_target_picker();
 }
 
 bool light_tile_is_wide(int colspan) {
@@ -79,31 +76,6 @@ LightIconLook light_icon_look(const std::vector<led::DeviceState>& states) {
     }
     return look;
 }
-
-namespace {
-
-/// The picker's rows. One picker is open at a time, so these are process-wide.
-struct PickerSubjects {
-    xml::IndexedSubjectPool names{"led_picker_name", xml::IndexedSubjectPool::Type::String};
-    helix::Subject count{};
-    helix::Subject selected{};
-};
-
-helix::WidgetSubjects s_picker_subjects{"LedPicker"};
-
-/// Created on the first open, before the picker's XML binds them.
-PickerSubjects& picker_subjects() {
-    static PickerSubjects s_picker;
-    s_picker_subjects.ensure_init(
-        [] {
-            UI_MANAGED_SUBJECT_INT(s_picker.count, 0, "led_picker_count", s_picker_subjects);
-            UI_MANAGED_SUBJECT_INT(s_picker.selected, -1, "led_picker_selected", s_picker_subjects);
-        },
-        [] { s_picker.names.reclaim(); });
-    return s_picker;
-}
-
-} // namespace
 
 // Device state and commands all go through LedController, so the printer state
 // and API are accepted and not kept.
@@ -154,12 +126,17 @@ std::vector<std::string> LedWidget::targets() const {
     return led::LedController::instance().light_targets(led_key_);
 }
 
-std::string LedWidget::overlay_device() const {
-    if (led_key_ == led::kLightButtonAll) {
-        return led::LedController::instance().chamber_light();
+std::string light_overlay_device(const std::string& key) {
+    auto& ctrl = led::LedController::instance();
+    if (key == led::kLightButtonAll) {
+        return ctrl.chamber_light();
     }
-    const auto t = targets();
+    const auto t = ctrl.light_targets(key);
     return t.empty() ? std::string() : t.front();
+}
+
+std::string LedWidget::overlay_device() const {
+    return light_overlay_device(led_key_);
 }
 
 void LedWidget::on_size_changed(int colspan, int rowspan, int width_px, int height_px) {
@@ -377,36 +354,8 @@ bool LedWidget::on_edit_configure() {
 }
 
 void LedWidget::show_led_picker() {
-    if (picker_.is_visible() || !parent_screen_ || !widget_obj_) {
-        return;
-    }
-
-    auto& subs = picker_subjects();
-    const auto devices = light_picker_devices();
-    subs.names.ensure_size(devices.size());
-    int selected = -1;
-    const auto t = targets();
-    picker_.row_ids.clear();
-    for (size_t i = 0; i < devices.size(); ++i) {
-        picker_.row_ids.push_back(devices[i].id);
-        subs.names.set_string(i, led::device_display_name(devices[i]));
-        if (led_key_ != led::kLightButtonAll && !t.empty() && devices[i].id == t.front()) {
-            selected = static_cast<int>(i);
-        }
-    }
-    lv_subject_set_int(&subs.selected, selected);
-    lv_subject_set_int(&subs.count, static_cast<int>(devices.size()));
-
-    picker_.show_below_widget(parent_screen_, widget_obj_,
-                              helix::ui::ContextMenu::AnchorAlign::Center);
-}
-
-void LedWidget::LedPicker::on_created(lv_obj_t* menu_obj) {
-    // DECLARATIVE_OK: measured cap. A share of the screen, so a printer with a
-    // dozen lights scrolls the list instead of growing the card past the panel.
-    if (lv_obj_t* list = lv_obj_find_by_name(menu_obj, "led_picker_list")) {
-        lv_obj_set_style_max_height(list, screen_height_pct(66), 0);
-    }
+    picker_.show_for(parent_screen_, widget_obj_, led_key_,
+                     [this](const std::string& key) { select_light(key); });
 }
 
 void LedWidget::light_toggle_cb(lv_event_t* e) {
@@ -424,24 +373,6 @@ void LedWidget::light_more_cb(lv_event_t* e) {
         self->record_interaction();
         open_led_control_overlay(self->parent_screen_, self->overlay_device());
     }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void LedWidget::led_picker_row_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[LedWidget] led_picker_row_cb");
-    auto* picker = helix::ui::ContextMenu::active_as<LedPicker>();
-    const char* ud = static_cast<const char*>(lv_event_get_user_data(e));
-    if (picker == nullptr || ud == nullptr) {
-        return;
-    }
-    const int index = helix::text_io::parse_leading<int>(ud).value_or(-1);
-    std::string key = led::kLightButtonAll;
-    if (index >= 0 && static_cast<size_t>(index) < picker->row_ids.size()) {
-        key = picker->row_ids[static_cast<size_t>(index)];
-    }
-    LedWidget& owner = picker->owner();
-    picker->hide();
-    owner.select_light(key);
     LVGL_SAFE_EVENT_CB_END();
 }
 
