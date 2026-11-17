@@ -194,9 +194,8 @@ TEST_CASE("A non-Snapmaker mock stays lane-per-tool", "[ams][snapmaker][mock][ro
 // Capability answers: the mock must not disagree with the hardware
 // ============================================================================
 
-// select_slot_moves_toolhead() is deliberately absent here: it belongs to
-// AmsSubscriptionBackend, and the mock derives straight from AmsBackend, so
-// there is no pair to compare.
+// select_slot_moves_toolhead is a kTraits field the mock copies, and only
+// AmsSubscriptionBackend reads it; the mock derives straight from AmsBackend.
 
 TEST_CASE("Mock Snapmaker lanes publish their entry sensor like the U1",
           "[ams][snapmaker][mock][entry_sensor]") {

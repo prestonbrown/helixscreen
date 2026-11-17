@@ -60,7 +60,7 @@ which is why it is spelled out per row rather than folded into either column.
   filament).
 - A slot select IS a physical tool change: `do_select_slot()` forwards to
   `do_change_tool()`, which emits `T{n}` and moves the carriage
-  (`select_slot_moves_toolhead() = true`, `src/printer/ams_backend_snapmaker.cpp#do_select_slot`).
+  (`kTraits.select_slot_moves_toolhead = true`, `src/printer/ams_backend_snapmaker.cpp#do_select_slot`).
 
 ### Detection
 

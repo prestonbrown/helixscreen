@@ -110,6 +110,8 @@ struct BackendTraits {
     bool heads_share_heater = false;
     bool carriage_can_be_empty = false;
     bool firmware_owns_lane_identity = false;
+    bool select_slot_moves_toolhead = false;
+    bool clears_override_without_slot = false;
     helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
     helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
     helix::ui::ToolNumberStyle tool_number_style = helix::ui::ToolNumberStyle::Physical;

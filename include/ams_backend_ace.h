@@ -116,6 +116,9 @@ class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
         // per-slot status answers the per-slot question (#1199).
         t.has_per_slot_loaded_authority = true;
         t.has_environment_sensors = true;
+        // ACE has no "select without loading": do_select_slot() forwards to
+        // do_load_filament(), so a select pushes filament through the hotend.
+        t.select_slot_moves_toolhead = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -133,12 +136,6 @@ class AmsBackendAce : public AmsSubscriptionBackend, public helix::IDryer {
     AmsError do_unload_filament(int slot_index) override;
     AmsError do_select_slot(int slot_index) override;
     AmsError do_change_tool(int tool_number) override;
-
-    /// ACE has no "select without loading": do_select_slot() forwards to
-    /// do_load_filament(), so a select pushes filament through the hotend.
-    [[nodiscard]] bool select_slot_moves_toolhead() const override {
-        return true;
-    }
 
   public:
     // ========================================================================

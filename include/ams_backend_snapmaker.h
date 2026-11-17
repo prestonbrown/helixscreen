@@ -192,6 +192,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         // print_task_config.py's reset_print_info() returns extruder_map_table to
         // identity at every print end (complete, cancel, error).
         t.print_routing_resets_to_identity = true;
+        // A slot select IS a physical tool change: do_select_slot() forwards to
+        // do_change_tool(), which emits `T{n}` and moves the carriage.
+        t.select_slot_moves_toolhead = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -351,12 +354,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// script needs no sequencer. Klipper aborts the remaining lines when one
     /// raises, so every index is validated before anything is sent.
     AmsError do_filament_batch(const std::vector<int>& slots, bool load) override;
-
-    /// On the U1 a slot select IS a physical tool change — do_select_slot()
-    /// forwards to do_change_tool(), which emits `T{n}` and moves the carriage.
-    [[nodiscard]] bool select_slot_moves_toolhead() const override {
-        return true;
-    }
 
   public:
     // Filament loaded to this tool's nozzle: a present lane with the

@@ -143,7 +143,7 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
 
   protected:
     // Operations. Gated by AmsSubscriptionBackend's NVI wrapper.
-    // select_slot_moves_toolhead() stays false: MMU_SELECT drives the gate
+    // select_slot_moves_toolhead stays false: MMU_SELECT drives the gate
     // selector and never touches the carriage.
     AmsError do_load_filament(int slot_index) override;
     AmsError do_unload_filament(int slot_index) override;
@@ -187,6 +187,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         t.raises_runout_fault = true;
         t.raises_runout_fault_during_job = true;
         t.lane_noun = helix::ui::LaneNoun::Gate;
+        // A clear before the first frame sticks: the stored override and the
+        // lane are cleared even for a gate not cached yet.
+        t.clears_override_without_slot = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -449,11 +452,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
     SlotInfo* identity_slot_locked(int slot_index) override;
-    /// The stored override and the lane are cleared even for a gate not cached
-    /// yet, so a clear before the first frame sticks.
-    [[nodiscard]] bool clears_override_without_slot() const override {
-        return true;
-    }
     [[nodiscard]] const SlotInfo* slot_info_locked(int slot_index) const override {
         const auto* entry = slots_.get(slot_index);
         return entry ? &entry->info : nullptr;

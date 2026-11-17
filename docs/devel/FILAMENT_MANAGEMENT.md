@@ -3606,7 +3606,7 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 - `can_set_tool_mapping()`, `set_tool_mapping_impl()` -- Tool mapping. `set_tool_mapping()` is non-virtual and calls them
 - `enable_bypass()`, `disable_bypass()`, `is_bypass_active()` -- Bypass mode
 
-**Optional `do_*` hooks**, each behind the same gate as its public entry point and each refusing with not-supported by default: `do_park_active_tool()`, `do_filament_batch()`, `do_execute_device_action()`, `do_run_device_action()` (which by default runs `do_execute_device_action()`) and `do_run_edit_follow_up()`. Two more questions shape the gate: `select_slot_moves_toolhead()` and `filament_op_gate()`.
+**Optional `do_*` hooks**, each behind the same gate as its public entry point and each refusing with not-supported by default: `do_park_active_tool()`, `do_filament_batch()`, `do_execute_device_action()`, `do_run_device_action()` (which by default runs `do_execute_device_action()`) and `do_run_edit_follow_up()`. Two more questions shape the gate: `select_slot_moves_toolhead` (a `kTraits` field) and `filament_op_gate()`.
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
