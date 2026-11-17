@@ -71,7 +71,7 @@ def draw_art(scene, colors, tier):
 
 
 def _tray_shell() -> TrayShellDef:
-    return feeder.tray_strip(0x3F9A6E, 0xD3B97F, plain_tray=True)
+    return feeder.tray_strip(0x3F9A6E, 0xD3B97F)
 
 
 UNIT = UnitDef("htlf", 4, draw_art, _tray_shell(), face_art=htlf_face.draw)

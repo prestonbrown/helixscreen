@@ -336,7 +336,7 @@ def test_the_shell_table_records_which_units_have_a_stub_look():
     def row(uid):
         return next(line for line in table.splitlines() if line.strip().startswith(chr(123) + chr(34) + uid))
 
-    assert row("mmx").rstrip().endswith("true, 0x0},")
+    assert ", 2, true, 0x0" in row("mmx")
     assert row("ace_pro").rstrip().endswith("false, 0x0},")
 
 
@@ -354,13 +354,12 @@ def test_the_htlf_body_continues_below_its_outlets():
     assert htlf.PROFILE[0] == (0.0, 0.0)
 
 
-def test_the_htlf_leaves_its_loose_spools_the_plain_tray_and_rails_keep_theirs():
-    table = build.generate_shell_table([htlf.UNIT, rail.ERCF])
-    row = next(line for line in table.splitlines() if line.strip().startswith('{"htlf"'))
-    assert row.rstrip().endswith("true},")
-    assert htlf.UNIT.tray.plain_tray and not rail.ERCF.tray.plain_tray
-    ercf = next(line for line in table.splitlines() if line.strip().startswith('{"ercf_rail"'))
-    assert not ercf.rstrip().endswith("true},")
+@pytest.mark.parametrize("unit", FEEDERS + [htlf.UNIT, rail.ERCF, rail.TRADRACK], ids=lambda u: u.id)
+def test_a_unit_in_front_of_loose_spools_leaves_them_the_plain_tray(unit):
+    table = build.generate_shell_table([unit, ace_pro.UNIT])
+    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in table.splitlines() if line.startswith("    {\"")}
+    assert unit.tray.plain_tray and rows[unit.id].endswith("true},")
+    assert not ace_pro.UNIT.tray.plain_tray and not rows["ace_pro"].endswith("true},")
 
 
 def test_the_htlf_face_has_an_outlet_under_each_inlet_and_no_carriage(tmp_path):
@@ -473,7 +472,7 @@ def test_a_rails_face_art_puts_every_gate_in_line_and_the_coupler_inside(unit):
         assert 0 < out_x < 1 and inlet_y < out_y < 1 and aspect > 1
     table = build.generate_shell_table([unit])
     assert f"constexpr RailFaceArt k_{unit.id}_face[] = {{{{4, " in table
-    assert f"k_{unit.id}_face, {len(unit.lane_variants)}}}," in table
+    assert f"k_{unit.id}_face, {len(unit.lane_variants)}," in table
 
 
 def test_a_rails_face_art_bakes_a_body_and_a_carriage_per_gate_count(tmp_path):
