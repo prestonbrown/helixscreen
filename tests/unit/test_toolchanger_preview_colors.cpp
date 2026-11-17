@@ -18,10 +18,9 @@
  *     higher tool indices.
  */
 
-#include "ui_filament_mapping_card.h"
-
 #include "ams_types.h"
 #include "filament_mapper.h"
+#include "filament_mapping_plan.h"
 #include "gcode_color_palette.h"
 #include "gcode_layer_index.h"
 #include "gcode_parser.h"
@@ -245,7 +244,7 @@ TEST_CASE("Per-tool info for a streamed multi-tool file keeps real tool numbers"
     const std::vector<std::string> palette = {"#FF0000", "#00FF00", "#0000FF", "#FFFF00"};
     const std::vector<std::string> materials = {"PLA", "PETG", "ABS", "ASA"};
 
-    const auto tools = helix::ui::FilamentMappingCard::build_used_tool_info(
+    const auto tools = helix::filament_mapping::build_used_tool_info(
         palette, materials, ctrl.get_index_stats().tools_used);
 
     REQUIRE(tools.size() == 3);
@@ -267,7 +266,7 @@ TEST_CASE("build_used_tool_info: a sparse used-set does not collapse tool number
     // The trap this guards: returning entries positionally would put T2's color
     // at index 1, and effective_tool_colors() scatters by .tool_index into a
     // vector the viewer reads by tool number.
-    const auto tools = helix::ui::FilamentMappingCard::build_used_tool_info(
+    const auto tools = helix::filament_mapping::build_used_tool_info(
         {"#FF0000", "#00FF00", "#0000FF", "#FFFF00"}, {"PLA", "PETG", "ABS", "ASA"},
         std::set<int>{0, 2});
 
@@ -281,14 +280,13 @@ TEST_CASE("build_used_tool_info: a sparse used-set does not collapse tool number
 TEST_CASE("build_used_tool_info: tools outside the palette are dropped, empty set yields nothing",
           "[gcode][toolchanger][tool_info]") {
     SECTION("a used tool with no palette entry is dropped") {
-        const auto tools = helix::ui::FilamentMappingCard::build_used_tool_info(
-            {"#FF0000"}, {"PLA"}, std::set<int>{0, 7});
+        const auto tools = helix::filament_mapping::build_used_tool_info({"#FF0000"}, {"PLA"},
+                                                                         std::set<int>{0, 7});
         REQUIRE(tools.size() == 1);
         REQUIRE(tools[0].tool_index == 0);
     }
     SECTION("no used tools means no per-tool info to push") {
-        REQUIRE(
-            helix::ui::FilamentMappingCard::build_used_tool_info({"#FF0000"}, {"PLA"}, {}).empty());
+        REQUIRE(helix::filament_mapping::build_used_tool_info({"#FF0000"}, {"PLA"}, {}).empty());
     }
 }
 

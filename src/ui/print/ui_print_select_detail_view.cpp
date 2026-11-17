@@ -29,6 +29,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
@@ -1607,7 +1608,7 @@ std::vector<helix::GcodeToolInfo> PrintSelectDetailView::get_used_tool_info() co
     // Source per-tool info DIRECTLY from the slicer palette (Moonraker metadata,
     // populated on ALL platforms) via the stateless assembler — NOT from the
     // mapping card INSTANCE, whose tool_info_ is empty on the U1/headless path.
-    return FilamentMappingCard::build_used_tool_info(
+    return helix::filament_mapping::build_used_tool_info(
         current_filament_colors_, current_filament_materials_, tools_used_effective());
 }
 

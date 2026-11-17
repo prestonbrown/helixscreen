@@ -15,12 +15,11 @@
 
 #include "print_start_checks.h"
 
-#include "ui_filament_mapping_card.h"
-
 #include "color_utils.h"
 #include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_database.h"
+#include "filament_mapping_plan.h"
 #include "filament_variants.h"
 #include "gcode_ops_detector.h"
 #include "macro_param_cache.h"
@@ -313,7 +312,7 @@ CheckResult gate_unresolved_tools(const PrintStartContext& ctx) {
     for (int tool_idx : unresolved) {
         // Look up by real tool_index — tool_info may be used-filtered
         // (compacted), so its vector position no longer equals the tool number.
-        const auto* tool = ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, tool_idx);
+        const auto* tool = helix::filament_mapping::find_by_tool_index(ctx.tool_info, tool_idx);
         if (tool) {
             std::string color_name = describe_color(tool->color_rgb);
             message += "  " + std::string(LV_SYMBOL_BULLET) + " " +
@@ -486,7 +485,7 @@ std::optional<filament::MaterialInfo> resolve_material_info(std::string_view nam
 /// The material the file assigns to @p tool: the mapping card's tool info,
 /// else the slicer palette. Empty when neither names one.
 std::string file_material_for_tool(const PrintStartContext& ctx, int tool) {
-    if (const auto* t = ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, tool)) {
+    if (const auto* t = helix::filament_mapping::find_by_tool_index(ctx.tool_info, tool)) {
         if (!t->material.empty()) {
             return t->material;
         }
@@ -878,7 +877,7 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
         // The mapped lanes describe filament that is not being printed with.
         std::string expected;
         const int tool = bypass_print_tool(ctx);
-        if (const auto* t = ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, tool)) {
+        if (const auto* t = helix::filament_mapping::find_by_tool_index(ctx.tool_info, tool)) {
             expected = t->material;
         } else if (tool < static_cast<int>(ctx.filament_materials.size())) {
             expected = ctx.filament_materials[tool];
@@ -912,7 +911,7 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
             // tool_index — tool_info may be used-filtered (compacted), so its
             // vector position no longer equals the tool number.
             if (const auto* tool =
-                    ui::FilamentMappingCard::find_by_tool_index(tool_info, m.tool_index)) {
+                    helix::filament_mapping::find_by_tool_index(tool_info, m.tool_index)) {
                 detail.expected_material = tool->material;
             }
 

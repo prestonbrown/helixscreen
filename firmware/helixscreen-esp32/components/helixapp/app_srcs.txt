@@ -227,6 +227,7 @@ src/printer/filament_database.cpp
 src/printer/filament_display_name.cpp
 src/printer/filament_macro_profiles.cpp
 src/printer/filament_mapper.cpp
+src/printer/filament_mapping_plan.cpp
 src/printer/filament_variants.cpp
 src/printer/firmware_error_envelope.cpp
 src/printer/firmware_fault_codes.cpp
@@ -468,7 +469,7 @@ src/ui/home/page_scroll_auto_inject.cpp
 src/ui/home/page_scroll_controller.cpp
 src/ui/home/panel_widget_manager.cpp
 src/ui/filament/buffer_slider_geometry.cpp
-src/ui/filament/clog_meter_geometry.cpp
+src/printer/clog_meter_geometry.cpp
 src/ui/filament/clog_meter_model.cpp
 src/ui/filament/humidity_drop_geometry.cpp
 src/ui/home/panel_widget_registry.cpp

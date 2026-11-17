@@ -88,7 +88,7 @@ remap_modal_mappings(const std::vector<ToolMapping>& card_mappings,
 
 /// Fill the file fields of @p ctx from @p facts and the live filament state,
 /// the derivation the file view uses when its mapping card holds no user edit:
-/// FilamentMappingCard::build_used_tool_info(), AmsState::seed_tool_mappings(),
+/// helix::filament_mapping::build_used_tool_info(), AmsState::seed_tool_mappings(),
 /// AmsState::collect_available_slots(), FilamentMapper::identity_filtered_remap().
 /// Sets ctx.has_file_facts and the fit check's file facts (the plugin's
 /// record and the metadata; a queued start reads no head and has no preview).

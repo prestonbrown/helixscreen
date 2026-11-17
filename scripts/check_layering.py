@@ -85,6 +85,7 @@ CLEARED_PAIRS: tuple[tuple[str, str], ...] = (
     ("printer", "ui_callback_helpers.h"),
     ("printer", "ams_drawing_utils.h"),
     ("printer", "gcode_preview_fetcher.h"),
+    ("printer", "ui_filament_mapping_card.h"),
     ("sensors", "ui_toast_manager.h"),
     ("system", "ui_toast_manager.h"),
     ("system", "ui_notification.h"),

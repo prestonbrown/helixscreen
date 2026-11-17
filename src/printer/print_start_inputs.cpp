@@ -2,13 +2,12 @@
 
 #include "print_start_inputs.h"
 
-#include "ui_filament_mapping_card.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
 #include "gcode_preview_cache.h"
@@ -91,13 +90,13 @@ namespace {
 
 /// What the file view's mapping card holds for @p facts when the user has not
 /// edited it.
-ui::FilamentMappingCard::Mapping card_mapping_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::compute_mapping(facts.palette.colors, facts.palette.materials,
+helix::filament_mapping::Mapping card_mapping_for(const FileStartFacts& facts) {
+    return helix::filament_mapping::compute_mapping(facts.palette.colors, facts.palette.materials,
                                                     facts.tools_used);
 }
 
 std::vector<GcodeToolInfo> used_tool_info_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::build_used_tool_info(facts.palette.colors,
+    return helix::filament_mapping::build_used_tool_info(facts.palette.colors,
                                                          facts.palette.materials, facts.tools_used);
 }
 
