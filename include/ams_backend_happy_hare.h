@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 
 namespace helix {
@@ -252,6 +253,11 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// weight is Spoolman's.
     void persist_slot_weight(int slot_index, float remaining_weight_g,
                              float total_weight_g) override;
+    void on_lane_records_read_locked() override;
+    /// On 4.2+, move each weight a pre-4.2 extras record holds into a gate-map
+    /// slot that reads unknown, once per gate, and save the record without it.
+    /// Waits for the version, a weights frame and a record read. Caller holds mutex_.
+    void migrate_record_weights_locked();
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -764,6 +770,11 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// printer.mmu.drying per unit: the cycle Happy Hare is running, whoever
     /// started it. Empty on a Happy Hare that does not publish it.
     std::vector<std::optional<happy_hare::DryingCycle>> drying_cycles_;
+    /// The gate map's own weights as last published (4.2+), -1 unknown.
+    std::vector<int> gate_map_remaining_raw_;
+    std::vector<int> gate_map_initial_raw_;
+    /// Gates whose stored weights migrate_record_weights_locked() has handled.
+    std::set<int> weights_migrated_;
     /// The last frame's Klipper eventtime and the wall clock it arrived at, so a
     /// reactor-clock end_time reads as seconds left. Eventtime 0 = none yet.
     double clock_anchor_eventtime_ = 0.0;

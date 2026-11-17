@@ -144,7 +144,9 @@ from configfile (`[mmu]` on v3, `[mmu_parameters]` on v4) into
 `ConfigDefaults::default_extruder_temp`. Happy Hare up to v4.2.0 reads an omitted `TEMP`
 as that default, but from upstream 65e3656d (#1509) an omitted `TEMP` keeps the gate's
 own, so only the explicit value resets the gate on every version. Before the configfile
-query answers there is no default to name, and the wipe leaves `TEMP` off. Three params
+query answers there is no default to name, and the wipe leaves `TEMP` off. From 4.2 the
+wipe also names `WEIGHT=-1 INITIAL_WEIGHT=-1`: the gate map keeps an omitted weight, and
+`SPOOLID=-1` clears the weights only when the gate had a spool id to change. Three params
 are permanently off this command:
 
 - `RESET=1` - on v2/v3 it ignores `GATE` and wipes **every** gate.
@@ -186,7 +188,11 @@ lane shows the gate map, filed as the lane's `Firmware` source.
   (`persist_slot_weight`) is sent as `MMU_GATE_MAP GATE=n WEIGHT=.. INITIAL_WEIGHT=.. TEMP=0
   QUIET=1`, except on a gate linked to a Spoolman spool (Spoolman's weight wins on the lane) and in
   pull mode. In pull mode Happy Hare refuses weights, so a weight edit is refused like any other
-  gate-map edit. The name, and the vendor on v4, are the gate map's alone,
+  gate-map edit. Happy Hare cannot see the weights a pre-4.2 extras record kept, so once 4.2, a
+  weights frame and a record read are all in, `migrate_record_weights_locked()` sends each one
+  once (`MMU_GATE_MAP GATE=n WEIGHT=.. INITIAL_WEIGHT=.. TEMP=0 QUIET=1`, naming only the weights
+  the gate map reports as -1, never on a Spoolman-linked gate or in pull mode) and saves the
+  record without them. The name, and the vendor on v4, are the gate map's alone,
   so another client clearing them shows as cleared.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,

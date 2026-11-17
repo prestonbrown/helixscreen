@@ -707,6 +707,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// The poll: withdraw expired pending edits, then refresh. Main thread.
     void poll_lane_records();
 
+    /// @p slot_index's record as last read, before the extras narrowing, or
+    /// nullptr when no read held one. Main thread.
+    [[nodiscard]] const nlohmann::json* lane_record_wire(int slot_index) const {
+        const auto it = lane_wire_seen_.find(slot_index);
+        return it == lane_wire_seen_.end() ? nullptr : &it->second;
+    }
+
   private:
     /// How often the lane records are read while the backend runs.
     static constexpr std::chrono::seconds kLaneRecordPollPeriod{10};

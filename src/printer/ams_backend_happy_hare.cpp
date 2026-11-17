@@ -790,6 +790,22 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
     };
     file_weights(identity.remaining_weight, &ams::Observation::remaining_weight_g);
     file_weights(identity.initial_weight, &ams::Observation::total_weight_g);
+    const auto keep_raw = [](const happy_hare::GateArray<int>& weights, std::vector<int>& raw) {
+        if (!weights) {
+            return;
+        }
+        raw.resize(std::max(raw.size(), weights->size()), -1);
+        for (size_t i = 0; i < weights->size(); ++i) {
+            if ((*weights)[i]) {
+                raw[i] = *(*weights)[i];
+            }
+        }
+    };
+    keep_raw(identity.remaining_weight, gate_map_remaining_raw_);
+    keep_raw(identity.initial_weight, gate_map_initial_raw_);
+    if (identity.remaining_weight || identity.initial_weight) {
+        migrate_record_weights_locked();
+    }
 
     // gate_temperature (v4): per-gate nozzle temperature recommendations
     if (identity.temperature) {
@@ -2113,6 +2129,7 @@ void AmsBackendHappyHare::query_config_from_printer() {
                     system_info_.version = layout.version;
                     apply_bypass_support_locked();
                     sync_extras_fields_locked();
+                    migrate_record_weights_locked();
                 }
                 spdlog::info("[AMS HappyHare] Happy Hare {} ({} layout)",
                              layout.version.empty() ? "version unknown" : layout.version,
@@ -2916,11 +2933,13 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
             return skipped;
         }
 
+        // From 4.2 the gate map holds the weights, and keeps an omitted one;
+        // SPOOLID=-1 clears them only when the gate had a spool id to change.
         const std::string temp =
             default_extruder_temp ? fmt::format(" TEMP={}", *default_extruder_temp) : "";
-        const std::string wipe =
-            fmt::format("MMU_GATE_MAP GATE={} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1{} QUIET=1",
-                        slot_index, temp);
+        const std::string wipe = fmt::format(
+            "MMU_GATE_MAP GATE={} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1{}{} QUIET=1",
+            slot_index, temp, weights ? " WEIGHT=-1 INITIAL_WEIGHT=-1" : "");
         execute_gcode(wipe);
         spdlog::debug("[AMS HappyHare] Sent: {}", wipe);
 
@@ -3051,6 +3070,53 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     }
 
     return AmsErrorHelper::success();
+}
+
+void AmsBackendHappyHare::on_lane_records_read_locked() {
+    migrate_record_weights_locked();
+}
+
+// Before 4.2 the weights lived only in HelixScreen's extras record, which 4.2's
+// narrowing stops reading. Each one moves to the gate map once, into a slot the
+// gate map leaves unknown, and the record is saved without it.
+void AmsBackendHappyHare::migrate_record_weights_locked() {
+    if (!gate_map_holds_weights_locked() || system_info_.spoolman_mode == SpoolmanMode::PULL ||
+        gate_map_remaining_raw_.empty()) {
+        return;
+    }
+    for (int gate = 0; gate < slots_.slot_count(); ++gate) {
+        const nlohmann::json* wire = lane_record_wire(gate);
+        const auto* entry = slots_.get(gate);
+        if (!wire || !entry || weights_migrated_.count(gate) > 0 || entry->info.spoolman_id > 0 ||
+            gate >= static_cast<int>(gate_map_remaining_raw_.size())) {
+            continue;
+        }
+        const float remaining = helix::json_util::safe_float(*wire, "remaining_weight_g", -1.0F);
+        const float total = helix::json_util::safe_float(*wire, "total_weight_g", -1.0F);
+        if (remaining < 0.0F && total < 0.0F) {
+            continue;
+        }
+        weights_migrated_.insert(gate);
+        const auto unknown = [gate](const std::vector<int>& raw) {
+            return gate < static_cast<int>(raw.size()) && raw[static_cast<size_t>(gate)] < 0;
+        };
+        std::string params;
+        if (remaining >= 0.0F && unknown(gate_map_remaining_raw_)) {
+            params += fmt::format(" WEIGHT={}", gate_map_grams(remaining));
+        }
+        if (total >= 0.0F && unknown(gate_map_initial_raw_)) {
+            params += fmt::format(" INITIAL_WEIGHT={}", gate_map_grams(total));
+        }
+        if (!params.empty()) {
+            spdlog::info("[AMS HappyHare] Moving gate {}'s stored weight to the gate map", gate);
+            execute_gcode(fmt::format("MMU_GATE_MAP GATE={}{} TEMP=0 QUIET=1", gate, params));
+        }
+        // The record is saved through 4.2's extras fields, which leave the weights out.
+        if (override_store_ && overrides_.count(gate) > 0) {
+            helix::ams::save_override_async(override_store_.get(), gate, overrides_[gate],
+                                            backend_log_tag(), "Weight migration", lane_id(gate));
+        }
+    }
 }
 
 void AmsBackendHappyHare::persist_slot_weight(int slot_index, float remaining_weight_g,
