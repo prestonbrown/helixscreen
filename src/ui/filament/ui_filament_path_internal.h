@@ -286,13 +286,15 @@ struct FilamentPathData {
     int32_t slot_overlap = 0; // Overlap between slots in pixels (for 5+ gates)
     int32_t slot_width = 90;  // Dynamic slot width (fallback when slot_grid unavailable)
 
-    // Live slot position measurement: slot_grid pointer + cached spool_container
-    // pointers for pixel-perfect lane alignment at any screen size.
+    // Live slot position measurement: each slot in slot_grid is read on every use, for
+    // pixel-perfect lane alignment at any screen size. A rebuild moves the old slots out of the
+    // grid at once, so nothing read here can be a slot on its way to deletion.
     lv_obj_t* slot_grid = nullptr;
     // The spool box's front edge below slot_grid's top, INT32_MIN when none.
     int32_t lane_entry_offset = INT32_MIN;
     static constexpr int kMaxSlots = helix::kAmsMaxSlots;
-    lv_obj_t* spool_containers[kMaxSlots] = {};
+    // The grid's slots at the last set_slot_grid, to tell a changed row; never dereferenced.
+    const void* slot_ids[kMaxSlots] = {};
 
     // Per-slot filament state (for showing all installed filaments, not just active)
     SlotFilamentState slot_filament_states[kMaxSlots] = {};
