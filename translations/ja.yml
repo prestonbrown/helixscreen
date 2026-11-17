@@ -1391,7 +1391,7 @@ translations:
   'Error: Not enough disk space': 'エラー: ディスク容量が不足しています'
   'Error: Previous download still finishing': 'エラー: 前回のダウンロードがまだ終了していません'
   "Error: This install can't update itself": 'エラー: このインストールは自身を更新できません'
-  "Error: Update can't be verified": ''
+  "Error: Update can't be verified": 'エラー: 更新を検証できません'
   'Error: Verification failed': 'エラー: 検証に失敗しました'
   'Error: Wrong architecture': 'エラー: アーキテクチャが正しくありません'
   'Error: `unzip` not installed': 'エラー: `unzip` がインストールされていません'
