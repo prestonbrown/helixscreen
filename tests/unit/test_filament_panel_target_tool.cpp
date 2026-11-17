@@ -90,6 +90,10 @@ struct TargetToolHarness {
         set_moonraker_api(previous_api);
         helix::AmsState::instance().clear_backends();
         helix::ui::UpdateQueue::instance().drain();
+        // ToolState and AmsState are process-wide: a case's tools (a parked
+        // tool changer, say) would otherwise aim the next file's panel.
+        helix::AmsState::instance().deinit_subjects();
+        ToolState::instance().deinit_subjects();
     }
 
     void mount(int tool) {
