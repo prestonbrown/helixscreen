@@ -363,6 +363,7 @@
   <translation tag="Authentication failed" en="Authentication failed"/>
   <translation tag="Auto" en="Auto"/>
   <translation tag="Auto Bed Mesh" en="Auto Bed Mesh"/>
+  <translation tag="Auto Belt Tension" en="Auto Belt Tension"/>
   <translation tag="Auto Cal" en="Auto Cal"/>
   <translation tag="Auto Fans" en="Auto Fans"/>
   <translation tag="Auto loading" en="Auto loading"/>
@@ -487,6 +488,7 @@
   <translation tag="Border Width" en="Border Width"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" en="Border transparency (0 = invisible, 255 = solid)"/>
   <translation tag="Both" en="Both"/>
+  <translation tag="Both belts" en="Both belts"/>
   <translation tag="Bouncing Logo" en="Bouncing Logo"/>
   <translation tag="Bouncing Printer" en="Bouncing Printer"/>
   <translation tag="Bowden" en="Bowden"/>
@@ -1040,6 +1042,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." en="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude."/>
   <translation tag="Cut position saved: {}" en="Cut position saved: {}"/>
   <translation tag="Cut tip" en="Cut tip"/>
+  <translation tag="Cutter Calibration" en="Cutter Calibration"/>
   <translation tag="Cutter Enabled" en="Cutter Enabled"/>
   <translation tag="Cutter and purge chute calibration" en="Cutter and purge chute calibration"/>
   <translation tag="Cutter blade didn&apos;t sever filament" en="Cutter blade didn&apos;t sever filament"/>
@@ -1607,6 +1610,7 @@
   <translation tag="Filename" en="Filename"/>
   <translation tag="Filter" en="Filter"/>
   <translation tag="Filter Fan" en="Filter Fan"/>
+  <translation tag="Find the filament cutter&apos;s position" en="Find the filament cutter&apos;s position"/>
   <translation tag="Find the print speeds that shake the printer" en="Find the print speeds that shake the printer"/>
   <translation tag="Finding where the print stopped..." en="Finding where the print stopped..."/>
   <translation tag="Fine" en="Fine"/>
@@ -2132,6 +2136,7 @@
   <translation tag="Length of the cooling tube section" en="Length of the cooling tube section"/>
   <translation tag="Length:" en="Length:"/>
   <translation tag="Let a browser tap and drag on this screen" en="Let a browser tap and drag on this screen"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" en="Let the printer&apos;s tensioners set the belts"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." en="Let&apos;s take a quick tour so you can find things fast."/>
   <translation tag="Level" en="Level"/>
   <translation tag="Leveling Gantry..." en="Leveling Gantry..."/>
@@ -4094,6 +4099,8 @@
   <translation tag="The printer has not reported its axis limits yet." en="The printer has not reported its axis limits yet."/>
   <translation tag="The printer has not reported its maximum velocity yet." en="The printer has not reported its maximum velocity yet."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." en="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." en="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." en="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." en="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." en="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." en="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
@@ -4664,6 +4671,7 @@
   <translation tag="X axis applied, but Y axis failed" en="X axis applied, but Y axis failed"/>
   <translation tag="X axis done, starting Y..." en="X axis done, starting Y..."/>
   <translation tag="X axis limit reached" en="X axis limit reached"/>
+  <translation tag="X belt" en="X belt"/>
   <translation tag="X is at its limit ({}mm)" en="X is at its limit ({}mm)"/>
   <translation tag="X motor" en="X motor"/>
   <translation tag="X:" en="X:"/>
@@ -4673,6 +4681,7 @@
   <translation tag="Y Axis" en="Y Axis"/>
   <translation tag="Y Offset" en="Y Offset"/>
   <translation tag="Y axis limit reached" en="Y axis limit reached"/>
+  <translation tag="Y belt" en="Y belt"/>
   <translation tag="Y is at its limit ({}mm)" en="Y is at its limit ({}mm)"/>
   <translation tag="Y motor" en="Y motor"/>
   <translation tag="Y:" en="Y:"/>

@@ -311,6 +311,7 @@ struct GuardedFile {
 constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/ams_device_operations.xml", 1},
     {"ui_xml/batch_filament_modal.xml", 1},
+    {"ui_xml/belt_tension_auto_modal.xml", 1},
     {"ui_xml/bed_drying_modal.xml", 1},
     {"ui_xml/calibration_tool_offset_panel.xml", 2},
     {"ui_xml/chamber_dryer_modal.xml", 1},

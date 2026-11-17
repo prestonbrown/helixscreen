@@ -6,6 +6,7 @@
 // same lists, so every writer here holds discovery_mutex_.
 
 #include "chamber_heater_backend.h"
+#include "env_knobs.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
@@ -381,6 +382,19 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         break;
     case PrinterType::CREALITY_K2_PLUS:
+        if (helix::env_flag("HELIX_MOCK_KALICO")) {
+            // The Kalico port's K2 Plus (tests/fixtures/printers/
+            // creality_k2_plus_jacobean.json): `[belt_mdl x]` / `[belt_mdl y]`
+            // tensioners, the BELT_TENSION macro, and motor_control's Python
+            // CALIBRATE_CUT_POS, which is no gcode_macro. `box` rides on
+            // is_mock_cfs() (HELIX_MOCK_AMS=cfs); the cutter calibration needs it.
+            for (const char* obj : {"motor_control", "fan_feedback", "temperature_sensor mcu_temp",
+                                    "chamber_heater_circulation_fan chamber_heater_fan",
+                                    "belt_mdl x", "belt_mdl y", "gcode_macro BELT_TENSION"}) {
+                mock_objects.push_back(obj);
+            }
+            break;
+        }
         // The K2 Plus capture's identifying objects. `box` rides on is_mock_cfs().
         // The stock firmware's belt-tension and cutter-calibration macros put the
         // CFS calibration buttons on screen (#2059).

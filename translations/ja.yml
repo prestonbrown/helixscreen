@@ -49,6 +49,15 @@ translations:
   '%u layers': '%uレイヤー'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  "Auto Belt Tension": "ベルト自動張り調整"
+  "Both belts": "両方のベルト"
+  "Cutter Calibration": "カッターのキャリブレーション"
+  "Find the filament cutter's position": "フィラメントカッターの位置を検出します"
+  "Let the printer's tensioners set the belts": "プリンターのテンショナーでベルトを調整します"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
+  "X belt": "Xベルト"
+  "Y belt": "Yベルト"
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' と '{}' は既に存在します。保存されたメッシュを置き換えますか？"
   (different grade): (グレード違い)

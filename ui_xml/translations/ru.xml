@@ -402,6 +402,7 @@
   <translation tag="Authentication failed" ru="Ошибка аутентификации"/>
   <translation tag="Auto" ru="Авто"/>
   <translation tag="Auto Bed Mesh" ru="Авто сетка стола"/>
+  <translation tag="Auto Belt Tension" ru="Автонатяжение ремней"/>
   <translation tag="Auto Cal" ru="Авто кал."/>
   <translation tag="Auto Fans" ru="Автоматические вентиляторы"/>
   <translation tag="Auto loading" ru="Автозагрузка"/>
@@ -529,6 +530,7 @@
   <translation tag="Border Width" ru="Толщина границы"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" ru="Прозрачность границы (0 = невидимая, 255 = сплошная)"/>
   <translation tag="Both" ru="Оба"/>
+  <translation tag="Both belts" ru="Оба ремня"/>
   <translation tag="Bouncing Logo" ru="Прыгающий логотип"/>
   <translation tag="Bouncing Printer" ru="Прыгающий принтер"/>
   <translation tag="Bowden" ru="Боуден"/>
@@ -1085,6 +1087,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ru="Отрежьте вытянутый кончик и вставьте филамент обратно в экструдер до упора, затем нажмите «Экструзия»."/>
   <translation tag="Cut position saved: {}" ru="Позиция реза сохранена: {}"/>
   <translation tag="Cut tip" ru="Обрезка кончика"/>
+  <translation tag="Cutter Calibration" ru="Калибровка резака"/>
   <translation tag="Cutter Enabled" ru="Резак включён"/>
   <translation tag="Cutter and purge chute calibration" ru="Калибровка резака и жёлоба продувки"/>
   <translation tag="Cutter blade didn&apos;t sever filament" ru="Лезвие не перерезало филамент"/>
@@ -1652,6 +1655,7 @@
   <translation tag="Filename" ru="Имя файла"/>
   <translation tag="Filter" ru="Фильтр"/>
   <translation tag="Filter Fan" ru="Вентилятор фильтра"/>
+  <translation tag="Find the filament cutter&apos;s position" ru="Определить положение резака филамента"/>
   <translation tag="Find the print speeds that shake the printer" ru="Найти скорости печати, на которых принтер трясёт"/>
   <translation tag="Finding where the print stopped..." ru="Поиск места, где остановилась печать..."/>
   <translation tag="Fine" ru="Точно"/>
@@ -2180,6 +2184,7 @@
   <translation tag="Length of the cooling tube section" ru="Длина участка трубки охлаждения"/>
   <translation tag="Length:" ru="Длина:"/>
   <translation tag="Let a browser tap and drag on this screen" ru="Разрешить браузеру нажимать и перетаскивать на этом экране"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" ru="Натяжители принтера сами настроят ремни"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." ru="Давайте устроим краткий тур, чтобы вы могли быстро находить всё нужное."/>
   <translation tag="Level" ru="Уровень"/>
   <translation tag="Leveling Gantry..." ru="Выравнивание портала..."/>
@@ -4157,6 +4162,8 @@
   <translation tag="The printer has not reported its axis limits yet." ru="Принтер ещё не сообщил пределы осей."/>
   <translation tag="The printer has not reported its maximum velocity yet." ru="Принтер ещё не сообщил максимальную скорость."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ru="Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ru="Принтер при необходимости ищет ноль, затем определяет положение резака. Держите путь филамента свободным."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ru="Принтер выполнит парковку, затем отведёт стол как можно дальше от сопла. Некоторые катушки недостаточно термостойкие и могут деформироваться. С этого экрана ничего не будет двигаться, пока вы не подтвердите, что катушки сняты со стола; Mainsail, макросы и печать, отправленная из слайсера, не блокируются."/>
@@ -4727,6 +4734,7 @@
   <translation tag="X axis applied, but Y axis failed" ru="Ось X применена, но ось Y не удалась"/>
   <translation tag="X axis done, starting Y..." ru="Ось X готова, запуск Y..."/>
   <translation tag="X axis limit reached" ru="Достигнут предел оси X"/>
+  <translation tag="X belt" ru="Ремень X"/>
   <translation tag="X is at its limit ({}mm)" ru="X на пределе ({}mm)"/>
   <translation tag="X motor" ru="Мотор X"/>
   <translation tag="X:" ru="X:"/>
@@ -4736,6 +4744,7 @@
   <translation tag="Y Axis" ru="Ось Y"/>
   <translation tag="Y Offset" ru="Смещение Y"/>
   <translation tag="Y axis limit reached" ru="Достигнут предел оси Y"/>
+  <translation tag="Y belt" ru="Ремень Y"/>
   <translation tag="Y is at its limit ({}mm)" ru="Y на пределе ({}mm)"/>
   <translation tag="Y motor" ru="Мотор Y"/>
   <translation tag="Y:" ru="Y:"/>

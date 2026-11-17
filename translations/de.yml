@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u Schichten'
   '%zu events queued': '%zu Ereignisse in Warteschlange'
   '%zu plugins failed to load': '%zu Plugins konnten nicht geladen werden'
+  "Auto Belt Tension": "Automatische Riemenspannung"
+  "Both belts": "Beide Riemen"
+  "Cutter Calibration": "Schneider-Kalibrierung"
+  "Find the filament cutter's position": "Position des Filamentschneiders ermitteln"
+  "Let the printer's tensioners set the belts": "Die Spanner des Druckers stellen die Riemen ein"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen."
+  "X belt": "X-Riemen"
+  "Y belt": "Y-Riemen"
   "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' und '{}' existieren bereits. Gespeicherte Netze ersetzen?"
   (different grade): (andere Klasse)

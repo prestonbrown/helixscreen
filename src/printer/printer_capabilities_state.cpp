@@ -9,6 +9,7 @@
 
 #include "printer_capabilities_state.h"
 
+#include "belt_cutter_calibration.h"
 #include "chamber_air_modes.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
@@ -73,6 +74,8 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
+    {Capability::CanTensionBelts, "printer_can_tension_belts", 0},
+    {Capability::CanCalibrateCutter, "printer_can_calibrate_cutter", 0},
     {Capability::SupportsRippleCheck, "printer_supports_ripple_check", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
@@ -304,6 +307,10 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
                    helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
+    set_capability(Capability::CanTensionBelts,
+                   helix::belt_cutter_cal::can_tension_belts(hardware) ? 1 : 0);
+    set_capability(Capability::CanCalibrateCutter,
+                   helix::belt_cutter_cal::can_calibrate_cutter(hardware) ? 1 : 0);
     set_capability(
         Capability::SupportsRippleCheck,
         helix::calibration::ripple::ripple_check_supported(

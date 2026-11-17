@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u layers'
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
+  "Auto Belt Tension": "Auto Belt Tension"
+  "Both belts": "Both belts"
+  "Cutter Calibration": "Cutter Calibration"
+  "Find the filament cutter's position": "Find the filament cutter's position"
+  "Let the printer's tensioners set the belts": "Let the printer's tensioners set the belts"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
+  "X belt": "X belt"
+  "Y belt": "Y belt"
   "'{}' already exists. Replace the stored mesh?": "'{}' already exists. Replace the stored mesh?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' and '{}' already exist. Replace the stored meshes?"
   (different grade): (different grade)

@@ -363,6 +363,7 @@
   <translation tag="Authentication failed" zh="认证失败"/>
   <translation tag="Auto" zh="自动"/>
   <translation tag="Auto Bed Mesh" zh="自动热床网格"/>
+  <translation tag="Auto Belt Tension" zh="自动皮带张紧"/>
   <translation tag="Auto Cal" zh="自动校准"/>
   <translation tag="Auto Fans" zh="自动风扇"/>
   <translation tag="Auto loading" zh="自动装料"/>
@@ -487,6 +488,7 @@
   <translation tag="Border Width" zh="边框宽度"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" zh="边框透明度（0 = 不可见，255 = 实心）"/>
   <translation tag="Both" zh="两者"/>
+  <translation tag="Both belts" zh="两条皮带"/>
   <translation tag="Bouncing Logo" zh="弹跳标志"/>
   <translation tag="Bouncing Printer" zh="弹跳打印机"/>
   <translation tag="Bowden" zh="远程挤出"/>
@@ -1040,6 +1042,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." zh="剪掉拉出的尖端，将耗材重新推入挤出机直到推不动为止，然后点击“挤出”。"/>
   <translation tag="Cut position saved: {}" zh="切割位置已保存: {}"/>
   <translation tag="Cut tip" zh="切断尖端"/>
+  <translation tag="Cutter Calibration" zh="切刀校准"/>
   <translation tag="Cutter Enabled" zh="切刀已启用"/>
   <translation tag="Cutter and purge chute calibration" zh="切刀与排料口校准"/>
   <translation tag="Cutter blade didn&apos;t sever filament" zh="切刀未能切断耗材"/>
@@ -1607,6 +1610,7 @@
   <translation tag="Filename" zh="文件名"/>
   <translation tag="Filter" zh="滤网"/>
   <translation tag="Filter Fan" zh="过滤风扇"/>
+  <translation tag="Find the filament cutter&apos;s position" zh="确定耗材切刀的位置"/>
   <translation tag="Find the print speeds that shake the printer" zh="找出使打印机抖动的打印速度"/>
   <translation tag="Finding where the print stopped..." zh="正在查找打印停止的位置..."/>
   <translation tag="Fine" zh="细调"/>
@@ -2132,6 +2136,7 @@
   <translation tag="Length of the cooling tube section" zh="冷却管段的长度"/>
   <translation tag="Length:" zh="长度："/>
   <translation tag="Let a browser tap and drag on this screen" zh="允许浏览器在此屏幕上点击和拖动"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" zh="由打印机的张紧器调整皮带"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." zh="让我们快速浏览一下，帮助您快速找到所需内容。"/>
   <translation tag="Level" zh="级别"/>
   <translation tag="Leveling Gantry..." zh="正在调平龙门..."/>
@@ -4094,6 +4099,8 @@
   <translation tag="The printer has not reported its axis limits yet." zh="打印机尚未报告其轴限位。"/>
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." zh="打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." zh="打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." zh="打印机将归零并扫过切刀（约1分钟）。请保持料路畅通。"/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." zh="打印机将按需归零，然后确定切刀的位置。请保持料路畅通。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." zh="打印机会先归位,然后让热床尽量远离喷嘴。有些料盘耐热性不足,可能会变形。在你确认料盘已从热床上取下之前,此屏幕不会移动任何部件;Mainsail、宏以及切片软件发送的打印不会被阻止。"/>
@@ -4664,6 +4671,7 @@
   <translation tag="X axis applied, but Y axis failed" zh="X 轴已应用，但 Y 轴失败"/>
   <translation tag="X axis done, starting Y..." zh="X 轴完成，开始 Y 轴..."/>
   <translation tag="X axis limit reached" zh="已到达 X 轴限位"/>
+  <translation tag="X belt" zh="X 皮带"/>
   <translation tag="X is at its limit ({}mm)" zh="X 轴已到达限位 ({}mm)"/>
   <translation tag="X motor" zh="X 电机"/>
   <translation tag="X:" zh="X："/>
@@ -4673,6 +4681,7 @@
   <translation tag="Y Axis" zh="Y 轴"/>
   <translation tag="Y Offset" zh="Y 偏移"/>
   <translation tag="Y axis limit reached" zh="已到达 Y 轴限位"/>
+  <translation tag="Y belt" zh="Y 皮带"/>
   <translation tag="Y is at its limit ({}mm)" zh="Y 轴已到达限位 ({}mm)"/>
   <translation tag="Y motor" zh="Y 电机"/>
   <translation tag="Y:" zh="Y："/>

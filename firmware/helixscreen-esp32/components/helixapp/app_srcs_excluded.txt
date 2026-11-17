@@ -342,6 +342,7 @@ src/ui/calibration/ui_belt_path_names.cpp  # only the Belt Tension screens name 
 src/ui/calibration/ui_panel_belt_tension.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_pid.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_tool_offset.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/ui_belt_cutter_cal.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_stepper_resonance_cal_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut

@@ -151,6 +151,7 @@ src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
+src/printer/belt_cutter_calibration.cpp
 src/printer/fault_path_position.cpp
 src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
