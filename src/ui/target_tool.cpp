@@ -92,7 +92,7 @@ void TargetTool::attach(PrinterState& printer_state) {
     // The tool mounted now is no change: the subscription below replays it.
     // Until a pick, the target is the mounted tool anyway (tool()).
     if (last_active_ == kNoActiveSeen) {
-        last_active_ = tools.active_tool_index();
+        last_active_ = lv_subject_get_int(tools.get_active_tool_subject());
     }
     // A tool change anywhere moves the target to the mounted tool.
     active_tool_observer_ = observe<int>(

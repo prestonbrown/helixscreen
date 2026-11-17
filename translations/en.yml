@@ -169,7 +169,8 @@ translations:
   A lower, B upper: A lower, B upper
   "A macro printed stray template text '{}': check its Jinja tags": "A macro printed stray template text '{}': check its Jinja tags"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.
-  A material preset sets the bed temperature along with the nozzle: A material preset sets the bed temperature along with the nozzle
+  ? A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead
+  : 'A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: A motor IO pin couldn't be restored. Power-cycle the printer to recover
   A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
   "A new Print Status screen": "A new Print Status screen"

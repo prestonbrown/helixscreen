@@ -145,10 +145,6 @@ class TemperatureController {
     /// chamber_heater" or "extruder").  Returns immediately if api_ is null or name is empty.
     void set_target(const std::string& klipper_name, double celsius, SendOptions opts = {});
 
-    /// Send nozzle/bed/chamber targets in a single call.  Chamber is skipped when its resolved
-    /// name is empty or chamber == 0.
-    void apply_material(double nozzle, double bed, double chamber, SendOptions opts = {});
-
     /// Backend-provided chamber action surface (issue #1290). Wired by
     /// PrinterState when the resolved chamber heater is the discovery pick;
     /// empty strings / 0 disable each capability. @p set_target_method is the

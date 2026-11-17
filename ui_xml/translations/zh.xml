@@ -167,7 +167,7 @@
   <translation tag="A lower, B upper" zh="A 下,B 上"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" zh="宏输出了多余的模板文本 &apos;{}&apos;：请检查其 Jinja 标签"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." zh="用于擦拭喷嘴的宏。HelixScreen 可在打印前通过打印前选项运行它。"/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle" zh="材料预设会同时设置热床和喷嘴温度"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" zh="材料预设会同时设置热床和喷嘴温度。由预热宏加热的材料由该宏设置"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" zh="无法恢复电机 IO 引脚。请重新为打印机上电以恢复"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" zh="无法写入电机参数。请重新为打印机上电后重试"/>
   <translation tag="A new Print Status screen" zh="全新的打印状态屏幕"/>

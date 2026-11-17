@@ -173,7 +173,7 @@
   <translation tag="A lower, B upper" fr="A en bas, B en haut"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" fr="Une macro a émis du texte de modèle parasite &apos;{}&apos; : vérifiez ses balises Jinja"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." fr="Une macro qui nettoie la buse. HelixScreen peut l&apos;exécuter avant une impression depuis les options de pré-impression."/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle" fr="Un préréglage de matériau règle la température du plateau en même temps que la buse"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" fr="Un préréglage de matériau règle la température du plateau en même temps que la buse. Un matériau dont la macro de préchauffage gère la chauffe est réglé par cette macro"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" fr="Une broche d&apos;E/S moteur n&apos;a pas pu être restaurée. Éteignez et rallumez l&apos;imprimante pour récupérer"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" fr="Les paramètres d&apos;un moteur n&apos;ont pas pu être écrits. Éteignez et rallumez l&apos;imprimante pour réessayer"/>
   <translation tag="A new Print Status screen" fr="Un nouvel écran d&apos;état de l&apos;impression"/>

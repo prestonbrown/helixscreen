@@ -167,7 +167,7 @@
   <translation tag="A lower, B upper" ja="A下・B上"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" ja="マクロが不要なテンプレート文字列 &apos;{}&apos; を出力しました: Jinja タグを確認してください"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." ja="ノズルを拭き取るマクロ。HelixScreenは印刷前オプションから印刷前に実行できます。"/>
-  <translation tag="A material preset sets the bed temperature along with the nozzle" ja="材料プリセットはノズルとともにベッド温度も設定します"/>
+  <translation tag="A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead" ja="材料プリセットはノズルとともにベッド温度も設定します。予熱マクロが加熱を行う材料は、そのマクロが設定します"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" ja="モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" ja="モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください"/>
   <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>

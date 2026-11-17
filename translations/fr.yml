@@ -189,7 +189,8 @@ translations:
   A lower, B upper: "A en bas, B en haut"
   "A macro printed stray template text '{}': check its Jinja tags": "Une macro a émis du texte de modèle parasite '{}' : vérifiez ses balises Jinja"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Une macro qui nettoie la buse. HelixScreen peut l''exécuter avant une impression depuis les options de pré-impression.'
-  A material preset sets the bed temperature along with the nozzle: 'Un préréglage de matériau règle la température du plateau en même temps que la buse'
+  ? A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead
+  : 'Un préréglage de matériau règle la température du plateau en même temps que la buse. Un matériau dont la macro de préchauffage gère la chauffe est réglé par cette macro'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Une broche d'E/S moteur n'a pas pu être restaurée. Éteignez et rallumez l'imprimante pour récupérer
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Les paramètres d'un moteur n'ont pas pu être écrits. Éteignez et rallumez l'imprimante pour réessayer
   "A new Print Status screen": "Un nouvel écran d'état de l'impression"

@@ -1066,25 +1066,25 @@ void FilamentPanel::handle_preset_button(int material_id) {
 
 void FilamentPanel::send_preset_targets() {
     send_nozzle_target();
-    // With "Material presets heat the bed" off, a preset heats the nozzle alone.
-    const auto bed = helix::presets::bed_target(bed_target_);
-    if (!bed) {
+    auto* c = get_temperature_controller();
+    if (!c) {
         return;
     }
-    if (auto* c = get_temperature_controller()) {
+    // With "Material presets heat the bed" off, a preset leaves the bed alone;
+    // the setting says nothing about the chamber.
+    if (const auto bed = helix::presets::bed_target(bed_target_)) {
         c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
                       {.toast = true, .on_success = [target = *bed]() {
                            NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
                        }});
-
-        // Set chamber temperature if preset specifies one
-        if (chamber_target_ > 0) {
-            int target = deci_to_degrees(chamber_target_);
-            c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
-                          {.toast = true, .on_success = [target]() {
-                               NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
-                           }});
-        }
+    }
+    // Set chamber temperature if preset specifies one
+    if (chamber_target_ > 0) {
+        int target = deci_to_degrees(chamber_target_);
+        c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
+                      {.toast = true, .on_success = [target]() {
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
+                       }});
     }
 }
 

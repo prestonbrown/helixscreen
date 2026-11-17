@@ -175,7 +175,8 @@ translations:
   A lower, B upper: "A abajo, B arriba"
   "A macro printed stray template text '{}': check its Jinja tags": "Una macro imprimió texto de plantilla sobrante '{}': revisa sus etiquetas Jinja"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Una macro que limpia la boquilla. HelixScreen puede ejecutarla antes de imprimir desde las opciones previas a la impresión.'
-  A material preset sets the bed temperature along with the nozzle: 'Un preajuste de material fija la temperatura de la cama junto con la boquilla'
+  ? A material preset sets the bed temperature along with the nozzle. A material whose preheat macro handles heating is set by that macro instead
+  : 'Un preajuste de material fija la temperatura de la cama junto con la boquilla. Un material cuya macro de precalentamiento gestiona el calentamiento lo fija esa macro'
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: No se pudo restaurar un pin de E/S del motor. Apague y encienda la impresora para recuperarla
   A motor's parameters couldn't be written. Power-cycle the printer to retry: No se pudieron escribir los parámetros de un motor. Apague y encienda la impresora para reintentar
   "A new Print Status screen": "Una nueva pantalla de Estado de Impresión"
