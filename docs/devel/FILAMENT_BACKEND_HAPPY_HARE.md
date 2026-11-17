@@ -54,6 +54,7 @@ encoder (`clog_detection` 1 or 2) and FlowGuard (`flowguard.enabled`) feed the
 | `MMU_GATE_MAP GATE={n} AVAILABLE=1 TEMP=0 QUIET=1` | Slot menu **Mark Available**, offered while `gate_status` is 0 (empty): Happy Hare's failed-pickup error names this as the recovery, and from 65e3656d (after 4.2.0) the gate keeps its attributes then. `TEMP=0` keeps the gate's temperature. Refused while printing, allowed while paused; pull mode accepts it, since gate status stays local there. Every version takes `AVAILABLE=` |
 | `MMU_SELECT_BYPASS` | Select bypass position |
 | `MMU_SYNC_FEEDBACK ENABLE=0\|1` / `AUTOTUNE=0\|1` / `RESET=1` / `ADJUST_TENSION=1` [`UNIT=n`] | v4 Accessories **Sync Feedback**, **Save Autotuned Rotation**, **Reset Sync Feedback**, **Neutralize Tension** - see [Sync feedback and fan controls](#sync-feedback-and-fan-controls) |
+| `MMU_HEATER DRY=1 ... ROTATE=1` [`GATES=`] | Dryer **Rotate**. Before 4.2: only with per-gate heaters, an explicit `GATES=` list and an eSpooler. From 4.2 (Happy Hare's MMU_HEATER command, 3e0b82ae era): a unit whose gear turns its spool (`[mmu_unit] gear_rotates_spool`, default on for vendors `VVD` and `QIDI`, `MachineUnit::gear_rotates_spool`) counts too, and a shared heater takes `ROTATE=1` with no `GATES=` (Happy Hare rotates every empty gate); per-gate heaters still need `GATES=` |
 | `MMU_FAN ENABLE=0\|1` / `FAN_FORCED=0\|1\|2` [`UNIT=<name>`] | v4.1 Accessories **Fan Control** and **Fan Mode** (Off / On / Auto), one pair per unit in `printer.mmu.fans` |
 
 ### Path Topology

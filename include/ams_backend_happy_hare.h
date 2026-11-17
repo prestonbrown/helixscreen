@@ -495,6 +495,8 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     /// Does @p unit (any unit for a negative one) have a motor that turns its spools?
     /// Caller holds mutex_.
     [[nodiscard]] bool unit_turns_spools_locked(int unit) const;
+    /// Whether @p unit's gear motor turns its spools (any unit when negative).
+    [[nodiscard]] bool unit_gear_rotates_spool_locked(int unit) const;
     /// MMU_HEATER DRY=1 with TEMP and TIMER, plus HUMIDITY when @p humidity_pct is set and
     /// ROTATE=1 when @p rotate, sent to @p gates (empty: @p unit's whole-unit targets).
     AmsError start_drying_cycle(float temp_c, int duration_min, std::optional<float> humidity_pct,

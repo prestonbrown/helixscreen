@@ -3395,6 +3395,21 @@ bool AmsBackendHappyHare::unit_turns_spools_locked(int unit) const {
     return false;
 }
 
+bool AmsBackendHappyHare::unit_gear_rotates_spool_locked(int unit) const {
+    for (int u = 0; u < static_cast<int>(machine_units_.size()); ++u) {
+        if ((unit < 0 || u == unit) && machine_units_[u].gear_rotates_spool) {
+            return true;
+        }
+    }
+    return false;
+}
+
+namespace {
+/// Happy Hare 4.2 rotates every empty gate on a shared heater without GATES=,
+/// and counts a gear that turns its spool as able to rotate.
+constexpr double kSharedHeaterRotationSince = 4.2;
+} // namespace
+
 DryerInfo AmsBackendHappyHare::dryer_capabilities_locked(int unit) const {
     DryerInfo out = dryer_info_;
     // MMU_HEATER takes HUMIDITY= from Happy Hare 4 on.
@@ -3403,11 +3418,18 @@ DryerInfo AmsBackendHappyHare::dryer_capabilities_locked(int unit) const {
         out.default_humidity_target.reset();
     }
     // GATES= picks what heats only where every gate has its own heater; on a shared
-    // enclosure the one heater warms them all whatever the list says. ROTATE=1 needs
-    // that explicit list and an eSpooler to turn the spools.
+    // enclosure the one heater warms them all whatever the list says. Before 4.2,
+    // ROTATE=1 needs that explicit list and an eSpooler to turn the spools. From
+    // 4.2 a gear that turns its spool counts too, and a shared heater rotates every
+    // empty gate with no list.
     out.supports_gate_selection =
         out.supported && is_v4_locked() && unit_has_per_gate_heaters_locked(unit);
-    out.supports_rotation = out.supports_gate_selection && unit_turns_spools_locked(unit);
+    if (machine_layout_.since(kSharedHeaterRotationSince)) {
+        out.supports_rotation = out.supported && (unit_turns_spools_locked(unit) ||
+                                                  unit_gear_rotates_spool_locked(unit));
+    } else {
+        out.supports_rotation = out.supports_gate_selection && unit_turns_spools_locked(unit);
+    }
     return out;
 }
 
@@ -3689,10 +3711,11 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
 
     std::vector<int> selected;
     std::optional<float> humidity;
+    bool shared_heater_rotation = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         const DryerInfo caps = dryer_capabilities_locked(request.unit);
-        if (!caps.supports_gate_selection) {
+        if (!request.gates.empty() && !caps.supports_gate_selection) {
             return AmsErrorHelper::not_supported("Drying selected gates");
         }
         if (request.rotate && !caps.supports_rotation) {
@@ -3701,6 +3724,8 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
         if (request.humidity_pct) {
             humidity = caps.humidity_target(*request.humidity_pct);
         }
+        // A shared heater (4.2) rotates every empty gate on its own: no GATES=.
+        shared_heater_rotation = !caps.supports_gate_selection;
         // ROTATE=1 is refused without an explicit GATES list, so a rotation with no
         // selection names every gate on the unit.
         std::vector<int> gates = request.gates;
@@ -3723,6 +3748,10 @@ AmsError AmsBackendHappyHare::start_drying_request(const DryingRequest& request)
             }
         }
         std::sort(selected.begin(), selected.end());
+    }
+    if (shared_heater_rotation) {
+        return start_drying_cycle(request.temp_c, request.duration_min, humidity, request.unit, {},
+                                  /*rotate=*/true);
     }
     if (selected.empty()) {
         return AmsError{AmsResult::WRONG_STATE, "None of the selected gates exist",
@@ -3757,27 +3786,30 @@ AmsError AmsBackendHappyHare::start_drying_cycle(float temp_c, int duration_min,
         cmd += fmt::format(" HUMIDITY={:.0f}", *humidity_pct);
     }
     const bool gate_selection = !gates.empty();
-    if (gate_selection && rotate) {
+    if (rotate) {
         cmd += " ROTATE=1";
     }
 
     // heater_targets_for_unit() locks internally, so it is called with no lock held.
     std::vector<std::string> targets;
-    if (!gate_selection) {
+    if (!gate_selection && !rotate) {
         targets = heater_targets_for_unit(unit);
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (gate_selection) {
             targets = heater_targets_for_gates_locked(gates);
+        } else if (rotate) {
+            // A shared heater rotates every empty gate when GATES= is left out.
+            targets = {unit_suffix_locked(unit)};
         }
         dryer_info_.duration_min = duration_min;
         dry_end_epoch_ = now_fn_() + static_cast<std::time_t>(duration_min) * 60;
         dry_humidity_target_ = humidity_pct;
         forget_dry_gates_locked();
+        dry_rotate_ = rotate;
         if (gate_selection) {
             dry_gates_ = std::move(gates);
-            dry_rotate_ = rotate;
         }
     }
 

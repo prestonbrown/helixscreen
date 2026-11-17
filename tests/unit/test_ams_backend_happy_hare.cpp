@@ -5832,6 +5832,51 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
 }
 
 TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare 4.2 rotates spools on a shared heater without GATES",
+                 "[ams][happy_hare][hh_v4][dry_gates][shared_rotation]") {
+    // Unit 0 (ERCF) shares one heater; unit 1 (Box Turtle) has one per gate.
+    auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    fx["mmu_machine"]["unit_0"]["filament_heater"] = "heater_generic ercf_heater";
+    const std::string version = GENERATE(std::string("4.2.0"), std::string("4.1.0"));
+    INFO("Happy Hare " << version);
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    const bool v42 = version == "4.2.0";
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+
+    SECTION("a gear that turns its spool counts") {
+        // No eSpooler anywhere; the ERCF unit's gear turns its spools.
+        fx["configfile_settings"]["mmu_unit ercf"]["gear_rotates_spool"] = 1;
+        connect_with_fixture(helper, client, fx);
+        HappyHareTestAccess::dryer_info(helper).supported = true;
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_gate_selection);
+        CHECK(helper.get_dryer_info(0).supports_rotation == v42);
+
+        DryingRequest req{.temp_c = 50.0f, .duration_min = 60, .unit = 0};
+        req.rotate = true;
+        helper.clear_captured_gcodes();
+        const AmsError err = helper.start_drying_request(req);
+        if (v42) {
+            REQUIRE(err.success());
+            CHECK(helper.captured_gcodes ==
+                  std::vector<std::string>{"MMU_HEATER DRY=1 TEMP=50 TIMER=60 ROTATE=1 UNIT=0"});
+        } else {
+            CHECK(err.result == AmsResult::NOT_SUPPORTED);
+            CHECK(helper.captured_gcodes.empty());
+        }
+    }
+    SECTION("a unit whose gear grips but does not turn the spool") {
+        connect_with_fixture(helper, client, fx);
+        HappyHareTestAccess::dryer_info(helper).supported = true;
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_rotation);
+    }
+}
+
+TEST_CASE_METHOD(HhHelperWithClient,
                  "Happy Hare v4 drives a chosen set of gates on per-gate heaters",
                  "[ams][happy_hare][hh_v4][dry_gates]") {
     // Unit 0 (ERCF) shares one heater across its gates; unit 1 (Box Turtle) has one per

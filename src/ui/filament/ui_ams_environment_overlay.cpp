@@ -525,7 +525,10 @@ void AmsEnvironmentOverlay::publish_dry_gates() {
 
     snprintf(dry_rotate_label_buf_, sizeof(dry_rotate_label_buf_), "%s", lv_tr("Rotate"));
     lv_subject_set_string(&dry_rotate_label_subject_, dry_rotate_label_buf_);
-    const bool rotate_offered = n > 0 && dryer.supports_rotation;
+    // A dryer that picks its gates rotates the picked ones; one shared heater
+    // rotates every empty gate, so Rotate stands alone there.
+    const bool rotate_offered =
+        dryer.supports_rotation && (n > 0 || (dryer.supported && !dryer.supports_gate_selection));
     lv_subject_set_int(&dry_rotate_visible_subject_, rotate_offered ? 1 : 0);
     lv_subject_set_int(&dry_rotate_on_subject_, rotate_offered && dry_rotate_ ? 1 : 0);
 }

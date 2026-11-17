@@ -55,12 +55,17 @@ class RecordingLaneRig : public AmsBackendMock {
     DryerInfo get_dryer_info(int unit) const override {
         DryerInfo d = AmsBackendMock::get_dryer_info(unit);
         d.active = report_active;
+        if (shared_rotation) {
+            d.supports_rotation = true;
+        }
         return d;
     }
 
     std::vector<DryingRequest> starts;
     std::vector<std::vector<int>> stops;
     bool report_active = false;
+    /// One shared heater that rotates its empty gates (Happy Hare 4.2).
+    static inline bool shared_rotation = false;
 };
 
 void reset_overlay_singleton() {
@@ -137,6 +142,26 @@ void finish() {
 }
 
 } // namespace
+
+TEST_CASE_METHOD(XMLTestFixture, "A shared-heater dryer that rotates spools offers Rotate alone",
+                 "[ams][dryer][dry_gates][overlay][shared_rotation]") {
+    reset_overlay_singleton();
+    RecordingLaneRig::shared_rotation = true;
+    auto* backend = show_overlay(false);
+
+    CHECK(subject_int("env_dry_gate_count") == 0);
+    CHECK(subject_int("env_dry_rotate_visible") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_rotate_wrap")));
+
+    tap_rotate();
+    press_start_stop();
+    REQUIRE(backend->starts.size() == 1);
+    CHECK(backend->starts[0].gates.empty());
+    CHECK(backend->starts[0].rotate);
+    finish();
+    RecordingLaneRig::shared_rotation = false;
+}
 
 TEST_CASE_METHOD(XMLTestFixture, "A dryer that heats its gates together offers no lane chips",
                  "[ams][dryer][dry_gates][overlay]") {

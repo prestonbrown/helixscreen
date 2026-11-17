@@ -287,8 +287,19 @@ MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::js
     // v4 names the unit's encoder on its own [mmu_unit <name>] section; Klipper
     // lowercases section names in configfile.settings.
     const std::string name = tio::to_lower(read_string_member(fields, "name"));
-    if (const auto* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name)) {
+    const nlohmann::json* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name);
+    if (cfg) {
         u.has_encoder = !read_string_member(*cfg, "encoder").empty();
+    }
+    const nlohmann::json* gear_turns = cfg ? find_member(*cfg, "gear_rotates_spool") : nullptr;
+    if (gear_turns && gear_turns->is_boolean()) {
+        u.gear_rotates_spool = gear_turns->get<bool>();
+    } else if (const auto n = read_config_number(gear_turns)) {
+        u.gear_rotates_spool = *n != 0.0F;
+    } else {
+        // mmu_unit.py's vendor profiles: VVD and QIDI default it on.
+        const std::string vendor = tio::to_upper(u.vendor);
+        u.gear_rotates_spool = vendor == "VVD" || vendor == "QIDI";
     }
     return u;
 }

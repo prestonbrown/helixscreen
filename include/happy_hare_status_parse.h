@@ -239,6 +239,10 @@ struct MachineUnit {
     /// From the unit's configfile `[mmu_unit <name>] encoder`; nullopt when the
     /// install does not say (v3)
     std::optional<bool> has_encoder;
+    /// The gear motor itself turns the spool (a type-B unit without an
+    /// eSpooler): `[mmu_unit <name>] gear_rotates_spool`, else Happy Hare's own
+    /// default for the unit's vendor (ViViD and QIDI Box).
+    bool gear_rotates_spool = false;
 };
 
 /// A per-unit capability v4 checks before it accepts a command or a
