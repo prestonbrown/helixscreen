@@ -15,8 +15,12 @@
     <!-- Motor icon styles: warning when enabled, dimmed when disabled -->
     <style name="icon_motors_enabled" text_color="#warning"/>
     <style name="icon_motors_disabled" text_color="#text_muted"/>
-    <!-- Slider knob room at tiny breakpoint (480x320) -->
-    <style name="slider_compact" pad_left="#space_md" pad_right="#space_md"/>
+    <!-- The slider's round knob is wider and taller than its track and is drawn
+         past the slider's box, where the row around it clips. The slider's own
+         inset keeps the knob's ends inside it, the row's padding its top and bottom. -->
+    <style name="slider_knob_inset" pad_left="#space_md" pad_right="#space_md"/>
+    <!-- One style per binding: two bindings toggling one style undo each other -->
+    <style name="slider_container_micro" pad_top="6" pad_bottom="6"/>
     <style name="slider_container_compact" pad_top="6" pad_bottom="6"/>
     <style name="slider_container_standard" pad_top="#space_xs" pad_bottom="#space_xs"/>
     <!-- Icon-to-label gap: wider on tiny breakpoint (labels hidden/cramped, icons
@@ -410,11 +414,12 @@
                       style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
                 <bind_style_if_eq name="slider_row_beside_value" subject="ui_is_portrait" ref_value="0"/>
                 <bind_style_if_eq name="slider_row_alone" subject="ui_is_portrait" ref_value="1"/>
+                <bind_style_if_eq name="slider_container_micro" subject="ui_breakpoint" ref_value="0"/>
                 <bind_style_if_eq name="slider_container_compact" subject="ui_breakpoint" ref_value="1"/>
                 <bind_style_if_ge name="slider_container_standard" subject="ui_breakpoint" ref_value="2"/>
                 <lv_slider name="part_fan_slider"
                            flex_grow="1" bind_value="controls_fan_pct" min_value="0" max_value="100">
-                  <bind_style_if_eq name="slider_compact" subject="ui_breakpoint" ref_value="1"/>
+                  <style name="slider_knob_inset"/>
                   <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
                 </lv_slider>
                 <text_body name="fan_speed_display" width="content" bind_text="controls_fan_speed">
