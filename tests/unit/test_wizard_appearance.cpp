@@ -54,6 +54,7 @@ TEST_CASE("Appearance: the clock format default follows the language", "[wizard]
     CHECK(default_time_format_for_language("") == TimeFormat::HOUR_12);
     CHECK(default_time_format_for_language("de") == TimeFormat::HOUR_24);
     CHECK(default_time_format_for_language("ja") == TimeFormat::HOUR_24);
+    CHECK(default_time_format_for_language("en-GB") == TimeFormat::HOUR_24);
 }
 
 TEST_CASE("Appearance: the timezone row draws attention only on an accidental UTC",

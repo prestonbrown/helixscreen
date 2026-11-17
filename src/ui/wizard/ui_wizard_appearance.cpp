@@ -10,6 +10,7 @@
 #include "config.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
+#include "region_defaults.h"
 #include "system_settings_manager.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -27,7 +28,7 @@ constexpr const char* kDateFormatKey = "/display/date_format";
 } // namespace
 
 TimeFormat default_time_format_for_language(const std::string& language) {
-    return (language.empty() || language == "en") ? TimeFormat::HOUR_12 : TimeFormat::HOUR_24;
+    return default_24h_clock_for_language(language) ? TimeFormat::HOUR_24 : TimeFormat::HOUR_12;
 }
 
 bool timezone_needs_attention(bool follows_system, bool system_zone_known) {

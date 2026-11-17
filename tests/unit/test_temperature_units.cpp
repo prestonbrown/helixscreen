@@ -232,6 +232,13 @@ TEST_CASE("temperature units: region defaults follow the zone, then the language
     CHECK(region_defaults("de", "").date_format == DateFormat::DMY);
     CHECK(helix::default_date_format_for_language("xx") == DateFormat::MDY);
     CHECK(region_defaults("ja", "Asia/Tokyo").date_format == DateFormat::YMD);
+    // British English writes the day first with no zone; a US zone still wins.
+    CHECK(region_defaults("en-GB", "").date_format == DateFormat::DMY);
+    CHECK(region_defaults("en-GB", "").temp_unit == kC);
+    CHECK(region_defaults("en-GB", "America/Chicago").date_format == DateFormat::MDY);
+    // A variant with no row of its own takes its base language's.
+    CHECK(helix::default_date_format_for_language("zh-TW") == DateFormat::YMD);
+    CHECK(helix::default_date_format_for_language("en-US") == DateFormat::MDY);
 }
 
 // ============================================================================

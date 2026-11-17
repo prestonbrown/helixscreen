@@ -5,6 +5,7 @@
 
 #include "ui_format_utils.h"
 
+#include "core/locale_code.h"
 #include "format_utils.h"
 #include "lvgl.h"
 #include "region_defaults.h"
@@ -161,7 +162,7 @@ static DatePatternGroup get_date_pattern(const std::string& lang) {
     case DateFormat::DMY:
         break;
     }
-    return lang == "de" ? DatePatternGroup::DE : DatePatternGroup::ROMANCE_RU;
+    return locale_base_language(lang) == "de" ? DatePatternGroup::DE : DatePatternGroup::ROMANCE_RU;
 }
 
 static ModifiedDatePatternGroup get_modified_date_pattern(const std::string& lang) {
@@ -195,6 +196,9 @@ localized_name(const struct tm* tm_info, const char* format,
         return buf;
     }
     auto it = table.find(s_current_lang);
+    if (it == table.end()) {
+        it = table.find(std::string(locale_base_language(s_current_lang)));
+    }
     if (it == table.end()) {
         it = table.find("en");
     }
@@ -255,15 +259,19 @@ void apply_locale(const std::string& lang_code) {
     s_current_lang = lang_code;
     s_use_system_locale = false;
 
-    // English works fine with C locale strftime. A language set earlier may have left LC_TIME
-    // on its own locale, whose %p is empty in most of them.
-    if (lang_code == "en") {
+    // English, and any regional English, works fine with C locale strftime. A language set
+    // earlier may have left LC_TIME on its own locale, whose %p is empty in most of them.
+    const std::string base(locale_base_language(lang_code));
+    if (base == "en") {
         std::setlocale(LC_TIME, "C");
-        spdlog::info("locale: language='en', using C locale (English default)");
+        spdlog::info("locale: language='{}', using C locale (English default)", lang_code);
         return;
     }
 
     auto it = k_locale_map.find(lang_code);
+    if (it == k_locale_map.end()) {
+        it = k_locale_map.find(base);
+    }
     if (it == k_locale_map.end()) {
         spdlog::warn("locale: unknown language '{}', falling back to tables", lang_code);
         return;
@@ -340,7 +348,8 @@ std::string format_localized_long_date(const struct tm* tm_info) {
         snprintf(buf, sizeof(buf), "%d. %s %d", dd, get_month_full_name(tm_info).c_str(), yyyy);
         break;
     case DatePatternGroup::ROMANCE_RU:
-        if (s_current_lang == "es" || s_current_lang == "pt") {
+        if (const std::string_view base = locale_base_language(s_current_lang);
+            base == "es" || base == "pt") {
             // "21 de octubre de 2019"
             snprintf(buf, sizeof(buf), "%d de %s de %d", dd, get_month_full_name(tm_info).c_str(),
                      yyyy);
@@ -350,7 +359,8 @@ std::string format_localized_long_date(const struct tm* tm_info) {
         }
         break;
     case DatePatternGroup::CJK:
-        if (s_current_lang == "zh" || s_current_lang == "ja") {
+        if (const std::string_view base = locale_base_language(s_current_lang);
+            base == "zh" || base == "ja") {
             // "2019年10月21日"
             snprintf(buf, sizeof(buf), u8"%d年%d月%d日", yyyy, mm, dd);
         } else {
@@ -490,11 +500,7 @@ std::string format_localized_short_date(const struct tm* tm_info) {
 }
 
 bool locale_default_24h(const std::string& lang_code) {
-    // English and unknown languages default to 12-hour format
-    if (lang_code == "en" || k_locale_map.find(lang_code) == k_locale_map.end()) {
-        return false;
-    }
-    return true;
+    return default_24h_clock_for_language(lang_code);
 }
 
 } // namespace helix::ui

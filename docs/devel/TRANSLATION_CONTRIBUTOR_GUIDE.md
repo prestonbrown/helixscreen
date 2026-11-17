@@ -1,6 +1,6 @@
 # Translation Contributor Guide
 
-HelixScreen currently ships in nine languages - English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese. Every one of them exists because someone sat down with a YAML file and a coffee and did the work.
+HelixScreen currently ships in nine languages - English, German, Spanish, French, Italian, Japanese, Portuguese, Russian, and Chinese - plus British English, a regional variant of English. Every one of them exists because someone sat down with a YAML file and a coffee and did the work.
 
 This doc is for people who want to improve an existing translation, fix a bad one, or add a language that isn't there yet. You don't need to write any code. You do need to know the language you're translating into well enough to make judgment calls - especially around domain terminology (3D printing is vocabulary-heavy).
 
@@ -13,6 +13,7 @@ For the *implementation* of the translation system - how strings get from YAML t
 | Locale | File | Status |
 |---|---|---|
 | `en` | `translations/en.yml` | Source of truth - English is the reference |
+| `en-GB` | `translations/en-GB.yml` | British English: a regional variant of `en` (see below) |
 | `de` | `translations/de.yml` | German |
 | `es` | `translations/es.yml` | Spanish |
 | `fr` | `translations/fr.yml` | French |
@@ -22,7 +23,7 @@ For the *implementation* of the translation system - how strings get from YAML t
 | `ru` | `translations/ru.yml` | Russian |
 | `zh` | `translations/zh.yml` | Chinese (Simplified) |
 
-All files have identical keys (every key in `en.yml`, about 4,900 strings) and differ only in their translated values. If English adds a new string, `make translation-sync` propagates the key to every other language file with an empty value, which marks it as needing a translation.
+All files have identical keys (every key in `en.yml`, about 4,900 strings) and differ only in their translated values. If English adds a new string, `make translation-sync` propagates the key to every other language file with an empty value, which marks it as needing a translation. In a regional variant such as `en-GB.yml` an empty value means something else: the string inherits its base language's text.
 
 ---
 
@@ -136,7 +137,7 @@ If you want to add a language HelixScreen doesn't ship with yet:
 cp translations/en.yml translations/<locale>.yml
 ```
 
-Use the [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) for `<locale>` - `pl` for Polish, `ko` for Korean, `nl` for Dutch, etc. For variants (`pt-BR` vs `pt-PT`), open an issue first - HelixScreen doesn't currently support locale variants, and adding one has implications.
+Use the [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) for `<locale>` - `pl` for Polish, `ko` for Korean, `nl` for Dutch, etc. For a regional variant of a language that already ships (`pt-BR` beside `pt`, `en-GB` beside `en`), follow [Adding a regional variant](#adding-a-regional-variant) instead: it is much less work.
 
 ### Step 2: Change `locale:` at the top
 
@@ -176,6 +177,18 @@ Languages that need this most heavily: Russian, Polish, Arabic, Czech, and most 
 Registration lives in `src/system/system_settings_manager.cpp` (the `kLanguageOptionsText` list and `language_code_to_index`) and `src/ui/wizard/ui_wizard_language_chooser.cpp` (the first-run language picker). Open a PR without these changes - we'll guide you through the small code additions during review. The YAML file is the heavy lift; the registration is a few lines.
 
 ---
+
+## Adding a regional variant
+
+A regional variant is a language that already ships, written the way one region writes it: British English beside English, Brazilian Portuguese beside Portuguese. The locale code is the language, a hyphen and the region's [ISO 3166 code](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2), in that case: `en-GB`, `pt-BR`.
+
+A variant file holds every key, like any other locale, but **only the strings the region writes differently get a value. Leave every other value empty: an empty value inherits the base language's text.** That keeps the file honest (every value in it is a real regional difference) and means a new English string needs nothing from the variant until it has a regional spelling. `translations/en-GB.yml` is the worked example: about 100 values out of 4,900 keys.
+
+1. Create `translations/<lang>-<REGION>.yml` holding every key of `en.yml` with an empty value, and set `locale: <lang>-<REGION>` at the top.
+2. Fill in only the strings that differ. The same rules apply as for any translation: keep placeholders, G-code, Klipper and Moonraker names, product names, file names and units exactly as they are, and keep capitalization and punctuation the same as the base.
+3. Register the code. A variant sits in `SystemSettingsManager`'s language list right after its base and is named in its own words, such as "English (UK)". [TRANSLATION_SYSTEM.md § Regional Variants](TRANSLATION_SYSTEM.md#regional-variants) lists the places, including the date order and clock defaults if the region's differ from the base language's.
+
+The coverage report counts an inherited string as translated and shows how many the variant defines itself.
 
 ## What NOT to translate
 
