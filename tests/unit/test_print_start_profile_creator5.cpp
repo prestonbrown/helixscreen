@@ -488,6 +488,20 @@ TEST_CASE_METHOD(CreatorFivePrintStartReplayFixture,
         drain_async_updates();
         CHECK_FALSE(collector().is_active());
     }
+    SECTION("a response with no line in it does nothing") {
+        test::set_wire_state(state(), PrintJobState::CANCELLED);
+        drain_async_updates();
+        for (const json& params :
+             {json(), json(kCreatorFiveStartTable), json::array(), json::array({42})}) {
+            json msg = {{"method", "notify_gcode_response"}};
+            if (!params.is_null()) {
+                msg["params"] = params;
+            }
+            client().dispatch_method_callback("notify_gcode_response", msg);
+        }
+        drain_async_updates();
+        CHECK_FALSE(collector().is_active());
+    }
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,

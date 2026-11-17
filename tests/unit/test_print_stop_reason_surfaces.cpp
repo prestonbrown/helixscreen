@@ -14,6 +14,7 @@
 #include "../ui_test_utils.h"
 #include "audio_settings_manager.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "print_completion.h"
 #include "printer_state.h"
 
@@ -175,4 +176,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion toast: a canceled print says why
     state().print_state().set_print_stop_reason("");
     test::set_wire_state(state(), PrintJobState::STANDBY);
     UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Completion alert: ALERT mode wakes the display and opens the modal",
+                 "[print_completion][stop_reason]") {
+    auto& audio = AudioSettingsManager::instance();
+    const CompletionAlertMode saved_mode = audio.get_completion_alert_mode();
+    audio.set_completion_alert_mode(CompletionAlertMode::ALERT);
+    int wakes = 0;
+    set_display_wake_handler([&wakes] { ++wakes; });
+    ObserverGuard completion = init_print_completion_observer();
+
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    UpdateQueue::instance().drain();
+    test::set_wire_state(state(), PrintJobState::COMPLETE);
+    UpdateQueue::instance().drain();
+
+    CHECK(wakes == 1);
+    lv_obj_t* dialog = ModalStack::instance().dialog_for_component("print_completion_modal");
+    CHECK(dialog != nullptr);
+
+    if (dialog) {
+        helix::ui::modal_hide(dialog);
+    }
+    completion.reset();
+    set_display_wake_handler(nullptr);
+    audio.set_completion_alert_mode(saved_mode);
+    test::set_wire_state(state(), PrintJobState::STANDBY);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
 }
