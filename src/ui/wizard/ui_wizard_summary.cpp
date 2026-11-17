@@ -3,6 +3,7 @@
 
 #include "ui_wizard_summary.h"
 
+#include "ui_settings_system.h"
 #include "ui_settings_updates.h"
 #include "ui_subject_registry.h"
 #include "ui_wizard.h"
@@ -284,10 +285,10 @@ void WizardSummaryStep::init_subjects() {
 
 void WizardSummaryStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
-    WizardTelemetryStep::register_opt_in_row_callbacks();
-    // The update channel row reuses Settings > Updates' callback, registered there only
-    // when that overlay first opens.
+    // The update channel and statistics rows reuse Settings > Updates' and Settings >
+    // System's callbacks, registered there only when those overlays first open.
     helix::settings::get_updates_settings_overlay().register_callbacks();
+    helix::settings::get_system_settings_overlay().register_callbacks();
 }
 
 // ============================================================================

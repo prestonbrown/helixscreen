@@ -3999,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ja="回転テスト: %d° (%d/%d) - %ds残り"/>
   <translation tag="Testing, servo, and motor operations" ja="テスト・サーボ・モーター操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。"/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！完全匿名の使用データが HelixScreen の改善に役立ちます。"/>
   <translation tag="That print is no longer paused" ja="その印刷はもう一時停止中ではありません"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." ja="この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"/>
   <translation tag="That setting cannot be changed while a print is running" ja="印刷中はこの設定を変更できません"/>

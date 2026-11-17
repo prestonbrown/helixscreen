@@ -4127,8 +4127,6 @@ translations:
     - 剩余%ds'
   Testing, servo, and motor operations: '测试、舵机与电机操作'
   Thanks! Anonymous usage data helps improve HelixScreen.: 感谢！匿名使用数据有助于改进 HelixScreen。
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: 感谢！完全匿名的使用数据有助于改进
-    HelixScreen。
   That print is no longer paused: '该打印已不再暂停'
   That reading jumped too far to trust. Re-measure without turning.: "这次读数跳动过大,不可信。请不转动再测量一次。"
   'That setting cannot be changed while a print is running': '打印进行中无法更改该设置'

@@ -3999,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" en="Testing rotation: %d° (%d/%d) - %ds remaining"/>
   <translation tag="Testing, servo, and motor operations" en="Testing, servo, and motor operations"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." en="Thanks! Anonymous usage data helps improve HelixScreen."/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." en="Thanks! TOTALLY anonymous usage data helps improve HelixScreen."/>
   <translation tag="That print is no longer paused" en="That print is no longer paused"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." en="That reading jumped too far to trust. Re-measure without turning."/>
   <translation tag="That setting cannot be changed while a print is running" en="That setting cannot be changed while a print is running"/>

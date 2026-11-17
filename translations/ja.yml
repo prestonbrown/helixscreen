@@ -4136,8 +4136,6 @@ translations:
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
   Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが
     HelixScreen の改善に役立ちます。
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！完全匿名の使用データが
-    HelixScreen の改善に役立ちます。
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'
   That reading jumped too far to trust. Re-measure without turning.: "この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"
   'That setting cannot be changed while a print is running': '印刷中はこの設定を変更できません'
