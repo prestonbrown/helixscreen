@@ -235,5 +235,5 @@ void apply_detection_switch(bool enabled) {
 }
 // No detector reports a bed check here, so the row stays hidden and its switch
 // has nothing to drive.
-void apply_bed_check_switch(bool /*enabled*/) {}
+void apply_bed_check_switch(bool) {}
 } // namespace helix::detection

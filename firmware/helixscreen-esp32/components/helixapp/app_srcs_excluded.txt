@@ -363,6 +363,7 @@ src/ui/settings/ui_ipv4_revert_retry.cpp  # static IPv4 revert retries; no ESP32
 src/ui/settings/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/settings/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
 src/ui/settings/ui_settings_telemetry_data.cpp  # the firmware has no telemetry queue to show; the row is hidden there
+src/ui/settings/ui_update_notify_modal.cpp  # the update-available dialog; the firmware flashes whole and never runs UpdateChecker, stubbed in helixapp_platform_stubs2.cpp
 src/ui/calibration/ui_shaper_sweep_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_spoolman_context_menu.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/filament/ui_spoolman_edit_modal.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast

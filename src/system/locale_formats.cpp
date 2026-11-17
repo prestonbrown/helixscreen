@@ -3,9 +3,8 @@
 
 #include "locale_formats.h"
 
-#include "display_format.h"
-
 #include "core/locale_code.h"
+#include "display_format.h"
 #include "format_utils.h"
 #include "lvgl.h"
 #include "region_defaults.h"
