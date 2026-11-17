@@ -5781,11 +5781,11 @@ AmsError AmsBackendAfc::eject_lane(int slot_index) {
     // prestonbrown/helixscreen#1258. Send the macro and let AFC decide.
     //
     // What that costs: AFC's own refusals reach the user only as far as AFC
-    // reports them. "Lane is loaded in toolhead" is a bare logger.info, console
-    // only, absent from AFC.message, so it is silent here. Matching that console
-    // string would re-create exactly the coupling this shed; the fix belongs
-    // upstream (promote it to logger.warning, which reaches message_queue and so
-    // AFC.message, which parse_afc_state() already toasts).
+    // reports them. On v1.2.0 "Lane is loaded in toolhead" is a bare
+    // logger.info, console only and absent from AFC.message, so it is silent
+    // here. AFC's DEV branch (AFC #830) sends it as logger.warning, which
+    // reaches AFC.message, and parse_afc_state() toasts it. Matching the
+    // console string for v1.2.0 would re-create exactly the coupling this shed.
     //
     // refuse_if_printing() below is deliberately NOT part of that removal. It is
     // one stable predicate, the first line of cmd_LANE_UNLOAD at every AFC
