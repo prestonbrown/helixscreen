@@ -21,6 +21,7 @@
 #include "platform_info.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "safety_settings_manager.h"
 #include "system_power.h"
 
 #include <spdlog/spdlog.h>
@@ -462,8 +463,14 @@ ShutdownDialogPlan plan_shutdown_dialog(bool api_connected, bool live_moonraker_
             ShutdownScope::Screen};
 }
 
+bool power_skips_dialog(PowerIntent intent, bool require_confirmation, ShutdownDialogMode mode,
+                        bool job_active) {
+    return intent != PowerIntent::Choose && !require_confirmation &&
+           mode != ShutdownDialogMode::Dual && !job_active;
+}
+
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
-                          lv_obj_t* parent_screen) {
+                          lv_obj_t* parent_screen, PowerIntent intent) {
     // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):
     // platforms without host power controls (Android) must never reach the
     // machine.reboot/shutdown RPCs, whatever entry point wires this up next.
@@ -520,6 +527,21 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
     }
 
     modal.show(parent_screen);
+
+    const bool job_active =
+        lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+    if (power_skips_dialog(intent,
+                           SafetySettingsManager::instance().get_power_require_confirmation(),
+                           plan.mode, job_active)) {
+        spdlog::info("[ShutdownDialog] Confirmation off in settings, {} at once",
+                     intent == PowerIntent::Reboot ? "rebooting" : "shutting down");
+        if (intent == PowerIntent::Reboot) {
+            modal.fire_printer_reboot();
+        } else {
+            modal.fire_printer_shutdown();
+        }
+    }
 }
 
 void ShutdownWidget::shutdown_clicked_cb(lv_event_t* e) {

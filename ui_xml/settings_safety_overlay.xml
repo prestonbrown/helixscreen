@@ -47,6 +47,20 @@
                             description="Show a confirmation dialog when tapping a macro"
                             subject="settings_macro_confirm" callback="on_macro_confirm_changed"/>
         <!-- ================================================================== -->
+        <!-- DISABLE MOTORS CONFIRMATION -->
+        <!-- ================================================================== -->
+        <setting_toggle_row name="row_motors_off_confirm"
+                            label="Confirm disabling motors" icon="engine_off"
+                            description="Ask before turning off the stepper motors"
+                            subject="settings_motors_off_confirm" callback="on_motors_off_confirm_changed"/>
+        <!-- ================================================================== -->
+        <!-- SHUTDOWN / REBOOT CONFIRMATION -->
+        <!-- ================================================================== -->
+        <setting_toggle_row name="row_power_confirm"
+                            label="Confirm shutdown and reboot" icon="power"
+                            description="Ask before the Advanced panel shuts down or reboots"
+                            subject="settings_power_confirm" callback="on_power_confirm_changed"/>
+        <!-- ================================================================== -->
         <!-- SPAGHETTI DETECTION (only when a detection source is capable) -->
         <!-- ================================================================== -->
         <lv_obj name="container_detection" width="100%" style_pad_all="0" scrollable="false" flex_flow="column">

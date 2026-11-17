@@ -20,6 +20,8 @@ namespace helix {
  * - macro_require_confirmation (0/1)
  * - allow_cold_extrude (0/1)
  * - tool_change_require_confirmation (0/1)
+ * - motors_off_require_confirmation (0/1)
+ * - power_require_confirmation (0/1)
  * - min_toast_severity (dropdown index 0=All / 1=Warnings & errors / 2=Errors only, #1213)
  *
  * Thread safety: Single-threaded, main LVGL thread only.
@@ -88,6 +90,22 @@ class SafetySettingsManager {
         settings_.set(Key::ToolChangeConfirm, require);
     }
 
+    /** @brief Whether Disable Motors asks before releasing the steppers */
+    bool get_motors_off_require_confirmation() const {
+        return settings_.get_bool(Key::MotorsOffConfirm);
+    }
+    void set_motors_off_require_confirmation(bool require) {
+        settings_.set(Key::MotorsOffConfirm, require);
+    }
+
+    /** @brief Whether the Advanced panel's Shutdown and Reboot rows ask first */
+    bool get_power_require_confirmation() const {
+        return settings_.get_bool(Key::PowerConfirm);
+    }
+    void set_power_require_confirmation(bool require) {
+        settings_.set(Key::PowerConfirm, require);
+    }
+
     /** @brief Get the minimum toast severity index (0=All, 1=Warnings & errors, 2=Errors only) */
     int get_min_toast_severity() const;
 
@@ -129,6 +147,16 @@ class SafetySettingsManager {
         return settings_.subject(Key::ToolChangeConfirm);
     }
 
+    /** @brief Motors-off confirmation subject (integer: 0=disable at once, 1=confirm) */
+    lv_subject_t* subject_motors_off_require_confirmation() {
+        return settings_.subject(Key::MotorsOffConfirm);
+    }
+
+    /** @brief Shutdown/reboot confirmation subject (integer: 0=act at once, 1=confirm) */
+    lv_subject_t* subject_power_require_confirmation() {
+        return settings_.subject(Key::PowerConfirm);
+    }
+
     /** @brief Minimum toast severity subject (integer: dropdown index 0/1/2, #1213) */
     lv_subject_t* subject_min_toast_severity() {
         return &min_toast_severity_subject_;
@@ -144,6 +172,8 @@ class SafetySettingsManager {
         MacroConfirm,
         AllowColdExtrude,
         ToolChangeConfirm,
+        MotorsOffConfirm,
+        PowerConfirm,
         COUNT
     };
 

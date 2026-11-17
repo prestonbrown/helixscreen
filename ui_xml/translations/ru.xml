@@ -386,6 +386,8 @@
   <translation tag="Arrows" ru="Стрелки"/>
   <translation tag="Arrows + Home" ru="Стрелки + Домой"/>
   <translation tag="Ask before switching to another tool" ru="Спрашивать перед переключением на другой инструмент"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" ru="Спрашивать перед выключением или перезагрузкой из раздела Дополнительно"/>
+  <translation tag="Ask before turning off the stepper motors" ru="Спрашивать перед отключением шаговых моторов"/>
   <translation tag="Ask for parameters" ru="Спрашивать параметры"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
@@ -914,7 +916,9 @@
   <translation tag="Confirm PIN" ru="Подтвердите PIN"/>
   <translation tag="Confirm before running macros" ru="Подтверждать перед запуском макросов"/>
   <translation tag="Confirm clearing the extruder to unload it" ru="Подтвердите очистку экструдера, чтобы выгрузить"/>
+  <translation tag="Confirm disabling motors" ru="Подтверждать отключение моторов"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." ru="Подтверждайте, только когда последняя печать снята со стола. После этого перемещения перестанут подниматься над ней."/>
+  <translation tag="Confirm shutdown and reboot" ru="Подтверждать выключение и перезагрузку"/>
   <translation tag="Confirm tool changes" ru="Подтверждать смену инструмента"/>
   <translation tag="Connect" ru="Подключить"/>
   <translation tag="Connect a USB label printer first" ru="Сначала подключите USB-принтер этикеток"/>

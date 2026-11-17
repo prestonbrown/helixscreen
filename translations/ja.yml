@@ -356,6 +356,8 @@ translations:
   Arrows + Home: '方向キー + ホーム'
   Arrows: '方向キー'
   Ask before switching to another tool: '別のツールに切り替える前に確認する'
+  Ask before the Advanced panel shuts down or reboots: '詳細設定からシャットダウンまたは再起動する前に確認する'
+  Ask before turning off the stepper motors: 'ステッピングモーターをオフにする前に確認する'
   Ask for parameters: 'パラメータを確認する'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
     LED を制御
@@ -886,7 +888,9 @@ translations:
   Confirm PIN: PIN を確認
   Confirm before running macros: マクロ実行前に確認する
   Confirm clearing the extruder to unload it: '取り出すには、エクストルーダーを空にすることを確認してください'
+  Confirm disabling motors: 'モーター無効化を確認する'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"
+  Confirm shutdown and reboot: 'シャットダウンと再起動を確認する'
   Confirm tool changes: 'ツール交換を確認する'
   Connect: 接続
   Connect a USB label printer first: 先にUSBラベルプリンターを接続してください

@@ -105,6 +105,22 @@ enum class HostPowerFollowUp {
 /// Moonraker, or toasts.
 HostPowerFollowUp host_power_follow_up(PowerResult local_result, bool api_connected);
 
+/// What the entry point that opened the power dialog asked for.
+enum class PowerIntent {
+    Choose,   ///< A single power button: the dialog is where Shutdown or Reboot is picked.
+    Shutdown, ///< A row that already says Shutdown.
+    Reboot,   ///< A row that already says Reboot.
+};
+
+/// Whether a power request runs without the dialog. Pure.
+///
+/// Only an entry point that already names the action can skip, only with the
+/// confirmation setting off, and only on a single-host screen: a dual-host
+/// screen still has to choose between the printer, the screen or both. A job
+/// holding the machine always asks, since powering down ruins it.
+bool power_skips_dialog(PowerIntent intent, bool require_confirmation, ShutdownDialogMode mode,
+                        bool job_active);
+
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
 /// is disconnected) and show it as a child of @p parent_screen.
@@ -112,8 +128,11 @@ HostPowerFollowUp host_power_follow_up(PowerResult local_result, bool api_connec
 /// Caller owns @p modal and @p lifetime; both must outlive the modal. The
 /// lifetime guard is required for the "shutdown both" / "reboot both" flows
 /// that defer the local SystemPower call until the printer-side ack.
+///
+/// When power_skips_dialog() allows it for @p intent, the modal opens straight
+/// into its shutting-down or rebooting state and the action is sent at once.
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
-                          lv_obj_t* parent_screen);
+                          lv_obj_t* parent_screen, PowerIntent intent = PowerIntent::Choose);
 
 /// Handle a failed Moonraker machine.reboot / machine.shutdown.
 ///

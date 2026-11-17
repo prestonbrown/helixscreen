@@ -53,6 +53,15 @@ void SafetySettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              SafetySettingsManager::instance().set_macro_require_confirmation(event_checked(e));
          }},
+        {"on_motors_off_confirm_changed",
+         [](lv_event_t* e) {
+             SafetySettingsManager::instance().set_motors_off_require_confirmation(
+                 event_checked(e));
+         }},
+        {"on_power_confirm_changed",
+         [](lv_event_t* e) {
+             SafetySettingsManager::instance().set_power_require_confirmation(event_checked(e));
+         }},
         {"on_detection_enabled_changed",
          [](lv_event_t* e) { helix::detection::apply_detection_switch(event_checked(e)); }},
         {"on_detection_pause_changed",

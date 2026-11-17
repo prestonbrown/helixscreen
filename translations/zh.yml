@@ -355,6 +355,8 @@ translations:
   Arrows + Home: '方向键 + 归位'
   Arrows: '方向键'
   Ask before switching to another tool: '切换到其他工具前先询问'
+  Ask before the Advanced panel shuts down or reboots: '在高级面板关机或重启前先询问'
+  Ask before turning off the stepper motors: '关闭步进电机前先询问'
   Ask for parameters: '询问参数'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: 分配 Klipper
     宏通过开/关、切换或预设控制 LED
@@ -884,7 +886,9 @@ translations:
   Confirm PIN: 确认 PIN 码
   Confirm before running macros: 运行宏前进行确认
   Confirm clearing the extruder to unload it: '请确认清空挤出机以卸载'
+  Confirm disabling motors: '确认关闭电机'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"
+  Confirm shutdown and reboot: '确认关机和重启'
   Confirm tool changes: '确认切换工具'
   Connect: 连接
   Connect a USB label printer first: 请先连接 USB 标签打印机

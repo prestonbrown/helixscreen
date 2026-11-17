@@ -376,6 +376,8 @@ translations:
   Arrows + Home: 'Setas + Início'
   Arrows: 'Setas'
   Ask before switching to another tool: 'Perguntar antes de trocar para outra ferramenta'
+  Ask before the Advanced panel shuts down or reboots: 'Perguntar antes de o painel Avançado desligar ou reiniciar'
+  Ask before turning off the stepper motors: 'Perguntar antes de desligar os motores de passo'
   Ask for parameters: 'Perguntar parâmetros'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Atribuir macros
     Klipper para controlar LEDs via ligar/desligar, alternar ou predefinições
@@ -946,7 +948,9 @@ translations:
   Confirm PIN: Confirmar PIN
   Confirm before running macros: Confirmar antes de executar macros
   Confirm clearing the extruder to unload it: 'Confirme o esvaziamento do extrusor para descarregar'
+  Confirm disabling motors: 'Confirmar desligamento dos motores'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Confirme apenas quando a última impressão tiver sido retirada da mesa. A partir daí, os movimentos deixam de subir acima dela."
+  Confirm shutdown and reboot: 'Confirmar desligamento e reinício'
   Confirm tool changes: 'Confirmar trocas de ferramenta'
   Connect: Conectar
   Connect a USB label printer first: Conecte primeiro uma impressora de etiquetas

@@ -28,6 +28,10 @@ static constexpr settings::PersistedSetting kSafetySettings[] = {
      "allow_cold_extrude"},
     {"settings_tool_change_confirm", "/safety/tool_change_require_confirmation", Scope::Global,
      true, 1, 0, 1, "tool_change_confirm"},
+    {"settings_motors_off_confirm", "/safety/motors_off_require_confirmation", Scope::Global, true,
+     1, 0, 1, "motors_off_confirm"},
+    {"settings_power_confirm", "/safety/power_require_confirmation", Scope::Global, true, 1, 0, 1,
+     "power_confirm"},
 };
 
 SafetySettingsManager& SafetySettingsManager::instance() {

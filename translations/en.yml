@@ -369,6 +369,8 @@ translations:
   Arrows + Home: Arrows + Home
   Arrows: Arrows
   Ask before switching to another tool: Ask before switching to another tool
+  Ask before the Advanced panel shuts down or reboots: 'Ask before the Advanced panel shuts down or reboots'
+  Ask before turning off the stepper motors: 'Ask before turning off the stepper motors'
   Ask for parameters: Ask for parameters
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assign Klipper
     macros to control LEDs via on/off, toggle, or presets
@@ -922,7 +924,9 @@ translations:
   Confirm PIN: Confirm PIN
   Confirm before running macros: Confirm before running macros
   Confirm clearing the extruder to unload it: Confirm clearing the extruder to unload it
+  Confirm disabling motors: 'Confirm disabling motors'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: Confirm only once the last print is off the bed. Moves then stop lifting above it.
+  Confirm shutdown and reboot: 'Confirm shutdown and reboot'
   Confirm tool changes: Confirm tool changes
   Connect: Connect
   Connect a USB label printer first: Connect a USB label printer first

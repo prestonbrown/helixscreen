@@ -350,6 +350,8 @@
   <translation tag="Arrows" pt="Setas"/>
   <translation tag="Arrows + Home" pt="Setas + Início"/>
   <translation tag="Ask before switching to another tool" pt="Perguntar antes de trocar para outra ferramenta"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" pt="Perguntar antes de o painel Avançado desligar ou reiniciar"/>
+  <translation tag="Ask before turning off the stepper motors" pt="Perguntar antes de desligar os motores de passo"/>
   <translation tag="Ask for parameters" pt="Perguntar parâmetros"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" pt="Atribuir macros Klipper para controlar LEDs via ligar/desligar, alternar ou predefinições"/>
   <translation tag="Assign a role to enable sensor monitoring" pt="Atribua uma função para habilitar o monitoramento do sensor"/>
@@ -869,7 +871,9 @@
   <translation tag="Confirm PIN" pt="Confirmar PIN"/>
   <translation tag="Confirm before running macros" pt="Confirmar antes de executar macros"/>
   <translation tag="Confirm clearing the extruder to unload it" pt="Confirme o esvaziamento do extrusor para descarregar"/>
+  <translation tag="Confirm disabling motors" pt="Confirmar desligamento dos motores"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." pt="Confirme apenas quando a última impressão tiver sido retirada da mesa. A partir daí, os movimentos deixam de subir acima dela."/>
+  <translation tag="Confirm shutdown and reboot" pt="Confirmar desligamento e reinício"/>
   <translation tag="Confirm tool changes" pt="Confirmar trocas de ferramenta"/>
   <translation tag="Connect" pt="Conectar"/>
   <translation tag="Connect a USB label printer first" pt="Conecte primeiro uma impressora de etiquetas USB"/>

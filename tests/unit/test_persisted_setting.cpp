@@ -105,6 +105,15 @@ const std::vector<Row>& rows() {
          SETB(safety().set_tool_change_require_confirmation),
          GET(safety().get_tool_change_require_confirmation),
          SUBJ(safety().subject_tool_change_require_confirmation)},
+        {"settings_motors_off_confirm", Mgr::Safety, false,
+         "/safety/motors_off_require_confirmation", true, 1, 0, 1, "motors_off_confirm", true,
+         SETB(safety().set_motors_off_require_confirmation),
+         GET(safety().get_motors_off_require_confirmation),
+         SUBJ(safety().subject_motors_off_require_confirmation)},
+        {"settings_power_confirm", Mgr::Safety, false, "/safety/power_require_confirmation", true,
+         1, 0, 1, "power_confirm", true, SETB(safety().set_power_require_confirmation),
+         GET(safety().get_power_require_confirmation),
+         SUBJ(safety().subject_power_require_confirmation)},
 
         // RemoteScreenSettingsManager
         {"settings_remote_screen_enabled", Mgr::RemoteScreen, true, "remote_screen/enabled", true,

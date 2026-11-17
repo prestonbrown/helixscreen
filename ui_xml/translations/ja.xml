@@ -350,6 +350,8 @@
   <translation tag="Arrows" ja="方向キー"/>
   <translation tag="Arrows + Home" ja="方向キー + ホーム"/>
   <translation tag="Ask before switching to another tool" ja="別のツールに切り替える前に確認する"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" ja="詳細設定からシャットダウンまたは再起動する前に確認する"/>
+  <translation tag="Ask before turning off the stepper motors" ja="ステッピングモーターをオフにする前に確認する"/>
   <translation tag="Ask for parameters" ja="パラメータを確認する"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
@@ -869,7 +871,9 @@
   <translation tag="Confirm PIN" ja="PIN を確認"/>
   <translation tag="Confirm before running macros" ja="マクロ実行前に確認する"/>
   <translation tag="Confirm clearing the extruder to unload it" ja="取り出すには、エクストルーダーを空にすることを確認してください"/>
+  <translation tag="Confirm disabling motors" ja="モーター無効化を確認する"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." ja="最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"/>
+  <translation tag="Confirm shutdown and reboot" ja="シャットダウンと再起動を確認する"/>
   <translation tag="Confirm tool changes" ja="ツール交換を確認する"/>
   <translation tag="Connect" ja="接続"/>
   <translation tag="Connect a USB label printer first" ja="先にUSBラベルプリンターを接続してください"/>

@@ -48,6 +48,28 @@ Keep it on if you have macros that move the toolhead, heat the printer or do any
 
 ---
 
+## Confirm disabling motors
+
+| Setting | What happens |
+|---------|--------------|
+| **On** (default) | Disable Motors asks you to confirm before it releases the stepper motors |
+| **Off** | Disable Motors releases the stepper motors straight away |
+
+Releasing the motors loses the printer's position, so the next move needs homing first. While a print is running the motors stay on either way.
+
+---
+
+## Confirm shutdown and reboot
+
+| Setting | What happens |
+|---------|--------------|
+| **On** (default) | The **Shutdown** and **Reboot** rows on the Advanced panel open the power dialog first |
+| **Off** | Those rows shut down or reboot straight away |
+
+The setting changes only the Advanced panel's rows, because each of them already names its action. The power button on the Home screen always opens the dialog, since that is where you choose between shutting down and rebooting. A screen that runs on a different computer from the printer also always opens the dialog, so that you can choose the printer, the screen or both. While a print is running, both rows always ask.
+
+---
+
 ## Spaghetti Detection
 
 > Only shown on printers with camera failure detection: Creality K2, K2 Plus and K2 Pro on stock firmware, and the Snapmaker U1 with its own defect detection.

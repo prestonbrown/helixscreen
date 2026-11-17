@@ -229,3 +229,26 @@ TEST_CASE("A failed local power retries through a connected Moonraker", "[shutdo
     CHECK(host_power_follow_up(PowerResult::Failed, false) == HostPowerFollowUp::Toast);
     CHECK(host_power_follow_up(PowerResult::NotAuthorized, false) == HostPowerFollowUp::Toast);
 }
+
+TEST_CASE("A named power action skips the dialog only when nothing argues for asking",
+          "[shutdown][power][safety]") {
+    using M = ShutdownDialogMode;
+    constexpr bool kConfirm = true;
+    constexpr bool kNoConfirm = false;
+    constexpr bool kJob = true;
+    constexpr bool kIdle = false;
+
+    // The Advanced panel's rows name their action; with confirmation off a
+    // single-host screen runs it.
+    CHECK(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::SingleViaMoonraker, kIdle));
+    CHECK(power_skips_dialog(PowerIntent::Reboot, kNoConfirm, M::SingleViaLocalPower, kIdle));
+
+    // The setting on: the dialog confirms.
+    CHECK_FALSE(power_skips_dialog(PowerIntent::Reboot, kConfirm, M::SingleViaMoonraker, kIdle));
+    // The home-panel power button names no action, so the dialog is the choice.
+    CHECK_FALSE(power_skips_dialog(PowerIntent::Choose, kNoConfirm, M::SingleViaMoonraker, kIdle));
+    // Two hosts: printer, screen or both is still to be chosen.
+    CHECK_FALSE(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::Dual, kIdle));
+    // A job holding the machine always asks.
+    CHECK_FALSE(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::SingleViaMoonraker, kJob));
+}

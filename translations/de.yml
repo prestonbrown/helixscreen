@@ -381,6 +381,8 @@ translations:
   Arrows + Home: 'Pfeile + Home'
   Arrows: 'Pfeile'
   Ask before switching to another tool: 'Vor dem Wechsel zu einem anderen Werkzeug fragen'
+  Ask before the Advanced panel shuts down or reboots: 'Fragen, bevor das Menü Erweitert herunterfährt oder neu startet'
+  Ask before turning off the stepper motors: 'Vor dem Abschalten der Schrittmotoren fragen'
   Ask for parameters: 'Nach Parametern fragen'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros
     zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
@@ -951,7 +953,9 @@ translations:
   Confirm PIN: PIN bestätigen
   Confirm before running macros: Vor dem Ausführen von Makros bestätigen
   Confirm clearing the extruder to unload it: 'Bestätige das Leeren des Extruders, um zu entladen'
+  Confirm disabling motors: 'Deaktivieren der Motoren bestätigen'
   Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Nur bestätigen, wenn der letzte Druck vom Heizbett entfernt ist. Danach heben Bewegungen nicht mehr darüber an."
+  Confirm shutdown and reboot: 'Herunterfahren und Neustart bestätigen'
   Confirm tool changes: 'Werkzeugwechsel bestätigen'
   Connect: Verbinden
   Connect a USB label printer first: Zuerst einen USB-Etikettendrucker anschließen

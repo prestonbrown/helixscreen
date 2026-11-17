@@ -350,6 +350,8 @@
   <translation tag="Arrows" en="Arrows"/>
   <translation tag="Arrows + Home" en="Arrows + Home"/>
   <translation tag="Ask before switching to another tool" en="Ask before switching to another tool"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" en="Ask before the Advanced panel shuts down or reboots"/>
+  <translation tag="Ask before turning off the stepper motors" en="Ask before turning off the stepper motors"/>
   <translation tag="Ask for parameters" en="Ask for parameters"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
@@ -869,7 +871,9 @@
   <translation tag="Confirm PIN" en="Confirm PIN"/>
   <translation tag="Confirm before running macros" en="Confirm before running macros"/>
   <translation tag="Confirm clearing the extruder to unload it" en="Confirm clearing the extruder to unload it"/>
+  <translation tag="Confirm disabling motors" en="Confirm disabling motors"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." en="Confirm only once the last print is off the bed. Moves then stop lifting above it."/>
+  <translation tag="Confirm shutdown and reboot" en="Confirm shutdown and reboot"/>
   <translation tag="Confirm tool changes" en="Confirm tool changes"/>
   <translation tag="Connect" en="Connect"/>
   <translation tag="Connect a USB label printer first" en="Connect a USB label printer first"/>

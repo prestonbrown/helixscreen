@@ -350,6 +350,8 @@
   <translation tag="Arrows" zh="方向键"/>
   <translation tag="Arrows + Home" zh="方向键 + 归位"/>
   <translation tag="Ask before switching to another tool" zh="切换到其他工具前先询问"/>
+  <translation tag="Ask before the Advanced panel shuts down or reboots" zh="在高级面板关机或重启前先询问"/>
+  <translation tag="Ask before turning off the stepper motors" zh="关闭步进电机前先询问"/>
   <translation tag="Ask for parameters" zh="询问参数"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
@@ -869,7 +871,9 @@
   <translation tag="Confirm PIN" zh="确认 PIN 码"/>
   <translation tag="Confirm before running macros" zh="运行宏前进行确认"/>
   <translation tag="Confirm clearing the extruder to unload it" zh="请确认清空挤出机以卸载"/>
+  <translation tag="Confirm disabling motors" zh="确认关闭电机"/>
   <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." zh="请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"/>
+  <translation tag="Confirm shutdown and reboot" zh="确认关机和重启"/>
   <translation tag="Confirm tool changes" zh="确认切换工具"/>
   <translation tag="Connect" zh="连接"/>
   <translation tag="Connect a USB label printer first" zh="请先连接 USB 标签打印机"/>

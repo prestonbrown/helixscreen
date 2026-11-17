@@ -312,7 +312,9 @@
       <!-- POWER SECTION -->
       <!-- ================================================================== -->
       <!-- Both rows open the same dialog the home-panel power widget uses,
-           which handles single-/dual-host scope and confirms the action.
+           which handles single-/dual-host scope and confirms the action. With
+           Safety's power confirmation off, a single-host screen skips the
+           dialog and runs the row's own action.
            Hidden whole (header + rows) on platforms without host power
            controls (Android) — see platform_host_power_supported in
            app_globals.cpp. -->
@@ -323,10 +325,10 @@
            both actions plus, on dual-host, the printer/screen/both scope). -->
         <setting_action_row name="row_shutdown"
                             label="Shutdown" icon="power" description="Power off the printer or screen">
-          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+          <event_cb trigger="clicked" callback="on_advanced_shutdown_clicked"/>
         </setting_action_row>
         <setting_action_row name="row_reboot" label="Reboot" icon="restart" description="Restart the printer or screen">
-          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+          <event_cb trigger="clicked" callback="on_advanced_reboot_clicked"/>
         </setting_action_row>
       </setting_group>
       <!-- Bottom padding for scroll -->
