@@ -2085,6 +2085,11 @@ void AmsBackendHappyHare::query_config_from_printer() {
                 {
                     std::lock_guard<std::mutex> lock(mutex_);
                     machine_layout_ = layout;
+                    endless_spool_auto_groups_ =
+                        happy_hare::read_config_number(
+                            happy_hare::find_config_param(settings, layout,
+                                                          "endless_spool_auto_groups"))
+                            .value_or(0.0F) != 0.0F;
                     system_info_.version = layout.version;
                     apply_bypass_support_locked();
                     sync_extras_fields_locked();
@@ -3199,6 +3204,14 @@ AmsBackendHappyHare::get_endless_spool_capabilities() const {
         caps.editability = EndlessSpoolEditability::ReadOnly;
         caps.restriction = EndlessSpoolRestriction::NotReady;
         caps.enabled = EndlessSpoolEnabled::Unknown;
+        return caps;
+    }
+    // endless_spool_auto_groups: Happy Hare rebuilds the groups from the gate
+    // map and ignores GROUPS= without saying so. ENABLE= still works.
+    if (endless_spool_auto_groups_) {
+        caps.editability = EndlessSpoolEditability::ReadOnly;
+        caps.restriction = EndlessSpoolRestriction::GroupsFollowSlots;
+        caps.switchable = system_info_.units.size() <= 1;
         return caps;
     }
     // MMU_ENDLESS_SPOOL has no UNIT= and acts on the currently-selected unit, so

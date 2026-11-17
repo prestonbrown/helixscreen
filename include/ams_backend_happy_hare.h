@@ -788,6 +788,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
         sensor_temp_; ///< live ambient temp (°C) keyed by env-sensor object name
 
     // Error state tracking
+    /// [mmu_parameters] endless_spool_auto_groups: Happy Hare builds the
+    /// endless spool groups from the gate map and ignores GROUPS=.
+    bool endless_spool_auto_groups_ = false;
     std::string reason_for_pause_; ///< Last reason_for_pause from MMU (descriptive error text)
 
     // --- Config defaults from configfile.settings ---

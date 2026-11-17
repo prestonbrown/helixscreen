@@ -66,7 +66,7 @@ Happy Hare's `filament_pos` (0-8) maps to `PathSegment` via `path_segment_from_h
 
 | Feature | Supported | Editable |
 |---------|-----------|----------|
-| Endless Spool | `Available` | `Group` on a single-unit MMU; `ReadOnly` + `MultiUnit` on multi-unit, `ReadOnly` + `NotReady` before the gate registry initialises (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
+| Endless Spool | `Available` | `ReadOnly` + `GroupsFollowSlots` when `[mmu_parameters] endless_spool_auto_groups` is on (development builds, 1c178141: groups are rebuilt from gate material and color and `GROUPS=` is ignored; `ENABLE=` still works, so the switch stays); else `Group` on a single-unit MMU; `ReadOnly` + `MultiUnit` on multi-unit, `ReadOnly` + `NotReady` before the gate registry initialises (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
 | Tool Mapping | Yes | Yes (via `MMU_TTG_MAP`) |
 | Bypass Mode | Yes | Yes (selector position -2), when `[mmu_machine] has_bypass` is set (v4: any unit's `has_bypass`). `has_bypass: 0` hides the UI but `MMU_SELECT_BYPASS` still works - see [the force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) |
 | Spoolman | Yes | -- (pull mode: the gate map is Spoolman's, and an edit that moves a gate-map field is refused) |

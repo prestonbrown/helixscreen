@@ -181,6 +181,9 @@ constexpr ParamRow kParams[] = {
      ParamScope::Unit},
     {"sync_to_extruder", "sync_to_extruder", "sync_to_extruder", "sync_to_extruder",
      ParamScope::Unit},
+    // Endless spool groups built from the gate map's material and color. Happy
+    // Hare development builds only; MMU_ENDLESS_SPOOL then ignores GROUPS=.
+    {"endless_spool_auto_groups", "", "", "endless_spool_auto_groups", ParamScope::Machine},
     {"heater_max_temp", "heater_max_temp", "heater_max_temp", "heater_max_temp", ParamScope::Unit},
     // The HUMIDITY= target MMU_HEATER applies when a start names none. v4 only.
     {"heater_default_dry_humidity", "", "", "heater_default_dry_humidity", ParamScope::Unit},

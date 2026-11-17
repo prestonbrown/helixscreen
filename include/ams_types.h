@@ -2230,7 +2230,10 @@ enum class EndlessSpoolRestriction : int {
     /// No auto-switchover package is installed.
     PluginMissing,
     /// A package is installed but exposes no write path we can drive.
-    PluginReadOnly
+    PluginReadOnly,
+    /// The firmware builds the groups from each slot's material and color, and
+    /// ignores a group written by hand.
+    GroupsFollowSlots
 };
 
 /**

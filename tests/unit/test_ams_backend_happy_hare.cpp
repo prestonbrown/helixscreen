@@ -5194,6 +5194,35 @@ TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has ou
     CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
 }
 
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare endless spool groups follow the gate map with auto groups on",
+                 "[ams][happy_hare][endless_spool][auto_groups]") {
+    helper.initialize_test_gates(4);
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    SECTION("auto groups on") {
+        fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 1;
+        connect_with_fixture(helper, client, fx);
+
+        const auto caps = helper.get_endless_spool_capabilities();
+        CHECK_FALSE(caps.editable());
+        CHECK(caps.restriction == helix::printer::EndlessSpoolRestriction::GroupsFollowSlots);
+        CHECK_FALSE(helix::printer::endless_spool_restriction_text(caps.restriction).empty());
+        // ENABLE= is still honored.
+        CHECK(caps.switchable);
+        helper.clear_captured_gcodes();
+        CHECK_FALSE(helper.set_endless_spool_backup(0, 1).success());
+        CHECK_FALSE(helper.has_gcode_containing("GROUPS="));
+    }
+    SECTION("auto groups off, or a Happy Hare without the option") {
+        if (GENERATE(true, false)) {
+            fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 0;
+        }
+        connect_with_fixture(helper, client, fx);
+        CHECK(helper.get_endless_spool_capabilities().editability ==
+              helix::printer::EndlessSpoolEditability::Group);
+    }
+}
+
 TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes",
           "[ams][happy_hare][review]") {
     TuningRig rig;

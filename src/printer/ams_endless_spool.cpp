@@ -33,6 +33,8 @@ std::string endless_spool_restriction_text(EndlessSpoolRestriction restriction) 
         return lv_tr("No Endless Spool package is installed");
     case EndlessSpoolRestriction::PluginReadOnly:
         return lv_tr("Endless Spool is configured in its package, not from here");
+    case EndlessSpoolRestriction::GroupsFollowSlots:
+        return lv_tr("Groups follow each slot's material and color");
     }
     return {};
 }
