@@ -80,13 +80,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the firs
     nlohmann::json one = nlohmann::json::object();
     one["default"] = nlohmann::json::object();
     cfg->set<nlohmann::json>("/printers", one);
-    CHECK(row_shown("telemetry_opt_in_row"));
+    CHECK(row_shown("telemetry_opt_in_rows"));
     CHECK(row_shown("telemetry_divider"));
 
     nlohmann::json two = one;
     two["second"] = nlohmann::json::object();
     cfg->set<nlohmann::json>("/printers", two);
-    CHECK_FALSE(row_shown("telemetry_opt_in_row"));
+    CHECK_FALSE(row_shown("telemetry_opt_in_rows"));
     CHECK_FALSE(row_shown("telemetry_divider"));
 
     cfg->set<nlohmann::json>("/printers", printers_before);

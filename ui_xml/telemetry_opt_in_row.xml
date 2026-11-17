@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The setup wizard's anonymous statistics opt-in, shared by the Updates & Data step and
+       the Review step. The (i) opens the What We Collect modal; WizardTelemetryStep
+       registers both callbacks. -->
+  <view name="telemetry_opt_in_row"
+        extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        scrollable="false">
+    <setting_toggle_row name="row_telemetry"
+                        label="Share Usage Data" icon="chart_line"
+                        description="Anonymous data to help improve HelixScreen" subject="settings_telemetry_enabled"
+                        callback="on_wizard_telemetry_changed" info_callback="on_wizard_telemetry_info"/>
+  </view>
+</component>

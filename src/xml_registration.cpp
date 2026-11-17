@@ -235,16 +235,22 @@ static void on_toggle_password_visibility(lv_event_t* e) {
 }
 
 /**
- * Toggle visibility of a "description" label in setting rows.
- * Used on compact breakpoints where descriptions are hidden by default —
- * tapping the info icon reveals/hides the description text.
- * Walks up the parent chain to handle varying nesting depths across row types.
+ * The (i) on setting rows. With user_data, it names the event callback that explains the
+ * setting (a row's info_callback), and the tap goes there. Otherwise it toggles the row's
+ * "description" label, which compact breakpoints hide by default, walking up the parent
+ * chain to handle varying nesting depths across row types.
  */
 static void on_setting_info_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[Settings] on_setting_info_clicked");
     auto* info_btn = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     if (!info_btn)
         return;
+    if (const auto* info_cb_name = static_cast<const char*>(lv_event_get_user_data(e))) {
+        if (lv_event_cb_t info_cb = lv_xml_get_event_cb(nullptr, info_cb_name)) {
+            info_cb(e);
+        }
+        return;
+    }
     // Walk up parent chain to find a level that contains "description" child
     auto* parent = lv_obj_get_parent(info_btn);
     lv_obj_t* desc = nullptr;

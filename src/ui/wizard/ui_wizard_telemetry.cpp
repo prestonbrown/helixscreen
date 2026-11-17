@@ -81,13 +81,17 @@ void WizardTelemetryStep::init_info_text_subject() {
 
 void WizardTelemetryStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
+    register_opt_in_row_callbacks();
+    // The update channel row reuses Settings > Updates' callback, registered there only
+    // when that overlay first opens.
+    helix::settings::get_updates_settings_overlay().register_callbacks();
+}
+
+void WizardTelemetryStep::register_opt_in_row_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_changed",
                              WizardTelemetryStep::on_wizard_telemetry_changed);
     lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_info",
                              WizardTelemetryStep::on_wizard_telemetry_info);
-    // The update channel row reuses Settings > Updates' callback, registered there only
-    // when that overlay first opens.
-    helix::settings::get_updates_settings_overlay().register_callbacks();
 }
 
 // ============================================================================

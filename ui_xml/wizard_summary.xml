@@ -15,36 +15,18 @@
   <view name="wizard_summary_root"
         extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
         flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
-    <!-- Single combined card: telemetry opt-in + config summary -->
+    <!-- Single combined card: update channel and telemetry opt-in, then the config summary -->
     <ui_card name="telemetry_card"
              width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
              style_flex_main_place="start" style_flex_cross_place="start" scrollable="true">
-      <!-- Telemetry opt-in: compact row with icon, label, toggle, and learn-more button -->
-      <lv_obj name="telemetry_opt_in_row"
-              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row"
-              style_flex_cross_place="center" scrollable="false">
-        <bind_flag_if_eq subject="summary_telemetry_visible" flag="hidden" ref_value="0"/>
-        <icon src="chart_line" size="sm" variant="secondary"/>
-        <lv_obj height="content"
-                style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" flex_grow="1" scrollable="false">
-          <text_body text="Help improve HelixScreen?"/>
-          <text_small text="Anonymous stats — no personal data, ever."/>
-        </lv_obj>
-        <ui_button name="btn_telemetry_info" width="content" height="content" variant="ghost" style_pad_all="#space_xs">
-          <text_small text="Learn More"
-                      style_text_color="#primary" style_text_decor="underline" clickable="false" event_bubble="true"/>
-          <event_cb trigger="clicked" callback="on_wizard_summary_telemetry_info"/>
-        </ui_button>
-        <ui_switch name="wizard_telemetry_toggle" size="tiny">
-          <bind_state_if_eq subject="settings_telemetry_enabled" state="checked" ref_value="1"/>
-          <event_cb trigger="value_changed" callback="on_wizard_summary_telemetry_changed"/>
-        </ui_switch>
-      </lv_obj>
-      <!-- The update channel is asked beside the telemetry opt-in, once, on the first printer -->
-      <lv_obj name="summary_update_channel"
-              width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
+      <!-- The update channel and the statistics opt-in, the Updates & Data step's rows, are
+           asked once, on the first printer -->
+      <lv_obj name="telemetry_opt_in_rows"
+              width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
+              scrollable="false">
         <bind_flag_if_eq subject="summary_telemetry_visible" flag="hidden" ref_value="0"/>
         <update_channel_rows/>
+        <telemetry_opt_in_row/>
       </lv_obj>
       <!-- Divider between telemetry and config summary -->
       <divider_horizontal name="telemetry_divider">

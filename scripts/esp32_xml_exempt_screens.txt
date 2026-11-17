@@ -48,6 +48,7 @@ spoolman_settings.xml
 spoolman_spool_row.xml
 telemetry_data_overlay.xml
 telemetry_info_modal.xml
+telemetry_opt_in_row.xml
 timelapse_install_overlay.xml
 timelapse_settings_overlay.xml
 timelapse_video_card.xml

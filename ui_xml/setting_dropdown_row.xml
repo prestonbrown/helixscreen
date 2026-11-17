@@ -54,13 +54,19 @@
         </text_small>
       </lv_obj>
     </lv_obj>
-    <!-- Info icon: hidden if no description, hidden on medium+ -->
-    <lv_obj name="info_btn"
-            width="content" height="content" style_pad_all="2" style_bg_opa="0" style_border_width="0" clickable="true"
-            event_bubble="false" scrollable="false" hidden_if_empty="$description">
-      <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-      <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-      <event_cb trigger="clicked" callback="on_setting_info_clicked"/>
+    <!-- Info icon: only with a description to reveal, and only on small breakpoints. The
+         parse-time checks live on an outer wrapper because the reactive breakpoint bind on
+         the button would clear them, bringing back an (i) that reveals nothing. -->
+    <lv_obj width="content"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            hidden_if_empty="$description" hidden_if_prop_eq="$hide_description|true">
+      <lv_obj name="info_btn"
+              width="content" height="content" style_pad_all="2" style_bg_opa="0" style_border_width="0"
+              clickable="true" event_bubble="false" scrollable="false">
+        <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+        <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+        <event_cb trigger="clicked" callback="on_setting_info_clicked"/>
+      </lv_obj>
     </lv_obj>
     <!-- Right side: Dropdown -->
     <lv_dropdown name="dropdown"

@@ -17,6 +17,10 @@
     <!-- "true" for a switch that commands the printer: it greys while anything
          forbids motion, like every other moves_machine control. -->
     <prop name="moves_machine" type="string" default="false"/>
+    <!-- An event callback that explains the setting, usually by opening a modal. Set, it
+         gives the row an (i) at every breakpoint that calls it, in place of the (i) that
+         reveals the description on small screens. -->
+    <prop name="info_callback" type="string" default=""/>
   </api>
   <styles>
     <style name="label_enabled" text_color="#text"/>
@@ -62,7 +66,7 @@
          reappears at micro/tiny. -->
     <lv_obj width="content"
             height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-            hidden_if_empty="$description">
+            hidden_if_empty="$description" hidden_if_prop_not_eq="$info_callback|">
       <lv_obj name="info_btn"
               width="content" height="content" style_pad_all="2" style_bg_opa="0" style_border_width="0"
               clickable="true" event_bubble="false" scrollable="false">
@@ -70,6 +74,15 @@
         <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
         <event_cb trigger="clicked" callback="on_setting_info_clicked"/>
       </lv_obj>
+    </lv_obj>
+    <!-- Info button for info_callback. The callback name rides as user_data on the shared
+         info handler, which calls it: a callback attribute left empty would warn on every
+         row that has none. -->
+    <lv_obj name="info_modal_btn"
+            width="content" height="content" style_pad_all="#space_xxs" style_bg_opa="0" style_border_width="0"
+            clickable="true" event_bubble="false" scrollable="false" hidden_if_empty="$info_callback">
+      <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+      <event_cb trigger="clicked" callback="on_setting_info_clicked" user_data="$info_callback"/>
     </lv_obj>
     <!-- Right side: Switch toggle -->
     <ui_switch name="toggle" size="small" moves_machine="$moves_machine">

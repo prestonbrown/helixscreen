@@ -335,7 +335,6 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." es="Efectos de luz animados configurados en la impresora. Actívalos y desactívalos desde los controles LED."/>
   <translation tag="Animations" es="Animaciones"/>
   <translation tag="Anonymous data to help improve HelixScreen" es="Datos anónimos para mejorar HelixScreen"/>
-  <translation tag="Anonymous stats — no personal data, ever." es="Estadísticas anónimas — sin datos personales, nunca."/>
   <translation tag="Anonymous usage statistics" es="Estadísticas de uso anónimas"/>
   <translation tag="Another filament operation is heating the nozzle." es="Otra operación de filamento está calentando la boquilla."/>
   <translation tag="Any notes..." es="Notas..."/>
@@ -3651,7 +3650,6 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." es="Sacude el cabezal a lo largo de cada diagonal y superpone las dos respuestas. Las correas igualadas alcanzan su pico juntas."/>
   <translation tag="Share Screen" es="Compartir pantalla"/>
   <translation tag="Share Usage Data" es="Compartir datos de uso"/>
-  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." es="Comparta estadísticas de uso anónimas para ayudarnos a mejorar HelixScreen. Nunca se recopilan datos personales."/>
   <translation tag="Share this code in Discord or support:" es="Comparte este código en Discord o soporte:"/>
   <translation tag="Sheet Label Print" es="Impresión de etiquetas en hoja"/>
   <translation tag="Shelf A" es="Estante A"/>

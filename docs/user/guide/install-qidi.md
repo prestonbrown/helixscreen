@@ -46,7 +46,7 @@ HelixScreen appears on the printer's screen when the install finishes, and the s
 3. **Connection:** HelixScreen looks for the printer's own Moonraker and fills it in. The address `127.0.0.1` and port `7125` are right; tap **Test Connection**, then continue.
 4. **Printer Identification:** confirm your QIDI model. HelixScreen then fills in the heaters, fans and sensors for you and skips those steps.
 5. **Preferences:** a few choices, such as sounds, that you can change later in Settings.
-6. **Help Improve HelixScreen:** choose whether to send anonymous usage statistics. You can change this later in **Settings > System**.
+6. **Review:** check the summary, pick an update channel, and choose whether to send anonymous usage statistics with **Share Usage Data**. You can change these later in **Settings > Updates** and **Settings > System**.
 
 Then the Home screen appears. Worth doing first:
 

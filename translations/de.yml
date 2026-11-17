@@ -368,8 +368,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'Am Drucker eingerichtete animierte Lichteffekte. Schalte sie in der LED-Steuerung ein und aus.'
   Animations: Animationen
   Anonymous data to help improve HelixScreen: Anonyme Daten zur Verbesserung von HelixScreen
-  Anonymous stats — no personal data, ever.: Anonyme Statistiken — niemals persönliche
-    Daten.
   Anonymous usage statistics: Anonyme Nutzungsstatistiken
   Another filament operation is heating the nozzle.: "Ein anderer Filamentvorgang heizt die Düse."
   Any notes...: Notizen...
@@ -3968,9 +3966,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Rüttelt den Werkzeugkopf entlang jeder Diagonale und legt die beiden Antworten übereinander. Gleich gespannte Riemen haben ihre Spitze an derselben Stelle.
   Share Screen: 'Bildschirm teilen'
   Share Usage Data: Nutzungsdaten teilen
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: Teilen
-    Sie anonyme Nutzungsstatistiken, um HelixScreen zu verbessern. Es werden niemals
-    persönliche Daten erfasst.
   'Share this code in Discord or support:': 'Code in Discord oder Support teilen:'
   Sheet Label Print: Blatt-Etikettendruck
   Shelf A: Regal A

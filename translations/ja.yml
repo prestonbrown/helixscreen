@@ -349,7 +349,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'プリンターに設定されたアニメーション照明エフェクト。LEDコントロールからオン/オフできます。'
   Animations: アニメーション
   Anonymous data to help improve HelixScreen: HelixScreen改善のための匿名データ
-  Anonymous stats — no personal data, ever.: 匿名の統計情報 — 個人データは一切収集しません。
   Anonymous usage statistics: 匿名の使用統計
   Another filament operation is heating the nozzle.: "別のフィラメント操作がノズルを加熱しています。"
   Any notes...: メモ...
@@ -3777,8 +3776,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: ツールヘッドを対角線ごとに動かし、2つの結果を同時に表示します。張りが同じベルトは同じ位置でピークになります。
   Share Screen: '画面を共有'
   Share Usage Data: 使用データを共有
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: 匿名の使用統計を共有して、HelixScreen
-    の改善にご協力ください。個人データは一切収集されません。
   'Share this code in Discord or support:': 'このコードをDiscordまたはサポートで共有してください:'
   Sheet Label Print: シートラベル印刷
   Shelf A: 棚A

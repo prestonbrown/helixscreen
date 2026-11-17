@@ -7,11 +7,11 @@
 
 /**
  * @class WizardTelemetryStep
- * @brief Dedicated telemetry opt-in step for preset wizard mode
+ * @brief Updates & Data step for preset wizard mode
  *
- * Provides a prominent, centered telemetry opt-in screen shown only
- * in preset mode where the summary step is skipped. Reuses the same
- * telemetry toggle and info modal as the summary step.
+ * The update channel and the anonymous statistics opt-in, shown only in preset
+ * mode where the summary step is skipped. Owns the opt-in row's callbacks, which
+ * the summary step's copy of the row uses too.
  */
 class WizardTelemetryStep : public helix::wizard::Step {
   public:
@@ -48,6 +48,9 @@ class WizardTelemetryStep : public helix::wizard::Step {
      * too, so both steps call this before creating their screens.
      */
     void init_info_text_subject();
+
+    /// Registers the telemetry_opt_in_row callbacks, for every step that shows the row.
+    static void register_opt_in_row_callbacks();
     lv_subject_t* info_text_subject() {
         return &telemetry_info_text_;
     }
