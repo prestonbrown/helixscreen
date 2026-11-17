@@ -285,26 +285,34 @@ void MoonrakerDiscoverySequence::publish_identity_locked() {
                                                           : reported_machine_name_);
 }
 
-void MoonrakerDiscoverySequence::fetch_moonraker_version_fallback(uint64_t seq) {
+void MoonrakerDiscoverySequence::fetch_update_manager_version(uint64_t seq,
+                                                              const std::string& app) {
     client_.send_jsonrpc(
         "machine.update.status", json::object(),
-        [this, seq](const json& response) {
+        [this, seq, app](const json& response) {
             if (is_stale() || !is_current_sequence(seq))
                 return;
             const json* result = helix::json_util::find_member(response, "result");
             const std::string version =
-                result ? helix::moonraker_version_from_update_status(*result) : std::string();
+                result ? helix::version_from_update_status(*result, app) : std::string();
             if (version.empty())
                 return;
-            spdlog::debug("[Moonraker Client] Moonraker version from update_manager: {}", version);
+            spdlog::debug("[Moonraker Client] {} version from update_manager: {}", app, version);
+            const bool klipper = app == "klipper";
             {
                 std::lock_guard<std::mutex> lock(hardware_mutex_);
-                hardware_.set_moonraker_version(version);
+                if (klipper)
+                    hardware_.set_software_version(version);
+                else
+                    hardware_.set_moonraker_version(version);
             }
-            get_printer_state().set_moonraker_version(version);
+            if (klipper)
+                get_printer_state().set_klipper_version(version);
+            else
+                get_printer_state().set_moonraker_version(version);
         },
-        [](const MoonrakerError& err) {
-            spdlog::debug("[Moonraker Client] update_manager version query failed: {}",
+        [app](const MoonrakerError& err) {
+            spdlog::debug("[Moonraker Client] update_manager {} version query failed: {}", app,
                           err.message);
         },
         0,     // default timeout
@@ -733,6 +741,7 @@ void MoonrakerDiscoverySequence::on_server_info(uint64_t seq, const json& info_r
 }
 
 void MoonrakerDiscoverySequence::apply_server_info(uint64_t seq, const json& result) {
+    update_manager_listed_ = false;
     std::string klippy_version = result.value("klippy_version", "unknown");
     auto moonraker_version = result.value("moonraker_version", "unknown");
     {
@@ -825,9 +834,10 @@ void MoonrakerDiscoverySequence::apply_server_components(uint64_t seq, const jso
         get_printer_state().capabilities_state().set_job_queue_available(true);
     }
 
-    if (helix::is_placeholder_version(moonraker_version) &&
-        std::find(components.begin(), components.end(), "update_manager") != components.end()) {
-        fetch_moonraker_version_fallback(seq);
+    update_manager_listed_ =
+        std::find(components.begin(), components.end(), "update_manager") != components.end();
+    if (helix::is_placeholder_version(moonraker_version) && update_manager_listed_) {
+        fetch_update_manager_version(seq, "moonraker");
     }
 }
 
@@ -904,6 +914,15 @@ void MoonrakerDiscoverySequence::on_printer_info(uint64_t seq, const json& print
         return;
     if (printer_response.contains("result")) {
         publish_printer_info(printer_response["result"]);
+        std::string software_version;
+        {
+            std::lock_guard<std::mutex> lock(hardware_mutex_);
+            software_version = hardware_.software_version();
+        }
+        // Klipper run from outside a git checkout reports "?".
+        if (helix::is_placeholder_version(software_version) && update_manager_listed_) {
+            fetch_update_manager_version(seq, "klipper");
+        }
     }
 
     // Step 4: Query configfile for accelerometer detection and macro fan analysis.
