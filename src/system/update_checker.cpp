@@ -254,10 +254,10 @@ bool parse_github_release(const json& j, UpdateChecker::ReleaseInfo& info, std::
     // yields "Corrupt download" for clients still on v0.99.30 or earlier
     // (mirrors the R2 manifest --include-zip gate). Once telemetry shows
     // v0.99.30 adoption is gone, this preference can flip back to zip.
-    if (j.contains("assets") && j["assets"].is_array()) {
+    if (const json* assets = helix::json_util::find_array(j, "assets")) {
         bool found = false;
         for (const auto& key : asset_keys) {
-            if (select_github_asset(j["assets"], key, info)) {
+            if (select_github_asset(*assets, key, info)) {
                 found = true;
                 break;
             }
@@ -754,16 +754,16 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
         info.release_notes = json_string_or_empty(j, "notes");
         info.published_at = json_string_or_empty(j, "published_at");
 
-        if (!j.contains("assets") || !j["assets"].is_object() || j["assets"].empty()) {
+        const json* assets = helix::json_util::find_object(j, "assets");
+        if (!assets || assets->empty()) {
             error = "Missing or empty 'assets' in manifest";
             return false;
         }
 
-        const auto& assets = j["assets"];
         for (const auto& key : asset_keys) {
-            if (assets.contains(key)) {
+            if (const json* asset = helix::json_util::find_member(*assets, key.c_str())) {
                 spdlog::debug("[UpdateChecker] Manifest asset key: '{}'", key);
-                populate_release_urls_from_manifest(assets[key], info);
+                populate_release_urls_from_manifest(*asset, info);
                 return true;
             }
         }
@@ -3484,13 +3484,16 @@ constexpr const char* kExternalUpdateHandler = "external_update_restart";
 //   "proc_id":N, "message":"...", "complete":true/false}]
 // Method callbacks always receive the full JSON-RPC message.
 void handle_update_response(const json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty())
+    const json* payload = helix::json_util::notification_payload(msg);
+    if (!payload)
         return;
-    const auto& p = msg["params"][0];
-    if (!p.contains("application") || !p.contains("complete"))
+    const auto& p = *payload;
+    const json* application = helix::json_util::find_member(p, "application");
+    const json* complete_field = helix::json_util::find_member(p, "complete");
+    if (!application || !complete_field)
         return;
-    std::string app = p["application"].get<std::string>();
-    bool complete = p["complete"].get<bool>();
+    std::string app = application->get<std::string>();
+    bool complete = complete_field->get<bool>();
     if (app != "helixscreen")
         return;
     if (!complete) {

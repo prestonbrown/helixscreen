@@ -13,6 +13,7 @@
 #if HELIX_HAS_CAMERA
 #include "camera_stream.h"
 #include "hv/requests.h"
+#include "json_utils.h"
 #include "panel_widget_manager.h"
 #include "webcam_selection.h"
 #endif
@@ -92,9 +93,7 @@ struct ConfiguredFeed {
 ConfiguredFeed configured_feed() {
     ConfiguredFeed c;
     c.config = PanelWidgetManager::instance().get_widget_config("home").get_widget_config("camera");
-    std::string source;
-    if (c.config.is_object() && c.config.contains("source") && c.config["source"].is_string())
-        source = c.config["source"].get<std::string>();
+    std::string source = helix::json_util::read_field<std::string>(c.config, "source").value_or("");
     c.feed = CameraStream::resolve_from_printer(source);
     return c;
 }

@@ -269,28 +269,19 @@ void MaterialSettingsManager::load_presets_from_config() {
         if (!v.is_object()) {
             continue;
         }
-        if (v.contains("type") && v["type"].is_string()) {
-            std::string t = v["type"].get<std::string>();
-            if (!t.empty()) {
-                preset_materials_[i] = t;
+        if (auto t = json_util::read_field<std::string>(v, "type")) {
+            if (!t->empty()) {
+                preset_materials_[i] = *t;
             }
         }
-        if (v.contains("filament_id") && v["filament_id"].is_string() &&
-            !v["filament_id"].get<std::string>().empty()) {
+        auto filament_id = json_util::read_field<std::string>(v, "filament_id");
+        if (filament_id && !filament_id->empty()) {
             PresetFilament pf;
-            pf.filament_id = v["filament_id"].get<std::string>();
-            if (v.contains("brand") && v["brand"].is_string()) {
-                pf.brand = v["brand"].get<std::string>();
-            }
-            if (v.contains("name") && v["name"].is_string()) {
-                pf.name = v["name"].get<std::string>();
-            }
-            if (v.contains("nozzle") && v["nozzle"].is_number_integer()) {
-                pf.nozzle = v["nozzle"].get<int>();
-            }
-            if (v.contains("bed") && v["bed"].is_number_integer()) {
-                pf.bed = v["bed"].get<int>();
-            }
+            pf.filament_id = *filament_id;
+            pf.brand = json_util::read_field<std::string>(v, "brand").value_or(pf.brand);
+            pf.name = json_util::read_field<std::string>(v, "name").value_or(pf.name);
+            pf.nozzle = json_util::read_integer_field(v, "nozzle").value_or(pf.nozzle);
+            pf.bed = json_util::read_integer_field(v, "bed").value_or(pf.bed);
             preset_filaments_[i] = pf;
         }
     }
