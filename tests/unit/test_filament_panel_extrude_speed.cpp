@@ -1,7 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The Filament panel's speed dropdown edits the extrude_speed setting Machine
-// Limits also sets, and Extrude / Retract move at that speed.
+// The panel's speed dropdown edits extrude_speed; Extrude / Retract move at it.
 
 #include "ui_panel_filament.h"
 
@@ -24,8 +23,7 @@ helix::SettingsManager& sm() {
     return helix::SettingsManager::instance();
 }
 
-/// The panel built from its XML over the macro harness's recording client.
-/// SettingsManager's subjects go live first, so the panel observes a live one.
+/// The XML-built panel over the macro harness, observing live settings subjects.
 struct SpeedHarness {
     LVGLUITestFixture& fx;
     bool settings_live = (sm().init_subjects(), true);
