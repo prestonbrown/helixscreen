@@ -11,6 +11,7 @@
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../test_helpers/scoped_portrait_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"
@@ -131,6 +132,34 @@ struct Portrait320 : TileFixture {
 };
 struct Portrait272 : TileFixture {
     Portrait272() : TileFixture(272, 480) {}
+};
+
+/// The panel built from its ultrawide layout at 1480x320.
+class Ultrawide1480 : public PrintStatusPanelFixture {
+  public:
+    Ultrawide1480()
+        : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
+              helix::led::LedController::instance().init(nullptr, nullptr);
+              ToolState::instance().init_subjects(false);
+              helix::PrinterImageManager::instance().init_subjects();
+              auto layout =
+                  std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
+              REQUIRE(lv_xml_register_component_from_file(
+                          "A:ui_xml/ultrawide/print_status_panel.xml") == LV_RESULT_OK);
+              return std::shared_ptr<void>(layout.get(), [layout](void*) {
+                  lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
+              });
+          }) {
+        lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_update_layout(root_);
+        PrintStatusPanelTestAccess::relayout(panel());
+        UpdateQueue::instance().drain();
+        lv_obj_update_layout(root_);
+    }
+
+    lv_obj_t* find(const char* name) {
+        return lv_obj_find_by_name(root_, name);
+    }
 };
 
 void set_int(lv_subject_t* s, int v) {
@@ -1229,4 +1258,65 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
     UpdateQueue::instance().drain();
     CHECK(subject_str("ps_printer_image_src") == source);
     std::filesystem::remove(cache_path, ec);
+}
+
+TEST_CASE_METHOD(Ultrawide1480,
+                 "ultrawide builds one row of columns at the widths the fitter decides",
+                 "[print_status][ultrawide]") {
+    // The ultrawide body, not the landscape strip.
+    REQUIRE(find("ps_uw_info") != nullptr);
+    CHECK(find("ps_strip") == nullptr);
+    CHECK(find("metadata_overlay") == nullptr);
+
+    lv_obj_t* content = find("overlay_content");
+    REQUIRE(content != nullptr);
+    const int32_t w = lv_obj_get_content_width(content);
+    const int32_t h = lv_obj_get_content_height(content);
+    const auto cols =
+        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"));
+    REQUIRE(cols.preview_w > 0);
+
+    lv_obj_t* job = find("ps_job_tile");
+    lv_obj_t* printer = find("ps_printer_tile");
+    lv_obj_t* readouts = find("ps_uw_readouts");
+    lv_obj_t* actions = find("ps_uw_actions");
+    lv_obj_t* info = find("ps_uw_info");
+    REQUIRE((job && printer && readouts && actions && info));
+    CHECK(lv_obj_get_width(job) == cols.preview_w);
+    CHECK(lv_obj_get_height(job) == h);
+    CHECK(lv_obj_get_width(printer) == cols.printer_w);
+    CHECK(lv_obj_get_width(readouts) == cols.readouts_w);
+    CHECK(lv_obj_get_width(actions) == cols.actions_w);
+    CHECK(lv_obj_get_width(info) == cols.info_w);
+
+    // The buttons stack, and a heater row and the speed row are taps.
+    lv_obj_t* pause = find("btn_pause");
+    lv_obj_t* cancel = find("btn_cancel");
+    REQUIRE((pause && cancel));
+    CHECK(lv_obj_get_y(cancel) > lv_obj_get_y(pause));
+    CHECK(lv_obj_get_x(cancel) == lv_obj_get_x(pause));
+    CHECK(lv_obj_has_flag(find("readout_bed"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_has_flag(find("readout_speed"), LV_OBJ_FLAG_CLICKABLE));
+}
+
+TEST_CASE_METHOD(Ultrawide1480, "ultrawide readouts drop the chamber row without a chamber",
+                 "[print_status][ultrawide]") {
+    lv_subject_t* has_chamber = lv_xml_get_subject(nullptr, "printer_has_chamber");
+    REQUIRE(has_chamber != nullptr);
+    const int original = lv_subject_get_int(has_chamber);
+    lv_obj_t* row = find("readout_chamber");
+    REQUIRE(row != nullptr);
+
+    lv_subject_set_int(has_chamber, 1);
+    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(has_chamber, 0);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(has_chamber, original);
+}
+
+TEST_CASE_METHOD(Landscape800, "a standard screen keeps the strip and builds no columns",
+                 "[print_status][ultrawide]") {
+    CHECK(lv_obj_find_by_name(root_, "ps_strip") != nullptr);
+    CHECK(lv_obj_find_by_name(root_, "ps_uw_info") == nullptr);
+    CHECK(lv_obj_find_by_name(root_, "metadata_overlay") != nullptr);
 }

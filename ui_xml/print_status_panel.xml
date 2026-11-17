@@ -17,6 +17,23 @@
     <px name="metadata_clip_height_large" value="132"/>
     <px name="metadata_clip_height_xlarge" value="156"/>
     <px name="metadata_clip_height_xxlarge" value="196"/>
+    <!-- The ultrawide info column's percent (bold) and time left: a size up
+         from font_display at each tier the column's height allows, from
+         faces that tier registers. -->
+    <string name="font_ps_hero_micro" value="noto_sans_bold_20"/>
+    <string name="font_ps_hero_tiny" value="noto_sans_bold_24"/>
+    <string name="font_ps_hero_small" value="noto_sans_bold_28"/>
+    <string name="font_ps_hero_medium" value="noto_sans_bold_40"/>
+    <string name="font_ps_hero_large" value="noto_sans_bold_40"/>
+    <string name="font_ps_hero_xlarge" value="noto_sans_bold_40"/>
+    <string name="font_ps_hero_xxlarge" value="noto_sans_bold_40"/>
+    <string name="font_ps_hero_regular_micro" value="noto_sans_18"/>
+    <string name="font_ps_hero_regular_tiny" value="noto_sans_20"/>
+    <string name="font_ps_hero_regular_small" value="noto_sans_24"/>
+    <string name="font_ps_hero_regular_medium" value="noto_sans_26"/>
+    <string name="font_ps_hero_regular_large" value="noto_sans_28"/>
+    <string name="font_ps_hero_regular_xlarge" value="noto_sans_32"/>
+    <string name="font_ps_hero_regular_xxlarge" value="noto_sans_40"/>
   </consts>
   <!-- Print Status Panel: job tile, printer tile and strip (components/print_status_body.xml). -->
   <view name="print_status_panel"

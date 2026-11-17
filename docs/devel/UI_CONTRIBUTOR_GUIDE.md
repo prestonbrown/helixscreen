@@ -923,7 +923,8 @@ ui_xml/
     print_status_panel.xml
     print_tune_panel.xml
   micro_portrait/          <-- Micro-portrait overrides (dir present, empty)
-  ultrawide/               <-- Does NOT exist yet (no overrides created)
+  ultrawide/               <-- Ultrawide overrides (1 file)
+    print_status_panel.xml
   tiny/, tiny_portrait/    <-- Do NOT exist yet
 ```
 
@@ -1134,8 +1135,10 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
-- Not started -- `ui_xml/ultrawide/` does not exist yet, so ultrawide screens
-  currently fall through to the standard layout.
+- Print Status has an ultrawide layout (`ui_xml/ultrawide/print_status_panel.xml`):
+  one row of columns whose widths `PrintStatusLayoutFitter` publishes from
+  `decide_print_status_columns()`. Every other panel falls through to the
+  standard layout, or adapts in place on `ui_is_ultrawide`.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status

@@ -394,6 +394,11 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t arrangement_subject_{};
     lv_subject_t strip_stacked_subject_{};
     lv_subject_t checklist_compact_subject_{};
+    // Ultrawide column widths (PrintStatusLayoutFitter).
+    lv_subject_t uw_preview_w_subject_{};
+    lv_subject_t uw_printer_w_subject_{};
+    lv_subject_t uw_readouts_w_subject_{};
+    lv_subject_t uw_actions_w_subject_{};
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;

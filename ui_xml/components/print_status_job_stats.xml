@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Print status job stats: layer, objects and filament used, shared by the
+     preview card's metadata strip and the ultrawide info column. -->
+<component>
+  <!-- Layer / objects / filament as icon clusters, not prose. The prose
+       row ("Layer 474 / 1334 (55.4mm)" + "12 of 12 objects" + "92.6m
+       used") measured 393px in the 363px strip an 800x480 panel
+       produces, and its width changes with every translation of
+       Layer/of/objects/used; icons carry the words and the bound
+       strings are bare numbers, so the row is language-neutral and
+       fits every tier. The layer cluster grows and dots as the floor:
+       a pathological count degrades instead of overlapping
+       (space_between derives its gap as (row - content) / (n-1) with
+       no floor at zero - lv_flex.c place_content). -->
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+    <!-- On printers with the layer-pause macros, a tap during a print
+         opens the Pause at Layer modal (layer_pause_modal.xml): a muted
+         pause glyph marks it as tappable, and turns into the pending
+         layer number while a pause is scheduled. -->
+    <lv_obj name="layer_cluster"
+            height="content" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+            style_pad_gap="#space_xs" scrollable="false" clickable="false" style_radius="#border_radius">
+      <style name="styles.press_wash" selector="pressed"/>
+      <bind_flag_if cond="printer_has_layer_pause and layer_pause_availability gt 0" flag="clickable"/>
+      <event_cb trigger="clicked" callback="on_layer_pause_open"/>
+      <icon name="layer_icon" src="layers" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+      <text_small name="layer_progress_label"
+                  text="0 / 0" bind_text="print_layer_text" style_text_align="left" flex_grow="1" long_mode="dots"
+                  event_bubble="true"/>
+      <icon name="layer_pause_hint"
+            src="pause" size="xs" variant="muted" clickable="false" event_bubble="true" hidden="true">
+        <bind_flag_if cond="printer_has_layer_pause and layer_pause_availability gt 0 and layer_pause_layer eq 0"
+                      flag="hidden" invert="true"/>
+      </icon>
+      <lv_obj name="layer_pause_chip"
+              width="content" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#space_xxs" scrollable="false" clickable="false" event_bubble="true" hidden="true">
+        <bind_flag_if cond="printer_has_layer_pause and layer_pause_layer gt 0" flag="hidden" invert="true"/>
+        <icon src="pause" size="xs" variant="warning" clickable="false" event_bubble="true"/>
+        <text_small name="layer_pause_chip_label"
+                    bind_text="layer_pause_layer" style_text_color="#warning" event_bubble="true"/>
+      </lv_obj>
+    </lv_obj>
+    <lv_obj name="objects_cluster"
+            height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
+            scrollable="false">
+      <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
+      <icon name="objects_icon" src="cube_outline" size="xs" variant="secondary" clickable="false"/>
+      <text_small name="objects_count_label" text="" bind_text="print_objects_text"/>
+    </lv_obj>
+    <lv_obj name="filament_cluster"
+            height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
+            scrollable="false">
+      <icon name="filament_icon" src="filament" size="xs" variant="secondary" clickable="false"/>
+      <text_small name="filament_used_label" text="" bind_text="print_filament_used_text"/>
+    </lv_obj>
+  </view>
+</component>
