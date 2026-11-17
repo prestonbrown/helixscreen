@@ -10,8 +10,11 @@
   <translation tag="&quot;%s&quot; failed to load" es="&quot;%s&quot; no se pudo cargar"/>
   <translation tag="%d additional fan" es="%d ventilador adicional"/>
   <translation tag="%d additional fans" es="%d ventiladores adicionales"/>
+  <translation tag="%d feeder" es="%d alimentador"/>
   <translation tag="%d feeders" es="%d alimentadores"/>
+  <translation tag="%d gate" es="%d Gate"/>
   <translation tag="%d gates" es="%d Gates"/>
+  <translation tag="%d lane" es="%d carril"/>
   <translation tag="%d lanes" es="%d carriles"/>
   <translation tag="%d min" es="%d min"/>
   <translation tag="%d min left" es="quedan %d min"/>
@@ -21,7 +24,10 @@
   <translation tag="%d of %d printing" es="%d de %d imprimiéndose"/>
   <translation tag="%d profiles" es="%d perfiles"/>
   <translation tag="%d skipped" es="%d omitidos"/>
+  <translation tag="%d slot" es="%d ranura"/>
   <translation tag="%d slots" es="%d ranuras"/>
+  <translation tag="%d tool" es="%d herramienta"/>
+  <translation tag="%d toolhead" es="%d cabezal"/>
   <translation tag="%d toolheads" es="%d cabezales"/>
   <translation tag="%d tools" es="%d herramientas"/>
   <translation tag="%d units" es="%d unidades"/>

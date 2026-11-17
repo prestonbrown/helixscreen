@@ -113,12 +113,16 @@ TEST_CASE("lane_count_label counts positions in the backend's own noun", "[numbe
     CHECK(lane_count_label(LaneNoun::Toolhead, 4) == "4 toolheads");
 }
 
-TEST_CASE("a position count is a fixed form, never agreed with the count", "[numbering]") {
-    // The count is interpolated and the word is not chosen from it, so one and
-    // many read the same word in the base locale. A locale whose numerals
-    // inflect picks the one form it wants to see on a card header.
-    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 lanes");
+TEST_CASE("a position count agrees with the count", "[numbering]") {
+    // A one-lane unit's card reads "1 lane"; zero and many take the plural.
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 lane");
+    CHECK(lane_count_label(LaneNoun::Slot, 1) == "1 slot");
+    CHECK(lane_count_label(LaneNoun::Gate, 1) == "1 gate");
+    CHECK(lane_count_label(LaneNoun::Tool, 1) == "1 tool");
+    CHECK(lane_count_label(LaneNoun::Feeder, 1) == "1 feeder");
+    CHECK(lane_count_label(LaneNoun::Toolhead, 1) == "1 toolhead");
     CHECK(lane_count_label(LaneNoun::Lane, 0) == "0 lanes");
+    CHECK(lane_count_label(LaneNoun::Lane, 2) == "2 lanes");
 }
 
 TEST_CASE("a range with no valid end produces no label", "[numbering]") {

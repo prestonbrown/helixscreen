@@ -10,8 +10,11 @@
   <translation tag="&quot;%s&quot; failed to load" ja="&quot;%s&quot; の読み込みに失敗しました"/>
   <translation tag="%d additional fan" ja="追加ファン %d 個"/>
   <translation tag="%d additional fans" ja="追加ファン %d 個"/>
+  <translation tag="%d feeder" ja="%d フィーダー"/>
   <translation tag="%d feeders" ja="%d フィーダー"/>
+  <translation tag="%d gate" ja="%d ゲート"/>
   <translation tag="%d gates" ja="%d ゲート"/>
+  <translation tag="%d lane" ja="%d レーン"/>
   <translation tag="%d lanes" ja="%d レーン"/>
   <translation tag="%d min" ja="%d分"/>
   <translation tag="%d min left" ja="残り %d 分"/>
@@ -21,7 +24,10 @@
   <translation tag="%d of %d printing" ja="%d/%d 印刷中"/>
   <translation tag="%d profiles" ja="%d 個のプロファイル"/>
   <translation tag="%d skipped" ja="%d個スキップ"/>
+  <translation tag="%d slot" ja="%d スロット"/>
   <translation tag="%d slots" ja="%d スロット"/>
+  <translation tag="%d tool" ja="%d ツール"/>
+  <translation tag="%d toolhead" ja="%d ツールヘッド"/>
   <translation tag="%d toolheads" ja="%d ツールヘッド"/>
   <translation tag="%d tools" ja="%d ツール"/>
   <translation tag="%d units" ja="%dユニット"/>

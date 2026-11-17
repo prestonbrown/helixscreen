@@ -199,3 +199,28 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lane_count_label(LaneNoun::Toolhead, 2) == "2 печатающие головки");
     CHECK(lane_count_label(LaneNoun::Toolhead, 5) == "5 печатающих головок");
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "lane_count_label takes the singular for one in the shipped packs",
+                 "[i18n][plural]") {
+    using helix::ui::lane_count_label;
+    using helix::ui::LaneNoun;
+    ScopedLanguage restore_lang;
+
+    helix::ui::ensure_translation_loaded("de");
+    lv_translation_set_language("de");
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 Spur");
+    CHECK(lane_count_label(LaneNoun::Lane, 4) == "4 Spuren");
+    CHECK(lane_count_label(LaneNoun::Toolhead, 1) == "1 Werkzeugkopf");
+
+    // French counts zero with the singular too.
+    helix::ui::ensure_translation_loaded("fr");
+    lv_translation_set_language("fr");
+    CHECK(lane_count_label(LaneNoun::Slot, 0) == "0 emplacement");
+    CHECK(lane_count_label(LaneNoun::Slot, 1) == "1 emplacement");
+    CHECK(lane_count_label(LaneNoun::Slot, 2) == "2 emplacements");
+
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 канал");
+}

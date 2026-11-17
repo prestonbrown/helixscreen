@@ -13,14 +13,17 @@
   <translation tag="%d additional fans_few" ru="%d дополнительных вентилятора"/>
   <translation tag="%d additional fans_many" ru="%d дополнительных вентиляторов"/>
   <translation tag="%d additional fans_one" ru="%d дополнительный вентилятор"/>
+  <translation tag="%d feeder" ru="%d фидер"/>
   <translation tag="%d feeders" ru="%d фидера"/>
   <translation tag="%d feeders_few" ru="%d фидера"/>
   <translation tag="%d feeders_many" ru="%d фидеров"/>
   <translation tag="%d feeders_one" ru="%d фидер"/>
+  <translation tag="%d gate" ru="%d шлюз"/>
   <translation tag="%d gates" ru="%d шлюза"/>
   <translation tag="%d gates_few" ru="%d шлюза"/>
   <translation tag="%d gates_many" ru="%d шлюзов"/>
   <translation tag="%d gates_one" ru="%d шлюз"/>
+  <translation tag="%d lane" ru="%d канал"/>
   <translation tag="%d lanes" ru="%d канала"/>
   <translation tag="%d lanes_few" ru="%d канала"/>
   <translation tag="%d lanes_many" ru="%d каналов"/>
@@ -36,10 +39,13 @@
   <translation tag="%d of %d printing" ru="%d из %d печатается"/>
   <translation tag="%d profiles" ru="Профилей: %d"/>
   <translation tag="%d skipped" ru="Пропущено: %d"/>
+  <translation tag="%d slot" ru="%d слот"/>
   <translation tag="%d slots" ru="%d слота"/>
   <translation tag="%d slots_few" ru="%d слота"/>
   <translation tag="%d slots_many" ru="%d слотов"/>
   <translation tag="%d slots_one" ru="%d слот"/>
+  <translation tag="%d tool" ru="%d инструмент"/>
+  <translation tag="%d toolhead" ru="%d печатающая головка"/>
   <translation tag="%d toolheads" ru="%d печатающие головки"/>
   <translation tag="%d toolheads_few" ru="%d печатающие головки"/>
   <translation tag="%d toolheads_many" ru="%d печатающих головок"/>

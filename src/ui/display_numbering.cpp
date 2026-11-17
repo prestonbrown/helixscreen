@@ -210,22 +210,22 @@ std::string lane_count_label(LaneNoun noun, int count) {
     const auto n = static_cast<uint64_t>(count);
     switch (noun) {
     case LaneNoun::Lane:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d lanes", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d lane", "%d lanes", n), count);
         return buf;
     case LaneNoun::Gate:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d gates", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d gate", "%d gates", n), count);
         return buf;
     case LaneNoun::Tool:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d tools", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d tool", "%d tools", n), count);
         return buf;
     case LaneNoun::Feeder:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d feeders", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d feeder", "%d feeders", n), count);
         return buf;
     case LaneNoun::Toolhead:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d toolheads", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d toolhead", "%d toolheads", n), count);
         return buf;
     case LaneNoun::Slot:
-        snprintf(buf, sizeof(buf), tr_plural(nullptr, "%d slots", n), count);
+        snprintf(buf, sizeof(buf), tr_plural("%d slot", "%d slots", n), count);
         return buf;
     }
     return {};
