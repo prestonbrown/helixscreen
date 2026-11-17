@@ -326,7 +326,7 @@ bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* obse
 }
 
 void Subject::publish_int(int32_t value) {
-    if (live_) {
+    if (live_ && node_usable()) {
         lv_subject_set_int(handle_, value);
     } else {
         init_int(value);

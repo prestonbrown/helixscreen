@@ -1003,6 +1003,13 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
     // Prevent WaitState from being destroyed while observer is alive by capturing
     // shared_ptr in the observer's setup closure (ensures ref count stays > 0)
     helix::ui::queue_update("RemoteControlServer::handle_wait_for", [name, state, setup_promise]() {
+        {
+            std::lock_guard<std::mutex> lock(state->mtx);
+            if (state->cancelled) {
+                setup_promise->set_value(false);
+                return;
+            }
+        }
         lv_subject_t* subject = find_subject_by_name(name);
         if (!subject) {
             setup_promise->set_value(false);
@@ -1036,10 +1043,16 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
         // Create observer — callback runs on UI thread so reads are safe.
         // Capture shared_ptr to keep WaitState alive as long as observer exists.
         state->subject = subject;
+        // The observer holds its own reference: a reset or a re-registered name can
+        // leave it attached after this request ends, and then it must find a
+        // cancelled state rather than freed memory. The cleanup below releases it when
+        // it deletes the observer itself.
         state->observer = lv_subject_add_observer(
             subject,
             [](lv_observer_t* obs, lv_subject_t* sub) {
-                auto* ws = static_cast<WaitState*>(lv_observer_get_user_data(obs));
+                auto* holder =
+                    static_cast<std::shared_ptr<WaitState>*>(lv_observer_get_user_data(obs));
+                WaitState* ws = holder ? holder->get() : nullptr;
                 if (!ws || ws->cancelled)
                     return;
 
@@ -1057,7 +1070,7 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
                 }
                 ws->cv.notify_one();
             },
-            state.get());
+            new std::shared_ptr<WaitState>(state));
 
         setup_promise->set_value(true);
     });
@@ -1065,6 +1078,9 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
     // Wait for setup
     auto setup_status = setup_future.wait_for(std::chrono::seconds(5));
     if (setup_status == std::future_status::timeout) {
+        // The setup may still run later and attach an observer; it must do nothing.
+        std::lock_guard<std::mutex> lock(state->mtx);
+        state->cancelled = true;
         throw std::runtime_error("Timeout setting up observer");
     }
 
@@ -1099,7 +1115,10 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
                                     lv_subject_t* subject = find_subject_by_name(name);
                                     if (subject == state->subject &&
                                         helix::subject_has_observer(subject, state->observer)) {
+                                        auto* holder = static_cast<std::shared_ptr<WaitState>*>(
+                                            lv_observer_get_user_data(state->observer));
                                         lv_observer_delete(state->observer);
+                                        delete holder;
                                     }
                                     state->observer = nullptr;
                                     cleanup_promise->set_value();
