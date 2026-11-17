@@ -121,11 +121,13 @@ static void load_theme_sizes(FilamentPathData* data) {
 namespace helix::ui::fpath {
 
 // Get slot center X relative to the canvas left edge.
-// Primary: uses cached spool_container pointers for pixel-perfect alignment.
+// Primary: the slot's spool container, read live from the grid, for pixel-perfect alignment.
 // Fallback: computes position from slot_width/overlap when slot_grid unavailable.
 int32_t get_slot_x(const FilamentPathData* data, int slot_index, int32_t canvas_x1) {
-    if (slot_index >= 0 && slot_index < FilamentPathData::kMaxSlots) {
-        lv_obj_t* spool_cont = data->spool_containers[slot_index];
+    if (slot_index >= 0 && slot_index < FilamentPathData::kMaxSlots && data->slot_grid &&
+        slot_index < (int)lv_obj_get_child_count(data->slot_grid)) {
+        lv_obj_t* spool_cont =
+            ui_ams_slot_get_spool_container(lv_obj_get_child(data->slot_grid, slot_index));
         if (spool_cont) {
             // When spool_container is hidden (cleared slot), its flex-computed coords
             // are invalid. Use the parent slot widget center instead — it always stays
@@ -619,31 +621,20 @@ void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid) {
     if (!data)
         return;
 
-    // Pre-cache spool_container pointers to avoid per-frame lv_obj_find_by_name
-    lv_obj_t* containers[FilamentPathData::kMaxSlots] = {};
-    int child_count = 0;
+    const void* slots[FilamentPathData::kMaxSlots] = {};
     if (slot_grid) {
-        child_count = LV_MIN((int)lv_obj_get_child_count(slot_grid), FilamentPathData::kMaxSlots);
-        for (int i = 0; i < child_count; i++) {
-            lv_obj_t* slot = lv_obj_get_child(slot_grid, i);
-            if (slot) {
-                containers[i] = lv_obj_find_by_name(slot, "spool_container");
-            }
-        }
+        const int n = LV_MIN((int)lv_obj_get_child_count(slot_grid), FilamentPathData::kMaxSlots);
+        for (int i = 0; i < n; i++)
+            slots[i] = lv_obj_get_child(slot_grid, i);
     }
 
     // The lanes are drawn from these slots' positions, so a different grid, or
     // different slots in it, needs a repaint even when nothing else changed.
-    if (data->slot_grid == slot_grid &&
-        std::memcmp(data->spool_containers, containers, sizeof(containers)) == 0)
+    if (data->slot_grid == slot_grid && std::memcmp(data->slot_ids, slots, sizeof(slots)) == 0)
         return;
 
     data->slot_grid = slot_grid;
-    std::memcpy(data->spool_containers, containers, sizeof(containers));
-    if (slot_grid) {
-        spdlog::debug("[FilamentPath] Cached {} spool_container pointers from slot_grid",
-                      child_count);
-    }
+    std::memcpy(data->slot_ids, slots, sizeof(slots));
     layered_mark_dirty(obj);
 }
 

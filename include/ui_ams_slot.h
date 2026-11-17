@@ -150,6 +150,10 @@ lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj);
 // NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj);
 
+/// The slot's spool container, the box its spool graphic stands in, or nullptr.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_spool_container(lv_obj_t* obj);
+
 /// Reparents the slot's badge onto @p badge_layer at its spool corner, held
 /// inside the layer's laid-out width. Call lv_obj_update_layout() on the layer
 /// first; a layer with no width yet leaves the badge at the corner.

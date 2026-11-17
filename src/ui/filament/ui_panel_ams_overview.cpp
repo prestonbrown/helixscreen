@@ -745,8 +745,8 @@ void AmsOverviewPanel::create_detail_slots(const AmsSystemInfo& info, int unit_p
 }
 
 void AmsOverviewPanel::destroy_detail_slots() {
-    // The canvas caches the slots' spool containers and reads them whenever it lays out,
-    // including while the next unit's slots are being created.
+    // The canvas lays its lanes out from this grid's slots; it gets the grid back once the next
+    // unit's slots stand in it.
     if (detail_path_canvas_) {
         ui_filament_path_canvas_set_slot_grid(detail_path_canvas_, nullptr);
     }
