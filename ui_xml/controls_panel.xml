@@ -64,7 +64,7 @@
     <style name="action_row_micro" height="#button_height_sm"/>
     <style name="motion_label_micro" text_font="#font_small" text_color="#text"/>
     <!-- The fan readout moves under the slider -->
-    <style name="fan_row_micro" flex_flow="column" flex_track_place="center" pad_all="0" pad_gap="0"/>
+    <style name="fan_row_micro" flex_flow="column" flex_track_place="center" pad_hor="0" pad_ver="#space_xs" pad_gap="0"/>
     <style name="fan_slider_micro"
            width="80%" height="#space_lg" radius="#space_md" margin_left="#space_md" margin_right="#space_sm"
            flex_grow="0"/>
@@ -77,8 +77,8 @@
     <!-- Cooling card body: Part Fan over the other fans in landscape, beside
          them in portrait. The slider row keeps its knob inside the card: the
          value sits to its right in landscape, and alone it pads both ends. -->
-    <style name="cooling_body_stacked" layout="flex" flex_flow="column"/>
-    <style name="cooling_body_columns" layout="flex" flex_flow="row"/>
+    <style name="cooling_body_stacked" layout="flex" flex_flow="column" pad_gap="0"/>
+    <style name="cooling_body_columns" layout="flex" flex_flow="row" pad_gap="#space_md"/>
     <style name="cooling_col_full" width="100%"/>
     <style name="cooling_col_half" width="0" flex_grow="1"/>
     <style name="slider_row_beside_value" pad_left="#space_lg" pad_right="0"/>
@@ -460,9 +460,7 @@
           </lv_obj>
           <!-- Part Fan, then the other fans: stacked in landscape, side by side in
                portrait where the card runs the full width but is short. -->
-          <lv_obj width="100%"
-                  flex_grow="1" style_pad_all="0" style_pad_gap="#space_md" scrollable="false" clickable="false"
-                  event_bubble="true">
+          <lv_obj width="100%" flex_grow="1" style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
             <bind_style_if_eq name="cooling_body_stacked" subject="ui_is_portrait" ref_value="0"/>
             <bind_style_if_eq name="cooling_body_columns" subject="ui_is_portrait" ref_value="1"/>
             <!-- Part cooling hero section -->
