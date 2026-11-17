@@ -3,8 +3,6 @@
 
 #include "ams_backend_cfs.h"
 
-#include "ui_temperature_utils.h"
-
 #include "ams_bypass_policy.h"
 #include "ams_device_sections.h"
 #include "ams_fault_event.h"
@@ -32,6 +30,7 @@
 #include "printer_detector.h"
 #include "printer_discovery.h"
 #include "printer_state.h" // get_print_lifecycle_subject: the insert-probe gate
+#include "temperature_rules.h"
 #include "toolhead_homing.h"
 #include "translation_loader.h"
 
@@ -3652,7 +3651,7 @@ void AmsBackendCfs::on_extruder_temp_change_locked(int new_temp_deci, int new_ta
             phase_tracker_.reached_target_once = true;
             phase_tracker_.baseline_target_deci = new_target_deci;
             spdlog::debug("[AMS CFS] Phase: reached target {}°C, baseline latched",
-                          helix::ui::temperature::deci_to_degrees(new_target_deci));
+                          helix::temperature_rules::deci_to_degrees(new_target_deci));
         }
     }
 
@@ -3670,8 +3669,8 @@ void AmsBackendCfs::on_extruder_temp_change_locked(int new_temp_deci, int new_ta
         phase_tracker_.pending_purge_target = true;
         spdlog::debug(
             "[AMS CFS] Phase: purge target jump latched (target {}°C > baseline {}°C + 10)",
-            helix::ui::temperature::deci_to_degrees(new_target_deci),
-            helix::ui::temperature::deci_to_degrees(phase_tracker_.baseline_target_deci));
+            helix::temperature_rules::deci_to_degrees(new_target_deci),
+            helix::temperature_rules::deci_to_degrees(phase_tracker_.baseline_target_deci));
     }
     if (phase_tracker_.pending_purge_target && phase_tracker_.seen_filament_rise &&
         !phase_tracker_.seen_purge_signal) {

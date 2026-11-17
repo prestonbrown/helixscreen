@@ -3,8 +3,6 @@
 
 #include "print_start_collector.h"
 
-#include "ui_temperature_utils.h"
-
 #include "action_prompt_manager.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -20,6 +18,7 @@
 #include "print_start_analyzer.h"
 #include "print_start_phase_label.h"
 #include "printer_detector.h"
+#include "temperature_rules.h"
 #include "thermal_rate_model.h"
 #include "unit_conversions.h"
 #include "wait_line_reader.h"
@@ -200,19 +199,19 @@ void PrintStartCollector::start() {
     helix::MemoryMonitor::log_now("print_start_collector_start", spdlog::level::debug);
 
     // Capture start temperatures for heating fraction calculation
-    start_ext_temp_ = helix::ui::temperature::deci_to_degrees(
+    start_ext_temp_ = helix::temperature_rules::deci_to_degrees(
         lv_subject_get_int(state_.temperature_state().get_active_extruder_temp_subject()));
-    start_bed_temp_ = helix::ui::temperature::deci_to_degrees(
+    start_bed_temp_ = helix::temperature_rules::deci_to_degrees(
         lv_subject_get_int(state_.temperature_state().get_bed_temp_subject()));
     priced_heating_seconds_.reset();
     cached_ext_temp_.store(start_ext_temp_, std::memory_order_relaxed);
     cached_bed_temp_.store(start_bed_temp_, std::memory_order_relaxed);
     frame_ext_temp_.store(start_ext_temp_, std::memory_order_relaxed);
     frame_bed_temp_.store(start_bed_temp_, std::memory_order_relaxed);
-    cached_ext_target_.store(helix::ui::temperature::deci_to_degrees(lv_subject_get_int(
+    cached_ext_target_.store(helix::temperature_rules::deci_to_degrees(lv_subject_get_int(
                                  state_.temperature_state().get_active_extruder_target_subject())),
                              std::memory_order_relaxed);
-    cached_bed_target_.store(helix::ui::temperature::deci_to_degrees(lv_subject_get_int(
+    cached_bed_target_.store(helix::temperature_rules::deci_to_degrees(lv_subject_get_int(
                                  state_.temperature_state().get_bed_target_subject())),
                              std::memory_order_relaxed);
     frame_ext_target_.store(cached_ext_target_.load(std::memory_order_relaxed),
@@ -778,13 +777,13 @@ void PrintStartCollector::check_fallback_completion() {
     int bed_target = lv_subject_get_int(state_.temperature_state().get_bed_target_subject());
 
     // Cache for thread-safe access from calculate_progress_locked()
-    cached_ext_temp_.store(helix::ui::temperature::deci_to_degrees(ext_temp),
+    cached_ext_temp_.store(helix::temperature_rules::deci_to_degrees(ext_temp),
                            std::memory_order_relaxed);
-    cached_ext_target_.store(helix::ui::temperature::deci_to_degrees(ext_target),
+    cached_ext_target_.store(helix::temperature_rules::deci_to_degrees(ext_target),
                              std::memory_order_relaxed);
-    cached_bed_temp_.store(helix::ui::temperature::deci_to_degrees(bed_temp),
+    cached_bed_temp_.store(helix::temperature_rules::deci_to_degrees(bed_temp),
                            std::memory_order_relaxed);
-    cached_bed_target_.store(helix::ui::temperature::deci_to_degrees(bed_target),
+    cached_bed_target_.store(helix::temperature_rules::deci_to_degrees(bed_target),
                              std::memory_order_relaxed);
     // Klipper sends a target only when it changes, so one set just before
     // start() reaches the subjects after the seed and never comes again as a
@@ -841,8 +840,8 @@ void PrintStartCollector::check_fallback_completion() {
     // too: a bed heating at 5.6 s/C against a 1 s/C size guess otherwise
     // counts down a sixth of its real wait.
     {
-        int new_ext = helix::ui::temperature::deci_to_degrees(ext_target);
-        int new_bed = helix::ui::temperature::deci_to_degrees(bed_target);
+        int new_ext = helix::temperature_rules::deci_to_degrees(ext_target);
+        int new_bed = helix::temperature_rules::deci_to_degrees(bed_target);
         constexpr int kTargetRiseRecomputeDegrees = 15;
         bool ext_newly_set = (weights_ext_target_ == 0 && new_ext > 0);
         bool bed_newly_set = (weights_bed_target_ == 0 && new_bed > 0);
@@ -921,16 +920,16 @@ void PrintStartCollector::check_fallback_completion() {
         if (bed_heating && (current != PrintStartPhase::HEATING_BED)) {
             // Bed still heating — show bed phase
             spdlog::info("[PrintStartCollector] Proactive: bed heating ({}/{})",
-                         helix::ui::temperature::deci_to_degrees(bed_temp),
-                         helix::ui::temperature::deci_to_degrees(bed_target));
+                         helix::temperature_rules::deci_to_degrees(bed_temp),
+                         helix::temperature_rules::deci_to_degrees(bed_target));
             update_phase(PrintStartPhase::HEATING_BED, lv_tr("Heating Bed..."));
             return;
         }
         if (nozzle_heating && !bed_heating && current != PrintStartPhase::HEATING_NOZZLE) {
             // Bed done (or no bed target), nozzle still heating
             spdlog::info("[PrintStartCollector] Proactive: nozzle heating ({}/{})",
-                         helix::ui::temperature::deci_to_degrees(ext_temp),
-                         helix::ui::temperature::deci_to_degrees(ext_target));
+                         helix::temperature_rules::deci_to_degrees(ext_temp),
+                         helix::temperature_rules::deci_to_degrees(ext_target));
             update_phase(PrintStartPhase::HEATING_NOZZLE, lv_tr("Heating Nozzle..."));
             return;
         }
@@ -3423,7 +3422,7 @@ void PrintStartCollector::load_prediction_history() {
     auto entries = helix::PreprintPredictor::load_entries_from_config();
 
     // Cold (1) vs Warm (2) based on current bed temp
-    int bed_temp = helix::ui::temperature::deci_to_degrees(
+    int bed_temp = helix::temperature_rules::deci_to_degrees(
         lv_subject_get_int(state_.temperature_state().get_bed_temp_subject()));
     int temp_bucket = helix::PreprintPredictor::temp_bucket_for(static_cast<float>(bed_temp));
 
@@ -3459,9 +3458,9 @@ void PrintStartCollector::feed_thermal_sample() {
         auto& temps = state_.temperature_state();
         const auto feed = [&](const char* heater, lv_subject_t* temp, lv_subject_t* target) {
             auto& model = mgr.get_model(heater);
-            const float t = helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp));
-            model.note_target(helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(target)),
-                              t, now_ms);
+            const float t = helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(temp));
+            model.note_target(
+                helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(target)), t, now_ms);
             model.record_sample(t, now_ms);
         };
         feed("extruder", temps.get_active_extruder_temp_subject(),
@@ -3479,9 +3478,9 @@ void PrintStartCollector::compute_predicted_weights() {
     }
     auto& mgr = ThermalRateManager::instance();
 
-    int ext_target = helix::ui::temperature::deci_to_degrees(
+    int ext_target = helix::temperature_rules::deci_to_degrees(
         lv_subject_get_int(state_.temperature_state().get_active_extruder_target_subject()));
-    int bed_target = helix::ui::temperature::deci_to_degrees(
+    int bed_target = helix::temperature_rules::deci_to_degrees(
         lv_subject_get_int(state_.temperature_state().get_bed_target_subject()));
 
     helix::PreprintHeating heating;

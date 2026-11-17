@@ -3,8 +3,6 @@
 
 #include "system/telemetry_manager.h"
 
-#include "ui_temperature_utils.h"
-
 #include "accel_sensor_manager.h"
 #include "ams_backend_row.h"
 #include "ams_state.h"
@@ -47,6 +45,7 @@
 #include "system/sha256_util.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "temperature_rules.h"
 #include "temperature_sensor_manager.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -3084,8 +3083,8 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         int nozzle_temp_deci =
             lv_subject_get_int(ps.temperature_state().get_active_extruder_target_subject());
         int bed_temp_deci = lv_subject_get_int(ps.temperature_state().get_bed_target_subject());
-        int nozzle_temp = helix::ui::temperature::deci_to_degrees(nozzle_temp_deci);
-        int bed_temp = helix::ui::temperature::deci_to_degrees(bed_temp_deci);
+        int nozzle_temp = helix::temperature_rules::deci_to_degrees(nozzle_temp_deci);
+        int bed_temp = helix::temperature_rules::deci_to_degrees(bed_temp_deci);
 
         // Use filament data cached at print start from file metadata
         float filament_used_mm = s_telemetry_filament_used_mm;

@@ -1,8 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_temperature_utils.h"
-
 #include "app_globals.h"
 #include "core/error_reporting.h"
 #include "core/temperature_units.h"
@@ -18,6 +16,7 @@
 #include "printer_state.h"
 #include "sensor_state.h"
 #include "spdlog/spdlog.h"
+#include "temperature_rules.h"
 
 #include <algorithm>
 #include <cctype>
@@ -64,12 +63,12 @@ void MoonrakerAPI::set_temperature(const std::string& heater, double temperature
     // The safety-limit validation above still bounds the target — M141 is just an
     // alternate transport for the same already-validated temperature.
     const auto& macros = helix::MacroParamCache::instance();
-    const bool use_m141 = helix::ui::temperature::chamber_uses_m141(
+    const bool use_m141 = helix::temperature_rules::chamber_uses_m141(
         heater, state_.temperature_state().chamber_heater_name(), macros.has_macro("m141"),
         macros.macro_sets_target("m141", heater));
 
     char gcode_buf[128];
-    const char* gcode = helix::ui::temperature::build_heater_gcode(
+    const char* gcode = helix::temperature_rules::build_heater_gcode(
         heater, helix::units::to_decidegrees(temperature), gcode_buf, sizeof(gcode_buf), use_m141);
     if (!gcode) {
         report_validation_error(on_error, "set_temperature", "Empty heater name",
