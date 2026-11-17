@@ -2,18 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "display_backend.h"
 #include "lvgl.h"
 
 #include <cstdint>
 #include <vector>
 
 namespace helix {
-
-/// An input device whose events arrive on a file descriptor the main loop can wait on.
-struct InputWakeSource {
-    lv_indev_t* indev = nullptr;
-    int fd = -1;
-};
 
 /**
  * @brief Waits on input and queued work instead of polling while the display sleeps

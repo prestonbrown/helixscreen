@@ -17,7 +17,6 @@
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "display_metrics.h"
-#include "sleep_input_wait.h"
 #include "touch_calibration.h"
 
 #include <cstdlib>
@@ -26,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /**
  * @brief Display backend types supported by HelixScreen
@@ -356,6 +356,16 @@ inline int startup_rotation(int requested, bool probe_wanted, int kernel_orienta
     }
     return kernel_orientation > 0 ? kernel_orientation : 0;
 }
+
+} // namespace helix
+
+namespace helix {
+
+/// An input device whose events arrive on a file descriptor the main loop can wait on.
+struct InputWakeSource {
+    lv_indev_t* indev = nullptr;
+    int fd = -1;
+};
 
 } // namespace helix
 

@@ -3,10 +3,21 @@
 
 #include "main_loop_wake.h"
 
+#if !defined(HELIX_PLATFORM_ESP32)
 #include <fcntl.h>
 #include <unistd.h>
+#endif
 
 namespace helix::main_loop_wake {
+
+#if defined(HELIX_PLATFORM_ESP32)
+// The firmware's loop never waits on a descriptor, so there is nothing to wake.
+void notify() noexcept {}
+int fd() noexcept {
+    return -1;
+}
+void drain() noexcept {}
+#else
 
 namespace {
 
@@ -58,5 +69,6 @@ void drain() noexcept {
     while (read(r, buf, sizeof(buf)) > 0) {
     }
 }
+#endif
 
 } // namespace helix::main_loop_wake
