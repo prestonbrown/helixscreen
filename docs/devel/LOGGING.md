@@ -432,6 +432,7 @@ On Klipper-based platforms (Pi, AD5M, K1, K2, Snapmaker U1, etc.), `setup_config
 - Last N lines of syslog (`/var/log/messages`, `/var/log/syslog`)
 - systemd journal entries when available (`journalctl -u helixscreen`)
 - Crash report (if recent)
+- `kernel_log` - the kernel's kill and crash records from the screen's own host, never the full ring: only lines naming an OOM kill (`invoked oom-killer`, `Out of memory`, `Killed process`, `oom-kill:`, `oom_reaper`) or a process fault (`segfault`, `general protection`, MIPS `sending SIGSEGV`, ARM `Unhandled fault` / `unhandled level`), the newest `kKernelLogMaxLines` (40), each cut to 512 bytes and passed through `sanitize_value()`. Read from `dmesg`, else `/dev/kmsg` opened non-blocking; a host that denies both gets `source: none` and a note. `uptime_s` turns the kernel's since-boot stamps into elapsed time, and `same_host_as_moonraker` says whether a Klippy kill could appear in it at all (`DebugBundleCollector::collect_kernel_log`)
 - `settings.json` (sanitized)
 - `printer_config` — Klipper's `printer.cfg` and every config it `[include]`s, fetched from
   `/server/files/config/<path>` and sanitized per line (see below)

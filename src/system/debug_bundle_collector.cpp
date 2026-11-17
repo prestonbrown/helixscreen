@@ -40,13 +40,17 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <deque>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <set>
 #include <sstream>
+#include <unistd.h>
 #include <unordered_map>
 #include <zlib.h>
 
@@ -228,6 +232,15 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     } catch (const std::exception& e) {
         spdlog::warn("[DebugBundle] Failed to probe local moonraker: {}", e.what());
         bundle["moonraker_local"] = json{{"error", e.what()}};
+    }
+
+    // A daemon that exited on its own leaves no trace in its log; the kernel
+    // says whether it was OOM-killed or crashed.
+    try {
+        bundle["kernel_log"] = collect_kernel_log();
+    } catch (const std::exception& e) {
+        spdlog::warn("[DebugBundle] Failed to collect kernel log: {}", e.what());
+        bundle["kernel_log"] = json{{"error", e.what()}};
     }
 
     try {
@@ -1177,6 +1190,187 @@ json DebugBundleCollector::collect_moonraker_local_probe() {
     }
 
     return probe;
+}
+
+// =============================================================================
+// Kernel kill and crash records
+// =============================================================================
+
+namespace {
+
+/// The newest kill/crash lines seen so far, bounded as they arrive so a large
+/// kernel ring never sits in memory whole.
+struct KernelKillLines {
+    std::deque<std::string> kept;
+    size_t matched = 0;
+
+    void feed(std::string line, size_t max_lines) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (!DebugBundleCollector::is_kernel_kill_line(line))
+            return;
+        ++matched;
+        if (line.size() > DebugBundleCollector::kKernelLogMaxLineBytes)
+            line.resize(DebugBundleCollector::kKernelLogMaxLineBytes);
+        kept.push_back(std::move(line));
+        while (kept.size() > max_lines)
+            kept.pop_front();
+    }
+
+    json to_section(const std::string& source) const {
+        json lines = json::array();
+        for (const auto& l : kept)
+            lines.push_back(DebugBundleCollector::sanitize_value(l));
+        return json{{"source", source},
+                    {"matched", matched},
+                    {"truncated", matched > kept.size()},
+                    {"lines", lines}};
+    }
+};
+
+/// Seconds since boot, the clock dmesg stamps its lines with; -1 if unknown.
+double read_uptime_s() {
+    std::ifstream f("/proc/uptime");
+    double up = -1.0;
+    if (f.good())
+        f >> up;
+    return f.fail() ? -1.0 : up;
+}
+
+} // namespace
+
+bool DebugBundleCollector::is_kernel_kill_line(const std::string& line) {
+    // Matched case-insensitively: "Out of memory: Killed process" and a memory
+    // cgroup's "Memory cgroup out of memory" are the same finding. The fault
+    // spellings cover x86 ("segfault", "general protection"), MIPS ("sending
+    // SIGSEGV") and ARM ("Unhandled fault", "unhandled level N ... fault").
+    static const std::vector<std::string> kNeedles = {
+        "out of memory",   "killed process", "invoked oom-killer", "oom-kill:",
+        "oom_reaper",      "segfault",       "general protection", "sending sigsegv",
+        "unhandled fault", "unhandled level"};
+    const std::string lower = helix::text_io::to_lower(line);
+    return std::any_of(kNeedles.begin(), kNeedles.end(),
+                       [&](const std::string& n) { return lower.find(n) != std::string::npos; });
+}
+
+json DebugBundleCollector::filter_kernel_log(const std::string& text, const std::string& source,
+                                             size_t max_lines) {
+    KernelKillLines acc;
+    std::istringstream in(text);
+    std::string line;
+    while (std::getline(in, line))
+        acc.feed(std::move(line), max_lines);
+    return acc.to_section(source);
+}
+
+std::string DebugBundleCollector::kmsg_record_to_line(const std::string& record) {
+    // Continuation lines (" SUBSYSTEM=...") carry device metadata, not events.
+    if (record.empty() || record.front() == ' ')
+        return {};
+    const size_t semi = record.find(';');
+    if (semi == std::string::npos)
+        return {};
+    // Prefix fields: priority, sequence, microseconds since boot, flags.
+    const size_t c1 = record.find(',');
+    const size_t c2 = c1 == std::string::npos ? c1 : record.find(',', c1 + 1);
+    const size_t c3 = c2 == std::string::npos ? c2 : record.find(',', c2 + 1);
+    std::string msg = record.substr(semi + 1);
+    while (!msg.empty() && (msg.back() == '\n' || msg.back() == '\r'))
+        msg.pop_back();
+    if (c2 == std::string::npos || c3 == std::string::npos || c3 > semi)
+        return msg;
+    const auto parsed = helix::text_io::parse_leading<unsigned long long>(
+        std::string_view(record).substr(c2 + 1, c3 - c2 - 1));
+    if (!parsed)
+        return msg;
+    const unsigned long long usec = *parsed;
+    return fmt::format("[{:5}.{:06}] {}", usec / 1000000ULL, usec % 1000000ULL, msg);
+}
+
+json DebugBundleCollector::collect_kernel_log() {
+    json section;
+    bool have = false;
+
+    // dmesg first: BusyBox ships it on every SysV target and it reads the whole
+    // ring without blocking. Streamed line by line through the filter.
+    if (FILE* pipe = ::popen("dmesg 2>/dev/null", "r")) {
+        KernelKillLines acc;
+        size_t lines_read = 0;
+        std::string partial;
+        char buf[4096];
+        while (std::fgets(buf, sizeof(buf), pipe) != nullptr) {
+            partial += buf;
+            if (!partial.empty() && partial.back() == '\n') {
+                partial.pop_back();
+                acc.feed(std::move(partial), kKernelLogMaxLines);
+                partial.clear();
+                ++lines_read;
+            }
+        }
+        if (!partial.empty()) {
+            acc.feed(std::move(partial), kKernelLogMaxLines);
+            ++lines_read;
+        }
+        const int rc = ::pclose(pipe);
+        // dmesg_restrict makes dmesg print nothing and exit non-zero; that is
+        // "not readable", not "no kills".
+        if (rc == 0 && lines_read > 0) {
+            section = acc.to_section("dmesg");
+            have = true;
+        }
+    }
+
+    if (!have) {
+        // O_NONBLOCK: a blocking /dev/kmsg read waits for the next kernel
+        // message once the ring is drained, which could be never.
+        const int fd = ::open("/dev/kmsg", O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        if (fd >= 0) {
+            KernelKillLines acc;
+            size_t records = 0;
+            bool readable = false;
+            // Each read() returns one record. The cap bounds the loop on a
+            // kernel that keeps logging while we drain it.
+            constexpr size_t kMaxKmsgRecords = 200000;
+            char rec[8192];
+            while (records < kMaxKmsgRecords) {
+                const ssize_t n = ::read(fd, rec, sizeof(rec) - 1);
+                if (n < 0) {
+                    if (errno == EPIPE)
+                        continue; // record overwritten while reading; next one
+                    break;        // EAGAIN = drained; EPERM/EINVAL = unreadable
+                }
+                if (n == 0)
+                    break;
+                readable = true;
+                ++records;
+                acc.feed(kmsg_record_to_line(std::string(rec, static_cast<size_t>(n))),
+                         kKernelLogMaxLines);
+            }
+            ::close(fd);
+            if (readable) {
+                section = acc.to_section("/dev/kmsg");
+                have = true;
+            }
+        }
+    }
+
+    if (!have) {
+        section = json{{"source", "none"},
+                       {"note", "kernel log not readable here (dmesg and /dev/kmsg denied or "
+                                "absent)"}};
+    }
+
+    // Kernel stamps are seconds since boot; uptime turns them into "how long ago".
+    section["uptime_s"] = read_uptime_s();
+
+    // The kernel log describes the machine HelixScreen runs on. Whether that is
+    // also the printer's host decides whether a Klippy kill could appear in it.
+    std::string host;
+    uint16_t port = helix::kDefaultMoonrakerPort;
+    if (helix::diag::split_host_port(get_moonraker_url(), host, port))
+        section["same_host_as_moonraker"] = helix::is_moonraker_on_same_host(host);
+
+    return section;
 }
 
 // =============================================================================

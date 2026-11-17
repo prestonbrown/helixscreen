@@ -345,6 +345,33 @@ class DebugBundleCollector {
     /// own /proc says nothing about it.
     static nlohmann::json collect_moonraker_local_probe();
 
+    /// The `kernel_log` section: the kernel's kill and crash records from this
+    /// host, and nothing else. A daemon that vanished mid-print was either
+    /// OOM-killed or crashed, and only the kernel says which. Reads `dmesg`,
+    /// then /dev/kmsg without blocking; a host that denies both gets a note.
+    static nlohmann::json collect_kernel_log();
+
+    /// Whether a kernel log line records an OOM kill or a process crash
+    /// (public for testing).
+    static bool is_kernel_kill_line(const std::string& line);
+
+    /// The `kernel_log` section built from raw kernel log text: only the lines
+    /// is_kernel_kill_line() accepts, the newest @p max_lines of them, each
+    /// truncated and sanitized (public for testing).
+    static nlohmann::json filter_kernel_log(const std::string& text, const std::string& source,
+                                            size_t max_lines = kKernelLogMaxLines);
+
+    /// One /dev/kmsg record ("6,339,5140900,-;message") in dmesg's
+    /// "[    5.140900] message" form; "" for a continuation line (public for
+    /// testing).
+    static std::string kmsg_record_to_line(const std::string& record);
+
+    /// Newest kill/crash lines kept in `kernel_log`. A single OOM kill is about
+    /// four matching lines, so this holds the last several incidents.
+    static constexpr size_t kKernelLogMaxLines = 40;
+    /// Longer kernel lines are cut here before scrubbing.
+    static constexpr size_t kKernelLogMaxLineBytes = 512;
+
     /// Collect filament system data (AFC, Happy Hare, ACE, Spoolman, tool changers)
     static nlohmann::json collect_filament_system_info(const nlohmann::json& object_list);
 
