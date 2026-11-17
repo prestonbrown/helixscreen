@@ -23,8 +23,10 @@ constexpr float kInset = 0.05f;
 /// Glass below the numerals before the socket starts: past the halo, so a fade never redraws
 /// the socket and the AM/PM marker on it; the bottom disc and the stem sit in it.
 constexpr float kGlassBelow = 0.3f;
-/// The glass's crown: rounded shoulders on the straight cylinder, a flat top between them.
-constexpr float kShoulder = 0.32f;
+/// The glass's top: the straight wall slopes in over kShoulderHeight, rounding into the wall
+/// and angled at the top, to a narrow flat crown kCrownShare of the glass's width.
+constexpr float kShoulderHeight = 0.38f;
+constexpr float kCrownShare = 0.33f;
 /// The sealed exhaust tip on the crown, where the tube was pumped out and closed: its top, how
 /// far it stands, and the bulb, neck and base of the nub.
 constexpr float kTipTop = 0.03f;
@@ -133,22 +135,29 @@ uint32_t to_amount(float share) {
     return static_cast<uint32_t>(std::lround(std::clamp(share, 0.0f, 1.0f) * 256.0f));
 }
 
-/// A tube's glass seen from the front: a straight cylinder from its crown down, the crown's
-/// corners rounded into shoulders. inside() is the distance into the glass in px, negative
-/// outside.
+/// A tube's glass seen from the front: a straight wall up to the shoulders, which slope in over
+/// `shoulder` px to a flat crown `crown_half` px either side of the centre. The slope eases into
+/// the wall and meets the crown at an angle. inside() is the distance into the glass in px,
+/// negative outside.
 struct GlassOutline {
     float cx;
     float half;
     float crown;
     float shoulder;
+    float crown_half;
 
     float inside(float fx, float fy) const {
-        const float qx = std::fabs(fx - cx) - (half - shoulder);
-        const float qy = crown + shoulder - fy;
-        if (qx > 0.0f && qy > 0.0f) {
-            return shoulder - std::hypot(qx, qy);
+        const float dx = std::fabs(fx - cx);
+        if (fy >= crown + shoulder) {
+            return half - dx;
         }
-        return std::min(half - std::fabs(fx - cx), fy - crown);
+        const float t = std::max(0.0f, (fy - crown) / std::max(1.0f, shoulder));
+        const float ease = 1.0f - std::pow(1.0f - t, 1.6f);
+        const float hw = crown_half + (half - crown_half) * ease;
+        // Horizontal distance scaled by the slope, so the edge antialiases evenly.
+        const float slope =
+            1.6f * std::pow(1.0f - t, 0.6f) * (half - crown_half) / std::max(1.0f, shoulder);
+        return std::min((hw - dx) / std::sqrt(1.0f + slope * slope), fy - crown);
     }
 };
 
@@ -307,8 +316,8 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
     const float cx = static_cast<float>(w) / 2.0f;
     const float tip_top = std::max(0.5f, kTipTop * u);
     const float crown = tip_top + std::max(3.0f, kTipHeight * u);
-    const GlassOutline glass{cx, cx - static_cast<float>(inset), crown,
-                             std::min(kShoulder * u, cx - static_cast<float>(inset))};
+    const float glass_half = cx - static_cast<float>(inset);
+    const GlassOutline glass{cx, glass_half, crown, kShoulderHeight * u, kCrownShare * glass_half};
     const GlassTip nub(cx, tip_top, crown, u, 1.0f);
     tip = nub.box();
     const float rim = std::max(1.5f, kRimWidth * u);
@@ -468,7 +477,8 @@ void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_
     const float gh = (kStrokeDigitPathH + kNixieTubeGeometry.stroke) * u;
     const float crown = pad_y - (kTopDisc - kColonCrownDrop) * u;
     const float tip_top = std::max(0.5f, crown - 0.8f * kTipHeight * u);
-    const GlassOutline glass{cx, half, crown, 0.8f * half};
+    const GlassOutline glass{cx, half, crown, std::max(2.0f, 0.5f * kShoulderHeight * u),
+                             kCrownShare * half};
     const GlassTip nub(cx, tip_top, crown, u, 0.8f);
     tip = nub.box();
     const float rim = std::max(1.2f, kRimWidth * u);

@@ -200,8 +200,8 @@ TEST_CASE("a changed numeral fades out as the new one warms up, and only its tub
 TEST_CASE("a numeral change is quick: the new cathode lights almost at once while the old "
           "one's afterglow dies, with frames between on the 33 ms rung",
           "[screensaver][screensaver_nixie_clock]") {
-    CHECK(kNixieFadeMs >= 100);
-    CHECK(kNixieFadeMs <= 150);
+    CHECK(kNixieFadeMs >= 200);
+    CHECK(kNixieFadeMs <= 300);
     const auto at = helix::ui::nixie_fade_amounts;
     CHECK(at(0.0f).from == 1.0f);
     CHECK(at(0.0f).to == 0.0f);

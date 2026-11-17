@@ -47,7 +47,7 @@ inline constexpr size_t kNixieClockLevelCount = std::size(kNixieClockLevels);
 
 /// How long a change of numeral takes: the new cathode lights almost at once, and the old one's
 /// afterglow dies over the whole of it (nixie_fade_amounts()).
-inline constexpr uint32_t kNixieFadeMs = 120;
+inline constexpr uint32_t kNixieFadeMs = 250;
 /// Share of the fade by which the new numeral reaches full brightness.
 inline constexpr float kNixieWarmShare = 0.3f;
 
@@ -70,7 +70,7 @@ inline constexpr uint32_t kNixieCycleMs = 10 * kNixieCycleStepMs;
 inline constexpr CardGeometry kNixieTubeGeometry{
     0.07f, // stroke
     0.36f, // pad_x
-    0.62f, // pad_top
+    0.8f,  // pad_top
     0.72f, // pad_bottom
     0.16f, // card_gap
     0.74f, // group_gap
