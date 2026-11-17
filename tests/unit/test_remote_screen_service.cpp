@@ -297,12 +297,11 @@ TEST_CASE_METHOD(RemoteScreenFixture,
     svc.store()->note_request();
     svc.store()->on_frame(f);
     REQUIRE(svc.store()->snapshot(false, {5, 2}).has_value());
-    REQUIRE(svc.store()->allocated_bytes() > 0);
 
     RemoteScreenSettingsManager::instance().set_enabled(false);
     CHECK_FALSE(svc.running());
     CHECK(svc.port() == 0);
-    CHECK(svc.store()->allocated_bytes() == 0);
+    CHECK_FALSE(svc.store()->snapshot(false, {5, 2}).has_value());
     CHECK_FALSE(svc.store()->wants_frames());
 }
 

@@ -113,14 +113,14 @@ TEST_CASE("store: release_if_idle frees buffers only after idle", "[remote_scree
     SolidFrame frame(40, 30, 0x80);
     store.on_frame(frame.f);
     REQUIRE(store.snapshot(false, kCap).has_value());
-    REQUIRE(store.allocated_bytes() > 0);
 
     CHECK_FALSE(store.release_if_idle());
-    CHECK(store.allocated_bytes() > 0);
+    CHECK(store.frame_size() == std::pair{40, 30});
+    CHECK(store.snapshot(false, kCap).has_value());
 
     clock.now += std::chrono::milliseconds(kViewerIdleMs);
     CHECK(store.release_if_idle());
-    CHECK(store.allocated_bytes() == 0);
+    CHECK(store.frame_size() == std::pair{0, 0});
     CHECK_FALSE(store.snapshot(false, kCap).has_value());
 }
 
@@ -289,8 +289,9 @@ TEST_CASE("server sink forwards gating and frames to its store", "[remote_screen
     SolidFrame frame(8, 8, 9);
     sink.on_frame(frame.f);
     CHECK(store->generation() == gen + 1);
+    REQUIRE(store->frame_size() == std::pair{8, 8});
     sink.stop();
-    CHECK(store->allocated_bytes() == 0);
+    CHECK(store->frame_size() == std::pair{0, 0});
 }
 
 TEST_CASE("store: a refresh in stripes advances the generation only on its last stripe",

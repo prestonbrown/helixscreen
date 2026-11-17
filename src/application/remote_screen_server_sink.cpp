@@ -299,12 +299,6 @@ void ScreenFrameStore::release() {
     release_locked();
 }
 
-size_t ScreenFrameStore::allocated_bytes() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return shadow_.capacity() + rgb_.capacity() + (cached_jpeg_ ? cached_jpeg_->capacity() : 0) +
-           (placeholder_jpeg_ ? placeholder_jpeg_->capacity() : 0);
-}
-
 // ---------------------------------------------------------------------------
 // ScreenServerSink
 // ---------------------------------------------------------------------------
