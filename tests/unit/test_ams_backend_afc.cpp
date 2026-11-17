@@ -4621,6 +4621,13 @@ TEST_CASE("AFC one-lane direct unit beside hub units is PARALLEL, not HUB",
     REQUIRE(unit_infos[0].topology == PathTopology::HUB);
     REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
     REQUIRE(unit_infos[1].topology == PathTopology::PARALLEL);
+
+    // A lane that moves from its hub to a direct route arrives without a unit
+    // object; the unit is re-derived from the new routing.
+    helper.feed_afc_stepper("lane3",
+                            {{"hub", "direct"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+    REQUIRE(helper.get_unit_infos()[0].topology == PathTopology::MIXED);
+    CHECK(helper.get_unit_topology(0) == PathTopology::MIXED);
 }
 
 TEST_CASE("AFC one-lane direct unit on a single-extruder printer stays HUB",

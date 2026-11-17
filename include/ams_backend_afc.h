@@ -1110,6 +1110,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     void derive_unit_topology(AfcUnitInfo& unit_info);
     /// Rebuild the unit map once every known unit has its lane list.
     void rebuild_unit_map_when_complete();
+    /// Re-derive every unit with lanes; rebuilds the unit map when any topology changed.
+    void refresh_all_unit_topologies();
 
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
@@ -1529,6 +1531,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
 
     // Multi-extruder (toolchanger) state
     int num_extruders_{1}; ///< Number of extruders (1 = standard, 2+ = toolchanger)
+    /// A lane's hub routing or the extruder count changed since units were last derived.
+    bool unit_topology_stale_{false};
     std::vector<AfcExtruderInfo>
         extruders_; ///< Per-extruder info (populated from system.extruders)
 

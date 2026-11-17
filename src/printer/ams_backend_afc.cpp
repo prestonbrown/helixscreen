@@ -1453,6 +1453,12 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
                 state_changed = true;
             }
         }
+        // A lane's routing or the printer's extruder count can change in a frame that
+        // carries no unit object; every unit is re-derived once that frame is applied.
+        if (unit_topology_stale_) {
+            unit_topology_stale_ = false;
+            refresh_all_unit_topologies();
+        }
 
         // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
@@ -2522,18 +2528,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
         action_start_time_ = std::chrono::steady_clock::now();
     }
 
-    if (num_extruders_ != extruders_at_frame_start) {
-        bool topology_changed = false;
-        for (auto& unit : unit_infos_) {
-            if (unit.lanes.empty())
-                continue;
-            const PathTopology before = unit.topology;
-            derive_unit_topology(unit);
-            topology_changed = topology_changed || unit.topology != before;
-        }
-        if (topology_changed)
-            rebuild_unit_map_when_complete();
-    }
+    if (num_extruders_ != extruders_at_frame_start)
+        unit_topology_stale_ = true;
 }
 
 // ============================================================================
@@ -3088,7 +3084,12 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Parse hub routing for this lane ("direct" or hub name like "HTLF_1")
     if (data.contains("hub") && data["hub"].is_string()) {
         std::string hub = data["hub"].get<std::string>();
-        lane_hub_routing_[lane_name] = hub;
+        std::string& routing = lane_hub_routing_[lane_name];
+        if (routing != hub) {
+            // Unit objects are not re-sent when a lane's routing changes.
+            routing = hub;
+            unit_topology_stale_ = true;
+        }
         spdlog::trace("[AMS AFC] Lane {} hub routing: {}", lane_name, hub);
     }
 
@@ -3697,6 +3698,19 @@ void AmsBackendAfc::derive_unit_topology(AfcUnitInfo& unit_info) {
                   unit_info.klipper_key, unit_info.lanes.size(), unit_info.extruders.size(),
                   unit_info.hubs.size(), unit_info.buffers.size(),
                   path_topology_to_string(unit_info.topology));
+}
+
+void AmsBackendAfc::refresh_all_unit_topologies() {
+    bool topology_changed = false;
+    for (auto& unit : unit_infos_) {
+        if (unit.lanes.empty())
+            continue;
+        const PathTopology before = unit.topology;
+        derive_unit_topology(unit);
+        topology_changed = topology_changed || unit.topology != before;
+    }
+    if (topology_changed)
+        rebuild_unit_map_when_complete();
 }
 
 void AmsBackendAfc::rebuild_unit_map_when_complete() {
