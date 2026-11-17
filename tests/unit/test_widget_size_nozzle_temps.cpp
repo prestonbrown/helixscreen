@@ -31,7 +31,9 @@
  * populate `ToolState` and `PrinterState` directly to reach it.
  */
 
+#include "ui_nav_manager.h"
 #include "ui_overlay_temp_graph.h"
+#include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
@@ -43,6 +45,8 @@
 #include "src/ui/panel_widgets/nozzle_layout.h"
 #include "src/ui/panel_widgets/nozzle_temps_widget.h"
 #include "tool_state.h"
+
+#include <array>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -398,21 +402,34 @@ TEST_CASE_METHOD(NozzleTempsFixture,
 TEST_CASE_METHOD(NozzleTempsFixture,
                  "nozzle_temps: tapping a row opens the graph on that row's tool",
                  "[nozzle_temps][temp_graph_overlay]") {
+    // The tap pushes the real global overlay: seed the navigation panels the
+    // way the app does, and tear the overlay down before this screen goes.
+    helix::ui::destroy_static_panels();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(test_screen());
+    NavigationManager::instance().set_panels(panels.data());
+
     configure_one_extruder(state());
-    PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
-    lv_obj_t* container = h.child("nozzle_temps_container");
-    REQUIRE(container != nullptr);
-    add_second_extruder(state());
-    REQUIRE(lv_obj_get_child_count(container) == 3); // 2 extruder rows + bed row
-    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+    {
+        PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+        lv_obj_t* container = h.child("nozzle_temps_container");
+        REQUIRE(container != nullptr);
+        add_second_extruder(state());
+        REQUIRE(lv_obj_get_child_count(container) == 3); // 2 extruder rows + bed row
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(ToolState::instance().active_tool_index() == 0); // T0 (extruder) mounted
+
+        auto& overlay = get_global_temp_graph_overlay();
+        lv_obj_send_event(lv_obj_get_child(container, 1), LV_EVENT_CLICKED, nullptr);
+        CHECK(overlay.picked_extruder() == "extruder1");
+
+        // The mounted tool's row opens the graph following the mounted tool.
+        lv_obj_send_event(lv_obj_get_child(container, 0), LV_EVENT_CLICKED, nullptr);
+        CHECK(overlay.picked_extruder().empty());
+    }
     helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(ToolState::instance().active_tool_index() == 0); // T0 (extruder) mounted
-
-    auto& overlay = get_global_temp_graph_overlay();
-    lv_obj_send_event(lv_obj_get_child(container, 1), LV_EVENT_CLICKED, nullptr);
-    CHECK(overlay.picked_extruder() == "extruder1");
-
-    // The mounted tool's row opens the graph following the mounted tool.
-    lv_obj_send_event(lv_obj_get_child(container, 0), LV_EVENT_CLICKED, nullptr);
-    CHECK(overlay.picked_extruder().empty());
+    NavigationManager::instance().shutdown();
+    helix::ui::destroy_static_panels();
 }
