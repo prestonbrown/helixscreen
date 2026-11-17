@@ -297,9 +297,14 @@ published as `settings_dim_row_kind`:
 
 | Dimmable backlight | Saver enabled | Row shown |
 |---|---|---|
-| yes | either | Screen Dim |
-| no | yes | Screensaver after |
+| either | yes | Screensaver after |
+| yes | no | Screen Dim |
 | no | no | none |
+
+With a saver enabled the timeout starts it (`decide_idle` prefers StartSaver over Dim), so
+the row is named for the saver even on a dimmable backlight. Turning a saver on while the
+timeout is Never sets it to `DisplaySettingsManager::kDefaultDimSec`, since a saver with no
+timeout never starts; a Never chosen while a saver is already on stays.
 
 Both rows edit the same setting. The rule that sleep may not come before the dim stage
 (`should_couple_sleep_to_dim()`) holds exactly when a row is shown, so the two cannot

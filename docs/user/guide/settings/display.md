@@ -50,7 +50,7 @@ On a Creality K2 running community firmware, the bottom of the slider stays a li
 
 How long the screen waits with nobody touching it before it dims: **Never**, **30 seconds**, **1 minute**, **2 minutes**, **5 minutes** or **10 minutes** (the default). Touch the screen to bring it back to full brightness; that touch presses nothing (see [Display Sleep](#display-sleep)).
 
-On a screen that can't change its brightness, such as a phone or tablet running the Android app, nothing can dim, so the same timer starts the screensaver instead. There this row is called **Screensaver after** and offers the same choices. It only appears while a screensaver is selected; with the screensaver **Off** the row is hidden, because the timer would do nothing.
+While a screensaver is selected, this timer starts the screensaver, so the row is called **Screensaver after** and offers the same choices. Turning a screensaver on while the timer is **Never** sets it to 10 minutes, so the screensaver has a time to start. On a screen that can't change its brightness, such as a phone or tablet running the Android app, nothing can dim, so with the screensaver **Off** the row is hidden, because the timer would do nothing.
 
 ---
 
