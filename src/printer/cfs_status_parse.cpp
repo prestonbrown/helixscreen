@@ -440,12 +440,13 @@ AmsSystemInfo parse_stock_box(const nlohmann::json& box_json,
     // Loop over T1-T4 units
     for (int n = 1; n <= 4; ++n) {
         std::string key = "T" + std::to_string(n); // DISPLAY_NUMBERING_OK: box object key
-        if (!box_json.contains(key) || !box_json[key].is_object()) {
+        const auto* unit_obj = helix::json_util::find_object(box_json, key.c_str());
+        if (!unit_obj) {
             spdlog::debug("[AMS CFS] {} not present or not an object", key);
             continue;
         }
 
-        const auto& unit_json = box_json[key];
+        const auto& unit_json = *unit_obj;
         // safe_string, not .value(): the per-unit scalars below are documented as
         // strings (CREALITY_CFS_K2_INTERNALS.md § "Per-Unit Fields"), but .value() with a
         // string default THROWS type_error.302 on a JSON null or a numeric value,

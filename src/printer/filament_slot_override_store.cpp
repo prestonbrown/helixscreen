@@ -55,8 +55,8 @@ std::string format_iso8601(std::chrono::system_clock::time_point tp) {
 // not a string. safe_string, because the shared namespace legitimately carries
 // present-but-null values and .value() throws on them.
 std::string string_with_alias(const nlohmann::json& j, const char* primary, const char* alias) {
-    if (j.contains(primary) && j[primary].is_string())
-        return helix::json_util::safe_string(j, primary);
+    if (auto value = helix::json_util::read_field<std::string>(j, primary))
+        return std::move(*value);
     return helix::json_util::safe_string(j, alias);
 }
 

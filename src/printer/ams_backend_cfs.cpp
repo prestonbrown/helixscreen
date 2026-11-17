@@ -812,9 +812,10 @@ AmsBackendCfs::parse_flat_runout_edges(const nlohmann::json& box_json) {
 // with an edit in flight as the echo, not a swap.
 static std::string build_cfs_slot_uid(const nlohmann::json& unit_json, int local_index) {
     auto pick = [&](const char* field) -> std::string {
-        if (!unit_json.contains(field) || !unit_json[field].is_array())
+        const json* values = helix::json_util::find_array(unit_json, field);
+        if (!values)
             return "";
-        const auto& arr = unit_json[field];
+        const auto& arr = *values;
         if (local_index < 0 || local_index >= static_cast<int>(arr.size()))
             return "";
         if (!arr[local_index].is_string())
@@ -1327,9 +1328,10 @@ void AmsBackendCfs::handle_box_frame(const nlohmann::json& box, bool print_holds
     } else {
         for (int n = 1; n <= 4; ++n) {
             std::string key = "T" + std::to_string(n);
-            if (!box.contains(key) || !box[key].is_object())
+            const json* unit_obj = helix::json_util::find_object(box, key.c_str());
+            if (!unit_obj)
                 continue;
-            const auto& unit_json = box[key];
+            const auto& unit_json = *unit_obj;
             // safe_string for the same reason as the parse_box_status
             // unit loop: a null/wrong-typed `state` must degrade to
             // "disconnected", not throw out of handle_status.
