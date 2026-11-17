@@ -70,7 +70,6 @@
     ],
     "sensors": [
       "temperature_sensor chamber",
-      "temperature_sensor chamber",
       "temperature_sensor mcu_temp",
       "bme280 chamber",
       "htu21d dryer"

@@ -88,7 +88,6 @@
     "sensors": [
       "temperature_sensor chamber",
       "temperature_fan mainboard",
-      "temperature_sensor chamber",
       "temperature_sensor mcu_toolhead",
       "temperature_sensor mcu_bed"
     ],
