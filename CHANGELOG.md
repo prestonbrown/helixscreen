@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Fan readouts follow the active tool on tool changers** - on a tool changer where every tool has its own part cooling fan and hotend fan, the Part and HE readouts beside the printer picture on Print Status and the Fan readout on the Home printer picture now show the fans of the tool that is printing. Before, they could stay on the first tool's fans while another tool printed, even though the nozzle temperature beside them followed the active tool.
 - **Aux fan readout leaves out tool fans on tool changers** - the Aux readout beside the printer picture on Print Status no longer shows a parked tool's part cooling fan or hotend fan. When the printer has no other fan to show there, the readout is hidden.
+- **MPC calibration names a tool's part fan correctly** - on a tool changer whose tools name their part fan without the `fan_generic` prefix, switching the heater calibration to MPC now writes the tool's part fan as its `cooling_fan`. Before, it left the cooling fan out.
 
 ## [1.1.0-rc.2] - 2026-11-17
 
