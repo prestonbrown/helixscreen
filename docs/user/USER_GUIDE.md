@@ -30,109 +30,83 @@ Your printer's touchscreen should show you more than temperatures and a progress
 
 ## Guide Contents
 
-### [Getting Started](guide/getting-started.md)
-Navigation basics, touch gestures, connection status, first-time setup wizard, WiFi configuration, and keyboard input.
+The guide follows how you use a printer day to day: your home screen, starting a job, watching it, and handling filament come first, then tuning and the things you set up once.
+
+### Getting Started
+
+- **[Getting Started](guide/getting-started.md)**: navigation, touch gestures, connection status, the first-run setup wizard, WiFi, and the on-screen keyboard.
+- **[Supported Printers](guide/supported-printers.md)**: which printers get model-specific integration and what works on each.
+- **[Installation](INSTALL.md)**: installing HelixScreen on your printer or a Klipper host. To try it without touching the printer, [run it in a window on a Linux desktop](guide/install-linux-desktop.md).
 
 ![Setup Wizard](../images/user/wizard-wifi.png)
 
-### [Run in a Window on a Linux Desktop](guide/install-linux-desktop.md)
-Run HelixScreen as an app window on your Linux PC or laptop, connected to your printer over the network. No sudo, nothing installed on the printer.
+### Your Home Screen
 
-### [Supported Printers](guide/supported-printers.md)
-Which printers get deep, model-specific integration — and exactly what works on each. Covers the FlashForge Adventurer 5M/5X (IFS), Creality K1/K2 (CFS), QIDI Box, Snapmaker U1, Anycubic ACE, and how every other Klipper printer is auto-detected.
+The home screen is yours to build: pick the widgets, size them, and spread them across pages.
 
-### [Home Panel](guide/home-panel.md)
-Your printer dashboard: status area, configurable home widgets (temperature, network, LED, AMS, power, notifications, and more), active tool badge for toolchanger printers, emergency stop, and the Printer Manager with custom images. Long-press the widget grid to enter Edit Mode, where you can add, move, resize, and configure widgets across up to 8 pages; the Add page tile one swipe past your last page gives you a new one with a tap, or drag a widget past either edge of your pages. Each Light button picks its own light, or All lights, with Configure in its Edit Mode menu; tap to toggle, or use its arrow (or the separate LED Controls widget) for full color, brightness, and effects in the LEDs overlay.
+- **[Home Panel](guide/home-panel.md)**: the status area, the widget grid, multiple pages, and emergency stop.
+- **[Edit Mode](guide/home-edit-mode.md)**: adding, moving, resizing and configuring widgets, and adding pages.
+- **[Widget Catalog](guide/home-widgets.md)**: every widget, with details on the [print](guide/home-widgets-print.md), [filament](guide/home-widgets-filament.md), and [control and system](guide/home-widgets-controls.md) widgets.
+- **[Printer Manager](guide/printer-manager.md)**: your printer's name, model and picture, its software versions, and the hardware HelixScreen found.
 
-### [Printing](guide/printing.md)
-The full printing workflow — file selection, preview, pre-print options, monitoring active prints, tune overlay, Z-offset baby steps, pressure advance, exclude object, post-print summary, and resuming after a power loss.
+### Starting a Print
+
+- **[Choosing and starting a print](guide/printing.md)**: browsing files, the preview, pre-print options, checking the file fits the printer, queueing, and sending prints from OrcaSlicer.
+- **[Filament Mapping](guide/filament-mapping.md)**: matching each color in a multi-color file to a slot before the print starts.
+- **[Print History](guide/print-history.md)**: past jobs with statistics and trend charts, and reprinting a previous job.
 
 ![Print File Detail](../images/user/print-detail.png)
 
-### [Print Monitoring & Failure Detection](guide/print-monitoring.md)
-The pre-print filament check that catches an empty slot before a multi-color print starts, and the on-screen response to camera-based print-failure detection on supported printers (Snapmaker U1, Creality K2).
+### Watching the Current Print
 
-### [Temperature Control](guide/temperature.md)
-Nozzle and bed temperature panels, multi-extruder selector for printers with multiple extruders, material presets, and live temperature graphs.
+- **[During a print](guide/printing.md#during-a-print)**: progress, pausing at a layer, the tune overlay, Z-offset baby steps, excluding a failed object, the post-print summary, and resuming after a power loss.
+- **[Print Monitoring & Failure Detection](guide/print-monitoring.md)**: the pre-print filament check and the response to camera-based failure detection.
+- **[Camera](guide/camera.md)**: the camera widget and the fullscreen viewer.
+- **[Screen Sharing and Remote Control](guide/screen-sharing.md)**: seeing and using the printer's screen from any browser, or as a webcam in Mainsail and Fluidd.
 
-### [Motion & Positioning](guide/motion.md)
-Jog, Move and Bed tabs, tap-to-move coordinates, bed position grid, tap-the-plate bed map, lifting clear of a print left on the bed, park, homing, distance increments, and emergency stop.
+### Filament
 
-![Motion Controls](../images/screenshot-motion-panel.png)
-
-### [Filament Management](guide/filament.md)
-Extrusion controls, load/unload procedures, AMS multi-material systems with multi-backend support (run Happy Hare, AFC, ACE, or Tool Changer simultaneously), Spoolman integration, and filament drying and humidity monitoring.
+- **[Filament Management](guide/filament.md)**: load, unload and purge, extrusion controls, the external spool, and running more than one filament system.
+- **[The Filament System Panel](guide/filament-ams-panel.md)**: slots, lanes, and per-unit controls for AMS-style systems (AFC, Happy Hare, ACE, IFS, QIDI Box, OpenAMS, and more).
+- **[Creality Filament System (CFS)](guide/filament-cfs.md)** and **[Snapmaker U1 and MedusaHC](guide/filament-tool-changers.md)**: what is specific to those systems.
+- **[Filament Drying and Humidity](guide/filament-drying.md)**: per-unit drying controls and humidity monitoring.
+- **[Filament Tracking & Spoolman](guide/filament-tracking.md)**: how material, color and remaining weight are tracked, with the built-in tracker or a Spoolman server.
 
 ![AMS Panel](../images/user/ams.png)
 
-### [Filament Tracking & Spoolman](guide/filament-tracking.md)
-How HelixScreen tracks material, color, and remaining weight — with the built-in tracker or a connected Spoolman server. Covers the difference between the two modes, how usage is estimated during a print, connecting a Spoolman server, and browsing your spool inventory on the touchscreen.
+### Printer Control
 
-### [Bluetooth Setup](guide/bluetooth-setup.md)
-Enable Bluetooth on Raspberry Pi or BTT Pi when it's disabled for UART, or add a USB Bluetooth dongle when your MCU uses the serial port.
+- **[Temperature Control](guide/temperature.md)**: nozzle, bed and chamber targets, material presets, multiple extruders, and live graphs.
+- **[Motion & Positioning](guide/motion.md)**: jogging, homing, tap-to-move, the bed map, parking, and emergency stop.
+- **[Fans](guide/fans.md)**: speed control, RPM readouts, and renaming fans.
+- **[Advanced Features](guide/advanced.md)**: the G-code console, macros, interactive prompts, power devices, notification history, and timelapse.
 
-### [Label Printing](guide/label-printing.md)
-Print spool labels to Brother QL, Phomemo, Niimbot, or MakeID thermal printers via Network, USB, or Bluetooth. Setup, label sizes, and troubleshooting.
+![Motion Controls](../images/screenshot-motion-panel.png)
 
-### [Barcode Scanner](guide/barcode-scanner.md)
-Set up a USB or Bluetooth barcode scanner to read Spoolman QR codes. Includes the `ClassicBondedOnly=false` fix for Bluetooth HID scanners that fail the "bonded device" check.
+### Tuning & Calibration
 
-### [Calibration & Tuning](guide/calibration.md)
-Bed mesh visualization, screws tilt adjust, input shaper resonance testing with a live chart, Z-offset calibration, tool offsets, belt tension checking and tuning, pressure advance measurement, and PID tuning.
+- **[Calibration & Tuning](guide/calibration.md)**: bed mesh, screws tilt adjust, input shaper, Z-offset, tool offsets, belt tension, pressure advance, and PID tuning.
 
 ![Bed Mesh](../images/screenshot-bed-mesh-panel.png)
 
-### [Touch Calibration](guide/touch-calibration.md)
-Fix taps that land in the wrong spot — run the calibration wizard from Settings, force it on any touchscreen, or recalibrate from the command line.
+### Settings & Setup
 
-### [Settings](guide/settings.md)
-Twelve pages in three groups. Screen: display, appearance and themes, touch & input, sound. Printer: printing, devices, safety & alerts, connection. HelixScreen: language & time, system, updates, help & about.
+- **[Settings](guide/settings.md)**: display, appearance and themes, touch, sound, printing, devices, safety, connection, language, updates, and more.
+- **[Sensors](guide/sensors.md)**: filament runout and motion sensors, door and button inputs, and read-only sensors.
+- **[Security & Screen Lock](guide/security.md)**: PIN lock, auto-lock, and what a factory reset clears.
+- **[Touch Calibration](guide/touch-calibration.md)**: fixing taps that land in the wrong spot.
+- **[HelixPrint Plugin](guide/helixprint-plugin.md)**: the optional Moonraker add-on, what it adds, and what works without it.
+- **[Add-On Chamber Heater Setup](guide/chamber-heater.md)**: getting a BIGTREETECH Panda Breath working with Klipper.
+- **[Bluetooth Setup](guide/bluetooth-setup.md)**: enabling Bluetooth on a Pi or BTT Pi, or adding a USB dongle.
+- **[Barcode Scanner](guide/barcode-scanner.md)**: reading Spoolman QR codes with a USB or Bluetooth scanner.
+- **[Label Printing](guide/label-printing.md)**: printing spool labels on Brother QL, Phomemo, Niimbot, or MakeID printers.
 
-![Settings](../images/screenshot-settings-panel.png)
+### More
 
-### [Fans](guide/fans.md)
-Discovered fans grouped by controllable vs. automatic, fan types, live speed control via animated dials, RPM readouts, and per-fan renaming.
-
-### [Add-On Chamber Heater Setup](guide/chamber-heater.md)
-Getting a BIGTREETECH Panda Breath working with Klipper so HelixScreen can see it — putting it on the network, choosing between stock and DragonBreath firmware, the module and config each one needs, the Snapmaker U1 one-menu shortcut, and what to do when it goes offline.
-
-### [Sensors](guide/sensors.md)
-Filament switch and motion sensors with per-sensor role assignment (None, Runout, Toolhead, Entry), door and button inputs with the door-open warning, read-only probe/width/humidity/accelerometer/color/temperature sensors, and chamber heater/sensor assignment.
-
-### [Security & Screen Lock](guide/security.md)
-Set, change, or remove a PIN screen lock, auto-lock tied to the display sleep timeout, the lock-screen keypad with emergency-stop access, and what a factory reset clears.
-
-### [Screen Sharing and Remote Control](guide/screen-sharing.md)
-See and use the printer's screen from any browser, or as a webcam in Mainsail and Fluidd: turning it on, pairing a browser with a code, which printers need one, the on-screen remote-control icon, and troubleshooting.
-
-### [Camera](guide/camera.md)
-Webcam viewing via the home widget and standalone fullscreen viewer, rotation and flip configuration, stream status states, and performance throttling.
-
-### [Print History](guide/print-history.md)
-History dashboard with time-range statistics and trend charts, searchable/filterable/sortable job list, per-job details, and reprinting a previous job.
-
-### [Advanced Features](guide/advanced.md)
-Console, macro execution, power device control (with home panel quick-toggle and device selection), print history, notification history with the Printer Events log, and timelapse settings.
-
-### [HelixPrint Plugin](guide/helixprint-plugin.md)
-The optional add-on for your printer's Moonraker: installing it, what it adds (thumbnails and faster previews, checking that a file fits the printer, start options for prints from other apps, faster edited prints, switching spools at each tool change, Printer Events, print photos, a storage report and cleanup, safer config saves, faster AD5X and ACE updates, power-loss recovery), and how each works without it on an attached or a remote screen.
-
-### [Beta Features](guide/beta-features.md)
-How to enable beta features, the full beta feature list, and update channel selection.
-
-### [Tips & Best Practices](guide/tips.md)
-Workflow shortcuts, quick troubleshooting table, and a "which panel do I use?" reference.
-
----
-
-## Other Resources
-
-- [Troubleshooting](TROUBLESHOOTING.md) — Solutions to common problems
-- [Configuration](CONFIGURATION.md) — Detailed configuration options
-- [FAQ](FAQ.md) — Frequently asked questions
-- [Installation](INSTALL.md) — Installation instructions
-- [Creality K1C Setup](guide/creality-k1c-setup.md) — Rooting, community firmware, and HelixScreen install for the K1/K1C/K1 Max
-- [Upgrading](UPGRADING.md) — Version upgrade instructions
+- **[Tips & Best Practices](guide/tips.md)**: shortcuts, quick troubleshooting, and which panel to use for what.
+- **[Beta Features](guide/beta-features.md)**: turning on beta features and choosing an update channel.
+- **[Troubleshooting](TROUBLESHOOTING.md)**, **[FAQ](FAQ.md)**, **[Configuration](CONFIGURATION.md)**, and **[Upgrading](UPGRADING.md)**.
+- **[Creality K1C Setup](guide/creality-k1c-setup.md)**: rooting, community firmware, and installing HelixScreen on a K1, K1C or K1 Max.
 
 ---
 
