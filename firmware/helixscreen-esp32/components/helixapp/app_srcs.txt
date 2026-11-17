@@ -454,7 +454,7 @@ src/core/i18n_plural.cpp
 src/core/temperature_units.cpp
 src/core/temp_unit_subject.cpp
 src/system/locale_formats.cpp
-src/ui/printers/printer_discovery_list.cpp
+src/system/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp

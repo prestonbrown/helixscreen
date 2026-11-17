@@ -95,6 +95,7 @@ CLEARED_PAIRS: tuple[tuple[str, str], ...] = (
     ("system", "ui_event_safety.h"),
     ("system", "ui_settings_updates.h"),
     ("system", "ui_widget_ref.h"),
+    ("system", "ui_panel_motion.h"),
     ("api", "ui_temperature_utils.h"),
     ("print", "ui_temperature_utils.h"),
     ("printer", "ui_temperature_utils.h"),
