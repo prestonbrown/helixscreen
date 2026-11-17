@@ -116,7 +116,7 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
     // A YAMMU reports vendor "Other": only its opt-in display_name identifies it.
-    CHECK(id(AmsType::HAPPY_HARE, "YAMMU") == "yammu");
+    CHECK(id(AmsType::HAPPY_HARE, "YAMMU") == "yammu_upper");
     CHECK(id(AmsType::HAPPY_HARE, "Unit 1") == "none");
     // The Canvas is drawn, but no backend reports one.
     CHECK(helix::ui::tray::unit_shell_by_id("elegoo_canvas") != nullptr);
@@ -153,9 +153,10 @@ TEST_CASE("unit shell: a Happy Hare unit is found by the vendor it reports", "[a
     CHECK(std::string(unit_shell_for(turtle, 0, /*has_dryer=*/true)->id) == "box_turtle_enclosed");
 }
 
-TEST_CASE("unit shell: a row can pick the Nth unit carrying its name", "[ams][unit-art]") {
+TEST_CASE("unit shell: a device reported as several units draws each slice and the whole",
+          "[ams][unit-art]") {
     // Happy Hare reports a YAMMU's two drawers as two units; another unit ahead of them
-    // does not shift which drawer each one draws.
+    // shifts neither which drawer each one draws nor which units make up the cabinet.
     AmsSystemInfo info = one_unit(AmsType::HAPPY_HARE, "Box Turtle");
     info.units[0].model = "BoxTurtle";
     for (int i = 0; i < 2; ++i) {
@@ -165,11 +166,19 @@ TEST_CASE("unit shell: a row can pick the Nth unit carrying its name", "[ams][un
         drawer.slot_count = 4;
         info.units.push_back(drawer);
     }
-    CHECK(std::string(unit_shell_for(info, 0)->id) == "box_turtle");
-    REQUIRE(unit_shell_for(info, 1) != nullptr);
-    CHECK(std::string(unit_shell_for(info, 1)->id) == "yammu");
-    REQUIRE(unit_shell_for(info, 2) != nullptr);
-    CHECK(std::string(unit_shell_for(info, 2)->id) == "yammu_lower");
+    const auto id_of = [&](int u) { return std::string(unit_shell_for(info, u)->id); };
+    CHECK(id_of(0) == "box_turtle");
+    CHECK(id_of(1) == "yammu_upper");
+    CHECK(id_of(2) == "yammu_lower");
+    for (int u : {1, 2}) {
+        const helix::ui::tray::DeviceShell device = helix::ui::tray::device_shell_for(info, u);
+        REQUIRE(device.shell != nullptr);
+        CHECK(std::string(device.shell->id) == "yammu");
+        CHECK(device.unit_indices == std::vector<int>{1, 2});
+    }
+    const helix::ui::tray::DeviceShell turtle = helix::ui::tray::device_shell_for(info, 0);
+    CHECK(turtle.shell == unit_shell_for(info, 0));
+    CHECK(turtle.unit_indices == std::vector<int>{0});
 }
 
 TEST_CASE("unit shell: the cheek only climbs toward the back", "[ams][unit-art]") {

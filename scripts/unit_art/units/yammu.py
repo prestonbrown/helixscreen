@@ -2,7 +2,7 @@
 """YAMMU: a tall 2020-extrusion cabinet with a glass door, two stacked drawers of four spools.
 
 Happy Hare reports each drawer as a unit of four gates, so each unit draws as its drawer's
-slice of the cabinet.
+slice of the cabinet, and views of the whole device draw the cabinet.
 
 Each drawer holds two coaxial spools across by two deep. The cabinet stands on a skirt with
 hex grills that houses the electronics. Proportions from the project's manual (extrusions
@@ -71,12 +71,12 @@ def _carrier(sc, z):
         _bar(sc, EX, W - EX, y + 35 * S, y + 45 * S, z, z + 10 * S, CARRIER)
 
 
-def _drawer(sc, z_floor, zc, colors, c, detail):
+def _drawer(sc, z_floor, zc, colors, first_lane, c, detail):
     """One drawer of four: back row first, then front, left to right."""
     _carrier(sc, z_floor)
     for y, row in ((BACK_Y, 2), (FRONT_Y, 0)):
         for i, xc in enumerate(CENTERS_X):
-            lane = row + i
+            lane = first_lane + row + i
             spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
 
 
@@ -90,36 +90,44 @@ def _skirt(sc, detail):
     _hex_grill(sc, 0, D, 8 * S, SKIRT, lambda u, v: (W + 0.001, u, v), cell)
 
 
-def _draw(sc, colors, tier, upper):
-    """One drawer's slice of the cabinet, cut at the shelf between the drawers.
+def _draw(sc, colors, tier, upper, lower):
+    """The cabinet, or one drawer's slice of it cut at the shelf between the drawers.
 
     The upper slice runs from the shelf to the roof; the lower one from the floor through the
-    skirt, open at the shelf. Stacked, the two make the whole cabinet.
+    skirt, open at the shelf. Stacked, the two make the whole cabinet. Lanes count from the
+    top drawer down.
     """
     detail = tier == "full"
     thick = 1 if detail else 3
     c = spool.spool_constants(_REPO)
     cam = sc.camera
-    zb, zt = (SHELF, TOP) if upper else (SKIRT, SHELF)
-    ground = zb if upper else 0
+    zb = SKIRT if lower else SHELF
+    zt = TOP if upper else SHELF
+    ground = 0 if lower else zb
     sc.poly([(0, 0.02, ground), (W + 0.04, 0.02, ground), (W + 0.04, D + 0.04, ground), (0, D + 0.04, ground)], "#000", 0.5, blur=True)
-    if not upper:
+    if lower:
         _skirt(sc, detail)
 
-    # Inside the slice: the far panels, the floor and the far frame members.
+    # Inside: the far panels, the floor and the far frame members.
     sc.poly([(0, D, zb), (W, D, zb), (W, D, zt), (0, D, zt)], kit.shift(PANEL, -45))
     sc.poly([(0, 0, zb), (0, D, zb), (0, D, zt), (0, 0, zt)], kit.shift(PANEL, -55))
     sc.poly([(0, 0, zb), (W, 0, zb), (W, D, zb), (0, D, zb)], "#16171a")
     _bar(sc, 0, EX, D - EX, D, zb, zt)
     _bar(sc, 0, W, D - EX, D, zb, zb + EX)
     _bar(sc, 0, EX, 0, D, zb, zb + EX)
-    _drawer(sc, zb + EX, UPPER_Z if upper else LOWER_Z, colors, c, detail)
+    if lower:
+        _drawer(sc, SKIRT + EX, LOWER_Z, colors, 4 if upper else 0, c, detail)
+    if upper:
+        if lower:
+            _bar(sc, 0, EX, 0, D, SHELF, SHELF + EX)
+        _drawer(sc, SHELF + EX, UPPER_Z, colors, 0, c, detail)
 
     sc.layer = "front"
-    # The near frame members: the right side's rail, the front sill and the uprights, which
-    # run to the cut; the upper slice also carries the roof frame.
-    _bar(sc, W - EX, W, 0, D, zb, zb + EX)
-    _bar(sc, EX, W - EX, 0, EX, zb, zb + EX)
+    # The near frame members: the right side's rails, the front sills and the uprights, which
+    # run to a cut; the top also carries the roof frame.
+    for z in [zb] + ([SHELF] if upper and lower else []):
+        _bar(sc, W - EX, W, 0, D, z, z + EX)
+        _bar(sc, EX, W - EX, 0, EX, z, z + EX)
     _bar(sc, W - EX, W, D - EX, D, zb, zt)
     _bar(sc, 0, EX, 0, EX, zb, zt)
     _bar(sc, W - EX, W, 0, EX, zb, zt)
@@ -146,21 +154,26 @@ def _draw(sc, colors, tier, upper):
         sc.line([(0, -0.002, TOP), (W, -0.002, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
     sc.line([(W + 0.002, -0.002, zb), (W + 0.002, -0.002, zt)], FRAME_EDGE, 0.003 * thick, 0.9)
 
-    # Door hardware in the accent colour: a latch at the slice's outer end, and on the upper
-    # slice a handle on each upright, rising from the shelf as on the real door.
+    # Door hardware in the accent colour: a latch at each outer end, and a handle on each
+    # upright rising from the shelf, as on the real door.
     if upper:
         for x0 in (2 * S, W - 18 * S):
             _bar(sc, x0, x0 + 16 * S, -9 * S, -1 * S, SHELF + 8 * S, SHELF + 98 * S, ACCENT)
-    z0 = TOP - 16 * S if upper else SKIRT + 4 * S
-    _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, z0, z0 + 12 * S, ACCENT)
+        _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, TOP - 16 * S, TOP - 4 * S, ACCENT)
+    if lower:
+        _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, SKIRT + 4 * S, SKIRT + 16 * S, ACCENT)
 
 
 def draw_art(sc, colors, tier):
-    _draw(sc, colors, tier, upper=True)
+    _draw(sc, colors, tier, upper=True, lower=True)
+
+
+def draw_upper_art(sc, colors, tier):
+    _draw(sc, colors, tier, upper=True, lower=False)
 
 
 def draw_lower_art(sc, colors, tier):
-    _draw(sc, colors, tier, upper=False)
+    _draw(sc, colors, tier, upper=False, lower=True)
 
 
 def _tray_shell():
@@ -170,10 +183,12 @@ def _tray_shell():
     return TrayShellDef([(0.0, 0.0), (1.0, 0.0)], dome, 0.0, 30.0, 8.0, 6.0, True, True, 0x1c1d20, 0x202124, 0x3a3c41, 0xd8432f)
 
 
-UNIT = UnitDef("yammu", 4, draw_art, _tray_shell())
+# The whole cabinet, for views of the device; each Happy Hare unit draws as its drawer's slice.
+UNIT = UnitDef("yammu", 8, draw_art, _tray_shell())
+UPPER = UnitDef("yammu_upper", 4, draw_upper_art, _tray_shell())
 LOWER = UnitDef("yammu_lower", 4, draw_lower_art, _tray_shell())
 
-UNIT.tray.front = LOWER.tray.front = [
+UNIT.tray.front = UPPER.tray.front = LOWER.tray.front = [
     kit.span(2, 2, 2, UNIT.tray.front_wall_px - 2, 0x202124, 2),
     kit.span(4, 4, 0, 5, 0x3a3c41, 1),
     kit.center(-12, 12, 8, 13, 0xd8432f, 2),
@@ -181,4 +196,4 @@ UNIT.tray.front = LOWER.tray.front = [
 
 # A drawer's four paths join in its splitter, and the two drawers join in a Y in the back grill:
 # one tube leaves the cabinet.
-UNIT.tray.lane_join = LOWER.tray.lane_join = "inside"
+UNIT.tray.lane_join = UPPER.tray.lane_join = LOWER.tray.lane_join = "inside"

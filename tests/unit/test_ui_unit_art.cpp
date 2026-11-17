@@ -197,6 +197,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: tints filled lanes and hides
     CHECK(lv_obj_is_hidden(last));
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a device picture shows every unit's bays",
+                 "[ams][unit-art]") {
+    AmsSystemInfo info = rail_system("YAMMU", "Other", 4, PathTopology::HUB);
+    info.units.push_back(info.units[0]);
+    info.units[1].slots[0] = slot(SlotStatus::AVAILABLE, 0x0000ff);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    unit_art_set_unit(art, info, 1, false, UnitArtScope::Device);
+    REQUIRE(unit_art_lane_color_obj(art, 7) != nullptr);
+    CHECK(lv_color_to_u32(
+              lv_obj_get_style_image_recolor(unit_art_lane_color_obj(art, 4), LV_PART_MAIN)) ==
+          lv_color_to_u32(lv_color_hex(0x0000ff)));
+    CHECK(unit_art_available(info, 1));
+    info.units.pop_back(); // half a device has no whole picture
+    CHECK_FALSE(unit_art_available(info, 0, false, UnitArtScope::Device));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens its layers once sized",
                  "[ams][unit-art]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);

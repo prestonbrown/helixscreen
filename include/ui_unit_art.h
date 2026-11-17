@@ -64,13 +64,18 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
 /// What one bay shows.
 UnitArtLane unit_art_lane(const SlotInfo& slot);
 
-/// Whether the unit has art for exactly the bays it reports.
-bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
+/// What a picture shows: the one unit, or the whole device it is part of. They differ only for
+/// a device a backend reports as several units (tray::device_shell_for).
+enum class UnitArtScope { Unit, Device };
+
+/// Whether the unit, or its device, has art for exactly the bays it reports.
+bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer = false,
+                        UnitArtScope scope = UnitArtScope::Unit);
 
 void register_unit_art_widget();
 lv_obj_t* unit_art_create(lv_obj_t* parent, UnitArtTier tier);
 void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
-                       bool has_dryer = false);
+                       bool has_dryer = false, UnitArtScope scope = UnitArtScope::Unit);
 
 /// Whether the widget currently shows its single flattened image.
 bool unit_art_is_flattened(lv_obj_t* art);
