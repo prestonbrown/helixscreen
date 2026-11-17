@@ -761,6 +761,7 @@
   <translation tag="Choose the order of day, month and year" fr="Choisir l&apos;ordre du jour, du mois et de l&apos;année"/>
   <translation tag="Choose what to power off or restart." fr="Choisissez ce qu&apos;il faut éteindre ou redémarrer."/>
   <translation tag="Choose which lane is in the toolhead to unload it" fr="Choisissez quelle voie est dans la tête pour la décharger"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." fr="Choisissez les versions à recevoir et si vous partagez des statistiques anonymes."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" fr="Position de la goulotte de purge : X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" fr="Nettoyer la brosse"/>
   <translation tag="Clean Nozzle" fr="Nettoyer la buse"/>
@@ -3499,6 +3500,7 @@
   <translation tag="Score: {}" fr="Score : {}"/>
   <translation tag="Score: {}  |  Best: {}" fr="Score : {}  |  Meilleur : {}"/>
   <translation tag="Screen" fr="Écran"/>
+  <translation tag="Screen &amp; Power" fr="Écran et alimentation"/>
   <translation tag="Screen Blank" fr="Extinction de l&apos;écran"/>
   <translation tag="Screen Dim" fr="Atténuation de l&apos;écran"/>
   <translation tag="Screen Rotation" fr="Rotation de l&apos;écran"/>
@@ -3509,6 +3511,7 @@
   <translation tag="Screen reboot failed" fr="Échec du redémarrage de l&apos;écran"/>
   <translation tag="Screen shutdown failed" fr="Échec de l&apos;extinction de l&apos;écran"/>
   <translation tag="Screen sleeps after the selected period of inactivity" fr="L&apos;écran s&apos;atténuera après la période d&apos;inactivité sélectionnée"/>
+  <translation tag="ScreenPower" fr="ScreenPower"/>
   <translation tag="Screensaver" fr="Économiseur d&apos;écran"/>
   <translation tag="Screensaver after" fr="Économiseur d&apos;écran après"/>
   <translation tag="Screensaver disabled" fr="Économiseur d&apos;écran désactivé"/>
@@ -3606,6 +3609,7 @@
   <translation tag="Set and watch the chamber temperature" fr="Régler et suivre la température de l&apos;enceinte"/>
   <translation tag="Set and watch the nozzle temperature" fr="Régler et suivre la température de la buse"/>
   <translation tag="Set duration between 1 and {} minutes" fr="Définissez une durée entre 1 et {} minutes"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." fr="Choisissez la luminosité de l&apos;écran et quand il se met en veille. Vous pourrez tout modifier plus tard dans Paramètres."/>
   <translation tag="Set local timezone for time display" fr="Définir le fuseau horaire local pour l&apos;affichage"/>
   <translation tag="Set logging verbosity for troubleshooting" fr="Définir le niveau de détail des logs pour le dépannage"/>
   <translation tag="Set temperature between {} and {}" fr="Définissez une température entre {} et {}"/>
@@ -4507,6 +4511,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." fr="Mettre aussi à jour le modèle de chauffage INDX ? {} contient maintenant {} : densité {:.2f}, capacité thermique {:.2f}."/>
   <translation tag="Update your security PIN" fr="Mettez à jour votre PIN de sécurité sur cette installation."/>
   <translation tag="Updates" fr="Mises à jour"/>
+  <translation tag="Updates &amp; Data" fr="Mises à jour et données"/>
   <translation tag="Updating Configuration..." fr="Mise à jour de la configuration..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." fr="Passez à AFC 1.2.0 ou plus récent pour les bobines multicolores. Cette version ajoute aussi les noms de filament, qui nécessitent sinon Spoolman."/>
   <translation tag="Upload" fr="Téléverser"/>

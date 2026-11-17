@@ -344,9 +344,9 @@ def test_wizard_launch_shows_the_step_instead_of_skipping_it():
     assert "--skip-wizard" in plain and "--wizard-step" not in plain
     wiz = doc_screenshots.launch_flags("connection", (800, 480), "/tmp/s.sock")
     assert "--skip-wizard" not in wiz
-    assert wiz[wiz.index("--wizard-step") + 1] == "4"
+    assert wiz[wiz.index("--wizard-step") + 1] == "5"
     assert doc_screenshots.launch_flags("printer_identify", (800, 480), "/tmp/s.sock")[
-        wiz.index("--wizard-step") + 1] == "5"
+        wiz.index("--wizard-step") + 1] == "6"
 
 
 def test_wizard_step_names_follow_the_app_enum():

@@ -11,6 +11,8 @@ const char* to_string(StepId id) {
         return "Language";
     case StepId::Appearance:
         return "Appearance";
+    case StepId::ScreenPower:
+        return "ScreenPower";
     case StepId::Wifi:
         return "Wifi";
     case StepId::Connection:

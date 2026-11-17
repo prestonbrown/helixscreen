@@ -816,6 +816,7 @@ translations:
   : Choose the model that matches your printer. This sets the print macros, fan roles and calibration behavior HelixScreen uses.
   Choose the order of day, month and year: Choose the order of day, month and year
   Choose what to power off or restart.: Choose what to power off or restart.
+  Choose which releases to get, and whether to share anonymous statistics.: Choose which releases to get, and whether to share anonymous statistics.
   'Chute position: X {:.1f}, Y {:.1f}': 'Chute position: X {:.1f}, Y {:.1f}'
   Clean Brush: Clean Brush
   Clean Nozzle: Clean Nozzle
@@ -3721,6 +3722,7 @@ translations:
   'Score: {}': 'Score: {}'
   'Score: {}  |  Best: {}': 'Score: {}  |  Best: {}'
   Screen: Screen
+  Screen & Power: Screen & Power
   Screen Blank: Screen Blank
   Screen Dim: Screen Dim
   Screen Rotation: Screen Rotation
@@ -3733,6 +3735,7 @@ translations:
   Screen shutdown failed: Screen shutdown failed
   Screen sleeps after the selected period of inactivity: Screen sleeps after the selected
     period of inactivity
+  ScreenPower: ScreenPower
   Screensaver: Screensaver
   Screensaver after: Screensaver after
   Screensaver disabled: Screensaver disabled
@@ -3837,6 +3840,7 @@ translations:
   Set and watch the chamber temperature: Set and watch the chamber temperature
   Set and watch the nozzle temperature: Set and watch the nozzle temperature
   Set duration between 1 and {} minutes: Set duration between 1 and {} minutes
+  Set how bright the screen is and when it rests. You can change any of these later in Settings.: Set how bright the screen is and when it rests. You can change any of these later in Settings.
   Set local timezone for time display: Set local timezone for time display
   Set logging verbosity for troubleshooting: Set logging verbosity for troubleshooting
   Set temperature between {} and {}: Set temperature between {} and {}
@@ -4841,6 +4845,7 @@ translations:
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.'
   Update your security PIN: Update your security PIN
   Updates: Updates
+  Updates & Data: Updates & Data
   Updating Configuration...: Updating Configuration...
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.
   Upload: Upload

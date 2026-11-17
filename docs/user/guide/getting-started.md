@@ -92,6 +92,7 @@ These are the steps in the order they appear. Each one is shown only when its co
 | **Printer Setup: Touch Calibration** | Your touchscreen needs calibrating (usually a resistive screen) and has not been calibrated yet. See the [Touch Calibration guide](touch-calibration.md). |
 | **Printer Setup: Language** | No language other than English has been chosen on this screen yet. |
 | **Appearance & Region** | The first printer only, right after Language. Sets the timezone, time format, date format, theme, dark mode, speed and flow units and temperature unit. Rows left alone follow your language and timezone, and you can change all of them later in Settings. |
+| **Screen & Power** | The first printer only, right after Appearance & Region. Sets the brightness, the screensaver, when the screen dims and sleeps, and the interface size, described below. |
 | **Printer Setup: Network** | Always on the first printer, except in the Android app. |
 | **Printer Setup: Connection** | Always. |
 | **Printer Setup: Identity** | Your printer has no ready-made profile (see [Preset Setup](#preset-setup)). |
@@ -101,11 +102,23 @@ These are the steps in the order they appear. Each one is shown only when its co
 | **Printer Setup: LEDs** | LED lights are found, and your printer has no ready-made profile. |
 | **Printer Setup: Filament Sensor** | Two or more filament sensors are found, and your printer has no ready-made profile. With exactly one, HelixScreen uses it for runout on its own. |
 | **Printer Setup: Input Shaping** | An accelerometer is found, and your printer has no ready-made profile. |
-| **Preferences** | Always. A few on/off choices you can change later in Settings. |
+| **Preferences** | Always. A few choices you can change later in Settings. |
 | **Printer Setup: Review** | Your printer has no ready-made profile, or you are adding another printer. |
-| **Help Improve HelixScreen** | Your printer has a ready-made profile and this is your first printer. It takes the place of the Review step. |
+| **Updates & Data** | Your printer has a ready-made profile and this is your first printer. It takes the place of the Review step. |
 
 You can go back to an earlier step with **Back** at any time. When you finish, HelixScreen opens the Home panel, your main dashboard. See the [Home Panel guide](home-panel.md).
+
+### Screen & Power
+
+This step sets up the screen itself, with the same rows as **Settings > Display** (see [Display settings](settings/display.md)):
+
+- **Brightness**, which changes the screen as you drag. It appears only on screens whose brightness HelixScreen can change.
+- **Screensaver**, where the build includes screensavers.
+- **Screen Dim**, how long the screen waits before it dims. Once you pick a screensaver, this row becomes **Screensaver after**, because the same timer starts the screensaver instead.
+- **Display Sleep**, how long the screen waits before it turns off.
+- **UI Scale**, only on screens big or sharp enough for more than one size. It offers the sizes that still fit your screen, and a new size appears after HelixScreen restarts.
+
+Nothing here changes unless you pick it, so you can tap **Next** to keep the defaults.
 
 ### Network
 
@@ -162,19 +175,19 @@ If HelixScreen already recognized your printer, the step opens on it, inside its
 
 ### Preset Setup
 
-Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Help Improve HelixScreen** instead of the Review step.
+Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Updates & Data** instead of the Review step.
 
-![The Help Improve HelixScreen step, with its anonymous statistics switch](../../images/user/wizard-telemetry.png)
+![The Updates & Data step, with its anonymous statistics switch and update channel](../../images/user/wizard-telemetry.png)
 
-**Help Improve HelixScreen** asks whether to send anonymous usage statistics. No personal data is collected, and you can change your answer later in **Settings > System > Share Usage Data**. The [Telemetry guide](../TELEMETRY.md) lists what is and is not sent.
+**Updates & Data** asks whether to send anonymous usage statistics. No personal data is collected, and you can change your answer later in **Settings > System > Share Usage Data**. The [Telemetry guide](../TELEMETRY.md) lists what is and is not sent. The same step offers the **Update Channel**: **Stable** for released versions, or **Beta** to get new versions sooner. You can change it later in **Settings > Updates** (see [Upgrading](../UPGRADING.md)). Where your printer's firmware manages HelixScreen updates, the channel row is not shown.
 
-On a printer without a profile you see the full set of hardware steps, ending with Review.
+On a printer without a profile you see the full set of hardware steps, ending with Review, which asks the same two questions above the summary.
 
 ### Preferences
 
-![The setup wizard's Preferences step, with its on/off choices](../../images/user/wizard-preferences.png)
+![The setup wizard's Preferences step, with its choices](../../images/user/wizard-preferences.png)
 
-This step offers a few on/off choices: opening the slot editor when you load a new spool, and turning the nozzle heater off after a load or unload. On your first printer it also offers text labels on Home widgets and letting the screen sleep during a print, plus **Sounds** where the screen can play sound. Two filament-system choices appear only when your filament system uses them. Every choice here is also in Settings, so nothing you pick is final.
+This step offers a few choices: opening the slot editor when you load a new spool, and turning the nozzle heater off after a load or unload. On your first printer it also offers text labels on Home widgets, letting the screen sleep during a print, and the **Print Completion Alert**, which decides whether a finished print gets a full-screen summary, a short message or nothing (see [Safety settings](settings/safety.md#print-completion-alert)). Where the screen can play sound it adds **Sounds**, and the **Volume** while sounds are on. Two filament-system choices appear only when your filament system uses them. Every choice here is also in Settings, so nothing you pick is final.
 
 ### Adding Another Printer
 

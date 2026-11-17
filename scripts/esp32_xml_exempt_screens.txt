@@ -64,6 +64,7 @@ wizard_input_shaper.xml
 wizard_language_chooser.xml
 wizard_led_select.xml
 wizard_printer_identify.xml
+wizard_screen_power.xml
 wizard_summary.xml
 wizard_telemetry.xml
 wizard_touch_calibration.xml

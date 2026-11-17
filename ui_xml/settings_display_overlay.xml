@@ -8,10 +8,6 @@
     <!-- Cards own the horizontal inset (setting_group side margins); content has none. -->
     <style name="content_standard" pad_top="0" pad_left="0" pad_right="0" pad_bottom="#space_lg"/>
     <style name="content_micro" pad_top="0" pad_left="0" pad_right="0" pad_bottom="#space_sm"/>
-    <style name="brightness_standard"
-           pad_left="#space_lg" pad_right="#space_lg" pad_top="#space_md" pad_bottom="#space_md" pad_gap="#space_xs"/>
-    <style name="brightness_micro"
-           pad_left="#space_md" pad_right="#space_md" pad_top="#space_xs" pad_bottom="#space_xs" pad_gap="#space_xs"/>
     <style name="spacer_standard" height="#space_lg"/>
     <style name="spacer_micro" height="#space_md"/>
   </styles>
@@ -37,75 +33,11 @@
         <setting_dropdown_row name="row_ui_scale"
                               label="UI Scale" icon="magnify" description="Interface size. Applies after restart."
                               options="" callback="on_ui_scale_changed"/>
-        <!-- Brightness (conditional - hidden when no hardware backlight) -->
-        <lv_obj name="brightness_section" width="100%" height="content" scrollable="false" flex_flow="column">
-          <bind_flag_if_eq subject="settings_has_dimming" flag="hidden" ref_value="0"/>
-          <bind_style_if_eq name="brightness_micro" subject="ui_breakpoint" ref_value="0"/>
-          <bind_style_if_ge name="brightness_standard" subject="ui_breakpoint" ref_value="1"/>
-          <!-- Label row with value display -->
-          <lv_obj width="100%"
-                  height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-                  style_pad_all="0" scrollable="false">
-            <lv_obj height="content"
-                    flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" style_pad_all="0"
-                    scrollable="false">
-              <icon src="light" size="sm" variant="secondary"/>
-              <text_body text="Brightness"/>
-            </lv_obj>
-            <text_body name="brightness_value_label" bind_text="brightness_value"/>
-          </lv_obj>
-          <!-- Description -->
-          <text_small text="Adjust screen brightness level"/>
-          <!-- Slider with min/max icons -->
-          <lv_obj width="100%"
-                  height="content" flex_flow="row" style_flex_cross_place="center" style_pad_left="0"
-                  style_pad_right="0" style_pad_top="#space_md" style_pad_bottom="#space_md" style_pad_gap="#space_sm"
-                  scrollable="false">
-            <icon src="light_off" size="xs" variant="secondary"/>
-            <lv_slider name="brightness_slider" flex_grow="1" min_value="10" max_value="100" value="50">
-              <event_cb trigger="value_changed" callback="on_brightness_changed"/>
-              <!-- Persist once on release; value_changed only previews (settings.json
-                 is fsync'd twice + backed up, and some backlight backends fork). -->
-              <event_cb trigger="released" callback="on_brightness_commit"/>
-            </lv_slider>
-            <icon src="light" size="xs" variant="primary"/>
-          </lv_obj>
-        </lv_obj>
-        <!-- Screen Dim -->
-        <setting_dropdown_row name="row_display_dim"
-                              label="Screen Dim" icon="lightbulb_on_50"
-                              description="Screen dims to lower brightness after period of inactivity"
-                              options="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
-                              options_tag="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
-                              callback="on_dim_changed">
-          <bind_flag_if_not_eq subject="settings_dim_row_kind" flag="hidden" ref_value="1"/>
-        </setting_dropdown_row>
-        <!-- A screensaver is selected: the same dim timeout starts it -->
-        <setting_dropdown_row name="row_screensaver_after"
-                              label="Screensaver after" icon="television_classic"
-                              description="Screensaver starts after this period of inactivity"
-                              options="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
-                              options_tag="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
-                              callback="on_dim_changed">
-          <bind_flag_if_not_eq subject="settings_dim_row_kind" flag="hidden" ref_value="2"/>
-        </setting_dropdown_row>
-        <!-- Display Sleep -->
-        <setting_dropdown_row name="row_display_sleep"
-                              label="Display Sleep" icon="clock"
-                              description="Screen sleeps after the selected period of inactivity"
-                              options="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;20 minutes&#10;30 minutes&#10;1 hour"
-                              options_tag="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;20 minutes&#10;30 minutes&#10;1 hour"
-                              callback="on_sleep_changed"/>
-        <!-- Screensaver: the full list is the translation source; DisplaySettingsOverlay
-             rebuilds the options without the savers too heavy for this board. Hidden in
-             builds without screensavers (settings_has_screensaver = 0). -->
-        <setting_dropdown_row name="row_screensaver"
-                              label="Screensaver" icon="television_classic" description="Show instead of dimming"
-                              options="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Nixie Clock&#10;Random"
-                              options_tag="Off&#10;Flying Toasters&#10;Starfield&#10;3D Pipes&#10;Bouncing Printer&#10;Fireworks&#10;Bouncing Logo&#10;3D Maze&#10;Hyperspace&#10;Flip Clock&#10;Fireflies&#10;Aqua Surface&#10;High Fly&#10;Nixie Clock&#10;Random"
-                              callback="on_screensaver_changed" hidden="true">
-          <bind_flag_if_eq subject="settings_has_screensaver" flag="hidden" ref_value="0"/>
-        </setting_dropdown_row>
+        <display_brightness_row/>
+        <display_dim_row/>
+        <display_screensaver_after_row/>
+        <display_sleep_row/>
+        <display_screensaver_row/>
         <!-- Test Screensaver button (hidden when Off is selected). Starts hidden so it
              stays hidden wherever the binding cannot resolve. -->
         <lv_obj name="container_test_screensaver"

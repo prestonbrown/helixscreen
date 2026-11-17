@@ -380,6 +380,7 @@ src/ui/wizard/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_screen_power.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_preferences.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_summary.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_telemetry.cpp  # not in the v1 Core+AMS cut

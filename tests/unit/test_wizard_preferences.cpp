@@ -101,6 +101,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Preference rows write the same setting as t
         "row_sounds", [&](bool v) { audio.set_sounds_enabled(v); },
         [&] { return audio.get_sounds_enabled(); });
 
+    // The volume slider previews on drag and saves on release, as in Settings > Sound.
+    const int volume = audio.get_volume();
+    audio.set_volume(80);
+    lv_obj_t* slider = lv_obj_find_by_name(lv_obj_find_by_name(root, "row_volume"), "slider");
+    REQUIRE(slider != nullptr);
+    lv_slider_set_value(slider, 35, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_RELEASED, nullptr);
+    CHECK(audio.get_volume() == 35);
+    audio.set_volume(volume);
+
+    const auto alert = audio.get_completion_alert_mode();
+    audio.set_completion_alert_mode(helix::CompletionAlertMode::ALERT);
+    lv_obj_t* dd =
+        lv_obj_find_by_name(lv_obj_find_by_name(root, "row_completion_alert"), "dropdown");
+    REQUIRE(dd != nullptr);
+    lv_dropdown_set_selected(dd, 1);
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(audio.get_completion_alert_mode() == helix::CompletionAlertMode::NOTIFICATION);
+    audio.set_completion_alert_mode(alert);
+
     step->cleanup();
 }
 

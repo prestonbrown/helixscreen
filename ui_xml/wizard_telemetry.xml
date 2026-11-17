@@ -2,10 +2,13 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- First-Run Wizard: Telemetry Opt-In Screen (preset mode only) -->
+  <!-- First-Run Wizard: Updates & Data (preset mode only): the telemetry opt-in and the
+       update channel, which shares its row and callback with Settings > Updates. -->
   <consts>
-    <str name="step_title" value="Help Improve HelixScreen" value_tag="Help Improve HelixScreen"/>
-    <str name="step_subtitle" value="Anonymous usage statistics" value_tag="Anonymous usage statistics"/>
+    <str name="step_title" value="Updates &amp; Data" value_tag="Updates &amp; Data"/>
+    <str name="step_subtitle"
+         value="Choose which releases to get, and whether to share anonymous statistics."
+         value_tag="Choose which releases to get, and whether to share anonymous statistics."/>
   </consts>
 
   <view name="wizard_telemetry_root"
@@ -13,10 +16,12 @@
         flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
 
     <ui_card width="100%"
-             flex_grow="1" style_pad_all="#space_lg" style_pad_gap="#space_md" flex_flow="column"
-             style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
+             flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+             style_flex_main_place="start" style_flex_cross_place="center" scrollable="true">
 
-      <icon src="chart_line" size="lg" variant="primary"/>
+      <update_channel_rows/>
+
+      <icon src="chart_line" size="md" variant="primary"/>
 
       <text_heading width="100%" text="Help Improve HelixScreen" style_text_align="center"/>
 
@@ -40,6 +45,7 @@
                     style_text_color="#primary" style_text_decor="underline" clickable="false" event_bubble="true"/>
         <event_cb trigger="clicked" callback="on_wizard_telemetry_info"/>
       </ui_button>
+
 
     </ui_card>
   </view>

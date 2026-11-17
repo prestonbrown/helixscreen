@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- When the screen sleeps, shared by Settings > Display and the setup wizard.
+       select_sleep_row() selects the stored value. -->
+  <view name="row_display_sleep"
+        extends="setting_dropdown_row" label="Display Sleep" icon="clock"
+        description="Screen sleeps after the selected period of inactivity"
+        options="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;20 minutes&#10;30 minutes&#10;1 hour"
+        options_tag="Never&#10;1 minute&#10;5 minutes&#10;10 minutes&#10;20 minutes&#10;30 minutes&#10;1 hour"
+        callback="on_sleep_changed"/>
+</component>

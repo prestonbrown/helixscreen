@@ -123,10 +123,12 @@ TEST_CASE("Display step calculation with wifi skipped", "[android][wizard]") {
     REQUIRE(wizard_display_number(StepId::Language, v) == 2);
     // appearance: touch_cal,language not skipped -> display 3
     REQUIRE(wizard_display_number(StepId::Appearance, v) == 3);
-    // connection: touch_cal,language,appearance not skipped, wifi skipped -> display 4
-    REQUIRE(wizard_display_number(StepId::Connection, v) == 4);
-    // printer_identify: touch_cal,language,appearance,connection not skipped -> display 5
-    REQUIRE(wizard_display_number(StepId::PrinterIdentify, v) == 5);
+    // screen_power: touch_cal,language,appearance not skipped -> display 4
+    REQUIRE(wizard_display_number(StepId::ScreenPower, v) == 4);
+    // connection: the four before it shown, wifi skipped -> display 5
+    REQUIRE(wizard_display_number(StepId::Connection, v) == 5);
+    // printer_identify: the five before it shown, wifi skipped -> display 6
+    REQUIRE(wizard_display_number(StepId::PrinterIdentify, v) == 6);
 }
 
 TEST_CASE("Display step at telemetry (last) with wifi skipped is the last number",
@@ -141,10 +143,10 @@ TEST_CASE("Display step at telemetry (last) with wifi skipped is the last number
 // Wizard Step Logic -- Navigation Forward
 // ============================================================================
 
-TEST_CASE("wizard_next(Appearance, wifi skipped) returns Connection", "[android][wizard]") {
+TEST_CASE("wizard_next(ScreenPower, wifi skipped) returns Connection", "[android][wizard]") {
     auto v = all_steps();
     skip(v, StepId::Wifi);
-    REQUIRE(wizard_next(StepId::Appearance, v) == StepId::Connection);
+    REQUIRE(wizard_next(StepId::ScreenPower, v) == StepId::Connection);
 }
 
 TEST_CASE("wizard_next(Wifi, wifi skipped) returns Connection", "[android][wizard]") {
@@ -174,25 +176,26 @@ TEST_CASE("wizard_next reports done at end", "[android][wizard]") {
 // Wizard Step Logic -- Navigation Backward
 // ============================================================================
 
-TEST_CASE("wizard_prev(Connection, wifi skipped) returns Appearance", "[android][wizard]") {
+TEST_CASE("wizard_prev(Connection, wifi skipped) returns ScreenPower", "[android][wizard]") {
     auto v = all_steps();
     skip(v, StepId::Wifi);
-    REQUIRE(wizard_prev(StepId::Connection, v) == StepId::Appearance);
+    REQUIRE(wizard_prev(StepId::Connection, v) == StepId::ScreenPower);
 }
 
-TEST_CASE("wizard_prev(Connection, wifi+appearance+language skipped) returns TouchCalibration",
+TEST_CASE("wizard_prev(Connection, wifi through language skipped) returns TouchCalibration",
           "[android][wizard]") {
     auto v = all_steps();
     skip(v, StepId::Wifi);
+    skip(v, StepId::ScreenPower);
     skip(v, StepId::Appearance);
     skip(v, StepId::Language);
     REQUIRE(wizard_prev(StepId::Connection, v) == StepId::TouchCalibration);
 }
 
-TEST_CASE("wizard_prev(Connection, wifi+appearance+language+touch_cal skipped) returns none",
-          "[android][wizard]") {
+TEST_CASE("wizard_prev(Connection, every earlier step skipped) returns none", "[android][wizard]") {
     auto v = all_steps();
     skip(v, StepId::Wifi);
+    skip(v, StepId::ScreenPower);
     skip(v, StepId::Appearance);
     skip(v, StepId::Language);
     skip(v, StepId::TouchCalibration);
@@ -225,10 +228,10 @@ TEST_CASE("Multiple skips: wifi + ams + led, display number at FilamentSensor",
     skip(v, StepId::AmsIdentify);
     skip(v, StepId::LedSelect);
 
-    // Steps before FilamentSensor (idx 10): 0..9
-    // Skipped: wifi(3), ams(8), led(9) = 3 skipped
-    // Non-skipped before FilamentSensor: 7 -> display = 1 + 7 = 8
-    REQUIRE(wizard_display_number(StepId::FilamentSensor, v) == 8);
+    // Steps before FilamentSensor (idx 11): 0..10
+    // Skipped: wifi(4), ams(9), led(10) = 3 skipped
+    // Non-skipped before FilamentSensor: 8 -> display = 1 + 8 = 9
+    REQUIRE(wizard_display_number(StepId::FilamentSensor, v) == 9);
 
     REQUIRE(wizard_visible_count(v) == helix::wizard::STEP_COUNT - 3);
 }
@@ -252,8 +255,8 @@ TEST_CASE("Android scenario: wifi skipped when platform is Android",
     REQUIRE(android_skips_wifi == true);
     REQUIRE(wizard_visible_count(v) == helix::wizard::STEP_COUNT - 1);
 
-    // Step after appearance should be connection, not wifi
-    REQUIRE(wizard_next(StepId::Appearance, v) == StepId::Connection);
+    // Step after screen & power should be connection, not wifi
+    REQUIRE(wizard_next(StepId::ScreenPower, v) == StepId::Connection);
 
     // Clean up
     set_platform_override(-1);

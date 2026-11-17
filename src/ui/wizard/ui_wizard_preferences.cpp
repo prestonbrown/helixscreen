@@ -6,6 +6,7 @@
 #include "ui_settings_appearance.h"
 #include "ui_settings_display.h"
 #include "ui_settings_printing.h"
+#include "ui_settings_safety.h"
 #include "ui_settings_sound.h"
 #include "ui_wizard_helpers.h"
 
@@ -66,6 +67,7 @@ void WizardPreferencesStep::register_callbacks() {
     helix::settings::get_appearance_settings_overlay().register_callbacks();
     helix::settings::get_display_settings_overlay().register_callbacks();
     helix::settings::get_sound_settings_overlay().register_callbacks();
+    helix::settings::get_safety_settings_overlay().register_callbacks();
     helix::ui::get_ams_device_operations_overlay().register_callbacks();
 }
 
@@ -81,7 +83,9 @@ lv_obj_t* WizardPreferencesStep::create(lv_obj_t* parent) {
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_preferences", nullptr));
     if (!root_) {
         spdlog::error("[{}] Failed to create screen from XML", log_name());
+        return nullptr;
     }
+    helix::settings::select_volume_slider(root_);
     return root_;
 }
 

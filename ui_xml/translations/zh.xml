@@ -761,6 +761,7 @@
   <translation tag="Choose the order of day, month and year" zh="选择日、月、年的顺序"/>
   <translation tag="Choose what to power off or restart." zh="选择要关闭或重启的对象。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" zh="请选择打印头里的料道以卸载"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." zh="选择要获取的版本，以及是否共享匿名统计数据。"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" zh="排料口位置: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" zh="清洁刷子"/>
   <translation tag="Clean Nozzle" zh="清洁喷嘴"/>
@@ -3499,6 +3500,7 @@
   <translation tag="Score: {}" zh="得分：{}"/>
   <translation tag="Score: {}  |  Best: {}" zh="得分：{}  |  最佳：{}"/>
   <translation tag="Screen" zh="屏幕"/>
+  <translation tag="Screen &amp; Power" zh="屏幕与电源"/>
   <translation tag="Screen Blank" zh="屏幕熄灭"/>
   <translation tag="Screen Dim" zh="屏幕变暗"/>
   <translation tag="Screen Rotation" zh="屏幕旋转"/>
@@ -3509,6 +3511,7 @@
   <translation tag="Screen reboot failed" zh="屏幕重启失败"/>
   <translation tag="Screen shutdown failed" zh="屏幕关机失败"/>
   <translation tag="Screen sleeps after the selected period of inactivity" zh="在选定的不活动时间后屏幕将变暗"/>
+  <translation tag="ScreenPower" zh="ScreenPower"/>
   <translation tag="Screensaver" zh="屏保"/>
   <translation tag="Screensaver after" zh="屏保启动时间"/>
   <translation tag="Screensaver disabled" zh="屏保已禁用"/>
@@ -3606,6 +3609,7 @@
   <translation tag="Set and watch the chamber temperature" zh="设置并监控腔体温度"/>
   <translation tag="Set and watch the nozzle temperature" zh="设置并监控喷嘴温度"/>
   <translation tag="Set duration between 1 and {} minutes" zh="请设置 1 到 {} 分钟之间的时长"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." zh="设置屏幕亮度以及何时休眠。以后可在“设置”中更改。"/>
   <translation tag="Set local timezone for time display" zh="设置本地时区以显示时间"/>
   <translation tag="Set logging verbosity for troubleshooting" zh="设置日志详细级别以便故障排除"/>
   <translation tag="Set temperature between {} and {}" zh="请设置 {} 到 {} 之间的温度"/>
@@ -4507,6 +4511,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." zh="同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。"/>
   <translation tag="Update your security PIN" zh="更新您的安全 PIN"/>
   <translation tag="Updates" zh="更新"/>
+  <translation tag="Updates &amp; Data" zh="更新与数据"/>
   <translation tag="Updating Configuration..." zh="正在更新配置..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." zh="升级到 AFC 1.2.0 或更高版本即可使用多色料盘。它还会添加耗材名称，否则需要 Spoolman 提供。"/>
   <translation tag="Upload" zh="上传"/>

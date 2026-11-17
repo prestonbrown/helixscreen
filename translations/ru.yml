@@ -882,6 +882,7 @@ translations:
   : Выберите модель, соответствующую вашему принтеру. Это задаёт используемые HelixScreen макросы печати, роли вентиляторов и поведение калибровки.
   Choose the order of day, month and year: Выберите порядок дня, месяца и года
   Choose what to power off or restart.: Выберите, что выключить или перезагрузить.
+  Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Позиция жёлоба продувки: X {:.1f}, Y {:.1f}'
 
   Clean Brush: 'Очистить щётку'
@@ -3845,6 +3846,7 @@ translations:
   'Score: {}': 'Счёт: {}'
   'Score: {}  |  Best: {}': 'Счёт: {}  |  Рекорд: {}'
   Screen: 'Экран'
+  Screen & Power: 'Экран и питание'
   Screen Blank: Гашение экрана
   Screen Dim: Затемнение экрана
   Screen Rotation: Поворот экрана
@@ -3857,6 +3859,7 @@ translations:
   Screen shutdown failed: Ошибка выключения экрана
   Screen sleeps after the selected period of inactivity: Экран затемнится после выбранного
     периода простоя
+  ScreenPower: ScreenPower
   Screensaver: Заставка
   Screensaver after: Заставка через
   Screensaver disabled: Заставка отключена
@@ -3961,6 +3964,7 @@ translations:
   Set and watch the chamber temperature: Установка и контроль температуры камеры
   Set and watch the nozzle temperature: Установка и контроль температуры сопла
   Set duration between 1 and {} minutes: 'Установите длительность от 1 до {} минут'
+  Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках.'
   Set local timezone for time display: Установить часовой пояс для отображения времени
   Set logging verbosity for troubleshooting: Установить уровень детализации журнала
     для устранения неполадок
@@ -4981,6 +4985,7 @@ translations:
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код
   Updates: Обновления
+  Updates & Data: 'Обновления и данные'
   Updating Configuration...: Обновление конфигурации...
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Обновите AFC до 1.2.0 или новее для многоцветных катушек. Также добавляются названия филаментов, для которых иначе требуется Spoolman.
   Upload: Отправить

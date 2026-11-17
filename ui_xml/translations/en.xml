@@ -761,6 +761,7 @@
   <translation tag="Choose the order of day, month and year" en="Choose the order of day, month and year"/>
   <translation tag="Choose what to power off or restart." en="Choose what to power off or restart."/>
   <translation tag="Choose which lane is in the toolhead to unload it" en="Choose which lane is in the toolhead to unload it"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." en="Choose which releases to get, and whether to share anonymous statistics."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" en="Chute position: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" en="Clean Brush"/>
   <translation tag="Clean Nozzle" en="Clean Nozzle"/>
@@ -3499,6 +3500,7 @@
   <translation tag="Score: {}" en="Score: {}"/>
   <translation tag="Score: {}  |  Best: {}" en="Score: {}  |  Best: {}"/>
   <translation tag="Screen" en="Screen"/>
+  <translation tag="Screen &amp; Power" en="Screen &amp; Power"/>
   <translation tag="Screen Blank" en="Screen Blank"/>
   <translation tag="Screen Dim" en="Screen Dim"/>
   <translation tag="Screen Rotation" en="Screen Rotation"/>
@@ -3509,6 +3511,7 @@
   <translation tag="Screen reboot failed" en="Screen reboot failed"/>
   <translation tag="Screen shutdown failed" en="Screen shutdown failed"/>
   <translation tag="Screen sleeps after the selected period of inactivity" en="Screen sleeps after the selected period of inactivity"/>
+  <translation tag="ScreenPower" en="ScreenPower"/>
   <translation tag="Screensaver" en="Screensaver"/>
   <translation tag="Screensaver after" en="Screensaver after"/>
   <translation tag="Screensaver disabled" en="Screensaver disabled"/>
@@ -3606,6 +3609,7 @@
   <translation tag="Set and watch the chamber temperature" en="Set and watch the chamber temperature"/>
   <translation tag="Set and watch the nozzle temperature" en="Set and watch the nozzle temperature"/>
   <translation tag="Set duration between 1 and {} minutes" en="Set duration between 1 and {} minutes"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." en="Set how bright the screen is and when it rests. You can change any of these later in Settings."/>
   <translation tag="Set local timezone for time display" en="Set local timezone for time display"/>
   <translation tag="Set logging verbosity for troubleshooting" en="Set logging verbosity for troubleshooting"/>
   <translation tag="Set temperature between {} and {}" en="Set temperature between {} and {}"/>
@@ -4507,6 +4511,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." en="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}."/>
   <translation tag="Update your security PIN" en="Update your security PIN"/>
   <translation tag="Updates" en="Updates"/>
+  <translation tag="Updates &amp; Data" en="Updates &amp; Data"/>
   <translation tag="Updating Configuration..." en="Updating Configuration..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." en="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman."/>
   <translation tag="Upload" en="Upload"/>

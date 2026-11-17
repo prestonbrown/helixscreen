@@ -17,7 +17,6 @@
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_settings_appearance.h"
 #include "ui_settings_barcode_scanner.h"
-#include "ui_settings_display.h"
 #include "ui_settings_label_printer.h"
 #include "ui_settings_material_temps.h"
 #include "ui_spoolman_overlay.h"
@@ -106,9 +105,6 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
     StaticPanelRegistry::instance().destroy_all();
 
     const OverlayCase cases[] = {
-        {"Display",
-         []() { helix::settings::get_display_settings_overlay().init_subjects(); },
-         {"brightness_value"}},
         {"Appearance",
          []() { helix::settings::get_appearance_settings_overlay().init_subjects(); },
          {"theme_apply_disabled"}},

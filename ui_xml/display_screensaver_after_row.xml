@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- With a screensaver selected, the dim timeout starts it, so the timeout is offered
+       under this name. Shared by Settings > Display and the setup wizard; options match
+       display_dim_row, and select_dim_rows() selects the stored value in both. -->
+  <view name="row_screensaver_after"
+        extends="setting_dropdown_row" label="Screensaver after" icon="television_classic"
+        description="Screensaver starts after this period of inactivity"
+        options="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
+        options_tag="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
+        callback="on_dim_changed">
+    <bind_flag_if_not_eq subject="settings_dim_row_kind" flag="hidden" ref_value="2"/>
+  </view>
+</component>
