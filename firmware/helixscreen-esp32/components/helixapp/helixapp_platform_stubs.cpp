@@ -127,7 +127,6 @@ static helix::Subject g_wizard_active_subject;
 // has no detection (detection_manager.cpp is excluded), so every gate reads 0 and the
 // detection and bed-check rows stay hidden; the toggle's callback is inert.
 static helix::Subject g_detection_subjects[5];
-static void detection_bed_check_noop_cb(lv_event_t* /*e*/) {}
 static helix::Subject g_platform_tier_subject;
 helix::Subject& get_wizard_active_subject() {
     return g_wizard_active_subject;
@@ -178,7 +177,6 @@ void app_globals_init_subjects() {
     lv_xml_register_subject(nullptr, "detection_bed_check_available", &g_detection_subjects[2]);
     lv_xml_register_subject(nullptr, "detection_bed_check_enabled", &g_detection_subjects[3]);
     lv_xml_register_subject(nullptr, "detection_bed_check_switchable", &g_detection_subjects[4]);
-    lv_xml_register_event_cb(nullptr, "on_bed_check_changed", detection_bed_check_noop_cb);
     helix::ui::modal_init_subjects();
     g_subjects_initialized = true;
     StaticSubjectRegistry::instance().register_deinit("AppGlobals", app_globals_deinit_subjects);
@@ -235,4 +233,7 @@ namespace helix::detection {
 void apply_detection_switch(bool enabled) {
     SettingsManager::instance().set_detection_enabled(enabled);
 }
+// No detector reports a bed check here, so the row stays hidden and its switch
+// has nothing to drive.
+void apply_bed_check_switch(bool /*enabled*/) {}
 } // namespace helix::detection

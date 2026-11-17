@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "detection_manager.h"
 
-#include "ui_callback_helpers.h"
-
 #include "core/static_subject_registry.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_client.h"
@@ -36,14 +34,6 @@ void DetectionManager::ensure_availability_subject() {
     UI_MANAGED_SUBJECT_INT(bed_check_enabled_subject_, 1, "detection_bed_check_enabled", subjects_);
     UI_MANAGED_SUBJECT_INT(bed_check_switchable_subject_, 1, "detection_bed_check_switchable",
                            subjects_);
-    // The Safety & Alerts row's toggle. Registered with its subject so the
-    // row and what it drives exist together.
-    register_xml_callbacks({
-        {"on_bed_check_changed",
-         [](lv_event_t* e) {
-             DetectionManager::instance().set_bed_check_enabled(helix::ui::event_checked(e));
-         }},
-    });
     availability_subject_ready_ = true;
     // Bound only by XML and written only here, so a printer switch leaves them up.
     StaticSubjectRegistry::instance().register_deinit(
@@ -412,6 +402,10 @@ void DetectionManager::reset_for_test() {
 
 void apply_detection_switch(bool enabled) {
     DetectionManager::instance().set_detection_enabled(enabled);
+}
+
+void apply_bed_check_switch(bool enabled) {
+    DetectionManager::instance().set_bed_check_enabled(enabled);
 }
 
 } // namespace helix::detection

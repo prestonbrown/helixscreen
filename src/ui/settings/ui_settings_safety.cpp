@@ -69,6 +69,8 @@ void SafetySettingsOverlay::register_callbacks() {
          }},
         {"on_detection_enabled_changed",
          [](lv_event_t* e) { helix::detection::apply_detection_switch(event_checked(e)); }},
+        {"on_bed_check_changed",
+         [](lv_event_t* e) { helix::detection::apply_bed_check_switch(event_checked(e)); }},
         {"on_detection_pause_changed",
          [](lv_event_t* e) {
              SettingsManager::instance().set_detection_pause_on_detect(event_checked(e));
