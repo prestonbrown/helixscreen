@@ -37,11 +37,11 @@ TEST_CASE("DisplaySettingsManager::animations_default policy", "[display_setting
     REQUIRE(DisplaySettingsManager::animations_default(false, false) == false);
 }
 
-// Without a dimmable backlight the dim timeout is what starts the screensaver, so
-// the row stays reachable under that name; with neither, it would set nothing.
+// With a saver selected the dim timeout is what starts it, dimmable backlight or not, so
+// the row carries that name; with neither a saver nor dimming, it would set nothing.
 TEST_CASE("DisplaySettingsManager::dim_row_kind policy", "[display_settings]") {
     using Kind = DisplaySettingsManager::DimRowKind;
-    CHECK(DisplaySettingsManager::dim_row_kind(true, true) == Kind::ScreenDim);
+    CHECK(DisplaySettingsManager::dim_row_kind(true, true) == Kind::ScreensaverAfter);
     CHECK(DisplaySettingsManager::dim_row_kind(true, false) == Kind::ScreenDim);
     CHECK(DisplaySettingsManager::dim_row_kind(false, true) == Kind::ScreensaverAfter);
     CHECK(DisplaySettingsManager::dim_row_kind(false, false) == Kind::Hidden);
@@ -694,6 +694,32 @@ TEST_CASE_METHOD(LVGLTestFixture, "dim row and sleep coupling follow the screens
         mgr.set_screensaver_type(static_cast<int>(ScreensaverType::OFF));
         CHECK(lv_subject_get_int(kind) == static_cast<int>(Kind::Hidden));
         CHECK_FALSE(mgr.should_couple_sleep_to_dim());
+    }
+
+    SECTION("turning a saver on while the timeout is Never seeds the default timeout") {
+        const int stored_dim = mgr.get_display_dim_sec();
+        mgr.set_display_dim_sec(0);
+        mgr.set_screensaver_type(static_cast<int>(ScreensaverType::FIREWORKS));
+        CHECK(mgr.get_display_dim_sec() == DisplaySettingsManager::kDefaultDimSec);
+        CHECK(config->get<int>("/display/dim_sec", -1) == DisplaySettingsManager::kDefaultDimSec);
+        mgr.set_display_dim_sec(stored_dim);
+    }
+
+    SECTION("switching between savers keeps a timeout of Never") {
+        const int stored_dim = mgr.get_display_dim_sec();
+        mgr.set_screensaver_type(static_cast<int>(ScreensaverType::FIREWORKS));
+        mgr.set_display_dim_sec(0);
+        mgr.set_screensaver_type(static_cast<int>(ScreensaverType::HYPERSPACE));
+        CHECK(mgr.get_display_dim_sec() == 0);
+        mgr.set_display_dim_sec(stored_dim);
+    }
+
+    SECTION("turning a saver on keeps a timeout already set") {
+        const int stored_dim = mgr.get_display_dim_sec();
+        mgr.set_display_dim_sec(60);
+        mgr.set_screensaver_type(static_cast<int>(ScreensaverType::FIREWORKS));
+        CHECK(mgr.get_display_dim_sec() == 60);
+        mgr.set_display_dim_sec(stored_dim);
     }
 
     if (stored_type) {
