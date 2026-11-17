@@ -108,6 +108,15 @@ gh workflow run release.yml --ref <branch> -f platforms=x86   # platforms empty 
 
 A dry run creates no GitHub release and sends nothing to Play, Discord or the website. Its R2 uploads go under `dry-run/<run_id>/` with version `0.0.0-dryrun.<run_id>`, and the would-be release assets go to the `dry-run-release-assets` workflow artifact. The `dry-run-verify` job then runs `scripts/verify-dry-run-release.sh` against both and deletes the prefix. `tests/shell/test_release_dry_run.bats` fails any publishing step that is not gated on `RELEASE_MODE == 'publish'` and does not write through `R2_PREFIX`.
 
+### Signed channel manifests
+
+Every channel's `manifest.json` is published with a prehashed minisign signature beside it, `<channel>/manifest.json.minisig` in R2 (#1834). The easy installer checks it against the release key compiled into it before it trusts any hash in the manifest, and refuses a missing or failing signature; HelixScreen 1.1 itself does not check it. The `upload-r2` job's "Generate and sign channel manifests" step runs `scripts/sign-release-manifest.sh` before anything uploads; the upload puts each signature up before its manifest and checks that R2 serves it unchanged.
+
+- **A release** waits for a reviewer to approve the `release-signing` environment, which holds the `HELIX_RELEASE_MINISIGN_KEY` secret (the text of the minisign `.key` file; its password in `HELIX_RELEASE_MINISIGN_PASSWORD`). It verifies the result against `.github/release-minisign.pub`, the same public key the installer compiles in. A missing secret, a placeholder `.pub` or a secret that is not that key's pair fails the release before any manifest goes live.
+- **A dry run** uses no environment and never reads the secret. It signs with a key generated in the job, so the whole signing path runs on any ref, and nothing a dry run leaves in R2 verifies against the release key. `dry-run-verify` checks that each channel's signature reached R2.
+
+Setup (the environment, the exact `gh secret set` commands), what each client checks and the rollout order: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+
 ### Pipeline Stages
 
 ```text

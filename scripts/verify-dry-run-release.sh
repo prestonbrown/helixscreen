@@ -78,6 +78,9 @@ for ch in $CHANNELS; do
         fail "$ch/manifest.json missing from R2"
         continue
     fi
+    # Its signing key is the run's own and gone with it; that the signature is
+    # there, beside its manifest, is what a dry run can check.
+    [ -s "$manifest.minisig" ] || fail "$ch/manifest.json.minisig missing from R2"
     served=$(jq -r '.version // empty' "$manifest")
     [ "$served" = "$VERSION" ] || fail "$ch manifest carries version '$served', expected '$VERSION'"
     refs=$(jq -r '.assets[] | ([.url, .sha256], [.zip_url, .zip_sha256]) | select(.[0] != null) | @tsv' "$manifest")
