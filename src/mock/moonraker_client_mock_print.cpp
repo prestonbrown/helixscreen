@@ -3,6 +3,7 @@
 
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "json_utils.h"
 #include "moonraker_client_mock_internal.h"
 #include "printer_state.h"
 #include "ripple_batch_source_mock.h"
@@ -25,8 +26,8 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         std::string script;
-        if (params.contains("script")) {
-            script = params["script"].get<std::string>();
+        if (const json* script_field = helix::json_util::find_member(params, "script")) {
+            script = script_field->get<std::string>();
         }
 
         // The all-in-one tool offset calibration blocks until it is done, so
@@ -76,8 +77,8 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
+        if (const json* filename_field = helix::json_util::find_member(params, "filename")) {
+            filename = filename_field->get<std::string>();
         }
         if (auto tools = params.find("tools"); tools != params.end()) {
             spdlog::info("[MoonrakerClientMock] printer.print.start tools={}", tools->dump());
@@ -163,9 +164,7 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
         [](MoonrakerClientMock* self, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
            [[maybe_unused]] helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
-        const double target = params.contains("target") && params["target"].is_number()
-                                  ? params["target"].get<double>()
-                                  : 0.0;
+        const double target = helix::json_util::read_field<double>(params, "target").value_or(0.0);
         const json reply = self->chamber_route_set_target(target);
         if (success_cb) {
             success_cb(reply);

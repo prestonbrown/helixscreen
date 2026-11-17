@@ -11,6 +11,8 @@
  * the unit tests that pin the unwrap behaviour.
  */
 
+#include "json_utils.h"
+
 #include "hv/json.hpp" // JSON_HPP_OK: inline readers of the json
 
 namespace helix::led::detail {
@@ -47,8 +49,8 @@ inline const nlohmann::json& wled_strip_map(const nlohmann::json& data) {
     static const nlohmann::json empty = nlohmann::json::object();
 
     const nlohmann::json* level = &data;
-    if (data.is_object() && data.contains("result") && data["result"].is_object()) {
-        level = &data["result"];
+    if (const nlohmann::json* result = helix::json_util::find_object(data, "result")) {
+        level = result;
     }
 
     if (!level->is_object()) {
