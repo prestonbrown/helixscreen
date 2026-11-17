@@ -105,6 +105,7 @@ is out.
 - **Assigned Tool with AFC multiple tool mapping** - when multiple tool mapping is turned on in AFC, the Assigned Tool choice in the lane editor is disabled and says that tools are assigned in AFC. Before, choosing a tool there sent a change that AFC applied differently, so the lane kept showing its old tool.
 - **Clear message when Klipper cannot be restarted** - on a printer where Moonraker cannot restart services and HelixScreen has no recovery script of its own, such as a Snapmaker U1 running the extended firmware, Restart Klipper and Firmware Restart now say that the printer must be turned off and on again, instead of showing Moonraker's "not allowed" error.
 - **Klipper version on printers without a git install** - when Klipper reports no version of its own, as it does when it is not installed from git, such as on FlashForge printers running Z-Mod, the Printer Manager and About screens now show the version Moonraker's update manager knows for it instead of Unknown.
+- **Bed mesh shows in the pre-print checklist during an adaptive mesh** - on printers without a dedicated start profile, the checklist now marks Bed mesh active when Klipper starts an adaptive mesh inside the start macro, and counts its probe points against the adapted grid. Before, Klipper's adaptive mesh messages were not recognized, so the step was never shown as running.
 
 ## [1.1.0-rc.2] - UNRELEASED
 
