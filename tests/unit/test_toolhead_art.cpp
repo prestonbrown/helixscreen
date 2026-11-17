@@ -171,8 +171,7 @@ const std::set<std::string> kNoArtYet = {
     "anycubic_kobra_s1_max", "anet_et5_pro", "artillery_sidewinder_x2", "artillery_genius_pro",
     "geralkom_x400_ht", "geralkom_x500_ht", "infimech_tx", "lemontron", "zerog_mercury_one",
     "zerog_mercury_one_plus", "zerog_mercury_one_hydra", "zerog_mercury_one_plus_hydra",
-    "zerog_nebula_255", "zerog_nebula_370", "vzbot", "duender_medusahc", "ducr10_medusahc",
-    "ducr10", "duender"};
+    "zerog_nebula_255", "zerog_nebula_370", "vzbot", "ducr10", "duender"};
 
 // Aftermarket heads no stock printer ships with: drawn for the manual pick only.
 const std::set<std::string> kAftermarketHeads = {

@@ -156,6 +156,7 @@ The toolhead picture on the Motion screen, the filament system screens and the Z
 | **AntHead** | AntHead |
 | **JabberWocky** | JabberWocky |
 | **Stealthburner**, **Mini Stealthburner**, **Dragonburner** | The Voron toolheads of those names |
+| **MedusaHC** | The MedusaHC hotend changer's printhead: a Dragon Burner cowl with the docked tool in front and the feeder on top |
 | **Creality K1**, **Creality K2**, **Bambu Lab**, **Ender 3**, **XOL**, **Snapmaker U1**, **FlashForge AD5**, **FlashForge Creator 5**, **Elegoo Centauri**, **Artillery M1**, **Qidi**, **Sovol SV08** | That printer's or toolhead's own head |
 
 Leave it on **Auto** unless HelixScreen shows the wrong toolhead, or you've fitted an aftermarket one. Printers with their own toolhead picture get it automatically on Auto. This choice is remembered separately for each printer you have set up. The `toolhead_style` numbers for `settings.json` are in [Configuration](../../CONFIGURATION.md#toolhead_style).

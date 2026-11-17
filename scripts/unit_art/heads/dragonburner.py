@@ -204,16 +204,27 @@ def _extruder(d):
         d.disc(5.0 * MM, 90.0 * MM, 1.4 * MM, FRONT_PLATE_Y[0] - 0.0005, "#55575c", sides=12)
 
 
-def draw_art(scene, tier):
-    d = Drawing(scene, tier)
-    d.nozzle(TIP[0], TIP[1], 0.0, r_top=2.6 * MM, r_tip=0.8 * MM, z_tip=TIP[2])
-    _mounts(d)
+def draw_nozzle_tip(d, tip):
+    """Only the brass tip, below the duct feet's underside."""
+    d.nozzle(tip[0], tip[1], 0.0, r_top=2.6 * MM, r_tip=0.8 * MM, z_tip=tip[2])
+
+
+def draw_cowl(d, front_plate=True):
+    """Duct feet, blowers, the front plate round the hotend fan, and the cap; a head that covers the middle skips the plate."""
     _duct(d, -1)
     _blower(d, -1)
-    _front_plate(d)
+    if front_plate:
+        _front_plate(d)
     _duct(d, 1)
     _blower(d, 1)
     _cap(d)
+
+
+def draw_art(scene, tier):
+    d = Drawing(scene, tier)
+    draw_nozzle_tip(d, TIP)
+    _mounts(d)
+    draw_cowl(d)
     _extruder(d)
 
 

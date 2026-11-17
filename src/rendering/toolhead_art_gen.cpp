@@ -25,7 +25,8 @@ const ToolheadArt kToolheadArt[] = {
     {ToolheadStyle::ARTILLERY_M1, "artillery_m1", 0.7136f, 0.3440f, 0.9846f, 1.0335f, 0.4636f, 0.1120f},
     {ToolheadStyle::QIDI, "qidi", 0.5807f, 0.3123f, 0.9860f, 0.9637f, 0.4636f, 0.1172f},
     {ToolheadStyle::SOVOL_SV08, "sovol_sv08", 0.7200f, 0.3640f, 0.9630f, 0.9819f, 0.4401f, 0.1030f},
+    {ToolheadStyle::MEDUSAHC, "medusahc", 0.5091f, 0.3103f, 0.9949f, 1.3093f, 0.4488f, 0.1392f},
 };
-const int kToolheadArtCount = 18;
+const int kToolheadArtCount = 19;
 
 } // namespace helix::ui
