@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **A finished print wakes the display on Print Status** - when a print ended while the Print Status screen was open, the display stayed asleep. On panels that keep showing their last picture while asleep, the screen kept showing the print as running, with its progress and Pause and Cancel buttons, until someone touched it. The end of a print now wakes the display on Print Status just as it does on every other screen, unless print completion alerts are turned off.
+- **The installer no longer edits Z-Mod's own moonraker.conf on the AD5X** - on a FlashForge AD5X running Z-Mod, the installer added HelixScreen's update stanza to the moonraker.conf that Z-Mod keeps in its own git tree. Moonraker then reported Z-Mod as modified and refused to update it, and recovering needed a shell. The installer now finds Z-Mod's tree, writes the stanza to the user moonraker.conf that Z-Mod's file includes, and leaves Z-Mod's file alone. When an earlier install already edited it, the installer says which updates are blocked and prints the command that restores the file. (thanks @catduckgnaf)
+- **No second heater shutdown after a print error on Jacobean's K2 Plus firmware** - HelixScreen sends TURN_OFF_HEATERS when a print fails, because Klipper leaves the heaters on after an error. Jacobean's firmware for the Creality K2 Plus already turns the heaters off itself on an error, so HelixScreen now leaves it to the firmware on that printer. (thanks @Jacob10383)
 
 ## [1.1.0-rc.2] - 2026-11-17
 
