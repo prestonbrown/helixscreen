@@ -24,6 +24,8 @@ void AmsBackendMock::set_unit_model(const std::string& model, PathTopology topol
         return;
     system_info_.units[0].model = model;
     system_info_.units[0].topology = topology;
+    // The one unit's path is the backend's: get_unit_topology() falls back to it.
+    topology_ = topology;
 }
 
 void AmsBackendMock::rename_unit(int unit_index, const std::string& name) {
