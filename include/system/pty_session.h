@@ -43,6 +43,8 @@ class OutputBuffer {
     std::string take();
     /// Unblocks the reader for good; later appends are refused.
     void close();
+    /// Empty and accept appends again, for the next session on the same object.
+    void reopen();
     std::size_t size() const;
 
   private:

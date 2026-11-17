@@ -300,8 +300,37 @@ TEST_CASE("PtySession write never blocks on a child that does not read", "[host_
     CHECK(returned.load());
     // The bytes past the cap were dropped, and the write says so.
     CHECK_FALSE(accepted.load());
-    session.stop(); // a writer still blocked in write() is released by the hangup
+    session.stop();
     writer.join();
+}
+
+TEST_CASE("PtySession restarted sends nothing the last shell left unread", "[host_terminal]") {
+    OutputCollector collector;
+    PtySession session;
+    std::string error;
+    const auto ready = [](const std::string& out) {
+        return out.find("ready") != std::string::npos;
+    };
+    REQUIRE(session.start({"/bin/sh", "-c", "stty -icanon -echo; echo ready; sleep 30"}, {}, 24, 80,
+                          collector.wake_fn(), error));
+    std::string out;
+    REQUIRE(collector.wait_for(session, out, [&] { return ready(out); }));
+    session.write(std::string(PtySession::kMaxPendingInput, 'z'));
+    session.stop();
+
+    // min 0 time 5: a read with nothing waiting returns after half a second, so
+    // head counts exactly what was waiting for the new shell.
+    REQUIRE(session.start({"/bin/sh", "-c",
+                           "stty -icanon -echo min 0 time 5; echo ready; "
+                           "n=$(head -c 100000 | wc -c); echo got=$n"},
+                          {}, 24, 80, collector.wake_fn(), error));
+    out.clear();
+    CHECK(collector.wait_for(session, out, [&] {
+        return out.find("got=") != std::string::npos &&
+               out.find('\n', out.find("got=")) != std::string::npos;
+    }));
+    CHECK(out.find("got=0") != std::string::npos);
+    session.stop();
 }
 
 TEST_CASE("PtySession delivers waiting input as the child reads it", "[host_terminal]") {

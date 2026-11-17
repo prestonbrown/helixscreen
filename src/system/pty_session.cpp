@@ -161,6 +161,12 @@ void OutputBuffer::close() {
     space_.notify_all();
 }
 
+void OutputBuffer::reopen() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    bytes_.clear();
+    closed_ = false;
+}
+
 std::size_t OutputBuffer::size() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return bytes_.size();
@@ -284,6 +290,7 @@ bool PtySession::start(const std::vector<std::string>& argv, const std::vector<s
     wake_ = std::move(wake);
     hung_up_.store(false, std::memory_order_release);
     stopping_.store(false, std::memory_order_release);
+    output_.reopen();
     reader_ = helix::make_thread([this] { read_loop(); });
     return true;
 }
@@ -403,6 +410,12 @@ int PtySession::stop() {
     }
     if (reader_.joinable()) {
         reader_.join();
+    }
+    // Input the child never read belongs to it; a later start() must not send it
+    // to the next shell. The reader is gone, so nothing else touches it now.
+    {
+        std::lock_guard<std::mutex> lock(input_mutex_);
+        pending_input_.clear();
     }
     // Closing the master hangs the terminal up: the kernel sends SIGHUP to the
     // shell's session, and a shell passes it on to its jobs.
