@@ -61,6 +61,13 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(std::string(unit_shell_for(family, 0)->id) == "ams");
     family.units[0].model = "ams2";
     CHECK(std::string(unit_shell_for(family, 0)->id) == "ams_2_pro");
+    // A klipper-mmu family takes its own drawing, and one without a drawing keeps the logo.
+    family.units[0].model = "boxturtle";
+    CHECK(std::string(unit_shell_for(family, 0)->id) == "box_turtle");
+    family.units[0].model = "pico_mmu";
+    CHECK(unit_shell_for(family, 0) == nullptr);
+    family.units[0].slot_count = 1;
+    CHECK(unit_shell_for(family, 0) == nullptr);
 }
 
 TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firmwares",

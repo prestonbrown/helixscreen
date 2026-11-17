@@ -23,6 +23,7 @@ struct ShellRow {
     const char* enclosed_shell_id; ///< nullptr when the unit is never enclosed.
     int only_lanes;                ///< Match only this many lanes; 0 for any.
     bool selector_rail = false;    ///< Match only units that report a linear selector.
+    bool model_unreported = false; ///< Match only units that report no model.
 };
 
 constexpr ShellRow kShellRows[] = {
@@ -62,11 +63,26 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "tradrack", "tradrack_rail", nullptr, 0, true},
     {"cfs", nullptr, "cfs", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
-    // openams publishes each unit's family as its model. klipper_openams publishes none: its
-    // single-lane unit is the AMS HT, and the rest are OpenAMS 1 boards in an original AMS.
+    // openams publishes each unit's family as its model; a family with no drawing keeps the logo.
+    {"openams", "\nams1", "ams", nullptr, 0},
     {"openams", "\nams2", "ams_2_pro", nullptr, 0},
-    {"openams", nullptr, "ams_ht", nullptr, 1},
-    {"openams", nullptr, "ams", nullptr, 0},
+    {"openams", "\nams_ht", "ams_ht", nullptr, 0},
+    {"openams", "\nboxturtle", "box_turtle", "box_turtle_enclosed", 0},
+    {"openams", "\nnightowl", "night_owl", nullptr, 0},
+    {"openams", "\nquattrobox", "quattro_box", nullptr, 0},
+    {"openams", "\nbtt_vivid", "btt_vivid", nullptr, 0},
+    {"openams", "\nqidi_box", "qidi_box", nullptr, 0},
+    {"openams", "\nhtlf", "htlf", nullptr, 0},
+    {"openams", "\nemu", "emu", nullptr, 0},
+    {"openams", "\nkms", "kms", nullptr, 0},
+    {"openams", "\nmmx", "mmx", nullptr, 0},
+    {"openams", "\n3ms", "3ms", nullptr, 0},
+    {"openams", "\nercf", "ercf_rail", nullptr, 0, true},
+    {"openams", "\ntradrack", "tradrack_rail", nullptr, 0, true},
+    // klipper_openams publishes no family: its single-lane unit is the AMS HT, and the rest are
+    // OpenAMS 1 boards in an original AMS.
+    {"openams", nullptr, "ams_ht", nullptr, 1, false, true},
+    {"openams", nullptr, "ams", nullptr, 0, false, true},
 };
 
 /// Climate readings or a dryer mean the unit is closed up.
@@ -99,7 +115,8 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
         if (std::strcmp(row.backend_slug, slug) == 0 &&
             (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&
             (row.only_lanes == 0 || unit.slot_count == row.only_lanes) &&
-            (!row.selector_rail || unit.topology == PathTopology::LINEAR))
+            (!row.selector_rail || unit.topology == PathTopology::LINEAR) &&
+            (!row.model_unreported || unit.model.empty()))
             return unit_shell_by_id(row.enclosed_shell_id && has_climate(unit, has_dryer)
                                         ? row.enclosed_shell_id
                                         : row.shell_id);
