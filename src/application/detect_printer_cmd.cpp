@@ -2,6 +2,7 @@
 #include "detect_printer_cmd.h"
 
 #include "hv/requests.h"
+#include "json_utils.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
 
@@ -65,8 +66,8 @@ void populate_discovery(helix::PrinterDiscovery& disc, const nlohmann::json& obj
     // configfile.settings block: kinematics + build volume.
     // parse_config_keys() already guards every field with .is_string()/.is_number(),
     // so null values in the configfile are silently skipped.
-    if (cfg.is_object() && cfg.contains("configfile") && cfg["configfile"].contains("settings")) {
-        const auto& s = cfg["configfile"]["settings"];
+    if (const nlohmann::json* settings = json_util::find_path(cfg, "configfile", "settings")) {
+        const auto& s = *settings;
         disc.parse_config_keys(s);
         disc.parse_build_volume(s);
     }
@@ -77,25 +78,26 @@ int run_detect_printer(const std::string& host, int port) {
     const int t = 3;
 
     nlohmann::json objs = http_get_json(base + "/printer/objects/list", t);
-    if (!objs.is_object() || !objs.contains("result") || !objs["result"].contains("objects") ||
-        !objs["result"]["objects"].is_array()) {
+    const nlohmann::json* objects = json_util::find_path(objs, "result", "objects");
+    if (!objects || !objects->is_array()) {
         spdlog::warn("[detect] Moonraker object list unavailable at {}", base);
         return 1;
     }
 
     nlohmann::json info_result;
-    if (auto info = http_get_json(base + "/printer/info", t);
-        info.is_object() && info.contains("result"))
-        info_result = info["result"];
+    const nlohmann::json info = http_get_json(base + "/printer/info", t);
+    if (const nlohmann::json* result = json_util::find_member(info, "result"))
+        info_result = *result;
 
     nlohmann::json cfg_status;
-    if (auto cfg = http_get_json(base + "/printer/objects/query?configfile=settings", t);
-        cfg.is_object() && cfg.contains("result") && cfg["result"].contains("status"))
-        cfg_status = cfg["result"]["status"];
+    const nlohmann::json cfg =
+        http_get_json(base + "/printer/objects/query?configfile=settings", t);
+    if (const nlohmann::json* status = json_util::find_path(cfg, "result", "status"))
+        cfg_status = *status;
 
     helix::PrinterDiscovery disc;
     try {
-        populate_discovery(disc, objs["result"]["objects"], info_result, cfg_status);
+        populate_discovery(disc, *objects, info_result, cfg_status);
     } catch (const std::exception& e) {
         spdlog::warn("[detect] JSON parsing failed, continuing with partial data: {}", e.what());
     }
