@@ -278,8 +278,11 @@ RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g
 }
 
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g) {
-    return toolhead_standing_on(g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio),
-                                data.theme.extruder_scale);
+    return linear_hub_nozzle_y(g, data.theme.extruder_scale);
+}
+
+int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale) {
+    return toolhead_standing_on(g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio), scale);
 }
 
 // Layout mirrors the ratios at the top of ui_filament_path_internal.h; LINEAR
@@ -308,10 +311,25 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
         f.hub_y = f.toolhead_y - stub - f.hub_h / 2;
     }
-    f.nozzle_y = linear_hub_nozzle_y(data, g);
-    const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, theme.extruder_scale);
+    f.tool_scale = theme.extruder_scale;
+    f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
+    if (!linear && !data.hub_on_toolhead) {
+        // Between the lanes and the head the hub needs its box, a band's room above it for the
+        // lanes to enter and one below for the toolhead band. A canvas too short for that above
+        // a full-size head draws a smaller one.
+        const int32_t r = theme.sensor_radius;
+        const int32_t lanes_y = f.prep_on_box_edge ? f.prep_band_y : f.prep_y + r;
+        const int32_t need_top = lanes_y + 2 * r + f.hub_h + 2 * r;
+        const int32_t min_scale = LV_MAX(4, theme.extruder_scale / 2);
+        while (f.tool_scale > min_scale && glyph_top < need_top) {
+            --f.tool_scale;
+            f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
+            glyph_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+        }
+    }
+    const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, f.tool_scale);
     // The tube ends where the toolhead art begins; what happens inside the head is the art's.
-    f.inlet_y = toolhead_top_y(f.nozzle_y, theme.extruder_scale);
+    f.inlet_y = toolhead_top_y(f.nozzle_y, f.tool_scale);
     f.head_x = g.center_x + inlet.dx;
     f.bypass_merge_y = g.y_off + (int32_t)(g.height * kBypassMergeYRatio);
     f.center_x = g.center_x;
@@ -328,7 +346,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             return;
         f.buffer_y = f.output_y + 2 * f.sensor_r + buf_box_h;
         f.buf_fil_top = f.buffer_y - buf_box_h;
-        const int32_t floor = data.show_bypass ? f.bypass_merge_y : f.toolhead_y;
+        const int32_t floor = LV_MIN(data.show_bypass ? f.bypass_merge_y : f.toolhead_y, glyph_top);
         if (f.buffer_y + buf_box_h / 2 + 2 * f.sensor_r > floor) {
             f.has_buffer = false;
             f.sync_on_output = true;
@@ -481,6 +499,22 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         hub_top = LV_MAX(hub_top, LV_MIN(wanted_top, max_top));
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
+    }
+    // The hub's bottom stays a band's room above the toolhead glyph: where the ratio layout
+    // would reach into the head, the hub rises toward the lanes, the toolhead band takes the
+    // gap below it, and the lanes start their fan above it.
+    if (!data.hub_on_toolhead && hub_top + f.hub_h > glyph_top - 2 * f.sensor_r) {
+        hub_top = glyph_top - 2 * f.sensor_r - f.hub_h;
+        f.hub_y = hub_top + f.hub_h / 2;
+        f.output_y = f.hub_y + f.hub_h / 2;
+        f.toolhead_y = (f.output_y + glyph_top) / 2;
+        const int32_t fan_start = hub_top - 2 * f.sensor_r;
+        if (f.prep_on_box_edge)
+            f.prep_y = LV_MAX(f.prep_band_y, LV_MIN(f.prep_y, fan_start));
+        for (int i = 0; i < fan_n; ++i)
+            fan_in[i].start_y = std::min(fan_in[i].start_y, (float)LV_MAX(f.prep_y, fan_start));
+        for (int i = 0; fixed && i < hub_lanes; ++i)
+            widest[i].start_y = std::min(widest[i].start_y, (float)LV_MAX(f.prep_y, fan_start));
     }
     // The width is fitted to a fan ending one sensor radius above the hub, so
     // the final legs keep their clearance across the hub-entry bands.

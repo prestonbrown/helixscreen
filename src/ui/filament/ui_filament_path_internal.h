@@ -259,9 +259,10 @@ struct HitRects {
 // cheap to recompute from the path so it isn't cached.
 struct PathCache {
     pg::FilamentPath path = {};
-    int32_t center_x = 0; // last state-tied draw's center_x
-    int32_t nozzle_y = 0; // last state-tied draw's nozzle_y
-    int32_t sensor_r = 0; // last state-tied draw's sensor radius
+    int32_t center_x = 0;   // last state-tied draw's center_x
+    int32_t nozzle_y = 0;   // last state-tied draw's nozzle_y
+    int32_t tool_scale = 0; // and its toolhead glyph's scale
+    int32_t sensor_r = 0;   // last state-tied draw's sensor radius
     // Widget's top-left at that draw. Everything above is in display
     // coordinates, so the DRAW_POST pass shifts it by however far the widget
     // has moved since (a panel sliding in moves it with no state change).

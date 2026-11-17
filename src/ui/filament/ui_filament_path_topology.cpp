@@ -640,7 +640,7 @@ void draw_nozzle_glyph(const RenderCtx& ctx, const LinearHubFrame& f) {
         noz_color =
             (f.has_error && f.error_seg == PathSegment::NOZZLE) ? f.error_color : f.active_color;
     }
-    draw_toolhead(ctx.layer, f.head_x, f.nozzle_y, noz_color, data->theme.extruder_scale);
+    draw_toolhead(ctx.layer, f.head_x, f.nozzle_y, noz_color, f.tool_scale);
 }
 
 // LINEAR/HUB renderer: frame → plan → tubes → boxes and glyphs. Hit-rect
@@ -699,6 +699,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
                                                      : pg::FilamentPath{};
     data->path_cache.center_x = f.center_x;
     data->path_cache.nozzle_y = f.nozzle_y;
+    data->path_cache.tool_scale = f.tool_scale;
     data->path_cache.sensor_r = f.sensor_r;
     data->path_cache.origin = {ctx.geo.x_off, ctx.geo.y_off};
     for (int i = 0; i < pg::FilamentPath::kMaxSegs; ++i)
@@ -738,7 +739,7 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
         if (data->feeds_toolhead && flow_path.count > 0) {
             pg::PathSeg& last = flow_path.segs[flow_path.count - 1];
             const float top =
-                static_cast<float>(toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+                static_cast<float>(toolhead_top_y(nozzle_y, data->path_cache.tool_scale));
             if (last.type == pg::PathSeg::LINE && std::fabs(last.p1.x - last.p0.x) < 0.5f &&
                 last.p1.y > top)
                 last.p1.y = std::max(last.p0.y, top);
@@ -761,9 +762,9 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Heat glow halo around the nozzle tip.
     if (data->anim.heat_active && data->feeds_toolhead) {
-        int32_t tip_y = toolhead_tip_y(nozzle_y, data->theme.extruder_scale);
+        int32_t tip_y = toolhead_tip_y(nozzle_y, data->path_cache.tool_scale);
         const int32_t head_x =
-            center_x + path_toolhead_inlet(nozzle_y, data->theme.extruder_scale).dx;
+            center_x + path_toolhead_inlet(nozzle_y, data->path_cache.tool_scale).dx;
         draw_heat_glow(layer, head_x, tip_y, sensor_r, data->anim.heat_pulse_opa);
     }
 

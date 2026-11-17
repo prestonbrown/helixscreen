@@ -65,6 +65,9 @@ struct LinearHubFrame {
     int32_t output_y = 0;
     int32_t toolhead_y = 0;
     int32_t nozzle_y = 0;
+    // The toolhead glyph's scale: the theme's, or smaller on a canvas too short to fit the hub
+    // between the lanes and a full-size head.
+    int32_t tool_scale = 0;
     int32_t inlet_y = 0; // where the tube meets the toolhead glyph: its top
     int32_t head_x = 0;  // the toolhead glyph's column, its inlet on center_x
     int32_t bypass_merge_y = 0;
@@ -202,9 +205,11 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const
 /// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
 /// kToolheadGlyphBottomRatio of the canvas height.
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
+int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
 
-/// @p glyph_top is the toolhead glyph's topmost drawn Y (toolhead_top_y()):
-/// a HUB with the bypass hidden stacks its hub and buffer above it.
+/// @p glyph_top is the full-size toolhead glyph's topmost drawn Y (toolhead_top_y()):
+/// a HUB with the bypass hidden stacks its hub and buffer above it. A HUB canvas too
+/// short for its hub above that glyph draws a smaller head (LinearHubFrame::tool_scale).
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top);
 

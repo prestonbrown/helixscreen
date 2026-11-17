@@ -225,8 +225,62 @@ TEST_CASE_METHOD(HubStackFixture,
         REQUIRE(c.data->hits.hub_valid);
         CHECK(center_y(c.data->hits.hub) > ratio_y(c, kHubYRatio));
         const int32_t glyph_top =
-            toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
+            toolhead_top_y(c.data->path_cache.nozzle_y, c.data->path_cache.tool_scale);
         CHECK(c.data->hits.hub.y2 < glyph_top);
+    }
+}
+
+// The OpenAMS unit view at 480x272: four lanes leave the spool box at y 180 into a canvas
+// 66 px tall below it, a buffer present and no bypass. Its sizes are that breakpoint's.
+TEST_CASE_METHOD(HubStackFixture, "HUB on a 480x272 canvas keeps its hub and buffer off the head",
+                 "[filament-path][hub-stack]") {
+    const auto style = GENERATE(helix::ToolheadStyle::DEFAULT, helix::ToolheadStyle::STEALTHBURNER,
+                                helix::ToolheadStyle::JABBERWOCKY, helix::ToolheadStyle::A4T);
+    ScopedToolheadStyle scoped(style);
+    const bool buffer = GENERATE(true, false);
+    CAPTURE(static_cast<int>(style), buffer);
+
+    FilamentPathData d;
+    d.topology = static_cast<int>(helix::PathTopology::HUB);
+    d.slot_count = 4;
+    d.theme.tube_gauge = 5;
+    d.theme.sensor_radius = 4;
+    d.theme.hub_width = 50;
+    d.theme.extruder_scale = 8;
+    for (int i = 0; i < 4; i++)
+        d.slot_has_prep_sensor[i] = true;
+    d.has_hub_sensor = true;
+    d.has_toolhead_sensor = true;
+    d.buffer_present = buffer;
+    d.show_bypass = false;
+    BaseGeometry g;
+    g.x_off = 330;
+    g.y_off = 194;
+    g.width = 285;
+    g.height = 66;
+    g.slot_count = 4;
+    for (int i = 0; i < 4; i++)
+        g.slot_x[i] = 384 + 58 * i;
+    g.center_x = 471;
+    g.lane_entry_y = 180;
+
+    const LinearHubFrame f = compute_linear_hub_frame(
+        d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+    CAPTURE(f.hub_y, f.hub_h, f.toolhead_y, f.tool_scale, head_top);
+    CHECK(f.hub_y + f.hub_h / 2 <= head_top);
+    CHECK(f.toolhead_y <= head_top);
+    if (f.has_buffer)
+        CHECK(f.buffer_y + std::max<int32_t>(16, f.hub_h) / 2 <= head_top);
+    // The lanes still come down from the spool box into the hub's top.
+    static PathPlan plan;
+    plan_linear_hub(f, d, g, plan);
+    for (int i = 0; i < 4; i++) {
+        CAPTURE(i);
+        check_contiguous(plan.routes[i].path);
+        const pg::PathPoint end = seg_end(plan.routes[i].path.segs[plan.routes[i].path.count - 1]);
+        CHECK(end.y == Catch::Approx(f.hub_y - f.hub_h / 2));
+        CHECK(end.y >= (float)g.lane_entry_y);
     }
 }
 
