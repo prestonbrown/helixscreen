@@ -66,7 +66,21 @@ Releasing the motors loses the printer's position, so the next move needs homing
 | **On** (default) | The **Shutdown** and **Reboot** rows on the Advanced panel open the power dialog first |
 | **Off** | Those rows shut down or reboot straight away |
 
-The setting changes only the Advanced panel's rows, because each of them already names its action. The power button on the Home screen always opens the dialog, since that is where you choose between shutting down and rebooting. A screen that runs on a different computer from the printer also always opens the dialog, so that you can choose the printer, the screen or both. While a print is running, both rows always ask.
+The setting changes only the Advanced panel's rows, because each of them already names its action. The power button on the Home screen always opens the dialog, since that is where you choose between shutting down and rebooting. While a print is running, both rows always ask.
+
+---
+
+## Shutdown/reboot target
+
+This row appears only when the screen runs on a different computer from the printer. There the power dialog offers the printer, this screen or both, and this setting chooses which one the Advanced panel's **Shutdown** and **Reboot** rows act on.
+
+| Setting | What happens |
+|---------|--------------|
+| **Ask every time** (default) | The rows open the power dialog, starting on this screen |
+| **Printer** | With **Confirm shutdown and reboot** off, the rows shut down or reboot the printer straight away. With it on, the dialog opens with the printer already selected |
+| **This screen** | The same, for the computer the screen runs on |
+
+The dialog from the Home screen's power button also starts on the chosen target.
 
 ---
 

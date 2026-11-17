@@ -6,6 +6,7 @@
 #include "ui_shutdown_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "safety_settings_manager.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "system_power.h"
 
@@ -112,14 +113,25 @@ enum class PowerIntent {
     Reboot,   ///< A row that already says Reboot.
 };
 
-/// Whether a power request runs without the dialog. Pure.
+/// What a power request does: open the dialog, or act at once on a scope.
+struct PowerDecision {
+    bool run_now;
+    /// The scope acted on when run_now, else the scope a dual-host dialog's
+    /// split buttons open on. Read only in Dual mode.
+    ShutdownScope scope;
+};
+
+/// Decide a power request. Pure.
 ///
-/// Only an entry point that already names the action can skip, only with the
-/// confirmation setting off, and only on a single-host screen: a dual-host
-/// screen still has to choose between the printer, the screen or both. A job
-/// holding the machine always asks, since powering down ruins it.
-bool power_skips_dialog(PowerIntent intent, bool require_confirmation, ShutdownDialogMode mode,
-                        bool job_active);
+/// A dual-host screen with a target chosen in Settings (@p target) opens its
+/// dialog on that target instead of @p plan's default. A request runs without
+/// the dialog only when its entry point already names the action, the
+/// confirmation setting is off, no job holds the machine (powering down ruins
+/// it), and the scope is settled: a single-host screen has one, a dual-host
+/// screen needs a target other than Ask.
+PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation,
+                                   const ShutdownDialogPlan& plan, PowerTarget target,
+                                   bool job_active);
 
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
@@ -129,7 +141,7 @@ bool power_skips_dialog(PowerIntent intent, bool require_confirmation, ShutdownD
 /// lifetime guard is required for the "shutdown both" / "reboot both" flows
 /// that defer the local SystemPower call until the printer-side ack.
 ///
-/// When power_skips_dialog() allows it for @p intent, the modal opens straight
+/// When decide_power_request() allows it for @p intent, the modal opens straight
 /// into its shutting-down or rebooting state and the action is sent at once.
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen, PowerIntent intent = PowerIntent::Choose);

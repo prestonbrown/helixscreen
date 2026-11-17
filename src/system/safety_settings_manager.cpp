@@ -32,6 +32,8 @@ static constexpr settings::PersistedSetting kSafetySettings[] = {
      1, 0, 1, "motors_off_confirm"},
     {"settings_power_confirm", "/safety/power_require_confirmation", Scope::Global, true, 1, 0, 1,
      "power_confirm"},
+    {"settings_power_target", "/safety/power_target", Scope::Global, false, 0, 0, 2,
+     "power_target"},
 };
 
 SafetySettingsManager& SafetySettingsManager::instance() {

@@ -393,6 +393,7 @@ translations:
   Ask before switching to another tool: 'Vor dem Wechsel zu einem anderen Werkzeug fragen'
   Ask before the Advanced panel shuts down or reboots: 'Fragen, bevor das Menü Erweitert herunterfährt oder neu startet'
   Ask before turning off the stepper motors: 'Vor dem Abschalten der Schrittmotoren fragen'
+  Ask every time: 'Jedes Mal fragen'
   Ask for parameters: 'Nach Parametern fragen'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros
     zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
@@ -2889,6 +2890,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Ob die Z-Pfeile dem Bett oder dem Z-Wert folgen"
   Which belt is each path?: "Welcher Riemen ist welcher Pfad?"
   Which belt is which?: "Welcher Riemen ist welcher?"
+  Which computer the Advanced power rows act on: 'Welchen Computer die Energie-Zeilen unter Erweitert betreffen'
   'Which lane is in the toolhead?': 'Welche Spur steckt im Druckkopf?'
   'Choose which lane is in the toolhead to unload it': 'Wähle, welche Spur im Druckkopf steckt, um sie zu entladen'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp.'
@@ -3987,6 +3989,7 @@ translations:
   Shutdown failed — host is still reachable: Herunterfahren fehlgeschlagen — Host
     ist weiterhin erreichbar
   Shutdown/Reboot: 'Herunterfahren/Neustart'
+  Shutdown/reboot target: 'Ziel für Herunterfahren/Neustart'
   Shutting down printer...: Drucker wird heruntergefahren...
   Shutting down screen...: Bildschirm wird heruntergefahren...
   Shutting down...: Wird heruntergefahren...
@@ -4678,6 +4681,7 @@ translations:
   : 'Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."
   This resume needs a newer version of HelixScreen.: Dieses Fortsetzen braucht eine neuere Version von HelixScreen.
+  This screen: 'Dieser Bildschirm'
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
   This system does not support bypass mode: 'Dieses System unterstützt den Bypass-Modus nicht'

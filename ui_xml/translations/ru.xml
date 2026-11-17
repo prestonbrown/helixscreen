@@ -389,6 +389,7 @@
   <translation tag="Ask before switching to another tool" ru="Спрашивать перед переключением на другой инструмент"/>
   <translation tag="Ask before the Advanced panel shuts down or reboots" ru="Спрашивать перед выключением или перезагрузкой из раздела Дополнительно"/>
   <translation tag="Ask before turning off the stepper motors" ru="Спрашивать перед отключением шаговых моторов"/>
+  <translation tag="Ask every time" ru="Спрашивать каждый раз"/>
   <translation tag="Ask for parameters" ru="Спрашивать параметры"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
@@ -3722,6 +3723,7 @@
   <translation tag="Shutdown failed" ru="Ошибка выключения"/>
   <translation tag="Shutdown failed — host is still reachable" ru="Ошибка выключения — хост всё ещё доступен"/>
   <translation tag="Shutdown/Reboot" ru="Выключение/Перезагрузка"/>
+  <translation tag="Shutdown/reboot target" ru="Цель выключения/перезагрузки"/>
   <translation tag="Shutting down printer..." ru="Выключение принтера..."/>
   <translation tag="Shutting down screen..." ru="Выключение экрана..."/>
   <translation tag="Shutting down..." ru="Выключение..."/>
@@ -4328,6 +4330,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." ru="Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ru="Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."/>
   <translation tag="This resume needs a newer version of HelixScreen." ru="Для этого продолжения нужна более новая версия HelixScreen."/>
+  <translation tag="This screen" ru="Этот экран"/>
   <translation tag="This slot feeds no tool" ru="Этот слот не подаёт филамент ни в один инструмент"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
   <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
@@ -4693,6 +4696,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
   <translation tag="Which belt is each path?" ru="Какой ремень у каждого пути?"/>
   <translation tag="Which belt is which?" ru="Где какой ремень?"/>
+  <translation tag="Which computer the Advanced power rows act on" ru="На какой компьютер действуют пункты питания в разделе Дополнительно"/>
   <translation tag="Which lane is in the toolhead?" ru="Какая дорожка в печатающей головке?"/>
   <translation tag="Which macro switches the ACE path back on" ru="Какой макрос снова включает тракт ACE"/>
   <translation tag="Which macro switches the ACE path off for bypass" ru="Какой макрос выключает тракт ACE для обхода"/>

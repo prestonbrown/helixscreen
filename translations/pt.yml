@@ -388,6 +388,7 @@ translations:
   Ask before switching to another tool: 'Perguntar antes de trocar para outra ferramenta'
   Ask before the Advanced panel shuts down or reboots: 'Perguntar antes de o painel Avançado desligar ou reiniciar'
   Ask before turning off the stepper motors: 'Perguntar antes de desligar os motores de passo'
+  Ask every time: 'Perguntar sempre'
   Ask for parameters: 'Perguntar parâmetros'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Atribuir macros
     Klipper para controlar LEDs via ligar/desligar, alternar ou predefinições
@@ -2883,6 +2884,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Se as setas Z seguem a mesa ou o valor Z"
   Which belt is each path?: "Qual correia é cada caminho?"
   Which belt is which?: "Qual correia é qual?"
+  Which computer the Advanced power rows act on: 'Qual computador as linhas de energia do Avançado afetam'
   'Which lane is in the toolhead?': 'Qual via está na cabeça?'
   'Choose which lane is in the toolhead to unload it': 'Escolha qual via está na cabeça para descarregá-la'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Nada foi alterado. A temperatura e o material são mantidos, repetir é um toque.'
@@ -3983,6 +3985,7 @@ translations:
   Shutdown failed — host is still reachable: Falha ao desligar — o host ainda está
     acessível
   Shutdown/Reboot: 'Desligar/Reiniciar'
+  Shutdown/reboot target: 'Destino de desligar/reiniciar'
   Shutting down printer...: Desligando impressora...
   Shutting down screen...: Desligando tela...
   Shutting down...: Desligando...
@@ -4676,6 +4679,7 @@ translations:
   : 'Isto substitui as macros de ajuda da impressora pela versão atual. Uma impressão está em andamento, então o Klipper será reiniciado ao término.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Isso substitui o layout da tela inicial desta tela para esta impressora pelo layout da tela da própria impressora."
   This resume needs a newer version of HelixScreen.: Esta retomada precisa de uma versão mais nova do HelixScreen.
+  This screen: 'Esta tela'
   This slot feeds no tool: 'Este slot não alimenta nenhuma ferramenta'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente.'
   This system does not support bypass mode: 'Este sistema não oferece suporte ao modo bypass'

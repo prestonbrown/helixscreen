@@ -432,6 +432,7 @@ translations:
   Ask before switching to another tool: 'Спрашивать перед переключением на другой инструмент'
   Ask before the Advanced panel shuts down or reboots: 'Спрашивать перед выключением или перезагрузкой из раздела Дополнительно'
   Ask before turning off the stepper motors: 'Спрашивать перед отключением шаговых моторов'
+  Ask every time: 'Спрашивать каждый раз'
   Ask for parameters: 'Спрашивать параметры'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Назначьте
     макросы Klipper для управления LED через вкл/выкл, переключение или пресеты
@@ -2926,6 +2927,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Следуют ли стрелки Z за столом или за значением Z"
   Which belt is each path?: "Какой ремень у каждого пути?"
   Which belt is which?: "Где какой ремень?"
+  Which computer the Advanced power rows act on: 'На какой компьютер действуют пункты питания в разделе Дополнительно'
   'Which lane is in the toolhead?': 'Какая дорожка в печатающей головке?'
   'Choose which lane is in the toolhead to unload it': 'Выберите, какая дорожка в печатающей головке, чтобы выгрузить её'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
@@ -4028,6 +4030,7 @@ translations:
   Shutdown failed: Ошибка выключения
   Shutdown failed — host is still reachable: Ошибка выключения — хост всё ещё доступен
   Shutdown/Reboot: 'Выключение/Перезагрузка'
+  Shutdown/reboot target: 'Цель выключения/перезагрузки'
   Shutting down printer...: Выключение принтера...
   Shutting down screen...: Выключение экрана...
   Shutting down...: Выключение...
@@ -4720,6 +4723,7 @@ translations:
   : 'Это заменит вспомогательные макросы принтера текущей версией. Идёт печать, поэтому Klipper перезапустится после её завершения.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
+  This screen: 'Этот экран'
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'

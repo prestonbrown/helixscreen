@@ -114,6 +114,10 @@ const std::vector<Row>& rows() {
          1, 0, 1, "power_confirm", true, SETB(safety().set_power_require_confirmation),
          GET(safety().get_power_require_confirmation),
          SUBJ(safety().subject_power_require_confirmation)},
+        {"settings_power_target", Mgr::Safety, false, "/safety/power_target", false, 0, 0, 2,
+         "power_target", true,
+         [](int v) { safety().set_power_target(static_cast<PowerTarget>(v)); },
+         GET(safety().get_power_target), SUBJ(safety().subject_power_target)},
 
         // RemoteScreenSettingsManager
         {"settings_remote_screen_enabled", Mgr::RemoteScreen, true, "remote_screen/enabled", true,

@@ -353,6 +353,7 @@
   <translation tag="Ask before switching to another tool" zh="切换到其他工具前先询问"/>
   <translation tag="Ask before the Advanced panel shuts down or reboots" zh="在高级面板关机或重启前先询问"/>
   <translation tag="Ask before turning off the stepper motors" zh="关闭步进电机前先询问"/>
+  <translation tag="Ask every time" zh="每次询问"/>
   <translation tag="Ask for parameters" zh="询问参数"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
@@ -3665,6 +3666,7 @@
   <translation tag="Shutdown failed" zh="关机失败"/>
   <translation tag="Shutdown failed — host is still reachable" zh="关机失败 — 主机仍可访问"/>
   <translation tag="Shutdown/Reboot" zh="关机/重启"/>
+  <translation tag="Shutdown/reboot target" zh="关机/重启目标"/>
   <translation tag="Shutting down printer..." zh="正在关闭打印机..."/>
   <translation tag="Shutting down screen..." zh="正在关闭屏幕..."/>
   <translation tag="Shutting down..." zh="正在关机..."/>
@@ -4265,6 +4267,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." zh="这会将打印机的帮助宏替换为当前版本。当前正在打印，Klipper 将在打印结束后重启。"/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." zh="这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"/>
   <translation tag="This resume needs a newer version of HelixScreen." zh="此恢复需要更新版本的 HelixScreen。"/>
+  <translation tag="This screen" zh="此屏幕"/>
   <translation tag="This slot feeds no tool" zh="此槽位不向任何工具供料"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
@@ -4630,6 +4633,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" zh="Z 按钮跟随热床还是 Z 值"/>
   <translation tag="Which belt is each path?" zh="每条路径是哪条皮带?"/>
   <translation tag="Which belt is which?" zh="哪条皮带是哪条?"/>
+  <translation tag="Which computer the Advanced power rows act on" zh="高级面板电源项作用的计算机"/>
   <translation tag="Which lane is in the toolhead?" zh="哪个料道在打印头里？"/>
   <translation tag="Which macro switches the ACE path back on" zh="重新开启ACE通路的宏"/>
   <translation tag="Which macro switches the ACE path off for bypass" zh="为旁路关闭ACE通路的宏"/>

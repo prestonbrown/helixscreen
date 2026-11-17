@@ -353,6 +353,7 @@
   <translation tag="Ask before switching to another tool" it="Chiedi prima di passare a un altro utensile"/>
   <translation tag="Ask before the Advanced panel shuts down or reboots" it="Chiedi prima che il pannello Avanzate spenga o riavvii"/>
   <translation tag="Ask before turning off the stepper motors" it="Chiedi prima di disattivare i motori stepper"/>
+  <translation tag="Ask every time" it="Chiedi ogni volta"/>
   <translation tag="Ask for parameters" it="Chiedi i parametri"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" it="Assegna macro Klipper per controllare LED tramite on/off, alternanza o preset"/>
   <translation tag="Assign a role to enable sensor monitoring" it="Assegna un ruolo per abilitare il monitoraggio del sensore"/>
@@ -3665,6 +3666,7 @@
   <translation tag="Shutdown failed" it="Spegnimento fallito"/>
   <translation tag="Shutdown failed — host is still reachable" it="Spegnimento fallito — l&apos;host è ancora raggiungibile"/>
   <translation tag="Shutdown/Reboot" it="Spegni/Riavvia"/>
+  <translation tag="Shutdown/reboot target" it="Destinazione di spegnimento/riavvio"/>
   <translation tag="Shutting down printer..." it="Spegnimento stampante..."/>
   <translation tag="Shutting down screen..." it="Spegnimento schermo..."/>
   <translation tag="Shutting down..." it="Spegnimento in corso..."/>
@@ -4265,6 +4267,7 @@
   <translation tag="This replaces the printer&apos;s helper macros with the current version. A print is running, so Klipper restarts after it finishes." it="Sostituisce le macro di ausilio della stampante con la versione attuale. Una stampa è in corso, quindi Klipper verrà riavviato al termine."/>
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." it="Questo sostituisce il layout della schermata iniziale di questo schermo per questa stampante con quello dello schermo della stampante."/>
   <translation tag="This resume needs a newer version of HelixScreen." it="Questa ripresa richiede una versione più recente di HelixScreen."/>
+  <translation tag="This screen" it="Questo schermo"/>
   <translation tag="This slot feeds no tool" it="Questo slot non alimenta alcuno strumento"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." it="I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva."/>
   <translation tag="This system does not support bypass mode" it="Questo sistema non supporta la modalità bypass"/>
@@ -4630,6 +4633,7 @@
   <translation tag="Whether the Z arrows follow the bed or the Z value" it="Se le frecce Z seguono il piano o il valore Z"/>
   <translation tag="Which belt is each path?" it="Quale cinghia corrisponde a ogni percorso?"/>
   <translation tag="Which belt is which?" it="Quale cinghia è quale?"/>
+  <translation tag="Which computer the Advanced power rows act on" it="Su quale computer agiscono le righe di alimentazione di Avanzate"/>
   <translation tag="Which lane is in the toolhead?" it="Quale corsia è nella testina?"/>
   <translation tag="Which macro switches the ACE path back on" it="Quale macro riattiva il percorso ACE"/>
   <translation tag="Which macro switches the ACE path off for bypass" it="Quale macro disattiva il percorso ACE per il bypass"/>

@@ -10,6 +10,10 @@
 
 namespace helix {
 
+/// What the Advanced panel's Shutdown and Reboot rows act on when the screen
+/// and the printer are different computers. Values are the dropdown's indexes.
+enum class PowerTarget : int { Ask = 0, Printer = 1, Screen = 2 };
+
 /**
  * @brief Domain-specific manager for safety settings
  *
@@ -22,6 +26,7 @@ namespace helix {
  * - tool_change_require_confirmation (0/1)
  * - motors_off_require_confirmation (0/1)
  * - power_require_confirmation (0/1)
+ * - power_target (PowerTarget: 0=ask, 1=printer, 2=this screen)
  * - min_toast_severity (dropdown index 0=All / 1=Warnings & errors / 2=Errors only, #1213)
  *
  * Thread safety: Single-threaded, main LVGL thread only.
@@ -106,6 +111,14 @@ class SafetySettingsManager {
         settings_.set(Key::PowerConfirm, require);
     }
 
+    /** @brief Remote-screen power target for the Advanced Shutdown and Reboot rows */
+    PowerTarget get_power_target() const {
+        return static_cast<PowerTarget>(settings_.get(Key::PowerTarget));
+    }
+    void set_power_target(PowerTarget target) {
+        settings_.set(Key::PowerTarget, static_cast<int>(target));
+    }
+
     /** @brief Get the minimum toast severity index (0=All, 1=Warnings & errors, 2=Errors only) */
     int get_min_toast_severity() const;
 
@@ -157,6 +170,11 @@ class SafetySettingsManager {
         return settings_.subject(Key::PowerConfirm);
     }
 
+    /** @brief Power target subject (integer: PowerTarget dropdown index) */
+    lv_subject_t* subject_power_target() {
+        return settings_.subject(Key::PowerTarget);
+    }
+
     /** @brief Minimum toast severity subject (integer: dropdown index 0/1/2, #1213) */
     lv_subject_t* subject_min_toast_severity() {
         return &min_toast_severity_subject_;
@@ -174,6 +192,7 @@ class SafetySettingsManager {
         ToolChangeConfirm,
         MotorsOffConfirm,
         PowerConfirm,
+        PowerTarget,
         COUNT
     };
 

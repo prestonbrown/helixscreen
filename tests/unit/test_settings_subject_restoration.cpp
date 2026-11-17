@@ -56,6 +56,7 @@ const std::vector<const char*> kSafetySubjects{"settings_estop_confirm",
                                                "settings_tool_change_confirm",
                                                "settings_motors_off_confirm",
                                                "settings_power_confirm",
+                                               "settings_power_target",
                                                "settings_min_toast_severity"};
 
 void require_all_resolve(const std::vector<const char*>& names) {

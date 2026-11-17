@@ -230,25 +230,62 @@ TEST_CASE("A failed local power retries through a connected Moonraker", "[shutdo
     CHECK(host_power_follow_up(PowerResult::NotAuthorized, false) == HostPowerFollowUp::Toast);
 }
 
-TEST_CASE("A named power action skips the dialog only when nothing argues for asking",
+TEST_CASE("A power request runs at once only with its scope settled and nothing asking",
           "[shutdown][power][safety]") {
     using M = ShutdownDialogMode;
+    using S = ShutdownScope;
+    using T = PowerTarget;
+    const ShutdownDialogPlan single{M::SingleViaMoonraker, S::Screen};
+    const ShutdownDialogPlan local{M::SingleViaLocalPower, S::Screen};
+    const ShutdownDialogPlan dual{M::Dual, S::Screen};
     constexpr bool kConfirm = true;
     constexpr bool kNoConfirm = false;
     constexpr bool kJob = true;
     constexpr bool kIdle = false;
+    const auto run = [](PowerDecision d) { return d.run_now; };
 
-    // The Advanced panel's rows name their action; with confirmation off a
-    // single-host screen runs it.
-    CHECK(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::SingleViaMoonraker, kIdle));
-    CHECK(power_skips_dialog(PowerIntent::Reboot, kNoConfirm, M::SingleViaLocalPower, kIdle));
+    SECTION("single host: confirmation alone decides, the target does not matter") {
+        CHECK(run(decide_power_request(PowerIntent::Shutdown, kNoConfirm, single, T::Ask, kIdle)));
+        CHECK(run(decide_power_request(PowerIntent::Reboot, kNoConfirm, local, T::Printer, kIdle)));
+        CHECK_FALSE(
+            run(decide_power_request(PowerIntent::Reboot, kConfirm, single, T::Printer, kIdle)));
+    }
 
-    // The setting on: the dialog confirms.
-    CHECK_FALSE(power_skips_dialog(PowerIntent::Reboot, kConfirm, M::SingleViaMoonraker, kIdle));
-    // The home-panel power button names no action, so the dialog is the choice.
-    CHECK_FALSE(power_skips_dialog(PowerIntent::Choose, kNoConfirm, M::SingleViaMoonraker, kIdle));
-    // Two hosts: printer, screen or both is still to be chosen.
-    CHECK_FALSE(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::Dual, kIdle));
-    // A job holding the machine always asks.
-    CHECK_FALSE(power_skips_dialog(PowerIntent::Shutdown, kNoConfirm, M::SingleViaMoonraker, kJob));
+    SECTION("two hosts: a chosen target with confirmation off acts on it at once") {
+        const auto printer =
+            decide_power_request(PowerIntent::Reboot, kNoConfirm, dual, T::Printer, kIdle);
+        CHECK(printer.run_now);
+        CHECK(printer.scope == S::Printer);
+        const auto screen =
+            decide_power_request(PowerIntent::Shutdown, kNoConfirm, dual, T::Screen, kIdle);
+        CHECK(screen.run_now);
+        CHECK(screen.scope == S::Screen);
+    }
+
+    SECTION("two hosts: Ask keeps the dialog on the plan's default scope") {
+        const auto d = decide_power_request(PowerIntent::Shutdown, kNoConfirm, dual, T::Ask, kIdle);
+        CHECK_FALSE(d.run_now);
+        CHECK(d.scope == S::Screen);
+    }
+
+    SECTION("two hosts: confirmation on opens the dialog on the chosen target") {
+        const auto d =
+            decide_power_request(PowerIntent::Shutdown, kConfirm, dual, T::Printer, kIdle);
+        CHECK_FALSE(d.run_now);
+        CHECK(d.scope == S::Printer);
+        // The Home power button names no action, but its dialog starts there too.
+        const auto home =
+            decide_power_request(PowerIntent::Choose, kNoConfirm, dual, T::Printer, kIdle);
+        CHECK_FALSE(home.run_now);
+        CHECK(home.scope == S::Printer);
+    }
+
+    SECTION("the Home power button and a running job always ask") {
+        CHECK_FALSE(
+            run(decide_power_request(PowerIntent::Choose, kNoConfirm, single, T::Ask, kIdle)));
+        CHECK_FALSE(
+            run(decide_power_request(PowerIntent::Shutdown, kNoConfirm, single, T::Ask, kJob)));
+        CHECK_FALSE(
+            run(decide_power_request(PowerIntent::Reboot, kNoConfirm, dual, T::Printer, kJob)));
+    }
 }

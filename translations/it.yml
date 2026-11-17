@@ -389,6 +389,7 @@ translations:
   Ask before switching to another tool: 'Chiedi prima di passare a un altro utensile'
   Ask before the Advanced panel shuts down or reboots: 'Chiedi prima che il pannello Avanzate spenga o riavvii'
   Ask before turning off the stepper motors: 'Chiedi prima di disattivare i motori stepper'
+  Ask every time: 'Chiedi ogni volta'
   Ask for parameters: 'Chiedi i parametri'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assegna macro
     Klipper per controllare LED tramite on/off, alternanza o preset
@@ -2881,6 +2882,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Se le frecce Z seguono il piano o il valore Z"
   Which belt is each path?: "Quale cinghia corrisponde a ogni percorso?"
   Which belt is which?: "Quale cinghia è quale?"
+  Which computer the Advanced power rows act on: 'Su quale computer agiscono le righe di alimentazione di Avanzate'
   'Which lane is in the toolhead?': 'Quale corsia è nella testina?'
   'Choose which lane is in the toolhead to unload it': 'Scegli quale corsia è nella testina per scaricarla'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Nulla è stato modificato. Temperatura e materiale restano, riprovare è un tocco.'
@@ -3978,6 +3980,7 @@ translations:
   Shutdown failed — host is still reachable: Spegnimento fallito — l'host è ancora
     raggiungibile
   Shutdown/Reboot: 'Spegni/Riavvia'
+  Shutdown/reboot target: 'Destinazione di spegnimento/riavvio'
   Shutting down printer...: Spegnimento stampante...
   Shutting down screen...: Spegnimento schermo...
   Shutting down...: Spegnimento in corso...
@@ -4670,6 +4673,7 @@ translations:
   : 'Sostituisce le macro di ausilio della stampante con la versione attuale. Una stampa è in corso, quindi Klipper verrà riavviato al termine.'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Questo sostituisce il layout della schermata iniziale di questo schermo per questa stampante con quello dello schermo della stampante."
   This resume needs a newer version of HelixScreen.: Questa ripresa richiede una versione più recente di HelixScreen.
+  This screen: 'Questo schermo'
   This slot feeds no tool: 'Questo slot non alimenta alcuno strumento'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva.'
   This system does not support bypass mode: 'Questo sistema non supporta la modalità bypass'

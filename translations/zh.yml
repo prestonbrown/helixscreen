@@ -367,6 +367,7 @@ translations:
   Ask before switching to another tool: '切换到其他工具前先询问'
   Ask before the Advanced panel shuts down or reboots: '在高级面板关机或重启前先询问'
   Ask before turning off the stepper motors: '关闭步进电机前先询问'
+  Ask every time: '每次询问'
   Ask for parameters: '询问参数'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: 分配 Klipper
     宏通过开/关、切换或预设控制 LED
@@ -2742,6 +2743,7 @@ translations:
   Whether the Z arrows follow the bed or the Z value: "Z 按钮跟随热床还是 Z 值"
   Which belt is each path?: "每条路径是哪条皮带?"
   Which belt is which?: "哪条皮带是哪条?"
+  Which computer the Advanced power rows act on: '高级面板电源项作用的计算机'
   'Which lane is in the toolhead?': '哪个料道在打印头里？'
   'Choose which lane is in the toolhead to unload it': '请选择打印头里的料道以卸载'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: '没有更改任何内容。温度和材料保持不变，重试只需轻点一下。'
@@ -3782,6 +3784,7 @@ translations:
   Shutdown failed: 关机失败
   Shutdown failed — host is still reachable: 关机失败 — 主机仍可访问
   Shutdown/Reboot: '关机/重启'
+  Shutdown/reboot target: '关机/重启目标'
   Shutting down printer...: 正在关闭打印机...
   Shutting down screen...: 正在关闭屏幕...
   Shutting down...: 正在关机...
@@ -4438,6 +4441,7 @@ translations:
   : '这会将打印机的帮助宏替换为当前版本。当前正在打印，Klipper 将在打印结束后重启。'
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"
   This resume needs a newer version of HelixScreen.: 此恢复需要更新版本的 HelixScreen。
+  This screen: '此屏幕'
   This slot feeds no tool: '此槽位不向任何工具供料'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
   This system does not support bypass mode: '此系统不支持旁通模式'
