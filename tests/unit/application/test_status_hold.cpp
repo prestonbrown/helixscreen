@@ -35,6 +35,10 @@ TEST_CASE("status_is_telemetry_only holds only listed attributes", "[status_hold
         {{"extruder", {{"temperature", 210.1}}}, {"heater_bed", {{"power", 0.4}}}}));
     CHECK(status_is_telemetry_only({{"extruder1", {{"temperature", 30.0}}},
                                     {"temperature_sensor chamber", {{"temperature", 31.0}}}}));
+    // Every board's MCUs report last_stats once a second, so an idle frame is otherwise
+    // never telemetry-only.
+    CHECK(status_is_telemetry_only({{"mcu", {{"last_stats", {{"srtt", 0.001}}}}},
+                                    {"mcu nozzle_mcu", {{"last_stats", {{"srtt", 0.002}}}}}}));
 
     CHECK_FALSE(status_is_telemetry_only(json::object()));
     CHECK_FALSE(status_is_telemetry_only({{"foo_sensor bar", {{"value", 1}}}}));
@@ -101,6 +105,7 @@ TEST_CASE("the telemetry list changes only by a reviewed edit", "[status_hold]")
         "system_stats.sysload",
         "system_stats.cputime",
         "system_stats.memavail",
+        "mcu.last_stats",
     };
     CHECK(helix::telemetry_attributes() == golden);
 }
