@@ -5,6 +5,14 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Fixed
+
+- **XY on the Motion home bar** - the Motion panel's home bar now shows an XY button, like the one on the Controls panel, on printers that home their axes separately. Where the bar has room for five buttons at a comfortable touch size, such as on 1024x600, wide strip and portrait screens, it shows All, X, Y, XY and Z. On narrower bars, such as on an 800x480 screen, it shows XY, X, Y and Z, because the home button in the middle of the jog pad already homes all axes.
+- **Tool selector lines up with Pick up on the Filament panel** - in the Multi-Filament card the tool dropdown now sits level with the Pick up or Park button beside it. The "Tool" caption above it is gone, because the dropdown already names the tool, and the lane bars keep the room it took.
+- **Tool lists no longer repeat the tool number** - when positions are numbered from zero, the tool choosers on the Controls and Filament panels and the other tool lists showed "Tool 0 (T0)", saying the same number twice. They now show "Tool 0". Numbered from one, they still show "Tool 1 (T0)", so the screen's number and the G-code name both stay visible, and a tool with its own name still shows that name.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added

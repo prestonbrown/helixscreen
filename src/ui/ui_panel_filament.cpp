@@ -273,7 +273,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     update_nozzle_label();
 
     // The status line, nozzle label and warnings are formatted here with
-    // lv_tr(); a new language formats them again. The tool caption follows the
+    // lv_tr(); a new language formats them again. The tool names follow the
     // extruder dropdown, which repopulates when ToolState relabels its tools.
     language_observer_ = helix::ui::observe_language_change(this, [](FilamentPanel* self) {
         self->last_status_branch_ = StatusBranch::None;
@@ -373,9 +373,6 @@ void FilamentPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(nozzle_label_subject_, nozzle_label_buf_, lv_tr("Nozzle"),
                                   "filament_nozzle_label", subjects_);
 
-        // Tool selector caption (backend noun: "Tool" / "Toolhead")
-        UI_MANAGED_SUBJECT_STRING(tool_noun_subject_, tool_noun_buf_, lv_tr("Tool"),
-                                  "filament_tool_noun", subjects_);
         // The Pick up / Park button: a TargetToolAction, and its caption.
         UI_MANAGED_SUBJECT_INT(target_tool_action_subject_, 0, "filament_target_tool_action",
                                subjects_);
@@ -1079,14 +1076,6 @@ void FilamentPanel::update_nozzle_label() {
     std::snprintf(nozzle_label_buf_, sizeof(nozzle_label_buf_), "%s", label.c_str());
     if (subjects_initialized_) {
         lv_subject_copy_string(&nozzle_label_subject_, nozzle_label_buf_);
-    }
-}
-
-void FilamentPanel::update_tool_noun() {
-    auto noun = helix::ui::noun_text(helix::ui::active_tool_noun());
-    std::snprintf(tool_noun_buf_, sizeof(tool_noun_buf_), "%s", noun.c_str());
-    if (subjects_initialized_) {
-        lv_subject_copy_string(&tool_noun_subject_, tool_noun_buf_);
     }
 }
 
@@ -2271,7 +2260,6 @@ void FilamentPanel::populate_extruder_dropdown() {
     }
     lv_dropdown_set_options(extruder_dropdown_, options.c_str());
 
-    update_tool_noun();
     // The list follows the panel's target, which falls back to T0 when a
     // shrunk tool list drops the pick.
     sync_target_tool_ui();

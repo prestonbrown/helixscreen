@@ -28,6 +28,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -109,6 +110,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: multi-tool gets the to
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK(h.hidden("btn_manage_slots"));
     CHECK_FALSE(h.hidden("extruder_selector_group"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: the tool selector lines up with Pick up",
+                 "[filament][ui][tool]") {
+    // A caption stacked above the dropdown would push it below the center
+    // line of the Pick up / Park button beside it.
+    ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
+    lv_dropdown_set_selected(TA::extruder_dropdown(*h.panel), 1);
+    TA::handle_extruder_changed(*h.panel);
+    h.fx.process_lvgl(30);
+    REQUIRE_FALSE(h.hidden("extruder_selector_group"));
+    REQUIRE_FALSE(h.hidden("btn_target_tool_action"));
+    lv_obj_t* dropdown = lv_obj_find_by_name(h.root, "extruder_dropdown");
+    lv_obj_t* action = lv_obj_find_by_name(h.root, "btn_target_tool_action");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(action != nullptr);
+    lv_obj_update_layout(h.root);
+
+    auto center_y = [](lv_obj_t* obj) {
+        lv_area_t a;
+        lv_obj_get_coords(obj, &a);
+        return (a.y1 + a.y2) / 2;
+    };
+    CHECK(std::abs(center_y(dropdown) - center_y(action)) <= 1);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament manage row: single-tool with AMS gets Manage",
