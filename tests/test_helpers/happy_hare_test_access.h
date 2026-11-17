@@ -138,6 +138,9 @@ class HappyHareTestAccess {
         // The store's first read lands through the update queue.
         helix::ui::UpdateQueue::instance().drain();
     }
+    template <class B, class... A> static decltype(auto) apply_tip_method_config(B& b, A&&... a) {
+        return b.apply_tip_method_config(std::forward<A>(a)...);
+    }
     template <class B, class... A> static decltype(auto) apply_heater_config(B& b, A&&... a) {
         return b.apply_heater_config(std::forward<A>(a)...);
     }

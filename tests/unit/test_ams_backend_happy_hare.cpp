@@ -1343,6 +1343,26 @@ TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 writes a metered weight to the gat
     }
 }
 
+// ============================================================================
+// form_tip_macro: empty means no tip forming from Happy Hare 4.2
+// ============================================================================
+
+TEST_CASE_METHOD(HhHelper, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
+                 "[ams][happy_hare][tip_method]") {
+    const auto tip_method_for = [&](const std::string& version, const std::string& macro) {
+        const nlohmann::json live{{"happy_hare_version", version}};
+        const nlohmann::json settings{{"mmu_parameters", {{"form_tip_macro", macro}}}};
+        HappyHareTestAccess::apply_tip_method_config(
+            helper, settings, happy_hare::read_machine_layout(settings, live));
+        return helper.get_system_info().tip_method;
+    };
+    CHECK(tip_method_for("4.2.0", "") == TipMethod::NONE);
+    CHECK(tip_method_for("4.2.0", "_MMU_FORM_TIP") == TipMethod::TIP_FORM);
+    CHECK(tip_method_for("4.2.0", "_MMU_CUT_TIP") == TipMethod::CUT);
+    // Before 4.2 an empty macro made Happy Hare fail the unload looking for it.
+    CHECK(tip_method_for("4.1.0", "") == TipMethod::TIP_FORM);
+}
+
 TEST_CASE_METHOD(HhHelper,
                  "Happy Hare advertises lane eject, gate select and gate check; Reset reads Home",
                  "[ams][happy_hare][capability]") {

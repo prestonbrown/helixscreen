@@ -1690,6 +1690,12 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
     refresh_hub_sensors_locked();
 }
 
+namespace {
+/// Happy Hare 4.2 reads an empty form_tip_macro as no tip forming; before it,
+/// an unload failed looking for a macro named ''.
+constexpr double kEmptyTipMacroSkipsSince = 4.2;
+} // namespace
+
 void AmsBackendHappyHare::apply_tip_method_config(const nlohmann::json& settings,
                                                   const happy_hare::MachineLayout& layout) {
     // form_tip_macro decides the tip method the way Happy Hare does internally: a macro
@@ -1710,7 +1716,9 @@ void AmsBackendHappyHare::apply_tip_method_config(const nlohmann::json& settings
         // Convert to lowercase for comparison (same as Happy Hare)
         std::string lower_macro = helix::text_io::to_lower(macro);
 
-        if (lower_macro.find("cut") != std::string::npos) {
+        if (lower_macro.empty() && layout.since(kEmptyTipMacroSkipsSince)) {
+            method = TipMethod::NONE;
+        } else if (lower_macro.find("cut") != std::string::npos) {
             method = TipMethod::CUT;
         } else {
             method = TipMethod::TIP_FORM;

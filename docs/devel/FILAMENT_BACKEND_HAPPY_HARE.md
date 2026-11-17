@@ -189,6 +189,7 @@ publishes, sets its v4 flag before the query answers.
 |------|----|----|
 | Machine fields (selector type, heaters, env sensors) | live `mmu_machine.unit_N` on v3.4, else `configfile.settings.mmu_machine` | live `mmu_machine.unit_N` |
 | Version (`AmsSystemInfo::version`) | `[mmu] happy_hare_version` (a number such as 3.42) | `mmu_machine.happy_hare_version` |
+| Tip method (`apply_tip_method_config`) | `form_tip_macro` naming `cut` is a cutter, else tip forming | the same, except an empty `form_tip_macro` on 4.2+ is `TipMethod::NONE` (Happy Hare skips tip forming; before 4.2 the unload failed looking for the macro) |
 | Tunables (tip macro, speeds, toolhead distances, `heater_max_temp`, `sync_to_extruder`) | `[mmu]` | `[mmu_parameters]`, `[mmu_unit_parameters <unit>]`, `[mmu_toolhead <toolhead of that unit>]`; `happy_hare::find_config_param()` owns which |
 | `MMU_TEST_CONFIG` gear speeds | `GEAR_FROM_SPOOL_SPEED`, `GEAR_FROM_BUFFER_SPEED`; `GEAR_UNLOAD_SPEED` from 3.10 | `GEAR_LOAD_SPEED`, `GEAR_FROM_FILAMENT_BUFFER_SPEED`, `GEAR_UNLOAD_SPEED` |
 | Bypass support | `printer.mmu.has_bypass` | any `mmu_machine.unit_N.has_bypass` (`printer.mmu.has_bypass` is a constant true) |
