@@ -434,6 +434,14 @@ void graceful_quit_signal_handler(int sig) {
     app_request_quit_signal_safe();
 }
 
+/// The enqueue hook while the display sleeps. Main-thread work queued during a pass is
+/// drained in that pass, so only another thread's enqueue needs to wake the loop.
+void notify_loop_from_other_thread() {
+    if (!helix::ui::UpdateQueue::is_main_thread()) {
+        helix::main_loop_wake::notify();
+    }
+}
+
 } // namespace
 
 // C bridge functions called from SDL event handler (lv_sdl_window.c)
@@ -2227,7 +2235,7 @@ int Application::main_loop() {
             // Asleep, queued work wakes the loop (the enqueue hook) and runs here, in the
             // pass that applied the status behind it, instead of on a polling timer.
             if (m_display->is_display_sleeping()) {
-                helix::ui::UpdateQueue::instance().drain();
+                helix::ui::UpdateQueue::instance().drain_until_empty();
             }
 
             // Check display sleep
@@ -2294,7 +2302,7 @@ int Application::main_loop() {
                 const bool display_sleeping = m_display->is_display_sleeping();
                 // Set from the sleep state on every pass, so no wake path can leave it slow.
                 auto& update_queue = helix::ui::UpdateQueue::instance();
-                update_queue.set_enqueue_hook(display_sleeping ? &helix::main_loop_wake::notify
+                update_queue.set_enqueue_hook(display_sleeping ? &notify_loop_from_other_thread
                                                                : nullptr);
                 if (lv_timer_t* queue = update_queue.timer()) {
                     lv_timer_set_period(queue, helix::update_queue_period_ms(
