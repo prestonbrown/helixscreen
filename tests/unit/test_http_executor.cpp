@@ -88,8 +88,10 @@ TEST_CASE("HttpExecutor: stop drains in-flight and breaks pending promises",
     ex.start();
 
     // One slow in-flight item that stop() must drain.
+    std::atomic<bool> inflight_started{false};
     std::atomic<bool> inflight_done{false};
     auto inflight = ex.submit([&]() {
+        inflight_started.store(true);
         std::this_thread::sleep_for(50ms);
         inflight_done.store(true);
     });
@@ -100,7 +102,10 @@ TEST_CASE("HttpExecutor: stop drains in-flight and breaks pending promises",
         pending.push_back(ex.submit([]() { std::this_thread::sleep_for(50ms); }));
     }
 
-    std::this_thread::sleep_for(5ms); // Let the worker pick up the in-flight one.
+    // stop() drains only an item the worker has already started.
+    for (int i = 0; i < 2000 && !inflight_started.load(); ++i)
+        std::this_thread::sleep_for(1ms);
+    REQUIRE(inflight_started.load());
     ex.stop();
 
     REQUIRE(inflight_done.load()); // In-flight item drained.
