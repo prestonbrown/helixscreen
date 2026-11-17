@@ -73,12 +73,8 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
     sv.container = container;
     sv.use_3d = helix::ui::ams_spool_style_3d();
 
-    // Spool size is a dedicated responsive token (see ams_panel.xml consts).
-    if (spool_size <= 0) {
-        spool_size = theme_manager_get_spacing("ams_slot_spool_size");
-        if (spool_size <= 0)
-            spool_size = theme_manager_get_spacing("space_lg") * 4;
-    }
+    if (spool_size <= 0)
+        spool_size = helix::ui::ams_slot_spool_size();
     sv.spool_size = spool_size;
 
     int32_t container_size = spool_size + helix::ui::kAmsLaneSpoolBadgeMarginPx; // badge slack
@@ -684,6 +680,11 @@ static void ams_lane_spool_xml_apply(lv_xml_parser_state_t* state, const char** 
 // ============================================================================
 
 namespace helix::ui {
+
+int32_t ams_slot_spool_size() {
+    const int32_t token = theme_manager_get_spacing("ams_slot_spool_size");
+    return token > 0 ? token : theme_manager_get_spacing("space_lg") * 4;
+}
 
 void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index) {
     auto* data = get_lane_spool_data(spool);
