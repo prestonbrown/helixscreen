@@ -1135,6 +1135,7 @@ lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj) {
     return data ? data->status_badge_bg : nullptr;
 }
 
+// NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_spool_container(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->spool_container : nullptr;
