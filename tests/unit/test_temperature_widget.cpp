@@ -16,7 +16,7 @@ class TempWidgetFixture : public LVGLTestFixture {
     TempWidgetFixture() {
         if (!s_state) {
             s_state = new PrinterState();
-            s_state->init_subjects();
+            s_state->init_subjects(/*register_xml=*/false);
         }
     }
 
