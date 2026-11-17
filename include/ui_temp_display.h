@@ -50,6 +50,7 @@
  * |----------------|---------|---------|--------------------------------------------------|
  * | size           | string  | "md"    | Font size: "sm", "md", or "lg"                   |
  * | show_target    | bool    | "false" | Show "/ target" portion (opt-in)                 |
+ * | target_only    | bool    | "false" | With show_target, draw only the target (a chip)  |
  * | align_current  | bool    | "false" | Current reading at a fixed, right-aligned width  |
  * |                |         |         | so stacked displays line up at the separator     |
  * | bind_current   | subject | -       | Subject name for current temp (decidegrees×10) |

@@ -70,6 +70,15 @@
     <!-- A state style would outrank the button's pressed and disabled looks, so
          the unhomed colour switches by condition instead -->
     <style name="home_btn_unhomed_micro" bg_color="#card_bg"/>
+    <!-- Cooling card body: Part Fan over the other fans in landscape, beside
+         them in portrait. The slider row keeps its knob inside the card: the
+         value sits to its right in landscape, and alone it pads both ends. -->
+    <style name="cooling_body_stacked" layout="flex" flex_flow="column"/>
+    <style name="cooling_body_columns" layout="flex" flex_flow="row"/>
+    <style name="cooling_col_full" width="100%"/>
+    <style name="cooling_col_half" width="0" flex_grow="1"/>
+    <style name="slider_row_beside_value" pad_left="#space_lg" pad_right="0"/>
+    <style name="slider_row_alone" pad_left="#space_lg" pad_right="#space_lg"/>
     <!-- Homing indicator styles for Position card -->
     <style name="indicator_homed" bg_color="#success"/>
     <style name="indicator_unhomed" bg_color="#text_muted"/>
@@ -101,17 +110,33 @@
           <bind_state_if cond="controls_micro eq 1" state="user_3"/>
           <style name="card_micro" selector="user_3"/>
           <event_cb trigger="clicked" callback="on_controls_quick_actions"/>
-          <!-- Header -->
-          <lv_obj flex_flow="row"
-                  style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
-                  style_pad_gap="#space_sm" clickable="false">
+          <!-- Header. In portrait the card has no room for the Motion | Motors Off
+               row: the card itself opens Motion, and Motors Off moves up here as
+               its own tap target. -->
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center"
+                  style_pad_all="0" style_pad_gap="#space_sm" clickable="false" scrollable="false">
             <icon src="axis_arrow" size="sm" variant="primary"/>
-            <text_small text="Position" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
+            <text_small text="Position"
+                        flex_grow="1" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
               <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
             </text_small>
-            <text_small text="Position" style_translate_y="2" style_text_color="#text" hidden="true">
+            <text_small text="Position" flex_grow="1" style_translate_y="2" style_text_color="#text" hidden="true">
               <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
             </text_small>
+            <ui_button name="btn_motors_header"
+                       width="content" height="content" variant="ghost" style_pad_all="0" style_border_width="0"
+                       ext_click_area="12" focusable="false" moves_machine="true" hidden="true">
+              <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
+              <bind_state_if cond="motors_enabled eq 0" state="disabled"/>
+              <icon src="engine" size="sm" variant="warning" clickable="false" event_bubble="true">
+                <bind_flag_if_eq subject="motors_enabled" flag="hidden" ref_value="0"/>
+              </icon>
+              <icon src="engine_off" size="sm" variant="secondary" clickable="false" event_bubble="true" hidden="true">
+                <bind_flag_if_eq subject="motors_enabled" flag="hidden" ref_value="1"/>
+              </icon>
+              <event_cb trigger="clicked" callback="on_calibration_motors"/>
+            </ui_button>
           </lv_obj>
           <!-- Position display with homing indicators -->
           <!-- Split into static label + dynamic value for proper alignment with proportional fonts -->
@@ -157,11 +182,12 @@
                     style_margin_top="#space_sm" clickable="true" scrollable="false" style_radius="#border_radius">
               <style name="styles.press_wash" selector="pressed"/>
               <event_cb trigger="clicked" callback="on_zoffset_tune"/>
+              <!-- A half-width portrait card fits the full reading only beside the short label -->
               <text_muted width="content" text="Z-Offset:">
-                <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
+                <bind_flag_if cond="controls_micro eq 1 or ui_is_portrait eq 1" flag="hidden"/>
               </text_muted>
               <text_muted width="content" text="Z-Off:" hidden="true">
-                <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
+                <bind_flag_if cond="controls_micro eq 0 and ui_is_portrait eq 0" flag="hidden"/>
               </text_muted>
               <text_body bind_text="controls_z_offset" flex_grow="1" style_text_align="right"/>
               <icon src="chevron_right" size="xs" variant="secondary"/>
@@ -185,6 +211,7 @@
                   style_pad_gap="#space_xs" scrollable="false">
             <bind_style_if_eq name="action_row_landscape" subject="ui_is_portrait" ref_value="0"/>
             <bind_style_if_eq name="action_row_portrait" subject="ui_is_portrait" ref_value="1"/>
+            <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
             <bind_state_if cond="controls_micro eq 1" state="user_3"/>
             <style name="action_row_micro" selector="user_3"/>
             <!-- Icon over label like Motors Off beside it, so the icons share a line
@@ -261,7 +288,7 @@
                     src="heater" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
               <!-- The tool chooser names the nozzle where several heads dock -->
               <text_small bind_text="controls_nozzle_label">
-                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1 or controls_nozzle_multi_head eq 1"
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1 or ui_is_portrait eq 1 or controls_nozzle_multi_head eq 1"
                               flag="hidden"/>
               </text_small>
               <!-- Which nozzle the row shows and edits, where several heads dock -->
@@ -273,17 +300,21 @@
                 <event_cb trigger="value_changed" callback="on_controls_nozzle_tool_changed"/>
               </lv_dropdown>
               <temp_display name="nozzle_temp_display"
-                            size="md" show_target="true" bind_current="controls_nozzle_cur_deci"
+                            size="md" show_target="false" bind_current="controls_nozzle_cur_deci"
                             bind_target="controls_nozzle_tgt_deci" clickable="false" event_bubble="true"/>
             </lv_obj>
-            <!-- Right side: temp display + edit icon -->
+            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
             <lv_obj name="nozzle_temp_edit_container"
-                    width="content" height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true" ext_click_area="12"
-                    style_radius="#border_radius">
+                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
+                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
+                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
+                    ext_click_area="12">
+              <style name="styles.chip_idle"/>
               <style name="styles.press_wash" selector="pressed"/>
               <event_cb trigger="clicked" callback="on_nozzle_target_edit"/>
-              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
+              <temp_display name="nozzle_target_chip"
+                            size="sm" show_target="true" target_only="true" bind_current="controls_nozzle_cur_deci"
+                            bind_target="controls_nozzle_tgt_deci" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
           <lv_obj name="nozzle_status"
@@ -310,20 +341,24 @@
               <bind_style_if name="temp_row_gap_standard" cond="ui_breakpoint ge 2 or controls_micro eq 1"/>
               <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs"/>
               <text_small text="Bed">
-                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1" flag="hidden"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1 or ui_is_portrait eq 1" flag="hidden"/>
               </text_small>
               <temp_display name="bed_temp_display"
-                            size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target"
+                            size="md" show_target="false" bind_current="bed_temp" bind_target="bed_target"
                             clickable="false" event_bubble="true"/>
             </lv_obj>
-            <!-- Right side: temp display + edit icon -->
+            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
             <lv_obj name="bed_temp_edit_container"
-                    width="content" height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true" ext_click_area="12"
-                    style_radius="#border_radius">
+                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
+                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
+                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
+                    ext_click_area="12">
+              <style name="styles.chip_idle"/>
               <style name="styles.press_wash" selector="pressed"/>
               <event_cb trigger="clicked" callback="on_bed_target_edit"/>
-              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
+              <temp_display name="bed_target_chip"
+                            size="sm" show_target="true" target_only="true" bind_current="bed_temp"
+                            bind_target="bed_target" clickable="false" event_bubble="true"/>
             </lv_obj>
           </lv_obj>
           <lv_obj name="bed_status"
@@ -350,21 +385,26 @@
               <bind_style_if name="temp_row_gap_standard" cond="ui_breakpoint ge 2 or controls_micro eq 1"/>
               <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs"/>
               <text_small text="Chamb:" clickable="false" event_bubble="true">
-                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1" flag="hidden"/>
+                <bind_flag_if cond="ui_breakpoint eq 1 or controls_micro eq 1 or ui_is_portrait eq 1" flag="hidden"/>
               </text_small>
               <temp_display name="chamber_temp_display"
-                            size="md" show_target="true" bind_current="chamber_temp"
+                            size="md" show_target="false" bind_current="chamber_temp"
                             bind_target="chamber_effective_target" bind_mode="chamber_mode" clickable="false"
                             event_bubble="true"/>
             </lv_obj>
-            <!-- Right side: temp display + edit icon -->
+            <!-- The target, in a chip that opens the keypad; the rest of the row opens the graph -->
             <lv_obj name="chamber_temp_edit_container"
-                    width="content" height="content" flex_flow="row" style_pad_all="0" scrollable="false"
-                    style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true" ext_click_area="12"
-                    style_radius="#border_radius">
+                    width="content" height="content" style_min_width="#icon_button_size" style_pad_hor="#space_sm"
+                    style_pad_ver="#space_xxs" style_radius="#border_radius" flex_flow="row"
+                    style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true"
+                    ext_click_area="12">
+              <style name="styles.chip_idle"/>
               <style name="styles.press_wash" selector="pressed"/>
               <event_cb trigger="clicked" callback="on_chamber_target_edit"/>
-              <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
+              <temp_display name="chamber_target_chip"
+                            size="sm" show_target="true" target_only="true" bind_current="chamber_temp"
+                            bind_target="chamber_effective_target" bind_mode="chamber_mode" clickable="false"
+                            event_bubble="true"/>
             </lv_obj>
           </lv_obj>
           <lv_obj name="chamber_status"
@@ -414,34 +454,55 @@
               <bind_flag_if cond="controls_micro eq 0" flag="hidden"/>
             </text_small>
           </lv_obj>
-          <!-- Part cooling hero section -->
-          <text_small width="100%" text="Part Fan" style_margin_top="#space_sm"/>
+          <!-- Part Fan, then the other fans: stacked in landscape, side by side in
+               portrait where the card runs the full width but is short. -->
           <lv_obj width="100%"
-                  height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-                  style_pad_left="#space_lg" style_pad_right="0" style_bg_opa="0" style_border_width="0"
-                  scrollable="false" clickable="false">
-            <bind_style_if_eq name="slider_container_compact" subject="ui_breakpoint" ref_value="1"/>
-            <bind_style_if_ge name="slider_container_standard" subject="ui_breakpoint" ref_value="2"/>
-            <bind_state_if cond="controls_micro eq 1" state="user_3"/>
-            <style name="fan_row_micro" selector="user_3"/>
-            <lv_slider name="part_fan_slider" flex_grow="1" bind_value="controls_fan_pct" min_value="0" max_value="100">
-              <bind_style_if_eq name="slider_compact" subject="ui_breakpoint" ref_value="1"/>
-              <bind_state_if cond="controls_micro eq 1" state="user_3"/>
-              <style name="fan_slider_micro" selector="user_3"/>
-              <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
-            </lv_slider>
-            <text_body name="fan_speed_display" width="content" bind_text="controls_fan_speed">
-              <bind_state_if cond="controls_micro eq 1" state="user_3"/>
-              <style name="fan_readout_micro" selector="user_3"/>
-              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-            </text_body>
-          </lv_obj>
-          <!-- Secondary fans list (populated dynamically) -->
-          <lv_obj name="secondary_fans_list"
-                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
-                  style_pad_gap="#space_xxs" style_pad_top="#space_xs" clickable="true">
-            <event_cb trigger="clicked" callback="on_controls_secondary_fans"/>
-            <!-- Fan rows are added here by C++ -->
+                  flex_grow="1" style_pad_all="0" style_pad_gap="#space_md" scrollable="false" clickable="false"
+                  event_bubble="true">
+            <bind_style_if_eq name="cooling_body_stacked" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style_if_eq name="cooling_body_columns" subject="ui_is_portrait" ref_value="1"/>
+            <!-- Part cooling hero section -->
+            <lv_obj height="content"
+                    style_pad_all="0" flex_flow="column" scrollable="false" clickable="false" event_bubble="true">
+              <bind_style_if_eq name="cooling_col_full" subject="ui_is_portrait" ref_value="0"/>
+              <bind_style_if_eq name="cooling_col_half" subject="ui_is_portrait" ref_value="1"/>
+              <text_small width="100%" text="Part Fan" style_margin_top="#space_sm"/>
+              <!-- Portrait reads the speed large above the slider -->
+              <text_heading name="fan_speed_display_large" bind_text="controls_fan_speed" hidden="true">
+                <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
+              </text_heading>
+              <lv_obj width="100%"
+                      height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+                      style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
+                <bind_style_if_eq name="slider_row_beside_value" subject="ui_is_portrait" ref_value="0"/>
+                <bind_style_if_eq name="slider_row_alone" subject="ui_is_portrait" ref_value="1"/>
+                <bind_style_if_eq name="slider_container_compact" subject="ui_breakpoint" ref_value="1"/>
+                <bind_style_if_ge name="slider_container_standard" subject="ui_breakpoint" ref_value="2"/>
+                <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+                <style name="fan_row_micro" selector="user_3"/>
+                <lv_slider name="part_fan_slider"
+                           flex_grow="1" bind_value="controls_fan_pct" min_value="0" max_value="100">
+                  <bind_style_if_eq name="slider_compact" subject="ui_breakpoint" ref_value="1"/>
+                  <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+                  <style name="fan_slider_micro" selector="user_3"/>
+                  <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
+                </lv_slider>
+                <text_body name="fan_speed_display" width="content" bind_text="controls_fan_speed">
+                  <bind_state_if cond="controls_micro eq 1" state="user_3"/>
+                  <style name="fan_readout_micro" selector="user_3"/>
+                  <bind_flag_if cond="ui_breakpoint eq 1 or ui_is_portrait eq 1" flag="hidden"/>
+                </text_body>
+              </lv_obj>
+            </lv_obj>
+            <!-- Secondary fans list (populated dynamically) -->
+            <lv_obj name="secondary_fans_list"
+                    height="content" style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xxs"
+                    style_pad_top="#space_xs" clickable="true">
+              <bind_style_if_eq name="cooling_col_full" subject="ui_is_portrait" ref_value="0"/>
+              <bind_style_if_eq name="cooling_col_half" subject="ui_is_portrait" ref_value="1"/>
+              <event_cb trigger="clicked" callback="on_controls_secondary_fans"/>
+              <!-- Fan rows are added here by C++ -->
+            </lv_obj>
           </lv_obj>
         </ui_card>
       </lv_obj>
