@@ -14,16 +14,16 @@ LOCAL_R = 0.46
 SCALE = SPOOL_R / LOCAL_R
 W, D = 1.0, 0.92
 FOOT_Z, TOP = 0.045, 0.36
-FRAME, PANEL, DECK, PLATE, RUBBER = "#1d2f55", "#14171f", "#a9afba", "#17191e", "#2e2f33"
+FRAME, PANEL, DECK, PLATE, RUBBER = "#1d2f55", "#14171f", "#a9afba", "#3b3f48", "#2e2f33"
 DRUM, SHEEN = "#2b2d33", "#5c606b"
 CENTERS = [0.26, 0.74]
 # Each lane is a drum, a pod and a drum; a spool's flanges ride on the two drums.
 LANE_HALF, POD_HALF = 0.21, 0.062
 FLANGE_K, FLANGE_W = 1.08, 0.01
 BASE_TOP = TOP + 0.045
-ROLLER_Y, ROLLER_R = 0.25, 0.155
+ROLLER_Y, ROLLER_R = 0.19, 0.155
 ROLLER_Z = BASE_TOP + ROLLER_R * FLANGE_K + 0.006
-SPOOL_Y = 0.535
+SPOOL_Y = 0.49
 REAR_Y, REAR_R = 0.82, 0.06
 SPOOL_Z = ROLLER_Z + math.sqrt((LOCAL_R + ROLLER_R) ** 2 - (SPOOL_Y - ROLLER_Y) ** 2)
 REAR_Z = SPOOL_Z - math.sqrt((LOCAL_R + REAR_R) ** 2 - (REAR_Y - SPOOL_Y) ** 2)
@@ -34,8 +34,8 @@ _REPO = Path(__file__).resolve().parents[3]
 def _plate_profile():
     """The side plates: low over the drums at the front, rising to carry the rear roller."""
     points = [
-        (0.1, TOP),
-        (0.1, ROLLER_Z),
+        (0.04, TOP),
+        (0.04, ROLLER_Z),
         (0.36, ROLLER_Z + 0.025),
         (0.6, ROLLER_Z + 0.065),
         (REAR_Y, REAR_Z + REAR_R + 0.01),
@@ -46,9 +46,9 @@ def _plate_profile():
 
 
 def _pod_profile():
-    """A pod's side: a yoke standing on the base plate, open above the axle for the bearing."""
+    """A pod's side: a yoke standing on the deck, open above the axle for the bearing."""
     reach = ROLLER_R * 0.72
-    pts = [(ROLLER_Y - reach, BASE_TOP), (ROLLER_Y - reach, ROLLER_Z + 0.03), (ROLLER_Y + reach, ROLLER_Z + 0.03), (ROLLER_Y + reach, BASE_TOP)]
+    pts = [(ROLLER_Y - reach, TOP), (ROLLER_Y - reach, ROLLER_Z + 0.03), (ROLLER_Y + reach, ROLLER_Z + 0.03), (ROLLER_Y + reach, TOP)]
     return kit.fillet(pts, [0, 0.05, 0.05, 0], closed=True, steps=6)
 
 
@@ -77,7 +77,6 @@ def _drive(sc, xc, detail):
     """One lane's drive: two black drums butted against a pod between them."""
     rim = {"flange_k": FLANGE_K, "flange_w": FLANGE_W, "sheen": SHEEN, "end_face": "#101116", "end_hub": FRAME, "solid": True}
     inner = POD_HALF + FLANGE_W + 0.004
-    feeder.box(sc, xc - LANE_HALF - 0.012, xc + LANE_HALF + 0.012, ROLLER_Y - ROLLER_R - 0.02, ROLLER_Y + ROLLER_R + 0.02, TOP, BASE_TOP, FRAME)
     kit.roller(sc, xc - LANE_HALF, xc - inner, ROLLER_Y, ROLLER_Z, ROLLER_R, DRUM, FRAME, **rim)
     _bearing(sc, xc, detail)
     feeder.solid(sc, _pod_profile(), xc - POD_HALF, xc + POD_HALF, FRAME)
@@ -120,27 +119,18 @@ def draw_art(scene, colors, tier):
     _side_plate(sc, W - 0.03, W, plate, cam, True, thick)
 
 
-_WALL = TOP * TRAY_PX_PER_UNIT
 _FRAME = int(FRAME[1:], 16)
-
-
-def _tray_cheek():
-    """The side plates' top edge as tray points, from the base's front edge to the back.
-
-    The plates end in a vertical edge at the rear with no wall behind the spools, so the
-    edge drops back to the base there.
-    """
-    top = [(y, z) for y, z in _plate_profile() if z > TOP]
-    edge = [(0.0, 0.0), (top[0][0] / D, 0.0)]
-    return edge + [(y / D, (z - TOP) * TRAY_PX_PER_UNIT) for y, z in top[1:]] + [(1.0, 0.0)]
+# The tray draws the base shorter than the art so the spools above it stay in view.
+_WALL = 22.0
+_DRUM_PX = 14.0
 
 
 def _tray_shell():
-    cheek = _tray_cheek()
+    """The base below the spools with the drums on its top edge: no walls or lid around them."""
     return TrayShellDef(
-        cheek=cheek,
+        cheek=[(0.0, 0.0), (1.0, 0.0)],
         dome=[],
-        back_extra_px=cheek[-1][1],
+        back_extra_px=0.0,
         front_wall_px=_WALL,
         rail_px=6.0,
         cap_clearance_px=9.0,
@@ -152,11 +142,13 @@ def _tray_shell():
         accent=_FRAME,
         front=[
             kit.span(0, 0, 0, _WALL, _FRAME, 3),
-            kit.span(7, 7, 7, _WALL - 5, int(PANEL[1:], 16), 2),
-            kit.lane(-17, 17, -8, 0, int(RUBBER[1:], 16), 4),
-            kit.lane(-3, 3, -11, 2, _FRAME, 1),
+            kit.span(7, 7, 6, _WALL - 5, int(PANEL[1:], 16), 2),
+            kit.lane(-19, 19, -_DRUM_PX, 0, int(RUBBER[1:], 16), 5),
+            kit.lane(-3, 3, -_DRUM_PX - 3, 1, _FRAME, 1),
         ],
         lane_join="junction",
+        # The spools ride on the drums: the base's top edge stands at their flange bottoms.
+        spool_lift_px=_WALL - 10.0,
     )
 
 
