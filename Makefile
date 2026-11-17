@@ -1609,7 +1609,7 @@ $(foreach f,$(filter $(TEST_DIR)/%,$(F)),$(eval print-compile-command/$(f).pcc: 
 # generated headers under $(BUILD_DIR)/generated. A syntax-only check of a tree
 # that was never built makes this and nothing else.
 .PHONY: compile-prereqs
-compile-prereqs: $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
+compile-prereqs: lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
 
 # =============================================================================
 # Install target — stages binary + assets under $(DESTDIR)/opt/helixscreen/

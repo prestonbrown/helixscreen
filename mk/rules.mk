@@ -469,7 +469,7 @@ $(OBJ_DIR)/quirc/%.o: $(QUIRC_DIR)/%.c
 	$(call emit-compile-command,$(call QUIRC_COMPILE),$<,$@)
 
 # Compile libvterm sources (vendored C library - use SUBMODULE_CFLAGS)
-$(OBJ_DIR)/libvterm/%.o: $(VTERM_DIR)/%.c
+$(OBJ_DIR)/libvterm/%.o: $(VTERM_DIR)/%.c $(ABI_STAMP) $(FLAGS_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 	$(Q)$(call VTERM_COMPILE) -c $< -o $@ || { \
