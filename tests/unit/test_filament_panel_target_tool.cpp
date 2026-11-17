@@ -89,8 +89,6 @@ struct TargetToolHarness {
         panel.reset();
         set_moonraker_api(previous_api);
         helix::AmsState::instance().clear_backends();
-        // ToolState is process-global: its three tools would be every later case's.
-        ToolState::instance().init_tools(helix::PrinterDiscovery{});
         helix::ui::UpdateQueue::instance().drain();
     }
 

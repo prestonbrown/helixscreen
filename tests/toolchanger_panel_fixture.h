@@ -88,9 +88,8 @@ template <typename Base> struct ToolchangerPanelFixture : Base {
     ~ToolchangerPanelFixture() override {
         helix::ui::UpdateQueue::instance().drain();
         set_moonraker_api(nullptr);
-        // The tools and the discovery are process-global: left in place, every later
-        // case sees a four-tool toolchanger (a toolhead chip on Print Status).
-        helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+        // The discovery is process-global: left in place, every later case sees a
+        // four-tool toolchanger. HelixTestFixture puts ToolState's tools back.
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
         helix::ui::UpdateQueue::instance().drain();
     }
