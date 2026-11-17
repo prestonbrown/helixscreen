@@ -8,6 +8,7 @@
 #include "buffer_status_modal.h"
 #include "clog_detection_config_modal.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_utils.h"
 #include "panel_widget_registry.h"
 
 #include <spdlog/spdlog.h>
@@ -68,10 +69,8 @@ void ClogDetectionWidget::set_config(const nlohmann::json& config) {
 void ClogDetectionWidget::apply_config() {
     int source = 0;
     int threshold = 0;
-    if (config_.contains("source") && config_["source"].is_number_integer())
-        source = config_["source"].get<int>();
-    if (config_.contains("danger_threshold") && config_["danger_threshold"].is_number_integer())
-        threshold = config_["danger_threshold"].get<int>();
+    source = json_util::read_integer_field(config_, "source").value_or(source);
+    threshold = json_util::read_integer_field(config_, "danger_threshold").value_or(threshold);
 
     auto& ams = AmsState::instance();
     ams.set_source_override(source);

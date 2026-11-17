@@ -23,6 +23,7 @@
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "observe_language.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -116,12 +117,8 @@ FanStackWidget::~FanStackWidget() {
 
 void FanStackWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config.contains("fan") && config["fan"].is_string()) {
-        selected_fan_ = config["fan"].get<std::string>();
-    }
-    if (config.contains("icon") && config["icon"].is_string()) {
-        icon_name_ = config["icon"].get<std::string>();
-    }
+    selected_fan_ = json_util::read_field<std::string>(config, "fan").value_or(selected_fan_);
+    icon_name_ = json_util::read_field<std::string>(config, "icon").value_or(icon_name_);
     spdlog::debug("[FanStackWidget] Config: {} fan={} icon={}", instance_id_,
                   selected_fan_.empty() ? "(auto)" : selected_fan_,
                   icon_name_.empty() ? "fan (default)" : icon_name_);
@@ -141,10 +138,7 @@ bool FanStackWidget::on_edit_configure() {
 }
 
 bool FanStackWidget::is_carousel_mode() const {
-    if (config_.contains("display_mode") && config_["display_mode"].is_string()) {
-        return config_["display_mode"].get<std::string>() == "carousel";
-    }
-    return false;
+    return json_util::read_field<std::string>(config_, "display_mode") == "carousel";
 }
 
 void FanStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {

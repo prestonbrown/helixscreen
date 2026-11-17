@@ -159,10 +159,9 @@ void TemperatureController::ensure_limits(HeaterType type) {
         [this, tok, type, section, conservative_max](const nlohmann::json& config) {
             // Background (WS) thread: parse only — no `this` member access.
             int max_deg = 0;
-            if (config.contains(section)) {
-                const auto& sec = config[section];
-                if (sec.contains("max_temp")) {
-                    const auto& mt = sec["max_temp"];
+            if (const nlohmann::json* sec = json_util::find_member(config, section.c_str())) {
+                if (const nlohmann::json* max_temp = json_util::find_member(*sec, "max_temp")) {
+                    const auto& mt = *max_temp;
                     if (mt.is_string()) {
                         const auto parsed =
                             helix::text_io::parse_leading<float>(mt.get_ref<const std::string&>());
@@ -339,7 +338,8 @@ bool TemperatureController::chamber_has_direct_route() const {
 }
 
 ChamberRouteReply parse_chamber_route_reply(const nlohmann::json& resp) {
-    const nlohmann::json& result = resp.contains("result") ? resp["result"] : resp;
+    const nlohmann::json* result_field = json_util::find_member(resp, "result");
+    const nlohmann::json& result = result_field ? *result_field : resp;
     if (!result.is_object()) {
         return {ChamberRouteOutcome::Accepted, {}};
     }
@@ -571,8 +571,9 @@ void TemperatureController::read_configured_idle_timeout(std::function<void(int)
         [tok, on_main = std::move(on_main)](const nlohmann::json& config) {
             // Background (WS) thread: parse only.
             int configured_s = kKlipperDefaultS;
-            if (config.contains("idle_timeout") && config["idle_timeout"].contains("timeout")) {
-                const auto& t = config["idle_timeout"]["timeout"];
+            if (const nlohmann::json* timeout =
+                    json_util::find_path(config, "idle_timeout", "timeout")) {
+                const auto& t = *timeout;
                 if (t.is_string()) {
                     const auto parsed =
                         helix::text_io::parse_leading<float>(t.get_ref<const std::string&>());

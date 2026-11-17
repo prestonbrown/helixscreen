@@ -7,6 +7,7 @@
 #include "app_globals.h"
 #include "core/subject.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -113,10 +114,9 @@ void ClogDetectionConfigModal::on_show() {
     auto& wc = helix::PanelWidgetManager::instance().get_widget_config(panel_id_);
     auto config = wc.get_widget_config(widget_id_);
 
-    if (config.contains("source") && config["source"].is_number_integer())
-        source_ = config["source"].get<int>();
-    if (config.contains("danger_threshold") && config["danger_threshold"].is_number_integer())
-        danger_threshold_ = config["danger_threshold"].get<int>();
+    source_ = helix::json_util::read_integer_field(config, "source").value_or(source_);
+    danger_threshold_ = helix::json_util::read_integer_field(config, "danger_threshold")
+                            .value_or(danger_threshold_);
 
     // Read current state from AmsState backend
     auto& ams = helix::AmsState::instance();
