@@ -14,12 +14,12 @@
  * false notifications on observer registration.
  */
 
-#include "ui_format_utils.h"
 #include "ui_print_completion_modal.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
+#include "display_format.h"
 #include "print_completion.h"
 #include "printer_state.h"
 

@@ -2,8 +2,7 @@
 
 #include "filament_accounting.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_numbering.h"
 #include "format_utils.h"
 #include "json_utils.h"

@@ -36,7 +36,7 @@ struct CompletionStats {
  * @brief Build the completion modal's stat strings
  *
  * Pure: no subjects, no LVGL objects. Every value routes through the shared
- * formatters in ui_format_utils so the modal cannot disagree with the rest of
+ * formatters in display_format.h so the modal cannot disagree with the rest of
  * the UI about how a layer count or a filament length reads.
  */
 CompletionStats build_completion_stats(int duration_secs, int estimated_secs, int total_layers,

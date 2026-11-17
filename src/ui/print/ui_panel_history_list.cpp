@@ -5,7 +5,6 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_fonts.h"
-#include "ui_format_utils.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_notification.h"
@@ -23,6 +22,7 @@
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
 #include "filament_chip_model.h"

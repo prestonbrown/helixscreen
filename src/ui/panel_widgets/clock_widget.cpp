@@ -3,10 +3,9 @@
 
 #include "clock_widget.h"
 
-#include "ui_format_utils.h"
-
 #include "core/subject.h"
 #include "core/text_io.h"
+#include "display_format.h"
 #include "helix/ui/text_metrics.h"
 #include "locale_formats.h"
 #include "panel_widget_registry.h"

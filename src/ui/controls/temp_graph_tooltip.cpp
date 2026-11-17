@@ -3,9 +3,8 @@
 
 #include "temp_graph_tooltip.h"
 
-#include "ui_format_utils.h"
-
 #include "core/temperature_units.h"
+#include "display_format.h"
 #include "temp_graph_internal.h"
 #include "theme_manager.h"
 

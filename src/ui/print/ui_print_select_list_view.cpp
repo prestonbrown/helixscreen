@@ -3,13 +3,13 @@
 
 #include "ui_print_select_list_view.h"
 
-#include "ui_format_utils.h"
 #include "ui_panel_print_select.h" // For PrintFileData
 #include "ui_subject_registry.h"
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
 #include "core/subject.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 

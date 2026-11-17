@@ -7,9 +7,8 @@
  *        form from a translation pack (prestonbrown/helixscreen#1808).
  */
 
-#include "ui_format_utils.h"
-
 #include "../lvgl_test_fixture.h"
+#include "display_format.h"
 #include "display_numbering.h"
 #include "i18n_plural.h"
 #include "lane_count_label.h"

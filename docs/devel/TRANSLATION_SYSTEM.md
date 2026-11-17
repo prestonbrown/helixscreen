@@ -527,7 +527,7 @@ A string formatted in C++ from a cached Celsius value keeps its unit until its o
 
 ### Date order
 
-`/display/date_format` holds 0 for day-month-year, 1 for month-day-year and 2 for year-month-day. `src/ui/locale_formats.cpp#get_date_pattern` takes the arrangement from the saved order and falls back to the language's default while none is saved; the language still supplies day and month names and the punctuation German writes. The order is kept in an atomic (`saved_date_format()` in `include/region_defaults.h`) because dates are also formatted off the main thread. The row lives in Settings > Language & Time, and `DisplaySettingsManager::on_language_changed` updates it while it still follows the language.
+`/display/date_format` holds 0 for day-month-year, 1 for month-day-year and 2 for year-month-day. `src/system/locale_formats.cpp#get_date_pattern` takes the arrangement from the saved order and falls back to the language's default while none is saved; the language still supplies day and month names and the punctuation German writes. The order is kept in an atomic (`saved_date_format()` in `include/region_defaults.h`) because dates are also formatted off the main thread. The row lives in Settings > Language & Time, and `DisplaySettingsManager::on_language_changed` updates it while it still follows the language.
 
 ### Region defaults and the wizard step
 

@@ -4,13 +4,13 @@
 #include "ui_print_completion_modal.h"
 
 #include "ui_confetti.h"
-#include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_widget_ref.h"
 
 #include "app_globals.h"
 #include "core/subject.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "notice.h"

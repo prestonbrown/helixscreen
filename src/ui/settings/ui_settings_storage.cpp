@@ -3,11 +3,11 @@
 #include "ui_settings_storage.h"
 
 #include "ui_event_safety.h"
-#include "ui_format_utils.h"
 #include "ui_modal.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "display_format.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
 #include "printer_state.h"

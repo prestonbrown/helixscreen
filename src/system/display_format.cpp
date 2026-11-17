@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
+#include "display_format.h"
 
 #include "display_settings_manager.h"
 #include "format_utils.h"

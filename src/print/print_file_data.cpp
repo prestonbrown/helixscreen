@@ -3,8 +3,7 @@
 
 #include "print_file_data.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "moonraker_types.h"
 #include "usb_backend.h"
 

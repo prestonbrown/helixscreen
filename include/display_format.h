@@ -3,6 +3,16 @@
 
 #pragma once
 
+/**
+ * @file display_format.h
+ * @brief Strings for showing times, dates, sizes and counts to the user
+ *
+ * They follow the display settings (12/24-hour time, the date order, the
+ * language), which is why they sit beside DisplaySettingsManager in src/system
+ * rather than with the pure formatters of format_utils.h. Nothing here touches
+ * a widget, so state and print code format through it as the screens do.
+ */
+
 #include <cstdint>
 #include <ctime>
 #include <string>

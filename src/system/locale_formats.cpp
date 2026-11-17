@@ -3,7 +3,7 @@
 
 #include "locale_formats.h"
 
-#include "ui_format_utils.h"
+#include "display_format.h"
 
 #include "core/locale_code.h"
 #include "format_utils.h"

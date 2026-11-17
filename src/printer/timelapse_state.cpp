@@ -3,13 +3,12 @@
 
 #include "timelapse_state.h"
 
-#include "ui_format_utils.h"
-
 #include "app_globals.h"
 #include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "notice.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"

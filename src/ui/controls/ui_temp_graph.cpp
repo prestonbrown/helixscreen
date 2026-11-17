@@ -3,10 +3,10 @@
 
 #include "ui_temp_graph.h"
 
-#include "ui_format_utils.h"
 #include "ui_swatch.h"
 
 #include "core/temperature_units.h"
+#include "display_format.h"
 #include "flat_map.h"
 #include "lv_draw_buf_guard.h"
 #include "system/crash_handler.h"

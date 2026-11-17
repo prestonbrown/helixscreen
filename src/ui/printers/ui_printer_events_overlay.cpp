@@ -3,9 +3,8 @@
 
 #include "ui_printer_events_overlay.h"
 
-#include "ui_format_utils.h"
-
 #include "app_globals.h"
+#include "display_format.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lvgl.h"

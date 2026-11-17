@@ -450,7 +450,7 @@ src/ui/home/home_macro_run.cpp
 src/core/i18n_plural.cpp
 src/core/temperature_units.cpp
 src/core/temp_unit_subject.cpp
-src/ui/locale_formats.cpp
+src/system/locale_formats.cpp
 src/ui/printers/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
@@ -631,7 +631,7 @@ src/ui/filament/ui_filament_path_topology.cpp
 src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
-src/ui/ui_format_utils.cpp
+src/system/display_format.cpp
 src/printer/display_numbering.cpp
 src/ui/lane_count_label.cpp
 src/ui/components/ui_gradient_canvas.cpp

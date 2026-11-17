@@ -3,7 +3,6 @@
 
 #include "src/ui/panel_widgets/maintenance_model.h"
 
-#include "ui_format_utils.h"
 #include "ui_maintenance_overlay.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
@@ -19,6 +18,7 @@
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"

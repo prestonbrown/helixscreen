@@ -3,10 +3,10 @@
 
 #include "ui_history_list_view.h"
 
-#include "ui_format_utils.h"
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
+#include "display_format.h"
 #include "filament_chip_model.h"
 #include "format_utils.h"
 #include "theme_manager.h"

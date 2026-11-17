@@ -4,7 +4,6 @@
 #include "ui_panel_notification_history.h"
 
 #include "ui_event_safety.h"
-#include "ui_format_utils.h"
 #include "ui_nav.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
@@ -15,6 +14,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "display_format.h"
 #include "lvgl.h"
 #include "printer_state.h"
 #include "ui/ui_widget_helpers.h"

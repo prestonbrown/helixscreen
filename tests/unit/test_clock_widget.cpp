@@ -1,10 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
+#include "display_format.h"
 #include "format_utils.h"
 #include "locale_formats.h"
 #include "panel_widget_manager.h"

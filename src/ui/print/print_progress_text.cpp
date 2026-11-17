@@ -3,8 +3,7 @@
 
 #include "print_progress_text.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "tune_controller.h"

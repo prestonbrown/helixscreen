@@ -4,8 +4,7 @@
 
 #include "screensaver_clock.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "locale_formats.h"
