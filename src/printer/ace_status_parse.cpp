@@ -32,12 +32,11 @@ std::optional<bool> ace_link_from_state(const std::string& state) {
 }
 
 ParkState read_park_state(const json& slot_json) {
-    if (slot_json.contains("park_state") && slot_json["park_state"].is_string()) {
-        const auto& text = slot_json["park_state"].get_ref<const std::string&>();
-        if (text == "parked") {
+    if (const auto text = ams::read_field<std::string>(slot_json, "park_state")) {
+        if (*text == "parked") {
             return ParkState::Parked;
         }
-        if (text == "loaded") {
+        if (*text == "loaded") {
             return ParkState::Loaded;
         }
     }
@@ -82,8 +81,8 @@ SlotDelta read_slot(const json& slot_json) {
         d.status = slot_status_from_string(*v);
         d.status_word = std::move(*v);
     }
-    if (slot_json.contains("color")) {
-        d.color = parse_slot_color(slot_json["color"]);
+    if (const json* color = json_util::find_member(slot_json, "color")) {
+        d.color = parse_slot_color(*color);
     }
     d.material = read_slot_material(slot_json);
     d.tool = read_slot_tool(slot_json, kMaxUnits * kSlotsPerUnit).value_or(-1);
@@ -97,10 +96,11 @@ SlotDelta read_slot(const json& slot_json) {
 
 SlotArray read_slots(const json& data) {
     SlotArray out;
-    if (!data.contains("slots") || !data["slots"].is_array()) {
+    const json* slots = json_util::find_array(data, "slots");
+    if (slots == nullptr) {
         return out;
     }
-    const auto& arr = data["slots"];
+    const auto& arr = *slots;
     if (arr.size() > kMaxSlotsPerObject) {
         out.refused_size = arr.size();
         return out;
@@ -135,12 +135,10 @@ ObjectDelta parse_ace_object(const json& data) {
     }
 
     d.slots = read_slots(data);
-    if (data.contains("slots") && data["slots"].is_array()) {
-        const auto& arr = data["slots"];
+    if (const json* slots = json_util::find_array(data, "slots")) {
+        const auto& arr = *slots;
         for (std::size_t i = 0; i < arr.size(); ++i) {
-            const auto& sj = arr[i];
-            if (sj.contains("status") && sj["status"].is_string() &&
-                sj["status"].get_ref<const std::string&>() == "loaded") {
+            if (ams::read_field<std::string>(arr[i], "status") == "loaded") {
                 d.first_loaded_entry = i;
                 break;
             }
@@ -189,8 +187,8 @@ StatusResponse parse_status_response(const json& data) {
     if (auto v = ams::read_integer_field(data, "instance_index"); v && *v >= 0) {
         r.instance_index = *v;
     }
-    if (r.names_manager && data["ace_manager"].is_object()) {
-        const auto& manager = data["ace_manager"];
+    if (const json* manager_obj = json_util::find_object(data, "ace_manager")) {
+        const auto& manager = *manager_obj;
         r.manager_object = true;
         r.manager_current_index = ams::read_integer_field(manager, "current_index");
         r.manager_sensors = read_path_sensors(manager);
